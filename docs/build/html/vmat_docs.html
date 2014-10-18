@@ -32,9 +32,6 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
         <li><a href="index.html">Pylinac 0.1.0a documentation</a> &raquo;</li> 
       </ul>
     </div>  
@@ -46,11 +43,8 @@
             
   <div class="section" id="vmat-module-documentation">
 <h1>VMAT module documentation<a class="headerlink" href="#vmat-module-documentation" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="module-pylinac.vmatqa">
-<span id="overview"></span><h2>Overview<a class="headerlink" href="#module-pylinac.vmatqa" title="Permalink to this headline">¶</a></h2>
-<p>The VMAT module consists of the class VMAT, which is capable of loading an Open field image and MLC field image and analyzing the
-images according to the Jorgensen et al. tests, specifically the dose-rate &amp; gantry-speed (DRGS) and MLC speed (MLCS) tests. The picket
-fence tests are analyzed in another module.</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 </div>
 <div class="section" id="running-the-demo">
 <h2>Running the Demo<a class="headerlink" href="#running-the-demo" title="Permalink to this headline">¶</a></h2>
@@ -116,7 +110,11 @@ ROIs were taken and their values:</p>
 </div>
 <div class="section" id="algorithm">
 <h2>Algorithm<a class="headerlink" href="#algorithm" title="Permalink to this headline">¶</a></h2>
-<p>The VMAT analyze algorithm works like such:</p>
+<p>The VMAT analyze algorithm is based on an interpretation of Jorgensen et al.&#8217;s description and works like such:</p>
+<p><strong>Allowances</strong></p>
+<ul class="simple">
+<li>The images can be acquired at any SID.</li>
+</ul>
 <p><strong>Assumptions</strong></p>
 <ul class="simple">
 <li>The tests were delivered using the DICOM RT plan files provided by Varian which follow the layout of Jorgensen et al.</li>
@@ -127,116 +125,28 @@ ROIs were taken and their values:</p>
 <li><em>Determine image scaling</em> &#8211; ROI determination is based on offsets from the center pixel of the image. However,
 some physicists use 150 cm SID and others use 100 cm, and others can use a clinical setting that may be between the two. To account for
 this, the SID is determined and then ROI scaling factors are determined to be able to produce properly-sized ROIs.</li>
-<li><em>Calculate ROI regions</em> &#8211; Once the scaling is determined, the ROI regions are calculated. Because the Jorgensen tests are always the
-same in terms of where the radiation gets delivered, these values are hardcoded. These values are scaled with the scaling factor
-determined above.</li>
-<li><em>ROI values extracted &amp; evaluated</em> &#8211;</li>
+</ul>
+<p><strong>Analysis</strong></p>
+<ul class="simple">
+<li><em>Calculate sample boundaries &amp; extract</em> &#8211; Because the Jorgensen tests are always the
+same in terms of where the radiation gets delivered, these values are hardcoded as offsets from the center pixel.
+These values are then scaled with the image scaling factor determined above. The mean of the pixel values determined
+by the boundaries is saved as the sample value.</li>
+<li><em>Normalize images</em> &#8211; Once the sample values (and thus segments) are determined, both images are normalized.
+Depending on the test, images are normalized by the 4th (DRGS) or mean of 2nd and 3rd (MLCS) segment for each image.</li>
+<li><em>Calculate sample and segment ratios</em> &#8211; Once the images are normalized to themselves, the sample values of the MLC
+field is divided by their corresponding open field values. These are the important values.</li>
+<li><em>Calculate segment means and standard deviations</em> &#8211; Segment means are calculated from the samples comprising the
+segment; standard deviations are determined the same way.</li>
+</ul>
+<p><strong>Post-Analysis</strong></p>
+<ul class="simple">
+<li><em>Test if samples pass tolerance</em> &#8211; For each sample, check if it was within the specified tolerance. If any samples
+fail, the whole test is considered failing.</li>
 </ul>
 </div>
 <div class="section" id="api-documentation">
 <h2>API Documentation<a class="headerlink" href="#api-documentation" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
-<dt id="pylinac.vmatqa.vmat.VMAT">
-<em class="property">class </em><tt class="descclassname">pylinac.vmatqa.vmat.</tt><tt class="descname">VMAT</tt><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT" title="Permalink to this definition">¶</a></dt>
-<dd><p>The VMAT class analyzes two DICOM images acquired via a linac&#8217;s EPID and analyzes
-regions of interest based on the paper by Jorgensen et al (<a class="reference external" href="http://dx.doi.org/10.1118/1.3552922">http://dx.doi.org/10.1118/1.3552922</a>), specifically,
-the dose-rate gantry speed (DRGS) and MLC speed (MLCS) tests.</p>
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.analyze">
-<tt class="descname">analyze</tt><big>(</big><em>test=''</em>, <em>tolerance=2</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.analyze"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.analyze" title="Permalink to this definition">¶</a></dt>
-<dd><p>Analyze 2 VMAT images, the open field image and MLC field image, according to 1 of 2 possible tests.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.get_string_results">
-<tt class="descname">get_string_results</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.get_string_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.get_string_results" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create a string of the summary of the analysis results.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.load_demo_image">
-<tt class="descname">load_demo_image</tt><big>(</big><em>test_type='drgs'</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.load_demo_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.load_demo_image" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load the demo DICOM images from demo files folder</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.load_image">
-<tt class="descname">load_image</tt><big>(</big><em>filepath</em>, <em>im_type='open'</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.load_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.load_image" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load the image directly by the file path (i.e. non-interactively).
-:param filepath: The absolute path to the DICOM image
-:type filepath: str
-:param im_type: Specifies whether the image is the Open (&#8216;open&#8217;) or MLC (&#8216;mlc&#8217;) field.
-:type im_type: str</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.load_image_UI">
-<tt class="descname">load_image_UI</tt><big>(</big><em>im_type='open'</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.load_image_UI"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.load_image_UI" title="Permalink to this definition">¶</a></dt>
-<dd><p>Open a Qt UI file browser to load dicom image for given VMAT image.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>im_type</strong> &#8211; string &#8216;open&#8217; or &#8216;dmlc&#8217;; specifies which file/image is being loaded</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.open_Jorgensen_PDF">
-<tt class="descname">open_Jorgensen_PDF</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.open_Jorgensen_PDF"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.open_Jorgensen_PDF" title="Permalink to this definition">¶</a></dt>
-<dd><p>Open the Jorgensen et al paper in PDF</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.run_demo_drgs">
-<tt class="descname">run_demo_drgs</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.run_demo_drgs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.run_demo_drgs" title="Permalink to this definition">¶</a></dt>
-<dd><p>Run the demo of the module for the Dose Rate &amp; Gantry Speed test.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.run_demo_mlcs">
-<tt class="descname">run_demo_mlcs</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.run_demo_mlcs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.run_demo_mlcs" title="Permalink to this definition">¶</a></dt>
-<dd><p>Run the demo of the module for the MLC speed test.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.set_test">
-<tt class="descname">set_test</tt><big>(</big><em>test='drgs'</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.set_test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.set_test" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set the test type for analysis.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>test</strong> (<em>str</em>) &#8211; &#8216;drgs&#8217; for Dose Rate &amp; Gantry Speed test or &#8216;mlcs&#8217; for MLC Speed test option</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.set_tolerance">
-<tt class="descname">set_tolerance</tt><big>(</big><em>tolerance=2.0</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.set_tolerance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.set_tolerance" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set percentage tolerance for the analysis test. Jorgensen et al. suggests a 3% tolerance but this seems too loose based on XP.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>tolerance</strong> (<em>float, int</em>) &#8211; Tolerance of will be converted to percentage; e.g. setTolerance(2) sets a 2% test tolerance.</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.vmatqa.vmat.VMAT.show_img_results">
-<tt class="descname">show_img_results</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.show_img_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.show_img_results" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create 2 figures showing the open and dynamic images with the ROIs and results drawn on. For standalone module use.</p>
-</dd></dl>
-
-</dd></dl>
-
 </div>
 </div>
 
@@ -249,7 +159,7 @@ the dose-rate gantry speed (DRGS) and MLC speed (MLCS) tests.</p>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">VMAT module documentation</a><ul>
-<li><a class="reference internal" href="#module-pylinac.vmatqa">Overview</a></li>
+<li><a class="reference internal" href="#overview">Overview</a></li>
 <li><a class="reference internal" href="#running-the-demo">Running the Demo</a></li>
 <li><a class="reference internal" href="#image-acquisition">Image Acquisition</a></li>
 <li><a class="reference internal" href="#typical-use">Typical Use</a></li>
@@ -287,15 +197,12 @@ the dose-rate gantry speed (DRGS) and MLC speed (MLCS) tests.</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
         <li><a href="index.html">Pylinac 0.1.0a documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">
         &copy; Copyright 2014, James Kerns.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b2.
     </div>
   </body>
 </html>

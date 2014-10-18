@@ -34,9 +34,6 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="module_design.html" title="General Module Design"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">Pylinac 0.1.0a documentation</a> &raquo;</li> 
@@ -50,10 +47,8 @@
             
   <div class="section" id="starshot-module-documentation">
 <h1>Starshot module documentation<a class="headerlink" href="#starshot-module-documentation" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="module-pylinac.starshot">
-<span id="overview"></span><h2>Overview<a class="headerlink" href="#module-pylinac.starshot" title="Permalink to this headline">¶</a></h2>
-<p>The Starshot module analyses a starshot film or multiple superimposed EPID images that measures the wobble of the
-radiation spokes, whether gantry, collimator, or couch.</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 </div>
 <div class="section" id="running-the-demo">
 <h2>Running the Demo<a class="headerlink" href="#running-the-demo" title="Permalink to this headline">¶</a></h2>
@@ -124,15 +119,14 @@ ROIs were taken and their values:</p>
 <li>The center of the &#8220;star&#8221; must be near an edge of the image.</li>
 <li>If using superimposed images, the images must be the same size.</li>
 <li>The radiation spokes must extend to both sides of the center. I.e. the spokes must not end at the center of the circle.</li>
-<li>The spokes must have an adjacent spacing of at least 3 degrees.</li>
 </ul>
 <p><strong>Pre-Analysis</strong></p>
 <ul class="simple">
 <li><em>Check image inversion</em> &#8211; The image is checked for proper inversion by summing the image along each axis and then
 finding the point of maximum value. If the point is not in the central 1/3 of the image, it is thought to be inverted.
 This check can be skipped but is enabled by default.</li>
-<li><em>Set mechanical isocenter</em> &#8211; Unless the user has manually set the pixel location of the mechanical isocenter (the
-starting point of the algorithm) it is automatically found by summing the image along each axis and finding the
+<li><em>Set mechanical isocenter</em> &#8211; Unless the user has manually set the pixel location of the start point,
+it is automatically found by summing the image along each axis and finding the
 center of the full-width, 80%-max of each sum.</li>
 </ul>
 <p><strong>Analysis</strong></p>
@@ -142,7 +136,7 @@ and at the radius given.</li>
 <li><em>Find spoke centers</em> &#8211; The circle profile is analyzed for peaks. Once the peaks are found, the pixels around the peak
 are reanalyzed to find the center of the full-width, half-max. An even number of spokes must be found (1 for each
 side. E.g. 3 collimator angles should produce 6 spokes, one for each side of the CAX).</li>
-<li><em>Match peaks</em> &#8211; Peaks are matched to their counterparts opposite the CAX to compose a line.</li>
+<li><em>Match peaks</em> &#8211; Peaks are matched to their counterparts opposite the CAX to compose a line using a simple peak offset.</li>
 <li><em>Find wobble</em> &#8211; Starting at the mechanical isocenter point, an evolutionary gradient method is utilized like this:
 for a 3x3 matrix around a starting point, the sum of distances to each line is calculated. If the center matrix value
 is not the lowest value (within a tolerance), the calculation is performed again, starting at the point of lowest value of the previous
@@ -157,100 +151,6 @@ tolerance.</li>
 </div>
 <div class="section" id="api-documentation">
 <h2>API Documentation<a class="headerlink" href="#api-documentation" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
-<dt id="pylinac.starshot.starshot.Starshot">
-<em class="property">class </em><tt class="descclassname">pylinac.starshot.starshot.</tt><tt class="descname">Starshot</tt><a class="reference internal" href="_modules/pylinac/starshot/starshot.html#Starshot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.starshot.starshot.Starshot" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates a Starshot instance for determining the wobble in a gantry, collimator,
-couch or MLC starshot image pattern.</p>
-<dl class="method">
-<dt id="pylinac.starshot.starshot.Starshot.analyze">
-<tt class="descname">analyze</tt><big>(</big><em>allow_inversion=True</em>, <em>radius=50</em><big>)</big><a class="reference internal" href="_modules/pylinac/starshot/starshot.html#Starshot.analyze"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.starshot.starshot.Starshot.analyze" title="Permalink to this definition">¶</a></dt>
-<dd><p>Analyze the starshot image.
-Analyze finds the minimum radius and center of a circle that touches all the lines
-(i.e. the wobble circle diameter and wobble center)</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>allow_inversion</strong> (<em>boolean</em>) &#8211; Specifies whether to let the algorithm automatically check the image for proper inversion. Analysis will
-likely fail without proper inversion. Use .invert_image() to manually invert.</li>
-<li><strong>radius</strong> (<em>int, float</em>) &#8211; Distance in % between starting isocenter (mech point) and closest image edge.</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.starshot.starshot.Starshot.clear_mech_point">
-<tt class="descname">clear_mech_point</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/starshot/starshot.html#Starshot.clear_mech_point"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.starshot.starshot.Starshot.clear_mech_point" title="Permalink to this definition">¶</a></dt>
-<dd><p>Clear/reset the mechanical iso.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.starshot.starshot.Starshot.load_demo_image">
-<tt class="descname">load_demo_image</tt><big>(</big><em>number=1</em><big>)</big><a class="reference internal" href="_modules/pylinac/starshot/starshot.html#Starshot.load_demo_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.starshot.starshot.Starshot.load_demo_image" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load a starshot demo image.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>number</strong> (<em>int</em>) &#8211; There are a few demo images. This number will choose which demo file to use. As of now
-there are 2 demo images.</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.starshot.starshot.Starshot.plot_analyzed_image">
-<tt class="descname">plot_analyzed_image</tt><big>(</big><em>plot=None</em><big>)</big><a class="reference internal" href="_modules/pylinac/starshot/starshot.html#Starshot.plot_analyzed_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.starshot.starshot.Starshot.plot_analyzed_image" title="Permalink to this definition">¶</a></dt>
-<dd><p>Draw the star lines, profile circle, and wobble circle on a matplotlib figure.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>plot</strong> (<em>matplotlib.image.AxesImage</em>) &#8211; The plot to draw on. If None, will create a new one.</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.starshot.starshot.Starshot.return_string_results">
-<tt class="descname">return_string_results</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/starshot/starshot.html#Starshot.return_string_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.starshot.starshot.Starshot.return_string_results" title="Permalink to this definition">¶</a></dt>
-<dd><p>Print the results of the analysis.
-:return string: A string with a statement of the minimum circle.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.starshot.starshot.Starshot.run_demo">
-<tt class="descname">run_demo</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/starshot/starshot.html#Starshot.run_demo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.starshot.starshot.Starshot.run_demo" title="Permalink to this definition">¶</a></dt>
-<dd><p>Run the Starshot module demo.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="pylinac.starshot.starshot.Starshot.set_mech_point">
-<tt class="descname">set_mech_point</tt><big>(</big><em>point</em>, <em>warn_if_far_away=True</em><big>)</big><a class="reference internal" href="_modules/pylinac/starshot/starshot.html#Starshot.set_mech_point"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.starshot.starshot.Starshot.set_mech_point" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set the mechanical isocenter (i.e. starting point) point manually.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>point</strong> (<em>list</em>) &#8211; [y,x]</li>
-<li><strong>warn_if_far_away</strong> (<em>boolean</em>) &#8211; If the point is far away from the automatic determination, warn user</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-</dd></dl>
-
 </div>
 </div>
 
@@ -263,7 +163,7 @@ there are 2 demo images.</td>
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Starshot module documentation</a><ul>
-<li><a class="reference internal" href="#module-pylinac.starshot">Overview</a></li>
+<li><a class="reference internal" href="#overview">Overview</a></li>
 <li><a class="reference internal" href="#running-the-demo">Running the Demo</a></li>
 <li><a class="reference internal" href="#image-acquisition">Image Acquisition</a></li>
 <li><a class="reference internal" href="#typical-use">Typical Use</a></li>
@@ -305,9 +205,6 @@ there are 2 demo images.</td>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="module_design.html" title="General Module Design"
              >previous</a> |</li>
         <li><a href="index.html">Pylinac 0.1.0a documentation</a> &raquo;</li> 
@@ -315,7 +212,7 @@ there are 2 demo images.</td>
     </div>
     <div class="footer">
         &copy; Copyright 2014, James Kerns.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b2.
     </div>
   </body>
 </html>

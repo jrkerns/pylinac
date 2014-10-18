@@ -10,7 +10,7 @@ compliant with Python 2.7, 3.3, and 3.4 thanks to the `future <python-future.org
 #TODO: insert images of results
 
 Intended Use
-============
+------------
 
 Pylinac is intended to be used by two types of physicists: ones who know at least a bit of programming and those who know nothing about
 programming.
@@ -23,7 +23,7 @@ For the second group, pylinac will come with its own GUI, allowing those who don
  the underlying pylinac substructure, and will be built after the API component.
 
 Philosophy
-==========
+----------
 
 Pylinac runs on a few philosophical principles:
 
@@ -33,7 +33,7 @@ Pylinac runs on a few philosophical principles:
 * The underlying code of pylinac should be easy to understand from the first look
 
 Algorithm Design Overview
-=========================
+-------------------------
 
 Generally speaking, the design of algorithms should all follow the same guidelines and appear as similar as possible. Each module will
 outline its own specific algorithm in its documentation.
@@ -50,7 +50,7 @@ outline its own specific algorithm in its documentation.
 * Algorithm method names should be as similar as possible from module to module.
 
 GUI Design
-==========
+----------
 
 The design of the graphical user interface (GUI) follows a general philosophy: *There is often too much information to show all at once,
 so the GUI should only show the information relevant for a given step.* This is accomplished by sorting information into "layers". Layers

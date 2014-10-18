@@ -4,12 +4,12 @@ VMAT module documentation
 =========================
 
 Overview
-========
+--------
 
 .. automodule:: pylinac.vmatqa
 
 Running the Demo
-================
+----------------
 
 To run the VMAT demo, run vmat.py, or create a script and run::
 
@@ -23,13 +23,13 @@ Results will be printed to the console and a figure showing both the Open field 
 
 
 Image Acquisition
-=================
+-----------------
 
 If you want to perform these specific QA tests, you'll need DICOM plan files that control the linac precisely to deliver the test fields.
 These can be downloaded from my.varian.com, but conveniently, they are included in this package #TODO: add link to files.
 
 Typical Use
-===========
+-----------
 
 The VMAT QA analysis follows what is specified in Jorgensen et al. and assumes your tests will run the exact same way. Let us assume
 you've made a VMAT object as follows::
@@ -72,9 +72,13 @@ The minimum needed to get going is to:
 For future reference, you can actually set the test and tolerance as arguments to the analyze method for even shorter code.
 
 Algorithm
-=========
+---------
 
-The VMAT analyze algorithm works like such:
+The VMAT analyze algorithm is based on an interpretation of Jorgensen et al.'s description and works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
 
 **Assumptions**
 
@@ -86,13 +90,28 @@ The VMAT analyze algorithm works like such:
 * *Determine image scaling* -- ROI determination is based on offsets from the center pixel of the image. However,
   some physicists use 150 cm SID and others use 100 cm, and others can use a clinical setting that may be between the two. To account for
   this, the SID is determined and then ROI scaling factors are determined to be able to produce properly-sized ROIs.
-* *Calculate ROI regions* -- Once the scaling is determined, the ROI regions are calculated. Because the Jorgensen tests are always the
-  same in terms of where the radiation gets delivered, these values are hardcoded. These values are scaled with the scaling factor
-  determined above.
-* *ROI values extracted & evaluated* --
+
+**Analysis**
+
+* *Calculate sample boundaries & extract* -- Because the Jorgensen tests are always the
+  same in terms of where the radiation gets delivered, these values are hardcoded as offsets from the center pixel.
+  These values are then scaled with the image scaling factor determined above. The mean of the pixel values determined
+  by the boundaries is saved as the sample value.
+* *Normalize images* -- Once the sample values (and thus segments) are determined, both images are normalized.
+  Depending on the test, images are normalized by the 4th (DRGS) or mean of 2nd and 3rd (MLCS) segment for each image.
+* *Calculate sample and segment ratios* -- Once the images are normalized to themselves, the sample values of the MLC
+  field is divided by their corresponding open field values. These are the important values.
+* *Calculate segment means and standard deviations* -- Segment means are calculated from the samples comprising the
+  segment; standard deviations are determined the same way.
+
+**Post-Analysis**
+
+* *Test if samples pass tolerance* -- For each sample, check if it was within the specified tolerance. If any samples
+  fail, the whole test is considered failing.
+
 
 API Documentation
-=================
+-----------------
 
 .. autoclass:: pylinac.vmatqa.vmat.VMAT
     :members:
