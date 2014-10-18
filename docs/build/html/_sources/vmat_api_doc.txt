@@ -1,0 +1,13 @@
+.. _vmat_api_doc:
+
+======================
+VMAT API documentation
+======================
+
+hello
+
+Introduction
+============
+
+.. automodule:: pylinac.vmatqa.vmat
+    :members:

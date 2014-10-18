@@ -1,0 +1,440 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pylinac.vmatqa.vmat &mdash; Pylinac 0.1.0a documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.1.0a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="Pylinac 0.1.0a documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">Pylinac 0.1.0a documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pylinac.vmatqa.vmat</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;The VMAT module consists of the class VMAT, which is capable of loading an Open field image and MLC field image and analyzing the</span>
+<span class="sd">images according to the Jorgensen et al. tests, specifically the dose-rate &amp; gantry-speed (DRGS) and MLC speed (MLCS) tests. The picket</span>
+<span class="sd">fence tests are analyzed in another module.</span>
+
+<span class="sd">Assumptions:</span>
+<span class="sd">    The physicist has performed the VMAT tests using the Varian DICOM RT plan files based on Jorgensen et al, which control the linac and</span>
+<span class="sd">    MLCs to deliver a very specific pattern for the DRGS &amp; MLCS tests which are delivered and captured by the EPID.</span>
+
+
+<span class="sd">.. moduleauthor: James Kerns &lt;jkerns100@gmail.com&gt;</span>
+
+<span class="sd">Created on Fri Nov 29 11:35:26 2013</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c"># builtins</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">absolute_import</span>
+<span class="kn">import</span> <span class="nn">os.path</span> <span class="kn">as</span> <span class="nn">osp</span>
+
+<span class="c"># 3rd party</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">mean</span><span class="p">,</span> <span class="n">arange</span><span class="p">,</span> <span class="n">array</span><span class="p">,</span> <span class="n">zeros</span><span class="p">,</span> <span class="n">std</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.cm</span> <span class="kn">as</span> <span class="nn">cm</span>
+<span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Rectangle</span>
+
+<span class="c"># internal</span>
+<span class="kn">from</span> <span class="nn">pylinac.common.common_functions</span> <span class="kn">import</span> <span class="n">open_PDF_file</span>
+<span class="kn">from</span> <span class="nn">pylinac.common.image_classes</span> <span class="kn">import</span> <span class="n">SingleImageObject</span>
+
+
+<span class="c"># Common constants</span>
+<span class="n">MLCS_seg_strs</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;1.6cm/s&#39;</span><span class="p">,</span> <span class="s">&#39;2.4cm/s&#39;</span><span class="p">,</span> <span class="s">&#39;0.8cm/s&#39;</span><span class="p">,</span> <span class="s">&#39;0.4cm/s&#39;</span><span class="p">)</span>
+<span class="n">DRGS_seg_strs</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;105MU/min&#39;</span><span class="p">,</span> <span class="s">&#39;210MU/min&#39;</span><span class="p">,</span> <span class="s">&#39;314MU/min&#39;</span><span class="p">,</span> <span class="s">&#39;417MU/min&#39;</span><span class="p">,</span> <span class="s">&#39;524MU/min&#39;</span><span class="p">,</span> <span class="s">&#39;592MU/min&#39;</span><span class="p">,</span> <span class="s">&#39;600MU/min&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VMAT"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT">[docs]</a><span class="k">class</span> <span class="nc">VMAT</span><span class="p">(</span><span class="n">SingleImageObject</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The VMAT class analyzes two DICOM images acquired via a linac&#39;s EPID and analyzes</span>
+<span class="sd">        regions of interest based on the paper by Jorgensen et al (http://dx.doi.org/10.1118/1.3552922), specifically,</span>
+<span class="sd">        the dose-rate gantry speed (DRGS) and MLC speed (MLCS) tests.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Class initialization</span>
+<span class="sd">        If using_pyqa is True, then the other parameters must also be passed in.</span>
+<span class="sd">        :param axes_open: the matplotlib axes where the open field image will be plotted to.</span>
+<span class="sd">        :param axes_dmlc: ditto for dmlc field.</span>
+<span class="sd">        :param results_box: the PyQt4 text box where the text results will be posted to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">SingleImageObject</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="nb">delattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s">&#39;image&#39;</span><span class="p">)</span>  <span class="c"># delete the SIO attr &#39;image&#39;. This is because we&#39;ll have two images (see below)</span>
+            <span class="c"># and it&#39;d be good not to be confused by the presence of image in the class.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image_open</span> <span class="o">=</span> <span class="bp">None</span> <span class="c"># the Open field image</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">image_dmlc</span> <span class="o">=</span> <span class="bp">None</span> <span class="c"># the DMLC field image</span>
+        <span class="c"># self._using_pyqa = using_pyqa # whether or not the module is being used in the PyTG142 GUI.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_test_type</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tolerance</span> <span class="o">=</span> <span class="mi">2</span> <span class="c"># default of 2%</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_roi_pass</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">]</span>  <span class="c"># list of booleans specifying whether each ROI of the test passed or failed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_test_types</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;drgs&#39;</span><span class="p">,</span> <span class="s">&#39;mlcs&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_im_types</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;open&#39;</span><span class="p">,</span> <span class="s">&#39;dmlc&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_passed_analysis</span> <span class="o">=</span> <span class="bp">False</span>  <span class="c"># a boolean specifying a final flag about about whether or not the test passed or failed</span>
+
+<div class="viewcode-block" id="VMAT.load_image_UI"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.load_image_UI">[docs]</a>    <span class="k">def</span> <span class="nf">load_image_UI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">im_type</span><span class="o">=</span><span class="s">&#39;open&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Open a Qt UI file browser to load dicom image for given VMAT image.</span>
+
+<span class="sd">        :param im_type: string &#39;open&#39; or &#39;dmlc&#39;; specifies which file/image is being loaded</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span>  <span class="n">im_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_im_types</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>  <span class="c"># open</span>
+            <span class="n">caption</span> <span class="o">=</span> <span class="s">&quot;Select Open EPID Image...&quot;</span>
+        <span class="k">elif</span> <span class="n">im_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_im_types</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>  <span class="c"># dmlc</span>
+            <span class="n">caption</span> <span class="o">=</span> <span class="s">&quot;Select DMLC EPID Image...&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&quot;im_type input string {s} not valid&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">im_type</span><span class="p">))</span>
+
+        <span class="n">fs</span> <span class="o">=</span> <span class="n">SingleImageObject</span><span class="o">.</span><span class="n">get_imagepath_UI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">caption</span><span class="o">=</span><span class="n">caption</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fs</span><span class="p">:</span>  <span class="c"># if user didn&#39;t hit cancel</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_image</span><span class="p">(</span><span class="n">fs</span><span class="p">,</span> <span class="n">im_type</span><span class="o">=</span><span class="n">im_type</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="VMAT.load_image"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.load_image">[docs]</a>    <span class="k">def</span> <span class="nf">load_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">,</span> <span class="n">im_type</span><span class="o">=</span><span class="s">&#39;open&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load the image directly by the file path (i.e. non-interactively).</span>
+<span class="sd">        :param filepath: The absolute path to the DICOM image</span>
+<span class="sd">        :type filepath: str</span>
+<span class="sd">        :param im_type: Specifies whether the image is the Open (&#39;open&#39;) or MLC (&#39;mlc&#39;) field.</span>
+<span class="sd">        :type im_type: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">img</span><span class="p">,</span> <span class="n">props</span> <span class="o">=</span> <span class="n">SingleImageObject</span><span class="o">.</span><span class="n">load_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">,</span> <span class="n">return_it</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">im_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_im_types</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>  <span class="c"># open</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">image_open</span> <span class="o">=</span> <span class="n">img</span>
+        <span class="k">elif</span> <span class="n">im_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_im_types</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>  <span class="c"># dmlc</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">image_dmlc</span> <span class="o">=</span> <span class="n">img</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&quot;im_type input string {s} not valid&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">im_type</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">im_props</span> <span class="o">=</span> <span class="n">props</span>
+</div>
+<div class="viewcode-block" id="VMAT.load_demo_image"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.load_demo_image">[docs]</a>    <span class="k">def</span> <span class="nf">load_demo_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_type</span><span class="o">=</span><span class="s">&#39;drgs&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load the demo DICOM images from demo files folder</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">test_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_types</span><span class="p">,</span> <span class="s">&quot;test_type input string was not valid. Must be &#39;mlcs&#39;, or &#39;drgs&#39;&quot;</span>
+
+        <span class="k">if</span> <span class="n">test_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_types</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">im_open_path</span> <span class="o">=</span> <span class="n">osp</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">osp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">osp</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;demo files&quot;</span><span class="p">,</span> <span class="s">&quot;MLCSopen-example.dcm&quot;</span><span class="p">)</span>
+            <span class="n">im_dmlc_path</span> <span class="o">=</span> <span class="n">osp</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">osp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">osp</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&#39;demo files&#39;</span><span class="p">,</span> <span class="s">&#39;MLCSmlc-example.dcm&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">im_open_path</span> <span class="o">=</span> <span class="n">osp</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">osp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">osp</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;demo files&quot;</span><span class="p">,</span> <span class="s">&quot;DRopen-example.dcm&quot;</span><span class="p">)</span>
+            <span class="n">im_dmlc_path</span> <span class="o">=</span> <span class="n">osp</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">osp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">osp</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&#39;demo files&#39;</span><span class="p">,</span> <span class="s">&#39;DRmlc-example.dcm&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_image</span><span class="p">(</span><span class="n">im_open_path</span><span class="p">,</span> <span class="n">im_type</span><span class="o">=</span><span class="s">&#39;open&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_image</span><span class="p">(</span><span class="n">im_dmlc_path</span><span class="p">,</span> <span class="n">im_type</span><span class="o">=</span><span class="s">&#39;dmlc&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="VMAT.run_demo_drgs"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.run_demo_drgs">[docs]</a>    <span class="k">def</span> <span class="nf">run_demo_drgs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Run the demo of the module for the Dose Rate &amp; Gantry Speed test.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_demo_image</span><span class="p">(</span><span class="s">&#39;drgs&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_test</span><span class="p">(</span><span class="s">&#39;drgs&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_tolerance</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">analyze</span><span class="p">()</span>
+        <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_string_results</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">show_img_results</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="VMAT.run_demo_mlcs"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.run_demo_mlcs">[docs]</a>    <span class="k">def</span> <span class="nf">run_demo_mlcs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Run the demo of the module for the MLC speed test.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_demo_image</span><span class="p">(</span><span class="s">&#39;mlcs&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_test</span><span class="p">(</span><span class="s">&#39;mlcs&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_tolerance</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">analyze</span><span class="p">()</span>
+        <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_string_results</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">show_img_results</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="VMAT.set_test"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.set_test">[docs]</a>    <span class="k">def</span> <span class="nf">set_test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="o">=</span><span class="s">&#39;drgs&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the test type for analysis.</span>
+
+<span class="sd">        :param test: &#39;drgs&#39; for Dose Rate &amp; Gantry Speed test or &#39;mlcs&#39; for MLC Speed test option</span>
+<span class="sd">        :type test: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">test</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_types</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s">&quot;setTest input string was not valid. Must be &#39;mlcs&#39;, or &#39;drgs&#39;&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_test_type</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="VMAT.set_tolerance"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.set_tolerance">[docs]</a>    <span class="k">def</span> <span class="nf">set_tolerance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tolerance</span><span class="o">=</span><span class="mf">2.0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set percentage tolerance for the analysis test. Jorgensen et al. suggests a 3% tolerance but this seems too loose based on XP.</span>
+
+<span class="sd">        :param tolerance: Tolerance of will be converted to percentage; e.g. setTolerance(2) sets a 2% test tolerance.</span>
+<span class="sd">        :type tolerance: float, int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">tolerance</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">float</span> <span class="ow">or</span> <span class="n">tolerance</span> <span class="o">&lt;</span> <span class="mf">0.1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Tolerance must be a float greater than 0&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tolerance</span> <span class="o">=</span> <span class="n">tolerance</span> <span class="o">/</span> <span class="mf">100.0</span>
+</div>
+    <span class="k">def</span> <span class="nf">_get_im_scaling_factors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determine the image scaling factors; initial values were based on 384x512 images @ 150cm SID.&quot;&quot;&quot;</span>
+        <span class="c"># Image size scaling</span>
+        <span class="n">y_scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_dmlc</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">384.0</span>
+        <span class="n">x_scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_dmlc</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mf">512.0</span>
+        <span class="c"># center pixel points</span>
+        <span class="n">x_im_center</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_dmlc</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="o">+</span> <span class="mf">0.5</span>
+        <span class="n">y_im_center</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_dmlc</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="o">+</span> <span class="mf">0.5</span>
+        <span class="c"># SID scaling</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">SID_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">im_props</span><span class="p">[</span><span class="s">&#39;SID&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1500.0</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">SID_scale</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">SID_scale</span><span class="p">,</span> <span class="n">x_im_center</span><span class="p">,</span> <span class="n">x_scale</span><span class="p">,</span> <span class="n">y_im_center</span><span class="p">,</span> <span class="n">y_scale</span>
+
+<div class="viewcode-block" id="VMAT.analyze"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.analyze">[docs]</a>    <span class="k">def</span> <span class="nf">analyze</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">tolerance</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Analyze 2 VMAT images, the open field image and MLC field image, according to 1 of 2 possible tests.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># error checking that images are loaded. If using in PyTG142, warn user. If using standalone, assert error</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_open</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_dmlc</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s">&quot;Open or DMLC Image not loaded yet. Use .load_image()&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_type</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s">&quot;VMAT test type has not yet been specified. Use .set_test()&quot;</span><span class="p">)</span>
+
+        <span class="c"># get the image scaling factors and center pixels</span>
+        <span class="n">SID_scale</span><span class="p">,</span> <span class="n">x_im_center</span><span class="p">,</span> <span class="n">x_scale</span><span class="p">,</span> <span class="n">y_im_center</span><span class="p">,</span> <span class="n">y_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_im_scaling_factors</span><span class="p">()</span>
+
+        <span class="c"># set up ROI points used in both tests</span>
+        <span class="n">roi_height</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">370</span> <span class="o">*</span> <span class="n">y_scale</span> <span class="o">*</span> <span class="n">SID_scale</span><span class="p">)</span>
+        <span class="n">roi_ypixels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">([</span><span class="n">y_im_center</span> <span class="o">-</span> <span class="n">roi_height</span><span class="o">/</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">y_im_center</span> <span class="o">+</span> <span class="n">roi_height</span><span class="o">/</span><span class="mf">2.0</span><span class="p">])</span>
+
+        <span class="c"># set up MLC speed ROI points</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_types</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">width</span><span class="p">,</span> <span class="n">roi_no</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">42</span> <span class="o">*</span> <span class="n">x_scale</span> <span class="o">*</span> <span class="n">SID_scale</span><span class="p">),</span> <span class="mi">4</span>
+            <span class="n">x_pixel_offsets</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">107</span><span class="p">,</span> <span class="o">-</span><span class="mi">49</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">68</span><span class="p">)</span>  <span class="c"># offsets from the central x-pixel which are left-side starting points for the ROIs</span>
+            <span class="n">x_pixel_starts</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">x_im_center</span> <span class="o">+</span> <span class="p">(</span><span class="n">item</span><span class="o">*</span><span class="n">x_scale</span><span class="o">*</span><span class="n">SID_scale</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">x_pixel_offsets</span><span class="p">]</span> <span class="c"># multiply by scaling factor</span>
+            <span class="n">roi_xpixels</span> <span class="o">=</span> <span class="p">[(</span><span class="n">item</span><span class="p">,</span> <span class="n">item</span> <span class="o">+</span> <span class="n">width</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">x_pixel_starts</span><span class="p">]</span>  <span class="c"># create a list of the left/right</span>
+
+        <span class="c"># set up Dose-Rate Gantry-Speed ROI points</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">width</span><span class="p">,</span> <span class="n">roi_no</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">26</span> <span class="o">*</span> <span class="n">x_scale</span> <span class="o">*</span> <span class="n">SID_scale</span><span class="p">),</span> <span class="mi">7</span>
+            <span class="n">x_pixel_offsets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="mi">147</span><span class="p">,</span> <span class="mi">185</span><span class="p">,</span> <span class="mi">223</span><span class="p">,</span> <span class="mi">261</span><span class="p">,</span> <span class="mi">299</span><span class="p">,</span> <span class="mi">337</span><span class="p">,</span> <span class="mi">376</span><span class="p">))</span> <span class="o">-</span> <span class="mi">256</span>
+            <span class="n">x_pixel_starts</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">x_im_center</span> <span class="o">+</span> <span class="p">(</span><span class="n">item</span> <span class="o">*</span> <span class="n">x_scale</span><span class="o">*</span><span class="n">SID_scale</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">x_pixel_offsets</span><span class="p">]</span>  <span class="c"># multiply by scaling factors</span>
+            <span class="n">roi_xpixels</span> <span class="o">=</span> <span class="p">[(</span><span class="n">item</span><span class="p">,</span> <span class="n">item</span> <span class="o">+</span> <span class="n">width</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">x_pixel_starts</span><span class="p">]</span>
+
+        <span class="c">#preallocation/instantiation</span>
+        <span class="n">roiratios</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">((</span><span class="n">roi_height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">roi_no</span><span class="p">))</span>  <span class="c"># 3D array of the ROI ratios</span>
+        <span class="n">openroimeans</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">(</span><span class="n">roi_no</span><span class="p">)</span>
+        <span class="n">dmlcroimeans</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">(</span><span class="n">roi_no</span><span class="p">)</span>
+        <span class="n">meanratios</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">(</span><span class="n">roi_no</span><span class="p">)</span>
+        <span class="n">ratiostd</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">(</span><span class="n">roi_no</span><span class="p">)</span>
+
+        <span class="c"># this pulls the ROIs from the Open and DMLC image into new arrays</span>
+        <span class="c"># which are analyzed for the mean and standard deviation.</span>
+        <span class="k">for</span> <span class="n">roi</span> <span class="ow">in</span> <span class="n">arange</span><span class="p">(</span><span class="n">roi_no</span><span class="p">):</span>
+            <span class="c"># extract ROI values</span>
+            <span class="n">mlcroi</span> <span class="o">=</span> <span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_dmlc</span><span class="p">[</span><span class="n">roi_ypixels</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">roi_ypixels</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">roi_xpixels</span><span class="p">[</span><span class="n">roi</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span><span class="n">roi_xpixels</span><span class="p">[</span><span class="n">roi</span><span class="p">][</span><span class="mi">1</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">openroi</span> <span class="o">=</span> <span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_open</span><span class="p">[</span><span class="n">roi_ypixels</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">roi_ypixels</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">roi_xpixels</span><span class="p">[</span><span class="n">roi</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span><span class="n">roi_xpixels</span><span class="p">[</span><span class="n">roi</span><span class="p">][</span><span class="mi">1</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="c"># calculate ratio of MLC to Open (what Jorgensen calls Icorr)</span>
+            <span class="n">meanratios</span><span class="p">[</span><span class="n">roi</span><span class="p">]</span> <span class="o">=</span> <span class="n">mean</span><span class="p">(</span><span class="n">openroi</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span> <span class="o">/</span> <span class="n">mean</span><span class="p">(</span><span class="n">mlcroi</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span>
+            <span class="c"># calculate standard deviation of ROI ratio</span>
+            <span class="n">ratiostd</span><span class="p">[</span><span class="n">roi</span><span class="p">]</span> <span class="o">=</span> <span class="n">std</span><span class="p">(</span><span class="n">mlcroi</span> <span class="o">/</span> <span class="n">openroi</span><span class="p">)</span>
+
+        <span class="c"># an image normalization factor. This accounts for the relative pixel value differences of the two images.</span>
+        <span class="c"># Note that this will normalize all the results.</span>
+        <span class="n">imagenorm_factor</span> <span class="o">=</span> <span class="n">mean</span><span class="p">(</span><span class="n">dmlcroimeans</span><span class="p">)</span> <span class="o">/</span> <span class="n">mean</span><span class="p">(</span><span class="n">openroimeans</span><span class="p">)</span>
+
+        <span class="c"># attach the ROI ratios and standard deviation of the ratios to self</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span> <span class="o">=</span> <span class="n">meanratios</span> <span class="o">/</span> <span class="n">imagenorm_factor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span> <span class="o">=</span> <span class="n">ratiostd</span>
+        <span class="c"># attach other ROI values to self (mostly used by _drawlines())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_height</span> <span class="o">=</span> <span class="n">roi_height</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_width</span> <span class="o">=</span> <span class="n">width</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_roi_ypixels</span> <span class="o">=</span> <span class="n">roi_ypixels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_x_pixel_starts</span> <span class="o">=</span> <span class="n">x_pixel_starts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_roi_no</span> <span class="o">=</span> <span class="n">roi_no</span>
+
+        <span class="c"># run a pass/fail test on results</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_passfail</span><span class="p">()</span>
+</div>
+    <span class="k">def</span> <span class="nf">_run_passfail</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checks whether the ROI ratios passed the given tolerance.</span>
+
+<span class="sd">         This is mostly used in conjunction with PyTG142 to color the ROIs green/red for pass/fail results.</span>
+<span class="sd">         It&#39;s not necessary to run unless draw_lines() is used.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tolerance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">,</span> <span class="s">&quot;VMAT tolerance not yet set&quot;</span>
+
+        <span class="c"># create boolean array the size of the number of ROIs; default to fail until pass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_roi_pass</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roi_no</span>
+
+        <span class="c"># for each ROI, if ratio is within tolerance, set to True</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_roi_no</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tolerance</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tolerance</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_roi_pass</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="c"># if all ROIs passed, set overall flag to pass</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_roi_pass</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_passed_analysis</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">_draw_objects</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot</span><span class="p">,</span> <span class="n">draw</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method draws lines on the matplotlib widget/figure (pyqa_plot) showing an outline of the ROIs used in</span>
+<span class="sd">        the calcuation and text of the results</span>
+
+<span class="sd">        @type plot: matplotlib.axes.Axes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c"># clear images of any existing objects that are on it</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;roi_handles&#39;</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">handle</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_handles</span><span class="p">:</span>
+                <span class="n">handle</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">handle</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_handles</span><span class="p">:</span>
+                <span class="n">handle</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">draw</span><span class="p">:</span>
+                <span class="n">plot</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+        <span class="c">#plot ROI lines on image</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">roi_handles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">text_handles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_types</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>  <span class="c"># DRGS</span>
+            <span class="n">textstr</span> <span class="o">=</span> <span class="n">DRGS_seg_strs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">textstr</span> <span class="o">=</span> <span class="n">MLCS_seg_strs</span>
+
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_roi_no</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roi_pass</span><span class="p">[</span><span class="n">index</span><span class="p">]:</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="s">&#39;blue&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="s">&#39;red&#39;</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">roi_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Rectangle</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_x_pixel_starts</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roi_ypixels</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                                              <span class="bp">self</span><span class="o">.</span><span class="n">_width</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_height</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+            <span class="n">plot</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_handles</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+
+            <span class="c"># add text of results</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">text_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plot</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_x_pixel_starts</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roi_ypixels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">25</span><span class="p">,</span>
+                                <span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">textstr</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="n">index</span><span class="p">])),</span>
+                                <span class="n">rotation</span><span class="o">=-</span><span class="mi">90</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">draw</span><span class="p">:</span>
+            <span class="n">plot</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+<div class="viewcode-block" id="VMAT.show_img_results"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.show_img_results">[docs]</a>    <span class="k">def</span> <span class="nf">show_img_results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create 2 figures showing the open and dynamic images with the ROIs and results drawn on. For standalone module use.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="p">(</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax2</span><span class="p">)</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_open</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="o">.</span><span class="n">Greys_r</span><span class="p">)</span>  <span class="c"># http://stackoverflow.com/questions/3823752/display-image-as-grayscale-using-matplotlib</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_dmlc</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="o">.</span><span class="n">Greys_r</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&quot;Open Field Image&quot;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">&quot;DMLC Field Image&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_draw_objects</span><span class="p">(</span><span class="n">ax2</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="VMAT.get_string_results"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.get_string_results">[docs]</a>    <span class="k">def</span> <span class="nf">get_string_results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a string of the summary of the analysis results.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_type</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s">&quot;VMAT test type not yet specified&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_passed_analysis</span><span class="p">:</span>
+            <span class="n">passfail_str</span> <span class="o">=</span> <span class="s">&#39;PASS&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">passfail_str</span> <span class="o">=</span> <span class="s">&#39;FAIL&#39;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_types</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>  <span class="c"># DRGS</span>
+            <span class="n">string</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;Dose Rate &amp; Gantry Speed </span><span class="se">\n</span><span class="s">Test Results (Tol. +/-</span><span class="si">%2.1f%%</span><span class="s">): </span><span class="si">%s</span><span class="se">\n</span><span class="s">105MU/min: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s">&#39;</span>
+                      <span class="s">&#39;</span><span class="se">\n</span><span class="s">210MU/min: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s"> </span><span class="se">\n</span><span class="s">314MU/min: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s">&#39;</span>
+                      <span class="s">&#39;</span><span class="se">\n</span><span class="s">417MU/min: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s"> </span><span class="se">\n</span><span class="s">524MU/min: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s">&#39;</span>
+                      <span class="s">&#39;</span><span class="se">\n</span><span class="s">592MU/min: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s"> </span><span class="se">\n</span><span class="s">600MU/min: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s">&#39;</span> <span class="o">%</span>
+                      <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tolerance</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="n">passfail_str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">6</span><span class="p">]))</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c"># MLC Speed</span>
+            <span class="n">string</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;MLC Speed </span><span class="se">\n</span><span class="s">Test Results (Tol. +/-</span><span class="si">%2.1f%%</span><span class="s">): </span><span class="si">%s</span><span class="se">\n</span><span class="s">1.6cm/s: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span>
+                      <span class="s">&#39;2.4cm/s: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s"> </span><span class="se">\n</span><span class="s">0.8cm/s: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span>
+                      <span class="s">&#39;0.4cm/s: </span><span class="si">%4.3f</span><span class="s"> +/- </span><span class="si">%4.3f</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tolerance</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="n">passfail_str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_ratios_std</span><span class="p">[</span><span class="mi">3</span><span class="p">]))</span>
+
+        <span class="k">return</span> <span class="n">string</span>
+
+</div>
+<div class="viewcode-block" id="VMAT.open_Jorgensen_PDF"><a class="viewcode-back" href="../../../vmat_docs.html#pylinac.vmatqa.vmat.VMAT.open_Jorgensen_PDF">[docs]</a>    <span class="k">def</span> <span class="nf">open_Jorgensen_PDF</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Open the Jorgensen et al paper in PDF&quot;&quot;&quot;</span>
+        <span class="n">open_PDF_file</span><span class="p">(</span><span class="s">&#39;Jorgensen, Tolerance levels of EPID-based QA for VMAT.pdf&#39;</span><span class="p">)</span>
+
+
+<span class="c">#---------------------------------------------------------------------------------------------------------------------</span>
+<span class="c"># VMAT demo.</span>
+<span class="c">#---------------------------------------------------------------------------------------------------------------------</span></div></div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">VMAT</span><span class="p">()</span><span class="o">.</span><span class="n">run_demo_drgs</span><span class="p">()</span>
+    <span class="c"># VMAT().run_demo_mlcs()  # uncomment to run MLCS demo</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">Pylinac 0.1.0a documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, James Kerns.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

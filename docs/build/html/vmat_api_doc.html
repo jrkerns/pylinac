@@ -1,0 +1,203 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>VMAT API documentation &mdash; Pylinac 0.1.0a documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1.0a',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Pylinac 0.1.0a documentation" href="index.html" />
+    <link rel="prev" title="Welcome to Pylinac’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to Pylinac’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Pylinac 0.1.0a documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="vmat-api-documentation">
+<span id="vmat-api-doc"></span><h1>VMAT API documentation<a class="headerlink" href="#vmat-api-documentation" title="Permalink to this headline">¶</a></h1>
+<p>hello</p>
+<div class="section" id="module-pylinac.vmatqa.vmat">
+<span id="introduction"></span><h2>Introduction<a class="headerlink" href="#module-pylinac.vmatqa.vmat" title="Permalink to this headline">¶</a></h2>
+<p>VMAT module
+.. moduleauthor: James Kerns &lt;<a class="reference external" href="mailto:jkerns100&#37;&#52;&#48;gmail&#46;com">jkerns100<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;</p>
+<p>Created on Fri Nov 29 11:35:26 2013</p>
+<p>&#64;author: James Kerns &lt;<a class="reference external" href="mailto:jkerns100&#37;&#52;&#48;gmail&#46;com">jkerns100<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;</p>
+<dl class="class">
+<dt id="pylinac.vmatqa.vmat.VMAT">
+<em class="property">class </em><tt class="descclassname">pylinac.vmatqa.vmat.</tt><tt class="descname">VMAT</tt><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT" title="Permalink to this definition">¶</a></dt>
+<dd><p>The VMAT class analyzes two DICOM images acquired via a linac&#8217;s EPID and analyzes
+regions of interest based on the paper by Jorgensen et al (<a class="reference external" href="http://dx.doi.org/10.1118/1.3552922">http://dx.doi.org/10.1118/1.3552922</a>), specifically,
+the dose-rate gantry speed (DRGS) and MLC speed (MLCS) tests.</p>
+<dl class="method">
+<dt id="pylinac.vmatqa.vmat.VMAT.analyze">
+<tt class="descname">analyze</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.analyze"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.analyze" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyze 2 VMAT images, the open field and DMLC image, according to 1 of 2 possible tests.</p>
+<p>Open and DMLC images must be loaded, tolerance set, and test type chosen</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylinac.vmatqa.vmat.VMAT.draw_images">
+<tt class="descname">draw_images</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.draw_images"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.draw_images" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create 2 figures showing the open and dynamic images with the ROIs and results drawn on. For standalone module use.
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylinac.vmatqa.vmat.VMAT.get_string_results">
+<tt class="descname">get_string_results</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.get_string_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.get_string_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a string return of the summary of the results.</p>
+<p>pyqa_textbox: Post string to PyTG142 textbox and change background color to red or green based on results</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylinac.vmatqa.vmat.VMAT.load_demo_image">
+<tt class="descname">load_demo_image</tt><big>(</big><em>test_type='drgs'</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.load_demo_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.load_demo_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load the demo DICOM images from demo files folder</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylinac.vmatqa.vmat.VMAT.load_image">
+<tt class="descname">load_image</tt><big>(</big><em>filepath</em>, <em>im_type='open'</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.load_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.load_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load the image directly by the file path (i.e. non-interactively)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylinac.vmatqa.vmat.VMAT.load_image_UI">
+<tt class="descname">load_image_UI</tt><big>(</big><em>im_type='open'</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.load_image_UI"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.load_image_UI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Open a Qt UI file browser to load dicom image for given VMAT image.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>im_type</strong> &#8211; string &#8216;open&#8217; or &#8216;dmlc&#8217;; specifies which file/image is being loaded</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylinac.vmatqa.vmat.VMAT.open_Jorgensen_PDF">
+<tt class="descname">open_Jorgensen_PDF</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.open_Jorgensen_PDF"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.open_Jorgensen_PDF" title="Permalink to this definition">¶</a></dt>
+<dd><p>Open Jorgensen et al in PDF</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylinac.vmatqa.vmat.VMAT.set_test">
+<tt class="descname">set_test</tt><big>(</big><em>test='mlcs'</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.set_test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.set_test" title="Permalink to this definition">¶</a></dt>
+<dd><p>set the test type for the VMAT class</p>
+<dl class="docutils">
+<dt>test: &#8216;drgs&#8217; or 0 for Dose Rate &amp; Gantry Speed test option or</dt>
+<dd>&#8216;mlcs&#8217; or 1 for MLC Speed test option</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylinac.vmatqa.vmat.VMAT.set_tolerance">
+<tt class="descname">set_tolerance</tt><big>(</big><em>tolerance=2.0</em><big>)</big><a class="reference internal" href="_modules/pylinac/vmatqa/vmat.html#VMAT.set_tolerance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylinac.vmatqa.vmat.VMAT.set_tolerance" title="Permalink to this definition">¶</a></dt>
+<dd><p>set percentage tolerance of the test. Jorgensen suggests a 3% tolerance but this seems too loose based on XP.</p>
+<dl class="docutils">
+<dt>tolerance: float; will be converted to percentage.</dt>
+<dd>E.g. setTolerance(2) sets a 2% test tolerance.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">VMAT API documentation</a><ul>
+<li><a class="reference internal" href="#module-pylinac.vmatqa.vmat">Introduction</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to Pylinac&#8217;s documentation!</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/vmat_api_doc.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to Pylinac’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">Pylinac 0.1.0a documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, James Kerns.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

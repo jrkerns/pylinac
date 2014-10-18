@@ -46,6 +46,7 @@ class VMAT(SingleImageObject):
         self.image_mlc = None # the MLC field image
         self._test_type = None  # the test to perform
         self._tolerance = 2 # default of 3% tolerance as Jorgensen recommends
+        self._samples = np.array([])
         self._samples_passed = np.array([])  # list of booleans specifying whether each ROI of the test passed or failed
         self._test_types = ('drgs', 'mlcs')
         self._im_types = ('open', 'mlc')
