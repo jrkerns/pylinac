@@ -12,15 +12,9 @@ class VMAT_general_tests(unittest.TestCase):
     def setUp(self):
         self.vmat = VMAT()
 
-    def test_analyze_without_test_set(self):
-        """raise an error if the test is not set when performing analysis"""
-        self.vmat.load_demo_image()
-        # trying to analyze without setting test should raise error
-        self.assertRaises(AttributeError, self.vmat.analyze)
-
     def test_analyze_without_both_images_loaded(self):
         """Raise an error if both images aren't loaded when analyzing."""
-        self.assertRaises(AttributeError, self.vmat.analyze)
+        self.assertRaises(AttributeError, self.vmat.analyze, 'mlcs')
 
 class VMAT_demo_test_mlcs(unittest.TestCase):
     """Tests of the MLCS demo images."""

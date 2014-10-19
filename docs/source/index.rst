@@ -14,9 +14,8 @@ Contents:
    overview
    installation
    getting_started
-   module_design
    starshot_docs
-
+   vmat_docs
 
 
 Indices and tables

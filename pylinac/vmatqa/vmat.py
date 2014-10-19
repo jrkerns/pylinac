@@ -134,7 +134,7 @@ class VMAT(SingleImageObject):
         """
         # error checking that images are loaded. If using in PyTG142, warn user. If using standalone, assert error
         if self.image_open is None or self.image_mlc is None:
-            raise AttributeError("Open or DMLC Image not loaded yet. Use .load_image()")
+            raise AttributeError("Open or MLC Image not loaded yet. Use .load_image()")
         if test.lower() not in self._test_types:
             raise NameError("Test input string was not valid. Must be 'mlcs', or 'drgs'")
         if (type(tolerance) != float and type(tolerance) != int)or tolerance < 0.1:

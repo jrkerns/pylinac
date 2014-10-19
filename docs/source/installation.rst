@@ -1,4 +1,4 @@
-
+.. _installation:
 
 ============
 Installation
@@ -13,8 +13,9 @@ I know Python already
 
 Great! To get started, simply install pylinac through ``pip install pylinac`` via PyPI.
 
-Alternatively, you can install from the github repository directly:
-#TODO: added http when pylinac goes public.
+Alternatively, you can install from the github repository directly::
+
+    pip install https://github.com/jrkerns/pylinac.git
 
 Finally, you can download the repo (from github) and run ``setup.py install`` in the root directory
 
@@ -23,10 +24,10 @@ I'm new to Python
 
 That's okay! If you're not a programmer at all you'll have a few things to do to get up and running,
 but never fear. Using pylinac requires not just the base language Python, but a few dependencies as well (see below). If you're new to
-programming or come from, say MATLAB, you probably want to use an Integrated Development Environment (IDE). Unlike with MATLAB,
+programming or come from, say MATLAB, you probably want to use an Integrated Development Environment (IDE). Unlike MATLAB,
 you have a choice in IDEs when using Python; in fact the choices are numerous! Two that are worth considering are PyCharm and Spyder. An
-easy way to get all of this in one lump sum is to download a distribution "stack", which includes Python and an number of other packages
-(see below for options).
+easy way to get all of this in one lump sum is to download a distribution "stack", which includes Python and a number of other packages
+(see note below for options).
 
 Dependencies
 ------------
@@ -45,9 +46,9 @@ A Note About Dependencies
 
 So, if you're new to Python or you don't already have the packages listed, particularly numpy/scipy,
 it is best to get these from a source that has already compiled these packages. Installing them via ``pip`` won't work unless
-you have the underlying libraries installed, which is most likely not the case. There are a number of places you can get them
+you have the underlying libraries installed, which is often not the case. There are a number of places you can get them
 pre-compiled. Check out `Scipy's installation options <http://www.scipy.org/install.html>`_ for more on scientific distribution stacks. For
 people new to Python, the easiest solution is likely Python(x,y) or Anaconda. Both include the Spyder IDE,
-which appears similar to MATLAB. Installing one of those will have you up and running in no time.
+which appears similar to MATLAB's. Installing one of those will have you up and running in no time.
 
 

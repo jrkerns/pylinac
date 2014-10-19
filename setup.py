@@ -5,14 +5,16 @@ ez_setup.use_setuptools()
 
 from setuptools import setup
 
+from pylinac import __version__
+
 # PyPI checklist:
 # 1. Ensure version has incremented.
 # 2. In PyCharm, go to Tools/Run setup.py task.../sdist with command line option "upload" (to push to PyPI)
 
 setup(
     name='pylinac',
-    version='0.1.1a',
-    packages=['pylinac/starshot'],
+    version=__version__,
+    packages=['pylinac/starshot', 'pylinac/vmatqa'],
     include_package_data=True,
     zip_safe=False,  # allows users to view data in egg/distribution
     url='https://github.com/jrkerns/pylinac',
@@ -23,7 +25,7 @@ setup(
     install_requires=[str(ir.req) for ir in parse_requirements('requirements.txt')],
     test_suite='tools.test_all',
     classifiers=[
-          "Development Status:: 4 - Beta",
+          "Development Status :: 4 - Beta",
           "Intended Audience :: Developers",
           "Intended Audience :: End Users/Desktop",
           "Intended Audience :: Healthcare Industry",

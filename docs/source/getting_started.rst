@@ -1,27 +1,33 @@
-
+.. _getting_started:
 
 ===============
 Getting Started
 ===============
 
 Getting started with pylinac is easy! Once installed, you can write your own script in a matter of minutes. Each module of pylinac
-addresses the topic of its name (e.g. ''VMAT'' performs VMAT-related QA tests), and all modules are importable from pylinac. Furthermore,
-each module is designed as similarly as possible to one another. So once you start using one module,
-it's easy to use another. Each module also has its own demo to show off what it can do.
+addresses the topic of its name (e.g. ''Starshot'' performs starshot analysis tests), and all modules are importable from pylinac.
+Furthermore, each module is designed as similarly as possible to one another. So once you start using one module,
+it's easy to use another (see :ref:`module_design`). Each module also has its own demo to show off what it can do.
 
-Let's get started by running a demo with the ''VMAT'' module. First, import pylinac and its VMAT module::
+Let's get started by running a demo of the ''Starshot'' module. First, import the Starshot class::
 
-    from pylinac import VMAT
+    from pylinac import Starshot
 
-This imports the VMAT class, which has all the capabilities of loading and analyzing VMAT EPID images. Let's 1) create an instance of that
+This class has all the capabilities of loading and analyzing a Starshot image. Let's 1) create an instance of that
 class and then 2) run its demonstration method::
 
-    myvmat = VMAT()
-    myvmat.run_demo_drgs()
+    mystar = Starshot()
+    mystar.run_demo()
 
-Running this should result in a printing of information to the console and an image showing the Open field and MLC field, like so:
+Running this should result in a printing of information to the console and an image showing the analyzed image, like so::
 
-#TODO: embed print results and matplotlib image.
+    Result: PASS
+    The miminum circle that touches all the star lines has a radius of 0.494 mm.
+    The center of the minimum circle is at 1511.5, 1302.1
+
+.. image:: /images/analyzed_starshot.png
+   :height: 340
+   :width: 300
 
 Congratulations! In 3 lines you've successfully used a pylinac module. Of course there's more to it than that; you'll want to analyze your
-own images.
+own images. For further documentation on starshots, see :ref:`starshot_doc`.

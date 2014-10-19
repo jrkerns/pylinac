@@ -1,4 +1,6 @@
 
+.. _starshot_doc:
+
 =============================
 Starshot module documentation
 =============================
