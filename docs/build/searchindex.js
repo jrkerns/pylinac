@@ -1,1 +1,0 @@
-Search.setIndex({terms:{search:0,modul:0,index:0,content:0,page:0},objects:{},objnames:{},titleterms:{pylinac:0,welcom:0,indic:0,tabl:0,document:0},titles:["Welcome to Pylinac&#8217;s documentation!"],objtypes:{},envversion:43,filenames:["index"]})
