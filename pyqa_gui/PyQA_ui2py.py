@@ -14,7 +14,7 @@ import os.path as osp
 import pysideuic as uic
 
 
-uifile = osp.join(os.getcwd(), 'PyQA.ui')
+uifile = osp.join(os.getcwd(), 'PyQAui.ui')
 pyfile = osp.join(os.getcwd(), 'PyQAui.py')
 
 # compile .py file from .ui file

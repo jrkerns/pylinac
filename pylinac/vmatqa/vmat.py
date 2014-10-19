@@ -1,14 +1,8 @@
 # -*- coding: utf-8 -*-
 """The VMAT module consists of the class VMAT, which is capable of loading an Open field image and MLC field image and analyzing the
-images according to the Jorgensen et al. tests, specifically the dose-rate & gantry-speed (DRGS) and MLC speed (MLCS) tests. The picket
-fence tests are analyzed in another module.
-
-Assumptions:
-    The physicist has performed the VMAT tests using the Varian DICOM RT plan files based on Jorgensen et al, which control the linac and
-    MLCs to deliver a very specific pattern for the DRGS & MLCS tests which are delivered and captured by the EPID.
+images according to the Jorgensen et al. tests, specifically the dose-rate & gantry-speed (DRGS) and MLC speed (MLCS) tests.
 
 Created on Fri Nov 29 11:35:26 2013
-
 """
 
 # builtins
