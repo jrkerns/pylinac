@@ -1,6 +1,6 @@
 # **pylinac**
 
-[![Latest Version](https://pypip.in/version/pylinac/badge.svg)](https://pypi.python.org/pypi/pylinac/)
+[![Latest Version](https://pypip.in/version/pylinac/badge.svg?text=version)](https://pypi.python.org/pypi/pylinac/)
 [![Supported Python versions](https://pypip.in/py_versions/pylinac/badge.svg)](https://pypi.python.org/pypi/pylinac/)
 [![License](https://pypip.in/license/pylinac/badge.svg)](https://pypi.python.org/pypi/pylinac/)
 
