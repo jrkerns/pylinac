@@ -196,6 +196,15 @@ class VMAT(SingleImageObject):
         # now ratio the open and mlc sample values to each other, i.e. the MLC to open field difference
         sample_ratios = dmlc_samples / open_samples
 
+
+        # calculate deviations as per Jorgensen equation
+        dev_matrix = np.zeros(sample_ratios.shape)
+        for sample in arange(38):
+            denom = sample_ratios[sample,:].mean()
+            for segment in arange(num_segments):
+                numer = sample_ratios[sample, segment]
+                dev_matrix[sample, segment] = numer/denom - 1
+
         # calculate segment ratios
         self._segment_medians = np.zeros(num_segments)
         self._segment_stds = np.zeros(num_segments)
@@ -203,7 +212,7 @@ class VMAT(SingleImageObject):
             self._segment_medians[segment] = np.median(sample_ratios[segment,:])
             self._segment_stds[segment] = np.std(sample_ratios[segment,:])
 
-        # attach other sample values to self)
+        # attach other sample values to self
         self._sample_height = sample_width_pix*y_scale*SID_scale
         self._samples = sample_ratios
         self._width = width
