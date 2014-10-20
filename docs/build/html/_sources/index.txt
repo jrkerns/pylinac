@@ -5,19 +5,6 @@
 
 Pylinac Documentation
 =====================
-..
-    .. image:: https://pypip.in/version/pylinac/badge.svg?text=version
-        :target: https://pypi.python.org/pypi/pylinac/
-        :alt: Latest Version
-
-    .. image:: https://pypip.in/py_versions/pylinac/badge.svg
-        :target: https://pypi.python.org/pypi/pylinac/
-        :alt: Supported Python versions
-
-    .. image:: https://pypip.in/license/pylinac/badge.svg
-        :target: https://pypi.python.org/pypi/pylinac/
-        :alt: License
-
 
 Welcome to Pylinac! This package is designed to help medical physicists perform linear accelerator quality assurance (QA),
 mostly from TG-142, easily and automatically. Pylinac contains a number of modules, each one addressing a common QA need. Code is

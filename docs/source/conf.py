@@ -13,6 +13,14 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+# Trouble building on RTD with numpy/scipy: http://blog.rtwilson.com/how-to-make-your-sphinx-documentation-compile-with-readthedocs-when-youre-using-numpy-and-scipy/
+import mock
+
+MOCK_MODULES = ['numpy', 'scipy', 'matplotlib', 'matplotlib.pyplot', 'scipy.ndimage.interpolation', 'scipy.ndimage.filters','matplotlib.patches', 'matplotlib.cm']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
+
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
