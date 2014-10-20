@@ -6,15 +6,16 @@ standard_library.install_hooks()
 from future.builtins import object
 
 import numpy as np
-import scipy.ndimage.filters as spfilt
+# import scipy.ndimage.filters as spfilt
+from scipy import ndimage
 from scipy.misc import imresize
 from PIL import Image
 import dicom
 
-from pylinac import running_py3, has_pyqt
+from pylinac import running_py3, has_pyside
 
-if has_pyqt:
-    from PyQt4 import QtGui
+if has_pyside:
+    from PySide import QtGui
 else:
     if running_py3:
         from tkinter import Tk
@@ -87,7 +88,7 @@ class SingleImageObject(object):
         """Return the path of the file chosen with the UI as a string."""
 
         app = check_app_running()
-        if has_pyqt:
+        if has_pyside:
             filestring = str(QtGui.QFileDialog.getOpenFileName())
         else:
             filestring = askopenfilename()
@@ -152,7 +153,7 @@ class SingleImageObject(object):
         """Apply a median filter to the image. See scipy function for more input information.
         (http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html)
         """
-        self.image = spfilt.median_filter(self.image, size=size, mode=mode)
+        self.image = ndimage.median_filter(self.image, size=size, mode=mode)
 
     def remove_edges(self, pixels=15):
         """
@@ -200,7 +201,7 @@ class MultiImageObject(object):
         """Return the string of the location of the folder using a UI."""
 
         app = check_app_running()
-        if has_pyqt:
+        if has_pyside:
             folderstring = str(QtGui.QFileDialog.getExistingDirectory())
         else:
             folderstring = askdirectory()
@@ -213,7 +214,7 @@ class MultiImageObject(object):
         """
         # if a QApplication isn't running turn one on; necessary to have one running to use QFileDialog()
         app = check_app_running()
-        if has_pyqt:
+        if has_pyside:
             filenamesqt = (QtGui.QFileDialog.getOpenFileNames(caption=UIcaption))
             filenames = [str(filename) for filename in filenamesqt]  # convert the PyQt string list to a list of standard strings
         else:
@@ -240,7 +241,7 @@ def check_app_running():
     """
     Opens a QtGui Application or a base Tkinter window if need be; necessary for using things like QFileDialog/askopen*
     """
-    if has_pyqt:
+    if has_pyside:
         if QtGui.QApplication.instance() is None:
             return QtGui.QApplication([])
     else:
