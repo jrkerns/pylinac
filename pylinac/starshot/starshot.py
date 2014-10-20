@@ -11,8 +11,7 @@ from future.builtins import range
 import os.path as osp
 
 import numpy as np
-from scipy.ndimage.interpolation import map_coordinates
-from scipy.ndimage.filters import median_filter
+from scipy import ndimage
 from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 
@@ -210,8 +209,8 @@ class Starshot(SingleImageObject):
         y = np.sin(np.deg2rad(deg)) * radius / 100 * mindist + self._mechpoint[0]
 
         # this scipy function pulls the values of the image along the y,x points defined above
-        raw_prof = map_coordinates(self.image, [y, x], order=0)
-        filt_prof = median_filter(raw_prof, size=100)  # filter the profile
+        raw_prof = ndimage.map_coordinates(self.image, [y, x], order=0)
+        filt_prof = ndimage.median_filter(raw_prof, size=100)  # filter the profile
         norm_prof = filt_prof - np.min(filt_prof)  # normalize the new profile
 
         # Roll the profile if needed
