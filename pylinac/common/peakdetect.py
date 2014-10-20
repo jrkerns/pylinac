@@ -10,10 +10,10 @@ from scipy import fft, ifft
 from scipy.optimize import curve_fit
 
 
-i = 10000
-x = np.linspace(0, 3.5 * np.pi, i)
-y = (0.3*np.sin(x) + np.sin(1.3 * x) + 0.9 * np.sin(4.2 * x) + 0.06 *
-    np.random.randn(i))
+# i = 10000
+# x = np.linspace(0, 3.5 * np.pi, i)
+# y = (0.3*np.sin(x) + np.sin(1.3 * x) + 0.9 * np.sin(4.2 * x) + 0.06 *
+#     np.random.randn(i))
 
 
 def _datacheck_peakdetect(x_axis, y_axis):
