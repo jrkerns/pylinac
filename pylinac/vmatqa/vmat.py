@@ -50,7 +50,7 @@ class VMAT(SingleImageObject):
     def load_image_UI(self, im_type='open'):
         """Open a Qt UI file browser to load dicom image for given VMAT image.
 
-        :param im_type: 'open' or 'dmlc'; specifies which file/image is being loaded
+        :param im_type: 'open' or 'mlc'; specifies which file/image is being loaded
         :type im_type: str
         """
 
@@ -82,32 +82,40 @@ class VMAT(SingleImageObject):
             raise NameError("im_type input string {s} not valid".format(im_type))
         self.im_props = props
 
-    def load_demo_image(self, test_type='drgs'):
+    def load_demo_image(self, test_type='drgs', number=1):
         """
         Load the demo DICOM images from demo files folder
         """
         assert test_type in self._test_types, "test_type input string was not valid. Must be 'drmlc', or 'drgs'"
 
-        if test_type == self._test_types[1]:
-            im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRMLCopen-example.dcm")
-            im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRMLCmlc-example.dcm')
+        if test_type == self._test_types[1]:  # DRMLC
+            if number == 1:
+                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRMLCopen-example.dcm")
+                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRMLCmlc-example.dcm')
+            elif number == 2:
+                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRMLCopen-150-example.dcm")
+                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRMLCmlc-150-example.dcm')
         else:
-            im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRGSopen-example.dcm")
-            im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRGSmlc-example.dcm')
+            if number == 1:
+                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRGSopen-example.dcm")
+                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRGSmlc-example.dcm')
+            elif number == 2:
+                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRGSopen-150-example.dcm")
+                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRGSmlc-150-example.dcm')
 
         self.load_image(im_open_path, im_type='open')
         self.load_image(im_dmlc_path, im_type='mlc')
 
-    def run_demo_drgs(self):
+    def run_demo_drgs(self, number=1):
         """Run the demo of the module for the Dose Rate & Gantry Speed test."""
-        self.load_demo_image('drgs')
+        self.load_demo_image('drgs', number)
         self.analyze(test='drgs', tolerance=3)  # tolerance at 2 to show some failures
         print(self.get_string_results())
         self.show_img_results()
 
-    def run_demo_drmlc(self):
+    def run_demo_drmlc(self, number=1):
         """Run the demo of the module for the MLC speed test."""
-        self.load_demo_image('drmlc')
+        self.load_demo_image('drmlc', number)
         self.analyze(test='drmlc', tolerance=3)
         print(self.get_string_results())
         self.show_img_results()
@@ -122,7 +130,7 @@ class VMAT(SingleImageObject):
         y_im_center = np.size(self.image_mlc, 0) / 2.0 + 0.5
         # SID scaling
         try:
-            SID_scale = self.im_props['SID'] / 1500.0
+            SID_scale = self.im_props['SID mm'] / 1500.0
         except:
             SID_scale = 1
 
@@ -252,8 +260,6 @@ class VMAT(SingleImageObject):
         if hasattr(self, 'roi_handles'):
             for handle in self.roi_handles:
                 handle.remove()
-            for handle in self.text_handles:
-                handle.remove()
             if draw:
                 plot.draw()
 
@@ -313,5 +319,5 @@ class VMAT(SingleImageObject):
 # VMAT demo.
 #---------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    VMAT().run_demo_drgs()
+    VMAT().run_demo_drgs(1)
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo

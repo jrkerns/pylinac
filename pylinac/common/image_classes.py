@@ -15,7 +15,7 @@ import dicom
 from pylinac import running_py3, has_pyside
 
 if has_pyside:
-    from PySide import QtGui
+    from PyQt4 import QtGui
 else:
     if running_py3:
         from tkinter import Tk
