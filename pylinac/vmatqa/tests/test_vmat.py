@@ -23,22 +23,16 @@ class VMAT_demo_test_mlcs(unittest.TestCase):
 
     def test_images_are_numpy(self):
         """Test that the demo images are numpy arrays."""
-        self.vmat.load_demo_image('mlcs')
+        self.vmat.load_demo_image('drmlc')
         self.assertIsInstance(self.vmat.image_open, np.ndarray)
         self.assertIsInstance(self.vmat.image_mlc, np.ndarray)
 
-    def test_mlcs_passed(self):
+    def test_drmlc_passed(self):
         """Test that the demo images for MLC Speed test pass analysis."""
-        self.vmat.load_demo_image('mlcs')
-        self.vmat.analyze('mlcs', 3)
+        self.vmat.load_demo_image('drmlc')
+        self.vmat.analyze('drmlc', 3)
         self.assertTrue(self.vmat._passed_analysis)
 
-    def test_segment_stdev(self):
-        """Test that individual segment ratio standard deviations are close to what they should be."""
-        self.vmat.load_demo_image('mlcs')
-        self.vmat.analyze('mlcs')
-        for seg_std in self.vmat._segment_stds:
-            self.assertAlmostEqual(seg_std, 0.006, delta=0.003)
 
 class VMAT_demo_test_drgs(unittest.TestCase):
     """Tests of the DRGS demo images."""
@@ -61,15 +55,5 @@ class VMAT_demo_test_drgs(unittest.TestCase):
         """Test that the individual sample ratios are close to what they should be."""
         self.vmat.load_demo_image('drgs')
         self.vmat.analyze('drgs')
-        for sample in self.vmat._samples.ravel():
+        for sample in self.vmat._sample_ratios.ravel():
             self.assertAlmostEqual(sample, 1, delta=0.03)
-
-    def test_segment_means(self):
-        """Test the segment mean values."""
-
-    def test_segment_stdev(self):
-        """Test the segment standard deviations are close to what they should be."""
-        self.vmat.load_demo_image('drgs')
-        self.vmat.analyze('drgs')
-        for seg_std in self.vmat._segment_stds:
-            self.assertLessEqual(seg_std, 0.01)

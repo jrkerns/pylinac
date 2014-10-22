@@ -17,19 +17,18 @@ import matplotlib.cm as cm
 from matplotlib.patches import Rectangle
 
 # internal
-from pylinac.common.common_functions import open_PDF_file
 from pylinac.common.image_classes import SingleImageObject
 
 
 # Common constants
-MLCS_seg_strs = ('1.6cm/s', '2.4cm/s', '0.8cm/s', '0.4cm/s')
+DRMLC_seg_strs = ('1.6cm/s', '2.4cm/s', '0.8cm/s', '0.4cm/s')
 DRGS_seg_strs = ('105MU/min', '210MU/min', '314MU/min', '417MU/min', '524MU/min', '592MU/min', '600MU/min')
 
 class VMAT(SingleImageObject):
     """
         The VMAT class analyzes two DICOM images acquired via a linac's EPID and analyzes
         regions of interest (segments) based on the paper by Jorgensen et al (http://dx.doi.org/10.1118/1.3552922), specifically,
-        the dose-rate gantry speed (DRGS) and MLC speed (MLCS) tests.
+        the dose-rate gantry speed (DRGS) and MLC speed (DRMLC) tests.
         """
 
     def __init__(self):
@@ -40,9 +39,9 @@ class VMAT(SingleImageObject):
         self.image_mlc = None # the MLC field image
         self._test_type = None  # the test to perform
         self._tolerance = 2 # default of 3% tolerance as Jorgensen recommends
-        self._samples = np.array([])
+        self._sample_ratios = np.array([])
         self._samples_passed = np.array([])  # list of booleans specifying whether each ROI of the test passed or failed
-        self._test_types = ('drgs', 'mlcs')
+        self._test_types = ('drgs', 'drmlc')
         self._im_types = ('open', 'mlc')
         self._passed_analysis = False  # a boolean specifying a final flag about about whether or not the test passed completely
         self._segment_medians = np.array([])
@@ -56,9 +55,9 @@ class VMAT(SingleImageObject):
         """
 
         if  im_type == self._im_types[0]:  # open
-            caption = "Select Open EPID Image..."
+            caption = "Select Open Field EPID Image..."
         elif im_type == self._im_types[1]:  # dmlc
-            caption = "Select DMLC EPID Image..."
+            caption = "Select MLC Field EPID Image..."
         else:
             raise NameError("im_type input string {s} not valid".format(im_type))
 
@@ -87,14 +86,14 @@ class VMAT(SingleImageObject):
         """
         Load the demo DICOM images from demo files folder
         """
-        assert test_type in self._test_types, "test_type input string was not valid. Must be 'mlcs', or 'drgs'"
+        assert test_type in self._test_types, "test_type input string was not valid. Must be 'drmlc', or 'drgs'"
 
         if test_type == self._test_types[1]:
-            im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "MLCSopen-example.dcm")
-            im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'MLCSmlc-example.dcm')
+            im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRMLCopen-example.dcm")
+            im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRMLCmlc-example.dcm')
         else:
-            im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRopen-example.dcm")
-            im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRmlc-example.dcm')
+            im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRGSopen-example.dcm")
+            im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRGSmlc-example.dcm')
 
         self.load_image(im_open_path, im_type='open')
         self.load_image(im_dmlc_path, im_type='mlc')
@@ -106,10 +105,10 @@ class VMAT(SingleImageObject):
         print(self.get_string_results())
         self.show_img_results()
 
-    def run_demo_mlcs(self):
+    def run_demo_drmlc(self):
         """Run the demo of the module for the MLC speed test."""
-        self.load_demo_image('mlcs')
-        self.analyze(test='mlcs', tolerance=3)
+        self.load_demo_image('drmlc')
+        self.analyze(test='drmlc', tolerance=3)
         print(self.get_string_results())
         self.show_img_results()
 
@@ -136,11 +135,12 @@ class VMAT(SingleImageObject):
         if self.image_open is None or self.image_mlc is None:
             raise AttributeError("Open or MLC Image not loaded yet. Use .load_image()")
         if test.lower() not in self._test_types:
-            raise NameError("Test input string was not valid. Must be 'mlcs', or 'drgs'")
+            raise NameError("Test input string was not valid. Must be 'drmlc', or 'drgs'")
         if (type(tolerance) != float and type(tolerance) != int)or tolerance < 0.1:
             raise ValueError("Tolerance must be a float or int greater than 0.1")
 
         self._tolerance = tolerance / 100.0
+        self._test_type = test
 
         # get the image scaling factors and center pixels
         SID_scale, x_im_center, x_scale, y_im_center, y_scale = self._get_im_scaling_factors()
@@ -164,7 +164,7 @@ class VMAT(SingleImageObject):
         # set up Dose-Rate Gantry-Speed sample points
         else:
             width, num_segments = np.round(24 * x_scale * SID_scale), 7
-            x_pixel_offsets = np.array((147, 185, 223, 261, 299, 337, 376)) - 256
+            x_pixel_offsets = np.array((147, 185, 223, 262, 299, 339, 378)) - 256
             x_pixel_starts = [np.round(x_im_center + (item * x_scale*SID_scale)) for item in x_pixel_offsets]  # multiply by scaling factors
             x_pixel_bounds = [(item, item + width) for item in x_pixel_starts]
 
@@ -196,7 +196,6 @@ class VMAT(SingleImageObject):
         # now ratio the open and mlc sample values to each other, i.e. the MLC to open field difference
         sample_ratios = dmlc_samples / open_samples
 
-
         # calculate deviations as per Jorgensen equation
         dev_matrix = np.zeros(sample_ratios.shape)
         for sample in arange(38):
@@ -204,17 +203,15 @@ class VMAT(SingleImageObject):
             for segment in arange(num_segments):
                 numer = sample_ratios[sample, segment]
                 dev_matrix[sample, segment] = numer/denom - 1
-
-        # calculate segment ratios
-        self._segment_medians = np.zeros(num_segments)
-        self._segment_stds = np.zeros(num_segments)
-        for segment in arange(num_segments):
-            self._segment_medians[segment] = np.median(sample_ratios[segment,:])
-            self._segment_stds[segment] = np.std(sample_ratios[segment,:])
+        # convert to percentages
+        dev_matrix *= 100
+        self._dev_max = dev_matrix.max()
+        self._dev_min = dev_matrix.min()
+        self._dev_mean = dev_matrix.__abs__().mean()
 
         # attach other sample values to self
         self._sample_height = sample_width_pix*y_scale*SID_scale
-        self._samples = sample_ratios
+        self._sample_ratios = sample_ratios
         self._width = width
         self._y_pixel_bounds = y_pixel_bounds
         self._x_pixel_bounds = x_pixel_bounds
@@ -234,7 +231,7 @@ class VMAT(SingleImageObject):
         #TODO: probably simple equality expression that's simpler.
         for segment in arange(self._num_segments):
             for sample in arange(38):
-                if self._samples[sample,segment] < 1 + self._tolerance and self._samples[sample,segment] > 1 - self._tolerance:
+                if self._sample_ratios[sample,segment] < 1 + self._tolerance and self._sample_ratios[sample,segment] > 1 - self._tolerance:
                     self._samples_passed[sample,segment] = True
 
         # if all segments passed, set overall flag to pass
@@ -260,11 +257,6 @@ class VMAT(SingleImageObject):
 
         #plot ROI lines on image
         self.roi_handles = [[None for _ in range(self._num_segments)] for _ in range(38)]
-        self.text_handles = []
-        if self._test_type == self._test_types[0]:  # DRGS
-            textstr = DRGS_seg_strs
-        else:
-            textstr = MLCS_seg_strs
 
         for segment in arange(self._num_segments):
             for sample in arange(38):
@@ -277,10 +269,6 @@ class VMAT(SingleImageObject):
                                                   self._width, self._sample_height, fill=False, edgecolor=color, linewidth=1))
                 plot.axes.add_patch(self.roi_handles[sample][segment])
 
-                # add text of results
-                # self.text_handles.append(plot.axes.text(self._x_pixel_bounds[segment], self._y_pixel_bounds[0]+25,
-                #                     ('%s: %4.3f +/- %4.3f' % (textstr[segment], self.roi_ratios[segment], self.roi_ratios_std[segment])),
-                #                     rotation=-90, color=color, fontsize=12))
         if draw:
             plot.draw()
 
@@ -304,33 +292,24 @@ class VMAT(SingleImageObject):
             passfail_str = 'FAIL'
 
         if self._test_type == self._test_types[0]:  # DRGS
-            string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-%2.1f%%): %s\n105MU/min: %4.3f +/- %4.3f'
-                      '\n210MU/min: %4.3f +/- %4.3f \n314MU/min: %4.3f +/- %4.3f'
-                      '\n417MU/min: %4.3f +/- %4.3f \n524MU/min: %4.3f +/- %4.3f'
-                      '\n592MU/min: %4.3f +/- %4.3f \n600MU/min: %4.3f +/- %4.3f' %
-                      (self._tolerance * 100, passfail_str, self._segment_medians[0], self._segment_stds[0], self._segment_medians[1],
-                       self._segment_stds[1], self._segment_medians[2], self._segment_stds[2], self._segment_medians[3],
-                       self._segment_stds[3], self._segment_medians[4], self._segment_stds[4], self._segment_medians[5],
-                       self._segment_stds[5], self._segment_medians[6], self._segment_stds[6]))
+            string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-%2.1f%%): %s\n'
+                      'Max Positive Deviation: %4.3f%%\n'
+                      'Max Negative Deviation: %4.3f%%\n'
+                      'Absolute Mean Deviation: %4.3f%%' %
+                      (self._tolerance * 100, passfail_str, self._dev_max, self._dev_min, self._dev_mean))
         else:  # MLC Speed
-            string = ('MLC Speed \nTest Results (Tol. +/-%2.1f%%): %s\n1.6cm/s: %4.3f +/- %4.3f \n'
-                      '2.4cm/s: %4.3f +/- %4.3f \n0.8cm/s: %4.3f +/- %4.3f \n'
-                      '0.4cm/s: %4.3f +/- %4.3f' % (self._tolerance * 100, passfail_str, self._segment_medians[0],
-                                                    self._segment_stds[0], self._segment_medians[1], self._segment_stds[1],
-                                                    self._segment_medians[2],
-                                                    self._segment_stds[2], self._segment_medians[3], self._segment_stds[3]))
+            string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-%2.1f%%): %s\n'
+                      'Max Positive Deviation: %4.3f%%\n'
+                      'Max Negative Deviation: %4.3f%%\n'
+                      'Absolute Mean Deviation: %4.3f%%' %
+                      (self._tolerance * 100, passfail_str, self._dev_max, self._dev_min, self._dev_mean))
 
         return string
-
-
-    def open_Jorgensen_PDF(self):
-        """Open the Jorgensen et al paper in PDF"""
-        open_PDF_file('Jorgensen, Tolerance levels of EPID-based QA for VMAT.pdf')
 
 
 #---------------------------------------------------------------------------------------------------------------------
 # VMAT demo.
 #---------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    VMAT().run_demo_drgs()
-    # VMAT().run_demo_mlcs()  # uncomment to run MLCS demo
+    # VMAT().run_demo_drgs()
+    VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
