@@ -11,7 +11,7 @@ running_py3 = sys.version_info[0] == 3
 
 # Determine if user has PySide. If they do, Dialogs will use that; if not, will use tkinter
 try:
-    import PySide
+    import PyQt4
     has_pyside = True
 except ImportError:
     has_pyside = False

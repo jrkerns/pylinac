@@ -5,7 +5,9 @@ import inspect
 
 from future.builtins import str
 from future.builtins import object
-from PySide import QtGui
+
+# from PySide import QtGui
+from PyQt4 import QtGui
 import numpy as np
 from numpy import sqrt
 from PIL import Image

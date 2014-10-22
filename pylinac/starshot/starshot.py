@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Dec 02 00:19:16 2013
-
-@author: James
+The Starshot module analyses a starshot film or multiple superimposed EPID images that measures the wobble of the
+radiation spokes, whether gantry, collimator, or couch. It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
+and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
 """
 from __future__ import division, print_function
 from future import standard_library
@@ -35,11 +35,11 @@ class Starshot(SingleImageObject):
     """
     def __init__(self):
         SingleImageObject.__init__(self)
-        self._mechpoint = None  # (y,x) which specifies the mechanical isocenter & starting point for search algorithm
+        self._algo_startpoint = None  # (y,x) which specifies the algorithm starting point for search algorithm
         self.radius = 50  # default of 50% of smallest image dimension
         self._pointpairs = []  # a list which holds 4 values per index: two points with the y,x locations of points that
         # correspond to the two points comprising a radiation "strip"
-        self._circleprofile = None  # a numpy array that will hold a 1-D profile of a circle that surrounds the mechanical isocenter
+        self._circleprofile = None  # a numpy array that will hold a 1-D profile of a circle centered on the algo starting point
         self._x = None  # an array that holds the x-values that the circleprofile is computed over
         self._y = None  # ditto for y-values
         self._wobble_center = None  # The pixel position (y,x) of the center of a circle that minimally touches all the radiation lines
@@ -64,8 +64,8 @@ class Starshot(SingleImageObject):
             im_open_path = osp.join(file_dir, "demo files", "demo_starshot_1.tif")
         self.load_image(im_open_path)
 
-    def set_mech_point(self, point, warn_if_far_away=True):
-        """Set the mechanical isocenter (i.e. starting point) point manually.
+    def set_start_point(self, point, warn_if_far_away=True):
+        """Set the algorithm starting point manually.
 
         :param point: [y,x]
         :type point: list
@@ -73,32 +73,32 @@ class Starshot(SingleImageObject):
         :type warn_if_far_away: boolean
         """
         if warn_if_far_away:
-            if self._mechpoint is None:
-                self._auto_set_mech_point()
+            if self._algo_startpoint is None:
+                self._auto_set_start_point()
             tolerance = max(min(self.image.shape)/100, 15)  # 1% image width of smalling dimension, or 15 pixels
-            auto_y_upper = self._mechpoint[0] - tolerance
-            auto_y_lower = self._mechpoint[0] + tolerance
-            auto_x_left = self._mechpoint[1] - tolerance
-            auto_x_right = self._mechpoint[1] + tolerance
+            auto_y_upper = self._algo_startpoint[0] - tolerance
+            auto_y_lower = self._algo_startpoint[0] + tolerance
+            auto_x_left = self._algo_startpoint[1] - tolerance
+            auto_x_right = self._algo_startpoint[1] + tolerance
             if (point[0] < auto_y_upper or point[0] > auto_y_lower) \
                 or (point[1] < auto_x_left or point[1] > auto_x_right):
                 print("Warning: The point you've set is far away from the automatic calculation.\n" +
-                      " The algorithm may not calculate correctly if you continue. \nUse method .clear_mech_point" +
-                      " to reset if need be or don't set the mech point manually.")
+                      " The algorithm may not calculate correctly if you continue. \nUse method .clear_start_point" +
+                      " to reset if need be or don't set the starting point manually.")
 
-        self._mechpoint = point
+        self._algo_startpoint = point
 
-    def clear_mech_point(self):
-        """Clear/reset the mechanical iso."""
-        self._mechpoint = None
+    def clear_start_point(self):
+        """Clear/reset the algorithm starting point."""
+        self._algo_startpoint = None
 
     def _draw_profile_circle(self, im_widget):
         """Draw a circle where the circular profile was or will be taken over.
         :param im_widget: The widget to draw to profile to.
         :type im_widget: matplotlib.Figure
         """
-        mindist = point2edge_min(self.image, self._mechpoint)
-        center = self._mechpoint
+        mindist = point2edge_min(self.image, self._algo_startpoint)
+        center = self._algo_startpoint
         radius = self.radius/100 * mindist
         # x0, y0, x1, y1 = wc[1] - wr, wc[0] - wr, wc[1] + wr, wc[0] + wr
         im_widget.axes.add_patch(Circle(center, radius=radius))
@@ -132,10 +132,10 @@ class Starshot(SingleImageObject):
         else:
             self.invert_image()
 
-    def _auto_set_mech_point(self):
-        """Set the mechanical iso point automatically.
+    def _auto_set_start_point(self):
+        """Set the algorithm starting point automatically.
 
-        The determination of an automatic mech point is accomplished by finding the Full-Width-80%-Max.
+        The determination of an automatic start point is accomplished by finding the Full-Width-80%-Max.
         Finding the maximum pixel does not consistently work, esp. in the presence of a pin prick. The
         FW80M is a more consistent metric for finding a good start point.
         """
@@ -148,9 +148,9 @@ class Starshot(SingleImageObject):
         x_point = Prof_Penum(x_prof).get_FWXM_center(80)
         y_point = Prof_Penum(y_prof).get_FWXM_center(80)
 
-        self.set_mech_point([y_point, x_point], warn_if_far_away=False)
+        self.set_start_point([y_point, x_point], warn_if_far_away=False)
 
-    def analyze(self, allow_inversion=True, radius=50, min_peak_height=30):
+    def analyze(self, allow_inversion=True, radius=50, min_peak_height=30, SID=None):
         """Analyze the starshot image.
          Analyze finds the minimum radius and center of a circle that touches all the lines
          (i.e. the wobble circle diameter and wobble center)
@@ -158,12 +158,15 @@ class Starshot(SingleImageObject):
          :param allow_inversion: Specifies whether to let the algorithm automatically check the image for proper inversion. Analysis will
             likely fail without proper inversion. Use .invert_image() to manually invert.
          :type allow_inversion: boolean
-         :param radius: Distance in % between starting isocenter (mech point) and closest image edge.
+         :param radius: Distance in % between starting point and closest image edge.
          :type radius: int, float
          :param min_peak_height: The percentage minimum height a peak must be to be considered a valid peak. A lower value catches
             radiation peaks that vary in magnitude (e.g. different MU delivered), but also could pick up noise. Raise if pixel values of
             strips are similar but noise is getting caught. Also try changing radius if noise is a problem.
          :type min_peak_height: int
+         :param SID: The source to image distance in cm. If passed in, results will be scaled to 100cm. E.g. a wobble of
+            3 pixels at an SID of 150cm will be presented as 2 pixels [3/(150/100)].
+         :type SID: int
 
         """
         if self.image is None:
@@ -181,8 +184,8 @@ class Starshot(SingleImageObject):
         self._check_inversion(allow_inversion)
 
         # set starting point automatically if not yet set
-        if self._mechpoint is None:
-            self._auto_set_mech_point()
+        if self._algo_startpoint is None:
+            self._auto_set_start_point()
 
         # extract the circle profile
         self._get_circle_profile(radius)
@@ -191,7 +194,7 @@ class Starshot(SingleImageObject):
         # match peaks that are from the same radiation strip
         self._match_peaks()
         # find the wobble
-        self._find_wobble_2step()
+        self._find_wobble_2step(SID)
         # check if results pass tolerance
         self._check_if_passed()
 
@@ -200,13 +203,13 @@ class Starshot(SingleImageObject):
         later to be searched for peaks and such. See .analyze() for parameter definitions.
         """
 
-        # find smallest pixel distance from mechanical point to image edge
-        mindist = point2edge_min(self.image, self._mechpoint)
+        # find minimum distance from starting point to image edges
+        mindist = point2edge_min(self.image, self._algo_startpoint)
 
         # create index and cos, sin points which will be the circle's rectilinear coordinates
         deg = np.arange(0, 360 - 0.01, 0.01)
-        x = np.cos(np.deg2rad(deg)) * radius / 100 * mindist + self._mechpoint[1]
-        y = np.sin(np.deg2rad(deg)) * radius / 100 * mindist + self._mechpoint[0]
+        x = np.cos(np.deg2rad(deg)) * radius / 100 * mindist + self._algo_startpoint[1]
+        y = np.sin(np.deg2rad(deg)) * radius / 100 * mindist + self._algo_startpoint[0]
 
         # this scipy function pulls the values of the image along the y,x points defined above
         raw_prof = ndimage.map_coordinates(self.image, [y, x], order=0)
@@ -243,8 +246,8 @@ class Starshot(SingleImageObject):
         max_vals, max_idxs = peak_detect(self._circleprofile, threshold=min_peak_height, min_peak_distance=min_peak_distance)
         # ensure the # of peaks found was even; every radiation "strip" should result in two peaks, one on either side of the isocenter.
         if len(max_vals) % 2 != 0 or len(max_vals) == 0:
-            raise Exception("The algorithm found zero or an uneven number of radiation peaks. Ensure that the mechanical " \
-                                 "iso is correct and/or change the search radius. Sorry")
+            raise Exception("The algorithm found zero or an uneven number of radiation peaks. Ensure that the starting " \
+                                 "point is correct and/or change the search radius. Sorry.")
 
         # create a zero-array called strip_limits that holds the indices of the minimum between peaks.
         # In this way, we search the full-width half-max within the indices between any two indices of strip_limits
@@ -287,7 +290,7 @@ class Starshot(SingleImageObject):
         for strip in range(len(self._peak_locs)//2):
             self._pointpairs.append(np.array([self._peak_locs[strip], self._peak_locs[strip+len(self._peak_locs)/2]]))
 
-    def _find_wobble_2step(self):
+    def _find_wobble_2step(self, SID):
         """
         Find the smallest radius ("wobble") and center of a circle that touches all the star lines.
         This is accomplished by two rounds of searching. The first round finds the radius and center down to
@@ -295,7 +298,7 @@ class Starshot(SingleImageObject):
         The second round finds the center and radius down to sub-pixel precision using parameter scale.
         This methodology is faster than one round of searching at sub-pixel precision.
         """
-        sp = self._mechpoint  # set the initial starting point from user-defined point
+        sp = self._algo_startpoint  # set the initial starting point from user-defined point
 
         # first round of searching; this finds the circle to the nearest pixel
         __, wob_cent = self._find_wobble(normal_tolerance, sp, normal_scale)
@@ -306,6 +309,8 @@ class Starshot(SingleImageObject):
         if self.im_props['DPmm'] != 0:
             self.tolerance_unit = 'mm'
             self._wobble_radius /= self.im_props['DPmm']
+        if SID:
+            self._wobble_radius /= SID/100
 
     def _find_wobble(self, tolerance, start_point, scale):
         """
@@ -354,11 +359,10 @@ class Starshot(SingleImageObject):
         else:
             passfailstr = 'FAIL'
 
-        string = ('Result: %s \n'
+        string = ('\nResult: %s \n'
                   'The miminum circle that touches all the star lines has a radius of %4.3g %s. \n'
                   'The center of the minimum circle is at %4.1f, %4.1f') % (passfailstr, self._wobble_radius, self.tolerance_unit,
-                                                                       self._wobble_center[0],
-                                            self._wobble_center[1])
+                                                                       self._wobble_center[0], self._wobble_center[1])
         return string
 
     def _plot_wobble_circle(self, im_widget):
@@ -396,8 +400,8 @@ class Starshot(SingleImageObject):
         wr = self._wobble_radius_pix
         imgplot.axes.add_patch(Circle(wc, radius=wr,edgecolor='black',fill=False))
         # plot profile circle
-        rad = self.radius / 100.0 * point2edge_min(self.image, self._mechpoint)
-        imgplot.axes.add_patch(Circle(np.flipud(self._mechpoint), radius=rad, edgecolor='green', fill=False))
+        rad = self.radius / 100.0 * point2edge_min(self.image, self._algo_startpoint)
+        imgplot.axes.add_patch(Circle(np.flipud(self._algo_startpoint), radius=rad, edgecolor='green', fill=False))
         # tighten plot around image
         imgplot.axes.autoscale(tight=True)
 
@@ -408,9 +412,9 @@ class Starshot(SingleImageObject):
             plot.draw()
             plot.axes.hold(False)
 
-    def run_demo(self):
+    def run_demo(self, number=1):
         """Run the Starshot module demo."""
-        self.load_demo_image()
+        self.load_demo_image(number)
         self.analyze()
         print(self.return_string_results())
         self.plot_analyzed_image()

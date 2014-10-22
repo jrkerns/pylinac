@@ -13,16 +13,16 @@ class Star_general_tests(unittest.TestCase):
         self.star = Starshot()
         self.star.load_demo_image()
 
-    def test_mechpoint_is_none_on_load(self):
+    def test_startpoint_is_none_on_load(self):
         """The mechanical isocenter should not have been set upon loading an image."""
-        self.assertIsNone(self.star._mechpoint, msg="The mechanical iso did not default to None")
+        self.assertIsNone(self.star._algo_startpoint, msg="The mechanical iso did not default to None")
 
-    def test_mechpoint_autosets_if_unset(self):
+    def test_startpoint_autosets_if_unset(self):
         """Test that the mechanical isocenter will automatically set if not yet set."""
         # analyze image; mech point is not yet set
         self.star.analyze()
         # the mech point should now have been set
-        self.assertIsNotNone(self.star._mechpoint, msg="The mechanical iso did not set automatically when analyzing")
+        self.assertIsNotNone(self.star._algo_startpoint, msg="The mechanical iso did not set automatically when analyzing")
 
 
 class Star_test_demo1(unittest.TestCase):
@@ -41,7 +41,7 @@ class Star_test_demo1(unittest.TestCase):
         self.assertTrue(self.star.wobble_passed, msg="Wobble was not within tolerance")
 
     def test_wobble_radius(self):
-        """Test than the wobble radius is similar to what it has been shown to be (0.495)."""
+        """Test that the wobble radius is similar to what it has been shown to be (0.495)."""
         self.star.analyze()
         self.assertAlmostEqual(self.star._wobble_radius, 0.49, delta=0.1)
 
@@ -100,11 +100,11 @@ class Star_test_demo2(unittest.TestCase):
         self.assertEqual(len(self.star._peak_locs), expected_peaks,
                          msg="The number of peaks found was not the number expected")
 
-    def test_still_pass_with_mech_point_off(self):
-        """Test that the algo will still pass if the mech point is set
+    def test_still_pass_with_startpoint_off(self):
+        """Test that the algo will still pass if the start point is set
             to a point somewhat different than actual center.
             """
-        self.star.set_mech_point([1600, 1200], warn_if_far_away=False)
+        self.star.set_start_point([1600, 1200], warn_if_far_away=False)
         self.star.analyze()
 
         self.assertTrue(self.star.wobble_passed)

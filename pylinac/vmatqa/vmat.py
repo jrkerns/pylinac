@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""The VMAT module consists of the class VMAT, which is capable of loading an Open field image and MLC field image and analyzing the
-images according to the Jorgensen et al. tests, specifically the dose-rate & gantry-speed (DRGS) and MLC speed (MLCS) tests.
+"""The VMAT module consists of the class VMAT, which is capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
+images according to the `Jorgensen et al. <http://dx.doi.org/10.1118/1.3552922>`_ tests, specifically the Dose-Rate Gantry-Speed (DRGS) and Dose-Rate MLC (DRMLC) tests.
 
-Created on Fri Nov 29 11:35:26 2013
 """
+# Full documentation of this module and how to use it can be found at this repositories' Read the Docs site: pylinac.rtfd.org
 
 # builtins
 from __future__ import print_function, division, absolute_import
@@ -146,13 +146,14 @@ class VMAT(SingleImageObject):
         SID_scale, x_im_center, x_scale, y_im_center, y_scale = self._get_im_scaling_factors()
 
         # set up ROI points used in both tests
+        num_leaves = 38
         sample_width_pix = 6 # the width in pixels of a given MLC leaf sample
         leaf_width = 9.57 # (368-12)/38  # the width from sample to sample (MLC leaf to the next MLC leaf). Calculation using DPmm gives
         # 9.57
 
         y_pixel_bounds = [(np.round((12+leaf*leaf_width-192)*y_scale*SID_scale+y_im_center),
                            np.round((12+leaf*leaf_width-192+sample_width_pix)*y_scale*SID_scale+y_im_center))
-                            for leaf in arange(38)]
+                            for leaf in arange(num_leaves)]
 
         # set up MLC speed sample points
         if test == self._test_types[1]:
@@ -169,13 +170,13 @@ class VMAT(SingleImageObject):
             x_pixel_bounds = [(item, item + width) for item in x_pixel_starts]
 
         #preallocation/instantiation
-        dmlc_samples = zeros((38, num_segments))
-        open_samples = zeros((38, num_segments))
+        dmlc_samples = zeros((num_leaves, num_segments))
+        open_samples = zeros((num_leaves, num_segments))
 
         # this pulls the samples from the Open and MLC image into new arrays
         # which are analyzed for the mean and standard deviation.
         for segment in arange(num_segments):
-            for sample in arange(38):
+            for sample in arange(num_leaves):
                 # extract ROI values
                 dmlc_samples[sample, segment] = mean(array(self.image_mlc[y_pixel_bounds[sample][0]:y_pixel_bounds[sample][1],
                                                            x_pixel_bounds[segment][0]:x_pixel_bounds[segment][1]]))
@@ -198,7 +199,7 @@ class VMAT(SingleImageObject):
 
         # calculate deviations as per Jorgensen equation
         dev_matrix = np.zeros(sample_ratios.shape)
-        for sample in arange(38):
+        for sample in arange(num_leaves):
             denom = sample_ratios[sample,:].mean()
             for segment in arange(num_segments):
                 numer = sample_ratios[sample, segment]
@@ -216,6 +217,7 @@ class VMAT(SingleImageObject):
         self._y_pixel_bounds = y_pixel_bounds
         self._x_pixel_bounds = x_pixel_bounds
         self._num_segments = num_segments
+        self._num_leaves = num_leaves
 
         # run a pass/fail test on results
         self._run_passfail()
@@ -225,12 +227,12 @@ class VMAT(SingleImageObject):
         """
 
         # create boolean array the size of the number of samples; default to fail until pass
-        self._samples_passed = np.zeros((38, self._num_segments), dtype=bool)
+        self._samples_passed = np.zeros((self._num_leaves, self._num_segments), dtype=bool)
 
         # for each sample, if ratio is within tolerance, set to True
         #TODO: probably simple equality expression that's simpler.
         for segment in arange(self._num_segments):
-            for sample in arange(38):
+            for sample in arange(self._num_leaves):
                 if self._sample_ratios[sample,segment] < 1 + self._tolerance and self._sample_ratios[sample,segment] > 1 - self._tolerance:
                     self._samples_passed[sample,segment] = True
 
@@ -256,10 +258,10 @@ class VMAT(SingleImageObject):
                 plot.draw()
 
         #plot ROI lines on image
-        self.roi_handles = [[None for _ in range(self._num_segments)] for _ in range(38)]
+        self.roi_handles = [[None for _ in range(self._num_segments)] for _ in range(self._num_leaves)]
 
         for segment in arange(self._num_segments):
-            for sample in arange(38):
+            for sample in arange(self._num_leaves):
                 if self._samples_passed[sample, segment]:
                     color = 'blue'
                 else:
@@ -311,5 +313,5 @@ class VMAT(SingleImageObject):
 # VMAT demo.
 #---------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    # VMAT().run_demo_drgs()
-    VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
+    VMAT().run_demo_drgs()
+    # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
