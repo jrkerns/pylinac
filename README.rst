@@ -18,14 +18,6 @@ therapy medical physics. The package comes in two flavors: source-level and GUI-
 allows programmers and those familiar with Python to create custom tests with pylinac while the GUI-level will implement
 pylinac into a GUI and executable that any user can use, without having to program software.
 
-.. image:: /docs/source/images/analyzed_starshot.png
-    :height: 1 in
-    :width: 1 in
-
-.. image:: /docs/source/images/vmat_analyzed.png
-    :height: 1 in
-    :width: 1 in
-
 Below are the tools currently available; tools will be added one at a time as they are developed.
 
 * `Starshot Analysis <http://pylinac.readthedocs.org/en/latest/starshot_docs.html>`_ -
