@@ -25,7 +25,7 @@ pylinac into a GUI and executable that any user can use, without having to progr
 
 .. image:: /docs/source/images/vmat_analyzed.png
    :height: 110px
-   :width: 220px
+   :width: 110px
    :align: right
 
 Below are the tools currently available; tools will be added one at a time as they are developed.
