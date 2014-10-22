@@ -12,7 +12,6 @@ I know Python already
 ---------------------
 
 Great! To get started, simply install pylinac through ``pip install pylinac`` via PyPI.
-
 Alternatively, you can install from the github repository directly::
 
     pip install https://github.com/jrkerns/pylinac.git
@@ -48,7 +47,8 @@ So, if you're new to Python or you don't already have the packages listed, parti
 it is best to get these from a source that has already compiled these packages. Installing them via ``pip`` won't work unless
 you have the underlying libraries installed, which is often not the case. There are a number of places you can get them
 pre-compiled. Check out `Scipy's installation options <http://www.scipy.org/install.html>`_ for more on scientific distribution stacks. For
-people new to Python, the easiest solution is likely Python(x,y) or Anaconda. Both include the Spyder IDE,
+people new to Python, the easiest solution is likely `Python(x,y) <https://code.google.com/p/pythonxy/>`_ or
+`Anaconda <http://continuum.io/downloads>`_. Both include the `Spyder IDE <https://bitbucket.org/spyder-ide/spyderlib/overview>`_,
 which appears similar to MATLAB's. Installing one of those will have you up and running in no time.
 
 
