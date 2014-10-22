@@ -26,10 +26,19 @@ Below are the tools currently available; tools will be added one at a time as th
 * `VMAT QA <http://pylinac.readthedocs.org/en/latest/vmat_docs.html>`_ -
     A module for analyzing EPID images after performing the Jorgensen et al tests for VMAT QA, specifically the Dose Rate & Gantry Speed 
     (DRGS) and Dose Rate MLC (DRMLC) tests. Can load the open and MLC field images and calculate segment ratios as per the Jorgensen implementation.
-    
-----------------
 
-**To get started, install, run the demos, view the API docs, and learn the module design, visit the** `Full Documentation <http://pylinac.readthedocs.org/en/latest/index.html>`_.
+
+Documentation
+-------------
+To get started, install, run the demos, view the API docs, and learn the module design, visit the `Full Documentation <http://pylinac.readthedocs.org/en/latest/index.html>`_.
+
+Contributing
+------------
+
+Contributions to pylinac can be many. The most useful thing a non-programmer can contribute is images to analyze. If
+you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, email me
+ or share then via dropbox, drive, etc. Obviously, don't send patient files, just QA files.
+
 
 Code is Python 2/3 compatible thanks to `future <http://python-future.org/>`_.
 
