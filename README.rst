@@ -21,10 +21,12 @@ pylinac into a GUI and executable that any user can use, without having to progr
 .. image:: /docs/source/images/analyzed_starshot.png
    :height: 110
    :width: 100
+   :align: left
 
 .. image:: /docs/source/images/vmat_analyzed.png
    :height: 110
    :width: 290
+   :align: right
 
 Below are the tools currently available; tools will be added one at a time as they are developed.
 
