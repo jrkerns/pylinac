@@ -19,12 +19,12 @@ allows programmers and those familiar with Python to create custom tests with py
 pylinac into a GUI and executable that any user can use, without having to program software.
 
 .. image:: /docs/source/images/analyzed_starshot.png
-   :height: 1in
-   :width: 1in
+    :height: 1 in
+    :width: 1 in
 
 .. image:: /docs/source/images/vmat_analyzed.png
-   :height: 1in
-   :width: 1in
+    :height: 1 in
+    :width: 1 in
 
 Below are the tools currently available; tools will be added one at a time as they are developed.
 
