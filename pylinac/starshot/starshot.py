@@ -313,8 +313,7 @@ class Starshot(SingleImageObject):
             self._wobble_radius /= SID/100
 
     def _find_wobble(self, tolerance, start_point, scale):
-        """
-        An iterative method that moves pixel by pixel to the point of minimum distance to all radiation lines
+        """An iterative method that moves pixel by pixel to the point of minimum distance to all radiation lines.
 
         :param tolerance: The value the "outside" pixels must be within compared to the center pixel to stop the algorithm
         :type tolerance: float
@@ -323,6 +322,7 @@ class Starshot(SingleImageObject):
         :param scale: The scale of the search in pixels. E.g. 0.1 searches to 0.1 pixel precision.
         :type scale: float, int
         """
+        #TODO: use an opimization function instead of evolutionary search
         sp = start_point
         #init conditions; initialize a 3x3 "ones" matrix and make corner value 0 to start minimum distance search
         distmax = np.ones((3, 3))
@@ -352,6 +352,7 @@ class Starshot(SingleImageObject):
 
     def return_string_results(self):
         """Print the results of the analysis.
+
         :return string: A string with a statement of the minimum circle.
         """
         if self.wobble_passed:
@@ -424,4 +425,4 @@ class Starshot(SingleImageObject):
 # Starshot demo
 # ----------------------------
 if __name__ == '__main__':
-    Starshot().run_demo()
+    Starshot().run_demo(1)
