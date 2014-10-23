@@ -154,7 +154,7 @@ class PyQA(Ui_PyQA_MainWindow):
             self.progressBar.setValue(0)
 
             # Post results
-            self.results_browser.setText(self.star.return_string_results())
+            self.results_browser.setText(self.star.get_string_results())
 
         elif self.analysis_type == analysis_types[1]:  # VMAT
             # grab settings

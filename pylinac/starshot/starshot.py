@@ -169,6 +169,7 @@ class Starshot(SingleImageObject):
          :type SID: int
 
         """
+        # error checking
         if self.image is None:
             raise AttributeError("Starshot image not yet loaded")
         if type(radius) != float and type(radius) != int:
@@ -179,6 +180,9 @@ class Starshot(SingleImageObject):
             raise TypeError("Peak height must be an integer")
         elif min_peak_height < 5 or min_peak_height > 95:
             raise ValueError("Peak height must be between 5 and 95")
+        if SID is not None:
+            if type(SID) != int or SID < 70:
+                raise ValueError("SID must be an int greater than 70")
 
         # check inversion
         self._check_inversion(allow_inversion)
@@ -350,7 +354,7 @@ class Starshot(SingleImageObject):
         if self._wobble_radius * 2 < self.tolerance:
             self.wobble_passed = True
 
-    def return_string_results(self):
+    def get_string_results(self):
         """Print the results of the analysis.
 
         :return string: A string with a statement of the minimum circle.
@@ -414,10 +418,14 @@ class Starshot(SingleImageObject):
             plot.axes.hold(False)
 
     def run_demo(self, number=1):
-        """Run the Starshot module demo."""
+        """Run the Starshot module demo.
+
+        :param number: There are currently two demo images; select 1 or 2
+        :type number: int
+        """
         self.load_demo_image(number)
         self.analyze()
-        print(self.return_string_results())
+        print(self.get_string_results())
         self.plot_analyzed_image()
 
 
