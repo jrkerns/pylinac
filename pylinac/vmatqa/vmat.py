@@ -35,9 +35,9 @@ class VMAT(SingleImageObject):
         SingleImageObject.__init__(self)
         delattr(self,'image')  # delete the SIO attr 'image'. This is because we'll have two images (see below)
             # and it'd be good not to be confused by the presence of image in the class.
-        self.image_open = None # the Open field image
-        self.image_mlc = None # the MLC field image
-        self._test_type = None  # the test to perform
+        self.image_open = None  #: the Open field image
+        self.image_mlc = None  #: the MLC field image
+        self._test_type = None  #: the test to perform
         self._tolerance = 2 # default of 3% tolerance as Jorgensen recommends
         self._sample_ratios = np.array([])
         self._samples_passed = np.array([])  # list of booleans specifying whether each ROI of the test passed or failed
@@ -218,6 +218,14 @@ class VMAT(SingleImageObject):
         self._dev_min = dev_matrix.min()
         self._dev_mean = dev_matrix.__abs__().mean()
 
+        self._seg_dev_max = [0] * num_segments
+        self._seg_dev_min = [0] * num_segments
+        self._seg_dev_mean = [0] * num_segments
+        for segment in arange(num_segments):
+            self._seg_dev_max[segment] = dev_matrix[:, segment].max()
+            self._seg_dev_min[segment] = dev_matrix[:, segment].min()
+            self._seg_dev_mean[segment] = dev_matrix[:, segment].__abs__().mean()
+
         # attach other sample values to self
         self._sample_height = sample_width_pix*y_scale*SID_scale
         self._sample_ratios = sample_ratios
@@ -257,11 +265,11 @@ class VMAT(SingleImageObject):
         """
 
         # clear images of any existing objects that are on it
-        if hasattr(self, 'roi_handles'):
-            for handle in self.roi_handles:
-                handle.remove()
-            if draw:
-                plot.draw()
+        # if hasattr(self, 'roi_handles'):
+        #     for handle in self.roi_handles:
+        #         handle.remove()
+        #     if draw:
+        #         plot.draw()
 
         #plot ROI lines on image
         self.roi_handles = [[None for _ in range(self._num_segments)] for _ in range(self._num_leaves)]
@@ -280,16 +288,66 @@ class VMAT(SingleImageObject):
         if draw:
             plot.draw()
 
-    def show_img_results(self):
+    def show_img_results(self, plot1=None, plot2=None):
         """Create 2 plots showing the open and MLC images with the samples and results drawn on.
         """
-        fig, (ax1, ax2) = plt.subplots(1,2)
-        ax1.imshow(self.image_open, cmap=cm.Greys_r)  # http://stackoverflow.com/questions/3823752/display-image-as-grayscale-using-matplotlib
-        ax2.imshow(self.image_mlc, cmap=cm.Greys_r)
-        ax1.set_title("Open Field Image")
-        ax2.set_title("MLC Field Image")
-        self._draw_objects(ax2)
-        plt.show()
+        if plot1 is None and plot2 is None:
+            fig, (ax1, ax2) = plt.subplots(1,2)
+        if plot1 is not None:
+            ax1 = plot1.axes
+        if plot2 is not None:
+            ax2 = plot2.axes
+
+        try:
+            # http://stackoverflow.com/questions/3823752/display-image-as-grayscale-using-matplotlib
+            ax2.imshow(self.image_open, cmap=cm.Greys_r)
+            ax2.set_title("Open Field Image")
+        except:
+            pass  # axis2 wasn't defined
+        ax1.imshow(self.image_mlc, cmap=cm.Greys_r)
+        ax1.set_title("MLC Field Image")
+        self._draw_objects(ax1)
+
+        # Finally, show it all
+        if plot1 is None and plot2 is None:
+            plt.show()
+        if plot1 is not None:
+            plot1.draw()
+            plot1.axes.hold(False)
+        if plot2 is not None:
+            plot2.draw()
+            plot2.axes.hold(False)
+
+
+        # plt.show()
+        # else:
+        # # plot image
+        # if plot is None:
+        #     imgplot = plt.imshow(self.image)
+        # else:
+        #     plot.axes.imshow(self.image)
+        #     # plot.figure.hold(True)
+        #     plot.axes.hold(True)
+        #     imgplot = plot
+        # # plot radiation lines
+        # for pair in self._pointpairs:
+        #     imgplot.axes.plot([pair[0, 1], pair[1, 1]], [pair[0, 0], pair[1, 0]], 'w')
+        # # plot wobble circle
+        # wc = np.flipud(self._wobble_center)
+        # wr = self._wobble_radius_pix
+        # imgplot.axes.add_patch(Circle(wc, radius=wr, edgecolor='black', fill=False))
+        # # plot profile circle
+        # rad = self.radius / 100.0 * point2edge_min(self.image, self._algo_startpoint)
+        # imgplot.axes.add_patch(Circle(np.flipud(self._algo_startpoint), radius=rad, edgecolor='green', fill=False))
+        # # tighten plot around image
+        # imgplot.axes.autoscale(tight=True)
+        #
+        # # Finally, show it all
+        # if plot is None:
+        #     plt.show()
+        # else:
+        #     plot.draw()
+        #     plot.axes.hold(False)
 
     def get_string_results(self):
         """Create a string of the summary of the analysis results."""
@@ -300,17 +358,28 @@ class VMAT(SingleImageObject):
             passfail_str = 'FAIL'
 
         if self._test_type == self._test_types[0]:  # DRGS
-            string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-%2.1f%%): %s\n'
-                      'Max Positive Deviation: %4.3f%%\n'
-                      'Max Negative Deviation: %4.3f%%\n'
-                      'Absolute Mean Deviation: %4.3f%%' %
-                      (self._tolerance * 100, passfail_str, self._dev_max, self._dev_min, self._dev_mean))
+            string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
+                      (self._tolerance * 100, passfail_str))
         else:  # MLC Speed
-            string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-%2.1f%%): %s\n'
-                      'Max Positive Deviation: %4.3f%%\n'
-                      'Max Negative Deviation: %4.3f%%\n'
-                      'Absolute Mean Deviation: %4.3f%%' %
-                      (self._tolerance * 100, passfail_str, self._dev_max, self._dev_min, self._dev_mean))
+            string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
+                      (self._tolerance * 100, passfail_str))
+
+        string += ('\nOverall Results:\n'
+                   'Max Positive Deviation: %4.3f%%\n'
+                   'Max Negative Deviation: %4.3f%%\n'
+                   'Absolute Mean Deviation: %4.3f%%' %
+                   (self._dev_max, self._dev_min, self._dev_mean))
+
+        if self._test_type == self._test_types[0]:  # DRGS
+            seg_str = DRGS_seg_strs
+        else:
+            seg_str = DRMLC_seg_strs
+        for segment in arange(self._num_segments):
+            string += ('\n\n%s Segment:\n'
+                       'Max Positive Deviation: %4.3f%%\n'
+                       'Max Negative Deviation: %4.3f%%\n'
+                       'Absolute Mean Deviation: %4.3f%%' %
+                       (seg_str[segment], self._seg_dev_max[segment], self._seg_dev_min[segment], self._seg_dev_mean[segment]))
 
         return string
 

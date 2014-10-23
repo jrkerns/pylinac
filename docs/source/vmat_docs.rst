@@ -18,8 +18,17 @@ To run the VMAT demo, run vmat.py, or create a script and run::
     # alternatively, you can run the MLC Speed demo by:
     VMAT().run_demo_mlcs()
 
-Results will be printed to the console and a figure showing both the Open field and MLC field image will pop up.
-#TODO: show screenshots of demo
+Results will be printed to the console and a figure showing both the Open field and MLC field image will pop up::
+
+    Dose Rate & Gantry Speed
+    Test Results (Tol. +/-3.0%): PASS
+    Max Positive Deviation: 0.911%
+    Max Negative Deviation: -1.636%
+    Absolute Mean Deviation: 0.632%
+
+.. image:: /images/vmat_analyzed.png
+   :height: 340px
+   :width: 800px
 
 
 Image Acquisition
