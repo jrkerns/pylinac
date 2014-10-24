@@ -11,8 +11,8 @@ who need the power of software to do good physics quality assurance.
 from __future__ import print_function, division, absolute_import
 from functools import partial
 
-from PySide import QtGui, QtCore
-from PySide.QtCore import QObject as QO
+from PyQt4 import QtGui, QtCore
+from PyQt4.QtCore import QObject as QO
 import matplotlib.cm as cm
 
 # Would do relative imports (..) but when running as __main__ then imports break down. See PEP 366:
@@ -173,10 +173,10 @@ class PyQA(Ui_PyQA_MainWindow):
             self.statusbar.showMessage("Plotting Results...")
 
             # draw analyzed images to PyQA
-            VMAT.show_img_results(self.vmat, self.qual_mplw_left, self.qual_mplw_right)
+            VMAT.plot_analyzed_image(self.vmat, self.qual_mplw_left, self.qual_mplw_right)
 
             # draw on quantitative widget
-            VMAT.show_img_results(self.vmat, self.quan_mplw)
+            VMAT.plot_analyzed_image(self.vmat, self.quan_mplw)
 
             self.statusbar.showMessage("Found! See Analysis tabs", 3000)
             self.progressBar.setValue(0)

@@ -19,12 +19,12 @@ Copyright © 2005 Florent Rougon, 2006 Darren Dale
 
 __version__ = "1.0.0"
 
-from PySide.QtGui import QSizePolicy
-from PySide.QtCore import QSize
+from PyQt4.QtGui import QSizePolicy
+from PyQt4.QtCore import QSize
 
 from matplotlib import rcParams
 rcParams['font.size'] = 9
-rcParams['backend.qt4'] = 'PySide'
+rcParams['backend.qt4'] = 'PyQt4'
 import matplotlib
 matplotlib.use('Qt4Agg')
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas

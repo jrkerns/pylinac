@@ -365,7 +365,7 @@ class Starshot(SingleImageObject):
             passfailstr = 'FAIL'
 
         string = ('\nResult: %s \n\n'
-                  'The miminum circle that touches all the star lines has a radius of %4.3g %s. \n\n'
+                  'The minimum circle that touches all the star lines has a radius of %4.3g %s. \n\n'
                   'The center of the minimum circle is at %4.1f, %4.1f') % (passfailstr, self._wobble_radius, self.tolerance_unit,
                                                                        self._wobble_center[0], self._wobble_center[1])
         return string

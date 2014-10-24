@@ -23,7 +23,7 @@ To run the Starshot demo, run starshot.py, or create a script and run::
 Results will be printed to the console and a matplotlib figure showing the analyzed starshot image will pop up::
 
     Result: PASS
-    The miminum circle that touches all the star lines has a radius of 0.494 mm.
+    The minimum circle that touches all the star lines has a radius of 0.494 mm.
     The center of the minimum circle is at 1511.5, 1302.1
 
 .. image:: /images/analyzed_starshot.png
@@ -80,6 +80,7 @@ Algorithm
 
 * The image can be either inversion
 * The image can be any size
+* The image can be DICOM (from EPID) or most image formats (scanned film)
 
 **Restrictions**
 

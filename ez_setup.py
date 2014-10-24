@@ -39,7 +39,7 @@ try:
 except ImportError:
     USER_SITE = None
 
-DEFAULT_VERSION = "6.1"
+DEFAULT_VERSION = "5.8"
 DEFAULT_URL = "https://pypi.python.org/packages/source/s/setuptools/"
 
 

@@ -3,4 +3,5 @@ V0.1.0, 10/18/14 -- Initial Release (beta)
 This is the initial release of Pylinac. It includes two modules for doing TG-142-related tasks:
 Starshot & VMAT QA
 
-Each new module will result in a bump in minor release, while bug fixes will bump revision number
+Versioning mostly follows standard semantic revisioning. However, each new module will result in a bump in minor release, while bug fixes
+will bump patch number.
