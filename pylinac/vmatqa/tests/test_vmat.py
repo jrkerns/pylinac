@@ -14,7 +14,7 @@ class VMAT_general_tests(unittest.TestCase):
 
     def test_analyze_without_both_images_loaded(self):
         """Raise an error if both images aren't loaded when analyzing."""
-        self.assertRaises(AttributeError, self.vmat.analyze, 'mlcs')
+        self.assertRaises(AttributeError, self.vmat.analyze, 'drmlc')
 
 class VMAT_demo_test_mlcs(unittest.TestCase):
     """Tests of the MLCS demo images."""
@@ -25,7 +25,7 @@ class VMAT_demo_test_mlcs(unittest.TestCase):
         """Test that the demo images are numpy arrays."""
         self.vmat.load_demo_image('drmlc')
         self.assertIsInstance(self.vmat.image_open, np.ndarray)
-        self.assertIsInstance(self.vmat.image_mlc, np.ndarray)
+        self.assertIsInstance(self.vmat.image_dmlc, np.ndarray)
 
     def test_drmlc_passed(self):
         """Test that the demo images for MLC Speed test pass analysis."""
@@ -43,7 +43,7 @@ class VMAT_demo_test_drgs(unittest.TestCase):
         """Test that the demo images are numpy arrays."""
         self.vmat.load_demo_image('drgs')
         self.assertIsInstance(self.vmat.image_open, np.ndarray)
-        self.assertIsInstance(self.vmat.image_mlc, np.ndarray)
+        self.assertIsInstance(self.vmat.image_dmlc, np.ndarray)
 
     def test_passed(self):
         """Test that the demo images for Dose-Rate/Gantry Speed test pass analysis."""

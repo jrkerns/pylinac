@@ -106,7 +106,7 @@ class PyQA(Ui_PyQA_MainWindow):
             self.View_Data_mplw_left.setVisible(True)
             # Draw image to Data View plot
             self.View_Data_mplw_left.axes.imshow(self.vmat.image_open, cmap=cm.Greys_r)
-            self.View_Data_mplw_right.axes.imshow(self.vmat.image_mlc, cmap=cm.Greys_r)
+            self.View_Data_mplw_right.axes.imshow(self.vmat.image_dmlc, cmap=cm.Greys_r)
             # Switch to VMAT tab in settings
             self.Settings_tabWidget.setCurrentIndex(1)
 

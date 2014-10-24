@@ -22,9 +22,46 @@ Results will be printed to the console and a figure showing both the Open field 
 
     Dose Rate & Gantry Speed
     Test Results (Tol. +/-3.0%): PASS
+
+    Overall Results:
     Max Positive Deviation: 0.911%
     Max Negative Deviation: -1.636%
     Absolute Mean Deviation: 0.632%
+
+    105MU/min Segment:
+    Max Positive Deviation: -1.094%
+    Max Negative Deviation: -1.636%
+    Absolute Mean Deviation: 1.383%
+
+    210MU/min Segment:
+    Max Positive Deviation: 0.063%
+    Max Negative Deviation: 0.011%
+    Absolute Mean Deviation: 0.046%
+
+    314MU/min Segment:
+    Max Positive Deviation: 0.665%
+    Max Negative Deviation: 0.412%
+    Absolute Mean Deviation: 0.539%
+
+    417MU/min Segment:
+    Max Positive Deviation: 0.911%
+    Max Negative Deviation: 0.549%
+    Absolute Mean Deviation: 0.724%
+
+    524MU/min Segment:
+    Max Positive Deviation: 0.798%
+    Max Negative Deviation: 0.483%
+    Absolute Mean Deviation: 0.646%
+
+    592MU/min Segment:
+    Max Positive Deviation: 0.281%
+    Max Negative Deviation: 0.210%
+    Absolute Mean Deviation: 0.257%
+
+    600MU/min Segment:
+    Max Positive Deviation: -0.597%
+    Max Negative Deviation: -1.002%
+    Absolute Mean Deviation: 0.829%
 
 .. image:: /images/vmat_analyzed.png
    :height: 340px

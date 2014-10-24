@@ -10,7 +10,6 @@ from __future__ import print_function, division, absolute_import
 import os.path as osp
 
 # 3rd party
-from numpy import mean, arange, array, zeros
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -23,29 +22,30 @@ from pylinac.common.image_classes import SingleImageObject
 # Common constants
 DRMLC_seg_strs = ('1.6cm/s', '2.4cm/s', '0.8cm/s', '0.4cm/s')
 DRGS_seg_strs = ('105MU/min', '210MU/min', '314MU/min', '417MU/min', '524MU/min', '592MU/min', '600MU/min')
+test_types = ('drgs', 'drmlc')
+im_types = ('open', 'mlc')
 
 class VMAT(SingleImageObject):
-    """
-        The VMAT class analyzes two DICOM images acquired via a linac's EPID and analyzes
-        regions of interest (segments) based on the paper by Jorgensen et al (http://dx.doi.org/10.1118/1.3552922), specifically,
-        the dose-rate gantry speed (DRGS) and MLC speed (DRMLC) tests.
+    """The VMAT class analyzes two DICOM images acquired via a linac's EPID and analyzes
+        regions of interest (segments) based on the paper by `Jorgensen et al <http://dx.doi.org/10.1118/1.3552922>`_, specifically,
+        the Dose Rate & Gantry Speed (DRGS) and Dose Rate & MLC speed (DRMLC) tests.
         """
 
     def __init__(self):
         SingleImageObject.__init__(self)
         delattr(self,'image')  # delete the SIO attr 'image'. This is because we'll have two images (see below)
             # and it'd be good not to be confused by the presence of image in the class.
-        self.image_open = None  #: the Open field image
-        self.image_mlc = None  #: the MLC field image
-        self._test_type = None  #: the test to perform
-        self._tolerance = 2 # default of 3% tolerance as Jorgensen recommends
-        self._sample_ratios = np.array([])
-        self._samples_passed = np.array([])  # list of booleans specifying whether each ROI of the test passed or failed
-        self._test_types = ('drgs', 'drmlc')
-        self._im_types = ('open', 'mlc')
-        self._passed_analysis = False  # a boolean specifying a final flag about about whether or not the test passed completely
-        self._segment_medians = np.array([])
-        self._segment_sts = np.array([])
+        self.image_open = np.array([], dtype=float)  # the Open field image
+        self.image_dmlc = np.array([], dtype=float)  # the MLC field image
+        self._test_type = ''  # the test to perform
+        self._tolerance = 3 # default of 3% tolerance as Jorgensen recommends
+        self._sample_ratios = np.array([], dtype=float)  # a float array holding the ratios (DMLC/Open) of MLC pair samples
+        self._samples_passed = np.array([], dtype=bool)  # array of booleans specifying whether each sample passed or failed
+        self._passed_analysis = False  # a boolean specifying a final flag about about whether or not the test passed completely.
+        # the following are dicts holding the individual segment max, min and mean deviation
+        self._seg_dev_max = {}
+        self._seg_dev_min = {}
+        self._seg_dev_mean = {}
 
     def load_image_UI(self, im_type='open'):
         """Open a Qt UI file browser to load dicom image for given VMAT image.
@@ -54,9 +54,9 @@ class VMAT(SingleImageObject):
         :type im_type: str
         """
 
-        if  im_type == self._im_types[0]:  # open
+        if  im_type == im_types[0]:  # open
             caption = "Select Open Field EPID Image..."
-        elif im_type == self._im_types[1]:  # dmlc
+        elif im_type == im_types[1]:  # dmlc
             caption = "Select MLC Field EPID Image..."
         else:
             raise NameError("im_type input string {s} not valid".format(im_type))
@@ -67,6 +67,7 @@ class VMAT(SingleImageObject):
 
     def load_image(self, filepath, im_type='open'):
         """Load the image directly by the file path (i.e. non-interactively).
+
         :param filepath: The absolute path to the DICOM image
         :type filepath: str
         :param im_type: Specifies whether the image is the Open ('open') or MLC ('mlc') field.
@@ -74,21 +75,27 @@ class VMAT(SingleImageObject):
         """
 
         img, props = SingleImageObject.load_image(self, filepath, return_it=True)
-        if im_type == self._im_types[0]:  # open
+        if im_type == im_types[0]:  # open
             self.image_open = img
-        elif im_type == self._im_types[1]:  # dmlc
-            self.image_mlc = img
+        elif im_type == im_types[1]:  # dmlc
+            self.image_dmlc = img
         else:
             raise NameError("im_type input string {s} not valid".format(im_type))
         self.im_props = props
 
     def load_demo_image(self, test_type='drgs', number=1):
-        """
-        Load the demo DICOM images from demo files folder
-        """
-        assert test_type in self._test_types, "test_type input string was not valid. Must be 'drmlc', or 'drgs'"
+        """Load the demo DICOM images from demo files folder.
 
-        if test_type == self._test_types[1]:  # DRMLC
+        :param test_type: Test type of images to load; 'drgs' or 'drmlc'
+        :type test_type: str
+        :param number: Which demo images to load; there are currently 2 for each test type.
+        :type number: int
+        """
+        # error checking
+        if test_type not in test_types:
+            raise NameError("Test_type input string was not valid. Must be 'drmlc', or 'drgs'")
+
+        if test_type == test_types[1]:  # DRMLC
             if number == 1:
                 im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRMLCopen-example.dcm")
                 im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRMLCmlc-example.dcm')
@@ -107,14 +114,22 @@ class VMAT(SingleImageObject):
         self.load_image(im_dmlc_path, im_type='mlc')
 
     def run_demo_drgs(self, number=1):
-        """Run the demo of the module for the Dose Rate & Gantry Speed test."""
+        """Run the demo of the module for the Dose Rate & Gantry Speed test.
+
+        :param number: Which demo image set to run; there are currently 2 demos.
+        :type number: int
+        """
         self.load_demo_image('drgs', number)
         self.analyze(test='drgs', tolerance=3)  # tolerance at 2 to show some failures
         print(self.get_string_results())
         self.show_img_results()
 
     def run_demo_drmlc(self, number=1):
-        """Run the demo of the module for the MLC speed test."""
+        """Run the demo of the module for the Dose Rate & MLC speed test.
+
+        :param number: Which demo image set to run; there are currently 2 demos.
+        :type number: int
+        """
         self.load_demo_image('drmlc', number)
         self.analyze(test='drmlc', tolerance=3)
         print(self.get_string_results())
@@ -123,11 +138,11 @@ class VMAT(SingleImageObject):
     def _get_im_scaling_factors(self):
         """Determine the image scaling factors; initial values were based on 384x512 images @ 150cm SID."""
         # Image size scaling
-        y_scale = np.size(self.image_mlc, 0) / 384.0
-        x_scale = np.size(self.image_mlc, 1) / 512.0
+        y_scale = np.size(self.image_dmlc, 0) / 384.0
+        x_scale = np.size(self.image_dmlc, 1) / 512.0
         # center pixel points
-        x_im_center = np.size(self.image_mlc, 1) / 2.0 + 0.5
-        y_im_center = np.size(self.image_mlc, 0) / 2.0 + 0.5
+        x_im_center = np.size(self.image_dmlc, 1) / 2.0 + 0.5
+        y_im_center = np.size(self.image_dmlc, 0) / 2.0 + 0.5
         # SID scaling
         try:
             SID_scale = self.im_props['SID mm'] / 1500.0
@@ -136,119 +151,149 @@ class VMAT(SingleImageObject):
 
         return SID_scale, x_im_center, x_scale, y_im_center, y_scale
 
+    def _calc_sample_bounds(self, SID_scale, test, x_im_center, x_scale, y_im_center, y_scale):
+        """Calculate the pixel bounds of the samples to be extracted."""
+        self._num_leaves = 38  # TODO: add if statement for HDMLCs
+        sample_width_pix = 6  # the width in pixels of a given MLC leaf sample (at 150cm SID)
+        leaf_width = 9.57  # the width from sample to sample (MLC leaf to the next MLC leaf). Calculation using DPmm gives 9.57
+        y_pixel_bounds = [(np.round((12 + leaf * leaf_width - 192) * y_scale * SID_scale + y_im_center),
+                           np.round((12 + leaf * leaf_width - 192 + sample_width_pix) * y_scale * SID_scale + y_im_center))
+                          for leaf in np.arange(self._num_leaves)]
+        # set up DRMLC sample points
+        if test == test_types[1]:
+            width, num_segments = np.round(42 * x_scale * SID_scale), 4
+            x_pixel_offsets = (-107, -49, 9, 68)  # offsets from the central x-pixel which are left-side starting points for the ROIs
+            x_pixel_starts = [np.round(x_im_center + (offset * x_scale * SID_scale)) for offset in
+                              x_pixel_offsets]  # multiply by scaling factor
+            x_pixel_bounds = [(item, item + width) for item in x_pixel_starts]  # create a list of the left/right x-points
+
+        # set up DRGS sample points
+        else:
+            width, num_segments = np.round(24 * x_scale * SID_scale), 7
+            x_pixel_offsets = np.array((147, 185, 223, 262, 299, 339, 378)) - 256
+            x_pixel_starts = [np.round(x_im_center + (item * x_scale * SID_scale)) for item in
+                              x_pixel_offsets]  # multiply by scaling factors
+            x_pixel_bounds = [(item, item + width) for item in x_pixel_starts]
+
+        self._num_segments = num_segments
+        self._width = width
+        self._sample_height = sample_width_pix*y_scale*SID_scale
+        self._y_pixel_bounds = y_pixel_bounds
+        self._x_pixel_bounds = x_pixel_bounds
+
+    def _extract_samples(self):
+        """Extract the samples from both Open and DMLC images based on pixel bounds."""
+        # preallocation
+        dmlc_samples = np.zeros((self._num_leaves, self._num_segments))
+        open_samples = np.zeros((self._num_leaves, self._num_segments))
+        # this pulls the samples from the Open and MLC image into new arrays
+        # which are analyzed for the mean and standard deviation.
+        for segment in np.arange(self._num_segments):
+            for sample in np.arange(self._num_leaves):
+                # extract ROI values
+                dmlc_samples[sample, segment] = self.image_dmlc[self._y_pixel_bounds[sample][0]:self._y_pixel_bounds[sample][1],
+                                                                self._x_pixel_bounds[segment][0]:self._x_pixel_bounds[segment][1]].mean()
+                open_samples[sample, segment] = self.image_open[self._y_pixel_bounds[sample][0]:self._y_pixel_bounds[sample][1],
+                                                                self._x_pixel_bounds[segment][0]:self._x_pixel_bounds[segment][1]].mean()
+
+        return dmlc_samples, open_samples
+
+    def _ratio_samples(self, dmlc_samples, open_samples):
+        """Ratio the open and dmlc sample values to each other, i.e. the DMLC to open field ratio."""
+        sample_ratios = dmlc_samples / open_samples
+        self._sample_ratios = sample_ratios
+
+    def _normalize_samples(self, dmlc_samples, open_samples):
+        """Normalize the samples for each image respectively to the mean of the central segment."""
+        # DRGS
+        if self._test_type == test_types[0]:
+            open_norm = open_samples[:, 3].mean()
+            dmlc_norm = dmlc_samples[:, 3].mean()
+
+        # MLCS
+        else:
+            open_norm = open_samples[:, 1:2].mean()
+            dmlc_norm = dmlc_samples[:, 1:2].mean()
+        open_samples /= open_norm
+        dmlc_samples /= dmlc_norm
+        return dmlc_samples, open_samples
+
+    def _calc_deviations(self):
+        """Calculate the deviations of each sample using Jorgensen's deviation equation."""
+        # preallocation
+        dev_matrix = np.zeros(self._sample_ratios.shape)
+        # deviation calculation
+        for sample in np.arange(self._num_leaves):
+            denom = self._sample_ratios[sample, :].mean()
+            for segment in np.arange(self._num_segments):
+                numer = self._sample_ratios[sample, segment]
+                dev_matrix[sample, segment] = numer / denom - 1
+        # convert to percentages
+        dev_matrix *= 100
+        # saving the important values:
+        # overall deviations
+        self._dev_max = dev_matrix.max()
+        self._dev_min = dev_matrix.min()
+        self._dev_mean = dev_matrix.__abs__().mean()
+        # segment deviations
+        # self._seg_dev_max = [0] * self._num_segments
+        # self._seg_dev_min = [0] * self._num_segments
+        # self._seg_dev_mean = [0] * self._num_segments
+        for segment in np.arange(self._num_segments):
+            self._seg_dev_max[segment] = dev_matrix[:, segment].max()
+            self._seg_dev_min[segment] = dev_matrix[:, segment].min()
+            self._seg_dev_mean[segment] = dev_matrix[:, segment].__abs__().mean()
+
     def analyze(self, test, tolerance=3):
-        """Analyze 2 VMAT images, the open field image and MLC field image, according to 1 of 2 possible tests.
+        """Analyze 2 VMAT images, the open field image and DMLC field image, according to 1 of 2 possible tests.
+
+        :param test: The test to perform, either Dose Rate Gantry Speed ('drgs') or Dose Rate MLC Speed ('drmlc').
+        :type test: str
+        :param tolerance: The tolerance of the sample deviations in percent. Default is 3, as Jorgensen recommends.
+        :type tolerance: float, int
         """
-        # error checking that images are loaded. If using in PyTG142, warn user. If using standalone, assert error
-        if self.image_open is None or self.image_mlc is None:
-            raise AttributeError("Open or MLC Image not loaded yet. Use .load_image()")
-        if test.lower() not in self._test_types:
+        # error checking
+        if len(self.image_open) == 0  or len(self.image_dmlc) == 0:
+            raise AttributeError("Open or MLC Image not loaded yet. Use .load_image() or .load_image_UI()")
+        if test.lower() not in test_types:
             raise NameError("Test input string was not valid. Must be 'drmlc', or 'drgs'")
-        if (type(tolerance) != float and type(tolerance) != int)or tolerance < 0.1:
+        if (type(tolerance) != float and type(tolerance) != int) or tolerance < 0.1:
             raise ValueError("Tolerance must be a float or int greater than 0.1")
 
         self._tolerance = tolerance / 100.0
         self._test_type = test
 
-        # get the image scaling factors and center pixels
+        # get the image scaling factors and center pixels; this corrects for the SID
         SID_scale, x_im_center, x_scale, y_im_center, y_scale = self._get_im_scaling_factors()
 
-        # set up ROI points used in both tests
-        num_leaves = 38
-        sample_width_pix = 6 # the width in pixels of a given MLC leaf sample
-        leaf_width = 9.57 # (368-12)/38  # the width from sample to sample (MLC leaf to the next MLC leaf). Calculation using DPmm gives
-        # 9.57
+        # set up pixel bounds of test
+        self._calc_sample_bounds(SID_scale, test, x_im_center, x_scale, y_im_center, y_scale)
 
-        y_pixel_bounds = [(np.round((12+leaf*leaf_width-192)*y_scale*SID_scale+y_im_center),
-                           np.round((12+leaf*leaf_width-192+sample_width_pix)*y_scale*SID_scale+y_im_center))
-                            for leaf in arange(num_leaves)]
+        # Extract the samples from each image
+        dmlc_samples, open_samples = self._extract_samples()
 
-        # set up MLC speed sample points
-        if test == self._test_types[1]:
-            width, num_segments = np.round(42 * x_scale * SID_scale), 4
-            x_pixel_offsets = (-107, -49, 9, 68)  # offsets from the central x-pixel which are left-side starting points for the ROIs
-            x_pixel_starts = [np.round(x_im_center + (offset*x_scale*SID_scale)) for offset in x_pixel_offsets] # multiply by scaling factor
-            x_pixel_bounds = [(item, item + width) for item in x_pixel_starts]  # create a list of the left/right x-points
+        # normalize the samples for each image respectively
+        dmlc_samples, open_samples = self._normalize_samples(dmlc_samples, open_samples)
 
-        # set up Dose-Rate Gantry-Speed sample points
-        else:
-            width, num_segments = np.round(24 * x_scale * SID_scale), 7
-            x_pixel_offsets = np.array((147, 185, 223, 262, 299, 339, 378)) - 256
-            x_pixel_starts = [np.round(x_im_center + (item * x_scale*SID_scale)) for item in x_pixel_offsets]  # multiply by scaling factors
-            x_pixel_bounds = [(item, item + width) for item in x_pixel_starts]
-
-        #preallocation/instantiation
-        dmlc_samples = zeros((num_leaves, num_segments))
-        open_samples = zeros((num_leaves, num_segments))
-
-        # this pulls the samples from the Open and MLC image into new arrays
-        # which are analyzed for the mean and standard deviation.
-        for segment in arange(num_segments):
-            for sample in arange(num_leaves):
-                # extract ROI values
-                dmlc_samples[sample, segment] = mean(array(self.image_mlc[y_pixel_bounds[sample][0]:y_pixel_bounds[sample][1],
-                                                           x_pixel_bounds[segment][0]:x_pixel_bounds[segment][1]]))
-                open_samples[sample, segment] = mean(array(self.image_open[y_pixel_bounds[sample][0]:y_pixel_bounds[sample][1],
-                                                           x_pixel_bounds[segment][0]:x_pixel_bounds[segment][1]]))
-
-        # normalize the samples to that of segment 4 for DRGS or the mean of segments 2 and 3 for MLCS of their own respective image
-        if self._test_type == self._test_types[0]:  # DRGS
-            open_norm = mean(open_samples[:,3])
-            dmlc_norm = mean(dmlc_samples[:,3])
-        else:  # MLCS
-            open_norm = mean(open_samples[:, 1:2])
-            dmlc_norm = mean(dmlc_samples[:, 1:2])
-
-        open_samples /= open_norm
-        dmlc_samples /= dmlc_norm
-
-        # now ratio the open and mlc sample values to each other, i.e. the MLC to open field difference
-        sample_ratios = dmlc_samples / open_samples
+        # ratio the samples
+        self._ratio_samples(dmlc_samples, open_samples)
 
         # calculate deviations as per Jorgensen equation
-        dev_matrix = np.zeros(sample_ratios.shape)
-        for sample in arange(num_leaves):
-            denom = sample_ratios[sample,:].mean()
-            for segment in arange(num_segments):
-                numer = sample_ratios[sample, segment]
-                dev_matrix[sample, segment] = numer/denom - 1
-        # convert to percentages
-        dev_matrix *= 100
-        self._dev_max = dev_matrix.max()
-        self._dev_min = dev_matrix.min()
-        self._dev_mean = dev_matrix.__abs__().mean()
-
-        self._seg_dev_max = [0] * num_segments
-        self._seg_dev_min = [0] * num_segments
-        self._seg_dev_mean = [0] * num_segments
-        for segment in arange(num_segments):
-            self._seg_dev_max[segment] = dev_matrix[:, segment].max()
-            self._seg_dev_min[segment] = dev_matrix[:, segment].min()
-            self._seg_dev_mean[segment] = dev_matrix[:, segment].__abs__().mean()
-
-        # attach other sample values to self
-        self._sample_height = sample_width_pix*y_scale*SID_scale
-        self._sample_ratios = sample_ratios
-        self._width = width
-        self._y_pixel_bounds = y_pixel_bounds
-        self._x_pixel_bounds = x_pixel_bounds
-        self._num_segments = num_segments
-        self._num_leaves = num_leaves
+        self._calc_deviations()
 
         # run a pass/fail test on results
         self._run_passfail()
 
     def _run_passfail(self):
-        """Checks whether the sample ratios passed the given tolerance.
-        """
+        """Checks whether the sample ratios passed the given tolerance."""
 
         # create boolean array the size of the number of samples; default to fail until pass
         self._samples_passed = np.zeros((self._num_leaves, self._num_segments), dtype=bool)
 
         # for each sample, if ratio is within tolerance, set to True
         #TODO: probably simple equality expression that's simpler.
-        for segment in arange(self._num_segments):
-            for sample in arange(self._num_leaves):
+        for segment in np.arange(self._num_segments):
+            for sample in np.arange(self._num_leaves):
                 if self._sample_ratios[sample,segment] < 1 + self._tolerance and self._sample_ratios[sample,segment] > 1 - self._tolerance:
                     self._samples_passed[sample,segment] = True
 
@@ -261,7 +306,7 @@ class VMAT(SingleImageObject):
         This method draws lines on the matplotlib widget/figure showing an outline of the ROIs used in
         the calcuation and text of the results
 
-        @type plot: matplotlib.axes.Axes
+        :type plot: matplotlib.axes.Axes
         """
 
         # clear images of any existing objects that are on it
@@ -274,8 +319,8 @@ class VMAT(SingleImageObject):
         #plot ROI lines on image
         self.roi_handles = [[None for _ in range(self._num_segments)] for _ in range(self._num_leaves)]
 
-        for segment in arange(self._num_segments):
-            for sample in arange(self._num_leaves):
+        for segment in np.arange(self._num_segments):
+            for sample in np.arange(self._num_leaves):
                 if self._samples_passed[sample, segment]:
                     color = 'blue'
                 else:
@@ -289,7 +334,10 @@ class VMAT(SingleImageObject):
             plot.draw()
 
     def show_img_results(self, plot1=None, plot2=None):
-        """Create 2 plots showing the open and MLC images with the samples and results drawn on.
+        """Create 1 figure of 2 plots showing the open and MLC images with the samples and results drawn on.
+
+        :param plot1: An existing plot to draw results to. Currently only used for PyQA.
+        :param plot2: ditto
         """
         if plot1 is None and plot2 is None:
             fig, (ax1, ax2) = plt.subplots(1,2)
@@ -304,7 +352,7 @@ class VMAT(SingleImageObject):
             ax2.set_title("Open Field Image")
         except:
             pass  # axis2 wasn't defined
-        ax1.imshow(self.image_mlc, cmap=cm.Greys_r)
+        ax1.imshow(self.image_dmlc, cmap=cm.Greys_r)
         ax1.set_title("MLC Field Image")
         self._draw_objects(ax1)
 
@@ -350,14 +398,17 @@ class VMAT(SingleImageObject):
         #     plot.axes.hold(False)
 
     def get_string_results(self):
-        """Create a string of the summary of the analysis results."""
+        """Create a string of the summary of the analysis results.
+
+        :returns: str -- The results string showing the overall result and deviation stats by segment.
+        """
 
         if self._passed_analysis:
             passfail_str = 'PASS'
         else:
             passfail_str = 'FAIL'
 
-        if self._test_type == self._test_types[0]:  # DRGS
+        if self._test_type == test_types[0]:  # DRGS
             string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
                       (self._tolerance * 100, passfail_str))
         else:  # MLC Speed
@@ -370,11 +421,11 @@ class VMAT(SingleImageObject):
                    'Absolute Mean Deviation: %4.3f%%' %
                    (self._dev_max, self._dev_min, self._dev_mean))
 
-        if self._test_type == self._test_types[0]:  # DRGS
+        if self._test_type == test_types[0]:  # DRGS
             seg_str = DRGS_seg_strs
         else:
             seg_str = DRMLC_seg_strs
-        for segment in arange(self._num_segments):
+        for segment in np.arange(self._num_segments):
             string += ('\n\n%s Segment:\n'
                        'Max Positive Deviation: %4.3f%%\n'
                        'Max Negative Deviation: %4.3f%%\n'
