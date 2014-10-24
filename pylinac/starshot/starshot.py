@@ -4,10 +4,7 @@ The Starshot module analyses a starshot film or multiple superimposed EPID image
 radiation spokes, whether gantry, collimator, or couch. It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
 and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
 """
-from __future__ import division, print_function
-from future import standard_library
-standard_library.install_hooks()
-from future.builtins import range
+from __future__ import division, print_function, absolute_import
 import os.path as osp
 
 import numpy as np
@@ -25,7 +22,7 @@ from pylinac.common.peakdetect import peak_detect
 # The scale is the pixel size to search, e.g. scale=1 searches to the nearest whole pixel, while scale=10 searches to
 # the nearest 1/10th of a pixel, etc.
 normal_tolerance, normal_scale = 0.05, 1.0
-small_tolerance, small_scale = 0.0001, 10.0
+small_tolerance, small_scale = 0.001, 10.0
 
 file_dir = osp.split(osp.abspath(__file__))[0]  # The working directory of this file
 
@@ -35,20 +32,21 @@ class Starshot(SingleImageObject):
     """
     def __init__(self):
         SingleImageObject.__init__(self)
-        self._algo_startpoint = None  # (y,x) which specifies the algorithm starting point for search algorithm
+        self._algo_startpoint = np.zeros(2)  # (y,x) which specifies the algorithm starting point for search algorithm
         self.radius = 50  # default of 50% of smallest image dimension
         self._pointpairs = []  # a list which holds 4 values per index: two points with the y,x locations of points that
         # correspond to the two points comprising a radiation "strip"
-        self._circleprofile = None  # a numpy array that will hold a 1-D profile of a circle centered on the algo starting point
-        self._x = None  # an array that holds the x-values that the circleprofile is computed over
-        self._y = None  # ditto for y-values
-        self._wobble_center = None  # The pixel position (y,x) of the center of a circle that minimally touches all the radiation lines
-        self._wobble_radius = None  # The radius of the circle mentioned above. Could be in pixels or mm
-        self._wobble_radius_pix = None  # The radius of the circle in pixels. For proper drawing of the circle on the plot.
+        self._circleprofile = np.array([])  # a numpy array that will hold a 1-D profile of a circle centered on the algo starting point
+        self._x = np.array([])  # an array that holds the x-values that the circleprofile is computed over
+        self._y = np.array([])  # ditto for y-values
+        self._wobble_center = np.zeros(2)  # The pixel position (y,x) of the center of a circle that minimally touches all the radiation
+        # lines
+        self._wobble_radius = 0  # The radius of the circle mentioned above. Could be in pixels or mm
+        self._wobble_radius_pix = 0  # The radius of the circle in pixels. For proper drawing of the circle on the plot.
         self.tolerance = 1  # tolerance limit of the radiation wobble
-        self.tolerance_unit = 'pixels'  # tolerance units are initially pixels. Will be converted to mm if conversion
+        self.tolerance_unit = 'pixels'  # tolerance units are initially pixels. Will be converted to 'mm' if conversion
         # information available in image properties
-        self.wobble_passed = False  # overall test result
+        self.wobble_passed = False  # boolean overall test pass/fail result
 
     def load_demo_image(self, number=1):
         """Load a starshot demo image.
@@ -73,7 +71,7 @@ class Starshot(SingleImageObject):
         :type warn_if_far_away: boolean
         """
         if warn_if_far_away:
-            if self._algo_startpoint is None:
+            if self._algo_startpoint[0] == 0:
                 self._auto_set_start_point()
             tolerance = max(min(self.image.shape)/100, 15)  # 1% image width of smalling dimension, or 15 pixels
             auto_y_upper = self._algo_startpoint[0] - tolerance
@@ -86,11 +84,11 @@ class Starshot(SingleImageObject):
                       " The algorithm may not calculate correctly if you continue. \nUse method .clear_start_point" +
                       " to reset if need be or don't set the starting point manually.")
 
-        self._algo_startpoint = point
+        self._algo_startpoint = np.array(point, dtype=float)
 
     def clear_start_point(self):
         """Clear/reset the algorithm starting point."""
-        self._algo_startpoint = None
+        self._algo_startpoint = np.zeros(2)
 
     def _draw_profile_circle(self, im_widget):
         """Draw a circle where the circular profile was or will be taken over.
@@ -167,7 +165,6 @@ class Starshot(SingleImageObject):
          :param SID: The source to image distance in cm. If passed in, results will be scaled to 100cm. E.g. a wobble of
             3 pixels at an SID of 150cm will be presented as 2 pixels [3/(150/100)].
          :type SID: int
-
         """
         # error checking
         if self.image is None:
@@ -188,7 +185,7 @@ class Starshot(SingleImageObject):
         self._check_inversion(allow_inversion)
 
         # set starting point automatically if not yet set
-        if self._algo_startpoint is None:
+        if self._algo_startpoint[0] == 0:
             self._auto_set_start_point()
 
         # extract the circle profile
@@ -265,7 +262,7 @@ class Starshot(SingleImageObject):
         # Now, create and fill an array called center_indices that will be the index of _circleprofile that the FWHM is at.
         center_indices = np.zeros(len(max_vals))
         # Determine the FWHM of each peak
-        for i in range(len(max_vals)):
+        for i in np.arange(len(max_vals)):
             prof = Prof_Penum(self._circleprofile[strip_limits[i]:strip_limits[i + 1]], np.arange(strip_limits[i], strip_limits[i + 1]))
             center_indices[i] = prof.get_FWXM_center()
         center_indices = np.round(center_indices) # round to the nearest pixel
@@ -291,7 +288,7 @@ class Starshot(SingleImageObject):
         """
         # On the assumption that strips go all the way across the CAX and that we have caught them all,
         # it is easiest and most robust to simply connect index i with len(points)/2 + i, etc.
-        for strip in range(len(self._peak_locs)//2):
+        for strip in np.arange(len(self._peak_locs)//2):
             self._pointpairs.append(np.array([self._peak_locs[strip], self._peak_locs[strip+len(self._peak_locs)/2]]))
 
     def _find_wobble_2step(self, SID):
@@ -341,8 +338,7 @@ class Starshot(SingleImageObject):
             sp[1] += (min_idx[1] - 1)/scale
             for x in np.arange(-1,2):
                 for y in np.arange(-1,2):
-                    point = np.array([sp[0] + y / scale, sp[1] + x / scale])
-                    # distmax[y + 1, x + 1] = geoPointSegsDist(point, self._pointpairs, minormax='max')
+                    point = np.array([sp[0] + (y/scale), sp[1] + (x/scale)])
                     distmax[y+1, x+1] = np.max([point_to_2point_line_dist(point, line) for line in self._pointpairs])
 
         wobbleradius = distmax[1, 1]
