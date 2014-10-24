@@ -1,3 +1,9 @@
+V0.1.1 10/24/14 -- Bug fix, Optimization, and Refactoring
+
+Several small bugs were fixed and small optimizations made.
+A few methods were refactored for similarity between modules.
+
+
 V0.1.0, 10/18/14 -- Initial Release (beta)
 
 This is the initial release of Pylinac. It includes two modules for doing TG-142-related tasks:
