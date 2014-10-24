@@ -2,12 +2,12 @@
 
 # Form implementation generated from reading ui file 'D:\Users\James\Dropbox\Programming\Python\Projects\PyCharm Projects\pylinac\pyqa_gui\PyQAui.ui'
 #
-# Created: Thu Oct 23 15:30:40 2014
+# Created: Fri Oct 24 11:43:28 2014
 #      by: pyside-uic 0.2.15 running on PySide 1.2.2
 #
 # WARNING! All changes made in this file will be lost!
 
-from PySide import QtCore, QtGui
+from PyQt4 import QtCore, QtGui
 
 class Ui_PyQA_MainWindow(object):
     def setupUi(self, PyQA_MainWindow):
@@ -343,6 +343,9 @@ class Ui_PyQA_MainWindow(object):
         self.quan_mplw.setAutoFillBackground(False)
         self.quan_mplw.setObjectName("quan_mplw")
         self.main_widget.addTab(self.tab_5, "")
+        self.label_12 = QtGui.QLabel(self.centralwidget)
+        self.label_12.setGeometry(QtCore.QRect(800, 600, 41, 20))
+        self.label_12.setObjectName("label_12")
         PyQA_MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtGui.QMenuBar(PyQA_MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 849, 21))
@@ -362,8 +365,8 @@ class Ui_PyQA_MainWindow(object):
         self.menubar.addAction(self.menuHelp.menuAction())
 
         self.retranslateUi(PyQA_MainWindow)
-        self.main_widget.setCurrentIndex(0)
-        self.Settings_tabWidget.setCurrentIndex(1)
+        self.main_widget.setCurrentIndex(2)
+        self.Settings_tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(PyQA_MainWindow)
 
     def retranslateUi(self, PyQA_MainWindow):
@@ -405,6 +408,7 @@ class Ui_PyQA_MainWindow(object):
         self.main_widget.setTabText(self.main_widget.indexOf(self.tab_4), QtGui.QApplication.translate("PyQA_MainWindow", "Qualitative Analysis", None, QtGui.QApplication.UnicodeUTF8))
         self.groupBox.setTitle(QtGui.QApplication.translate("PyQA_MainWindow", "Results", None, QtGui.QApplication.UnicodeUTF8))
         self.main_widget.setTabText(self.main_widget.indexOf(self.tab_5), QtGui.QApplication.translate("PyQA_MainWindow", "Quantitative Analysis", None, QtGui.QApplication.UnicodeUTF8))
+        self.label_12.setText(QtGui.QApplication.translate("PyQA_MainWindow", "v0.1.0", None, QtGui.QApplication.UnicodeUTF8))
         self.menuFile.setTitle(QtGui.QApplication.translate("PyQA_MainWindow", "File", None, QtGui.QApplication.UnicodeUTF8))
         self.menuHelp.setTitle(QtGui.QApplication.translate("PyQA_MainWindow", "Help", None, QtGui.QApplication.UnicodeUTF8))
         self.actionAbout.setText(QtGui.QApplication.translate("PyQA_MainWindow", "About", None, QtGui.QApplication.UnicodeUTF8))

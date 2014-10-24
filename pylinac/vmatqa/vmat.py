@@ -122,7 +122,7 @@ class VMAT(SingleImageObject):
         self.load_demo_image('drgs', number)
         self.analyze(test='drgs', tolerance=3)  # tolerance at 2 to show some failures
         print(self.get_string_results())
-        self.show_img_results()
+        self.plot_analyzed_image()
 
     def run_demo_drmlc(self, number=1):
         """Run the demo of the module for the Dose Rate & MLC speed test.
@@ -133,7 +133,7 @@ class VMAT(SingleImageObject):
         self.load_demo_image('drmlc', number)
         self.analyze(test='drmlc', tolerance=3)
         print(self.get_string_results())
-        self.show_img_results()
+        self.plot_analyzed_image()
 
     def _get_im_scaling_factors(self):
         """Determine the image scaling factors; initial values were based on 384x512 images @ 150cm SID."""
@@ -333,7 +333,7 @@ class VMAT(SingleImageObject):
         if draw:
             plot.draw()
 
-    def show_img_results(self, plot1=None, plot2=None):
+    def plot_analyzed_image(self, plot1=None, plot2=None):
         """Create 1 figure of 2 plots showing the open and MLC images with the samples and results drawn on.
 
         :param plot1: An existing plot to draw results to. Currently only used for PyQA.
@@ -365,37 +365,6 @@ class VMAT(SingleImageObject):
         if plot2 is not None:
             plot2.draw()
             plot2.axes.hold(False)
-
-
-        # plt.show()
-        # else:
-        # # plot image
-        # if plot is None:
-        #     imgplot = plt.imshow(self.image)
-        # else:
-        #     plot.axes.imshow(self.image)
-        #     # plot.figure.hold(True)
-        #     plot.axes.hold(True)
-        #     imgplot = plot
-        # # plot radiation lines
-        # for pair in self._pointpairs:
-        #     imgplot.axes.plot([pair[0, 1], pair[1, 1]], [pair[0, 0], pair[1, 0]], 'w')
-        # # plot wobble circle
-        # wc = np.flipud(self._wobble_center)
-        # wr = self._wobble_radius_pix
-        # imgplot.axes.add_patch(Circle(wc, radius=wr, edgecolor='black', fill=False))
-        # # plot profile circle
-        # rad = self.radius / 100.0 * point2edge_min(self.image, self._algo_startpoint)
-        # imgplot.axes.add_patch(Circle(np.flipud(self._algo_startpoint), radius=rad, edgecolor='green', fill=False))
-        # # tighten plot around image
-        # imgplot.axes.autoscale(tight=True)
-        #
-        # # Finally, show it all
-        # if plot is None:
-        #     plt.show()
-        # else:
-        #     plot.draw()
-        #     plot.axes.hold(False)
 
     def get_string_results(self):
         """Create a string of the summary of the analysis results.

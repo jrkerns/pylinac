@@ -13,16 +13,12 @@ class Star_general_tests(unittest.TestCase):
         self.star = Starshot()
         self.star.load_demo_image()
 
-    def test_startpoint_is_none_on_load(self):
-        """The mechanical isocenter should not have been set upon loading an image."""
-        self.assertIsNone(self.star._algo_startpoint, msg="The mechanical iso did not default to None")
-
     def test_startpoint_autosets_if_unset(self):
         """Test that the mechanical isocenter will automatically set if not yet set."""
-        # analyze image; mech point is not yet set
+        # analyze image with the start point not yet set
         self.star.analyze()
-        # the mech point should now have been set
-        self.assertIsNotNone(self.star._algo_startpoint, msg="The mechanical iso did not set automatically when analyzing")
+        # the start point should now have been set
+        self.assertNotEqual(self.star._algo_startpoint[0], 0, msg="The start point did not set automatically when analyzing")
 
 
 class Star_test_demo1(unittest.TestCase):
@@ -50,10 +46,10 @@ class Star_test_demo1(unittest.TestCase):
         self.star.analyze()
         # test y-coordinate
         y_coord = self.star._wobble_center[0]
-        self.assertAlmostEqual(y_coord, 1510, delta=10)
+        self.assertAlmostEqual(y_coord, 1511, delta=2)
         # test x-coordinate
         x_coord = self.star._wobble_center[1]
-        self.assertAlmostEqual(x_coord, 1300, delta=10)
+        self.assertAlmostEqual(x_coord, 1302, delta=2)
 
     def test_num_peaks(self):
         """Test than the number of peaks (strips) found is what is expected."""
@@ -88,10 +84,10 @@ class Star_test_demo2(unittest.TestCase):
         self.star.analyze()
         # test y-coordinate
         y_coord = self.star._wobble_center[0]
-        self.assertAlmostEqual(y_coord, 1698, delta=10)
+        self.assertAlmostEqual(y_coord, 1698, delta=2)
         # test x-coordinate
         x_coord = self.star._wobble_center[1]
-        self.assertAlmostEqual(x_coord, 1296, delta=10)
+        self.assertAlmostEqual(x_coord, 1296, delta=2)
 
     def test_num_peaks(self):
         """Test than the number of peaks (strips) found is what is expected."""
@@ -111,5 +107,5 @@ class Star_test_demo2(unittest.TestCase):
 
         y_coord = self.star._wobble_center[0]
         x_coord = self.star._wobble_center[1]
-        self.assertAlmostEqual(y_coord, 1698, delta=10)
-        self.assertAlmostEqual(x_coord, 1296, delta=10)
+        self.assertAlmostEqual(y_coord, 1698, delta=2)
+        self.assertAlmostEqual(x_coord, 1296, delta=2)
