@@ -21,10 +21,11 @@ pylinac into a GUI and executable that any user can use, without having to progr
 Below are the tools currently available; tools will be added one at a time as they are developed.
 
 * `Starshot Analysis <http://pylinac.readthedocs.org/en/latest/starshot_docs.html>`_ -
-    Tools for analyzing film or superimposed EPID images for gantry, collimator, or MLC star (aka spoke) shots. Can determine
-    the minimum circle that touches all the radiation spokes (wobble).
+    A tool for analyzing film or superimposed EPID images for gantry, collimator, or MLC star (aka spoke) shots. Can determine
+    the minimum circle that touches all the radiation spokes (wobble). Based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
+    and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
 * `VMAT QA <http://pylinac.readthedocs.org/en/latest/vmat_docs.html>`_ -
-    A module for analyzing EPID images after performing the Jorgensen et al tests for VMAT QA, specifically the Dose Rate & Gantry Speed 
+    A module for analyzing EPID images after performing the `Jorgensen et al. <http://dx.doi.org/10.1118/1.3552922>`_ tests for VMAT QA, specifically the Dose Rate & Gantry Speed
     (DRGS) and Dose Rate MLC (DRMLC) tests. Can load the open and MLC field images and calculate segment ratios as per the Jorgensen implementation.
 
 
