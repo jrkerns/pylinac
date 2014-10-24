@@ -35,11 +35,11 @@ To get started, install, run the demos, view the API docs, and learn the module 
 Contributing
 ------------
 
-Contributions to pylinac can be many. The most useful thing a non-programmer can contribute is images to analyze. If
+Contributions to pylinac can be many. The most useful thing a non-programmer can contribute is images to analyze and bug reports. If
 you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, email me
- or share then via dropbox, drive, etc. Obviously, don't send patient files, just QA files.
+or share them via Dropbox, Google Drive, etc. Obviously, don't send patient files, just QA files.
 
 
-Code is Python 2/3 compatible thanks to `future <http://python-future.org/>`_.
+Code is Python 2.7/3.x compatible thanks to `future <http://python-future.org/>`_.
 
 
