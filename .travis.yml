@@ -6,10 +6,6 @@ python:
 #  - "3.3" # pydicom doesn't want to play nice w/ py3.3
 #  - "3.4"
 
-#env:
-  # base versions
-#  - NUMPY_VER=1.8.1
-
 
 # Not using the following because standard pip installation of scientific packages throw compile error.
 #install:
