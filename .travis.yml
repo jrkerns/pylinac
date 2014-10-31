@@ -17,13 +17,7 @@ python:
 
 # install dependencies
 install:
-  - pip install -U pip  # update pip
-  - pip install future==0.14
-  # setuptools is needed for pydicom
-  - pip install setuptools -U
-  # syntax from: http://stackoverflow.com/questions/8247605/configuring-so-that-pip-install-can-work-from-github
-  # Update: isn't working because setup.py isn't found (not in root)
-  - pip install pydicom
+
 
   # Install conda
   - sudo pip install conda
@@ -33,6 +27,14 @@ install:
 #  - sudo conda update --yes conda
   - conda create -p $HOME/py --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pillow statsmodels
   - export PATH=$HOME/py/bin:$PATH
+
+  - pip install -U pip  # update pip
+  - pip install future==0.14
+  # setuptools is needed for pydicom
+  - pip install setuptools -U
+  # syntax from: http://stackoverflow.com/questions/8247605/configuring-so-that-pip-install-can-work-from-github
+  # Update: isn't working because setup.py isn't found (not in root)
+  - pip install pydicom
 
   # install your own package into the environment
   - python setup.py install
