@@ -1,0 +1,44 @@
+# Travis CI build file. The numpy/scipy ability is from 'conda', found here:
+# http://sburns.org/2014/03/28/faster-travis-builds.html
+language: python
+python:
+  - "2.7"
+#  - "3.3" # pydicom doesn't want to play nice w/ py3.3
+#  - "3.4"
+
+#env:
+  # base versions
+#  - NUMPY_VER=1.8.1
+
+
+# Not using the following because standard pip installation of scientific packages throw compile error.
+#install:
+#  - "pip install -r requirements.txt"
+
+# install dependencies
+install:
+  - pip install future==0.14
+  # setuptools is needed for pydicom
+  - pip install setuptools -U
+  # syntax from: http://stackoverflow.com/questions/8247605/configuring-so-that-pip-install-can-work-from-github
+  # Update: isn't working because setup.py isn't found (not in root)
+  - pip install pylinac
+
+  # Install conda
+  - sudo pip install conda
+  # install deps
+  - sudo conda init
+  # update conda. The following line throws an error
+#  - sudo conda update --yes conda
+  - conda create -p $HOME/py --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pillow statsmodels
+  - export PATH=$HOME/py/bin:$PATH
+
+  # install your own package into the environment
+#  - python setup.py install
+
+# test script
+script:
+  - python setup.py test
+
+notifications:
+  email: false
