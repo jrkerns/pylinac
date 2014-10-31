@@ -22,7 +22,7 @@ install:
   - pip install setuptools -U
   # syntax from: http://stackoverflow.com/questions/8247605/configuring-so-that-pip-install-can-work-from-github
   # Update: isn't working because setup.py isn't found (not in root)
-  - pip install https://github.com/leftierebel/pydicom/zipball/master
+  - pip install pydicom
 
   # Install conda
   - sudo pip install conda
@@ -34,7 +34,7 @@ install:
   - export PATH=$HOME/py/bin:$PATH
 
   # install your own package into the environment
-#  - python setup.py install
+  - python setup.py install
 
 # test script
 script:
