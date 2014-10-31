@@ -25,13 +25,13 @@ install:
   - sudo conda init
   # update conda. The following line throws an error
 #  - sudo conda update --yes conda
-  - conda create -p $HOME/py --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pillow statsmodels
+  - conda create -p $HOME/py --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pillow statsmodels pip future setuptools
   - export PATH=$HOME/py/bin:$PATH
 
-  - pip install -U pip  # update pip
-  - pip install future==0.14
+#  - pip install -U pip  # update pip
+#  - pip install future==0.13
   # setuptools is needed for pydicom
-  - pip install setuptools -U
+#  - pip install setuptools -U
   # syntax from: http://stackoverflow.com/questions/8247605/configuring-so-that-pip-install-can-work-from-github
   # Update: isn't working because setup.py isn't found (not in root)
   - pip install pydicom

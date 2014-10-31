@@ -1,5 +1,5 @@
 from setuptools import setup
-from pip.req import parse_requirements
+# from pip.req import parse_requirements
 
 from pylinac import __version__
 
@@ -19,7 +19,7 @@ setup(
     author='James Kerns',
     author_email='jkerns100@gmail.com',
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
-    install_requires=[str(ir.req) for ir in parse_requirements('requirements.txt')],
+    # install_requires=[str(ir.req) for ir in parse_requirements('requirements.txt')],
     test_suite='tools.test_all',
     classifiers=[
           "Development Status :: 4 - Beta",
