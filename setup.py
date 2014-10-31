@@ -1,8 +1,4 @@
 from pip.req import parse_requirements
-# install setuptools if user doesn't have it yet
-# import ez_setup
-# ez_setup.use_setuptools()
-
 from setuptools import setup
 
 from pylinac import __version__
