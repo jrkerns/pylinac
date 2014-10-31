@@ -14,6 +14,7 @@ from pylinac.common.common_functions import get_filename, open_PDF_file, go_up_d
 
 
 
+
 # Set up some constants and put them at the top to make later adjustment easy
 log_types = ('dynalog', 'trajectory log')  # the two current log types
 dlg_file_exts = ('.dlg')  # add more if need be
@@ -107,7 +108,7 @@ class MachineLog(object):
         if filename is not '':
             self.read_log()
 
-    def load_demo_file_dynalog(self):
+    def load_demo_dynalog(self):
         """
         Set the log file to the demo dynalog file included with the package.
         """
@@ -115,7 +116,7 @@ class MachineLog(object):
         self._filename = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'AQA.dlg')
         self.read_log()
 
-    def load_demo_file_trajectorylog(self):
+    def load_demo_trajectorylog(self):
         """
         Set the log file to the demo trajectory log included with the package.
         """
@@ -279,11 +280,10 @@ class MachineLog(object):
         return np.percentile(error,95)
 
     def calc_fluence(self, resolution=0.1):
-        """
-        Calculate the expected and actual fluence.
+        """Calculate the expected and actual fluences.
 
-        :type resolution: object
-        resolution: the resolution in mm of the fluence calculation in the leaf-moving direction.
+        :param resolution: The resolution in mm of the fluence calculation in the leaf-moving direction.
+        :type resolution: float
         """
         # check for beam-on index
         if not hasattr(self,'_beamon_idx'):
@@ -325,8 +325,6 @@ class MachineLog(object):
             expected_fluence[leaf, :] = plan_line
             actual_fluence[leaf, :] = actual_line
 
-
-
         if not self._lightweight_mode:
             self.fluence_actual = actual_fluence
             self.fluence_expected = expected_fluence
@@ -335,15 +333,20 @@ class MachineLog(object):
 
     def calc_gamma_map(self, DoseTA=2, DistTA=1, threshold=10, resolution=0.1, actual_fluence=None, expected_fluence=None):
         """
-        Calculate the gamma of the actual and expected fluences. The calculation is based on Bakai et al eq.6,
+        Calculate the gamma from the actual and expected fluences. The calculation is based on `Bakai et al
+        <http://iopscience.iop.org/0031-9155/48/21/006/>`_ eq.6,
         which is a quicker alternative to the standard gamma equation.
 
-        returns a num_mlc_leaves-x-400/resolution numpy matrix
 
-        DoseTA: dose-to-agreement in %
-        DistTA: distance-to-agreement in mm
-        threshold: the dose threshold percentage of the maximum dose below which is not analyzed for gamma analysis
-        resolution: the resolution in mm of the resulting gamma map
+        :param DoseTA: dose-to-agreement in %
+        :type DoseTA: float, int
+        :param DistTA: distance-to-agreement in mm
+        :type DistTA: float, int
+        :param threshold: the dose threshold percentage of the maximum dose below which is not analyzed for gamma analysis
+        :type threshold: float, int
+        :param resolution: the resolution in mm of the resulting gamma map
+        :type resolution: float
+        :returns: a num_mlc_leaves-x-400/resolution numpy matrix
         """
 
         # if fluences are not passed in, assume they are attrs of self
@@ -478,7 +481,8 @@ class MachineLog(object):
         """
         Read in log based on what type of log it is: Trajectory or Dynalog.
         """
-        assert hasattr(self,'_filename'), 'Log file has not been specified. Use load_logfile_UI or load_logfile'
+        if self._filename == '':
+            raise AttributeError('Log file has not been specified. Use load_logfile_UI or load_logfile')
 
         # determine log type
         self._get_logtype()
@@ -727,7 +731,7 @@ def check_B_file_exists(a_filename):
     fullbfile = osp.abspath(osp.join(osp.split(a_filename)[0], bfile))
     bfileexists = osp.isfile(fullbfile)
     if not bfileexists:
-        raise IOError("B-file dynalog not found; ensure B-file is in same directory as A-file")
+        raise IOError("B-file dynalog file not found; ensure B-file is in same directory as A-file")
     else:
         return fullbfile
 
@@ -747,7 +751,7 @@ def get_bank_index(bank, idx):
 # ------------------------
 if __name__ == '__main__':
     mlc = MachineLog()
-    mlc.load_demo_file_dynalog()
+    mlc.load_demo_dynalog()
     # mlc.load_logfile_UI()
     # pass
     # mlc.load_demo_file_trajectorylog()  # uncomment to use trajectory log file

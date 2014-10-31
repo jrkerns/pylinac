@@ -7,36 +7,8 @@ from pylinac.loganalyzer.log_analyzer import MachineLog, log_types
 from pylinac.common.common_functions import go_up_dirlevel
 
 
-class Test_loading_schemes(TestCase):
-    """A test class for ensuring that MachineLog will open log files and handle appropriately if it can't."""
-    def setUp(self):
-        self.mlc = MachineLog()
-
-    def test_load_demo_dyn(self):
-        """Load the dynalog demo files properly."""
-        self.mlc.load_demo_file_dynalog()
-        self.assertTrue(self.mlc.log_type == log_types[0])  # ensure dynalog type
-
-    def test_load_demo_traj(self):
-        """Ensure demo trajectory log loads properly."""
-        self.mlc.load_demo_file_trajectorylog()
-        self.assertTrue(self.mlc.log_type == log_types[1])  # traj log type
-
-    def test_bad_dyn_ext(self):
-        """Test that loading the badly-named dynalog still loads properly"""
-        bad_log_path = osp.join(go_up_dirlevel(1), 'demo files', 'Bbadext')
-        self.mlc.load_logfile(bad_log_path)
-        self.assertTrue(self.mlc.log_type == log_types[0])
-
-    def test_bad_traj_ext(self):
-        """Test that loading the badly-named trajectory log still loads properly"""
-        bad_log_path = osp.join(go_up_dirlevel(1), 'demo files', 'tlogbadext')
-        self.mlc.load_logfile(bad_log_path)
-        self.assertTrue(self.mlc.log_type == log_types[1])
-
-
-class Test_Dynalog_analysis(TestCase):
-    """Tests having to do with dynalog files."""
+class Test_dynalog(TestCase):
+    """Tests of dynalog files, mostly using the demo file."""
     def setUp(self):
         self.mlc = MachineLog()
 
@@ -44,9 +16,32 @@ class Test_Dynalog_analysis(TestCase):
         """Test that a dynalog finds the associated B-file, and responds appropriately if it doesn't find it."""
         pass
 
-class Test_Trajectory_analysis(TestCase):
+    def test_log_type(self):
+        """Ensure correct log type identification."""
+        self.mlc.load_demo_dynalog()
+        self.assertTrue(self.mlc.log_type == log_types[0])  # dynalog
+
+    def test_bad_ext(self):
+        """Test that loading the badly-named dynalog still loads and identifies properly."""
+        bad_log_path = osp.join(go_up_dirlevel(1), 'demo files', 'Bbadext')
+        self.mlc.load_logfile(bad_log_path)
+        self.assertTrue(self.mlc.log_type == log_types[0])
+
+class Test_trajectory(TestCase):
     """Tests having to do with trajectory log files."""
-    pass
+    def setUp(self):
+        self.mlc = MachineLog()
+
+    def test_log_type(self):
+        """Ensure demo trajectory log is identified properly."""
+        self.mlc.load_demo_trajectorylog()
+        self.assertTrue(self.mlc.log_type == log_types[1])  # traj log type
+
+    def test_bad_ext(self):
+        """Test that loading the badly-named trajectory log still loads and identifies properly"""
+        bad_log_path = osp.join(go_up_dirlevel(1), 'demo files', 'tlogbadext')
+        self.mlc.load_logfile(bad_log_path)
+        self.assertTrue(self.mlc.log_type == log_types[1])
 
 class Test_end2end(TestCase):
     """Assess an end-to-end test of both demo types."""
