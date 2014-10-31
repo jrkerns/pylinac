@@ -17,6 +17,7 @@ python:
 
 # install dependencies
 install:
+  - pip install -U pip  # update pip
   - pip install future==0.14
   # setuptools is needed for pydicom
   - pip install setuptools -U
