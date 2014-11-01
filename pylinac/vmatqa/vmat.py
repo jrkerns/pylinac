@@ -97,18 +97,18 @@ class VMAT(SingleImageObject):
 
         if test_type == test_types[1]:  # DRMLC
             if number == 1:
-                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRMLCopen-example.dcm")
-                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRMLCmlc-example.dcm')
+                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRMLCopen-example.dcm")
+                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRMLCmlc-example.dcm')
             elif number == 2:
-                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRMLCopen-150-example.dcm")
-                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRMLCmlc-150-example.dcm')
+                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRMLCopen-150-example.dcm")
+                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRMLCmlc-150-example.dcm')
         else:
             if number == 1:
-                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRGSopen-example.dcm")
-                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRGSmlc-example.dcm')
+                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRGSopen-example.dcm")
+                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRGSmlc-example.dcm')
             elif number == 2:
-                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo files", "DRGSopen-150-example.dcm")
-                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'DRGSmlc-150-example.dcm')
+                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRGSopen-150-example.dcm")
+                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRGSmlc-150-example.dcm')
 
         self.load_image(im_open_path, im_type='open')
         self.load_image(im_dmlc_path, im_type='mlc')

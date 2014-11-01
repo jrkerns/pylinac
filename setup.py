@@ -13,7 +13,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pylinac',
-    version='0.1.2.5',
+    version='0.1.2.2',
     packages=find_packages(),
     # include_package_data=True,
     zip_safe=False,  # allows users to view data in egg/distribution

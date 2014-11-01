@@ -57,9 +57,9 @@ class Starshot(SingleImageObject):
 
         """
         if number == 1:
-            im_open_path = osp.join(file_dir, "demo files", "demo_starshot_2.tif")
+            im_open_path = osp.join(file_dir, "demo_files", "demo_starshot_2.tif")
         else:
-            im_open_path = osp.join(file_dir, "demo files", "demo_starshot_1.tif")
+            im_open_path = osp.join(file_dir, "demo_files", "demo_starshot_1.tif")
         self.load_image(im_open_path)
 
     def set_start_point(self, point, warn_if_far_away=True):
