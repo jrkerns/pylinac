@@ -21,8 +21,6 @@ from PIL import Image
 import dicom
 
 
-
-
 """This holds the basic classes to be inherited by single-image tools (e.g. starshot, etc) for simple methods like loading,
 rotating the image, and other things."""
 
@@ -74,7 +72,14 @@ class SingleImageObject(object):
             self.im_props = im_props
 
     def load_image_UI(self, dir=None, caption=None, filters=None, to_gray=True, return_it=False):
-        """Load an image using a UI"""
+        """Load an image using a UI Dialog.
+
+        :param to_gray: Indicates whether to convert the image to black & white or not if an RGB image
+        :type to_gray: bool
+        :param return_it: Will *return* the image and improps if True, otherwise, will save as attr.
+            Useful for loading images that won't be used (e.g. for use with combine_images).
+        :type return_it: bool
+        """
 
         fs = self.get_imagepath_UI(dir=dir,caption=caption, filters=filters)
 
@@ -137,6 +142,7 @@ class SingleImageObject(object):
 
     def combine_images(self, normalize_maximums=True, *images):
         """Combine multiple images together into one image.
+
         :param normalize_maximums: boolean; specifies whether to normalize the images so that they have the same maximum value. Good for
             images of much different magnitudes.
         """
@@ -148,14 +154,17 @@ class SingleImageObject(object):
         pass
 
     def median_filter(self, size=3, mode='reflect'):
-        """Apply a median filter to the image. See scipy function for more input information.
+        """Apply a median filter to the image. Wrapper for scipy's median filter function.
         (http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html)
         """
         self.image = ndimage.median_filter(self.image, size=size, mode=mode)
 
     def remove_edges(self, pixels=15):
         """
-        Removes the edge pixels on all sides of the image by the pixel value amount.
+        Removes the edge pixels on all sides of the image.
+
+        :param pixels: Number of pixels to cut off all sides of the image
+        :type pixels: int
         """
         self.image = self.image[pixels - 1:-pixels, pixels - 1:-pixels]
 
@@ -167,13 +176,17 @@ class SingleImageObject(object):
 
     def rotate_image_ccw90(self, n=1):
         """Rotate the image counter-clockwise by 90 degrees n times.
-        :param n: int; how many times to rotate the image
+
+        :param n: Number of times to rotate the image.
+        :type n: int
         """
         self.image = np.rot90(self.image, n)
 
     def resize_image(self, size, interp='bilinear'):
         """Scale the image. See scipy.misc.pilutil.imresize for further parameter options.
-        :param size: int, float, or tuple; if int, returns % of current size. If float, fraction of current size. If tuple, output size.
+
+        :param size: If int, returns % of current size. If float, fraction of current size. If tuple, output size.
+        :type size: float, int, tuple
         """
         self.image = imresize(self.image, size=size, interp=interp, mode='F')
         # self.image = spint.zoom(self.image, zoom=size, mode='nearest')

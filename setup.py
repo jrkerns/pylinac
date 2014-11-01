@@ -4,9 +4,13 @@ from setuptools import setup, find_packages
 # 1. Ensure version has incremented.
 # 2. To make life easy, in PyCharm, go to Tools/Run setup.py task.../sdist with command line option "upload" to push to PyPI
 
+__version__ = '0.1.3'
+__version_info__ = (0, 1, 3)
+
+
 setup(
     name='pylinac',
-    version='0.1.3',
+    version=__version__,
     packages=find_packages(),
     # include_package_data=True,
     package_data={'pylinac': ['starshot/demo_files/*', 'vmatqa/demo_files/*']},
