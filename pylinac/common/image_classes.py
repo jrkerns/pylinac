@@ -1,32 +1,29 @@
 
 from __future__ import print_function, division
-from future.builtins import str
+
+# Python 3.x
+try:
+    from tkinter import Tk
+    from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
+# Python 2.x
+except ImportError:
+    from Tkinter import Tk
+    from tkFileDialog import askopenfilename, askopenfilenames, askdirectory
+
 from future import standard_library
 standard_library.install_hooks()
 from future.builtins import object
 
 import numpy as np
-# import scipy.ndimage.filters as spfilt
 from scipy import ndimage
 from scipy.misc import imresize
 from PIL import Image
 import dicom
 
-from pylinac import running_py3, has_pyside
-
-if has_pyside:
-    from PyQt4 import QtGui
-else:
-    if running_py3:
-        from tkinter import Tk
-        from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
-    else:
-        from Tkinter import Tk
-        from tkFileDialog import askopenfilename, askopenfilenames, askdirectory
 
 
 
-"""This holds the basic classes to be inhereted by single-image tools (e.g. starshot, striptest, etc) for simple methods like loading,
+"""This holds the basic classes to be inherited by single-image tools (e.g. starshot, etc) for simple methods like loading,
 rotating the image, and other things."""
 
 
@@ -52,10 +49,14 @@ class SingleImageObject(object):
 
     def load_image(self, filestring, to_gray=True, return_it=False, apply_filter=False):
         """Load an image using PIL or pydicom as a numpy array from a filestring.
-        :param filestring: str; string specifying the file location
-        :param to_gray: boolean; indicates whether to convert the image to black & white or not if an RGB image
-        :param return_it: boolean; will *return* the image and improps if True, otherwise, will save as attr.
-            Useful for loading images that won't be used (e.g. for use with combine images).
+
+        :param filestring: Specifies the file location
+        :type filestring: str
+        :param to_gray: Indicates whether to convert the image to black & white or not if an RGB image
+        :type to_gray: bool
+        :param return_it: Will *return* the image and improps if True, otherwise, will save as attr.
+            Useful for loading images that won't be used (e.g. for use with combine_images).
+        :type return_it: bool
         """
 
         # Read image depending on file type
@@ -88,10 +89,7 @@ class SingleImageObject(object):
         """Return the path of the file chosen with the UI as a string."""
 
         app = check_app_running()
-        if has_pyside:
-            filestring = str(QtGui.QFileDialog.getOpenFileName())
-        else:
-            filestring = askopenfilename()
+        filestring = askopenfilename()
         return filestring
 
     def load_img_file(self, filestring):
@@ -178,7 +176,6 @@ class SingleImageObject(object):
         :param size: int, float, or tuple; if int, returns % of current size. If float, fraction of current size. If tuple, output size.
         """
         self.image = imresize(self.image, size=size, interp=interp, mode='F')
-
         # self.image = spint.zoom(self.image, zoom=size, mode='nearest')
 
     def set_dpi(self, dpi):
@@ -201,26 +198,19 @@ class MultiImageObject(object):
         """Return the string of the location of the folder using a UI."""
 
         app = check_app_running()
-        if has_pyside:
-            folderstring = str(QtGui.QFileDialog.getExistingDirectory())
-        else:
-            folderstring = askdirectory()
+        folderstring = askdirectory()
         return folderstring
 
-    def get_filenames_UI(UIdir=None, UIcaption='', UIfilters=''):
-        """
-        Custom function that is equivalent to Matlab's uigetfile command.
-        :return: str; filenames
-        """
+    # def get_filenames_UI(UIdir=None, UIcaption='', UIfilters=''):
+    #     """
+    #     Custom function that is equivalent to Matlab's uigetfile command.
+    #     :return: str; filenames
+    #     """
         # if a QApplication isn't running turn one on; necessary to have one running to use QFileDialog()
-        app = check_app_running()
-        if has_pyside:
-            filenamesqt = (QtGui.QFileDialog.getOpenFileNames(caption=UIcaption))
-            filenames = [str(filename) for filename in filenamesqt]  # convert the PyQt string list to a list of standard strings
-        else:
-            #TODO: update return to give list, or something other than a string: http://stackoverflow.com/questions/16790328/open-multiple-filenames-in-tkinter-and-add-the-filesnames-to-a-list
-            filenames = askopenfilenames()
-        return filenames
+        # app = check_app_running()
+        # #TODO: update return to give list, or something other than a string: http://stackoverflow.com/questions/16790328/open-multiple-filenames-in-tkinter-and-add-the-filesnames-to-a-list
+        # filenames = askopenfilenames()
+        # return filenames
 
     def load_folder(self, filestring, append=False):
         """Load images from a folder.
@@ -239,10 +229,6 @@ class MultiImageObject(object):
 
 def check_app_running():
     """
-    Opens a QtGui Application or a base Tkinter window if need be; necessary for using things like QFileDialog/askopen*
+    Opens a base Tkinter window if need be
     """
-    if has_pyside:
-        if QtGui.QApplication.instance() is None:
-            return QtGui.QApplication([])
-    else:
-        Tk().withdraw()
+    Tk().withdraw()
