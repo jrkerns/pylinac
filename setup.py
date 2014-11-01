@@ -13,10 +13,9 @@ from setuptools import setup, find_packages
 
 setup(
     name='pylinac',
-    version='0.1.2.4',
+    version='0.1.2.5',
     packages=find_packages(),
-    package_data={'pylinac': ['starshot/demo files', 'vmatqa/demo files']},
-    include_package_data=True,
+    # include_package_data=True,
     zip_safe=False,  # allows users to view data in egg/distribution
     url='https://github.com/jrkerns/pylinac',
     keywords='medical physics AAPM TG142 quality assurance starshot',
