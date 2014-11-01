@@ -3,7 +3,7 @@
 # import ez_setup
 # ez_setup.use_setuptools()
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # from .pylinac import __version__
 
@@ -13,8 +13,9 @@ from setuptools import setup
 
 setup(
     name='pylinac',
-    version='0.1.2.2',
-    packages=['pylinac/starshot', 'pylinac/vmatqa'],
+    version='0.1.2.4',
+    packages=find_packages(),
+    package_data={'pylinac': ['starshot/demo files', 'vmatqa/demo files']},
     include_package_data=True,
     zip_safe=False,  # allows users to view data in egg/distribution
     url='https://github.com/jrkerns/pylinac',
