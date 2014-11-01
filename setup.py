@@ -1,4 +1,4 @@
-from pip.req import parse_requirements
+# from pip.req import parse_requirements
 # install setuptools if user doesn't have it yet
 # import ez_setup
 # ez_setup.use_setuptools()
@@ -9,11 +9,11 @@ from setuptools import setup
 
 # PyPI checklist:
 # 1. Ensure version has incremented.
-# 2. In PyCharm, go to Tools/Run setup.py task.../sdist with command line option "upload" (to push to PyPI)
+# 2. To make life easy, in PyCharm, go to Tools/Run setup.py task.../sdist with command line option "upload" to push to PyPI
 
 setup(
     name='pylinac',
-    version='0.1.2a',
+    version='0.1.2.2',
     packages=['pylinac/starshot', 'pylinac/vmatqa'],
     include_package_data=True,
     zip_safe=False,  # allows users to view data in egg/distribution
@@ -22,7 +22,13 @@ setup(
     author='James Kerns',
     author_email='jkerns100@gmail.com',
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
-    install_requires=[str(ir.req) for ir in parse_requirements('requirements.txt')],
+    install_requires=["numpy >= 1.8",
+                      "scipy >= 0.13",
+                      "pydicom >= 0.9.8",
+                      "matplotlib >= 1.3.1",
+                      "future >= 0.13",
+                      "Pillow >= 2.5",
+                      "setuptools >= 5.8"],
     test_suite='tools.test_all',
     classifiers=[
           "Development Status :: 4 - Beta",
