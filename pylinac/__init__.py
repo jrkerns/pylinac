@@ -3,8 +3,8 @@
 from __future__ import absolute_import
 import sys
 
-__version__ = '0.1.1'
-__version_info__ = (0,1,1)
+__version__ = '0.1.3'
+__version_info__ = (0,1,3)
 
 # Determine if using python 2 or 3 (mostly for incompatible name clashes like Tkinter/tkinter)
 running_py3 = sys.version_info[0] == 3
