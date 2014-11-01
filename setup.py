@@ -5,7 +5,7 @@ from pip.req import parse_requirements
 
 from setuptools import setup
 
-from pylinac import __version__
+# from .pylinac import __version__
 
 # PyPI checklist:
 # 1. Ensure version has incremented.
@@ -13,7 +13,7 @@ from pylinac import __version__
 
 setup(
     name='pylinac',
-    version=__version__,
+    version='0.1.2a',
     packages=['pylinac/starshot', 'pylinac/vmatqa'],
     include_package_data=True,
     zip_safe=False,  # allows users to view data in egg/distribution
