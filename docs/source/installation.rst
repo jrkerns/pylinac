@@ -35,12 +35,11 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 
 * numpy >= 1.8
 * scipy >= 0.13
-* matplotlib >= 1.3.1
+* matplotlib >= 1.3.1; Image plotting
 * pydicom >= 0.9.8; For reading DICOM files
 * Pillow >= 2.5; For reading image files
 * future >= 0.13; Allows Python 2/3 compatibility
 * setuptools >= 5.8; For installation
-* pip >= 1.4; Pip comes with Python 3.x, so this is only needed for Python 2.7
 
 A Note About Dependencies
 -------------------------
