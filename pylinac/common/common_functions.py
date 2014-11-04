@@ -25,12 +25,6 @@ import dicom
 
 """Common Functions used in Pylinac"""
 
-def open_TG142():
-    """
-    Open AAPM TG-142 in PDF
-    """
-    open_PDF_file('TG-142 Linac QA.pdf')
-
 def load_image(filestring, to_gray=True):
     """
     Load image using PIL or pydicom via the filepath/string. Also attempt to get some image properties (DPI, SID, etc).
@@ -71,11 +65,7 @@ def load_image(filestring, to_gray=True):
 
 def load_image_UI(UIdir=None, UIcaption='', UIfilters='', togray=True,
                   multiselect=False):  #TODO: update args to fit getopenfilename's args
-    """
-    Custom function that is equivalent to Matlab's uigetfile command + return the image/matrix. Returns numpy array.
-
-    numpy_image = OpenLoadImage(UIdir=None,UIcaption='',UIfilters='')
-    """
+    """Load an image using a UI Dialog."""
 
     filestring = get_filename(UIdir=UIdir, UIcaption=UIcaption, UIfilters=UIfilters, multiselect=multiselect)
 
@@ -94,7 +84,7 @@ def get_filename(UIdir=None, UIcaption='', UIfilters='', multiselect=False):
     filenamestring = GetFile(UIdir=None,UIcaption='',UIfilters='')
     """
     # if a QApplication isn't running turn one on; necessary to have one running to use QFileDialog()
-    app = withdraw_tkinter()
+    withdraw_tkinter()
 
     # get user-defined image file
     filename = askopenfilename(caption=UIcaption)
@@ -107,9 +97,7 @@ def get_filenames(UIdir=None, UIcaption='', UIfilters=''):
 
     filenamestring = GetFile(UIdir=None,UIcaption='',UIfilters='')
     """
-    # if a QApplication isn't running turn one on; necessary to have one running to use QFileDialog()
-    app = withdraw_tkinter()
-
+    withdraw_tkinter()
     # get user-defined files
     filenames = askopenfilenames(caption=UIcaption)
     filenames = [str(f) for f in filenames]  #convert the PyQt string list to a list of standard strings
@@ -119,10 +107,9 @@ def get_filenames(UIdir=None, UIcaption='', UIfilters=''):
 
 def get_folder(UIdir=None, UIcaption=''):
     """
-    :return string of Folder the user selected
+    :returns: string of Folder the user selected
     """
-    app = withdraw_tkinter()
-
+    withdraw_tkinter()
     folderstring = askdirectory()
     return folderstring
 
@@ -135,9 +122,7 @@ def open_PDF_file(pdf):
 
 
 def remove_edges(image, edge=15):
-    """
-    Removes the edge pixels on all sides of an image by the edge value amount
-    """
+    """Removes the edge pixels on all sides of an image by the edge value amount."""
     im_out = image[edge - 1:-edge, edge - 1:-edge]
     return im_out
 
@@ -320,20 +305,19 @@ def point_line_dist(p, seg, testSegmentEnds=False):
     return sqrt(dx30 * dx30 + dy30 * dy30)
 
 def point_line_dist_multiline(p, segs, minormax='max'):
-    """
-    smallest/biggest distance of a point to a sequence of line segments. Used in Starshot module.
-    """
+    """The smallest/biggest distance of a point to a sequence of line segments. Used in Starshot module."""
     if minormax == 'min':
         return min([point_line_dist(p, seg) for seg in segs])
     elif minormax == 'max':
         return max([point_line_dist(p, seg) for seg in segs])
 
 def point2edge_min(image, point):
-    """
-    Calculates minimum distance from user point to image edges
+    """Calculates minimum distance from user point to image edges
+
     point = (y,x)
     """
-    rows, cols = size(image)
+    rows = np.size(image, 0)
+    cols = np.size(image, 1)
     disttoedge = np.zeros(4)
     disttoedge[0] = rows - point[0]
     disttoedge[1] = cols - point[1]
@@ -341,18 +325,8 @@ def point2edge_min(image, point):
     disttoedge[3] = point[1]
     return min(disttoedge)
 
-def size(matrix):
-    """
-    Matlab equivalent of size; returns the size of the matrix in [rows, columns]
-    """
-    rows = np.size(matrix, 0)
-    cols = np.size(matrix, 1)
-    return rows, cols
-
 def invert(matrix):
-    """
-    Return the imcomplement of the matrix/image. Equivalent to Matlab's imcomplement function.
-    """
+    """Return the imcomplement of the matrix/image. Equivalent to Matlab's imcomplement function."""
     newmatrix = -matrix + np.max(matrix) + np.min(matrix)
     return newmatrix
 
@@ -365,14 +339,14 @@ def dist_2points(point1, point2):
     return dist
 
 def withdraw_tkinter():
-    """
-    opens a QtGui Application if need be; necessary for using things like QFileDialog
-    """
+    """Opens and withdraws a Tk window. Necessary so a base window doesn't open."""
     Tk.withdraw()
 
 def go_up_dirlevel(levels=0):
     """Go up directory levels from where the caller file is located.
-        :param levels: int specifying how many levels to go up. 0 goes to the current directory.
+
+    :param levels: Specifies how many levels to go up. 0 goes to the current directory.
+    :type levels: int
     """
     calling_file = inspect.stack()[1][1]
     calling_dir = osp.dirname(calling_file)
@@ -382,3 +356,121 @@ def go_up_dirlevel(levels=0):
         new_dir = osp.dirname(old_dir)
         levels -= 1
     return new_dir
+
+def _datacheck_peakdetect(x_axis, y_axis):
+    if x_axis is None:
+        x_axis = list(range(len(y_axis)))
+
+    if len(y_axis) != len(x_axis):
+        raise ValueError
+
+    # needs to be a numpy array
+    y_axis = np.array(y_axis)
+    x_axis = np.array(x_axis)
+    return x_axis, y_axis
+
+def peak_detect(y, x=None, threshold=0, min_peak_width=10, delta=0, find_min_instead=False):
+    """Find the peaks or valleys of a 1-D signal. Uses the difference (np.diff) in signal to find peaks. Current limitations
+    include:
+    1) Only for use in 1-D data; 2-D may be possible with the gradient function. 2) Will not detect peaks at the very edge of array
+    (i.e. 0 or -1 index)
+
+    :param y: 1-D y-data of signal.
+    :type y: numpy array
+    :param x: 1-D x-data of signal. If left as None, will create a uniform range the length of the y-data.
+    :type x: numpy array
+    :param threshold: The value the peak must be above to be considered a peak.
+        This removes "peaks" that are in a low-value region.
+    :type threshold: int
+    :param min_peak_width: The number of elements apart a peak must be from neighboring peaks.
+    :type min_peak_width: int
+    :param delta: The value a peak candidate must be higher than its neighbors by to be considered a true peak.
+    :type delta: int
+    :param find_min_instead: If True, algorithm will find minimums of y instead of maximums.
+    :type find_min_instead: bool
+    :return: two 1-D numpy arrays: max_vals, max_idxs; max_vals contains the y-values of the peaks, max_idxs contains the x-index of the
+        peaks.
+    """
+    peak_vals = []  # a list to hold the y-values of the peaks. Will be converted to a numpy array
+    peak_idxs = []  # ditto for x-values (index) of y data.
+
+    x, y = _datacheck_peakdetect(x, y)  # check length and convert to numpy arrays
+
+    y_diff = np.diff(y.astype(float))  # Had problems with uint input. y_diff *must* be converted to signed type. Note: diff is faster than
+    # ediff1d
+
+    """Find all potential peaks"""
+    for idx in range(len(y_diff)):
+        # For each item of the diff array, check if:
+        # 1) The index is not at the end,
+        # 2) The value of y_diff is positive,
+        # 3) The next y_diff value is zero or negative; a positive-then-negative diff value means the value is a peak of some kind. If
+        # the diff is zero it could be a flat peak, which still counts.
+        # 4) That the y-value of the potential peak is above the threshold
+        # Note: In the midst of noise this will catch a lot of peaks, and peakdetect is faster
+
+        # 1)
+        not_at_end = idx != len(y_diff) - 1
+        # 2) & 3)
+        if not find_min_instead and not_at_end:
+            y1_gradient = y_diff[idx] > 0
+            y2_gradient = y_diff[idx + 1] <= 0
+        elif not_at_end:
+            y1_gradient = y_diff[idx] < 0
+            y2_gradient = y_diff[idx + 1] >= 0
+        # 4)
+        # above_threshold = y[idx + 1] >= threshold
+
+        if not_at_end and y1_gradient and y2_gradient and y[idx + 1] >= threshold:
+            # If the next value isn't zero it's a single-pixel peak. Easy enough.
+            if y2_gradient != 0:
+                peak_vals.append(y[idx + 1])
+                peak_idxs.append(idx + 1)
+            # Else if the diff value is zero, it could be a flat peak, or it could keep going up; we don't know yet.
+            else:
+                # Continue on until we find the next nonzero diff value.
+                shift = 1
+                while y_diff[(idx + 1) + shift] == 0:
+                    shift += 1
+                # If the next diff is negative (or positive for min), we've found a peak. Also put the peak at the center of the flat
+                # region.
+                if not find_min_instead:
+                    is_a_peak = y_diff[(idx + 1) + shift] < 0
+                else:
+                    is_a_peak = y_diff[(idx + 1) + shift] > 0
+
+                if is_a_peak:
+                    peak_vals.append(y[(idx + 1) + np.round(shift / 2)])
+                    peak_idxs.append((idx + 1) + np.round(shift / 2))
+
+    # convert to numpy arrays
+    peak_vals = np.array(peak_vals)
+    peak_idxs = np.array(peak_idxs)
+
+    """Enforce the min_peak_distance by removing smaller peaks."""
+    index = 1
+    while index < len(peak_idxs) - 1:
+        # For each peak, determine if the next peak is within the look_ahead range.
+
+        # If the previous peak is closer than min_peak_distance, find the larger (or smaller for min) peak and remove other one.
+        if peak_idxs[index - 1] > peak_idxs[index] - min_peak_width:
+            if ((not find_min_instead and peak_vals[index - 1] > peak_vals[index]) or
+                    (find_min_instead and peak_vals[index - 1] < peak_vals[index])):
+                idx2del = index
+            else:
+                idx2del = index - 1
+            peak_vals = np.delete(peak_vals, idx2del)
+            peak_idxs = np.delete(peak_idxs, idx2del)
+        # Else if the next peak is closer than min_peak_distance, do the same.
+        elif peak_idxs[index + 1] < peak_idxs[index] + min_peak_width:
+            if ((not find_min_instead and peak_vals[index + 1] > peak_vals[index]) or
+                    (find_min_instead and peak_vals[index + 1] < peak_vals[index])):
+                idx2del = index
+            else:
+                idx2del = index + 1
+            peak_vals = np.delete(peak_vals, idx2del)
+            peak_idxs = np.delete(peak_idxs, idx2del)
+        else:
+            index += 1
+
+    return peak_vals, peak_idxs

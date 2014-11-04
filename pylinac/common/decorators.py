@@ -1,7 +1,6 @@
 
 """Yes I know it's not Pythonic to type check, but for pylinac, I don't see many alternatives. Note that these are for Classes."""
 from __future__ import unicode_literals, print_function, division, absolute_import
-
 from builtins import zip
 from builtins import str
 

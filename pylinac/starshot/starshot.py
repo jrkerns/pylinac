@@ -14,10 +14,9 @@ from scipy import ndimage
 from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 
-from pylinac.common.common_functions import Prof_Penum, point2edge_min, point_to_2point_line_dist
+from pylinac.common.common_functions import Prof_Penum, point2edge_min, point_to_2point_line_dist, peak_detect
 from pylinac.common.decorators import value_accept, type_accept
 from pylinac.common.image_classes import SingleImageObject
-from pylinac.common.peakdetect import peak_detect
 
 
 """ Default constants """
