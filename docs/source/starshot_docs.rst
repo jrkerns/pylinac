@@ -121,5 +121,8 @@ Algorithm
 API Documentation
 -----------------
 
+The Starshot class is derived from a Base Class; inherited members are included in this list. More at :ref:`baseclass_api_doc`.
+
 .. autoclass:: pylinac.starshot.starshot.Starshot
     :members:
+    :inherited-members:

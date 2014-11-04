@@ -1,20 +1,29 @@
-from __future__ import division, print_function
+from __future__ import division, print_function, unicode_literals, absolute_import
+
+from builtins import str
+
+from future import standard_library
+
+standard_library.install_aliases()
+
 import os
 import os.path as osp
 import inspect
+try:
+    # Python 3.x
+    from tkinter import Tk
+    from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
+except ImportError:
+    # Python 2.x
+    from Tkinter import Tk
+    from tkFileDialog import askopenfilename, askopenfilenames, askdirectory
 
-from future.builtins import str
-from future.builtins import object
-
-# from PySide import QtGui
-from PyQt4 import QtGui
 import numpy as np
 from numpy import sqrt
 from PIL import Image
 import dicom
 
-
-"""Common Functions used in PyTG142"""
+"""Common Functions used in Pylinac"""
 
 def open_TG142():
     """
@@ -85,10 +94,10 @@ def get_filename(UIdir=None, UIcaption='', UIfilters='', multiselect=False):
     filenamestring = GetFile(UIdir=None,UIcaption='',UIfilters='')
     """
     # if a QApplication isn't running turn one on; necessary to have one running to use QFileDialog()
-    app = check_QApp_running()
+    app = withdraw_tkinter()
 
     # get user-defined image file
-    filename = str(QtGui.QFileDialog.getOpenFileName(caption=UIcaption))
+    filename = askopenfilename(caption=UIcaption)
     return filename
 
 
@@ -99,10 +108,10 @@ def get_filenames(UIdir=None, UIcaption='', UIfilters=''):
     filenamestring = GetFile(UIdir=None,UIcaption='',UIfilters='')
     """
     # if a QApplication isn't running turn one on; necessary to have one running to use QFileDialog()
-    app = check_QApp_running()
+    app = withdraw_tkinter()
 
     # get user-defined files
-    filenames = (QtGui.QFileDialog.getOpenFileNames(caption=UIcaption))
+    filenames = askopenfilenames(caption=UIcaption)
     filenames = [str(f) for f in filenames]  #convert the PyQt string list to a list of standard strings
 
     if filenames:
@@ -112,9 +121,9 @@ def get_folder(UIdir=None, UIcaption=''):
     """
     :return string of Folder the user selected
     """
-    app = check_QApp_running()
+    app = withdraw_tkinter()
 
-    folderstring = str(QtGui.QFileDialog.getExistingDirectory())
+    folderstring = askdirectory()
     return folderstring
 
 def open_PDF_file(pdf):
@@ -355,12 +364,11 @@ def dist_2points(point1, point2):
     dist = np.sqrt((point1[0]-point2[0])**2 + (point1[1]-point2[1])**2)
     return dist
 
-def check_QApp_running():
+def withdraw_tkinter():
     """
     opens a QtGui Application if need be; necessary for using things like QFileDialog
     """
-    if QtGui.QApplication.instance() is None:
-        return QtGui.QApplication([])
+    Tk.withdraw()
 
 def go_up_dirlevel(levels=0):
     """Go up directory levels from where the caller file is located.

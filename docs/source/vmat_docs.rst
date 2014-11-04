@@ -167,5 +167,8 @@ The algorithm works like such:
 API Documentation
 -----------------
 
+The VMAT class is derived from a Base Class; inherited members are included in this list. More at :ref:`baseclass_api_doc`.
+
 .. autoclass:: pylinac.vmatqa.vmat.VMAT
     :members:
+    :inherited-members:

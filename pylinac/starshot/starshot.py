@@ -4,7 +4,9 @@ The Starshot module analyses a starshot film or multiple superimposed EPID image
 radiation spokes, whether gantry, collimator, or couch. It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
 and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
 """
-from __future__ import division, print_function, absolute_import
+from __future__ import division, print_function, absolute_import, unicode_literals
+from future import standard_library
+standard_library.install_aliases()
 import os.path as osp
 
 import numpy as np

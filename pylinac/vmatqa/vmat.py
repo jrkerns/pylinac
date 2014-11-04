@@ -5,7 +5,12 @@ images according to the `Jorgensen et al. <http://dx.doi.org/10.1118/1.3552922>`
 """
 # Full documentation of this module and how to use it can be found at this repositories' Read the Docs site: pylinac.rtfd.org
 
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import, unicode_literals
+from builtins import range
+
+from future import standard_library
+
+standard_library.install_aliases()
 import os.path as osp
 
 import numpy as np
@@ -56,12 +61,10 @@ class VMAT(SingleImageObject):
 
         if  im_type == im_types[0]:  # open
             caption = "Select Open Field EPID Image..."
-        elif im_type == im_types[1]:  # dmlc
+        else:  # dmlc
             caption = "Select MLC Field EPID Image..."
-        else:
-            raise NameError("im_type input string {s} not valid".format(im_type))
 
-        fs = SingleImageObject.get_imagepath_UI(self, caption=caption)
+        fs = SingleImageObject._get_imagepath_UI(self, caption=caption)
         if fs:  # if user didn't hit cancel
             self.load_image(fs, im_type=im_type)
 
@@ -79,10 +82,8 @@ class VMAT(SingleImageObject):
         img, props = SingleImageObject.load_image(self, filepath, return_it=True)
         if im_type == im_types[0]:  # open
             self.image_open = img
-        elif im_type == im_types[1]:  # dmlc
+        else:  # dmlc
             self.image_dmlc = img
-        else:
-            raise NameError("im_type input string {s} not valid".format(im_type))
         self.im_props = props
 
     @type_accept(test_types=str, number=int)
@@ -95,22 +96,19 @@ class VMAT(SingleImageObject):
         :param number: Which demo images to load; there are currently 2 for each test type.
         :type number: int
         """
-        # error checking
-        if test_type not in test_types:
-            raise NameError("Test_type input string was not valid. Must be 'drmlc', or 'drgs'")
 
         if test_type == test_types[1]:  # DRMLC
             if number == 1:
                 im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRMLCopen-example.dcm")
                 im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRMLCmlc-example.dcm')
-            elif number == 2:
+            else:
                 im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRMLCopen-150-example.dcm")
                 im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRMLCmlc-150-example.dcm')
         else:
             if number == 1:
                 im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRGSopen-example.dcm")
                 im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRGSmlc-example.dcm')
-            elif number == 2:
+            else:
                 im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRGSopen-150-example.dcm")
                 im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRGSmlc-150-example.dcm')
 
@@ -126,7 +124,7 @@ class VMAT(SingleImageObject):
         :type number: int
         """
         self.load_demo_image('drgs', number)
-        self.analyze(test='drgs', tolerance=3)  # tolerance at 2 to show some failures
+        self.analyze(test='', tolerance=3)  # tolerance at 2 to show some failures
         print(self.get_string_results())
         self.plot_analyzed_image()
 
@@ -143,8 +141,8 @@ class VMAT(SingleImageObject):
         print(self.get_string_results())
         self.plot_analyzed_image()
 
-    def _get_im_scaling_factors(self):
-        """Determine the image scaling factors; initial values were based on 384x512 images @ 150cm SID."""
+    def _get_im_scaling_factors(self, SID):
+        """Determine the image scaling factors; factors are relative to reference values from images of size 384x512 taken at 150cm SID."""
         # Image size scaling
         y_scale = np.size(self.image_dmlc, 0) / 384.0
         x_scale = np.size(self.image_dmlc, 1) / 512.0
@@ -152,36 +150,42 @@ class VMAT(SingleImageObject):
         x_im_center = np.size(self.image_dmlc, 1) / 2.0 + 0.5
         y_im_center = np.size(self.image_dmlc, 0) / 2.0 + 0.5
         # SID scaling
-        try:
-            SID_scale = self.im_props['SID mm'] / 1500.0
-        except:
-            SID_scale = 1
+        if SID:
+            SID_scale = SID / 150
+        else:
+            try:
+                SID_scale = self.im_props['SID mm'] / 1500.0
+            except:
+                SID_scale = 1
 
         return SID_scale, x_im_center, x_scale, y_im_center, y_scale
 
     def _calc_sample_bounds(self, SID_scale, test, x_im_center, x_scale, y_im_center, y_scale):
-        """Calculate the pixel bounds of the samples to be extracted."""
+        """Calculate the x and y pixel bounds of the samples to be extracted."""
         self._num_leaves = 38  # TODO: add if statement for HDMLCs
-        sample_width_pix = 6  # the width in pixels of a given MLC leaf sample (at 150cm SID)
-        leaf_width = 9.57  # the width from sample to sample (MLC leaf to the next MLC leaf). Calculation using DPmm gives 9.57
+        sample_width_pix = 6  # the width in pixels of a given MLC leaf sample perpendicular to MLC movement at 150cm SID.
+        leaf_width = 9.57  # the width from one sample to the next perpendicular to the MLC movement (MLC leaf to the next MLC leaf).
+            # Calculation using DPmm of reference image gives 9.57
         y_pixel_bounds = [(np.round((12 + leaf * leaf_width - 192) * y_scale * SID_scale + y_im_center),
                            np.round((12 + leaf * leaf_width - 192 + sample_width_pix) * y_scale * SID_scale + y_im_center))
                           for leaf in np.arange(self._num_leaves)]
+
         # set up DRMLC sample points
         if test == test_types[1]:
-            width, num_segments = np.round(42 * x_scale * SID_scale), 4
+            width = np.round(42 * x_scale * SID_scale)  # length of the sample parallel to MLC movement.
+            num_segments = 4
             x_pixel_offsets = (-107, -49, 9, 68)  # offsets from the central x-pixel which are left-side starting points for the ROIs
             x_pixel_starts = [np.round(x_im_center + (offset * x_scale * SID_scale)) for offset in
                               x_pixel_offsets]  # multiply by scaling factor
             x_pixel_bounds = [(item, item + width) for item in x_pixel_starts]  # create a list of the left/right x-points
-
         # set up DRGS sample points
         else:
-            width, num_segments = np.round(24 * x_scale * SID_scale), 7
-            x_pixel_offsets = np.array((147, 185, 223, 262, 299, 339, 378)) - 256
-            x_pixel_starts = [np.round(x_im_center + (item * x_scale * SID_scale)) for item in
+            width = np.round(24 * x_scale * SID_scale)  # length of the sample parallel to MLC movement.
+            num_segments = 7
+            x_pixel_offsets = (-109, -71, -33, 6, 43, 83, 122)
+            x_pixel_starts = [np.round(x_im_center + (offset * x_scale * SID_scale)) for offset in
                               x_pixel_offsets]  # multiply by scaling factors
-            x_pixel_bounds = [(item, item + width) for item in x_pixel_starts]
+            x_pixel_bounds = [(x_start, x_start + width) for x_start in x_pixel_starts]
 
         self._num_segments = num_segments
         self._width = width
@@ -190,7 +194,7 @@ class VMAT(SingleImageObject):
         self._x_pixel_bounds = x_pixel_bounds
 
     def _extract_samples(self):
-        """Extract the samples from both Open and DMLC images based on pixel bounds."""
+        """Extract the mean of the pixel values of the samples from both Open and DMLC images based on pixel bounds."""
         # preallocation
         dmlc_samples = np.zeros((self._num_leaves, self._num_segments))
         open_samples = np.zeros((self._num_leaves, self._num_segments))
@@ -217,7 +221,6 @@ class VMAT(SingleImageObject):
         if self._test_type == test_types[0]:
             open_norm = open_samples[:, 3].mean()
             dmlc_norm = dmlc_samples[:, 3].mean()
-
         # MLCS
         else:
             open_norm = open_samples[:, 1:2].mean()
@@ -249,29 +252,28 @@ class VMAT(SingleImageObject):
             self._seg_dev_min[segment] = dev_matrix[:, segment].min()
             self._seg_dev_mean[segment] = dev_matrix[:, segment].__abs__().mean()
 
-    @type_accept(test=str, tolerance=(float, int))
-    @value_accept(test=test_types, tolerance=(0.5, 8))
-    def analyze(self, test, tolerance=3):
+    @type_accept(test=str, tolerance=(float, int), SID=(None, int))
+    @value_accept(test=test_types, tolerance=(0.3, 8), SID=(0, 180))
+    def analyze(self, test, tolerance=3, SID=None):
         """Analyze 2 VMAT images, the open field image and DMLC field image, according to 1 of 2 possible tests.
 
         :param test: The test to perform, either Dose Rate Gantry Speed ('drgs') or Dose Rate MLC Speed ('drmlc').
         :type test: str
         :param tolerance: The tolerance of the sample deviations in percent. Default is 3, as Jorgensen recommends.
         :type tolerance: float, int
+        :param SID: The Source to Image (detector) distance in cm. Usually doesn't need to be passed for EPID DICOM images. This argument
+            will override any automatically derived value however. If left as None and no SID was determined, it will assume 150cm.
+        :type SID: int
         """
         # error checking
         if len(self.image_open) == 0  or len(self.image_dmlc) == 0:
             raise AttributeError("Open or MLC Image not loaded yet. Use .load_image() or .load_image_UI()")
-        if test.lower() not in test_types:
-            raise NameError("Test input string was not valid. Must be 'drmlc', or 'drgs'")
-        if (type(tolerance) != float and type(tolerance) != int) or tolerance < 0.1:
-            raise ValueError("Tolerance must be a float or int greater than 0.1")
 
         self._tolerance = tolerance / 100.0
         self._test_type = test
 
         # get the image scaling factors and center pixels; this corrects for the SID
-        SID_scale, x_im_center, x_scale, y_im_center, y_scale = self._get_im_scaling_factors()
+        SID_scale, x_im_center, x_scale, y_im_center, y_scale = self._get_im_scaling_factors(SID)
 
         # set up pixel bounds of test
         self._calc_sample_bounds(SID_scale, test, x_im_center, x_scale, y_im_center, y_scale)
@@ -343,8 +345,8 @@ class VMAT(SingleImageObject):
     def plot_analyzed_image(self, plot1=None, plot2=None):
         """Create 1 figure of 2 plots showing the open and MLC images with the samples and results drawn on.
 
-        :param plot1: An existing plot to draw results to. Currently only used for PyQA.
-        :param plot2: ditto
+        :param plot1: If None, will create a new figure.
+        :param plot2: Only for PyQA use.
         """
         if plot1 is None and plot2 is None:
             fig, (ax1, ax2) = plt.subplots(1,2)
@@ -415,5 +417,7 @@ class VMAT(SingleImageObject):
 # VMAT demo.
 #---------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    VMAT().run_demo_drgs(1)
+    v = VMAT()
+    v.run_demo_drgs(1)
+    T = 1
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo

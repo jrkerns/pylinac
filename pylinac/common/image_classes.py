@@ -1,5 +1,9 @@
 
-from __future__ import print_function, division
+"""Several classes used in pylinac derive from base classes which provide lower-level functionality like image loading, basic image
+manipulation (invert, rotate, etc), and other misc things. These are
+the API docs for those classes. """
+
+from __future__ import print_function, division, absolute_import, unicode_literals
 import os.path as osp
 
 try:
@@ -11,8 +15,6 @@ except ImportError:
     from Tkinter import Tk
     from tkFileDialog import askopenfilename, askopenfilenames, askdirectory
 
-# from future import standard_library
-# standard_library.install_hooks()
 from future.builtins import object
 
 import numpy as np
@@ -22,11 +24,6 @@ from PIL import Image
 import dicom
 
 from pylinac.common.decorators import type_accept
-
-
-"""This holds the basic classes to be inherited by single-image tools (e.g. starshot, etc) for simple methods like loading,
-rotating the image, and other things."""
-
 
 class SingleImageObject(object):
     """A class to be inherited by classes that utilize a single image in its analysis. Contains simple methods for such a class."""
@@ -67,9 +64,9 @@ class SingleImageObject(object):
         if not osp.isfile(filestring):
             raise FileExistsError("{} did not point to a valid file".format(filestring))
         # Read image depending on file type
-        im_file, image = self.return_img_file(filestring)
+        im_file, image = self._return_img_file(filestring)
         # Read in image properties
-        im_props = self.return_im_props(im_file)
+        im_props = self._return_im_props(im_file)
 
         if apply_filter:
             image = self.median_filter()
@@ -91,7 +88,7 @@ class SingleImageObject(object):
         :type return_it: bool
         """
 
-        fs = self.get_imagepath_UI(dir=dir,caption=caption, filters=filters)
+        fs = self._get_imagepath_UI(dir=dir,caption=caption, filters=filters)
 
         if fs:  # if user didn't hit cancel
             if return_it:
@@ -100,14 +97,14 @@ class SingleImageObject(object):
             else:
                 self.load_image(fs, to_gray=to_gray, return_it=return_it)
 
-    def get_imagepath_UI(self, dir=None, caption=None, filters=None):
+    def _get_imagepath_UI(self, dir=None, caption=None, filters=None):
         """Return the path of the file chosen with the UI as a string."""
 
         app = check_app_running()
         filestring = askopenfilename()
         return filestring
 
-    def return_img_file(self, filestring):
+    def _return_img_file(self, filestring):
         """Return the file and image, depending on if it's a normal image type (JPG, PNG, etc) or DICOM."""
         try: # try loading dicom first
             im_file = dicom.read_file(filestring)
@@ -119,7 +116,7 @@ class SingleImageObject(object):
             self.im_props['Image Type'] = 'IMAGE'
         return im_file, image
 
-    def return_im_props(self, image_file):
+    def _return_im_props(self, image_file):
         """Return the properties of an image file."""
         im_props = self.im_props
         if self.im_props['Image Type'] == 'DICOM':
@@ -152,8 +149,9 @@ class SingleImageObject(object):
     def _combine_images(self, normalize_maximums=True, *images):
         """Combine multiple images together into one image.
 
-        :param normalize_maximums: boolean; specifies whether to normalize the images so that they have the same maximum value. Good for
+        :param normalize_maximums: Specifies whether to normalize the images so that they have the same maximum value. Good for
             images of much different magnitudes.
+        :type normalize_maximums: bool
         """
         #TODO: work on this
         pass
@@ -164,8 +162,8 @@ class SingleImageObject(object):
 
     @type_accept(size=int, mode=str)
     def median_filter(self, size=3, mode='reflect'):
-        """Apply a median filter to the image. Wrapper for scipy's median filter function.
-        (http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html)
+        """Apply a median filter to the image. Wrapper for scipy's median filter function:
+        http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html
         """
         self.image = ndimage.median_filter(self.image, size=size, mode=mode)
 
@@ -196,7 +194,7 @@ class SingleImageObject(object):
 
     @type_accept(size=(float, int, tuple), interp=str)
     def resize_image(self, size, interp='bilinear'):
-        """Scale the image. See scipy.misc.pilutil.imresize for further parameter options.
+        """Scale the image. Wrapper for scipy.misc.imresize: http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.misc.imresize.html
 
         :param size: If int, returns % of current size. If float, fraction of current size. If tuple, output size.
         :type size: float, int, tuple

@@ -32,6 +32,7 @@ or jump right in by doing :ref:`installation` and then :ref:`getting_started`!
    getting_started
    starshot_docs
    vmat_docs
+   imgcls_docs
 
 
 Indices and tables
