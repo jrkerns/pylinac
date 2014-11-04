@@ -14,6 +14,7 @@ from pylinac.common.common_functions import get_filename, open_PDF_file, go_up_d
 
 
 
+
 # Set up some constants and put them at the top to make later adjustment easy
 from pylinac.common.decorators import type_accept
 
@@ -28,6 +29,7 @@ class MachineLog(object):
     and calculating various relevant parameters about them (RMS, 95th percentile error, etc).
     """
 
+    @type_accept(filename=str, lightweight_mode=bool)
     def __init__(self, filename='', lightweight_mode=False):
         """
         A class for reading in machine log files (both dynalogs and trajectory logs) from Varian machines
@@ -112,12 +114,12 @@ class MachineLog(object):
     def load_demo_dynalog(self):
         """Load the demo dynalog file included with the package."""
         go_up_dirlevel()
-        self._filename = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'AQA.dlg')
+        self._filename = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'AQA.dlg')
         self.read_log()
 
     def load_demo_trajectorylog(self):
         """Load the log file to the demo trajectory log included with the package."""
-        self._filename = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'Tlog.bin')
+        self._filename = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'Tlog.bin')
         self.read_log()
 
     def load_logfile_UI(self):
@@ -127,7 +129,7 @@ class MachineLog(object):
             self._filename = filename
             self.read_log()
 
-    @type_accept(str)
+    # @type_accept(str)
     def load_logfile(self, filename):
         """Load the log non-interactively by passing the path to the file.
 
@@ -150,6 +152,7 @@ class MachineLog(object):
         """
         print("MLC log type: " + self.log_type)
         print("Average RMS of all leaves: {:3.3f} mm".format(self.get_RMSavg(only_moving_leaves=False)))
+        print("Max RMS error of all leaves: {:3.3f} mm".format(self.get_RMSmax(only_moving_leaves=False)))
         print("95th percentile error: {:3.3f} mm".format(self.get_95th_perc_error(only_moving_leaves=False)))
         print("Number of beam holdoffs: {:1.0f}".format(self.get_num_beamholds()))
         self.calc_gamma_stats()
@@ -673,6 +676,7 @@ class MachineLog(object):
         :param dtype: the expected data type to return. If int or float, will return numpy array.
         :type dtype: str, int, float
         :param num_values: the expected number of dtype to return; note that this is not the same as the # of bytes.
+        :type num_values: int
         :param cursor_shift: the number of bytes to move the cursor forward after decoding. This is used if there is a
             reserved section after the read-in segment.
         :type cursor_shift: int
@@ -738,8 +742,8 @@ def get_bank_index(bank, idx):
 # ------------------------
 if __name__ == '__main__':
     mlc = MachineLog()
-    # mlc.load_demo_dynalog()
-    mlc.load_logfile(6)
+    mlc.load_demo_dynalog()
+    # mlc.load_logfile()
     # pass
     # mlc.load_demo_file_trajectorylog()  # uncomment to use trajectory log file
     mlc.report_basic_parameters()

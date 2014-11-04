@@ -1,52 +1,66 @@
 
-"""Yes I know it's not Pythonic to type check, but for pylinac, I don't see many alternatives."""
+"""Yes I know it's not Pythonic to type check, but for pylinac, I don't see many alternatives. Note that these are for Classes."""
 
-# The following is adapted from: https://wiki.python.org/moin/PythonDecoratorLibrary#Type_Enforcement_.28accepts.2Freturns.29
-def type_accept(*types):
+# The following is adapted from: http://code.activestate.com/recipes/578809-decorator-to-check-method-param-types/
+
+def type_accept(**types):
     """Function decorator enforcing input types.
 
-    :param types: expected types (e.g. str, int).
+    :param types: expected types (e.g. str, int, float).
     """
 
     def type_decor(func):  # func == function to decorate
         def new_func(self, *args, **kwargs):  # the decorated function's arguments'
-            if len(args) != 0 or len(kwargs) != 0:
-                # For each argument passed, check it against the type assertion
-                for arg_list in [args, kwargs.values()]:
-                    for idx, arg in enumerate(arg_list):
-                        if type(arg) != types[idx]:  # for single type comparisons
-                            if len(types[idx]) > 1 and (type(arg) in types[idx]):  # for multiple type comparisons
-                                pass
-                            else:
-                                raise TypeError("{} was expected to be of type {} but was of type {}".format(arg, str(types[idx]).split("'")[1],
-                                                                                                             str(type(arg)).split("'")[1]))
+            # check positional arguments
+            for arg_name, arg_val in zip(func.__code__.co_varnames[1:], args):  # [1:] syntax because of "self" parameter when used on classes.
+                if arg_name in types:
+                    if not isinstance(arg_val, types[arg_name]):
+                        raise TypeError("Argument '{}' was not of type {}".format(arg_val, str(types[arg_name]).split("'")[1]))
+            # check keyword arguments
+            for arg_name, arg_val in kwargs.items():
+                if arg_name in types:
+                    if not isinstance(arg_val, types[arg_name]):
+                        raise TypeError("Argument '{}' was not of type {}".format(arg_val, str(types[arg_name]).split("'")[1]))
             return func(self, *args, **kwargs)
         return new_func
     return type_decor
 
-def value_accept(*val_accept):
-    """Function decorator enforcing input types.
+def value_accept(**val_accept):
+    """Function decorator enforcing input values.
 
-    :param val_accept: expected values in format (lower range, upper range). E.g. (1, 10) means accept a value between
-        1 and 10.
+    :param val_accept: expected values. These can be in (lower, upper) for int or float, and in ('str1', 'str2') for string matching. E.g.
+    (1, 10) means accept a value between 1 and 10. ('str1', 'str2') means the value must be one of the listed strings.
     """
     def decorator(func):  # func == function to decorate
         def new_func(self, *args, **kwargs):  # the decorated function's arguments'
-            # For each argument passed, check it against the type assertion
-            if len(args) != 0 or len(kwargs) != 0:
-                for arg_list in [args, list(kwargs.values())]:
-                    for idx, val in enumerate(arg_list):
-                        if arg_list[idx] == None:
-                            pass
-                        elif type(arg_list[idx]) in (float, int):
-                            if arg_list[idx] < val_accept[idx][0] and arg_list[idx] > val_accept[idx][1]:  #
-                        #  for
-                        # upper/lower
-                        # range comparisons
-                                raise ValueError("{:f} needs to be between {:f} and {:f}".format(arg_list[idx], val[0], val[1]))
-                        elif type(arg_list[idx]) == str:
-                            if arg_list[idx] not in val:
-                                raise KeyError("{} not one of these options: {}".format(arg_list[idx], val))
+            # check positional arguments
+            for arg_name, arg_val in zip(func.__code__.co_varnames[1:], args):
+                if arg_name in val_accept:
+                    try:
+                        if not val_accept[arg_name][0] <= arg_val <= val_accept[arg_name][1]:
+                            raise ValueError("Argument '{:f}' needs to be between {:f} and {:f}".format(arg_name, val_accept[arg_name][0],
+                                                                                                                             val_accept[
+                                                                                                                                 arg_name[1]]))
+                    except:
+                        if not arg_val in val_accept[arg_name]:
+                            raise ValueError("Argument '{:f}' needs to be between {:f} and {:f}".format(arg_name, val_accept[arg_name][0],
+                                                                                                                             val_accept[
+                                                                                                                                 arg_name][
+                                                                                                                                     1]))
+            # check keyword arguments
+            for arg_name, arg_val in kwargs.items():
+                if arg_name in val_accept:
+                    if type(val_accept[arg_name][0]) in (float, int):
+                        if not val_accept[arg_name][0] <= arg_val <= val_accept[arg_name][1]:
+                            raise ValueError("Argument '{:f}' passed to '{}' needs to be between {:f} and {:f}".format(arg_name,
+                                                                                                                      func.__name__,
+                                                                                                           val_accept[arg_name][0],
+                                                                                                        val_accept[
+                                                                                                            arg_name[1]]))
+                    elif type(val_accept[arg_name][0]) in (str,):
+                        if not arg_val in val_accept[arg_name]:
+                            raise ValueError("Argument '{}' passed to '{}' needs to be one of these: {}".format(arg_name, func.__name__,
+                                                                                                             val_accept[arg_name]))
             return func(self, *args, **kwargs)
         return new_func
     return decorator

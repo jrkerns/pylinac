@@ -45,8 +45,8 @@ class VMAT(SingleImageObject):
         self._seg_dev_min = {}
         self._seg_dev_mean = {}
 
-    @type_accept(str)
-    @value_accept(im_types)
+    @type_accept(im_type=str)
+    @value_accept(im_type=im_types)
     def load_image_UI(self, im_type='open'):
         """Open a Qt UI file browser to load dicom image for given VMAT image.
 
@@ -65,8 +65,8 @@ class VMAT(SingleImageObject):
         if fs:  # if user didn't hit cancel
             self.load_image(fs, im_type=im_type)
 
-    @type_accept(str, str)
-    @value_accept(None, im_types)
+    @type_accept(filepath=str, im_type=str)
+    @value_accept(im_types=im_types)
     def load_image(self, filepath, im_type='open'):
         """Load the image directly by the file path (i.e. non-interactively).
 
@@ -85,8 +85,8 @@ class VMAT(SingleImageObject):
             raise NameError("im_type input string {s} not valid".format(im_type))
         self.im_props = props
 
-    @type_accept(str, int)
-    @value_accept(test_types, (1,2))
+    @type_accept(test_types=str, number=int)
+    @value_accept(test_types=test_types, number=(1, 2))
     def load_demo_image(self, test_type='drgs', number=1):
         """Load the demo DICOM images from demo files folder.
 
@@ -117,8 +117,8 @@ class VMAT(SingleImageObject):
         self.load_image(im_open_path, im_type='open')
         self.load_image(im_dmlc_path, im_type='mlc')
 
-    @type_accept(int)
-    @value_accept((1,2))
+    @type_accept(number=int)
+    @value_accept(number=(1,2))
     def run_demo_drgs(self, number=1):
         """Run the demo of the module for the Dose Rate & Gantry Speed test.
 
@@ -130,8 +130,8 @@ class VMAT(SingleImageObject):
         print(self.get_string_results())
         self.plot_analyzed_image()
 
-    @type_accept(int)
-    @value_accept((1,2))
+    @type_accept(number=int)
+    @value_accept(number=(1, 2))
     def run_demo_drmlc(self, number=1):
         """Run the demo of the module for the Dose Rate & MLC speed test.
 
@@ -249,8 +249,8 @@ class VMAT(SingleImageObject):
             self._seg_dev_min[segment] = dev_matrix[:, segment].min()
             self._seg_dev_mean[segment] = dev_matrix[:, segment].__abs__().mean()
 
-    @type_accept(str, (float, int))
-    @value_accept(test_types, (0.5, 8))
+    @type_accept(test=str, tolerance=(float, int))
+    @value_accept(test=test_types, tolerance=(0.5, 8))
     def analyze(self, test, tolerance=3):
         """Analyze 2 VMAT images, the open field image and DMLC field image, according to 1 of 2 possible tests.
 

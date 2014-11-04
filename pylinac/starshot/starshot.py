@@ -50,8 +50,8 @@ class Starshot(SingleImageObject):
         self.wobble_passed = False  # boolean overall test pass/fail result
 
 
-    @type_accept(int)
-    @value_accept((1, 2))
+    @type_accept(number=int)
+    @value_accept(number=(1, 2))
     def load_demo_image(self, number=1):
         """Load a starshot demo image.
 
@@ -154,8 +154,8 @@ class Starshot(SingleImageObject):
         self.set_start_point([y_point, x_point], warn_if_far_away=False)
 
 
-    @type_accept(bool, (int, float), int, int)
-    @value_accept(None, (5,95), (5, 80), (0, 180))
+    @type_accept(allow_inversion=bool, radius=(int, float), min_peak_height=int, SID=int)
+    @value_accept(radius=(5,95), min_peak_height=(5, 80), SID=(0, 180))
     def analyze(self, allow_inversion=True, radius=50, min_peak_height=30, SID=0):
         """Analyze the starshot image.
          Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -410,7 +410,8 @@ class Starshot(SingleImageObject):
             plot.draw()
             plot.axes.hold(False)
 
-    @type_accept(int)
+    @type_accept(number=int)
+    @value_accept(number=(1,2))
     def run_demo(self, number=1):
         """Run the Starshot module demo.
 
