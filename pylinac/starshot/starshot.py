@@ -13,6 +13,7 @@ from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 
 from pylinac.common.common_functions import Prof_Penum, point2edge_min, point_to_2point_line_dist
+from pylinac.common.decorators import value_accept, type_accept
 from pylinac.common.image_classes import SingleImageObject
 from pylinac.common.peakdetect import peak_detect
 
@@ -48,14 +49,17 @@ class Starshot(SingleImageObject):
         # information available in image properties
         self.wobble_passed = False  # boolean overall test pass/fail result
 
+
+    @type_accept(int)
+    @value_accept((1, 2))
     def load_demo_image(self, number=1):
         """Load a starshot demo image.
 
-        :param number: There are a few demo images. This number will choose which demo file to use. As of now
-            there are 2 demo images.
-        :type number: int
+                :param number: There are a few demo images. This number will choose which demo file to use. As of now
+                    there are 2 demo images.
+                :type number: int
 
-        """
+                """
         if number == 1:
             im_open_path = osp.join(file_dir, "demo_files", "demo_starshot_2.tif")
         else:
@@ -79,7 +83,7 @@ class Starshot(SingleImageObject):
             auto_x_left = self._algo_startpoint[1] - tolerance
             auto_x_right = self._algo_startpoint[1] + tolerance
             if (point[0] < auto_y_upper or point[0] > auto_y_lower) \
-                or (point[1] < auto_x_left or point[1] > auto_x_right):
+                    or (point[1] < auto_x_left or point[1] > auto_x_right):
                 print("Warning: The point you've set is far away from the automatic calculation.\n" +
                       " The algorithm may not calculate correctly if you continue. \nUse method .clear_start_point" +
                       " to reset if need be or don't set the starting point manually.")
@@ -92,6 +96,7 @@ class Starshot(SingleImageObject):
 
     def _draw_profile_circle(self, im_widget):
         """Draw a circle where the circular profile was or will be taken over.
+
         :param im_widget: The widget to draw to profile to.
         :type im_widget: matplotlib.Figure
         """
@@ -148,7 +153,10 @@ class Starshot(SingleImageObject):
 
         self.set_start_point([y_point, x_point], warn_if_far_away=False)
 
-    def analyze(self, allow_inversion=True, radius=50, min_peak_height=30, SID=None):
+
+    @type_accept(bool, (int, float), int, int)
+    @value_accept(None, (5,95), (5, 80), (0, 180))
+    def analyze(self, allow_inversion=True, radius=50, min_peak_height=30, SID=0):
         """Analyze the starshot image.
          Analyze finds the minimum radius and center of a circle that touches all the lines
          (i.e. the wobble circle diameter and wobble center)
@@ -169,17 +177,6 @@ class Starshot(SingleImageObject):
         # error checking
         if self.image is None:
             raise AttributeError("Starshot image not yet loaded")
-        if type(radius) != float and type(radius) != int:
-            raise TypeError("Radius must be an int or float")
-        if radius < 5 or radius > 95:
-            raise ValueError("Radius must be between 5 and 95")
-        if type(min_peak_height) != int:
-            raise TypeError("Peak height must be an integer")
-        elif min_peak_height < 5 or min_peak_height > 95:
-            raise ValueError("Peak height must be between 5 and 95")
-        if SID is not None:
-            if type(SID) != int or SID < 70:
-                raise ValueError("SID must be an int greater than 70")
 
         # check inversion
         self._check_inversion(allow_inversion)
@@ -248,7 +245,7 @@ class Starshot(SingleImageObject):
         # ensure the # of peaks found was even; every radiation "strip" should result in two peaks, one on either side of the isocenter.
         if len(max_vals) % 2 != 0 or len(max_vals) == 0:
             raise Exception("The algorithm found zero or an uneven number of radiation peaks. Ensure that the starting " \
-                                 "point is correct and/or change the search radius. Sorry.")
+                            "point is correct and/or change the search radius. Sorry.")
 
         # create a zero-array called strip_limits that holds the indices of the minimum between peaks.
         # In this way, we search the full-width half-max within the indices between any two indices of strip_limits
@@ -363,7 +360,7 @@ class Starshot(SingleImageObject):
         string = ('\nResult: %s \n\n'
                   'The minimum circle that touches all the star lines has a radius of %4.3g %s. \n\n'
                   'The center of the minimum circle is at %4.1f, %4.1f') % (passfailstr, self._wobble_radius, self.tolerance_unit,
-                                                                       self._wobble_center[0], self._wobble_center[1])
+                                                                            self._wobble_center[0], self._wobble_center[1])
         return string
 
     def _plot_wobble_circle(self, im_widget):
@@ -413,6 +410,7 @@ class Starshot(SingleImageObject):
             plot.draw()
             plot.axes.hold(False)
 
+    @type_accept(int)
     def run_demo(self, number=1):
         """Run the Starshot module demo.
 

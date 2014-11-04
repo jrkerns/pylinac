@@ -1,17 +1,18 @@
 
 from __future__ import print_function, division
+import os.path as osp
 
-# Python 3.x
 try:
+    # Python 3.x
     from tkinter import Tk
     from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
-# Python 2.x
 except ImportError:
+    # Python 2.x
     from Tkinter import Tk
     from tkFileDialog import askopenfilename, askopenfilenames, askdirectory
 
-from future import standard_library
-standard_library.install_hooks()
+# from future import standard_library
+# standard_library.install_hooks()
 from future.builtins import object
 
 import numpy as np
@@ -19,6 +20,8 @@ from scipy import ndimage
 from scipy.misc import imresize
 from PIL import Image
 import dicom
+
+from pylinac.common.decorators import type_accept
 
 
 """This holds the basic classes to be inherited by single-image tools (e.g. starshot, etc) for simple methods like loading,
@@ -28,6 +31,7 @@ rotating the image, and other things."""
 class SingleImageObject(object):
     """A class to be inherited by classes that utilize a single image in its analysis. Contains simple methods for such a class."""
 
+    @type_accept((None, np.ndarray))
     def __init__(self, image=None):
         """Initialize some attributes."""
         self.image = image  # if None, will eventually be a numpy array
@@ -37,6 +41,7 @@ class SingleImageObject(object):
                          'Image Type': '',  # Image type; either 'DICOM' or 'IMAGE'
         }
 
+    @type_accept(np.ndarray)
     def set_image(self, image):
         """Set the image from a pre-existing numpy array"""
         self.image = image
@@ -45,6 +50,7 @@ class SingleImageObject(object):
         """To be overloaded by each specific tool. Loads a demo image for the given class."""
         pass
 
+    @type_accept(str, bool, bool, bool)
     def load_image(self, filestring, to_gray=True, return_it=False, apply_filter=False):
         """Load an image using PIL or pydicom as a numpy array from a filestring.
 
@@ -57,10 +63,13 @@ class SingleImageObject(object):
         :type return_it: bool
         """
 
+        # Check that filestring points to valid file
+        if not osp.isfile(filestring):
+            raise FileExistsError("{} did not point to a valid file".format(filestring))
         # Read image depending on file type
-        im_file, image = self.load_img_file(filestring)
+        im_file, image = self.return_img_file(filestring)
         # Read in image properties
-        im_props = self.load_im_props(im_file)
+        im_props = self.return_im_props(im_file)
 
         if apply_filter:
             image = self.median_filter()
@@ -71,7 +80,7 @@ class SingleImageObject(object):
             self.image = image
             self.im_props = im_props
 
-    def load_image_UI(self, dir=None, caption=None, filters=None, to_gray=True, return_it=False):
+    def load_image_UI(self, dir='', caption='', filters='', to_gray=True, return_it=False):
         """Load an image using a UI Dialog.
 
         :param to_gray: Indicates whether to convert the image to black & white or not if an RGB image
@@ -97,20 +106,19 @@ class SingleImageObject(object):
         filestring = askopenfilename()
         return filestring
 
-    def load_img_file(self, filestring):
+    def return_img_file(self, filestring):
         """Return the file and image, depending on if it's a normal image type (JPG, PNG, etc) or DICOM."""
         try: # try loading dicom first
             im_file = dicom.read_file(filestring)
             image = im_file.pixel_array
             self.im_props['Image Type'] = 'DICOM'
-            pass
         except:  # load as a normal image
             im_file = Image.open(filestring)
             image = np.array(im_file)
             self.im_props['Image Type'] = 'IMAGE'
         return im_file, image
 
-    def load_im_props(self, image_file):
+    def return_im_props(self, image_file):
         """Return the properties of an image file."""
         im_props = self.im_props
         if self.im_props['Image Type'] == 'DICOM':
@@ -153,12 +161,14 @@ class SingleImageObject(object):
         """To be overloaded by subclass."""
         pass
 
+    @type_accept(int, str)
     def median_filter(self, size=3, mode='reflect'):
         """Apply a median filter to the image. Wrapper for scipy's median filter function.
         (http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html)
         """
         self.image = ndimage.median_filter(self.image, size=size, mode=mode)
 
+    @type_accept(int)
     def remove_edges(self, pixels=15):
         """
         Removes the edge pixels on all sides of the image.
@@ -174,6 +184,7 @@ class SingleImageObject(object):
         """
         self.image = -self.image + np.max(self.image) + np.min(self.image)
 
+    @type_accept(int)
     def rotate_image_ccw90(self, n=1):
         """Rotate the image counter-clockwise by 90 degrees n times.
 
@@ -182,6 +193,7 @@ class SingleImageObject(object):
         """
         self.image = np.rot90(self.image, n)
 
+    @type_accept((float, int, tuple), str)
     def resize_image(self, size, interp='bilinear'):
         """Scale the image. See scipy.misc.pilutil.imresize for further parameter options.
 

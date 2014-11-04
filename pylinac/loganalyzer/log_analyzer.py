@@ -14,8 +14,9 @@ from pylinac.common.common_functions import get_filename, open_PDF_file, go_up_d
 
 
 
-
 # Set up some constants and put them at the top to make later adjustment easy
+from pylinac.common.decorators import type_accept
+
 log_types = ('dynalog', 'trajectory log')  # the two current log types
 dlg_file_exts = ('.dlg')  # add more if need be
 tlg_file_exts = ('.bin')  # ditto
@@ -30,7 +31,7 @@ class MachineLog(object):
     def __init__(self, filename='', lightweight_mode=False):
         """
         A class for reading in machine log files (both dynalogs and trajectory logs) from Varian machines
-        and calculating various relevant parameters about them (RMS, 95th percentile error, etc)
+        and calculating various relevant parameters about them (RMS, 95th percentile error, etc).
 
         :param filename: Path to the log file. For trajectory logs this is a single .bin file.
             For dynalog files this should be the A-file. The B-file will be automatically pulled when A is read in. The B-file must be in
@@ -109,44 +110,37 @@ class MachineLog(object):
             self.read_log()
 
     def load_demo_dynalog(self):
-        """
-        Set the log file to the demo dynalog file included with the package.
-        """
+        """Load the demo dynalog file included with the package."""
         go_up_dirlevel()
         self._filename = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'AQA.dlg')
         self.read_log()
 
     def load_demo_trajectorylog(self):
-        """
-        Set the log file to the demo trajectory log included with the package.
-        """
+        """Load the log file to the demo trajectory log included with the package."""
         self._filename = osp.join(osp.split(osp.abspath(__file__))[0], 'demo files', 'Tlog.bin')
         self.read_log()
 
     def load_logfile_UI(self):
-        """
-        Let user load a log file with a UI dialog box.
-        """
+        """Let user load a log file with a UI dialog box. """
         filename = get_filename()
-        if filename is not None: # if user didn't hit cancel...
+        if filename: # if user didn't hit cancel...
             self._filename = filename
             self.read_log()
 
+    @type_accept(str)
     def load_logfile(self, filename):
-        """
-        Load the log non-interactively by passing path.
+        """Load the log non-interactively by passing the path to the file.
 
         :param filename: The path to the log file.
         :type filename: str
         """
-        assert type(filename) is str, "Filename must be a valid string"
-        #TODO: assert that file that string points to exists
+        if not osp.isfile(filename):
+            raise FileExistsError("File does not exist")
         self._filename = filename
         self.read_log()
 
     def report_basic_parameters(self):
-        """
-        Print the common parameters analyzed when investigating machine logs:
+        """Print the common parameters analyzed when investigating machine logs:
 
         -log type
         -average RMS
@@ -473,14 +467,12 @@ class MachineLog(object):
                 elif 'V' in header_sample:
                     self.log_type = log_types[1]  # trajectory log
                 else:
-                    raise TypeError("Log type unknown")
+                    raise ValueError("Log type unknown")
 
         return self.log_type
 
     def read_log(self):
-        """
-        Read in log based on what type of log it is: Trajectory or Dynalog.
-        """
+        """Read in log based on what type of log it is: Trajectory or Dynalog."""
         if self._filename == '':
             raise AttributeError('Log file has not been specified. Use load_logfile_UI or load_logfile')
 
@@ -570,7 +562,6 @@ class MachineLog(object):
     def read_Tlog(self):
         """
         Read in Trajectory log from binary file according to TB 1.5/2.0 log file specifications.
-        See folder: log_viewer/Log file specifications for more info.
         """
 
         # read in trajectory log binary data
@@ -676,14 +667,15 @@ class MachineLog(object):
 
 
     def _decode_binary(self, filecontents, dtype, num_values=1, cursor_shift=0):
-        """
-        This method is the main "decoder" for reading in trajectory log binary data into another data type.
+        """This method is the main "decoder" for reading in trajectory log binary data into human data types.
 
-        filecontents: the complete file having been read with .read()
-        dtype: the expected data type to return (usually str, int, or float). If int or float, will return numpy array
-        num_values: the expected number of dtype to return; note that this is not the same as the # of bytes
-        cursor_shift: the number of bytes to move the cursor forward after decoding. This is used if there is a
-            reserved section after the read-in segment
+        :param filecontents: the complete file having been read with .read().
+        :param dtype: the expected data type to return. If int or float, will return numpy array.
+        :type dtype: str, int, float
+        :param num_values: the expected number of dtype to return; note that this is not the same as the # of bytes.
+        :param cursor_shift: the number of bytes to move the cursor forward after decoding. This is used if there is a
+            reserved section after the read-in segment.
+        :type cursor_shift: int
         """
         fc = filecontents
 
@@ -709,21 +701,16 @@ class MachineLog(object):
         return output
 
     def open_dynalog_reference_PDF(self):
-        """
-         Open the Dynalog file reference PDF
-        """
+        """Open the Dynalog file reference PDF"""
         open_PDF_file('Dynalog File Viewer & Reference Guide (2011).pdf')
 
     def open_trajectory_reference_PDF(self):
-        """
-         Open the Tlog (1.5) file reference PDF
-        """
+        """Open the Tlog (1.5) file reference PDF"""
         open_PDF_file('TrueBeam Trajectory Log File Specification For TrueBeam 1.5 And Higher.pdf')
 
 
 def check_B_file_exists(a_filename):
-    """
-    Checks that the dynalog "B-file" for a given "A-file" exists within the same directory.
+    """Checks that the dynalog "B-file" for a given "A-file" exists within the same directory.
 
     Returns the absolute locations of the B-file.
     """
@@ -731,7 +718,7 @@ def check_B_file_exists(a_filename):
     fullbfile = osp.abspath(osp.join(osp.split(a_filename)[0], bfile))
     bfileexists = osp.isfile(fullbfile)
     if not bfileexists:
-        raise IOError("B-file dynalog file not found; ensure B-file is in same directory as A-file")
+        raise FileNotFoundError("B-file dynalog file not found; ensure B-file is in same directory as A-file")
     else:
         return fullbfile
 
@@ -751,8 +738,8 @@ def get_bank_index(bank, idx):
 # ------------------------
 if __name__ == '__main__':
     mlc = MachineLog()
-    mlc.load_demo_dynalog()
-    # mlc.load_logfile_UI()
+    # mlc.load_demo_dynalog()
+    mlc.load_logfile(6)
     # pass
     # mlc.load_demo_file_trajectorylog()  # uncomment to use trajectory log file
     mlc.report_basic_parameters()

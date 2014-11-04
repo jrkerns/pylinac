@@ -5,17 +5,15 @@ images according to the `Jorgensen et al. <http://dx.doi.org/10.1118/1.3552922>`
 """
 # Full documentation of this module and how to use it can be found at this repositories' Read the Docs site: pylinac.rtfd.org
 
-# builtins
 from __future__ import print_function, division, absolute_import
 import os.path as osp
 
-# 3rd party
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.patches import Rectangle
 
-# internal
+from pylinac.common.decorators import value_accept, type_accept
 from pylinac.common.image_classes import SingleImageObject
 
 
@@ -47,6 +45,8 @@ class VMAT(SingleImageObject):
         self._seg_dev_min = {}
         self._seg_dev_mean = {}
 
+    @type_accept(str)
+    @value_accept(im_types)
     def load_image_UI(self, im_type='open'):
         """Open a Qt UI file browser to load dicom image for given VMAT image.
 
@@ -65,12 +65,14 @@ class VMAT(SingleImageObject):
         if fs:  # if user didn't hit cancel
             self.load_image(fs, im_type=im_type)
 
+    @type_accept(str, str)
+    @value_accept(None, im_types)
     def load_image(self, filepath, im_type='open'):
         """Load the image directly by the file path (i.e. non-interactively).
 
         :param filepath: The absolute path to the DICOM image
         :type filepath: str
-        :param im_type: Specifies whether the image is the Open ('open') or MLC ('mlc') field.
+        :param im_type: Specifies whether the image is the Open ('open') or DMLC ('dmlc') field.
         :type im_type: str
         """
 
@@ -83,6 +85,8 @@ class VMAT(SingleImageObject):
             raise NameError("im_type input string {s} not valid".format(im_type))
         self.im_props = props
 
+    @type_accept(str, int)
+    @value_accept(test_types, (1,2))
     def load_demo_image(self, test_type='drgs', number=1):
         """Load the demo DICOM images from demo files folder.
 
@@ -113,6 +117,8 @@ class VMAT(SingleImageObject):
         self.load_image(im_open_path, im_type='open')
         self.load_image(im_dmlc_path, im_type='mlc')
 
+    @type_accept(int)
+    @value_accept((1,2))
     def run_demo_drgs(self, number=1):
         """Run the demo of the module for the Dose Rate & Gantry Speed test.
 
@@ -124,6 +130,8 @@ class VMAT(SingleImageObject):
         print(self.get_string_results())
         self.plot_analyzed_image()
 
+    @type_accept(int)
+    @value_accept((1,2))
     def run_demo_drmlc(self, number=1):
         """Run the demo of the module for the Dose Rate & MLC speed test.
 
@@ -236,14 +244,13 @@ class VMAT(SingleImageObject):
         self._dev_min = dev_matrix.min()
         self._dev_mean = dev_matrix.__abs__().mean()
         # segment deviations
-        # self._seg_dev_max = [0] * self._num_segments
-        # self._seg_dev_min = [0] * self._num_segments
-        # self._seg_dev_mean = [0] * self._num_segments
         for segment in np.arange(self._num_segments):
             self._seg_dev_max[segment] = dev_matrix[:, segment].max()
             self._seg_dev_min[segment] = dev_matrix[:, segment].min()
             self._seg_dev_mean[segment] = dev_matrix[:, segment].__abs__().mean()
 
+    @type_accept(str, (float, int))
+    @value_accept(test_types, (0.5, 8))
     def analyze(self, test, tolerance=3):
         """Analyze 2 VMAT images, the open field image and DMLC field image, according to 1 of 2 possible tests.
 
@@ -304,7 +311,7 @@ class VMAT(SingleImageObject):
     def _draw_objects(self, plot, draw=False):
         """
         This method draws lines on the matplotlib widget/figure showing an outline of the ROIs used in
-        the calcuation and text of the results
+        the calculation and text of the results.
 
         :type plot: matplotlib.axes.Axes
         """
