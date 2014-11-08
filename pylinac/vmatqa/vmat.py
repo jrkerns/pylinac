@@ -418,6 +418,10 @@ class VMAT(SingleImageObject):
 #---------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     v = VMAT()
-    v.run_demo_drgs(1)
-    T = 1
+    # v.load_image_UI()
+    # v.load_image_UI('dmlc')
+    v.load_demo_image('drmlc')
+    v.analyze('drmlc')
+    print(v.get_string_results())
+    v.plot_analyzed_image()
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo

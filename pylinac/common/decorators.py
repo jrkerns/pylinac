@@ -6,6 +6,7 @@ from builtins import str
 
 from future import standard_library
 
+
 standard_library.install_aliases()
 
 # The following is adapted from: http://code.activestate.com/recipes/578809-decorator-to-check-method-param-types/
@@ -18,9 +19,16 @@ def type_accept(**types):
     """
     def type_decor(func):  # func == function to decorate
         @wraps(func)
-        def new_func(self, *args, **kwargs):  # the decorated function's arguments'
+        def new_func(*args, **kwargs):  # the decorated function's arguments'
             # check positional arguments
-            for arg_name, arg_val in zip(func.__code__.co_varnames[1:], args):  # [1:] syntax because of "self" parameter when used on classes.
+            # if self is first argument, i.e. a class method, remove it. Otherwise the arg values and arg names are not the same length.
+            if func.__code__.co_varnames[0] == 'self':
+                arg_names = func.__code__.co_varnames[1:]
+                arg_vals = args[1:]
+            else:
+                arg_names = func.__code__.co_varnames
+                arg_vals = args
+            for arg_name, arg_val in zip(func.__code__.co_varnames, arg_vals):  # [1:] syntax because of "self" parameter when used on classes.
                 if arg_name in types:
                     if not isinstance(arg_val, types[arg_name]):
                         raise TypeError("Argument '{}' was not of type {}".format(arg_val, str(types[arg_name]).split("'")[1]))
@@ -29,7 +37,7 @@ def type_accept(**types):
                 if arg_name in types:
                     if not isinstance(arg_val, types[arg_name]):
                         raise TypeError("Argument '{}' was not of type {}".format(arg_val, str(types[arg_name]).split("'")[1]))
-            return func(self, *args, **kwargs)
+            return func(*args, **kwargs)
         return new_func
     return type_decor
 
@@ -41,17 +49,24 @@ def value_accept(**val_accept):
     """
     def decorator(func):  # func == function to decorate
         @wraps(func)
-        def new_func(self, *args, **kwargs):  # the decorated function's arguments'
+        def new_func(*args, **kwargs):  # the decorated function's arguments'
             # check positional arguments
-            for arg_name, arg_val in zip(func.__code__.co_varnames[1:], args):
+            # if self is first argument, i.e. a class method, remove it. Otherwise the arg values and arg names are not the same length.
+            if func.__code__.co_varnames[0] == 'self':
+                arg_names = func.__code__.co_varnames[1:]
+                arg_vals = args[1:]
+            else:
+                arg_names = func.__code__.co_varnames
+                arg_vals = args
+            for arg_name, arg_val in zip(arg_names, arg_vals):
                 if arg_name in val_accept:
-                    if type(val_accept[arg_name][0]) in (float, int):
+                    if type(arg_val) in (float, int):
                         if not val_accept[arg_name][0] <= arg_val <= val_accept[arg_name][1]:
                             raise ValueError("Argument '{:f}' needs to be between {:f} and {:f}".format(arg_name, val_accept[arg_name][
                                 0], val_accept[arg_name][1]))
-                        elif type(val_accept[arg_name][0]) in (str,):
-                            if not arg_val in val_accept[arg_name]:
-                                raise ValueError("Argument '{}' passed to '{}' needs to be one of these: {}".format(arg_name, func.__name__,
+                    elif type(arg_val) in (str,):
+                        if not arg_val in val_accept[arg_name]:
+                            raise ValueError("Argument '{}' passed to '{}' needs to be one of these: {}".format(arg_name, func.__name__,
                                                                                                                     val_accept[arg_name]))
             # check keyword arguments
             for arg_name, arg_val in kwargs.items():
@@ -67,6 +82,6 @@ def value_accept(**val_accept):
                         if not arg_val in val_accept[arg_name]:
                             raise ValueError("Argument '{}' passed to '{}' needs to be one of these: {}".format(arg_name, func.__name__,
                                                                                                              val_accept[arg_name]))
-            return func(self, *args, **kwargs)
+            return func(*args, **kwargs)
         return new_func
     return decorator

@@ -106,6 +106,7 @@ class SingleImageObject(object):
 
     def _return_img_file(self, filestring):
         """Return the file and image, depending on if it's a normal image type (JPG, PNG, etc) or DICOM."""
+        # TODO: try incorporating the DICOM SOP; http://www.dicomlibrary.com/dicom/sop/
         try: # try loading dicom first
             im_file = dicom.read_file(filestring)
             image = im_file.pixel_array

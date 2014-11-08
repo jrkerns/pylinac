@@ -151,7 +151,7 @@ class Prof_Penum(object):
         else:
             self.xdata = xdata
 
-    def get_penum(self, side='left', penum_point=50):
+    def get_X_penum_idx(self, side='left', penum_point=50):
         """
         the main method of ProfPenum
 
@@ -194,8 +194,8 @@ class Prof_Penum(object):
         E.g. X = 50 is 50% height, a.k.a half max, thus X=50 is the FWHM
         returns the width in number of elements of the FWXM
         """
-        li = self.get_penum('left', X)
-        ri = self.get_penum('right', X)
+        li = self.get_X_penum_idx('left', X)
+        ri = self.get_X_penum_idx('right', X)
         fwxm = np.abs(ri - li)
         return fwxm
 
@@ -204,7 +204,7 @@ class Prof_Penum(object):
         returns the center point (index) of FWXM
         """
         fwxm = self.get_FWXM(X)
-        li = self.get_penum('left', X)
+        li = self.get_X_penum_idx('left', X)
         fwxmcen = np.abs(li + fwxm / 2)
         return fwxmcen
 
@@ -218,26 +218,49 @@ class Prof_Penum(object):
         side options include: left, right, & both (average)
         """
         if side == 'left':
-            li = self.get_penum('left', lower_penum)
-            ui = self.get_penum('left', upper_penum)
+            li = self.get_X_penum_idx('left', lower_penum)
+            ui = self.get_X_penum_idx('left', upper_penum)
             pen = np.abs(ui - li)
             return pen
         elif side == 'right':
-            li = self.get_penum('right', lower_penum)
-            ui = self.get_penum('right', upper_penum)
+            li = self.get_X_penum_idx('right', lower_penum)
+            ui = self.get_X_penum_idx('right', upper_penum)
             pen = np.abs(ui - li)
             return pen
         elif side == 'both':
-            li = self.get_penum('left', lower_penum)
-            ui = self.get_penum('left', upper_penum)
+            li = self.get_X_penum_idx('left', lower_penum)
+            ui = self.get_X_penum_idx('left', upper_penum)
             lpen = np.abs(ui - li)
-            li = self.get_penum('right', lower_penum)
-            ui = self.get_penum('right', upper_penum)
+            li = self.get_X_penum_idx('right', lower_penum)
+            ui = self.get_X_penum_idx('right', upper_penum)
             rpen = np.abs(ui - li)
             pen = np.mean([lpen, rpen])
             return pen
         else:
             raise NameError("getpenumwidth input parameter not acceptable")
+
+    def get_field_value(self, field_width_percent=80, value='mean'):
+        """Get the value of the field in the profile, either mean, median, or max, within the given field width.
+
+        :param field_width_percent: The percent width relative to the FWHM to sample.
+        :type field_width_percent: int < 100
+        :param value: Value type to extract. Either 'mean', 'median', or 'max' of field values.
+        :type value: str
+        """
+
+        fwhmc = self.get_FWXM_center()
+        fwhm = self.get_FWXM() * 0.8
+        left = fwhmc - fwhm/2
+        right = fwhmc + fwhm/2
+
+        field_values = self.ydata[left:right]
+
+        if value == 'mean':
+            return field_values.mean()
+        elif value == 'median':
+            return np.median(field_values)
+        elif value == 'max':
+            return field_values.max()
 
 def point_to_2point_line_dist(point, line_point):
     """
@@ -369,7 +392,7 @@ def _datacheck_peakdetect(x_axis, y_axis):
     x_axis = np.array(x_axis)
     return x_axis, y_axis
 
-def peak_detect(y, x=None, threshold=0, min_peak_width=10, delta=0, find_min_instead=False):
+def peak_detect(y, x=None, threshold=0, min_peak_width=10, delta=0, max_num_peaks=None, find_min_instead=False):
     """Find the peaks or valleys of a 1-D signal. Uses the difference (np.diff) in signal to find peaks. Current limitations
     include:
     1) Only for use in 1-D data; 2-D may be possible with the gradient function. 2) Will not detect peaks at the very edge of array
@@ -380,15 +403,19 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, delta=0, find_min_ins
     :param x: 1-D x-data of signal. If left as None, will create a uniform range the length of the y-data.
     :type x: numpy array
     :param threshold: The value the peak must be above to be considered a peak.
-        This removes "peaks" that are in a low-value region.
-    :type threshold: int
+        This removes "peaks" that are in a low-value region. If passed an int, the actual value is the threshold;
+        if a float <1.0 is passed, it will threshold that percent. E.g. when passed 15, any peak less than 15 is
+        removed. When passed 0.4, any peak less than 40% of the maximum value will be removed.
+    :type threshold: int, float
     :param min_peak_width: The number of elements apart a peak must be from neighboring peaks.
     :type min_peak_width: int
     :param delta: The value a peak candidate must be higher than its neighbors by to be considered a true peak.
     :type delta: int
+    :param max_num_peaks: Specify up to how many peaks will be returned. E.g. if 3 is passed in and 5 peaks are found, only the 3 largest
+        peaks will be returned.
     :param find_min_instead: If True, algorithm will find minimums of y instead of maximums.
     :type find_min_instead: bool
-    :return: two 1-D numpy arrays: max_vals, max_idxs; max_vals contains the y-values of the peaks, max_idxs contains the x-index of the
+    :returns: two 1-D numpy arrays: max_vals, max_idxs; max_vals contains the y-values of the peaks, max_idxs contains the x-index of the
         peaks.
     """
     peak_vals = []  # a list to hold the y-values of the peaks. Will be converted to a numpy array
@@ -396,36 +423,39 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, delta=0, find_min_ins
 
     x, y = _datacheck_peakdetect(x, y)  # check length and convert to numpy arrays
 
-    y_diff = np.diff(y.astype(float))  # Had problems with uint input. y_diff *must* be converted to signed type. Note: diff is faster than
-    # ediff1d
+    if find_min_instead:
+        y = -y
+
+    y_diff = np.diff(y.astype(float))  # Had problems with uint input. y_diff *must* be converted to signed type.
+
+    if isinstance(threshold, float):
+        if threshold >= 1:
+            raise ValueError("When threshold is passed a float, value must be less than 1")
+        else:
+            data_range = y.max() - y.min()
+            threshold = threshold * data_range + y.min()
 
     """Find all potential peaks"""
-    for idx in range(len(y_diff)):
+    for idx in range(len(y_diff)-1):
         # For each item of the diff array, check if:
-        # 1) The index is not at the end,
-        # 2) The value of y_diff is positive,
-        # 3) The next y_diff value is zero or negative; a positive-then-negative diff value means the value is a peak of some kind. If
-        # the diff is zero it could be a flat peak, which still counts.
-        # 4) That the y-value of the potential peak is above the threshold
-        # Note: In the midst of noise this will catch a lot of peaks, and peakdetect is faster
+        # 1) The y-value is above the threshold.
+        # 2) The value of y_diff is positive (negative for valley search), it means the y-value changed upward.
+        # 3) The next y_diff value is zero or negative (or positive for valley search); a positive-then-negative diff value means the value
+        # is a peak of some kind. If the diff is zero it could be a flat peak, which still counts.
 
         # 1)
-        not_at_end = idx != len(y_diff) - 1
-        # 2) & 3)
-        if not find_min_instead and not_at_end:
-            y1_gradient = y_diff[idx] > 0
-            y2_gradient = y_diff[idx + 1] <= 0
-        elif not_at_end:
-            y1_gradient = y_diff[idx] < 0
-            y2_gradient = y_diff[idx + 1] >= 0
-        # 4)
-        # above_threshold = y[idx + 1] >= threshold
+        if y[idx + 1] < threshold:
+            continue
 
-        if not_at_end and y1_gradient and y2_gradient and y[idx + 1] >= threshold:
+        y1_gradient = y_diff[idx] > 0
+        y2_gradient = y_diff[idx + 1] <= 0
+
+        # 2) & 3)
+        if y1_gradient and y2_gradient:
             # If the next value isn't zero it's a single-pixel peak. Easy enough.
-            if y2_gradient != 0:
+            if y_diff[idx+1] != 0:
                 peak_vals.append(y[idx + 1])
-                peak_idxs.append(idx + 1)
+                peak_idxs.append(x[idx + 1])
             # Else if the diff value is zero, it could be a flat peak, or it could keep going up; we don't know yet.
             else:
                 # Continue on until we find the next nonzero diff value.
@@ -434,44 +464,49 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, delta=0, find_min_ins
                     shift += 1
                 # If the next diff is negative (or positive for min), we've found a peak. Also put the peak at the center of the flat
                 # region.
-                if not find_min_instead:
-                    is_a_peak = y_diff[(idx + 1) + shift] < 0
-                else:
-                    is_a_peak = y_diff[(idx + 1) + shift] > 0
-
+                is_a_peak = y_diff[(idx + 1) + shift] < 0
                 if is_a_peak:
                     peak_vals.append(y[(idx + 1) + np.round(shift / 2)])
-                    peak_idxs.append((idx + 1) + np.round(shift / 2))
+                    peak_idxs.append(x[(idx + 1) + np.round(shift / 2)])
 
     # convert to numpy arrays
     peak_vals = np.array(peak_vals)
     peak_idxs = np.array(peak_idxs)
 
     """Enforce the min_peak_distance by removing smaller peaks."""
-    index = 1
+    index = 0
     while index < len(peak_idxs) - 1:
         # For each peak, determine if the next peak is within the look_ahead range.
 
-        # If the previous peak is closer than min_peak_distance, find the larger (or smaller for min) peak and remove other one.
-        if peak_idxs[index - 1] > peak_idxs[index] - min_peak_width:
-            if ((not find_min_instead and peak_vals[index - 1] > peak_vals[index]) or
-                    (find_min_instead and peak_vals[index - 1] < peak_vals[index])):
-                idx2del = index
+        # If the second peak is closer than min_peak_distance to the first peak, find the larger peak and remove the other one.
+        if peak_idxs[index] > peak_idxs[index+1] - min_peak_width:
+            if peak_vals[index] > peak_vals[index+1]:
+                idx2del = index + 1
             else:
-                idx2del = index - 1
+                idx2del = index
             peak_vals = np.delete(peak_vals, idx2del)
             peak_idxs = np.delete(peak_idxs, idx2del)
         # Else if the next peak is closer than min_peak_distance, do the same.
-        elif peak_idxs[index + 1] < peak_idxs[index] + min_peak_width:
-            if ((not find_min_instead and peak_vals[index + 1] > peak_vals[index]) or
-                    (find_min_instead and peak_vals[index + 1] < peak_vals[index])):
-                idx2del = index
-            else:
-                idx2del = index + 1
-            peak_vals = np.delete(peak_vals, idx2del)
-            peak_idxs = np.delete(peak_idxs, idx2del)
+        # elif peak_idxs[index + 1] < peak_idxs[index] + min_peak_width:
+        #     if ((not find_min_instead and peak_vals[index + 1] > peak_vals[index]) or
+        #             (find_min_instead and peak_vals[index + 1] < peak_vals[index])):
+        #         idx2del = index
+        #     else:
+        #         idx2del = index + 1
+        #     peak_vals = np.delete(peak_vals, idx2del)
+        #     peak_idxs = np.delete(peak_idxs, idx2del)
         else:
             index += 1
+
+    """If Maximum Number passed, return only up to number given based on a sort of peak values."""
+    if max_num_peaks is not None and len(peak_idxs) > max_num_peaks:
+        sorted_peak_vals = peak_vals.argsort()  # sorts low to high
+        peak_vals = peak_vals[sorted_peak_vals[-max_num_peaks:]]
+        peak_idxs = peak_idxs[sorted_peak_vals[-max_num_peaks:]]
+
+    # If we were looking for minimums, convert the values back to the original sign
+    if find_min_instead:
+        peak_vals = -peak_vals
 
     return peak_vals, peak_idxs
 
@@ -480,10 +515,12 @@ def sector_mask(shape, centre, radius, angle_range):
     """
     Return a boolean mask for a circular sector. The start/stop angles in
     `angle_range` should be given in clockwise order.
+
+    Found here: https://stackoverflow.com/questions/18352973/mask-a-circular-sector-in-a-numpy-array/18354475#18354475
     """
 
     x, y = np.ogrid[:shape[0], :shape[1]]
-    cx, cy = centre
+    cy, cx = centre
     # tmin, tmax = np.deg2rad(angle_range)
     tmin, tmax = angle_range
 

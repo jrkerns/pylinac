@@ -240,9 +240,9 @@ class Starshot(SingleImageObject):
 
         # Find the positions of the max values
         # min_peak_height = np.percentile(self._circleprofile,30)  # 30% minimum peak height
-        min_peak_height = (min_peak_height/100) *(np.max(self._circleprofile) - np.min(self._circleprofile))
+        min_peak_height = np.round(min_peak_height/100) *(np.max(self._circleprofile) - np.min(self._circleprofile))
         min_peak_distance = len(self._circleprofile)/100*3  # 3-degree minimum distance
-        max_vals, max_idxs = peak_detect(self._circleprofile, threshold=min_peak_height, min_peak_distance=min_peak_distance)
+        max_vals, max_idxs = peak_detect(self._circleprofile, threshold=min_peak_height, min_peak_width=min_peak_distance)
         # ensure the # of peaks found was even; every radiation "strip" should result in two peaks, one on either side of the isocenter.
         if len(max_vals) % 2 != 0 or len(max_vals) == 0:
             raise Exception("The algorithm found zero or an uneven number of radiation peaks. Ensure that the starting " \
@@ -430,3 +430,4 @@ class Starshot(SingleImageObject):
 # ----------------------------
 if __name__ == '__main__':
     Starshot().run_demo(1)
+    pass
