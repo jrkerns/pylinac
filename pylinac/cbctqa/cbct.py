@@ -27,23 +27,57 @@ tolerances = {'HU': 40, 'UN': 40, 'SR': None, 'GEO': 1}
 slices_of_interest = {'HU': 32, 'UN': 9, 'SR': 44, 'LOCON': 23}
 known_manufacturers = ('Varian Medical Systems', 'ELEKTA')
 FOV_thresh = 300  # the field of view size threshold (in mm) between "small" and "large"
-protocols = ('hi_head', 'thorax', 'pelvis')
+protocols = ('hi_head', 'thorax', 'pelvis')  # protocol names for using demo images
 
 class Slice(object):
-    """A subclass for analyzing slices of a CBCT dicom set."""
-    def __init__(self, images, slice_num, mode):
-        self.image = combine_surrounding_slices(images, slice_num, mode=mode)
+    """A subclass for analyzing specific slices of a CBCT dicom set."""
+    def __init__(self, images, settings, slice, mode):
+        """
+        :param images: The CBCT image set as a 3D numpy array.
+        :type images: ndarray
+        :param slice: Slice number of interest
+        :type slice: int
+        :param mode: Mode of combining surrounding images to lower noise. Options: 'mean', 'max', 'min'
+        :type mode: str
+        """
+        self.image = combine_surrounding_slices(images, slice, mode=mode)
+        self.settings = settings
+        self.phan_center = np.zeros(2)
+        self.roi_names = []
+        self.roi_angles = []
+        self.roi_values = []  # The pixel values of the ROIs
+        self.roi_nominal_values = []  # The nominal values of the ROIs, if applicable
+        self._radius2rois = 0
+        self._roi_radius = 0
+        self.passed_test = False
 
     def set_roi_names(self, names):
         """Set the names of the ROIs in the Slice.
+
         :param names: Names of ROIs
         :type names: tuple, list
         """
         self.roi_names = names
 
-    def find_phan_center(self):
+    def set_roi_angles(self, angles):
+        """Set the angles of the ROIs calculated from the center pixel in degrees. Directions: 0 is right, -90 is top, -90 is bottom."""
+        self.roi_angles = angles
+
+    def set_roi_values(self, values):
+        """Set the values of the ROIs."""
+        self.roi_values = values
+
+    def set_radius2rois(self, radius):
+        """Set the radius from center pixel to the ROIs."""
+        self._radius2rois = radius
+
+    def set_roi_radius(self, radius):
+        """Set the radius of the ROIs."""
+        self._roi_radius = radius
+
+    def find_phan_center(self, threshold):
         """Determine the location of the center of the phantom."""
-        SOI_bw = array2logical(self.image, self._algo_settings['BW threshold'])  # convert slice to binary based on threshold
+        SOI_bw = array2logical(self.image, threshold)  # convert slice to binary based on threshold
         SOI_bw = binary_fill_holes(SOI_bw)  # fill in air pockets to make one solid ROI
         SOI_labeled, no_roi = meas.label(SOI_bw)  # identify the ROIs
         if no_roi < 1 or no_roi is None:
@@ -51,7 +85,31 @@ class Slice(object):
         hist, bins = np.histogram(SOI_labeled, bins=no_roi)  # hist will give the size of each label
         SOI_bw_clean = np.where(SOI_labeled == np.argmax(hist), 1, 0)  # remove all ROIs except the largest one (the CatPhan)
         center_pixel = meas.center_of_mass(SOI_bw_clean)
+        self.phan_center = center_pixel
 
+
+class HU(Slice):
+    """Class for analysis of the HU slice of the CBCT dicom data set."""
+    roi_names = ('Air', 'PMP', 'LDPE', 'Poly', 'Acrylic', 'Delrin', 'Teflon')
+    roi_angles = (-90, -120, 180, 120, 60, 0, -60)
+    radius2rois = 120
+    roi_radius = 9
+    air_bubble_size = 450
+    bw_threshold = -800
+
+    def __init__(self, images, settings, slice, mode):
+        Slice.__init__(self, images, settings, slice, mode)
+        self.set_roi_names(HU.roi_names)
+        self.set_roi_angles(HU.roi_angles)
+        self.set_radius2rois(HU.radius2rois * settings.scaling_ratio)
+        self.set_roi_radius(HU.roi_radius * settings.scaling_ratio)
+
+    def calc_ROIs(self):
+        pass
+
+    def find_roll(self):
+        """Find the roll of the phantom based on the angle between the two air bubbles."""
+        hu_bw = array2logical(self.image, HU.bw_threshold)
 
 class CBCT(MultiImageObject):
     """
@@ -91,9 +149,6 @@ class CBCT(MultiImageObject):
         The MTF is a measurement mechanism (and thus, subsidiary) of the spatial resolution."""
         self.SR_lpmm = np.array((0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.41, 1.59))  # the line pair/mm values for the CatPhan SR slice
         self.MTF_vals = np.zeros(8)  # The values of the MTF at the 8 SR ROIs
-        # The y, x points of each corner of each SR ROI
-        self.SR_ROI_yxpoints = [{'Top-Left': (0, 0), 'Top-Right': (0, 0),
-                                'Bottom-Left': (0, 0), 'Bottom-Right': (0, 0)}] * 8
 
         """Geometrical Distance and Distortion."""
         self.GEO_dist = {'Top-Horiz': None, 'Bottom-Horiz': None,
@@ -228,6 +283,8 @@ class CBCT(MultiImageObject):
         self._get_settings(dcm)
         # convert images from CT# to HU using dicom tags
         self._convert2HU()
+        # get certain DICOM values needed for algorithm initial values
+        self._get_settings(dcm)
 
     def _convert2HU(self):
         """Convert the images from CT# to HU."""
@@ -270,6 +327,7 @@ class CBCT(MultiImageObject):
                               'UN ROI radius': 20 * scaling_ratio,
 
                               'UN radius': 110 * scaling_ratio}
+        self._scaling_ratio = scaling_ratio
 
     def _find_phan_centers(self):
         """
@@ -328,6 +386,8 @@ class CBCT(MultiImageObject):
 
     def find_HU(self):
         """Determine HU values from HU slice. Averages 3 slices."""
+        # self.HU(self.images, 32, 'mean')
+
 
         # average 3 slices around the nominal slice
         HU_slice = combine_surrounding_slices(self.images, slices_of_interest['HU'])
@@ -435,7 +495,7 @@ class CBCT(MultiImageObject):
             self.MTF_vals[region] = (region_max - region_min) / (region_max + region_min)
 
 
-    def find_SR(self):
+    def _find_SR(self):
         """Determine the Spatial Resolution from the Line-Pair slice."""
         # average 3 slices centered around SR slice
         SR_slice = combine_surrounding_slices(self.images, slices_of_interest['SR'], mode='max')
@@ -604,7 +664,7 @@ class CBCT(MultiImageObject):
         self._find_roll()
 
         self.find_HU()
-        self.find_SR()
+        self._find_SR()
         self.find_GEO()
         self.find_UNIF()
 
@@ -616,7 +676,8 @@ def array2logical(array, threshold_value):
     """
     return np.where(array >= threshold_value, 1, 0)
 
-@type_accept(mode=str)
+@type_accept(nominal_slice_num=int, slices_plusminus=int, mode=str)
+@value_accept(mode=('mean','max','min'))
 def combine_surrounding_slices(im_array, nominal_slice_num, slices_plusminus=1, mode='mean'):
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
     :param im_array: numpy array, assumed 3 dims
@@ -629,10 +690,8 @@ def combine_surrounding_slices(im_array, nominal_slice_num, slices_plusminus=1, 
         comb_slice = np.mean(slices, 2)
     elif mode == 'median':
         comb_slice = np.median(slices, 2)
-    elif mode == 'max':
-        comb_slice = np.max(slices, 2)
     else:
-        raise KeyError("Slice combination key invalid")
+        comb_slice = np.max(slices, 2)
     return comb_slice
 
 
