@@ -8,9 +8,8 @@ import shutil
 
 from future.builtins import range
 import numpy as np
-from scipy.ndimage import binary_fill_holes
 from scipy import ndimage
-import scipy.ndimage.measurements as meas
+import scipy.ndimage.measurements as spmeas
 from scipy.misc import imresize
 import dicom
 from matplotlib.patches import Circle
@@ -21,13 +20,9 @@ from pylinac.common.image_classes import MultiImageObject
 from pylinac.common.common_functions import invert, dist_2points, sector_mask, peak_detect
 
 
-"""Default constants"""
-nominal_GEO = 50.0
-tolerances = {'HU': 40, 'UN': 40, 'SR': None, 'GEO': 1}
-slices_of_interest = {'HU': 32, 'UN': 9, 'SR': 44, 'LOCON': 23}
 known_manufacturers = ('Varian Medical Systems', 'ELEKTA')
 FOV_thresh = 300  # the field of view size threshold (in mm) between "small" and "large"
-protocols = ('hi_head', 'thorax', 'pelvis')  # protocol names for using demo images
+demo_protocols = ('hi_head', 'thorax', 'pelvis')  # protocol names for using demo images
 
 class Slice(object):
     """A subclass for analyzing specific slices of a CBCT dicom set."""
@@ -43,151 +38,385 @@ class Slice(object):
         self.image = combine_surrounding_slices(images, slice, mode=mode)
         self.settings = settings
         self.phan_center = np.zeros(2)
-        self.roi_names = []
-        self.roi_angles = []
-        self.roi_values = []  # The pixel values of the ROIs
-        self.roi_nominal_values = []  # The nominal values of the ROIs, if applicable
-        self._radius2rois = 0
-        self._roi_radius = 0
-        self.passed_test = False
+        self.object_names = []
+        self.object_angles = {}
+        self.object_values = {}  # The pixel values of the ROIs
+        self.object_valdiff = {}
+        self.object_tolerance = 0
+        self.object_nominal_values = {}  # The nominal values of the ROIs, if applicable
+        self.object_center_pixel = {}
+        self.radius2objs = 0
+        self.object_radius = 0
+        self.passed_test = True
 
-    def set_roi_names(self, names):
+    def set_obj_names(self, names):
         """Set the names of the ROIs in the Slice.
 
         :param names: Names of ROIs
         :type names: tuple, list
         """
-        self.roi_names = names
+        self.object_names = names
 
-    def set_roi_angles(self, angles):
+    def set_obj_angles(self, angles):
         """Set the angles of the ROIs calculated from the center pixel in degrees. Directions: 0 is right, -90 is top, -90 is bottom."""
-        self.roi_angles = angles
+        for name, angle in zip(self.object_names, angles):
+            self.object_angles[name] = angle
 
-    def set_roi_values(self, values):
+    def set_obj_values(self, values):
         """Set the values of the ROIs."""
-        self.roi_values = values
+        for name, value in zip(self.object_names, values):
+            self.object_values[name] = value
 
-    def set_radius2rois(self, radius):
+    def set_obj_nominal_values(self, values):
+        """Set the nominal values of the ROIs."""
+        for name, value in zip(self.object_names, values):
+            self.object_nominal_values[name] = value
+
+    def set_radius2objs(self, radius):
         """Set the radius from center pixel to the ROIs."""
-        self._radius2rois = radius
+        self.radius2objs = radius
 
-    def set_roi_radius(self, radius):
+    def set_obj_radius(self, radius):
         """Set the radius of the ROIs."""
-        self._roi_radius = radius
+        self.object_radius = radius
+
+    def set_obj_tolerance(self, tolerance):
+        """Set the ROI passing tolerance."""
+        self.object_tolerance = tolerance
 
     def find_phan_center(self, threshold):
         """Determine the location of the center of the phantom."""
         SOI_bw = array2logical(self.image, threshold)  # convert slice to binary based on threshold
-        SOI_bw = binary_fill_holes(SOI_bw)  # fill in air pockets to make one solid ROI
-        SOI_labeled, no_roi = meas.label(SOI_bw)  # identify the ROIs
+        SOI_bw = ndimage.binary_fill_holes(SOI_bw)  # fill in air pockets to make one solid ROI
+        SOI_labeled, no_roi = ndimage.label(SOI_bw)  # identify the ROIs
         if no_roi < 1 or no_roi is None:
             raise ValueError("Unable to locate the CatPhan")
         hist, bins = np.histogram(SOI_labeled, bins=no_roi)  # hist will give the size of each label
         SOI_bw_clean = np.where(SOI_labeled == np.argmax(hist), 1, 0)  # remove all ROIs except the largest one (the CatPhan)
-        center_pixel = meas.center_of_mass(SOI_bw_clean)
+        center_pixel = spmeas.center_of_mass(SOI_bw_clean)
         self.phan_center = center_pixel
+
+    def _return_masked_ROI(self, roi_center, nan_outside_mask=True):
+        # Create mask of ROI
+        mask = sector_mask(self.image.shape, roi_center, self.object_radius, (0, 360))
+        # Apply mask to image and replace all other values with NaNs.
+        if nan_outside_mask:
+            masked_img = np.where(mask == True, self.image, np.NaN)
+        else:
+            masked_img = np.where(mask == True, self.image, 0)
+        return masked_img
+
+    def _return_ROI_center(self, angle, name):
+        # rename some things for convenience
+        phan_cen_y = self.phan_center[0]  # HU slice center y-coordinate
+        phan_cen_x = self.phan_center[1]  # ditto for x-coordinate
+        radius = self.radius2objs  # radius from slice center to extract HU rois
+        roll = self.settings['phantom roll']
+        # Calculate the additional shift of the ROI coords, given the phantom roll. Exception is the Center ROI
+        # of the Uniformity slice, which has a radius of 0.
+        if name != 'Center':
+            corrected_roll_x = np.cos(np.radians(roll + angle))
+            corrected_roll_y = np.sin(np.radians(roll + angle))
+        else:
+            corrected_roll_x = 0
+            corrected_roll_y = 0
+        # Calculate the center pixel of the ROI
+        roi_center = [phan_cen_x + radius * corrected_roll_x, phan_cen_y + radius * corrected_roll_y]
+        return roi_center
+
+    def calc_OOI(self, calc_diff=True):
+        """Calculate the mean HU value of the 7 ROI areas."""
+        for (name, angle) in self.object_angles.items():
+            self.object_center_pixel[name] = self._return_ROI_center(angle, name)
+            masked_img = self._return_masked_ROI(self.object_center_pixel[name])
+            # Calculate the mean HU value and the difference from nominal
+            self.object_values[name] = np.nanmean(masked_img)
+
+            if calc_diff:
+                # Calculate different from the nominal value if applicable
+                self.object_valdiff[name] = self.object_values[name] - self.object_nominal_values[name]
+
+        if calc_diff:
+            self.check_objs_passed()
+
+    def check_objs_passed(self):
+        """Check whether the ROIs passed within tolerance."""
+        for val in self.object_valdiff.values():
+            if val < -self.object_tolerance or val > self.object_tolerance:
+                self.passed_test = False
 
 
 class HU(Slice):
     """Class for analysis of the HU slice of the CBCT dicom data set."""
-    roi_names = ('Air', 'PMP', 'LDPE', 'Poly', 'Acrylic', 'Delrin', 'Teflon')
-    roi_angles = (-90, -120, 180, 120, 60, 0, -60)
-    radius2rois = 120
-    roi_radius = 9
+    object_names = ('Air', 'PMP', 'LDPE', 'Poly', 'Acrylic', 'Delrin', 'Teflon')
+    object_nominal_values = (-1000, -200, -100, -35, 120, 340, 990)
+    object_angles = (-90, -120, 180, 120, 60, 0, -60)
+    radius2objs = 120
+    object_radius = 9
+    tolerance = 40
     air_bubble_size = 450
-    bw_threshold = -800
 
-    def __init__(self, images, settings, slice, mode):
-        Slice.__init__(self, images, settings, slice, mode)
-        self.set_roi_names(HU.roi_names)
-        self.set_roi_angles(HU.roi_angles)
-        self.set_radius2rois(HU.radius2rois * settings.scaling_ratio)
-        self.set_roi_radius(HU.roi_radius * settings.scaling_ratio)
+    def __init__(self, images, settings, mode):
+        Slice.__init__(self, images, settings, settings['HU slice'], mode)
+        self.set_obj_names(HU.object_names)
+        self.set_obj_angles(HU.object_angles)
+        self.set_obj_nominal_values(HU.object_nominal_values)
+        self.set_radius2objs(HU.radius2objs * settings['scaling ratio'])
+        self.set_obj_radius(HU.object_radius * settings['scaling ratio'])
+        self.set_obj_tolerance(HU.tolerance)
 
-    def calc_ROIs(self):
-        pass
+    def return_phan_roll(self):
+        """Determine the "roll" of the phantom based on the two air bubbles in the HU slice."""
+        # convert slice to logical
+        SOI = array2logical(self.image, self.settings['BW threshold'])
+        # invert the SOI; this makes the Air == 1 and phantom == 0
+        SOI_inv = invert(SOI)
+        # determine labels and number of rois of inverted SOI
+        labels, no_roi = spmeas.label(SOI_inv)
+        # calculate ROI sizes of each label TODO: simplify the air bubble-finding
+        roi_sizes = [spmeas.sum(SOI_inv, labels, index=item) for item in range(1, no_roi + 1)]
+        # extract air bubble ROIs (based on size threshold)
+        bubble_thresh = self.air_bubble_size * self.settings['scaling ratio'] ** 2
+        air_bubbles = [idx + 1 for idx, item in enumerate(roi_sizes) if
+                       item < bubble_thresh * 1.5 and item > bubble_thresh / 1.5]
+        # if the algo has worked correctly, it has found 2 and only 2 ROIs (the air bubbles)
+        if len(air_bubbles) == 2:
+            air_bubble_CofM = spmeas.center_of_mass(SOI_inv, labels, air_bubbles)
+            y_dist = air_bubble_CofM[0][0] - air_bubble_CofM[1][0]
+            x_dist = air_bubble_CofM[0][1] - air_bubble_CofM[1][1]
+            angle = np.arctan2(y_dist, x_dist) * 180 / np.pi
+            if angle < 0:
+                roll = abs(angle) - 90
+            else:
+                roll = angle - 90
+            phan_roll = roll
+        else:
+            phan_roll = 0
+            print("Warning: CBCT phantom roll unable to be determined; assuming 0")
 
-    def find_roll(self):
-        """Find the roll of the phantom based on the angle between the two air bubbles."""
-        hu_bw = array2logical(self.image, HU.bw_threshold)
+        return phan_roll
+
+
+class Locon(Slice):
+    """Class for analysis of the low contrast slice of the CBCT dicom data set."""
+    # TODO: work on this
+    def __init__(self, images, settings, mode):
+        Slice.__init__(self, images, settings, settings['LC slice'], mode)
+
+
+class SR(Slice):
+    """Class for analysis of the HU slice of the CBCT dicom data set."""
+    object_names = (0.2, 0.4, 0.6, 0.8, 1, 1.2)
+    radius2objs = np.arange(95, 100)
+
+    def __init__(self, images, settings, mode):
+        Slice.__init__(self, images, settings, settings['SR slice'], mode)
+        self.set_obj_names(SR.object_names)
+        self.set_radius2objs(SR.radius2objs * settings['scaling ratio'])
+
+    def _return_LP_profile(self):
+        """Extract circular profiles of the Line-Pairs on the SR slice. Will extract 5 profiles, then take the median to make 1 profile.
+
+        :returns: 1-D profile of all Line Pairs. Plot this for a nice view of all line pairs.
+        """
+        # rename some things for convenience
+        phan_cent_y = self.phan_center[0]  # HU slice center y-coordinate
+        phan_cent_x = self.phan_center[1]  # ditto for x-coordinate
+        roll = self.settings['phantom roll']
+        # create index and cos, sin points which will be the circle's rectilinear coordinates
+        circle_idx = np.radians(np.arange(180 + roll, 360 - 0.01 + 180 + roll, 0.01)[::-1])
+        profs = np.zeros((len(SR.radius2objs), len(circle_idx)))
+        for row, radius in enumerate(self.radius2objs):
+            x = np.cos(circle_idx) * radius + phan_cent_x
+            y = np.sin(circle_idx) * radius + phan_cent_y
+            # this scipy function pulls the values of the image along the y,x points defined above
+            profs[row, :] = ndimage.map_coordinates(self.image, [y, x], order=0)
+
+        median_profile = np.median(profs - profs.min(), 0)  # take the median of the grounded profile
+        return median_profile
+
+    def _find_LP_peaks(self, profile):
+        """Find the peaks along the line pair profile extracted. Because of the varying width of lead/no lead, 3 searches are done
+        with varying widths of peak spacing. This is to ensure that only 1 peak is found for the larger LPs, but does not pass over the
+        thinner LPs further down the profile.
+
+        :param profile: 1-D profile of the Line Pairs (normally from what is returned by return_LP_profile).
+        :returns: values of peaks, indices of peaks. Will be 1-D numpy arrays.
+        """
+
+        region_1_bound = 4000  # approximate index between 1st and 2nd LP regions
+        region_2_bound = 10500  # approximate index between 4th and 5th LP regions
+        # region_3_bound = 17500  # approximate index between 8th and 9th LP regions; after this, regions become very hard to distinguish
+        region_3_bound = 12300  # for head this can be 17500, but for thorax (low dose => low quality), we can only sample the first
+        # 5 line pairs accurately
+        # Find 1st LP max vals and idxs
+        max_vals_1, max_idx_1 = peak_detect(profile[:region_1_bound],
+                                            threshold=0.2, min_peak_width=600, max_num_peaks=2)
+        max_vals_2, max_idx_2 = peak_detect(profile[region_1_bound:region_2_bound],
+                                            x=np.arange(region_1_bound, region_2_bound),
+                                            threshold=0.2, min_peak_width=250)
+        max_vals_3, max_idx_3 = peak_detect(profile[region_2_bound: region_3_bound],
+                                            x=np.arange(region_2_bound, region_3_bound),
+                                            threshold=0.2, min_peak_width=100)
+        max_vals = np.concatenate((max_vals_1, max_vals_2, max_vals_3))
+        max_idxs = np.concatenate((max_idx_1, max_idx_2, max_idx_3))
+        if len(max_idxs) != 17:
+            raise ArithmeticError("Did not find the correct number of line pairs")
+        return max_vals, max_idxs
+
+    def _find_LP_valleys(self, profile, max_idxs):
+        """Find the line pair valleys. This is done by passing the indices of the peaks.
+        The valleys are searched only between these peaks.
+
+        :param profile: 1-D profile of the Line Pairs (normally from what is returned by return_LP_profile).
+        :param max_idxs: 1-D array containing the indices of peaks
+        """
+        idx2del = np.array((1, 4, 7, 11))
+        min_vals = np.zeros(16)
+        min_idxs = np.zeros(16)
+        for idx in range(len(max_idxs) - 1):
+            min_val, min_idx = peak_detect(profile[max_idxs[idx]:max_idxs[idx + 1]],
+                                           x=np.arange(max_idxs[idx], max_idxs[idx + 1]),
+                                           max_num_peaks=1, threshold=0.05, find_min_instead=True)
+            min_vals[idx] = min_val
+            min_idxs[idx] = min_idx
+        # now delete the valleys *in between* the LP regions
+        min_vals = np.delete(min_vals, idx2del)
+        min_idxs = np.delete(min_idxs, idx2del)
+        return min_vals, min_idxs
+
+    def _calc_MTF(self, max_vals, min_vals):
+        """Calculate the Modulation Transfer Function of the Line-Pair profile.
+        See http://en.wikipedia.org/wiki/Transfer_function#Optics for calculation. Maximum and minimum values are calculated by
+        averaging the pixel values of the peaks/valleys found.
+        """
+        num_peaks = np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
+        num_valleys = np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
+        for name, LP_pair in zip(self.object_names, range(len(num_peaks) - 1)):
+            region_max = max_vals[num_peaks[LP_pair]:num_peaks[LP_pair + 1]].mean()
+            region_min = min_vals[num_valleys[LP_pair]:num_valleys[LP_pair + 1]].mean()
+            self.object_values[name] = (region_max - region_min) / (region_max + region_min)
+
+    def calc_OOI(self):
+        """Calculate the line pairs of the SR slice."""
+        LP_profile = self._return_LP_profile()
+        max_vals, max_idxs = self._find_LP_peaks(LP_profile)
+        min_vals, min_idxs = self._find_LP_valleys(LP_profile, max_idxs)
+        self._calc_MTF(max_vals, min_vals)
+
+    @type_accept(percent=int)
+    @value_accept(percent=(40, 80))
+    def get_MTF(self, percent=50):
+        """Return the MTF value for the percent passed in.
+
+        :param percent: The line-pair/mm value for the given MTF percentage.
+        :type percent: int
+        """
+        # calculate x and y interpolations from Line Pair values and from the MTF measured
+        x_vals_intrp = np.arange(self.object_names[0], self.object_names[-1], 0.01)
+        x_vals = np.array(sorted(self.object_values.keys()))
+        y_vals = np.array(sorted(self.object_values.values()))
+        y_vals_intrp = np.interp(x_vals_intrp, x_vals, y_vals)
+
+        mtf_percent = x_vals_intrp[np.argmin(np.abs(y_vals_intrp - percent / 100))]
+        return mtf_percent
+
+class UNIF(Slice):
+    """Class for analysis of the Uniformity slice of the CBCT dicom data set."""
+    object_names = ('Center', 'Right', 'Top', 'Left', 'Bottom')
+    object_angles = (0, 0, -90, 180, 90)  # The center has an angle of 0, but it doesn't matter; the radius for that ROI is 0
+    object_nominal_values = (0, 0, 0, 0, 0)
+    radius2objs = 110
+    object_radius = 20
+    tolerance = 40
+
+    def __init__(self, images, settings, mode):
+        Slice.__init__(self, images, settings, settings['UN slice'], mode)
+        self.set_obj_names(UNIF.object_names)
+        self.set_obj_angles(UNIF.object_angles)
+        self.set_obj_nominal_values(UNIF.object_nominal_values)
+        self.set_radius2objs(UNIF.radius2objs * settings['scaling ratio'])
+        self.set_obj_radius(UNIF.object_radius * settings['scaling ratio'])
+        self.set_obj_tolerance(UNIF.tolerance)
+
+
+class GEO(Slice):
+    """Class for analysis of the Geometry slice of the CBCT dicom data set."""
+    object_names = ('Top-Left', 'Top-Right', 'Bottom-Right', 'Bottom-Left')
+    dist_names = ('Top-Horiz', 'Right-Vert','Bottom-Horiz', 'Left-Vert')
+    object_angles = (-135, -45, 45, 135)  # The center has an angle of 0, but it doesn't matter; the radius for that ROI is 0
+    roi_nominal_value = 50
+    radius2objs = 72
+    object_radius = 20
+    tolerance = 1
+
+    def __init__(self, images, settings, mode):
+        Slice.__init__(self, images, settings, settings['HU slice'], mode)
+        self.set_obj_names(GEO.object_names)
+        self.set_obj_angles(GEO.object_angles)
+        # self.set_roi_nominal_values(GEO.roi_nominal_values)
+        self.set_radius2objs(GEO.radius2objs * settings['scaling ratio'])
+        self.set_obj_radius(GEO.object_radius * settings['scaling ratio'])
+        self.set_obj_tolerance(GEO.tolerance)
+        # map the lines to the nodes that they connect to
+        self.node_map = {}
+        for idx, dname in enumerate(GEO.dist_names):
+            try:
+                self.node_map[dname] = (GEO.object_names[idx], GEO.object_names[idx+1])
+            except IndexError:
+                self.node_map[dname] = (GEO.object_names[idx], GEO.object_names[0])
+
+    def calc_node_CoM(self):
+        """Calculate the center-of-mass of the geometric nodes."""
+        for (name, angle) in self.object_angles.items():
+            self.object_center_pixel[name] = self._return_ROI_center(angle, name)
+            masked_img = self._return_masked_ROI(self.object_center_pixel[name], nan_outside_mask=False)
+            # threshold image
+            GEO_bw1 = np.where(masked_img > np.nanmedian(masked_img) * 1.4, 1, 0)
+            GEO_bw2 = np.where(masked_img < np.nanmedian(masked_img) * 0.6, 1, 0)
+            GEO_bw = GEO_bw1 + GEO_bw2
+            # find center of the geometric node and number of ROIs found
+            label, no_roi = spmeas.label(GEO_bw)
+            if no_roi != 1:
+                raise ValueError("Did not find the geometric node.")
+            # determine the center of mass of the geometric node
+            geo_center = spmeas.center_of_mass(GEO_bw, label)
+            self.object_center_pixel[name] = geo_center
+
+    def calc_node_distances(self):
+        """Calculate the distances from node to node."""
+        for dname, (node1, node2) in self.node_map.items():
+            self.object_values[dname] = dist_2points(self.object_center_pixel[node1], self.object_center_pixel[node2]) * self.settings['mm/Pixel']
+            self.object_valdiff[dname] = self.object_values[dname] - GEO.roi_nominal_value
+
 
 class CBCT(MultiImageObject):
+    """A class for loading and analyzing Cone-Beam CT DICOM files of a CatPhan 504 (Varian; Elekta 503 is being developed.
+    Analyzes: Uniformity, Spatial Resolution, Image Scaling & HU Linearity.
     """
-    A class for loading and analyzing Cone-Beam CT DICOM files of a CatPhan 503 (Elekta) & 504 (Varian). Analyzes: Uniformity,
-    Spatial Resolution, Contrast, & HU Linearity.
-    """
-    # TODO: Low Contrast
+    BW_threshold = -800  # The threshold to apply to images to convert to B&W, which will highlight the CatPhan.
+
     def __init__(self):
         MultiImageObject.__init__(self)
         """Image properties and algorithm attrs."""
-        self._dcm_props = {}  # dict of relevant properties of the DICOM files
-        self._algo_settings = {}  # dict of settings the algo will use to compute the HU, SR, etc.
-        self._slice_centers = {}  # dict y,x point indicating the center of the phantom for that slice.
+        self.settings = {}  # dict of settings the algo will use to compute the HU, SR, etc.
         self._phan_roll = 0  # the angle in degrees of the roll of the phantom from a perfect setup.
         self._roll_found = False  # boolean specifying whether the algo successfully found the roll.
 
-        """HU settings and attrs."""
-        # HU ROI angles
-        self.HU_roi_angles = {'Air': -90, 'PMP': -120, 'LDPE': 180,
-                              'Poly': 120, 'Acrylic': 60, 'Delrin': 0, 'Teflon': -60}
-        # Nominal HU values, i.e. what they should be.
-        self.HU_nominal_vals = {'Air': -1000, 'PMP': -200, 'LDPE': -100,
-                                'Poly': -35, 'Acrylic': 120, 'Delrin': 340, 'Teflon': 990}
-        # The measured HU values
-        self.HU_actual_vals = {'Air': None, 'PMP': None, 'LDPE': None,
-                               'Poly': None, 'Acrylic': None, 'Delrin': None, 'Teflon': None}
-        # The difference in value from nominal to actual
-        self.HU_diff_vals = {'Air': None, 'PMP': None, 'LDPE': None,
-                               'Poly': None, 'Acrylic': None, 'Delrin': None, 'Teflon': None}
-        # The box bounds are the pixel positions for determining the location of the ROIs
-        self._HU_roi_centers = {'Air': None, 'PMP': None, 'LDPE': None,
-                             'Poly': None, 'Acrylic': None, 'Delrin': None, 'Teflon': None}
-        self.HU_tolerance = 40  # tolerance the measured HU must be within to be considered passing
-        self.HU_passed = True
-
-        """Spatial Resolution (SR) and Modulation Transfer Function (MTF) settings.
-        The MTF is a measurement mechanism (and thus, subsidiary) of the spatial resolution."""
-        self.SR_lpmm = np.array((0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.41, 1.59))  # the line pair/mm values for the CatPhan SR slice
-        self.MTF_vals = np.zeros(8)  # The values of the MTF at the 8 SR ROIs
-
-        """Geometrical Distance and Distortion."""
-        self.GEO_dist = {'Top-Horiz': None, 'Bottom-Horiz': None,
-                         'Left-Vert': None, 'Right-Vert': None}  # dictionary of distances of geometric nodes; will be 4 values
-        self.GEO_diff = {'Top-Horiz': None, 'Bottom-Horiz': None,
-                         'Left-Vert': None, 'Right-Vert': None}  # dictionary of differences of geometric distances from nominal
-        self.GEO_nominal = 50.0
-        self.GEO_tolerance = 1.0
-        self._GEO_ROI_centers = {'Top-Left': (0, 0), 'Top-Right': (0, 0),
-                                 'Bottom-Left': (0, 0), 'Bottom-Right': (0, 0)}
-        self.GEO_passed = True
-
-        """Uniformity"""
-        self.UN_vals = {'Center': None, 'Top': None, 'Right': None,
-                       'Bottom': None, 'Left': None}
-        self.UN_diff = {'Center': None, 'Top': None, 'Right': None,
-                        'Bottom': None, 'Left': None}
-        self._UN_roi_bounds = {'Center': None, 'Top': None, 'Right': None,
-                               'Bottom': None, 'Left': None}
-        self._UN_angles = {'Bottom': 90, 'Top': -90, 'Left': 180, 'Right': 0, 'Center': 0}
-        self._UN_roi_centers = {'Center': None, 'Top': None, 'Right': None,
-                                'Bottom': None, 'Left': None}
-        self.UNIF_passed = True
-
     @type_accept(protocol=str)
-    @value_accept(protocol=protocols)
+    @value_accept(protocol=demo_protocols)
     def load_demo_images(self, protocol='hi_head'):
         """Load demo images based from a given protocol.
 
-        :param protocol: Options include 'hi_head', 'thorax', 'pelvis'.
+        :param protocol: Options are 'hi_head', 'thorax', 'pelvis'.
         :type protocol: str
         """
-
         demos_folder = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files')
-        if protocol.lower() == protocols[0]:  # high quality head
+        if protocol.lower() == demo_protocols[0]:  # high quality head
             demo_folder = osp.join(demos_folder, 'High quality head')
-        elif protocol.lower() == protocols[1]:  # thorax
+        elif protocol.lower() == demo_protocols[1]:  # thorax
             demo_folder = osp.join(demos_folder, 'Low dose thorax')
-        elif protocol.lower() == protocols[2]:  # pelvis
+        else:
             demo_folder = osp.join(demos_folder, 'Pelvis')
 
         # extract files from the zip file
@@ -242,11 +471,10 @@ class CBCT(MultiImageObject):
         # initialize image array
         images = np.zeros([im_size, im_size, len(file_list)], dtype=int)
 
-
         im_order = np.zeros(len(file_list), dtype=int)
         # check that enough slices were loaded
         #TODO: select better method for determining if enough slices were chosen
-        if len(file_list) < slices_of_interest['SR']:
+        if len(file_list) < 20:
             raise ValueError("Not enough slices were selected. Select all the files or change the SR slice value.")
 
         # load dicom files from list names and get the image slice position
@@ -283,13 +511,11 @@ class CBCT(MultiImageObject):
         self._get_settings(dcm)
         # convert images from CT# to HU using dicom tags
         self._convert2HU()
-        # get certain DICOM values needed for algorithm initial values
-        self._get_settings(dcm)
 
     def _convert2HU(self):
         """Convert the images from CT# to HU."""
-        self.images *= self._dcm_props['Rescale Slope']
-        self.images += self._dcm_props['Rescale Intercept']
+        self.images *= self.settings['Rescale Slope']
+        self.images += self.settings['Rescale Intercept']
 
     def _get_settings(self, dicom_file):
         """Based on the images input, determine the starting conditions for the analysis. There are various manufacturers, protocols,
@@ -298,375 +524,138 @@ class CBCT(MultiImageObject):
         :param dicom_file: dicom file as read by pydicom
         """
         dcm = dicom_file
-        # get general image information
-        self._dcm_props = {'FOV': dcm.DataCollectionDiameter,
-                        'Rescale Slope': dcm.RescaleSlope,
-                        'Rescale Intercept': dcm.RescaleIntercept,
-                        'mm/Pixel': dcm.PixelSpacing[0],
-                        'Manufacturer': dcm.Manufacturer}
         """determine algorithm conditions"""
         # determine scaling ratio; this is basically a magnification factor for the following thresholds and radii and so forth.
-        scaling_ratio = 0.488/self._dcm_props['mm/Pixel']
-        self._algo_settings = {'Catphan size thresh': 100000 * scaling_ratio,
-                              'pix thresh': 500,
-                              'BW threshold': -800,
-
-                              'GEO min size': 25 * scaling_ratio**2,
-                              'GEO box width': 65 / self._dcm_props['mm/Pixel'],
-
-                              'HU radius': 120 * scaling_ratio,
-                              'HU air bubble size': 450 * scaling_ratio**2,
-                              'HU ROI radius': 9 * scaling_ratio,
-
-                              'CON angles': [0.4, -0.0 - 5, 2.03],
-                              'CON radius': 100 * scaling_ratio,
-                              'CON ROI size': 20 * scaling_ratio**2,
-
-                              'SR radii': np.arange(95, 100, 1) * scaling_ratio,
-
-                              'UN ROI radius': 20 * scaling_ratio,
-
-                              'UN radius': 110 * scaling_ratio}
-        self._scaling_ratio = scaling_ratio
-
-    def _find_phan_centers(self):
-        """
-        Find the center of the phantom for each slice that is analyzed. All algorithms are relative to the center point.
-        The slice is first converted to a binary image based on a threshold, then all other ROIs but the Catphan are removed.
-        Then the center of ROI is found.
-        """
-        for (slice_name, slice_num) in list(slices_of_interest.items()):
-            SOI = self.images[:, :, slice_num]
-            SOI_bw = array2logical(SOI, self._algo_settings['BW threshold'])  # convert slice to binary based on threshold
-            SOI_bw = binary_fill_holes(SOI_bw)  # fill in air pockets to make one solid ROI
-            SOI_labeled, no_roi = meas.label(SOI_bw)  # identify the ROIs
-            if no_roi < 1 or no_roi is None:
-                raise ValueError("Unable to locate the CatPhan")
-            hist, bins = np.histogram(SOI_labeled, bins=no_roi) # hist will give the size of each label
-            SOI_bw_clean = np.where(SOI_labeled == np.argmax(hist), 1, 0)  # remove all ROIs except the largest one (the CatPhan)
-            self._slice_centers[slice_name] = meas.center_of_mass(SOI_bw_clean)
-
-            # if this has in any way failed, set the center to the center pixel
-            if np.isnan(self._slice_centers[slice_name][0]):
-                self._slice_centers[slice_name] = (np.size(SOI,0), np.size(SOI, 1))
-
-    def _find_roll(self):
-        """
-        Determine the roll of the phantom by calculating the angle of the two air bubbles on the HU slice.
-        """
-        SOI = combine_surrounding_slices(self.images, slices_of_interest['HU'])
-        # convert SOI to logical
-        SOI = array2logical(SOI, self._algo_settings['BW threshold'])
-        # invert the SOI; this makes the Air == 1 and phantom == 0
-        SOI_inv = invert(SOI)
-        # determine labels and number of rois of inverted SOI
-        labels, no_roi = meas.label(SOI_inv)
-        # calculate ROI sizes of each label TODO: simplify the air bubble-finding
-        roi_sizes = [meas.sum(SOI_inv, labels, index=item) for item in range(1,no_roi+1)]
-        # extract air bubble ROIs (based on size threshold
-        bubble_thresh = self._algo_settings['HU air bubble size']
-        air_bubbles = [idx+1 for idx, item in enumerate(roi_sizes) if item < bubble_thresh*1.5 and item > bubble_thresh/1.5]
-        # if the algo has worked correctly, it has found 2 and only 2 ROIs (the air bubbles)
-        if len(air_bubbles) != 2:
-            self._phan_roll = 0
-            # raise RuntimeWarning("Roll unable to be determined; assuming 0")
-            print("Warning: CBCT phantom roll unable to be determined; assuming 0")
-        else:
-            air_bubble_CofM = meas.center_of_mass(SOI_inv, labels, air_bubbles)
-            y_dist = air_bubble_CofM[0][0] - air_bubble_CofM[1][0]
-            x_dist = air_bubble_CofM[0][1] - air_bubble_CofM[1][1]
-            angle = np.arctan2(y_dist, x_dist) * 180/np.pi
-            if angle < 0:
-                roll = abs(angle) - 90
+        scaling_ratio = 0.488 / dcm.PixelSpacing[0]
+        self.settings = {
+                          # 'pix thresh': 500,
+                          'BW threshold': CBCT.BW_threshold,
+                          # 'HU air bubble size': 450 * scaling_ratio**2,
+                          'scaling ratio': scaling_ratio,
+                          # 'FOV': dcm.DataCollectionDiameter,
+                          'Rescale Slope': dcm.RescaleSlope,
+                          'Rescale Intercept': dcm.RescaleIntercept,
+                          'mm/Pixel': dcm.PixelSpacing[0],
+                          'Manufacturer': dcm.Manufacturer
+        }
+        if dcm.Manufacturer in known_manufacturers:
+            if dcm.Manufacturer == known_manufacturers[0]:
+                self.settings['HU slice'] = 32
+                self.settings['UN slice'] = 9
+                self.settings['SR slice'] = 44
+                self.settings['LC slice'] = 23
             else:
-                roll = angle - 90
-            self._phan_roll = roll
+                raise NotImplementedError("Elekta not yet implemented")
+        else:
+            raise ValueError("Unknown Manufacturer")
 
-            self._roll_found = True
+    def find_roll(self):
+        """Determine the roll of the phantom by calculating the angle of the two air bubbles on the HU slice."""
+        self.HU = HU(self.images, self.settings, 'mean')
+        self.settings['phantom roll'] = self.HU.return_phan_roll()
 
     def find_HU(self):
         """Determine HU values from HU slice. Averages 3 slices."""
-        # self.HU(self.images, 32, 'mean')
+        if not hasattr(self, 'HU'):
+            self.HU = HU(self.images, self.settings, 'mean')
+        self.HU.find_phan_center(self.settings['BW threshold'])
+        self.HU.calc_OOI()
 
-
-        # average 3 slices around the nominal slice
-        HU_slice = combine_surrounding_slices(self.images, slices_of_interest['HU'])
-
-        # For each HU ROI...
-        for idx, (roi_key, val) in enumerate(list(self.HU_nominal_vals.items())):
-            # rename some things for convenience
-            phan_cen_y = self._slice_centers['HU'][0]  # HU slice center y-coordinate
-            phan_cen_x = self._slice_centers['HU'][1]  # ditto for x-coordinate
-            radius = self._algo_settings['HU radius']  # radius from slice center to extract HU rois
-
-            # Calculate the additional shift of the ROI coords, given the phantom roll.
-            corrected_roll_x = np.cos(np.radians(self._phan_roll + self.HU_roi_angles[roi_key]))
-            corrected_roll_y = np.sin(np.radians(self._phan_roll + self.HU_roi_angles[roi_key]))
-
-            # Calculate the center pixel of the ROI
-            roi_center = [phan_cen_x + radius*corrected_roll_x, phan_cen_y + radius*corrected_roll_y]
-            self._HU_roi_centers[roi_key] = roi_center
-
-            mask = sector_mask(HU_slice.shape, roi_center, self._algo_settings['HU ROI radius'], (0, 360))
-            masked_img = np.where(mask == True, HU_slice, np.NaN)
-
-            # Calculate the mean HU value and the difference from nominal
-            self.HU_actual_vals[roi_key] = np.nanmean(masked_img)
-            self.HU_diff_vals[roi_key] = self.HU_actual_vals[roi_key] - self.HU_nominal_vals[roi_key]
-
-        # Check if all ROIs passed tolerance
-        for val in self.HU_diff_vals.values():
-            if val < -self.HU_tolerance or val > self.HU_tolerance:
-                self.HU_passed = False
-
-    def _get_LP_profile(self, SR_slice):
-        """Extract circular profiles of the Line-Pairs on the SR slice. Will extract 5 profiles, then take the median to make 1 profile.
-
-        :param SR_slice: Image/Slice to extract profiles from.
-        :returns: 1-D profile of all Line Pairs. Plot this for a nice view of all line pairs.
-        """
-        # rename a few things for convenience
-        phan_cent_x = self._slice_centers['SR'][0]  # phantom center x-coord
-        phan_cent_y = self._slice_centers['SR'][1]  # ditto for y-coord
-        # create index and cos, sin points which will be the circle's rectilinear coordinates
-        deg = np.arange(180 + self._phan_roll, 360 - 0.01 + 180 + self._phan_roll, 0.01)[::-1]
-        profs = np.zeros((len(self._algo_settings['SR radii']), len(deg)))
-        for row, radius in enumerate(self._algo_settings['SR radii']):
-            x = np.cos(np.deg2rad(deg)) * radius + phan_cent_x
-            y = np.sin(np.deg2rad(deg)) * radius + phan_cent_y
-            # this scipy function pulls the values of the image along the y,x points defined above
-            profs[row, :] = ndimage.map_coordinates(SR_slice, [y, x], order=0)
-
-        m_prof = np.median(profs - profs.min(), 0)  # take the median of the grounded profile
-        return m_prof
-
-    def _find_LP_peaks(self, profile):
-        """Find the peaks along the line pair profile extracted. Because of the varying width of lead/no lead, 3 searches are done
-        with varying widths of peak spacing. This is to ensure that only 1 peak is found for the larger LPs, but does not pass over the
-        thinner LPs further down the profile."""
-
-        region_1_bound = 4000  # approximate index between 1st and 2nd LP regions
-        region_2_bound = 10500  # approximate index between 4th and 5th LP regions
-        # region_3_bound = 17500  # approximate index between 8th and 9th LP regions; after this, regions become very hard to distinguish
-        region_3_bound = 12300  # for head this can be 17500, but for thorax (low dose => low quality), we can only sample the first
-            # 5 line pairs accurately
-        # Find 1st LP max vals and idxs
-        max_vals_1, max_idx_1 = peak_detect(profile[:region_1_bound],
-                                            threshold=0.2, min_peak_width=600, max_num_peaks=2)
-        max_vals_2, max_idx_2 = peak_detect(profile[region_1_bound:region_2_bound],
-                                            x=np.arange(region_1_bound, region_2_bound),
-                                            threshold=0.2, min_peak_width=250)
-        max_vals_3, max_idx_3 = peak_detect(profile[region_2_bound: region_3_bound],
-                                            x=np.arange(region_2_bound, region_3_bound),
-                                            threshold=0.2, min_peak_width=100)
-        max_vals = np.concatenate((max_vals_1, max_vals_2, max_vals_3))
-        max_idxs = np.concatenate((max_idx_1, max_idx_2, max_idx_3))
-        if len(max_idxs) != 17:
-            raise ArithmeticError("Did not find the correct number of line pairs")
-        return max_vals, max_idxs
-
-    def _find_LP_valleys(self, profile, max_idxs):
-        """Find the line pair valleys. This has to be done carefully to avoid catching valleys between LP regions; this is done by
-        passing the indices of the peaks. The valleys are searched only between these peaks."""
-
-        idx2del = np.array((1, 4, 7, 11))
-        min_vals = np.zeros(16)
-        min_idxs = np.zeros(16)
-        for idx in range(len(max_idxs)-1):
-            min_val, min_idx = peak_detect(profile[max_idxs[idx]:max_idxs[idx+1]], x=np.arange(max_idxs[idx], max_idxs[idx + 1]),
-                        max_num_peaks=1, threshold=0.05, find_min_instead=True)
-            min_vals[idx] = min_val
-            min_idxs[idx] = min_idx
-        # now delete the valleys *in between* the LP regions
-        min_vals = np.delete(min_vals, idx2del)
-        min_idxs = np.delete(min_idxs, idx2del)
-        return min_vals, min_idxs
-
-    def _calc_MTF(self, max_vals, min_vals):
-        """Calculate the Modulation Transfer Function of the Line-Pair profile.
-        See http://en.wikipedia.org/wiki/Transfer_function#Optics for calculation. Maximum and minimum values are calculated by
-        averaging the pixel values of the peaks/valleys.
-        """
-        num_peaks = np.array((0, 2, 3, 3, 4, 4, 4, 5, 5)).cumsum()
-        num_valleys = np.array((0, 1, 2, 2, 3, 3, 3, 4, 4)).cumsum()
-        for region in range(len(num_peaks)-1):
-            region_max = max_vals[num_peaks[region]:num_peaks[region+1]].mean()
-            region_min = min_vals[num_valleys[region]:num_valleys[region + 1]].mean()
-            self.MTF_vals[region] = (region_max - region_min) / (region_max + region_min)
-
-
-    def _find_SR(self):
+    def find_SR(self):
         """Determine the Spatial Resolution from the Line-Pair slice."""
-        # average 3 slices centered around SR slice
-        SR_slice = combine_surrounding_slices(self.images, slices_of_interest['SR'], mode='max')
-
-        prof = self._get_LP_profile(SR_slice)
-
-        max_vals, max_idxs = self._find_LP_peaks(prof)
-        min_vals, min_idxs = self._find_LP_valleys(prof, max_idxs)
-        self._calc_MTF(max_vals, min_vals)
-
-    @type_accept(percent=int)
-    @value_accept(percent=(40, 80))
-    def get_MTF(self, percent=50):
-        """Return the MTF value for the percent passed in.
-
-        :param percent: The line-pair/mm value for the given MTF percentage.
-        :type percent: int
-        """
-
-        # calculate x and y interpolations from Line Pair values and from the MTF measured
-        x_vals_intrp = np.arange(self.SR_lpmm[0], self.SR_lpmm[-1], 0.01)
-        y_vals_intrp = np.interp(x_vals_intrp, self.SR_lpmm, self.MTF_vals)
-
-        mtf_val = x_vals_intrp[np.argmin(np.abs(y_vals_intrp - percent/100))]
-        return mtf_val
+        self.SR = SR(self.images, self.settings, 'max')
+        self.SR.find_phan_center(self.settings['BW threshold'])
+        self.SR.calc_OOI()
 
     def find_GEO(self):
         """Determine the geometric distortion of the images.
          The distortion is found by finding the 4 small points on the inner region of the HU slice
          and calculating their distances to each other. Nominal distance is 5cm apart.
         """
-        # median 3 slices around GEO slice, which is the HU slice)
-        GEO_slice = combine_surrounding_slices(self.images, slices_of_interest['HU'], mode='median')
-
-        # Rename for convenience
-        left_bound = self._slice_centers['HU'][1] - self._algo_settings['GEO box width'] / 2
-        right_bound = self._slice_centers['HU'][1] + self._algo_settings['GEO box width'] / 2
-        top_bound = self._slice_centers['HU'][0] - self._algo_settings['GEO box width'] / 2
-        bottom_bound = self._slice_centers['HU'][0] + self._algo_settings['GEO box width'] / 2
-
-        # extract zoomed-in section of GEO slice (around the 4 geometric markers).
-        GEO_slice_zoomed = GEO_slice[left_bound:right_bound, top_bound:bottom_bound]
-
-        # construct black & white image
-        GEO_bw1 = np.where(GEO_slice_zoomed > np.median(GEO_slice_zoomed) * 1.4, 1, 0)
-        GEO_bw2 = np.where(GEO_slice_zoomed < np.median(GEO_slice_zoomed) * 0.6, 1, 0)
-        GEO_bw = GEO_bw1 + GEO_bw2
-
-        # find centers of geometric points
-        labels, no_roi = meas.label(GEO_bw)
-        # determine the size of the ROIs found
-        roi_sizes = np.array([meas.sum(GEO_bw, labels, index=item) for item in range(1, no_roi + 1)])
-        if len(roi_sizes) <  4:
-            raise ValueError("Unable to locate the geometric nodes. May need to adjust the geometric ROI slice.")
-        # grab indices of largest 4
-        geo_node_indx = np.argsort(roi_sizes)[-4:]
-        geo_CofM = meas.center_of_mass(GEO_bw, labels, index=geo_node_indx+1)
-        #TODO: add calc of geo point centers
-        geo_CofM2 = [(x+left_bound, y+top_bound) for (x, y) in geo_CofM]
-        self.geo_CofM = geo_CofM2
-
-        # distance calculations (result is in mm; nominal distance is 50mm (5cm)
-        # for key, value in list(self.GEO_dist.items()):
-        self.GEO_dist['Top-Horiz'] = dist_2points(geo_CofM[0], geo_CofM[1]) * self._dcm_props['mm/Pixel']
-        self.GEO_dist['Left-Vert'] = dist_2points(geo_CofM[0], geo_CofM[2]) * self._dcm_props['mm/Pixel']
-        self.GEO_dist['Right-Vert'] = dist_2points(geo_CofM[3], geo_CofM[1]) * self._dcm_props['mm/Pixel']
-        self.GEO_dist['Bottom-Horiz'] = dist_2points(geo_CofM[3], geo_CofM[2]) * self._dcm_props['mm/Pixel']
-        self.GEO_diff['Top-Horiz'] = self.GEO_dist['Top-Horiz'] - self.GEO_nominal
-        self.GEO_diff['Left-Vert'] = self.GEO_dist['Left-Vert'] - self.GEO_nominal
-        self.GEO_diff['Right-Vert'] = self.GEO_dist['Right-Vert'] - self.GEO_nominal
-        self.GEO_diff['Bottom-Horiz'] = self.GEO_dist['Bottom-Horiz'] - self.GEO_nominal
-
-        # check if passed
-        for val in self.GEO_dist.values():
-            if (val > self.GEO_nominal + self.GEO_tolerance) or (val < self.GEO_nominal - self.GEO_tolerance):
-                self.GEO_passed = False
+        self.GEO = GEO(self.images, self.settings, 'median')
+        self.GEO.find_phan_center(self.settings['BW threshold'])
+        self.GEO.calc_node_CoM()
+        self.GEO.calc_node_distances()
+        self.GEO.check_objs_passed()
 
     def find_UNIF(self):
         """
         Determine Uniformity from Uniformity slice by analyzing 5 ROIs: center, top, right, bottom, left
         """
-        # mean from 3 slices around nominal slice
-        UNIF_slice = combine_surrounding_slices(self.images, slices_of_interest['UN'])
+        self.UN = UNIF(self.images, self.settings, 'mean')
+        self.UN.find_phan_center(self.settings['BW threshold'])
+        self.UN.calc_OOI()
 
-        # calculate ROI centers & HU values thereof
-        for key in self.UN_vals:
-            if key == 'Center':
-                self._UN_roi_centers[key] = (self._slice_centers['UN'][1], self._slice_centers['UN'][0])
-            else:
-                x_shift = self._algo_settings['UN radius'] * np.cos(np.radians(self._phan_roll + self._UN_angles[key]))
-                y_shift = self._algo_settings['UN radius'] * np.sin(np.radians(self._phan_roll + self._UN_angles[key]))
-                self._UN_roi_centers[key] = (self._slice_centers['UN'][1] + x_shift,
-                                             self._slice_centers['UN'][0] + y_shift)
-
-            mask = sector_mask(UNIF_slice.shape, self._UN_roi_centers[key], self._algo_settings['UN ROI radius'], (0, 360))
-            masked_img = np.where(mask == True, UNIF_slice, np.NaN)
-
-            # Calculate the mean UNIF value and the difference from nominal
-            self.UN_vals[key] = np.nanmean(masked_img)
-
-        # check if values passed
-        for value in self.UN_vals.values():
-            if value < -self.HU_tolerance or value > self.HU_tolerance:
-                self.UNIF_passed = False
+    def find_Locon(self):
+        """Determine Low Contrast values."""
+        self.Locon = Locon(self.images, self.settings, 'mean')
 
     def plot_analyzed_image(self):
         """Draw the ROIs and lines the calculations were done on or based on."""
         # create figure
         fig, ((UN_ax, HU_ax), (SR_ax, LOCON_ax)) = plt.subplots(2,2)
+
         # Uniformity objects
-        UN_ax.imshow(self.images[:,:,slices_of_interest['UN']])
-        for (key, values) in self._UN_roi_centers.items():
-            UN_ax.add_patch(Circle((values[0], values[1]), radius=self._algo_settings['UN ROI radius'],
+        UN_ax.imshow(self.UN.image)
+        for (key, values) in self.UN.object_center_pixel.items():
+            UN_ax.add_patch(Circle((values[0], values[1]), radius=self.UN.object_radius,
                                    fill=False, edgecolor='blue'))
         UN_ax.autoscale(tight=True)
         UN_ax.set_title('Uniformity Slice')
 
         # HU objects
-        HU_ax.imshow(self.images[:, :, slices_of_interest['HU']])
-        for (key, value) in self._HU_roi_centers.items():
-            HU_ax.add_patch(Circle((value[0], value[1]), radius=self._algo_settings['HU ROI radius'],
+        HU_ax.imshow(self.HU.image)
+        for (key, value) in self.HU.object_center_pixel.items():
+            HU_ax.add_patch(Circle((value[0], value[1]), radius=self.HU.object_radius,
                                    fill=False, edgecolor='blue'))
         HU_ax.autoscale(tight=True)
         HU_ax.set_title('HU & Geometric Slice')
 
         # GEO objects
-        for idx in [0,3]: # for 2 corner geo points...
-            for idx2 in [1,2]:  # connect to the other 2 geo points
-                HU_ax.plot([self.geo_CofM[idx][1],
-                            self.geo_CofM[idx2][1]],
-                           [self.geo_CofM[idx][0],
-                            self.geo_CofM[idx2][0]],
-                           'black')
+        for node1, node2 in self.GEO.node_map.values(): # for 2 corner geo points...
+            HU_ax.plot([self.GEO.object_center_pixel[node1][1],
+                        self.GEO.object_center_pixel[node2][1]],
+                       [self.GEO.object_center_pixel[node1][0],
+                        self.GEO.object_center_pixel[node2][0]],
+                       'black')
 
         # SR objects
-        SR_ax.imshow(self.images[:,:,slices_of_interest['SR']])
-        phan_cent_y = self._slice_centers['SR'][0]  # phantom center x-coord
-        phan_cent_x = self._slice_centers['SR'][1]  # ditto for y-coord
-        for radius in [self._algo_settings['SR radii'][0], self._algo_settings['SR radii'][-1]]:
+        SR_ax.imshow(self.SR.image)
+        phan_cent_y = self.SR.phan_center[0]  # phantom center x-coord
+        phan_cent_x = self.SR.phan_center[1]  # ditto for y-coord
+        for radius in [self.SR.radius2objs[0], self.SR.radius2objs[-1]]:
             SR_ax.add_patch(Circle((phan_cent_x, phan_cent_y), radius=radius,
                                    fill=False, edgecolor='blue'))
         SR_ax.autoscale(tight=True)
         SR_ax.set_title('Spatial Resolution Slice')
 
-        #TODO: Low contrast
-        LOCON_ax.imshow(self.images[:,:,slices_of_interest['LOCON']])
+        # Locon objects
+        LOCON_ax.imshow(self.Locon.image)
         LOCON_ax.set_title('Low Contrast (In Development)')
 
+        # show it all
         plt.show()
 
     def return_results(self):
         """Return and print the results of the analysis as a string."""
 
-        #TODO: make a bit prettier
-        print('HU Regions: ', self.HU_actual_vals)
-        print('HU Passed?: ', self.HU_passed)
-        print('Uniformity: ', self.UN_vals)
-        print('Uniformity Passed?: ', self.UNIF_passed)
-        print('MTF 50% (lp/mm): ', self.get_MTF())
-        print('Geometric distances: ', self.GEO_dist)
-        print('Geometry Passed?: ', self.GEO_passed)
+        #TODO: make prettier
+        print('HU Regions: ', self.HU.object_values)
+        print('HU Passed?: ', self.HU.passed_test)
+        print('Uniformity: ', self.UN.object_values)
+        print('Uniformity Passed?: ', self.UN.passed_test)
+        print('MTF 50% (lp/mm): ', self.SR.get_MTF(50))
+        print('Geometric distances: ', self.GEO.object_values)
+        print('Geometry Passed?: ', self.GEO.passed_test)
 
     def analyze(self):
         """One-method for full analysis of CBCT DICOM files."""
-        self._find_phan_centers()
-        self._find_roll()
-
+        self.find_roll()
         self.find_HU()
-        self._find_SR()
-        self.find_GEO()
         self.find_UNIF()
+        self.find_GEO()
+        self.find_SR()
+        self.find_Locon()
 
 def array2logical(array, threshold_value):
     """Return a 'logical' (binary) version of the input array.
@@ -677,7 +666,7 @@ def array2logical(array, threshold_value):
     return np.where(array >= threshold_value, 1, 0)
 
 @type_accept(nominal_slice_num=int, slices_plusminus=int, mode=str)
-@value_accept(mode=('mean','max','min'))
+@value_accept(mode=('mean','median','max'))
 def combine_surrounding_slices(im_array, nominal_slice_num, slices_plusminus=1, mode='mean'):
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
     :param im_array: numpy array, assumed 3 dims
@@ -701,7 +690,7 @@ def combine_surrounding_slices(im_array, nominal_slice_num, slices_plusminus=1, 
 # ----------------------------------------
 if __name__ == '__main__':
     cbct = CBCT()
-    cbct.load_demo_images('pelvis')
+    cbct.load_demo_images()
     cbct.analyze()
     cbct.return_results()
     cbct.plot_analyzed_image()
