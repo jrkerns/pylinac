@@ -21,23 +21,22 @@ from pylinac.common.common_functions import invert, dist_2points, sector_mask, p
 
 
 known_manufacturers = ('Varian Medical Systems', 'ELEKTA')
-FOV_thresh = 300  # the field of view size threshold (in mm) between "small" and "large"
 demo_protocols = ('hi_head', 'thorax', 'pelvis')  # protocol names for using demo images
 
 class Slice(object):
-    """A subclass for analyzing specific slices of a CBCT dicom set."""
+    """An abstract subclass for analyzing specific slices of a CBCT dicom set."""
     def __init__(self, images, settings, slice, mode):
         """
         :param images: The CBCT image set as a 3D numpy array.
         :type images: ndarray
         :param slice: Slice number of interest
         :type slice: int
-        :param mode: Mode of combining surrounding images to lower noise. Options: 'mean', 'max', 'min'
+        :param mode: Mode of combining surrounding images to lower noise. Options: 'mean', 'max', 'median'
         :type mode: str
         """
         self.image = combine_surrounding_slices(images, slice, mode=mode)
         self.settings = settings
-        self.phan_center = np.zeros(2)
+        self.phan_center = np.zeros(2)  # the center of the phantom for that slice in x,y
         self.object_names = []
         self.object_angles = {}
         self.object_values = {}  # The pixel values of the ROIs
@@ -50,7 +49,7 @@ class Slice(object):
         self.passed_test = True
 
     def set_obj_names(self, names):
-        """Set the names of the ROIs in the Slice.
+        """Set the names of the Objects of Interest in the Slice.
 
         :param names: Names of ROIs
         :type names: tuple, list
@@ -249,7 +248,6 @@ class SR(Slice):
         # region_3_bound = 17500  # approximate index between 8th and 9th LP regions; after this, regions become very hard to distinguish
         region_3_bound = 12300  # for head this can be 17500, but for thorax (low dose => low quality), we can only sample the first
         # 5 line pairs accurately
-        # Find 1st LP max vals and idxs
         max_vals_1, max_idx_1 = peak_detect(profile[:region_1_bound],
                                             threshold=0.2, min_peak_width=600, max_num_peaks=2)
         max_vals_2, max_idx_2 = peak_detect(profile[region_1_bound:region_2_bound],
@@ -354,7 +352,6 @@ class GEO(Slice):
         Slice.__init__(self, images, settings, settings['HU slice'], mode)
         self.set_obj_names(GEO.object_names)
         self.set_obj_angles(GEO.object_angles)
-        # self.set_roi_nominal_values(GEO.roi_nominal_values)
         self.set_radius2objs(GEO.radius2objs * settings['scaling ratio'])
         self.set_obj_radius(GEO.object_radius * settings['scaling ratio'])
         self.set_obj_tolerance(GEO.tolerance)
@@ -527,17 +524,14 @@ class CBCT(MultiImageObject):
         """determine algorithm conditions"""
         # determine scaling ratio; this is basically a magnification factor for the following thresholds and radii and so forth.
         scaling_ratio = 0.488 / dcm.PixelSpacing[0]
-        self.settings = {
-                          # 'pix thresh': 500,
-                          'BW threshold': CBCT.BW_threshold,
-                          # 'HU air bubble size': 450 * scaling_ratio**2,
-                          'scaling ratio': scaling_ratio,
-                          # 'FOV': dcm.DataCollectionDiameter,
-                          'Rescale Slope': dcm.RescaleSlope,
-                          'Rescale Intercept': dcm.RescaleIntercept,
-                          'mm/Pixel': dcm.PixelSpacing[0],
-                          'Manufacturer': dcm.Manufacturer
-        }
+        self.settings = {'BW threshold': CBCT.BW_threshold,
+                         'scaling ratio': scaling_ratio,
+                         'Rescale Slope': dcm.RescaleSlope,
+                         'Rescale Intercept': dcm.RescaleIntercept,
+                         'mm/Pixel': dcm.PixelSpacing[0],
+                         'Manufacturer': dcm.Manufacturer,
+                         'phantom roll': 0}
+        # Set slice locations based on manufacturer
         if dcm.Manufacturer in known_manufacturers:
             if dcm.Manufacturer == known_manufacturers[0]:
                 self.settings['HU slice'] = 32
@@ -579,9 +573,7 @@ class CBCT(MultiImageObject):
         self.GEO.check_objs_passed()
 
     def find_UNIF(self):
-        """
-        Determine Uniformity from Uniformity slice by analyzing 5 ROIs: center, top, right, bottom, left
-        """
+        """Determine the HU uniformity from Uniformity slice by analyzing 5 ROIs: center, top, right, bottom, left."""
         self.UN = UNIF(self.images, self.settings, 'mean')
         self.UN.find_phan_center(self.settings['BW threshold'])
         self.UN.calc_OOI()
@@ -658,7 +650,8 @@ class CBCT(MultiImageObject):
         self.find_Locon()
 
 def array2logical(array, threshold_value):
-    """Return a 'logical' (binary) version of the input array.
+    """Return a 'logical' (binary) version of the input array based on a threshold.
+
     :param array: numerical array to be analyzed
     :param threshold_value: int or float specifying the threshold value. If an array value is below the
         threshold value, it is converted to 0, otherwise to 1.
@@ -669,6 +662,7 @@ def array2logical(array, threshold_value):
 @value_accept(mode=('mean','median','max'))
 def combine_surrounding_slices(im_array, nominal_slice_num, slices_plusminus=1, mode='mean'):
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
+
     :param im_array: numpy array, assumed 3 dims
     :param nominal_slice_num: int specifying the slice of interest (along 3rd dim)
     :param slices_plusminus: int specifying how many slices plus and minus to combine (also along 3rd dim)
