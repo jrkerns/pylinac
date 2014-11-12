@@ -13,8 +13,8 @@ setup(
     version=__version__,
     packages=find_packages(),
     # include_package_data=True,
-    package_data={'pylinac': ['starshot/demo_files/*', 'vmatqa/demo_files/*']},
-    zip_safe=False,  # allows users to view data in egg/distribution
+    package_data={'pylinac': ['starshot/demo_files/*', 'vmatqa/demo_files/*', 'cbctqa/demo_files/*']},
+    zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
     keywords='medical physics AAPM TG142 quality assurance starshot',
     author='James Kerns',
