@@ -16,7 +16,7 @@ setup(
     package_data={'pylinac': ['starshot/demo_files/*', 'vmatqa/demo_files/*', 'cbctqa/demo_files/*']},
     zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
-    keywords='medical physics AAPM TG142 quality assurance starshot',
+    keywords='medical physics AAPM TG142 quality assurance starshot cbct vmat',
     author='James Kerns',
     author_email='jkerns100@gmail.com',
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
