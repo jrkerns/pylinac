@@ -27,7 +27,10 @@ Below are the tools currently available; tools will be added one at a time as th
 * `VMAT QA <http://pylinac.readthedocs.org/en/latest/vmat_docs.html>`_ -
     A module for analyzing EPID images after performing the `Jorgensen et al. <http://dx.doi.org/10.1118/1.3552922>`_ tests for VMAT QA, specifically the Dose Rate & Gantry Speed
     (DRGS) and Dose Rate MLC (DRMLC) tests. Can load the open and MLC field images and calculate segment ratios as per the Jorgensen implementation.
-
+* `CBCT QA <http://pylinac.readthedocs.org/en/latest/cbct_docs.html>`_ -
+    A module to automatically analyze DICOM images of a CatPhan 504 from a Varian linac. Corrects for yaw, pitch, roll
+    and left-right, up-down displacement. Analyzes HU linearity and image scaling (CTP404), high-contrast line pairs to
+    determine MTF (CTP528), and HU uniformity (CTP486).
 
 Documentation
 -------------
