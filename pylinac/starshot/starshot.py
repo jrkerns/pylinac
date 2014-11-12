@@ -7,7 +7,9 @@ and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary opt
 from __future__ import division, print_function, absolute_import, unicode_literals
 from future import standard_library
 standard_library.install_aliases()
+import os
 import os.path as osp
+import zipfile as zp
 
 import numpy as np
 from scipy import ndimage
@@ -56,16 +58,26 @@ class Starshot(SingleImageObject):
     def load_demo_image(self, number=1):
         """Load a starshot demo image.
 
-                :param number: There are a few demo images. This number will choose which demo file to use. As of now
-                    there are 2 demo images.
-                :type number: int
-
-                """
+        :param number: There are a few demo images. This number will choose which demo file to use. As of now
+            there are 2 demo images.
+        :type number: int
+        """
+        demos_folder = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files')
         if number == 1:
-            im_open_path = osp.join(file_dir, "demo_files", "demo_starshot_2.tif")
+            im_zip_path = osp.join(demos_folder, "demo_starshot_1.zip")
         else:
-            im_open_path = osp.join(file_dir, "demo_files", "demo_starshot_1.tif")
-        self.load_image(im_open_path)
+            im_zip_path = osp.join(demos_folder, "demo_starshot_2.zip")
+        # extract file from the zip file and put it in the demos folder
+        zp.ZipFile(im_zip_path).extractall(demos_folder)
+        # rename file path to the extracted one
+        file_path = im_zip_path.replace('.zip', '.tif')
+        # load image
+        self.load_image(file_path)
+        # delete extracted file to save space
+        try:
+            os.remove(file_path)
+        except:
+            print("Extracted demo image was not able to be deleted and remains in the demo directory")
 
     def set_start_point(self, point, warn_if_far_away=True):
         """Set the algorithm starting point manually.
