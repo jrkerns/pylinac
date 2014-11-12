@@ -11,7 +11,10 @@ Determine where you're at and then read the relevant section:
 I know Python already
 ---------------------
 
-Great! To get started, simply install pylinac through ``pip install pylinac`` via PyPI.
+Great! To get started, simply install pylinac via PyPI::
+
+    pip install pylinac
+
 Alternatively, you can install from the github repository directly::
 
     pip install https://github.com/jrkerns/pylinac.git
@@ -39,7 +42,6 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 * pydicom >= 0.9.8; For reading DICOM files
 * Pillow >= 2.5; For reading image files
 * future >= 0.13; Allows Python 2/3 compatibility
-* setuptools >= 5.8; For installation
 
 A Note About Dependencies
 -------------------------

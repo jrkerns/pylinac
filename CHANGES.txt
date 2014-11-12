@@ -1,3 +1,10 @@
+V0.1.3 11/11/2014 -- Added CBCT module
+
+A module for analyzing CBCT DICOM acquisitions of a CatPhan 504 (Varian) has been added.
+The starshot demo files have been compressed to zip files to save space.
+Decorators were added to most functions for parameter type and value checking.
+The "Files" directory was moved outside the source directory.
+
 V0.1.2 11/1/2014 -- Installation Bug Fix
 
 A PyPI setup.py bug was not properly installing pylinac nor including demo files.
