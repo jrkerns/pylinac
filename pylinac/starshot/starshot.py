@@ -4,7 +4,7 @@ The Starshot module analyses a starshot film or multiple superimposed EPID image
 radiation spokes, whether gantry, collimator, or couch. It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
 and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
 """
-from __future__ import division, print_function, absolute_import, unicode_literals
+from __future__ import division, print_function, absolute_import
 from future import standard_library
 standard_library.install_aliases()
 import os
@@ -17,7 +17,7 @@ from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 
 from pylinac.common.common_functions import Prof_Penum, point2edge_min, point_to_2point_line_dist, peak_detect
-from pylinac.common.decorators import value_accept, type_accept
+from pylinac.common.decorators import value_accept
 from pylinac.common.image_classes import SingleImageObject
 
 
@@ -52,8 +52,6 @@ class Starshot(SingleImageObject):
         # information available in image properties
         self.wobble_passed = False  # boolean overall test pass/fail result
 
-
-    @type_accept(number=int)
     @value_accept(number=(1, 2))
     def load_demo_image(self, number=1):
         """Load a starshot demo image.
@@ -167,8 +165,7 @@ class Starshot(SingleImageObject):
         self.set_start_point([y_point, x_point], warn_if_far_away=False)
 
 
-    @type_accept(allow_inversion=bool, radius=(int, float), min_peak_height=int, SID=int)
-    @value_accept(radius=(5,95), min_peak_height=(5, 80), SID=(0, 180))
+    @value_accept(radius=(5, 95), min_peak_height=(5, 80), SID=(0, 180))
     def analyze(self, allow_inversion=True, radius=50, min_peak_height=30, SID=0):
         """Analyze the starshot image.
          Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -252,12 +249,12 @@ class Starshot(SingleImageObject):
 
         # Find the positions of the max values
         # min_peak_height = np.percentile(self._circleprofile,30)  # 30% minimum peak height
-        min_peak_height = np.round(min_peak_height/100) *(np.max(self._circleprofile) - np.min(self._circleprofile))
+        min_peak_height = min_peak_height/100
         min_peak_distance = len(self._circleprofile)/100*3  # 3-degree minimum distance
         max_vals, max_idxs = peak_detect(self._circleprofile, threshold=min_peak_height, min_peak_width=min_peak_distance)
         # ensure the # of peaks found was even; every radiation "strip" should result in two peaks, one on either side of the isocenter.
         if len(max_vals) % 2 != 0 or len(max_vals) == 0:
-            raise Exception("The algorithm found zero or an uneven number of radiation peaks. Ensure that the starting " \
+            raise ValueError("The algorithm found zero or an uneven number of radiation peaks. Ensure that the starting " \
                             "point is correct and/or change the search radius. Sorry.")
 
         # create a zero-array called strip_limits that holds the indices of the minimum between peaks.
@@ -423,8 +420,7 @@ class Starshot(SingleImageObject):
             plot.draw()
             plot.axes.hold(False)
 
-    @type_accept(number=int)
-    @value_accept(number=(1,2))
+    @value_accept(number=(1, 2))
     def run_demo(self, number=1):
         """Run the Starshot module demo.
 
@@ -435,11 +431,9 @@ class Starshot(SingleImageObject):
         self.analyze()
         print(self.get_string_results())
         self.plot_analyzed_image()
-
-
 # ----------------------------
 # Starshot demo
 # ----------------------------
 if __name__ == '__main__':
-    Starshot().run_demo(1)
+    Starshot().run_demo(2)
     pass

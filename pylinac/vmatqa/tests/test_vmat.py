@@ -21,7 +21,7 @@ class VMAT_general_tests(unittest.TestCase):
         self.vmat.load_demo_image()
         self.assertRaises(ValueError, self.vmat.analyze, 'drgs', 0)  # below allowance
         self.assertRaises(ValueError, self.vmat.analyze, 'drgs', 9)  # above allowance
-        self.assertRaises(TypeError, self.vmat.analyze, 'drgs', '1')  # string instead of number
+        # self.assertRaises(TypeError, self.vmat.analyze, 'drgs', '1')  # string instead of number
 
     def test_throw_test_error(self):
         """Raise an error if the test string passed is bad."""

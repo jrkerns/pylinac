@@ -23,12 +23,10 @@ from scipy.misc import imresize
 from PIL import Image
 import dicom
 
-from pylinac.common.decorators import type_accept
 
 class SingleImageObject(object):
     """A class to be inherited by classes that utilize a single image in its analysis. Contains simple methods for such a class."""
 
-    @type_accept(image=(None, np.ndarray))
     def __init__(self, image=None):
         """Initialize some attributes."""
         self.image = image  # if None, will eventually be a numpy array
@@ -38,7 +36,6 @@ class SingleImageObject(object):
                          'Image Type': '',  # Image type; either 'DICOM' or 'IMAGE'
         }
 
-    @type_accept(image=np.ndarray)
     def set_image(self, image):
         """Set the image from a pre-existing numpy array"""
         self.image = image
@@ -47,7 +44,6 @@ class SingleImageObject(object):
         """To be overloaded by each specific tool. Loads a demo image for the given class."""
         raise NotImplementedError("Loading the demo image for this module has not been implemented yet.")
 
-    @type_accept(filestring=str, to_gray=bool, return_it=bool, apply_filter=bool)
     def load_image(self, filestring, to_gray=True, return_it=False, apply_filter=False):
         """Load an image using PIL or pydicom as a numpy array from a filestring.
 
@@ -62,7 +58,10 @@ class SingleImageObject(object):
 
         # Check that filestring points to valid file
         if not osp.isfile(filestring):
-            raise FileExistsError("{} did not point to a valid file".format(filestring))
+            try:
+                raise FileExistsError("{} did not point to a valid file".format(filestring))
+            except:
+                raise IOError("{} did not point to a valid file".format(filestring))
         # Read image depending on file type
         im_file, image = self._return_img_file(filestring)
         # Read in image properties
@@ -77,7 +76,6 @@ class SingleImageObject(object):
             self.image = image
             self.im_props = im_props
 
-    @type_accept(to_gray=bool, return_it=bool)
     def load_image_UI(self, dir='', caption='', filters='', to_gray=True, return_it=False):
         """Load an image using a UI Dialog.
 
@@ -161,14 +159,12 @@ class SingleImageObject(object):
         """To be overloaded by subclass."""
         raise NotImplementedError("Analyze has not been implemented for this module")
 
-    @type_accept(size=int, mode=str)
     def median_filter(self, size=3, mode='reflect'):
         """Apply a median filter to the image. Wrapper for scipy's median filter function:
         http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html
         """
         self.image = ndimage.median_filter(self.image, size=size, mode=mode)
 
-    @type_accept(pixels=int)
     def remove_edges(self, pixels=15):
         """Removes the edge pixels on all sides of the image.
 
@@ -183,7 +179,6 @@ class SingleImageObject(object):
         """
         self.image = -self.image + np.max(self.image) + np.min(self.image)
 
-    @type_accept(n=int)
     def rotate_image_ccw90(self, n=1):
         """Rotate the image counter-clockwise by 90 degrees n times.
 
@@ -192,7 +187,6 @@ class SingleImageObject(object):
         """
         self.image = np.rot90(self.image, n)
 
-    @type_accept(size=(float, int, tuple), interp=str)
     def resize_image(self, size, interp='bilinear'):
         """Scale the image. Wrapper for scipy.misc.imresize: http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.misc.imresize.html
 

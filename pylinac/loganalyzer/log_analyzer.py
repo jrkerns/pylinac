@@ -15,6 +15,7 @@ from pylinac.common.common_functions import get_filename, open_PDF_file, go_up_d
 
 
 
+
 # Set up some constants and put them at the top to make later adjustment easy
 from pylinac.common.decorators import type_accept
 
@@ -129,7 +130,7 @@ class MachineLog(object):
             self._filename = filename
             self.read_log()
 
-    # @type_accept(str)
+    @type_accept(filename=str)
     def load_logfile(self, filename):
         """Load the log non-interactively by passing the path to the file.
 
@@ -137,7 +138,10 @@ class MachineLog(object):
         :type filename: str
         """
         if not osp.isfile(filename):
-            raise FileExistsError("File does not exist")
+            try:
+                raise FileExistsError("File does not exist")
+            except:
+                raise IOError("File does not exist")
         self._filename = filename
         self.read_log()
 

@@ -7,7 +7,10 @@ uniformity (CTP486) on the corresponding slice.
 Currently only Varian (CatPhan 504) is supported, but Elekta (CatPhan 503) support is being worked on.
 """
 
-from __future__ import print_function, division, absolute_import, unicode_literals
+from __future__ import print_function, division, absolute_import
+from future.builtins import zip
+from future import standard_library
+standard_library.install_hooks()
 import os
 import os.path as osp
 from time import sleep
@@ -23,7 +26,7 @@ import dicom
 from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 
-from pylinac.common.decorators import type_accept, value_accept
+from pylinac.common.decorators import value_accept
 from pylinac.common.image_classes import MultiImageObject
 from pylinac.common.common_functions import invert, dist_2points, sector_mask, peak_detect
 
@@ -314,7 +317,6 @@ class SR(Slice):
         min_vals, min_idxs = self._find_LP_valleys(LP_profile, max_idxs)
         self._calc_MTF(max_vals, min_vals)
 
-    @type_accept(percent=int)
     @value_accept(percent=(60, 95))
     def get_MTF(self, percent=80):
         """Return the MTF value for the percent passed in.
@@ -412,7 +414,6 @@ class CBCT(MultiImageObject):
         self._phan_roll = 0  # the angle in degrees of the roll of the phantom from a perfect setup.
         self._roll_found = False  # boolean specifying whether the algo successfully found the roll.
 
-    @type_accept(protocol=str)
     @value_accept(protocol=demo_protocols)
     def load_demo_images(self, protocol='hi_head'):
         """Load demo images based from a given protocol.
@@ -442,7 +443,6 @@ class CBCT(MultiImageObject):
         folder = self.get_folder_UI()
         self.load_folder(folder)
 
-    @type_accept(folder=str, append=bool)
     def load_folder(self, folder, append=False):
         """Load the CT DICOM files from a folder string input
 
@@ -453,7 +453,10 @@ class CBCT(MultiImageObject):
         """
         # check that folder is valid
         if not osp.isdir(folder):
-            raise NotADirectoryError("Path given was not a Directory/Folder")
+            try:
+                raise NotADirectoryError("Path given was not a Directory/Folder")
+            except:
+                raise IOError("Path given was not a Directory/Folder")
 
         for par_dir, sub_dir, files in os.walk(folder):
             filelist = [osp.join(par_dir, item) for item in files if item.endswith('.dcm') and item.startswith('CT')]
@@ -695,7 +698,6 @@ def array2logical(array, threshold_value):
     """
     return np.where(array >= threshold_value, 1, 0)
 
-@type_accept(nominal_slice_num=int, slices_plusminus=int, mode=str)
 @value_accept(mode=('mean','median','max'))
 def combine_surrounding_slices(im_array, nominal_slice_num, slices_plusminus=1, mode='mean'):
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
@@ -720,10 +722,10 @@ def combine_surrounding_slices(im_array, nominal_slice_num, slices_plusminus=1, 
 # CBCT Demo
 # ----------------------------------------
 if __name__ == '__main__':
-    # CBCT().run_demo_head()
-    cb = CBCT()
-    cb.load_folder_UI()
+    CBCT().run_demo_head()
+    # cb = CBCT()
+    # cb.load_folder_UI()
     # cb.load_folder(r"C:\Users\JRKerns\Dropbox\Programming\MATLAB\Projects\UVC Suite\Data\Full Data Set\CBCT Images\ACB1\High quality head")
-    cb.analyze()
-    cb.return_results()
+    # cb.analyze()
+    # cb.return_results()
     # cb.plot_analyzed_image()

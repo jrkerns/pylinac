@@ -5,7 +5,7 @@ images according to the `Jorgensen et al. <http://dx.doi.org/10.1118/1.3552922>`
 """
 # Full documentation of this module and how to use it can be found at this repositories' Read the Docs site: pylinac.rtfd.org
 
-from __future__ import print_function, division, absolute_import, unicode_literals
+from __future__ import print_function, division, absolute_import
 from builtins import range
 
 from future import standard_library
@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.patches import Rectangle
 
-from pylinac.common.decorators import value_accept, type_accept
+from pylinac.common.decorators import value_accept
 from pylinac.common.image_classes import SingleImageObject
 
 
@@ -50,10 +50,9 @@ class VMAT(SingleImageObject):
         self._seg_dev_min = {}
         self._seg_dev_mean = {}
 
-    @type_accept(im_type=str)
     @value_accept(im_type=im_types)
     def load_image_UI(self, im_type='open'):
-        """Open a Qt UI file browser to load dicom image for given VMAT image.
+        """Open a UI file browser to load dicom image for given VMAT image.
 
         :param im_type: 'open' or 'mlc'; specifies which file/image is being loaded
         :type im_type: str
@@ -68,7 +67,6 @@ class VMAT(SingleImageObject):
         if fs:  # if user didn't hit cancel
             self.load_image(fs, im_type=im_type)
 
-    @type_accept(filepath=str, im_type=str)
     @value_accept(im_types=im_types)
     def load_image(self, filepath, im_type='open'):
         """Load the image directly by the file path (i.e. non-interactively).
@@ -86,7 +84,6 @@ class VMAT(SingleImageObject):
             self.image_dmlc = img
         self.im_props = props
 
-    @type_accept(test_types=str, number=int)
     @value_accept(test_types=test_types, number=(1, 2))
     def load_demo_image(self, test_type='drgs', number=1):
         """Load the demo DICOM images from demo files folder.
@@ -96,27 +93,26 @@ class VMAT(SingleImageObject):
         :param number: Which demo images to load; there are currently 2 for each test type.
         :type number: int
         """
-
+        demo_folder = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files")
         if test_type == test_types[1]:  # DRMLC
             if number == 1:
-                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRMLCopen-example.dcm")
-                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRMLCmlc-example.dcm')
+                im_open_path = osp.join(demo_folder, "DRMLCopen-example.dcm")
+                im_dmlc_path = osp.join(demo_folder, 'DRMLCmlc-example.dcm')
             else:
-                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRMLCopen-150-example.dcm")
-                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRMLCmlc-150-example.dcm')
+                im_open_path = osp.join(demo_folder, "DRMLCopen-150-example.dcm")
+                im_dmlc_path = osp.join(demo_folder, 'DRMLCmlc-150-example.dcm')
         else:
             if number == 1:
-                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRGSopen-example.dcm")
-                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRGSmlc-example.dcm')
+                im_open_path = osp.join(demo_folder, "DRGSopen-example.dcm")
+                im_dmlc_path = osp.join(demo_folder, 'DRGSmlc-example.dcm')
             else:
-                im_open_path = osp.join(osp.split(osp.abspath(__file__))[0], "demo_files", "DRGSopen-150-example.dcm")
-                im_dmlc_path = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files', 'DRGSmlc-150-example.dcm')
+                im_open_path = osp.join(demo_folder, "DRGSopen-150-example.dcm")
+                im_dmlc_path = osp.join(demo_folder, 'DRGSmlc-150-example.dcm')
 
         self.load_image(im_open_path, im_type='open')
         self.load_image(im_dmlc_path, im_type='mlc')
 
-    @type_accept(number=int)
-    @value_accept(number=(1,2))
+    @value_accept(number=(1, 2))
     def run_demo_drgs(self, number=1):
         """Run the demo of the module for the Dose Rate & Gantry Speed test.
 
@@ -128,7 +124,6 @@ class VMAT(SingleImageObject):
         print(self.get_string_results())
         self.plot_analyzed_image()
 
-    @type_accept(number=int)
     @value_accept(number=(1, 2))
     def run_demo_drmlc(self, number=1):
         """Run the demo of the module for the Dose Rate & MLC speed test.
@@ -252,7 +247,6 @@ class VMAT(SingleImageObject):
             self._seg_dev_min[segment] = dev_matrix[:, segment].min()
             self._seg_dev_mean[segment] = dev_matrix[:, segment].__abs__().mean()
 
-    @type_accept(test=str, tolerance=(float, int), SID=(None, int))
     @value_accept(test=test_types, tolerance=(0.3, 8), SID=(0, 180))
     def analyze(self, test, tolerance=3, SID=None):
         """Analyze 2 VMAT images, the open field image and DMLC field image, according to 1 of 2 possible tests.
@@ -263,7 +257,7 @@ class VMAT(SingleImageObject):
         :type tolerance: float, int
         :param SID: The Source to Image (detector) distance in cm. Usually doesn't need to be passed for EPID DICOM images. This argument
             will override any automatically derived value however. If left as None and no SID was determined, it will assume 150cm.
-        :type SID: int
+        :type SID: None, int
         """
         # error checking
         if len(self.image_open) == 0  or len(self.image_dmlc) == 0:
@@ -421,7 +415,7 @@ if __name__ == '__main__':
     # v.load_image_UI()
     # v.load_image_UI('dmlc')
     v.load_demo_image('drmlc')
-    v.analyze('drmlc')
+    v.analyze('drmlc', 2)
     print(v.get_string_results())
     v.plot_analyzed_image()
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo

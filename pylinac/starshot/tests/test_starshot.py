@@ -100,7 +100,7 @@ class Star_test_demo2(unittest.TestCase):
         """Test that the algo will still pass if the start point is set
             to a point somewhat different than actual center.
             """
-        self.star.set_start_point([1600, 1200], warn_if_far_away=False)
+        self.star.set_start_point([1630, 1230], warn_if_far_away=False)
         self.star.analyze()
 
         self.assertTrue(self.star.wobble_passed)

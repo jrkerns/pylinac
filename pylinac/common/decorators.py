@@ -1,16 +1,21 @@
 
 """Yes I know it's not Pythonic to type check, but for pylinac, I don't see many alternatives. Note that these are for Classes."""
-from __future__ import unicode_literals, print_function, division, absolute_import
+from __future__ import print_function, division, absolute_import
 from builtins import zip
 from builtins import str
-
+try:
+    from __builtin__ import unicode
+except:
+    pass
 from future import standard_library
 
 
 standard_library.install_aliases()
 
 # The following is adapted from: http://code.activestate.com/recipes/578809-decorator-to-check-method-param-types/
+# Another type checking decorator: http://code.activestate.com/recipes/454322-type-checking-decorator/
 from functools import wraps
+
 
 def type_accept(**types):
     """Function decorator enforcing input types.
@@ -20,7 +25,6 @@ def type_accept(**types):
     def type_decor(func):  # func == function to decorate
         @wraps(func)
         def new_func(*args, **kwargs):  # the decorated function's arguments'
-            # check positional arguments
             # if self is first argument, i.e. a class method, remove it. Otherwise the arg values and arg names are not the same length.
             if func.__code__.co_varnames[0] == 'self':
                 arg_names = func.__code__.co_varnames[1:]
@@ -28,7 +32,8 @@ def type_accept(**types):
             else:
                 arg_names = func.__code__.co_varnames
                 arg_vals = args
-            for arg_name, arg_val in zip(func.__code__.co_varnames, arg_vals):  # [1:] syntax because of "self" parameter when used on classes.
+            # check positional arguments
+            for arg_name, arg_val in zip(arg_names, arg_vals):
                 if arg_name in types:
                     if not isinstance(arg_val, types[arg_name]):
                         raise TypeError("Argument '{}' was not of type {}".format(arg_val, str(types[arg_name]).split("'")[1]))
@@ -62,9 +67,9 @@ def value_accept(**val_accept):
                 if arg_name in val_accept:
                     if type(arg_val) in (float, int):
                         if not val_accept[arg_name][0] <= arg_val <= val_accept[arg_name][1]:
-                            raise ValueError("Argument '{:f}' needs to be between {:f} and {:f}".format(arg_name, val_accept[arg_name][
+                            raise ValueError("Argument '{}' needs to be between {:f} and {:f}".format(arg_name, val_accept[arg_name][
                                 0], val_accept[arg_name][1]))
-                    elif type(arg_val) in (str,):
+                    elif type(arg_val) in (str,) or type(arg_val.decode()) in (unicode,):
                         if not arg_val in val_accept[arg_name]:
                             raise ValueError("Argument '{}' passed to '{}' needs to be one of these: {}".format(arg_name, func.__name__,
                                                                                                                     val_accept[arg_name]))

@@ -409,7 +409,7 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, delta=0, max_num_peak
     :type threshold: int, float
     :param min_peak_width: The number of elements apart a peak must be from neighboring peaks.
     :type min_peak_width: int
-    :param delta: The value a peak candidate must be higher than its neighbors by to be considered a true peak.
+    :param delta: The value a peak candidate must be higher than its neighbors by to be considered a true peak. Not yet implemented.
     :type delta: int
     :param max_num_peaks: Specify up to how many peaks will be returned. E.g. if 3 is passed in and 5 peaks are found, only the 3 largest
         peaks will be returned.
@@ -486,15 +486,6 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, delta=0, max_num_peak
                 idx2del = index
             peak_vals = np.delete(peak_vals, idx2del)
             peak_idxs = np.delete(peak_idxs, idx2del)
-        # Else if the next peak is closer than min_peak_distance, do the same.
-        # elif peak_idxs[index + 1] < peak_idxs[index] + min_peak_width:
-        #     if ((not find_min_instead and peak_vals[index + 1] > peak_vals[index]) or
-        #             (find_min_instead and peak_vals[index + 1] < peak_vals[index])):
-        #         idx2del = index
-        #     else:
-        #         idx2del = index + 1
-        #     peak_vals = np.delete(peak_vals, idx2del)
-        #     peak_idxs = np.delete(peak_idxs, idx2del)
         else:
             index += 1
 
