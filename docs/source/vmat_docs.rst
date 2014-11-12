@@ -140,27 +140,27 @@ The algorithm works like such:
 
 **Pre-Analysis**
 
-* *Determine image scaling* -- Segment determination is based on offsets from the center pixel of the image. However,
+* **Determine image scaling** -- Segment determination is based on offsets from the center pixel of the image. However,
   some physicists use 150 cm SID and others use 100 cm, and others can use a clinical setting that may be different
   than either of those. To account for this, the SID is determined and then scaling factors are determined to be
   able to produce properly-sized sample analysis.
 
 **Analysis**
 
-* *Calculate sample boundaries & extract* -- Because the Jorgensen tests are always the
+* **Calculate sample boundaries & extract** -- Because the Jorgensen tests are always the
   same in terms of where the radiation gets delivered, these values are hardcoded as offsets from the center pixel.
   These values are then scaled with the image scaling factor determined above. The mean of the pixel values determined
   by the boundaries is saved as the sample value.
-* *Normalize images* -- Once the sample values (and thus segments) are determined, both images are normalized.
+* **Normalize images** -- Once the sample values (and thus segments) are determined, both images are normalized.
   Depending on the test, images are normalized by the 4th (DRGS) or mean of 2nd and 3rd (MLCS) segment for each image.
-* *Calculate sample and segment ratios* -- Once the images are normalized to themselves, the sample values of the MLC
+* **Calculate sample and segment ratios** -- Once the images are normalized to themselves, the sample values of the MLC
   field are divided by their corresponding open field values.
-* *Calculate sample deviations* -- Sample deviations are calculated using Jorgensen's "deviation" equation. This divides
+* **Calculate sample deviations** -- Sample deviations are calculated using Jorgensen's "deviation" equation. This divides
   each sample by the mean of all the sample values for that MLC pair (i.e. the mean of the segments for that MLC pair).
 
 **Post-Analysis**
 
-* *Test if samples pass tolerance* -- Each sample is checked to see if it was within the specified tolerance. If any samples
+* **Test if samples pass tolerance** -- Each sample is checked to see if it was within the specified tolerance. If any samples
   fail, the whole test is considered failing.
 
 

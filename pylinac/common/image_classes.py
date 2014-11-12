@@ -45,7 +45,7 @@ class SingleImageObject(object):
 
     def load_demo_image(self):
         """To be overloaded by each specific tool. Loads a demo image for the given class."""
-        pass
+        raise NotImplementedError("Loading the demo image for this module has not been implemented yet.")
 
     @type_accept(filestring=str, to_gray=bool, return_it=bool, apply_filter=bool)
     def load_image(self, filestring, to_gray=True, return_it=False, apply_filter=False):
@@ -155,11 +155,11 @@ class SingleImageObject(object):
         :type normalize_maximums: bool
         """
         #TODO: work on this
-        pass
+        raise NotImplementedError("Combine images has not yet been implemented")
 
     def analyze(self):
         """To be overloaded by subclass."""
-        pass
+        raise NotImplementedError("Analyze has not been implemented for this module")
 
     @type_accept(size=int, mode=str)
     def median_filter(self, size=3, mode='reflect'):
@@ -170,8 +170,7 @@ class SingleImageObject(object):
 
     @type_accept(pixels=int)
     def remove_edges(self, pixels=15):
-        """
-        Removes the edge pixels on all sides of the image.
+        """Removes the edge pixels on all sides of the image.
 
         :param pixels: Number of pixels to cut off all sides of the image
         :type pixels: int

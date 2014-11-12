@@ -10,5 +10,6 @@ Base Class API
 .. autoclass:: pylinac.common.image_classes.SingleImageObject
     :members:
 
-
+.. autoclass:: pylinac.common.image_classes.MultiImageObject
+    :members:
 

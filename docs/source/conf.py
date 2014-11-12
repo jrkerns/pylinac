@@ -27,7 +27,7 @@ sys.path.insert(1, os.path.abspath('../..'))
 import mock
 
 MOCK_MODULES = ['dicom','PySide','PyQt4','numpy', 'scipy', 'matplotlib', 'matplotlib.pyplot',
-                'scipy.ndimage', 'scipy.optimize','scipy.misc','matplotlib.patches', 'matplotlib.cm']
+                'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize','scipy.misc','matplotlib.patches', 'matplotlib.cm']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 

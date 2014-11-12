@@ -1,4 +1,12 @@
 
+"""The CBCT module automatically analyzes DICOM images of a CatPhan acquired when doing CBCT quality assurance. It can load a folder
+the images are in and automatically correct for phantom setup by determining the yaw, pitch, and roll of the phantom.
+It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
+uniformity (CTP486) on the corresponding slice.
+
+Currently only Varian (CatPhan 504) is supported, but Elekta (CatPhan 503) support is being worked on.
+"""
+
 from __future__ import print_function, division, absolute_import, unicode_literals
 import os
 import os.path as osp
@@ -294,6 +302,10 @@ class SR(Slice):
             region_max = max_vals[num_peaks[LP_pair]:num_peaks[LP_pair + 1]].mean()
             region_min = min_vals[num_valleys[LP_pair]:num_valleys[LP_pair + 1]].mean()
             self.object_values[name] = (region_max - region_min) / (region_max + region_min)
+        # normalize the values by the first LP
+        max_mtf = np.array(list(self.object_values.values())).max()
+        for name, value in self.object_values.items():
+            self.object_values[name] /= max_mtf
 
     def calc_OOI(self):
         """Calculate the line pairs of the SR slice."""
@@ -303,8 +315,8 @@ class SR(Slice):
         self._calc_MTF(max_vals, min_vals)
 
     @type_accept(percent=int)
-    @value_accept(percent=(40, 80))
-    def get_MTF(self, percent=50):
+    @value_accept(percent=(60, 95))
+    def get_MTF(self, percent=80):
         """Return the MTF value for the percent passed in.
 
         :param percent: The line-pair/mm value for the given MTF percentage.
@@ -313,10 +325,10 @@ class SR(Slice):
         # calculate x and y interpolations from Line Pair values and from the MTF measured
         x_vals_intrp = np.arange(self.object_names[0], self.object_names[-1], 0.01)
         x_vals = np.array(sorted(self.object_values.keys()))
-        y_vals = np.array(sorted(self.object_values.values()))
+        y_vals = np.array(sorted(self.object_values.values())[::-1])
         y_vals_intrp = np.interp(x_vals_intrp, x_vals, y_vals)
 
-        mtf_percent = x_vals_intrp[np.argmin(np.abs(y_vals_intrp - percent / 100))]
+        mtf_percent = x_vals_intrp[np.argmin(np.abs(y_vals_intrp - (percent / 100)))]
         return mtf_percent
 
 class UNIF(Slice):
@@ -632,22 +644,47 @@ class CBCT(MultiImageObject):
         """Return and print the results of the analysis as a string."""
 
         #TODO: make prettier
+        print(' - CBCT QA Test - ')
         print('HU Regions: ', self.HU.object_values)
         print('HU Passed?: ', self.HU.passed_test)
         print('Uniformity: ', self.UN.object_values)
         print('Uniformity Passed?: ', self.UN.passed_test)
-        print('MTF 50% (lp/mm): ', self.SR.get_MTF(50))
+        print('MTF 80% (lp/mm): ', self.SR.get_MTF(80))
         print('Geometric distances: ', self.GEO.object_values)
         print('Geometry Passed?: ', self.GEO.passed_test)
 
     def analyze(self):
-        """One-method for full analysis of CBCT DICOM files."""
+        """Single-method full analysis of CBCT DICOM files."""
         self.find_roll()
         self.find_HU()
         self.find_UNIF()
         self.find_GEO()
         self.find_SR()
         self.find_Locon()
+
+    def run_demo_head(self):
+        """Run the CBCT demo using the high-quality head protocol."""
+        cbct = CBCT()
+        cbct.load_demo_images('hi_head')
+        cbct.analyze()
+        cbct.return_results()
+        cbct.plot_analyzed_image()
+
+    def run_demo_thorax(self):
+        """Run the CBCT demo using the low-dose thorax protocol."""
+        cbct = CBCT()
+        cbct.load_demo_images('thorax')
+        cbct.analyze()
+        cbct.return_results()
+        cbct.plot_analyzed_image()
+
+    def run_demo_pelvis(self):
+        """Run the CBCT demo using the pelvis protocol."""
+        cbct = CBCT()
+        cbct.load_demo_images('pelvis')
+        cbct.analyze()
+        cbct.return_results()
+        cbct.plot_analyzed_image()
 
 def array2logical(array, threshold_value):
     """Return a 'logical' (binary) version of the input array based on a threshold.
@@ -683,8 +720,10 @@ def combine_surrounding_slices(im_array, nominal_slice_num, slices_plusminus=1, 
 # CBCT Demo
 # ----------------------------------------
 if __name__ == '__main__':
-    cbct = CBCT()
-    cbct.load_demo_images()
-    cbct.analyze()
-    cbct.return_results()
-    cbct.plot_analyzed_image()
+    # CBCT().run_demo_head()
+    cb = CBCT()
+    cb.load_folder_UI()
+    # cb.load_folder(r"C:\Users\JRKerns\Dropbox\Programming\MATLAB\Projects\UVC Suite\Data\Full Data Set\CBCT Images\ACB1\High quality head")
+    cb.analyze()
+    cb.return_results()
+    # cb.plot_analyzed_image()
