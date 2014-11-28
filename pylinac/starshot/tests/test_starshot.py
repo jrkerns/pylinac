@@ -29,7 +29,7 @@ class Star_test_demo1(unittest.TestCase):
 
     def test_image_is_numpy(self):
         """The demo image should be numpy array when loaded."""
-        self.assertIsInstance(self.star.image, np.ndarray)
+        self.assertIsInstance(self.star.pixel_array, np.ndarray)
 
     def test_passed(self):
         """Test that the demo image passed"""
@@ -67,7 +67,7 @@ class Star_test_demo2(unittest.TestCase):
 
     def test_image_is_numpy(self):
         """The demo image should be numpy array when loaded."""
-        self.assertIsInstance(self.star.image, type(np.array([])))
+        self.assertIsInstance(self.star.pixel_array, type(np.array([])))
 
     def test_passed(self):
         """Test that the demo image passed"""

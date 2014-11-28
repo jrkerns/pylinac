@@ -31,8 +31,8 @@ Results will be printed to the console and a figure showing the slices analyzed 
     Geometry Passed?:  True
 
 .. image:: /images/cbct_head.png
-   :height: 400px
-   :width: 400px
+   :height: 550px
+   :width: 550px
 
 
 Typical Use

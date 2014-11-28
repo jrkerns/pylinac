@@ -3,13 +3,12 @@
 from __future__ import print_function, division, absolute_import
 from builtins import zip
 from builtins import str
+
 try:
     from __builtin__ import unicode
 except:
     pass
 from future import standard_library
-
-
 standard_library.install_aliases()
 
 # The following is adapted from: http://code.activestate.com/recipes/578809-decorator-to-check-method-param-types/
@@ -17,8 +16,13 @@ standard_library.install_aliases()
 from functools import wraps
 
 
+def property_check(**props):
+    """Decorator to check that the given properties exist and/or have a given value."""
+
+
 def type_accept(**types):
-    """Function decorator enforcing input types.
+    """Function decorator enforcing input types. This wouldn't be needed for a Py3-only project where function annotation is allowed.
+    But for 2.7 compatibility, this decorator is a replacement of sorts.
 
     :param types: expected types (e.g. str, int, float).
     """
@@ -43,6 +47,7 @@ def type_accept(**types):
                     if not isinstance(arg_val, types[arg_name]):
                         raise TypeError("Argument '{}' was not of type {}".format(arg_val, str(types[arg_name]).split("'")[1]))
             return func(*args, **kwargs)
+        new_func = unwrap_func(new_func)
         return new_func
     return type_decor
 
@@ -55,8 +60,11 @@ def value_accept(**val_accept):
     def decorator(func):  # func == function to decorate
         @wraps(func)
         def new_func(*args, **kwargs):  # the decorated function's arguments'
+            # func = unwrap_func(func)
             # check positional arguments
             # if self is first argument, i.e. a class method, remove it. Otherwise the arg values and arg names are not the same length.
+            # func = unwrap_func(func)
+            # www = func.__code__.co_varnames
             if func.__code__.co_varnames[0] == 'self':
                 arg_names = func.__code__.co_varnames[1:]
                 arg_vals = args[1:]
@@ -88,5 +96,40 @@ def value_accept(**val_accept):
                             raise ValueError("Argument '{}' passed to '{}' needs to be one of these: {}".format(arg_name, func.__name__,
                                                                                                              val_accept[arg_name]))
             return func(*args, **kwargs)
+        func = unwrap_func(new_func)
         return new_func
     return decorator
+
+
+def unwrap_func(wrapped_func, unwraps=0):
+    """Return an unwrapped function from the wrapped function.
+
+    Functions or methods can use one or more decorators. If the decorator needs access to the base function (e.g. its arguments), it
+    won't get it if more than 1 decorator is used. This function allows one to get to the base function, or a function wrapped a certain
+    number of times. The function must be wrapped with the stdlib functools.wraps for proper unwrapping.
+
+    Discussion of this issue: http://bugs.python.org/issue17482
+
+    :param unwraps: The number of times to unwrap a function, if wrapped with multiple decorators. If 0 or negative, will return the base
+        function.
+    :type unwraps: int
+    """
+    func = wrapped_func
+    # if we want the base function
+    if unwraps <= 0:
+        at_base = False
+        while not at_base:
+            try:
+                func = func.__wrapped__
+            except AttributeError:
+                at_base = True
+
+    # else we want the function unwrapped n times
+    else:
+        for unwrap in range(unwraps):
+            try:
+                func = func.__wrapped__
+            except AttributeError:
+                break
+
+    return func

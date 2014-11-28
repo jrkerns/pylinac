@@ -5,7 +5,10 @@ radiation spokes, whether gantry, collimator, or couch. It is based on ideas fro
 and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
 """
 from __future__ import division, print_function, absolute_import
+from collections import namedtuple
+
 from future import standard_library
+
 standard_library.install_aliases()
 import os
 import os.path as osp
@@ -18,7 +21,7 @@ import matplotlib.pyplot as plt
 
 from pylinac.common.common_functions import Prof_Penum, point2edge_min, point_to_2point_line_dist, peak_detect
 from pylinac.common.decorators import value_accept
-from pylinac.common.image_classes import SingleImageObject
+from pylinac.common.image_classes import ImageObj, AnalysisModule
 
 
 """ Default constants """
@@ -30,19 +33,94 @@ small_tolerance, small_scale = 0.001, 10.0
 
 file_dir = osp.split(osp.abspath(__file__))[0]  # The working directory of this file
 
-class Starshot(SingleImageObject):
+class CircleProfile(object):
+    """Holds and analyzes the circular profile found during starshot analysis."""
+
+    def __init__(self, image_array, radius, start_point):
+        """Extracts values of a circular profile around the isocenter point atop the image matrix,
+        later to be searched for peaks and such.
+        """
+
+        # find minimum distance from starting point to image edges
+        mindist = point2edge_min(image_array, start_point)
+
+        # create index and cos, sin points which will be the circle's rectilinear coordinates
+        deg = np.arange(0, 360 - 0.01, 0.01)
+        x = np.cos(np.deg2rad(deg)) * radius / 100 * mindist + start_point[1]
+        y = np.sin(np.deg2rad(deg)) * radius / 100 * mindist + start_point[0]
+
+        # this scipy function pulls the values of the image along the y,x points defined above
+        raw_prof = ndimage.map_coordinates(image_array, [y, x], order=0)
+        filt_prof = ndimage.median_filter(raw_prof, size=100)  # filter the profile
+        norm_prof = filt_prof - np.min(filt_prof)  # normalize the new profile
+
+        # Roll the profile if needed
+        # --------------------------
+        # In order to properly find the peaks, the bounds of the circular profile must not be near a radiation strip.
+        # If the profile's edge (0-index) is in the middle of a radiation strip, move it over so that it's not
+        zero_ind = np.where(norm_prof == 0)
+        prof = np.roll(norm_prof, -zero_ind[0][0])
+        x = np.roll(x, -zero_ind[0][0])
+        y = np.roll(y, -zero_ind[0][0])
+
+        self.profile = prof
+        self.profile_x = x
+        self.profile_y = y
+        self.profile_radius_pix = radius / 100 * mindist
+
+    def find_peaks(self, min_peak_height):
+        """Find the positions of peaks in the circle profile and map them to the starshot image."""
+
+        # Find the positions of the max values
+        # min_peak_height = np.percentile(self._circleprofile,30)  # 30% minimum peak height
+        min_peak_height = min_peak_height / 100
+        min_peak_distance = len(self.profile) / 100 * 3  # 3-degree minimum distance
+        max_vals, max_idxs = peak_detect(self.profile, threshold=min_peak_height,
+                                         min_peak_width=min_peak_distance)
+        # ensure the # of peaks found was even; every radiation "strip" should result in two peaks, one on either side of the isocenter.
+        if len(max_vals) % 2 != 0 or len(max_vals) == 0:
+            raise ValueError(
+                "The algorithm found zero or an uneven number of radiation peaks. Ensure that the starting " \
+                "point is correct and/or change the search radius. Sorry.")
+
+        # create a zero-array called strip_limits that holds the indices of the minimum between peaks.
+        # In this way, we search the full-width half-max within the indices between any two indices of strip_limits
+        # The first index of strip_limits is always 0 and the last is always 36,000 (or whatever the length of
+        # self._circleprofile is).
+        strip_limits = np.zeros(len(max_vals) + 1).astype(int)
+        for i in np.arange(len(max_vals) - 1):
+            strip_limits[i + 1] = (max_idxs[i + 1] - max_idxs[i]) / 2 + max_idxs[i]
+        strip_limits[-1] = len(self.profile)
+
+        # Now, create and fill an array called center_indices that will be the index of _circleprofile that the FWHM is at.
+        center_indices = np.zeros(len(max_vals))
+        # Determine the FWHM of each peak
+        for i in np.arange(len(max_vals)):
+            prof = Prof_Penum(self.profile[strip_limits[i]:strip_limits[i + 1]],
+                              np.arange(strip_limits[i], strip_limits[i + 1]))
+            center_indices[i] = prof.get_FWXM_center()
+        center_indices = np.round(center_indices)  # round to the nearest pixel
+        center_indices = center_indices.astype(int)  # convert to an int array
+
+        # _peak_locs are the (y,x) position on the actual starshot image of the FWHM centers.
+        self.peak_locs = np.array([self.profile_y[center_indices], self.profile_x[center_indices]]).T
+
+class Starshot(AnalysisModule):
     """Creates a Starshot instance for determining the wobble in a gantry, collimator,
     couch or MLC starshot image pattern.
     """
     def __init__(self):
-        SingleImageObject.__init__(self)
+        AnalysisModule.__init__(self)
+        self.image = ImageObj()  # The image array and property class
         self._algo_startpoint = np.zeros(2)  # (y,x) which specifies the algorithm starting point for search algorithm
         self.radius = 50  # default of 50% of smallest image dimension
         self._pointpairs = []  # a list which holds 4 values per index: two points with the y,x locations of points that
         # correspond to the two points comprising a radiation "strip"
-        self._circleprofile = np.array([])  # a numpy array that will hold a 1-D profile of a circle centered on the algo starting point
-        self._x = np.array([])  # an array that holds the x-values that the circleprofile is computed over
-        self._y = np.array([])  # ditto for y-values
+        self.circleprofile = CircleProfile
+        # self._circleprofile = np.array([])  # a numpy array that will hold a 1-D profile of a circle centered on the algo starting point
+        # self._x = np.array([])  # an array that holds the x-values that the circleprofile is computed over
+        # self._y = np.array([])  # ditto for y-values
+        self.wobble = namedtuple('Wobble', ['center', 'radius', 'radius_pix'])
         self._wobble_center = np.zeros(2)  # The pixel position (y,x) of the center of a circle that minimally touches all the radiation
         # lines
         self._wobble_radius = 0  # The radius of the circle mentioned above. Could be in pixels or mm
@@ -59,7 +137,12 @@ class Starshot(SingleImageObject):
         :param number: There are a few demo images. This number will choose which demo file to use. As of now
             there are 2 demo images.
         :type number: int
+        :return ret1: return1 value
+        :rtype ret1: int
+        :return ret2: return2 value
+        :rtype ret2: float
         """
+        #TODO: see about using Python's temporary file/folder module
         demos_folder = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files')
         if number == 1:
             im_zip_path = osp.join(demos_folder, "demo_starshot_1.zip")
@@ -70,7 +153,7 @@ class Starshot(SingleImageObject):
         # rename file path to the extracted one
         file_path = im_zip_path.replace('.zip', '.tif')
         # load image
-        self.load_image(file_path)
+        self.image.load_image(file_path)
         # delete extracted file to save space
         try:
             os.remove(file_path)
@@ -88,7 +171,7 @@ class Starshot(SingleImageObject):
         if warn_if_far_away:
             if self._algo_startpoint[0] == 0:
                 self._auto_set_start_point()
-            tolerance = max(min(self.image.shape)/100, 15)  # 1% image width of smalling dimension, or 15 pixels
+            tolerance = max(min(self.image.pixel_array.shape)/100, 15)  # 1% image width of smalling dimension, or 15 pixels
             auto_y_upper = self._algo_startpoint[0] - tolerance
             auto_y_lower = self._algo_startpoint[0] + tolerance
             auto_x_left = self._algo_startpoint[1] - tolerance
@@ -111,14 +194,14 @@ class Starshot(SingleImageObject):
         :param im_widget: The widget to draw to profile to.
         :type im_widget: matplotlib.Figure
         """
-        mindist = point2edge_min(self.image, self._algo_startpoint)
+        mindist = point2edge_min(self.image.pixel_array, self._algo_startpoint)
         center = self._algo_startpoint
         radius = self.radius/100 * mindist
         # x0, y0, x1, y1 = wc[1] - wr, wc[0] - wr, wc[1] + wr, wc[0] + wr
         im_widget.axes.add_patch(Circle(center, radius=radius))
         im_widget.draw()
 
-    def _check_inversion(self, allow_inversion=True):
+    def _check_image_inversion(self, allow_inversion=True):
         """Check the image for proper inversion (pixel value increases with dose).
 
         Inversion is checked by the following:
@@ -132,8 +215,8 @@ class Starshot(SingleImageObject):
             return
 
         # sum the image along each axis
-        x_sum = np.sum(self.image, 0)
-        y_sum = np.sum(self.image, 1)
+        x_sum = np.sum(self.image.pixel_array, 0)
+        y_sum = np.sum(self.image.pixel_array, 1)
 
         # determine the point of max value for each sum profile
         xmaxind = np.argmax(x_sum)
@@ -144,7 +227,7 @@ class Starshot(SingleImageObject):
                 (ymaxind > len(y_sum) / 3 and ymaxind < len(y_sum) * 2 / 3)):
             pass
         else:
-            self.invert_image()
+            self.image.invert_array()
 
     def _auto_set_start_point(self):
         """Set the algorithm starting point automatically.
@@ -155,8 +238,8 @@ class Starshot(SingleImageObject):
         """
 
         # sum the image along each axis
-        x_prof = np.sum(self.image, 0)
-        y_prof = np.sum(self.image, 1)
+        x_prof = np.sum(self.image.pixel_array, 0)
+        y_prof = np.sum(self.image.pixel_array, 1)
 
         # Calculate Full-Width, 80% Maximum
         x_point = Prof_Penum(x_prof).get_FWXM_center(80)
@@ -185,18 +268,19 @@ class Starshot(SingleImageObject):
          :type SID: int
         """
         # error checking
-        if self.image is None:
+        if self.image.pixel_array is None:
             raise AttributeError("Starshot image not yet loaded")
 
         # check inversion
-        self._check_inversion(allow_inversion)
+        self._check_image_inversion(allow_inversion)
 
         # set starting point automatically if not yet set
         if self._algo_startpoint[0] == 0:
             self._auto_set_start_point()
 
         # extract the circle profile
-        self._get_circle_profile(radius)
+        self.circleprofile(self.image.pixel_array, radius, self._algo_startpoint)
+        # self._get_circle_profile(radius)
         # determine the peaks of the profile
         self._find_peaks(min_peak_height)
         # match peaks that are from the same radiation strip
@@ -212,7 +296,7 @@ class Starshot(SingleImageObject):
         """
 
         # find minimum distance from starting point to image edges
-        mindist = point2edge_min(self.image, self._algo_startpoint)
+        mindist = point2edge_min(self.image.pixel_array, self._algo_startpoint)
 
         # create index and cos, sin points which will be the circle's rectilinear coordinates
         deg = np.arange(0, 360 - 0.01, 0.01)
@@ -220,7 +304,7 @@ class Starshot(SingleImageObject):
         y = np.sin(np.deg2rad(deg)) * radius / 100 * mindist + self._algo_startpoint[0]
 
         # this scipy function pulls the values of the image along the y,x points defined above
-        raw_prof = ndimage.map_coordinates(self.image, [y, x], order=0)
+        raw_prof = ndimage.map_coordinates(self.image.pixel_array, [y, x], order=0)
         filt_prof = ndimage.median_filter(raw_prof, size=100)  # filter the profile
         norm_prof = filt_prof - np.min(filt_prof)  # normalize the new profile
 
@@ -314,9 +398,9 @@ class Starshot(SingleImageObject):
         self._wobble_radius, self._wobble_center = self._find_wobble(small_tolerance, wob_cent, small_scale)
         # convert wobble to mm if possible
         self._wobble_radius_pix = self._wobble_radius
-        if self.im_props['DPmm'] != 0:
+        if self.image.properties['DPmm'] != 0:
             self.tolerance_unit = 'mm'
-            self._wobble_radius /= self.im_props['DPmm']
+            self._wobble_radius /= self.image.properties['DPmm']
         if SID:
             self._wobble_radius /= SID/100
 
@@ -330,7 +414,7 @@ class Starshot(SingleImageObject):
         :param scale: The scale of the search in pixels. E.g. 0.1 searches to 0.1 pixel precision.
         :type scale: float, int
         """
-        #TODO: use an opimization function instead of evolutionary search
+        #TODO: use an optimization function instead of evolutionary search
         sp = start_point
         #init conditions; initialize a 3x3 "ones" matrix and make corner value 0 to start minimum distance search
         distmax = np.ones((3, 3))
@@ -394,9 +478,9 @@ class Starshot(SingleImageObject):
         """
         # plot image
         if plot is None:
-            imgplot = plt.imshow(self.image)
+            imgplot = plt.imshow(self.image.pixel_array)
         else:
-            plot.axes.imshow(self.image)
+            plot.axes.imshow(self.image.pixel_array)
             # plot.figure.hold(True)
             plot.axes.hold(True)
             imgplot = plot
@@ -408,7 +492,7 @@ class Starshot(SingleImageObject):
         wr = self._wobble_radius_pix
         imgplot.axes.add_patch(Circle(wc, radius=wr,edgecolor='black',fill=False))
         # plot profile circle
-        rad = self.radius / 100.0 * point2edge_min(self.image, self._algo_startpoint)
+        rad = self.radius / 100.0 * point2edge_min(self.image.pixel_array, self._algo_startpoint)
         imgplot.axes.add_patch(Circle(np.flipud(self._algo_startpoint), radius=rad, edgecolor='green', fill=False))
         # tighten plot around image
         imgplot.axes.autoscale(tight=True)

@@ -24,31 +24,49 @@ from PIL import Image
 import dicom
 
 
-class SingleImageObject(object):
-    """A class to be inherited by classes that utilize a single image in its analysis. Contains simple methods for such a class."""
+class AnalysisModule(object):
+    """An abstract class for distinct analysis modules (Starshot, VMAT, etc). Its purpose is to define basic method
+    names to be consistent across analysis modules. E.g. the starshot and VMAT modules will both have an "analyze" and
+    "load_image" method.
+    """
+    def __init__(self):
+        self.test_passed = False  # set initial test result to fail
 
-    def __init__(self, image=None):
+    def load_demo_image(self):
+        """To be overloaded by each specific tool. Loads a demo image for the given class."""
+        raise NotImplementedError("Loading the demo image(s) for this module has not been implemented yet.")
+
+    def analyze(self):
+        """To be overloaded by subclass. Main analysis method for module"""
+        raise NotImplementedError("Analysis has not been implemented for this module.")
+
+    def run_demo(self):
+        """Demo of module's abilities."""
+        raise NotImplementedError("The demo for this module has not been built yet.")
+
+class ImageObj(object):
+    """An analysis module component that utilizes a single image in its analysis.
+    Contains methods to load and manipulate the image and its properties.
+    """
+
+    def __init__(self, image_array=None):
         """Initialize some attributes."""
-        self.image = image  # if None, will eventually be a numpy array
-        self.im_props = {'DPI': 0,  # Dots (pixels) per inch
-                         'DPmm': 0,  # Dots (pixels) per mm
+        self.pixel_array = image_array  # if None, will eventually be a numpy array
+        self.properties = {'DPI': None,  # Dots (pixels) per inch
+                         'DPmm': None,  # Dots (pixels) per mm
                          'SID mm': None,  # Source (linac target) to Image distance in mm
                          'Image Type': '',  # Image type; either 'DICOM' or 'IMAGE'
         }
 
-    def set_image(self, image):
+    def set_pixel_array(self, image_array):
         """Set the image from a pre-existing numpy array"""
-        self.image = image
+        self.pixel_array = image_array
 
-    def load_demo_image(self):
-        """To be overloaded by each specific tool. Loads a demo image for the given class."""
-        raise NotImplementedError("Loading the demo image for this module has not been implemented yet.")
-
-    def load_image(self, filestring, to_gray=True, return_it=False, apply_filter=False):
+    def load_image(self, file_path, to_gray=True, return_it=False, apply_filter=False):
         """Load an image using PIL or pydicom as a numpy array from a filestring.
 
-        :param filestring: Specifies the file location
-        :type filestring: str
+        :param file_path: Specifies the file location
+        :type file_path: str
         :param to_gray: Indicates whether to convert the image to black & white or not if an RGB image
         :type to_gray: bool
         :param return_it: Will *return* the image and improps if True, otherwise, will save as attr.
@@ -57,13 +75,14 @@ class SingleImageObject(object):
         """
 
         # Check that filestring points to valid file
-        if not osp.isfile(filestring):
+        if not osp.isfile(file_path):
+            # Python 2 doesn't have FileExistsError
             try:
-                raise FileExistsError("{} did not point to a valid file".format(filestring))
+                raise FileExistsError("{} did not point to a valid file".format(file_path))
             except:
-                raise IOError("{} did not point to a valid file".format(filestring))
+                raise IOError("{} did not point to a valid file".format(file_path))
         # Read image depending on file type
-        im_file, image = self._return_img_file(filestring)
+        im_file, image = self._return_img_file(file_path)
         # Read in image properties
         im_props = self._return_im_props(im_file)
 
@@ -73,8 +92,8 @@ class SingleImageObject(object):
         if return_it:
             return image, im_props
         else:
-            self.image = image
-            self.im_props = im_props
+            self.pixel_array = image
+            self.properties = im_props
 
     def load_image_UI(self, dir='', caption='', filters='', to_gray=True, return_it=False):
         """Load an image using a UI Dialog.
@@ -108,17 +127,17 @@ class SingleImageObject(object):
         try: # try loading dicom first
             im_file = dicom.read_file(filestring)
             image = im_file.pixel_array
-            self.im_props['Image Type'] = 'DICOM'
+            self.properties['Image Type'] = 'DICOM'
         except:  # load as a normal image
             im_file = Image.open(filestring)
             image = np.array(im_file)
-            self.im_props['Image Type'] = 'IMAGE'
+            self.properties['Image Type'] = 'IMAGE'
         return im_file, image
 
     def _return_im_props(self, image_file):
         """Return the properties of an image file."""
-        im_props = self.im_props
-        if self.im_props['Image Type'] == 'DICOM':
+        im_props = self.properties
+        if self.properties['Image Type'] == 'DICOM':
             try:
                 im_props['SID mm'] = float(image_file.RTImageSID)
             except:
@@ -155,15 +174,11 @@ class SingleImageObject(object):
         #TODO: work on this
         raise NotImplementedError("Combine images has not yet been implemented")
 
-    def analyze(self):
-        """To be overloaded by subclass."""
-        raise NotImplementedError("Analyze has not been implemented for this module")
-
     def median_filter(self, size=3, mode='reflect'):
         """Apply a median filter to the image. Wrapper for scipy's median filter function:
         http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html
         """
-        self.image = ndimage.median_filter(self.image, size=size, mode=mode)
+        self.pixel_array = ndimage.median_filter(self.pixel_array, size=size, mode=mode)
 
     def remove_edges(self, pixels=15):
         """Removes the edge pixels on all sides of the image.
@@ -171,21 +186,21 @@ class SingleImageObject(object):
         :param pixels: Number of pixels to cut off all sides of the image
         :type pixels: int
         """
-        self.image = self.image[pixels - 1:-pixels, pixels - 1:-pixels]
+        self.pixel_array = self.pixel_array[pixels - 1:-pixels, pixels - 1:-pixels]
 
-    def invert_image(self):
+    def invert_array(self):
         """
         Return the imcomplement of the image. Equivalent to Matlab's imcomplement function.
         """
-        self.image = -self.image + np.max(self.image) + np.min(self.image)
+        self.pixel_array = -self.pixel_array + np.max(self.pixel_array) + np.min(self.pixel_array)
 
-    def rotate_image_ccw90(self, n=1):
+    def rotate_array_ccw90(self, n=1):
         """Rotate the image counter-clockwise by 90 degrees n times.
 
         :param n: Number of times to rotate the image.
         :type n: int
         """
-        self.image = np.rot90(self.image, n)
+        self.pixel_array = np.rot90(self.pixel_array, n)
 
     def resize_image(self, size, interp='bilinear'):
         """Scale the image. Wrapper for scipy.misc.imresize: http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.misc.imresize.html
@@ -193,16 +208,16 @@ class SingleImageObject(object):
         :param size: If int, returns % of current size. If float, fraction of current size. If tuple, output size.
         :type size: float, int, tuple
         """
-        self.image = imresize(self.image, size=size, interp=interp, mode='F')
+        self.pixel_array = imresize(self.pixel_array, size=size, interp=interp, mode='F')
         # self.image = spint.zoom(self.image, zoom=size, mode='nearest')
 
     def set_dpi(self, dpi):
         """Set the dots-per-inch attribute directly."""
-        self.im_props['DPI'] = dpi
+        self.properties['DPI'] = dpi
 
     def set_dpmm(self, dpmm):
         """Set the dots-per-mm attr directly."""
-        self.im_props['DPmm'] = dpmm
+        self.properties['DPmm'] = dpmm
 
 
 class MultiImageObject(object):

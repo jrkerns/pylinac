@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.patches import Rectangle
 
-from pylinac.common.decorators import value_accept
-from pylinac.common.image_classes import SingleImageObject
+from pylinac.common.decorators import value_accept, type_accept
+from pylinac.common.image_classes import ImageObj, AnalysisModule
 
 
 # Common constants
@@ -28,27 +28,43 @@ DRGS_seg_strs = ('105MU/min', '210MU/min', '314MU/min', '417MU/min', '524MU/min'
 test_types = ('drgs', 'drmlc')
 im_types = ('open', 'mlc')
 
-class VMAT(SingleImageObject):
+class Segment(object):
+    """A class for holding and analyzing segment data of VMAT tests.
+
+    For VMAT tests, there are either 4 or 7 'segments', which represents a section of the image that received
+    radiation under the same conditions. E.g. Segment 1 of the DRGS test is an area which recieved...blah blah
+
+    """
+    pass
+
+
+class Sample(object):
+    """A class representing a single 'sample' of a VMAT segment. A sample is an ROI of the radiation one MLC pair
+    produces in one segment.
+
+    """
+    pass
+
+
+class VMAT(AnalysisModule):
     """The VMAT class analyzes two DICOM images acquired via a linac's EPID and analyzes
         regions of interest (segments) based on the paper by `Jorgensen et al <http://dx.doi.org/10.1118/1.3552922>`_, specifically,
         the Dose Rate & Gantry Speed (DRGS) and Dose Rate & MLC speed (DRMLC) tests.
         """
 
     def __init__(self):
-        SingleImageObject.__init__(self)
-        delattr(self,'image')  # delete the SIO attr 'image'. This is because we'll have two images (see below)
-            # and it'd be good not to be confused by the presence of image in the class.
-        self.image_open = np.array([], dtype=float)  # the Open field image
-        self.image_dmlc = np.array([], dtype=float)  # the MLC field image
+        self.image_open = ImageObj()  # the Open field image
+        self.image_dmlc = ImageObj()  # the MLC field image
         self._test_type = ''  # the test to perform
         self._tolerance = 3 # default of 3% tolerance as Jorgensen recommends
         self._sample_ratios = np.array([], dtype=float)  # a float array holding the ratios (DMLC/Open) of MLC pair samples
         self._samples_passed = np.array([], dtype=bool)  # array of booleans specifying whether each sample passed or failed
         self._passed_analysis = False  # a boolean specifying a final flag about about whether or not the test passed completely.
         # the following are dicts holding the individual segment max, min and mean deviation
-        self._seg_dev_max = {}
-        self._seg_dev_min = {}
-        self._seg_dev_mean = {}
+        self.segments = []  # this is a list which will hold Segment objects (either 4 or 7)
+        # self._seg_dev_max = {}
+        # self._seg_dev_min = {}
+        # self._seg_dev_mean = {}
 
     @value_accept(im_type=im_types)
     def load_image_UI(self, im_type='open'):
@@ -60,29 +76,31 @@ class VMAT(SingleImageObject):
 
         if  im_type == im_types[0]:  # open
             caption = "Select Open Field EPID Image..."
+            img = self.image_open
         else:  # dmlc
             caption = "Select MLC Field EPID Image..."
+            img = self.image_dmlc
 
-        fs = SingleImageObject._get_imagepath_UI(self, caption=caption)
+        fs = img._get_imagepath_UI(self, caption=caption)
         if fs:  # if user didn't hit cancel
             self.load_image(fs, im_type=im_type)
 
     @value_accept(im_types=im_types)
-    def load_image(self, filepath, im_type='open'):
+    def load_image(self, file_path, im_type='open'):
         """Load the image directly by the file path (i.e. non-interactively).
 
-        :param filepath: The absolute path to the DICOM image
-        :type filepath: str
+        :param file_path: The absolute path to the DICOM image
+        :type file_path: str
         :param im_type: Specifies whether the image is the Open ('open') or DMLC ('dmlc') field.
         :type im_type: str
         """
 
-        img, props = SingleImageObject.load_image(self, filepath, return_it=True)
+        img, props = ImageObj.load_image(self, file_path, return_it=True)
         if im_type == im_types[0]:  # open
             self.image_open = img
         else:  # dmlc
             self.image_dmlc = img
-        self.im_props = props
+        self.properties = props
 
     @value_accept(test_types=test_types, number=(1, 2))
     def load_demo_image(self, test_type='drgs', number=1):
@@ -149,7 +167,7 @@ class VMAT(SingleImageObject):
             SID_scale = SID / 150
         else:
             try:
-                SID_scale = self.im_props['SID mm'] / 1500.0
+                SID_scale = self.properties['SID mm'] / 1500.0
             except:
                 SID_scale = 1
 
@@ -247,6 +265,7 @@ class VMAT(SingleImageObject):
             self._seg_dev_min[segment] = dev_matrix[:, segment].min()
             self._seg_dev_mean[segment] = dev_matrix[:, segment].__abs__().mean()
 
+    @type_accept(test=str, tolerance=(float, int), SID=(None, int))
     @value_accept(test=test_types, tolerance=(0.3, 8), SID=(0, 180))
     def analyze(self, test, tolerance=3, SID=None):
         """Analyze 2 VMAT images, the open field image and DMLC field image, according to 1 of 2 possible tests.
