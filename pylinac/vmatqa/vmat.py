@@ -53,6 +53,7 @@ class VMAT(AnalysisModule):
         """
 
     def __init__(self):
+        super().__init__()
         self.image_open = ImageObj()  # the Open field image
         self.image_dmlc = ImageObj()  # the MLC field image
         self._test_type = ''  # the test to perform
@@ -95,7 +96,7 @@ class VMAT(AnalysisModule):
         :type im_type: str
         """
 
-        img, props = ImageObj.load_image(self, file_path, return_it=True)
+        img, props = ImageObj.load_image(file_path, return_it=True)
         if im_type == im_types[0]:  # open
             self.image_open = img
         else:  # dmlc

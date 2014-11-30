@@ -268,11 +268,12 @@ def point_to_2point_line_dist(point, line_point):
     Based on Wikipedia article: http://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line, paragraph: Line defined by two points
 
     :param point: (y,x)
+    :type point: Point
     :param line_point1: (y,x)
     :return:
     """
-    x0 = point[1]
-    y0 = point[0]
+    x0 = point.x
+    y0 = point.y
     x1 = line_point[0,1]
     y1 = line_point[0,0]
     x2 = line_point[1,1]
@@ -337,15 +338,19 @@ def point_line_dist_multiline(p, segs, minormax='max'):
 def point2edge_min(image, point):
     """Calculates minimum distance from user point to image edges
 
-    point = (y,x)
+    :param image: numpy image array
+    :type image: numpy.ndarray
+    :param point: The point to calculate from
+    :type point: Point
+
     """
     rows = np.size(image, 0)
     cols = np.size(image, 1)
     disttoedge = np.zeros(4)
-    disttoedge[0] = rows - point[0]
-    disttoedge[1] = cols - point[1]
-    disttoedge[2] = point[0]
-    disttoedge[3] = point[1]
+    disttoedge[0] = rows - point.y
+    disttoedge[1] = cols - point.x
+    disttoedge[2] = point.y
+    disttoedge[3] = point.x
     return min(disttoedge)
 
 def invert(matrix):
