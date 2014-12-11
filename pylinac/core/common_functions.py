@@ -87,7 +87,7 @@ def get_filename(UIdir=None, UIcaption='', UIfilters='', multiselect=False):
     withdraw_tkinter()
 
     # get user-defined image file
-    filename = askopenfilename(caption=UIcaption)
+    filename = askopenfilename()
     return filename
 
 
@@ -256,11 +256,11 @@ class Prof_Penum(object):
         field_values = self.ydata[left:right]
 
         if value == 'mean':
-            return field_values.mean()
+            return field_values.mean_dev()
         elif value == 'median':
             return np.median(field_values)
         elif value == 'max':
-            return field_values.max()
+            return field_values.max_dev()
 
 def point_to_2point_line_dist(point, line_point):
     """
@@ -368,7 +368,7 @@ def dist_2points(point1, point2):
 
 def withdraw_tkinter():
     """Opens and withdraws a Tk window. Necessary so a base window doesn't open."""
-    Tk.withdraw()
+    Tk().withdraw()
 
 def go_up_dirlevel(levels=0):
     """Go up directory levels from where the caller file is located.

@@ -23,6 +23,8 @@ from scipy.misc import imresize
 from PIL import Image
 import dicom
 
+from pylinac.geometry import Point
+
 
 class AnalysisModule(object):
     """An abstract class for distinct analysis modules (Starshot, VMAT, etc). Its purpose is to define basic method
@@ -30,7 +32,8 @@ class AnalysisModule(object):
     "load_image" method.
     """
     def __init__(self):
-        self.test_passed = False  # set initial test result to fail
+        pass
+        # self.test_passed = False  # set initial test result to fail
 
     def load_demo_image(self):
         """To be overloaded by each specific tool. Loads a demo image for the given class."""
@@ -44,6 +47,12 @@ class AnalysisModule(object):
         """Demo of module's abilities."""
         raise NotImplementedError("The demo for this module has not been built yet.")
 
+    def load_image(self, filepath):
+        raise NotImplementedError
+
+    def load_image_UI(self):
+        raise NotImplementedError
+
 class ImageObj(object):
     """An analysis module component that utilizes a single image in its analysis.
     Contains methods to load and manipulate the image and its properties.
@@ -51,12 +60,21 @@ class ImageObj(object):
 
     def __init__(self, image_array=None):
         """Initialize some attributes."""
-        self.pixel_array = image_array  # if None, will eventually be a numpy array
+        if image_array is None:
+            self.pixel_array = np.array([])
+        else:
+            self.pixel_array = image_array  # if None, will eventually be a numpy array
         self.properties = {'DPI': None,  # Dots (pixels) per inch
                          'DPmm': None,  # Dots (pixels) per mm
                          'SID mm': None,  # Source (linac target) to Image distance in mm
                          'Image Type': '',  # Image type; either 'DICOM' or 'IMAGE'
         }
+
+    @property
+    def center(self):
+        x_center = self.pixel_array.shape[1] / 2
+        y_center = self.pixel_array.shape[0] / 2
+        return Point(x_center, y_center)
 
     def set_pixel_array(self, image_array):
         """Set the image from a pre-existing numpy array"""

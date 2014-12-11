@@ -26,9 +26,9 @@ import dicom
 from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 
-from pylinac.common.decorators import value_accept
-from pylinac.common.image_classes import MultiImageObject
-from pylinac.common.common_functions import invert, dist_2points, sector_mask, peak_detect
+from decorators import value_accept
+from pylinac.core.image_classes import MultiImageObject
+from pylinac.core.common_functions import invert, dist_2points, sector_mask, peak_detect
 
 
 known_manufacturers = ('Varian Medical Systems', 'ELEKTA')
@@ -302,8 +302,8 @@ class SR(Slice):
         num_peaks = np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
         num_valleys = np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
         for name, LP_pair in zip(self.object_names, range(len(num_peaks) - 1)):
-            region_max = max_vals[num_peaks[LP_pair]:num_peaks[LP_pair + 1]].mean()
-            region_min = min_vals[num_valleys[LP_pair]:num_valleys[LP_pair + 1]].mean()
+            region_max = max_vals[num_peaks[LP_pair]:num_peaks[LP_pair + 1]].mean_dev()
+            region_min = min_vals[num_valleys[LP_pair]:num_valleys[LP_pair + 1]].mean_dev()
             self.object_values[name] = (region_max - region_min) / (region_max + region_min)
         # normalize the values by the first LP
         max_mtf = np.array(list(self.object_values.values())).max()
