@@ -16,6 +16,7 @@ import zipfile as zp
 import numpy as np
 from scipy import ndimage
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle as mpl_Circle
 
 from pylinac.core.common_functions import Prof_Penum, point2edge_min, peak_detect
 from pylinac.core.decorators import value_accept
@@ -283,10 +284,10 @@ class Starshot(AnalysisModule):
 
         # plot radiation lines
         for line in self.lines:
-            line.add_to_axes(imgplot)
+            line.add_to_axes(imgplot.axes)
 
         # plot wobble circle
-        self.wobble.add_to_figure(imgplot)
+        self.wobble.add_to_axes(imgplot.axes)
 
         # plot profile circle
         self.circle_profile.add_to_figure(imgplot)
@@ -305,7 +306,7 @@ class Starshot(AnalysisModule):
         """Run the Starshot module demo."""
         self.load_demo_image()
         self.analyze()
-        print(self.get_string_results)
+        print(self.get_string_results())
         self.plot_analyzed_image()
 
 
@@ -314,13 +315,11 @@ class Wobble(Circle):
     def __init__(self):
 
         super().__init__()
-        self.center = Point(x=0, y=0)  # The center point of the radiation wobble.
-        self.radius = 0  # The radius of the wobble circle. Could be in pixels or mm.
         self.radius_pix = 0  # The radius of the circle in pixels. For proper drawing of the circle on the plot.
 
-    def add_to_figure(self, fig, color='black'):
-        """Plot the wobble circle to the figure."""
-        fig.axes.add_patch(Circle((self.center.x, self.center.y), edgecolor=color, radius=self.radius_pix, fill=False))
+    # def add_to_figure(self, fig, color='black'):
+    #     """Plot the wobble circle to the figure."""
+    #     fig.axes.add_patch(Circle((self.center.x, self.center.y), edgecolor=color, radius=self.radius_pix, fill=False))
 
 
 class CircleProfile(object):
@@ -444,7 +443,7 @@ class CircleProfile(object):
             plt.plot(self.profile)
             plt.show()
         else:
-            fig.axes.add_patch(Circle((self.center.x, self.center.y), edgecolor=color, radius=self.radius_pix, fill=False))
+            fig.axes.add_patch(mpl_Circle((self.center.x, self.center.y), edgecolor=color, radius=self.radius_pix, fill=False))
 
 # ----------------------------
 # Starshot demo
