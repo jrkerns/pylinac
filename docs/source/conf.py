@@ -26,7 +26,8 @@ sys.path.insert(1, os.path.abspath('../..'))
 # Trouble building on RTD with numpy/scipy: http://blog.rtwilson.com/how-to-make-your-sphinx-documentation-compile-with-readthedocs-when-youre-using-numpy-and-scipy/
 import mock
 
-MOCK_MODULES = ['builtins','future','future.builtins','dicom','PySide','PyQt4','numpy', 'scipy', 'matplotlib', 'matplotlib.pyplot',
+MOCK_MODULES = ['builtins','inspect','future','future.builtins','dicom','PySide','PyQt4','numpy', 'scipy', 'matplotlib',
+                'matplotlib.pyplot',
                 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize','scipy.misc','matplotlib.patches', 'matplotlib.cm']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
@@ -60,7 +61,7 @@ master_doc = 'index'
 project = 'Pylinac'
 copyright = '2014, James Kerns'
 # Document both class docstring and __init__ docstring. See: http://sphinx-doc.org/ext/autodoc.html#confval-autoclass_content
-# autoclass_content = 'both'
+autoclass_content = 'both'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

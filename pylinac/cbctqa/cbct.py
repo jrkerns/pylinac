@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 from pylinac.core.decorators import value_accept
 from pylinac.core.image_classes import MultiImageObject
 from pylinac.core.common_functions import invert, dist_2points, sector_mask, peak_detect
-from pylinac.geometry import Point
+from pylinac.core.geometry import Point
 
 known_manufacturers = ('Varian Medical Systems', 'ELEKTA')
 demo_protocols = ('hi_head', 'thorax', 'pelvis')  # protocol names for using demo images

@@ -7,7 +7,7 @@ import numpy as np
 
 from pylinac.core.common_functions import go_up_dirlevel
 from pylinac.starshot.starshot import Starshot, CircleProfile, Wobble
-from pylinac.geometry import Point
+from pylinac.core.geometry import Point
 
 
 test_dir = osp.dirname(__file__)

@@ -19,7 +19,6 @@ except ImportError:
     from tkFileDialog import askopenfilename, askopenfilenames, askdirectory
 
 import numpy as np
-from numpy import sqrt
 from PIL import Image
 import dicom
 
@@ -309,7 +308,7 @@ def point_line_dist(p, seg, testSegmentEnds=False):
         #20080821 raise ValueError, "zero length line segment"
         dy = y3 - y1
         dx = x3 - x1
-        return sqrt(dx * dx + dy * dy)  # return point to point distance
+        return np.sqrt(dx * dx + dy * dy)  # return point to point distance
 
     u = (x3 - x1) * dx21 + (y3 - y1) * dy21
     u = u / float(lensq21)
@@ -326,7 +325,7 @@ def point_line_dist(p, seg, testSegmentEnds=False):
     dx30 = x3 - x
     dy30 = y3 - y
 
-    return sqrt(dx30 * dx30 + dy30 * dy30)
+    return np.sqrt(dx30 * dx30 + dy30 * dy30)
 
 def point_line_dist_multiline(p, segs, minormax='max'):
     """The smallest/biggest distance of a point to a sequence of line segments. Used in Starshot module."""

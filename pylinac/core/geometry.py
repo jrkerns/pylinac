@@ -29,7 +29,7 @@ class Circle(object):
     """A circle with center Point and radius."""
     def __init__(self, center_point=None, radius=None):
 
-        if center_point is not None or isinstance(center_point, Point):
+        if center_point is not None or not isinstance(center_point, Point):
             raise TypeError("Circle center must be of type Point")
 
         self.center = center_point

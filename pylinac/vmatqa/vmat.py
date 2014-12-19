@@ -20,7 +20,7 @@ from matplotlib.patches import Rectangle
 
 from pylinac.core.decorators import value_accept, type_accept, lazyproperty
 from pylinac.core.image_classes import ImageObj, AnalysisModule
-from pylinac.geometry import Point, Box
+from pylinac.core.geometry import Point, Box
 
 
 # Common constants

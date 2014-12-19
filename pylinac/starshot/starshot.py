@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from pylinac.core.common_functions import Prof_Penum, point2edge_min, peak_detect
 from pylinac.core.decorators import value_accept
 from pylinac.core.image_classes import ImageObj, AnalysisModule
-from pylinac.geometry import Point, Line, Circle
+from pylinac.core.geometry import Point, Line, Circle
 
 
 class Starshot(AnalysisModule):

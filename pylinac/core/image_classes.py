@@ -23,7 +23,7 @@ from scipy.misc import imresize
 from PIL import Image
 import dicom
 
-from pylinac.geometry import Point
+from pylinac.core.geometry import Point
 
 
 class AnalysisModule(object):
