@@ -31,9 +31,6 @@ class AnalysisModule(object):
     names to be consistent across analysis modules. E.g. the starshot and VMAT modules will both have an "analyze" and
     "load_image" method.
     """
-    def __init__(self):
-        pass
-        # self.test_passed = False  # set initial test result to fail
 
     def load_demo_image(self):
         """To be overloaded by each specific tool. Loads a demo image for the given class."""
