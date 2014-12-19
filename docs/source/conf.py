@@ -59,6 +59,8 @@ master_doc = 'index'
 # General information about the project.
 project = 'Pylinac'
 copyright = '2014, James Kerns'
+# Document both class docstring and __init__ docstring. See: http://sphinx-doc.org/ext/autodoc.html#confval-autoclass_content
+# autoclass_content = 'both'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

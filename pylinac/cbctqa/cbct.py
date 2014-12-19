@@ -26,10 +26,10 @@ import dicom
 from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 
-from decorators import value_accept
+from pylinac.core.decorators import value_accept
 from pylinac.core.image_classes import MultiImageObject
 from pylinac.core.common_functions import invert, dist_2points, sector_mask, peak_detect
-
+from pylinac.geometry import Point
 
 known_manufacturers = ('Varian Medical Systems', 'ELEKTA')
 demo_protocols = ('hi_head', 'thorax', 'pelvis')  # protocol names for using demo images
@@ -47,7 +47,7 @@ class Slice(object):
         """
         self.image = combine_surrounding_slices(images, slice, mode=mode)
         self.settings = settings
-        self.phan_center = np.zeros(2)  # the center of the phantom for that slice in x,y
+        self.phan_center = Point()  # center pixel of the phantom
         self.object_names = []
         self.object_angles = {}
         self.object_values = {}  # The pixel values of the ROIs
@@ -118,8 +118,8 @@ class Slice(object):
 
     def _return_ROI_center(self, angle, name):
         # rename some things for convenience
-        phan_cen_y = self.phan_center[0]  # HU slice center y-coordinate
-        phan_cen_x = self.phan_center[1]  # ditto for x-coordinate
+        phan_cen_y = self.phan_center.y  # HU slice center y-coordinate
+        phan_cen_x = self.phan_center.x  # ditto for x-coordinate
         radius = self.radius2objs  # radius from slice center to extract HU rois
         roll = self.settings['phantom roll']
         # Calculate the additional shift of the ROI coords, given the phantom roll. Exception is the Center ROI
@@ -230,8 +230,8 @@ class SR(Slice):
         :returns: 1-D profile of all Line Pairs. Plot this for a nice view of all line pairs.
         """
         # rename some things for convenience
-        phan_cent_y = self.phan_center[0]  # HU slice center y-coordinate
-        phan_cent_x = self.phan_center[1]  # ditto for x-coordinate
+        phan_cent_y = self.phan_center.y  # HU slice center y-coordinate
+        phan_cent_x = self.phan_center.x  # ditto for x-coordinate
         roll = self.settings['phantom roll']
         # create index and cos, sin points which will be the circle's rectilinear coordinates
         circle_idx = np.radians(np.arange(180 + roll, 360 - 0.01 + 180 + roll, 0.01)[::-1])

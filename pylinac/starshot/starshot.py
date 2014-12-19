@@ -15,13 +15,12 @@ import zipfile as zp
 
 import numpy as np
 from scipy import ndimage
-from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 
 from pylinac.core.common_functions import Prof_Penum, point2edge_min, peak_detect
-from decorators import value_accept
+from pylinac.core.decorators import value_accept
 from pylinac.core.image_classes import ImageObj, AnalysisModule
-from pylinac.geometry import Point, Line
+from pylinac.geometry import Point, Line, Circle
 
 
 class Starshot(AnalysisModule):
@@ -39,20 +38,13 @@ class Starshot(AnalysisModule):
         self.tolerance_unit = 'pixels'  # tolerance units are initially pixels. Will be converted to 'mm' if conversion
         # information available in image properties
 
-    @value_accept(number=(1, 2))
-    def load_demo_image(self, number=1):
-        """Load a starshot demo image.
-
-        :param number: There are a few demo images. This number will choose which demo file to use. As of now
-            there are 2 demo images.
-        :type number: int
-        """
+    def load_demo_image(self):
+        """Load the starshot demo image."""
         #TODO: see about using Python's temporary file/folder module
         demos_folder = osp.join(osp.split(osp.abspath(__file__))[0], 'demo_files')
-        if number == 1:
-            im_zip_path = osp.join(demos_folder, "demo_starshot_1.zip")
-        else:
-            im_zip_path = osp.join(demos_folder, "demo_starshot_2.zip")
+
+        im_zip_path = osp.join(demos_folder, "demo_starshot_1.zip")
+
         # extract file from the zip file and put it in the demos folder
         zp.ZipFile(im_zip_path).extractall(demos_folder)
         # rename file path to the extracted one
@@ -171,7 +163,7 @@ class Starshot(AnalysisModule):
          :type SID: int
         """
         # error checking
-        if self.image.pixel_array is None:
+        if self.image.pixel_array.size == 0:
             raise AttributeError("Starshot image not yet loaded")
 
         # check inversion
@@ -259,8 +251,7 @@ class Starshot(AnalysisModule):
         else:
             return False
 
-    @property
-    def string_results(self):
+    def get_string_results(self):
         """Return the results of the analysis.
 
         :return string: A string with a statement of the minimum circle.
@@ -292,7 +283,7 @@ class Starshot(AnalysisModule):
 
         # plot radiation lines
         for line in self.lines:
-            line.add_to_figure(imgplot)
+            line.add_to_axes(imgplot)
 
         # plot wobble circle
         self.wobble.add_to_figure(imgplot)
@@ -310,22 +301,19 @@ class Starshot(AnalysisModule):
             plot.draw()
             plot.axes.hold(False)
 
-    @value_accept(number=(1, 2))
-    def run_demo(self, number=1):
-        """Run the Starshot module demo.
-
-        :param number: There are currently two demo images; select 1 or 2
-        :type number: int
-        """
-        self.load_demo_image(number)
+    def run_demo(self):
+        """Run the Starshot module demo."""
+        self.load_demo_image()
         self.analyze()
-        print(self.string_results)
+        print(self.get_string_results)
         self.plot_analyzed_image()
 
 
-class Wobble(object):
+class Wobble(Circle):
     """A class that holds the wobble information of the Starshot analysis."""
     def __init__(self):
+
+        super().__init__()
         self.center = Point(x=0, y=0)  # The center point of the radiation wobble.
         self.radius = 0  # The radius of the wobble circle. Could be in pixels or mm.
         self.radius_pix = 0  # The radius of the circle in pixels. For proper drawing of the circle on the plot.
@@ -462,5 +450,5 @@ class CircleProfile(object):
 # Starshot demo
 # ----------------------------
 if __name__ == '__main__':
-    Starshot().run_demo(2)
+    Starshot().run_demo()
     pass

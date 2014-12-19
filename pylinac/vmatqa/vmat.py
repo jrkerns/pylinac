@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.patches import Rectangle
 
-from decorators import value_accept, type_accept, lazyproperty
+from pylinac.core.decorators import value_accept, type_accept, lazyproperty
 from pylinac.core.image_classes import ImageObj, AnalysisModule
 from pylinac.geometry import Point, Box
 
@@ -390,7 +390,7 @@ class Sample(Box):
         produces in one segment.
     """
     def __init__(self, width, height, center):
-        super().__init__(width, height, center, dtype=int)
+        super().__init__(width, height, center, as_int=True)
         self.ratio = 0
 
     def extract_ratio(self, open_image, dmlc_image):

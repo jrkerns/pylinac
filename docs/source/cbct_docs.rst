@@ -143,3 +143,4 @@ The CBCT class is derived from a Base Class; inherited members are included in t
     :members:
     :inherited-members:
 
+.. autoclass:: pylinac.cbctqa.cbct.Slice

@@ -12,7 +12,7 @@ import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
 
 from pylinac.core.common_functions import get_filename
-from decorators import type_accept, lazyproperty
+from pylinac.core.decorators import type_accept, lazyproperty
 
 
 """Named Constants"""
