@@ -104,10 +104,10 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
   could invalidate automatic results. The roll of the phantom is determined by examining the HU module and converting to
   binary. The air holes are then located and the angle of the two holes determines the phantom roll.
 
-.. note::
-    For each step below, the "module" analyzed is actually the mean, median, or maximum of 3 slices (+/-1 slice around and
-    including the nominal slice) to ensure robust measurements. Also, for each step/module, the phantom center is
-    determined, which corrects for the phantom pitch and yaw.
+    .. note::
+        For each step below, the "module" analyzed is actually the mean, median, or maximum of 3 slices (+/-1 slice around and
+        including the nominal slice) to ensure robust measurements. Also, for each step/module, the phantom center is
+        determined, which corrects for the phantom pitch and yaw.
 
 * **Determine HU linearity** -- The HU module (CTP404) contains several materials with different HU values. Using
   hardcoded angles (corrected for roll) and radius from the center of the phantom, circular ROIs are sampled which
@@ -137,10 +137,14 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 API Documentation
 -----------------
 
-The CBCT class is derived from a Base Class; inherited members are included in this list. More at :ref:`baseclass_api_doc`.
+The CBCT class contains several other classes. There are several Slices of Interest (SoI), most of which contain Regions of Interest (RoI).
+SoIs have a base class as well as specialized classes for each specific slice.
 
 .. autoclass:: pylinac.cbctqa.cbct.CBCT
     :members:
     :inherited-members:
 
 .. autoclass:: pylinac.cbctqa.cbct.Slice
+    :members:
+
+

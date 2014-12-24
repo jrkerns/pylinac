@@ -1,8 +1,6 @@
-from __future__ import division, absolute_import, print_function
-
 import unittest
 
-from pylinac.cbctqa.cbct import CBCT
+from pylinac.cbct import CBCT
 
 
 # Current pass/fail rates depend on tolerances. E.g. within 5 HU/%/mm might be better

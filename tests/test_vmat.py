@@ -3,7 +3,7 @@ from __future__ import division, absolute_import, print_function
 import unittest
 import os.path as osp
 
-from pylinac.vmatqa.vmat import VMAT
+from pylinac.vmat import VMAT
 
 
 test_files_dir = osp.join(osp.dirname(__file__), 'test_files')

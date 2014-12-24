@@ -1,27 +1,25 @@
-from __future__ import division, absolute_import, print_function
-
 import unittest
 import os.path as osp
 
 import numpy as np
 
-from pylinac.core.common_functions import go_up_dirlevel
-from pylinac.starshot.starshot import Starshot, CircleProfile, Wobble
+from pylinac.core.utilities import go_up_dirlevel
+from pylinac.starshot import Starshot, StarProfile, Wobble
 from pylinac.core.geometry import Point
 
 
 test_dir = osp.dirname(__file__)
-test_file_dir = osp.join(test_dir, 'test_files')
+test_file_dir = osp.join(test_dir, 'test_files', 'Starshot')
 
-demo_file_dir = osp.join(go_up_dirlevel(1), 'pylinac', 'starshot', 'demo_files')
-demo_1_filepath = osp.join(demo_file_dir, 'demo_starsthot_1.zip')
-demo_2_filepath = osp.join(demo_file_dir, 'demo_starsthot_2.zip')
+demo_file_dir = osp.join(go_up_dirlevel(1), 'pylinac', 'demo_files', 'starshot')
+demo_filepath = osp.join(demo_file_dir, 'starshot_gantry.zip')
+
 
 
 class Test_CircleProfile(unittest.TestCase):
-    """Test the CircleProfile class based on an analysis of demo image #1."""
+    """Test the StarProfile class based on an analysis of demo image #1."""
     def setUp(self):
-        self.cp = CircleProfile()
+        self.cp = StarProfile()
         # self.star = Starshot().load_demo_image(1)
 
     def test_init(self):
