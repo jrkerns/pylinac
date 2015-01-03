@@ -93,7 +93,7 @@ class Test_CircleProfile(unittest.TestCase):
         # test random sample is 1 (the whole matrix is 1's)
         self.assertEqual(cp.y_values[500], 1)
         # test x_locs set properly
-        self.assertEqual(cp.x_locs[0], center.x+radius)
+        self.assertAlmostEqual(cp.x_locs[0], center.x+radius, delta=0.01)
 
         small_img_array = np.ones((20,20))
         cp = CircleProfile(center, radius)

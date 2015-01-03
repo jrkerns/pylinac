@@ -1,10 +1,16 @@
 import unittest
 
-import numpy as np
-
 from pylinac.core.utilities import *
 
 class Test_Utilities(unittest.TestCase):
+
+    def test_numeric_type(self):
+
+        self.assertIsInstance(1, Numeric)  # int
+        self.assertIsInstance(1.01, Numeric)  # float
+        self.assertIsInstance(np.array((5,6))[0], Numeric)  # numpy number
+
+        self.assertNotIsInstance('1', Numeric)  # string is invalid
 
     def test_isnumeric(self):
         # test numerics

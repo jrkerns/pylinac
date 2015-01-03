@@ -2,9 +2,9 @@
 """Several classes used in pylinac derive from base classes which provide lower-level functionality like image loading, basic image
 manipulation (invert, rotate, etc), and other misc things. These are
 the API docs for those classes. """
-
-import os.path as osp
+import copy
 from tkinter.filedialog import askdirectory
+import warnings
 
 import numpy as np
 from scipy import ndimage
@@ -12,9 +12,13 @@ from scipy.misc import imresize
 from PIL import Image
 import dicom
 
+from pylinac.core.decorators import type_accept
 from pylinac.core.geometry import Point
-from pylinac.core.utilities import withdraw_tkinter
+from pylinac.core.io import get_filepath_UI, is_valid_file
+from pylinac.core.utilities import withdraw_tkinter, Numeric, array2logical
 
+
+MM_per_INCH = 25.4
 
 class ImageObj(object):
     """An analysis module component that utilizes a single image in its analysis.
@@ -23,18 +27,14 @@ class ImageObj(object):
 
     def __init__(self, image_array=None):
         """Initialize some attributes."""
-        self.pixel_array = image_array
-        self.properties = {'DPI': None,  # Dots (pixels) per inch
-                           'DPmm': None,  # Dots (pixels) per mm
-                           'SID mm': None,  # Source (linac target) to Image distance in mm
-                           'Image Type': '',  # Image type; either 'DICOM' or 'IMAGE'
-        }
+        if image_array is None:
+            self.pixel_array = np.array([])
+        else:
+            self.pixel_array = image_array
 
-    @property
-    def dpi(self):
-        pass
-
-
+        self.dpi = 0
+        self.dpmm = 0
+        self.SID = 0
 
     @property
     def center(self):
@@ -50,16 +50,17 @@ class ImageObj(object):
     def pixel_array(self, array):
         self.set_pixel_array(array)
 
+    @type_accept(image_array=np.ndarray)
     def set_pixel_array(self, image_array=None):
         """Set the image from a pre-existing numpy array"""
-        if image_array is None:
-            self._pixel_array = np.array([])
-        elif not isinstance(image_array, np.ndarray):
-            raise TypeError("Image array must be a numpy array")
-        else:
-            self._pixel_array = image_array
+        self._pixel_array = image_array
 
-    def load_image(self, file_path, to_gray=True, return_it=False, apply_filter=False):
+    def load_image_UI(self, caption='', to_gray=True):
+        """Load an image using a UI dialog."""
+        file_path = get_filepath_UI()
+        self.load_image(file_path)
+
+    def load_image(self, file_path, to_gray=True, apply_filter=False, return_it=False):
         """Load an image using PIL or pydicom as a numpy array from a filestring.
 
         :param file_path: Specifies the file location
@@ -72,51 +73,46 @@ class ImageObj(object):
         """
 
         # Check that filestring points to valid file
-        if not osp.isfile(file_path):
-            raise FileExistsError("{} did not point to a valid file".format(file_path))
+        is_valid_file(file_path, raise_error=True)
+
         # Read image depending on file type
-        im_file, image = self._return_img_file(file_path)
+        im_file, image = self._return_img_file(file_path, to_gray)
         # Read in image properties
-        im_props = self._return_im_props(im_file)
+        self._set_im_props(im_file)
 
         if apply_filter:
             image = self.median_filter()
 
-        if return_it:
-            return image, im_props
-        else:
-            self.pixel_array = image
-            self.properties = im_props
+        self.pixel_array = image
 
-    def _return_img_file(self, filestring):
+    def _return_img_file(self, filestring, to_gray=True):
         """Return the file and image, depending on if it's a normal image type (JPG, PNG, etc) or DICOM."""
         # TODO: try incorporating the DICOM SOP; http://www.dicomlibrary.com/dicom/sop/
         try: # try loading dicom first
             im_file = dicom.read_file(filestring)
             image = im_file.pixel_array
-            self.properties['Image Type'] = 'DICOM'
+            self.set_im_type('DICOM')
         except:  # load as a normal image
             im_file = Image.open(filestring)
+            if to_gray:
+                im_file = im_file.convert("L")
             image = np.array(im_file)
-            self.properties['Image Type'] = 'IMAGE'
+            self.set_im_type('IMAGE')
         return im_file, image
 
-    def _return_im_props(self, image_file):
+    def _set_im_props(self, image_file):
         """Return the properties of an image file."""
-        im_props = self.properties
-        if self.properties['Image Type'] == 'DICOM':
+        if self.im_type == 'DICOM':
             try:
-                im_props['SID mm'] = float(image_file.RTImageSID)
-            except:
-                # assume 1000 mm otherwise
-                im_props['SID mm'] = 1000
-            try:
-                pixel_spacing = float(image_file.ImagePlanePixelSpacing[0])
-                im_props['DPmm'] = 1 / (pixel_spacing * im_props['SID mm'] / 1000)
-                im_props['DPI'] = im_props['DPmm'] * 25.4  # 1 inch = 25.4 mm
+                self.SID = float(image_file.RTImageSID) / 10
             except:
                 pass
-        else:
+            try:
+                pixel_spacing = float(image_file.ImagePlanePixelSpacing[0])
+                self.dpmm = 1 / (pixel_spacing * self.SID / 1000)
+            except:
+                warnings.warn("DICOM Image pixel spacing not set")
+        elif self.im_type == 'IMAGE':
             try:
                 dpi = image_file.info['dpi']
                 if len(dpi) > 1:
@@ -124,12 +120,10 @@ class ImageObj(object):
                     if dpi[0] != dpi[1]:
                         raise ValueError("Image DPI is not equal in both directions")
                     dpi = dpi[0]
-                    im_props['DPI'] = dpi
-                    im_props['DPmm'] = dpi / 25.4
+                    self.dpi = dpi
             except:  # DPI unable to be determined
-                pass
-
-        return im_props
+                self.dpi = 0
+                warnings.warn("Image DPI unable to be determined")
 
     def _combine_images(self, normalize_maximums=True, *images):
         """Combine multiple images together into one image.
@@ -183,6 +177,16 @@ class ImageObj(object):
         """
         self.pixel_array = imresize(self.pixel_array, size=size, interp=interp, mode='F')
 
+    def convert2BW(self, threshold, return_it=False):
+        """Convert the pixel array to a black & white array based on the threshold."""
+        array = array2logical(self.pixel_array, threshold)
+        if return_it:
+            new_self = copy.copy(self)
+            new_self.pixel_array = array
+            return new_self
+        else:
+            self.pixel_array = array
+
     def dist2edge_min(self, point):
         """Calculates minimum distance from user point to image edges
 
@@ -198,14 +202,65 @@ class ImageObj(object):
         disttoedge[3] = point.x
         return min(disttoedge)
 
+    @property
+    def dpi(self):
+        return self._dpi
+
+    @dpi.setter
+    def dpi(self, dpi):
+        self.set_dpi(dpi)
+
+    @type_accept(dpi=Numeric)
     def set_dpi(self, dpi):
         """Set the dots-per-inch attribute directly."""
-        self.properties['DPI'] = dpi
+        self._dpi = dpi
+        # update the DPmm attr if need be
+        updated_dpmm = dpi / MM_per_INCH
+        if hasattr(self, 'dpmm') and self.dpmm != updated_dpmm:
+            self.dpmm = updated_dpmm
 
+    @property
+    def dpmm(self):
+        return self._dpmm
+
+    @dpmm.setter
+    def dpmm(self, dpmm):
+        self.set_dpmm(dpmm)
+
+    @type_accept(dpmm=Numeric)
     def set_dpmm(self, dpmm):
         """Set the dots-per-mm attr directly."""
-        self.properties['DPmm'] = dpmm
+        self._dpmm = dpmm
+        # update the DPI attr if need be
+        updated_dpi = dpmm * MM_per_INCH
+        if hasattr(self, 'dpi') and self.dpi != updated_dpi:
+            self.dpi = updated_dpi
 
+    @property
+    def SID(self):
+        return self._SID
+
+    @SID.setter
+    def SID(self, SID):
+        self.set_SID(SID)
+
+    @type_accept(SID=Numeric)
+    def set_SID(self, SID):
+        """Set the SID; units are in mm."""
+        self._SID = SID
+
+    @property
+    def im_type(self):
+        return self._im_type
+
+    @im_type.setter
+    def im_type(self, im_type):
+        self.set_im_type(im_type)
+
+    @type_accept(im_type=str)
+    def set_im_type(self, im_type):
+        """Set the image type"""
+        self._im_type = im_type
 
 class MultiImageObject(object):
     """A class to be inherited for multiple image analysis (e.g. CBCT QA)"""

@@ -13,7 +13,7 @@ setup(
     version=__version__,
     packages=find_packages(),
     # include_package_data=True,
-    package_data={'pylinac': ['starshot/demo_files/*', 'vmatqa/demo_files/*', 'cbctqa/demo_files/*']},
+    package_data={'pylinac/demo_files': ['cbct/*', 'starshot/*', 'vmat/*']},
     zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
     keywords='medical physics AAPM TG142 quality assurance starshot cbct vmat',
@@ -22,12 +22,10 @@ setup(
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
     install_requires=["numpy >= 1.8",
                       "scipy >= 0.13",
-                      "pydicom >= 0.9.8",
+                      "pydicom >= 0.9.9",
                       "matplotlib >= 1.3.1",
-                      "future >= 0.13",
-                      "Pillow >= 2.5",
-                      "setuptools >= 5.8"],
-    test_suite='tools.test_all',
+                      "Pillow >= 2.5"],
+    test_suite='tests.test_all',
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -43,7 +41,5 @@ setup(
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
         "Topic :: Scientific/Engineering :: Image Recognition",
         "Topic :: Scientific/Engineering :: Physics",
-        "Topic :: Software Development :: Libraries",
-    ],
-
+        "Topic :: Software Development :: Libraries"]
 )

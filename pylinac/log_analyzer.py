@@ -1,17 +1,12 @@
-from __future__ import division, absolute_import, print_function
-
 import struct
 import os.path as osp
 import csv
 
-from future.builtins import next
-from future.builtins import range
-from future.builtins import object
 import numpy as np
 import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
 
-from pylinac.core.common_functions import get_filename
+from pylinac.core import io
 from pylinac.core.decorators import type_accept, lazyproperty
 
 
@@ -21,12 +16,13 @@ dlg_file_exts = ('.dlg')  # add more if need be
 tlg_file_exts = ('.bin')  # ditto
 dynalog_leaf_conversion = 1.96614  # MLC physical plane scaling factor to iso (100cm SAD) plane
 
-class Axis(object):
+class Axis:
 
     def __init__(self, actual, expected=None):
         self.actual = actual
         if expected is not None:
-            assert len(actual) == len(expected)
+            if len(actual) != len(expected):
+                raise ValueError("Actual and expected Axis parameters are not equal length")
             self.expected = expected
 
     @property
@@ -73,7 +69,6 @@ class MLC(dict):
 
     def __init__(self, beam_on_idx=None):
         super().__init__()
-        self._cache = {}  # cache for holding calculated parameters
         self.beam_on_idx = beam_on_idx
 
     @lazyproperty
@@ -104,7 +99,7 @@ class MLC(dict):
     @lazyproperty
     def all_leaf_indices(self):
         """Return an array enumerated over the number of leaves."""
-        return np.array(list(range(1, len(self) + 1)))
+        return np.array(range(1, len(self) + 1))
 
     def get_RMS_per_leaf(self, bank=None, only_moving_leaves=False):
         """Calculate the root-mean-square (RMS) leaf error while the beam was on.
@@ -226,7 +221,7 @@ class MLC(dict):
     #     return idx
 
 
-class Subbeam(object):
+class Subbeam:
     """Holds subbeam information of Tlogs. Only applicable for auto-sequenced beams.
     """
     def __init__(self, log_content, cursor, log_version):
@@ -286,7 +281,7 @@ class Subbeam(object):
 #         column += 2
 
 
-class MachineLog(object):
+class MachineLog:
     """
     A class for reading in machine log files (both dynalogs and trajectory logs) from Varian machines
     and calculating various relevant parameters about them (RMS, 95th percentile error, etc).
@@ -298,7 +293,7 @@ class MachineLog(object):
         :param filename: Path to the log file. For trajectory logs this is a single .bin file.
             For dynalog files this should be the A-file. The B-file will be automatically pulled when A is read in. The B-file must be in
             the same directory as the A-file or an error is thrown. If filename is not passed in on init, it will need to be loaded later.
-        :type filename: string
+        :type filename: str
         :param lightweight_mode: Specifies if fluences and gamma maps should be saved as attrs or if results should
             be returned on given calculation. lightweight mode is good for reading in lots of files so as to conserve
             memory, but requires on-the-fly calculations, which is slower then pre-calculating.
@@ -373,7 +368,7 @@ class MachineLog(object):
 
     def load_logfile_UI(self):
         """Let user load a log file with a UI dialog box. """
-        filename = get_filename()
+        filename = io.get_filepath_UI()
         if filename: # if user didn't hit cancel...
             self._filename = filename
             self.read_log()
@@ -683,7 +678,7 @@ class MachineLog(object):
         self.jaw_x1 = Axis(matrix[:, 10])
         self.jaw_x2 = Axis(matrix[:, 11])
         self.carriageA = Axis(matrix[:, 12])
-        self.carriageB = Axis(matrix[:, 13])
+        self.carriage_B = Axis(matrix[:, 13])
         # MLC positions are in hundredths of mm in the physical leaf plane. Positive is retracted, negative is extented.
         # Positions will be scaled to isocenter plane after bank B positions are added to matrix.
         self.mlc = {}
@@ -709,9 +704,9 @@ class MachineLog(object):
         self._scale_dlog_mlc_pos()
 
     def read_Tlog(self, exclude_beam_off=False):
-        """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog 2.0/3.0) log file specifications.
+        """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog v2.0/3.0) log file specifications.
 
-        :param exclude_beam_off: Flag specifiying whether to remove the snapshot data where the beam was off.
+        :param exclude_beam_off: Flag specifying whether to remove the snapshot data where the beam was off.
             If True (default), beam-off data will be removed.
             If False, all data will be included. Note that this will affect MLC and fluence calculations as error, fluence, etc
             are calculated from the data extracted here.
@@ -747,9 +742,9 @@ class MachineLog(object):
                 # update cursor position to end of subbeam just analyzed.
                 self._cursor = self.subbeams[beam]._cursor
 
-        #----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
         # assignment of snapshot data (actual & expected of MLC, Jaw, Coll, etc)
-        #----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
 
 
 
@@ -760,8 +755,7 @@ class MachineLog(object):
         snapshot_data = self._decode_binary(fcontent, float, step_size*self.num_snapshots)
 
         # reshape snapshot data to be a x-by-num_snapshots matrix
-        snapshot_data = snapshot_data.reshape(self.num_snapshots,-1)
-
+        snapshot_data = snapshot_data.reshape(self.num_snapshots, -1)
 
 
         # collimator
@@ -792,8 +786,8 @@ class MachineLog(object):
         self.control_point = self._get_axis(snapshot_data, 24, BeamAxis)
 
         # carriages
-        self.carraigeA = self._get_axis(snapshot_data, 26, HeadAxis)
-        self.carriageB = self._get_axis(snapshot_data, 28, HeadAxis)
+        self.carraige_A = self._get_axis(snapshot_data, 26, HeadAxis)
+        self.carriage_B = self._get_axis(snapshot_data, 28, HeadAxis)
 
         # preallocation
         # mlc_expected = np.zeros((self.num_mlc_leaves, self.num_snapshots)) # usually a 120-x-num_snapshots matrix

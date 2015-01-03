@@ -7,7 +7,7 @@ and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary opt
 
 import os
 import os.path as osp
-import zipfile as zp
+import shutil
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,10 +25,10 @@ class Starshot(AnalysisModule):
     """
     def __init__(self):
         super().__init__()
-        self.image = ImageObj()  # The image array and property class
-        self.circle_profile = StarProfile()
-        self.lines = []  # list which will hold Line instances representing radiation lines.
-        self.wobble = Wobble()
+        self.image = ImageObj()  # The image array and image property structure
+        self.circle_profile = StarProfile()  # a circular profile which will detect radiation line locations
+        self.lines = []  # a list which will hold Line instances representing radiation lines.
+        self.wobble = Wobble()  # A Circle representing the radiation wobble
         self.tolerance = 1  # tolerance limit of the radiation wobble
         self.tolerance_unit = 'pixels'  # tolerance units are initially pixels. Will be converted to 'mm' if conversion
         # information available in image properties
@@ -36,19 +36,20 @@ class Starshot(AnalysisModule):
     def load_demo_image(self):
         """Load the starshot demo image."""
         #TODO: see about using Python's temporary file/folder module
-        demos_folder = osp.join(osp.dirname(__file__), 'demo_files', 'starshot')
-
-        im_zip_path = osp.join(demos_folder, "starshot_gantry.zip")
+        demo_folder = osp.join(osp.dirname(__file__), 'demo_files', 'starshot')
+        demo_file_zip = osp.join(demo_folder, 'starshot_gantry.zip')
+        demo_file = osp.join(demo_folder, 'starshot_gantry.tif')
 
         # extract file from the zip file and put it in the demos folder
-        zp.ZipFile(im_zip_path).extractall(demos_folder)
+        shutil.unpack_archive(demo_file_zip, extract_dir=demo_folder)
+        # zp.ZipFile(im_zip_path).extractall(demo_folder)
         # rename file path to the extracted one
-        file_path = im_zip_path.replace('.zip', '.tif')
+        # file_path = im_zip_path.replace('.zip', '.tif')
         # load image
-        self.image.load_image(file_path)
+        self.image.load_image(demo_file)
         # delete extracted file to save space
         try:
-            os.remove(file_path)
+            os.remove(demo_file)
         except:
             print("Extracted demo image was not able to be deleted and remains in the demo directory")
 
@@ -60,9 +61,9 @@ class Starshot(AnalysisModule):
         """Load the image by using a UI dialog box."""
         self.image.load_image_UI()
 
-    # @property
-    # def start_point(self):
-    #     return self.circle_profile.center
+    @property
+    def start_point(self):
+        return self.circle_profile.center
 
     def set_start_point(self, point, warn_if_far_away=True):
         """Set the algorithm starting point manually.
@@ -140,7 +141,7 @@ class Starshot(AnalysisModule):
         self.set_start_point(center_point, warn_if_far_away=False)
 
     @value_accept(radius=(0.05, 0.95), min_peak_height=(5, 80), SID=(0, 180))
-    def analyze(self, allow_inversion=True, radius=0.5, min_peak_height=0.25, SID=0):
+    def analyze(self, allow_inversion=True, radius=0.5, min_peak_height=0.25, SID=1000):
         """Analyze the starshot image.
 
          Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -171,7 +172,7 @@ class Starshot(AnalysisModule):
             self._auto_set_start_point()
 
         # set profile extraction radius
-        self.circle_profile.radius = self.convert_radius_perc2pix(radius)
+        self.circle_profile.radius = self._convert_radius_perc2pix(radius)
         # extract the circle profile
         self.circle_profile.get_profile(self.image.pixel_array)
         # find the radiation lines using the peaks of the profile
@@ -180,7 +181,7 @@ class Starshot(AnalysisModule):
         # find the wobble
         self._find_wobble_2step(SID)
 
-    def convert_radius_perc2pix(self, radius):
+    def _convert_radius_perc2pix(self, radius):
         """Convert a radius in percent (e.g. 50) to distance in pixels, based on the distance from center point to image edge."""
         dist = self.image.dist2edge_min(self.circle_profile.center)
         return dist*radius
@@ -201,15 +202,15 @@ class Starshot(AnalysisModule):
 
     def _scale_wobble(self, SID):
         # convert wobble to mm if possible
-        if self.image.properties['DPmm'] != 0:
+        if self.image.dpmm != 0:
             self.tolerance_unit = 'mm'
-            self.wobble.radius_mm = self.wobble.radius / self.image.properties['DPmm']
+            self.wobble.radius_mm = self.wobble.radius / self.image.dpmm
         else:
             self.tolerance_unit = 'pixels'
             self.wobble.radius_mm = self.wobble.radius
         if SID:
-            self.wobble.radius /= SID / 100
-            self.wobble.radius_mm /= SID / 100
+            self.wobble.radius /= SID / 1000
+            self.wobble.radius_mm /= SID / 1000
 
     def _find_wobble_2step(self, SID):
         """Find the smallest radius ("wobble") and center of a circle that touches all the star lines.
@@ -364,7 +365,7 @@ class StarProfile(CircleProfile):
         self.find_peaks(min_peak_height, min_peak_distance)
         # self.find_FWHM_peaks(min_peak_height, min_peak_distance)
 
-        # map 1D peaks to the image; i.e. add x and y coords of peaks
+        # map 1D peaks to the image; i.e. add x and y image coords of peaks
         self.map_peaks()
 
         # Match the peaks to form lines
@@ -379,11 +380,8 @@ class StarProfile(CircleProfile):
         the 7th peak will be the opposite peak of the 1st peak, forming a line. This method is robust to
         starting points far away from the real center.
         """
-        # line_list = []
-        offset = int(len(self.peaks)/2)
-        num_rad_lines = len(self.peaks) // 2
-        # for line in range(num_rad_lines):
-        #     line_list.append(Line(self.peaks[line], self.peaks[line+offset]))
+        num_rad_lines = int(len(self.peaks) / 2)
+        offset = num_rad_lines
         line_list = [Line(self.peaks[line], self.peaks[line+offset]) for line in range(num_rad_lines)]
         return line_list
 

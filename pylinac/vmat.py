@@ -11,19 +11,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-from pylinac.core.analysis import AnalysisModule
 from pylinac.core.decorators import value_accept, type_accept, lazyproperty
 from pylinac.core.image import ImageObj
 from pylinac.core.geometry import Point, Rectangle
+from pylinac.core.io import get_filepath_UI
+from pylinac.core.utilities import Numeric
 
-
-# Common constants
 DRMLC_seg_strs = ('1.6cm/s', '2.4cm/s', '0.8cm/s', '0.4cm/s')
 DRGS_seg_strs = ('105MU/min', '210MU/min', '314MU/min', '417MU/min', '524MU/min', '592MU/min', '600MU/min')
 test_types = {'DRGS': 'drgs', 'DRMLC': 'drmlc'}
 im_types = {'OPEN': 'open', 'DMLC': 'dmlc'}
 
-class VMAT(AnalysisModule):
+class VMAT:
     """The VMAT class analyzes two DICOM images acquired via a linac's EPID and analyzes
         regions of interest (segments) based on the paper by `Jorgensen et al <http://dx.doi.org/10.1118/1.3552922>`_, specifically,
         the Dose Rate & GantryAxis Speed (DRGS) and Dose Rate & MLC speed (DRMLC) tests.
@@ -35,8 +34,7 @@ class VMAT(AnalysisModule):
         self.image_dmlc = ImageObj()  # the MLC field image
         self._test_type = ''  # the test to perform
         self.tolerance = 3 # default of 3% tolerance as Jorgensen recommends
-        # the following are dicts holding the individual segment max, min and mean deviation
-        self.segments = []  # this is a list which will hold Segment objects (either 4 or 7)
+        self.segments = []  # a list which will hold Segment objects (either 4 or 7)
 
     @value_accept(im_type=im_types)
     def load_image_UI(self, im_type='open'):
@@ -47,12 +45,10 @@ class VMAT(AnalysisModule):
         """
         if  im_type == im_types['OPEN']:  # open
             caption = "Select Open Field EPID Image..."
-            img = self.image_open
         else:  # dmlc
             caption = "Select MLC Field EPID Image..."
-            img = self.image_dmlc
 
-        fs = img._get_imagepath_UI(self, caption=caption)
+        fs = get_filepath_UI(self, caption=caption)
         if fs:  # if user didn't hit cancel
             self.load_image(fs, im_type=im_type)
 
@@ -111,13 +107,12 @@ class VMAT(AnalysisModule):
         scale = Point(x_scale, y_scale)
 
         # SID scaling
-        if SID:
-            SID_scale = SID / 150
+        if self.image_open.SID:
+            SID_scale = self.image_open.SID / 150.0
+        elif SID is not None:
+            SID_scale = SID / 150.0
         else:
-            try:
-                SID_scale = self.image_open.properties['SID mm'] / 1500.0
-            except:
-                SID_scale = 1
+            SID_scale = 1
 
         return SID_scale, scale
 
@@ -175,7 +170,7 @@ class VMAT(AnalysisModule):
         for segment_num, segment in enumerate(self.segments):
             segment.deviations = deviation[:, segment_num]
 
-    @type_accept(test=str, tolerance=(float, int), SID=(None, int, float))
+    @type_accept(test=str, tolerance=Numeric, SID=Numeric)
     @value_accept(test=test_types, tolerance=(0.3, 8), SID=(0, 180))
     def analyze(self, test, tolerance=3, SID=None, HDMLC=False):
         """Analyze 2 VMAT images, the open field image and DMLC field image, according to 1 of 2 possible tests.
@@ -186,10 +181,10 @@ class VMAT(AnalysisModule):
         :type tolerance: float, int
         :param SID: The Source to Image (detector) distance in cm. Usually doesn't need to be passed for EPID DICOM images. This argument
             will override any automatically derived value however. If left as None and no SID was determined, it will assume 150cm.
-        :type SID: None, int
+        :type SID: None, int, float
         """
         # error checking
-        if self.image_open.pixel_array.size == 0  or self.image_dmlc.pixel_array.size == 0:
+        if not self.open_img_is_loaded or not self.dmlc_img_is_loaded:
             raise AttributeError("Open or MLC Image not loaded yet. Use .load_image() or .load_image_UI()")
 
         self._check_img_inversion()
@@ -233,6 +228,20 @@ class VMAT(AnalysisModule):
                     sample_passfail_matrix[sam_num, seg_num] = True
 
         return sample_passfail_matrix
+
+    @property
+    def open_img_is_loaded(self):
+        if self.image_open.pixel_array.size != 0:
+            return True
+        else:
+            return False
+
+    @property
+    def dmlc_img_is_loaded(self):
+        if self.image_dmlc.pixel_array.size != 0:
+            return True
+        else:
+            return False
 
     @property
     def num_samples(self):
@@ -289,11 +298,7 @@ class VMAT(AnalysisModule):
                 else:
                     color = 'red'
 
-                self.roi_handles[sample_num][segment_num] = Rectangle((sample.bl_corner.x,
-                                                                       sample.bl_corner.y),
-                                                                      height=sample.height, width=sample.width,
-                                                                      fill=False, edgecolor=color, linewidth=1)
-                plot.axes.add_patch(self.roi_handles[sample_num][segment_num])
+                self.roi_handles[sample_num][segment_num] = sample.add_to_axes(plot.axes, edgecolor=color)
 
         if draw:
             plot.draw()
@@ -411,11 +416,12 @@ class Segment(object):
         # 0.784mm/pixel@100cm / 1.5 = 0.52267mm/pixel@150cm. Solving for 5mm gives 9.566. This must be corrected for image scaling.
         sample_spacing = 6 * scaling.y * SID_scale # the width in pixels of a given MLC leaf sample perpendicular to MLC movement at 150cm SID.
         # This must be corrected for image scaling
-        offset = leaf_spacing*num_leaves/2
         if HDMLC:
             num_leaves *= 2
             leaf_spacing /= 2
             sample_spacing /= 2
+
+        offset = leaf_spacing*num_leaves/2
 
 
         self.samples = []  # Will be a list of Samples within segment

@@ -23,7 +23,7 @@ def _sanitize_input(ydata, xdata):
     return ydata, xdata
 
 
-class Profile(object):
+class Profile:
     """A class for analyzing 1-D profiles that contain signals. These can be radiation beam profiles, i.e. with 1 large,
         smooth signal, or multiple signals, e.g. star lines in a circle profile.
 
@@ -42,17 +42,23 @@ class Profile(object):
         """Adjust the profile so that the lowest value is 0."""
         self.y_values = self.y_values - np.min(self.y_values)
 
-    def find_peaks(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, exclude_edge_portion=0.0):
+    def find_peaks(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
+                   return_it=False):
         """Find the peaks of the profile using a simple max value search."""
-        peak_vals, peak_idxs = peak_detect(self.y_values, self.x_values, threshold=min_peak_height, min_peak_width=min_peak_distance,
-                                           max_num_peaks=max_num_peaks,exclude_edge_peaks=exclude_edge_portion)
+        peak_vals, peak_idxs = peak_detect(self.y_values, self.x_values, min_peak_height, min_peak_distance,
+                                           max_num_peaks, exclude_lt_edge, exclude_rt_edge)
         self.peaks = [Point(idx=peak_idx) for peak_idx in peak_idxs]
+        if return_it:
+            return peak_vals, peak_idxs
 
-    def find_valleys(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None):
+    def find_valleys(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
+                     return_it=False):
         """Find the valleys (minimums) of the profile using a simple min value search."""
-        valley_vals, valley_idxs = peak_detect(self.y_values, self.x_values, threshold=min_peak_height, min_peak_width=min_peak_distance,
-                                           max_num_peaks=max_num_peaks, find_min_instead=True)
+        valley_vals, valley_idxs = peak_detect(self.y_values, self.x_values, min_peak_height, min_peak_distance,
+                                               max_num_peaks, exclude_lt_edge, exclude_rt_edge, find_min_instead=True)
         self.valleys = [Point(idx=valley_idx) for valley_idx in valley_idxs]
+        if return_it:
+            return valley_vals, valley_idxs
 
     def find_FWHM_peaks(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None):
         """Find "peaks" using the center of the FWHM (rather than by max value).
@@ -105,16 +111,19 @@ class CircleProfile(Profile, Circle):
         self.x_locs = np.ndarray  # x-values of the circle profile's location
         self.y_locs = np.ndarray  # y-values of the circle profile's location
 
-    def get_profile(self, image_array, interval=0.0005):
+    def get_profile(self, image_array, size=36000, start=0, ccw=True):
         """Extracts values of a circular profile atop an image matrix.
 
-        Extraction starts on the left side (180 degrees on unit circle), going clockwise.
+        Extraction starts on the right side (0 on unit circle) and goes counter-clockwise.
         """
 
         self._ensure_array_size(image_array, self.radius+self.center.x, self.radius+self.center.y)
 
         # create index and cos, sin points which will be the circle's rectilinear coordinates
-        rads = np.arange(0, 2 * np.pi, interval)
+        interval = (2 * np.pi) / size
+        rads = np.arange(0+start, (2*np.pi)+start-interval, interval)
+        if ccw:
+            rads = rads[::-1]
         x = np.cos(rads) * self.radius + self.center.x
         y = np.sin(rads) * self.radius + self.center.y
 
@@ -137,7 +146,7 @@ class CircleProfile(Profile, Circle):
         if width < min_width or height < min_height:
             raise ValueError("Array size not large enough to compute profile")
 
-class SingleProfile(object):
+class SingleProfile:
     """A profile that has one large signal, e.g. a radiation beam profile.
 
     Numerous signal analysis methods are given, mostly based on FWHM calculations.
@@ -170,7 +179,7 @@ class SingleProfile(object):
         """Determine an initial peak to use as a rough guideline."""
         # if not passed, get one by peak searching.
         if initial_peak is None:
-            _, initial_peak_arr = peak_detect(self.y_values, self.x_values, max_num_peaks=1, exclude_edge_peaks=0.2)
+            _, initial_peak_arr = peak_detect(self.y_values, self.x_values, max_num_peaks=1, exclude_lt_edge=0.2, exclude_rt_edge=0.2)
             try:
                 initial_peak = initial_peak_arr[0]
             except IndexError:

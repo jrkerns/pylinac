@@ -1,42 +1,47 @@
 from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
 import os.path as osp
 
-from PIL import Image
-import dicom
-import numpy as np
-
 from pylinac.core.utilities import withdraw_tkinter
 
 
-def get_image_file(file_path):
-    # Check that file_path points to valid file
-    if not osp.isfile(file_path):
-        raise FileExistsError("{} did not point to a valid file".format(file_path))
-    # try to read image
-    # ...try to read as DICOM (most common type in Pylinac)
-    try:
-        imfile = dicom.read_file(file_path)
-    # ...otherwise try as a regular image file
-    except:
-        imfile = Image.open(file_path)
-    return imfile
+def is_valid_file(file_path, raise_error=False):
+    """Check if path points to a valid file."""
+    if osp.isfile(file_path):
+        return True
+    elif not raise_error:
+        return False
+    else:
+        raise FileExistsError("Path does not point to valid file")
 
-def get_image(file_path, to_gray=True):
-    """Return an image (DICOM or anything that PIL can handle) as a numpy array.
+# def get_image_file(file_path):
+#     # Check that file_path points to valid file
+#     if not osp.isfile(file_path):
+#         raise FileExistsError("{} did not point to a valid file".format(file_path))
+#     # try to read image
+#     # ...try to read as DICOM (most common type in Pylinac)
+#     try:
+#         imfile = dicom.read_file(file_path)
+#     # ...otherwise try as a regular image file
+#     except:
+#         imfile = Image.open(file_path)
+#     return imfile
 
-    :param to_gray: Specifies whether to return a simple numpy array of image or image object (with properties)
-    :type to_gray: boolean
-    """
-    raw_image = get_image_file(file_path)
-    try:
-        image = raw_image.pixel_array
-    except:
-        image = np.asarray(raw_image)
+# def get_image(file_path, to_gray=True):
+#     """Return an image (DICOM or anything that PIL can handle) as a numpy array.
+#
+#     :param to_gray: Specifies whether to return a simple numpy array of image or image object (with properties)
+#     :type to_gray: boolean
+#     """
+#     raw_image = get_image_file(file_path)
+#     try:
+#         image = raw_image.pixel_array
+#     except:
+#         image = np.asarray(raw_image)
+#
+#     return image
 
-    return image
-
-def get_image_properties(image_object):
-    pass
+# def get_image_properties(image_object):
+#     pass
 
 
 
@@ -84,17 +89,17 @@ def get_image_properties(image_object):
 #     return image, improps
 
 
-def get_image_UI(UIdir=None, UIcaption='', UIfilters='', to_gray=True):  # TODO: update args to fit getopenfilename's args
-    """Return an image using a UI Dialog."""
+# def get_image_UI(UIdir=None, UIcaption='', UIfilters='', to_gray=True):  # TODO: update args to fit getopenfilename's args
+#     """Return an image using a UI Dialog."""
+#
+#     filestring = get_filepath_UI(UIdir=UIdir, UIcaption=UIcaption, UIfilters=UIfilters)
+#
+#     if filestring:
+#         filestring = str(filestring)
+#         image = get_image(filestring, to_gray)
+#         return image
 
-    filestring = get_filepath_UI(UIdir=UIdir, UIcaption=UIcaption, UIfilters=UIfilters)
-
-    if filestring:
-        filestring = str(filestring)
-        image = get_image(filestring, to_gray)
-        return image
-
-def get_filepath_UI(UIdir=None, UIcaption='', UIfilters='', multiselect=False):
+def get_filepath_UI(dir=None, caption='', filters=''):
     """
     Custom function that is equivalent to Matlab's uigetfile command. Returns filename as a string.
 
@@ -107,7 +112,7 @@ def get_filepath_UI(UIdir=None, UIcaption='', UIfilters='', multiselect=False):
     filename = askopenfilename()
     return filename
 
-def get_filenames(UIdir=None, UIcaption='', UIfilters=''):
+def get_filenames_UI(UIdir=None, UIcaption='', UIfilters=''):
     """
     Custom function that is equivalent to Matlab's uigetfile command. Returns filename as a string.
 
@@ -121,7 +126,7 @@ def get_filenames(UIdir=None, UIcaption='', UIfilters=''):
     if filenames:
         return filenames
 
-def get_folder(UIdir=None, UIcaption=''):
+def get_folder_UI(UIdir=None, UIcaption=''):
     """
     :returns: string of Folder the user selected
     """

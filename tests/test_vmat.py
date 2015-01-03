@@ -1,16 +1,14 @@
-from __future__ import division, absolute_import, print_function
-
 import unittest
 import os.path as osp
 
 from pylinac.vmat import VMAT
 
 
-test_files_dir = osp.join(osp.dirname(__file__), 'test_files')
-drgs_105_open = osp.join(test_files_dir, 'DRGSopen-105-example.dcm')
-drgs_105_dmlc = osp.join(test_files_dir, 'DRGSmlc-105-example.dcm')
-drmlc_105_open = osp.join(test_files_dir, 'DRMLCopen-105-example.dcm')
-drmlc_105_dmlc = osp.join(test_files_dir, 'DRMLCmlc-105-example.dcm')
+_vmat_test_files_dir = osp.join(osp.dirname(__file__), 'test_files', 'VMAT')
+drgs_105_open = osp.join(_vmat_test_files_dir, 'DRGSopen-105-example.dcm')
+drgs_105_dmlc = osp.join(_vmat_test_files_dir, 'DRGSmlc-105-example.dcm')
+drmlc_105_open = osp.join(_vmat_test_files_dir, 'DRMLCopen-105-example.dcm')
+drmlc_105_dmlc = osp.join(_vmat_test_files_dir, 'DRMLCmlc-105-example.dcm')
 
 
 class Test_general(unittest.TestCase):
@@ -22,26 +20,9 @@ class Test_general(unittest.TestCase):
         """Raise an error if both images aren't loaded when analyzing."""
         self.assertRaises(AttributeError, self.vmat.analyze, 'drmlc')
 
-    def test_throw_tolerance_error(self):
-        """Raise an error if tolerance value passed to analyze is bad."""
-        self.vmat.load_demo_image()
-        # below allowance
-        self.assertRaises(ValueError, self.vmat.analyze, 'drgs', 0)
-        # above allowance
-        self.assertRaises(ValueError, self.vmat.analyze, 'drgs', 9)
-        # string instead of number
-        self.assertRaises(TypeError, self.vmat.analyze, 'drgs', '1')
-        # valid tolerance; shouldn't throw error
-        self.vmat.analyze('drgs', 4)
-
-    def test_throw_test_type_error(self):
-        """Raise an error if the test string passed is bad."""
-        self.vmat.load_demo_image()
-        self.assertRaises(ValueError, self.vmat.analyze, 'drsg', 3)
-
 
 class Test_DRGS_demo(unittest.TestCase):
-    """Tests of the result values of the DRMLC demo images."""
+    """Tests of the result values of the DRGS demo images."""
     def setUp(self):
         self.vmat = VMAT()
         self.vmat.load_demo_image('drgs')
@@ -89,7 +70,7 @@ class Test_DRGS_demo(unittest.TestCase):
         self.vmat.analyze('drgs')
 
         # correct number (38 for Millenium MLC; 76 for HDMLC)
-        self.assertEqual(len(self.vmat.num_samples), 38)
+        self.assertEqual(self.vmat.num_samples, 38)
 
         # test some center locations
         self.assertEqual(self.vmat.segments[0].samples[0].center.x, 159)

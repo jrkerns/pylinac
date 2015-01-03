@@ -100,8 +100,6 @@ class Test_Line(unittest.TestCase):
     x_at_5 = 2
 
     def test_inputs(self):
-        # default cannot be created; must pass points or m,b
-        self.assertRaises(ValueError, Line)
 
         # create from two points and test properties
         l = Line(self.point_1, self.point_2)

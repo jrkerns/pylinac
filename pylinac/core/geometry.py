@@ -1,5 +1,6 @@
 
 """Module for classes that represent common geometric objects or patterns."""
+import math
 
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
@@ -9,7 +10,7 @@ from pylinac.core.decorators import type_accept, lazyproperty
 from pylinac.core.utilities import isnumeric, is_iterable
 
 
-class Point(object):
+class Point:
     """A point with x, y, and z coordinates.
 
     .. note:: A namedtuple (Point = namedtuple('Point', ['x', 'y']) is probably more appropriate,
@@ -53,7 +54,6 @@ class Point(object):
             except IndexError:
                 pass
 
-
         if as_int:
             x = int(x)
             y = int(y)
@@ -78,10 +78,10 @@ class Point(object):
 
     def dist_to(self, point):
         """Calculate the distance to the given point."""
-        pass
-        #TODO: work on this
+        return math.sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
 
-class Circle(object):
+
+class Circle:
     """A circle with center Point and radius."""
     def __init__(self, center_point=None, radius=None):
 
@@ -102,7 +102,7 @@ class Circle(object):
         axes.add_patch(mpl_Circle((self.center.x, self.center.y), edgecolor=edgecolor, radius=self.radius, fill=fill))
 
 
-class Line(object):
+class Line:
     """Model a line that is represented by two points or an m*x+b representation.
 
     Calculations of slope, etc are from here:
@@ -124,8 +124,6 @@ class Line(object):
         elif m is not None and b is not None:
             self.m = m
             self.b = b
-        else:
-            raise ValueError("Proper parameters not passed for proper Line instantiation")
 
     @lazyproperty
     def m(self):
@@ -152,6 +150,11 @@ class Line(object):
     def x(self, y):
         """Return x-value along line given y."""
         return (y - self.b)/self.m
+
+    @property
+    def length(self):
+        """Return length of the line."""
+        return self.point1.dist_to(self.point2)
 
     @type_accept(point=(Point, tuple))
     def distance_to(self, point):
@@ -210,7 +213,7 @@ class Rectangle(object):
 
     def add_to_axes(self, axes, edgecolor='black', angle=0.0, fill=False):
         """Plot the Rectangle to the axes."""
-        axes.add_patch(mpl_Rectangle((self.center.x, self.center.y),
+        axes.add_patch(mpl_Rectangle((self.bl_corner.x, self.bl_corner.y),
                                      width=self.width,
                                      height=self.height,
                                      angle=angle,
@@ -218,7 +221,7 @@ class Rectangle(object):
                                      fill=fill))
 
 
-def sector_mask(shape, centre, radius, angle_range):
+def sector_mask(shape, center, radius, angle_range=(0, 360)):
     """
     Return a boolean mask for a circular sector. The start/stop angles in
     `angle_range` should be given in clockwise order.
@@ -227,7 +230,7 @@ def sector_mask(shape, centre, radius, angle_range):
     """
 
     x, y = np.ogrid[:shape[0], :shape[1]]
-    cy, cx = centre
+    cy, cx = center.x, center.y
     # tmin, tmax = np.deg2rad(angle_range)
     tmin, tmax = angle_range
 

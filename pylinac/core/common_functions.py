@@ -5,6 +5,7 @@ import numpy as np
 
 
 def _datacheck_peakdetect(values, x_data):
+
     if x_data is None:
         x_data = list(range(len(values)))
 
@@ -13,10 +14,13 @@ def _datacheck_peakdetect(values, x_data):
 
     # needs to be a numpy array
     values = np.array(values)
+    if np.ndim(values) != 1:
+        raise IndexError("values passed was not a 1D array")
     x_data = np.array(x_data)
     return values, x_data
 
-def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, find_min_instead=False, exclude_edge_peaks=0.0):
+def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, exclude_lt_edge=0.0,
+                exclude_rt_edge=0.0, find_min_instead=False):
     """Find the peaks or valleys of a 1-D signal. Uses the difference (np.diff) in signal to find peaks. Current limitations
     include:
     1) Only for use in 1-D data; 2-D may be possible with the gradient function. 2) Will not detect peaks at the very edge of array
@@ -48,6 +52,23 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, f
     if find_min_instead:
         y = -y
 
+    """Exclude data if need be"""
+    if exclude_rt_edge or exclude_lt_edge:
+        if exclude_rt_edge < 1 and isinstance(exclude_rt_edge, float):
+            r_edge = int(len(y) * (1 - exclude_rt_edge))
+        else:
+            r_edge = exclude_rt_edge
+        if exclude_lt_edge < 1 and isinstance(exclude_lt_edge, float):
+            l_edge = int(len(y) * exclude_lt_edge)
+        else:
+            l_edge = exclude_lt_edge
+        if exclude_rt_edge:
+            y = y[:r_edge]
+            x = x[:r_edge]
+        if exclude_lt_edge:
+            y = y[l_edge:]
+            x = x[l_edge:]
+
     y_diff = np.diff(y.astype(float))  # Had problems with uint input. y_diff *must* be converted to signed type.
 
     if isinstance(threshold, float):
@@ -56,6 +77,9 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, f
         else:
             data_range = y.max() - y.min()
             threshold = threshold * data_range + y.min()
+
+
+
 
     """Find all potential peaks"""
     for idx in range(len(y_diff)-1):
@@ -110,17 +134,6 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, f
             peak_idxs = np.delete(peak_idxs, idx2del)
         else:
             index += 1
-
-    """Exclude peaks that may be on the edge."""
-    left_exclude_boundary = x[int(len(x)*exclude_edge_peaks)]
-    right_exclude_boundary = x[int((len(x)-1)*(1-exclude_edge_peaks))]
-    index = 0
-    while index < len(peak_idxs):
-        if peak_idxs[index] <= left_exclude_boundary or peak_idxs[index] >= right_exclude_boundary:
-            peak_idxs = np.delete(peak_idxs, index)
-            peak_vals = np.delete(peak_vals, index)
-            index -= 1
-        index += 1
 
     """If Maximum Number passed, return only up to number given based on a sort of peak values."""
     if max_num_peaks is not None and len(peak_idxs) > max_num_peaks:

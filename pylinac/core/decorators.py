@@ -3,6 +3,7 @@
 
 # The following is adapted from: http://code.activestate.com/recipes/578809-decorator-to-check-method-param-types/
 # Another type checking decorator: http://code.activestate.com/recipes/454322-type-checking-decorator/
+from abc import ABCMeta
 from functools import wraps
 from inspect import signature
 
@@ -54,7 +55,7 @@ def type_accept(*type_args, **type_kwargs):
             # Enforce type assertions across supplied arguments
             for name, value in bound_values.arguments.items():
                 if name in bound_types:
-                    if type(bound_types[name]) == type:  # Single-type comparisons
+                    if type(bound_types[name]) in (type, ABCMeta):  # Single-type comparisons
                         if not isinstance(value, bound_types[name]):
                             raise TypeError("Argument '{}' must be {}".format(name, bound_types[name]))
                     else:
