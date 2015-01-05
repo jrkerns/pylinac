@@ -9,7 +9,7 @@ Pylinac General Overview
 
 .. image:: /images/vmat_analyzed.png
    :height: 340px
-   :width: 800px
+   :width: 700px
 
 
 Intended Use
@@ -30,10 +30,17 @@ Philosophy
 
 Pylinac runs on a few philosophical principles:
 
-* A given module should only address 1 overarching task
-* Using pylinac should require a minimal amount of code
-* The user should have to supply as little information as necessary to run an analysis
-* The underlying code of pylinac should be easy to understand from the first look
+* A given module should only address 1 overarching task.
+* Using pylinac should require a minimal amount of code.
+* The user should have to supply as little information as necessary to run an analysis.
+* The underlying code of pylinac should be easy to understand.
+
+.. epigraph::
+    The joy of coding Python should be in seeing short, concise, readable classes that express
+    a lot of action in a small amount of clear code -- not in reams of trivial code that bores
+    the reader to death.
+
+    -- Guido van Rossum
 
 Algorithm Design Overview
 -------------------------
@@ -60,13 +67,13 @@ Module Design
 Pylinac has a handful of modules, but they all work somewhat the same, so here we describe the general patterns you'll see when using
 pylinac.
 
-* **Each module has its own demonstration method** -- If you don't yet have an image or data and want to see how a module works
-  you can run and inspect the code of the demo to get an idea. Most demo methods have a name similar to ``.run_demo*()``.
-* **Each module has similar load, analyze, and show methods** -- The normal flow of a pylinac module script is to 1) Load the data in,
-  2) Analyze the data, and 3) Show the results
+* **Each module has its own demonstration method(s)** -- If you don't yet have an image or data and want to see how a module works
+  you can run and inspect the code of the demo to get an idea. Most demo methods have a name like or starts with ``.run_demo()``.
+* **Each module has similar load, analyze, and show methods** -- The normal flow of a pylinac module use is to 1) Load the data in,
+  2) Analyze the data, and 3) Show the results.
 * **Most modules can be fully utilized in a few lines** -- The whole point of pylinac is to automate and simplify the process of
-  analyzing routine QA data. Thus, most routines can be written in a few lines.
-
+  analyzing routine QA data. Thus, most routines can be written in a few lines. Each module gives a starting script
+  in its documentation.
 
 GUI Design
 ----------

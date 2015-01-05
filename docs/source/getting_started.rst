@@ -4,14 +4,15 @@
 Getting Started
 ===============
 
-Getting started with pylinac is easy! Once installed, you can write your own script in a matter of minutes. Each module of pylinac
-addresses the topic of its name (e.g. ''Starshot'' performs starshot analysis tests), and all modules are importable from pylinac.
-Furthermore, each module is designed as similarly as possible to one another. So once you start using one module,
-it's easy to use another (see :ref:`module_design`). Each module also has its own demo to show off what it can do.
+Getting started with pylinac is easy! Once installed, you can write your own script in a matter of minutes.
+Each module of pylinac addresses the topic of its name (e.g. the ``Starshot`` class, surprisingly, performs
+starshot analysis). Furthermore, each module is designed as similarly as possible
+to one another. So once you start using one module, it's easy to use another (see :ref:`module_design`).
+Each module also has its own demo to show off what it can do.
 
-Let's get started by running a demo of the ''Starshot'' module. First, import the Starshot class::
+Let's get started by running a demo of the ``Starshot`` module. First, import the Starshot class::
 
-    from pylinac import Starshot
+    from pylinac.starshot import Starshot
 
 This class has all the capabilities of loading and analyzing a Starshot image. Let's 1) create an instance of that
 class and then 2) run its demonstration method::

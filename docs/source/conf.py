@@ -25,9 +25,11 @@ sys.path.insert(1, os.path.abspath('../..'))
 
 # Trouble building on RTD with numpy/scipy: http://blog.rtwilson.com/how-to-make-your-sphinx-documentation-compile-with-readthedocs-when-youre-using-numpy-and-scipy/
 import mock
+# from unittest import mock
 
-MOCK_MODULES = ['builtins','inspect','future','future.builtins','dicom','PySide','PyQt4','numpy', 'scipy', 'matplotlib',
-                'matplotlib.pyplot','Pillow','PIL'
+MOCK_MODULES = ['inspect','dicom','numpy', 'scipy', 'matplotlib',
+                'matplotlib.pyplot','Pillow','PIL', 'tkinter', 'tkinter.filedialog',
+                'scipy.ndimage.filters',
                 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize','scipy.misc','matplotlib.patches', 'matplotlib.cm']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
@@ -43,6 +45,7 @@ for mod_name in MOCK_MODULES:
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
+    'sphinxcontrib.napoleon'
 ]
 
 # Add any paths that contain templates here, relative to this directory.

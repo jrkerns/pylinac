@@ -15,12 +15,12 @@ import dicom
 from pylinac.core.decorators import type_accept
 from pylinac.core.geometry import Point
 from pylinac.core.io import get_filepath_UI, is_valid_file
-from pylinac.core.utilities import withdraw_tkinter, Numeric, array2logical
+from pylinac.core.utilities import withdraw_tkinter, array2logical
 
 
 MM_per_INCH = 25.4
 
-class ImageObj(object):
+class ImageObj:
     """An analysis module component that utilizes a single image in its analysis.
     Contains methods to load and manipulate the image and its properties.
     """
@@ -210,7 +210,6 @@ class ImageObj(object):
     def dpi(self, dpi):
         self.set_dpi(dpi)
 
-    @type_accept(dpi=Numeric)
     def set_dpi(self, dpi):
         """Set the dots-per-inch attribute directly."""
         self._dpi = dpi
@@ -227,7 +226,6 @@ class ImageObj(object):
     def dpmm(self, dpmm):
         self.set_dpmm(dpmm)
 
-    @type_accept(dpmm=Numeric)
     def set_dpmm(self, dpmm):
         """Set the dots-per-mm attr directly."""
         self._dpmm = dpmm
@@ -244,7 +242,6 @@ class ImageObj(object):
     def SID(self, SID):
         self.set_SID(SID)
 
-    @type_accept(SID=Numeric)
     def set_SID(self, SID):
         """Set the SID; units are in mm."""
         self._SID = SID
@@ -262,7 +259,7 @@ class ImageObj(object):
         """Set the image type"""
         self._im_type = im_type
 
-class MultiImageObject(object):
+class MultiImageObject:
     """A class to be inherited for multiple image analysis (e.g. CBCT QA)"""
 
     def __init__(self):

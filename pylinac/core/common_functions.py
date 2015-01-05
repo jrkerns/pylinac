@@ -1,8 +1,7 @@
 
+"""Common functions module."""
+
 import numpy as np
-
-"""Common Functions used in Pylinac"""
-
 
 def _datacheck_peakdetect(values, x_data):
 
@@ -21,28 +20,45 @@ def _datacheck_peakdetect(values, x_data):
 
 def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, exclude_lt_edge=0.0,
                 exclude_rt_edge=0.0, find_min_instead=False):
-    """Find the peaks or valleys of a 1-D signal. Uses the difference (np.diff) in signal to find peaks. Current limitations
-    include:
-    1) Only for use in 1-D data; 2-D may be possible with the gradient function. 2) Will not detect peaks at the very edge of array
-    (i.e. 0 or -1 index)
+    """Find the peaks or valleys of a 1D signal.
 
-    :param y: 1-D y-data of signal.
-    :type y: numpy array
-    :param x: 1-D x-data of signal. If left as None, will create a uniform range the length of the y-data.
-    :type x: numpy array
-    :param threshold: The value the peak must be above to be considered a peak.
-        This removes "peaks" that are in a low-value region. If passed an int, the actual value is the threshold;
-        if a float <1.0 is passed, it will threshold that percent. E.g. when passed 15, any peak less than 15 is
-        removed. When passed 0.4, any peak less than 40% of the maximum value will be removed.
-    :type threshold: int, float
-    :param min_peak_width: The number of elements apart a peak must be from neighboring peaks.
-    :type min_peak_width: int
-    :param max_num_peaks: Specify up to how many peaks will be returned. E.g. if 3 is passed in and 5 peaks are found, only the 3 largest
+    Uses the difference (np.diff) in signal to find peaks. Current limitations include:
+        1) Only for use in 1-D data; 2D may be possible with the gradient function.
+        2) Will not detect peaks at the very edge of array (i.e. 0 or -1 index)
+
+    Parameters
+    ----------
+    y : array-like
+        1D y-data of signal.
+    x : array-like
+        1D x-data of signal. If None, will create a uniform range the length of the y-data.
+    threshold : int, float
+        The value the peak must be above to be considered a peak. This removes "peaks"
+        that are in a low-value region.
+        If passed an int, the actual value is the threshold.
+        E.g. when passed 15, any peak less with a value <15 is removed.
+        If passed a float, it will threshold as a percent. Must be between 0 and 1.
+        E.g. when passed 0.4, any peak <40% of the maximum value will be removed.
+    min_peak_width : int
+        The number of elements apart a peak must be from neighboring peaks.
+    max_num_peaks : int
+        Specify up to how many peaks will be returned. E.g. if 3 is passed in and 5 peaks are found, only the 3 largest
         peaks will be returned.
-    :param find_min_instead: If True, algorithm will find minimums of y instead of maximums.
-    :type find_min_instead: bool
-    :returns: two 1-D numpy arrays: max_vals, max_idxs; max_vals contains the y-values of the peaks, max_idxs contains the x-index of the
-        peaks.
+    find_min_instead : bool
+        If False (default), peaks will be returned.
+        If True, valleys will be returned.
+
+    Returns
+    -------
+    max_vals : numpy.array
+        The values of the peaks found.
+    max_idxs : numpy.array
+        The x-indices (locations) of the peaks.
+
+    Raises
+    ------
+    ValueError
+        If float not between 0 and 1 passed to threshold
     """
     peak_vals = []  # a list to hold the y-values of the peaks. Will be converted to a numpy array
     peak_idxs = []  # ditto for x-values (index) of y data.
@@ -69,7 +85,7 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
             y = y[l_edge:]
             x = x[l_edge:]
 
-    y_diff = np.diff(y.astype(float))  # Had problems with uint input. y_diff *must* be converted to signed type.
+    y_diff = np.diff(y.astype(float))  # y and y_diff must be converted to signed type.
 
     if isinstance(threshold, float):
         if threshold >= 1:
@@ -120,9 +136,9 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
     peak_idxs = np.array(peak_idxs)
 
     """Enforce the min_peak_distance by removing smaller peaks."""
+    # For each peak, determine if the next peak is within the min peak width range.
     index = 0
     while index < len(peak_idxs) - 1:
-        # For each peak, determine if the next peak is within the look_ahead range.
 
         # If the second peak is closer than min_peak_distance to the first peak, find the larger peak and remove the other one.
         if peak_idxs[index] > peak_idxs[index+1] - min_peak_width:

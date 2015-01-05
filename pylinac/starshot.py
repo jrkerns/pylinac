@@ -5,9 +5,9 @@ radiation spokes, whether gantry, collimator, or couch. It is based on ideas fro
 and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
 """
 
-import os
+# import os
 import os.path as osp
-import shutil
+# import shutil
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,8 +20,8 @@ from pylinac.core.profile import CircleProfile, SingleProfile
 
 
 class Starshot(AnalysisModule):
-    """Creates a Starshot instance for determining the wobble in a gantry, collimator,
-    couch or MLC starshot image pattern.
+    """Class that can determine the wobble in a "starshot" image, be it gantry, collimator,
+        couch or MLC. The image can be DICOM or a scanned film (TIF, JPG, etc).
     """
     def __init__(self):
         super().__init__()
@@ -31,30 +31,49 @@ class Starshot(AnalysisModule):
         self.wobble = Wobble()  # A Circle representing the radiation wobble
         self.tolerance = 1  # tolerance limit of the radiation wobble
         self.tolerance_unit = 'pixels'  # tolerance units are initially pixels. Will be converted to 'mm' if conversion
-        # information available in image properties
+            # information available in image properties
 
-    def load_demo_image(self):
-        """Load the starshot demo image."""
-        #TODO: see about using Python's temporary file/folder module
+    def load_demo_image(self, cleanup=True):
+        """Load the starshot demo image.
+
+        The Pylinac package comes with compressed demo images.
+        When called, the function unpacks the demo image and loads it.
+
+        Parameters
+        ----------
+        cleanup : boolean
+            If True (default), the extraced demo file is deleted (but not the compressed version).
+            If False, leaves the extracted file alone after loading. Useful when using the demo image a lot,
+            or you don't mind using the extra space.
+        """
         demo_folder = osp.join(osp.dirname(__file__), 'demo_files', 'starshot')
-        demo_file_zip = osp.join(demo_folder, 'starshot_gantry.zip')
-        demo_file = osp.join(demo_folder, 'starshot_gantry.tif')
+        # demo_file_zip = osp.join(demo_folder, 'starshot_gantry.zip')
+        demo_file = osp.join(demo_folder, '10X_collimator.tif')
 
-        # extract file from the zip file and put it in the demos folder
-        shutil.unpack_archive(demo_file_zip, extract_dir=demo_folder)
-        # zp.ZipFile(im_zip_path).extractall(demo_folder)
-        # rename file path to the extracted one
-        # file_path = im_zip_path.replace('.zip', '.tif')
-        # load image
+        # if extracted file isn't around, unpack the compressed one
+        # if not osp.isfile(demo_file):
+        #     shutil.unpack_archive(demo_file_zip, extract_dir=demo_folder)
+
         self.image.load_image(demo_file)
-        # delete extracted file to save space
-        try:
-            os.remove(demo_file)
-        except:
-            print("Extracted demo image was not able to be deleted and remains in the demo directory")
+
+        # if cleanup:
+        #     try:
+        #         os.remove(demo_file)
+        #     except OSError:
+        #         print("Extracted demo image was not able to be automatically deleted and remains in the demo directory")
 
     def load_image(self, filepath):
-        """Load the image directly by passed the filepath."""
+        """Load the image via the file path.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the file to be loaded.
+
+        Notes
+        -----
+        Wrapper for pylinac.image.ImageObj.load_image()
+        """
         self.image.load_image(filepath)
 
     def load_image_UI(self):
@@ -63,17 +82,22 @@ class Starshot(AnalysisModule):
 
     @property
     def start_point(self):
+        """The start point of the wobble search algorithm.
+
+        After analysis this point is the wobble center.
+        """
         return self.circle_profile.center
 
     def set_start_point(self, point, warn_if_far_away=True):
         """Set the algorithm starting point manually.
 
-        If the point given is far away (1% image width or 15 pixels) from the point found automatically a warning is given.
-
-        :param point: The starting point for the search algorithm.
-        :type point: Point
-        :param warn_if_far_away: If the point is far away from the automatic determination, warn user.
-        :type warn_if_far_away: boolean
+        Parameters
+        ----------
+        point: geometry.Point
+            The starting point desired for the search algorithm.
+        warn_if_far_away: boolean
+            Flag to warn user if the starting point is far away
+            (1% image width or 15 pixels) from the automatic determination.
         """
         if warn_if_far_away:
             # determine automatic start point if not yet set.
@@ -99,6 +123,14 @@ class Starshot(AnalysisModule):
     def _check_image_inversion(self, allow_inversion=True):
         """Check the image for proper inversion, i.e. that pixel value increases with dose.
 
+        Parameters
+        ----------
+        allow_inversion : boolean
+            If True (default), the image inversion is allowed to happen.
+            If False, no inversion is made to the image and is returned as-is.
+
+        Notes
+        -----
         Inversion is checked by the following:
         - Summing the image along both horizontal and vertical directions.
         - If the maximum point of both horizontal and vertical is in the middle 1/3, the image is assumed to be correct.
@@ -125,6 +157,8 @@ class Starshot(AnalysisModule):
     def _auto_set_start_point(self):
         """Set the algorithm starting point automatically.
 
+        Notes
+        -----
         The determination of an automatic start point is accomplished by finding the Full-Width-80%-Max.
         Finding the maximum pixel does not consistently work, esp. in the presence of a pin prick. The
         FW80M is a more consistent metric for finding a good start point.
@@ -140,25 +174,32 @@ class Starshot(AnalysisModule):
 
         self.set_start_point(center_point, warn_if_far_away=False)
 
-    @value_accept(radius=(0.05, 0.95), min_peak_height=(5, 80), SID=(0, 180))
-    def analyze(self, allow_inversion=True, radius=0.5, min_peak_height=0.25, SID=1000):
+    @value_accept(radius=(0.05, 0.95), min_peak_height=(0.1, 0.9), SID=(0, 180))
+    def analyze(self, allow_inversion=True, radius=0.5, min_peak_height=0.25, SID=100.0):
         """Analyze the starshot image.
 
-         Analyze finds the minimum radius and center of a circle that touches all the lines
-         (i.e. the wobble circle diameter and wobble center)
+        Analyze finds the minimum radius and center of a circle that touches all the lines
+        (i.e. the wobble circle diameter and wobble center).
 
-         :param allow_inversion: Specifies whether to let the algorithm automatically check the image for proper inversion. Analysis will
-            likely fail without proper inversion. Use .invert_image() to manually invert.
-         :type allow_inversion: boolean
-         :param radius: Distance in % between starting point and closest image edge. Must be between 0.05 and 0.95.
-         :type radius: float
-         :param min_peak_height: The percentage minimum height a peak must be to be considered a valid peak. A lower value catches
-            radiation peaks that vary in magnitude (e.g. different MU delivered), but also could pick up noise. Raise if pixel values of
-            strips are similar but noise is getting caught. Also try changing radius if noise is a problem.
-         :type min_peak_height: int
-         :param SID: The source to image distance in cm. If passed in, results will be scaled to 100cm. E.g. a wobble of
-            3 pixels at an SID of 150cm will be presented as 2 pixels [3/(150/100)].
-         :type SID: int
+        Parameters
+        ----------
+        allow_inversion: boolean, optional
+            Specifies whether to let the algorithm automatically check the image for proper inversion. Recommend True.
+        radius: float, optional
+            Distance in % between starting point and closest image edge; used to build the circular profile which finds
+            the radiation lines. Must be between 0.05 and 0.95.
+        min_peak_height: float, optional
+            The percentage minimum height a peak must be to be considered a valid peak. A lower value catches
+            radiation peaks that vary in magnitude (e.g. different MU delivered), but could also pick up noise.
+            Increase value for noisy images.
+        SID: int, float, optional
+            The source-to-image distance in cm. If a value != 100 is passed in, results will be scaled to 100cm. E.g. a wobble of
+            3.0 pixels at an SID of 150cm will calculate to 2.0 pixels [3 / (150/100)].
+
+        Raises
+        ------
+        AttributeError
+            If an image has not yet been loaded.
         """
         # error checking
         if not self.image_is_loaded:
@@ -177,17 +218,24 @@ class Starshot(AnalysisModule):
         self.circle_profile.get_profile(self.image.pixel_array)
         # find the radiation lines using the peaks of the profile
         self.lines = self.circle_profile.find_rad_lines(min_peak_height)
-
         # find the wobble
         self._find_wobble_2step(SID)
 
     def _convert_radius_perc2pix(self, radius):
-        """Convert a radius in percent (e.g. 50) to distance in pixels, based on the distance from center point to image edge."""
+        """Convert a percent radius to distance in pixels, based on the distance from center point to image
+            edge.
+
+        Parameters
+        ----------
+        radius : float
+            The radius ratio (e.g. 0.5).
+        """
         dist = self.image.dist2edge_min(self.circle_profile.center)
         return dist*radius
 
     @property
     def image_is_loaded(self):
+        """Boolean specifying if an image has been loaded."""
         if self.image.pixel_array.size == 0:
             return False
         else:
@@ -195,12 +243,20 @@ class Starshot(AnalysisModule):
 
     @property
     def start_point_is_set(self):
+        """Boolean specifying if a start point has been set."""
         if self.circle_profile.center.x == 0:
             return False
         else:
             return True
 
     def _scale_wobble(self, SID):
+        """Scale the determined wobble by the SID.
+
+        Parameters
+        ----------
+        SID : int, float
+            Source to image distance in cm.
+        """
         # convert wobble to mm if possible
         if self.image.dpmm != 0:
             self.tolerance_unit = 'mm'
@@ -208,14 +264,16 @@ class Starshot(AnalysisModule):
         else:
             self.tolerance_unit = 'pixels'
             self.wobble.radius_mm = self.wobble.radius
-        if SID:
-            self.wobble.radius /= SID / 1000
-            self.wobble.radius_mm /= SID / 1000
+
+        self.wobble.radius /= SID / 100
+        self.wobble.radius_mm /= SID / 100
 
     def _find_wobble_2step(self, SID):
         """Find the smallest radius ("wobble") and center of a circle that touches all the star lines.
 
-        This is accomplished by two rounds of searching. The first round finds the radius and center down to
+        Notes
+        -----
+        Wobble determination is accomplished by two rounds of searching. The first round finds the radius and center down to
         the nearest pixel. The second round finds the center and radius down to sub-pixel precision using parameter scale.
         This methodology is faster than one round of searching at sub-pixel precision.
         """
@@ -233,14 +291,16 @@ class Starshot(AnalysisModule):
         self._scale_wobble(SID)
 
     def _find_wobble(self, tolerance, start_point, scale):
-        """An iterative method that moves pixel by pixel to the point of minimum distance to all radiation lines.
+        """An iterative method that moves element by element to the point of minimum distance to all radiation lines.
 
-        :param tolerance: The value the "outside" pixels must be within compared to the center pixel to stop the algorithm
-        :type tolerance: float
-        :param start_point: The starting point for the search algorithm.
-        :type start_point: Point
-        :param scale: The scale of the search in pixels. E.g. 0.1 searches to 0.1 pixel precision.
-        :type scale: float, int
+        Parameters
+        ----------
+        tolerance: float
+            The value differential between the outside elements and center element to stop the algorithm.
+        start_point: geometry.Point
+            The starting point for the algorithm.
+        scale: int, float
+            The scale of the search in pixels. E.g. 0.1 searches at 0.1 pixel precision.
         """
         #TODO: use an optimization function instead of evolutionary search
         sp = start_point
@@ -266,7 +326,7 @@ class Starshot(AnalysisModule):
 
     @property
     def passed(self):
-        """Boolean specifying whether overall test passed or failed."""
+        """Boolean specifying whether the determined wobble was within tolerance."""
         if self.wobble.radius_mm * 2 < self.tolerance:
             return True
         else:
@@ -275,7 +335,10 @@ class Starshot(AnalysisModule):
     def get_string_results(self):
         """Return the results of the analysis.
 
-        :return string: A string with a statement of the minimum circle.
+        Returns
+        -------
+        string
+            A string with a statement of the minimum circle.
         """
         if self.passed:
             passfailstr = 'PASS'
@@ -291,8 +354,10 @@ class Starshot(AnalysisModule):
     def plot_analyzed_image(self, plot=None):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.
 
-        :param plot: The plot to draw on. If None, will create a new one.
-        :type plot: matplotlib.image.AxesImage
+        Parameters
+        ----------
+        plot : matplotlib.image.AxesImage, optional
+            The plot to draw on. If None, will create a new one.
         """
         # plot image
         if plot is None:
@@ -323,9 +388,9 @@ class Starshot(AnalysisModule):
             plot.axes.hold(False)
 
     def run_demo(self):
-        """Run the Starshot module using the demo image."""
+        """Demonstrate the Starshot module using the demo image."""
         self.load_demo_image()
-        self.analyze()
+        self.analyze(radius=0.7)
         print(self.get_string_results())
         self.plot_analyzed_image()
 
@@ -338,18 +403,28 @@ class Wobble(Circle):
 
 
 class StarProfile(CircleProfile):
-    """Holds and analyzes the circular profile used during starshot analysis."""
+    """Class that holds and analyzes the circular profile which finds the radiation lines.
+
+    See Also
+    --------
+    profile.CircleProfile
+    """
     def __init__(self):
         super().__init__()
 
     def get_profile(self, image_array):
-        """Overload to also correct for profile positioning."""
+        """Take the profile over the image array. Overloads to also correct for profile positioning.
+
+        See Also
+        --------
+        profile.CircleProfile.get_profile : Further parameter info
+        """
         super().get_profile(image_array)
         self._roll_prof_to_midvalley()
 
     def _roll_prof_to_midvalley(self):
-        """Roll the circle profile so that its edges are not near a radiation line. This is a prerequisite for properly finding star
-        lines."""
+        """Roll the circle profile so that its edges are not near a radiation line.
+        This is a prerequisite for properly finding star lines."""
         # Find index of the min value(s)
         min_idx = np.where(self.y_values == self.y_values.min())
         # Roll the profile and x and y coordinates
@@ -358,12 +433,18 @@ class StarProfile(CircleProfile):
         self.y_locs = np.roll(self.y_locs, -min_idx[0][0])
 
     def find_rad_lines(self, min_peak_height):
-        """Find and match the positions of peaks in the circle profile and map their positions to the starshot image."""
+        """Find and match the positions of peaks in the circle profile (radiation lines)
+            and map their positions to the starshot image.
+
+        See Also
+        --------
+        Starshot.analyze() : Further parameter info
+        """
 
         # find the FWHM-C
         min_peak_distance = len(self.y_values) / 100 * 3  # 3-degree minimum distance between peaks
-        self.find_peaks(min_peak_height, min_peak_distance)
-        # self.find_FWHM_peaks(min_peak_height, min_peak_distance)
+        # self.find_peaks(min_peak_height, min_peak_distance)
+        self.find_FWXM_peaks(min_peak_height=min_peak_height, min_peak_distance=min_peak_distance)
 
         # map 1D peaks to the image; i.e. add x and y image coords of peaks
         self.map_peaks()
@@ -375,6 +456,8 @@ class StarProfile(CircleProfile):
     def _match_peaks(self):
         """Match the peaks found to the same radiation lines.
 
+        Notes
+        -----
         Peaks are matched by connecting the existing peaks based on an offset of peaks. E.g. if there are
         12 peaks, there must be 6 radiation lines. Furthermore, assuming star lines go all the way across the CAX,
         the 7th peak will be the opposite peak of the 1st peak, forming a line. This method is robust to
@@ -390,4 +473,3 @@ class StarProfile(CircleProfile):
 # ----------------------------
 if __name__ == '__main__':
     Starshot().run_demo()
-    pass

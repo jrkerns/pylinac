@@ -303,8 +303,8 @@ class SR_Slice(Slice):
         prof /= len(self.ROIs)
         # ground profile
         new_prof = Profile(prof)
-        new_prof.filter_profile(6)
-        new_prof.ground_profile()
+        new_prof.filter(6)
+        new_prof.ground()
         return new_prof
 
     def _find_LP_peaks(self, profile):

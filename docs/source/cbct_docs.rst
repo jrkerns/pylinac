@@ -6,7 +6,7 @@ CBCT module documentation
 Overview
 --------
 
-.. automodule:: pylinac.cbctqa.cbct
+.. automodule:: pylinac.cbct
 
 Running the Demo
 ----------------
@@ -47,7 +47,7 @@ Assuming you've made a CBCT object as follows::
 The minimum needed to get going is to:
 
 * **Load images** -- Loading the DICOM images into your CBCT object can be done by passing the folder the images are located in.
- This can be done directly, or by using a UI. The code might look like either of the following::
+  This can be done directly, or by using a UI. The code might look like either of the following::
 
     # set the folder path
     cbct_folder = r"C:/QA Folder/CBCT/June monthly"  # use of 'r' is for raw string; otherwise spaces and backslashes aren't interpreted properly
@@ -140,11 +140,11 @@ API Documentation
 The CBCT class contains several other classes. There are several Slices of Interest (SoI), most of which contain Regions of Interest (RoI).
 SoIs have a base class as well as specialized classes for each specific slice.
 
-.. autoclass:: pylinac.cbctqa.cbct.CBCT
+.. autoclass:: pylinac.cbct.CBCT
     :members:
     :inherited-members:
 
-.. autoclass:: pylinac.cbctqa.cbct.Slice
+.. autoclass:: pylinac.cbct.Slice
     :members:
 
 

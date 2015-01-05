@@ -4,12 +4,9 @@
 Base Class API
 ==============
 
-.. automodule:: pylinac.core.image_classes
+.. automodule:: pylinac.core.image
 
 
-.. autoclass:: pylinac.core.image_classes.SingleImageObject
-    :members:
-
-.. autoclass:: pylinac.core.image_classes.MultiImageObject
+.. autoclass:: pylinac.core.image.ImageObj
     :members:
 

@@ -1,7 +1,14 @@
 V0.2.0
 
 -Python 2.7 support dropped.
+    Python 3 has a number of features that Python 2 does not,
+    and because this project is just getting started, I didn't want to support Python 2,
+    and then eventually drop it as Python 3 becomes more and more mainstream.
 -Internal overhaul.
+    Modules are now in the root folder.
+    A core module was created with a number of small but useful tools
+-Demo files were assimilated into one directory with respective subdirectories.
+-VMAT module can now handle HDMLC images.
 
 V0.1.3 11/11/2014 -- Added CBCT module
 

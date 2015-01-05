@@ -31,7 +31,7 @@ class Test_Profile(unittest.TestCase):
         # the minimum shouldn't be zero to start with
         self.assertFalse(p.y_values.min() == 0)
         # but it should be after grounding
-        p.ground_profile()
+        p.ground()
         self.assertTrue(p.y_values.min() == 0)
 
     def test_find_peaks(self):
@@ -50,7 +50,7 @@ class Test_Profile(unittest.TestCase):
 
     def test_find_FWHM_peaks(self):
         p = Profile(self.values)
-        p.find_FWHM_peaks()
+        p.find_FWXM_peaks()
         known_peak_locs = (25, 65, 105, 145)
         for found_peak, known_peak in zip(p.peaks, known_peak_locs):
             self.assertEqual(found_peak.idx, known_peak)
@@ -163,24 +163,24 @@ class Test_SingleProfile(unittest.TestCase):
     def test_get_penum_width(self):
         p = SingleProfile(self.values)
         # test that error raised when lower > upper
-        self.assertRaises(ValueError, p.get_penum_width, upper_penum=20, lower_penum=80)
+        self.assertRaises(ValueError, p.get_penum_width, upper=20, lower=80)
 
         sides = ('left', 'right', 'left')
         lower_penums = (10, 20, 30)
         known_lower_penums = (49, 14, 35)
         for side, penum, known_penum in zip(sides, lower_penums, known_lower_penums):
-            self.assertEqual(p.get_penum_width(side, lower_penum=penum), known_penum)
+            self.assertEqual(p.get_penum_width(side, lower=penum), known_penum)
 
         upper_penums = (70, 80, 90)
         known_upper_penums = (35, 14, 49)
         for side, penum, known_penum in zip(sides, upper_penums, known_upper_penums):
-            self.assertEqual(p.get_penum_width(side, upper_penum=penum), known_penum)
+            self.assertEqual(p.get_penum_width(side, upper=penum), known_penum)
 
     def test_get_field_value(self):
         p = SingleProfile(self.values)
 
-        field_widths = (30, 60, 80, 90)
+        field_widths = (0.3, 0.6, 0.8, 0.9)
         values = ('mean', 'median', 'max', 'min')
-        known_values = (0.58, 0.6, 1.0, 0.086)
+        known_values = (0.63, 0.63, 1.0, 0.03)
         for width, value, known_value in zip(field_widths, values, known_values):
-            self.assertAlmostEqual(p.get_field_value(width, value), known_value, delta=0.01)
+            self.assertAlmostEqual(p.get_field_calculation(width, value), known_value, delta=0.03)

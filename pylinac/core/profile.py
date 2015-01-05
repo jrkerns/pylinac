@@ -1,3 +1,6 @@
+
+"""Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
+
 import copy
 
 import numpy as np
@@ -24,27 +27,66 @@ def _sanitize_input(ydata, xdata):
 
 
 class Profile:
-    """A class for analyzing 1-D profiles that contain signals. These can be radiation beam profiles, i.e. with 1 large,
-        smooth signal, or multiple signals, e.g. star lines in a circle profile.
+    """A class for analyzing 1-D profiles that contain signals. Most often this should contain
+        profiles with multiple peaks. Methods are mostly for *finding & filtering* the signals, peaks, valleys, etc.
 
+        1-D profiles with a single peak (e.g. radiation beam profiles) are better suited by the SingleProfile class.
     """
     def __init__(self, y_values=None, x_values=None):
+        """
+        Parameters
+        ----------
+        y_values : iterable
+            Y-values of the profile.
+        x_values : iterable, optional
+            X-values of the profile. If None, will create a array from the range of y-values.
+        """
         if y_values is not None:
             y_values, x_values = _sanitize_input(y_values, x_values)
         self.y_values = y_values
         self.x_values = x_values
 
-    def filter_profile(self, size=100):
-        """Filter the profile with a median filter."""
+    def filter(self, size=0.05):
+        """Filter the profile with a median filter.
+
+        Parameters
+        ----------
+        size : int, float
+            Size of the median filter to apply.
+            If a float, the size is the ratio of the length. Must be in the range 0-1.
+            E.g. if size=0.1 for a 1000-element array, the filter will be 100 elements.
+            If an int, the filter is the size passed.
+        """
         self.y_values = ndimage.median_filter(self.y_values, size=size)
 
-    def ground_profile(self):
-        """Adjust the profile so that the lowest value is 0."""
+    def ground(self):
+        """Ground the profile such that the lowest value is 0.
+
+        .. note::
+            This will also "ground" profiles that are negative or partially-negative.
+            For such profiles, be careful that this is the behavior you desire.
+        """
         self.y_values = self.y_values - np.min(self.y_values)
 
     def find_peaks(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
                    return_it=False):
-        """Find the peaks of the profile using a simple max value search."""
+        """Find the peaks (maximums) of the profile using a simple maximum value search.
+
+        Parameters
+        ----------
+        return_it : bool
+            If False (default), peaks are saved as an attr of the profile.
+            If True, peak values and peak indices are returned.
+
+        Returns
+        -------
+        numpy.array, numpy.array
+            Two arrays are returned if the return_it flag is true: The peak values and the peak indices.
+
+        See Also
+        --------
+        common_functions.peak_detect : Further parameter info
+        """
         peak_vals, peak_idxs = peak_detect(self.y_values, self.x_values, min_peak_height, min_peak_distance,
                                            max_num_peaks, exclude_lt_edge, exclude_rt_edge)
         self.peaks = [Point(idx=peak_idx) for peak_idx in peak_idxs]
@@ -53,18 +95,46 @@ class Profile:
 
     def find_valleys(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
                      return_it=False):
-        """Find the valleys (minimums) of the profile using a simple min value search."""
+        """Find the valleys (minimums) of the profile using a simple minimum value search.
+
+        Parameters
+        ----------
+        return_it : bool
+            If False (default), peaks are saved as an attr of the profile.
+            If True, valley values and valley indices are returned.
+
+        Returns
+        -------
+        numpy.array, numpy.array
+            Two arrays are returned if the return_it flag is true: The valley values and the valley indices.
+
+        See Also
+        --------
+        common_functions.peak_detect : Further parameter info
+        """
         valley_vals, valley_idxs = peak_detect(self.y_values, self.x_values, min_peak_height, min_peak_distance,
                                                max_num_peaks, exclude_lt_edge, exclude_rt_edge, find_min_instead=True)
         self.valleys = [Point(idx=valley_idx) for valley_idx in valley_idxs]
         if return_it:
             return valley_vals, valley_idxs
 
-    def find_FWHM_peaks(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None):
-        """Find "peaks" using the center of the FWHM (rather than by max value).
+    def find_FWXM_peaks(self, fwxm=70, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, return_it=False):
+        """Find peaks using the center of the FWHM (rather than by max value).
 
         This search is a bit more complicated than a max value search. Peaks are first determined using the max-value technique.
         Then, those values are used as initial starting points for the FHWM calculation.
+
+        Parameters
+        ----------
+        fwxm : int, float
+            The Full-Width-X-Maximum desired. E.g. 0.7 will return the FW70%M.
+            Values must be between 0 and 100.
+
+        See Also
+        --------
+        find_peaks : Further parameter info
+        common_function.peak_detect : Further parameter info
+
         """
         self.find_peaks(min_peak_height, min_peak_distance, max_num_peaks)
 
@@ -72,13 +142,16 @@ class Profile:
 
         # update peak points with modified indices
         for peak, profile in zip(self.peaks, subprofiles):
-            fwhmc = int(profile.get_FWXM_center(70))
+            fwhmc = int(profile.get_FWXM_center(fwxm))
             peak.idx = fwhmc
 
     def _subdivide_profiles(self):
         """Subdivide the profile data into smaller pieces that can be analyzed for a single peak.
 
-        :returns: A list of BeamProfiles
+        Returns
+        -------
+        list
+            SingleProfiles
         """
         # append the peak list to include the endpoints of the profile
         peaks = self.peaks.copy()
@@ -103,7 +176,18 @@ class Profile:
 
 
 class CircleProfile(Profile, Circle):
-    """A profile in the shape of a circle."""
+    """A profile in the shape of a circle.
+
+        CircleProfile inherits from Profile, meaning that it has
+        x_values and y_values. Additionally, however, because of the
+        circular nature, x- and y-coordinates must also be determined.
+
+        .. warning::
+            Be sure to keep the attributes straight when dealing with a
+            CircleProfile. The y_values attr is the, e.g., pixel values of an
+            image; the x_values are the indices of the profile (0, 1,...);
+            the x_locs and y_locs are the 2D coordinates of the y_ and x_values.
+    """
 
     def __init__(self, center=None, radius=None):
         Circle.__init__(self, center, radius)
@@ -111,10 +195,25 @@ class CircleProfile(Profile, Circle):
         self.x_locs = np.ndarray  # x-values of the circle profile's location
         self.y_locs = np.ndarray  # y-values of the circle profile's location
 
-    def get_profile(self, image_array, size=36000, start=0, ccw=True):
-        """Extracts values of a circular profile atop an image matrix.
+    def get_profile(self, image_array, size=1000, start=0, ccw=True):
+        """Extracts a profile of an image matrix along the circle.
 
-        Extraction starts on the right side (0 on unit circle) and goes counter-clockwise.
+        Parameters
+        ----------
+        image_array : numpy.ndarray
+            2D Numpy array
+        size : int
+            Size in elements of the desired profile.
+        start : int, float
+            Starting position of the profile; 0 is right (0 on unit circle).
+            Units should be in radians.
+        ccw : bool
+            If True (default), the profile will proceed counter-clockwise (the direction on the unit circle).
+            If False, will proceed clockwise.
+
+        See Also
+        --------
+        numpy.ndimage.map_coordinates : Further algorithm details
         """
 
         self._ensure_array_size(image_array, self.radius+self.center.x, self.radius+self.center.y)
@@ -135,12 +234,15 @@ class CircleProfile(Profile, Circle):
         self.y_locs = y
 
     def map_peaks(self):
+        #TODO: rather than a new function, this should be added to overloaded functions of Profile.
         """Map found peaks to the x,y locations on the image/array; i.e. adds x,y coords to the peak locations"""
         for peak in self.peaks:
             peak.x = self.x_locs[peak.idx]
             peak.y = self.y_locs[peak.idx]
 
+    #TODO: move this to utilities
     def _ensure_array_size(self, array, min_width, min_height):
+        """Ensure the array size of inputs are greater than the minimums."""
         width = array.shape[0]
         height = array.shape[1]
         if width < min_width or height < min_height:
@@ -149,15 +251,23 @@ class CircleProfile(Profile, Circle):
 class SingleProfile:
     """A profile that has one large signal, e.g. a radiation beam profile.
 
-    Numerous signal analysis methods are given, mostly based on FWHM calculations.
+    Signal analysis methods are given, mostly based on FWXM calculations.
     """
 
     def __init__(self, y_values, x_values=None, normalize_sides=True, initial_peak=None):
         """
-        :param normalize_sides: Flag specifying whether to ground each side of the profile separately. If False, the profile will be
-            grounded by the profile global minimum.
-        :param initial_peak: If the approximate peak of the profile is known it can be passed in. Not needed unless there is more than
-            one major peak in the profile.
+        Parameters
+        ----------
+        normalize_sides : bool, optional
+            If True (default), each side of the profile will be grounded independently.
+            If False, the profile will be grounded by the profile global minimum.
+        initial_peak : int, optional
+            If the approximate peak of the profile is known it can be passed in. Not needed unless there is more than
+            one major peak in the profile, e.g. a very high edge.
+
+        See Also
+        --------
+        Profile : Further parameter info
         """
         self.y_values, self.x_values = _sanitize_input(y_values, x_values)
 
@@ -175,11 +285,19 @@ class SingleProfile:
             self.ymax_left = np.max(self.ydata_left)
             self.ymax_right = np.max(self.ydata_right)
 
-    def _get_initial_peak(self, initial_peak):
-        """Determine an initial peak to use as a rough guideline."""
+    def _get_initial_peak(self, initial_peak, exclusion_region=0.2):
+        """Determine an initial peak to use as a rough guideline.
+
+        Parameters
+        ----------
+        exclusion_region : float
+            The ratio of the profile to exclude from either side of the profile when searching
+            for the initial peak. Must be between 0 and 1.
+        """
         # if not passed, get one by peak searching.
         if initial_peak is None:
-            _, initial_peak_arr = peak_detect(self.y_values, self.x_values, max_num_peaks=1, exclude_lt_edge=0.2, exclude_rt_edge=0.2)
+            _, initial_peak_arr = peak_detect(self.y_values, self.x_values, max_num_peaks=1, exclude_lt_edge=exclusion_region,
+                                              exclude_rt_edge=exclusion_region)
             try:
                 initial_peak = initial_peak_arr[0]
             except IndexError:
@@ -187,27 +305,30 @@ class SingleProfile:
         # otherwise use the one passed.
         else:
             # ensure peak is within the x_data region and not near an edge
-            peak_beyond_left_edge = initial_peak < self.x_values[int(0.2 * len(self.x_values))]
-            peak_beyond_right_edge = initial_peak > self.x_values[int(0.8 * len(self.x_values))]
-            if peak_beyond_left_edge or peak_beyond_right_edge:
-                raise IndexError("Initial peak that was passed was not reasonably withn the profile x_data range")
+            peak_near_left_edge = initial_peak < self.x_values[int(exclusion_region * len(self.x_values))]
+            peak_near_right_edge = initial_peak > self.x_values[int((1-exclusion_region) * len(self.x_values))]
+            if peak_near_left_edge or peak_near_right_edge:
+                raise IndexError("Initial peak that was passed was not reasonably within the profile x_data range")
 
             initial_peak = np.where(self.x_values == initial_peak)[0]
         return int(initial_peak)
 
     @value_accept(side=('left', 'right'))
     def get_X_penum_idx(self, side='left', penum_point=50):
-        """
-        the main method of ProfPenum
+        """Return the index of the given penumbra.
 
-        returns: the index of the point and the value of the point
+        Parameters
+        ----------
+        side : {'left', 'right'}
+            Which side to look for the penumbra.
+        penum_point : int
+            The penumbra value to search for. E.g. if passed 20, the method finds
+            the index of 0.2*max profile value.
 
-        side indicates which side the method is looking from: left or right
-
-        penumpoint indicates what value percentage is being sought. E.g. if
-        penumpoint=20 the method looks for the index & value of the point along
-        the 1D array that closest matches the 20% of maximum point on the given
-        side
+        Returns
+        -------
+        int
+            The index of the penumbra value
         """
         found = False
         peak = copy.copy(self.initial_peak)
@@ -229,88 +350,114 @@ class SingleProfile:
                 elif peak == 0:
                     return None
                 peak += 1
-        else:
-            raise TypeError("side was not correctly specified; use 'left' or 'right'")
 
         return self.x_values[peak]
 
-    def get_FWXM(self, X=50):
+    def get_FWXM(self, x=50, round=False):
+        """Return the width at X-Max, where X is the percentage height.
+
+        Parameters
+        ----------
+        x : int
+            The percent height of the profile. E.g. x = 50 is 50% height,
+            i.e. FWHM.
+        round : bool
+            If False (default), the index is returned as-is, even if it's a float
+            If True, converts the index to an int.
+
+        Returns
+        -------
+        float
+            The width in number of elements of the FWXM
         """
-        get the Full-Width X-Max, where X is the percentage height.
-        E.g. X = 50 is 50% height, a.k.a half max, thus X=50 is the FWHM
-        returns the width in number of elements of the FWXM
-        """
-        li = self.get_X_penum_idx('left', X)
-        ri = self.get_X_penum_idx('right', X)
+        li = self.get_X_penum_idx('left', x)
+        ri = self.get_X_penum_idx('right', x)
         fwxm = np.abs(ri - li)
+        if round:
+            fwxm = int(fwxm)
         return fwxm
 
-    def get_FWXM_center(self, X=50, rounded=False):
+    def get_FWXM_center(self, x=50, round=False):
+        """Return the center index of the FWXM.
+
+        See Also
+        --------
+        get_FWXM : Further parameter info
         """
-        returns the center point (index) of FWXM
-        """
-        fwxm = self.get_FWXM(X)
-        li = self.get_X_penum_idx('left', X)
+        fwxm = self.get_FWXM(x)
+        li = self.get_X_penum_idx('left', x)
         fwxmcen = np.abs(li + fwxm / 2)
-        if rounded:
+        if round:
             fwxmcen = np.round(fwxmcen)
         return fwxmcen
 
-    def get_penum_width(self, side='left', lower_penum=20, upper_penum=80):
-        """
-        return the actual penumbral width of the profile. This is the
-        standard "penumbra width" that med. phys. talks about in
+    @value_accept(side=('left', 'right', 'both'))
+    def get_penum_width(self, side='left', lower=20, upper=80):
+        """Return the penumbra width of the profile.
+
+        This is the standard "penumbra width" calculation that medical physics talks about in
         radiation profiles. Standard is the 80/20 width, although 90/10
         is sometimes used.
 
-        side options include: left, right, & both (average)
+        Parameters
+        ----------
+        lower : int
+            The "lower" penumbra value used to calculate penumbra. Must be lower than upper.
+        upper : int
+            The "upper" penumbra value used to calculate penumbra.
+        side : {'left', 'right', 'both'}
+            Which side of the profile to determined penumbra.
+            If 'both', the left and right sides are averaged.
         """
-        if lower_penum > upper_penum:
+        if lower > upper:
             raise ValueError("Upper penumbra value must be larger than the lower penumbra value")
 
         if side == 'left':
-            li = self.get_X_penum_idx('left', lower_penum)
-            ui = self.get_X_penum_idx('left', upper_penum)
+            li = self.get_X_penum_idx('left', lower)
+            ui = self.get_X_penum_idx('left', upper)
             pen = np.abs(ui - li)
-            return pen
         elif side == 'right':
-            li = self.get_X_penum_idx('right', lower_penum)
-            ui = self.get_X_penum_idx('right', upper_penum)
+            li = self.get_X_penum_idx('right', lower)
+            ui = self.get_X_penum_idx('right', upper)
             pen = np.abs(ui - li)
-            return pen
         elif side == 'both':
-            li = self.get_X_penum_idx('left', lower_penum)
-            ui = self.get_X_penum_idx('left', upper_penum)
+            li = self.get_X_penum_idx('left', lower)
+            ui = self.get_X_penum_idx('left', upper)
             lpen = np.abs(ui - li)
-            li = self.get_X_penum_idx('right', lower_penum)
-            ui = self.get_X_penum_idx('right', upper_penum)
+            li = self.get_X_penum_idx('right', lower)
+            ui = self.get_X_penum_idx('right', upper)
             rpen = np.abs(ui - li)
             pen = np.mean([lpen, rpen])
-            return pen
-        else:
-            raise NameError("getpenumwidth input parameter not acceptable")
 
-    def get_field_value(self, field_width_percent=80, value='mean'):
-        """Get the value of the field in the profile, either mean, median, or max, within the given field width.
+        return pen
 
-        :param field_width_percent: The percent width relative to the FWHM to sample.
-        :type field_width_percent: int < 100
-        :param value: Value type to extract. Either 'mean', 'median', or 'max' of field values.
-        :type value: str
+    @value_accept(field_width=(0, 1))
+    def get_field_calculation(self, field_width=0.8, calculation='mean'):
+        """Calculate the value of the field in the profile.
+
+        This function is useful for determining field symmetry and flatness.
+
+        Parameters
+        ----------
+        field_width : float
+            The field width size relative to the FWHM.
+            E.g. 0.8 will calculate in the rage of FWHM * 0.8. Must be between 0 and 1.
+        calculation : {'mean', 'median', 'max', 'min}
+            Calculation to perform on the field values.
         """
 
         fwhmc = self.get_FWXM_center()
-        fwhm = self.get_FWXM() * 0.8
-        left = fwhmc - fwhm / 2
-        right = fwhmc + fwhm / 2
+        field_width = self.get_FWXM() * field_width
+        left = int(fwhmc - field_width / 2)
+        right = int(fwhmc + field_width / 2)
 
         field_values = self.y_values[left:right]
 
-        if value == 'mean':
+        if calculation == 'mean':
             return field_values.mean()
-        elif value == 'median':
+        elif calculation == 'median':
             return np.median(field_values)
-        elif value == 'max':
+        elif calculation == 'max':
             return field_values.max()
-        elif value == 'min':
+        elif calculation == 'min':
             return field_values.min()

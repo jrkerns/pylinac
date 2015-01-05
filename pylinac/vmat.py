@@ -15,7 +15,6 @@ from pylinac.core.decorators import value_accept, type_accept, lazyproperty
 from pylinac.core.image import ImageObj
 from pylinac.core.geometry import Point, Rectangle
 from pylinac.core.io import get_filepath_UI
-from pylinac.core.utilities import Numeric
 
 DRMLC_seg_strs = ('1.6cm/s', '2.4cm/s', '0.8cm/s', '0.4cm/s')
 DRGS_seg_strs = ('105MU/min', '210MU/min', '314MU/min', '417MU/min', '524MU/min', '592MU/min', '600MU/min')
@@ -24,8 +23,8 @@ im_types = {'OPEN': 'open', 'DMLC': 'dmlc'}
 
 class VMAT:
     """The VMAT class analyzes two DICOM images acquired via a linac's EPID and analyzes
-        regions of interest (segments) based on the paper by `Jorgensen et al <http://dx.doi.org/10.1118/1.3552922>`_, specifically,
-        the Dose Rate & GantryAxis Speed (DRGS) and Dose Rate & MLC speed (DRMLC) tests.
+        regions of interest (segments) based on the paper by `Jorgensen et al <http://dx.doi.org/10.1118/1.3552922>`_,
+        specifically, the Dose Rate & Gantry Speed (DRGS) and Dose Rate & MLC speed (DRMLC) tests.
     """
 
     def __init__(self):
@@ -38,10 +37,12 @@ class VMAT:
 
     @value_accept(im_type=im_types)
     def load_image_UI(self, im_type='open'):
-        """Open a UI file browser to load dicom image for given VMAT image.
+        """Open a UI file browser to load dicom image.
 
-        :param im_type: 'open' or 'mlc'; specifies which file/image is being loaded
-        :type im_type: str
+        Parameters
+        ----------
+        im_type : {'open', 'dmlc'}
+            Specifies which file/image type is being loaded in.
         """
         if  im_type == im_types['OPEN']:  # open
             caption = "Select Open Field EPID Image..."
@@ -54,12 +55,14 @@ class VMAT:
 
     @value_accept(im_type=im_types)
     def load_image(self, file_path, im_type='open'):
-        """Load the image directly by the file path (i.e. non-interactively).
+        """Load the image directly by the file path.
 
-        :param file_path: The absolute path to the DICOM image
-        :type file_path: str
-        :param im_type: Specifies whether the image is the Open ('open') or DMLC ('dmlc') field.
-        :type im_type: str
+        Parameters
+        ----------
+        file_path : str
+            The path to the DICOM image.
+        im_type : {'open', 'dmlc'}
+            Specifies which file/image type is being loaded in.
         """
         if im_type == im_types['OPEN']:
             image = self.image_open
@@ -71,8 +74,10 @@ class VMAT:
     def load_demo_image(self, test_type='drgs'):
         """Load the demo DICOM images from demo files folder.
 
-        :param test_type: Test type of images to load; 'drgs' or 'drmlc'
-        :type test_type: str
+        Parameters
+        ----------
+        test_type : {'drgs', 'drmlc'}
+            Test type of images to load.
         """
         demo_folder = osp.join(osp.dirname(osp.abspath(__file__)), "demo_files", 'vmat')
         if test_type == test_types['DRMLC']:  # DRMLC
@@ -86,21 +91,28 @@ class VMAT:
         self.load_image(im_dmlc_path, im_type=im_types['DMLC'])
 
     def run_demo_drgs(self):
-        """Run the demo of the module for the Dose Rate & GantryAxis Speed test."""
+        """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
         self.load_demo_image('drgs')
         self.analyze(test='drgs', tolerance=3)  # tolerance at 2 to show some failures
         print(self.get_string_results())
         self.plot_analyzed_image()
 
     def run_demo_drmlc(self):
-        """Run the demo of the module for the Dose Rate & MLC speed test."""
+        """Run the VMAT demo for the Dose Rate & MLC speed test."""
         self.load_demo_image('drmlc')
         self.analyze(test='drmlc', tolerance=3)
         print(self.get_string_results())
         self.plot_analyzed_image()
 
     def _calc_im_scaling_factors(self, SID=None):
-        """Determine the image scaling factors; factors are relative to reference values from images of size 384x512 taken at 150cm SID."""
+        """Determine image scaling factors.
+
+         Factors are relative to reference values from images of size 384x512 taken at 150cm SID.
+
+         See Also
+         --------
+         analyze : Further parameter info.
+         """
         # Image size scaling
         y_scale = self.image_dmlc.pixel_array.shape[0] / 384.0
         x_scale = self.image_dmlc.pixel_array.shape[1] / 512.0
@@ -117,7 +129,12 @@ class VMAT:
         return SID_scale, scale
 
     def construct_segments(self, test, scale, SID_scale, HDMLC):
-        """Construct the 4 or 7 Segments of the test."""
+        """Construct the 4 or 7 Segments of the test, depending on the test.
+
+        See Also
+        --------
+        Segment : Further parameter info.
+        """
 
         # DRMLC segment x-direction offsets
         if test == test_types['DRMLC']:
@@ -170,18 +187,21 @@ class VMAT:
         for segment_num, segment in enumerate(self.segments):
             segment.deviations = deviation[:, segment_num]
 
-    @type_accept(test=str, tolerance=Numeric, SID=Numeric)
+    @type_accept(test=str)
     @value_accept(test=test_types, tolerance=(0.3, 8), SID=(0, 180))
     def analyze(self, test, tolerance=3, SID=None, HDMLC=False):
-        """Analyze 2 VMAT images, the open field image and DMLC field image, according to 1 of 2 possible tests.
+        """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
-        :param test: The test to perform, either Dose Rate GantryAxis Speed ('drgs') or Dose Rate MLC Speed ('drmlc').
-        :type test: str
-        :param tolerance: The tolerance of the sample deviations in percent. Default is 3, as Jorgensen recommends.
-        :type tolerance: float, int
-        :param SID: The Source to Image (detector) distance in cm. Usually doesn't need to be passed for EPID DICOM images. This argument
+        Parameters
+        ----------
+        test : {'drgs', 'drmlc'}
+            The test to perform, either Dose Rate Gantry Speed ('drgs') or Dose Rate MLC Speed ('drmlc').
+        tolerance : number
+            The tolerance of the sample deviations in percent. Default is 3, as Jorgensen recommends.
+            Must be between 0.3 and 8.
+        SID : number
+            The Source to Image (detector) distance in cm. Usually doesn't need to be passed for EPID DICOM images. This argument
             will override any automatically derived value however. If left as None and no SID was determined, it will assume 150cm.
-        :type SID: None, int, float
         """
         # error checking
         if not self.open_img_is_loaded or not self.dmlc_img_is_loaded:
@@ -208,8 +228,11 @@ class VMAT:
         self._calc_deviations()
 
     def _check_img_inversion(self):
-        """Check that the images are correctly inverted (pixel value increases with dose) by
-        sampling a corner and comparing to the image mean."""
+        """Check that the images are correctly inverted.
+
+        Pixel value should increase with dose. This is ensured by
+        sampling a corner and comparing to the mean image value.
+        """
         top_corner = self.image_open.pixel_array[:20,:20].mean()
         img_mean = self.image_open.pixel_array.mean()
         if top_corner > img_mean:
@@ -218,10 +241,11 @@ class VMAT:
 
     @property
     def sample_pass_matrix(self):
-        """Return a num_segments-by-num_samples boolean matrix indicating pass/fail of the sample ratio."""
+        """Return a num_segments-by-num_samples boolean matrix indicating pass/fail status of all the samples."""
         sample_passfail_matrix = np.zeros((self.num_samples, self.num_segments), dtype=bool)
 
         # for each sample, if ratio is within tolerance, set to True
+        # TODO: probably replacable with np.where()
         for seg_num, segment in enumerate(self.segments):
             for sam_num, sample in enumerate(segment.samples):
                 if sample.ratio < 1 + self.tolerance and sample.ratio > 1 - self.tolerance:
@@ -231,6 +255,7 @@ class VMAT:
 
     @property
     def open_img_is_loaded(self):
+        """Status of open image."""
         if self.image_open.pixel_array.size != 0:
             return True
         else:
@@ -238,6 +263,7 @@ class VMAT:
 
     @property
     def dmlc_img_is_loaded(self):
+        """Status of DMLC image."""
         if self.image_dmlc.pixel_array.size != 0:
             return True
         else:
@@ -245,38 +271,44 @@ class VMAT:
 
     @property
     def num_samples(self):
+        """The number of 'samples' the algorithm created."""
         return len(self.segments[0].samples)
 
     @property
     def num_segments(self):
+        """The number of segments the algorithm created."""
         return len(self.segments)
 
     @property
     def overall_max_deviation(self):
+        """The maximum deviation of any sample."""
         return np.max([segment.max_dev for segment in self.segments])
 
     @property
     def overall_min_deviation(self):
+        """The minimum deviation of any sample."""
         return np.min([segment.min_dev for segment in self.segments])
 
     @property
     def overall_abs_mean_deviation(self):
+        """The mean absolute deviation of all samples."""
         return np.mean([segment.abs_mean_dev for segment in self.segments])
 
     @property
     def passed(self):
-        """Returns whether all the sample ratios passed the given tolerance."""
+        """Returns whether *all* the sample ratios passed the given tolerance."""
         if self.sample_pass_matrix.all():
             return True
         else:
             return False
 
-    def _draw_objects(self, plot, draw=False):
-        """
-        This method draws lines on the matplotlib widget/figure showing an outline of the ROIs used in
-        the calculation and text of the results.
+    def _draw_objects(self, plot):
+        """Draw lines onto the matplotlib widget/figure showing the ROIS.
 
-        :type plot: matplotlib.axes.Axes
+        Parameters
+        ----------
+        plot : matplotlib.axes.Axes
+            The plot to draw the objects tol
         """
 
         # clear images of any existing objects that are on it
@@ -300,14 +332,14 @@ class VMAT:
 
                 self.roi_handles[sample_num][segment_num] = sample.add_to_axes(plot.axes, edgecolor=color)
 
-        if draw:
-            plot.draw()
-
     def plot_analyzed_image(self, plot1=None, plot2=None):
-        """Create 1 figure of 2 plots showing the open and MLC images with the samples and results drawn on.
+        """Create 1 figure with 2 plots showing the open and MLC images
+            with the samples and results drawn on.
 
-        :param plot1: If None, will create a new figure.
-        :param plot2: Only for PyQA use.
+        Parameters
+        ----------
+        plot1 : matplotlib.axes.plot
+            If passed, plots to this plot. If None, will create a new figure.
         """
         if plot1 is None and plot2 is None:
             fig, (ax1, ax2) = plt.subplots(1,2)
@@ -337,9 +369,12 @@ class VMAT:
             plot2.axes.hold(False)
 
     def get_string_results(self):
-        """Create a string of the summary of the analysis results.
+        """A string of the summary of the analysis results.
 
-        :returns: str -- The results string showing the overall result and deviation stats by segment.
+        Returns
+        -------
+        str
+            The results string showing the overall result and deviation statistics by segment.
         """
 
         if self.passed:
@@ -377,14 +412,33 @@ class VMAT:
 
 
 class Sample(Rectangle):
-    """A class representing a single 'sample' of a VMAT segment. A sample is an ROI of the radiation one MLC pair
-        produces in one segment.
+    """Represents a single 'sample' of a VMAT segment. A sample is an ROI of the radiation one MLC pair
+        produces in one VMAT segment.
     """
     def __init__(self, width, height, center):
+        """
+        Parameters
+        ----------
+        width : int
+            Width of the sample in pixels.
+        height : int
+            Height of the sample in pixels.
+        center : geometry.Point
+            Center Point of the sample.
+        """
         super().__init__(width, height, center, as_int=True)
         self.ratio = 0
 
     def extract_ratio(self, open_image, dmlc_image):
+        """Extract the ratio (DMLC/open) of the pixel values in the sample.
+
+        Parameters
+        ----------
+        open_image : numpy.ndarray
+            The open image array
+        dmlc_image : numpy.ndarray
+            The DMLC image array
+        """
         dmlc_value = dmlc_image.pixel_array[self.bl_corner.y - self.height:self.bl_corner.y,
                                 self.bl_corner.x: self.bl_corner.x + self.width].mean()
         open_value = open_image.pixel_array[self.bl_corner.y - self.height:self.bl_corner.y,
@@ -395,7 +449,7 @@ class Sample(Rectangle):
         self.ratio /= norm_value
 
 
-class Segment(object):
+class Segment:
     """A class for holding and analyzing segment data of VMAT tests.
 
     For VMAT tests, there are either 4 or 7 'segments', which represents a section of the image that received
@@ -405,6 +459,22 @@ class Segment(object):
     DRMLC_width = 42  # ditto for DRMLC
 
     def __init__(self, test, center_point, scaling, SID_scale, HDMLC):
+        """
+        Parameters
+        ----------
+        test : {'drgs', 'drmlc'}
+            The test being performed, either Dose-Rate & Gantry Speed or Dose-Rate and MLC Speed.
+        center_point : geometry.Point
+            The center point of the Segment.
+        scaling :
+            The scaling of the image compared to reference values.
+        SID_scale : float
+            The ratio of the actual SID distance to reference SID distance (150cm).
+        HDMLC : bool
+            If False (default), assumes a standard Millenium 120 leaf MLC (5mm leaves).
+            If True, assumes an HD Millenium MLC which has a leaf width value of 2.5mm.
+
+        """
         self.center = center_point
         if test == test_types['DRGS']:  #DRGS
             width = np.round(self.DRGS_width * scaling.x * SID_scale)  # length of the sample parallel to MLC movement.
@@ -422,7 +492,6 @@ class Segment(object):
             sample_spacing /= 2
 
         offset = leaf_spacing*num_leaves/2
-
 
         self.samples = []  # Will be a list of Samples within segment
         for leaf in range(num_leaves):
@@ -446,33 +515,40 @@ class Segment(object):
 
     @property
     def deviations(self):
+        """Returns a matrix of len num_samples with the sample deviation values."""
         return self._deviations
 
     @deviations.setter
     def deviations(self, value):
+        """Set the deviations matrix. Must be length of the num_samples"""
         if len(value) != len(self.samples):
             raise ValueError("Deviation matrix is not correctly sized")
         self._deviations = value
 
     @lazyproperty
     def abs_mean_dev(self):
+        """Return the mean absolute deviation of the samples."""
         absolute_deviations = np.abs(self.deviations)
         return absolute_deviations.mean()
 
     @property
     def mean_ratio(self):
+        """Return the mean ratio (DMLC/open) of the samples."""
         return self._ratios.mean()
 
     @lazyproperty
     def min_dev(self):
+        """Return the min ratio of the samples."""
         return self.deviations.min()
 
     @lazyproperty
     def max_dev(self):
+        """Return the max deviation of the samples."""
         return self.deviations.max()
 
     @property
     def _ratios(self):
+        """Return an array of sample ratios the length of num_samples."""
         return np.array([sample.ratio for sample in self.samples])
 
 

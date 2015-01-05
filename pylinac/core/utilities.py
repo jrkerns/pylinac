@@ -1,5 +1,4 @@
 """Utility functions for pylinac."""
-from abc import ABCMeta
 import decimal
 import inspect
 import os.path as osp
@@ -11,15 +10,16 @@ import numpy as np
 from pylinac.core.decorators import type_accept
 
 
-class Numeric(metaclass=ABCMeta):
-    """An abstract class that encompasses many numeric types.
 
-    Usage is for testing isinstance() for many numeric types: int, float, numpy datatypes, etc."""
-    pass
-Numeric.register(int)
-Numeric.register(float)
-Numeric.register(np.number)
-Numeric.register(decimal.Decimal)
+# class Numeric(metaclass=ABCMeta):
+#     """An abstract class that encompasses many numeric types.
+#
+#     Usage is for testing isinstance() for many numeric types: int, float, numpy datatypes, etc."""
+#     pass
+# Numeric.register(int)
+# Numeric.register(float)
+# Numeric.register(np.number)
+# Numeric.register(decimal.Decimal)
 
 
 def isnumeric(object):
@@ -33,7 +33,7 @@ def is_iterable(object):
     else:
         return False
 
-@type_accept(array=np.ndarray, threshold=Numeric)
+@type_accept(array=np.ndarray)
 def array2logical(array, threshold):
     """Return a 'logical' (binary) version of the input array based on a threshold.
 

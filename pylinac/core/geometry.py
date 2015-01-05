@@ -11,30 +11,33 @@ from pylinac.core.utilities import isnumeric, is_iterable
 
 
 class Point:
-    """A point with x, y, and z coordinates.
+    """A geometric point with x, y, and z coordinates/attributes.
 
-    .. note:: A namedtuple (Point = namedtuple('Point', ['x', 'y']) is probably more appropriate,
-              but they aren't mutable, unlike an class attr, hence a class.
+    .. note:: A namedtuple (Point = namedtuple('Point', ['x', 'y']) would normally be more appropriate,
+              but they aren't mutable, hence a class.
     """
 
     def __init__(self, x=0, y=0, z=0, idx=None, value=None, as_int=False):
         """
-        :param x: x-coordinate or iterable type containing all coordinates. If iterable, values are assumed to be in order: (x,y,z).
-        :type x: int, float, iterable (list, tuple, etc)
-        :param y: y-coordinate
-        :type y: numeric, optional
-        :param z: z-coordinate
-        :type z: numeric, optional
-        :param idx: Index of point. Useful for sequential coordinates; e.g. a point on a circle profile is sometimes easier to describe
+        Parameters
+        ----------
+        x : int, float, Point, iterable (list, tuple, etc)
+            x-coordinate or iterable type containing all coordinates. If iterable, values are assumed to be in order: (x,y,z).
+        y : number-like, optional
+            y-coordinate
+        z : number-like, optional
+            z-coordinate
+        idx : int, optional
+            Index of point. Useful for sequential coordinates; e.g. a point on a circle profile is sometimes easier to describe
             in terms of its index rather than x,y coords.
-        :type idx: int, optional
-        :param value: value at point location (e.g. pixel value of an image)
-        :type value: numeric, optional
-        :param as_int: flag specifying to convert coordinates to integers
-        :type as_int: boolean
+        value : number-like, optional
+            value at point location (e.g. pixel value of an image)
+        as_int : boolean
+            If True, passed coordinates are converted to integers.
         """
         # Point object passed in
         if isinstance(x, Point):
+            # self = x?
             point = x
             x = point.x
             y = point.y
@@ -67,23 +70,43 @@ class Point:
 
     @property
     def value(self):
+        """Return the value property."""
         return self._value
 
     @value.setter
     def value(self, val):
-        if not isnumeric(val):
-            if val is not None:
-                raise TypeError("Point value was not a valid type. Must be numeric.")
+        """Set the value property. val must be number-like."""
+        if val is not None and not isnumeric(val):
+            raise TypeError("Point value was not a valid type. Must be number-like.")
         self._value = val
 
     def dist_to(self, point):
-        """Calculate the distance to the given point."""
+        """Calculate the distance to the given point.
+
+        Parameters
+        ----------
+        point : Point
+            The other point to calculate distance to.
+        """
         return math.sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
+
+class Scale:
+    """A 'scale' object with x and y attrs. Used in conjunction with scaling images up or down."""
+    def __init__(self, x, y):
+        pass
 
 
 class Circle:
-    """A circle with center Point and radius."""
+    """A geometric circle with center Point and radius."""
     def __init__(self, center_point=None, radius=None):
+        """
+        Parameters
+        ----------
+        center_point : Point, optional
+            Center point of the wobble circle.
+        radius : float, optional
+            Radius of the wobble circle.
+        """
 
         if center_point is not None:
             if is_iterable(center_point):
@@ -98,23 +121,42 @@ class Circle:
         self.radius = radius
 
     def add_to_axes(self, axes, edgecolor='black', fill=False):
-        """Plot the Circle on the axes."""
+        """Plot the Circle on the axes.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            An MPL axes to plot to.
+        edgecolor : str
+            The color of the circle.
+        fill : bool
+            Whether to fill the circle with color or leave hollow.
+        """
         axes.add_patch(mpl_Circle((self.center.x, self.center.y), edgecolor=edgecolor, radius=self.radius, fill=fill))
 
 
 class Line:
-    """Model a line that is represented by two points or an m*x+b representation.
+    """A line that is represented by two points or by m*x+b.
 
+    Notes
+    -----
     Calculations of slope, etc are from here:
     http://en.wikipedia.org/wiki/Linear_equation
     and here:
     http://www.mathsisfun.com/algebra/line-equation-2points.html
     """
     def __init__(self, point1=None, point2=None, m=None, b=None):
-        """Create a line from *either* two distinct points, or an m*x+b definition.
-
-        :param point1, point2: Points along the line
-        :type point1, point2: Point
+        """
+        Parameters
+        ----------
+        point1 : Point, optional
+            One point of the line
+        point2: Point, optional
+            Second point along the line.
+        m : int, float, optional
+            slope of the line (rise/run)
+        b : int, float, optional
+            y-intercept of the line
         """
         # if created by passing two points...
         if point1 is not None and point2 is not None:
@@ -137,38 +179,51 @@ class Line:
 
     @lazyproperty
     def b(self):
-        """Return the intercept of the line.
+        """Return the y-intercept of the line.
 
         b = y - m*x
         """
         return self.point1.y - (self.m * self.point1.x)
 
     def y(self, x):
-        """Return y-value along line given x."""
+        """Return y-value along line at position x."""
         return self.m * x + self.b
 
     def x(self, y):
-        """Return x-value along line given y."""
+        """Return x-value along line at position y."""
         return (y - self.b)/self.m
 
     @property
-    def length(self):
-        """Return length of the line."""
-        return self.point1.dist_to(self.point2)
+    def is_finite(self):
+        """Boolean property specifying if the line is finite."""
+        if self.point1 is not None and self.point2 is not None:
+            return True
+        else:
+            return False
 
-    @type_accept(point=(Point, tuple))
+    @property
+    def length(self):
+        """Return length of the line, if finite."""
+        if self.is_finite:
+            return self.point1.dist_to(self.point2)
+        else:
+            raise ValueError("Line is not finite")
+
     def distance_to(self, point):
-        """Calculate the distance from the line to a point.
+        """Calculate the minimum distance from the line to a point.
 
         Equations are from here: http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
 
-        :type point: Point
+        Parameters
+        ----------
+        point : Point, iterable
+            The point to calculate distance to.
         """
-
+        point = Point(point)
         # calculate from m*x+b definition
         if self.point2 is None:
             #TODO: work on this
-            pass
+            raise NotImplementedError
         # calculate from 2 points definition
         else:
             lp1 = self.point1
@@ -178,41 +233,76 @@ class Line:
             return numerator/denominator
 
     def add_to_axes(self, axes, color='w'):
-        """Plot the line to the passed figure."""
+        """Plot the line to an axes.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            An MPL axes to plot to.
+        color : str
+            The color of the line.
+        """
         axes.plot((self.point1.x, self.point2.x), (self.point1.y, self.point2.y), color=color)
 
 
-class Rectangle(object):
+class Rectangle:
     """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point."""
-    @type_accept(center=(Point, None), tl_corner=(Point, None), bl_corner=(Point, None))
+    @type_accept(center=Point, tl_corner=Point, bl_corner=Point)
     def __init__(self, width, height, center=None, tl_corner=None, bl_corner=None, as_int=False):
-        self._as_int = as_int
-        self.width = width
-        self.height = height
+        """
+        Parameters
+        ----------
+        width : number
+            Width of the rectangle.
+        height : number
+            Height of the rectangle.
+        center : Point, iterable, optional
+            Center point of rectangle.
+        tl_corner : Point, iterable, optional
+            Top-Left corner of the rectangle.
+        bl_corner : Point, iterable, optional
+            Bottom-Left corner of the rectangle.
+        as_int : bool
+            If False (default), inputs are left as-is. If True, all inputs are converted to integers.
+        """
+        if as_int:
+            self.width = int(width)
+            self.height = int(height)
+        else:
+            self.width = width
+            self.height = height
+
         if not any((center, tl_corner, bl_corner)):
             raise ValueError("Must specify at least one anchor point for the box.")
         elif center is not None:
-            self.center = center
-            self.tl_corner = Point(center.x - width/2, center.y + height/2)
-            self.bl_corner = Point(center.x - width/2, center.y - height/2)
+            self.center = Point(center, as_int=as_int)
+            self.tl_corner = Point(center.x - width/2, center.y + height/2, as_int=as_int)
+            self.bl_corner = Point(center.x - width/2, center.y - height/2, as_int=as_int)
         elif tl_corner is not None:
-            self.tl_corner = tl_corner
-            self.center = Point(tl_corner.x + width/2, tl_corner.y - height/2)
-            self.bl_corner = Point(tl_corner.x, tl_corner.y - height)
+            self.tl_corner = Point(tl_corner, as_int=as_int)
+            self.center = Point(tl_corner.x + width/2, tl_corner.y - height/2, as_int=as_int)
+            self.bl_corner = Point(tl_corner.x, tl_corner.y - height, as_int=as_int)
         elif bl_corner is not None:
-            self.bl_corner = bl_corner
-            self.center = Point(bl_corner.x + width / 2, bl_corner.y + height / 2)
-            self.tl_corner = Point(bl_corner.x, bl_corner.y + height)
+            self.bl_corner = Point(bl_corner, as_int=as_int)
+            self.center = Point(bl_corner.x + width / 2, bl_corner.y + height / 2, as_int=as_int)
+            self.tl_corner = Point(bl_corner.x, bl_corner.y + height, as_int=as_int)
 
-        if as_int:
-            self.width = int(self.width)
-            self.height = int(self.height)
-            self.center = Point(int(self.center.x), int(self.center.y))
-            self.bl_corner = Point(int(self.bl_corner.x), int(self.bl_corner.y))
-            self.tl_corner = Point(int(self.tl_corner.x), int(self.tl_corner.y))
+
 
     def add_to_axes(self, axes, edgecolor='black', angle=0.0, fill=False):
-        """Plot the Rectangle to the axes."""
+        """Plot the Rectangle to the axes.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            An MPL axes to plot to.
+        edgecolor : str
+            The color of the circle.
+        angle : float
+            Angle of the rectangle.
+        fill : bool
+            Whether to fill the rectangle with color or leave hollow.
+        """
         axes.add_patch(mpl_Rectangle((self.bl_corner.x, self.bl_corner.y),
                                      width=self.width,
                                      height=self.height,
@@ -222,11 +312,23 @@ class Rectangle(object):
 
 
 def sector_mask(shape, center, radius, angle_range=(0, 360)):
-    """
-    Return a boolean mask for a circular sector. The start/stop angles in
-    `angle_range` should be given in clockwise order.
+    """Return a circular arc-shaped boolean mask.
 
-    Found here: https://stackoverflow.com/questions/18352973/mask-a-circular-sector-in-a-numpy-array/18354475#18354475
+    Parameters
+    ----------
+    shape : tuple
+        Shape of the image matrix. Usually easiest to pass something like array.shape
+    center : Point, iterable
+        The center point of the desired mask.
+    radius : int, float
+        Radius of the mask.
+    angle_range : iterable
+        The angle range of the mask. E.g. the default (0, 360) creates an entire circle.
+        The start/stop angles should be given in clockwise order. 0 is right (0 on unit circle).
+
+    References
+    ----------
+    https://stackoverflow.com/questions/18352973/mask-a-circular-sector-in-a-numpy-array/18354475#18354475
     """
 
     x, y = np.ogrid[:shape[0], :shape[1]]

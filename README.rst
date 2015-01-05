@@ -45,6 +45,4 @@ you have VMAT images, starshot images, machine log files, CBCT DICOM files, or a
 or share them via Dropbox, Google Drive, etc. Obviously, don't send patient files, just QA files.
 
 
-Code is Python 2.7/3.x compatible thanks to `future <http://python-future.org/>`_.
-
 
