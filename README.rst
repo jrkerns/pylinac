@@ -1,15 +1,15 @@
 Pylinac
 =======
 
-.. image:: https://pypip.in/version/pylinac/badge.svg?text=version
+.. image:: https://pypip.in/version/pylinac/badge.svg?text=version?style=flat
     :target: https://pypi.python.org/pypi/pylinac/
     :alt: Latest Version
 
-.. image:: https://pypip.in/py_versions/pylinac/badge.svg
+.. image:: https://pypip.in/py_versions/pylinac/badge.svg?style=flat
     :target: https://pypi.python.org/pypi/pylinac/
     :alt: Supported Python versions
 
-.. image:: https://pypip.in/license/pylinac/badge.svg
+.. image:: https://pypip.in/license/pylinac/badge.svg?style=flat
     :target: https://pypi.python.org/pypi/pylinac/
     :alt: License
 
@@ -39,7 +39,8 @@ Below are the tools currently available; tools will be added one at a time as th
 
 Documentation
 -------------
-To get started, install, run the demos, view the API docs, and learn the module design, visit the `Full Documentation <http://pylinac.readthedocs.org/en/latest/index.html>`_.
+To get started, install, run the demos, view the API docs, and learn the module design, visit the
+`Full Documentation <http://pylinac.readthedocs.org/en/latest/index.html>`_ on Read The Docs.
 
 Contributing
 ------------

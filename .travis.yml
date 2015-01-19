@@ -25,7 +25,7 @@ install:
   - sudo conda init
   # update conda. The following line throws an error
 #  - sudo conda update --yes conda
-  - conda create -p $HOME/py --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pillow statsmodels pip future setuptools
+  - conda create -p $HOME/py --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pillow pyqt
   - export PATH=$HOME/py/bin:$PATH
 
 #  - pip install -U pip  # update pip
@@ -42,7 +42,11 @@ install:
 
 # test script
 script:
-  - python setup.py test
+#  - python setup.py test
+  - coverage run --source=pylinac setup.py test
+
+after_success:
+  coveralls
 
 notifications:
   email: false
