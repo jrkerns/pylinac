@@ -57,6 +57,12 @@ class Profile:
             E.g. if size=0.1 for a 1000-element array, the filter will be 100 elements.
             If an int, the filter is the size passed.
         """
+        if isinstance(size, float):
+            if 0 < size < 1:
+                size *= len(self.y_values)
+            else:
+                raise TypeError("Float was passed but was not between 0 and 1")
+
         self.y_values = ndimage.median_filter(self.y_values, size=size)
 
     def ground(self):
@@ -68,7 +74,7 @@ class Profile:
         """
         self.y_values = self.y_values - np.min(self.y_values)
 
-    def find_peaks(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
+    def find_peaks(self, min_peak_height=0.3, min_peak_distance=0.05, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
                    return_it=False):
         """Find the peaks (maximums) of the profile using a simple maximum value search.
 
@@ -80,8 +86,8 @@ class Profile:
 
         Returns
         -------
-        numpy.array, numpy.array
-            Two arrays are returned if the return_it flag is true: The peak values and the peak indices.
+        peak_vals : numpy.array, numpy.array
+            The peak values and the peak indices.
 
         See Also
         --------
@@ -89,9 +95,9 @@ class Profile:
         """
         peak_vals, peak_idxs = peak_detect(self.y_values, self.x_values, min_peak_height, min_peak_distance,
                                            max_num_peaks, exclude_lt_edge, exclude_rt_edge)
-        self.peaks = [Point(idx=peak_idx) for peak_idx in peak_idxs]
+        self.peaks = [Point(value=peak_val, idx=peak_idx) for peak_idx, peak_val in zip(peak_idxs, peak_vals)]
         if return_it:
-            return peak_vals, peak_idxs
+            return self._return_extrema_val_as_list('peak'), self._return_extrema_idx_as_list('peak')
 
     def find_valleys(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
                      return_it=False):
@@ -114,9 +120,9 @@ class Profile:
         """
         valley_vals, valley_idxs = peak_detect(self.y_values, self.x_values, min_peak_height, min_peak_distance,
                                                max_num_peaks, exclude_lt_edge, exclude_rt_edge, find_min_instead=True)
-        self.valleys = [Point(idx=valley_idx) for valley_idx in valley_idxs]
+        self.valleys = [Point(value=valley_val, idx=valley_idx) for valley_idx, valley_val in zip(valley_idxs, valley_vals)]
         if return_it:
-            return valley_vals, valley_idxs
+            return self._return_extrema_val_as_list('valley'), self._return_extrema_idx_as_list('valley')
 
     def find_FWXM_peaks(self, fwxm=70, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, return_it=False):
         """Find peaks using the center of the FWHM (rather than by max value).
@@ -133,7 +139,7 @@ class Profile:
         See Also
         --------
         find_peaks : Further parameter info
-        common_function.peak_detect : Further parameter info
+        common_functions.peak_detect : Further parameter info
 
         """
         self.find_peaks(min_peak_height, min_peak_distance, max_num_peaks)
@@ -144,6 +150,9 @@ class Profile:
         for peak, profile in zip(self.peaks, subprofiles):
             fwhmc = int(profile.get_FWXM_center(fwxm))
             peak.idx = fwhmc
+
+        if return_it:
+            return self._return_extrema_val_as_list('peak'), self._return_extrema_idx_as_list('peak')
 
     def _subdivide_profiles(self):
         """Subdivide the profile data into smaller pieces that can be analyzed for a single peak.
@@ -173,6 +182,22 @@ class Profile:
             subprofiles.append(subprofile)
 
         return subprofiles
+
+    @value_accept(type=('peak', 'valley'))
+    def _return_extrema_idx_as_list(self, type):
+        """Return the peak indices as a list."""
+        if type == 'peak':
+            return [peak.idx for peak in self.peaks]
+        else:
+            return [valley.idx for valley in self.valleys]
+
+    @value_accept(type=('peak', 'valley'))
+    def _return_extrema_val_as_list(self, type):
+        """Return the peak values as a list."""
+        if type == 'peak':
+            return [peak.value for peak in self.peaks]
+        else:
+            return [valley.value for valley in self.valleys]
 
 
 class CircleProfile(Profile, Circle):
@@ -206,7 +231,9 @@ class CircleProfile(Profile, Circle):
             Size in elements of the desired profile.
         start : int, float
             Starting position of the profile; 0 is right (0 on unit circle).
-            Units should be in radians.
+
+        .. warning:: Units should be in radians. Setting degrees will give unpredictable results.
+
         ccw : bool
             If True (default), the profile will proceed counter-clockwise (the direction on the unit circle).
             If False, will proceed clockwise.
@@ -233,8 +260,30 @@ class CircleProfile(Profile, Circle):
         self.x_locs = x
         self.y_locs = y
 
-    def map_peaks(self):
-        #TODO: rather than a new function, this should be added to overloaded functions of Profile.
+    def find_peaks(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
+                   return_it=False):
+        """Overloads Profile to also map peak locations to the image."""
+        super().find_peaks(min_peak_height, min_peak_distance, max_num_peaks, exclude_lt_edge, exclude_rt_edge)
+        self._map_peaks()
+        if return_it:
+            return self._return_extrema_val_as_list('peak'), self._return_extrema_idx_as_list('peak')
+
+    def find_valleys(self, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
+                     return_it=False):
+        """Overload Profile to also map valley locations to the image."""
+        super().find_valleys(min_peak_height, min_peak_distance, max_num_peaks, exclude_lt_edge, exclude_rt_edge)
+        self._map_peaks()
+        if return_it:
+            return self._return_extrema_val_as_list('valley'), self._return_extrema_idx_as_list('valley')
+
+    def find_FWXM_peaks(self, fwxm=70, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, return_it=False):
+        """Overloads Profile to also map the peak locations to the image."""
+        super().find_FWXM_peaks(fwxm, min_peak_height, min_peak_distance, max_num_peaks)
+        self._map_peaks()
+        if return_it:
+            return self._return_extrema_val_as_list('peak'), self._return_extrema_idx_as_list('peak')
+
+    def _map_peaks(self):
         """Map found peaks to the x,y locations on the image/array; i.e. adds x,y coords to the peak locations"""
         for peak in self.peaks:
             peak.x = self.x_locs[peak.idx]
@@ -408,6 +457,11 @@ class SingleProfile:
         side : {'left', 'right', 'both'}
             Which side of the profile to determined penumbra.
             If 'both', the left and right sides are averaged.
+
+        Raises
+        ------
+        ValueError
+            If lower penumbra is larger than upper penumbra
         """
         if lower > upper:
             raise ValueError("Upper penumbra value must be larger than the lower penumbra value")

@@ -1,4 +1,4 @@
-V0.2.0
+V0.2.0 - 1/19/2015 -- Major Overhaul
 
 -Python 2.7 support dropped.
     Python 3 has a number of features that Python 2 does not,
@@ -6,17 +6,23 @@ V0.2.0
     and then eventually drop it as Python 3 becomes more and more mainstream.
 -Internal overhaul.
     Modules are now in the root folder.
-    A core module was created with a number of small but useful tools
+    A core module with specialized submodules was created with a number of various tools.
 -Demo files were assimilated into one directory with respective subdirectories.
 -VMAT module can now handle HDMLC images.
+-CBCT module was restructured and is much more reliable now.
+-method names normalized, specifically the `return_results` method, which had different names
+    in different modules.
+-Lots of tests added; coverage increased dramatically.
 
 V0.1.3 11/11/2014 -- Added CBCT module
+
+Overall
 
 A module for analyzing CBCT DICOM acquisitions of a CatPhan 504 (Varian) has been added.
 The starshot demo files have been compressed to zip files to save space.
 A value decorator was added for certain functions to enforce, e.g., ranges of values that are acceptable.
 The "Files" directory was moved outside the source directory.
-
+-Starshot now reports the diameter instead of radius
 
 V0.1.2 11/1/2014 -- Installation Bug Fix
 

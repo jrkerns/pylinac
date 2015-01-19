@@ -21,18 +21,18 @@ import sys
 import os
 
 sys.path.insert(1, os.path.abspath('../..'))
-
+sys.path.append(os.path.abspath('sphinxext'))
 
 # Trouble building on RTD with numpy/scipy: http://blog.rtwilson.com/how-to-make-your-sphinx-documentation-compile-with-readthedocs-when-youre-using-numpy-and-scipy/
-import mock
+# import mock
 # from unittest import mock
 
-MOCK_MODULES = ['inspect','dicom','numpy', 'scipy', 'matplotlib',
-                'matplotlib.pyplot','Pillow','PIL', 'tkinter', 'tkinter.filedialog',
-                'scipy.ndimage.filters',
-                'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize','scipy.misc','matplotlib.patches', 'matplotlib.cm']
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
+# MOCK_MODULES = ['inspect','dicom', 'scipy',
+#                 'Pillow','PIL', 'tkinter', 'tkinter.filedialog',
+#                 'scipy.ndimage.filters',
+#                 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize','scipy.misc']
+# for mod_name in MOCK_MODULES:
+#     sys.modules[mod_name] = mock.Mock()
 
 # -- General configuration ------------------------------------------------
 
@@ -45,7 +45,8 @@ for mod_name in MOCK_MODULES:
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
-    'sphinxcontrib.napoleon'
+    'sphinxcontrib.napoleon',
+    'matplotlib.sphinxext.plot_directive'
 ]
 
 # Add any paths that contain templates here, relative to this directory.

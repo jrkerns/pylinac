@@ -2,9 +2,9 @@
 # http://sburns.org/2014/03/28/faster-travis-builds.html
 language: python
 python:
-  - "2.7"
-  #- "3.3" # pydicom doesn't want to play nice w/ py3.3
-  #- "3.4"
+#  - "2.7"
+  - "3.3" # pydicom doesn't want to play nice w/ py3.3
+  - "3.4"
 
 #env:
   # base versions
@@ -35,6 +35,7 @@ install:
   # syntax from: http://stackoverflow.com/questions/8247605/configuring-so-that-pip-install-can-work-from-github
   # Update: isn't working because setup.py isn't found (not in root)
   - pip install pydicom
+  - pip install coveralls
 
   # install your own package into the environment
   - python setup.py install

@@ -23,12 +23,12 @@ To run the Starshot demo, create a script or start an interpreter and input::
 Results will be printed to the console and a matplotlib figure showing the analyzed starshot image will pop up::
 
     Result: PASS
-    The minimum circle that touches all the star lines has a radius of 0.494 mm.
-    The center of the minimum circle is at 1511.5, 1302.1
 
-.. image:: /images/analyzed_starshot.png
-   :height: 340
-   :width: 300
+    The minimum circle that touches all the star lines has a diameter of 0.452 mm.
+
+    The center of the minimum circle is at 1269.0, 1439.2
+
+.. plot:: pyplots/star_demo.py
 
 Image Acquisition
 -----------------
@@ -69,7 +69,7 @@ A typical analysis sequence looks like so:
   detected radiation lines and wobble circle (zoom in to see the wobble circle)::
 
       # print results to the console
-      print(mystar.get_string_results())
+      print(mystar.return_results())
       # view analyzed image
       mystar.plot_analyzed_image()
 
@@ -78,11 +78,13 @@ Algorithm
 
 **Allowances**
 
-* The image can be either inversion (radiation is darker or brighter)
-* The image can be any size
-* The image can be DICOM (from EPID) or most image formats (scanned film)
+* The image can be either inversion (radiation is darker or brighter).
+* The image can be any size.
+* The image can be DICOM (from an EPID) or most image formats (scanned film).
 
 **Restrictions**
+
+    .. warning:: Analysis can catastrophically fail or give unreliable results if any Restriction is violated.
 
 * The center of the "star" must be in the central 1/3 of the image.
 * The radiation spokes must extend to both sides of the center. I.e. the spokes must not end at the center of the circle.

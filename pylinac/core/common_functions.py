@@ -39,8 +39,10 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
         E.g. when passed 15, any peak less with a value <15 is removed.
         If passed a float, it will threshold as a percent. Must be between 0 and 1.
         E.g. when passed 0.4, any peak <40% of the maximum value will be removed.
-    min_peak_width : int
-        The number of elements apart a peak must be from neighboring peaks.
+    min_peak_width : int, float
+        If passed an int, parameter is the number of elements apart a peak must be from neighboring peaks.
+        If passed a float, must be between 0 and 1 and represents the ratio of the profile to exclude.
+        E.g. if passed 0.05 with a 1000-element profile, the minimum peak width will be 0.05*1000 = 50 elements.
     max_num_peaks : int
         Specify up to how many peaks will be returned. E.g. if 3 is passed in and 5 peaks are found, only the 3 largest
         peaks will be returned.
@@ -58,7 +60,7 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
     Raises
     ------
     ValueError
-        If float not between 0 and 1 passed to threshold
+        If float not between 0 and 1 passed to threshold.
     """
     peak_vals = []  # a list to hold the y-values of the peaks. Will be converted to a numpy array
     peak_idxs = []  # ditto for x-values (index) of y data.
@@ -94,9 +96,6 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
             data_range = y.max() - y.min()
             threshold = threshold * data_range + y.min()
 
-
-
-
     """Find all potential peaks"""
     for idx in range(len(y_diff)-1):
         # For each item of the diff array, check if:
@@ -124,6 +123,8 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
                 shift = 1
                 while y_diff[(idx + 1) + shift] == 0:
                     shift += 1
+                    if (idx + 1) + shift == len(y_diff)-1:
+                        break
                 # If the next diff is negative (or positive for min), we've found a peak. Also put the peak at the center of the flat
                 # region.
                 is_a_peak = y_diff[(idx + 1) + shift] < 0
@@ -137,6 +138,12 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
 
     """Enforce the min_peak_distance by removing smaller peaks."""
     # For each peak, determine if the next peak is within the min peak width range.
+    if isinstance(min_peak_width, float):
+        if 0 > min_peak_width >= 1:
+            raise ValueError("When min_peak_width is passed a float, value must be between 0 and 1")
+        else:
+            min_peak_width = int(min_peak_width*len(y))
+
     index = 0
     while index < len(peak_idxs) - 1:
 

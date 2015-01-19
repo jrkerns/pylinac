@@ -1,11 +1,24 @@
-from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
 import os.path as osp
-
-from pylinac.core.utilities import withdraw_tkinter
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
 
 
 def is_valid_file(file_path, raise_error=False):
-    """Check if path points to a valid file."""
+    """Check if path points to a valid file.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the file.
+    raise_error : boolean
+        If False (default), will simply return false.
+        If True, will raise an error if path is not valid.
+
+    Raises
+    ------
+    FileExistsError
+        If file_path does not point to a valid file.
+    """
     if osp.isfile(file_path):
         return True
     elif not raise_error:
@@ -100,15 +113,14 @@ def is_valid_file(file_path, raise_error=False):
 #         return image
 
 def get_filepath_UI(dir=None, caption='', filters=''):
-    """
-    Custom function that is equivalent to Matlab's uigetfile command. Returns filename as a string.
+    """Display a UI dialog box to select a file.
 
-    filenamestring = GetFile(UIdir=None,UIcaption='',UIfilters='')
+    Returns
+    -------
+    str
+        Path to the file chosen.
     """
-    # if a QApplication isn't running turn one on; necessary to have one running to use QFileDialog()
     withdraw_tkinter()
-
-    # get user-defined image file
     filename = askopenfilename()
     return filename
 
@@ -127,9 +139,18 @@ def get_filenames_UI(UIdir=None, UIcaption='', UIfilters=''):
         return filenames
 
 def get_folder_UI(UIdir=None, UIcaption=''):
-    """
-    :returns: string of Folder the user selected
+    """Display a UI dialog box to select a folder.
+
+    Returns
+    -------
+    str
+        Path to the folder chosen.
     """
     withdraw_tkinter()
     folderstring = askdirectory()
     return folderstring
+
+
+def withdraw_tkinter():
+    """Opens and withdraws a Tk window. Necessary so a base window doesn't open."""
+    Tk().withdraw()

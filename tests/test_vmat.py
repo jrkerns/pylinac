@@ -5,10 +5,6 @@ from pylinac.vmat import VMAT
 
 
 _vmat_test_files_dir = osp.join(osp.dirname(__file__), 'test_files', 'VMAT')
-drgs_105_open = osp.join(_vmat_test_files_dir, 'DRGSopen-105-example.dcm')
-drgs_105_dmlc = osp.join(_vmat_test_files_dir, 'DRGSmlc-105-example.dcm')
-drmlc_105_open = osp.join(_vmat_test_files_dir, 'DRMLCopen-105-example.dcm')
-drmlc_105_dmlc = osp.join(_vmat_test_files_dir, 'DRMLCmlc-105-example.dcm')
 
 
 class Test_general(unittest.TestCase):
@@ -26,6 +22,10 @@ class Test_DRGS_demo(unittest.TestCase):
     def setUp(self):
         self.vmat = VMAT()
         self.vmat.load_demo_image('drgs')
+
+    def test_demo(self):
+        """Run the demo; no errors should arise."""
+        self.vmat.run_demo_drgs(show=False)
 
     def test_overall_passed(self):
         """Test that the overall pass flag is true for default settings"""
@@ -96,6 +96,9 @@ class Test_DRMLC_demo(unittest.TestCase):
         self.vmat = VMAT()
         self.vmat.load_demo_image('drmlc')
 
+    def test_demo(self):
+        self.vmat.run_demo_drmlc(show=False)
+
     def test_overall_passed(self):
         """Test that the overall pass flag is true for default settings"""
         self.vmat.analyze('drmlc')
@@ -161,10 +164,13 @@ class Test_DRMLC_demo(unittest.TestCase):
 class Test_DRMLC_105(unittest.TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
 
+    drmlc_105_open = osp.join(_vmat_test_files_dir, 'DRMLCopen-105-example.dcm')
+    drmlc_105_dmlc = osp.join(_vmat_test_files_dir, 'DRMLCmlc-105-example.dcm')
+
     def setUp(self):
         self.vmat = VMAT()
-        self.vmat.load_image(drmlc_105_open, 'open')
-        self.vmat.load_image(drmlc_105_dmlc, 'dmlc')
+        self.vmat.load_image(self.drmlc_105_open, 'open')
+        self.vmat.load_image(self.drmlc_105_dmlc, 'dmlc')
 
     def test_overall_passed(self):
         """Test that the overall pass flag is true for default settings"""
@@ -232,11 +238,13 @@ class Test_DRMLC_105(unittest.TestCase):
 
 class Test_DRGS_105(unittest.TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
+    drgs_105_open = osp.join(_vmat_test_files_dir, 'DRGSopen-105-example.dcm')
+    drgs_105_dmlc = osp.join(_vmat_test_files_dir, 'DRGSmlc-105-example.dcm')
 
     def setUp(self):
         self.vmat = VMAT()
-        self.vmat.load_image(drgs_105_open, 'open')
-        self.vmat.load_image(drgs_105_dmlc, 'dmlc')
+        self.vmat.load_image(self.drgs_105_open, 'open')
+        self.vmat.load_image(self.drgs_105_dmlc, 'dmlc')
 
     def test_overall_passed(self):
         """Test that the overall pass flag is true for default settings"""

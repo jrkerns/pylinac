@@ -24,49 +24,46 @@ Results will be printed to the console and a figure showing both the Open field 
     Test Results (Tol. +/-3.0%): PASS
 
     Overall Results:
-    Max Positive Deviation: 0.911%
-    Max Negative Deviation: -1.636%
-    Absolute Mean Deviation: 0.632%
+    Max Positive Deviation: 1.234%
+    Max Negative Deviation: -0.650%
+    Absolute Mean Deviation: 0.461%
 
     105MU/min Segment:
-    Max Positive Deviation: -1.094%
-    Max Negative Deviation: -1.636%
-    Absolute Mean Deviation: 1.383%
+    Max Positive Deviation: 1.234%
+    Max Negative Deviation: 0.829%
+    Absolute Mean Deviation: 1.049%
 
     210MU/min Segment:
-    Max Positive Deviation: 0.063%
-    Max Negative Deviation: 0.011%
-    Absolute Mean Deviation: 0.046%
+    Max Positive Deviation: 0.016%
+    Max Negative Deviation: -0.044%
+    Absolute Mean Deviation: 0.032%
 
     314MU/min Segment:
-    Max Positive Deviation: 0.665%
-    Max Negative Deviation: 0.412%
-    Absolute Mean Deviation: 0.539%
+    Max Positive Deviation: -0.283%
+    Max Negative Deviation: -0.469%
+    Absolute Mean Deviation: 0.384%
 
     417MU/min Segment:
-    Max Positive Deviation: 0.911%
-    Max Negative Deviation: 0.549%
-    Absolute Mean Deviation: 0.724%
+    Max Positive Deviation: -0.403%
+    Max Negative Deviation: -0.650%
+    Absolute Mean Deviation: 0.520%
 
     524MU/min Segment:
-    Max Positive Deviation: 0.798%
-    Max Negative Deviation: 0.483%
-    Absolute Mean Deviation: 0.646%
+    Max Positive Deviation: -0.369%
+    Max Negative Deviation: -0.581%
+    Absolute Mean Deviation: 0.471%
 
     592MU/min Segment:
-    Max Positive Deviation: 0.281%
-    Max Negative Deviation: 0.210%
-    Absolute Mean Deviation: 0.257%
+    Max Positive Deviation: -0.174%
+    Max Negative Deviation: -0.227%
+    Absolute Mean Deviation: 0.209%
 
     600MU/min Segment:
-    Max Positive Deviation: -0.597%
-    Max Negative Deviation: -1.002%
-    Absolute Mean Deviation: 0.829%
+    Max Positive Deviation: 0.687%
+    Max Negative Deviation: 0.420%
+    Absolute Mean Deviation: 0.565%
 
-.. image:: /images/vmat_analyzed.png
-   :height: 340px
-   :width: 800px
-
+.. plot:: pyplots/vmat_demo.py
 
 Image Acquisition
 -----------------
@@ -88,34 +85,33 @@ The minimum needed to get going is to:
 * **Load images** -- Loading the EPID DICOM images into your VMAT class object can be done by passing the file path or by using a UI to
   find and get each file. The code might look like either of the following::
 
-    # set the file path
-    open_img = "C:/QA Folder/VMAT/openfield.dcm"
-    mlc_img = "C:/QA Folder/VMAT/dmlcfield.dcm"
-    # load the images from the file path
-    myvmat.load_image(open_img, im_type='open')
-    myvmat.load_image(mlc_img, im_type='mlc')
+      # set the file path
+      open_img = "C:/QA Folder/VMAT/open_field.dcm"
+      dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
+      # load the images from the file path
+      myvmat.load_image(open_img, im_type='open')
+      myvmat.load_image(mlc_img, im_type='mlc')
 
-    # *OR*
+      # *OR*
 
-    # Identify the images using a UI
-    myvmat.load_image_UI(im_type='open')
-    myvmat.load_image_UI(im_type='mlc')
-
+      # Identify the images using a UI
+      myvmat.load_image_UI(im_type='open')
+      myvmat.load_image_UI(im_type='mlc')
 
 * **Analyze the images** -- This is where pylinac does its work. Once the images are loaded, tell VMAT to analyze the images. See the
   Algorithm section for details on how this is done. The test to run (whether DRGS or DRMLC) needs to be specified. Tolerance
   can also be passed, but has a default value of 3%::
 
-    # analyze
-    myvmat.analyze(test='drmlc', tolerance=3)
+      # analyze
+      myvmat.analyze(test='drmlc', tolerance=3)
 
 * **View the results** -- The VMAT module can print out the summary of results to the console as well as draw a matplotlib image to show where the
   samples were taken and their values::
 
       # print results to the console
-      print(myvmat.get_string_results())
+      print(myvmat.return_results())
       # view analyzed images
-      myvmat.show_img_results()
+      myvmat.plot_analyzed_image()
 
 Algorithm
 ---------
@@ -131,8 +127,11 @@ The algorithm works like such:
 **Allowances**
 
 * The images can be acquired at any SID.
+* The images can be acquired with either an AS500 (512x386) or AS1000 (1024x768) EPID.
 
 **Restrictions**
+
+    .. warning:: Analysis can catastrophically fail or give unreliable results if any Restriction is violated.
 
 * The tests must be delivered using the DICOM RT plan files provided by Varian which follow the test layout of Jorgensen et al.
 * The images must be acquired with the EPID.

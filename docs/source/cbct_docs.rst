@@ -11,29 +11,23 @@ Overview
 Running the Demo
 ----------------
 
-To run the CBCT demo, run cbct.py, or create a script and run::
+To run the CBCT demo, create a script or start in interpreter and input::
 
     from pylinac import CBCT
-    CBCT().run_demo_head()
-    # You can run the other two demos just as easily as well
-    # CBCT().run_demo_thorax()
-    # CBCT().run_demo_pelvis()
+    CBCT().run_demo() # the demo is a Varian high quality head scan
 
 Results will be printed to the console and a figure showing the slices analyzed will pop up::
 
     - CBCT QA Test -
-    HU Regions:  {'PMP': -199.748046875, 'Teflon': 997.01953125, 'Air': -997.205078125, 'LDPE': -103.24596774193549, 'Acrylic': 116.6078431372549, 'Delrin': 340.61328125, 'Poly': -45.062745098039215}
+    HU Regions:  {'PMP': -200.34063745019921, 'Acrylic': 116.68700787401575, 'Poly': -45.015748031496067, 'Teflon': 997.26494023904388, 'Air': -997.61220472440948, 'LDPE': -103.43503937007874, 'Delrin': 341.14763779527561}
     HU Passed?:  True
-    Uniformity:  {'Top': 5.9677290836653389, 'Left': 10.206608280254777, 'Center': 21.318362480127185, 'Right': -0.3411624203821656, 'Bottom': 2.9124203821656049}
+    Uniformity:  {'Top': 2.9074662430500395, 'Bottom': 5.9872915011914216, 'Right': -0.35345512311358218, 'Left': 10.128673550436854, 'Center': 21.321286735504369}
     Uniformity Passed?:  True
-    MTF 50% (lp/mm):  1.11
-    Geometric distances:  {'Top-Horiz': 49.695505782164226, 'Bottom-Horiz': 49.689076691833307, 'Right-Vert': 49.668186459198381, 'Left-Vert': 49.692334275563923}
+    MTF 80% (lp/mm):  1.09
+    Geometric distances:  {'Top-Horiz': 49.92540443205539, 'Bottom-Horiz': 49.965520922765805, 'Right-Vert': 49.91174913443049, 'Left-Vert': 50.078027293396}
     Geometry Passed?:  True
 
-.. image:: /images/cbct_head.png
-   :height: 550px
-   :width: 550px
-
+.. plot:: pyplots/cbct_demo.py
 
 Typical Use
 -----------
@@ -41,7 +35,7 @@ Typical Use
 CBCT analysis as done by this module closely follows what is specified in the CatPhan manuals, replacing the need for hand measurements.
 Assuming you've made a CBCT object as follows::
 
-    from pylinac import CBCT
+    from pylinac.cbct import CBCT
     mycbct = CBCT()
 
 The minimum needed to get going is to:
@@ -53,6 +47,11 @@ The minimum needed to get going is to:
     cbct_folder = r"C:/QA Folder/CBCT/June monthly"  # use of 'r' is for raw string; otherwise spaces and backslashes aren't interpreted properly
     # load the images from the file path
     mycbct.load_folder(cbct_folder)
+
+    # *OR*
+
+    zip_file = r"C:/QA Folder/CBCT/June monthly.zip"
+    mycbct.load_zip_file(zip_file)
 
     # *OR*
 
@@ -82,19 +81,24 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 
 * The images can be any size.
 * For Varian machines, the images can be acquired with any protocol (Pelvis, Head, etc).
-* The phantom can have significant translation in the Left-Right, Up-Down direction.
-* The phantom can have significant rotation in any direction (yaw, pitch, and roll).
+* The phantom can have significant translation in the Left-Right, Up-Down direction; i.e. the setup does not have
+  to be precise.
+* The phantom can have significant roll and moderate yaw and pitch.
 
 **Restrictions**
 
+    .. warning:: Analysis can catastrophically fail or give unreliable results if any Restriction is violated.
+
 * The phantom used must be an unmodified CatPhan 504, as endorsed and supplied by Varian.
-* The phantom must have <1cm offset in the In-Out direction (work to remove this is in the plans).
+* The phantom must have <0.5cm offset in the z (In-Out) direction (work to remove this is in the plans).
+
+
 
 **Pre-Analysis**
 
 * **Determine image properties** -- Upon load, the image set is analyzed for its DICOM properties to determine mm/pixel
-  spacing, rescale intercept and slope, and manufacturer. All the images are resized to 512x512 pixels for streamlined
-  analysis; this doesn't affect the physical spacing measurements.
+  spacing, rescale intercept and slope, manufacturer, etc. All the images are resized to 512x512 pixels for streamlined
+  analysis; this is accounted for in the physical spacing measurements.
 * **Convert to HU** -- The entire image set is converted from its raw values to HU by applying the rescale intercept
   and slope which is contained in the DICOM properties.
 
@@ -106,8 +110,11 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 
     .. note::
         For each step below, the "module" analyzed is actually the mean, median, or maximum of 3 slices (+/-1 slice around and
-        including the nominal slice) to ensure robust measurements. Also, for each step/module, the phantom center is
+        including the nominal slice) to ensure robust measurements. Also, for each step/phantom module, the phantom center is
         determined, which corrects for the phantom pitch and yaw.
+
+        Additionally, values tend to be lazy (computed only when asked for), thus the calculations listed may sometimes
+        be performed only when asked for.
 
 * **Determine HU linearity** -- The HU module (CTP404) contains several materials with different HU values. Using
   hardcoded angles (corrected for roll) and radius from the center of the phantom, circular ROIs are sampled which
@@ -137,14 +144,58 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 API Documentation
 -----------------
 
-The CBCT class contains several other classes. There are several Slices of Interest (SoI), most of which contain Regions of Interest (RoI).
+The CBCT class uses several other classes. There are several Slices of Interest (SoI), most of which contain Regions of Interest (RoI).
 SoIs have a base class as well as specialized classes for each specific slice.
 
 .. autoclass:: pylinac.cbct.CBCT
     :members:
     :inherited-members:
 
+Supporting Data Structure
+
+.. autoclass:: pylinac.cbct.Algo_Data
+    :members:
+
+Slice Objects
+
+.. autoclass:: pylinac.cbct.HU_Slice
+    :members:
+
+.. autoclass:: pylinac.cbct.Base_HU_Slice
+    :members:
+
+.. autoclass:: pylinac.cbct.UNIF_Slice
+    :members:
+
+.. autoclass:: pylinac.cbct.GEO_Slice
+    :members:
+
+.. autoclass:: pylinac.cbct.SR_Slice
+    :members:
+
+.. autoclass:: pylinac.cbct.Locon_Slice
+    :members:
+
 .. autoclass:: pylinac.cbct.Slice
     :members:
 
+ROI Objects
+
+.. autoclass:: pylinac.cbct.HU_ROI
+    :members:
+
+.. autoclass:: pylinac.cbct.GEO_ROI
+    :members:
+
+.. autoclass:: pylinac.cbct.SR_Circle_ROI
+    :members:
+
+.. autoclass:: pylinac.cbct.ROI_Disk
+    :members:
+
+.. autoclass:: pylinac.cbct.ROI
+    :members:
+
+.. autoclass:: pylinac.cbct.GEO_Line
+    :members:
 

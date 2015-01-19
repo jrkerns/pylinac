@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 """The VMAT module consists of the class VMAT, which is capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
 images according to the `Jorgensen et al. <http://dx.doi.org/10.1118/1.3552922>`_ tests, specifically the Dose-Rate GantryAxis-Speed (DRGS) and Dose-Rate MLC (DRMLC) tests.
-
 """
-# Full documentation of this module and how to use it can be found at this repositories' Read the Docs site: pylinac.rtfd.org
 
 import os.path as osp
 
@@ -16,8 +14,7 @@ from pylinac.core.image import ImageObj
 from pylinac.core.geometry import Point, Rectangle
 from pylinac.core.io import get_filepath_UI
 
-DRMLC_seg_strs = ('1.6cm/s', '2.4cm/s', '0.8cm/s', '0.4cm/s')
-DRGS_seg_strs = ('105MU/min', '210MU/min', '314MU/min', '417MU/min', '524MU/min', '592MU/min', '600MU/min')
+
 test_types = {'DRGS': 'drgs', 'DRMLC': 'drmlc'}
 im_types = {'OPEN': 'open', 'DMLC': 'dmlc'}
 
@@ -32,7 +29,7 @@ class VMAT:
         self.image_open = ImageObj()  # the Open field image
         self.image_dmlc = ImageObj()  # the MLC field image
         self._test_type = ''  # the test to perform
-        self.tolerance = 3 # default of 3% tolerance as Jorgensen recommends
+        self.tolerance = 3  # default of 3% tolerance as Jorgensen recommends
         self.segments = []  # a list which will hold Segment objects (either 4 or 7)
 
     @value_accept(im_type=im_types)
@@ -44,7 +41,7 @@ class VMAT:
         im_type : {'open', 'dmlc'}
             Specifies which file/image type is being loaded in.
         """
-        if  im_type == im_types['OPEN']:  # open
+        if im_type == im_types['OPEN']:  # open
             caption = "Select Open Field EPID Image..."
         else:  # dmlc
             caption = "Select MLC Field EPID Image..."
@@ -90,19 +87,19 @@ class VMAT:
         self.load_image(im_open_path, im_type=im_types['OPEN'])
         self.load_image(im_dmlc_path, im_type=im_types['DMLC'])
 
-    def run_demo_drgs(self):
+    def run_demo_drgs(self, show=True):
         """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
         self.load_demo_image('drgs')
-        self.analyze(test='drgs', tolerance=3)  # tolerance at 2 to show some failures
-        print(self.get_string_results())
-        self.plot_analyzed_image()
+        self.analyze(test='drgs', tolerance=3)  # set tolerance to 2 to show some failures
+        print(self.return_results())
+        self.plot_analyzed_image(show=show)
 
-    def run_demo_drmlc(self):
+    def run_demo_drmlc(self, show=True):
         """Run the VMAT demo for the Dose Rate & MLC speed test."""
         self.load_demo_image('drmlc')
         self.analyze(test='drmlc', tolerance=3)
-        print(self.get_string_results())
-        self.plot_analyzed_image()
+        print(self.return_results())
+        self.plot_analyzed_image(show=show)
 
     def _calc_im_scaling_factors(self, SID=None):
         """Determine image scaling factors.
@@ -196,12 +193,14 @@ class VMAT:
         ----------
         test : {'drgs', 'drmlc'}
             The test to perform, either Dose Rate Gantry Speed ('drgs') or Dose Rate MLC Speed ('drmlc').
-        tolerance : number
+        tolerance : float, int, optional
             The tolerance of the sample deviations in percent. Default is 3, as Jorgensen recommends.
             Must be between 0.3 and 8.
-        SID : number
+        SID : int, None, optional
             The Source to Image (detector) distance in cm. Usually doesn't need to be passed for EPID DICOM images. This argument
             will override any automatically derived value however. If left as None and no SID was determined, it will assume 150cm.
+        HDMLC : boolean
+            Flag specifying if the linac has a regular (5mm central leaf width) MLC set, or HD set (2.5mm).
         """
         # error checking
         if not self.open_img_is_loaded or not self.dmlc_img_is_loaded:
@@ -308,9 +307,8 @@ class VMAT:
         Parameters
         ----------
         plot : matplotlib.axes.Axes
-            The plot to draw the objects tol
+            The plot to draw the objects on.
         """
-
         # clear images of any existing objects that are on it
         # if hasattr(self, 'roi_handles'):
         #     for handle in self.roi_handles:
@@ -332,7 +330,7 @@ class VMAT:
 
                 self.roi_handles[sample_num][segment_num] = sample.add_to_axes(plot.axes, edgecolor=color)
 
-    def plot_analyzed_image(self, plot1=None, plot2=None):
+    def plot_analyzed_image(self, plot1=None, plot2=None, show=True):
         """Create 1 figure with 2 plots showing the open and MLC images
             with the samples and results drawn on.
 
@@ -340,6 +338,12 @@ class VMAT:
         ----------
         plot1 : matplotlib.axes.plot
             If passed, plots to this plot. If None, will create a new figure.
+        plot2 : matplotlib.axes.plot
+            Same as above; if plot1 is supplied but plot2 left as None, will put images into
+            one figure.
+        show : boolean
+            If True (default), will actually plot the results.
+            If False, will not actually draw the image; useful for debugging.
         """
         if plot1 is None and plot2 is None:
             fig, (ax1, ax2) = plt.subplots(1,2)
@@ -359,16 +363,17 @@ class VMAT:
         self._draw_objects(ax1)
 
         # Finally, show it all
-        if plot1 is None and plot2 is None:
-            plt.show()
-        if plot1 is not None:
-            plot1.draw()
-            plot1.axes.hold(False)
-        if plot2 is not None:
-            plot2.draw()
-            plot2.axes.hold(False)
+        if show:
+            if plot1 is None and plot2 is None:
+                plt.show()
+            if plot1 is not None:
+                plot1.draw()
+                plot1.axes.hold(False)
+            if plot2 is not None:
+                plot2.draw()
+                plot2.axes.hold(False)
 
-    def get_string_results(self):
+    def return_results(self):
         """A string of the summary of the analysis results.
 
         Returns
@@ -376,6 +381,8 @@ class VMAT:
         str
             The results string showing the overall result and deviation statistics by segment.
         """
+        DRMLC_seg_strs = ('1.6cm/s', '2.4cm/s', '0.8cm/s', '0.4cm/s')
+        DRGS_seg_strs = ('105MU/min', '210MU/min', '314MU/min', '417MU/min', '524MU/min', '592MU/min', '600MU/min')
 
         if self.passed:
             passfail_str = 'PASS'
@@ -435,9 +442,9 @@ class Sample(Rectangle):
         Parameters
         ----------
         open_image : numpy.ndarray
-            The open image array
+            The open image array.
         dmlc_image : numpy.ndarray
-            The DMLC image array
+            The DMLC image array.
         """
         dmlc_value = dmlc_image.pixel_array[self.bl_corner.y - self.height:self.bl_corner.y,
                                 self.bl_corner.x: self.bl_corner.x + self.width].mean()
@@ -446,6 +453,7 @@ class Sample(Rectangle):
         self.ratio = dmlc_value/open_value
 
     def normalize_ratio(self, norm_value):
+        """Normalize the ratio of the open/DMLC by the normalization value."""
         self.ratio /= norm_value
 
 
@@ -473,7 +481,6 @@ class Segment:
         HDMLC : bool
             If False (default), assumes a standard Millenium 120 leaf MLC (5mm leaves).
             If True, assumes an HD Millenium MLC which has a leaf width value of 2.5mm.
-
         """
         self.center = center_point
         if test == test_types['DRGS']:  #DRGS

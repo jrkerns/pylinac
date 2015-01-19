@@ -3,7 +3,6 @@
 manipulation (invert, rotate, etc), and other misc things. These are
 the API docs for those classes. """
 import copy
-from tkinter.filedialog import askdirectory
 import warnings
 
 import numpy as np
@@ -15,15 +14,16 @@ import dicom
 from pylinac.core.decorators import type_accept
 from pylinac.core.geometry import Point
 from pylinac.core.io import get_filepath_UI, is_valid_file
-from pylinac.core.utilities import withdraw_tkinter, array2logical
+from pylinac.core.utilities import array2logical
 
 
 MM_per_INCH = 25.4
 
 class ImageObj:
     """An analysis module component that utilizes a single image in its analysis.
-    Contains methods to load and manipulate the image and its properties.
-    """
+        Contains methods to load and manipulate the image and its properties.
+        """
+    # TODO: see about inheriting from PIL's Image class.
 
     def __init__(self, image_array=None):
         """Initialize some attributes."""
@@ -259,37 +259,7 @@ class ImageObj:
         """Set the image type"""
         self._im_type = im_type
 
+
 class MultiImageObject:
     """A class to be inherited for multiple image analysis (e.g. CBCT QA)"""
-
-    def __init__(self):
-        self.images = []  # the image attr is a LIST, not numpy array (allows different size images; more flexible)
-        # self._using_pyqa = using_pyqa  # boolean describing whether tool is being used in the PyQA GUI.
-
-    def get_folder_UI(self):
-        """Return the string of the location of the folder using a UI."""
-
-        withdraw_tkinter()
-        folderstring = askdirectory()
-        return folderstring
-
-    # def get_filenames_UI(UIdir=None, UIcaption='', UIfilters=''):
-    #     """
-    #     Custom function that is equivalent to Matlab's uigetfile command.
-    #     :return: str; filenames
-    #     """
-        # if a QApplication isn't running turn one on; necessary to have one running to use QFileDialog()
-        # app = check_app_running()
-        # #TODO: update return to give list, or something other than a string: http://stackoverflow.com/questions/16790328/open-multiple-filenames-in-tkinter-and-add-the-filesnames-to-a-list
-        # filenames = askopenfilenames()
-        # return filenames
-
-    def load_folder(self, filestring, append=False):
-        """Load images from a folder.
-        :param append: boolean; specifies whether to append images in folder to images attr.
-        """
-        pass
-
-    def load_folder_UI(self):
-        """Load the images from a folder using a UI."""
-        pass
+    pass

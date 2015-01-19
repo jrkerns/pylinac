@@ -1,6 +1,6 @@
 
 """Module for classes that represent common geometric objects or patterns."""
-import math
+from math import sqrt
 
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
@@ -88,16 +88,17 @@ class Point:
         point : Point
             The other point to calculate distance to.
         """
-        return math.sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
+        return sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
 
 class Scale:
     """A 'scale' object with x and y attrs. Used in conjunction with scaling images up or down."""
     def __init__(self, x, y):
-        pass
+        self.x = x
+        self.y = y
 
 
 class Circle:
-    """A geometric circle with center Point and radius."""
+    """A geometric circle with center Point, radius, and diameter."""
     def __init__(self, center_point=None, radius=None):
         """
         Parameters
@@ -119,6 +120,11 @@ class Circle:
 
         self.center = center_point
         self.radius = radius
+
+    @property
+    def diameter(self):
+        """Get the diameter of the circle."""
+        return self.radius*2
 
     def add_to_axes(self, axes, edgecolor='black', fill=False):
         """Plot the Circle on the axes.
@@ -151,7 +157,7 @@ class Line:
         ----------
         point1 : Point, optional
             One point of the line
-        point2: Point, optional
+        point2 : Point, optional
             Second point along the line.
         m : int, float, optional
             slope of the line (rise/run)
