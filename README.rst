@@ -13,6 +13,10 @@ Pylinac
     :target: https://pypi.python.org/pypi/pylinac/
     :alt: License
 
+.. image:: https://coveralls.io/repos/jrkerns/pylinac/badge.svg
+    :target: https://coveralls.io/r/jrkerns/pylinac
+
+
 Pylinac provides TG-142 quality assurance (QA) tools to Python programmers as well as non-programmers in the field of 
 therapy medical physics. The package comes in two flavors: source-level and GUI-level. The source-level
 allows programmers and those familiar with Python to create custom tests with pylinac while the GUI-level will implement
