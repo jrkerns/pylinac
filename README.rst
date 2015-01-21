@@ -1,7 +1,7 @@
 Pylinac
 =======
 
-.. image:: https://pypip.in/version/pylinac/badge.svg?text=version?style=flat
+.. image:: https://pypip.in/version/pylinac/badge.svg?style=flat
     :target: https://pypi.python.org/pypi/pylinac/
     :alt: Latest Version
 

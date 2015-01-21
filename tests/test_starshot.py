@@ -39,6 +39,7 @@ class Test_Star_Demo(unittest.TestCase):
 
     def test_demo_runs(self):
         """Test that the demo runs without error."""
+        # TODO: come up with decorator that adds show parameter
         self.star.run_demo(show=False)
 
     def test_passed(self):

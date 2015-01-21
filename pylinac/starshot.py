@@ -464,4 +464,4 @@ class StarProfile(CircleProfile):
 # Starshot demo
 # ----------------------------
 if __name__ == '__main__':
-    Starshot().run_demo(show=False)
+    Starshot().run_demo()
