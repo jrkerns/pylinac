@@ -13,7 +13,7 @@ Pylinac
     :target: https://pypi.python.org/pypi/pylinac/
     :alt: License
 
-.. image:: https://coveralls.io/repos/jrkerns/pylinac/badge.svg
+.. image:: https://coveralls.io/repos/jrkerns/pylinac/badge.svg?branch=master
     :target: https://coveralls.io/r/jrkerns/pylinac
 
 
