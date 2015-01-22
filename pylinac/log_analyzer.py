@@ -1,6 +1,8 @@
+from abc import ABCMeta, abstractproperty
 import struct
 import os.path as osp
 import csv
+import copy
 
 import numpy as np
 import scipy.ndimage.filters as spf
@@ -8,7 +10,10 @@ import matplotlib.pyplot as plt
 
 from pylinac.core import io
 from pylinac.core.decorators import type_accept, lazyproperty
+from pylinac.core.io import is_valid_file
 
+
+np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
 """Named Constants"""
 log_types = {'dlog': 'dynalog', 'tlog': 'trajectory log'}  # the two current log types
@@ -18,15 +23,15 @@ dynalog_leaf_conversion = 1.96614  # MLC physical plane scaling factor to iso (1
 
 
 class Axis:
-    """Represents an 'Axis' of a Trajectory log file, holding actual and expected values."""
+    """Represents an 'Axis' of a Trajectory log or dynalog file, holding actual and possibly expected values."""
     def __init__(self, actual, expected=None):
         """
         Parameters
         ----------
         actual : numpy.ndarray
             The array of actual position values.
-        expected : numpy.ndarray, None, optional
-            The array of expected position values.
+        expected : numpy.ndarray, optional
+            The array of expected position values. Not applicable for dynalog axes other than MLCs.
         """
         self.actual = actual
         if expected is not None:
@@ -34,9 +39,9 @@ class Axis:
                 raise ValueError("Actual and expected Axis parameters are not equal length")
             self.expected = expected
 
-    @property
+    @lazyproperty
     def difference(self):
-        """Return the difference between actual and expected positions.
+        """Return an array of the difference between actual and expected positions.
 
         Returns
         -------
@@ -65,79 +70,86 @@ class Axis:
 
 
 class LeafAxis(Axis):
+    """Axis holding leaf information."""
     def __init__(self, actual, expected):
         # force expected argument to be supplied
         super().__init__(actual, expected)
 
 
 class GantryAxis(Axis):
+    """Axis holding gantry information."""
     pass
 
 
 class HeadAxis(Axis):
+    """Axis holding head information (e.g. jaw positions, collimator)."""
     pass
 
 
 class CouchAxis(Axis):
+    """Axis holding couch information."""
     pass
 
 
 class BeamAxis(Axis):
+    """Axis holding beam information (e.g. MU, beam hold status)."""
     pass
 
 
-class Fluence:
-    """Structure for data and methods having to do with fluences."""
-    actual = None
-    expected = None
-    actual_resolution = 0
-    expected_resolution = 0
+class Fluence(metaclass=ABCMeta):
+    """An abstract class to be used for the actual and expected fluences."""
+    pixel_map = np.ndarray
+    resolution = -1
+    fluence_type = ''  # must be specified by subclass
 
     def __init__(self, mlc_struct=None, mu_axis=None):
+        """
+        Parameters
+        ----------
+        mlc_struct : MLC_Struct
+        mu_axis : BeamAxis
+        """
         self.mlc = mlc_struct
         self.mu = mu_axis
 
-    def calc_actual(self, resolution=0.1):
-        if not self.actual_calced or resolution != self.actual_resolution:
-            self.actual = self._calc_fluence('actual', resolution)
-            self.actual_resolution = resolution
-        return self.actual
-
     @property
-    def actual_calced(self):
-        if self.actual is not None:
+    def map_calced(self):
+        """Return a boolean specifying whether the fluence has been calculated."""
+        if self.pixel_map.size != 0:
             return True
         else:
             return False
 
-    def calc_expected(self, resolution=0.1):
-        if not self.expected_calced or resolution != self.expected_resolution:
-            self.expected = self._calc_fluence('expected', resolution)
-            self.expected_resolution = resolution
-        return self.expected
-
-    @property
-    def expected_calced(self):
-        if self.expected is not None:
-            return True
-        else:
+    def _same_conditions(self, resolution):
+        """Return whether the conditions passed are the same as prior conditions (for semi-lazy operations)."""
+        if self.resolution != resolution:
             return False
+        else:
+            return True
 
-    def _calc_fluence(self, fluence_type, resolution=0.1):
-        """Calculate the expected and actual fluences.
+    def calc_map(self, resolution=1):
+        """Calculate a fluence pixel map.
 
         Parameters
         ----------
-        fluence_type : {'actual', 'expected'}
-            The type of fluence to calculate
         resolution : float
             The resolution in mm of the fluence calculation in the leaf-moving direction.
-        """
+
+         Returns
+         -------
+         numpy.ndarray
+             A numpy array reconstructing the actual fluence of the log. The size will
+             be the number of MLC pairs by 400 / resolution since the MLCs can move anywhere within the
+             40cm-wide linac head opening.
+         """
+        # return if map has already been calculated under the same conditions
+        if self.map_calced and self._same_conditions(resolution):
+            return self.pixel_map
         # preallocate arrays for expected and actual fluence of number of leaf pairs-x-4000 (40cm = 4000um, etc)
         fluence = np.zeros((self.mlc.num_pairs, 400 / resolution), dtype=float)
 
         # calculate the MU delivered in each snapshot. For Tlogs this is absolute; for dynalogs it's normalized.
-        mu_matrix = getattr(self.mu, fluence_type)
+        mu_matrix = getattr(self.mu, self.fluence_type)
         MU_differential = np.zeros(len(mu_matrix))
         MU_differential[0] = mu_matrix[0]
         MU_differential[1:] = np.diff(mu_matrix)
@@ -146,128 +158,194 @@ class Fluence:
 
         # calculate each "line" of fluence (the fluence of an MLC leaf pair, e.g. 1 & 61, 2 & 62, etc),
         # and add each "line" to the total fluence matrix
-        fluence_line = np.zeros((400 / resolution), dtype=float)
+        fluence_line = np.zeros((400 / resolution))
         leaf_offset = self.mlc.num_pairs
         pos_offset = int(np.round(200 / resolution))
         for leaf in range(1, self.mlc.num_pairs + 1):
-            # emtpy the line values on each new leaf pair
-            fluence_line[:] = 0
-            left_leaf_data = getattr(self.mlc.leaf_axes[leaf], fluence_type)
-            left_leaf_data = -np.round(left_leaf_data / resolution) + pos_offset
-            right_leaf_data = getattr(self.mlc.leaf_axes[leaf + leaf_offset], fluence_type)
-            right_leaf_data = np.round(right_leaf_data / resolution) + pos_offset
-            if self.mlc.leaf_moved(leaf):
-                for snapshot in self.mlc.beam_on_idx:
-                    # TODO: incorporate numexpr and multithreading
-                    left_pos = left_leaf_data[snapshot]
-                    right_pos = right_leaf_data[snapshot]
+            if self.mlc.leaf_is_under_y_jaw(leaf):
+                continue
+            else:
+                fluence_line[:] = 0  # emtpy the line values on each new leaf pair
+                left_leaf_data = getattr(self.mlc.leaf_axes[leaf], self.fluence_type)
+                left_leaf_data = -np.round(left_leaf_data / resolution) + pos_offset
+                right_leaf_data = getattr(self.mlc.leaf_axes[leaf + leaf_offset], self.fluence_type)
+                right_leaf_data = np.round(right_leaf_data / resolution) + pos_offset
+                if self.mlc.leaf_did_move(leaf):
+                    for snapshot in self.mlc.snapshot_idx:
+                        # TODO: incorporate numexpr and multithreading
+                        left_pos = left_leaf_data[snapshot]
+                        right_pos = right_leaf_data[snapshot]
+                        fluence_line[left_pos:right_pos] += MU_differential[snapshot]
+                else:  # leaf didn't move; no need to calc over every snapshot
+                    first_snapshot = self.mlc.snapshot_idx[0]
+                    left_pos = left_leaf_data[first_snapshot]
+                    right_pos = right_leaf_data[first_snapshot]
+                    fluence_line[left_pos:right_pos] = MU_cumulative
+                fluence[leaf - 1, :] = fluence_line
 
-                    # neeval = ne.evaluate('plan_line[exp_lft_mlc_pos[leaf, snapshot]:exp_rt_mlc_pos[leaf,snapshot]] += exp_MU_fx[snapshot]')
-                    fluence_line[left_pos:right_pos] += MU_differential[snapshot]
-            else:  # leaf didn't move; no need to calc over every snapshot
-                first_snapshot = self.mlc.beam_on_idx[0]
-                left_pos = left_leaf_data[first_snapshot]
-                right_pos = right_leaf_data[first_snapshot]
-                fluence_line[left_pos:right_pos] = MU_cumulative
-            fluence[leaf-1, :] = fluence_line
-
+        self.pixel_map = fluence
+        self.resolution = resolution
         return fluence
 
-    def calc_gamma_map(self, DoseTA=2, DistTA=1, threshold=10, resolution=0.1):
+    def plot_map(self):
+        """Plot the fluence; the pixel map must have been calculated first."""
+        if not self.map_calced:
+            raise AttributeError("Map not yet calculated; use calc_map()")
+        plt.imshow(self.pixel_map, aspect='auto')
+        plt.show()
+
+
+class ActualFluence(Fluence):
+    """The actual fluence object."""
+    fluence_type = 'actual'
+
+
+class ExpectedFluence(Fluence):
+    """The expected fluence object."""
+    fluence_type = 'expected'
+
+
+class GammaFluence(Fluence):
+    """Gamma object, including pixel maps of gamma, binary pass/fail pixel map, and others."""
+    distTA = -1
+    doseTA = -1
+    threshold = -1
+    pass_prcnt = -1
+    avg_gamma = -1
+    doseTA_map = np.ndarray
+    distTA_map = np.ndarray
+    passfail_map = np.ndarray
+
+    def __init__(self, actual_fluence, expected_fluence, mlc_struct):
         """
-        Calculate the gamma from the actual and expected fluences. The calculation is based on `Bakai et al
+        Parameters
+        ----------
+        actual_fluence : ActualFluence
+            The actual fluence object.
+        expected_fluence : ExpectedFluence
+            The expected fluence object.
+        mlc_struct : MLC_Struct
+            The MLC structure, so fluence can be calculated from leaf positions.
+        """
+        self.actual_fluence = actual_fluence
+        self.expected_fluence = expected_fluence
+        self.mlc = mlc_struct
+
+    def _same_conditions(self, doseTA, distTA, threshold, resolution):
+        """Determine if the passed conditions are the same as the existing ones.
+
+        See calc_map for parameter info.
+        """
+        if (self.distTA == distTA & self.doseTA == doseTA
+            & self.threshold == threshold & self.resolution == resolution):
+            return True
+        else:
+            return False
+
+    def calc_map(self, DoseTA=2, DistTA=1, threshold=10, resolution=0.1, calc_individual_maps=False):
+        """Calculate the gamma from the actual and expected fluences.
+
+        The gamma calculation is based on `Bakai et al
         <http://iopscience.iop.org/0031-9155/48/21/006/>`_ eq.6,
-        which is a quicker alternative to the standard gamma equation.
+        which is a quicker alternative to the standard Low gamma equation.
 
+        Parameters
+        ----------
+        DoseTA : int, float
+            Dose-to-agreement in percent; e.g. 2 is 2%.
+        DistTA : int, float
+            Distance-to-agreement in mm
+        threshold : int, float
+            The dose threshold percentage of the maximum dose, below which is not analyzed.
+        resolution : int, float
+            The resolution in mm of the resulting gamma map in the leaf-movement direction
 
-        :param DoseTA: dose-to-agreement in %
-        :type DoseTA: float, int
-        :param DistTA: distance-to-agreement in mm
-        :type DistTA: float, int
-        :param threshold: the dose threshold percentage of the maximum dose below which is not analyzed for gamma analysis
-        :type threshold: float, int
-        :param resolution: the resolution in mm of the resulting gamma map
-        :type resolution: float
-        :returns: a num_mlc_leaves-x-400/resolution numpy matrix
+        Returns
+        -------
+        numpy.ndarray
+            A num_mlc_leaves-x-400/resolution numpy array.
         """
+        # if gamma has been calculated under same conditions, return it
+        if self.map_calced and self._same_conditions(DistTA, DoseTA, threshold, resolution):
+            return self.pixel_map
 
         # calc fluences if need be
-        if not self.actual_calced or resolution != self.actual_resolution:
-            self.calc_actual(resolution)
-        if not self.expected_calced or resolution != self.expected_resolution:
-            self.calc_expected(resolution)
+        if not self.actual_fluence.map_calced or resolution != self.actual_fluence.resolution:
+            self.actual_fluence.calc_map(resolution)
+        if not self.expected_fluence.map_calced or resolution != self.expected_fluence.resolution:
+            self.expected_fluence.calc_map(resolution)
 
-        # preallocate
-        actual = np.zeros(self.actual.shape)
-        expected = np.zeros(self.expected.shape)
+        actual = copy.copy(self.actual_fluence.pixel_map)
+        expected = copy.copy(self.expected_fluence.pixel_map)
 
         # set dose values below threshold to 0 so gamma doesn't calculate over it
-        actual[actual < (threshold / 100) * np.max(actual)] = 0
-        expected[expected < (threshold / 100) * np.max(expected)] = 0
+        actual[actual < (threshold / 100) * np.max(actual)] = np.nan
+        expected[expected < (threshold / 100) * np.max(expected)] = np.nan
 
         # preallocation
-        gamma_map = np.zeros(self.expected.shape)
+        gamma_map = np.zeros(expected.shape)
 
         # image gradient in x-direction (leaf movement direction) using sobel filter
         img_x = spf.sobel(actual, 1)
-        # flu = plt.imshow(img_x, aspect='auto')
-        # plt.show()
-        # img_y, img_xx = np.gradient(actual_fluence)
-        # flu = plt.imshow(img_xx, aspect='auto')
-        # plt.show()
-        # flu = plt.imshow(img_y, aspect='auto')
-        # plt.show()
 
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
-        sqrt = np.sqrt
         for leaf in range(self.mlc.num_pairs):
-            gamma_map[leaf] = (actual[leaf, :] - expected[leaf, :]) / sqrt(
+            gamma_map[leaf] = np.abs(actual[leaf, :] - expected[leaf, :]) / np.sqrt(
                 (DoseTA / 100.0 ** 2) + ((DistTA / resolution ** 2) * (img_x[leaf, :] ** 2)))
-        # flu = plt.imshow(gamma_map, aspect='auto')
-        # plt.show()
+        # construct binary pass/fail map
+        self.passfail_map = np.array(np.where(gamma_map >= 1, 1, 0)[0], dtype=bool)
+
+        if calc_individual_maps:
+            # calculate DoseTA map (drops distTA calc from gamma eq)
+            self.doseTA_map = np.zeros(gamma_map.shape)
+            for leaf in range(self.mlc.num_pairs):
+                self.doseTA_map[leaf] = (actual[leaf, :] - expected[leaf, :]) / np.sqrt(
+                    (DoseTA / 100.0 ** 2))
+            # calculate DistTA map (drops DoseTA calc from gamma eq)
+            self.distTA_map = np.zeros(gamma_map.shape)
+            for leaf in range(self.mlc.num_pairs):
+                self.distTA_map[leaf] = (actual[leaf, :] - expected[leaf, :]) / np.sqrt(
+                    ((DistTA / resolution ** 2) * (img_x[leaf, :] ** 2)))
+
+        # calculate standard metrics
+        self.pass_prcnt = (np.sum(gamma_map < 1) / np.sum(gamma_map >= 0)) * 100
+        self.avg_gamma = np.nanmean(gamma_map)
+
+        self.pixel_map = gamma_map
         return gamma_map
 
-    def calc_gamma_stats(self, DoseTA=2, DistTA=1, threshold=10, resolution=0.1, only_nonzero_gamma=False, gamma_map=None):
-        """
-        Calculate common gamma parameters: pass percentage, average gamma
+    def plot_passfail_map(self):
+        """Plot the binary gamma map, only showing whether pixels passed or failed."""
+        plt.imshow(self.passfail_map)
+        plt.show()
 
-        gamma_map: gamma map matrix calculated with _calc_gamma() in lightweight mode
-        only_nonzero_gamma: boolean of whether to calculate gamma on all pixels or only on the non-zero ones
-        """
 
-        if gamma_map is None:
-            try:
-                gamma_map = self._gamma_map
-            except:
-                if self._lightweight_mode:
-                    gamma_map = self.calc_gamma_map(DoseTA=DoseTA, DistTA=DistTA, threshold=threshold,
-                                                    resolution=resolution)
-                else:
-                    self.calc_gamma_map(DoseTA=DoseTA, DistTA=DistTA, threshold=threshold,
-                                        resolution=resolution)
-                    gamma_map = self._gamma_map
+class Fluence_Struct:
+    """Structure for data and methods having to do with fluences."""
+    def __init__(self, mlc_struct=None, mu_axis=None):
+        self.actual = ActualFluence(mlc_struct, mu_axis)
+        self.expected = ExpectedFluence(mlc_struct, mu_axis)
+        self.gamma = GammaFluence(self.actual, self.expected, mlc_struct)
 
-        if only_nonzero_gamma:
-            pass_pct = (np.sum(gamma_map > 0) - np.sum(gamma_map > 1)) / float(np.sum(gamma_map > 0))
-            avg_gamma = np.mean(gamma_map[gamma_map > 0])
-        else:
-            pass_pct = np.sum(gamma_map < 1) / float(gamma_map.size)
-            avg_gamma = np.mean(gamma_map)
-        # turn pass_pct into percentage
-        pass_pct *= 100
-
-        if self._lightweight_mode:
-            return pass_pct, avg_gamma
-        else:
-            self._gamma_pass_pct = pass_pct
-            self._gamma_avg = avg_gamma
 
 class MLC:
-
-    def __init__(self, beam_on_idx=None):
+    """The MLC class holds MLC information and retreives relevant data about the MLCs and positions."""
+    def __init__(self, snapshot_idx=None, jaw_struct=None, HDMLC=False):
+        """
+        Parameters
+        ----------
+        snapshot_idx : array, list
+            The snapshots to be considered for RMS and error calculations (can be all snapshots or just when beam was on).
+        jaw_struct : Jaw_Struct
+        HDMLC : boolean
+            If False (default), indicates a regular MLC model (e.g. Millenium 120).
+            If True, indicates an HD MLC model (e.g. Millenium 120 HD).
+        """
         super().__init__()
         self.leaf_axes = {}
-        self.beam_on_idx = beam_on_idx
+        self.snapshot_idx = snapshot_idx
+        self.jaws = jaw_struct
+        self.hdmlc = HDMLC
 
     @type_accept(leaf_axis=LeafAxis, leaf_num=int)
     def add_leaf_axis(self, leaf_axis, leaf_num):
@@ -284,37 +362,32 @@ class MLC:
 
     @lazyproperty
     def num_pairs(self):
-        """Return the number of MLC *pairs*."""
+        """Return the number of MLC pairs."""
         return int(self.num_leaves/2)
 
     @lazyproperty
-    def snapshots(self):
-        if self.beam_on_idx is not None:
-            return self.beam_on_idx
-        else:
-            return list(range(len(self.leaf_axes[1].actual)))
-
-    @lazyproperty
     def num_leaves(self):
+        """Return the number of MLC leaves."""
         return len(self.leaf_axes)
 
     @lazyproperty
     def num_snapshots(self):
-        return len(self.snapshots)
+        return len(self.snapshot_idx)
 
     @lazyproperty
-    def moving_leaf_indices(self):
+    def moving_leaves(self):
+        """Return an tuple holding the leaf numbers that moved during treatment."""
         threshold = 0.003
         indices = ()
         for leaf_num, leafdata in self.leaf_axes.items():
-            leaf_stdev = np.std(leafdata.actual[self.snapshots])
+            leaf_stdev = np.std(leafdata.actual[self.snapshot_idx])
             if leaf_stdev > threshold:
                 indices += (leaf_num,)
-        return indices
+        return np.array(indices)
 
-    def leaf_moved(self, leaf_num):
+    def leaf_did_move(self, leaf_num):
         """Return whether the leaf moved during treatment."""
-        if leaf_num in self.moving_leaf_indices:
+        if leaf_num in self.moving_leaves:
             return True
         else:
             return False
@@ -324,152 +397,198 @@ class MLC:
         """Return an array enumerated over the number of leaves."""
         return np.array(range(1, len(self.leaf_axes) + 1))
 
-    def get_RMS_per_leaf(self, bank=None, only_moving_leaves=False):
-        """Calculate the root-mean-square (RMS) leaf error while the beam was on.
+    def get_RMS_avg(self, bank=None, only_moving_leaves=False):
+        """Return the overall average RMS of given leaves."""
+        leaves = self.get_leaves(bank, only_moving_leaves)
+        rms_array = self.create_RMS_array(leaves)
+        return np.mean(rms_array)
 
-        return: average RMS, matrix of RMS per leaf (usually 1-x-120 numpy array)
+    def get_RMS_max(self, bank=None, only_moving_leaves=False):
+        """Return the overall maximum RMS of given leaves."""
+        leaves = self.get_leaves(bank, only_moving_leaves)
+        rms_array = self.create_RMS_array(leaves)
+        return np.max(rms_array)
 
-        bank: Specify "A" or "B" if the RMS of the bank is desired. None will give both banks.
-        only_moving_leaves: boolean specifying if the RMS should be calculated only on the leaves that moved.
-            If False, the RMS will usually be lower since non-moving leaves have an RMS of 0 and will drive down
-            the average value.
+    def get_leaves(self, bank=None, only_moving_leaves=False):
+        """Return a list of leaves that match the given conditions.
+
+        Parameters
+        ----------
+        bank : {'A', 'B'}, None
+            Specifies which bank is desired. If None, will return both banks.
+        only_moving_leaves : boolean
+            If False (default), include all the leaves.
+            If True, will remove the leaves that were static during treatment.
+
+            .. warning::
+                The RMS and error will nearly always be lower if all leaves are included since non-moving leaves
+                have an error of 0 and will drive down the average values. Convention would include all leaves,
+                but prudence would use only the moving leaves to get a more accurate assessment of error/RMS.
         """
-
-        # get indices of leaves that moved if asked for
+        # get all leaves or only the moving leaves
         if only_moving_leaves:
-            leaves = self.moving_leaf_indices
+            leaves = self.moving_leaves
         else:
             leaves = self.all_leaf_indices
 
-        # get leaves of specific bank if asked for
+        # select leaves by bank if desired
         if bank is not None:
-            leaves = get_bank_index(bank, leaves)
+            if 'a' in bank.lower():
+                leaves = leaves[leaves <= self.num_pairs]
+            elif 'b' in bank.lower():
+                leaves = leaves[leaves > self.num_pairs]
 
-        # remove snapshots were beam was on if asked for
-        if self.beam_on_idx is not None and len(self[1].actual) != self.num_snapshots:
-            for leaf in self.keys():
-                self[leaf].actual = self[leaf].actual[self.snapshots]
-                self[leaf].expected = self[leaf].expected[self.snapshots]
+        return leaves
 
-        error_squared = self.mlc_error(leaves) ** 2
-        RMS = np.sqrt(np.sum(error_squared, 1) / self.num_snapshots)
-        return RMS
-        # else:  # calculate both banks and attach them to self
-        #     # bank A
-        #     aidx = get_bank_index('A', idx)
-        #     error_squared = self._get_mlc_error(aidx) ** 2
-        #     RMS = np.sqrt(np.sum(error_squared, 1) / np.sum(self._beamon_idx))
-        #     self.bankA_RMS = RMS
-        #     # bank B
-        #     bidx = get_bank_index('B', idx)
-        #     error_squared = self._get_mlc_error(bidx) ** 2
-        #     RMS = np.sqrt(np.sum(error_squared, 1) / np.sum(self._beamon_idx))
-        #     self.bankB_RMS = RMS
+    def get_nth_perc_error(self, percentile=95, bank=None, only_moving_leaves=False):
+        """Calculate the n-th percentile error of the leaf error."""
+        leaves = self.get_leaves(bank, only_moving_leaves)
+        error_array = self.create_error_array(leaves)
 
-    def get_overall_RMS_avg(self, bank=None, only_moving_leaves=False):
-        """Return the overall average RMS of given leaves.
-        """
-        rms = self.get_RMS_per_leaf(bank=bank, only_moving_leaves=only_moving_leaves)
-        return np.mean(rms)
+        abs_error = np.abs(error_array)
+        return np.percentile(abs_error, percentile)
 
-    def get_overall_RMS_max(self, bank=None, only_moving_leaves=False):
-        """Return the overall maximum RMS of given leaves.
-        """
-        rms = self.get_RMS_per_leaf(bank=bank, only_moving_leaves=only_moving_leaves)
-        return np.max(rms)
+    def create_error_array(self, leaves):
+        """Create an error array of only the leaves specified."""
+        error_array = self._error_array_all_leaves
+        return error_array[leaves, :]
 
-    def mlc_error(self, leaves):
-        """
-        Calculate the difference between the planned and expected MLC positions for every leaf and every snapshot
-        while the beam was on.
-        """
+    def create_RMS_array(self, leaves):
+        """Create an RMS array of only the leaves specified."""
+        rms_array = self._RMS_array_all_leaves
+        leaves -= 1
+        return rms_array[leaves]
+
+    @lazyproperty
+    def _error_array_all_leaves(self):
         # preallocate
-        mlc_error = np.zeros((len(leaves), self.num_snapshots))
+        mlc_error = np.zeros((self.num_leaves, self.num_snapshots))
         # construct numpy array for easy array calculation
-        for idx, leaf in enumerate(leaves):
-            mlc_error[idx, :] = self[leaf].difference
+        for leaf in range(self.num_leaves):
+            mlc_error[leaf, :] = self.leaf_axes[leaf+1].difference[self.snapshot_idx]
         return mlc_error
 
-    def get_95th_perc_error(self, bank=None, only_moving_leaves=False):
-        """Calculate the 95th percentile error of the leaves as asked for by TG-142.
+    @lazyproperty
+    def _error_array_moving_leaves(self):
+        """Return an error array only for leaves that moved."""
+        moving_leaves = self.moving_leaves
+        error_array = self._error_array_all_leaves
+        return error_array[moving_leaves, :]
 
-        bank: Specify "A" or "B" if the 95th percentile error of the bank is desired. None will give both banks.
-        only_moving_leaves: boolean specifying if the error should be calculated only on the leaves that moved.
-            If False, the error will usually be lower since non-moving leaves have an error of 0 and will drive down
-            the average value.
-        return: 95th percentile error of all leaves, or of the given bank
-        """
-        # get indices of leaves that moved if asked for
-        if only_moving_leaves:
-            leaves = self.moving_leaf_indices
+    @lazyproperty
+    def _RMS_array_all_leaves(self):
+        """Return the RMS of all leaves."""
+        rms_array = np.array([np.sqrt(np.sum(leafdata.difference[self.snapshot_idx] ** 2) / self.num_snapshots) for leafdata in self.leaf_axes.values()])
+        return rms_array
+
+    @lazyproperty
+    def _RMS_array_moving_leaves(self):
+        """Return an array of RMS of only the moving leaves."""
+        moving_leaves = self.moving_leaves
+        rms_array = self._RMS_array_all_leaves
+        return rms_array[moving_leaves, :]
+
+    def leaf_is_under_y_jaw(self, leaf_num):
+        """Return a boolean specifying if the given leaf is under one of the y jaws."""
+        outer_leaf_thickness = 10  # mm
+        inner_leaf_thickness = 5
+        mlc_position = 0
+        if self.hdmlc:
+            outer_leaf_thickness /= 2
+            inner_leaf_thickness /= 2
+            mlc_position = 100
+        for leaf in range(1, leaf_num+1):
+            if 10 >= leaf or leaf >= 110:
+                mlc_position += outer_leaf_thickness
+            elif 50 >= leaf or leaf >= 70:
+                mlc_position += inner_leaf_thickness
+            else:
+                mlc_position += outer_leaf_thickness
+
+        y2_position = self.jaws.y2.actual[0]*10 + 200
+        y1_position = 200 - self.jaws.y1.actual[0]*10
+        if mlc_position < y1_position or mlc_position - outer_leaf_thickness > y2_position:
+            return True
         else:
-            leaves = self.all_leaf_indices
+            return False
 
-        # get bank indices if a specific bank is asked for.
-        leaves = get_bank_index(bank, leaves)
-
-        # calculate percentile
-        error = np.abs(self.mlc_error(leaves))
-        return np.percentile(error, 95)
-
-    # def calc_RMS(self, only_moving_leaves=False):
-    #     """Calculate the root mean square of the MLC leaves.
-    #
-    #     :param only_moving_leaves: boolean specifying whether to use only the leaves that moved during treatment
-    #     """
-    #     # get beam on index
-    #     if not hasattr(self, '_beamon_idx'):
-    #         self._get_beamon_idx()
-    #
-    #     # get indices of leaves that moved if asked for
-    #     idx = self._get_leaf_idx(only_moving_leaves)
-    #
-    #     idx = get_bank_index('A', idx)
-    #     error_squared = self._get_mlc_error(idx) ** 2
-    #     RMS = np.sqrt(np.sum(error_squared, 1) / np.sum(self._beamon_idx))
-    #     self.bankA_RMS = RMS
-    #
-    # def _get_leaf_idx(self, only_moving_leaves):
-    #     """
-    #     If only_moving_leaves is True, function gets the indices of the leaves that actually moved during the treatment,
-    #     otherwise all the leaves are returned.
-    #     """
-    #     if only_moving_leaves:
-    #         if not hasattr(self, '_leaves_that_moved'):
-    #             idx = self.get_moving_leaves()
-    #         else:
-    #             idx = self._leaves_that_moved
-    #     else:
-    #         idx = np.array(list(range(self.num_mlc_leaves)))
-    #     return idx
+    def leaf_is_under_x_jaw(self, leaf_num):
+        """Return a boolean specifying if the given leaf is under one of the x jaws."""
+        raise NotImplementedError
+        # most_retracted_leaf_position = np.max(self.leaf_axes[leaf_num].actual)
+        # most_extended_leaf_position = np.min(self.leaf_axes[leaf_num].actual)
+        #
+        # x2_position = self.jaws.x2.actual[0] * 10 + 200
+        # x1_position = 200 - self.jaws.x1.actual[0] * 10
+        #
+        #
+        # if most_retracted_leaf_position < x1_position:
+        #     return False
+        # else:
+        #     return True
 
 
-class Subbeam:
-    """Holds sub-beam information of Tlogs. Only applicable for auto-sequenced beams."""
-    def __init__(self, log_content, cursor, log_version):
+class Jaw_Struct:
+    """Jaw Axes data structure, holding jaw HeadAxes instances."""
+    def __init__(self, x1, y1, x2, y2):
+        if not all((
+                isinstance(x1, HeadAxis),
+                isinstance(y1, HeadAxis),
+                isinstance(x2, HeadAxis),
+                isinstance(y2, HeadAxis))):
+            raise TypeError("HeadAxis not passed into Jaw structure")
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+
+class Couch_Struct:
+    """Couch Axes data structure, holding CouchAxis instances."""
+    def __init__(self, vertical, longitudinal, lateral, rotational):
+        if not all((isinstance(vertical, CouchAxis),
+                    isinstance(longitudinal, CouchAxis),
+                    isinstance(lateral, CouchAxis),
+                    isinstance(rotational, CouchAxis))):
+            raise TypeError("Couch Axes not passed into Couch structure")
+        self.vert = vertical
+        self.long = longitudinal
+        self.latl = lateral
+        self.rotn = rotational
+
+
+class Log_Section(metaclass=ABCMeta):
+    @abstractproperty
+    def read(self):
+        pass
+
+
+class DLog_Section(Log_Section, metaclass=ABCMeta):
+    def __init__(self, log_content):
+        self.log_content = log_content
+
+
+class TLog_Section(Log_Section, metaclass=ABCMeta):
+    def __init__(self, log_content, cursor):
+        self.log_content = log_content
         self._cursor = cursor
-        self.control_point = self._decode_binary(log_content, int)
-        self.mu_delivered = self._decode_binary(log_content, float)
-        self.rad_time = self._decode_binary(log_content, float)
-        self.sequence_num = self._decode_binary(log_content, int)
-        # In Tlogs version 3.0 and up, beam names are 512 byte unicode strings, but in <3.0 they are 32 byte unicode strings
-        if log_version >= 3:
-            chars = 512
-        else:
-            chars = 32
-        self.beam_name = self._decode_binary(log_content, str, chars, 32)
 
     def _decode_binary(self, filecontents, dtype, num_values=1, cursor_shift=0):
         """This method is the main "decoder" for reading in trajectory log binary data into human data types.
 
-        :param filecontents: the complete file having been read with .read().
-        :param dtype: the expected data type to return. If int or float, will return numpy array.
-        :type dtype: str, int, float
-        :param num_values: the expected number of dtype to return; note that this is not the same as the # of bytes.
-        :type num_values: int
-        :param cursor_shift: the number of bytes to move the cursor forward after decoding. This is used if there is a
+        Parameters
+        ----------
+        filecontents : file object
+            The complete file having been read with .read().
+        dtype : int, float, str
+            The expected data type to return. If int or float, will return numpy array.
+        num_values : int
+            The expected number of dtype to return
+
+            .. note:: This is not the same as the number of bytes.
+
+        cursor_shift : int
+            The number of bytes to move the cursor forward after decoding. This is used if there is a
             reserved section after the read-in segment.
-        :type cursor_shift: int
         """
         fc = filecontents
 
@@ -494,33 +613,186 @@ class Subbeam:
         self._cursor += cursor_shift  # shift cursor if need be (e.g. if a reserved section follows)
         return output
 
-# def yield_axis(snapshot_data, axis_type):
-#     column = 0
-#     last_column = snapshot_data.shape[0]
-#     while column < last_column:
-#         yield axis_type(expected=snapshot_data[:, column],
-#                    actual=snapshot_data[:, column+1])
-#         column += 2
+class Subbeam(TLog_Section):
+    def __init__(self, log_content, cursor, log_version):
+        super().__init__(log_content, cursor)
+        self.log_version = log_version
+
+    def read(self):
+        self.control_point = self._decode_binary(self.log_content, int)
+        self.mu_delivered = self._decode_binary(self.log_content, float)
+        self.rad_time = self._decode_binary(self.log_content, float)
+        self.sequence_num = self._decode_binary(self.log_content, int)
+        # In Tlogs version 3.0 and up, beam names are 512 byte unicode strings, but in <3.0 they are 32 byte unicode strings
+        if self.log_version >= 3:
+            chars = 512
+        else:
+            chars = 32
+        self.beam_name = self._decode_binary(self.log_content, str, chars, 32)
+
+        return self, self._cursor
+
+
+class Subbeamer:
+    """One of 4 subsections of a trajectory log. Holds a list of subbeams; only applicable for auto-sequenced beams."""
+    def __init__(self, log_content, cursor, header):
+        self._log_content = log_content
+        self._header = header
+        self._cursor = cursor
+
+    def read(self):
+        subbeams = []
+        if self._header.num_subbeams > 0:
+            for subbeam_num in range(self._header.num_subbeams):
+                subbeam, self._cursor = Subbeam(self._log_content, self._cursor, self._header.version).read()
+                subbeams.append(subbeam)
+        return subbeams, self._cursor
+
+
+class Tlog_Header(TLog_Section):
+    """A header object, one of 4 "sections" of a trajectory log. Holds sampling interval, version, etc."""
+
+    def read(self):
+        self.header = self._decode_binary(self.log_content, str, 16)  # for version 1.5 will be "VOSTL"
+        self.version = float(self._decode_binary(self.log_content, str, 16))  # in the format of 2.x or 3.x
+        self.header_size = self._decode_binary(self.log_content, int)  # fixed at 1024 in 1.5 specs
+        self.sampling_interval = self._decode_binary(self.log_content, int)
+        self.num_axes = self._decode_binary(self.log_content, int)
+        self.axis_enum = self._decode_binary(self.log_content, int, self.num_axes)
+        self.samples_per_axis = self._decode_binary(self.log_content, int, self.num_axes)
+        self.num_mlc_leaves = self.samples_per_axis[-1] - 2  # subtract 2 (each carriage counts as an "axis" and must be removed)
+        # self._cursor == self.num_axes * 4 # there is a reserved section after samples per axis. this moves it past it.
+        self.clinac_scale = self._decode_binary(self.log_content, int)
+        self.num_subbeams = self._decode_binary(self.log_content, int)
+        self.is_truncated = self._decode_binary(self.log_content, int)
+        self.num_snapshots = self._decode_binary(self.log_content, int)
+        # the section after MLC model is reserved. Cursor is moved to the end of this reserved section.
+        self.mlc_model = self._decode_binary(self.log_content, int, cursor_shift=1024 - (64 + self.num_axes * 8))
+
+        return self, self._cursor
+
+class Dlog_Header(DLog_Section):
+    pass
+
+class AxisData(TLog_Section):
+    """One of four data structures outline in the Trajectory log file specification.
+        Holds information on all Axes measured, like MU, gantry position, and MLC leaf positions."""
+    def __init__(self, log_content, cursor, header):
+        super().__init__(log_content, cursor)
+        self._header = header
+
+    def read(self, exclude_beam_off=True):
+        # step size in bytes
+        step_size = sum(self._header.samples_per_axis) * 2
+
+        # read in all snapshot data at once, then assign
+        snapshot_data = self._decode_binary(self.log_content, float, step_size * self._header.num_snapshots)
+
+        # reshape snapshot data to be a x-by-num_snapshots matrix
+        snapshot_data = snapshot_data.reshape(self._header.num_snapshots, -1)
+
+        # collimator
+        self.collimator = self._get_axis(snapshot_data, 0, HeadAxis)
+
+        # gantry
+        self.gantry = self._get_axis(snapshot_data, 2, GantryAxis)
+
+        # jaws
+        jaw_y1 = self._get_axis(snapshot_data, 4, HeadAxis)
+        jaw_y2 = self._get_axis(snapshot_data, 6, HeadAxis)
+        jaw_x1 = self._get_axis(snapshot_data, 8, HeadAxis)
+        jaw_x2 = self._get_axis(snapshot_data, 10, HeadAxis)
+        self.jaws = Jaw_Struct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
+
+        # couch
+        vrt = self._get_axis(snapshot_data, 12, CouchAxis)
+        lng = self._get_axis(snapshot_data, 14, CouchAxis)
+        lat = self._get_axis(snapshot_data, 16, CouchAxis)
+        rtn = self._get_axis(snapshot_data, 18, CouchAxis)
+        self.couch = Couch_Struct(vrt, lng, lat, rtn)
+
+        # MU
+        self.mu = self._get_axis(snapshot_data, 20, BeamAxis)
+
+        # beam hold state
+        self.beam_hold = self._get_axis(snapshot_data, 22, BeamAxis)
+
+        # control point
+        self.control_point = self._get_axis(snapshot_data, 24, BeamAxis)
+
+        # carriages
+        self.carraige_A = self._get_axis(snapshot_data, 26, HeadAxis)
+        self.carriage_B = self._get_axis(snapshot_data, 28, HeadAxis)
+
+        # remove snapshots where the beam wasn't on if flag passed
+        if exclude_beam_off:
+            snapshots = np.where(self.beam_hold.actual == 0)[0]
+        else:
+            snapshots = list(range(self._header.num_snapshots))
+
+        if self._header.mlc_model == 2:
+            hdmlc = False
+        else:
+            hdmlc = True
+
+        self.mlc = MLC(snapshots, self.jaws, hdmlc)
+        for leaf_num in range(1, self._header.num_mlc_leaves + 1):
+            leaf_axis = self._get_axis(snapshot_data, 30 + 2 * (leaf_num - 1), LeafAxis)
+            self.mlc.add_leaf_axis(leaf_axis, leaf_num)
+
+        return self, self._cursor
+
+    @lazyproperty
+    def num_beamholds(self):
+        """Return the number of times the beam was held."""
+        diffmatrix = np.diff(self.beam_hold.actual)
+        num_holds = int(np.sum(diffmatrix == 1))
+        return num_holds
+
+
+    def _get_axis(self, snapshot_data, column, axis_type):
+        """Return column of data from snapshot data of the axis type passed.
+
+        Parameters
+        ----------
+        snapshot_data : numpy.ndarray
+            The data read in holding the axis data of the log.
+        column : int
+            The column of the desired data in snapshot_data
+        axis_type : subclass of Axis
+            The type of axis the data is.
+
+        Returns
+        -------
+        axis_type
+        """
+        return axis_type(expected=snapshot_data[:, column],
+                         actual=snapshot_data[:, column + 1])
+
+class CRC(TLog_Section):
+    """The last data section of a Trajectory log. Is a 2 byte cyclic redundancy check (CRC), specifically
+        a CRC-16-CCITT. The seed is OxFFFF."""
+    def __init__(self, log_content, cursor):
+        super().__init__(log_content, cursor)
+
+    def read(self):
+        # crc = self._decode_binary(self.log_content, str, 2)
+        # TODO: figure this out
+        pass
 
 
 class MachineLog:
-    """
-    A class for reading in machine log files (both dynalogs and trajectory logs) from Varian machines
-    and calculating various relevant parameters about them (RMS, 95th percentile error, etc).
-    """
-
+    """Reads in and analyzes MLC log files from Varian linear accelerators."""
     @type_accept(filename=str)
     def __init__(self, filename=''):
         """
-        :param filename: Path to the log file. For trajectory logs this is a single .bin file.
-            For dynalog files this should be the A-file. The B-file will be automatically pulled when A is read in. The B-file must be in
-            the same directory as the A-file or an error is thrown. If filename is not passed in on init, it will need to be loaded later.
-        :type filename: str
-        :param lightweight_mode: Specifies if fluences and gamma maps should be saved as attrs or if results should
-            be returned on given calculation. lightweight mode is good for reading in lots of files so as to conserve
-            memory, but requires on-the-fly calculations, which is slower then pre-calculating.
-            Thus, when reading a handful of files, lightweight mode is really not necessary.
-        :type lightweight_mode: bool
+        Parameters
+        ----------
+        filename : str
+            Path to the log file. For trajectory logs this is a single .bin file.
+            For dynalog files this should be the A-file. The B-file will be automatically pulled when A is read in.
+            The B-file must be in the same directory as the A-file or an error is thrown.
+            If filename is not passed in on init, it will need to be loaded later.
         """
         self._filename = filename
         self._cursor = 0
@@ -529,61 +801,51 @@ class MachineLog:
         # Generic Log attributes
         #------------------------
         # For dynalogs:   . For Tlogs: usually in 2.x TODO: find dynalog version info
-        self.version = ''
-        # the number of leaves in a log file. For dynalogs it is actually the # of PAIRS.
-        self.num_mlc_leaves = None
-        # For dynalogs: 0->Varian scale, 1->IEC scale. For Tlogs: 1-> machine scale, 2-> modified IEC
-        self.clinac_scale = None
-        # The number of "snapshots" taken during the treatment. Each snapshot captures numerous mechanical parameters
-        self.num_snapshots = None
-        # The sampling interval (i.e. time between snapshots) in ms. For dynalogs, this is 50ms. Tlogs are usu. ~20ms.
-        self.sampling_interval = None
-        # The actual locations of the MLCs in mm. Will be a num_leaves-x-num_snapshots numpy matrix.
-        # self._mlc_actual = None
-        # The expected locations of the MLCs in mm. Will be a num_leaves-x-num_snapshots numpy matrix.
-        # self._mlc_expected = None
+        # self.version = ''
+        # # the number of leaves in a log file. For dynalogs it is actually the # of PAIRS.
+        # self.num_mlc_leaves = None
+        # # For dynalogs: 0->Varian scale, 1->IEC scale. For Tlogs: 1-> machine scale, 2-> modified IEC
+        # self.clinac_scale = None
+        # # The number of "snapshots" taken during the treatment. Each snapshot captures numerous mechanical parameters
+        # self.num_snapshots = None
+        # # The sampling interval (i.e. time between snapshots) in ms. For dynalogs, this is 50ms. Tlogs are usu. ~20ms.
+        # self.sampling_interval = None
+        #
+        # #----------------------------
+        # # Dynalog-specific attributes
+        # #----------------------------
+        # # patient name, up to 25 characters
+        # self.patient_name = ''
+        # self.plan_filename = ''
+        # # The mechanical tolerances. Machine will beam-hold if error is greater than tolerance. (mm)
+        # self.tolerance = None
+        # #----------------------------
+        # # Trajectory log-specific attributes
+        # #----------------------------
+        # # 2->NDS 120 (Millennium), 3->NDS 120 HD
+        # self.mlc_model = None
+        # self.num_axes = None  # # of axes sampled
+        # self.axis_enum = None
+        # self.samples_per_axis = None
+        # self.is_truncated = None  # 1-> truncated, 0 -> not truncated
 
-        #----------------------------
-        # Dynalog-specific attributes
-        #----------------------------
-        # patient name, up to 25 characters
-        self.patient_name = ''
-
-        self.plan_filename = ''
-
-        # The mechanical tolerances. Machine will beam-hold if error is greater than tolerance. (mm)
-        self.tolerance = None
-
-        #----------------------------
-        # Trajectory log-specific attributes
-        #----------------------------
-        # 2->NDS 120 (Millennium), 3->NDS 120 HD
-        self.mlc_model = None
-
-        # A data list for auto-sequenced beams (currently not used)
-        # self._subbeams = []
-
-        self.num_axes = None  # # of axes sampled
-        self.axis_enum = None
-        self.samples_per_axis = None
-
-        self.is_truncated = None  # 1-> truncated, 0 -> not truncated
-
-        self.mlc = MLC()
-        self.fluence = Fluence()
+        self.fluence = Fluence_Struct()
 
         # Read file if passed in
         if filename is not '':
             self.read_log()
 
     def run_tlog_demo(self):
+        """Run the Trajectory log demo."""
         self.load_demo_trajectorylog()
-        actual = self.fluence.calc_actual()
-        expected = self.fluence.calc_expected()
-        gamma = self.fluence.calc_gamma_map()
+        self.report_basic_parameters()
+        self.fluence.gamma.plot_map()
 
     def run_dlog_demo(self):
-        pass
+        """Run the dynalog demo."""
+        self.load_demo_dynalog()
+        self.report_basic_parameters()
+        self.fluence.gamma.plot_map()
 
     def load_demo_dynalog(self):
         """Load the demo dynalog file included with the package."""
@@ -591,7 +853,7 @@ class MachineLog:
         self.read_log()
 
     def load_demo_trajectorylog(self):
-        """Load the log file to the demo trajectory log included with the package."""
+        """Load the demo trajectory log included with the package."""
         self._filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
         self.read_log()
 
@@ -606,14 +868,12 @@ class MachineLog:
     def load_logfile(self, filename):
         """Load the log file directly by passing the path to the file.
 
-        :param filename: The path to the log file.
-        :type filename: str
+        Parameters
+        ----------
+        filename : str
+            The path to the log file.
         """
-        if not osp.isfile(filename):
-            try:
-                raise FileExistsError("File does not exist")
-            except:
-                raise IOError("File does not exist")
+        is_valid_file(filename, raise_error=True)
         self._filename = filename
         self.read_log()
 
@@ -622,68 +882,40 @@ class MachineLog:
 
         -log type
         -average RMS
+        -maximum RMS
         -95th percentile error
         -number of beam holdoffs
         -gamma pass percentage
         """
         print("MLC log type: " + self.log_type)
-        print("Average RMS of all leaves: {:3.3f} mm".format(self.mlc.get_overall_RMS_avg(only_moving_leaves=True)))
-        print("Max RMS error of all leaves: {:3.3f} mm".format(self.mlc.get_overall_RMS_max(only_moving_leaves=True)))
-        print("95th percentile error: {:3.3f} mm".format(self.mlc.get_95th_perc_error(only_moving_leaves=True)))
-        print("Number of beam holdoffs: {:1.0f}".format(self.num_beamholds))
-        self.calc_gamma_stats()
-        print("Gamma pass %: {:2.2f}".format(self._gamma_pass_pct))
-        print("Gamma average: {:2.3f}".format(self._gamma_avg))
-
-    @lazyproperty
-    def num_beamholds(self):
-        """The number of times the beam was held."""
-        diffmatrix = np.diff(self.beam_hold.actual)
-        num_holds = np.sum(diffmatrix == 1)
-        return num_holds
+        print("Average RMS of all leaves: {:3.3f} mm".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=True)))
+        print("Max RMS error of all leaves: {:3.3f} mm".format(self.axis_data.mlc.get_RMS_max(only_moving_leaves=True)))
+        print("95th percentile error: {:3.3f} mm".format(self.axis_data.mlc.get_nth_perc_error(95, only_moving_leaves=True)))
+        print("Number of beam holdoffs: {:1.0f}".format(self.axis_data.num_beamholds))
+        self.fluence.gamma.calc_map()
+        print("Gamma pass %: {:2.2f}".format(self.fluence.gamma.pass_prcnt))
+        print("Gamma average: {:2.3f}".format(self.fluence.gamma.avg_gamma))
 
 
-
-    # def get_moving_leaves(self, threshold=0.003):
-    #     """
-    #     Determine the leaves that actually moved during treatment. Useful for correcting stats when only a few leaves
-    #     moved during the delivery.
+    # @lazyproperty
+    # def beam_on_snapshots(self):
+    #     """Return the indices of the snapshots only when the beam was actually on.
     #
-    #     :param threshold: the value that the standard deviation of the leaf position must be greater than in order to
-    #         be considered a "moving" leaf. Rounding errors can result in nonzero standard deviation for standing leaves,
-    #         thus, a small value is necessary.
+    #     For dynalogs this removes snapshots where the Beam On flag was 0 and where the Beam Hold was 0.
+    #     For trajectory logs this removes the snapshots were the Beam Hold was 0 (there is no Beam On flag).
     #     """
-    #     stdevs = np.std(self._mlc_actual, 1)
-    #     self._leaves_that_moved = np.squeeze(np.asarray(np.nonzero(stdevs > threshold), dtype=int))
-    #     return self._leaves_that_moved
-
-    def _get_beamon_idx(self, snapshot_data, beam_hold_column):
-        """Return the indices of the snapshots that the beam was actually on.
-
-        For dynalogs this removes snapshots where the Beam On flag was 0 and where the Beam Hold was 0.
-        For trajectory logs this removes the snapshots were the Beam Hold was 0 (there is no Beam On flag).
-        """
-        if self.log_type == log_types[1]:  # trajectory log
-            beamon_idx = np.squeeze(np.asarray(np.nonzero(snapshot_data[:,beam_hold_column] == 0), dtype=bool))
-        elif self.log_type == log_types[0]:
-            holdidx = self.beam_hold.actual == 0
-            beamonidx = self.beam_hold.actual == 1
-            beamon_idx = holdidx & beamonidx
-        return beamon_idx
-
-    @lazyproperty
-    def beam_on_idxs(self):
-        if self.log_type == log_types['tlog']:
-            return np.where(self.beam_hold.actual == 0)[0]
-        elif self.log_type == log_types['dlog']:
-            holdidx = self.beam_hold.actual == 0
-            beamonidx = self.beam_on.actual == 1
-            return holdidx & beamonidx
+    #     if self.log_type == log_types['tlog']:
+    #         return np.where(self.beam_hold.actual == 0)[0]
+    #     elif self.log_type == log_types['dlog']:
+    #         holdidx = self.beam_hold.actual == 0
+    #         beamonidx = self.beam_on.actual == 1
+    #         return holdidx & beamonidx
 
     @lazyproperty
     def log_type(self):
-        """
-        Determine the type of MLC log by first looking at its file extension. Failing that, open it and sample
+        """Determine the MLC log type: Trajectory or Dynalog.
+
+        First the file extension is examined and assumed. Failing that, it's opened and sample
         the first few bytes. If the sample matches what is found in standard dynalog or tlog files it will be
         assigned that log type.
         """
@@ -724,13 +956,14 @@ class MachineLog:
             self.read_Dlog()
 
     def _scale_dlog_mlc_pos(self):
-        # convert MLC leaf plane positions to isoplane positions by applying scaling factor
+        """Convert MLC leaf plane positions to isoplane positions.
+
+        The function applies a scaling factor
+        """
         # Units are initially in 100ths of mm, but are converted to mm.
         for leaf in range(1, self.mlc.num_leaves+1):
             self.mlc.leaf_axes[leaf].actual *= dynalog_leaf_conversion / 100
             self.mlc.leaf_axes[leaf].expected *= dynalog_leaf_conversion / 100
-        # self._mlc_expected = np.asarray(self._mlc_expected * self._dlg_leaf_conversion, dtype=float) / 100
-        # self._mlc_actual = np.asarray(self._mlc_actual * self._dlg_leaf_conversion, dtype=float) / 100
 
     def read_Dlog(self):
         """Read in Dynalog files from .dlg files (which are renamed CSV files).
@@ -804,139 +1037,34 @@ class MachineLog:
     def read_Tlog(self, exclude_beam_off=True):
         """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog v2.0/3.0) log file specifications.
 
-        :param exclude_beam_off: Flag specifying whether to remove the snapshot data where the beam was off.
-            If True (default), beam-off data will be removed.
-            If False, all data will be included. Note that this will affect MLC and fluence calculations as error, fluence, etc
-            are calculated from the data extracted here.
-        :type exclude_beam_off: boolean
+        Parameters
+        ----------
+        exclude_beam_off : boolean
+            If True (default), snapshots where the beam was not on will be removed.
+            If False, all data will be included.
+
+        .. warning::
+            Including beam off data may affect fluence and gamma results. E.g. in a step-&-shoot IMRT
+            delivery, leaves move between segments while the beam is held. If beam-off data is included,
+            this may cause the RMS and fluence errors to rise unnecessarily. Be careful about changing
+            this flag.
         """
 
         # read in trajectory log binary data
         fcontent = open(self._filename, 'rb').read()
 
         # Unpack the content according to respective section and data type (see log specification file).
-        self.header = self._decode_binary(fcontent,str,16)  # for version 1.5 will be "VOSTL"
-        self.version = float(self._decode_binary(fcontent, str, 16))  # in the format of 2.x or 3.x
-        self.header_size = self._decode_binary(fcontent, int)  # fixed at 1024 in 1.5 specs
-        self.sampling_interval = self._decode_binary(fcontent, int)
-        self.num_axes = self._decode_binary(fcontent, int)
-        self.axis_enum = self._decode_binary(fcontent, int, self.num_axes)
-        self.samples_per_axis = self._decode_binary(fcontent, int, self.num_axes)
-        self.num_mlc_leaves = self.samples_per_axis[-1]-2  # subtract 2 (each carriage counts as an "axis" and must be removed)
-        # self._cursor == self.num_axes * 4 # there is a reserved section after samples per axis. this moves it past it.
-        self.clinac_scale = self._decode_binary(fcontent, int)
-        self.num_subbeams = self._decode_binary(fcontent, int)
-        self.is_truncated = self._decode_binary(fcontent, int)
-        self.num_snapshots = self._decode_binary(fcontent, int)
-        # the section after MLC model is reserved. Cursor is moved to the end of this reserved section.
-        self.mlc_model = self._decode_binary(fcontent, int, cursor_shift=1024 - (64 + self.num_axes * 8))
+        self.header, self._cursor = Tlog_Header(fcontent, self._cursor).read()
 
         # read in subbeam data. These are for auto-sequenced beams. If not autosequenced, separate logs are created.
         # Currently there is no good way of dealing with this data, but fortunately autosequencing is rare at this time.
-        if self.num_subbeams:
-            self.subbeams = []
-            for beam in range(self.num_subbeams):
-                self.subbeams.append(Subbeam(fcontent, self._cursor, self.version))
-                # update cursor position to end of subbeam just analyzed.
-                self._cursor = self.subbeams[beam]._cursor
+        self.subbeams, self._cursor = Subbeamer(fcontent, self._cursor, self.header).read()
 
-        # ----------------------------------------------------------------------
-        # assignment of snapshot data (actual & expected of MLC, Jaw, Coll, etc)
-        # ----------------------------------------------------------------------
+        self.axis_data, self._cursor = AxisData(fcontent, self._cursor, self.header).read(exclude_beam_off)
 
-        # step size in bytes
-        step_size = sum(self.samples_per_axis) * 2
+        self.crc = CRC(fcontent, self._cursor).read()
 
-        # read in all snapshot data at once, then assign
-        snapshot_data = self._decode_binary(fcontent, float, step_size*self.num_snapshots)
-
-        # reshape snapshot data to be a x-by-num_snapshots matrix
-        snapshot_data = snapshot_data.reshape(self.num_snapshots, -1)
-
-        # collimator
-        self.collimator = self._get_axis(snapshot_data, 0, HeadAxis)
-
-        # gantry
-        self.gantry = self._get_axis(snapshot_data, 2, GantryAxis)
-
-        # jaws
-        self.jaw_y1 = self._get_axis(snapshot_data, 4, HeadAxis)
-        self.jaw_y2 = self._get_axis(snapshot_data, 6, HeadAxis)
-        self.jaw_x1 = self._get_axis(snapshot_data, 8, HeadAxis)
-        self.jaw_x2 = self._get_axis(snapshot_data, 10, HeadAxis)
-
-        # couch
-        self.couch_vrt = self._get_axis(snapshot_data, 12, CouchAxis)
-        self.couch_lng = self._get_axis(snapshot_data, 14, CouchAxis)
-        self.couch_lat = self._get_axis(snapshot_data, 16, CouchAxis)
-        self.couch_rtn = self._get_axis(snapshot_data, 18, CouchAxis)
-
-        # MU
-        self.mu = self._get_axis(snapshot_data, 20, BeamAxis)
-
-        # beam hold state
-        self.beam_hold = self._get_axis(snapshot_data, 22, BeamAxis)
-
-        # control point
-        self.control_point = self._get_axis(snapshot_data, 24, BeamAxis)
-
-        # carriages
-        self.carraige_A = self._get_axis(snapshot_data, 26, HeadAxis)
-        self.carriage_B = self._get_axis(snapshot_data, 28, HeadAxis)
-
-        # remove snapshots where the beam wasn't on if flag passed
-        if exclude_beam_off:
-            beam_on_idx = self._get_beamon_idx(snapshot_data, 22)
-        else:
-            beam_on_idx = list(range(self.num_snapshots))
-
-        self.mlc = MLC(beam_on_idx)
-        for leaf_num in range(1, self.num_mlc_leaves+1):
-            leaf_axis = self._get_axis(snapshot_data, 30 + 2 * (leaf_num - 1), LeafAxis)
-            self.mlc.add_leaf_axis(leaf_axis, leaf_num)
-
-        self.fluence = Fluence(self.mlc, self.mu)
-
-
-    def _get_axis(self, snapshot_data, column, axis_type):
-        """Return column of data from snapshot data of the axis type passed."""
-        return axis_type(expected=snapshot_data[:, column],
-                         actual=snapshot_data[:, column+1])
-
-    def _decode_binary(self, filecontents, dtype, num_values=1, cursor_shift=0):
-        """This method is the main "decoder" for reading in trajectory log binary data into human data types.
-
-        :param filecontents: the complete file having been read with .read().
-        :param dtype: the expected data type to return. If int or float, will return numpy array.
-        :type dtype: str, int, float
-        :param num_values: the expected number of dtype to return; note that this is not the same as the # of bytes.
-        :type num_values: int
-        :param cursor_shift: the number of bytes to move the cursor forward after decoding. This is used if there is a
-            reserved section after the read-in segment.
-        :type cursor_shift: int
-        """
-        fc = filecontents
-
-        if dtype == str: # if string
-            output = fc[self._cursor:self._cursor + num_values]
-            if type(fc) is not str:  # in py3 fc will be bytes
-                output = output.decode()
-            # Now, strip the padding ("\x00")
-            output = output.strip('\x00')
-            self._cursor += num_values
-        elif dtype == int:
-            ssize = struct.calcsize('i') * num_values
-            output = np.asarray(struct.unpack('i' * num_values, fc[self._cursor:self._cursor + ssize]))
-            self._cursor += ssize
-        elif dtype == float:
-            ssize = struct.calcsize('f') * num_values
-            output = np.asarray(struct.unpack('f' * num_values, fc[self._cursor:self._cursor + ssize]))
-            self._cursor += ssize
-        else:
-            raise TypeError("decode_binary datatype was not valid")
-
-        self._cursor += cursor_shift # shift cursor if need be (e.g. if a reserved section follows)
-        return output
+        self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu)
 
 
 def return_B_file(a_filename):
@@ -952,54 +1080,6 @@ def return_B_file(a_filename):
     else:
         return fullbfile
 
-def get_bank_index(bank, idx):
-    """
-    If a bank is specified, the function returns the leaf indices only from that bank, otherwise it is untouched
-    """
-    if bank is not None:
-        if 'a' in bank.lower():
-            idx = idx[idx < 60]
-        elif 'b' in bank.lower():
-            idx = idx[idx >= 60]
-    return idx
-
-
-def decode_binary(filecontents, dtype, cursor, num_values=1, cursor_shift=0):
-    """This method is the main "decoder" for reading in trajectory log binary data into human data types.
-
-    :param filecontents: the complete file having been read with .read().
-    :param dtype: the expected data type to return. If int or float, will return numpy array.
-    :type dtype: str, int, float
-    :param num_values: the expected number of dtype to return; note that this is not the same as the # of bytes.
-    :type num_values: int
-    :param cursor_shift: the number of bytes to move the cursor forward after decoding. This is used if there is a
-        reserved section after the read-in segment.
-    :type cursor_shift: int
-    """
-    fc = filecontents
-
-    if dtype == str:  # if string
-        output = fc[cursor:cursor + num_values]
-        if type(fc) is not str:  # in py3 fc will be bytes
-            output = output.decode()
-        # Strip the padding ("\x00")
-        output = output.strip('\x00')
-        cursor += num_values
-    elif dtype == int:
-        ssize = struct.calcsize('i') * num_values
-        output = np.asarray(struct.unpack('i' * num_values, fc[cursor:cursor + ssize]))
-        cursor += ssize
-    elif dtype == float:
-        ssize = struct.calcsize('f') * num_values
-        output = np.asarray(struct.unpack('f' * num_values, fc[cursor:cursor + ssize]))
-        cursor += ssize
-    else:
-        raise TypeError("decode_binary datatype was not valid")
-
-    cursor += cursor_shift  # shift cursor if need be (e.g. if a reserved section follows)
-    return output, cursor
-
-
 # ------------------------
 # MLC Log Viewer Example
 # ------------------------
@@ -1007,15 +1087,5 @@ if __name__ == '__main__':
     # import cProfile
     # cProfile.run('MachineLog().run_tlog_demo()', sort=1)
     log = MachineLog()
+    # log.load_demo_trajectorylog()
     log.run_tlog_demo()
-    # log.load_logfile_UI()
-    # gamma = log.fluence.calc_gamma_map()
-    # plt.imshow(gamma)
-    # plt.show()
-    # t=1
-    # mlc.load_logfile_UI()
-    # mlc.load_demo_dynalog()
-    # pass
-    # mlc.load_demo_file_trajectorylog()  # uncomment to use trajectory log file
-    # mlc.report_basic_parameters()
-
