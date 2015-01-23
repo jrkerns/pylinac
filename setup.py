@@ -24,8 +24,7 @@ setup(
                       "scipy >= 0.13",
                       "pydicom >= 0.9.9",
                       "matplotlib >= 1.3.1",
-                      "Pillow >= 2.5",
-                      "sphinxcontrib-napoleon"],
+                      "Pillow >= 2.5"],
     test_suite='tests._test_all',
     classifiers=[
         "Development Status :: 4 - Beta",
