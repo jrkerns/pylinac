@@ -16,7 +16,7 @@ from pylinac.core.io import is_valid_file
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
 """Named Constants"""
-log_types = {'dlog': 'dynalog', 'tlog': 'trajectory log'}  # the two current log types
+log_types = {'dlog': 'Dynalog', 'tlog': 'Trajectory log'}  # the two current log types
 dlg_file_exts = ('.dlg',)  # add more if need be
 tlg_file_exts = ('.bin',)  # ditto
 dynalog_leaf_conversion = 1.96614  # MLC physical plane scaling factor to iso (100cm SAD) plane
@@ -167,9 +167,9 @@ class Fluence(metaclass=ABCMeta):
             else:
                 fluence_line[:] = 0  # emtpy the line values on each new leaf pair
                 left_leaf_data = getattr(self.mlc.leaf_axes[leaf], self.fluence_type)
-                left_leaf_data = -np.round(left_leaf_data / resolution) + pos_offset
+                left_leaf_data = -np.round(left_leaf_data * 10 / resolution) + pos_offset
                 right_leaf_data = getattr(self.mlc.leaf_axes[leaf + leaf_offset], self.fluence_type)
-                right_leaf_data = np.round(right_leaf_data / resolution) + pos_offset
+                right_leaf_data = np.round(right_leaf_data * 10 / resolution) + pos_offset
                 if self.mlc.leaf_did_move(leaf):
                     for snapshot in self.mlc.snapshot_idx:
                         # TODO: incorporate numexpr and multithreading
@@ -782,7 +782,13 @@ class CRC(TLog_Section):
 
 
 class MachineLog:
-    """Reads in and analyzes MLC log files from Varian linear accelerators."""
+    """Reads in and analyzes MLC log files from Varian linear accelerators.
+
+    Attributes
+    ----------
+    log_type : str
+        The log type loaded; either 'Dynalog' or 'Trajectory log'
+    """
     @type_accept(filename=str)
     def __init__(self, filename=''):
         """

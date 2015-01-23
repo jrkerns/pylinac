@@ -1,0 +1,1 @@
+.. autoclass:: pylinac.log_analyzer.MachineLog
