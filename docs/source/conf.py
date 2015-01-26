@@ -29,6 +29,7 @@ from unittest import mock
 
 MOCK_MODULES = ['numpy','dicom', 'scipy',
                 'Pillow','PIL',
+                'tkinter', 'tkinter.filedialog',
                 'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize', 'scipy.misc',
                 'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches']
 for mod_name in MOCK_MODULES:
