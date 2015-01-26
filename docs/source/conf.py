@@ -27,8 +27,8 @@ sys.path.append(os.path.abspath('sphinxext'))
 # import mock
 from unittest import mock
 
-MOCK_MODULES = ['inspect','dicom', 'scipy',
-                'Pillow','PIL', 'tkinter', 'tkinter.filedialog',
+MOCK_MODULES = ['numpy','dicom', 'scipy',
+                'Pillow','PIL',
                 'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize', 'scipy.misc',
                 'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches']
 for mod_name in MOCK_MODULES:
