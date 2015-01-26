@@ -25,14 +25,14 @@ sys.path.append(os.path.abspath('sphinxext'))
 
 # Trouble building on RTD with numpy/scipy: http://blog.rtwilson.com/how-to-make-your-sphinx-documentation-compile-with-readthedocs-when-youre-using-numpy-and-scipy/
 # import mock
-# from unittest import mock
+from unittest import mock
 
-# MOCK_MODULES = ['inspect','dicom', 'scipy',
-#                 'Pillow','PIL', 'tkinter', 'tkinter.filedialog',
-#                 'scipy.ndimage.filters',
-#                 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize','scipy.misc']
-# for mod_name in MOCK_MODULES:
-#     sys.modules[mod_name] = mock.Mock()
+MOCK_MODULES = ['inspect','dicom', 'scipy',
+                'Pillow','PIL', 'tkinter', 'tkinter.filedialog',
+                'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize', 'scipy.misc',
+                'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
 
 # -- General configuration ------------------------------------------------
 
