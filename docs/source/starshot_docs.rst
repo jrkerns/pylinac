@@ -28,7 +28,7 @@ Results will be printed to the console and a matplotlib figure showing the analy
 
     The center of the minimum circle is at 1269.0, 1439.2
 
-.. plot:: pyplots/star_demo.py
+.. image:: images/starshot_analyzed.png
 
 Image Acquisition
 -----------------

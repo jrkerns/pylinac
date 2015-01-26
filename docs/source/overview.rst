@@ -3,7 +3,7 @@
 Pylinac General Overview
 ========================
 
-.. image:: /images/analyzed_starshot.png
+.. image:: /images/starshot_analyzed.png
    :height: 340px
    :width: 300px
 

@@ -26,7 +26,7 @@ Running this should result in a printing of information to the console and an im
     The miminum circle that touches all the star lines has a radius of 0.494 mm.
     The center of the minimum circle is at 1511.5, 1302.1
 
-.. image:: /images/analyzed_starshot.png
+.. image:: images/starshot_analyzed.png
    :height: 340
    :width: 300
 

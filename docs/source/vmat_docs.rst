@@ -63,7 +63,7 @@ Results will be printed to the console and a figure showing both the Open field 
     Max Negative Deviation: 0.420%
     Absolute Mean Deviation: 0.565%
 
-.. plot:: pyplots/vmat_demo.py
+.. image:: images/vmat_analyzed.png
 
 Image Acquisition
 -----------------

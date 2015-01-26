@@ -46,7 +46,6 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'sphinxcontrib.napoleon',
-    'matplotlib.sphinxext.plot_directive'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -63,7 +62,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Pylinac'
-copyright = '2014, James Kerns'
+copyright = '2015, James Kerns'
 # Document both class docstring and __init__ docstring. See: http://sphinx-doc.org/ext/autodoc.html#confval-autoclass_content
 autoclass_content = 'both'
 

@@ -27,7 +27,7 @@ Results will be printed to the console and a figure showing the slices analyzed 
     Geometric distances:  {'Top-Horiz': 49.92540443205539, 'Bottom-Horiz': 49.965520922765805, 'Right-Vert': 49.91174913443049, 'Left-Vert': 50.078027293396}
     Geometry Passed?:  True
 
-.. plot:: pyplots/cbct_demo.py
+.. image:: images/cbct_analyzed.png
 
 Typical Use
 -----------
