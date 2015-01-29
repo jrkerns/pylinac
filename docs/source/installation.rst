@@ -40,7 +40,7 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 * numpy >= 1.8
 * scipy >= 0.13
 * matplotlib >= 1.3.1; Image plotting
-* pydicom >= 0.9.8; For reading DICOM files
+* pydicom >= 0.9.9; For reading DICOM files
 * Pillow >= 2.5; For reading image files
 
 .. note::

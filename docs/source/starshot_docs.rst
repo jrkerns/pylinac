@@ -11,6 +11,7 @@ Overview
 --------
 
 .. automodule:: pylinac.starshot
+    :no-members:
 
 Running the Demo
 ----------------
@@ -84,7 +85,7 @@ Algorithm
 
 **Restrictions**
 
-    .. warning:: Analysis can catastrophically fail or give unreliable results if any Restriction is violated.
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The center of the "star" must be in the central 1/3 of the image.
 * The radiation spokes must extend to both sides of the center. I.e. the spokes must not end at the center of the circle.
@@ -123,14 +124,9 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.starshot.Starshot
-    :members:
-    :inherited-members:
 
 .. autoclass:: pylinac.starshot.StarProfile
-    :members:
-    :inherited-members:
 
 .. autoclass:: pylinac.starshot.Wobble
-    :members:
-    :inherited-members:
+
 

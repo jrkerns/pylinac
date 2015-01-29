@@ -33,6 +33,7 @@ or jump right in by doing :ref:`installation` and then :ref:`getting_started`!
    starshot_docs
    vmat_docs
    cbct_docs
+   core_modules
 
 
 Indices and tables

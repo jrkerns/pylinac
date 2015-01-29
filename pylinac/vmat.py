@@ -22,14 +22,40 @@ class VMAT:
     """The VMAT class analyzes two DICOM images acquired via a linac's EPID and analyzes
         regions of interest (segments) based on the paper by `Jorgensen et al <http://dx.doi.org/10.1118/1.3552922>`_,
         specifically, the Dose Rate & Gantry Speed (DRGS) and Dose Rate & MLC speed (DRMLC) tests.
-    """
 
+        Examples
+        --------
+        Run the DRGS demo:
+            >>> VMAT().run_demo_drgs()
+
+        Run the DRMLC demo:
+            >>> VMAT().run_demo_drmlc()
+
+        A typical use case:
+            >>> open_img = "C:/QA Folder/VMAT/open_field.dcm"
+            >>> dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
+            >>> myvmat = VMAT()
+            >>> myvmat.load_image(open_img, im_type='open')
+            >>> myvmat.load_image(dmlc_img, im_type='mlc')
+            >>> myvmat.analyze(test='drmlc', tolerance=3, HDMLC=False)
+            >>> print(myvmat.return_results())
+            >>> myvmat.plot_analyzed_image()
+
+        Attributes
+        ----------
+        image_open : :class:`ImageObj`
+            The open-field image object.
+        image_dmlc : core.image.ImageObj
+            The dmlc-field image object.
+        segments : list
+            A list containing :class:`Segment` instances, which contain :class:`Sample` instances.
+    """
     def __init__(self):
         super().__init__()
         self.image_open = ImageObj()  # the Open field image
         self.image_dmlc = ImageObj()  # the MLC field image
         self._test_type = ''  # the test to perform
-        self.tolerance = 3  # default of 3% tolerance as Jorgensen recommends
+        self._tolerance = 3  # default of 3% tolerance as Jorgensen recommends
         self.segments = []  # a list which will hold Segment objects (either 4 or 7)
 
     @value_accept(im_type=im_types)
@@ -87,21 +113,21 @@ class VMAT:
         self.load_image(im_open_path, im_type=im_types['OPEN'])
         self.load_image(im_dmlc_path, im_type=im_types['DMLC'])
 
-    def run_demo_drgs(self, show=True):
+    def run_demo_drgs(self, tolerance=3, show=True):
         """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
         self.load_demo_image('drgs')
-        self.analyze(test='drgs', tolerance=3)  # set tolerance to 2 to show some failures
+        self.analyze(test='drgs', tolerance=tolerance)  # set tolerance to 2 to show some failures
         print(self.return_results())
         self.plot_analyzed_image(show=show)
 
-    def run_demo_drmlc(self, show=True):
+    def run_demo_drmlc(self, tolerance=3, show=True):
         """Run the VMAT demo for the Dose Rate & MLC speed test."""
         self.load_demo_image('drmlc')
-        self.analyze(test='drmlc', tolerance=3)
+        self.analyze(test='drmlc', tolerance=tolerance)
         print(self.return_results())
         self.plot_analyzed_image(show=show)
 
-    def _calc_im_scaling_factors(self, SID=None):
+    def _calc_im_scaling_factors(self):
         """Determine image scaling factors.
 
          Factors are relative to reference values from images of size 384x512 taken at 150cm SID.
@@ -118,8 +144,6 @@ class VMAT:
         # SID scaling
         if self.image_open.SID:
             SID_scale = self.image_open.SID / 150.0
-        elif SID is not None:
-            SID_scale = SID / 150.0
         else:
             SID_scale = 1
 
@@ -185,8 +209,8 @@ class VMAT:
             segment.deviations = deviation[:, segment_num]
 
     @type_accept(test=str)
-    @value_accept(test=test_types, tolerance=(0.3, 8), SID=(0, 180))
-    def analyze(self, test, tolerance=3, SID=None, HDMLC=False):
+    @value_accept(test=test_types, tolerance=(0.3, 8))
+    def analyze(self, test, tolerance=3, HDMLC=False):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
         Parameters
@@ -196,9 +220,6 @@ class VMAT:
         tolerance : float, int, optional
             The tolerance of the sample deviations in percent. Default is 3, as Jorgensen recommends.
             Must be between 0.3 and 8.
-        SID : int, None, optional
-            The Source to Image (detector) distance in cm. Usually doesn't need to be passed for EPID DICOM images. This argument
-            will override any automatically derived value however. If left as None and no SID was determined, it will assume 150cm.
         HDMLC : boolean
             Flag specifying if the linac has a regular (5mm central leaf width) MLC set, or HD set (2.5mm).
         """
@@ -208,11 +229,11 @@ class VMAT:
 
         self._check_img_inversion()
 
-        self.tolerance = tolerance / 100.0
+        self._tolerance = tolerance / 100.0
         self._test_type = test
 
         # get the image scaling factors and center pixels; this corrects for the SID
-        SID_scale, scale = self._calc_im_scaling_factors(SID)
+        SID_scale, scale = self._calc_im_scaling_factors()
 
         # set up pixel bounds of test
         self.construct_segments(test, scale, SID_scale, HDMLC)
@@ -247,7 +268,7 @@ class VMAT:
         # TODO: probably replacable with np.where()
         for seg_num, segment in enumerate(self.segments):
             for sam_num, sample in enumerate(segment.samples):
-                if sample.ratio < 1 + self.tolerance and sample.ratio > 1 - self.tolerance:
+                if sample.ratio < 1 + self._tolerance and sample.ratio > 1 - self._tolerance:
                     sample_passfail_matrix[sam_num, seg_num] = True
 
         return sample_passfail_matrix
@@ -392,10 +413,10 @@ class VMAT:
 
         if self._test_type == test_types['DRGS']:
             string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
-                      (self.tolerance * 100, passfail_str))
+                      (self._tolerance * 100, passfail_str))
         elif self._test_type == test_types['DRMLC']:
             string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
-                      (self.tolerance * 100, passfail_str))
+                      (self._tolerance * 100, passfail_str))
 
         string += ('\nOverall Results:\n'
                    'Max Positive Deviation: %4.3f%%\n'
@@ -421,6 +442,11 @@ class VMAT:
 class Sample(Rectangle):
     """Represents a single 'sample' of a VMAT segment. A sample is an ROI of the radiation one MLC pair
         produces in one VMAT segment.
+
+    Attributes
+    ----------
+    ratio : float
+        The ratio of the open field pixels to the DMLC field pixels within the Sample ROI.
     """
     def __init__(self, width, height, center):
         """
@@ -430,7 +456,7 @@ class Sample(Rectangle):
             Width of the sample in pixels.
         height : int
             Height of the sample in pixels.
-        center : geometry.Point
+        center : core.geometry.Point
             Center Point of the sample.
         """
         super().__init__(width, height, center, as_int=True)
@@ -559,10 +585,9 @@ class Segment:
         return np.array([sample.ratio for sample in self.samples])
 
 
-
-#---------------------------------------------------------------------------------------------------------------------
-# VMAT demo.
-#---------------------------------------------------------------------------------------------------------------------
+# -------------------
+# VMAT demo
+# -------------------
 if __name__ == '__main__':
     # VMAT().run_demo_drgs()
     VMAT().run_demo_drmlc()  # uncomment to run MLCS demo

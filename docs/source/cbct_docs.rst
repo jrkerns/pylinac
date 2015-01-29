@@ -7,6 +7,7 @@ Overview
 --------
 
 .. automodule:: pylinac.cbct
+    :no-members:
 
 Running the Demo
 ----------------
@@ -87,11 +88,10 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 
 **Restrictions**
 
-    .. warning:: Analysis can catastrophically fail or give unreliable results if any Restriction is violated.
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom used must be an unmodified CatPhan 504, as endorsed and supplied by Varian.
 * The phantom must have <0.5cm offset in the z (In-Out) direction (work to remove this is in the plans).
-
 
 
 **Pre-Analysis**
@@ -148,54 +148,43 @@ The CBCT class uses several other classes. There are several Slices of Interest 
 SoIs have a base class as well as specialized classes for each specific slice.
 
 .. autoclass:: pylinac.cbct.CBCT
-    :members:
-    :inherited-members:
+    :no-show-inheritance:
 
 Supporting Data Structure
 
 .. autoclass:: pylinac.cbct.Algo_Data
-    :members:
+    :no-show-inheritance:
 
 Slice Objects
 
 .. autoclass:: pylinac.cbct.HU_Slice
-    :members:
 
 .. autoclass:: pylinac.cbct.Base_HU_Slice
-    :members:
 
 .. autoclass:: pylinac.cbct.UNIF_Slice
-    :members:
 
 .. autoclass:: pylinac.cbct.GEO_Slice
-    :members:
 
 .. autoclass:: pylinac.cbct.SR_Slice
-    :members:
 
 .. autoclass:: pylinac.cbct.Locon_Slice
-    :members:
 
 .. autoclass:: pylinac.cbct.Slice
-    :members:
+    :no-show-inheritance:
 
 ROI Objects
 
 .. autoclass:: pylinac.cbct.HU_ROI
-    :members:
 
 .. autoclass:: pylinac.cbct.GEO_ROI
-    :members:
 
 .. autoclass:: pylinac.cbct.SR_Circle_ROI
-    :members:
 
 .. autoclass:: pylinac.cbct.ROI_Disk
-    :members:
 
 .. autoclass:: pylinac.cbct.ROI
-    :members:
+    :no-show-inheritance:
 
 .. autoclass:: pylinac.cbct.GEO_Line
-    :members:
+
 

@@ -144,6 +144,8 @@ class Profile:
         """
         self.find_peaks(min_peak_height, min_peak_distance, max_num_peaks)
 
+        if not self.peaks:
+            raise AttributeError("No peaks were found; try lowering the minimum peak height or use a different region.")
         subprofiles = self._subdivide_profiles()
 
         # update peak points with modified indices
@@ -334,7 +336,7 @@ class SingleProfile:
             self.ymax_left = np.max(self.ydata_left)
             self.ymax_right = np.max(self.ydata_right)
 
-    def _get_initial_peak(self, initial_peak, exclusion_region=0.2):
+    def _get_initial_peak(self, initial_peak, exclusion_region=0.1):
         """Determine an initial peak to use as a rough guideline.
 
         Parameters

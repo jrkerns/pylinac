@@ -7,6 +7,7 @@ Overview
 --------
 
 .. automodule:: pylinac.vmat
+    :no-members:
 
 Running the Demo
 ----------------
@@ -90,7 +91,7 @@ The minimum needed to get going is to:
       dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
       # load the images from the file path
       myvmat.load_image(open_img, im_type='open')
-      myvmat.load_image(mlc_img, im_type='mlc')
+      myvmat.load_image(dmlc_img, im_type='mlc')
 
       # *OR*
 
@@ -131,7 +132,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can catastrophically fail or give unreliable results if any Restriction is violated.
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The tests must be delivered using the DICOM RT plan files provided by Varian which follow the test layout of Jorgensen et al.
 * The images must be acquired with the EPID.
@@ -144,6 +145,10 @@ The algorithm works like such:
   able to perform properly-sized sample analysis.
 
 **Analysis**
+
+.. note::
+    Calculations tend to be lazy, computed only on demand. This represents a nominal analysis
+    where all calculations are performed.
 
 * **Calculate sample boundaries & extract** -- Because the Jorgensen tests are always the
   same in terms of where the radiation gets delivered, these values are hardcoded as offsets from the center pixel.
@@ -166,14 +171,11 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.vmat.VMAT
-    :members:
-    :inherited-members:
+    :no-show-inheritance:
 
 .. autoclass:: pylinac.vmat.Segment
-    :members:
-    :inherited-members:
+    :no-show-inheritance:
 
 .. autoclass:: pylinac.vmat.Sample
-    :members:
-    :inherited-members:
+
 

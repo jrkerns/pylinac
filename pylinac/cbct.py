@@ -14,6 +14,7 @@ import os.path as osp
 import shutil
 import zipfile
 import time
+import math
 
 import numpy as np
 from scipy import ndimage
@@ -34,8 +35,8 @@ known_manufacturers = {'Varian': 'Varian Medical Systems', 'Elekta': 'ELEKTA'}
 
 
 class Algo_Data:
-    """Data structure for retaining certain settings and information regarding the CBCT algorithm.
-        This class is filled out during CBCT image loading. For internal use only.
+    """Data structure for retaining certain settings and information regarding the CBCT algorithm and image data.
+        This class is populated during CBCT image loading. For internal use only.
     """
     threshold = -800  # threshold when converting to binary image
     HU_slice_num = 0
@@ -59,11 +60,8 @@ class Algo_Data:
         return self.dicom_metadata.PixelSpacing[0]
 
     @lazyproperty
-    def scaling_ratio(self):
-        return 0.488 / self.dicom_metadata.PixelSpacing[0]
-
-    @property
     def manufacturer(self):
+        """The linac manufacturer."""
         return self.dicom_metadata.Manufacturer
 
     def set_slice_nums(self):
@@ -121,12 +119,13 @@ class ROI_Disk(Circle, ROI):
         ----------
         angle : int, float
             The angle of the ROI in degrees from the phantom center.
+
+            .. warning::
+                Be sure the enter the angle in degrees rather than radians!
         radius : int, float
             The radius of the ROI from the center of the phantom.
         dist_from_center : int, float
             The distance of the ROI from the phantom center.
-
-        .. warning:: Be sure the enter the angle in degrees rather than radians!
 
         See Also
         --------
@@ -153,14 +152,17 @@ class ROI_Disk(Circle, ROI):
         x_shift = np.cos(np.deg2rad(self.angle))*self.dist_from_center
         self.center = Point(phan_cent_point.x+x_shift, phan_cent_point.y+y_shift)
 
-    def get_roi_mask(self, outside=np.NaN):
+    def get_roi_mask(self, outside='NaN'):
         """Return a masked array of the ROI.
 
         Parameters
         ----------
-        outside : {np.NaN, 0}
+        outside : {'NaN', 0}
             The value the elements of the mask are made of.
         """
+        if math.isnan(float(outside)):
+            outside = np.NaN
+
         # create mask
         mask = sector_mask(self.slice_array.shape, self.center, self.radius)
         # Apply mask to image
@@ -239,17 +241,12 @@ class HU_ROI(ROI_Disk):
 
 
 class Slice(metaclass=ABCMeta):
-    """A base class for analyzing specific slices of a CBCT dicom set."""
+    """Abstract base class for analyzing specific slices of a CBCT dicom set."""
     def __init__(self, algo_data):
         """
         Parameters
         ----------
-        images : numpy.ndarray
-            The CBCT image set as a 3D numpy array.
-        slice_num : int
-            Slice number of interest.
-        mode : {'mean', 'max', 'median'}
-            Mode of combining surrounding images to lower noise.
+        algo_data : Algo_Data
         """
         self.image = np.ndarray  # place-holder; should be overloaded by subclass
         self.ROIs = OrderedDict()
@@ -277,13 +274,7 @@ class Slice(metaclass=ABCMeta):
             self.ROIs[roi.name] = roi
 
     def find_phan_center(self):
-        """Determine the location of the center of the phantom.
-
-        Parameters
-        ----------
-        threshold : int
-            The threshold to convert the image to B&W.
-        """
+        """Determine the location of the center of the phantom."""
         SOI_bw = self.image.convert2BW(self.algo_data.threshold, return_it=True)  # convert slice to binary based on threshold
         SOI_bw = ndimage.binary_fill_holes(SOI_bw.pixel_array)  # fill in air pockets to make one solid ROI
         SOI_labeled, num_roi = ndimage.label(SOI_bw)  # identify the ROIs
@@ -309,8 +300,9 @@ class Slice(metaclass=ABCMeta):
         distances to the ROI, etc needs to be corrected for the wider FOV.
         """
 
+
 class Base_HU_Slice(Slice, metaclass=ABCMeta):
-    """Base class for the HU and Uniformity Slices. Subclass of Slice."""
+    """Abstract base class for the HU and Uniformity Slices."""
 
     def get_ROI_vals(self):
         """Return a dict of the HU values of the HU ROIs."""
@@ -366,13 +358,6 @@ class HU_Slice(Base_HU_Slice):
         """Determine the "roll" of the phantom.
 
          This algorithm uses the two air bubbles in the HU slice and the resulting angle between them.
-
-        Parameters
-        ----------
-        threshold : int
-            The threshold to convert the image to B&W.
-        scaling_ratio : float
-            The ratio of the image size to the reference image size (512x512).
         """
         # convert slice to logical
         SOI = self.image.convert2BW(self.algo_data.threshold, return_it=True)
@@ -491,7 +476,7 @@ class SR_Slice(Slice):
 
         Returns
         -------
-        median profile : profile.Profile
+        median profile : core.profile.Profile
             A 1D Profile of the Line Pair regions.
         """
         # extract the profile for each ROI (5 adjacent profiles)
@@ -528,12 +513,6 @@ class SR_Slice(Slice):
         max_idxs : numpy.array
             Indices of peaks found.
         """
-
-        region_1_bound = 4000  # approximate index between 1st and 2nd LP regions
-        region_2_bound = 10500  # approximate index between 4th and 5th LP regions
-        # region_3_bound = 17500  # approximate index between 8th and 9th LP regions; after this, regions become very hard to distinguish
-        region_3_bound = 12300  # for head this can be 17500, but for thorax (low dose => low quality), we can only sample the first
-        # 5 line pairs accurately
         max_vals_1, max_idx_1 = profile.find_peaks(min_peak_distance=150, max_num_peaks=2, exclude_rt_edge=0.9, return_it=True)
         max_vals_2, max_idx_2 = profile.find_peaks(min_peak_distance=48, exclude_lt_edge=0.12, exclude_rt_edge=0.7, return_it=True)
         max_vals_3, max_idx_3 = profile.find_peaks(min_peak_distance=25, exclude_lt_edge=0.3, exclude_rt_edge=0.65, return_it=True)
@@ -582,6 +561,13 @@ class SR_Slice(Slice):
 
         Maximum and minimum values are calculated by averaging the pixel
         values of the peaks/valleys found.
+
+        Parameters
+        ----------
+        max_vals : numpy.ndarray
+            An array of the maximum values of the SR profile.
+        min_vals : numpy.ndarray
+            An array of the minimum values of the SR profile.
 
         References
         ----------
@@ -632,7 +618,7 @@ class SR_Slice(Slice):
 
 
 class GEO_ROI(ROI_Disk):
-    """A circle ROI, much like the HU ROI, but with methods to find the center of the geometric "node"."""
+    """A circular ROI, much like the HU ROI, but with methods to find the center of the geometric "node"."""
     def __init__(self, name, slice_array, angle, radius, dist_from_center):
         super().__init__(name, slice_array, angle, radius, dist_from_center)
         self.node_CoM = None  # the node "Center-of-Mass"
@@ -658,7 +644,7 @@ class GEO_ROI(ROI_Disk):
         return bw_node
 
     def find_node_center(self):
-        """Find the center of the geometric node."""
+        """Find the center of the geometric node within the ROI."""
         bw_node = self._threshold_node()
         # label ROIs found
         labeled_arr, num_roi = ndimage.measurements.label(bw_node)
@@ -722,12 +708,6 @@ class GEO_Slice(Slice):
     tolerance = 1
 
     def __init__(self, algo_data):
-        """
-        Parameters
-        ----------
-        mm_per_pixel : float
-            The mm/pixel conversion value.
-        """
         super().__init__(algo_data)
         self.scale_by_FOV()
         self.image = ImageObj(combine_surrounding_slices(self.algo_data.images, self.algo_data.HU_slice_num, mode='median'))
@@ -773,7 +753,7 @@ class GEO_Slice(Slice):
             roi.find_node_center()
 
     def get_line_lengths(self):
-        """Return the lengths of the lines in mm.
+        """Return the lengths of the lines in **mm**.
 
         Returns
         -------
@@ -784,7 +764,7 @@ class GEO_Slice(Slice):
 
     @property
     def overall_passed(self):
-        """Boolean property of whether all the line lengths were within tolerance."""
+        """Boolean property returning whether all the line lengths were within tolerance."""
         # all() would be nice, but didn't seem to work elegantly
         for length in self.get_line_lengths().values():
             if self.line_nominal_value + self.tolerance < length < self.line_nominal_value - self.tolerance:
@@ -795,10 +775,30 @@ class GEO_Slice(Slice):
 class CBCT:
     """A class for loading and analyzing Cone-Beam CT DICOM files of a CatPhan 504 (Varian; Elekta 503 is being developed.
     Analyzes: Uniformity, Spatial Resolution, Image Scaling & HU Linearity.
+
+    Attributes
+    ----------
+    algo_data : Algo_Data
+    HU : HU_Slice
+    UN : UNIF_Slice
+    GEO : GEO_Slice
+    LOCON: LOCON_Slice
+    SR : SR_Slice
+
+    Examples
+    --------
+    Run the demo:
+        >>> mycbct = CBCT().run_demo()
+
+    Typical session:
+        >>> cbct_folder = r"C:/QA/CBCT/June"
+        >>> mycbct = CBCT()
+        >>> mycbct.load_folder(cbct_folder)
+        >>> mycbct.analyze()
+        >>> print(mycbct.return_results())
+        >>> mycbct.plot_analyzed_image()
     """
     def __init__(self):
-        # The following attrs will be instances of the Algo_Data class
-        # and respective Slice subclasses
         self.algo_data = None
         self.HU = None
         self.UN = None
@@ -812,7 +812,7 @@ class CBCT:
         Parameters
         ----------
         cleanup : bool
-            If True (default), removed the extracted demo files.
+            If True (default), delete the extracted demo files.
             If False, leaves extracted files in the demo folder.
             Useful if using the demo images repeatedly.
         """
@@ -824,7 +824,7 @@ class CBCT:
         if not osp.isdir(demo_folder):
             shutil.unpack_archive(demo_zip, cbct_demo_dir)
 
-        filelist = self._retrieve_CT_images_from_folder(demo_folder)
+        filelist = self._get_CT_filenames_from_folder(demo_folder)
         self._load_files(filelist)
         # delete the unpacked demo folder
         if cleanup:
@@ -848,16 +848,32 @@ class CBCT:
         ----------
         folder : str
             Path to the folder.
+
+        Raises
+        ------
+        NotADirectoryError : if folder str passed is not a valid directory.
+        FileNotFoundError : If no CT images are found in the folder
         """
         # check that folder is valid
         if not osp.isdir(folder):
             raise NotADirectoryError("Path given was not a Directory/Folder")
 
-        filelist = self._retrieve_CT_images_from_folder(folder)
+        filelist = self._get_CT_filenames_from_folder(folder)
         self._load_files(filelist)
 
     def load_zip_file(self, zip_file):
-        """Load a CBCT dataset from a zip file."""
+        """Load a CBCT dataset from a zip file.
+
+        Parameters
+        ----------
+        zip_file : str
+            Path to the zip file.
+
+        Raises
+        ------
+        FileExistsError : If zip_file passed was not a legitimate zip file.
+        FileNotFoundError : If no CT images are found in the folder
+        """
         zip_folder, _ = osp.splitext(zip_file)
 
         if not zipfile.is_zipfile(zip_file):
@@ -865,7 +881,7 @@ class CBCT:
         else:
             shutil.unpack_archive(zip_file, osp.dirname(zip_file))
 
-            filelist = self._retrieve_CT_images_from_folder(zip_folder)
+            filelist = self._get_CT_filenames_from_folder(zip_folder)
             self._load_files(filelist)
 
         # delete the unpacked folder
@@ -875,8 +891,18 @@ class CBCT:
             print("Extracted demo images were not able to be deleted. You can manually delete them if you "
                   "like from %s" % zip_folder)
 
-    def _retrieve_CT_images_from_folder(self, folder):
-        """Walk through a folder to find DICOM CT images."""
+    def _get_CT_filenames_from_folder(self, folder):
+        """Walk through a folder to find DICOM CT images.
+
+        Parameters
+        ----------
+        folder : str
+            Path to the folder in question.
+
+        Raises
+        ------
+        FileNotFoundError : If no CT images are found in the folder
+        """
         for par_dir, sub_dir, files in os.walk(folder):
             filelist = [osp.join(par_dir, item) for item in files if item.endswith('.dcm') and item.startswith('CT')]
             if filelist:
@@ -1017,8 +1043,7 @@ class CBCT:
             plt.show()
 
     def return_results(self):
-        """Return and print the results of the analysis as a string."""
-
+        """Return the results of the analysis as a string."""
         #TODO: make prettier
         string = ('\n - CBCT QA Test - \n'
                   'HU Regions: {}\n'
@@ -1032,7 +1057,6 @@ class CBCT:
                                                    self.GEO.get_line_lengths(), self.GEO.overall_passed)
         return string
 
-
     def analyze(self):
         """Single-method full analysis of CBCT DICOM files."""
         if not self.images_loaded:
@@ -1044,7 +1068,7 @@ class CBCT:
         self.construct_Locon()
 
     def run_demo(self, show=True):
-        """Run the CBCT demo using the high-quality head protocol."""
+        """Run the CBCT demo using high-quality head protocol images."""
         cbct = CBCT()
         cbct.load_demo_images()
         cbct.analyze()
@@ -1053,6 +1077,7 @@ class CBCT:
 
     @property
     def images_loaded(self):
+        """Boolean property specifying if the images have been loaded."""
         if self.algo_data is None:
             return False
         else:
@@ -1076,7 +1101,7 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
     Returns
     -------
     comb_slice : numpy.array
-        A slice the same size in the first to dimensions of im_array, combined.
+        An array the same size in the first two dimensions of im_array, combined.
     """
     slices = slice_array[:,:,nominal_slice_num-slices_plusminus:nominal_slice_num+slices_plusminus]
     if mode == 'mean':
@@ -1092,12 +1117,12 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # CBCT Demo
 # ----------------------------------------
 if __name__ == '__main__':
-    # CBCT().run_demo()
-    zip_file = r"D:\Users\James\Dropbox\Programming\Python\Projects\PyCharm Projects\pylinac\tests\test_files\CBCT\Varian\Low dose thorax.zip"
-    cbct = CBCT()
-    cbct.load_zip_file(zip_file)
+    CBCT().run_demo()
+    # zip_file = r"D:\Users\James\Dropbox\Programming\Python\Projects\PyCharm Projects\pylinac\tests\test_files\CBCT\Varian\Low dose thorax.zip"
+    # cbct = CBCT()
+    # cbct.load_zip_file(zip_file)
     # cbct.load_demo_images()
     # cbct.algo_data.images = np.roll(cbct.algo_data.images, 30, axis=1)
-    cbct.analyze()
-    print(cbct.return_results())
-    cbct.plot_analyzed_image()
+    # cbct.analyze()
+    # print(cbct.return_results())
+    # cbct.plot_analyzed_image()

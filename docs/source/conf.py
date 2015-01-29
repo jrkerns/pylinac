@@ -35,6 +35,8 @@ MOCK_MODULES = ['numpy','dicom', 'scipy',
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
+# TODO: replace above with: autodoc_mock_imports when RTD upgrades to v1.3; http://sphinx-doc.org/latest/ext/autodoc.html#confval-autodoc_mock_imports
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -66,6 +68,7 @@ project = 'Pylinac'
 copyright = '2015, James Kerns'
 # Document both class docstring and __init__ docstring. See: http://sphinx-doc.org/ext/autodoc.html#confval-autoclass_content
 autoclass_content = 'both'
+autodoc_default_flags = ['members', 'show-inheritance']  # See: http://sphinx-doc.org/latest/ext/autodoc.html#confval-autodoc_default_flags
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
