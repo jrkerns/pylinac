@@ -97,12 +97,12 @@ class BeamAxis(Axis):
 
 
 class Fluence(metaclass=ABCMeta):
-    """An abstract class to be used for the actual and expected fluences."""
+    """An abstract base class to be used for the actual and expected fluences."""
     pixel_map = np.ndarray
     resolution = -1
     fluence_type = ''  # must be specified by subclass
 
-    def __init__(self, mlc_struct=None, mu_axis=None):
+    def __init__(self, mlc_struct=None, mu_axis=None, jaw_struct=None):
         """
         Parameters
         ----------
@@ -111,6 +111,7 @@ class Fluence(metaclass=ABCMeta):
         """
         self.mlc = mlc_struct
         self.mu = mu_axis
+        self.jaws = jaw_struct
 
     @property
     def map_calced(self):
@@ -170,17 +171,28 @@ class Fluence(metaclass=ABCMeta):
                 left_leaf_data = -np.round(left_leaf_data * 10 / resolution) + pos_offset
                 right_leaf_data = getattr(self.mlc.leaf_axes[leaf + leaf_offset], self.fluence_type)
                 right_leaf_data = np.round(right_leaf_data * 10 / resolution) + pos_offset
+                left_jaw_data = np.round((200 / resolution) - (self.jaws.x1.actual * 10 / resolution))
+                right_jaw_data = np.round((self.jaws.x2.actual * 10 / resolution) + (200 / resolution))
                 if self.mlc.leaf_did_move(leaf):
                     for snapshot in self.mlc.snapshot_idx:
                         # TODO: incorporate numexpr and multithreading
                         left_pos = left_leaf_data[snapshot]
                         right_pos = right_leaf_data[snapshot]
-                        fluence_line[left_pos:right_pos] += MU_differential[snapshot]
+                        # zeroize points under the x-jaws
+                        left_jaw_pos = left_jaw_data[snapshot]
+                        right_jaw_pos = right_jaw_data[snapshot]
+                        left_edge = max(left_pos, left_jaw_pos)
+                        right_edge = min(right_pos, right_jaw_pos)
+                        fluence_line[left_edge:right_edge] += MU_differential[snapshot]
                 else:  # leaf didn't move; no need to calc over every snapshot
                     first_snapshot = self.mlc.snapshot_idx[0]
                     left_pos = left_leaf_data[first_snapshot]
                     right_pos = right_leaf_data[first_snapshot]
-                    fluence_line[left_pos:right_pos] = MU_cumulative
+                    left_jaw_pos = left_jaw_data.min()
+                    right_jaw_pos = right_jaw_data.max()
+                    left_edge = max(left_pos, left_jaw_pos)
+                    right_edge = min(right_pos, right_jaw_pos)
+                    fluence_line[left_edge:right_edge] = MU_cumulative
                 fluence[leaf - 1, :] = fluence_line
 
         self.pixel_map = fluence
@@ -193,6 +205,14 @@ class Fluence(metaclass=ABCMeta):
             raise AttributeError("Map not yet calculated; use calc_map()")
         plt.imshow(self.pixel_map, aspect='auto')
         plt.show()
+
+    def _zeroize_under_jaws(self, fluence):
+        """Zero the fluence under the jaws.
+
+        E.g. an MLC pair could be tucked under the jaws, and thus the fluence between tips should
+        be excluded from fluence calculations since the jaw blocked it.
+        """
+        pass
 
 
 class ActualFluence(Fluence):
@@ -242,7 +262,7 @@ class GammaFluence(Fluence):
         else:
             return False
 
-    def calc_map(self, DoseTA=2, DistTA=1, threshold=10, resolution=0.1, calc_individual_maps=False):
+    def calc_map(self, DoseTA=1, DistTA=1, threshold=10, resolution=0.1, calc_individual_maps=False):
         """Calculate the gamma from the actual and expected fluences.
 
         The gamma calculation is based on `Bakai et al
@@ -284,6 +304,7 @@ class GammaFluence(Fluence):
 
         # preallocation
         gamma_map = np.zeros(expected.shape)
+        # gamma_map.fill(np.nan)
 
         # image gradient in x-direction (leaf movement direction) using sobel filter
         img_x = spf.sobel(actual, 1)
@@ -322,9 +343,9 @@ class GammaFluence(Fluence):
 
 class Fluence_Struct:
     """Structure for data and methods having to do with fluences."""
-    def __init__(self, mlc_struct=None, mu_axis=None):
-        self.actual = ActualFluence(mlc_struct, mu_axis)
-        self.expected = ExpectedFluence(mlc_struct, mu_axis)
+    def __init__(self, mlc_struct=None, mu_axis=None, jaw_struct=None):
+        self.actual = ActualFluence(mlc_struct, mu_axis, jaw_struct)
+        self.expected = ExpectedFluence(mlc_struct, mu_axis, jaw_struct)
         self.gamma = GammaFluence(self.actual, self.expected, mlc_struct)
 
 
@@ -505,8 +526,8 @@ class MLC:
             else:
                 mlc_position += outer_leaf_thickness
 
-        y2_position = self.jaws.y2.actual[0]*10 + 200
-        y1_position = 200 - self.jaws.y1.actual[0]*10
+        y2_position = self.jaws.y2.actual.max()*10 + 200
+        y1_position = 200 - self.jaws.y1.actual.max()*10
         if mlc_position < y1_position or mlc_position - outer_leaf_thickness > y2_position:
             return True
         else:
@@ -674,6 +695,7 @@ class Tlog_Header(TLog_Section):
 class Dlog_Header(DLog_Section):
     pass
 
+
 class AxisData(TLog_Section):
     """One of four data structures outline in the Trajectory log file specification.
         Holds information on all Axes measured, like MU, gantry position, and MLC leaf positions."""
@@ -749,7 +771,6 @@ class AxisData(TLog_Section):
         num_holds = int(np.sum(diffmatrix == 1))
         return num_holds
 
-
     def _get_axis(self, snapshot_data, column, axis_type):
         """Return column of data from snapshot data of the axis type passed.
 
@@ -768,6 +789,7 @@ class AxisData(TLog_Section):
         """
         return axis_type(expected=snapshot_data[:, column],
                          actual=snapshot_data[:, column + 1])
+
 
 class CRC(TLog_Section):
     """The last data section of a Trajectory log. Is a 2 byte cyclic redundancy check (CRC), specifically
@@ -1062,15 +1084,13 @@ class MachineLog:
         # Unpack the content according to respective section and data type (see log specification file).
         self.header, self._cursor = Tlog_Header(fcontent, self._cursor).read()
 
-        # read in subbeam data. These are for auto-sequenced beams. If not autosequenced, separate logs are created.
-        # Currently there is no good way of dealing with this data, but fortunately autosequencing is rare at this time.
         self.subbeams, self._cursor = Subbeamer(fcontent, self._cursor, self.header).read()
 
         self.axis_data, self._cursor = AxisData(fcontent, self._cursor, self.header).read(exclude_beam_off)
 
         self.crc = CRC(fcontent, self._cursor).read()
 
-        self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu)
+        self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
 
 def return_B_file(a_filename):
