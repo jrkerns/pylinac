@@ -106,10 +106,14 @@ class ImageObj:
             try:
                 self.SID = float(image_file.RTImageSID) / 10
             except:
-                pass
+                self.SID = 100
+                warnings.warn("Source-to-Image not determined; assuming 100 cm")
             try:
                 pixel_spacing = float(image_file.ImagePlanePixelSpacing[0])
                 self.dpmm = 1 / (pixel_spacing * self.SID / 1000)
+            except AttributeError:
+                pixel_spacing = float(image_file.PixelSpacing[0])
+                self.dpmm = 1 / pixel_spacing
             except:
                 warnings.warn("DICOM Image pixel spacing not set")
         elif self.im_type == 'IMAGE':
