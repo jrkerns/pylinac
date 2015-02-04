@@ -242,7 +242,6 @@ class CircleProfile(Profile, Circle):
         --------
         numpy.ndimage.map_coordinates : Further algorithm details
         """
-
         self._ensure_array_size(image_array, self.radius+self.center.x, self.radius+self.center.y)
 
         # create index and cos, sin points which will be the circle's rectilinear coordinates
@@ -292,8 +291,8 @@ class CircleProfile(Profile, Circle):
     #TODO: move this to utilities
     def _ensure_array_size(self, array, min_width, min_height):
         """Ensure the array size of inputs are greater than the minimums."""
-        width = array.shape[0]
-        height = array.shape[1]
+        height = array.shape[0]
+        width = array.shape[1]
         if width < min_width or height < min_height:
             raise ValueError("Array size not large enough to compute profile")
 

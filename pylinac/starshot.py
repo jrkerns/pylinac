@@ -151,9 +151,13 @@ class Starshot(AnalysisModule):
         Finding the maximum pixel does not consistently work, esp. in the presence of a pin prick. The
         FW80M is a more consistent metric for finding a good start point.
         """
-        # sum the image along each axis
-        x_sum = np.sum(self.image.pixel_array, 0)
-        y_sum = np.sum(self.image.pixel_array, 1)
+        # sum the image along each axis within the central 1/3 (avoids outlier influence from say, gantry shots)
+        top_third = int(self.image.pixel_array.shape[0]/3)
+        bottom_third = int(top_third * 2)
+        left_third = int(self.image.pixel_array.shape[1]/3)
+        right_third = int(left_third * 2)
+        x_sum = np.sum(self.image.pixel_array[top_third:bottom_third, left_third:right_third], 0)
+        y_sum = np.sum(self.image.pixel_array[top_third:bottom_third, left_third:right_third], 1)
 
         # Calculate Full-Width, 80% Maximum
         x_point = SingleProfile(x_sum).get_FWXM_center(80)
@@ -422,7 +426,7 @@ class StarProfile(CircleProfile):
         self.x_locs = np.roll(self.x_locs, -min_idx[0][0])
         self.y_locs = np.roll(self.y_locs, -min_idx[0][0])
 
-    def find_rad_lines(self, min_peak_height, min_peak_distance=0.04):
+    def find_rad_lines(self, min_peak_height, min_peak_distance=0.03):
         """Find and match the positions of peaks in the circle profile (radiation lines)
             and map their positions to the starshot image.
 
