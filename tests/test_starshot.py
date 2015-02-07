@@ -49,9 +49,9 @@ class Test_Star_Demo(unittest.TestCase):
 
     def test_image_inverted(self):
         """Check that the demo image was actually inverted, as it needs to be."""
-        top_left_corner_val_before = self.star.image.pixel_array[0,0]
+        top_left_corner_val_before = self.star.image.array[0,0]
         self.star._check_image_inversion()
-        top_left_corner_val_after = self.star.image.pixel_array[0,0]
+        top_left_corner_val_after = self.star.image.array[0,0]
         self.assertNotEqual(top_left_corner_val_before, top_left_corner_val_after)
 
     def test_results(self):

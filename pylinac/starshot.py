@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Line, Circle
-from pylinac.core.image import ImageObj
+from pylinac.core.image import Image
 from pylinac.core.analysis import AnalysisModule
 from pylinac.core.profile import CircleProfile, SingleProfile
 
@@ -24,7 +24,7 @@ class Starshot(AnalysisModule):
 
     Attributes
     ----------
-    image : core.image.ImageObj
+    image : core.image.Image
     circle_profile : StarProfile
     lines : list of Line instances
     wobble : Wobble
@@ -44,7 +44,7 @@ class Starshot(AnalysisModule):
     """
     def __init__(self):
         super().__init__()
-        self.image = ImageObj()  # The image array and image property structure
+        # self.image = Image  # The image array and image property structure
         self.circle_profile = StarProfile()  # a circular profile which will detect radiation line locations
         self.lines = []  # a list which will hold Line instances representing radiation lines.
         self.wobble = Wobble()  # A Circle representing the radiation wobble
@@ -68,7 +68,7 @@ class Starshot(AnalysisModule):
         demo_folder = osp.join(osp.dirname(__file__), 'demo_files', 'starshot')
         demo_file = osp.join(demo_folder, '10X_collimator.tif')
 
-        self.image.load_image(demo_file)
+        self.image = Image(demo_file)
 
     def load_image(self, filepath):
         """Load the image via the file path.
@@ -82,11 +82,11 @@ class Starshot(AnalysisModule):
         -----
         Wrapper for pylinac.image.ImageObj.load_image()
         """
-        self.image.load_image(filepath)
+        self.image = Image(filepath)
 
     def load_image_UI(self):
         """Load the image by using a UI dialog box."""
-        self.image.load_image_UI()
+        self.image = Image.open_UI()
 
     @property
     def start_point(self):
@@ -140,8 +140,8 @@ class Starshot(AnalysisModule):
         """
 
         # sum the image along each axis
-        x_sum = np.sum(self.image.pixel_array, 0)
-        y_sum = np.sum(self.image.pixel_array, 1)
+        x_sum = np.sum(self.image.array, 0)
+        y_sum = np.sum(self.image.array, 1)
 
         # determine the point of max value for each sum profile
         xmaxind = np.argmax(x_sum)
@@ -152,7 +152,7 @@ class Starshot(AnalysisModule):
                                (ymaxind > len(y_sum) / 3 and ymaxind < len(y_sum) * 2 / 3))
 
         if not center_in_central_third:
-            self.image.invert_array()
+            self.image.invert()
 
     def _auto_set_start_point(self):
         """Set the algorithm starting point automatically.
@@ -164,17 +164,17 @@ class Starshot(AnalysisModule):
         FW80M is a more consistent metric for finding a good start point.
         """
         # sum the image along each axis within the central 1/3 (avoids outlier influence from say, gantry shots)
-        top_third = int(self.image.pixel_array.shape[0]/3)
+        top_third = int(self.image.array.shape[0]/3)
         bottom_third = int(top_third * 2)
-        left_third = int(self.image.pixel_array.shape[1]/3)
+        left_third = int(self.image.array.shape[1]/3)
         right_third = int(left_third * 2)
-        x_sum = np.sum(self.image.pixel_array[top_third:bottom_third, left_third:right_third], 0)
-        y_sum = np.sum(self.image.pixel_array[top_third:bottom_third, left_third:right_third], 1)
+        x_sum = np.sum(self.image.array[top_third:bottom_third, left_third:right_third], 0)
+        y_sum = np.sum(self.image.array[top_third:bottom_third, left_third:right_third], 1)
 
         # Calculate Full-Width, 80% Maximum
         x_point = SingleProfile(x_sum).get_FWXM_center(80)
         y_point = SingleProfile(y_sum).get_FWXM_center(80)
-        center_point = Point(x_point, y_point)
+        center_point = Point(x_point+left_third, y_point+top_third)
 
         self.set_start_point(center_point, warn_if_far_away=False)
 
@@ -217,7 +217,7 @@ class Starshot(AnalysisModule):
         # set profile extraction radius
         self.circle_profile.radius = self._convert_radius_perc2pix(radius)
         # extract the circle profile
-        self.circle_profile.get_profile(self.image.pixel_array)
+        self.circle_profile.get_profile(self.image.array)
         # find the radiation lines using the peaks of the profile
         self.lines = self.circle_profile.find_rad_lines(min_peak_height)
         # find the wobble
@@ -238,7 +238,7 @@ class Starshot(AnalysisModule):
     @property
     def image_is_loaded(self):
         """Boolean property specifying if an image has been loaded."""
-        if self.image.pixel_array.size == 0:
+        if self.image.array.size == 0:
             return False
         else:
             return True
@@ -367,9 +367,9 @@ class Starshot(AnalysisModule):
         """
         # plot image
         if plot is None:
-            imgplot = plt.imshow(self.image.pixel_array)
+            imgplot = plt.imshow(self.image.array)
         else:
-            plot.axes.imshow(self.image.pixel_array)
+            plot.axes.imshow(self.image.array)
             plot.axes.hold(True)
             imgplot = plot
 

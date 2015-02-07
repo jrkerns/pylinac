@@ -34,9 +34,9 @@ class Test_DRGS_demo(unittest.TestCase):
 
     def test_img_inversion(self):
         """Check that the demo images indeed get inverted."""
-        top_corner_before = self.vmat.image_open.pixel_array[:20, :20].mean()
+        top_corner_before = self.vmat.image_open.array[:20, :20].mean()
         self.vmat._check_img_inversion()
-        top_corner_after = self.vmat.image_open.pixel_array[:20, :20].mean()
+        top_corner_after = self.vmat.image_open.array[:20, :20].mean()
         self.assertNotEqual(top_corner_before, top_corner_after)
 
     def test_scaling(self):
@@ -106,9 +106,9 @@ class Test_DRMLC_demo(unittest.TestCase):
 
     def test_img_inversion(self):
         """Check that the demo images indeed get inverted."""
-        top_corner_before = self.vmat.image_open.pixel_array[:20, :20].mean()
+        top_corner_before = self.vmat.image_open.array[:20, :20].mean()
         self.vmat._check_img_inversion()
-        top_corner_after = self.vmat.image_open.pixel_array[:20, :20].mean()
+        top_corner_after = self.vmat.image_open.array[:20, :20].mean()
         self.assertNotEqual(top_corner_before, top_corner_after)
 
     def test_scaling(self):
@@ -179,9 +179,9 @@ class Test_DRMLC_105(unittest.TestCase):
 
     def test_img_inversion(self):
         """Check that the images indeed get inverted (applicable to most EPID images)."""
-        top_corner_before = self.vmat.image_open.pixel_array[:20, :20].mean()
+        top_corner_before = self.vmat.image_open.array[:20, :20].mean()
         self.vmat._check_img_inversion()
-        top_corner_after = self.vmat.image_open.pixel_array[:20, :20].mean()
+        top_corner_after = self.vmat.image_open.array[:20, :20].mean()
         self.assertNotEqual(top_corner_before, top_corner_after)
 
     def test_scaling(self):
@@ -253,9 +253,9 @@ class Test_DRGS_105(unittest.TestCase):
 
     def test_img_inversion(self):
         """Check that the images indeed get inverted (applicable to most EPID images)."""
-        top_corner_before = self.vmat.image_open.pixel_array[:20, :20].mean()
+        top_corner_before = self.vmat.image_open.array[:20, :20].mean()
         self.vmat._check_img_inversion()
-        top_corner_after = self.vmat.image_open.pixel_array[:20, :20].mean()
+        top_corner_after = self.vmat.image_open.array[:20, :20].mean()
         self.assertNotEqual(top_corner_before, top_corner_after)
 
     def test_scaling(self):

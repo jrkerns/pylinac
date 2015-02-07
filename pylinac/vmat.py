@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 from pylinac.core.decorators import value_accept, type_accept, lazyproperty
-from pylinac.core.image import ImageObj
+from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Rectangle
 from pylinac.core.io import get_filepath_UI
 
@@ -52,8 +52,8 @@ class VMAT:
     """
     def __init__(self):
         super().__init__()
-        self.image_open = ImageObj()  # the Open field image
-        self.image_dmlc = ImageObj()  # the MLC field image
+        # self.image_open = Image()  # the Open field image
+        # self.image_dmlc = Image()  # the MLC field image
         self._test_type = ''  # the test to perform
         self._tolerance = 3  # default of 3% tolerance as Jorgensen recommends
         self.segments = []  # a list which will hold Segment objects (either 4 or 7)
@@ -87,11 +87,13 @@ class VMAT:
         im_type : {'open', 'dmlc'}
             Specifies which file/image type is being loaded in.
         """
+        img = Image(file_path)
         if im_type == im_types['OPEN']:
-            image = self.image_open
+            self.image_open = img
         elif im_type == im_types['DMLC']:
-            image = self.image_dmlc
-        image.load_image(file_path)
+            self.image_dmlc = img
+
+
 
     @value_accept(test_type=test_types)
     def load_demo_image(self, test_type='drgs'):
@@ -137,8 +139,8 @@ class VMAT:
          analyze : Further parameter info.
          """
         # Image size scaling
-        y_scale = self.image_dmlc.pixel_array.shape[0] / 384.0
-        x_scale = self.image_dmlc.pixel_array.shape[1] / 512.0
+        y_scale = self.image_dmlc.array.shape[0] / 384.0
+        x_scale = self.image_dmlc.array.shape[1] / 512.0
         scale = Point(x_scale, y_scale)
 
         # SID scaling
@@ -253,11 +255,11 @@ class VMAT:
         Pixel value should increase with dose. This is ensured by
         sampling a corner and comparing to the mean image value.
         """
-        top_corner = self.image_open.pixel_array[:20,:20].mean()
-        img_mean = self.image_open.pixel_array.mean()
+        top_corner = self.image_open.array[:20,:20].mean()
+        img_mean = self.image_open.array.mean()
         if top_corner > img_mean:
-            self.image_open.invert_array()
-            self.image_dmlc.invert_array()
+            self.image_open.invert()
+            self.image_dmlc.invert()
 
     @property
     def sample_pass_matrix(self):
@@ -276,7 +278,7 @@ class VMAT:
     @property
     def open_img_is_loaded(self):
         """Status of open image."""
-        if self.image_open.pixel_array.size != 0:
+        if self.image_open.array.size != 0:
             return True
         else:
             return False
@@ -284,7 +286,7 @@ class VMAT:
     @property
     def dmlc_img_is_loaded(self):
         """Status of DMLC image."""
-        if self.image_dmlc.pixel_array.size != 0:
+        if self.image_dmlc.array.size != 0:
             return True
         else:
             return False
@@ -375,11 +377,11 @@ class VMAT:
 
         try:
             # http://stackoverflow.com/questions/3823752/display-image-as-grayscale-using-matplotlib
-            ax2.imshow(self.image_open.pixel_array, cmap=cm.Greys_r)
+            ax2.imshow(self.image_open.array, cmap=cm.Greys_r)
             ax2.set_title("Open Field Image")
         except:
             pass  # axis2 wasn't defined
-        ax1.imshow(self.image_dmlc.pixel_array, cmap=cm.Greys_r)
+        ax1.imshow(self.image_dmlc.array, cmap=cm.Greys_r)
         ax1.set_title("MLC Field Image")
         self._draw_objects(ax1)
 
@@ -472,9 +474,9 @@ class Sample(Rectangle):
         dmlc_image : numpy.ndarray
             The DMLC image array.
         """
-        dmlc_value = dmlc_image.pixel_array[self.bl_corner.y - self.height:self.bl_corner.y,
+        dmlc_value = dmlc_image.array[self.bl_corner.y - self.height:self.bl_corner.y,
                                 self.bl_corner.x: self.bl_corner.x + self.width].mean()
-        open_value = open_image.pixel_array[self.bl_corner.y - self.height:self.bl_corner.y,
+        open_value = open_image.array[self.bl_corner.y - self.height:self.bl_corner.y,
                                 self.bl_corner.x: self.bl_corner.x + self.width].mean()
         self.ratio = dmlc_value/open_value
 

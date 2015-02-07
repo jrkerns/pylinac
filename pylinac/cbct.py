@@ -23,7 +23,7 @@ import dicom
 import matplotlib.pyplot as plt
 
 from pylinac.core.decorators import value_accept, lazyproperty, type_accept
-from pylinac.core.image import ImageObj
+from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Circle, sector_mask, Line
 from pylinac.core.profile import CircleProfile, Profile
 from pylinac.core.io import get_folder_UI
@@ -275,8 +275,8 @@ class Slice(metaclass=ABCMeta):
 
     def find_phan_center(self):
         """Determine the location of the center of the phantom."""
-        SOI_bw = self.image.convert2BW(self.algo_data.threshold, return_it=True)  # convert slice to binary based on threshold
-        SOI_bw = ndimage.binary_fill_holes(SOI_bw.pixel_array)  # fill in air pockets to make one solid ROI
+        SOI_bw = self.image.threshold(self.algo_data.threshold)  # convert slice to binary based on threshold
+        SOI_bw = ndimage.binary_fill_holes(SOI_bw)  # fill in air pockets to make one solid ROI
         SOI_labeled, num_roi = ndimage.label(SOI_bw)  # identify the ROIs
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
@@ -332,9 +332,9 @@ class HU_Slice(Base_HU_Slice):
     def __init__(self, algo_data):
         super().__init__(algo_data)
         self.scale_by_FOV()
-        self.image = ImageObj(combine_surrounding_slices(self.algo_data.images, self.algo_data.HU_slice_num))
+        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.HU_slice_num))
 
-        HU_ROIp = partial(HU_ROI, slice_array=self.image.pixel_array, radius=self.object_radius, dist_from_center=self.dist2objs,
+        HU_ROIp = partial(HU_ROI, slice_array=self.image.array, radius=self.object_radius, dist_from_center=self.dist2objs,
                           tolerance=self.tolerance)
 
         air = HU_ROIp('Air', 90, -1000)
@@ -360,20 +360,20 @@ class HU_Slice(Base_HU_Slice):
          This algorithm uses the two air bubbles in the HU slice and the resulting angle between them.
         """
         # convert slice to logical
-        SOI = self.image.convert2BW(self.algo_data.threshold, return_it=True)
+        SOI = self.image.threshold(self.algo_data.threshold)
         # invert the SOI; this makes the Air == 1 and phantom == 0
-        SOI.invert_array()
+        SOI.invert()
         # determine labels and number of rois of inverted SOI
-        labels, no_roi = ndimage.measurements.label(SOI.pixel_array)
+        labels, no_roi = ndimage.measurements.label(SOI)
         # calculate ROI sizes of each label TODO: simplify the air bubble-finding
-        roi_sizes = [ndimage.measurements.sum(SOI.pixel_array, labels, index=item) for item in range(1, no_roi + 1)]
+        roi_sizes = [ndimage.measurements.sum(SOI, labels, index=item) for item in range(1, no_roi + 1)]
         # extract air bubble ROIs (based on size threshold)
         bubble_thresh = self.air_bubble_size
         air_bubbles = [idx + 1 for idx, item in enumerate(roi_sizes) if
                        item < bubble_thresh * 1.5 and item > bubble_thresh / 1.5]
         # if the algo has worked correctly, it has found 2 and only 2 ROIs (the air bubbles)
         if len(air_bubbles) == 2:
-            air_bubble_CofM = ndimage.measurements.center_of_mass(SOI.pixel_array, labels, air_bubbles)
+            air_bubble_CofM = ndimage.measurements.center_of_mass(SOI, labels, air_bubbles)
             y_dist = air_bubble_CofM[0][0] - air_bubble_CofM[1][0]
             x_dist = air_bubble_CofM[0][1] - air_bubble_CofM[1][1]
             angle = np.arctan2(y_dist, x_dist)
@@ -398,13 +398,13 @@ class UNIF_Slice(Base_HU_Slice):
     def __init__(self, algo_data):
         super().__init__(algo_data)
         self.scale_by_FOV()
-        self.image = ImageObj(combine_surrounding_slices(self.algo_data.images, self.algo_data.UN_slice_num))
+        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.UN_slice_num))
 
-        HU_ROIp = partial(HU_ROI, slice_array=self.image.pixel_array, tolerance=self.tolerance, radius=self.obj_radius,
+        HU_ROIp = partial(HU_ROI, slice_array=self.image.array, tolerance=self.tolerance, radius=self.obj_radius,
                           dist_from_center=self.dist2objs)
 
         # center has distance of 0, thus doesn't use partial
-        center = HU_ROI('Center', 0, 0, self.image.pixel_array, self.obj_radius, dist_from_center=0, tolerance=self.tolerance)
+        center = HU_ROI('Center', 0, 0, self.image.array, self.obj_radius, dist_from_center=0, tolerance=self.tolerance)
         right = HU_ROIp('Right', 0, 0)
         top = HU_ROIp('Top', -90, 0)
         left = HU_ROIp('Left', 180, 0)
@@ -422,7 +422,7 @@ class Locon_Slice(Slice):
     # TODO: work on this
     def __init__(self, algo_data):
         super().__init__(algo_data)
-        self.image = ImageObj(combine_surrounding_slices(self.algo_data.images, self.algo_data.LC_slice_num))
+        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.LC_slice_num))
 
     def scale_by_FOV(self):
         pass
@@ -452,11 +452,11 @@ class SR_Slice(Slice):
     def __init__(self, algo_data):
         super().__init__(algo_data)
         self.scale_by_FOV()
-        self.image = ImageObj(combine_surrounding_slices(self.algo_data.images, self.algo_data.SR_slice_num, mode='max'))
+        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.SR_slice_num, mode='max'))
 
         self.LP_MTF = {}  # holds lp:mtf data
         for idx, radius in enumerate(self.radius2profs):
-            c = SR_Circle_ROI(idx, self.image.pixel_array, radius=radius)
+            c = SR_Circle_ROI(idx, self.image.array, radius=radius)
             self.add_ROI(c)
 
         super().find_phan_center()
@@ -481,7 +481,7 @@ class SR_Slice(Slice):
         """
         # extract the profile for each ROI (5 adjacent profiles)
         for roi in self.ROIs.values():
-            roi.get_profile(self.image.pixel_array, size=2*np.pi*1000, start=np.pi+roll_offset)
+            roi.get_profile(self.image.array, size=2*np.pi*1000, start=np.pi+roll_offset)
         # average profiles together
         prof = np.zeros(len(roi.y_values))
         for idx, roi in enumerate(self.ROIs.values()):
@@ -710,9 +710,9 @@ class GEO_Slice(Slice):
     def __init__(self, algo_data):
         super().__init__(algo_data)
         self.scale_by_FOV()
-        self.image = ImageObj(combine_surrounding_slices(self.algo_data.images, self.algo_data.HU_slice_num, mode='median'))
+        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.HU_slice_num, mode='median'))
 
-        GEO_ROIp = partial(GEO_ROI, slice_array=self.image.pixel_array, radius=self.obj_radius,
+        GEO_ROIp = partial(GEO_ROI, slice_array=self.image.array, radius=self.obj_radius,
                            dist_from_center=self.dist2objs)
 
         tl = GEO_ROIp(name='Top-Left', angle=-135)
@@ -1007,7 +1007,7 @@ class CBCT:
         fig, ((UN_ax, HU_ax), (SR_ax, LOCON_ax)) = plt.subplots(2,2)
 
         # Uniformity objects
-        UN_ax.imshow(self.UN.image.pixel_array)
+        UN_ax.imshow(self.UN.image.array)
         for roi in self.UN.ROIs.values():
             color = roi.get_pass_fail_color()
             roi.add_to_axes(UN_ax, edgecolor=color)
@@ -1015,7 +1015,7 @@ class CBCT:
         UN_ax.set_title('Uniformity Slice')
 
         # HU objects
-        HU_ax.imshow(self.HU.image.pixel_array)
+        HU_ax.imshow(self.HU.image.array)
         for roi in self.HU.ROIs.values():
             color = roi.get_pass_fail_color()
             roi.add_to_axes(HU_ax, edgecolor=color)
@@ -1027,7 +1027,7 @@ class CBCT:
             line.add_to_axes(HU_ax, color='blue')
 
         # SR objects
-        SR_ax.imshow(self.SR.image.pixel_array)
+        SR_ax.imshow(self.SR.image.array)
         last_roi = len(self.SR.ROIs) - 1
         for roi in [self.SR.ROIs[0], self.SR.ROIs[last_roi]]:
             roi.add_to_axes(SR_ax, edgecolor='blue')
@@ -1035,7 +1035,7 @@ class CBCT:
         SR_ax.set_title('Spatial Resolution Slice')
 
         # Locon objects
-        LOCON_ax.imshow(self.LOCON.image.pixel_array)
+        LOCON_ax.imshow(self.LOCON.image.array)
         LOCON_ax.set_title('Low Contrast (In Development)')
 
         # show it all

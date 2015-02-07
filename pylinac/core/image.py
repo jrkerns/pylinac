@@ -1,204 +1,226 @@
 
-"""Several classes used in pylinac derive from base classes which provide lower-level functionality like image loading, basic image
-manipulation (invert, rotate, etc), and other misc things. These are
-the API docs for those classes. """
-import copy
+"""This module holds classes for image loading and manipulation."""
 import warnings
 
+from dicom.errors import InvalidDicomError
 import numpy as np
+from PIL import Image as pImage
+import dicom
 from scipy import ndimage
 from scipy.misc import imresize
-from PIL import Image
-import dicom
 
 from pylinac.core.decorators import type_accept
 from pylinac.core.geometry import Point
-from pylinac.core.io import get_filepath_UI, is_valid_file
-from pylinac.core.utilities import array2logical
+from pylinac.core.io import get_filepath_UI
+from pylinac.core.utilities import array2logical, typed_property
 
 
+DICOM = 'DICOM'
+IMAGE = 'Image'
+ARRAY = 'Array'
 MM_per_INCH = 25.4
 
-class ImageObj:
-    """An analysis module component that utilizes a single image in its analysis.
-        Contains methods to load and manipulate the image and its properties.
+class Image:
+    """A class that holds an image as a numpy array, relevant image metadata (dpi, SID, etc),
+    and methods for image (array) manipulation (resize, rotate, etc).
+
+    There are 3 types of Images: DICOM, Image, and Array. For DICOM and Image types,
+    relevant metadata (see Attributes) is extracted where possible. Metadata can also be set directly.
+
+    * A "DICOM" image is just what it sounds like. It could be an EPID capture, or a scanned film/CR cassette.
+    * An "Image" image is what you think normally of an image. It could be a JPEG, BMP, TIF, etc.
+    * An "Array" image is one created directly from an existing array.
+
+    Attributes
+    ----------
+    array : numpy.ndarray
+        The actual image pixel array.
+    dpi : int, float
+        The Dots-per-inch of the image.
+    dpmm : int, float
+        The Dots-per-mm of the image.
+    SID : int, float
+        The Source-to-Image distance in cm.
+    im_type : {'DICOM', 'Image', 'Array'}
+        Image type.
+    center : geometry.Point
+        The center pixel of the image as a Point.
+
+    Examples
+    --------
+    Load an image from a file:
+    >>> my_image = "C:/QA/image.tif"
+    >>> img = Image(my_image)
+    >>> img.median_filter(5)
+
+    Additionally, load from a UI dialog box:
+    >>> img = Image.open_UI()
+
+    Or, load from an existing array:
+    >>> arr = np.arange(36).reshape(6,6)
+    >>> img = Image(arr)
+    """
+    SID = typed_property('SID', (int, float, np.number))
+    im_type = typed_property('im_type', str)
+    array = typed_property('array', np.ndarray)
+
+    def __init__(self, file_or_array, to_gray=True):
         """
-    # TODO: see about inheriting from PIL's Image class.
-
-    def __init__(self, image_array=None):
-        """Initialize some attributes."""
-        if image_array is None:
-            self.pixel_array = np.array([])
+        Parameters
+        ----------
+        file_path : str
+            Path to the image file.
+        to_gray : bool
+            If True (default), will convert RGB and HSV type images to greyscale.
+            If False, will not do any conversion.
+        """
+        if isinstance(file_or_array, str):
+            self._load_file(file_or_array, to_gray)
+        elif isinstance(file_or_array, np.ndarray):
+            self._load_array(file_or_array)
         else:
-            self.pixel_array = image_array
+            raise TypeError("Image input type not understood")
 
-        self.dpi = 0
-        self.dpmm = 0
-        self.SID = 0
+    @classmethod
+    def open_UI(cls, caption='', to_gray=True):
+        """Load an image using a UI dialog."""
+        file_path = get_filepath_UI()
+        cls(file_path, to_gray)
+        return cls
+
+    def _load_array(self, array):
+        """Load an array."""
+        self.array = array
+        self.im_type = ARRAY
+
+    def _load_file(self, file_path, to_gray):
+        """Load a file."""
+        try:
+            self._construct_dicom(file_path)
+        except InvalidDicomError:
+            try:
+                self._construct_image(file_path, to_gray)
+            except OSError:
+                raise IOError("Image type not supported")
+
+    def _construct_image(self, file_path, to_gray):
+        """Construct an object from an image file (TIF, JPEG, etc)."""
+        img = pImage.open(file_path)
+        if to_gray:
+            if img.mode == 'RGB' or img.mode == 'HSV':
+                img = img.convert('F')
+        self.array = np.array(img)
+        self.im_type = IMAGE
+
+        # explicitly set dpi, which also sets dpmm
+        if 'dpi' in img.info:
+            if len(img.info['dpi']) > 1:
+                if img.info['dpi'][0] != img.info['dpi'][1]:
+                    raise TypeError("Input image has different DPI ratios for horizontal and vertical")
+                self.dpi = img.info['dpi'][0]
+            else:
+                self.dpi = img.info['dpi']
+        else:
+            warnings.warn("Pixel distance information was not available. You can set the attributed"
+                          "explicitly if you know it.")
+
+    def _construct_dicom(self, file_path):
+        """Construct an object from a DICOM file (.dcm)."""
+        dcm = dicom.read_file(file_path)
+        self.array = dcm.pixel_array
+        self.im_type = DICOM
+        # try to set the pixel spacing
+        try:
+            # most dicom files have this tag
+            dpmm = dcm.PixelSpacing[0]
+        except AttributeError:
+            # EPID images sometimes have this tag
+            dpmm = dcm.ImagePlanePixelSpacing[0]
+        except:
+            warnings.warn("Pixel distance information for the DICOM file was not determined. You can set the "
+                          "attribute explicitly if you know it.")
+        finally:
+            self.dpmm = float(dpmm)
+
+        # try to set the SID
+        try:
+            sid = float(dcm.RTImageSID) / 10
+            self.SID = sid
+        except AttributeError:
+            pass  # just don't set the SID
+
+    def __getattr__(self, item):
+        """Set the Attribute getter to grab from the array if possible (for things like .shape, .size, etc."""
+        return getattr(self.array, item)
 
     @property
     def center(self):
-        x_center = self.pixel_array.shape[1] / 2
-        y_center = self.pixel_array.shape[0] / 2
+        """Return the center position of the image array as a Point."""
+        x_center = self.shape[1] / 2
+        y_center = self.shape[0] / 2
         return Point(x_center, y_center)
-
-    @property
-    def pixel_array(self):
-        return self._pixel_array
-
-    @pixel_array.setter
-    def pixel_array(self, array):
-        self.set_pixel_array(array)
-
-    @type_accept(image_array=np.ndarray)
-    def set_pixel_array(self, image_array=None):
-        """Set the image from a pre-existing numpy array"""
-        self._pixel_array = image_array
-
-    def load_image_UI(self, caption='', to_gray=True):
-        """Load an image using a UI dialog."""
-        file_path = get_filepath_UI()
-        self.load_image(file_path)
-
-    def load_image(self, file_path, to_gray=True, apply_filter=False, return_it=False):
-        """Load an image using PIL or pydicom as a numpy array from a filestring.
-
-        :param file_path: Specifies the file location
-        :type file_path: str
-        :param to_gray: Indicates whether to convert the image to black & white or not if an RGB image
-        :type to_gray: bool
-        :param return_it: Will *return* the image and improps if True, otherwise, will save as attr.
-            Useful for loading images that won't be used (e.g. for use with combine_images).
-        :type return_it: bool
-        """
-
-        # Check that filestring points to valid file
-        is_valid_file(file_path, raise_error=True)
-
-        # Read image depending on file type
-        im_file, image = self._return_img_file(file_path, to_gray)
-        # Read in image properties
-        self._set_im_props(im_file)
-
-        if apply_filter:
-            image = self.median_filter()
-
-        self.pixel_array = image
-
-    def _return_img_file(self, filestring, to_gray=True):
-        """Return the file and image, depending on if it's a normal image type (JPG, PNG, etc) or DICOM."""
-        # TODO: try incorporating the DICOM SOP; http://www.dicomlibrary.com/dicom/sop/
-        try: # try loading dicom first
-            im_file = dicom.read_file(filestring)
-            image = im_file.pixel_array
-            self.set_im_type('DICOM')
-        except:  # load as a normal image
-            im_file = Image.open(filestring)
-            if to_gray:
-                im_file = im_file.convert("L")
-            image = np.array(im_file)
-            self.set_im_type('IMAGE')
-        return im_file, image
-
-    def _set_im_props(self, image_file):
-        """Return the properties of an image file."""
-        if self.im_type == 'DICOM':
-            try:
-                self.SID = float(image_file.RTImageSID) / 10
-            except:
-                self.SID = 100
-                warnings.warn("Source-to-Image not determined; assuming 100 cm")
-            try:
-                pixel_spacing = float(image_file.ImagePlanePixelSpacing[0])
-                self.dpmm = 1 / (pixel_spacing * self.SID / 1000)
-            except AttributeError:
-                pixel_spacing = float(image_file.PixelSpacing[0])
-                self.dpmm = 1 / pixel_spacing
-            except:
-                warnings.warn("DICOM Image pixel spacing not set")
-        elif self.im_type == 'IMAGE':
-            try:
-                dpi = image_file.info['dpi']
-                if len(dpi) > 1:
-                    # ensure all values are the same, i.e. x-resolution is the same as y-resolution
-                    if dpi[0] != dpi[1]:
-                        raise ValueError("Image DPI is not equal in both directions")
-                    dpi = dpi[0]
-                    self.dpi = dpi
-            except:  # DPI unable to be determined
-                self.dpi = 0
-                warnings.warn("Image DPI unable to be determined")
-
-    def _combine_images(self, normalize_maximums=True, *images):
-        """Combine multiple images together into one image.
-
-        :param normalize_maximums: Specifies whether to normalize the images so that they have the same maximum value. Good for
-            images of much different magnitudes.
-        :type normalize_maximums: bool
-        """
-        #TODO: work on this
-        raise NotImplementedError("Combine images has not yet been implemented")
 
     def median_filter(self, size=3, mode='reflect'):
         """Apply a median filter to the image.
 
-        Wrapper for scipy's median filter function:
-        http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html
+        Wrapper for scipy's `median <http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html>`_ filter function:
         """
-        self.pixel_array = ndimage.median_filter(self.pixel_array, size=size, mode=mode)
+        self.array = ndimage.median_filter(self.array, size=size, mode=mode)
 
+    @type_accept(pixels=int)
     def remove_edges(self, pixels=15):
-        """Removes the edge pixels on all sides of the image.
+        """Removes pixels on all edges of the image.
 
-        :param pixels: Number of pixels to cut off all sides of the image.
-        :type pixels: int
+        Parameters
+        ----------
+        pixels : int
+            Number of pixels to cut off all sides of the image.
         """
-        self.pixel_array = self.pixel_array[pixels - 1:-pixels, pixels - 1:-pixels]
+        self.array = self.array[pixels - 1:-pixels-1, pixels - 1:-pixels-1]
 
-    def invert_array(self):
-        """Return the imcomplement of the image.
+    def invert(self):
+        """Invert (imcomplement) the image."""
+        orig_array = self.array
+        self.array = -orig_array + orig_array.max() + orig_array.min()
 
-        Equivalent to Matlab's imcomplement function.
-        """
-        self.pixel_array = -self.pixel_array + np.max(self.pixel_array) + np.min(self.pixel_array)
+    def rotate(self, angle, order=3):
+        raise NotImplementedError()
+        # self.array = ndimage.interpolation.rotate(self.array, angle, order=order, mode='wrap', reshape=False)
 
-    def rotate_array_ccw90(self, n=1):
-        """Rotate the image counter-clockwise by 90 degrees n times.
-
-        :param n: Number of times to rotate the image.
-        :type n: int
-        """
-        self.pixel_array = np.rot90(self.pixel_array, n)
-
-    def resize_image(self, size, interp='bilinear'):
+    def resize(self, size, interp='bilinear'):
         """Resize/scale the image.
 
-        Wrapper for scipy.misc.imresize:
-        http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.misc.imresize.html
-
-        :param size: If int, returns % of current size. If float, fraction of current size. If tuple, output size.
-        :type size: float, int, tuple
+        Wrapper for scipy's `imresize <http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.misc.imresize.html>`_:
         """
-        self.pixel_array = imresize(self.pixel_array, size=size, interp=interp, mode='F')
+        self.array = imresize(self.array, size=size, interp=interp, mode='F')
 
-    def convert2BW(self, threshold, return_it=False):
-        """Convert the pixel array to a black & white array based on the threshold."""
-        array = array2logical(self.pixel_array, threshold)
-        if return_it:
-            new_self = copy.copy(self)
-            new_self.pixel_array = array
-            return new_self
-        else:
-            self.pixel_array = array
+    def threshold(self, threshold):
+        """Convert the pixel array to a black & white array based on the threshold.
 
+        Parameters
+        ----------
+        threshold : int
+            If the value is less than the threshold it is set to 0, otherwise to 1.
+
+        Returns
+        -------
+        A numpy array.
+        """
+        arr = array2logical(self.array, threshold)
+        return Image(arr)
+
+    @type_accept(point=(Point, tuple))
     def dist2edge_min(self, point):
-        """Calculates minimum distance from user point to image edges
+        """Calculates minimum distance from given point to image edges.
 
-        :param point: The point to calculate from
-        :type point: Point
+        Parameters
+        ----------
+        point : geometry.Point, tuple
         """
-        rows = np.size(self.pixel_array, 0)
-        cols = np.size(self.pixel_array, 1)
+        if isinstance(point, tuple):
+            point = Point(point)
+        rows = self.shape[0]
+        cols = self.shape[1]
         disttoedge = np.zeros(4)
         disttoedge[0] = rows - point.y
         disttoedge[1] = cols - point.x
@@ -208,62 +230,30 @@ class ImageObj:
 
     @property
     def dpi(self):
-        return self._dpi
+        """Dots-per-inch getter."""
+        return getattr(self, '_dpi', None)
 
     @dpi.setter
+    @type_accept(dpi=(int, float, np.number))
     def dpi(self, dpi):
-        self.set_dpi(dpi)
-
-    def set_dpi(self, dpi):
-        """Set the dots-per-inch attribute directly."""
+        """Dots-per-inch getter."""
         self._dpi = dpi
         # update the DPmm attr if need be
         updated_dpmm = dpi / MM_per_INCH
-        if hasattr(self, 'dpmm') and self.dpmm != updated_dpmm:
+        if self.dpmm != updated_dpmm:
             self.dpmm = updated_dpmm
 
     @property
     def dpmm(self):
-        return self._dpmm
+        """Dots-per-mm getter."""
+        return getattr(self, '_dpmm', None)
 
     @dpmm.setter
+    @type_accept(dpmm=(int, float, np.number))
     def dpmm(self, dpmm):
-        self.set_dpmm(dpmm)
-
-    def set_dpmm(self, dpmm):
-        """Set the dots-per-mm attr directly."""
+        """Dots-per-mm setter."""
         self._dpmm = dpmm
         # update the DPI attr if need be
         updated_dpi = dpmm * MM_per_INCH
-        if hasattr(self, 'dpi') and self.dpi != updated_dpi:
+        if self.dpi != updated_dpi:
             self.dpi = updated_dpi
-
-    @property
-    def SID(self):
-        return self._SID
-
-    @SID.setter
-    def SID(self, SID):
-        self.set_SID(SID)
-
-    def set_SID(self, SID):
-        """Set the SID; units are in mm."""
-        self._SID = SID
-
-    @property
-    def im_type(self):
-        return self._im_type
-
-    @im_type.setter
-    def im_type(self, im_type):
-        self.set_im_type(im_type)
-
-    @type_accept(im_type=str)
-    def set_im_type(self, im_type):
-        """Set the image type"""
-        self._im_type = im_type
-
-
-class MultiImageObject:
-    """A class to be inherited for multiple image analysis (e.g. CBCT QA)"""
-    pass

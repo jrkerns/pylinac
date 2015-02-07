@@ -12,6 +12,7 @@ from pylinac.core.io import is_valid_file
 
 
 
+
 # class Numeric(metaclass=ABCMeta):
 #     """An abstract class that encompasses many numeric types.
 #
@@ -21,6 +22,22 @@ from pylinac.core.io import is_valid_file
 # Numeric.register(float)
 # Numeric.register(np.number)
 # Numeric.register(decimal.Decimal)
+
+def typed_property(name, expected_type_or_tuple_of_types):
+    """Type-enforced property. Python Cookbook 9.21 (3rd ed)."""
+    storage_name = '_' + name
+
+    @property
+    def prop(self):
+        return getattr(self, storage_name, None)
+
+    @prop.setter
+    def prop(self, value):
+        if not isinstance(value, expected_type_or_tuple_of_types):
+            raise TypeError("{} must be a {}".format(name, expected_type_or_tuple_of_types))
+        setattr(self, storage_name, value)
+
+    return prop
 
 
 def is_dicom(file):
