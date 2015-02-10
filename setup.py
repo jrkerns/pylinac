@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 # 1. Ensure version has incremented.
 # 2. To make life easy, in PyCharm, go to Tools/Run setup.py task.../sdist with command line option "upload" to push to PyPI
 
-__version__ = '0.2.1'
-__version_info__ = (0, 2, 1)
+__version__ = '0.3.0'
+__version_info__ = (0, 3, 0)
 
 
 setup(
@@ -15,7 +15,7 @@ setup(
     include_package_data=True,
     zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
-    keywords='medical physics AAPM TG142 quality assurance starshot cbct vmat',
+    keywords='medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog trajectory log',
     author='James Kerns',
     author_email='jkerns100@gmail.com',
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',

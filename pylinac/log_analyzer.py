@@ -1,3 +1,12 @@
+"""
+The log analyzer module reads and parses Varian linear accelerator machine logs, both Dynalogs and Trajectory logs. The module also
+calculates actual and expected fluences as well as performing gamma evaluations. Data is structured to be easily accessible and
+easily plottable.
+
+Unlike most other modules of pylinac, the log analyzer module has no end goal. Data is parsed from the logs, but what is done with that
+info, and which info is analyzed is up to the user.
+"""
+
 from abc import ABCMeta, abstractproperty
 import struct
 import os.path as osp
@@ -16,21 +25,280 @@ from pylinac.core.utilities import is_iterable
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
-"""Named Constants"""
-log_types = {'dlog': 'Dynalog', 'tlog': 'Trajectory log'}  # the two current log types
-dlg_file_exts = ('.dlg',)  # add more if need be
-tlg_file_exts = ('.bin',)  # ditto
+log_types = {'dlog': 'Dynalog', 'tlog': 'Trajectory log'}
+
+
+class MachineLog:
+    """Reads in and analyzes MLC log files, both dynalog and trajectory logs, from Varian linear accelerators."""
+    @type_accept(filename=str)
+    def __init__(self, filename=''):
+        """
+        Parameters
+        ----------
+        filename : str
+            Path to the log file. For trajectory logs this is a single .bin file.
+            For dynalog files, load either the A*.dlg or B*.dlg file.
+
+            .. note:: Dynalogs must have names starting with "A" and "B" and be in the same folder.
+
+        Examples
+        --------
+        Load a file upon initialization::
+
+            >>> mylogfile = "C:/path/to/log.bin"
+            >>> log = MachineLog(mylogfile)
+
+        Or::
+
+            >>> mylogfile = "C:/path/to/A1.dlg"  # B must also be here
+            >>> log = MachineLog()
+            >>> log.load(mylogfile)
+
+        Run the demo::
+
+            >>> MachineLog().run_dlog_demo()
+            >>> MachineLog().run_tlog_demo()
+
+        Attributes
+        ----------
+        header : A :class:`~pylinac.log_analyzer.Tlog_Header` or :class:`~pylinac.log_analyzer.Dlog_Header`, depending on the log type.
+        axis_data : :class:`~pylinac.log_analyzer.Tlog_Axis_Data` or :class:`~pylinac.log_analyzer.Dlog_Axis_Data`, depending on the log type.
+        subbeams : list
+            Only applicable for autosequenced trajectory logs. Will contain instances of :class:`~pylinac.log_analyzer.Subbeam`; will be empty if
+            autosequencing was not done.
+        fluence : :class:`~pylinac.log_analyzer.Fluence_Struct`
+            Contains actual and expected fluence data, including gamma.
+        log_type : str
+            The log type loaded; either 'Dynalog' or 'Trajectory log'
+        log_is_loaded : bool
+            Whether a log has yet been loaded.
+        """
+        self._filename = ''
+        self._cursor = 0
+        self.fluence = Fluence_Struct()
+
+        # Read file if passed in
+        if filename is not '':
+            self.load(filename)
+
+    def run_tlog_demo(self):
+        """Run the Trajectory log demo."""
+        self.load_demo_trajectorylog()
+        self.report_basic_parameters()
+        self.plot_all()
+
+    def run_dlog_demo(self):
+        """Run the dynalog demo."""
+        self.load_demo_dynalog()
+        self.report_basic_parameters()
+        self.plot_all()
+
+    def load_demo_dynalog(self, exclude_beam_off=True):
+        """Load the demo dynalog file included with the package."""
+        self._filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'AQA.dlg')
+        self._read_log(exclude_beam_off)
+
+    def load_demo_trajectorylog(self, exclude_beam_off=True):
+        """Load the demo trajectory log included with the package."""
+        filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
+        self.load(filename, exclude_beam_off)
+
+    def load_UI(self, exclude_beam_off=True):
+        """Let user load a log file with a UI dialog box. """
+        filename = io.get_filepath_UI()
+        if filename: # if user didn't hit cancel...
+            self.load(filename, exclude_beam_off)
+
+    @type_accept(filename=str)
+    def load(self, filename, exclude_beam_off=True):
+        """Load the log file directly by passing the path to the file.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the log file.
+
+        exclude_beam_off : boolean
+            If True (default), snapshots where the beam was not on will be removed.
+            If False, all data will be included.
+
+            .. warning::
+                Including beam off data may affect fluence and gamma results. E.g. in a step-&-shoot IMRT
+                delivery, leaves move between segments while the beam is held. If beam-off data is included,
+                the RMS and fluence errors may not correspond to what was delivered.
+        """
+        if is_valid_file(filename, raise_error=True):
+            if self.is_log(filename):
+                self._filename = filename
+                self._read_log(exclude_beam_off)
+            else:
+                raise IOError("File passed is not a valid log file")
+
+    def plot_all(self):
+        """Plot actual & expected fluence, gamma map, gamma histogram,
+            MLC error histogram, and MLC RMS histogram.
+        """
+        if self.fluence.gamma.map_calced:
+            # plot the actual fluence
+            ax = plt.subplot(2, 3, 1)
+            ax.set_title('Actual Fluence', fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            ax.autoscale(tight=True)
+            plt.imshow(self.fluence.actual.pixel_map, aspect='auto')
+
+            # plot the expected fluence
+            ax = plt.subplot(2, 3, 2)
+            ax.set_title("Expected Fluence", fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            plt.imshow(self.fluence.expected.pixel_map, aspect='auto')
+
+            # plot the gamma map
+            gmma = self.fluence.gamma
+            ax = plt.subplot(2, 3, 3)
+            ax.set_title("Gamma Map ({:2.2f}% passing @ {}%/{}mm)".format(gmma.pass_prcnt, gmma.doseTA, gmma.distTA), fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            plt.imshow(self.fluence.gamma.pixel_map, aspect='auto')
+
+            # plot the gamma histogram
+            ax = plt.subplot(2, 3, 4)
+            ax.set_yscale('log')
+            ax.set_title("Gamma Histogram (Avg: {:2.3f})".format(self.fluence.gamma.avg_gamma), fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            plt.hist(self.fluence.gamma.pixel_map.flatten(), self.fluence.gamma.bins)
+
+            # plot the MLC error histogram
+            ax = plt.subplot(2, 3, 5)
+            p95error = self.axis_data.mlc.get_error_percentile()
+            ax.set_title("Leaf Error Histogram (95th Perc: {:2.3f}cm)".format(p95error), fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            plt.hist(self.axis_data.mlc._abs_error_all_leaves.flatten())
+
+            # plot the leaf RMSs
+            ax = plt.subplot(2,3,6)
+            ax.set_title("Leaf RMS Error (Max: {:2.3f}cm)".format(self.axis_data.mlc.get_RMS_max()), fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves+0.5])  # bit of padding since bar chart alignment is center
+            plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both'), align='center')
+
+            plt.show()
+        else:
+            raise AttributeError("Gamma map has not yet been calculated.")
+
+    def report_basic_parameters(self):
+        """Print the common parameters analyzed when investigating machine logs:
+
+        -Log type
+        -Average MLC RMS
+        -Maximum MLC RMS
+        -95th percentile MLC error
+        -Number of beam holdoffs
+        -Gamma pass percentage
+        -Average gamma value
+        """
+        print("MLC log type: " + self.log_type)
+        print("Average RMS of all leaves: {:3.3f} cm".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=True)))
+        print("Max RMS error of all leaves: {:3.3f} cm".format(self.axis_data.mlc.get_RMS_max()))
+        print("95th percentile error: {:3.3f} cm".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=True)))
+        print("Number of beam holdoffs: {:1.0f}".format(self.axis_data.num_beamholds))
+        self.fluence.gamma.calc_map()
+        print("Gamma pass %: {:2.2f}".format(self.fluence.gamma.pass_prcnt))
+        print("Gamma average: {:2.3f}".format(self.fluence.gamma.avg_gamma))
+
+    def is_log(self, filename):
+        """Boolean specifying if filename is a valid log file."""
+        with open(filename, 'rb') as unknown_file:
+            header_sample = unknown_file.read(5).decode()
+            if 'B' in header_sample or 'A' in header_sample:
+                return True
+            elif 'V' in header_sample:
+                return True
+            else:
+                return False
+
+    @property
+    def log_type(self):
+        """Determine the MLC log type: Trajectory or Dynalog.
+
+        The file is opened and sampled of
+        the first few bytes. If the sample matches what is found in standard dynalog or tlog files it will be
+        assigned that log type.
+
+        Returns
+        -------
+        str : {'Dynalog', 'Trajectory Log'}
+
+        Raises
+        ------
+        ValueError : If log type cannot be determined.
+        """
+        with open(self._filename, 'rb') as unknown_file:
+            header_sample = unknown_file.read(5).decode()
+            if 'B' in header_sample or 'A' in header_sample:
+                log_type = log_types['dlog']  # dynalog
+            elif 'V' in header_sample:
+                log_type = log_types['tlog']  # trajectory log
+
+        return log_type
+
+    @property
+    def is_loaded(self):
+        """Boolean specifying if a log has been loaded in yet."""
+        if self._filename == '':
+            return False
+        else:
+            return True
+
+    def _read_log(self, exclude_beam_off):
+        """Read in log based on what type of log it is: Trajectory or Dynalog."""
+        if not self.is_loaded:
+            raise AttributeError('Log file has not been specified. Use load_UI() or load()')
+
+        # read log as appropriate to type
+        if self.log_type == log_types['tlog']:
+            self._read_tlog(exclude_beam_off)
+        elif self.log_type == log_types['dlog']:
+            self._read_dlog(exclude_beam_off)
+
+    def _read_dlog(self, exclude_beam_off):
+        """Read in Dynalog files from .dlg files (which are renamed CSV files).
+        Formatting follows from the Dynalog File Viewer Reference Guide.
+        """
+        # if file is B*.dlg, replace with A*.dlg
+        other_dlg_file = _return_other_dlg(self._filename)
+
+        # create iterator object to read in lines
+        with open(self._filename) as csvf:
+            dlgdata = csv.reader(csvf, delimiter=',')
+            self.header, dlgdata = Dlog_Header(dlgdata)._read()
+            self.axis_data = Dlog_Axis_Data(dlgdata, self.header, other_dlg_file)._read(exclude_beam_off)
+
+        self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
+
+    def _read_tlog(self, exclude_beam_off):
+        """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog v2.0/3.0) log file specifications."""
+        # read in trajectory log binary data
+        fcontent = open(self._filename, 'rb').read()
+
+        # Unpack the content according to respective section and data type (see log specification file).
+        self.header, self._cursor = Tlog_Header(fcontent, self._cursor)._read()
+
+        self.subbeams, self._cursor = Subbeam_Constructor(fcontent, self._cursor, self.header)._read()
+
+        self.axis_data, self._cursor = Tlog_Axis_Data(fcontent, self._cursor, self.header)._read(exclude_beam_off)
+
+        # self.crc = CRC(fcontent, self._cursor).read()
+
+        self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
 
 class Axis:
-    """Represents an 'Axis' of a Trajectory log or dynalog file, holding actual and possibly expected values.
+    """Represents an 'Axis' of a Trajectory log or dynalog file, holding actual and potentially expected and difference values.
 
     Attributes
     ----------
-    See Parameters
+    Parameters are Attributes
     difference : numpy.ndarray
         An array of the difference between actual and expected values.
-
     """
     def __init__(self, actual, expected=None):
         """
@@ -61,6 +329,7 @@ class Axis:
         else:
             raise AttributeError("Expected positions not passed to Axis")
 
+
     def plot_actual(self):
         """Plot the actual positions as a matplotlib figure."""
         plt.plot(self.actual)
@@ -77,24 +346,35 @@ class Axis:
         plt.show()
 
 
-class Leaf_Axis(Axis):
+class _Axis_Moved:
+    @lazyproperty
+    def moved(self):
+        """Return whether the axis moved during treatment."""
+        threshold = 0.003
+        if np.std(self.actual) > threshold:
+            return True
+        else:
+            return False
+
+
+class Leaf_Axis(Axis, _Axis_Moved):
     """Axis holding leaf information."""
     def __init__(self, actual, expected):
         # force expected argument to be supplied
         super().__init__(actual, expected)
 
 
-class Gantry_Axis(Axis):
+class Gantry_Axis(Axis, _Axis_Moved):
     """Axis holding gantry information."""
     pass
 
 
-class Head_Axis(Axis):
+class Head_Axis(Axis, _Axis_Moved):
     """Axis holding head information (e.g. jaw positions, collimator)."""
     pass
 
 
-class Couch_Axis(Axis):
+class Couch_Axis(Axis, _Axis_Moved):
     """Axis holding couch information."""
     pass
 
@@ -109,10 +389,9 @@ class Fluence(metaclass=ABCMeta):
 
     Attributes
     ----------
-    See Parameters
     pixel_map : numpy.ndarray
         An array representing the fluence map; will be num_mlc_pairs-x-400/resolution.
-        E.g., assuming a Millenium 120 MLC model and a fluence resolution of 0.1mm, the resulting
+        E.g., assuming a Millennium 120 MLC model and a fluence resolution of 0.1mm, the resulting
         matrix will be 60-x-4000.
     resolution : int, float
         The resolution of the fluence calculation; -1 means calculation has not been done yet.
@@ -129,9 +408,9 @@ class Fluence(metaclass=ABCMeta):
         mu_axis : Beam_Axis
         jaw_struct : Jaw_Struct
         """
-        self.mlc = mlc_struct
-        self.mu = mu_axis
-        self.jaws = jaw_struct
+        self._mlc = mlc_struct
+        self._mu = mu_axis
+        self._jaws = jaw_struct
 
     @property
     def map_calced(self):
@@ -173,10 +452,10 @@ class Fluence(metaclass=ABCMeta):
         if self.map_calced and self._same_conditions(resolution):
             return self.pixel_map
         # preallocate arrays for expected and actual fluence of number of leaf pairs-x-4000 (40cm = 4000um, etc)
-        fluence = np.zeros((self.mlc.num_pairs, 400 / resolution), dtype=float)
+        fluence = np.zeros((self._mlc.num_pairs, 400 / resolution), dtype=float)
 
         # calculate the MU delivered in each snapshot. For Tlogs this is absolute; for dynalogs it's normalized.
-        mu_matrix = getattr(self.mu, self._fluence_type)
+        mu_matrix = getattr(self._mu, self._fluence_type)
         MU_differential = np.zeros(len(mu_matrix))
         MU_differential[0] = mu_matrix[0]
         MU_differential[1:] = np.diff(mu_matrix)
@@ -186,19 +465,19 @@ class Fluence(metaclass=ABCMeta):
         # calculate each "line" of fluence (the fluence of an MLC leaf pair, e.g. 1 & 61, 2 & 62, etc),
         # and add each "line" to the total fluence matrix
         fluence_line = np.zeros((400 / resolution))
-        leaf_offset = self.mlc.num_pairs
+        leaf_offset = self._mlc.num_pairs
         pos_offset = int(np.round(200 / resolution))
-        for pair in range(1, self.mlc.num_pairs + 1):
-            if not self.mlc.leaf_under_y_jaw(pair):
+        for pair in range(1, self._mlc.num_pairs + 1):
+            if not self._mlc.leaf_under_y_jaw(pair):
                 fluence_line[:] = 0  # emtpy the line values on each new leaf pair
-                left_leaf_data = getattr(self.mlc.leaf_axes[pair], self._fluence_type)
+                left_leaf_data = getattr(self._mlc.leaf_axes[pair], self._fluence_type)
                 left_leaf_data = -np.round(left_leaf_data * 10 / resolution) + pos_offset
-                right_leaf_data = getattr(self.mlc.leaf_axes[pair + leaf_offset], self._fluence_type)
+                right_leaf_data = getattr(self._mlc.leaf_axes[pair + leaf_offset], self._fluence_type)
                 right_leaf_data = np.round(right_leaf_data * 10 / resolution) + pos_offset
-                left_jaw_data = np.round((200 / resolution) - (self.jaws.x1.actual * 10 / resolution))
-                right_jaw_data = np.round((self.jaws.x2.actual * 10 / resolution) + (200 / resolution))
-                if self.mlc.pair_moved(pair):
-                    for snapshot in self.mlc.snapshot_idx:
+                left_jaw_data = np.round((200 / resolution) - (self._jaws.x1.actual * 10 / resolution))
+                right_jaw_data = np.round((self._jaws.x2.actual * 10 / resolution) + (200 / resolution))
+                if self._mlc.pair_moved(pair):
+                    for snapshot in self._mlc.snapshot_idx:
                         lt_mlc_pos = left_leaf_data[snapshot]
                         rt_mlc_pos = right_leaf_data[snapshot]
                         lt_jaw_pos = left_jaw_data[snapshot]
@@ -207,7 +486,7 @@ class Fluence(metaclass=ABCMeta):
                         right_edge = min(rt_mlc_pos, rt_jaw_pos)
                         fluence_line[left_edge:right_edge] += MU_differential[snapshot]
                 else:  # leaf didn't move; no need to calc over every snapshot
-                    first_snapshot = self.mlc.snapshot_idx[0]
+                    first_snapshot = self._mlc.snapshot_idx[0]
                     lt_mlc_pos = left_leaf_data[first_snapshot]
                     rt_mlc_pos = right_leaf_data[first_snapshot]
                     lt_jaw_pos = left_jaw_data.min()
@@ -222,19 +501,11 @@ class Fluence(metaclass=ABCMeta):
         return fluence
 
     def plot_map(self):
-        """Plot the fluence; the pixel map must have been calculated first."""
+        """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         if not self.map_calced:
             raise AttributeError("Map not yet calculated; use calc_map()")
         plt.imshow(self.pixel_map, aspect='auto')
         plt.show()
-
-    def _zeroize_under_jaws(self, fluence):
-        """Zero the fluence under the jaws.
-
-        E.g. an MLC pair could be tucked under the jaws, and thus the fluence between tips should
-        be excluded from fluence calculations since the jaw blocked it.
-        """
-        pass
 
 
 class ActualFluence(Fluence):
@@ -288,9 +559,9 @@ class GammaFluence(Fluence):
         mlc_struct : MLC_Struct
             The MLC structure, so fluence can be calculated from leaf positions.
         """
-        self.actual_fluence = actual_fluence
-        self.expected_fluence = expected_fluence
-        self.mlc = mlc_struct
+        self._actual_fluence = actual_fluence
+        self._expected_fluence = expected_fluence
+        self._mlc = mlc_struct
 
     def _same_conditions(self, doseTA, distTA, threshold, resolution):
         """Determine if the passed conditions are the same as the existing ones.
@@ -314,7 +585,7 @@ class GammaFluence(Fluence):
         DoseTA : int, float
             Dose-to-agreement in percent; e.g. 2 is 2%.
         DistTA : int, float
-            Distance-to-agreement in mm
+            Distance-to-agreement in mm.
         threshold : int, float
             The dose threshold percentage of the maximum dose, below which is not analyzed.
         resolution : int, float
@@ -333,13 +604,13 @@ class GammaFluence(Fluence):
             return self.pixel_map
 
         # calc fluences if need be
-        if not self.actual_fluence.map_calced or resolution != self.actual_fluence.resolution:
-            self.actual_fluence.calc_map(resolution)
-        if not self.expected_fluence.map_calced or resolution != self.expected_fluence.resolution:
-            self.expected_fluence.calc_map(resolution)
+        if not self._actual_fluence.map_calced or resolution != self._actual_fluence.resolution:
+            self._actual_fluence.calc_map(resolution)
+        if not self._expected_fluence.map_calced or resolution != self._expected_fluence.resolution:
+            self._expected_fluence.calc_map(resolution)
 
-        actual = copy.copy(self.actual_fluence.pixel_map)
-        expected = copy.copy(self.expected_fluence.pixel_map)
+        actual = copy.copy(self._actual_fluence.pixel_map)
+        expected = copy.copy(self._expected_fluence.pixel_map)
 
         # set dose values below threshold to 0 so gamma doesn't calculate over it
         actual[actual < (threshold / 100) * np.max(actual)] = 0
@@ -352,7 +623,7 @@ class GammaFluence(Fluence):
         img_x = spf.sobel(actual, 1)
 
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
-        for leaf in range(self.mlc.num_pairs):
+        for leaf in range(self._mlc.num_pairs):
             gamma_map[leaf] = np.abs(actual[leaf, :] - expected[leaf, :]) / np.sqrt(
                 (doseTA / 100.0 ** 2) + ((distTA / resolution ** 2) * (img_x[leaf, :] ** 2)))
         # construct binary pass/fail map
@@ -382,35 +653,69 @@ class GammaFluence(Fluence):
         self.pixel_map = gamma_map
         return gamma_map
 
-    @lazyproperty
-    def histogram(self):
-        """Return a histogram array of the gamma map values."""
+    def histogram(self, bins=None):
+        """Return a histogram array and bin edge array of the gamma map values.
+
+        Parameters
+        ----------
+        bins : sequence
+            The bin edges for the gamma histogram; see numpy.histogram for more info.
+
+        Returns
+        -------
+        histogram : numpy.ndarray
+            A 1D histogram of the gamma values.
+        bin_edges : numpy.ndarray
+            A 1D array of the bin edges. If left as None, the class default will be used (self.bins).
+        """
         if self.map_calced:
-            hist_arr, bin_edges = np.histogram(self.pixel_map, bins=self.bins)
-            return hist_arr
+            if bins is None:
+                bins = self.bins
+            hist_arr, bin_edges = np.histogram(self.pixel_map, bins=bins)
+            return hist_arr, bin_edges
         else:
             raise AttributeError("Gamma map not yet calculated")
 
-    def plot_histogram(self, scale='log'):
+    def plot_histogram(self, scale='log', bins=None):
         """Plot a histogram of the gamma map values.
 
         Parameters
         ----------
         scale : {'log', 'linear'}
             Scale of the plot y-axis.
+        bins : sequence
+            The bin edges for the gamma histogram; see numpy.histogram for more info.
         """
-        ax = plt.hist(self.pixel_map.flatten(), self.bins)
-        ax.set_yscale(scale)
-        plt.show()
+        if self.map_calced:
+            if bins is None:
+                bins = self.bins
+            ax = plt.hist(self.pixel_map.flatten(), bins=bins)
+            ax.set_yscale(scale)
+            plt.show()
+        else:
+            raise AttributeError("Map not yet calculated; use calc_map()")
 
     def plot_passfail_map(self):
         """Plot the binary gamma map, only showing whether pixels passed or failed."""
-        plt.imshow(self.passfail_map)
-        plt.show()
+        if self.map_calced:
+            plt.imshow(self.passfail_map)
+            plt.show()
+        else:
+            raise AttributeError("Map not yet calculated; use calc_map()")
 
 
 class Fluence_Struct:
-    """Structure for data and methods having to do with fluences."""
+    """Structure for data and methods having to do with fluences.
+
+    Attributes
+    ----------
+    actual : :class:`~pylinac.log_analyzer.Fluence`
+        The actual fluence delivered.
+    expected : :class:`~pylinac.log_analyzer.Fluence`
+        The expected, or planned, fluence.
+    gamma : :class:`~pylinac.log_analyzer.GammaFluence`
+        The gamma structure regarding the actual and expected fluences.
+    """
     def __init__(self, mlc_struct=None, mu_axis=None, jaw_struct=None):
         self.actual = ActualFluence(mlc_struct, mu_axis, jaw_struct)
         self.expected = ExpectedFluence(mlc_struct, mu_axis, jaw_struct)
@@ -427,29 +732,21 @@ class MLC:
             The snapshots to be considered for RMS and error calculations (can be all snapshots or just when beam was on).
         jaw_struct : Jaw_Struct
         HDMLC : boolean
-            If False (default), indicates a regular MLC model (e.g. Millenium 120).
-            If True, indicates an HD MLC model (e.g. Millenium 120 HD).
+            If False (default), indicates a regular MLC model (e.g. Millennium 120).
+            If True, indicates an HD MLC model (e.g. Millennium 120 HD).
+
+        Attributes
+        ----------
+        leaf_axes : dict containing :class:`~pylinac.log_analyzer.Axis`
+            The dictionary is keyed by the leaf number, with the Axis as the value.
+
+            .. warning:: Leaf numbers are 1-index based to correspond with Varian convention.
         """
         super().__init__()
         self.leaf_axes = {}
         self.snapshot_idx = snapshot_idx
-        self.jaws = jaw_struct
+        self._jaws = jaw_struct
         self.hdmlc = HDMLC
-
-    @type_accept(leaf_axis=Leaf_Axis, leaf_num=int)
-    def add_leaf_axis(self, leaf_axis, leaf_num):
-        """Add a leaf axis to the MLC data structure.
-
-        Parameters
-        ----------
-        leaf_axis : Leaf_Axis
-            The leaf axis to be added.
-        leaf_num : int
-            The leaf number.
-
-            .. warning:: Leaf numbers are 1-index based to correspond with Varian convention.
-        """
-        self.leaf_axes[leaf_num] = leaf_axis
 
     @property
     def num_pairs(self):
@@ -467,9 +764,14 @@ class MLC:
 
         .. warning::
             This number may not be the same as the number of recorded snapshots in the log
-            since the snapshots where the beam was off may not be included.
+            since the snapshots where the beam was off may not be included. See :method:`MachineLog.load`
         """
         return len(self.snapshot_idx)
+
+    @lazyproperty
+    def num_moving_leaves(self):
+        """Return the number of leaves that moved."""
+        return len(self.moving_leaves)
 
     @lazyproperty
     def moving_leaves(self):
@@ -482,6 +784,21 @@ class MLC:
                 indices += (leaf_num,)
         return np.array(indices)
 
+    @type_accept(leaf_axis=Leaf_Axis, leaf_num=int)
+    def add_leaf_axis(self, leaf_axis, leaf_num):
+        """Add a leaf axis to the MLC data structure.
+
+        Parameters
+        ----------
+        leaf_axis : Leaf_Axis
+            The leaf axis to be added.
+        leaf_num : int
+            The leaf number.
+
+            .. warning:: Leaf numbers are 1-index based to correspond with Varian convention.
+        """
+        self.leaf_axes[leaf_num] = leaf_axis
+
     def leaf_moved(self, leaf_num):
         """Return whether the given leaf moved during treatment.
 
@@ -489,7 +806,8 @@ class MLC:
         ----------
         leaf_num : int
 
-            .. warning:: Leaf numbers are 1-index based to correspond with Varian convention.
+
+        .. warning:: Leaf numbers are 1-index based to correspond with Varian convention.
         """
         if leaf_num in self.moving_leaves:
             return True
@@ -504,7 +822,9 @@ class MLC:
         Parameters
         ----------
         pair_num : int
-            .. warning:: Pair numbers are 1-index based to correspond with Varian convention.
+
+
+        .. warning:: Pair numbers are 1-index based to correspond with Varian convention.
         """
         a_leaf = pair_num
         b_leaf = pair_num + self.num_pairs
@@ -542,27 +862,19 @@ class MLC:
         rms_array = self.create_RMS_array(leaves)
         return np.mean(rms_array)
 
-    def get_RMS_max(self, bank='both', only_moving_leaves=False):
+    def get_RMS_max(self, bank='both'):
         """Return the overall maximum RMS of given leaves.
 
         Parameters
         ----------
         bank : {'A', 'B', 'both'}
             Specifies which bank(s) is desired.
-        only_moving_leaves : boolean
-            If False (default), include all the leaves.
-            If True, will remove the leaves that were static during treatment.
-
-            .. warning::
-                The RMS and error will nearly always be lower if all leaves are included since non-moving leaves
-                have an error of 0 and will drive down the average values. Convention would include all leaves,
-                but prudence would use only the moving leaves to get a more accurate assessment of error/RMS.
 
         Returns
         -------
         float
         """
-        leaves = self.get_leaves(bank, only_moving_leaves)
+        leaves = self.get_leaves(bank)
         rms_array = self.create_RMS_array(leaves)
         return np.max(rms_array)
 
@@ -713,25 +1025,11 @@ class MLC:
             mlc_error[leaf, :] = self.leaf_axes[leaf+1].difference[self.snapshot_idx]
         return mlc_error
 
-    # @lazyproperty
-    # def _error_array_moving_leaves(self):
-    #     """Return an error array only for leaves that moved."""
-    #     moving_leaves = self.moving_leaves
-    #     error_array = self._error_array_all_leaves
-    #     return error_array[moving_leaves, :]
-
     @lazyproperty
     def _RMS_array_all_leaves(self):
         """Return the RMS of all leaves."""
         rms_array = np.array([np.sqrt(np.sum(leafdata.difference[self.snapshot_idx] ** 2) / self.num_snapshots) for leafdata in self.leaf_axes.values()])
         return rms_array
-
-    # @lazyproperty
-    # def _RMS_array_moving_leaves(self):
-    #     """Return an array of RMS of only the moving leaves."""
-    #     moving_leaves = self.moving_leaves
-    #     rms_array = self._RMS_array_all_leaves
-    #     return rms_array[moving_leaves, :]
 
     def leaf_under_y_jaw(self, leaf_num):
         """Return a boolean specifying if the given leaf is under one of the y jaws.
@@ -755,8 +1053,8 @@ class MLC:
             else:  # between 50 and 70
                 mlc_position += outer_leaf_thickness
 
-        y2_position = self.jaws.y2.actual.max()*10 + 200
-        y1_position = 200 - self.jaws.y1.actual.max()*10
+        y2_position = self._jaws.y2.actual.max()*10 + 200
+        y1_position = 200 - self._jaws.y1.actual.max()*10
         if 10 >= leaf or leaf >= 110:
             thickness = outer_leaf_thickness
         elif 50 >= leaf or leaf >= 70:
@@ -768,24 +1066,17 @@ class MLC:
         else:
             return False
 
-    # def leaf_is_under_x_jaw(self, leaf_num):
-    #     """Return a boolean specifying if the given leaf is under one of the x jaws."""
-        # raise NotImplementedError()
-        # most_retracted_leaf_position = np.max(self.leaf_axes[leaf_num].actual)
-        # most_extended_leaf_position = np.min(self.leaf_axes[leaf_num].actual)
-        #
-        # x2_position = self.jaws.x2.actual[0] * 10 + 200
-        # x1_position = 200 - self.jaws.x1.actual[0] * 10
-        #
-        #
-        # if most_retracted_leaf_position < x1_position:
-        #     return False
-        # else:
-        #     return True
-
 
 class Jaw_Struct:
-    """Jaw Axes data structure, holding jaw HeadAxes instances."""
+    """Jaw Axes data structure.
+
+    Attributes
+    ----------
+    x1 : :class:`~pylinac.log_analyzer.Axis`
+    y1 : :class:`~pylinac.log_analyzer.Axis`
+    x2 : :class:`~pylinac.log_analyzer.Axis`
+    y2 : :class:`~pylinac.log_analyzer.Axis`
+    """
     def __init__(self, x1, y1, x2, y2):
         if not all((
                 isinstance(x1, Head_Axis),
@@ -798,8 +1089,17 @@ class Jaw_Struct:
         self.x2 = x2
         self.y2 = y2
 
+
 class Couch_Struct:
-    """Couch Axes data structure, holding Couch_Axis instances."""
+    """Couch Axes data structure.
+
+    Attributes
+    ----------
+    vert : :class:`~pylinac.log_analyzer.Axis`
+    long : :class:`~pylinac.log_analyzer.Axis`
+    latl : :class:`~pylinac.log_analyzer.Axis`
+    rotn : :class:`~pylinac.log_analyzer.Axis`
+    """
     def __init__(self, vertical, longitudinal, lateral, rotational):
         if not all((isinstance(vertical, Couch_Axis),
                     isinstance(longitudinal, Couch_Axis),
@@ -814,18 +1114,18 @@ class Couch_Struct:
 
 class Log_Section(metaclass=ABCMeta):
     @abstractproperty
-    def read(self):
+    def _read(self):
         pass
 
 
 class DLog_Section(Log_Section, metaclass=ABCMeta):
     def __init__(self, log_content):
-        self.log_content = log_content
+        self._log_content = log_content
 
 
 class TLog_Section(Log_Section, metaclass=ABCMeta):
     def __init__(self, log_content, cursor):
-        self.log_content = log_content
+        self._log_content = log_content
         self._cursor = cursor
 
     def _decode_binary(self, filecontents, dtype, num_values=1, cursor_shift=0):
@@ -871,23 +1171,37 @@ class TLog_Section(Log_Section, metaclass=ABCMeta):
 
 
 class Subbeam(TLog_Section):
-    """Data structure for trajectory log "subbeams". Only applicable for auto-sequenced beams."""
+    """Data structure for trajectory log "subbeams". Only applicable for auto-sequenced beams.
+
+    Attributes
+    ----------
+    control_point : int
+        Internally-defined marker that defines where the plan is currently executing.
+    mu_delivered : float
+        Dose delivered in units of MU.
+    rad_time : float
+        Radiation time in seconds.
+    sequence_num : int
+        Sequence number of the subbeam.
+    beam_name : str
+        Name of the subbeam.
+    """
     def __init__(self, log_content, cursor, log_version):
         super().__init__(log_content, cursor)
-        self.log_version = log_version
+        self._log_version = log_version
 
-    def read(self):
+    def _read(self):
         """Read the tlog subbeam information."""
-        self.control_point = self._decode_binary(self.log_content, int)
-        self.mu_delivered = self._decode_binary(self.log_content, float)
-        self.rad_time = self._decode_binary(self.log_content, float)
-        self.sequence_num = self._decode_binary(self.log_content, int)
+        self.control_point = self._decode_binary(self._log_content, int)
+        self.mu_delivered = self._decode_binary(self._log_content, float)
+        self.rad_time = self._decode_binary(self._log_content, float)
+        self.sequence_num = self._decode_binary(self._log_content, int)
         # In Tlogs version 3.0 and up, beam names are 512 byte unicode strings, but in <3.0 they are 32 byte unicode strings
-        if self.log_version >= 3:
+        if self._log_version >= 3:
             chars = 512
         else:
             chars = 32
-        self.beam_name = self._decode_binary(self.log_content, str, chars, 32)
+        self.beam_name = self._decode_binary(self._log_content, str, chars, 32)
 
         return self, self._cursor
 
@@ -899,7 +1213,7 @@ class Subbeam_Constructor:
         self._header = header
         self._cursor = cursor
 
-    def read(self):
+    def _read(self):
         """Read all the subbeams of a tlog file.
 
         Returns
@@ -912,56 +1226,56 @@ class Subbeam_Constructor:
         subbeams = []
         if self._header.num_subbeams > 0:
             for subbeam_num in range(self._header.num_subbeams):
-                subbeam, self._cursor = Subbeam(self._log_content, self._cursor, self._header.version).read()
+                subbeam, self._cursor = Subbeam(self._log_content, self._cursor, self._header.version)._read()
                 subbeams.append(subbeam)
         return subbeams, self._cursor
 
 
 class Tlog_Header(TLog_Section):
     """A header object, one of 4 sections of a trajectory log. Holds sampling interval, version, etc."""
-    def read(self):
+    def _read(self):
         """Read the header section of a tlog."""
-        self.header = self._decode_binary(self.log_content, str, 16)  # for version 1.5 will be "VOSTL"
-        self.version = float(self._decode_binary(self.log_content, str, 16))  # in the format of 2.x or 3.x
-        self.header_size = self._decode_binary(self.log_content, int)  # fixed at 1024 in 1.5 specs
-        self.sampling_interval = self._decode_binary(self.log_content, int)
-        self.num_axes = self._decode_binary(self.log_content, int)
-        self.axis_enum = self._decode_binary(self.log_content, int, self.num_axes)
-        self.samples_per_axis = self._decode_binary(self.log_content, int, self.num_axes)
+        self.header = self._decode_binary(self._log_content, str, 16)  # for version 1.5 will be "VOSTL"
+        self.version = float(self._decode_binary(self._log_content, str, 16))  # in the format of 2.x or 3.x
+        self.header_size = self._decode_binary(self._log_content, int)  # fixed at 1024 in 1.5 specs
+        self.sampling_interval = self._decode_binary(self._log_content, int)
+        self.num_axes = self._decode_binary(self._log_content, int)
+        self.axis_enum = self._decode_binary(self._log_content, int, self.num_axes)
+        self.samples_per_axis = self._decode_binary(self._log_content, int, self.num_axes)
         self.num_mlc_leaves = self.samples_per_axis[-1] - 2  # subtract 2 (each carriage counts as an "axis" and must be removed)
         # self._cursor == self.num_axes * 4 # there is a reserved section after samples per axis. this moves it past it.
-        self.clinac_scale = self._decode_binary(self.log_content, int)
-        self.num_subbeams = self._decode_binary(self.log_content, int)
-        self.is_truncated = self._decode_binary(self.log_content, int)
-        self.num_snapshots = self._decode_binary(self.log_content, int)
+        self.clinac_scale = self._decode_binary(self._log_content, int)
+        self.num_subbeams = self._decode_binary(self._log_content, int)
+        self.is_truncated = self._decode_binary(self._log_content, int)
+        self.num_snapshots = self._decode_binary(self._log_content, int)
         # the section after MLC model is reserved. Cursor is moved to the end of this reserved section.
-        self.mlc_model = self._decode_binary(self.log_content, int, cursor_shift=1024 - (64 + self.num_axes * 8))
+        self.mlc_model = self._decode_binary(self._log_content, int, cursor_shift=1024 - (64 + self.num_axes * 8))
 
         return self, self._cursor
 
 
 class Dlog_Header(DLog_Section):
     """The Header section of a dynalog file."""
-    def read(self):
+    def _read(self):
         """Read the header section of a dynalog."""
-        self.version = next(self.log_content)
-        self.patient_name = next(self.log_content)
-        self.plan_filename = next(self.log_content)
-        self.tolerance = int(next(self.log_content)[0])
+        self.version = next(self._log_content)
+        self.patient_name = next(self._log_content)
+        self.plan_filename = next(self._log_content)
+        self.tolerance = int(next(self._log_content)[0])
         self.num_mlc_leaves = int(
-            next(self.log_content)[0]) * 2  # the # of leaves in a dynalog is actually the # of *PAIRS*, hence the *2.
-        self.clinac_scale = next(self.log_content)  # 0->Varian scale, 1->IEC scale
-        return self, self.log_content
+            next(self._log_content)[0]) * 2  # the # of leaves in a dynalog is actually the # of *PAIRS*, hence the *2.
+        self.clinac_scale = next(self._log_content)  # 0->Varian scale, 1->IEC scale
+        return self, self._log_content
 
 
 class Dlog_Axis_Data(DLog_Section):
     """Axis data for dynalogs."""
     def __init__(self, log_content, header, bfile):
         super().__init__(log_content)
-        self.header = header
-        self.bfile = bfile
+        self._header = header
+        self._bfile = bfile
 
-    def read(self, exclude_beam_off=True):
+    def _read(self, exclude_beam_off):
         """Read the dynalog axis data.
 
         Parameters
@@ -973,7 +1287,7 @@ class Dlog_Axis_Data(DLog_Section):
             .. warning:: If all data is included, RMS and error calculations may be affected, since they will include
                 snapshots when beam holds were asserted (e.g. moving between steps of a step-&-shoot IMRT plan).
         """
-        matrix = np.array([line for line in self.log_content], dtype=float)
+        matrix = np.array([line for line in self._log_content], dtype=float)
 
         self.num_snapshots = np.size(matrix, 0)
 
@@ -985,8 +1299,8 @@ class Dlog_Axis_Data(DLog_Section):
         self.beam_on = Axis(matrix[:, 3])
         self.prior_dose_idx = Axis(matrix[:, 4])  # currently not used for anything
         self.next_dose_idx = Axis(matrix[:, 5])  # ditto
-        self.gantry = Gantry_Axis(matrix[:, 6])
-        self.collimator = Head_Axis(matrix[:, 7])
+        self.gantry = Gantry_Axis(matrix[:, 6] /10)
+        self.collimator = Head_Axis(matrix[:, 7] /10)
 
         # jaws are in mm; convert to cm by /10
         jaw_y1 = Head_Axis(matrix[:, 8] / 10)
@@ -1008,20 +1322,20 @@ class Dlog_Axis_Data(DLog_Section):
             snapshots = list(range(self.num_snapshots))
 
         self.mlc = MLC(snapshots, self.jaws)
-        for leaf in range(1, (self.header.num_mlc_leaves // 2) + 1):
+        for leaf in range(1, (self._header.num_mlc_leaves // 2) + 1):
             axis = Leaf_Axis(expected=matrix[:, (leaf-1)*4+14], actual=matrix[:, (leaf-1)*4+15])
             self.mlc.add_leaf_axis(axis, leaf)
 
         # read in "B"-file to get bank B MLC positions. The file must be in the same folder as the "A"-file.
         # The header info is repeated but we already have that.
-        with open(self.bfile) as csvf:
+        with open(self._bfile) as csvf:
             dlgdata = csv.reader(csvf, delimiter=',')
             matrix = np.array([line for line in dlgdata if int(dlgdata.line_num) >= 7], dtype=float)
 
         # Add bank B MLC positions to mlc snapshot arrays
-        for leaf in range(1, (self.header.num_mlc_leaves // 2) + 1):
+        for leaf in range(1, (self._header.num_mlc_leaves // 2) + 1):
             axis = Leaf_Axis(expected=matrix[:, (leaf-1)*4 + 14], actual=matrix[:, (leaf-1)*4 + 15])
-            self.mlc.add_leaf_axis(axis, leaf+self.header.num_mlc_leaves//2)
+            self.mlc.add_leaf_axis(axis, leaf+self._header.num_mlc_leaves//2)
 
         self._scale_dlog_mlc_pos()
         return self
@@ -1040,53 +1354,60 @@ class Dlog_Axis_Data(DLog_Section):
         num_holds = int(np.sum(diffmatrix == 1))
         return num_holds
 
+
 class Tlog_Axis_Data(TLog_Section):
-    """One of four data structures outline in the Trajectory log file specification.
-        Holds information on all Axes measured, like MU, gantry position, and MLC leaf positions."""
+    """One of four data structures outlined in the Trajectory log file specification.
+        Holds information on all Axes measured.
+
+    Attributes
+    ----------
+    collimator : :class:`~pylinac.log_analyzer.Axis`
+    gantry : :class:`~pylinac.log_analyzer.Axis`
+    jaws : :class:`~pylinac.log_analyzer.Jaw_Struct`
+    couch : :class:`~pylinac.log_analyzer.Couch_Struct`
+    mu : :class:`~pylinac.log_analyzer.Axis`
+    beam_hold : :class:`~pylinac.log_analyzer.Axis`
+    control_point : :class:`~pylinac.log_analyzer.Axis`
+    carriage_A : :class:`~pylinac.log_analyzer.Axis`
+    carriage_B : :class:`~pylinac.log_analyzer.Axis`
+    mlc : :class:`~pylinac.log_analyzer.MLC`
+    """
     def __init__(self, log_content, cursor, header):
         super().__init__(log_content, cursor)
         self._header = header
 
-    def read(self, exclude_beam_off=True):
+    def _read(self, exclude_beam_off):
         # step size in bytes
         step_size = sum(self._header.samples_per_axis) * 2
 
         # read in all snapshot data at once, then assign
-        snapshot_data = self._decode_binary(self.log_content, float, step_size * self._header.num_snapshots)
+        snapshot_data = self._decode_binary(self._log_content, float, step_size * self._header.num_snapshots)
 
         # reshape snapshot data to be a x-by-num_snapshots matrix
         snapshot_data = snapshot_data.reshape(self._header.num_snapshots, -1)
 
-        # collimator
         self.collimator = self._get_axis(snapshot_data, 0, Head_Axis)
 
-        # gantry
         self.gantry = self._get_axis(snapshot_data, 2, Gantry_Axis)
 
-        # jaws
         jaw_y1 = self._get_axis(snapshot_data, 4, Head_Axis)
         jaw_y2 = self._get_axis(snapshot_data, 6, Head_Axis)
         jaw_x1 = self._get_axis(snapshot_data, 8, Head_Axis)
         jaw_x2 = self._get_axis(snapshot_data, 10, Head_Axis)
         self.jaws = Jaw_Struct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
 
-        # couch
         vrt = self._get_axis(snapshot_data, 12, Couch_Axis)
         lng = self._get_axis(snapshot_data, 14, Couch_Axis)
         lat = self._get_axis(snapshot_data, 16, Couch_Axis)
         rtn = self._get_axis(snapshot_data, 18, Couch_Axis)
         self.couch = Couch_Struct(vrt, lng, lat, rtn)
 
-        # MU
         self.mu = self._get_axis(snapshot_data, 20, Beam_Axis)
 
-        # beam hold state
         self.beam_hold = self._get_axis(snapshot_data, 22, Beam_Axis)
 
-        # control point
         self.control_point = self._get_axis(snapshot_data, 24, Beam_Axis)
 
-        # carriages
         self.carriage_A = self._get_axis(snapshot_data, 26, Head_Axis)
         self.carriage_B = self._get_axis(snapshot_data, 28, Head_Axis)
 
@@ -1141,259 +1462,27 @@ class CRC(TLog_Section):
     def __init__(self, log_content, cursor):
         super().__init__(log_content, cursor)
 
-    def read(self):
+    def _read(self):
         # crc = self._decode_binary(self.log_content, str, 2)
         # TODO: figure this out
         pass
 
 
-class MachineLog:
-    """Reads in and analyzes MLC log files, both dynalog and trajectory logs, from Varian linear accelerators.
+def _return_other_dlg(dlg_filename):
+    """Return the filename of the corresponding dynalog file.
 
-    Attributes
+    For example, if the A*.dlg file was passed in, return the corresponding B*.dlg filename.
+    Can find both A- and B-files.
+
+    Parameters
     ----------
-    header : :class:`Tlog_Header` or :class:`Dlog_header`, depending on the log type.
-    axis_data : :class:`Tlog_Axis_Data` or :class:`Dlog_Axis_Data`, depending on the log type.
-    subbeams : list
-        Only applicable for autosequenced trajectory logs. Will contain instances of :class:`Subbeam`; will be empty if
-        autosequencing was not done.
-    fluence : :class:`Fluence_Struct`
-        Contains actual and expected fluence data, including gamma.
-    log_type : str
-        The log type loaded; either 'Dynalog' or 'Trajectory log'
-    log_is_loaded : bool
-        Whether a log has yet been loaded.
-    """
-    @type_accept(filename=str)
-    def __init__(self, filename=''):
-        """
-        Parameters
-        ----------
-        filename : str
-            Path to the log file. For trajectory logs this is a single .bin file.
-            For dynalog files this should be the A-file. The B-file will be automatically pulled when A is read in.
-            The B-file must be in the same directory as the A-file or an error is thrown.
-            If filename is not passed in on init, it will need to be loaded later.
-        """
-        self._filename = ''
-        self._cursor = 0
-        self.fluence = Fluence_Struct()
+    dlg_filename : str
+        The absolute file path of the dynalog file.
 
-        # Read file if passed in
-        if filename is not '':
-            self.load(filename)
-
-    def run_tlog_demo(self):
-        """Run the Trajectory log demo."""
-        self.load_demo_trajectorylog()
-        self.report_basic_parameters()
-        self.plot_all()
-
-    def run_dlog_demo(self):
-        """Run the dynalog demo."""
-        self.load_demo_dynalog()
-        self.report_basic_parameters()
-        self.plot_all()
-
-    def load_demo_dynalog(self, exclude_beam_off=True):
-        """Load the demo dynalog file included with the package."""
-        self._filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'AQA.dlg')
-        # self._filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'A20140210084210_Anonymized.dlg')
-        self._read_log(exclude_beam_off)
-
-    def load_demo_trajectorylog(self, exclude_beam_off=True):
-        """Load the demo trajectory log included with the package."""
-        self._filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
-        self._read_log(exclude_beam_off)
-
-    def load_UI(self):
-        """Let user load a log file with a UI dialog box. """
-        filename = io.get_filepath_UI()
-        if filename: # if user didn't hit cancel...
-            self._filename = filename
-            self._read_log()
-
-    @type_accept(filename=str)
-    def load(self, filename, exclude_beam_off=True):
-        """Load the log file directly by passing the path to the file.
-
-        Parameters
-        ----------
-        filename : str
-            The path to the log file.
-        """
-        if is_valid_file(filename, raise_error=True):
-            if self.is_log(filename):
-                self._filename = filename
-                self._read_log(exclude_beam_off)
-            else:
-                raise IOError("File passed is not a valid log file")
-
-    def plot_all(self):
-        """Plot actual & expected fluence, gamma map, gamma histogram,
-            MLC error histogram, and MLC RMS histogram.
-        """
-        if self.fluence.gamma.map_calced:
-            # plot the actual fluence
-            ax = plt.subplot(2, 3, 1)
-            ax.set_title('Actual Fluence')
-            plt.imshow(self.fluence.actual.pixel_map, aspect='auto')
-
-            # plot the expected fluence
-            ax = plt.subplot(2, 3, 2)
-            ax.set_title("Expected Fluence")
-            plt.imshow(self.fluence.expected.pixel_map, aspect='auto')
-
-            # plot the gamma map
-            ax = plt.subplot(2, 3, 3)
-            ax.set_title("Gamma Map")
-            plt.imshow(self.fluence.gamma.pixel_map, aspect='auto')
-
-            # plot the gamma histogram
-            ax = plt.subplot(2, 3, 4)
-            ax.set_yscale('log')
-            ax.set_title("Gamma Histogram")
-            plt.hist(self.fluence.gamma.pixel_map.flatten(), self.fluence.gamma.bins)
-
-            # plot the MLC error histogram
-            ax = plt.subplot(2, 3, 5)
-            p95error = self.axis_data.mlc.get_error_percentile()
-            ax.set_title("Leaf Error Histogram (95th Perc: {:2.3f}mm)".format(p95error))
-            plt.hist(self.axis_data.mlc._abs_error_all_leaves.flatten())
-
-            # plot the leaf RMSs
-            ax = plt.subplot(2,3,6)
-            ax.set_title("Leaf RMS Error")
-            ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves+0.5])  # bit of padding since bar chart alignment is center
-            plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both'), align='center')
-
-            plt.show()
-        else:
-            raise AttributeError("Gamma map has not yet been calculated.")
-
-    def report_basic_parameters(self):
-        """Print the common parameters analyzed when investigating machine logs:
-
-        -Log type
-        -Average MLC RMS
-        -Maximum MLC RMS
-        -95th percentile MLC error
-        -Mumber of beam holdoffs
-        -Gamma pass percentage
-        -Average gamma value
-        """
-        print("MLC log type: " + self.log_type)
-        print("Average RMS of all leaves: {:3.3f} mm".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=True)))
-        print("Max RMS error of all leaves: {:3.3f} mm".format(self.axis_data.mlc.get_RMS_max(only_moving_leaves=True)))
-        print("95th percentile error: {:3.3f} mm".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=True)))
-        print("Number of beam holdoffs: {:1.0f}".format(self.axis_data.num_beamholds))
-        self.fluence.gamma.calc_map()
-        print("Gamma pass %: {:2.2f}".format(self.fluence.gamma.pass_prcnt))
-        print("Gamma average: {:2.3f}".format(self.fluence.gamma.avg_gamma))
-
-    def is_log(self, filename):
-        """Boolean specifying if filename is a valid log file."""
-        with open(filename, 'rb') as unknown_file:
-            header_sample = unknown_file.read(5).decode()
-            if 'B' in header_sample or 'A' in header_sample:
-                return True
-            elif 'V' in header_sample:
-                return True
-            else:
-                return False
-
-    @lazyproperty
-    def log_type(self):
-        """Determine the MLC log type: Trajectory or Dynalog.
-
-        The file is opened and sampled of
-        the first few bytes. If the sample matches what is found in standard dynalog or tlog files it will be
-        assigned that log type.
-
-        Returns
-        -------
-        str : {'Dynalog', 'Trajectory Log'}
-
-        Raises
-        ------
-        ValueError : If log type cannot be determined.
-        """
-        with open(self._filename, 'rb') as unknown_file:
-            header_sample = unknown_file.read(5).decode()
-            if 'B' in header_sample or 'A' in header_sample:
-                log_type = log_types['dlog']  # dynalog
-            elif 'V' in header_sample:
-                log_type = log_types['tlog']  # trajectory log
-
-        return log_type
-
-    @property
-    def log_is_loaded(self):
-        """Boolean specifying if a log has been loaded in yet."""
-        if self._filename == '':
-            return False
-        else:
-            return True
-
-    def _read_log(self, exclude_beam_off=True):
-        """Read in log based on what type of log it is: Trajectory or Dynalog."""
-        if not self.log_is_loaded:
-            raise AttributeError('Log file has not been specified. Use load_UI() or load()')
-
-        # read log as appropriate to type
-        if self.log_type == log_types['tlog']:
-            self._read_tlog(exclude_beam_off)
-        elif self.log_type == log_types['dlog']:
-            self._read_dlog(exclude_beam_off)
-
-    def _read_dlog(self, exclude_beam_off=True):
-        """Read in Dynalog files from .dlg files (which are renamed CSV files).
-        Formatting follows from the Dynalog File Viewer Reference Guide.
-        """
-        # if file is B*.dlg, replace with A*.dlg
-        other_dlg_file = return_other_dlg(self._filename)
-
-        # create iterator object to read in lines
-        with open(self._filename) as csvf:
-            dlgdata = csv.reader(csvf, delimiter=',')
-            self.header, dlgdata = Dlog_Header(dlgdata).read()
-            self.axis_data = Dlog_Axis_Data(dlgdata, self.header, other_dlg_file).read(exclude_beam_off)
-
-        self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
-
-    def _read_tlog(self, exclude_beam_off=True):
-        """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog v2.0/3.0) log file specifications.
-
-        Parameters
-        ----------
-        exclude_beam_off : boolean
-            If True (default), snapshots where the beam was not on will be removed.
-            If False, all data will be included.
-
-        .. warning::
-            Including beam off data may affect fluence and gamma results. E.g. in a step-&-shoot IMRT
-            delivery, leaves move between segments while the beam is held. If beam-off data is included,
-            this may cause the RMS and fluence errors to rise unnecessarily.
-        """
-        # read in trajectory log binary data
-        fcontent = open(self._filename, 'rb').read()
-
-        # Unpack the content according to respective section and data type (see log specification file).
-        self.header, self._cursor = Tlog_Header(fcontent, self._cursor).read()
-
-        self.subbeams, self._cursor = Subbeam_Constructor(fcontent, self._cursor, self.header).read()
-
-        self.axis_data, self._cursor = Tlog_Axis_Data(fcontent, self._cursor, self.header).read(exclude_beam_off)
-
-        # self.crc = CRC(fcontent, self._cursor).read()
-
-        self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
-
-
-def return_other_dlg(dlg_filename):
-    """Checks that the dynalog "B-file" for a given "A-file" exists within the same directory.
-
-    Returns the absolute locations of the B-file.
+    Returns
+    -------
+    str
+        The absolute file path to the corresponding dynalog file.
     """
     dlg_dir, dlg_file = osp.split(dlg_filename)
     if dlg_file.startswith('A'):

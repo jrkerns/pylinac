@@ -9,13 +9,16 @@ Analysis Module
 ---------------
 .. automodule:: pylinac.core.analysis
     :no-show-inheritance:
+
 Image Module
 ------------
 .. automodule:: pylinac.core.image
+    :no-show-inheritance:
 
 Geometry Module
 ---------------
 .. automodule:: pylinac.core.geometry
+    :no-show-inheritance:
 
 IO Module
 ---------

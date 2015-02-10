@@ -1,6 +1,4 @@
 
-"""Yes I know it's not Pythonic to type check, but for pylinac, I don't see many alternatives. Note that these are for Classes."""
-
 # The following is adapted from: http://code.activestate.com/recipes/578809-decorator-to-check-method-param-types/
 # Another type checking decorator: http://code.activestate.com/recipes/454322-type-checking-decorator/
 from abc import ABCMeta
@@ -24,22 +22,6 @@ class lazyproperty(object):
             value = self.func(instance)
             setattr(instance, self.func.__name__, value)
             return value
-
-
-def property_check(*props):
-    """Decorator to check that the given properties exist and/or have a given value."""
-    pass
-    def decorate(func):
-        # func = unwrap_func(func)
-        @wraps(func)
-        def func_wrapper(*args, **kwargs):
-            a = args[0].__class__.__name__
-            t = 1
-        return func_wrapper
-    return decorate
-
-        # @wraps(func)
-        # def wrapper(*args, **kwargs):
 
 def type_accept(*type_args, **type_kwargs):
     """Decorator to check function/method input types. Based on Python Cookbook 3rd ed. #9.7."""

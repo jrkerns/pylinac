@@ -11,12 +11,7 @@ from pylinac.core.utilities import isnumeric, is_iterable
 
 
 class Point:
-    """A geometric point with x, y, and z coordinates/attributes.
-
-    .. note:: A namedtuple (Point = namedtuple('Point', ['x', 'y']) would normally be more appropriate,
-              but they aren't mutable, hence a class.
-    """
-
+    """A geometric point with x, y, and z coordinates/attributes."""
     def __init__(self, x=0, y=0, z=0, idx=None, value=None, as_int=False):
         """
         Parameters

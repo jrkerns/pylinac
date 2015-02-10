@@ -16,9 +16,9 @@ class Test_Log_Loading(TestCase):
         MachineLog(test_tlog)
         # load method 2
         log = MachineLog()
-        self.assertFalse(log.log_is_loaded)
+        self.assertFalse(log.is_loaded)
         log.load(test_tlog)
-        self.assertTrue(log.log_is_loaded)
+        self.assertTrue(log.is_loaded)
 
         # throw an error for files that aren't logs
         not_a_file = test_tlog.replace(".bin", 'blahblah.bin')
@@ -158,7 +158,7 @@ class Test_Dlog_Fluence(TestCase):
 
         self.assertAlmostEqual(fluence.gamma.pass_prcnt, 99.85, delta=0.1)
         self.assertAlmostEqual(fluence.gamma.avg_gamma, 0.019, delta=0.005)
-        self.assertAlmostEqual(fluence.gamma.histogram[0], 155804, delta=100)
+        self.assertAlmostEqual(fluence.gamma.histogram()[0][0], 155804, delta=100)
 
 
 class Test_Tlog_Demo(TestCase):
@@ -229,4 +229,4 @@ class Test_Tlog_Fluence(TestCase):
         fluence.gamma.calc_map()
         self.assertAlmostEqual(fluence.gamma.pass_prcnt, 100, delta=0.1)
         self.assertAlmostEqual(fluence.gamma.avg_gamma, 0.001, delta=0.005)
-        self.assertAlmostEqual(fluence.gamma.histogram[0], 240000, delta=100)
+        self.assertAlmostEqual(fluence.gamma.histogram()[0][0], 240000, delta=100)
