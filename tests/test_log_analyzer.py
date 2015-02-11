@@ -56,12 +56,12 @@ class Test_Dynalog_Demo(TestCase):
     def test_header(self):
         """Test header info of the dynalog; ensures data integrity."""
         header = self.log.header
-        self.assertEqual(header.version, ['B'])
+        self.assertEqual(header.version, 'B')
         self.assertEqual(header.patient_name, ['Clinac4 QA', '', 'Clinac4 QA'])
         self.assertEqual(header.plan_filename, ['1.2.246.352.71.5.1399119341.107477.20110923193623', '21'])
         self.assertEqual(header.tolerance, 102)
         self.assertEqual(header.num_mlc_leaves, 120)
-        self.assertEqual(header.clinac_scale, [' 1'])
+        self.assertEqual(header.clinac_scale, 1)
 
     def test_axis_data(self):
         """Sample a few points from the axis data to ensure integrity."""

@@ -1232,7 +1232,37 @@ class Subbeam_Constructor:
 
 
 class Tlog_Header(TLog_Section):
-    """A header object, one of 4 sections of a trajectory log. Holds sampling interval, version, etc."""
+    """A header object, one of 4 sections of a trajectory log. Holds sampling interval, version, etc.
+
+    Attributes
+    ----------
+    header : str
+        Header signature: 'VOSTL'.
+    version : str
+        Log version.
+    header_size : int
+        Header size; fixed at 1024.
+    sampling_interval : int
+        Sampling interval in milliseconds.
+    num_axes : int
+        Number of axes sampled.
+    axis_enum : int
+        Axis enumeration; see the Tlog file specification for more info.
+    samples_per_axis : numpy.ndarray
+        Number of samples per axis; 1 for most axes, for MLC it's # of leaves and carriages.
+    num_mlc_leaves : int
+        Number of MLC leaves.
+    axis_scale : int
+        Axis scale; 1 -> Machine scale, 2 -> Modified IEC 61217.
+    num_subbeams : int
+        Number of subbeams, if autosequenced.
+    is_truncated : int
+        Whether log was truncated due to space limitations; 0 -> not truncated, 1 -> truncated
+    num_snapshots : int
+        Number of snapshots, cycles, heartbeats, or whatever you'd prefer to call them.
+    mlc_model : int
+        The MLC model; 2 -> NDS 120 (e.g. Millennium), 3 -> NDS 120 HD (e.g. Millennium 120 HD)
+    """
     def _read(self):
         """Read the header section of a tlog."""
         self.header = self._decode_binary(self._log_content, str, 16)  # for version 1.5 will be "VOSTL"
@@ -1244,7 +1274,7 @@ class Tlog_Header(TLog_Section):
         self.samples_per_axis = self._decode_binary(self._log_content, int, self.num_axes)
         self.num_mlc_leaves = self.samples_per_axis[-1] - 2  # subtract 2 (each carriage counts as an "axis" and must be removed)
         # self._cursor == self.num_axes * 4 # there is a reserved section after samples per axis. this moves it past it.
-        self.clinac_scale = self._decode_binary(self._log_content, int)
+        self.axis_scale = self._decode_binary(self._log_content, int)
         self.num_subbeams = self._decode_binary(self._log_content, int)
         self.is_truncated = self._decode_binary(self._log_content, int)
         self.num_snapshots = self._decode_binary(self._log_content, int)
@@ -1255,38 +1285,78 @@ class Tlog_Header(TLog_Section):
 
 
 class Dlog_Header(DLog_Section):
-    """The Header section of a dynalog file."""
+    """The Header section of a dynalog file.
+
+    Attributes
+    ----------
+    version : str
+        The Dynalog version letter.
+    patient_name : str
+        Patient information.
+    plan_filename : str
+        Filename if using standalone. If using Treat =<6.5 will produce PlanUID, Beam Number.
+        Not yet implemented for this yet.
+    tolerance : int
+        Plan tolerance.
+    num_mlc_leaves : int
+        Number of MLC leaves.
+    clinac_scale : int
+        Clinac scale; 0 -> Varian scale, 1 -> IEC 60601-2-1 scale
+    """
     def _read(self):
         """Read the header section of a dynalog."""
-        self.version = next(self._log_content)
+        self.version = str(next(self._log_content)[0])
         self.patient_name = next(self._log_content)
         self.plan_filename = next(self._log_content)
         self.tolerance = int(next(self._log_content)[0])
         self.num_mlc_leaves = int(
             next(self._log_content)[0]) * 2  # the # of leaves in a dynalog is actually the # of *PAIRS*, hence the *2.
-        self.clinac_scale = next(self._log_content)  # 0->Varian scale, 1->IEC scale
+        self.clinac_scale = int(next(self._log_content)[0])  # 0->Varian scale, 1->IEC scale
         return self, self._log_content
 
 
 class Dlog_Axis_Data(DLog_Section):
-    """Axis data for dynalogs."""
+    """Axis data for dynalogs.
+
+    Attributes
+    ----------
+    num_snapshots : int
+        Number of snapshots recorded.
+    mu : :class:`~pylinac.log_analyzer.Axis`
+        Current dose fraction
+
+        .. note:: This *can* be gantry rotation under certain conditions. See Dynalog file specs.
+
+    previous_segment_num : :class:`~pylinac.log_analyzer.Axis`
+        Previous segment *number*, starting with zero.
+    beam_hold : :class:`~pylinac.log_analyzer.Axis`
+        Beam hold state; 0 -> holdoff not asserted (beam on), 1 -> holdoff asserted, 2 -> carriage in transition
+    beam_on : :class:`~pylinac.log_analyzer.Axis`
+        Beam on state; 1 -> beam is on, 0 -> beam is off
+    previous_dose_index : :class:`~pylinac.log_analyzer.Axis`
+        Previous segment dose index or previous segment gantry angle.
+    next_dose_index : :class:`~pylinac.log_analyzer.Axis`
+        Next segment dose index.
+    gantry : :class:`~pylinac.log_analyzer.Axis`
+        Gantry data in degrees.
+    collimator : :class:`~pylinac.log_analyzer.Axis`
+        Collimator data in degrees.
+    jaws : :class:`~pylinac.log_analyzer.Jaw_Struct`
+        Jaw data structure. Data in cm.
+    carriage_A : :class:`~pylinac.log_analyzer.Axis`
+        Carriage A data. Data in cm.
+    carriage_B : :class:`~pylinac.log_analyzer.Axis`
+        Carriage B data. Data in cm.
+    mlc : :class:`~pylinac.log_analyzer.MLC`
+        MLC data structure. Data in cm.
+    """
     def __init__(self, log_content, header, bfile):
         super().__init__(log_content)
         self._header = header
         self._bfile = bfile
 
     def _read(self, exclude_beam_off):
-        """Read the dynalog axis data.
-
-        Parameters
-        ----------
-        exclude_beam_off : bool
-            If True (default), excludes the snapshots where the beam was off and beam hold state was asserted.
-            If False, no exclusion is performed.
-
-            .. warning:: If all data is included, RMS and error calculations may be affected, since they will include
-                snapshots when beam holds were asserted (e.g. moving between steps of a step-&-shoot IMRT plan).
-        """
+        """Read the dynalog axis data."""
         matrix = np.array([line for line in self._log_content], dtype=float)
 
         self.num_snapshots = np.size(matrix, 0)
@@ -1294,11 +1364,11 @@ class Dlog_Axis_Data(DLog_Section):
         # assignment of snapshot values
         # There is no "expected" MU in dynalogs, but for fluence calc purposes, it is set to that of the actual
         self.mu = Axis(matrix[:, 0], matrix[:, 0])
-        self.DVA_segment = Axis(matrix[:, 1])
+        self.previous_segment_num = Axis(matrix[:, 1])
         self.beam_hold = Axis(matrix[:, 2])
         self.beam_on = Axis(matrix[:, 3])
-        self.prior_dose_idx = Axis(matrix[:, 4])  # currently not used for anything
-        self.next_dose_idx = Axis(matrix[:, 5])  # ditto
+        self.prior_dose_index = Axis(matrix[:, 4])  # currently not used for anything
+        self.next_dose_index = Axis(matrix[:, 5])  # ditto
         self.gantry = Gantry_Axis(matrix[:, 6] /10)
         self.collimator = Head_Axis(matrix[:, 7] /10)
 
@@ -1362,15 +1432,30 @@ class Tlog_Axis_Data(TLog_Section):
     Attributes
     ----------
     collimator : :class:`~pylinac.log_analyzer.Axis`
+        Collimator data in degrees.
     gantry : :class:`~pylinac.log_analyzer.Axis`
+        Gantry data in degrees.
     jaws : :class:`~pylinac.log_analyzer.Jaw_Struct`
+        Jaw data structure. Data in cm.
     couch : :class:`~pylinac.log_analyzer.Couch_Struct`
+        Couch data structure. Data in cm.
     mu : :class:`~pylinac.log_analyzer.Axis`
+        MU data in MU.
     beam_hold : :class:`~pylinac.log_analyzer.Axis`
+        Beam hold state. Beam *pauses* (e.g. Beam Off button pressed) are not recorded in the log.
+        Data is automatic hold state.
+        0 -> Normal; beam on.
+        1 -> Freeze; beam on, dose servo is temporarily turned off.
+        2 -> Hold; servo holding beam.
+        3 -> Disabled; beam on, dose servo is disable via Service.
     control_point : :class:`~pylinac.log_analyzer.Axis`
+        Current control point.
     carriage_A : :class:`~pylinac.log_analyzer.Axis`
+        Carriage A data in cm.
     carriage_B : :class:`~pylinac.log_analyzer.Axis`
+        Carriage B data in cm.
     mlc : :class:`~pylinac.log_analyzer.MLC`
+        MLC data structure; data in cm.
     """
     def __init__(self, log_content, cursor, header):
         super().__init__(log_content, cursor)
@@ -1506,5 +1591,5 @@ if __name__ == '__main__':
     # cProfile.run('MachineLog().run_dlog_demo()', sort=1)
     log = MachineLog()
     # log.load_demo_trajectorylog()
-    log.run_tlog_demo()
-    # log.run_dlog_demo()
+    # log.run_tlog_demo()
+    log.run_dlog_demo()
