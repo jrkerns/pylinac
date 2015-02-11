@@ -25,9 +25,9 @@ Results will be printed to the console and a matplotlib figure showing the analy
 
     Result: PASS
 
-    The minimum circle that touches all the star lines has a diameter of 0.452 mm.
+    The minimum circle that touches all the star lines has a diameter of 0.385 mm.
 
-    The center of the minimum circle is at 1269.0, 1439.2
+    The center of the minimum circle is at 1269.3, 1437.8
 
 .. image:: images/starshot_analyzed.png
 

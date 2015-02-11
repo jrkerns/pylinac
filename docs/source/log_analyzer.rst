@@ -62,15 +62,28 @@ As usual, the module comes with demo files and methods::
 
 Which will output the following::
 
-    >>> MLC log type: Dynalog
-    >>> Average RMS of all leaves: 0.074 cm
-    >>> Max RMS error of all leaves: 0.076 cm
-    >>> 95th percentile error: 0.088 cm
-    >>> Number of beam holdoffs: 20
-    >>> Gamma pass %: 99.83
-    >>> Gamma average: 0.021
+    MLC log type: Dynalog
+    Average RMS of all leaves: 0.074 cm
+    Max RMS error of all leaves: 0.076 cm
+    95th percentile error: 0.088 cm
+    Number of beam holdoffs: 20
+    Gamma pass %: 99.83
+    Gamma average: 0.021
 
 .. image:: images/dlog_results.png
+
+The same can be done using the demo Trajectory log::
+
+    >>> MachineLog().run_tlog_demo()
+    MLC log type: Trajectory log
+    Average RMS of all leaves: 0.001 cm
+    Max RMS error of all leaves: 0.002 cm
+    95th percentile error: 0.002 cm
+    Number of beam holdoffs: 0
+    Gamma pass %: 100.00
+    Gamma average: 0.002
+
+.. image:: images/tlog_analyzed.png
 
 Loading Data
 ------------
@@ -122,7 +135,7 @@ Let's explore the header::
     <__main__.Dlog_Header at 0x8fba450>
     >>> log.header.num_mlc_leaves
     120
-    >>> log.header.clinac_scale
+    >>> log.header.clinac_scale  # 0-> Varian; 1-> IEC 60601-2-1
     ['1']
 
 Now, the axis data::
@@ -159,8 +172,8 @@ Let's look at/calculate fluences::
 
 .. image:: images/actual_fluence.png
 
-The gamma map can be calculated with or without calculating the actual and expected maps. The maps are lazy
-properties, and will not recalculate if given the same conditions::
+The gamma map can be calculated with or without calculating the actual and expected maps. The maps are semi-lazy
+properties, and will not recalculate if passed the same conditions::
 
     >>> log.fluence.gamma.calc_map(resolution=0.1)  # won't recalc actual since resolution is the same; will automatically calc expected at 0.1mm
     >>> log.fluence.gamma.calc_map(resolution=0.2)  # will recalculate both at given resolution
@@ -172,7 +185,7 @@ properties, and will not recalculate if given the same conditions::
     99.825000000000003
     >>> log.fluence.gamma.doseTA  # see gamma.calc_map() parameters
     1
-    >>> log.fluence.gamma.threshold  # threshold dose percent value not included in gamma calculation
+    >>> log.fluence.gamma.threshold  # the threshold dose percent value not included in the gamma calculation
     10
 
 
