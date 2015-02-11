@@ -13,6 +13,7 @@ from pylinac.core.io import is_valid_file
 
 
 
+
 # class Numeric(metaclass=ABCMeta):
 #     """An abstract class that encompasses many numeric types.
 #
@@ -34,7 +35,7 @@ def typed_property(name, expected_type_or_tuple_of_types):
     @prop.setter
     def prop(self, value):
         if not isinstance(value, expected_type_or_tuple_of_types):
-            raise TypeError("{} must be a {}".format(name, expected_type_or_tuple_of_types))
+            raise TypeError("{} must be a {}. Got: {}".format(name, expected_type_or_tuple_of_types, type(value)))
         setattr(self, storage_name, value)
 
     return prop

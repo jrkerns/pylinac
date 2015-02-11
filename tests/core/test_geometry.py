@@ -80,6 +80,7 @@ class Test_Circle(unittest.TestCase):
         self.assertEqual(c.center.x, self.center_point_iter[0])
         self.assertEqual(c.center.y, self.center_point_iter[1])
 
+
 class Test_Line(unittest.TestCase):
 
     point_1 = Point(1,1)
@@ -123,3 +124,26 @@ class Test_Line(unittest.TestCase):
         exp_dist = 2.12
 
         self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
+
+class Test_Rectangle(unittest.TestCase):
+
+    def test_init(self):
+        rect = Rectangle(5.2, 2.2, (10,10))
+        self.assertEqual(rect.width, 5.2)
+        self.assertEqual(rect.height, 2.2)
+        self.assertIsInstance(rect.center, Point)
+
+        rect_as_int = Rectangle(5.2, 2.2, (0,0), as_int=True)
+        self.assertEqual(rect_as_int.width, 5)
+        self.assertEqual(rect_as_int.height, 2)
+
+        rect = Rectangle(2,2, tl_corner=(3,3))
+        self.assertEqual(rect.center.x, 4)
+        self.assertEqual(rect.center.y, 2)
+
+        rect = Rectangle(2,2, bl_corner=(4,4))
+        self.assertEqual(rect.tl_corner.x, 4)
+        self.assertEqual(rect.center.y, 5)
+
+        self.assertRaises(ValueError, Rectangle, 5, 2)
+

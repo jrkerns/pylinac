@@ -115,19 +115,19 @@ class VMAT:
         self.load_image(im_open_path, im_type=im_types['OPEN'])
         self.load_image(im_dmlc_path, im_type=im_types['DMLC'])
 
-    def run_demo_drgs(self, tolerance=3, show=True):
+    def run_demo_drgs(self, tolerance=3):
         """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
         self.load_demo_image('drgs')
         self.analyze(test='drgs', tolerance=tolerance)  # set tolerance to 2 to show some failures
         print(self.return_results())
-        self.plot_analyzed_image(show=show)
+        self.plot_analyzed_image()
 
-    def run_demo_drmlc(self, tolerance=3, show=True):
+    def run_demo_drmlc(self, tolerance=3):
         """Run the VMAT demo for the Dose Rate & MLC speed test."""
         self.load_demo_image('drmlc')
         self.analyze(test='drmlc', tolerance=tolerance)
         print(self.return_results())
-        self.plot_analyzed_image(show=show)
+        self.plot_analyzed_image()
 
     def _calc_im_scaling_factors(self):
         """Determine image scaling factors.
@@ -144,7 +144,7 @@ class VMAT:
         scale = Point(x_scale, y_scale)
 
         # SID scaling
-        if self.image_open.SID:
+        if self.image_open.SID is not None:
             SID_scale = self.image_open.SID / 150.0
         else:
             SID_scale = 1
@@ -278,7 +278,7 @@ class VMAT:
     @property
     def open_img_is_loaded(self):
         """Status of open image."""
-        if self.image_open.array.size != 0:
+        if hasattr(self, 'image_open'):
             return True
         else:
             return False
@@ -286,7 +286,7 @@ class VMAT:
     @property
     def dmlc_img_is_loaded(self):
         """Status of DMLC image."""
-        if self.image_dmlc.array.size != 0:
+        if hasattr(self, 'image_dmlc'):
             return True
         else:
             return False
@@ -353,7 +353,7 @@ class VMAT:
 
                 self.roi_handles[sample_num][segment_num] = sample.add_to_axes(plot.axes, edgecolor=color)
 
-    def plot_analyzed_image(self, plot1=None, plot2=None, show=True):
+    def plot_analyzed_image(self, plot1=None, plot2=None):
         """Create 1 figure with 2 plots showing the open and MLC images
             with the samples and results drawn on.
 
@@ -364,9 +364,6 @@ class VMAT:
         plot2 : matplotlib.axes.plot
             Same as above; if plot1 is supplied but plot2 left as None, will put images into
             one figure.
-        show : boolean
-            If True (default), will actually plot the results.
-            If False, will not actually draw the image; useful for debugging.
         """
         if plot1 is None and plot2 is None:
             fig, (ax1, ax2) = plt.subplots(1,2)
@@ -386,15 +383,14 @@ class VMAT:
         self._draw_objects(ax1)
 
         # Finally, show it all
-        if show:
-            if plot1 is None and plot2 is None:
-                plt.show()
-            if plot1 is not None:
-                plot1.draw()
-                plot1.axes.hold(False)
-            if plot2 is not None:
-                plot2.draw()
-                plot2.axes.hold(False)
+        if plot1 is None and plot2 is None:
+            plt.show()
+        if plot1 is not None:
+            plot1.draw()
+            plot1.axes.hold(False)
+        if plot2 is not None:
+            plot2.draw()
+            plot2.axes.hold(False)
 
     def return_results(self):
         """A string of the summary of the analysis results.
@@ -591,5 +587,5 @@ class Segment:
 # VMAT demo
 # -------------------
 if __name__ == '__main__':
-    # VMAT().run_demo_drgs()
-    VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
+    VMAT().run_demo_drgs()
+    # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo

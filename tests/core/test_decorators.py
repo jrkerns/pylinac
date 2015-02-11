@@ -11,6 +11,9 @@ class Test_Decorators(unittest.TestCase):
         @type_accept(param1=(int, float), param2=(str, None))
         def dumb_function(param1, param2):
             pass
+        @type_accept(param1=int)
+        def dumb_func2(param1):
+            pass
 
         # valid parameter types
         df = dumb_function(1, 'r')
@@ -19,6 +22,9 @@ class Test_Decorators(unittest.TestCase):
         # invalid parameter types
         self.assertRaises(TypeError, dumb_function, 'r', 't')
         self.assertRaises(TypeError, dumb_function, 1, 2)
+        self.assertRaises(TypeError, dumb_func2, 2.2)
+
+
 
     def test_value_accept(self):
 

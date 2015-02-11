@@ -51,9 +51,9 @@ class Test_Profile(unittest.TestCase):
     def test_find_FWHM_peaks(self):
         p = Profile(self.values)
         p.find_FWXM_peaks()
-        known_peak_locs = (25, 65, 105, 145)
+        known_peak_locs = (24, 64, 103, 143)
         for found_peak, known_peak in zip(p.peaks, known_peak_locs):
-            self.assertEqual(found_peak.idx, known_peak)
+            self.assertAlmostEqual(found_peak.idx, known_peak, delta=1)
 
     def test_subdivide_profiles(self):
         p = Profile(self.values)

@@ -5,6 +5,7 @@ import copy
 
 import numpy as np
 from scipy import ndimage
+import matplotlib.pyplot as plt
 
 from pylinac.core.common_functions import peak_detect
 from pylinac.core.decorators import value_accept
@@ -72,7 +73,17 @@ class Profile:
             This will also "ground" profiles that are negative or partially-negative.
             For such profiles, be careful that this is the behavior you desire.
         """
-        self.y_values = self.y_values - np.min(self.y_values)
+        min_val = self.y_values.min()
+        self.y_values = self.y_values - min_val
+        return min_val
+
+    def plot_peaks(self):
+        if hasattr(self, 'peaks'):
+            plt.plot(self.y_values)
+            peaks_x = [peak.idx for peak in self.peaks]
+            peaks_y = [peak.value for peak in self.peaks]
+            plt.plot(peaks_x, peaks_y, 'g+')
+            plt.show()
 
     def find_peaks(self, min_peak_height=0.3, min_peak_distance=0.05, max_num_peaks=None, exclude_lt_edge=0.0, exclude_rt_edge=0.0,
                    return_it=False):
@@ -124,7 +135,7 @@ class Profile:
         if return_it:
             return self._return_extrema_val_as_list('valley'), self._return_extrema_idx_as_list('valley')
 
-    def find_FWXM_peaks(self, fwxm=70, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, return_it=False):
+    def find_FWXM_peaks(self, fwxm=50, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, return_it=False):
         """Find peaks using the center of the FWHM (rather than by max value).
 
         This search is a bit more complicated than a max value search. Peaks are first determined using the max-value technique.
@@ -277,12 +288,18 @@ class CircleProfile(Profile, Circle):
         if return_it:
             return self._return_extrema_val_as_list('valley'), self._return_extrema_idx_as_list('valley')
 
-    def find_FWXM_peaks(self, fwxm=70, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, return_it=False):
+    def find_FWXM_peaks(self, fwxm=50, min_peak_height=0.3, min_peak_distance=10, max_num_peaks=None, return_it=False):
         """Overloads Profile to also map the peak locations to the image."""
         super().find_FWXM_peaks(fwxm, min_peak_height, min_peak_distance, max_num_peaks)
         self._map_peaks()
         if return_it:
             return self._return_extrema_val_as_list('peak'), self._return_extrema_idx_as_list('peak')
+
+    def roll_profile(self, amount):
+        # Roll the profile and x and y coordinates
+        self.y_values = np.roll(self.y_values, -amount)
+        self.x_locs = np.roll(self.x_locs, -amount)
+        self.y_locs = np.roll(self.y_locs, -amount)
 
     def _map_peaks(self):
         """Map found peaks to the x,y locations on the image/array; i.e. adds x,y coords to the peak locations"""

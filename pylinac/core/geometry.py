@@ -6,12 +6,14 @@ import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 
-from pylinac.core.decorators import type_accept, lazyproperty
-from pylinac.core.utilities import isnumeric, is_iterable
+from pylinac.core.decorators import lazyproperty
+from pylinac.core.utilities import is_iterable, typed_property
 
 
 class Point:
     """A geometric point with x, y, and z coordinates/attributes."""
+    value = typed_property('value', (int, float, np.number, type(None)))
+
     def __init__(self, x=0, y=0, z=0, idx=None, value=None, as_int=False):
         """
         Parameters
@@ -53,9 +55,9 @@ class Point:
                 pass
 
         if as_int:
-            x = int(x)
-            y = int(y)
-            z = int(z)
+            x = int(round(x))
+            y = int(round(y))
+            z = int(round(z))
 
         self.x = x
         self.y = y
@@ -63,17 +65,17 @@ class Point:
         self.idx = idx
         self.value = value
 
-    @property
-    def value(self):
-        """Return the value property."""
-        return self._value
-
-    @value.setter
-    def value(self, val):
-        """Set the value property. val must be number-like."""
-        if val is not None and not isnumeric(val):
-            raise TypeError("Point value was not a valid type. Must be number-like.")
-        self._value = val
+    # @property
+    # def value(self):
+    #     """Return the value property."""
+    #     return self._value
+    #
+    # @value.setter
+    # def value(self, val):
+    #     """Set the value property. val must be number-like."""
+    #     if val is not None and not isnumeric(val):
+    #         raise TypeError("Point value was not a valid type. Must be number-like.")
+    #     self._value = val
 
     def dist_to(self, point):
         """Calculate the distance to the given point.
@@ -213,7 +215,7 @@ class Line:
     def distance_to(self, point):
         """Calculate the minimum distance from the line to a point.
 
-        Equations are from here: http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html
+        Equations are from here: http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html #14
 
         Parameters
         ----------
@@ -248,7 +250,7 @@ class Line:
 
 class Rectangle:
     """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point."""
-    @type_accept(center=Point, tl_corner=Point, bl_corner=Point)
+    # @type_accept(center=Point, tl_corner=Point, bl_corner=Point)
     def __init__(self, width, height, center=None, tl_corner=None, bl_corner=None, as_int=False):
         """
         Parameters
@@ -267,8 +269,8 @@ class Rectangle:
             If False (default), inputs are left as-is. If True, all inputs are converted to integers.
         """
         if as_int:
-            self.width = int(width)
-            self.height = int(height)
+            self.width = int(np.round(width))
+            self.height = int(np.round(height))
         else:
             self.width = width
             self.height = height
@@ -276,17 +278,17 @@ class Rectangle:
         if not any((center, tl_corner, bl_corner)):
             raise ValueError("Must specify at least one anchor point for the box.")
         elif center is not None:
-            self.center = Point(center, as_int=as_int)
-            self.tl_corner = Point(center.x - width/2, center.y + height/2, as_int=as_int)
-            self.bl_corner = Point(center.x - width/2, center.y - height/2, as_int=as_int)
+            c = self.center = Point(center, as_int=as_int)
+            self.tl_corner = Point(c.x - width/2, c.y + height/2, as_int=as_int)
+            self.bl_corner = Point(c.x - width/2, c.y - height/2, as_int=as_int)
         elif tl_corner is not None:
-            self.tl_corner = Point(tl_corner, as_int=as_int)
-            self.center = Point(tl_corner.x + width/2, tl_corner.y - height/2, as_int=as_int)
-            self.bl_corner = Point(tl_corner.x, tl_corner.y - height, as_int=as_int)
+            tl = self.tl_corner = Point(tl_corner, as_int=as_int)
+            self.center = Point(tl.x + width/2, tl.y - height/2, as_int=as_int)
+            self.bl_corner = Point(tl.x, tl.y - height, as_int=as_int)
         elif bl_corner is not None:
-            self.bl_corner = Point(bl_corner, as_int=as_int)
-            self.center = Point(bl_corner.x + width / 2, bl_corner.y + height / 2, as_int=as_int)
-            self.tl_corner = Point(bl_corner.x, bl_corner.y + height, as_int=as_int)
+            bl = self.bl_corner = Point(bl_corner, as_int=as_int)
+            self.center = Point(bl.x + width / 2, bl.y + height / 2, as_int=as_int)
+            self.tl_corner = Point(bl.x, bl.y + height, as_int=as_int)
 
 
 

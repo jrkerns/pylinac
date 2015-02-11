@@ -57,6 +57,8 @@ class Test_Image_Methods(unittest.TestCase):
         filter_size = 3
         self.sm_arr.median_filter(filter_size)
         self.assertEqual(self.sm_arr.array[0, 0], 1)
+        filter_size = 0.03
+        self.sm_arr.median_filter(filter_size)
 
     # def test_rotate(self):
     #     self.sm_arr.rotate(90)
@@ -82,4 +84,7 @@ class Test_Image_Methods(unittest.TestCase):
 
     def test_dist2edge_min(self):
         dist = self.sm_arr.dist2edge_min(Point(1,3))
+        self.assertEqual(dist, 1)
+
+        dist = self.sm_arr.dist2edge_min((1,3))
         self.assertEqual(dist, 1)

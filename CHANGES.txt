@@ -1,3 +1,19 @@
+V0.3.0
+
+- Log Analyzer module added
+    -This module reads Dynalogs and Trajectory logs from Varian linear accelerators.
+
+- Starshot module
+    -The profile circle now aligns with the lines found.
+    -Recursive option added to analyze for recursive searching of a reasonable wobble.
+
+- Image module reworking (internal)
+    - Image now has a cleaner interface and properties
+
+V0.2.1 - 2/2/2015 -- Bug fix
+
+- Demo files were not included when installed from pip
+
 V0.2.0 - 1/19/2015 -- Major Overhaul
 
 -Python 2.7 support dropped.

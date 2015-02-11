@@ -3,6 +3,7 @@
 
 import numpy as np
 
+
 def _datacheck_peakdetect(values, x_data):
 
     if x_data is None:

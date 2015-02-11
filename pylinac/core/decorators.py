@@ -5,7 +5,7 @@ from abc import ABCMeta
 from functools import wraps
 from inspect import signature
 
-class lazyproperty(object):
+class lazyproperty:
     """A decorator that returns a cached value if it has already been calculated.
 
     This is based on the example in section 8.10 of Python Cookbook 3rd ed.

@@ -85,6 +85,17 @@ class Image:
         else:
             raise TypeError("Image input type not understood")
 
+    # @property
+    # def array(self):
+    #     return self._array
+    #
+    # @array.setter
+    # def array(self, arr):
+    #     if isinstance(arr, np.ndarray):
+    #         self._array = arr
+    #     else:
+    #         raise TypeError("Array must be numpy ndarray")
+
     @property
     def dpi(self):
         return getattr(self, '_dpi', None)
@@ -122,8 +133,9 @@ class Image:
     def open_UI(cls, caption='', to_gray=True):
         """Load an image using a UI dialog."""
         file_path = get_filepath_UI()
-        cls(file_path, to_gray)
-        return cls
+        if file_path:
+            obj = cls(file_path, to_gray)
+            return obj
 
     def _load_array(self, array):
         """Load an array."""
@@ -169,10 +181,10 @@ class Image:
         # try to set the pixel spacing
         try:
             # most dicom files have this tag
-            dpmm = dcm.PixelSpacing[0]
+            dpmm = 1/dcm.PixelSpacing[0]
         except AttributeError:
             # EPID images sometimes have this tag
-            dpmm = dcm.ImagePlanePixelSpacing[0]
+            dpmm = 1/dcm.ImagePlanePixelSpacing[0]
         except:
             warnings.warn("Pixel distance information for the DICOM file was not determined. You can set the "
                           "attribute (.dpi or .dpmm) explicitly if you know it.")
@@ -183,7 +195,7 @@ class Image:
         try:
             sid = float(dcm.RTImageSID) / 10
             self.SID = sid
-        except AttributeError:
+        except (AttributeError, ValueError):
             pass  # just don't set the SID
 
     def median_filter(self, size=3, mode='reflect'):
@@ -191,6 +203,11 @@ class Image:
 
         Wrapper for scipy's `median <http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html>`_ filter function:
         """
+        if isinstance(size, float):
+            if size < 1:
+                size = max(int(self.array.shape[0]*size), 1)
+            else:
+                raise ValueError("If size is a float, it must be <1.0")
         self.array = ndimage.median_filter(self.array, size=size, mode=mode)
 
     @type_accept(pixels=int)
@@ -209,8 +226,8 @@ class Image:
         orig_array = self.array
         self.array = -orig_array + orig_array.max() + orig_array.min()
 
-    def rotate(self, angle, order=3):
-        raise NotImplementedError()
+    # def rotate(self, angle, order=3):
+    #     raise NotImplementedError()
         # self.array = ndimage.interpolation.rotate(self.array, angle, order=order, mode='wrap', reshape=False)
 
     def resize(self, size, interp='bilinear'):
