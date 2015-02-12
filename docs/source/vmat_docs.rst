@@ -21,48 +21,33 @@ To run the VMAT demo, create a script start an interpreter session and input::
 
 Results will be printed to the console and a figure showing both the Open field and MLC field image will pop up::
 
-    Dose Rate & Gantry Speed
+    Dose Rate & MLC Speed
     Test Results (Tol. +/-3.0%): PASS
 
     Overall Results:
-    Max Positive Deviation: 1.234%
-    Max Negative Deviation: -0.650%
-    Absolute Mean Deviation: 0.461%
+    Max Positive Deviation: 0.496%
+    Max Negative Deviation: -0.500%
+    Absolute Mean Deviation: 0.402%
 
-    105MU/min Segment:
-    Max Positive Deviation: 1.234%
-    Max Negative Deviation: 0.829%
-    Absolute Mean Deviation: 1.049%
+    1.6cm/s Segment:
+    Max Positive Deviation: 0.496%
+    Max Negative Deviation: 0.286%
+    Absolute Mean Deviation: 0.405%
 
-    210MU/min Segment:
-    Max Positive Deviation: 0.016%
-    Max Negative Deviation: -0.044%
-    Absolute Mean Deviation: 0.032%
+    2.4cm/s Segment:
+    Max Positive Deviation: -0.273%
+    Max Negative Deviation: -0.446%
+    Absolute Mean Deviation: 0.390%
 
-    314MU/min Segment:
-    Max Positive Deviation: -0.283%
-    Max Negative Deviation: -0.469%
-    Absolute Mean Deviation: 0.384%
+    0.8cm/s Segment:
+    Max Positive Deviation: -0.314%
+    Max Negative Deviation: -0.500%
+    Absolute Mean Deviation: 0.414%
 
-    417MU/min Segment:
-    Max Positive Deviation: -0.403%
-    Max Negative Deviation: -0.650%
-    Absolute Mean Deviation: 0.520%
-
-    524MU/min Segment:
-    Max Positive Deviation: -0.369%
-    Max Negative Deviation: -0.581%
-    Absolute Mean Deviation: 0.471%
-
-    592MU/min Segment:
-    Max Positive Deviation: -0.174%
-    Max Negative Deviation: -0.227%
-    Absolute Mean Deviation: 0.209%
-
-    600MU/min Segment:
-    Max Positive Deviation: 0.687%
-    Max Negative Deviation: 0.420%
-    Absolute Mean Deviation: 0.565%
+    0.4cm/s Segment:
+    Max Positive Deviation: 0.453%
+    Max Negative Deviation: 0.302%
+    Absolute Mean Deviation: 0.398%
 
 .. image:: images/vmat_analyzed.png
 
