@@ -36,6 +36,9 @@ Below are the tools currently available; tools will be added one at a time as th
     and left-right, up-down displacement. Analysis is based on test descriptions in the
     `manual <http://www.phantomlab.com/library/pdf/catphan504manual.pdf>`_ and analyzes HU linearity and
     image scaling (CTP404), high-contrast line pairs to determine MTF (CTP528), and HU uniformity (CTP486).
+* `Log Analysis <http://pylinac.readthedocs.org/en/latest/log_analyzer.html>`_ -
+    This module reads Varian logs, both Dynalogs and Trajectory logs and allows exploration of all axes measured.
+
 
 Documentation
 -------------
@@ -45,9 +48,8 @@ To get started, install, run the demos, view the API docs, and learn the module 
 Contributing
 ------------
 
-Contributions to pylinac can be many. The most useful thing a non-programmer can contribute is images to analyze and bug reports. If
-you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, email me
-or share them via Dropbox, Google Drive, etc. Obviously, don't send patient files, just QA files.
+Contributions to pylinac can be many. The most useful things a non-programmer can contribute are images to analyze and bug reports. If
+you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, email or share them via Dropbox, Google Drive, etc.
 
 
 

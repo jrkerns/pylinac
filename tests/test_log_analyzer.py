@@ -185,7 +185,7 @@ class Test_Tlog_Demo(TestCase):
         self.assertEqual(header.samples_per_axis.size, 14)
         self.assertEqual(header.samples_per_axis[-1], 122)
         self.assertEqual(header.num_mlc_leaves, 120)
-        self.assertEqual(header.clinac_scale, 1)
+        self.assertEqual(header.axis_scale, 1)
         self.assertEqual(header.num_subbeams, 2)
         self.assertEqual(header.is_truncated, 0)
         self.assertEqual(header.num_snapshots, 5200)

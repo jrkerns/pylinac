@@ -18,7 +18,7 @@ info, and which info is analyzed is up to the user.
 Concepts
 --------
 
-Because the log_analyzer module functions without an end goal, the data has been formatted for easy exploration. However, there are a
+Because the ``log_analyzer`` module functions without an end goal, the data has been formatted for easy exploration. However, there are a
 few concepts that should be grasped before diving in.
 
 * **Log Sections** - Upon log parsing, all data is placed into data structures. Varian has designated 4 sections for Trajectory logs:
