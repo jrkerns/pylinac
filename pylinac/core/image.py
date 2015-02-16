@@ -63,8 +63,8 @@ class Image:
 
         >>> arr = np.arange(36).reshape(6,6)
         >>> img = Image(arr)
-    """
-    SID = typed_property('SID', (int, float, np.number))
+    # """
+    # SID = typed_property('SID', (int, float, np.number))
     im_type = typed_property('im_type', str)
     array = typed_property('array', np.ndarray)
 
@@ -84,7 +84,6 @@ class Image:
             self._load_array(file_or_array)
         else:
             raise TypeError("Image input type not understood")
-
     # @property
     # def array(self):
     #     return self._array
@@ -128,6 +127,18 @@ class Image:
         x_center = self.shape[1] / 2
         y_center = self.shape[0] / 2
         return Point(x_center, y_center)
+
+    @property
+    def SID(self):
+        return getattr(self, '_SID', None)
+
+    @SID.setter
+    def SID(self, value):
+        if not isinstance(value, (int, float, np.number)):
+            raise ValueError("SID must be a number")
+        self._SID = value
+        # scale the dpmm/dpi by the SID
+        self.dpmm = self.dpmm * self.SID / 100
 
     @classmethod
     def open_UI(cls, caption='', to_gray=True):
@@ -230,6 +241,10 @@ class Image:
     #     raise NotImplementedError()
         # self.array = ndimage.interpolation.rotate(self.array, angle, order=order, mode='wrap', reshape=False)
 
+    def rot90(self, n=1):
+        """Wrapper for numpy.rot90."""
+        self.array = np.rot90(self.array, n)
+
     def resize(self, size, interp='bilinear'):
         """Resize/scale the image.
 
@@ -274,6 +289,17 @@ class Image:
         disttoedge[2] = point.y
         disttoedge[3] = point.x
         return min(disttoedge)
+
+    def ground(self):
+        """Ground the profile such that the lowest value is 0.
+
+        .. note::
+            This will also "ground" profiles that are negative or partially-negative.
+            For such profiles, be careful that this is the behavior you desire.
+        """
+        min_val = self.array.min()
+        self.array -= min_val
+        return min_val
 
     def __getattr__(self, item):
         """Set the Attribute getter to grab from the array if possible (for things like .shape, .size, etc)."""

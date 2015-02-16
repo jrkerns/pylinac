@@ -197,6 +197,12 @@ class Line:
         return (y - self.b)/self.m
 
     @property
+    def center(self):
+        mid_x = np.abs((self.point2.x - self.point1.x)/2 + self.point1.x)
+        mid_y = (self.point2.y - self.point1.y) / 2 + self.point1.y
+        return Point(mid_x, mid_y)
+
+    @property
     def is_finite(self):
         """Boolean property specifying if the line is finite."""
         if self.point1 is not None and self.point2 is not None:
@@ -235,7 +241,7 @@ class Line:
             denominator = np.sqrt((lp2.x - lp1.x)**2 + (lp2.y - lp1.y)**2)
             return numerator/denominator
 
-    def add_to_axes(self, axes, color='w'):
+    def add_to_axes(self, axes, width=1, color='w'):
         """Plot the line to an axes.
 
         Parameters
@@ -245,7 +251,7 @@ class Line:
         color : str
             The color of the line.
         """
-        axes.plot((self.point1.x, self.point2.x), (self.point1.y, self.point2.y), color=color)
+        axes.plot((self.point1.x, self.point2.x), (self.point1.y, self.point2.y), linewidth=width, color=color)
 
 
 class Rectangle:
@@ -292,7 +298,7 @@ class Rectangle:
 
 
 
-    def add_to_axes(self, axes, edgecolor='black', angle=0.0, fill=False):
+    def add_to_axes(self, axes, edgecolor='black', angle=0.0, fill=False, alpha=1, facecolor='g'):
         """Plot the Rectangle to the axes.
 
         Parameters
@@ -311,6 +317,8 @@ class Rectangle:
                                      height=self.height,
                                      angle=angle,
                                      edgecolor=edgecolor,
+                                     alpha=alpha,
+                                     facecolor=facecolor,
                                      fill=fill))
 
 

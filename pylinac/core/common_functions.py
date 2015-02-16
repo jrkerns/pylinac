@@ -74,7 +74,7 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
     """Exclude data if need be"""
     if exclude_rt_edge or exclude_lt_edge:
         if exclude_rt_edge < 1 and isinstance(exclude_rt_edge, float):
-            r_edge = int(len(y) * (1 - exclude_rt_edge))
+            r_edge = len(y) - int(len(y) * (1 - exclude_rt_edge))
         else:
             r_edge = exclude_rt_edge
         if exclude_lt_edge < 1 and isinstance(exclude_lt_edge, float):
@@ -82,8 +82,8 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
         else:
             l_edge = exclude_lt_edge
         if exclude_rt_edge:
-            y = y[:r_edge]
-            x = x[:r_edge]
+            y = y[:-r_edge]
+            x = x[:-r_edge]
         if exclude_lt_edge:
             y = y[l_edge:]
             x = x[l_edge:]
@@ -136,6 +136,10 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
     # convert to numpy arrays
     peak_vals = np.array(peak_vals)
     peak_idxs = np.array(peak_idxs)
+    # try:
+    #     peak_idxs += l_edge
+    # except:
+    #     pass
 
     """Enforce the min_peak_distance by removing smaller peaks."""
     # For each peak, determine if the next peak is within the min peak width range.

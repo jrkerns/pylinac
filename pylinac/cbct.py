@@ -513,9 +513,9 @@ class SR_Slice(Slice):
         max_idxs : numpy.array
             Indices of peaks found.
         """
-        max_vals_1, max_idx_1 = profile.find_peaks(min_peak_distance=150, max_num_peaks=2, exclude_rt_edge=0.9, return_it=True)
-        max_vals_2, max_idx_2 = profile.find_peaks(min_peak_distance=48, exclude_lt_edge=0.12, exclude_rt_edge=0.7, return_it=True)
-        max_vals_3, max_idx_3 = profile.find_peaks(min_peak_distance=25, exclude_lt_edge=0.3, exclude_rt_edge=0.65, return_it=True)
+        max_vals_1, max_idx_1 = profile.find_peaks(min_peak_distance=150, max_num_peaks=2, exclude_rt_edge=0.9)
+        max_vals_2, max_idx_2 = profile.find_peaks(min_peak_distance=48, exclude_lt_edge=0.12, exclude_rt_edge=0.7)
+        max_vals_3, max_idx_3 = profile.find_peaks(min_peak_distance=25, exclude_lt_edge=0.3, exclude_rt_edge=0.65)
         max_vals = np.concatenate((max_vals_1, max_vals_2, max_vals_3))
         max_idxs = np.concatenate((max_idx_1, max_idx_2, max_idx_3))
         if len(max_idxs) != 17:
@@ -547,8 +547,7 @@ class SR_Slice(Slice):
         min_vals = np.zeros(16)
         min_idxs = np.zeros(16)
         for idx in range(len(max_idxs) - 1):
-            min_val, min_idx = profile.find_valleys(exclude_lt_edge=max_idxs[idx], exclude_rt_edge=max_idxs[idx+1], max_num_peaks=1, \
-                                                                                                                                 return_it=True)
+            min_val, min_idx = profile.find_valleys(exclude_lt_edge=max_idxs[idx], exclude_rt_edge=len(profile.y_values) - max_idxs[idx+1], max_num_peaks=1)
             min_vals[idx] = min_val[0]
             min_idxs[idx] = min_idx[0]
         # now delete the valleys *in between* the LP regions

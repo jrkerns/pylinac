@@ -525,7 +525,7 @@ class StarProfile(CircleProfile):
 # ----------------------------
 if __name__ == '__main__':
     pass
-    # Starshot().run_demo()
+    Starshot().run_demo()
     # star = Starshot()
     # star.load_image_UI()
     # star.load_demo_image()
