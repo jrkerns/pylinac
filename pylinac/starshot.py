@@ -15,12 +15,11 @@ import matplotlib.pyplot as plt
 from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Line, Circle
 from pylinac.core.image import Image
-from pylinac.core.analysis import AnalysisModule
 from pylinac.core.io import get_filepath_UI
 from pylinac.core.profile import CircleProfile, SingleProfile
 
 
-class Starshot(AnalysisModule):
+class Starshot:
     """Class that can determine the wobble in a "starshot" image, be it gantry, collimator,
         couch or MLC. The image can be DICOM or a scanned film (TIF, JPG, etc).
 
