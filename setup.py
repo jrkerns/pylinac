@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 # 1. Ensure version has incremented.
 # 2. To make life easy, in PyCharm, go to Tools/Run setup.py task.../sdist with command line option "upload" to push to PyPI
 
-__version__ = '0.3.0'
-__version_info__ = (0, 3, 0)
+__version__ = '0.4.0'
+__version_info__ = (0, 4, 0)
 
 
 setup(
@@ -17,6 +17,7 @@ setup(
                       ['demo_files/cbct/*',
                        'demo_files/log_reader/*',
                        'demo_files/starshot/*',
+                       'demo_files/picket_fence/*',
                        'demo_files/vmat/*']}, # http://stackoverflow.com/questions/7522250/how-to-include-package-data-with-setuptools-distribute
     zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
