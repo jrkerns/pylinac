@@ -14,7 +14,7 @@ Running the Demo
 
 To run the CBCT demo, create a script or start in interpreter and input::
 
-    from pylinac import CBCT
+    from pylinac.cbct import CBCT
     CBCT().run_demo() # the demo is a Varian high quality head scan
 
 Results will be printed to the console and a figure showing the slices analyzed will pop up::

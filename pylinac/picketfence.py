@@ -11,6 +11,7 @@ import matplotlib.cm as cm
 
 from pylinac.core.decorators import lazyproperty
 from pylinac.core.geometry import Line, Rectangle
+from pylinac.core.io import get_filepath_UI
 from pylinac.core.profile import Profile
 from pylinac.core.image import Image
 
@@ -28,7 +29,7 @@ class PicketFence:
         Attributes
         ----------
         pickets : list
-            Holds :class:`Picket` objects.
+            Holds :class:`~pylinac.picketfence.Picket` objects.
         image : :class:`~pylinac.core.image.Image` object.
         """
         self.pickets = []
@@ -125,6 +126,11 @@ class PicketFence:
             self.image.array = spfilt.median_filter(self.image.array, size=filter)
         self._clear_attrs()
 
+    def load_image_UI(self):
+        """Load the image using a UI dialog box."""
+        path = get_filepath_UI()
+        self.load_image(path)
+
     def run_demo(self, tolerance=0.5):
         """Run the Picket Fence demo using the demo image. See analyze() for parameter info."""
         self.load_demo_image()
@@ -150,13 +156,17 @@ class PicketFence:
             If False (default), a standard (5/10mm leaves) Millennium MLC model is assumed.
             If True, an HD (2.5/5mm leaves) Millennium is assumed.
         """
-        self._clear_attrs()
-        self._action_lvl = action_tolerance
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
+
+        """Pre-analysis"""
+        self._clear_attrs()
+        self._action_lvl = action_tolerance
         self._check_inversion()
-        self._find_orientation()
         self._threshold()
+        self._find_orientation()
+
+        """Analysis"""
         self._construct_pickets(tolerance, action_tolerance)
         leaf_centers = self._find_leaf_centers(hdmlc)
         self.calc_mlc_positions(leaf_centers)
@@ -194,11 +204,13 @@ class PicketFence:
             leaf_prof = np.mean(self._analysis_array, 0)
             center = self.image.center.x
         leaf_prof = Profile(leaf_prof)
+
         # ground profile to reasonable level
         _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=self._sm_lf_meas_wdth, exclude_lt_edge=sm_ex,
                                             exclude_rt_edge=sm_ex)
         min_val = leaf_prof.y_values[peak_idxs[0]:peak_idxs[-1]].min()
         leaf_prof.y_values[leaf_prof.y_values < min_val] = min_val
+
         # remove unevenness in signal
         leaf_prof.y_values = signal.detrend(leaf_prof.y_values, bp=[int(len(leaf_prof.y_values)/3), int(len(leaf_prof.y_values)*2/3)])
         _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=self._sm_lf_meas_wdth, exclude_lt_edge=sm_ex, exclude_rt_edge=sm_ex)
@@ -360,12 +372,22 @@ class PicketFence:
         self._analysis_array[self._analysis_array < min_val] = min_val
         self._analysis_array -= min_val
 
+    # @property
+    # def _analysis_array(self):
+    #     return getattr(self, '_aa', self.image.array.copy())
+    #
+    # @_analysis_array.setter
+    # def _analysis_array(self, array):
+    #     if array.shape != self.image.shape:
+    #         raise ValueError("Array size is not the same as the original image")
+    #     self._aa = array
+
     def _find_orientation(self):
         """Determine the orientation of the radiation strips by examining percentiles of the sum of each axes of the image.
         A high standard deviation is a surrogate for the axis the pickets are along.
         """
-        row_sum = np.sum(self.image.array, 0)
-        col_sum = np.sum(self.image.array, 1)
+        row_sum = np.sum(self._analysis_array, 0)
+        col_sum = np.sum(self._analysis_array, 1)
         row80, row90 = np.percentile(row_sum, [80, 90])
         col80, col90 = np.percentile(col_sum, [80, 90])
         row_range = row90 - row80
@@ -384,8 +406,10 @@ class Picket:
         """
         Attributes
         ----------
-        mlc_meas : :class:`MLC_Meas`
-            MLC measurement positions.
+        mlc_meas : list
+            Holds :class:`~pylinac.picketfence.MLC_Meas` objects.
+        fit : numpy.poly1d
+            The fit equation of the picket.
         """
         self.mlc_meas = []
         self._img = image
@@ -501,7 +525,7 @@ class MLC_Meas(Line):
         super().__init__(point1, point2, m, b)
         self.error = 0
         self.passed = False
-        self.under_action = False
+        self.passed_action = False
 
 
 # -----------------------------------
@@ -511,11 +535,12 @@ if __name__ == '__main__':
     # from scipy.ndimage.interpolation import rotate
     # import cProfile
     # cProfile.run('PicketFence().run_demo()', sort=1)
-    pf = PicketFence()
+    PicketFence().run_demo()
+    # pf = PicketFence()
     # pf.open_UI()
-    pf.load_demo_image()
-    pf.image.rot90()
+    # pf.load_demo_image()
+    # pf.image.rot90()
     # pf.image.array = rotate(pf.image.array, 0.5, reshape=False, mode='nearest')
-    pf.analyze(tolerance=0.15, action_tolerance=0.03)
-    print(pf.return_results())
-    pf.plot_analyzed_image()
+    # pf.analyze(tolerance=0.15, action_tolerance=0.03)
+    # print(pf.return_results())
+    # pf.plot_analyzed_image()

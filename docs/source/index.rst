@@ -34,6 +34,7 @@ or jump right in by doing :ref:`installation` and then :ref:`getting_started`!
    vmat_docs
    cbct_docs
    log_analyzer
+   picketfence
    core_modules
 
 

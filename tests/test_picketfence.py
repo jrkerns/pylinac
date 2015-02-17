@@ -34,6 +34,7 @@ class PF_EPID_demo(unittest.TestCase):
         self.assertEqual(self.pf.orientation, orientations['LR'])
         # check that 90 degree orientation is other way
         self.pf.image.rot90()
+        self.pf._threshold()
         self.pf._find_orientation()
         self.assertEqual(self.pf.orientation, orientations['UD'])
 

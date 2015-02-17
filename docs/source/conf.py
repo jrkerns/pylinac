@@ -31,6 +31,7 @@ MOCK_MODULES = ['numpy','dicom', 'dicom.errors', 'scipy',
                 'Pillow','PIL',
                 'tkinter', 'tkinter.filedialog',
                 'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize', 'scipy.misc',
+                'scipy.interpolate',
                 'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
