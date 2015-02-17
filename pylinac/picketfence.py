@@ -298,7 +298,7 @@ class PicketFence:
 
                     if not mlc_meas.passed:
                         color = 'r'
-                    elif self._action_lvl_set and not mlc_meas.under_action:
+                    elif self._action_lvl_set and not mlc_meas.passed_action:
                         color = 'm'
                     else:
                         color = 'b'
@@ -449,7 +449,7 @@ class Picket:
     def mlc_passed_action(self, mlc):
         """Return whether the MLC has passed the action tolerance."""
         if self._action_tol is not None:
-            if self.mlc_meas[mlc].under_action:
+            if self.mlc_meas[mlc].passed_action:
                 return True
             else:
                 return False
@@ -490,7 +490,7 @@ class Picket:
                 meas.passed = True
             if self._action_tol is not None:
                 if physical_error < self._action_tol:
-                    meas.under_action = True
+                    meas.passed_action = True
 
     def add_guards_to_axes(self, axis, color='g'):
         """Plot guard rails to the axis."""
@@ -519,7 +519,7 @@ class MLC_Meas(Line):
             The error of the MLC measurement and the picket fit.
         passed : bool
             Whether the MLC measurement was under tolerance.
-        under_action : bool
+        passed_action : bool
             Whether the MLC measurement was under the action level tolerance.
         """
         super().__init__(point1, point2, m, b)

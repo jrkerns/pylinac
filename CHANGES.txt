@@ -1,4 +1,10 @@
-V0.3.0
+V0.4.0 2/17/2015 -- Added picket fence module
+
+- A Varian MLC picket fence analysis module was added
+   - This will analyze EPID PF images of any size and either orientation.
+
+
+V0.3.0 2/11/2015 -- Added log analysis module
 
 - Log Analyzer module added
     -This module reads Dynalogs and Trajectory logs from Varian linear accelerators.

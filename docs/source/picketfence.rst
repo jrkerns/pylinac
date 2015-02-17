@@ -104,6 +104,7 @@ The picket fence algorithm works like such:
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The image must be an EPID dicom image.
+* Only Varian MLC models are supported (5/10mm or 2.5/5mm leaf combinations).
 * The delivery must be parallel to an image edge; i.e. the collimator should be 0, 90, or -90 degrees.
 
 **Pre-Analysis**
