@@ -23,15 +23,27 @@ class PicketFence:
     MLCs. The strips are assumed to be parallel to one another and normal to the image edge;
     i.e. a "left-right" or "up-down" orientation is assumed. Further work could follow up by accounting
     for any angle.
+
+    Attributes
+    ----------
+    pickets: list
+        Holds :class:`~pylinac.picketfence.Picket` objects.
+    image: :class:`~pylinac.core.image.Image` object.
+
+    Examples
+    --------
+    Run the demo::
+        >>> PicketFence().run_demo()
+
+    Typical session:
+        >>> img_path = r"C:/QA/June/PF.dcm"  # the EPID image
+        >>> mypf = PicketFence()
+        >>> mypf.load_image(img_path)
+        >>> mypf.analyze(tolerance=0.5, action_tolerance=0.3)
+        >>> print(mypf.return_results())
+        >>> mypf.plot_analyzed_image()
     """
     def __init__(self):
-        """
-        Attributes
-        ----------
-        pickets : list
-            Holds :class:`~pylinac.picketfence.Picket` objects.
-        image : :class:`~pylinac.core.image.Image` object.
-        """
         self.pickets = []
         self._action_lvl = None
 
@@ -535,12 +547,12 @@ if __name__ == '__main__':
     # from scipy.ndimage.interpolation import rotate
     # import cProfile
     # cProfile.run('PicketFence().run_demo()', sort=1)
-    PicketFence().run_demo()
-    # pf = PicketFence()
+    # PicketFence().run_demo()
+    pf = PicketFence()
     # pf.open_UI()
-    # pf.load_demo_image()
+    pf.load_demo_image()
     # pf.image.rot90()
     # pf.image.array = rotate(pf.image.array, 0.5, reshape=False, mode='nearest')
-    # pf.analyze(tolerance=0.15, action_tolerance=0.03)
-    # print(pf.return_results())
-    # pf.plot_analyzed_image()
+    pf.analyze(tolerance=0.15, action_tolerance=0.03)
+    print(pf.return_results())
+    pf.plot_analyzed_image()
