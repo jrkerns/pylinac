@@ -1,5 +1,4 @@
 import unittest
-from time import sleep, time
 
 from pylinac.core.decorators import *
 
@@ -61,20 +60,20 @@ class Test_Decorators(unittest.TestCase):
         class ExpensiveClass:
             @lazyproperty
             def expensive_property(self):
-                sleep(0.2)
+                time.sleep(0.2)
                 return
         ec = ExpensiveClass()
 
         # run the expensive property for the first time
-        start = time()
+        start = time.time()
         _ = ec.expensive_property
-        end = time()
+        end = time.time()
         first_access_time = end - start
 
         # run it for the second time; should access cached property
-        start = time()
+        start = time.time()
         _ = ec.expensive_property
-        end = time()
+        end = time.time()
         cached_access_time = end - start
 
         self.assertLess(cached_access_time, first_access_time)
