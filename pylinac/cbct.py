@@ -820,7 +820,7 @@ class CBCT:
         demo_folder = osp.join(cbct_demo_dir, 'High quality head')
 
         # unpack demo folder if not already around
-        if not osp.isdir(demo_folder):
+        if not osp.isdir(demo_folder) or len(os.listdir(demo_folder)) == 0:
             shutil.unpack_archive(demo_zip, cbct_demo_dir)
 
         filelist = self._get_CT_filenames_from_folder(demo_folder)

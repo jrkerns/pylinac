@@ -6,7 +6,6 @@ easily plottable.
 Unlike most other modules of pylinac, the log analyzer module has no end goal. Data is parsed from the logs, but what is done with that
 info, and which info is analyzed is up to the user.
 """
-
 from abc import ABCMeta, abstractproperty
 import struct
 import os
@@ -20,8 +19,8 @@ import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
 
 from pylinac.core import io
-from pylinac.core.decorators import type_accept, lazyproperty
-from pylinac.core.io import is_valid_file, is_valid_dir
+from pylinac.core.decorators import type_accept, lazyproperty, value_accept
+from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI
 from pylinac.core.utilities import is_iterable
 
 
@@ -31,7 +30,10 @@ log_types = {'dlog': 'Dynalog', 'tlog': 'Trajectory log'}
 
 
 class MachineLogs(list):
-    """Read in machine logs from a directory. Batch methods are also provided."""
+    """
+    .. versionadded:: 0.4.1
+
+    Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
     @type_accept(dir=str)
     def __init__(self, dir=None, recursive=True, verbose=True):
         """
@@ -44,6 +46,30 @@ class MachineLogs(list):
             Whether to walk through subfolders of passed directory.
         verbose : bool
             If True (default), prints load status at each log.
+
+        Examples
+        --------
+        Load a directory upon initialization::
+
+            >>> log_dir = r"C:\path\to\log\directory"
+            >>> logs = MachineLogs(log_dir)
+
+        Or load them later directly::
+
+            >>> logs = MachineLogs()
+            >>> logs.load_dir(log_dir)
+
+        Or even using a UI dialog::
+
+            >>> logs = MachineLogs()
+            >>> logs.load_dir_UI()
+
+        Batch methods include determining the average gamma and average gamma pass value::
+
+            >>> logs.avg_gamma()
+            >>> 0.05 # or whatever it is
+            >>> logs.avg_gamma_pct()
+            >>> 97.2
         """
         super().__init__()
         if dir is not None and is_valid_dir(dir):
@@ -54,6 +80,7 @@ class MachineLogs(list):
         """Return the number of logs currently loaded."""
         return len(self)
 
+    @value_accept(log_type=log_types)
     def _num_log_type(self, log_type):
         num = 0
         for log in self:
@@ -80,9 +107,11 @@ class MachineLogs(list):
 
         Parameters
         ----------
-        dir : str
-            The directory of interest. Will walk through and process any logs, Trajectory or dynalog, it finds.
+        dir : str, None
+            The directory of interest.
+            If a string, will walk through and process any logs, Trajectory or dynalog, it finds.
             Non-log files will be skipped.
+            If None, files must be loaded later using .load_dir() or .append().
         recursive : bool
             If True (default), will walk through subfolders of passed directory.
             If False, will only search root directory.
@@ -115,6 +144,12 @@ class MachineLogs(list):
             if not recursive:
                 break  # break out of for loop after top level search
 
+    def load_dir_UI(self, recursive=True, verbose=True):
+        """Load a directory using a UI dialog box. See load_dir() for parameter info."""
+        folder = get_folder_UI()
+        if folder:
+            self.load_dir(folder, recursive, verbose)
+
     def _clean_log_filenames(self, filenames, root, num_logs, num_skipped):
         """Extract the names of real log files from a list of files."""
         cleaned_filenames = []
@@ -142,9 +177,9 @@ class MachineLogs(list):
     def report_basic_parameters(self):
         """Report basic parameters of the logs.
 
-        -Number of logs
-        -Average gamma value of all logs
-        -Average gamma pass percent of all logs
+        - Number of logs
+        - Average gamma value of all logs
+        - Average gamma pass percent of all logs
         """
         print("Number of logs: {}".format(self.num_logs))
         print("Average gamma: {:3.2f}".format(self.avg_gamma(verbose=False)))
@@ -175,8 +210,8 @@ class MachineLogs(list):
         else:
             raise TypeError("Can only append MachineLog or string pointing to a log or log directory.")
 
-    def avg_gamma(self, verbose=True, doseTA=1, distTA=1, threshold=10, resolution=0.1):
-        """Calculate and return the average gamma of all logs. See :function:~`pylinac.log_analyzer.GammaFluence.calc_map()`
+    def avg_gamma(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, verbose=True):
+        """Calculate and return the average gamma of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
         gamma_list = []
@@ -189,8 +224,8 @@ class MachineLogs(list):
                 print('{} of {}'.format(num, self.num_logs))
         return np.array(gamma_list).mean()
 
-    def avg_gamma_pct(self, verbose=True, doseTA=1, distTA=1, threshold=10, resolution=0.1):
-        """Calculate and return the average gamma pass percent of all logs. See :function:~`pylinac.log_analyzer.GammaFluence.calc_map()`
+    def avg_gamma_pct(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, verbose=True):
+        """Calculate and return the average gamma pass percent of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
         gamma_list = []
@@ -590,7 +625,6 @@ class Fluence(metaclass=ABCMeta):
         else:
             return True
 
-    # @profile
     def calc_map(self, resolution=0.1):
         """Calculate a fluence pixel map.
 
@@ -1790,6 +1824,6 @@ if __name__ == '__main__':
     # log.load_demo_trajectorylog()
     # log.run_tlog_demo()
     # log.run_dlog_demo()
-    dr = osp.abspath(osp.join('../', 'tests', 'test_files', 'MLC logs', 'mixed_types'))
+    dr = osp.abspath(osp.join('../', 'tests', 'test_files', 'MLC logs', 'SG TB1 MLC'))
     logs = MachineLogs(dr)
     logs.report_basic_parameters()

@@ -63,7 +63,7 @@ class Image:
 
         >>> arr = np.arange(36).reshape(6,6)
         >>> img = Image(arr)
-    # """
+    """
     # SID = typed_property('SID', (int, float, np.number))
     im_type = typed_property('im_type', str)
     array = typed_property('array', np.ndarray)

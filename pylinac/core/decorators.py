@@ -4,6 +4,18 @@
 from abc import ABCMeta
 from functools import wraps
 from inspect import signature
+import time
+
+def timethis(func):
+    """Report execution time of function."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(func.__name__, 'took {:3.2f}s'.format(end-start))
+        return result
+    return wrapper
 
 class lazyproperty:
     """A decorator that returns a cached value if it has already been calculated.

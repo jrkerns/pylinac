@@ -8,7 +8,7 @@ Overview
 
 The log analyzer module reads and parses Varian linear accelerator machine logs, both Dynalogs and Trajectory logs. The module also
 calculates actual and expected fluences as well as performing gamma evaluations. Data is structured to be easily accessible and
-easily plottable.
+easily plotted.
 
 Unlike most other modules of pylinac, the log analyzer module has no end goal. Data is parsed from the logs, but what is done with that
 info, and which info is analyzed is up to the user.
@@ -189,8 +189,37 @@ properties, and will not recalculate if passed the same conditions::
     10
 
 
+Batch Processing
+----------------
+
+Batch processing/loading of log files is helpful when dealing with one file at a time is too cumbersome. Pylinac allows you
+to load logs of an entire directory via :class:`~pylinac.log_analyzer.MachineLogs`; individual log files can be accessed, and a handful of
+batch methods are included.
+
+.. rubric:: Example
+
+Let's assume all of your logs for the past week are in a folder. You'd like to quickly see what the average gamma is of the files::
+
+    >>> from pylinac.log_analyzer import MachineLogs
+    >>> log_dir = r"C:\path\to\log\directory"
+    >>> logs = MachineLogs(log_dir)
+    >>> logs.avg_gamma(resolution=0.2)
+    0.03  # or whatever
+
+You can also append to :class:`~pylinac.log_analyzer.MachineLogs` to have two or more different folders combined::
+
+    >>> other_log_dir = r"C:\different\path"
+    >>> logs.append(other_log_dir)
+
+.. note::
+    Batch processing methods (like :meth:`~pylinac.log_analyzer.MachineLogs.avg_gamma` can take a while if numerous logs have been
+    loaded, so be patient. You can also
+    use the ``verbose=True`` argument in batch methods to make sure the program is running and hasn't stalled.
+
 API Documentation
 -----------------
+.. autoclass:: pylinac.log_analyzer.MachineLogs
+    :no-show-inheritance:
 
 .. autoclass:: pylinac.log_analyzer.MachineLog
     :no-show-inheritance:
