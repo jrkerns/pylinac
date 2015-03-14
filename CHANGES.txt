@@ -1,3 +1,8 @@
+V0.4.1 3/14/2015 (Pi Day) -- Enhancements for Log Analyzer module
+
+- Batch processing of logs added via a new class.
+- ~4x speedup of fluence calculations.
+
 V0.4.0 2/17/2015 -- Added picket fence module
 
 - A Varian MLC picket fence analysis module was added
