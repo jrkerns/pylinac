@@ -37,7 +37,8 @@ Below are the tools currently available; tools will be added one at a time as th
     `manual <http://www.phantomlab.com/library/pdf/catphan504manual.pdf>`_ and analyzes HU linearity and
     image scaling (CTP404), high-contrast line pairs to determine MTF (CTP528), and HU uniformity (CTP486).
 * `Log Analysis <http://pylinac.readthedocs.org/en/latest/log_analyzer.html>`_ -
-    This module reads Varian logs, both Dynalogs and Trajectory logs and allows exploration of all axes measured.
+    This module reads Varian logs, both Dynalogs and Trajectory logs and allows exploration of all axes measured. A single log can
+    be analyzed as well as batch processing.
 * `Picket Fence MLC Analysis <http://pylinac.readthedocs.org/en/latest/picketfence.html>`_ -
     This module will analyze EPID MLC picket fence images, allowing for both a passed
     tolerance as well as an action tolerance. A semi-transparent overlay allows for quick pass/warn/fail assessment.
