@@ -5,6 +5,8 @@ from pylinac.picketfence import *
 
 class PF_EPID_demo(unittest.TestCase):
     """Tests specifically for the EPID demo image."""
+    test_im_path = osp.abspath(osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence'))
+
     def setUp(self):
         self.pf = PicketFence()
         self.pf.load_demo_image()
@@ -46,6 +48,16 @@ class PF_EPID_demo(unittest.TestCase):
         # check error values
         self.assertAlmostEqual(self.pf.abs_median_error, 0.067, delta=0.02)
         self.assertAlmostEqual(self.pf.max_error, 0.213, delta=0.08)
+
+    def test_filter_on_load(self):
+        pf = PicketFence()
+        pf.load_image(osp.join(self.test_im_path, 'EPID-PF.dcm'), filter=3)
+
+    def test_passed(self):
+        self.assertTrue(self.pf.passed)
+
+    def test_analyze_tol_values(self):
+        self.assertRaises(ValueError, self.pf.analyze, 0.2, 0.3)
 
     def test_percent_passing(self):
         self.assertEqual(self.pf.percent_passing, 100)

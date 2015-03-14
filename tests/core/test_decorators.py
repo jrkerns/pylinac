@@ -5,8 +5,14 @@ from pylinac.core.decorators import *
 
 class Test_Decorators(unittest.TestCase):
 
-    def test_type_accept(self):
+    def test_timethis(self):
+        @timethis
+        def dumb_function():
+            return [item for item in range(1000000)]
 
+        dumb_function()
+
+    def test_type_accept(self):
         @type_accept(param1=(int, float), param2=(str, None))
         def dumb_function(param1, param2):
             pass
@@ -22,8 +28,6 @@ class Test_Decorators(unittest.TestCase):
         self.assertRaises(TypeError, dumb_function, 'r', 't')
         self.assertRaises(TypeError, dumb_function, 1, 2)
         self.assertRaises(TypeError, dumb_func2, 2.2)
-
-
 
     def test_value_accept(self):
 

@@ -235,10 +235,11 @@ class Test_MachineLogs(TestCase):
     _logs_dir = osp.abspath(osp.join(osp.dirname(__file__), '.', 'test_files', 'MLC logs'))
     logs_dir = osp.join(_logs_dir, 'SG TB1 MLC')
     logs_altdir = osp.join(_logs_dir, 'altdir')
+    mix_type_dir = osp.join(_logs_dir, 'mixed_types')
 
     def test_loading(self):
         # test root level directory
-        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        logs = MachineLogs(self.logs_dir, recursive=False, verbose=True)
         self.assertEqual(logs.num_logs, 13)
         # test recursive
         logs = MachineLogs(self.logs_dir, verbose=False)
@@ -247,6 +248,26 @@ class Test_MachineLogs(TestCase):
         logs = MachineLogs()
         logs.load_dir(self.logs_dir, verbose=False)
         self.assertEqual(logs.num_logs, 17)
+
+    def test_basic_parameters(self):
+        # no real test other than to make sure it works
+        logs = MachineLogs(self.logs_dir, verbose=False)
+        logs.report_basic_parameters()
+
+    def test_num_logs(self):
+        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        self.assertEqual(logs.num_logs, 13)
+        self.assertEqual(logs.num_tlogs, 13)
+        self.assertEqual(logs.num_dlogs, 0)
+
+        logs = MachineLogs(self.mix_type_dir, verbose=False)
+        self.assertEqual(logs.num_dlogs, 1)
+        self.assertEqual(logs.num_tlogs, 2)
+
+    def test_empty_dir(self):
+        empty_dir = osp.join(self._logs_dir, 'empty_dir')
+        logs = MachineLogs(empty_dir)
+        self.assertEqual(logs.num_logs, 0)
 
     def test_mixed_types(self):
         """test mixed directory (tlogs & dlogs)"""
@@ -278,3 +299,13 @@ class Test_MachineLogs(TestCase):
         """Test that error is raised if trying to do op with no logs."""
         logs = MachineLogs()
         self.assertRaises(ValueError, logs.avg_gamma)
+
+    def test_avg_gamma(self):
+        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        gamma = logs.avg_gamma()
+        self.assertAlmostEqual(gamma, 0, delta=0.002)
+
+    def test_avg_gamma_pct(self):
+        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        gamma = logs.avg_gamma_pct()
+        self.assertAlmostEqual(gamma, 100, delta=0.01)

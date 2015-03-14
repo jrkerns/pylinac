@@ -56,8 +56,9 @@ class PicketFence:
     def passed(self):
         """Boolean specifying if all MLC positions were within tolerance."""
         for picket in self.pickets:
-            if not all(picket.error_passfail):
-                return False
+            for meas in picket.mlc_meas:
+                if not meas.passed:
+                    return False
         return True
 
     @property

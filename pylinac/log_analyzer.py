@@ -18,9 +18,8 @@ import numpy as np
 import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
 
-from pylinac.core import io
 from pylinac.core.decorators import type_accept, lazyproperty, value_accept
-from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI
+from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI
 from pylinac.core.utilities import is_iterable
 
 
@@ -51,7 +50,7 @@ class MachineLogs(list):
         --------
         Load a directory upon initialization::
 
-            >>> log_dir = r"C:\path\to\log\directory"
+            >>> log_dir = r'C:\path\log\directory'
             >>> logs = MachineLogs(log_dir)
 
         Or load them later directly::
@@ -97,10 +96,6 @@ class MachineLogs(list):
     def num_dlogs(self):
         """Return the number of Trajectory logs currently loaded."""
         return self._num_log_type(log_types['dlog'])
-
-    def log_types(self):
-        """Describe the number of logs by type."""
-        print("Number of Trajectory logs: {}\nNumber of Dynalogs: {}".format(self.num_tlogs, self.num_dlogs))
 
     def load_dir(self, dir, recursive=True, verbose=True):
         """Load a directory of log files.
@@ -316,7 +311,7 @@ class MachineLog:
 
     def load_UI(self, exclude_beam_off=True):
         """Let user load a log file with a UI dialog box. """
-        filename = io.get_filepath_UI()
+        filename = get_filepath_UI()
         if filename: # if user didn't hit cancel...
             self.load(filename, exclude_beam_off)
 
@@ -1820,6 +1815,10 @@ def _return_other_dlg(dlg_filename, raise_find_error=True):
 if __name__ == '__main__':
     # import cProfile
     # cProfile.run('MachineLog().run_dlog_demo()', sort=1)
-    log = MachineLog()
+    # log = MachineLog()
     # log.run_tlog_demo()
-    log.run_dlog_demo()
+    # log.run_dlog_demo()
+    dir = osp.abspath(osp.join(osp.dirname(__file__), '..', 'tests', 'test_files', 'MLC logs', 'SG TB1 MLC'))
+    logs = MachineLogs(dir)
+    print(logs.avg_gamma())
+    print(logs.avg_gamma_pct())
