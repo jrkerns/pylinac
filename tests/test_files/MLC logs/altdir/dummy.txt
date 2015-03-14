@@ -1,0 +1,1 @@
+Not important. Used as a dummy file (not a log file) for testing purposes.

@@ -9,9 +9,11 @@ info, and which info is analyzed is up to the user.
 
 from abc import ABCMeta, abstractproperty
 import struct
+import os
 import os.path as osp
 import csv
 import copy
+import warnings
 
 import numpy as np
 import scipy.ndimage.filters as spf
@@ -19,13 +21,187 @@ import matplotlib.pyplot as plt
 
 from pylinac.core import io
 from pylinac.core.decorators import type_accept, lazyproperty
-from pylinac.core.io import is_valid_file
+from pylinac.core.io import is_valid_file, is_valid_dir
 from pylinac.core.utilities import is_iterable
 
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
 log_types = {'dlog': 'Dynalog', 'tlog': 'Trajectory log'}
+
+
+class MachineLogs(list):
+    """Read in machine logs from a directory. Batch methods are also provided."""
+    @type_accept(dir=str)
+    def __init__(self, dir=None, recursive=True, verbose=True):
+        """
+        Parameters
+        ----------
+        dir : str
+            The directory of interest. Will walk through and process any logs, Trajectory or dynalog, it finds.
+            Non-log files will be skipped.
+        recursive : bool
+            Whether to walk through subfolders of passed directory.
+        verbose : bool
+            If True (default), prints load status at each log.
+        """
+        super().__init__()
+        if dir is not None and is_valid_dir(dir):
+            self.load_dir(dir, recursive, verbose)
+
+    @property
+    def num_logs(self):
+        """Return the number of logs currently loaded."""
+        return len(self)
+
+    def _num_log_type(self, log_type):
+        num = 0
+        for log in self:
+            if log.log_type == log_type:
+                num += 1
+        return num
+
+    @property
+    def num_tlogs(self):
+        """Return the number of Trajectory logs currently loaded."""
+        return self._num_log_type(log_types['tlog'])
+
+    @property
+    def num_dlogs(self):
+        """Return the number of Trajectory logs currently loaded."""
+        return self._num_log_type(log_types['dlog'])
+
+    def log_types(self):
+        """Describe the number of logs by type."""
+        print("Number of Trajectory logs: {}\nNumber of Dynalogs: {}".format(self.num_tlogs, self.num_dlogs))
+
+    def load_dir(self, dir, recursive=True, verbose=True):
+        """Load a directory of log files.
+
+        Parameters
+        ----------
+        dir : str
+            The directory of interest. Will walk through and process any logs, Trajectory or dynalog, it finds.
+            Non-log files will be skipped.
+        recursive : bool
+            If True (default), will walk through subfolders of passed directory.
+            If False, will only search root directory.
+        verbose : bool
+            If True (default), prints load status at each log.
+        """
+        # do initial walk to get file count
+        num_logs = 0
+        num_skipped = 0
+        for root, dirs, files in os.walk(dir):
+            _, num_logs, num_skipped = self._clean_log_filenames(files, root, num_logs, num_skipped)
+            if not recursive:
+                break
+        if num_logs == 0:
+            warnings.warn("No logs found.")
+            return
+
+        # actual log loading
+        load_num = 1
+        if verbose:
+            print("{} logs found. \n{} logs skipped. \nLog loaded:".format(num_logs, num_skipped))
+        for root, dirs, files in os.walk(dir):
+            cleaned_files, _, _ = self._clean_log_filenames(files, root, num_logs, num_skipped)
+            for name in cleaned_files:
+                pth = osp.join(root, name)
+                self.append(pth)
+                if verbose:
+                    print("{} of {}".format(load_num, num_logs))
+                    load_num += 1
+            if not recursive:
+                break  # break out of for loop after top level search
+
+    def _clean_log_filenames(self, filenames, root, num_logs, num_skipped):
+        """Extract the names of real log files from a list of files."""
+        cleaned_filenames = []
+        for idx, filename in enumerate(filenames):
+            filename = osp.join(root, filename)
+            if is_tlog(filename):
+                num_logs += 1
+                cleaned_filenames.append(filename)
+            elif is_dlog(filename):
+                opp_file = _return_other_dlg(filename, raise_find_error=False)
+                if opp_file is not None:
+                    num_logs += 1
+                    opp_file = osp.basename(opp_file)
+                    del filenames[filenames.index(opp_file)]
+                    cleaned_filenames.append(filename)
+                else:
+                    num_skipped += 1
+                    del filenames[idx]
+        return cleaned_filenames, num_logs, num_skipped
+
+    def _check_empty(self):
+        if len(self) == 0:
+            raise ValueError("No logs have been loaded yet.")
+
+    def report_basic_parameters(self):
+        """Report basic parameters of the logs.
+
+        -Number of logs
+        -Average gamma value of all logs
+        -Average gamma pass percent of all logs
+        """
+        print("Number of logs: {}".format(self.num_logs))
+        print("Average gamma: {:3.2f}".format(self.avg_gamma(verbose=False)))
+        print("Average gamma pass percent: {:3.1f}".format(self.avg_gamma_pct(verbose=False)))
+
+    def append(self, obj, recursive=True):
+        """Append a log. Overloads list method.
+
+        Parameters
+        ----------
+        obj : str, MachineLog
+            If a string, must point to a log file, or a directory containing log files. Will be loaded and then appended.
+            If a MachineLog, then simply appends.
+        recursive : bool
+            Whether to walk through subfolders of passed directory. Only applicable if obj was a directory.
+        """
+        if isinstance(obj, str):
+            if is_log(obj):
+                log = MachineLog(obj)
+                super().append(log)
+            elif is_valid_dir(obj, raise_error=False):
+                for root, dirs, files in os.walk(obj):
+                    for name in files:
+                        pth = osp.join(root, name)
+                        self.append(pth)
+        elif isinstance(obj, MachineLog):
+            super().append(obj)
+        else:
+            raise TypeError("Can only append MachineLog or string pointing to a log or log directory.")
+
+    def avg_gamma(self, verbose=True, doseTA=1, distTA=1, threshold=10, resolution=0.1):
+        """Calculate and return the average gamma of all logs. See :function:~`pylinac.log_analyzer.GammaFluence.calc_map()`
+        for further parameter info."""
+        self._check_empty()
+        gamma_list = []
+        if verbose:
+            print("Calculating gammas:")
+        for num, log in enumerate(self):
+            log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
+            gamma_list.append(log.fluence.gamma.avg_gamma)
+            if verbose:
+                print('{} of {}'.format(num, self.num_logs))
+        return np.array(gamma_list).mean()
+
+    def avg_gamma_pct(self, verbose=True, doseTA=1, distTA=1, threshold=10, resolution=0.1):
+        """Calculate and return the average gamma pass percent of all logs. See :function:~`pylinac.log_analyzer.GammaFluence.calc_map()`
+        for further parameter info."""
+        self._check_empty()
+        gamma_list = []
+        if verbose:
+            print("Calculating gamma pass percent:")
+        for num, log in enumerate(self):
+            log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
+            gamma_list.append(log.fluence.gamma.pass_prcnt)
+            if verbose:
+                print("{} of {}".format(num, self.num_logs))
+        return np.array(gamma_list).mean()
 
 
 class MachineLog:
@@ -127,8 +303,8 @@ class MachineLog:
                 delivery, leaves move between segments while the beam is held. If beam-off data is included,
                 the RMS and fluence errors may not correspond to what was delivered.
         """
-        if is_valid_file(filename, raise_error=True):
-            if self.is_log(filename):
+        if is_valid_file(filename):
+            if is_log(filename):
                 self._filename = filename
                 self._read_log(exclude_beam_off)
             else:
@@ -204,17 +380,6 @@ class MachineLog:
         print("Gamma pass %: {:2.2f}".format(self.fluence.gamma.pass_prcnt))
         print("Gamma average: {:2.3f}".format(self.fluence.gamma.avg_gamma))
 
-    def is_log(self, filename):
-        """Boolean specifying if filename is a valid log file."""
-        with open(filename, 'rb') as unknown_file:
-            header_sample = unknown_file.read(5).decode()
-            if 'B' in header_sample or 'A' in header_sample:
-                return True
-            elif 'V' in header_sample:
-                return True
-            else:
-                return False
-
     @property
     def log_type(self):
         """Determine the MLC log type: Trajectory or Dynalog.
@@ -231,13 +396,10 @@ class MachineLog:
         ------
         ValueError : If log type cannot be determined.
         """
-        with open(self._filename, 'rb') as unknown_file:
-            header_sample = unknown_file.read(5).decode()
-            if 'B' in header_sample or 'A' in header_sample:
-                log_type = log_types['dlog']  # dynalog
-            elif 'V' in header_sample:
-                log_type = log_types['tlog']  # trajectory log
-
+        if is_dlog(self._filename):
+            log_type = log_types['dlog']
+        elif is_tlog(self._filename):
+            log_type = log_types['tlog']
         return log_type
 
     @property
@@ -347,6 +509,7 @@ class Axis:
 
 
 class _Axis_Moved:
+    """Mixin class for Axis."""
     @lazyproperty
     def moved(self):
         """Return whether the axis moved during treatment."""
@@ -427,6 +590,7 @@ class Fluence(metaclass=ABCMeta):
         else:
             return True
 
+    # @profile
     def calc_map(self, resolution=0.1):
         """Calculate a fluence pixel map.
 
@@ -742,7 +906,6 @@ class MLC:
 
             .. warning:: Leaf numbers are 1-index based to correspond with Varian convention.
         """
-        super().__init__()
         self.leaf_axes = {}
         self.snapshot_idx = snapshot_idx
         self._jaws = jaw_struct
@@ -1553,7 +1716,38 @@ class CRC(TLog_Section):
         pass
 
 
-def _return_other_dlg(dlg_filename):
+def is_log(filename):
+    """Boolean specifying if filename is a valid log file."""
+    if is_tlog(filename) or is_dlog(filename):
+        return True
+    else:
+        return False
+
+def is_tlog(filename):
+    """Boolean specifying if filename is a Trajectory log file."""
+    if is_valid_file(filename, raise_error=False):
+        with open(filename, 'rb') as unknown_file:
+            header_sample = unknown_file.read(5).decode()
+            if 'V' in header_sample:
+                return True
+            else:
+                return False
+    else:
+        return False
+
+def is_dlog(filename):
+    """Boolean specifying if filename is a dynalog file."""
+    if is_valid_file(filename, raise_error=False):
+        with open(filename, 'rb') as unknown_file:
+            header_sample = unknown_file.read(5).decode()
+            if 'B' in header_sample or 'A' in header_sample:
+                return True
+            else:
+                return False
+    else:
+        return False
+
+def _return_other_dlg(dlg_filename, raise_find_error=True):
     """Return the filename of the corresponding dynalog file.
 
     For example, if the A*.dlg file was passed in, return the corresponding B*.dlg filename.
@@ -1578,10 +1772,13 @@ def _return_other_dlg(dlg_filename):
         raise ValueError("Unable to decipher log names; ensure dynalogs start with 'A' and 'B'")
     other_filename = osp.join(dlg_dir, file2get)
 
-    if not osp.isfile(other_filename):
+    if osp.isfile(other_filename):
+        return other_filename
+    elif raise_find_error:
         raise FileNotFoundError("Complementary dlg file not found; ensure A and B-file are in same directory.")
     else:
-        return other_filename
+        return
+
 
 # ------------------------
 # MLC Log Viewer Example
@@ -1589,7 +1786,10 @@ def _return_other_dlg(dlg_filename):
 if __name__ == '__main__':
     # import cProfile
     # cProfile.run('MachineLog().run_dlog_demo()', sort=1)
-    log = MachineLog()
+    # log = MachineLog()
     # log.load_demo_trajectorylog()
     # log.run_tlog_demo()
-    log.run_dlog_demo()
+    # log.run_dlog_demo()
+    dr = osp.abspath(osp.join('../', 'tests', 'test_files', 'MLC logs', 'mixed_types'))
+    logs = MachineLogs(dr)
+    logs.report_basic_parameters()

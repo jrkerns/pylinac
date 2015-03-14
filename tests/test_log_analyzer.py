@@ -230,3 +230,51 @@ class Test_Tlog_Fluence(TestCase):
         self.assertAlmostEqual(fluence.gamma.pass_prcnt, 100, delta=0.1)
         self.assertAlmostEqual(fluence.gamma.avg_gamma, 0.001, delta=0.005)
         self.assertAlmostEqual(fluence.gamma.histogram()[0][0], 240000, delta=100)
+
+class Test_MachineLogs(TestCase):
+    _logs_dir = osp.abspath(osp.join(osp.dirname(__file__), '.', 'test_files', 'MLC logs'))
+    logs_dir = osp.join(_logs_dir, 'SG TB1 MLC')
+    logs_altdir = osp.join(_logs_dir, 'altdir')
+
+    def test_loading(self):
+        # test root level directory
+        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        self.assertEqual(logs.num_logs, 13)
+        # test recursive
+        logs = MachineLogs(self.logs_dir, verbose=False)
+        self.assertEqual(logs.num_logs, 17)
+        # test using method
+        logs = MachineLogs()
+        logs.load_dir(self.logs_dir, verbose=False)
+        self.assertEqual(logs.num_logs, 17)
+
+    def test_mixed_types(self):
+        """test mixed directory (tlogs & dlogs)"""
+        log_dir = osp.join(self._logs_dir, 'mixed_types')
+        logs = MachineLogs(log_dir, verbose=False)
+        self.assertEqual(logs.num_logs, 3)
+
+    def test_dlog_matches_missing(self):
+        """Test that Dlogs without a match are skipped."""
+        log_dir = osp.join(self._logs_dir, 'some_matches_missing')
+        logs = MachineLogs(log_dir, verbose=False)
+        self.assertEqual(logs.num_logs, 1)
+
+    def test_append(self):
+        # append a directory
+        logs = MachineLogs()
+        logs.append(self.logs_altdir)
+        self.assertEqual(logs.num_logs, 4)
+        # append a file string
+        logs = MachineLogs()
+        single_file = osp.join(self.logs_altdir, 'qqq2106_4DC Treatment_JST90_TX_20140712094246.bin')
+        logs.append(single_file)
+        # append a MachineLog
+        logs = MachineLogs()
+        single_log = MachineLog(single_file)
+        logs.append(single_log)
+
+    def test_empty_op(self):
+        """Test that error is raised if trying to do op with no logs."""
+        logs = MachineLogs()
+        self.assertRaises(ValueError, logs.avg_gamma)
