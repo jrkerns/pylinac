@@ -355,20 +355,20 @@ class MachineLog:
             ax.set_title('Actual Fluence', fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
             ax.autoscale(tight=True)
-            plt.imshow(self.fluence.actual.pixel_map, aspect='auto')
+            plt.imshow(self.fluence.actual.pixel_map, aspect='auto', interpolation='none')
 
             # plot the expected fluence
             ax = plt.subplot(2, 3, 2)
             ax.set_title("Expected Fluence", fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.expected.pixel_map, aspect='auto')
+            plt.imshow(self.fluence.expected.pixel_map, aspect='auto', interpolation='none')
 
             # plot the gamma map
             gmma = self.fluence.gamma
             ax = plt.subplot(2, 3, 3)
             ax.set_title("Gamma Map ({:2.2f}% passing @ {}%/{}mm)".format(gmma.pass_prcnt, gmma.doseTA, gmma.distTA), fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.gamma.pixel_map, aspect='auto')
+            plt.imshow(self.fluence.gamma.pixel_map, aspect='auto', interpolation='none')
 
             # plot the gamma histogram
             ax = plt.subplot(2, 3, 4)
@@ -680,8 +680,8 @@ class Fluence(metaclass=ABCMeta):
                         rt_mlc_pos = right_leaf_data[snapshot]
                         lt_jaw_pos = left_jaw_data[snapshot]
                         rt_jaw_pos = right_jaw_data[snapshot]
-                        left_edge = max(lt_mlc_pos, lt_jaw_pos)
-                        right_edge = min(rt_mlc_pos, rt_jaw_pos)
+                        left_edge = int(max(lt_mlc_pos, lt_jaw_pos))
+                        right_edge = int(min(rt_mlc_pos, rt_jaw_pos))
                         fluence_line[left_edge:right_edge] += MU_differential[snapshot]
                 else:  # leaf didn't move; no need to calc over every snapshot
                     first_snapshot = self._mlc.snapshot_idx[0]
@@ -1820,10 +1820,6 @@ def _return_other_dlg(dlg_filename, raise_find_error=True):
 if __name__ == '__main__':
     # import cProfile
     # cProfile.run('MachineLog().run_dlog_demo()', sort=1)
-    # log = MachineLog()
-    # log.load_demo_trajectorylog()
+    log = MachineLog()
     # log.run_tlog_demo()
-    # log.run_dlog_demo()
-    dr = osp.abspath(osp.join('../', 'tests', 'test_files', 'MLC logs', 'SG TB1 MLC'))
-    logs = MachineLogs(dr)
-    logs.report_basic_parameters()
+    log.run_dlog_demo()

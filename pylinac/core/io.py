@@ -24,7 +24,7 @@ def is_valid_file(file_path, raise_error=True):
     elif not raise_error:
         return False
     else:
-        raise FileExistsError("Path does not point to valid file")
+        raise FileExistsError("{} is not a valid file".format(file_path))
 
 def is_valid_dir(dir_path, raise_error=True):
     """Check if path points to a valid directory."""
@@ -33,7 +33,7 @@ def is_valid_dir(dir_path, raise_error=True):
     elif not raise_error:
         return False
     else:
-        raise NotADirectoryError("Path does not point to a valid directory")
+        raise NotADirectoryError("{} does not point to a valid directory".format(dir_path))
 
 def get_filepath_UI(dir=None, caption='', filters=''):
     """Display a UI dialog box to select a file.
