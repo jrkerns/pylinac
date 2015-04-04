@@ -188,6 +188,14 @@ properties, and will not recalculate if passed the same conditions::
     >>> log.fluence.gamma.threshold  # the threshold dose percent value not included in the gamma calculation
     10
 
+Converting Trajectory logs
+--------------------------
+
+If you already have the log files, you obviously have a record of treatment. However, trajectory logs are in binary
+format and are not easily readable without tools like pylinac. You can save trajectory logs in a more readable format
+through the :meth:`~pylinac.log_analyzer.MachineLog.to_csv()` method. This will write the log to a comma-separated
+variable (CSV) file, which can be read with Excel and many other programs. You can do further or specialized analysis
+with the CSV files if you wish.
 
 Batch Processing
 ----------------
@@ -210,6 +218,10 @@ You can also append to :class:`~pylinac.log_analyzer.MachineLogs` to have two or
 
     >>> other_log_dir = r"C:\different\path"
     >>> logs.append(other_log_dir)
+
+Trajectory logs in a MachineLogs instance can also be converted to CSV, just as for a MachineLog::
+
+    >>> logs.to_csv()  # only converts trajectory logs; dynalogs are already basically CSV files
 
 .. note::
     Batch processing methods (like :meth:`~pylinac.log_analyzer.MachineLogs.avg_gamma` can take a while if numerous logs have been

@@ -14,7 +14,7 @@ pair to the picket, and give a few visual indicators for passing/warning/failing
 Concepts
 --------
 
-Although most terminolgy will be familiar to a clinical physicist, it is still helpful to be clear about what means what.
+Although most terminology will be familiar to a clinical physicist, it is still helpful to be clear about what means what.
 A "picket" is the line formed by several MLC pairs all at the same position. There is usually some ideal gap between
 the MLCs, such as 0.5, 1, or 2 mm. An "MLC position" is, for pylinac's purposes, the center of the FWHM of the peak
 formed by one MLC pair at one picket. Thus, one picket fence image may have anywhere between a few to a dozen pickets,

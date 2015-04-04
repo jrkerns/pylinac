@@ -32,6 +32,15 @@ and `Spyder <https://code.google.com/p/spyderlib/>`_, both of which are *free*. 
 easy way to get all of this in one lump sum is to download a distribution "stack", which includes Python and a number of other packages
 (see note below for options).
 
+.. note::
+    If you're new to Python or you don't already have the packages listed below
+    it is often best to get these from a source that has already compiled these packages. Installing them via ``pip`` won't work unless
+    you have the underlying libraries and compilers installed, which is often not the case. There are a number of places you can get them
+    pre-compiled. Check out `Scipy's installation options <http://www.scipy.org/install.html>`_ for more on scientific distribution stacks. For
+    people new to Python, the easiest solution is likely `Python(x,y) <https://code.google.com/p/pythonxy/>`_ (Windows only) or
+    `Anaconda <http://continuum.io/downloads>`_. Both include the `Spyder IDE <https://bitbucket.org/spyder-ide/spyderlib/overview>`_,
+    which appears similar to MATLAB's. Installing one of those will have you up and running in no time.
+
 Dependencies
 ------------
 
@@ -43,13 +52,6 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 * pydicom >= 0.9.9; For reading DICOM files
 * Pillow >= 2.5; For reading image files
 
-.. note::
-    If you're new to Python or you don't already have the packages listed, particularly numpy/scipy,
-    it is often best to get these from a source that has already compiled these packages. Installing them via ``pip`` won't work unless
-    you have the underlying libraries installed, which is often not the case. There are a number of places you can get them
-    pre-compiled. Check out `Scipy's installation options <http://www.scipy.org/install.html>`_ for more on scientific distribution stacks. For
-    people new to Python, the easiest solution is likely `Python(x,y) <https://code.google.com/p/pythonxy/>`_ or
-    `Anaconda <http://continuum.io/downloads>`_. Both include the `Spyder IDE <https://bitbucket.org/spyder-ide/spyderlib/overview>`_,
-    which appears similar to MATLAB's. Installing one of those will have you up and running in no time.
+
 
 

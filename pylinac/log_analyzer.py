@@ -18,10 +18,13 @@ import numpy as np
 import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
 
+from pylinac import MEMORY_PROFILE
 from pylinac.core.decorators import type_accept, lazyproperty, value_accept
 from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI
 from pylinac.core.utilities import is_iterable
 
+
+if MEMORY_PROFILE:
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -42,9 +45,9 @@ class MachineLogs(list):
             The directory of interest. Will walk through and process any logs, Trajectory or dynalog, it finds.
             Non-log files will be skipped.
         recursive : bool
-            Whether to walk through subfolders of passed directory.
+            Whether to walk through subfolders of passed directory. Only used if ``dir`` is a valid log directory.
         verbose : bool
-            If True (default), prints load status at each log.
+            If True (default), prints load status at each log. Only used if ``dir`` is a valid log directory.
 
         Examples
         --------
@@ -186,7 +189,8 @@ class MachineLogs(list):
         Parameters
         ----------
         obj : str, MachineLog
-            If a string, must point to a log file, or a directory containing log files. Will be loaded and then appended.
+            If a string, must point to a log file.
+            If a directory, must contain log files.
             If a MachineLog, then simply appends.
         recursive : bool
             Whether to walk through subfolders of passed directory. Only applicable if obj was a directory.
@@ -232,6 +236,19 @@ class MachineLogs(list):
             if verbose:
                 print("{} of {}".format(num, self.num_logs))
         return np.array(gamma_list).mean()
+
+    def to_csv(self):
+        """Write trajectory logs to CSV. If there are both dynalogs and trajectory logs,
+        only the trajectory logs will be written. File names will be the same as the original log file names."""
+        num_written = 0
+        for log in self:
+            if is_tlog(log._filename):
+                log.to_csv()
+                num_written += 1
+        if num_written:
+            print('\n\nAll CSV files written!')
+        else:
+            print('\n\nNo files written')
 
 
 class MachineLog:
@@ -439,6 +456,52 @@ class MachineLog:
             return False
         else:
             return True
+
+    def to_csv(self, filename=None):
+        """Write the log to a CSV file. Only applicable for Trajectory logs (Dynalogs are already similar to CSV).
+
+        Parameters
+        ----------
+        filename : None, str
+            If None (default), the CSV filename will be the same as the filename of the log.
+            If a string, the filename will be named so.
+        """
+        if not is_tlog(self._filename):
+            raise TypeError("Writing to CSV is only applicable to trajectory logs.")
+        if filename is None:
+            filename = self._filename.replace('bin', 'csv')
+        elif not filename.endswith('.csv'):
+            filename = filename + '.csv'
+
+        with open(filename, 'w', newline='') as csv_file:
+            writer = csv.writer(csv_file)
+            # write header info
+            header_titles = ('Tlog File:', 'Signature:', 'Version:', 'Header Size:', 'Sampling Inteval:',
+                             'Number of Axes:', 'Axis Enumeration:', 'Samples per Axis:', 'Axis Scale:',
+                             'Number of Subbeams:', 'Is Truncated?', 'Number of Snapshots:', 'MLC Model:')
+            h = self.header
+            header_values = (self._filename, h.header, h.version, h.header_size, h.sampling_interval,
+                             h.num_axes, h.axis_enum, h.samples_per_axis, h.axis_scale, h.num_subbeams, h.is_truncated,
+                             h.num_snapshots, h.mlc_model)
+            for title, value in zip(header_titles, header_values):
+                write_single_value(writer, title, value)
+
+            # write axis data
+            data_titles = ('Gantry', 'Collimator', 'Couch Lat', 'Couch Lng', 'Couch Rtn', 'MU',
+                           'Beam Hold', 'Control Point', 'Carriage A', 'Carriage B')
+            ad = self.axis_data
+            data_values = (ad.gantry, ad.collimator, ad.couch.latl, ad.couch.long, ad.couch.rotn,
+                           ad.mu, ad.beam_hold, ad.control_point, ad.carriage_A, ad.carriage_B)
+            data_units = ('degrees', 'degrees', 'cm', 'cm', 'degrees', 'MU', None, None, 'cm',
+                          'cm')
+            for title, value, unit in zip(data_titles, data_values, data_units):
+                write_array(writer, title, value, unit)
+
+            # write leaf data
+            for leaf_num, leaf in self.axis_data.mlc.leaf_axes.items():
+                write_array(writer, 'Leaf ' + str(leaf_num), leaf, 'cm')
+
+        print("CSV file written to: " + filename)
 
     def _read_log(self, exclude_beam_off):
         """Read in log based on what type of log it is: Trajectory or Dynalog."""
@@ -916,7 +979,7 @@ class Fluence_Struct:
 
 
 class MLC:
-    """The MLC class holds MLC information and retreives relevant data about the MLCs and positions."""
+    """The MLC class holds MLC information and retrieves relevant data about the MLCs and positions."""
     def __init__(self, snapshot_idx=None, jaw_struct=None, HDMLC=False):
         """
         Parameters
@@ -1217,6 +1280,14 @@ class MLC:
             mlc_error[leaf, :] = self.leaf_axes[leaf+1].difference[self.snapshot_idx]
         return mlc_error
 
+    def _snapshot_array(self, dtype='actual'):
+        """Return an array of the snapshot data of all leaves."""
+        arr = np.zeros((self.num_leaves, self.num_snapshots))
+        # construct numpy array for easy array calculation
+        for leaf in range(self.num_leaves):
+            arr[leaf, :] = getattr(self.leaf_axes[leaf + 1], dtype)[self.snapshot_idx]
+        return arr
+
     @lazyproperty
     def _RMS_array_all_leaves(self):
         """Return the RMS of all leaves."""
@@ -1257,6 +1328,32 @@ class MLC:
             return True
         else:
             return False
+
+    def get_snapshot_values(self, bank_or_leaf='both', dtype='actual'):
+        """Retrieve the snapshot data of the given MLC bank or leaf/leaves
+
+        Parameters
+        ----------
+        bank_or_leaf : str, array, list
+            If a str, specifies what bank ('A', 'B', 'both').
+            If an array/list, specifies what leaves (e.g. [1,2,3])
+        dtype : {'actual', 'expected'}
+            The type of MLC snapshot data to return.
+
+        Returns
+        -------
+        ndarray
+            An array of shape (number of leaves - x - number of snapshots). E.g. for an MLC bank
+            and 500 snapshots, the array would be (60, 500).
+        """
+        if isinstance(bank_or_leaf, str):
+            leaves = self.get_leaves(bank=bank_or_leaf)
+            leaves -= 1
+        else:
+            leaves = bank_or_leaf
+
+        arr = self._snapshot_array(dtype)
+        return arr[leaves, :]
 
 
 class Jaw_Struct:
@@ -1350,10 +1447,14 @@ class TLog_Section(Log_Section, metaclass=ABCMeta):
         elif dtype == int:
             ssize = struct.calcsize('i') * num_values
             output = np.asarray(struct.unpack('i' * num_values, fc[self._cursor:self._cursor + ssize]))
+            if len(output) == 1:
+                output = int(output)
             self._cursor += ssize
         elif dtype == float:
             ssize = struct.calcsize('f') * num_values
             output = np.asarray(struct.unpack('f' * num_values, fc[self._cursor:self._cursor + ssize]))
+            if len(output) == 1:
+                output = float(output)
             self._cursor += ssize
         else:
             raise TypeError("decode_binary datatype was not valid")
@@ -1808,6 +1909,18 @@ def _return_other_dlg(dlg_filename, raise_find_error=True):
     else:
         return
 
+def write_single_value(writer, description, value, unit=None):
+    writer.writerow([description, str(value), unit])
+
+def write_array(writer, description, value, unit=None):
+    # write expected
+    for dtype, attr in zip((' Expected', ' Actual'), ('expected', 'actual')):
+        if unit is None:
+            dtype_desc = description + dtype
+        else:
+            dtype_desc = description + dtype + ' in units of ' + unit
+        arr2write = np.insert(getattr(value, attr).astype(object), 0, dtype_desc)
+        writer.writerow(arr2write)
 
 # ------------------------
 # MLC Log Viewer Example
@@ -1815,10 +1928,12 @@ def _return_other_dlg(dlg_filename, raise_find_error=True):
 if __name__ == '__main__':
     # import cProfile
     # cProfile.run('MachineLog().run_dlog_demo()', sort=1)
-    # log = MachineLog()
-    # log.run_tlog_demo()
+    log = MachineLog()
+    # log.load_demo_trajectorylog()
+    log.load_demo_dynalog()
+    log.to_csv()
     # log.run_dlog_demo()
-    dir = osp.abspath(osp.join(osp.dirname(__file__), '..', 'tests', 'test_files', 'MLC logs', 'SG TB1 MLC'))
-    logs = MachineLogs(dir)
-    print(logs.avg_gamma())
-    print(logs.avg_gamma_pct())
+    # dir = osp.abspath(osp.join(osp.dirname(__file__), '..', 'tests', 'test_files', 'MLC logs', 'SG TB1 MLC'))
+    # logs = MachineLogs(dir)
+    # print(logs.avg_gamma())
+    # print(logs.avg_gamma_pct())
