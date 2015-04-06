@@ -1,3 +1,8 @@
+V0.5.0 4/6/2015 -- Added Flatness & Symmetry module
+
+- A new flatness & symmetry module allows for film and EPID image analysis.
+- The log_analyzer module now supports writing trajectory logs to CSV.
+
 V0.4.1 3/14/2015 (Pi Day) -- Enhancements for Log Analyzer module
 
 - Batch processing of logs added via a new class.

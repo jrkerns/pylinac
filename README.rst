@@ -42,6 +42,8 @@ Below are the tools currently available; tools will be added one at a time as th
 * `Picket Fence MLC Analysis <http://pylinac.readthedocs.org/en/latest/picketfence.html>`_ -
     This module will analyze EPID MLC picket fence images, allowing for both a passed
     tolerance as well as an action tolerance. A semi-transparent overlay allows for quick pass/warn/fail assessment.
+* `Flatness/Symmetry Analysis <http://pylinac.readthedocs.org/en/latest/flatsym.html>`_ -
+    Analysis of Flatness & Symmetry of film or EPID images. Multiple equation definitions, in/cross plane.
 
 Documentation
 -------------
