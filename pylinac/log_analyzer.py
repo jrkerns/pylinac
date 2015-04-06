@@ -18,13 +18,14 @@ import numpy as np
 import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
 
-from pylinac import MEMORY_PROFILE
+from pylinac import MEMORY_PROFILE, DEBUG
 from pylinac.core.decorators import type_accept, lazyproperty, value_accept
 from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI
 from pylinac.core.utilities import is_iterable
 
 
-if MEMORY_PROFILE:
+if DEBUG and MEMORY_PROFILE:
+    from memory_profile import profile
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
