@@ -1,7 +1,8 @@
 from unittest import TestCase
 import time
+import os.path as osp
 
-from pylinac.log_analyzer import *
+from pylinac.log_analyzer import MachineLog, MachineLogs, log_types
 
 
 class Test_Log_Loading(TestCase):
