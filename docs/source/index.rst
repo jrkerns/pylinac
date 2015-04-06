@@ -35,6 +35,7 @@ or jump right in by doing :ref:`installation` and then :ref:`getting_started`!
    cbct_docs
    log_analyzer
    picketfence
+   flatsym
    core_modules
 
 

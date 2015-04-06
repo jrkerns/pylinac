@@ -504,6 +504,8 @@ class SingleProfile:
             fwxmcen = int(np.round(fwxmcen))
         return fwxmcen
 
+    # def get_FWXM_edges(self):
+
     @value_accept(side=('left', 'right', 'both'))
     def get_penum_width(self, side='left', lower=20, upper=80):
         """Return the penumbra width of the profile.
@@ -549,6 +551,21 @@ class SingleProfile:
 
         return pen
 
+    def get_field_values(self, field_width=0.8):
+        """Return the values of the profile for the given field width."""
+        left, right = self.get_field_edges(field_width)
+        field_values = self.y_values[left:right]
+        x_field_values = self.x_values[left:right]
+        return field_values, x_field_values
+
+    def get_field_edges(self, field_width=0.8):
+        """Return the indices of the field width edges."""
+        fwhmc = self.get_FWXM_center()
+        field_width = self.get_FWXM() * field_width
+        left = int(fwhmc - field_width / 2)
+        right = int(fwhmc + field_width / 2)
+        return left, right
+
     @value_accept(field_width=(0, 1))
     def get_field_calculation(self, field_width=0.8, calculation='mean'):
         """Calculate the value of the field in the profile.
@@ -564,12 +581,7 @@ class SingleProfile:
             Calculation to perform on the field values.
         """
 
-        fwhmc = self.get_FWXM_center()
-        field_width = self.get_FWXM() * field_width
-        left = int(fwhmc - field_width / 2)
-        right = int(fwhmc + field_width / 2)
-
-        field_values = self.y_values[left:right]
+        field_values, _ = self.get_field_values(field_width)
 
         if calculation == 'mean':
             return field_values.mean()
@@ -579,3 +591,14 @@ class SingleProfile:
             return field_values.max()
         elif calculation == 'min':
             return field_values.min()
+        elif calculation == 'area':
+            cax = self.get_FWXM_center()
+            lt_area = field_values[:cax+1]
+            rt_area = field_values[cax:]
+            return lt_area, rt_area
+
+    def plot(self):
+        """Plot the profile"""
+        plt.plot(self.x_values, self.y_values)
+        plt.show()
+

@@ -28,7 +28,7 @@ sys.path.append(os.path.abspath('sphinxext'))
 from unittest import mock
 
 MOCK_MODULES = ['numpy','dicom', 'dicom.errors', 'scipy',
-                'Pillow','PIL',
+                'Pillow','PIL','pandas',
                 'tkinter', 'tkinter.filedialog',
                 'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize', 'scipy.misc',
                 'scipy.interpolate',
@@ -49,6 +49,7 @@ for mod_name in MOCK_MODULES:
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
+    'sphinx.ext.mathjax',
     'sphinxcontrib.napoleon',
 ]
 
