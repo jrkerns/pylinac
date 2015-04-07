@@ -4,7 +4,7 @@ import os.path as osp
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pylinac.core import image
+from pylinac.core.image import Image
 from pylinac.core.decorators import type_accept
 from pylinac.core.io import is_valid_file
 from pylinac.core.profile import SingleProfile
@@ -29,9 +29,8 @@ class _Flatness:
     IEC = 'IEC'
 
 
-class BeamImage(image.Image):
+class BeamImage(Image):
     """Class for analyzing flatness & symmetry of a 2D beam image (perpendicular to the beam)."""
-
     @type_accept(filepath=str)
     def __init__(self, filepath=None):
         """
@@ -45,7 +44,6 @@ class BeamImage(image.Image):
             self._load_file(filepath, True)
         else:
             self.array = np.zeros((1,1))
-
 
     def load_demo_image(self):
         """Load the demo image."""
@@ -135,7 +133,6 @@ class BeamImage(image.Image):
 
     def symmetry(self, plane='both', position='auto', method='varian'):
         """Determine and return the symmetry of the image.
-
 
         .. seealso:: :meth:`~pylinac.flatsym.BeamImage.plot_flatsym()` for ``plane``, ``position``, and ``method`` parameter info.
         """
@@ -243,6 +240,7 @@ class BeamImage(image.Image):
         return [loc,]
 
     def _check_position_inbounds(self, position, plane):
+        """Check that the position is within the image index bounds."""
         if is_crossplane(plane):
             if position >= self.array.shape[0]:
                 raise IndexError("Y-position {} is out of bounds of image array".format(position))
@@ -319,7 +317,6 @@ class BeamImage(image.Image):
 
     def flatness(self, plane='crossplane', position='auto', method='varian'):
         """Determine the flatness of the image.
-
 
         .. seealso:: :meth:`~pylinac.flatsym.BeamImage.plot_flatsym()` for ``plane``, ``position``, and ``method`` parameter info.
         """
@@ -406,6 +403,7 @@ class BeamImage(image.Image):
             plt.show()
 
     def _polish_plot(self, ax):
+        """Polish aesthetics of the plot."""
         # tighten view around data limits
         ax.autoscale_view(tight=True, scaley=False)
         # remove ticklabels
@@ -413,6 +411,7 @@ class BeamImage(image.Image):
         ax.get_yaxis().set_ticklabels([])
 
     def _plot_annotation(self, ax, value, method, profile, flat_or_sym='sym'):
+        """Plot the flat/sym text annotation to the axes."""
         near_top = profile.y_values.max() * 0.85
         near_left_edge = profile.x_values.min() + (profile.x_values.min() + profile.x_values.max()) * 0.04
         if flat_or_sym is 'sym':
@@ -424,6 +423,7 @@ class BeamImage(image.Image):
                 rotation=-90)
 
     def _plot_title(self, ax, plane, flat_or_sym='sym'):
+        """Plot the axes title."""
         if is_crossplane(plane):
             prefix = 'Crossplane'
         else:
