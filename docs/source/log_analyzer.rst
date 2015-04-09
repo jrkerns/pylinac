@@ -27,7 +27,7 @@ few concepts that should be grasped before diving in.
 
    .. note::
     Dynalogs do not have explicit sections like the Trajectory logs,
-    but they are formatted to have these two data structures for consistency.
+    but pylinac formats them to have these two data structures for consistency.
 
 * **Leaf Indexing & Positions** - Varian leaf identification is 1-index based, over against Python's 0-based indexing.
 
@@ -36,7 +36,8 @@ few concepts that should be grasped before diving in.
   Leaf data is stored in a dictionary, with the leaf number as the key, from 1 up to the number of MLC leaves. E.g. if the machine has a
   Millennium 120 standard MLC model, leaf data will have 120 dictionary items from 1 to 120. Leaf numbers have an offset of half the
   number of leaves. I.e. leaves 1 and 120 are a pair, as are 2 and 119, on up to leaves 60 and 61. In such a case, leaves 61-120 correspond
-  to the B-bank, while leaves 1-60 correspond to the A-bank.
+  to the B-bank, while leaves 1-60 correspond to the A-bank. This can be described by a function :math:`(A_{leaf}, B_{leaf}) = (n,
+  N_{leaves} + 1 - n)`, where :math:`n` is the leaf number and :math:`N_{leaves}` is the number of leaves.
 
 * **Units** - Units follow the Trajectory log specification: linear axes are in cm, rotational axes in degrees, and MU for dose.
 
@@ -47,10 +48,10 @@ few concepts that should be grasped before diving in.
     from 0 to 25000 no matter the delivered MU (i.e. it's relative).
 
 
-* **All Data Axes are similar** - Log files capture machine data in "control cycles", aka "snapshots" or "heartbeats". Let us assume a
+* **All Data Axes are similar** - Log files capture machine data in "control cycles", aka "snapshots" or "heartbeats". Let's assume a
   log has captured 100 control cycles. Axis data that was captured will all be similar. They will all have an *actual* and sometimes an
   *expected* value for each cycle. Pylinac formats these as 1D numpy arrays along with a difference array if applicable. Each of these
-  arrays can be quickly plotted for visual analysis. See :class:`Axis` for more info.
+  arrays can be quickly plotted for visual analysis. See :class:`~pylinac.log_analyzer.Axis` for more info.
 
 Running the Demo
 ----------------
@@ -95,7 +96,7 @@ Logs can be loaded one of two ways: upon class initialization and through the lo
     log_path = "C:/path/to/tlog.bin"
     log = MachineLog(log_path)
 
-    # OR
+Or::
 
     log2 = MachineLog()
     log2.load(log_path)
@@ -162,31 +163,87 @@ MLC data is within the axis data::
     >>> log.axis_data.mlc.hdmlc
     False
 
-Let's look at/calculate fluences::
+Trust but Verify
+----------------
+
+Log data is meant to be easily extracted and easy to use with other scripts or programs you may have. However, a good physicist
+always wants to verify that their data is correct, and pylinac is no different. Virtually every data unit recorded is an
+:class:`~pylinac.log_analyzer.Axis`, which means it is plottable. Furthermore, fluences are also able to be calculated and viewed for
+verification. Let's load the trajectory log demo file and start exploring further::
+
+    >>> log = MachineLog()
+    >>> log.load_demo_trajectorylog()
+
+Let's look at the gantry actual value::
+
+    >>> log.axis_data.gantry.plot_actual()
+
+.. image:: images/log_gantry_actual.png
+
+That's not particularly interesting; perhaps we should check that there was no difference between the actual and expected value::
+
+    >>> log.axis_data.gantry.plot_difference()
+
+.. image:: images/log_gantry_diff.png
+
+Here's something interesting. The difference between expected and actual is greatest when the gantry starts and stops moving. But,
+notice that the difference is *positive* when the gantry starts moving--until right at the end, the gantry is leading rather than
+lagging![#leadlag]_
+
+Let's now take a look at MU::
+
+    >>> log.axis_data.mu.plot_actual()
+
+.. image:: images/log_mu_actual.png
+
+Now, the difference::
+
+    >>> log.axis_data.mu.plot_difference()
+
+.. image:: images/log_mu_diff.png
+
+As you can see, pylinac could be very helpful in diagnosing errors or problems with various axes. E.g. based on questionable RMS
+performance, a loose MLC leaf could be examined by examining the difference using the methods shown.
+
+Let's move on and look at/calculate fluences::
 
     >>> log.fluence.actual  # actual, expected, and gamma are all under the 'fluence' structure
     <__main__.ActualFluence at 0x8fbaef0>
-    >>> log.fluence.actual.map_calced
+    >>> log.fluence.actual.map_calced  # Is the map calculated yet?
     False
     >>> log.fluence.actual.calc_map(resolution=0.1)  # let's calculate it
+    >>> log.fluence.actual.plot_map()  # and then plot it
 
-.. image:: images/actual_fluence.png
+.. image:: images/tlog_actual_fluence.png
 
-The gamma map can be calculated with or without calculating the actual and expected maps. The maps are semi-lazy
-properties, and will not recalculate if passed the same conditions::
+The same can be done for the expected fluence.
 
-    >>> log.fluence.gamma.calc_map(resolution=0.1)  # won't recalc actual since resolution is the same; will automatically calc expected at 0.1mm
+The gamma map can be calculated without having to calculate the actual and expected maps beforehand; however, if they have been and the
+conditions are the same, they will not be recalculated. The maps are semi-lazy properties, and will not recalculate if passed the same
+conditions, thus saving calculation some time::
+
+    >>> log.fluence.gamma.calc_map(resolution=0.1)  # won't recalc ``actual`` since resolution is the same (see above); will automatically
+    calc
+    expected at 0.1mm
     >>> log.fluence.gamma.calc_map(resolution=0.2)  # will recalculate both at given resolution
     >>> log.fluence.gamma.calc_map(resolution=0.2, doseTA=2)  # will recalc because dose-to-agreement is different
     >>> log.fluence.gamma.calc_map()  # let's go back to the default
     >>> log.fluence.gamma.avg_gamma
-    0.020705503187174894
+    0.0016321959397489856
     >>> log.fluence.gamma.pass_prcnt
-    99.825000000000003
+    100.0
     >>> log.fluence.gamma.doseTA  # see gamma.calc_map() parameters
     1
     >>> log.fluence.gamma.threshold  # the threshold dose percent value not included in the gamma calculation
     10
+
+Finally, let's take a look at that gamma map::
+
+    >>> log.fluence.gamma.plot_map()
+
+.. image:: images/log_gamma.png
+
+.. [#leadlag] The beam isn't on during the gantry movement, so it's not as interesting as it could be, but it's still noteworthy.
 
 Converting Trajectory logs
 --------------------------
@@ -195,7 +252,7 @@ If you already have the log files, you obviously have a record of treatment. How
 format and are not easily readable without tools like pylinac. You can save trajectory logs in a more readable format
 through the :meth:`~pylinac.log_analyzer.MachineLog.to_csv()` method. This will write the log to a comma-separated
 variable (CSV) file, which can be read with Excel and many other programs. You can do further or specialized analysis
-with the CSV files if you wish.
+with the CSV files if you wish, without having to use pylinac.
 
 Batch Processing
 ----------------
@@ -226,7 +283,7 @@ Trajectory logs in a MachineLogs instance can also be converted to CSV, just as 
 .. note::
     Batch processing methods (like :meth:`~pylinac.log_analyzer.MachineLogs.avg_gamma` can take a while if numerous logs have been
     loaded, so be patient. You can also
-    use the ``verbose=True`` argument in batch methods to make sure the program is running and hasn't stalled.
+    use the ``verbose=True`` argument in batch methods to see how the process is going.
 
 API Documentation
 -----------------
