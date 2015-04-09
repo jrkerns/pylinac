@@ -381,7 +381,8 @@ class MachineLog:
             ax = plt.subplot(2, 3, 3)
             ax.set_title("Gamma Map ({:2.2f}% passing @ {}%/{}mm)".format(gmma.pass_prcnt, gmma.doseTA, gmma.distTA), fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.gamma.pixel_map, aspect='auto', interpolation='none')
+            plt.imshow(self.fluence.gamma.pixel_map, aspect='auto', interpolation='none', vmax=1)
+            plt.colorbar(ax=ax)
 
             # plot the gamma histogram
             ax = plt.subplot(2, 3, 4)
@@ -404,6 +405,7 @@ class MachineLog:
             ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves+0.5])  # bit of padding since bar chart alignment is center
             plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both'), align='center')
 
+            # plt.tight_layout()
             plt.show()
         else:
             raise AttributeError("Gamma map has not yet been calculated.")
@@ -588,17 +590,21 @@ class Axis:
 
     def plot_actual(self):
         """Plot the actual positions as a matplotlib figure."""
-        plt.plot(self.actual)
-        plt.show()
+        self._plot('actual')
 
     def plot_expected(self):
         """Plot the expected positions as a matplotlib figure."""
-        plt.plot(self.expected)
-        plt.show()
+        self._plot('expected')
 
     def plot_difference(self):
         """Plot the difference of positions as a matplotlib figure."""
-        plt.plot(self.difference)
+        self._plot('difference')
+
+    @value_accept(param=('actual', 'expected', 'difference'))
+    def _plot(self, param=''):
+        """Plot the parameter, actual, expected, or difference"""
+        plt.plot(getattr(self, param))
+        plt.autoscale(axis='x', tight=True)
         plt.show()
 
 
@@ -909,6 +915,14 @@ class GammaFluence(Fluence):
 
         self.pixel_map = gamma_map
         return gamma_map
+
+    def plot_map(self):
+        """Plot the fluence; the fluence (pixel map) must have been calculated first."""
+        if not self.map_calced:
+            raise AttributeError("Map not yet calculated; use calc_map()")
+        plt.imshow(self.pixel_map, aspect='auto', vmax=1)
+        plt.colorbar()
+        plt.show()
 
     def histogram(self, bins=None):
         """Return a histogram array and bin edge array of the gamma map values.
@@ -1930,9 +1944,15 @@ if __name__ == '__main__':
     # import cProfile
     # cProfile.run('MachineLog().run_dlog_demo()', sort=1)
     log = MachineLog()
+    log.load_demo_trajectorylog()
+    log.axis_data.gantry.plot_actual()
+    # log.run_dlog_demo()
+    # log.run_tlog_demo()
     # log.load_demo_trajectorylog()
-    log.load_demo_dynalog()
-    log.to_csv()
+    # log.fluence.gamma.calc_map()
+    # log.fluence.gamma.plot_map()
+    # log.is_loaded
+    # log.to_csv()
     # log.run_dlog_demo()
     # dir = osp.abspath(osp.join(osp.dirname(__file__), '..', 'tests', 'test_files', 'MLC logs', 'SG TB1 MLC'))
     # logs = MachineLogs(dir)
