@@ -1,4 +1,8 @@
+V0.6.0??
+
+    Log Analyzer
 - Axis limits are now tightened to the data when plotting log_analyzer.Axis data.
+- Gamma map plot luminescence is now normalized to 1 and a colorbar was added.
 
 V0.5.0 4/6/2015 -- Added Flatness & Symmetry module
 
