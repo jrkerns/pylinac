@@ -47,9 +47,9 @@ Loading images is easy and just like any other module::
 You can calculate the flatness or symmetry directly, e.g.::
 
     my_img.flatness()
-    1.91  # or whatever it is
+    [1.91, 2.6]  # or whatever the values are. Returns: [crossplane, inplane]
     my_img.symmetry()
-    3.08
+    [3.08, 2.3]
 
 Any physicist worth their salt will want to check that the right profile has been taken however.
 This is easily done with similar methods::
@@ -80,7 +80,7 @@ Symmetry:
 
 * -- Name, Vendors that use it -- Equation
 * -- **Point Difference, Varian** -- :math:`100 * max(|L_{pt} - R_{pt}|)/ D_{CAX}` over 80%FW, where :math:`L_{pt}` and :math:`R_{pt}` are
-  equidistant from CAX.
+  equidistant from the CAX.
 * -- **Point Difference Quotient (IEC), Elekta** -- :math:`100 * max(|L_{pt}/R_{pt}|, |R_{pt}/L_{pt}|)` over 80%FW if 10<FW<30cm [#elekta]_.
 
 Flatness:
@@ -91,30 +91,34 @@ Flatness:
 
 .. note:: Siemens and other definitions (e.g. Area, Area/2) will be added if the community `asks <https://github.com/jrkerns/pylinac/issues>`_ for it.
 
-.. [#elekta] The region calculated over actually varies by the following: for 5<FW<10cm, FW - 2*1cm; for 10<FW<30cm, FW - 2*0.1*FW (i.e. 80%FW); for 30cm<FW, FW - 2*6cm. Pylinac currently only uses the 80%FW no matter the FW.
+.. [#elekta]
+    The region calculated over actually varies by the following: for 5<FW<10cm, FW - 2*1cm; for 10<FW<30cm, FW - 2*0.1*FW (i.e. 80%FW);
+    for 30cm<FW, FW - 2*6cm. Pylinac currently only uses the 80%FW no matter the FW, but accounting for the FW will come in a future
+    version.
 
 Algorithm
 ---------
 
-There is little of a true *algorithm* in ``flatsym`` other than automatic field determination. Thus, this section is more terminology and
+There is little of a true "algorithm" in ``flatsym`` other than automatic field determination. Thus, this section is more terminology and
 notekeeping.
 
 **Allowances**
 
 * The image can be any size.
 * The image can be digitized film or EPID (most image formats and DICOM).
-* The image can be either inversion.
+* The image can be either inversion (Radiation is dark or light).
 
 **Restrictions**
 
 * The module is only meant for photon analysis at the moment (there are sometimes different equations for electrons for the same
   definition name).
 * The image should be near perpendicular/normal to the image edge; this actually won't cause the module to fail, but may invalidate the
-  results' accuracy.
+  results' accuracy. Accounting for angle may come in a future version if the community asks for it.
 
 **Analysis**
 
-* *Determine the profile position* - If the determination is left to the automatic analysis, the row and column image sums are analyzed
+* *Determine the profile position* - If the profile position determination is left to the automatic analysis, the row and column image sums
+  are analyzed
   for the center of the FWHM. These then determine the location, either crossplane, inplane, or both. If the values are explicitly passed
   in, these values are used directly (or converted from a fraction).
 * *Extract profiles* - With the positions known, profile(s) are extracted and analyzed according to the method specified (see

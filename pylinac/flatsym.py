@@ -12,7 +12,7 @@ from pylinac.core.utilities import is_iterable, isnumeric
 
 
 class _Symmetry:
-    POINT_DIFFERENCE = 'point_difference'
+    POINT_DIFFERENCE = 'point difference'
     AREA_2 = 'area/2'
     VARIAN = 'varian'
     ELEKTA = 'elekta'
@@ -96,7 +96,15 @@ class BeamImage(Image):
             variation of the mean in the 80% field width for flatness. The method could be
             specified by using 'varian', or by 'VoM80'. Another example is Elekta, who use
             the Point Difference Quotient-IEC definition for symmetry. Thus, one could use
-            'elekta' or 'pdq-IEC'. See the _Flatness or _Symmetry class for more method names.
+            'elekta' or 'pdq-IEC'. Method names are case insensitive.
+
+            For flatness, 'Varian', 'VoM80', 'Siemens' all perform the same calculation. 'Elekta' and 'IEC' both
+            perform the same calculation.
+
+            For symmetry, 'Varian', 'Point Difference' both perform the same calculation. 'Elekta' and 'PDQ-IEC' both
+            perform the same calculation.
+
+            See :ref:`analysis_definitions` for equations.
 
         Examples
         --------
