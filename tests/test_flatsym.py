@@ -95,7 +95,7 @@ class UnitTests(unittest.TestCase):
         prof = self.img._get_profile('x', 'auto')
 
         # varian
-        for method in ('varian', 'point_difference'):
+        for method in ('varian', 'point difference'):
             symmetry, lt_edge, rt_edge, max_idx = self.img._get_symmetry(prof, method)
             self.assertAlmostEqual(symmetry, 3.08, delta=0.01)
             self.assertAlmostEqual(lt_edge, 393, delta=3)
