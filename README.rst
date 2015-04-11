@@ -50,6 +50,10 @@ Documentation
 To get started, install, run the demos, view the API docs, and learn the module design, visit the
 `Full Documentation <http://pylinac.readthedocs.org/en/latest/index.html>`_ on Read The Docs.
 
+Discussion
+----------
+Have questions? Ask them here on the `pylinac forum <https://groups.google.com/forum/#!forum/pylinac>`_.
+
 Contributing
 ------------
 
