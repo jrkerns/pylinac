@@ -98,6 +98,7 @@ The picket fence algorithm works like such:
 * The image can be any size.
 * Both leaf sizes can be analyzed (i.e. 5 and 10mm leaves for standard Millennium)
 * The image can be either orientation (pickets going up-down or left-right).
+* The image can be at any clinical SSD.
 
 **Restrictions**
 
@@ -136,7 +137,7 @@ The picket fence algorithm works like such:
   (corresponding to ~1/2 a leaf width). From here, centers of the FWHM of each peak are found which correspond to
   the positions of that MLC pair.
 * **Fit the picket to the positions & calculate error** -- Once all the MLC positions are determined, the positions from
-  each peak of a picket are fitted to a 1D polynomial which is the ideal picket. Differences of each MLC position to the picket
+  each peak of a picket are fitted to a 1D polynomial which is considered the ideal picket. Differences of each MLC position to the picket
   polynomial fit at that position are determined, which is the error. When plotted, errors are tested against the tolerance
   and action tolerance as appropriate.
 
