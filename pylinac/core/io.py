@@ -1,7 +1,9 @@
 import os.path as osp
-from tkinter import Tk
-from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
 
+from tkinter import Tk
+# from tkinter.ttk import *
+from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
+# from tkinter.ttk import Style
 
 def is_valid_file(file_path, raise_error=True):
     """Check if path points to a valid file.
@@ -54,12 +56,8 @@ def get_filenames_UI(UIdir=None, UIcaption='', UIfilters=''):
     filenamestring = GetFile(UIdir=None,UIcaption='',UIfilters='')
     """
     withdraw_tkinter()
-    # get user-defined files
-    filenames = askopenfilenames(caption=UIcaption)
-    filenames = [str(f) for f in filenames]  # convert the PyQt string list to a list of standard strings
-
-    if filenames:
-        return filenames
+    filenames = askopenfilenames()
+    return filenames
 
 def get_folder_UI(UIdir=None, UIcaption=''):
     """Display a UI dialog box to select a folder.
@@ -72,7 +70,6 @@ def get_folder_UI(UIdir=None, UIcaption=''):
     withdraw_tkinter()
     folderstring = askdirectory()
     return folderstring
-
 
 def withdraw_tkinter():
     """Opens and withdraws a Tk window. Necessary so a base window doesn't open."""
