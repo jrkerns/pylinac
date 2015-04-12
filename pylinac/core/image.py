@@ -157,7 +157,7 @@ class Image:
         """
         file_list = get_filenames_UI()
         if file_list:
-            obj = cls._combine_multiples(file_list)
+            obj = cls.combine_multiples(file_list)
             return obj
 
     def _load_array(self, array):
@@ -314,7 +314,7 @@ class Image:
         return min_val
 
     @classmethod
-    def _combine_multiples(cls, image_file_list):
+    def combine_multiples(cls, image_file_list):
         """Combine multiple image files into one superimposed image."""
         # open first one to get initial settings
         init_obj = cls(image_file_list[0])

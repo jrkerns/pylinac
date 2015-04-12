@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Line, Circle
 from pylinac.core.image import Image
-from pylinac.core.io import get_filepath_UI
+from pylinac.core.io import get_filepath_UI, get_filenames_UI
 from pylinac.core.profile import CircleProfile, SingleProfile
 
 
@@ -44,7 +44,6 @@ class Starshot:
         >>> mystar.plot_analyzed_image()
     """
     def __init__(self):
-        super().__init__()
         # self.image = Image  # The image array and image property structure
         self.circle_profile = StarProfile()  # a circular profile which will detect radiation line locations
         self.lines = []  # a list which will hold Line instances representing radiation lines.
@@ -84,10 +83,27 @@ class Starshot:
         if self.image.shape[0] > 1100:
             self.image.median_filter(0.002)
 
+    def load_multiple_images(self, filepath_list):
+        """Load multiple images via the file path.
+
+        Parameters
+        ----------
+        filepath_list : sequence
+            An iterable sequence of filepath locations.
+        """
+        self.image = Image.combine_multiples(filepath_list)
+
+    def load_multiple_images_UI(self):
+        """Load multiple images via a dialog box."""
+        path_list = get_filenames_UI()
+        if path_list:
+            self.load_multiple_images(path_list)
+
     def load_image_UI(self):
         """Load the image by using a UI dialog box."""
         path = get_filepath_UI()
-        self.load_image(path)
+        if path:
+            self.load_image(path)
 
     @property
     def start_point(self):
