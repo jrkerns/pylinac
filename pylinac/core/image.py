@@ -11,7 +11,7 @@ from scipy.misc import imresize
 
 from pylinac.core.decorators import type_accept
 from pylinac.core.geometry import Point
-from pylinac.core.io import get_filepath_UI
+from pylinac.core.io import get_filepath_UI, get_filenames_UI
 from pylinac.core.utilities import array2logical, typed_property
 
 
@@ -146,6 +146,18 @@ class Image:
         file_path = get_filepath_UI()
         if file_path:
             obj = cls(file_path, to_gray)
+            return obj
+
+    @classmethod
+    def open_multiple_UI(cls, caption='', to_gray=True):
+        """Load multiple images using a UI dialog.
+
+        All files must be images, and must be the same size and shape.
+        Image metadata, e.g. DPI, is all based on the first image selected.
+        """
+        file_list = get_filenames_UI()
+        if file_list:
+            obj = cls._combine_multiples(file_list)
             return obj
 
     def _load_array(self, array):
@@ -301,7 +313,29 @@ class Image:
         self.array -= min_val
         return min_val
 
+    @classmethod
+    def _combine_multiples(cls, image_file_list):
+        """Combine multiple image files into one superimposed image."""
+        # open first one to get initial settings
+        init_obj = cls(image_file_list[0])
+        concat_arr = init_obj.array
+        initial_shape = init_obj.shape
+        for img_file in image_file_list[1:]:
+            obj = cls(img_file)
+            if obj.shape != initial_shape:
+                 raise AttributeError("Images must be the same size when combining.")
+            concat_arr = np.dstack((concat_arr, obj.array))
+
+        # create new mean array
+        combined_arr = np.mean(concat_arr, axis=2)
+        # use the initial Image object and replace its array (thus keeping all the other properties)
+        init_obj.array = combined_arr
+        return init_obj
+
     def __getattr__(self, item):
         """Set the Attribute getter to grab from the array if possible (for things like .shape, .size, etc)."""
         return getattr(self.array, item)
+
+if __name__ == '__main__':
+    img = Image.open_multiple_UI()
 
