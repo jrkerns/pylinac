@@ -217,23 +217,21 @@ class VMAT:
         if not self.open_img_is_loaded or not self.dmlc_img_is_loaded:
             raise AttributeError("Open or MLC Image not loaded yet. Use .load_image() or .load_image_UI()")
 
-        self._check_img_inversion()
-
         self._tolerance = tolerance / 100.0
         self._test_type = test
 
+        """Pre-Analysis"""
+        self._check_img_inversion()
         # get the image scaling factors and center pixels; this corrects for the SID
         SID_scale, scale = self._calc_im_scaling_factors()
-
-        # set up pixel bounds of test
+        # init segment classes and location
         self._construct_segments(test, scale, SID_scale, hdmlc)
 
+        """Analysis"""
         # Extract the samples from each image
         self._extract_sample_ratios()
-
         # normalize the samples for each image respectively
         self._normalize_samples()
-
         # calculate deviations as per Jorgensen equation
         self._calc_deviations()
 
