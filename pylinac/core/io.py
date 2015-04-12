@@ -1,9 +1,9 @@
-import os.path as osp
+"""I/O helper functions for pylinac."""
 
+import os.path as osp
 from tkinter import Tk
-# from tkinter.ttk import *
 from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
-# from tkinter.ttk import Style
+
 
 def is_valid_file(file_path, raise_error=True):
     """Check if path points to a valid file.
