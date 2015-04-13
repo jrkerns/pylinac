@@ -1,5 +1,7 @@
+import copy
 import unittest
 import os.path as osp
+from tkinter.filedialog import askopenfilename
 
 import dicom
 import numpy as np
@@ -26,6 +28,10 @@ class Test_Image_Load(unittest.TestCase):
         # try loading a bad file
         bad_file = osp.abspath(__file__)
         self.assertRaises(IOError, Image, bad_file)
+
+        # not a valid parameter
+        bad_input = 3.5
+        self.assertRaises(TypeError, Image, bad_input)
 
         # load an array
         dcm = dicom.read_file(dcm_path)
@@ -60,9 +66,14 @@ class Test_Image_Methods(unittest.TestCase):
         filter_size = 0.03
         self.sm_arr.median_filter(filter_size)
 
-    # def test_rotate(self):
-    #     self.sm_arr.rotate(90)
-    #     self.assertEqual(self.sm_arr.array[0,0], 5)
+        self.assertRaises(ValueError, self.img.median_filter, 1.1)
+
+    def test_ground(self):
+        old_min_val = copy.copy(self.dcm.array.min())
+        ground_val = self.dcm.ground()
+        self.assertEqual(old_min_val, ground_val)
+        # test that array was also changed
+        self.assertAlmostEqual(self.dcm.array.min(), 0)
 
     def test_resize(self):
         new_size = (200, 300)
@@ -88,3 +99,27 @@ class Test_Image_Methods(unittest.TestCase):
 
         dist = self.sm_arr.dist2edge_min((1,3))
         self.assertEqual(dist, 1)
+
+    def test_center(self):
+        self.assertIsInstance(self.img.center, Point)
+        img_known_center = Point(1420, 1702)
+        dcm_known_center = Point(512, 384)
+        self.assertEqual(self.img.center.x, img_known_center.x)
+        self.assertEqual(self.dcm.center.y, dcm_known_center.y)
+
+    def test_SID(self):
+        self.assertEqual(self.dcm.SID, 105)
+        self.assertRaises(ValueError, setattr, self.dcm, 'SID', '105')
+        # test that the SID and DPMM change when set
+        old_dpmm = copy.copy(self.dcm.dpmm)
+        self.dcm.SID = 150
+        self.assertEqual(self.dcm.SID, 150)
+        self.assertEqual(self.dcm.dpmm, 150/100 * old_dpmm)
+
+    def test_combine_multiples(self):
+        bad_img_path = [dcm_path, img_path]
+        self.assertRaises(AttributeError, Image.combine_multiples, bad_img_path)
+
+        good_img_path = [img_path, img_path]
+        combined_img = Image.combine_multiples(good_img_path)
+        self.assertIsInstance(combined_img, Image)

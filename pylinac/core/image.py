@@ -39,7 +39,8 @@ class Image:
     dpi : int, float
         The Dots-per-inch of the image.
     dpmm : int, float
-        The Dots-per-mm of the image.
+        The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
+        the dpmm will scale back to 100cm.
     SID : int, float
         The Source-to-Image distance in cm.
     im_type : {'DICOM', 'Image', 'Array'}
@@ -188,12 +189,12 @@ class Image:
         if 'dpi' in img.info:
             if len(img.info['dpi']) > 1:
                 if img.info['dpi'][0] != img.info['dpi'][1]:
-                    raise TypeError("Input image has different DPI ratios for horizontal and vertical")
+                    raise TypeError("Input image has different DPI values for horizontal and vertical")
                 self.dpi = img.info['dpi'][0]
             else:
                 self.dpi = img.info['dpi']
         else:
-            warnings.warn("Pixel distance information was not available. You can set the attributed"
+            warnings.warn("Pixel distance information was not available. You can set the attribute"
                           "explicitly if you know it.")
 
     def _construct_dicom(self, file_path):

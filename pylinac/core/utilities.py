@@ -10,10 +10,6 @@ from pylinac.core.decorators import type_accept
 from pylinac.core.io import is_valid_file
 
 
-
-
-
-
 # class Numeric(metaclass=ABCMeta):
 #     """An abstract class that encompasses many numeric types.
 #
@@ -40,7 +36,6 @@ def typed_property(name, expected_type_or_tuple_of_types):
 
     return prop
 
-
 def is_dicom(file):
     """Boolean specifying if file is a proper DICOM file.
 
@@ -66,7 +61,6 @@ def is_dicom(file):
         return True
     else:
         return False
-
 
 def isnumeric(object):
     """Check whether the passed object is numeric in any sense."""

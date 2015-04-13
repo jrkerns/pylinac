@@ -53,6 +53,8 @@ class Point:
                 value = input_coords[4]
             except IndexError:
                 pass
+        # else:
+        #     raise TypeError("Point inputs not understood")
 
         if as_int:
             x = int(round(x))
@@ -105,15 +107,12 @@ class Circle:
         radius : float, optional
             Radius of the wobble circle.
         """
-
-        if center_point is not None:
-            if is_iterable(center_point):
-                # if iterable, convert to Point because Point will convert
-                center_point = Point(center_point)
-            elif not isinstance(center_point, Point):
-                raise TypeError("Circle center must be of type Point or iterable")
-        elif center_point is None:
+        if center_point is None:
             center_point = Point()
+        elif isinstance(center_point, Point) or is_iterable(center_point):
+            center_point = Point(center_point)
+        else:
+            raise TypeError("Circle center must be of type Point or iterable")
 
         self.center = center_point
         self.radius = radius

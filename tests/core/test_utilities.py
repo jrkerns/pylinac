@@ -50,3 +50,34 @@ class Test_Utilities(unittest.TestCase):
 
         # test invalid path
         self.assertRaises(IOError, is_dicom, invalid_file)
+
+    def test_array2logical(self):
+        arr = np.ones((2,2))
+        arr[0, :] = 5
+
+        log_arr = array2logical(arr, threshold=3)
+
+        self.assertEqual(log_arr[0,0], 1)
+        self.assertEqual(log_arr[1, 1], 0)
+
+    def test_typed_property(self):
+
+        class DumbClass:
+            intprop = typed_property('dumbprop', int)
+            floatstrprop = typed_property('floatstrprop', (float, str))
+
+        dc = DumbClass()
+
+        # test the intprop
+        self.assertIsNone(dc.intprop)
+        dc.intprop = 3
+        self.assertEqual(dc.intprop, 3)
+        self.assertRaises(TypeError, setattr, dc, 'intprop', 1.0)
+
+        # test the intstrprop
+        dc.floatstrprop = 3.3
+        self.assertEqual(dc.floatstrprop, 3.3)
+        dc.floatstrprop = 'mystring'
+        self.assertEqual(dc.floatstrprop, dc._floatstrprop)
+        self.assertRaises(TypeError, setattr, dc, 'floatstrprop', 3)
+

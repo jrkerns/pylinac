@@ -3,6 +3,7 @@
 """Test the various geometric patterns in the pylinac.core.geometry module."""
 
 import unittest
+import math
 
 from pylinac.core.geometry import *
 
@@ -57,6 +58,12 @@ class Test_Point(unittest.TestCase):
         p = Point()
         self.assertRaises(TypeError, p.value, 'not numeric')
 
+    def test_dist_to(self):
+        p = Point(1,1)
+        correct_dist = math.sqrt(8)
+        meas_dist = p.dist_to(Point(3,3))
+        self.assertAlmostEqual(correct_dist, meas_dist)
+
 
 class Test_Circle(unittest.TestCase):
 
@@ -80,6 +87,7 @@ class Test_Circle(unittest.TestCase):
         self.assertEqual(c.center.x, self.center_point_iter[0])
         self.assertEqual(c.center.y, self.center_point_iter[1])
 
+        self.assertRaises(TypeError, Circle, 20)
 
 class Test_Line(unittest.TestCase):
 
