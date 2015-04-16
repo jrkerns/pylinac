@@ -86,6 +86,8 @@ class Starshot:
     def load_multiple_images(self, filepath_list):
         """Load multiple images via the file path.
 
+        .. versionadded:: 0.5.1
+
         Parameters
         ----------
         filepath_list : sequence
@@ -94,7 +96,10 @@ class Starshot:
         self.image = Image.combine_multiples(filepath_list)
 
     def load_multiple_images_UI(self):
-        """Load multiple images via a dialog box."""
+        """Load multiple images via a dialog box.
+
+        .. versionadded:: 0.5.1
+        """
         path_list = get_filenames_UI()
         if path_list:
             self.load_multiple_images(path_list)

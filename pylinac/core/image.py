@@ -153,6 +153,8 @@ class Image:
     def open_multiple_UI(cls, caption='', to_gray=True):
         """Load multiple images using a UI dialog.
 
+        .. versionadded:: 0.5.1
+
         All files must be images, and must be the same size and shape.
         Image metadata, e.g. DPI, is all based on the first image selected.
         """
@@ -316,7 +318,10 @@ class Image:
 
     @classmethod
     def combine_multiples(cls, image_file_list):
-        """Combine multiple image files into one superimposed image."""
+        """Combine multiple image files into one superimposed image.
+
+        .. versionadded:: 0.5.1
+        """
         # open first one to get initial settings
         init_obj = cls(image_file_list[0])
         concat_arr = init_obj.array

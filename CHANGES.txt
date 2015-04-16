@@ -1,10 +1,9 @@
-V0.6.0??
-
-
+V0.5.1
 
     Log Analyzer
 - Axis limits are now tightened to the data when plotting log_analyzer.Axis data.
 - Gamma map plot luminescence is now normalized to 1 and a colorbar was added.
+- Bug #14 fixed, where Tlogs v3 were not loading couch information properly.
 
     Starshot
 - Multiple images can now be superimposed to form one image for analysis.
