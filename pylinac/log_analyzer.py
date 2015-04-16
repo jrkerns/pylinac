@@ -422,9 +422,9 @@ class MachineLog:
         -Average gamma value
         """
         print("MLC log type: " + self.log_type)
-        print("Average RMS of all leaves: {:3.3f} cm".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=True)))
+        print("Average RMS of all leaves: {:3.3f} cm".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False)))
         print("Max RMS error of all leaves: {:3.3f} cm".format(self.axis_data.mlc.get_RMS_max()))
-        print("95th percentile error: {:3.3f} cm".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=True)))
+        print("95th percentile error: {:3.3f} cm".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False)))
         print("Number of beam holdoffs: {:1.0f}".format(self.axis_data.num_beamholds))
         self.fluence.gamma.calc_map()
         print("Gamma pass %: {:2.2f}".format(self.fluence.gamma.pass_prcnt))
@@ -1404,16 +1404,19 @@ class Couch_Struct:
     latl : :class:`~pylinac.log_analyzer.Axis`
     rotn : :class:`~pylinac.log_analyzer.Axis`
     """
-    def __init__(self, vertical, longitudinal, lateral, rotational):
+    def __init__(self, vertical, longitudinal, lateral, rotational, roll=None, pitch=None):
         if not all((isinstance(vertical, Couch_Axis),
                     isinstance(longitudinal, Couch_Axis),
                     isinstance(lateral, Couch_Axis),
                     isinstance(rotational, Couch_Axis))):
-            raise TypeError("Couch Axes not passed into Couch structure")
+            raise TypeError("Couch structure must be passed Couch Axes.")
         self.vert = vertical
         self.long = longitudinal
         self.latl = lateral
         self.rotn = rotational
+        if roll is not None:
+            self.roll = roll
+            self.pitch = pitch
 
 
 class Log_Section(metaclass=ABCMeta):
@@ -1779,30 +1782,38 @@ class Tlog_Axis_Data(TLog_Section):
         # reshape snapshot data to be a x-by-num_snapshots matrix
         snapshot_data = snapshot_data.reshape(self._header.num_snapshots, -1)
 
-        self.collimator = self._get_axis(snapshot_data, 0, Head_Axis)
+        column = snapshot_col_gen()
 
-        self.gantry = self._get_axis(snapshot_data, 2, Gantry_Axis)
+        self.collimator = self._get_axis(snapshot_data, next(column), Head_Axis)
 
-        jaw_y1 = self._get_axis(snapshot_data, 4, Head_Axis)
-        jaw_y2 = self._get_axis(snapshot_data, 6, Head_Axis)
-        jaw_x1 = self._get_axis(snapshot_data, 8, Head_Axis)
-        jaw_x2 = self._get_axis(snapshot_data, 10, Head_Axis)
+        self.gantry = self._get_axis(snapshot_data, next(column), Gantry_Axis)
+
+        jaw_y1 = self._get_axis(snapshot_data, next(column), Head_Axis)
+        jaw_y2 = self._get_axis(snapshot_data, next(column), Head_Axis)
+        jaw_x1 = self._get_axis(snapshot_data, next(column), Head_Axis)
+        jaw_x2 = self._get_axis(snapshot_data, next(column), Head_Axis)
         self.jaws = Jaw_Struct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
 
-        vrt = self._get_axis(snapshot_data, 12, Couch_Axis)
-        lng = self._get_axis(snapshot_data, 14, Couch_Axis)
-        lat = self._get_axis(snapshot_data, 16, Couch_Axis)
-        rtn = self._get_axis(snapshot_data, 18, Couch_Axis)
-        self.couch = Couch_Struct(vrt, lng, lat, rtn)
+        vrt = self._get_axis(snapshot_data, next(column), Couch_Axis)
+        lng = self._get_axis(snapshot_data, next(column), Couch_Axis)
+        lat = self._get_axis(snapshot_data, next(column), Couch_Axis)
+        rtn = self._get_axis(snapshot_data, next(column), Couch_Axis)
+        if is_tlog_v3(self._header.version):
+            rol = self._get_axis(snapshot_data, next(column), Couch_Axis)
+            pit = self._get_axis(snapshot_data, next(column), Couch_Axis)
+        else:
+            rol = None
+            pit = None
+        self.couch = Couch_Struct(vrt, lng, lat, rtn, rol, pit)
 
-        self.mu = self._get_axis(snapshot_data, 20, Beam_Axis)
+        self.mu = self._get_axis(snapshot_data, next(column), Beam_Axis)
 
-        self.beam_hold = self._get_axis(snapshot_data, 22, Beam_Axis)
+        self.beam_hold = self._get_axis(snapshot_data, next(column), Beam_Axis)
 
-        self.control_point = self._get_axis(snapshot_data, 24, Beam_Axis)
+        self.control_point = self._get_axis(snapshot_data, next(column), Beam_Axis)
 
-        self.carriage_A = self._get_axis(snapshot_data, 26, Head_Axis)
-        self.carriage_B = self._get_axis(snapshot_data, 28, Head_Axis)
+        self.carriage_A = self._get_axis(snapshot_data, next(column), Head_Axis)
+        self.carriage_B = self._get_axis(snapshot_data, next(column), Head_Axis)
 
         # remove snapshots where the beam wasn't on if flag passed
         if exclude_beam_off:
@@ -1816,8 +1827,8 @@ class Tlog_Axis_Data(TLog_Section):
             hdmlc = True
 
         self.mlc = MLC(snapshots, self.jaws, hdmlc)
-        for leaf_num in range(1, self._header.num_mlc_leaves + 1):
-            leaf_axis = self._get_axis(snapshot_data, 30 + 2 * (leaf_num - 1), Leaf_Axis)
+        for leaf_num in range(1, self._header.num_mlc_leaves+1):
+            leaf_axis = self._get_axis(snapshot_data, next(column), Leaf_Axis)
             self.mlc.add_leaf_axis(leaf_axis, leaf_num)
 
         return self, self._cursor
@@ -1892,6 +1903,20 @@ def is_dlog(filename):
     else:
         return False
 
+def is_tlog_v3(version):
+    """Return whether the Tlog version is 3 or not."""
+    if version >= 3:
+        return True
+    else:
+        return False
+
+def snapshot_col_gen():
+    """Generator function for iterating through the snapshot data columns."""
+    col = 0
+    while True:
+        yield col
+        col += 2
+
 def _return_other_dlg(dlg_filename, raise_find_error=True):
     """Return the filename of the corresponding dynalog file.
 
@@ -1945,7 +1970,7 @@ if __name__ == '__main__':
     # cProfile.run('MachineLog().run_dlog_demo()', sort=1)
     log = MachineLog()
     log.load_demo_trajectorylog()
-    log.axis_data.gantry.plot_actual()
+    # log.axis_data.gantry.plot_actual()
     # log.run_dlog_demo()
     # log.run_tlog_demo()
     # log.load_demo_trajectorylog()
