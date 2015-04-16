@@ -1961,25 +1961,3 @@ def write_array(writer, description, value, unit=None):
             dtype_desc = description + dtype + ' in units of ' + unit
         arr2write = np.insert(getattr(value, attr).astype(object), 0, dtype_desc)
         writer.writerow(arr2write)
-
-# ------------------------
-# MLC Log Viewer Example
-# ------------------------
-if __name__ == '__main__':
-    # import cProfile
-    # cProfile.run('MachineLog().run_dlog_demo()', sort=1)
-    log = MachineLog()
-    log.load_demo_trajectorylog()
-    # log.axis_data.gantry.plot_actual()
-    # log.run_dlog_demo()
-    # log.run_tlog_demo()
-    # log.load_demo_trajectorylog()
-    # log.fluence.gamma.calc_map()
-    # log.fluence.gamma.plot_map()
-    # log.is_loaded
-    # log.to_csv()
-    # log.run_dlog_demo()
-    # dir = osp.abspath(osp.join(osp.dirname(__file__), '..', 'tests', 'test_files', 'MLC logs', 'SG TB1 MLC'))
-    # logs = MachineLogs(dir)
-    # print(logs.avg_gamma())
-    # print(logs.avg_gamma_pct())
