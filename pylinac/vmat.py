@@ -50,11 +50,7 @@ class VMAT:
             A list containing :class:`Segment` instances, which contain :class:`Sample` instances.
     """
     def __init__(self):
-        super().__init__()
-        # self.image_open = Image()  # the Open field image
-        # self.image_dmlc = Image()  # the MLC field image
-        self._test_type = ''  # the test to perform
-        self._tolerance = 3  # default of 3% tolerance as Jorgensen recommends
+        self.settings = Settings('', 3)
         self.segments = []  # a list which will hold Segment objects (either 4 or 7)
 
     @value_accept(im_type=im_types)
@@ -92,17 +88,17 @@ class VMAT:
         elif _is_dmlc_type(im_type):
             self.image_dmlc = img
 
-    @value_accept(test_type=test_types)
-    def load_demo_image(self, test_type='drgs'):
+    @value_accept(type=test_types)
+    def load_demo_image(self, type='drgs'):
         """Load the demo DICOM images from demo files folder.
 
         Parameters
         ----------
-        test_type : {'drgs', 'drmlc'}
+        type : {'drgs', 'drmlc'}
             Test type of images to load.
         """
         demo_folder = osp.join(osp.dirname(osp.abspath(__file__)), "demo_files", 'vmat')
-        if _test_is_drmlc(test_type):
+        if _test_is_drmlc(type):
             im_open_path = osp.join(demo_folder, "DRMLC_open.dcm")
             im_dmlc_path = osp.join(demo_folder, 'DRMLC_dmlc.dcm')
         else:
@@ -169,9 +165,9 @@ class VMAT:
     def _normalize_samples(self):
         """Normalize the samples for each image respectively to the mean of the central segment."""
 
-        if _test_is_drgs(self._test_type):
+        if _test_is_drgs(self.settings.test_type):
             normalization_segment = 3
-        elif _test_is_drmlc(self._test_type):
+        elif _test_is_drmlc(self.settings.test_type):
             normalization_segment = 2
 
         normalization_value = self.segments[normalization_segment].mean_ratio
@@ -217,8 +213,8 @@ class VMAT:
         if not self.open_img_is_loaded or not self.dmlc_img_is_loaded:
             raise AttributeError("Open or MLC Image not loaded yet. Use .load_image() or .load_image_UI()")
 
-        self._tolerance = tolerance / 100.0
-        self._test_type = test
+        self.settings.test_type = test
+        self.settings.tolerance = tolerance/100
 
         """Pre-Analysis"""
         self._check_img_inversion()
@@ -253,10 +249,9 @@ class VMAT:
         sample_passfail_matrix = np.zeros((self.num_samples, self.num_segments), dtype=bool)
 
         # for each sample, if ratio is within tolerance, set to True
-        # TODO: probably replacable with np.where()
         for seg_num, segment in enumerate(self.segments):
             for sam_num, sample in enumerate(segment.samples):
-                if sample.ratio < 1 + self._tolerance and sample.ratio > 1 - self._tolerance:
+                if sample.ratio < 1 + self.settings.tolerance and sample.ratio > 1 - self.settings.tolerance:
                     sample_passfail_matrix[sam_num, seg_num] = True
 
         return sample_passfail_matrix
@@ -395,12 +390,12 @@ class VMAT:
             # TODO: count how many failures
             passfail_str = 'FAIL'
 
-        if _test_is_drgs(self._test_type):
+        if _test_is_drgs(self.settings.test_type):
             string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
-                      (self._tolerance * 100, passfail_str))
-        elif _test_is_drmlc(self._test_type):
+                      (self.settings.tolerance * 100, passfail_str))
+        elif _test_is_drmlc(self.settings.test_type):
             string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
-                      (self._tolerance * 100, passfail_str))
+                      (self.settings.tolerance * 100, passfail_str))
 
         string += ('\nOverall Results:\n'
                    'Max Positive Deviation: %4.3f%%\n'
@@ -408,7 +403,7 @@ class VMAT:
                    'Absolute Mean Deviation: %4.3f%%' %
                    (self.overall_max_deviation, self.overall_min_deviation, self.overall_abs_mean_deviation))
 
-        if _test_is_drgs(self._test_type):
+        if _test_is_drgs(self.settings.test_type):
             seg_str = DRGS_seg_strs
         else:
             seg_str = DRMLC_seg_strs
@@ -571,6 +566,11 @@ class Segment:
         return np.array([sample.ratio for sample in self.samples])
 
 
+class Settings:
+    """A helper class to hold analysis settings."""
+    def __init__(self, test_type, tolerance):
+        self.test_type = test_type
+        self.tolerance = tolerance
 
 
 def _is_open_type(image_type):

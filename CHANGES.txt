@@ -4,6 +4,9 @@ V0.6.0??
 - Axis limits are now tightened to the data when plotting log_analyzer.Axis data.
 - Gamma map plot luminescence is now normalized to 1 and a colorbar was added.
 
+    VMAT
+- load_demo_image() parameter changed from 'test_type' to 'type'
+
 V0.5.0 4/6/2015 -- Added Flatness & Symmetry module
 
 - A new flatness & symmetry module allows for film and EPID image analysis.
