@@ -7,7 +7,6 @@ import os.path as osp
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
 from pylinac.core.decorators import value_accept, type_accept, lazyproperty
 from pylinac.core.image import Image
@@ -51,11 +50,7 @@ class VMAT:
             A list containing :class:`Segment` instances, which contain :class:`Sample` instances.
     """
     def __init__(self):
-        super().__init__()
-        # self.image_open = Image()  # the Open field image
-        # self.image_dmlc = Image()  # the MLC field image
-        self._test_type = ''  # the test to perform
-        self._tolerance = 3  # default of 3% tolerance as Jorgensen recommends
+        self.settings = Settings('', 3)
         self.segments = []  # a list which will hold Segment objects (either 4 or 7)
 
     @value_accept(im_type=im_types)
@@ -67,9 +62,9 @@ class VMAT:
         im_type : {'open', 'dmlc'}
             Specifies which file/image type is being loaded in.
         """
-        if im_type == im_types['OPEN']:  # open
+        if _is_open_type(im_type):
             caption = "Select Open Field EPID Image..."
-        else:  # dmlc
+        elif _is_dmlc_type(im_type):
             caption = "Select MLC Field EPID Image..."
 
         fs = get_filepath_UI(self, caption=caption)
@@ -88,24 +83,22 @@ class VMAT:
             Specifies which file/image type is being loaded in.
         """
         img = Image(file_path)
-        if im_type == im_types['OPEN']:
+        if _is_open_type(im_type):
             self.image_open = img
-        elif im_type == im_types['DMLC']:
+        elif _is_dmlc_type(im_type):
             self.image_dmlc = img
 
-
-
-    @value_accept(test_type=test_types)
-    def load_demo_image(self, test_type='drgs'):
+    @value_accept(type=test_types)
+    def load_demo_image(self, type='drgs'):
         """Load the demo DICOM images from demo files folder.
 
         Parameters
         ----------
-        test_type : {'drgs', 'drmlc'}
+        type : {'drgs', 'drmlc'}
             Test type of images to load.
         """
         demo_folder = osp.join(osp.dirname(osp.abspath(__file__)), "demo_files", 'vmat')
-        if test_type == test_types['DRMLC']:  # DRMLC
+        if _test_is_drmlc(type):
             im_open_path = osp.join(demo_folder, "DRMLC_open.dcm")
             im_dmlc_path = osp.join(demo_folder, 'DRMLC_dmlc.dcm')
         else:
@@ -115,6 +108,7 @@ class VMAT:
         self.load_image(im_open_path, im_type=im_types['OPEN'])
         self.load_image(im_dmlc_path, im_type=im_types['DMLC'])
 
+    @type_accept(tolerance=(int, float))
     def run_demo_drgs(self, tolerance=3):
         """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
         self.load_demo_image('drgs')
@@ -122,6 +116,7 @@ class VMAT:
         print(self.return_results())
         self.plot_analyzed_image()
 
+    @type_accept(tolerance=(int, float))
     def run_demo_drmlc(self, tolerance=3):
         """Run the VMAT demo for the Dose Rate & MLC speed test."""
         self.load_demo_image('drmlc')
@@ -133,37 +128,27 @@ class VMAT:
         """Determine image scaling factors.
 
          Factors are relative to reference values from images of size 384x512 taken at 150cm SID.
-
-         See Also
-         --------
-         analyze : Further parameter info.
          """
         # Image size scaling
         y_scale = self.image_dmlc.array.shape[0] / 384.0
         x_scale = self.image_dmlc.array.shape[1] / 512.0
         scale = Point(x_scale, y_scale)
 
-        # SID scaling
-        if self.image_open.SID is not None:
-            SID_scale = self.image_open.SID / 150.0
-        else:
-            SID_scale = 1
+        SID_scale = self.image_open.SID / 150.0
 
         return SID_scale, scale
 
-    def construct_segments(self, test, scale, SID_scale, HDMLC):
+    def _construct_segments(self, test, scale, SID_scale, HDMLC):
         """Construct the 4 or 7 Segments of the test, depending on the test.
 
         See Also
         --------
         Segment : Further parameter info.
         """
-
-        # DRMLC segment x-direction offsets
-        if test == test_types['DRMLC']:
-            segment_offsets = (-86, -27, 32, 89)  # These are the x-direction offsets of the segments.
-        # ditto for DRGS
-        elif test == test_types['DRGS']:
+        # segment x-direction offsets from center of image
+        if _test_is_drmlc(test):
+            segment_offsets = (-86, -27, 32, 89)
+        elif _test_is_drgs(test):
             segment_offsets = (-97, -59, -21, 18, 55, 95, 134)
 
         # init and append the Segments to the segments list
@@ -180,9 +165,9 @@ class VMAT:
     def _normalize_samples(self):
         """Normalize the samples for each image respectively to the mean of the central segment."""
 
-        if self._test_type == test_types['DRGS']:
+        if _test_is_drgs(self.settings.test_type):
             normalization_segment = 3
-        elif self._test_type == test_types['DRMLC']:
+        elif _test_is_drmlc(self.settings.test_type):
             normalization_segment = 2
 
         normalization_value = self.segments[normalization_segment].mean_ratio
@@ -212,7 +197,7 @@ class VMAT:
 
     @type_accept(test=str)
     @value_accept(test=test_types, tolerance=(0.3, 8))
-    def analyze(self, test, tolerance=3, HDMLC=False):
+    def analyze(self, test, tolerance=3, hdmlc=False):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
         Parameters
@@ -222,30 +207,27 @@ class VMAT:
         tolerance : float, int, optional
             The tolerance of the sample deviations in percent. Default is 3, as Jorgensen recommends.
             Must be between 0.3 and 8.
-        HDMLC : boolean
+        hdmlc : boolean
             Flag specifying if the linac has a regular (5mm central leaf width) MLC set, or HD set (2.5mm).
         """
-        # error checking
         if not self.open_img_is_loaded or not self.dmlc_img_is_loaded:
             raise AttributeError("Open or MLC Image not loaded yet. Use .load_image() or .load_image_UI()")
 
+        self.settings.test_type = test
+        self.settings.tolerance = tolerance/100
+
+        """Pre-Analysis"""
         self._check_img_inversion()
-
-        self._tolerance = tolerance / 100.0
-        self._test_type = test
-
         # get the image scaling factors and center pixels; this corrects for the SID
         SID_scale, scale = self._calc_im_scaling_factors()
+        # init segment classes and location
+        self._construct_segments(test, scale, SID_scale, hdmlc)
 
-        # set up pixel bounds of test
-        self.construct_segments(test, scale, SID_scale, HDMLC)
-
+        """Analysis"""
         # Extract the samples from each image
         self._extract_sample_ratios()
-
         # normalize the samples for each image respectively
         self._normalize_samples()
-
         # calculate deviations as per Jorgensen equation
         self._calc_deviations()
 
@@ -267,10 +249,9 @@ class VMAT:
         sample_passfail_matrix = np.zeros((self.num_samples, self.num_segments), dtype=bool)
 
         # for each sample, if ratio is within tolerance, set to True
-        # TODO: probably replacable with np.where()
         for seg_num, segment in enumerate(self.segments):
             for sam_num, sample in enumerate(segment.samples):
-                if sample.ratio < 1 + self._tolerance and sample.ratio > 1 - self._tolerance:
+                if sample.ratio < 1 + self.settings.tolerance and sample.ratio > 1 - self.settings.tolerance:
                     sample_passfail_matrix[sam_num, seg_num] = True
 
         return sample_passfail_matrix
@@ -374,11 +355,11 @@ class VMAT:
 
         try:
             # http://stackoverflow.com/questions/3823752/display-image-as-grayscale-using-matplotlib
-            ax2.imshow(self.image_open.array, cmap=cm.Greys_r)
+            ax2.imshow(self.image_open.array, cmap=plt.cm.Greys_r)
             ax2.set_title("Open Field Image")
         except:
             pass  # axis2 wasn't defined
-        ax1.imshow(self.image_dmlc.array, cmap=cm.Greys_r)
+        ax1.imshow(self.image_dmlc.array, cmap=plt.cm.Greys_r)
         ax1.set_title("MLC Field Image")
         self._draw_objects(ax1)
 
@@ -409,12 +390,12 @@ class VMAT:
             # TODO: count how many failures
             passfail_str = 'FAIL'
 
-        if self._test_type == test_types['DRGS']:
+        if _test_is_drgs(self.settings.test_type):
             string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
-                      (self._tolerance * 100, passfail_str))
-        elif self._test_type == test_types['DRMLC']:
+                      (self.settings.tolerance * 100, passfail_str))
+        elif _test_is_drmlc(self.settings.test_type):
             string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
-                      (self._tolerance * 100, passfail_str))
+                      (self.settings.tolerance * 100, passfail_str))
 
         string += ('\nOverall Results:\n'
                    'Max Positive Deviation: %4.3f%%\n'
@@ -422,7 +403,7 @@ class VMAT:
                    'Absolute Mean Deviation: %4.3f%%' %
                    (self.overall_max_deviation, self.overall_min_deviation, self.overall_abs_mean_deviation))
 
-        if self._test_type == test_types['DRGS']:
+        if _test_is_drgs(self.settings.test_type):
             seg_str = DRGS_seg_strs
         else:
             seg_str = DRMLC_seg_strs
@@ -487,10 +468,12 @@ class Segment:
     For VMAT tests, there are either 4 or 7 'segments', which represents a section of the image that received
     radiation under the same conditions. Segments hold a number of Samples.
     """
-    DRGS_width = 24  # width of the segment (i.e. parallel to MLC motion) in pixels under reference conditions
-    DRMLC_width = 42  # ditto for DRMLC
+    # width of the segment (i.e. parallel to MLC motion) in pixels under reference conditions
+    DRGS_width = 24
+    DRMLC_width = 42
 
-    def __init__(self, test, center_point, scaling, SID_scale, HDMLC):
+    @value_accept(test=test_types)
+    def __init__(self, test, center_point, scaling, SID_scale, hdmlc):
         """
         Parameters
         ----------
@@ -504,10 +487,10 @@ class Segment:
             The ratio of the actual SID distance to reference SID distance (150cm).
         HDMLC : bool
             If False (default), assumes a standard Millenium 120 leaf MLC (5mm leaves).
-            If True, assumes an HD Millenium MLC which has a leaf width value of 2.5mm.
+            If True, assumes an HD Millennium MLC which has a leaf width value of 2.5mm.
         """
         self.center = center_point
-        if test == test_types['DRGS']:  #DRGS
+        if _test_is_drgs(test):  #DRGS
             width = np.round(self.DRGS_width * scaling.x * SID_scale)  # length of the sample parallel to MLC movement.
         else:
             width = np.round(self.DRMLC_width * scaling.x * SID_scale)
@@ -517,7 +500,7 @@ class Segment:
         # 0.784mm/pixel@100cm / 1.5 = 0.52267mm/pixel@150cm. Solving for 5mm gives 9.566. This must be corrected for image scaling.
         sample_spacing = 6 * scaling.y * SID_scale # the width in pixels of a given MLC leaf sample perpendicular to MLC movement at 150cm SID.
         # This must be corrected for image scaling
-        if HDMLC:
+        if hdmlc:
             num_leaves *= 2
             leaf_spacing /= 2
             sample_spacing /= 2
@@ -582,6 +565,37 @@ class Segment:
         """Return an array of sample ratios the length of num_samples."""
         return np.array([sample.ratio for sample in self.samples])
 
+
+class Settings:
+    """A helper class to hold analysis settings."""
+    def __init__(self, test_type, tolerance):
+        self.test_type = test_type
+        self.tolerance = tolerance
+
+
+def _is_open_type(image_type):
+    if image_type.lower() == 'open':
+        return True
+    else:
+        return False
+
+def _is_dmlc_type(image_type):
+    if image_type.lower() == 'dmlc':
+        return True
+    else:
+        return False
+
+def _test_is_drgs(test):
+    if test.lower() in 'drgs':
+        return True
+    else:
+        return False
+
+def _test_is_drmlc(test):
+    if test.lower() in 'drmlc':
+        return True
+    else:
+        return False
 
 # -------------------
 # VMAT demo

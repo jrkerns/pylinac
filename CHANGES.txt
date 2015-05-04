@@ -8,6 +8,9 @@ V0.5.1
     Starshot
 - Multiple images can now be superimposed to form one image for analysis.
 
+    VMAT
+- load_demo_image() parameter changed from 'test_type' to 'type'
+
 V0.5.0 4/6/2015 -- Added Flatness & Symmetry module
 
 - A new flatness & symmetry module allows for film and EPID image analysis.

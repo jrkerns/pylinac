@@ -140,11 +140,26 @@ The algorithm works like such:
   These values are then scaled with the image scaling factor determined above. The mean of the pixel values within
   the sample boundaries is saved. There are two values, one for the open and DMLC image.
 * **Normalize images** -- Once the sample values (and segments) are determined, both images are normalized.
-  Depending on the test, images are normalized by the 4th (DRGS) or mean of 2nd and 3rd (MLCS) segment for each image.
+  Depending on the test, images are normalized by the 4th (DRGS) or mean of 2nd and 3rd (DRMLC) segment for each image.
 * **Calculate sample and segment ratios** -- Once the images are normalized to themselves, the sample values of the DMLC
   field are divided by their corresponding open field values.
-* **Calculate sample deviations** -- Sample deviations are calculated using Jorgensen's "deviation" equation. This divides
-  each sample by the mean of all the sample values for that MLC pair (i.e. the mean of the segments for that MLC pair).
+* **Calculate sample deviations** -- Sample deviations are calculated using Jorgensen's "deviation" equation:
+  :math:`\frac{\langle I_{corr}(x_{MLC,y}) \rangle _j}{{\langle I_{corr}(x_{MLC,y}) \rangle}_{j \in [1,m]}} - 1`.
+  This divides each sample of a given segment, :math:`j`, by the mean of all the sample values for that MLC pair (i.e. the mean of the
+  segments for that MLC pair).
+
+  .. note::
+    The Jorgensen equation normalizes to a single sample of one MLC pair. Pylinac uses the mean of all the samples that comprise
+    a segment. I.e. instead of normalizing to the 2nd or 3rd sample of just one MLC pair, the normalization is to the mean of the entire
+    segment. A pro for this is an added layer of robustness. If the normalization sample for some reason is screwed up, this will show
+    up immediately as that value is much different than the mean value. A con is that unevenness in the profile will cause regions near
+    the edges to more easily fail.
+
+  .. warning::
+    In a future version, the normalization will be to a rolling mean of several MLC pairs, thus keeping
+    a level of robustness but also reducing the oversensitivity to edge regions, but will require another dependency, `pandas
+    <http://pandas.pydata.org/>`_.
+
 
 **Post-Analysis**
 
