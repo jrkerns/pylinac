@@ -42,6 +42,20 @@ class Test_Log_Loading(TestCase):
         bad_name_dlg = osp.join(self.test_dir, 'bad_names', 'bad_name_dlg.dlg')
         self.assertRaises(ValueError, MachineLog, bad_name_dlg)
 
+    def test_txt_file_also_loads_if_around(self):
+        # has a .txt file
+        log_with_txt = osp.join(self.test_dir, 'SG TB1 MLC', "qqq2106_4DC Treatment_JST90_TX_20140712094246.bin")
+
+        log = MachineLog(log_with_txt)
+        self.assertTrue(hasattr(log, 'txt'))
+        self.assertIsInstance(log.txt, dict)
+        self.assertEqual(log.txt['Patient ID'], 'qqq2106')
+
+        # DOESN'T have a txt file
+        log_no_txt = osp.join(self.test_dir, 'tlogs', "qqq2106_4DC Treatment_JS0_TX_20140712095629.bin")
+
+        log = MachineLog(log_no_txt)
+        self.assertFalse(hasattr(log, 'txt'))
 
 class Test_Dynalog_Demo(TestCase):
     """Tests having to do with trajectory log files."""
@@ -231,6 +245,7 @@ class Test_Tlog_Fluence(TestCase):
         self.assertAlmostEqual(fluence.gamma.pass_prcnt, 100, delta=0.1)
         self.assertAlmostEqual(fluence.gamma.avg_gamma, 0.001, delta=0.005)
         self.assertAlmostEqual(fluence.gamma.histogram()[0][0], 240000, delta=100)
+
 
 class Test_MachineLogs(TestCase):
     _logs_dir = osp.abspath(osp.join(osp.dirname(__file__), '.', 'test_files', 'MLC logs'))

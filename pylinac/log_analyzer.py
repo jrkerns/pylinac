@@ -533,7 +533,11 @@ class MachineLog:
         self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
     def _read_tlog(self, exclude_beam_off):
-        """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog v2.0/3.0) log file specifications."""
+        """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog v2.1/3.0) log file specifications."""
+        # read in associated *.txt file if in the same directory.
+        if is_tlog_txt_file_around(self._filename):
+            self._read_txt_file()
+
         # read in trajectory log binary data
         fcontent = open(self._filename, 'rb').read()
 
@@ -547,6 +551,17 @@ class MachineLog:
         # self.crc = CRC(fcontent, self._cursor).read()
 
         self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
+
+    def _read_txt_file(self):
+        """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
+        self.txt = {}
+        txt_filename = self._filename.replace('.bin', '.txt')
+        with open(txt_filename) as csvfile:
+            txt_reader = csv.reader(csvfile, delimiter='\n')
+            for row in txt_reader:
+                if row:
+                    items = row[0].split(':')
+                    self.txt[items[0]] = items[1].strip()
 
 
 class Axis:
@@ -1870,6 +1885,14 @@ class CRC(TLog_Section):
         # crc = self._decode_binary(self.log_content, str, 2)
         # TODO: figure this out
         pass
+
+def is_tlog_txt_file_around(tlog_filename):
+    """Boolean specifying if a Tlog *.txt file is available."""
+    txt_filename = tlog_filename.replace('.bin', '.txt')
+    if osp.isfile(txt_filename):
+        return True
+    else:
+        return False
 
 
 def is_log(filename):
