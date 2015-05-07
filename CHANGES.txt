@@ -1,3 +1,9 @@
+V ??
+
+    Log Analyzer
+- Keys in the `txt` attr dict weren't stripped and could have trailing spaces. Keys are now stripped.
+
+
 V0.5.1  5/7/2015
 
     Log Analyzer
