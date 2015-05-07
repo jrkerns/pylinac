@@ -47,18 +47,29 @@ The Starshot analysis can be run first by importing the Starshot class::
 
 A typical analysis sequence looks like so:
 
-* **Load images** -- Loading film or superimposed EPID DICOM images into your Starshot class object can be done by
-  passing the file path or by using a UI to find and get the file. The code might look like either of the following::
+* **Load image(s)** -- Loading film or superimposed EPID DICOM images into your Starshot class object can be done by
+  passing the file path or by using a UI to find and get the file. The code might look like any of the following::
 
     # set the file path
     star_img = "C:/QA Folder/gantry_starshot.tif"
     # load the images from the file path
     mystar.load_image(star_img)
 
-    # *OR*
+  or::
 
     # Load the image using a UI file dialog box
     mystar.load_image_UI()
+
+  Multiple images can be easily superimposed and used; e.g. collimator shots at various angles::
+
+    # Select all the images from a UI box
+    mystar.load_multiple_images_UI()
+
+  or::
+
+    # set the file paths from a list
+    star_imgs = ['path/star0.tif', 'path/star45.tif', 'path/star90.tif']
+    mystar.load_multiple_images()
 
 * **Analyze the images** -- After loading the image, all that needs to be done is analyze the image with a few
   settings passed in::
@@ -82,6 +93,7 @@ Algorithm
 * The image can be either inversion (radiation is darker or brighter).
 * The image can be any size.
 * The image can be DICOM (from an EPID) or most image formats (scanned film).
+* If multiple images are used, they must all be the same size.
 
 **Restrictions**
 
