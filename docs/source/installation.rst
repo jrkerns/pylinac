@@ -23,25 +23,6 @@ If you run into issues be sure to upgrade pip all the way ``pip install pip --up
 
 Finally, you can download the repo (from github) and run ``setup.py install`` in the root directory
 
-I'm new to Python
------------------
-
-That's okay! If you're not a programmer at all you'll have a few things to do to get up and running,
-but never fear. Using pylinac requires not just the base language Python, but a few dependencies as well (see below). If you're new to
-programming or come from, say MATLAB, you probably want to use an Integrated Development Environment (IDE). Unlike MATLAB,
-you have a choice in IDEs when using Python; in fact the choices are numerous! Two that are worth considering are `PyCharm <https://www.jetbrains.com/pycharm/>`_
-and `Spyder <https://code.google.com/p/spyderlib/>`_, both of which are *free*. An
-easy way to get all of this in one lump sum is to download a distribution "stack", which includes Python and a number of other packages
-(see note below for options).
-
-.. note::
-    If you're new to Python or you don't already have the packages listed below
-    it is often best to get these from a source that has already compiled these packages. Installing them via ``pip`` won't work unless
-    you have the underlying libraries and compilers installed, which is often not the case. There are a number of places you can get them
-    pre-compiled. Check out `Scipy's installation options <http://www.scipy.org/install.html>`_ for more on scientific distribution stacks. For
-    people new to Python, the easiest solution is likely `Python(x,y) <https://code.google.com/p/pythonxy/>`_ (Windows only) or
-    `Anaconda <http://continuum.io/downloads>`_. Both include the `Spyder IDE <https://bitbucket.org/spyder-ide/spyderlib/overview>`_,
-    which appears similar to MATLAB's. Installing one of those will have you up and running in no time.
 
 Dependencies
 ------------
@@ -50,10 +31,71 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 
 * numpy >= 1.8
 * scipy >= 0.13
-* matplotlib >= 1.3.1; Image plotting
-* pydicom >= 0.9.9; For reading DICOM files
-* Pillow >= 2.5; For reading image files
+* matplotlib >= 1.3.1
+* pydicom >= 0.9.9
+* Pillow >= 2.5
 
 
+I'm new to Python
+-----------------
+
+That's okay! If you're not a programmer at all you'll have a few things to do to get up and running,
+but never fear. Using pylinac requires not just the base language Python, but a few dependencies as well.
+Since most physicists don't program, or if they do it's in MATLAB, this section will help jumpstart your use of not
+just pylinac but Python in general and all its wonderful goodness! Getting started with Python takes some work to
+get set up and running, but it's well worth the effort.
+
+**Get a Distribution Stack**
+
+Scientific computing with Python requires some specialized packages which require some specialized computing libraries.
+While it's possible you have those libraries (for some odd reason), it's not likely. Thus, it's often best to install
+the libraries *pre-compiled*. There are several options out there; I'll list just a few. Be sure to download the 3.x version,
+preferably the newest:
+
+* `Anaconda <http://continuum.io/downloads#py34>`_ - Continuum Analytics provides this one-stop-shop for tons of
+  scientific libraries in an easy to install format. Just download and run the installer. If you don't want to install
+  all 200+ packages, a slimmer option exists: `Miniconda <http://conda.pydata.org/miniconda.html>`_, which only installs
+  ``conda`` and python installation tools. You can then use `conda <http://conda.pydata.org/index.html>`_ to install packages individually.
+  Here's the Anaconda `quick start guide <https://store.continuum.io/static/img/Anaconda-Quickstart.pdf>`_.
+
+  .. note:: Unlike the other options, individual packages can be upgraded on demand using the ``conda`` tool.
+
+* `WinPython <https://winpython.github.io/>`_ - (Windows only) This grassroots project functions similarly to Anaconda, where all
+  packages are precompiled and run out of the box. There are no corporate sponsors for this project, so support is not
+  guaranteed.
+
+See `Scipy's Installation Options <http://www.scipy.org/install.html>`_ for more options.
+
+.. warning:: Python(x,y) is not yet available for Python 3, so don't choose this to try running pylinac.
+
+.. note::
+   If this is the first/only Python distribution you'll be using it'd be a good idea to activate it when the
+   installer prompts you.
+
+.. note:: You can install multiple Python stacks/versions, but only one is "active" at any given time.
 
 
+**Get an IDE (optional)**
+
+If you come from MATLAB, it's helpful to realize that MATLAB is both a language and an Integrated Development Environment (IDE).
+Most languages don't have an official IDE, and some people may tell you IDEs are a crutch. If being a cyborg with superpowers is a crutch, then
+call me a cripple because I find them extremely useful. As with all power, it must be wielded carefully though. The option of getting an IDE
+is completely up to you. If you want one, here are some options:
+
+* `PyCharm <https://www.jetbrains.com/pycharm/>`_ - A fully-featured, rich IDE, it's arguably king of the heavyweights and *free*. At least try it.
+
+  .. image:: https://confluence.jetbrains.com/download/attachments/51188837/pyCharm3.png
+     :height: 400px
+     :width: 600px
+
+  Here's the PyCharm `quick start guide <https://www.jetbrains.com/pycharm/quickstart/>`_.
+
+* `Spyder <https://code.google.com/p/spyderlib/>`_ - A MATLAB-like IDE with similar layout, preferred by many working in the scientific realm.
+
+  .. note:: Spyder comes with the Anaconda distribution.
+
+  .. image:: http://1.bp.blogspot.com/-KfAKKK_YN38/TkaV08KWgLI/AAAAAAAAB-s/TEDUviTJBeU/s1600/spyder_ipython012b.png
+     :height: 400px
+     :width: 600px
+
+  Here are the `Spyder docs <https://pythonhosted.org/spyder/>`_.
