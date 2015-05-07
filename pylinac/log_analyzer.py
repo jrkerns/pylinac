@@ -566,7 +566,7 @@ class MachineLog:
             for row in txt_reader:
                 if row:
                     items = row[0].split(':')
-                    self.txt[items[0]] = items[1].strip()
+                    self.txt[items[0].strip()] = items[1].strip()
 
 
 class Axis:
