@@ -1,4 +1,4 @@
-V0.5.1
+V0.5.1  5/7/2015
 
     Log Analyzer
 - Axis limits are now tightened to the data when plotting log_analyzer.Axis data.
