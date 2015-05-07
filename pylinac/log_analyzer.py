@@ -253,7 +253,10 @@ class MachineLogs(list):
 
 
 class MachineLog:
-    """Reads in and analyzes MLC log files, both dynalog and trajectory logs, from Varian linear accelerators."""
+    """Reads in and analyzes MLC log files, both dynalog and trajectory logs, from Varian linear accelerators.
+
+    If reading Trajectory logs, the .txt file is also loaded if it's around.
+    """
     @type_accept(filename=str)
     def __init__(self, filename=''):
         """
@@ -263,7 +266,7 @@ class MachineLog:
             Path to the log file. For trajectory logs this is a single .bin file.
             For dynalog files, load either the A*.dlg or B*.dlg file.
 
-            .. note:: Dynalogs must have names starting with "A" and "B" and be in the same folder.
+            .. warning:: Dynalogs must have names like "A*.dlg" and "B*.dlg" and be in the same folder, otherwise errors will ensue.
 
         Examples
         --------
@@ -290,6 +293,8 @@ class MachineLog:
         subbeams : list
             Only applicable for autosequenced trajectory logs. Will contain instances of :class:`~pylinac.log_analyzer.Subbeam`; will be empty if
             autosequencing was not done.
+        txt : dict
+            If working with trajectory logs and the associated .txt file is in the same directory, the txt file data will be loaded as a dictionary.
         fluence : :class:`~pylinac.log_analyzer.Fluence_Struct`
             Contains actual and expected fluence data, including gamma.
         log_type : str
