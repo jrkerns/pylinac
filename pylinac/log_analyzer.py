@@ -512,9 +512,9 @@ class MachineLog:
             raise AttributeError('Log file has not been specified. Use load_UI() or load()')
 
         # read log as appropriate to type
-        if self.log_type == log_types['tlog']:
+        if is_tlog(self.log_type):
             self._read_tlog(exclude_beam_off)
-        elif self.log_type == log_types['dlog']:
+        elif is_dlog(self.log_type):
             self._read_dlog(exclude_beam_off)
 
     def _read_dlog(self, exclude_beam_off):
