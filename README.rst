@@ -1,15 +1,11 @@
 Pylinac
 =======
 
-.. image:: https://img.shields.io/pypi/v/nine.svg?style=plastic
+.. image:: https://img.shields.io/pypi/v/nine.svg
     :target: https://pypi.python.org/pypi/pylinac
     :alt: Latest Version
 
-.. image:: https://pypip.in/py_versions/pylinac/badge.svg?style=flat
-    :target: https://pypi.python.org/pypi/pylinac/
-    :alt: Supported Python versions
-
-.. image:: https://img.shields.io/pypi/l/Django.svg?style=plastic
+.. image:: https://img.shields.io/pypi/l/Django.svg
     :target: https://pypi.python.org/pypi/pylinac/
 
 .. image:: https://travis-ci.org/jrkerns/pylinac.svg?branch=master
