@@ -3,6 +3,12 @@ V ??
     Log Analyzer
 - Keys in the `txt` attr dict weren't stripped and could have trailing spaces. Keys are now stripped.
 
+    VMAT
+- Complete overhaul to conform to new Varian RapidArc QA specs. This includes the following:
+- Rather than individual samples, 4 or 7 segments are created, 5x10mm each.
+- Deviation is now calculated for each segment, based on the average segment value.
+- Ability to offset the segments has been added.
+
 
 V0.5.1  5/7/2015
 
