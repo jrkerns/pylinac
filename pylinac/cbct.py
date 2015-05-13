@@ -1041,6 +1041,11 @@ class CBCT:
         if show:
             plt.show()
 
+    def save_analyzed_image(self, filename, **kwargs):
+        """Save the analyzed plot."""
+        self.plot_analyzed_image(show=False)
+        plt.savefig(filename, **kwargs)
+
     def return_results(self):
         """Return the results of the analysis as a string."""
         #TODO: make prettier
@@ -1116,12 +1121,13 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # CBCT Demo
 # ----------------------------------------
 if __name__ == '__main__':
-    CBCT().run_demo()
+    # CBCT().run_demo()
     # zip_file = r"D:\Users\James\Dropbox\Programming\Python\Projects\PyCharm Projects\pylinac\tests\test_files\CBCT\Varian\Low dose thorax.zip"
-    # cbct = CBCT()
+    cbct = CBCT()
     # cbct.load_zip_file(zip_file)
-    # cbct.load_demo_images()
+    cbct.load_demo_images()
     # cbct.algo_data.images = np.roll(cbct.algo_data.images, 30, axis=1)
-    # cbct.analyze()
+    cbct.analyze()
     # print(cbct.return_results())
     # cbct.plot_analyzed_image()
+    # cbct.save_analyzed_image('ttt.png')

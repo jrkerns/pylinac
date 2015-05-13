@@ -287,7 +287,7 @@ class PicketFence:
             picket.fit_poly()
             picket.calc_mlc_errors()
 
-    def plot_analyzed_image(self, guard_rails=True, mlc_peaks=True, overlay=True):
+    def plot_analyzed_image(self, guard_rails=True, mlc_peaks=True, overlay=True, show=True):
         """Plot the analyzed image.
 
         Parameters
@@ -343,19 +343,24 @@ class PicketFence:
 
         plt.xlim([0, self.image.shape[1]])
         plt.ylim([0, self.image.shape[0]])
-        plt.show()
+
+        if show:
+            plt.show()
+
+    def save_analyzed_image(self, filename, guard_rails=True, mlc_peaks=True, overlay=True, **kwargs):
+        """Save the analyzed figure to a file."""
+        self.plot_analyzed_image(guard_rails, mlc_peaks, overlay, show=False)
+        plt.savefig(filename, **kwargs)
 
     def return_results(self):
         """Print results of analysis."""
         pass_pct = self.percent_passing
-        string = "Picket Fence Results: \n{:2.1f}% Passed\nMedian Error: {:2.3f}mm \nMax Error: {:2.3f}mm on Picket: {}, Leaf: {}".format(pass_pct,
-                                                                                                  self.abs_median_error,
-                                                                                                  self.max_error,
+        string = "Picket Fence Results: \n{:2.1f}% " \
+                 "Passed\nMedian Error: {:2.3f}mm \n" \
+                 "Max Error: {:2.3f}mm on Picket: {}, Leaf: {}".format(pass_pct, self.abs_median_error, self.max_error,
                                                                                                    self.max_error_picket,
                                                                                                   self.max_error_leaf)
         return string
-
-
 
     def _check_inversion(self):
         """Check the image for inversion (pickets are valleys, not peaks) by sampling the 4 image corners.

@@ -397,13 +397,15 @@ class Starshot:
                                                                             self.wobble.center.x, self.wobble.center.y)
         return string
 
-    def plot_analyzed_image(self, plot=None):
+    def plot_analyzed_image(self, plot=None, show=True):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.
 
         Parameters
         ----------
         plot : matplotlib.image.AxesImage, optional
             The plot to draw on. If None, will create a new one.
+        show : bool
+            Whether to actually show the image.
         """
         # plot image
         # if plot is None:
@@ -427,11 +429,24 @@ class Starshot:
         imgplot.axes.autoscale(tight=True)
 
         # Finally, show it all
-        # if plot is None:
-        plt.show()
-        # else:
-        #     plot.draw()
-        #     plot.axes.hold(False)
+        if show:
+            plt.show()
+
+    def save_analyzed_image(self, filename, **kwargs):
+        """Save the analyzed image plot to a file.
+
+        Parameters
+        ----------
+        filename : str, IO stream
+            The filename to save as. Format is deduced from string extention, if there is one. E.g. 'mystar.png' will
+            produce a PNG image.
+
+        kwargs
+            All other kwargs are passed to plt.savefig().
+        """
+        self.plot_analyzed_image(show=False)
+
+        plt.savefig(filename, **kwargs)
 
     def run_demo(self):
         """Demonstrate the Starshot module using the demo image."""
@@ -546,10 +561,11 @@ class StarProfile(CircleProfile):
 if __name__ == '__main__':
     pass
     # Starshot().run_demo()
-    # star = Starshot()
+    star = Starshot()
     # star.load_image_UI()
-    # star.load_demo_image()
-    # star.analyze(radius=0.95, min_peak_height=0.25, fwhm=True)
+    star.load_demo_image()
+    star.analyze(radius=0.95, min_peak_height=0.25, fwhm=True)
     # star.analyze(recursive=True)
     # print(star.return_results())
     # star.plot_analyzed_image()
+    star.save_analyzed_image('tester.png')

@@ -269,7 +269,7 @@ class VMAT:
 
             segment.add_to_axes(plot.axes, edgecolor=color)
 
-    def plot_analyzed_image(self, plot1=None, plot2=None):
+    def plot_analyzed_image(self, plot1=None, plot2=None, show=True):
         """Create 1 figure with 2 plots showing the open and MLC images
             with the samples and results drawn on.
 
@@ -298,15 +298,22 @@ class VMAT:
         ax1.set_title("MLC Field Image")
         self._draw_objects(ax1)
 
-        # Finally, show it all
-        if plot1 is None and plot2 is None:
-            plt.show()
-        if plot1 is not None:
-            plot1.draw()
-            plot1.axes.hold(False)
-        if plot2 is not None:
-            plot2.draw()
-            plot2.axes.hold(False)
+        if show:
+            if plot1 is None and plot2 is None:
+                plt.show()
+            if plot1 is not None:
+                plot1.draw()
+                plot1.axes.hold(False)
+            if plot2 is not None:
+                plot2.draw()
+                plot2.axes.hold(False)
+
+        return fig
+
+    def save_analyzed_image(self, filename, **kwargs):
+        """Save the analyzed images."""
+        self.plot_analyzed_image(show=False)
+        plt.savefig(filename, **kwargs)
 
     def return_results(self):
         """A string of the summary of the analysis results.
@@ -433,6 +440,11 @@ def _x_in_y(x, y):
 # -------------------
 if __name__ == '__main__':
     vmat = VMAT()
-    # vmat.settings.x_offset = 20
-    vmat.run_demo_mlcs()
+    vmat.settings.x_offset = 20
+    vmat.load_demo_image()
+    vmat.analyze('drgs')
+    # fig = vmat.plot_analyzed_image(show=False)
+    # plt.show(fig)
+    vmat.save_analyzed_image('testt.png')
+    # vmat.run_demo_mlcs()
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
