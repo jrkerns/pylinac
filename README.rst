@@ -24,8 +24,8 @@ Below are the tools currently available; tools will be added one at a time as th
     the minimum circle that touches all the radiation spokes (wobble). Based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
     and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
 * `VMAT QA <http://pylinac.readthedocs.org/en/latest/vmat_docs.html>`_ -
-    A module for analyzing EPID images after performing the `Jorgensen et al. <http://dx.doi.org/10.1118/1.3552922>`_ tests for VMAT QA, specifically the Dose Rate & Gantry Speed
-    (DRGS) and Dose Rate MLC (DRMLC) tests. Can load the open and MLC field images and calculate segment ratios as per the Jorgensen implementation.
+    A module for analyzing EPID images after performing the Varian RapidArc QA tests, specifically the Dose Rate & Gantry Speed
+    (DRGS) and MLC Speed (MLCS) tests. Can load the open and MLC field images and calculate segment ratios as per the Varian specs.
 * `CBCT QA <http://pylinac.readthedocs.org/en/latest/cbct_docs.html>`_ -
     A module to automatically analyze DICOM images of a CatPhan 504 delivered on a Varian linac. Corrects for yaw, pitch, roll
     and left-right, up-down displacement. Analysis is based on test descriptions in the
@@ -53,7 +53,7 @@ Contributing
 ------------
 
 Contributions to pylinac can be many. The most useful things a non-programmer can contribute are images to analyze and bug reports. If
-you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, email or share them via Dropbox, Google Drive, etc.
+you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, email or share them via Dropbox, Google Drive, etc: jkerns at gmail.com
 
 
 
