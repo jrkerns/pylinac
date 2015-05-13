@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """The VMAT module consists of the class VMAT, which is capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
-images according to the `Jorgensen et al. <http://dx.doi.org/10.1118/1.3552922>`_ tests, specifically the Dose-Rate GantryAxis-Speed (DRGS) and Dose-Rate MLC (DRMLC) tests.
+images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS) and MLC speed (MLCS) tests.
 """
 import os.path as osp
+import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,15 +14,16 @@ from pylinac.core.geometry import Point, Rectangle
 from pylinac.core.io import get_filepath_UI
 
 
-test_types = {'DRGS': 'drgs', 'MLCS': 'mlcs'}
+test_types = {'DRGS': 'drgs', 'MLCS': 'mlcs', 'DRMLC': 'drmlc'}
 im_types = {'OPEN': 'open', 'DMLC': 'dmlc'}
 
-DRGS_SETTINGS = {'X-plane offsets (cm)': (-6, -4, -2, 0, 2, 4, 6)}
-MLCS_SETTINGS = {'X-plane offsets (cm)': (-4.5, -1.5, 1.5, 4.5)}
+# ROI settings according to Varian
+DRGS_SETTINGS = {'X-plane offsets (mm)': (-60, -40, -20, 0, 20, 40, 60)}
+MLCS_SETTINGS = {'X-plane offsets (mm)': (-45, -15, 15, 45)}
 
 class VMAT:
     """The VMAT class analyzes two DICOM images acquired via a linac's EPID and analyzes
-        regions of interest (segments) based on the paper by `Jorgensen et al <http://dx.doi.org/10.1118/1.3552922>`_,
+        regions of interest (segments) based on the Varian RapidArc QA specifications,
         specifically, the Dose Rate & Gantry Speed (DRGS) and Dose Rate & MLC speed (DRMLC) tests.
 
         Examples
@@ -30,7 +32,7 @@ class VMAT:
             >>> VMAT().run_demo_drgs()
 
         Run the DRMLC demo:
-            >>> VMAT().run_demo_drmlc()
+            >>> VMAT().run_demo_mlcs()
 
         A typical use case:
             >>> open_img = "C:/QA Folder/VMAT/open_field.dcm"
@@ -44,13 +46,13 @@ class VMAT:
 
         Attributes
         ----------
-        image_open : :class:`ImageObj`
+        image_open : :class:`~pylinac.core.image.ImageObj`
             The open-field image object.
-        image_dmlc : core.image.ImageObj
+        image_dmlc : :class:`~pylinac.core.image.ImageObj`
             The dmlc-field image object.
         segments : list
             A list containing :class:`Segment` instances.
-        settings : :class:`Settings`
+        settings : :class:`~pylinac.vmat.Settings`
             Settings for analysis.
     """
     def __init__(self):
@@ -116,15 +118,16 @@ class VMAT:
     def run_demo_drgs(self, tolerance=1.5):
         """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
         self.load_demo_image('drgs')
-        self.analyze(test='drgs', tolerance=tolerance)  # set tolerance to 2 to show some failures
+        self.settings.x_offset = 20  # old images (rev1, not new rev2's), which are offset
+        self.analyze(test='drgs', tolerance=tolerance)
         print(self.return_results())
         self.plot_analyzed_image()
 
     @type_accept(tolerance=(int, float))
     def run_demo_mlcs(self, tolerance=1.5):
-        """Run the VMAT demo for the Dose Rate & MLC speed test."""
+        """Run the VMAT demo for the MLC leaf speed test."""
         self.load_demo_image('mlcs')
-        self.analyze(test='mlcs', tolerance=tolerance)
+        self.analyze(test='drmlc', tolerance=tolerance)
         print(self.return_results())
         self.plot_analyzed_image()
 
@@ -163,21 +166,22 @@ class VMAT:
         """
         if _test_is_drgs(test):
             num = 7
-            offsets = DRGS_SETTINGS['X-plane offsets (cm)']
+            offsets = DRGS_SETTINGS['X-plane offsets (mm)']
         else:
             num = 4
-            offsets = MLCS_SETTINGS['X-plane offsets (cm)']
+            offsets = MLCS_SETTINGS['X-plane offsets (mm)']
 
         points = []
         for seg, offset in zip(range(num), offsets):
             y = self.image_dmlc.center.y + self.settings.y_offset
-            x_offset = offset * 10 * self.image_dmlc.dpmm + self.settings.x_offset
+            x_offset = offset * self.image_dmlc.dpmm + self.settings.x_offset
             x = self.image_dmlc.center.x + x_offset
             points.append(Point(x, y))
         return points
 
     def _construct_segments(self, center_points):
         """Construct Segment instances at the center point locations."""
+        self.segments = []  # clear list if leftovers from last analysis
         for point in center_points:
             segment = Segment(point, self.image_open, self.image_dmlc, self.settings.tolerance)
             self.segments.append(segment)
@@ -219,12 +223,6 @@ class VMAT:
         """Return the value of the maximum R_deviation segment."""
         max_idx = np.abs(self._get_r_dev_array).argmax()
         return self._get_r_dev_array[max_idx]
-
-    @property
-    def min_r_deviation(self):
-        """Return the value of the minimum R_deviation segment."""
-        min_idx = np.abs(self._get_r_dev_array).argmin()
-        return self._get_r_dev_array[min_idx]
 
     @property
     def _get_r_dev_array(self):
@@ -333,11 +331,9 @@ class VMAT:
             string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
                       (self.settings.tolerance * 100, passfail_str))
 
-        string += ('\nOverall Results:\n'
-                   'Max Positive Deviation: %4.3f%%\n'
-                   'Max Negative Deviation: %4.3f%%\n'
+        string += ('Max Deviation: %4.3f%%\n'
                    'Absolute Mean Deviation: %4.3f%%' %
-                   (self.max_r_deviation, self.min_r_deviation, self.avg_abs_r_deviation))
+                   (self.max_r_deviation, self.avg_abs_r_deviation))
 
         return string
 
@@ -351,9 +347,9 @@ class Segment(Rectangle):
     Attributes
     ----------
     r_dev : float
-            The reading deviation (R_dev) from the average readings of all the segments.
+            The reading deviation (R_dev) from the average readings of all the segments. See RTD for equation info.
     r_corr : float
-        The corrected reading of the pixel values defined as :math:`R_{corr}(x) = \frac{R_{DRGS}(x)}{R_{open}(x)} * 100`.
+        The corrected reading (R_corr) of the pixel values. See RTD. See RTD for equation info.
     passed : boolean
         Specifies where the segment reading deviation was under tolerance.
     """
@@ -412,34 +408,31 @@ class Settings:
 
 
 def _is_open_type(image_type):
-    if image_type.lower() == 'open':
-        return True
-    else:
-        return False
+    return _x_in_y(image_type, 'open')
 
 def _is_dmlc_type(image_type):
-    if image_type.lower() == 'dmlc':
-        return True
-    else:
-        return False
+    return _x_in_y(image_type, 'dmlc')
 
 def _test_is_drgs(test):
-    if test.lower() in 'drgs':
+    return _x_in_y(test, 'drgs')
+
+def _test_is_mlcs(test):
+    if _x_in_y(test, 'drmlc'):
+        warnings.warn("Pylinac VMAT parameter 'drmlc' should be dropped in favor of 'mlcs'. 'drmlc' will be dropped in v0.7.0", FutureWarning)
+    return _x_in_y(test, ('mlcs', 'drmlc'))
+
+def _x_in_y(x, y):
+    if x.lower() in y:
         return True
     else:
         return False
 
-def _test_is_mlcs(test):
-    if test.lower() in 'mlcs':
-        return True
-    else:
-        return False
 
 # -------------------
 # VMAT demo
 # -------------------
 if __name__ == '__main__':
     vmat = VMAT()
-    vmat.settings.x_offset = 0
+    # vmat.settings.x_offset = 20
     vmat.run_demo_mlcs()
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
