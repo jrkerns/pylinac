@@ -79,9 +79,9 @@ class Image:
             If True (default), will convert RGB and HSV type images to greyscale.
             If False, will not do any conversion.
         """
-        if isinstance(file_or_array, str):
+        try:
             self._load_file(file_or_array, to_gray)
-        elif isinstance(file_or_array, np.ndarray):
+        except:
             self._load_array(file_or_array)
         else:
             raise TypeError("Image input type not understood")
