@@ -297,7 +297,7 @@ class Starshot:
             Source to image distance in cm.
         """
         # convert wobble to mm if possible
-        if self.image.dpmm != 0:
+        if self.image.dpmm is not None:
             self._tolerance_unit = 'mm'
             self.wobble.radius_mm = self.wobble.radius / self.image.dpmm
         else:
@@ -407,13 +407,7 @@ class Starshot:
         show : bool
             Whether to actually show the image.
         """
-        # plot image
-        # if plot is None:
         imgplot = plt.imshow(self.image.array)
-        # else:
-        #     plot.axes.imshow(self.image.array)
-        #     plot.axes.hold(True)
-        #     imgplot = plot
 
         # plot radiation lines
         for line in self.lines:
@@ -427,6 +421,8 @@ class Starshot:
 
         # tighten plot around image
         imgplot.axes.autoscale(tight=True)
+
+        imgplot.axes.axis('off')
 
         # Finally, show it all
         if show:
@@ -562,10 +558,10 @@ if __name__ == '__main__':
     pass
     # Starshot().run_demo()
     star = Starshot()
-    # star.load_image_UI()
-    star.load_demo_image()
+    star.load_image_UI()
+    # star.load_demo_image()
     star.analyze(radius=0.95, min_peak_height=0.25, fwhm=True)
     # star.analyze(recursive=True)
     # print(star.return_results())
-    # star.plot_analyzed_image()
-    star.save_analyzed_image('tester.png')
+    star.plot_analyzed_image()
+    # star.save_analyzed_image('tester.png', bbox_inches='tight', pad_inches=0)

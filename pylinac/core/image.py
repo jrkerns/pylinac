@@ -81,10 +81,14 @@ class Image:
         """
         try:
             self._load_file(file_or_array, to_gray)
+        except IOError:
+            try:
+                self._load_array(file_or_array)
+            except:
+                raise TypeError("Image input type not understood")
         except:
-            self._load_array(file_or_array)
-        else:
             raise TypeError("Image input type not understood")
+
     # @property
     # def array(self):
     #     return self._array
