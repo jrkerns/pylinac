@@ -344,6 +344,8 @@ class PicketFence:
         plt.xlim([0, self.image.shape[1]])
         plt.ylim([0, self.image.shape[0]])
 
+        plt.axis('off')
+
         if show:
             plt.show()
 
