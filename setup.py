@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 # 1. Ensure version has incremented.
 # 2. To make life easy, in PyCharm, go to Tools/Run setup.py task.../sdist with command line option "upload" to push to PyPI
 
-__version__ = '0.5.1'
-__version_info__ = (0, 5, 1)
+__version__ = '0.6.0b'
+__version_info__ = (0, 6, 0, 'beta')
 
 
 setup(

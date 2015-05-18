@@ -1,4 +1,4 @@
-V ??
+V 0.6.0b  5/16/15
 
     Dependencies
 - Because the VMAT module was reworked and is now based on Varian specs, the pandas package will no longer be required. FutureWarnings have been removed.
