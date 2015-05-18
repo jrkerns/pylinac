@@ -408,14 +408,14 @@ class Starshot:
             Whether to actually show the image.
         """
         plt.clf()
-        imgplot = plt.imshow(self.image.array)
+        imgplot = plt.imshow(self.image.array, cmap=plt.cm.Greys)
 
         # plot radiation lines
         for line in self.lines:
-            line.add_to_axes(imgplot.axes)
+            line.add_to_axes(imgplot.axes, color='blue')
 
         # plot wobble circle
-        self.wobble.add_to_axes(imgplot.axes)
+        self.wobble.add_to_axes(imgplot.axes, edgecolor='green')
 
         # plot profile circle
         self.circle_profile.add_to_axes(imgplot.axes, edgecolor='green')
