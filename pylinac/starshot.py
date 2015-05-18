@@ -407,6 +407,7 @@ class Starshot:
         show : bool
             Whether to actually show the image.
         """
+        plt.clf()
         imgplot = plt.imshow(self.image.array)
 
         # plot radiation lines
@@ -558,8 +559,8 @@ if __name__ == '__main__':
     pass
     # Starshot().run_demo()
     star = Starshot()
-    star.load_image_UI()
-    # star.load_demo_image()
+    # star.load_image_UI()
+    star.load_demo_image()
     star.analyze(radius=0.95, min_peak_height=0.25, fwhm=True)
     # star.analyze(recursive=True)
     # print(star.return_results())

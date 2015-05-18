@@ -300,6 +300,7 @@ class PicketFence:
             Do/don't plot the alpha overlay of the leaf status.
         """
         # plot the image
+        plt.clf()
         ax = plt.imshow(self.image.array, cmap=cm.Greys_r)
 
         # plot guard rails and mlc peaks as desired
