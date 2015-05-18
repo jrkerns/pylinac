@@ -184,6 +184,10 @@ class Image:
 
     def _construct_image(self, file_path, to_gray):
         """Construct an object from an image file (TIF, JPEG, etc)."""
+        try:
+            file_path.seek(0)
+        except AttributeError:
+            pass
         img = pImage.open(file_path)
         if to_gray:
             if img.mode == 'RGB' or img.mode == 'HSV':
@@ -205,6 +209,10 @@ class Image:
 
     def _construct_dicom(self, file_path):
         """Construct an object from a DICOM file (.dcm)."""
+        try:
+            file_path.seek(0)
+        except AttributeError:
+            pass
         dcm = dicom.read_file(file_path)
         self.array = dcm.pixel_array
         self.im_type = DICOM
