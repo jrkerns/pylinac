@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 from pylinac import MEMORY_PROFILE, DEBUG
 from pylinac.core.decorators import type_accept, lazyproperty, value_accept
-from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI
+from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file
 from pylinac.core.utilities import is_iterable
 
 
@@ -257,7 +257,7 @@ class MachineLog:
 
     If reading Trajectory logs, the .txt file is also loaded if it's around.
     """
-    @type_accept(filename=str)
+
     def __init__(self, filename=''):
         """
         Parameters
@@ -338,7 +338,6 @@ class MachineLog:
         if filename: # if user didn't hit cancel...
             self.load(filename, exclude_beam_off)
 
-    @type_accept(filename=str)
     def load(self, filename, exclude_beam_off=True):
         """Load the log file directly by passing the path to the file.
 
@@ -435,7 +434,7 @@ class MachineLog:
         print("Gamma pass %: {:2.2f}".format(self.fluence.gamma.pass_prcnt))
         print("Gamma average: {:2.3f}".format(self.fluence.gamma.avg_gamma))
 
-    @property
+    @lazyproperty
     def log_type(self):
         """Determine the MLC log type: Trajectory or Dynalog.
 
@@ -544,7 +543,7 @@ class MachineLog:
             self._read_txt_file()
 
         # read in trajectory log binary data
-        fcontent = open(self._filename, 'rb').read()
+        fcontent = open_file(self._filename).read()
 
         # Unpack the content according to respective section and data type (see log specification file).
         self.header, self._cursor = Tlog_Header(fcontent, self._cursor)._read()
@@ -1939,7 +1938,10 @@ class CRC(TLog_Section):
 
 def is_tlog_txt_file_around(tlog_filename):
     """Boolean specifying if a Tlog *.txt file is available."""
-    txt_filename = tlog_filename.replace('.bin', '.txt')
+    try:
+        txt_filename = tlog_filename.replace('.bin', '.txt')
+    except:
+        return False
     if osp.isfile(txt_filename):
         return True
     else:
@@ -1956,12 +1958,12 @@ def is_log(filename):
 def is_tlog(filename):
     """Boolean specifying if filename is a Trajectory log file."""
     if is_valid_file(filename, raise_error=False):
-        with open(filename, 'rb') as unknown_file:
-            header_sample = unknown_file.read(5).decode()
-            if 'V' in header_sample:
-                return True
-            else:
-                return False
+        unknown_file = open_file(filename)
+        header_sample = unknown_file.read(5).decode()
+        if 'V' in header_sample:
+            return True
+        else:
+            return False
     else:
         return False
 
@@ -2035,3 +2037,10 @@ def write_array(writer, description, value, unit=None):
             dtype_desc = description + dtype + ' in units of ' + unit
         arr2write = np.insert(getattr(value, attr).astype(object), 0, dtype_desc)
         writer.writerow(arr2write)
+
+
+if __name__ == '__main__':
+    filestr = os.path.join(os.path.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
+    ofile = open_file(filestr)
+    log = MachineLog(ofile)
+    ttt = 1
