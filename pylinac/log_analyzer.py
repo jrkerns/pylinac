@@ -607,25 +607,37 @@ class Axis:
         else:
             raise AttributeError("Expected positions not passed to Axis")
 
-
     def plot_actual(self):
         """Plot the actual positions as a matplotlib figure."""
         self._plot('actual')
+
+    def save_plot_actual(self, filename, **kwargs):
+        self._plot('actual', show=False)
+        plt.savefig(filename, **kwargs)
 
     def plot_expected(self):
         """Plot the expected positions as a matplotlib figure."""
         self._plot('expected')
 
+    def save_plot_expected(self, filename, **kwargs):
+        self._plot('expected', show=False)
+        plt.savefig(filename, **kwargs)
+
     def plot_difference(self):
         """Plot the difference of positions as a matplotlib figure."""
         self._plot('difference')
 
+    def save_plot_difference(self, filename, **kwargs):
+        self._plot('difference', show=False)
+        plt.savefig(filename, **kwargs)
+
     @value_accept(param=('actual', 'expected', 'difference'))
-    def _plot(self, param=''):
+    def _plot(self, param='', show=True):
         """Plot the parameter, actual, expected, or difference"""
         plt.plot(getattr(self, param))
         plt.autoscale(axis='x', tight=True)
-        plt.show()
+        if show:
+            plt.show()
 
 
 class _Axis_Moved:
@@ -783,12 +795,18 @@ class Fluence(metaclass=ABCMeta):
         self.resolution = resolution
         return fluence
 
-    def plot_map(self):
+    def plot_map(self, show=True):
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         if not self.map_calced:
             raise AttributeError("Map not yet calculated; use calc_map()")
         plt.imshow(self.pixel_map, aspect='auto')
-        plt.show()
+        if show:
+            plt.show()
+
+    def save_map(self, filename, **kwargs):
+        """Save the fluence map figure to a file."""
+        self.plot_map(show=False)
+        plt.savefig(filename, **kwargs)
 
 
 class ActualFluence(Fluence):
@@ -936,7 +954,7 @@ class GammaFluence(Fluence):
         self.pixel_map = gamma_map
         return gamma_map
 
-    def plot_map(self):
+    def plot_map(self, show=True):
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         if not self.map_calced:
             raise AttributeError("Map not yet calculated; use calc_map()")
@@ -967,7 +985,7 @@ class GammaFluence(Fluence):
         else:
             raise AttributeError("Gamma map not yet calculated")
 
-    def plot_histogram(self, scale='log', bins=None):
+    def plot_histogram(self, scale='log', bins=None, show=True):
         """Plot a histogram of the gamma map values.
 
         Parameters
@@ -982,9 +1000,15 @@ class GammaFluence(Fluence):
                 bins = self.bins
             ax = plt.hist(self.pixel_map.flatten(), bins=bins)
             ax.set_yscale(scale)
-            plt.show()
+            if show:
+                plt.show()
         else:
             raise AttributeError("Map not yet calculated; use calc_map()")
+
+    def save_histogram(self, filename, scale='log', bins=None, **kwargs):
+        """Save the histogram plot to file."""
+        self.plot_histogram(scale, bins, show=False)
+        plt.savefig(filename, **kwargs)
 
     def plot_passfail_map(self):
         """Plot the binary gamma map, only showing whether pixels passed or failed."""
@@ -1389,6 +1413,28 @@ class MLC:
 
         arr = self._snapshot_array(dtype)
         return arr[leaves, :]
+
+    def plot_mlc_error_hist(self, show=True):
+        """Plot an MLC error histogram."""
+        plt.hist(self._abs_error_all_leaves.flatten())
+        if show:
+            plt.show()
+
+    def save_mlc_error_hist(self, filename, **kwargs):
+        """Save the MLC error histogram to file."""
+        self.plot_mlc_error_hist(show=False)
+        plt.savefig(filename, **kwargs)
+
+    def plot_rms_by_leaf(self, show=True):
+        """Plot RMSs by leaf."""
+        plt.bar(np.arange(len(self.get_RMS('both')))[::-1], self.get_RMS('both'), align='center')
+        if show:
+            plt.show()
+
+    def save_rms_by_leaf(self, filename, **kwargs):
+        """Save the RMS-leaf to file."""
+        self.plot_rms_by_leaf(show=False)
+        plt.savefig(filename, **kwargs)
 
 
 class Jaw_Struct:
