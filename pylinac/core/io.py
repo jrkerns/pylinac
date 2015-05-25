@@ -35,18 +35,19 @@ def is_valid_file(file_path, raise_error=True):
             raise FileExistsError("{} is not a valid file".format(file_path))
 
 def open_file(file, mode='rb'):
-    """Open a file if a file is a string, or open the object if file is a file object."""
+    """Open a file if a file is a string, or open the object if file is a file object.
+        If an already-opened file object, reset the pointer to 0."""
     if isinstance(file, str):
         openfile = open(file, mode)
     else:
         try:
             file.open()
-        except ValueError:
+            openfile = file
+        except (ValueError, AttributeError):
             file.seek(0)
             openfile = file
-        except AttributeError:
-            file.seek(0)
-            openfile = file
+        except:
+            raise TypeError("Could not open file: {}".format(file))
     return openfile
 
 def is_valid_dir(dir_path, raise_error=True):
