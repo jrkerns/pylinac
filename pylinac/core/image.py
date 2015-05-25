@@ -81,7 +81,7 @@ class Image:
         """
         try:
             self._load_file(file_or_array, to_gray)
-        except IOError:
+        except (IOError, AttributeError):
             try:
                 self._load_array(file_or_array)
             except:

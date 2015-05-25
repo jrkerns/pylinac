@@ -27,7 +27,7 @@ class Test_Image_Load(unittest.TestCase):
 
         # try loading a bad file
         bad_file = osp.abspath(__file__)
-        self.assertRaises(IOError, Image, bad_file)
+        self.assertRaises(TypeError, Image, bad_file)
 
         # not a valid parameter
         bad_input = 3.5
