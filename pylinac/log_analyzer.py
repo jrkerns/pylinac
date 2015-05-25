@@ -798,6 +798,7 @@ class Fluence(metaclass=ABCMeta):
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         if not self.map_calced:
             raise AttributeError("Map not yet calculated; use calc_map()")
+        plt.clf()
         plt.imshow(self.pixel_map, aspect='auto')
         if show:
             plt.show()
@@ -997,8 +998,9 @@ class GammaFluence(Fluence):
         if self.map_calced:
             if bins is None:
                 bins = self.bins
-            ax = plt.hist(self.pixel_map.flatten(), bins=bins)
-            ax.set_yscale(scale)
+            plt.clf()
+            plt.hist(self.pixel_map.flatten(), bins=bins)
+            plt.yscale(scale)
             if show:
                 plt.show()
         else:
@@ -1426,6 +1428,7 @@ class MLC:
 
     def plot_rms_by_leaf(self, show=True):
         """Plot RMSs by leaf."""
+        plt.clf()
         plt.bar(np.arange(len(self.get_RMS('both')))[::-1], self.get_RMS('both'), align='center')
         if show:
             plt.show()
