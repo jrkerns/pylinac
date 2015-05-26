@@ -454,7 +454,7 @@ class SR_Slice(Slice):
         self.scale_by_FOV()
         self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.SR_slice_num, mode='max'))
 
-        self.LP_MTF = {}  # holds lp:mtf data
+        self.LP_MTF = OrderedDict()  # holds lp:mtf data
         for idx, radius in enumerate(self.radius2profs):
             c = SR_Circle_ROI(idx, self.image.array, radius=radius)
             self.add_ROI(c)
@@ -1003,6 +1003,7 @@ class CBCT:
     def plot_analyzed_image(self, show=True):
         """Draw the ROIs and lines the calculations were done on or based on."""
         # create figure
+        plt.clf()
         fig, ((UN_ax, HU_ax), (SR_ax, LOCON_ax)) = plt.subplots(2,2)
 
         # Uniformity objects
@@ -1044,6 +1045,60 @@ class CBCT:
     def save_analyzed_image(self, filename, **kwargs):
         """Save the analyzed plot."""
         self.plot_analyzed_image(show=False)
+        plt.savefig(filename, **kwargs)
+
+    def plot_analyzed_subimage(self, subimage='hu', show=True):
+        """Plot a specific component of the HU analysis."""
+        subimage = subimage.lower()
+        plt.clf()
+        plt.axis('off')
+
+        if subimage == 'hu':
+            # HU objects
+            plt.imshow(self.HU.image.array, cmap=plt.cm.Greys)
+            for roi in self.HU.ROIs.values():
+                color = roi.get_pass_fail_color()
+                roi.add_to_axes(plt.gca(), edgecolor=color)
+            # GEO objects
+            for line in self.GEO.lines.values():
+                line.add_to_axes(plt.gca(), color='blue')
+            # plt.title('HU & Geometric Slice')
+            plt.autoscale(tight=True)
+        elif subimage == 'unif':
+            plt.imshow(self.UN.image.array, cmap=plt.cm.Greys)
+            for roi in self.UN.ROIs.values():
+                color = roi.get_pass_fail_color()
+                roi.add_to_axes(plt.gca(), edgecolor=color)
+            plt.autoscale(tight=True)
+            # plt.title('Uniformity Slice')
+        elif subimage == 'sr':
+            # SR objects
+            plt.imshow(self.SR.image.array, cmap=plt.cm.Greys)
+            last_roi = len(self.SR.ROIs) - 1
+            for roi in [self.SR.ROIs[0], self.SR.ROIs[last_roi]]:
+                roi.add_to_axes(plt.gca(), edgecolor='blue')
+            plt.autoscale(tight=True)
+
+            # plt.title('Spatial Resolution Slice')
+        elif subimage == 'mtf':
+            plt.axis('on')
+            x = list(self.SR.LP_MTF.keys())
+            y = list(self.SR.LP_MTF.values())
+            plt.grid('on')
+            plt.plot(x, y, marker='o')
+            plt.ylim([0, 1.1])
+            plt.xlim([0.1, 1.3])
+            plt.xlabel('Line pairs / mm')
+            plt.ylabel('Relative MTF function')
+        else:
+            raise ValueError("Subimage parameter {} not understood".format(subimage))
+
+        if show:
+            plt.show()
+
+    def save_analyzed_subimage(self, filename, subimage='hu', **kwargs):
+        """Save a component image to file."""
+        self.plot_analyzed_subimage(subimage, show=False)
         plt.savefig(filename, **kwargs)
 
     def return_results(self):
@@ -1128,6 +1183,6 @@ if __name__ == '__main__':
     cbct.load_demo_images()
     # cbct.algo_data.images = np.roll(cbct.algo_data.images, 30, axis=1)
     cbct.analyze()
-    # print(cbct.return_results())
+    print(cbct.return_results())
     # cbct.plot_analyzed_image()
     # cbct.save_analyzed_image('ttt.png')
