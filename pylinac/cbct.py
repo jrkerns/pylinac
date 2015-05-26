@@ -15,6 +15,7 @@ import shutil
 import zipfile
 import time
 import math
+from io import BytesIO
 
 import numpy as np
 from scipy import ndimage
@@ -819,20 +820,21 @@ class CBCT:
         demo_zip = osp.join(cbct_demo_dir, 'High quality head.zip')
         demo_folder = osp.join(cbct_demo_dir, 'High quality head')
 
+        self.load_zip_file(demo_zip)
         # unpack demo folder if not already around
-        if not osp.isdir(demo_folder) or len(os.listdir(demo_folder)) == 0:
-            shutil.unpack_archive(demo_zip, cbct_demo_dir)
-
-        filelist = self._get_CT_filenames_from_folder(demo_folder)
-        self._load_files(filelist)
-        # delete the unpacked demo folder
-        if cleanup:
-            try:
-                shutil.rmtree(demo_folder)
-                time.sleep(0.1)  # sleep timer added because fast repeats of loading/dumping caused errors
-            except IOError:
-                print("Extracted demo images were not able to be deleted. You can manually delete them if you "
-                      "like from %s" % demo_folder)
+        # if not osp.isdir(demo_folder) or len(os.listdir(demo_folder)) == 0:
+        #     shutil.unpack_archive(demo_zip, cbct_demo_dir)
+        #
+        # filelist = self._get_CT_filenames_from_folder(demo_folder)
+        # self._load_files(filelist)
+        # # delete the unpacked demo folder
+        # if cleanup:
+        #     try:
+        #         shutil.rmtree(demo_folder)
+        #         time.sleep(0.1)  # sleep timer added because fast repeats of loading/dumping caused errors
+        #     except IOError:
+        #         print("Extracted demo images were not able to be deleted. You can manually delete them if you "
+        #               "like from %s" % demo_folder)
 
     def load_folder_UI(self):
         """Load the CT DICOM files from a folder using a UI."""
@@ -873,22 +875,20 @@ class CBCT:
         FileExistsError : If zip_file passed was not a legitimate zip file.
         FileNotFoundError : If no CT images are found in the folder
         """
-        zip_folder, _ = osp.splitext(zip_file)
-
         if not zipfile.is_zipfile(zip_file):
-            raise FileExistsError("Path given was not a valid zip file")
+            raise FileExistsError("Files given were not valid zip files")
         else:
-            shutil.unpack_archive(zip_file, osp.dirname(zip_file))
-
-            filelist = self._get_CT_filenames_from_folder(zip_folder)
-            self._load_files(filelist)
+            zfs = zipfile.ZipFile(zip_file)
+            # shutil.unpack_archive(zip_file, osp.dirname(zip_file))
+            filelist = self._get_CT_filenames_from_zip(zfs)
+            self._load_files(filelist, is_zip=True, zfiles=zfs)
 
         # delete the unpacked folder
-        try:
-            shutil.rmtree(zip_folder)
-        except IOError:
-            print("Extracted demo images were not able to be deleted. You can manually delete them if you "
-                  "like from %s" % zip_folder)
+        # try:
+        #     shutil.rmtree(zip_folder)
+        # except IOError:
+        #     print("Extracted demo images were not able to be deleted. You can manually delete them if you "
+        #           "like from %s" % zip_folder)
 
     def _get_CT_filenames_from_folder(self, folder):
         """Walk through a folder to find DICOM CT images.
@@ -908,7 +908,16 @@ class CBCT:
                 return filelist
         raise FileNotFoundError("CT images were not found in the specified folder.")
 
-    def _load_files(self, file_list, im_size=512):
+    def _get_CT_filenames_from_zip(self, zfile):
+        """Get the CT image file names from a zip file."""
+        allnames = zfile.namelist()
+        filelist = [item for item in allnames if os.path.basename(item).endswith('.dcm') and os.path.basename(item).startswith('CT')]
+        if filelist:
+            return filelist
+        raise FileNotFoundError("CT images were not found in the specified folder.")
+
+
+    def _load_files(self, file_list, im_size=512, is_zip=False, zfiles=None):
         """Load CT DICOM files given a list of image paths.
 
         Parameters
@@ -931,6 +940,8 @@ class CBCT:
         # load dicom files from list names and get the image slice position
         # TODO: figure out more memory-efficient way to sort images; maybe based on number of slices and slice thickness
         for idx, item in enumerate(file_list):
+            if is_zip:
+                item = BytesIO(zfiles.read(item))
             dcm = dicom.read_file(item)
             im_order[idx] = np.round(dcm.ImagePositionPatient[-1]/dcm.SliceThickness)
             # resize image if need be
@@ -946,7 +957,7 @@ class CBCT:
         sorted_images = self._sort_images(im_order, images)
 
         # determine settings needed for given CBCT.
-        self._get_settings(file_list[0], sorted_images)
+        self._get_settings(item, sorted_images)
         # convert images from CT# to HU using dicom tags
         self._convert2HU()
 
@@ -970,6 +981,10 @@ class CBCT:
         images : numpy.ndarray
             3D numpy array of the CT images.
         """
+        try:
+            dicom_file_path.seek(0)
+        except AttributeError:
+            pass
         dcm = dicom.read_file(dicom_file_path, stop_before_pixels=True)
         self.algo_data = Algo_Data(images, dcm)
 
@@ -1003,7 +1018,6 @@ class CBCT:
     def plot_analyzed_image(self, show=True):
         """Draw the ROIs and lines the calculations were done on or based on."""
         # create figure
-        plt.clf()
         fig, ((UN_ax, HU_ax), (SR_ax, LOCON_ax)) = plt.subplots(2,2)
 
         # Uniformity objects
@@ -1184,5 +1198,5 @@ if __name__ == '__main__':
     # cbct.algo_data.images = np.roll(cbct.algo_data.images, 30, axis=1)
     cbct.analyze()
     print(cbct.return_results())
-    # cbct.plot_analyzed_image()
+    cbct.plot_analyzed_subimage('mtf')
     # cbct.save_analyzed_image('ttt.png')
