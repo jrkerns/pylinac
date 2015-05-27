@@ -269,7 +269,7 @@ class VMAT:
 
             segment.add_to_axes(plot.axes, edgecolor=color)
 
-    def plot_analyzed_image(self, show=True):
+    def plot_analyzed_image(self, image='dmlc', show=True):
         """Create 1 figure with 2 plots showing the open and MLC images
             with the samples and results drawn on.
 
@@ -281,10 +281,18 @@ class VMAT:
             Same as above; if plot1 is supplied but plot2 left as None, will put images into
             one figure.
         """
+        if image == 'dmlc':
+            img = self.image_dmlc
+        elif image == 'open':
+            img = self.image_open
+        else:
+            raise ValueError("Parameter {} not understood".format(image))
+
         plt.clf()
         plt.axis('off')
-        fig = plt.imshow(self.image_dmlc, cmap=plt.cm.Greys)
-        self._draw_objects(fig.axes)
+        fig = plt.imshow(img, cmap=plt.cm.Greys)
+        if image == 'dmlc':
+            self._draw_objects(fig.axes)
 
         if show:
             plt.show()
@@ -422,8 +430,8 @@ if __name__ == '__main__':
     vmat.settings.x_offset = 20
     vmat.load_demo_image()
     vmat.analyze('drgs')
-    # fig = vmat.plot_analyzed_image(show=False)
+    fig = vmat.plot_analyzed_image(image='open')
     # plt.show(fig)
-    vmat.save_analyzed_image('testt.png')
+    # vmat.save_analyzed_image('testt.png')
     # vmat.run_demo_mlcs()
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
