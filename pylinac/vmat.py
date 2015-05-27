@@ -297,9 +297,9 @@ class VMAT:
         if show:
             plt.show()
 
-    def save_analyzed_image(self, filename, **kwargs):
+    def save_analyzed_image(self, filename, image='dmlc', **kwargs):
         """Save the analyzed images."""
-        self.plot_analyzed_image(show=False)
+        self.plot_analyzed_image(image, show=False)
         plt.savefig(filename, **kwargs)
 
     def return_results(self):
