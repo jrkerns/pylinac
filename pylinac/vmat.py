@@ -269,7 +269,7 @@ class VMAT:
 
             segment.add_to_axes(plot.axes, edgecolor=color)
 
-    def plot_analyzed_image(self, plot1=None, plot2=None, show=True):
+    def plot_analyzed_image(self, show=True):
         """Create 1 figure with 2 plots showing the open and MLC images
             with the samples and results drawn on.
 
@@ -281,34 +281,13 @@ class VMAT:
             Same as above; if plot1 is supplied but plot2 left as None, will put images into
             one figure.
         """
-        if plot1 is None and plot2 is None:
-            fig, (ax1, ax2) = plt.subplots(1,2)
-        if plot1 is not None:
-            ax1 = plot1.axes
-        if plot2 is not None:
-            ax2 = plot2.axes
-
-        try:
-            # http://stackoverflow.com/questions/3823752/display-image-as-grayscale-using-matplotlib
-            ax2.imshow(self.image_open.array, cmap=plt.cm.Greys_r)
-            ax2.set_title("Open Field Image")
-        except:
-            pass  # axis2 wasn't defined
-        ax1.imshow(self.image_dmlc.array, cmap=plt.cm.Greys_r)
-        ax1.set_title("MLC Field Image")
-        self._draw_objects(ax1)
+        plt.clf()
+        plt.axis('off')
+        fig = plt.imshow(self.image_dmlc, cmap=plt.cm.Greys)
+        self._draw_objects(fig.axes)
 
         if show:
-            if plot1 is None and plot2 is None:
-                plt.show()
-            if plot1 is not None:
-                plot1.draw()
-                plot1.axes.hold(False)
-            if plot2 is not None:
-                plot2.draw()
-                plot2.axes.hold(False)
-
-        return fig
+            plt.show()
 
     def save_analyzed_image(self, filename, **kwargs):
         """Save the analyzed images."""
