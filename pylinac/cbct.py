@@ -87,7 +87,7 @@ class Algo_Data:
         """Determine the roll of the phantom by calculating the angle of the two
         air bubbles on the HU slice. Delegation method."""
         # TODO: need more efficient way of doing this w/o creating HU slice
-        HU = HU_Slice(self)
+        HU = HU_Slice(self, tolerance=40)
         return HU.determine_phantom_roll()
 
     @lazyproperty
@@ -326,17 +326,17 @@ class HU_Slice(Base_HU_Slice):
     """Class for analysis of the HU slice of the CBCT dicom data set."""
     dist2objs = 120  # radius in pixels to the centers of the HU objects
     object_radius = 9  # radius of the HU ROIs themselves
-    tolerance = 40  # standard tolerance of HU
+    # tolerance = 40  # standard tolerance of HU
     air_bubble_size = 450  #
 
 
-    def __init__(self, algo_data):
+    def __init__(self, algo_data, tolerance):
         super().__init__(algo_data)
         self.scale_by_FOV()
         self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.HU_slice_num))
 
         HU_ROIp = partial(HU_ROI, slice_array=self.image.array, radius=self.object_radius, dist_from_center=self.dist2objs,
-                          tolerance=self.tolerance)
+                          tolerance=tolerance)
 
         air = HU_ROIp('Air', 90, -1000)
         pmp = HU_ROIp('PMP', 120, -200)
@@ -394,18 +394,17 @@ class UNIF_Slice(Base_HU_Slice):
     """Class for analysis of the Uniformity slice of the CBCT dicom data set."""
     dist2objs = 110
     obj_radius = 20
-    tolerance = 40
 
-    def __init__(self, algo_data):
+    def __init__(self, algo_data, tolerance):
         super().__init__(algo_data)
         self.scale_by_FOV()
         self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.UN_slice_num))
 
-        HU_ROIp = partial(HU_ROI, slice_array=self.image.array, tolerance=self.tolerance, radius=self.obj_radius,
+        HU_ROIp = partial(HU_ROI, slice_array=self.image.array, tolerance=tolerance, radius=self.obj_radius,
                           dist_from_center=self.dist2objs)
 
         # center has distance of 0, thus doesn't use partial
-        center = HU_ROI('Center', 0, 0, self.image.array, self.obj_radius, dist_from_center=0, tolerance=self.tolerance)
+        center = HU_ROI('Center', 0, 0, self.image.array, self.obj_radius, dist_from_center=0, tolerance=tolerance)
         right = HU_ROIp('Right', 0, 0)
         top = HU_ROIp('Top', -90, 0)
         left = HU_ROIp('Left', 180, 0)
@@ -417,6 +416,7 @@ class UNIF_Slice(Base_HU_Slice):
     def scale_by_FOV(self):
         self.dist2objs /= self.algo_data.fov_ratio
         self.obj_radius /= self.algo_data.fov_ratio
+
 
 class Locon_Slice(Slice):
     """Class for analysis of the low contrast slice of the CBCT dicom data set."""
@@ -705,10 +705,10 @@ class GEO_Slice(Slice):
     line_nominal_value = 50
     dist2objs = 72
     obj_radius = 20
-    tolerance = 1
 
-    def __init__(self, algo_data):
+    def __init__(self, algo_data, tolerance):
         super().__init__(algo_data)
+        self.tolerance = tolerance
         self.scale_by_FOV()
         self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.HU_slice_num, mode='median'))
 
@@ -993,23 +993,23 @@ class CBCT:
         self.algo_data.images *= self.algo_data.dicom_metadata.RescaleSlope
         self.algo_data.images += self.algo_data.dicom_metadata.RescaleIntercept
 
-    def construct_HU(self):
+    def construct_HU(self, tolerance):
         """Construct the Houndsfield Unit Slice and its ROIs."""
-        self.HU = HU_Slice(self.algo_data)
+        self.HU = HU_Slice(self.algo_data, tolerance)
 
     def construct_SR(self):
         """Construct the Spatial Resolution Slice and its ROIs so MTF can be calculated."""
         self.SR = SR_Slice(self.algo_data)
         self.SR.calc_MTF()
 
-    def construct_GEO(self):
+    def construct_GEO(self, tolerance):
         """Construct the Geometry Slice and find the node centers."""
-        self.GEO = GEO_Slice(self.algo_data)
+        self.GEO = GEO_Slice(self.algo_data, tolerance)
         self.GEO.calc_node_centers()
 
-    def construct_UNIF(self):
+    def construct_UNIF(self, tolerance):
         """Construct the Uniformity Slice and its ROIs."""
-        self.UN = UNIF_Slice(self.algo_data)
+        self.UN = UNIF_Slice(self.algo_data, tolerance)
 
     def construct_Locon(self):
         """Construct the Low Contrast Slice."""
@@ -1130,13 +1130,13 @@ class CBCT:
                                                    self.GEO.get_line_lengths(), self.GEO.overall_passed)
         return string
 
-    def analyze(self):
+    def analyze(self, hu_tolerance=40, scaling_tolerance=1):
         """Single-method full analysis of CBCT DICOM files."""
         if not self.images_loaded:
             raise AttributeError("Images not yet loaded")
-        self.construct_HU()
-        self.construct_UNIF()
-        self.construct_GEO()
+        self.construct_HU(hu_tolerance)
+        self.construct_UNIF(hu_tolerance)
+        self.construct_GEO(scaling_tolerance)
         self.construct_SR()
         self.construct_Locon()
 
