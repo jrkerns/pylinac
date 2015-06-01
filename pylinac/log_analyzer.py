@@ -548,13 +548,15 @@ class MachineLog:
         # Unpack the content according to respective section and data type (see log specification file).
         self.header, self._cursor = Tlog_Header(fcontent, self._cursor)._read()
 
-        self.subbeams, self._cursor = Subbeam_Constructor(fcontent, self._cursor, self.header)._read()
+        self.subbeams, self._cursor = SubbeamHandler(fcontent, self._cursor, self.header)._read()
 
         self.axis_data, self._cursor = Tlog_Axis_Data(fcontent, self._cursor, self.header)._read(exclude_beam_off)
 
         # self.crc = CRC(fcontent, self._cursor).read()
 
         self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
+
+        self.subbeams.post_hoc_metadata(self.axis_data)
 
     def _read_txt_file(self):
         """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
@@ -588,8 +590,11 @@ class Axis:
         """
         self.actual = actual
         if expected is not None:
-            if len(actual) != len(expected):
-                raise ValueError("Actual and expected Axis parameters are not equal length")
+            try:
+                if len(actual) != len(expected):
+                    raise ValueError("Actual and expected Axis parameters are not equal length")
+            except TypeError:
+                pass
             self.expected = expected
 
     @lazyproperty
@@ -1584,13 +1589,47 @@ class Subbeam(TLog_Section):
 
         return self, self._cursor
 
+    @property
+    def gantry_angle(self):
+        return self._get_metadata_axis('gantry')
 
-class Subbeam_Constructor:
+    @property
+    def collimator_angle(self):
+        return self._get_metadata_axis('collimator')
+
+    @property
+    def jaw_x1(self):
+        return self._get_metadata_axis('jaws', 'x1')
+
+    @property
+    def jaw_x2(self):
+        return self._get_metadata_axis('jaws', 'x2')
+
+    @property
+    def jaw_y1(self):
+        return self._get_metadata_axis('jaws', 'y1')
+
+    @property
+    def jaw_y2(self):
+        return self._get_metadata_axis('jaws', 'y2')
+
+    def _get_metadata_axis(self, attr, subattr=None):
+        if subattr is None:
+            actual = getattr(self._axis_data, attr).actual[self._snapshots]
+            expected = getattr(self._axis_data, attr).expected[self._snapshots]
+        else:
+            actual = getattr(getattr(self._axis_data, attr), subattr).actual[self._snapshots]
+            expected = getattr(getattr(self._axis_data, attr), subattr).expected[self._snapshots]
+        return Axis(np.median(actual), np.median(expected))
+
+
+class SubbeamHandler:
     """One of 4 subsections of a trajectory log. Holds a list of Subbeams; only applicable for auto-sequenced beams."""
     def __init__(self, log_content, cursor, header):
         self._log_content = log_content
         self._header = header
         self._cursor = cursor
+        self.subbeams = []
 
     def _read(self):
         """Read all the subbeams of a tlog file.
@@ -1602,12 +1641,34 @@ class Subbeam_Constructor:
         cursor : int
             Internal; for tracking the cursor position in the file.
         """
-        subbeams = []
         if self._header.num_subbeams > 0:
             for subbeam_num in range(self._header.num_subbeams):
                 subbeam, self._cursor = Subbeam(self._log_content, self._cursor, self._header.version)._read()
-                subbeams.append(subbeam)
-        return subbeams, self._cursor
+                self.subbeams.append(subbeam)
+        return self, self._cursor
+
+    def post_hoc_metadata(self, axis_data):
+        """From the Axis Data, perform post-hoc analysis and set metadata to the subbeams.
+            Gives the subbeams more information, as not much is given directly in the logs."""
+        for idx, beam in enumerate(self.subbeams):
+            self._set_beamon_snapshots(axis_data, idx)
+
+    def _set_beamon_snapshots(self, axis_data, beam_num):
+        """Get the snapshot indices where the beam was on between the bounds."""
+        beam = self.subbeams[beam_num]
+        all_snapshots = axis_data.control_point.actual
+        lower_bound = beam.control_point
+        try:
+            upper_bound = self.subbeams[beam_num+1].control_point
+        except IndexError:
+            upper_bound = axis_data.control_point.actual.max()
+        snapshots = np.where(np.logical_and(all_snapshots>=lower_bound, all_snapshots<upper_bound))
+
+        beam._snapshots = snapshots
+        beam._axis_data = axis_data
+
+    def __getitem__(self, item):
+        return self.subbeams[item]
 
 
 class Tlog_Header(TLog_Section):
