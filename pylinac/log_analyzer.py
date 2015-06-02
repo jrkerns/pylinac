@@ -464,6 +464,19 @@ class MachineLog:
         else:
             return True
 
+    @property
+    def treatment_type(self):
+        try:
+            gantry_std = self.subbeams[0].gantry_angle.actual.std()
+            if gantry_std > 0.5:
+                return 'VMAT'
+            elif self.axis_data.mlc.get_RMS_avg(only_moving_leaves=True) > 0.05:
+                return 'Dynamic IMRT'
+            else:
+                return 'Static IMRT'
+        except IndexError:
+            return 'Unknown'
+
     def to_csv(self, filename=None):
         """Write the log to a CSV file. Only applicable for Trajectory logs (Dynalogs are already similar to CSV).
 
