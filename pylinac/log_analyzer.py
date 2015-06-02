@@ -13,6 +13,7 @@ import os.path as osp
 import csv
 import copy
 import warnings
+from io import BytesIO, StringIO
 
 import numpy as np
 import scipy.ndimage.filters as spf
@@ -477,6 +478,13 @@ class MachineLog:
         except IndexError:
             return 'Unknown'
 
+    @property
+    def _filename_str(self):
+        if isinstance(self._filename, str):
+            return self._filename
+        else:
+            return self._filename.name
+
     def to_csv(self, filename=None):
         """Write the log to a CSV file. Only applicable for Trajectory logs (Dynalogs are already similar to CSV).
 
@@ -486,21 +494,26 @@ class MachineLog:
             If None (default), the CSV filename will be the same as the filename of the log.
             If a string, the filename will be named so.
         """
+        is_file_object = False
         if not is_tlog(self._filename):
             raise TypeError("Writing to CSV is only applicable to trajectory logs.")
         if filename is None:
             filename = self._filename.replace('bin', 'csv')
-        elif not filename.endswith('.csv'):
-            filename = filename + '.csv'
+        else:
+            try:
+                if not filename.endswith('.csv'):
+                    filename = filename + '.csv'
+            except AttributeError:
+                is_file_object = True
 
-        with open(filename, 'w', newline='') as csv_file:
+        with open_file(filename) as csv_file:
             writer = csv.writer(csv_file)
             # write header info
             header_titles = ('Tlog File:', 'Signature:', 'Version:', 'Header Size:', 'Sampling Inteval:',
                              'Number of Axes:', 'Axis Enumeration:', 'Samples per Axis:', 'Axis Scale:',
                              'Number of Subbeams:', 'Is Truncated?', 'Number of Snapshots:', 'MLC Model:')
             h = self.header
-            header_values = (self._filename, h.header, h.version, h.header_size, h.sampling_interval,
+            header_values = (self._filename_str, h.header, h.version, h.header_size, h.sampling_interval,
                              h.num_axes, h.axis_enum, h.samples_per_axis, h.axis_scale, h.num_subbeams, h.is_truncated,
                              h.num_snapshots, h.mlc_model)
             for title, value in zip(header_titles, header_values):
@@ -521,7 +534,8 @@ class MachineLog:
             for leaf_num, leaf in self.axis_data.mlc.leaf_axes.items():
                 write_array(writer, 'Leaf ' + str(leaf_num), leaf, 'cm')
 
-        print("CSV file written to: " + filename)
+        if not is_file_object:
+            print("CSV file written to: " + filename)
 
     def _read_log(self, exclude_beam_off):
         """Read in log based on what type of log it is: Trajectory or Dynalog."""
@@ -2122,4 +2136,5 @@ if __name__ == '__main__':
     filestr = os.path.join(os.path.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
     ofile = open_file(filestr)
     log = MachineLog(ofile)
-    ttt = 1
+    f = StringIO()
+    log.to_csv(f)
