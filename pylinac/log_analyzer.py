@@ -1654,7 +1654,7 @@ class SubbeamHandler:
             self._set_beamon_snapshots(axis_data, idx)
 
     def _set_beamon_snapshots(self, axis_data, beam_num):
-        """Get the snapshot indices where the beam was on between the bounds."""
+        """Get the snapshot indices 1) where the beam was on and 2) between the subbeam control point values."""
         beam = self.subbeams[beam_num]
         all_snapshots = axis_data.control_point.actual
         lower_bound = beam.control_point
@@ -1662,9 +1662,11 @@ class SubbeamHandler:
             upper_bound = self.subbeams[beam_num+1].control_point
         except IndexError:
             upper_bound = axis_data.control_point.actual.max()
-        snapshots = np.where(np.logical_and(all_snapshots>=lower_bound, all_snapshots<upper_bound))
+        section_snapshots = np.logical_and(all_snapshots>=lower_bound, all_snapshots<upper_bound)
+        beam_on_snapshots = axis_data.beam_hold.actual == 0
+        combined_snapshot = np.logical_and(beam_on_snapshots, section_snapshots)
 
-        beam._snapshots = snapshots
+        beam._snapshots = combined_snapshot
         beam._axis_data = axis_data
 
     def __getitem__(self, item):
