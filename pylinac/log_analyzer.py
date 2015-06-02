@@ -506,33 +506,33 @@ class MachineLog:
             except AttributeError:
                 is_file_object = True
 
-        with open_file(filename) as csv_file:
-            writer = csv.writer(csv_file)
-            # write header info
-            header_titles = ('Tlog File:', 'Signature:', 'Version:', 'Header Size:', 'Sampling Inteval:',
-                             'Number of Axes:', 'Axis Enumeration:', 'Samples per Axis:', 'Axis Scale:',
-                             'Number of Subbeams:', 'Is Truncated?', 'Number of Snapshots:', 'MLC Model:')
-            h = self.header
-            header_values = (self._filename_str, h.header, h.version, h.header_size, h.sampling_interval,
-                             h.num_axes, h.axis_enum, h.samples_per_axis, h.axis_scale, h.num_subbeams, h.is_truncated,
-                             h.num_snapshots, h.mlc_model)
-            for title, value in zip(header_titles, header_values):
-                write_single_value(writer, title, value)
+        csv_file = open_file(filename)
+        writer = csv.writer(csv_file)
+        # write header info
+        header_titles = ('Tlog File:', 'Signature:', 'Version:', 'Header Size:', 'Sampling Inteval:',
+                         'Number of Axes:', 'Axis Enumeration:', 'Samples per Axis:', 'Axis Scale:',
+                         'Number of Subbeams:', 'Is Truncated?', 'Number of Snapshots:', 'MLC Model:')
+        h = self.header
+        header_values = (self._filename_str, h.header, h.version, h.header_size, h.sampling_interval,
+                         h.num_axes, h.axis_enum, h.samples_per_axis, h.axis_scale, h.num_subbeams, h.is_truncated,
+                         h.num_snapshots, h.mlc_model)
+        for title, value in zip(header_titles, header_values):
+            write_single_value(writer, title, value)
 
-            # write axis data
-            data_titles = ('Gantry', 'Collimator', 'Couch Lat', 'Couch Lng', 'Couch Rtn', 'MU',
-                           'Beam Hold', 'Control Point', 'Carriage A', 'Carriage B')
-            ad = self.axis_data
-            data_values = (ad.gantry, ad.collimator, ad.couch.latl, ad.couch.long, ad.couch.rotn,
-                           ad.mu, ad.beam_hold, ad.control_point, ad.carriage_A, ad.carriage_B)
-            data_units = ('degrees', 'degrees', 'cm', 'cm', 'degrees', 'MU', None, None, 'cm',
-                          'cm')
-            for title, value, unit in zip(data_titles, data_values, data_units):
-                write_array(writer, title, value, unit)
+        # write axis data
+        data_titles = ('Gantry', 'Collimator', 'Couch Lat', 'Couch Lng', 'Couch Rtn', 'MU',
+                       'Beam Hold', 'Control Point', 'Carriage A', 'Carriage B')
+        ad = self.axis_data
+        data_values = (ad.gantry, ad.collimator, ad.couch.latl, ad.couch.long, ad.couch.rotn,
+                       ad.mu, ad.beam_hold, ad.control_point, ad.carriage_A, ad.carriage_B)
+        data_units = ('degrees', 'degrees', 'cm', 'cm', 'degrees', 'MU', None, None, 'cm',
+                      'cm')
+        for title, value, unit in zip(data_titles, data_values, data_units):
+            write_array(writer, title, value, unit)
 
-            # write leaf data
-            for leaf_num, leaf in self.axis_data.mlc.leaf_axes.items():
-                write_array(writer, 'Leaf ' + str(leaf_num), leaf, 'cm')
+        # write leaf data
+        for leaf_num, leaf in self.axis_data.mlc.leaf_axes.items():
+            write_array(writer, 'Leaf ' + str(leaf_num), leaf, 'cm')
 
         if not is_file_object:
             print("CSV file written to: " + filename)
