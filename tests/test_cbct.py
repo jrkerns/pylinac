@@ -50,7 +50,7 @@ class Test_General(unittest.TestCase):
 
         # test a shifted image set
         shifted_phan_center = Point(287, 255)
-        self.cbct.algo_data.images = np.roll(self.cbct.algo_data.images, 30, axis=1)
+        self.cbct.settings.images = np.roll(self.cbct.settings.images, 30, axis=1)
         self.cbct.construct_HU()
         self.assertAlmostEqual(self.cbct.HU.phan_center.x, shifted_phan_center.x, delta=0.7)
         self.assertAlmostEqual(self.cbct.HU.phan_center.y, shifted_phan_center.y, delta=0.7)
@@ -69,10 +69,10 @@ class Varian_CBCT:
 
     def test_slice_locations(self):
         """Test the locations of the slices of interest for a Varian scan."""
-        self.assertEqual(self.cbct.algo_data.HU_slice_num, 32)
-        self.assertEqual(self.cbct.algo_data.UN_slice_num, 9)
-        self.assertEqual(self.cbct.algo_data.SR_slice_num, 44)
-        self.assertEqual(self.cbct.algo_data.LC_slice_num, 23)
+        self.assertEqual(self.cbct.settings.HU_slice_num, 32)
+        self.assertEqual(self.cbct.settings.UN_slice_num, 2)
+        self.assertEqual(self.cbct.settings.SR_slice_num, 44)
+        self.assertEqual(self.cbct.settings.LC_slice_num, 20)
 
     def test_phantom_roll(self, expected_roll):
         """Test the roll of the demo phantom.
@@ -82,7 +82,7 @@ class Varian_CBCT:
         expected_roll : float
             The expected roll of the phantom in **degrees**.
         """
-        self.assertAlmostEqual(self.cbct.algo_data.phantom_roll, expected_roll, delta=0.001)
+        self.assertAlmostEqual(self.cbct.settings.phantom_roll, expected_roll, delta=0.001)
 
     def test_HU_values(self, known_HU_dict):
         """Test HU values."""
@@ -90,7 +90,7 @@ class Varian_CBCT:
         for key, roi in self.cbct.HU.ROIs.items():
             exp_val = known_HU_dict[key]
             meas_val = roi.pixel_value
-            self.assertAlmostEqual(exp_val, meas_val, delta=3)
+            self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
     def test_uniformity_values(self, known_HU_dict):
         """Test Uniformity HU values."""
@@ -98,15 +98,15 @@ class Varian_CBCT:
         for key, roi in self.cbct.UN.ROIs.items():
             exp_val = known_HU_dict[key]
             meas_val = roi.pixel_value
-            self.assertAlmostEqual(exp_val, meas_val, delta=3)
+            self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
     def test_geometry_line_lengths(self, known_distances_dict):
         """Test the geometry distances."""
         self.cbct.analyze()
         for key, line in self.cbct.GEO.lines.items():
             exp_dist = known_distances_dict[key]
-            meas_dist = line.length_mm(self.cbct.algo_data.mm_per_pixel)
-            self.assertAlmostEqual(exp_dist, meas_dist, delta=0.05)
+            meas_dist = line.length_mm(self.cbct.settings.mm_per_pixel)
+            self.assertAlmostEqual(exp_dist, meas_dist, delta=0.08)
 
     def test_MTF_values(self, known_MTF_dict):
         """Test MTF values."""
@@ -137,7 +137,7 @@ class Test_CBCT_demo(unittest.TestCase, Varian_CBCT):
         super().test_HU_values(known_HU_dict)
 
     def test_uniformity_values(self):
-        known_unifHUs = {'Center': 21, 'Left': 10, 'Right': 0, 'Top': 3, 'Bottom': 6}
+        known_unifHUs = {'Center': 17, 'Left': 10, 'Right': 0, 'Top': 6, 'Bottom': 6}
         super().test_uniformity_values(known_unifHUs)
 
     def test_MTF_values(self):
@@ -147,19 +147,6 @@ class Test_CBCT_demo(unittest.TestCase, Varian_CBCT):
     def test_geometry_line_lengths(self):
         known_dists = {'Right-Vert': 49.9, 'Left-Vert': 50.05, 'Top-Horiz': 49.95, 'Bottom-Horiz': 49.96}
         super().test_geometry_line_lengths(known_dists)
-
-    def test_demo_cleanup(self):
-        """Test that the demo images are/aren't cleaned up."""
-        demo_dir = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'cbct')
-        unzipped_demo_dir = osp.join(demo_dir, 'High quality head')
-
-        # files should be left unzipped given flag
-        self.cbct.load_demo_images(cleanup=False)
-        self.assertTrue(osp.isdir(unzipped_demo_dir), 'Demo files not left unpacked')
-
-        # files should automatically cleanup
-        self.cbct.load_demo_images()
-        self.assertFalse(osp.isdir(unzipped_demo_dir), 'Demo files not cleaned up after loading')
 
 
 class Test_Varian_Pelvis(unittest.TestCase, Varian_CBCT):
@@ -182,7 +169,7 @@ class Test_Varian_Pelvis(unittest.TestCase, Varian_CBCT):
         super().test_HU_values(known_HU_dict)
 
     def test_uniformity_values(self):
-        known_unifHUs = {'Center': 14, 'Left': 5, 'Right': 4, 'Top': 4, 'Bottom': 4}
+        known_unifHUs = {'Center': 23, 'Left': 5, 'Right': 4, 'Top': 4, 'Bottom': 4}
         super().test_uniformity_values(known_unifHUs)
 
     def test_MTF_values(self):
@@ -214,7 +201,7 @@ class Test_Varian_Low_Dose_Thorax(unittest.TestCase, Varian_CBCT):
         super().test_HU_values(known_HU_dict)
 
     def test_uniformity_values(self):
-        known_unifHUs = {'Center': 14, 'Left': 7, 'Right': -1, 'Top': 3, 'Bottom': 2}
+        known_unifHUs = {'Center': 23, 'Left': 7, 'Right': -1, 'Top': 3, 'Bottom': 2}
         super().test_uniformity_values(known_unifHUs)
 
     def test_MTF_values(self):

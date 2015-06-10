@@ -12,18 +12,17 @@ class Test_Point(unittest.TestCase):
 
     x = 5
     y = -14
-    z = 3.4
     idx = 14
     value = 13.28
-    coord_iter = (x, y, z)
-    all_vals_iter = (x, y, z, idx, value)
+    coord_iter = (x, y)
+    all_vals_iter = (x, y, idx, value)
 
     def test_inputs(self):
         # create an empty point
-        p = Point()
+        p = Point()  # shouldn't raise
 
         # assert properties are set
-        p = Point(x=self.x, y=self.y, z=self.z, idx=self.idx, value=self.value)
+        p = Point(x=self.x, y=self.y, idx=self.idx, value=self.value)
         self.assertEqual(p.x, self.x)
         self.assertEqual(p.y, self.y)
         self.assertEqual(p.idx, self.idx)
@@ -37,13 +36,11 @@ class Test_Point(unittest.TestCase):
         self.assertEqual(p.idx, self.idx)
         self.assertEqual(p.value, self.value)
 
-
     def test_iterable_input(self):
         """Test when an interable (list, tuple, etc) is passed in it is parsed out."""
         p = Point(self.coord_iter)
         self.assertEqual(p.x, self.x)
         self.assertEqual(p.y, self.y)
-        self.assertEqual(p.z, self.z)
 
         p = Point(self.all_vals_iter)
         self.assertEqual(p.idx, self.idx)
@@ -51,8 +48,8 @@ class Test_Point(unittest.TestCase):
 
     def test_as_int(self):
         """Test that when as_int is passed, the coords are converted to ints."""
-        p = Point(self.x, self.y, self.z, as_int=True)
-        self.assertIsInstance(p.z, int)
+        p = Point(self.x, self.y, as_int=True)
+        self.assertIsInstance(p.x, int)
 
     def test_nonnumeric_value(self):
         p = Point()

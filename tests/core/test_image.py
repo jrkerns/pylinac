@@ -35,7 +35,7 @@ class Test_Image_Load(unittest.TestCase):
 
         # load an array
         dcm = dicom.read_file(dcm_path)
-        img = Image(dcm.pixel_array)
+        img = Image.from_array(dcm.pixel_array)
         self.assertEqual(img.im_type, ARRAY)
 
 
@@ -45,7 +45,7 @@ class Test_Image_Methods(unittest.TestCase):
         self.img = Image(img_path)
         self.dcm = Image(dcm_path)
         small_array = np.arange(42).reshape(6,7)
-        self.sm_arr = Image(small_array)
+        self.sm_arr = Image.from_array(small_array)
 
     def test_remove_edges(self):
         """Remove the edges from a pixel array."""

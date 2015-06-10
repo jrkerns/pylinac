@@ -63,7 +63,7 @@ class Test_Star_Demo(unittest.TestCase, Star_Test):
         super().test_passed()
 
     def test_failed_with_tight_tol(self):
-        self.star._tolerance = 0.1
+        self.star.tolerance.value = 0.1
         self.star.analyze()
         self.assertFalse(self.star.passed)
 

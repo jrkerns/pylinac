@@ -48,9 +48,7 @@ class Starshot:
         self.circle_profile = StarProfile()  # a circular profile which will detect radiation line locations
         self.lines = []  # a list which will hold Line instances representing radiation lines.
         self.wobble = Wobble()  # A Circle representing the radiation wobble
-        self._tolerance = 1  # tolerance limit of the radiation wobble
-        self._tolerance_unit = 'pixels'  # tolerance units are initially pixels. Will be converted to 'mm' if conversion
-        # information available in image properties
+        self.tolerance = Tolerance(1, 'pixels')
 
     def load_demo_image(self):
         """Load the starshot demo image.
@@ -207,7 +205,7 @@ class Starshot:
                 value will always be used if it can be found, otherwise the passed value will be used.
 
         fwhm : bool
-            If True (defualt), the center of the FWHM of the spokes will be determined.
+            If True (default), the center of the FWHM of the spokes will be determined.
             If False, the peak value location is used as the spoke center.
             .. note:: In practice, this ends up being a very small difference. Set to false if behavior is unexpected.
         recursive : bool
@@ -230,7 +228,7 @@ class Starshot:
         self._check_image_inversion()
 
         # set starting point automatically if not yet set
-        if not self.start_point_is_set:
+        if not self._start_point_is_set:
             self._auto_set_start_point()
 
         wobble_unreasonable = True
@@ -281,7 +279,7 @@ class Starshot:
             return False
 
     @property
-    def start_point_is_set(self):
+    def _start_point_is_set(self):
         """Boolean specifying if a start point has been set."""
         if self.circle_profile.center.x == 0:
             return False
@@ -373,7 +371,7 @@ class Starshot:
     @property
     def passed(self):
         """Boolean specifying whether the determined wobble was within tolerance."""
-        if self.wobble.radius_mm * 2 < self._tolerance:
+        if self.wobble.radius_mm * 2 < self.tolerance.value:
             return True
         else:
             return False
@@ -397,13 +395,11 @@ class Starshot:
                                                                             self.wobble.center.x, self.wobble.center.y)
         return string
 
-    def plot_analyzed_image(self, plot=None, show=True):
+    def plot_analyzed_image(self, show=True):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.
 
         Parameters
         ----------
-        plot : matplotlib.image.AxesImage, optional
-            The plot to draw on. If None, will create a new one.
         show : bool
             Whether to actually show the image.
         """
@@ -551,6 +547,14 @@ class StarProfile(CircleProfile):
         offset = num_rad_lines
         line_list = [Line(self.peaks[line], self.peaks[line+offset]) for line in range(num_rad_lines)]
         return line_list
+
+
+class Tolerance:
+    """A class for holding tolerance information."""
+
+    def __init__(self, value=None, unit=None):
+        self.value = value
+        self.unit = unit
 
 # ----------------------------
 # Starshot demo

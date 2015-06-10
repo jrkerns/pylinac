@@ -10,16 +10,6 @@ from pylinac.core.decorators import type_accept
 from pylinac.core.io import is_valid_file
 
 
-# class Numeric(metaclass=ABCMeta):
-#     """An abstract class that encompasses many numeric types.
-#
-#     Usage is for testing isinstance() for many numeric types: int, float, numpy datatypes, etc."""
-#     pass
-# Numeric.register(int)
-# Numeric.register(float)
-# Numeric.register(np.number)
-# Numeric.register(decimal.Decimal)
-
 def typed_property(name, expected_type_or_tuple_of_types):
     """Type-enforced property. Python Cookbook 9.21 (3rd ed)."""
     storage_name = '_' + name

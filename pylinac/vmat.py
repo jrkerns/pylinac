@@ -12,6 +12,7 @@ from pylinac.core.decorators import value_accept, type_accept
 from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Rectangle
 from pylinac.core.io import get_filepath_UI
+from pylinac.core.utilities import typed_property
 
 
 test_types = {'DRGS': 'drgs', 'MLCS': 'mlcs', 'DRMLC': 'drmlc'}
@@ -57,7 +58,6 @@ class VMAT:
     """
     def __init__(self):
         self.settings = Settings('', 1.5)
-        self.segments = []
 
     @value_accept(im_type=im_types)
     def load_image_UI(self, im_type='open'):
@@ -154,42 +154,7 @@ class VMAT:
         self._check_img_inversion()
 
         """Analysis"""
-        center_points = self._construct_segment_centers(test)
-        self._construct_segments(center_points)
-
-    def _construct_segment_centers(self, test):
-        """Construct the center points of the segments, depending on the test.
-
-        Parameters
-        ----------
-        test : {'drgs', 'mlcs'}
-        """
-        if _test_is_drgs(test):
-            num = 7
-            offsets = DRGS_SETTINGS['X-plane offsets (mm)']
-        else:
-            num = 4
-            offsets = MLCS_SETTINGS['X-plane offsets (mm)']
-
-        points = []
-        for seg, offset in zip(range(num), offsets):
-            y = self.image_dmlc.center.y + self.settings.y_offset
-            x_offset = offset * self.image_dmlc.dpmm + self.settings.x_offset
-            x = self.image_dmlc.center.x + x_offset
-            points.append(Point(x, y))
-        return points
-
-    def _construct_segments(self, center_points):
-        """Construct Segment instances at the center point locations."""
-        self.segments = []  # clear list if leftovers from last analysis
-        for point in center_points:
-            segment = Segment(point, self.image_open, self.image_dmlc, self.settings.tolerance)
-            self.segments.append(segment)
-
-        # go back and assign the deviation of each segment based on the average
-        avg_r_corr = self._avg_r_corr
-        for segment in self.segments:
-            segment.r_dev = ((segment.r_corr / avg_r_corr) * 100) - 100
+        self.segments = SegmentHandler(self.image_open, self.image_dmlc, self.settings)
 
     def _check_img_inversion(self):
         """Check that the images are correctly inverted.
@@ -204,54 +169,34 @@ class VMAT:
             self.image_dmlc.invert()
 
     @property
-    def _avg_r_corr(self):
-        """Return the average R_corr of the segments."""
-        return np.array([segment.r_corr for segment in self.segments]).mean()
-
-    @property
     def avg_abs_r_deviation(self):
         """Return the average of the absolute R_deviation values."""
-        return np.abs(self._get_r_dev_array).mean()
+        return self.segments.avg_abs_r_deviation
 
     @property
     def avg_r_deviation(self):
         """Return the average of the R_deviation values, including the sign."""
-        return self._get_r_dev_array.mean()
+        return self.segments.avg_r_deviation
 
     @property
     def max_r_deviation(self):
         """Return the value of the maximum R_deviation segment."""
-        max_idx = np.abs(self._get_r_dev_array).argmax()
-        return self._get_r_dev_array[max_idx]
-
-    @property
-    def _get_r_dev_array(self):
-        """Helper method to get an array of the R_deviation values of all segments."""
-        return np.array([segment.r_dev for segment in self.segments])
+        return self.segments.max_r_deviation
 
     @property
     def open_img_is_loaded(self):
         """Status of open image."""
-        if hasattr(self, 'image_open'):
-            return True
-        else:
-            return False
+        return hasattr(self, 'image_open')
 
     @property
     def dmlc_img_is_loaded(self):
         """Status of DMLC image."""
-        if hasattr(self, 'image_dmlc'):
-            return True
-        else:
-            return False
+        return hasattr(self, 'image_dmlc')
 
     @property
     def passed(self):
         """Returns whether all the segment ratios passed the given tolerance."""
-        for segment in self.segments:
-            if not segment.passed:
-                return False
-        return True
+        return self.segments.passed
 
     def _draw_objects(self, plot):
         """Draw lines onto the matplotlib widget/figure showing the ROIS.
@@ -261,12 +206,8 @@ class VMAT:
         plot : matplotlib.axes.Axes
             The plot to draw the objects on.
         """
-        for segment_num, segment in enumerate(self.segments):
-            if segment.passed:
-                color = 'blue'
-            else:
-                color = 'red'
-
+        for segment in self.segments:
+            color = segment.get_bg_color()
             segment.add_to_axes(plot.axes, edgecolor=color)
 
     def plot_analyzed_image(self, image='dmlc', show=True):
@@ -331,6 +272,92 @@ class VMAT:
 
         return string
 
+class SegmentHandler:
+    """A class to handle the VMAT segments and perform actions across all segments."""
+
+    def __init__(self, open_img, dmlc_img, settings):
+        self.image_open = open_img
+        self.image_dmlc = dmlc_img
+        self.settings = settings
+        self.segments = []
+
+        points = self._construct_segment_centers(settings.test_type)
+        self._construct_segments(points)
+
+    def __len__(self):
+        return len(self.segments)
+
+    def __getitem__(self, item):
+        return self.segments[item]
+
+    def _construct_segment_centers(self, test):
+        """Construct the center points of the segments, depending on the test.
+
+        Parameters
+        ----------
+        test : {'drgs', 'mlcs'}
+        """
+        if _test_is_drgs(test):
+            num = 7
+            offsets = DRGS_SETTINGS['X-plane offsets (mm)']
+        else:
+            num = 4
+            offsets = MLCS_SETTINGS['X-plane offsets (mm)']
+
+        points = []
+        for seg, offset in zip(range(num), offsets):
+            y = self.image_dmlc.center.y + self.settings.y_offset
+            x_offset = offset * self.image_dmlc.dpmm + self.settings.x_offset
+            x = self.image_dmlc.center.x + x_offset
+            points.append(Point(x, y))
+        return points
+
+    def _construct_segments(self, center_points):
+        """Construct Segment instances at the center point locations."""
+        for point in center_points:
+            segment = Segment(point, self.image_open, self.image_dmlc, self.settings.tolerance)
+            self.segments.append(segment)
+        self._update_r_corrs()
+
+    def _update_r_corrs(self):
+        """After the Segment constructions, the R_corr must be set for each segment."""
+        for segment in self.segments:
+            segment.r_dev = ((segment.r_corr / self._avg_r_corr) * 100) - 100
+
+    @property
+    def r_devs(self):
+        """Return the deviations of all segments as an array."""
+        return np.array([segment.r_dev for segment in self.segments])
+
+    @property
+    def _avg_r_corr(self):
+        """Return the average R_corr of the segments."""
+        return np.array([segment.r_corr for segment in self.segments]).mean()
+
+    @property
+    def avg_abs_r_deviation(self):
+        """Return the average of the absolute R_deviation values."""
+        return np.abs(self.r_devs).mean()
+
+    @property
+    def avg_r_deviation(self):
+        """Return the average of the R_deviation values, including the sign."""
+        return self.r_devs.mean()
+
+    @property
+    def max_r_deviation(self):
+        """Return the value of the maximum R_deviation segment."""
+        max_idx = np.abs(self.r_devs).argmax()
+        return self.r_devs[max_idx]
+
+    @property
+    def passed(self):
+        """Return whether all the images passed."""
+        for segment in self.segments:
+            if not segment.passed:
+                return False
+        return True
+
 
 class Segment(Rectangle):
     """A class for holding and analyzing segment data of VMAT tests.
@@ -343,7 +370,7 @@ class Segment(Rectangle):
     r_dev : float
             The reading deviation (R_dev) from the average readings of all the segments. See RTD for equation info.
     r_corr : float
-        The corrected reading (R_corr) of the pixel values. See RTD. See RTD for equation info.
+        The corrected reading (R_corr) of the pixel values. See RTD for explanation and equation info.
     passed : boolean
         Specifies where the segment reading deviation was under tolerance.
     """
@@ -352,8 +379,6 @@ class Segment(Rectangle):
     _nominal_height_mm = 100
 
     def __init__(self, center_point, open_image, dmlc_image, tolerance):
-        """
-        """
         self.r_dev = None  # is assigned after all segments constructed
         self._tolerance = tolerance
         self._open_image = open_image
@@ -379,6 +404,14 @@ class Segment(Rectangle):
         else:
             return True
 
+    def get_bg_color(self):
+        """Get the background color of the segment when plotted, based on the pass/fail status."""
+        if self.passed:
+            color = 'blue'
+        else:
+            color = 'red'
+        return color
+
 
 class Settings:
     """A helper class to hold analysis settings.
@@ -394,6 +427,11 @@ class Settings:
     y_offset : int
         Offset in pixels to apply to all segments.
     """
+    test_type = typed_property('test_type', str)
+    tolerance = typed_property('tolerance', (int, float))
+    x_offset = typed_property('x_offset', int)
+    y_offset = typed_property('y_offset', int)
+
     def __init__(self, test_type, tolerance):
         self.test_type = test_type
         self.tolerance = tolerance
@@ -430,7 +468,7 @@ if __name__ == '__main__':
     vmat.settings.x_offset = 20
     vmat.load_demo_image()
     vmat.analyze('drgs')
-    fig = vmat.plot_analyzed_image(image='open')
+    fig = vmat.plot_analyzed_image(image='dmlc')
     # plt.show(fig)
     # vmat.save_analyzed_image('testt.png')
     # vmat.run_demo_mlcs()

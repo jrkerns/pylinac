@@ -11,9 +11,7 @@ from collections import OrderedDict
 from functools import partial
 import os
 import os.path as osp
-import shutil
 import zipfile
-import time
 import math
 from io import BytesIO
 
@@ -21,6 +19,7 @@ import numpy as np
 from scipy import ndimage
 from scipy.misc import imresize
 import dicom
+from dicom.errors import InvalidDicomError
 import matplotlib.pyplot as plt
 
 from pylinac.core.decorators import value_accept, lazyproperty, type_accept
@@ -35,7 +34,7 @@ np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Use
 known_manufacturers = {'Varian': 'Varian Medical Systems', 'Elekta': 'ELEKTA'}
 
 
-class Algo_Data:
+class Settings:
     """Data structure for retaining certain settings and information regarding the CBCT algorithm and image data.
         This class is populated during CBCT image loading. For internal use only.
     """
@@ -44,6 +43,9 @@ class Algo_Data:
     UN_slice_num = 0
     SR_slice_num = 0
     LC_slice_num = 0
+    hu_tolerance = 40
+    scaling_tolerance = 1
+    phantom_z_offset = 0  # z-offset in number of slices
 
     def __init__(self, images, dicom_metadata):
         self.images = images
@@ -69,10 +71,10 @@ class Algo_Data:
         """Set the slice numbers for the slices of interest based on the manufacturer."""
         if self.manufacturer in known_manufacturers.values():
             if self.manufacturer == known_manufacturers['Varian']:
-                self.HU_slice_num = 32
-                self.UN_slice_num = 9
-                self.SR_slice_num = 44
-                self.LC_slice_num = 23
+                self.HU_slice_num = np.round((self.images.shape[-1] + self.phantom_z_offset) / 2).astype(int)  # 32
+                self.UN_slice_num = self.HU_slice_num - np.round(74 / self.dicom_metadata.SliceThickness).astype(int)  # 9
+                self.SR_slice_num = self.HU_slice_num + np.round(30 / self.dicom_metadata.SliceThickness).astype(int)  # 44
+                self.LC_slice_num = self.HU_slice_num - np.round(30 / self.dicom_metadata.SliceThickness).astype(int)
             else:
                 raise NotImplementedError("Elekta not yet implemented")
         else:
@@ -87,7 +89,7 @@ class Algo_Data:
         """Determine the roll of the phantom by calculating the angle of the two
         air bubbles on the HU slice. Delegation method."""
         # TODO: need more efficient way of doing this w/o creating HU slice
-        HU = HU_Slice(self, tolerance=40)
+        HU = HU_Slice(self)
         return HU.determine_phantom_roll()
 
     @lazyproperty
@@ -243,15 +245,15 @@ class HU_ROI(ROI_Disk):
 
 class Slice(metaclass=ABCMeta):
     """Abstract base class for analyzing specific slices of a CBCT dicom set."""
-    def __init__(self, algo_data):
+    def __init__(self, settings):
         """
         Parameters
         ----------
-        algo_data : Algo_Data
+        settings : Settings
         """
         self.image = np.ndarray  # place-holder; should be overloaded by subclass
         self.ROIs = OrderedDict()
-        self.algo_data = algo_data
+        self.settings = settings
 
     def add_ROI(self, *ROIs):
         """Register ROIs to the slice.
@@ -276,13 +278,13 @@ class Slice(metaclass=ABCMeta):
 
     def find_phan_center(self):
         """Determine the location of the center of the phantom."""
-        SOI_bw = self.image.threshold(self.algo_data.threshold)  # convert slice to binary based on threshold
+        SOI_bw = self.image.threshold(self.settings.threshold)  # convert slice to binary based on threshold
         SOI_bw = ndimage.binary_fill_holes(SOI_bw)  # fill in air pockets to make one solid ROI
         SOI_labeled, num_roi = ndimage.label(SOI_bw)  # identify the ROIs
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
         roi_sizes, bin_edges = np.histogram(SOI_labeled, bins=num_roi+1)  # hist will give the size of each label
-        idx = np.abs(roi_sizes - self.algo_data.expected_phantom_size).argmin()
+        idx = np.abs(roi_sizes - self.settings.expected_phantom_size).argmin()
         SOI_bw_clean = np.where(SOI_labeled == idx, 1, 0)  # remove all ROIs except the largest one (the CatPhan)
         center_pixel = ndimage.measurements.center_of_mass(SOI_bw_clean)  # returns (y,x)
         self.phan_center = Point(center_pixel[1], center_pixel[0])
@@ -329,14 +331,13 @@ class HU_Slice(Base_HU_Slice):
     # tolerance = 40  # standard tolerance of HU
     air_bubble_size = 450  #
 
-
-    def __init__(self, algo_data, tolerance):
-        super().__init__(algo_data)
+    def __init__(self, settings):
+        super().__init__(settings)
         self.scale_by_FOV()
-        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.HU_slice_num))
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.HU_slice_num))
 
         HU_ROIp = partial(HU_ROI, slice_array=self.image.array, radius=self.object_radius, dist_from_center=self.dist2objs,
-                          tolerance=tolerance)
+                          tolerance=settings.hu_tolerance)
 
         air = HU_ROIp('Air', 90, -1000)
         pmp = HU_ROIp('PMP', 120, -200)
@@ -351,9 +352,9 @@ class HU_Slice(Base_HU_Slice):
 
     def scale_by_FOV(self):
         """Specially overloaded to account for air_bubble_size's *square* FOV relationship."""
-        self.dist2objs /= self.algo_data.fov_ratio
-        self.object_radius /= self.algo_data.fov_ratio
-        self.air_bubble_size /= self.algo_data.fov_ratio**2
+        self.dist2objs /= self.settings.fov_ratio
+        self.object_radius /= self.settings.fov_ratio
+        self.air_bubble_size /= self.settings.fov_ratio**2
 
     def determine_phantom_roll(self):
         """Determine the "roll" of the phantom.
@@ -361,7 +362,7 @@ class HU_Slice(Base_HU_Slice):
          This algorithm uses the two air bubbles in the HU slice and the resulting angle between them.
         """
         # convert slice to logical
-        SOI = self.image.threshold(self.algo_data.threshold)
+        SOI = self.image.threshold(self.settings.threshold)
         # invert the SOI; this makes the Air == 1 and phantom == 0
         SOI.invert()
         # determine labels and number of rois of inverted SOI
@@ -395,16 +396,16 @@ class UNIF_Slice(Base_HU_Slice):
     dist2objs = 110
     obj_radius = 20
 
-    def __init__(self, algo_data, tolerance):
-        super().__init__(algo_data)
+    def __init__(self, settings):
+        super().__init__(settings)
         self.scale_by_FOV()
-        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.UN_slice_num))
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.UN_slice_num))
 
-        HU_ROIp = partial(HU_ROI, slice_array=self.image.array, tolerance=tolerance, radius=self.obj_radius,
+        HU_ROIp = partial(HU_ROI, slice_array=self.image.array, tolerance=settings.hu_tolerance, radius=self.obj_radius,
                           dist_from_center=self.dist2objs)
 
         # center has distance of 0, thus doesn't use partial
-        center = HU_ROI('Center', 0, 0, self.image.array, self.obj_radius, dist_from_center=0, tolerance=tolerance)
+        center = HU_ROI('Center', 0, 0, self.image.array, self.obj_radius, dist_from_center=0, tolerance=settings.hu_tolerance)
         right = HU_ROIp('Right', 0, 0)
         top = HU_ROIp('Top', -90, 0)
         left = HU_ROIp('Left', 180, 0)
@@ -414,16 +415,16 @@ class UNIF_Slice(Base_HU_Slice):
         super().find_phan_center()
 
     def scale_by_FOV(self):
-        self.dist2objs /= self.algo_data.fov_ratio
-        self.obj_radius /= self.algo_data.fov_ratio
+        self.dist2objs /= self.settings.fov_ratio
+        self.obj_radius /= self.settings.fov_ratio
 
 
 class Locon_Slice(Slice):
     """Class for analysis of the low contrast slice of the CBCT dicom data set."""
     # TODO: work on this
-    def __init__(self, algo_data):
-        super().__init__(algo_data)
-        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.LC_slice_num))
+    def __init__(self, settings):
+        super().__init__(settings)
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.LC_slice_num))
 
     def scale_by_FOV(self):
         pass
@@ -450,10 +451,10 @@ class SR_Slice(Slice):
     LP_freq = (0.2, 0.4, 0.6, 0.8, 1, 1.2)
     radius2profs = np.arange(95, 100)
 
-    def __init__(self, algo_data):
-        super().__init__(algo_data)
+    def __init__(self, settings):
+        super().__init__(settings)
         self.scale_by_FOV()
-        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.SR_slice_num, mode='max'))
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.SR_slice_num, mode='max'))
 
         self.LP_MTF = OrderedDict()  # holds lp:mtf data
         for idx, radius in enumerate(self.radius2profs):
@@ -464,7 +465,7 @@ class SR_Slice(Slice):
 
     def scale_by_FOV(self):
         """Special overloading."""
-        self.radius2profs = np.arange(int(round(95/self.algo_data.fov_ratio)), int(round(100/self.algo_data.fov_ratio)))
+        self.radius2profs = np.arange(int(round(95/self.settings.fov_ratio)), int(round(100/self.settings.fov_ratio)))
 
     def calc_median_profile(self, roll_offset=0):
         """Calculate the median profile of the Line Pair region.
@@ -572,7 +573,6 @@ class SR_Slice(Slice):
         References
         ----------
         http://en.wikipedia.org/wiki/Transfer_function#Optics
-
         """
         num_peaks = np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
         num_valleys = np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
@@ -587,7 +587,7 @@ class SR_Slice(Slice):
 
     def calc_MTF(self):
         """Calculate the line pairs of the SR slice."""
-        profile = self.calc_median_profile(roll_offset=self.algo_data.phantom_roll)
+        profile = self.calc_median_profile(roll_offset=self.settings.phantom_roll)
         max_vals, max_idxs = self._find_LP_peaks(profile)
         min_vals, min_idxs = self._find_LP_valleys(profile, max_idxs)
         self._calc_MTF(max_vals, min_vals)
@@ -706,11 +706,11 @@ class GEO_Slice(Slice):
     dist2objs = 72
     obj_radius = 20
 
-    def __init__(self, algo_data, tolerance):
-        super().__init__(algo_data)
-        self.tolerance = tolerance
+    def __init__(self, settings):
+        super().__init__(settings)
+        self.tolerance = settings.scaling_tolerance
         self.scale_by_FOV()
-        self.image = Image(combine_surrounding_slices(self.algo_data.images, self.algo_data.HU_slice_num, mode='median'))
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.HU_slice_num, mode='median'))
 
         GEO_ROIp = partial(GEO_ROI, slice_array=self.image.array, radius=self.obj_radius,
                            dist_from_center=self.dist2objs)
@@ -731,8 +731,8 @@ class GEO_Slice(Slice):
         super().find_phan_center()
 
     def scale_by_FOV(self):
-        self.obj_radius /= self.algo_data.fov_ratio
-        self.dist2objs /= self.algo_data.fov_ratio
+        self.obj_radius /= self.settings.fov_ratio
+        self.dist2objs /= self.settings.fov_ratio
 
     def add_line(self, *lines):
         """Add GEO_Lines; sister method of add_ROI of Slice class.
@@ -760,7 +760,7 @@ class GEO_Slice(Slice):
         dict
             Lengths of the registered GEO_Lines, accounting for scaling.
         """
-        return {line_key: line.length_mm(self.algo_data.mm_per_pixel) for line_key, line in self.lines.items()}
+        return {line_key: line.length_mm(self.settings.mm_per_pixel) for line_key, line in self.lines.items()}
 
     @property
     def overall_passed(self):
@@ -799,7 +799,7 @@ class CBCT:
         >>> mycbct.plot_analyzed_image()
     """
     def __init__(self):
-        self.algo_data = None
+        self.settings = None
         self.HU = None
         self.UN = None
         self.GEO = None
@@ -916,8 +916,7 @@ class CBCT:
             return filelist
         raise FileNotFoundError("CT images were not found in the specified folder.")
 
-
-    def _load_files(self, file_list, im_size=512, is_zip=False, zfiles=None):
+    def _load_files(self, file_list, is_zip=False, zfiles=None):
         """Load CT DICOM files given a list of image paths.
 
         Parameters
@@ -928,92 +927,79 @@ class CBCT:
             Specifies the size of images the DICOM images should be resized to;
             used for simplicity of algorithm.
         """
-        # initialize image array
-        images = np.zeros([im_size, im_size, len(file_list)], dtype=int)
+        images, raw_im_order, dcm = self._validate_and_get_dcm_info(file_list, is_zip, zfiles)
+        sorted_images = self._sort_images(raw_im_order, images)
+        self.settings = Settings(sorted_images, dcm)
 
-        im_order = np.zeros(len(file_list), dtype=int)
+    def _validate_and_get_dcm_info(self, file_list, is_zip, zfiles=None):
+        """Read in the images and perform validation."""
+        IMAGE_SIZE = 512
+
+        # initialize image array
+        images = np.zeros([IMAGE_SIZE, IMAGE_SIZE, len(file_list)], dtype=int)
+
+        raw_im_order = np.zeros(len(file_list))
         # check that enough slices were loaded
-        #TODO: select better method for determining if enough slices were chosen
+        # TODO: select better method for determining if enough slices were chosen
         if len(file_list) < 20:
             raise ValueError("Not enough slices were selected. Select all the files or change the SR slice value.")
 
         # load dicom files from list names and get the image slice position
-        # TODO: figure out more memory-efficient way to sort images; maybe based on number of slices and slice thickness
+        rd = None
         for idx, item in enumerate(file_list):
             if is_zip:
                 item = BytesIO(zfiles.read(item))
             dcm = dicom.read_file(item)
-            im_order[idx] = np.round(dcm.ImagePositionPatient[-1]/dcm.SliceThickness)
+            if rd and rd != dcm.ReconstructionDiameter:
+                raise InvalidDicomError("CBCT dataset images are not from the same study")
+            rd = dcm.ReconstructionDiameter
+            raw_im_order[idx] = dcm.ImagePositionPatient[-1]
+
             # resize image if need be
-            if dcm.pixel_array.shape != (im_size, im_size):
-                image = imresize(dcm.pixel_array,(im_size, im_size))
+            if dcm.pixel_array.shape != (IMAGE_SIZE, IMAGE_SIZE):
+                image = imresize(dcm.pixel_array, (IMAGE_SIZE, IMAGE_SIZE))
             else:
                 image = dcm.pixel_array
             # place image into images array
             images[:, :, idx] = image
-        # shift order list from -xxx:+xxx to 0:2xxx
-        im_order += np.round(abs(min(im_order)))
-        # resort the images to be in the correct order
-        sorted_images = self._sort_images(im_order, images)
+        self._convert_imgs2HU(images, dcm)
 
-        # determine settings needed for given CBCT.
-        self._get_settings(item, sorted_images)
-        # convert images from CT# to HU using dicom tags
-        self._convert2HU()
+        return images, raw_im_order, dcm
 
     def _sort_images(self, im_order, images):
         """Sort and return the images according to the image order."""
-        #TODO: convert this to some sort of in-place method
         sorted_images = np.zeros(images.shape, dtype=int)
-        for idx, orig in enumerate(im_order):
-            sorted_images[:, :, orig] = images[:, :, idx]
+        for new, old in enumerate(np.argsort(im_order)):
+            sorted_images[:, :, new] = images[:, :, old]
         return sorted_images
 
-    def _get_settings(self, dicom_file_path, images):
-        """Based on the images input, determine the starting conditions for the analysis.
-        There are various manufacturers, protocols, and field-of-views for CBCTs.
-        Based on this, the starting conditions can be determined.
-
-        Parameters
-        ----------
-        dicom_file_path : str
-            A dicom file path to grab metadata from.
-        images : numpy.ndarray
-            3D numpy array of the CT images.
-        """
-        try:
-            dicom_file_path.seek(0)
-        except AttributeError:
-            pass
-        dcm = dicom.read_file(dicom_file_path, stop_before_pixels=True)
-        self.algo_data = Algo_Data(images, dcm)
-
-    def _convert2HU(self):
+    def _convert_imgs2HU(self, images, dcm):
         """Convert the images from CT# to HU."""
-        self.algo_data.images *= self.algo_data.dicom_metadata.RescaleSlope
-        self.algo_data.images += self.algo_data.dicom_metadata.RescaleIntercept
+        images *= dcm.RescaleSlope
+        images += dcm.RescaleIntercept
+        return images
 
-    def construct_HU(self, tolerance):
+    def construct_HU(self):
         """Construct the Houndsfield Unit Slice and its ROIs."""
-        self.HU = HU_Slice(self.algo_data, tolerance)
+        self.HU = HU_Slice(self.settings)
 
     def construct_SR(self):
         """Construct the Spatial Resolution Slice and its ROIs so MTF can be calculated."""
-        self.SR = SR_Slice(self.algo_data)
+        self.SR = SR_Slice(self.settings)
         self.SR.calc_MTF()
 
-    def construct_GEO(self, tolerance):
+    def construct_GEO(self):
         """Construct the Geometry Slice and find the node centers."""
-        self.GEO = GEO_Slice(self.algo_data, tolerance)
+        self.GEO = GEO_Slice(self.settings)
         self.GEO.calc_node_centers()
 
-    def construct_UNIF(self, tolerance):
+    def construct_UNIF(self):
         """Construct the Uniformity Slice and its ROIs."""
-        self.UN = UNIF_Slice(self.algo_data, tolerance)
+        self.UN = UNIF_Slice(self.settings)
 
     def construct_Locon(self):
         """Construct the Low Contrast Slice."""
-        self.LOCON = Locon_Slice(self.algo_data)
+        self.LOCON = Locon_Slice(self.settings)
 
     def plot_analyzed_image(self, show=True):
         """Draw the ROIs and lines the calculations were done on or based on."""
@@ -1134,9 +1120,12 @@ class CBCT:
         """Single-method full analysis of CBCT DICOM files."""
         if not self.images_loaded:
             raise AttributeError("Images not yet loaded")
-        self.construct_HU(hu_tolerance)
-        self.construct_UNIF(hu_tolerance)
-        self.construct_GEO(scaling_tolerance)
+        self.settings.hu_tolerance = hu_tolerance
+        self.settings.scaling_tolerance = scaling_tolerance
+
+        self.construct_HU()
+        self.construct_UNIF()
+        self.construct_GEO()
         self.construct_SR()
         self.construct_Locon()
 
@@ -1151,7 +1140,7 @@ class CBCT:
     @property
     def images_loaded(self):
         """Boolean property specifying if the images have been loaded."""
-        if self.algo_data is None:
+        if self.settings is None:
             return False
         else:
             return True
@@ -1198,5 +1187,6 @@ if __name__ == '__main__':
     # cbct.algo_data.images = np.roll(cbct.algo_data.images, 30, axis=1)
     cbct.analyze()
     print(cbct.return_results())
-    cbct.plot_analyzed_subimage('mtf')
+    cbct.plot_analyzed_image()
+    # cbct.plot_analyzed_subimage('mtf')
     # cbct.save_analyzed_image('ttt.png')
