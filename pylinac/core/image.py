@@ -69,36 +69,41 @@ class Image:
     im_type = typed_property('im_type', str)
     array = typed_property('array', np.ndarray)
 
-    def __init__(self, file_or_array, to_gray=True):
+    def __init__(self, filename=None):
         """
         Parameters
         ----------
-        file_path : str
+        filename : str
             Path to the image file.
-        to_gray : bool
-            If True (default), will convert RGB and HSV type images to greyscale.
-            If False, will not do any conversion.
         """
-        try:
-            self._load_file(file_or_array, to_gray)
-        except (IOError, AttributeError):
+        if filename is not None:
             try:
-                self._load_array(file_or_array)
-            except:
+                self._load_file(filename)
+            except (IOError, AttributeError):
                 raise TypeError("Image input type not understood")
-        except:
-            raise TypeError("Image input type not understood")
 
-    # @property
-    # def array(self):
-    #     return self._array
-    #
-    # @array.setter
-    # def array(self, arr):
-    #     if isinstance(arr, np.ndarray):
-    #         self._array = arr
-    #     else:
-    #         raise TypeError("Array must be numpy ndarray")
+    @classmethod
+    def from_file(cls, filename):
+        obj = cls()
+        try:
+            obj._load_dicom(filename)
+        except InvalidDicomError:
+            try:
+                obj._load_file(filename)
+            except OSError:
+                raise IOError("Image type not supported")
+
+    @classmethod
+    def from_array(cls, array):
+        obj = cls()
+        obj.array = array
+        obj.im_type = ARRAY
+        return obj
+
+    # def _load_array(self, array):
+    #     """Load an array."""
+    #     self.array = array
+    #     self.im_type = ARRAY
 
     @property
     def dpi(self):
@@ -167,31 +172,28 @@ class Image:
             obj = cls.combine_multiples(file_list)
             return obj
 
-    def _load_array(self, array):
-        """Load an array."""
-        self.array = array
-        self.im_type = ARRAY
-
-    def _load_file(self, file_path, to_gray):
+    def _load_file(self, file_path):
         """Load a file."""
         try:
             self._construct_dicom(file_path)
         except InvalidDicomError:
             try:
-                self._construct_image(file_path, to_gray)
+                self._construct_image(file_path)
             except OSError:
                 raise IOError("Image type not supported")
 
-    def _construct_image(self, file_path, to_gray):
+    def _construct_image(self, file_path):
         """Construct an object from an image file (TIF, JPEG, etc)."""
         try:
             file_path.seek(0)
         except AttributeError:
             pass
         img = pImage.open(file_path)
-        if to_gray:
-            if img.mode == 'RGB' or img.mode == 'HSV':
-                img = img.convert('F')
+
+        # convert to gray if need be
+        if img.mode == 'RGB' or img.mode == 'HSV':
+            img = img.convert('F')
+
         self.array = np.array(img)
         self.im_type = IMAGE
 
@@ -292,7 +294,7 @@ class Image:
         A numpy array the same size as the original image.
         """
         arr = array2logical(self.array, threshold)
-        return Image(arr)
+        return Image.from_array(arr)
 
     @type_accept(point=(Point, tuple))
     def dist2edge_min(self, point):
