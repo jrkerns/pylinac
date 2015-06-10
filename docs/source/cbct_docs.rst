@@ -73,6 +73,23 @@ The minimum needed to get going is to:
       # view analyzed images
       mycbct.plot_analyzed_image()
 
+.. _acquiring_cbct_images:
+
+Acquiring the Images
+--------------------
+
+To correclty acquire CBCT images, set up your CatPhan 500 at the end of the couch. Align the phantom such that the lasers
+hit the phantom at the center of the HU module (404); this is the calibration condition. Select any of the acquisition
+presets (Head, Pelvis, etc) and acquire the images. Export or copy the images to the computer you will use for analysis.
+
+.. note::
+    If the CatPhan is not aligned to the center of the HU module, you can set a z-offset in the algorithm like so::
+
+        cbct = CBCT()
+        cbct.load_folder('mycbctfolder')
+        cbct.settings.phantom_z_offset = 5  # value is in number of slices
+
+
 Algorithm
 ---------
 
@@ -91,7 +108,8 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom used must be an unmodified CatPhan 504, as endorsed and supplied by Varian.
-* The phantom must have <0.5cm offset in the z (In-Out) direction (work to remove this is in the plans).
+* The phantom HU module (404) should be aligned to the lasers and have <0.5cm offset in the z (In-Out) direction (work to remove this is in the plans).
+  Otherwise a z-offset must be set in the algorithm. See :ref:`acquiring_cbct_images`.
 
 
 **Pre-Analysis**
@@ -152,7 +170,7 @@ SoIs have a base class as well as specialized classes for each specific slice.
 
 Supporting Data Structure
 
-.. autoclass:: pylinac.cbct.Algo_Data
+.. autoclass:: pylinac.cbct.Settings
     :no-show-inheritance:
 
 Slice Objects
