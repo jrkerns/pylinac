@@ -44,14 +44,14 @@ class Test_General(unittest.TestCase):
         self.cbct.load_demo_images()
 
         known_phan_center = Point(257, 255)
-        self.cbct.construct_HU()
+        self.cbct._construct_HU()
         self.assertAlmostEqual(self.cbct.HU.phan_center.x, known_phan_center.x, delta=0.7)
         self.assertAlmostEqual(self.cbct.HU.phan_center.y, known_phan_center.y, delta=0.7)
 
         # test a shifted image set
         shifted_phan_center = Point(287, 255)
         self.cbct.settings.images = np.roll(self.cbct.settings.images, 30, axis=1)
-        self.cbct.construct_HU()
+        self.cbct._construct_HU()
         self.assertAlmostEqual(self.cbct.HU.phan_center.x, shifted_phan_center.x, delta=0.7)
         self.assertAlmostEqual(self.cbct.HU.phan_center.y, shifted_phan_center.y, delta=0.7)
 

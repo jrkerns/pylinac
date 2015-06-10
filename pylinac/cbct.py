@@ -27,6 +27,7 @@ from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Circle, sector_mask, Line
 from pylinac.core.profile import CircleProfile, Profile
 from pylinac.core.io import get_folder_UI
+from pylinac.core.utilities import typed_property
 
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
@@ -36,20 +37,39 @@ known_manufacturers = {'Varian': 'Varian Medical Systems', 'Elekta': 'ELEKTA'}
 
 class Settings:
     """Data structure for retaining certain settings and information regarding the CBCT algorithm and image data.
-        This class is populated during CBCT image loading. For internal use only.
+    This class is initialized during the CBCT image loading.
+
+    Attributes
+    ----------
+    threshold : int
+        The threshold for converting the image to binary (for things like phantom position locating). Default is -800.
+    hu_tolerance : int
+        The HU tolerance value for both HU uniformity and linearity. Default is 40.
+    scaling_tolerance : float, int
+        The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP404 module). Default is 1.
+    phantom_z_offset : int
+        The phantom offset in the z-direction in number of slices. Only applicable if the phantom is not centered on the
+        HU linearity module (404). If it isn't centered, use this setting to correct the slice locations. Positive means
+        the phantom is further toward the gantry stand; negative means the phantom is further away from the gantry stand.
+        Also consider the slice thickness you're using. E.g. if the phantom is 2cm toward the gantry and the slice thickness
+        will be 2mm, the offset should be set to 20/2 = 10.
     """
-    threshold = -800  # threshold when converting to binary image
-    HU_slice_num = 0
-    UN_slice_num = 0
-    SR_slice_num = 0
-    LC_slice_num = 0
-    hu_tolerance = 40
-    scaling_tolerance = 1
-    phantom_z_offset = 0  # z-offset in number of slices
+    HU_slice_num = typed_property('HU_slice_num', int)
+    UN_slice_num = typed_property('UN_slice_num', int)
+    SR_slice_num = typed_property('SR_slice_num', int)
+    LC_slice_num = typed_property('LC_slice_num', int)
+    threshold = typed_property('threshold', int)
+    hu_tolerance = typed_property('hu_tolerance', (int, float))
+    scaling_tolerance = typed_property('scaling_tolerance', (int, float))
+    phantom_z_offset = typed_property('phantom_z_offset', int)
 
     def __init__(self, images, dicom_metadata):
         self.images = images
         self.dicom_metadata = dicom_metadata
+        self.threshold = -800  # threshold when converting to binary image
+        self.hu_tolerance = 40
+        self.scaling_tolerance = 1
+        self.phantom_z_offset = 0  # z-offset in number of slices
         self.set_slice_nums()
 
     @lazyproperty
@@ -71,10 +91,10 @@ class Settings:
         """Set the slice numbers for the slices of interest based on the manufacturer."""
         if self.manufacturer in known_manufacturers.values():
             if self.manufacturer == known_manufacturers['Varian']:
-                self.HU_slice_num = np.round((self.images.shape[-1] + self.phantom_z_offset) / 2).astype(int)  # 32
-                self.UN_slice_num = self.HU_slice_num - np.round(74 / self.dicom_metadata.SliceThickness).astype(int)  # 9
-                self.SR_slice_num = self.HU_slice_num + np.round(30 / self.dicom_metadata.SliceThickness).astype(int)  # 44
-                self.LC_slice_num = self.HU_slice_num - np.round(30 / self.dicom_metadata.SliceThickness).astype(int)
+                self.HU_slice_num = int(np.round((self.images.shape[-1] + self.phantom_z_offset) / 2))  # 32
+                self.UN_slice_num = int(self.HU_slice_num - np.round(74 / self.dicom_metadata.SliceThickness))  # 9
+                self.SR_slice_num = int(self.HU_slice_num + np.round(30 / self.dicom_metadata.SliceThickness))  # 44
+                self.LC_slice_num = int(self.HU_slice_num - np.round(30 / self.dicom_metadata.SliceThickness))
             else:
                 raise NotImplementedError("Elekta not yet implemented")
         else:
@@ -129,10 +149,6 @@ class ROI_Disk(Circle, ROI):
             The radius of the ROI from the center of the phantom.
         dist_from_center : int, float
             The distance of the ROI from the phantom center.
-
-        See Also
-        --------
-        ROI : Further parameter info
         """
         ROI.__init__(self, name, slice_array)
         Circle.__init__(self, radius=radius)
@@ -183,10 +199,6 @@ class HU_ROI(ROI_Disk):
             The nominal pixel value of the HU ROI.
         tolerance : int
             The tolerance the pixel value must be within to be considered passing.
-
-        See Also
-        --------
-        ROI_Disk : Further parameter info
         """
         super().__init__(name, slice_array, angle, radius, dist_from_center)
         self.nominal_val = nominal_value
@@ -249,7 +261,7 @@ class Slice(metaclass=ABCMeta):
         """
         Parameters
         ----------
-        settings : Settings
+        settings : :class:`~pylinac.cbct.Settings`
         """
         self.image = np.ndarray  # place-holder; should be overloaded by subclass
         self.ROIs = OrderedDict()
@@ -265,10 +277,6 @@ class Slice(metaclass=ABCMeta):
         ----------
         ROIs : iterable, ROI type
             An ROI, subclass of ROI, or iterable containing ROIs.
-
-        See Also
-        --------
-        ROI
         """
         for roi in ROIs:
             if roi.name in self.ROIs.keys():
@@ -328,8 +336,7 @@ class HU_Slice(Base_HU_Slice):
     """Class for analysis of the HU slice of the CBCT dicom data set."""
     dist2objs = 120  # radius in pixels to the centers of the HU objects
     object_radius = 9  # radius of the HU ROIs themselves
-    # tolerance = 40  # standard tolerance of HU
-    air_bubble_size = 450  #
+    air_bubble_size = 450
 
     def __init__(self, settings):
         super().__init__(settings)
@@ -773,17 +780,18 @@ class GEO_Slice(Slice):
 
 
 class CBCT:
-    """A class for loading and analyzing Cone-Beam CT DICOM files of a CatPhan 504 (Varian; Elekta 503 is being developed.
+    """A class for loading and analyzing Cone-Beam CT DICOM files of a CatPhan 504 (Varian; Elekta 503 is being developed.)
     Analyzes: Uniformity, Spatial Resolution, Image Scaling & HU Linearity.
 
     Attributes
     ----------
-    settings : Settings
-    HU : HU_Slice
-    UN : UNIF_Slice
-    GEO : GEO_Slice
-    LOCON: LOCON_Slice
-    SR : SR_Slice
+    settings : :class:`~pylinac.cbct.Settings`
+    HU : :class:`~pylinac.cbct.HU_Slice`
+    UN : :class:`~pylinac.cbct.UNIF_Slice`
+    GEO : :class:`~pylinac.cbct.GEO_Slice`
+    LOCON: :class:`~pylinac.cbct.Locon_Slice`
+        In development.
+    SR : :class:`~pylinac.cbct.SR_Slice`
 
     Examples
     --------
@@ -955,25 +963,25 @@ class CBCT:
         images += dcm.RescaleIntercept
         return images
 
-    def construct_HU(self):
+    def _construct_HU(self):
         """Construct the Houndsfield Unit Slice and its ROIs."""
         self.HU = HU_Slice(self.settings)
 
-    def construct_SR(self):
+    def _construct_SR(self):
         """Construct the Spatial Resolution Slice and its ROIs so MTF can be calculated."""
         self.SR = SR_Slice(self.settings)
         self.SR.calc_MTF()
 
-    def construct_GEO(self):
+    def _construct_GEO(self):
         """Construct the Geometry Slice and find the node centers."""
         self.GEO = GEO_Slice(self.settings)
         self.GEO.calc_node_centers()
 
-    def construct_UNIF(self):
+    def _construct_UNIF(self):
         """Construct the Uniformity Slice and its ROIs."""
         self.UN = UNIF_Slice(self.settings)
 
-    def construct_Locon(self):
+    def _construct_Locon(self):
         """Construct the Low Contrast Slice."""
         self.LOCON = Locon_Slice(self.settings)
 
@@ -1024,7 +1032,15 @@ class CBCT:
         plt.savefig(filename, **kwargs)
 
     def plot_analyzed_subimage(self, subimage='hu', show=True):
-        """Plot a specific component of the HU analysis."""
+        """Plot a specific component of the CBCT analysis.
+
+        Parameters
+        ----------
+        subimage : {'hu', 'unif', 'sr', 'mtf'}
+            The subcomponent to plot.
+        show : bool
+            Whether to actually show the plot.
+        """
         subimage = subimage.lower()
         plt.clf()
         plt.axis('off')
@@ -1073,12 +1089,20 @@ class CBCT:
             plt.show()
 
     def save_analyzed_subimage(self, filename, subimage='hu', **kwargs):
-        """Save a component image to file."""
+        """Save a component image to file.
+
+        Parameters
+        ----------
+        filename : str, file object
+            The file to write the image to.
+        subimage : str
+            See :method:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
+        """
         self.plot_analyzed_subimage(subimage, show=False)
         plt.savefig(filename, **kwargs)
 
     def return_results(self):
-        """Return the results of the analysis as a string."""
+        """Return the results of the analysis as a string. Use with print()."""
         #TODO: make prettier
         string = ('\n - CBCT QA Test - \n'
                   'HU Regions: {}\n'
@@ -1093,17 +1117,25 @@ class CBCT:
         return string
 
     def analyze(self, hu_tolerance=40, scaling_tolerance=1):
-        """Single-method full analysis of CBCT DICOM files."""
+        """Single-method full analysis of CBCT DICOM files.
+
+        Parameters
+        ----------
+        hu_tolerance : int
+            The HU tolerance value for both HU uniformity and linearity.
+        scaling_tolerance : float, int
+            The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP404 module).
+        """
         if not self.images_loaded:
             raise AttributeError("Images not yet loaded")
         self.settings.hu_tolerance = hu_tolerance
         self.settings.scaling_tolerance = scaling_tolerance
 
-        self.construct_HU()
-        self.construct_UNIF()
-        self.construct_GEO()
-        self.construct_SR()
-        self.construct_Locon()
+        self._construct_HU()
+        self._construct_UNIF()
+        self._construct_GEO()
+        self._construct_SR()
+        self._construct_Locon()
 
     def run_demo(self, show=True):
         """Run the CBCT demo using high-quality head protocol images."""
