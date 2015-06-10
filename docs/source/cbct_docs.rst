@@ -89,6 +89,7 @@ presets (Head, Pelvis, etc) and acquire the images. Export or copy the images to
         cbct.load_folder('mycbctfolder')
         cbct.settings.phantom_z_offset = 5  # value is in number of slices
 
+    See :class:`~pylinac.cbct.Settings` for further info.
 
 Algorithm
 ---------
