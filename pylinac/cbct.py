@@ -778,7 +778,7 @@ class CBCT:
 
     Attributes
     ----------
-    algo_data : Algo_Data
+    settings : Settings
     HU : HU_Slice
     UN : UNIF_Slice
     GEO : GEO_Slice
@@ -788,7 +788,7 @@ class CBCT:
     Examples
     --------
     Run the demo:
-        >>> mycbct = CBCT().run_demo()
+        >>> CBCT().run_demo()
 
     Typical session:
         >>> cbct_folder = r"C:/QA/CBCT/June"
@@ -818,23 +818,7 @@ class CBCT:
         """
         cbct_demo_dir = osp.join(osp.dirname(osp.abspath(__file__)), 'demo_files', 'cbct')
         demo_zip = osp.join(cbct_demo_dir, 'High quality head.zip')
-        demo_folder = osp.join(cbct_demo_dir, 'High quality head')
-
         self.load_zip_file(demo_zip)
-        # unpack demo folder if not already around
-        # if not osp.isdir(demo_folder) or len(os.listdir(demo_folder)) == 0:
-        #     shutil.unpack_archive(demo_zip, cbct_demo_dir)
-        #
-        # filelist = self._get_CT_filenames_from_folder(demo_folder)
-        # self._load_files(filelist)
-        # # delete the unpacked demo folder
-        # if cleanup:
-        #     try:
-        #         shutil.rmtree(demo_folder)
-        #         time.sleep(0.1)  # sleep timer added because fast repeats of loading/dumping caused errors
-        #     except IOError:
-        #         print("Extracted demo images were not able to be deleted. You can manually delete them if you "
-        #               "like from %s" % demo_folder)
 
     def load_folder_UI(self):
         """Load the CT DICOM files from a folder using a UI."""
@@ -855,7 +839,6 @@ class CBCT:
         NotADirectoryError : if folder str passed is not a valid directory.
         FileNotFoundError : If no CT images are found in the folder
         """
-        # check that folder is valid
         if not osp.isdir(folder):
             raise NotADirectoryError("Path given was not a Directory/Folder")
 
@@ -882,13 +865,6 @@ class CBCT:
             # shutil.unpack_archive(zip_file, osp.dirname(zip_file))
             filelist = self._get_CT_filenames_from_zip(zfs)
             self._load_files(filelist, is_zip=True, zfiles=zfs)
-
-        # delete the unpacked folder
-        # try:
-        #     shutil.rmtree(zip_folder)
-        # except IOError:
-        #     print("Extracted demo images were not able to be deleted. You can manually delete them if you "
-        #           "like from %s" % zip_folder)
 
     def _get_CT_filenames_from_folder(self, folder):
         """Walk through a folder to find DICOM CT images.
