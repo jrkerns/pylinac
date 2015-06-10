@@ -14,70 +14,38 @@ class Point:
     """A geometric point with x, y, and z coordinates/attributes."""
     value = typed_property('value', (int, float, np.number, type(None)))
 
-    def __init__(self, x=0, y=0, z=0, idx=None, value=None, as_int=False):
+    def __init__(self, x=0, y=0, idx=None, value=None, as_int=False):
         """
         Parameters
         ----------
-        x : int, float, Point, iterable (list, tuple, etc)
+        x : number-like, Point, iterable
             x-coordinate or iterable type containing all coordinates. If iterable, values are assumed to be in order: (x,y,z).
         y : number-like, optional
             y-coordinate
-        z : number-like, optional
-            z-coordinate
         idx : int, optional
             Index of point. Useful for sequential coordinates; e.g. a point on a circle profile is sometimes easier to describe
             in terms of its index rather than x,y coords.
         value : number-like, optional
             value at point location (e.g. pixel value of an image)
         as_int : boolean
-            If True, passed coordinates are converted to integers.
+            If True, coordinates are converted to integers.
         """
-        # Point object passed in
         if isinstance(x, Point):
-            # self = x?
-            point = x
-            x = point.x
-            y = point.y
-            z = point.z
-            idx = point.idx
-            value = point.value
-
-        # if passed an iterable, separate out
+            for attr in ['x', 'y', 'idx', 'value']:
+                item = getattr(x, attr)
+                setattr(self, attr, item)
         elif is_iterable(x):
-            input_coords = x
-            try:
-                x = input_coords[0]
-                y = input_coords[1]
-                z = input_coords[2]
-                idx = input_coords[3]
-                value = input_coords[4]
-            except IndexError:
-                pass
-        # else:
-        #     raise TypeError("Point inputs not understood")
+            for attr, item in zip(['x', 'y', 'idx', 'value'], x):
+                setattr(self, attr, item)
+        else:
+            self.x = x
+            self.y = y
+            self.idx = idx
+            self.value = value
 
         if as_int:
-            x = int(round(x))
-            y = int(round(y))
-            z = int(round(z))
-
-        self.x = x
-        self.y = y
-        self.z = z
-        self.idx = idx
-        self.value = value
-
-    # @property
-    # def value(self):
-    #     """Return the value property."""
-    #     return self._value
-    #
-    # @value.setter
-    # def value(self, val):
-    #     """Set the value property. val must be number-like."""
-    #     if val is not None and not isnumeric(val):
-    #         raise TypeError("Point value was not a valid type. Must be number-like.")
-    #     self._value = val
+            self.x = int(round(self.x))
+            self.y = int(round(self.y))
 
     def dist_to(self, point):
         """Calculate the distance to the given point.
@@ -89,6 +57,7 @@ class Point:
         """
         return sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
 
+
 class Scale:
     """A 'scale' object with x and y attrs. Used in conjunction with scaling images up or down."""
     def __init__(self, x, y):
@@ -98,6 +67,7 @@ class Scale:
 
 class Circle:
     """A geometric circle with center Point, radius, and diameter."""
+
     def __init__(self, center_point=None, radius=None):
         """
         Parameters
@@ -294,8 +264,6 @@ class Rectangle:
             bl = self.bl_corner = Point(bl_corner, as_int=as_int)
             self.center = Point(bl.x + width / 2, bl.y + height / 2, as_int=as_int)
             self.tl_corner = Point(bl.x, bl.y + height, as_int=as_int)
-
-
 
     def add_to_axes(self, axes, edgecolor='black', angle=0.0, fill=False, alpha=1, facecolor='g'):
         """Plot the Rectangle to the axes.
