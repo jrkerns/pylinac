@@ -41,14 +41,14 @@ class BeamImage(Image):
             If a str, path to the image file.
         """
         if filepath is not None and is_valid_file(filepath):
-            self._load_file(filepath, True)
+            self._load_file(filepath)
         else:
             self.array = np.zeros((1,1))
 
     def load_demo_image(self):
         """Load the demo image."""
         demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'flatsym', 'flatsym_demo.dcm')
-        self._load_file(demo_file, to_gray=True)
+        self._load_file(demo_file)
 
     def _plot_image(self, ax, plane, position):
         """Plot the image analyzed and a line showing where the profile was taken."""
