@@ -262,7 +262,7 @@ class Test_MachineLogs(TestCase):
         self.assertEqual(logs.num_logs, 17)
         # test using method
         logs = MachineLogs()
-        logs.load_dir(self.logs_dir, verbose=False)
+        logs.load_folder(self.logs_dir, verbose=False)
         self.assertEqual(logs.num_logs, 17)
 
     def test_basic_parameters(self):

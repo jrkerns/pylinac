@@ -8,8 +8,7 @@ class PF_EPID_demo(unittest.TestCase):
     test_im_path = osp.abspath(osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence'))
 
     def setUp(self):
-        self.pf = PicketFence()
-        self.pf.load_demo_image()
+        self.pf = PicketFence.from_demo_image()
         self.pf.analyze()
 
     def test_demo(self):
@@ -48,7 +47,7 @@ class PF_EPID_demo(unittest.TestCase):
         self.assertAlmostEqual(self.pf.max_error, 0.213, delta=0.08)
 
     def test_filter_on_load(self):
-        pf = PicketFence.from_image(osp.join(self.test_im_path, 'EPID-PF.dcm'), filter=3)
+        pf = PicketFence(osp.join(self.test_im_path, 'EPID-PF.dcm'), filter=3)
 
     def test_passed(self):
         self.assertTrue(self.pf.passed)
@@ -68,8 +67,7 @@ class PF_EPID_demo(unittest.TestCase):
         maxs[0] = self.pf.max_error
 
         for idx in range(1,4):
-            new_pf = PicketFence()
-            new_pf.load_demo_image()
+            new_pf = PicketFence.from_demo_image()
             new_pf.image.rot90(idx)
             new_pf.analyze()
             medians[idx] = new_pf.abs_median_error

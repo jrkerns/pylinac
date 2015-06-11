@@ -11,8 +11,7 @@ test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
 class Star_general_tests(unittest.TestCase):
     """Performs general tests (not demo specific)."""
     def setUp(self):
-        self.star = Starshot()
-        self.star.load_demo_image()
+        self.star = Starshot.from_demo_image()
 
     def test_analyze_without_images(self):
         star = Starshot()
@@ -55,8 +54,7 @@ class Test_Star_Demo(unittest.TestCase, Star_Test):
     num_rad_lines = 4
 
     def setUp(self):
-        self.star = Starshot()
-        self.star.load_demo_image()
+        self.star = Starshot.from_demo_image()
 
     def test_passed(self):
         self.star.analyze()
@@ -109,8 +107,7 @@ class Test_Coll(unittest.TestCase, Star_Test):
 
     @classmethod
     def setUpClass(cls):
-        cls.star = Starshot()
-        cls.star.load_image(cls.star_file)
+        cls.star = Starshot(cls.star_file)
         cls.star.analyze(recursive=True)
 
     def test_not_fwhm_passes(self):
@@ -126,8 +123,7 @@ class Test_Coll2(unittest.TestCase, Star_Test):
 
     @classmethod
     def setUpClass(cls):
-        cls.star = Starshot()
-        cls.star.load_image(cls.star_file)
+        cls.star = Starshot(cls.star_file)
         cls.star.analyze(recursive=True)
 
 

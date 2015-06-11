@@ -1,4 +1,5 @@
 import unittest
+from functools import lru_cache
 
 from pylinac.core.decorators import *
 
@@ -62,7 +63,9 @@ class Test_Decorators(unittest.TestCase):
     def test_lazyproperty(self):
 
         class ExpensiveClass:
-            @lazyproperty
+
+            @property
+            @lru_cache()
             def expensive_property(self):
                 time.sleep(0.2)
                 return

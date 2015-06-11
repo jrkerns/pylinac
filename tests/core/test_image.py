@@ -1,7 +1,6 @@
 import copy
 import unittest
 import os.path as osp
-from tkinter.filedialog import askopenfilename
 
 import dicom
 import numpy as np
@@ -118,8 +117,8 @@ class Test_Image_Methods(unittest.TestCase):
 
     def test_combine_multiples(self):
         bad_img_path = [dcm_path, img_path]
-        self.assertRaises(AttributeError, Image.combine_multiples, bad_img_path)
+        self.assertRaises(AttributeError, Image.from_multiples, bad_img_path)
 
         good_img_path = [img_path, img_path]
-        combined_img = Image.combine_multiples(good_img_path)
+        combined_img = Image.from_multiples(good_img_path)
         self.assertIsInstance(combined_img, Image)

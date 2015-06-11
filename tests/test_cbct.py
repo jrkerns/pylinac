@@ -120,13 +120,7 @@ class Test_CBCT_demo(unittest.TestCase, Varian_CBCT):
     """Test the CBCT demo (Varian high quality head protocol)."""
     @classmethod
     def setUpClass(cls):
-        cls.cbct = CBCT()
-        cls.cbct.load_demo_images()
-
-    @classmethod
-    def tearDownClass(cls):
-        """Remove the demo directory upon test class finish."""
-        cls.cbct.load_demo_images()
+        cls.cbct = CBCT.from_demo_images()
 
     def test_phantom_roll(self):
         exp_roll = 0.004
@@ -156,8 +150,7 @@ class Test_Varian_Pelvis(unittest.TestCase, Varian_CBCT):
 
     @classmethod
     def setUpClass(cls):
-        cls.cbct = CBCT()
-        cls.cbct.load_zip_file(cls.pelvis_zip)
+        cls.cbct = CBCT.from_zip_file(cls.pelvis_zip)
 
     def test_phantom_roll(self):
         exp_roll = 0.004
@@ -188,8 +181,7 @@ class Test_Varian_Low_Dose_Thorax(unittest.TestCase, Varian_CBCT):
 
     @classmethod
     def setUpClass(cls):
-        cls.cbct = CBCT()
-        cls.cbct.load_zip_file(cls.thorax_zip)
+        cls.cbct = CBCT.from_zip_file(cls.thorax_zip)
 
     def test_phantom_roll(self):
         exp_roll = 0.005

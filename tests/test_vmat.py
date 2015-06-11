@@ -132,7 +132,7 @@ class Test_MLCS_105(VMATMixin, unittest.TestCase):
     drmlc_105_dmlc = osp.join(_vmat_test_files_dir, 'DRMLCmlc-105-example.dcm')
 
     def setUp(self):
-        self.vmat = VMAT.from_images((self.drmlc_105_dmlc, self.drmlc_105_open))
+        self.vmat = VMAT((self.drmlc_105_dmlc, self.drmlc_105_open))
 
     def test_overall_passed(self):
         """Test that the overall pass flag is true for default settings"""
