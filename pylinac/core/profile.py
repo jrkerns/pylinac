@@ -320,6 +320,43 @@ class CircleProfile(Profile, Circle):
         if width < min_width or height < min_height:
             raise ValueError("Array size not large enough to compute profile")
 
+
+class CollapsedCircleProfile(CircleProfile):
+    """A circular profile that collapses nearby pixels along the circle to create an composite profile.
+    I.e. instead of simply profiling along the circle itself, it collapses the tangential pixels on the inner and
+    outer sides for every point.
+    """
+
+    def get_profile(self, image_array, size=1000, start=0, ccw=True, width_ratio=0.1, num_profiles=20):
+        """
+        Parameters
+        ----------
+        width_ratio : float
+            The ratio relative to the radius of the circle that will be collapsed. 0<x<1.
+        num_profiles : int
+            The number of profiles to take within the width ratio.
+        """
+        super().get_profile(image_array, size)
+
+        interval = (2 * np.pi) / size
+        radians = np.arange(0 + start, (2 * np.pi) + start - interval, interval)
+        profile = np.zeros(len(radians))
+        if ccw:
+            radians = radians[::-1]
+        cos = np.cos(radians)
+        sin = np.sin(radians)
+
+        for radius in np.nditer(np.linspace(start=self.radius*(1-width_ratio), stop=self.radius*(1+width_ratio), num=num_profiles)):
+            x = cos * radius + self.center.x
+            y = sin * radius + self.center.y
+
+            # Pull the values of the image along the y,x points defined above, creating a circular profile
+            profile += ndimage.map_coordinates(image_array, [y, x], order=0)
+        profile /= num_profiles
+
+        self.y_values = profile
+
+
 class SingleProfile:
     """A profile that has one large signal, e.g. a radiation beam profile.
 
@@ -464,7 +501,6 @@ class SingleProfile:
     @lazyproperty
     def x_data_cubic(self):
         return np.linspace(start=self.x_values[0], stop=self.x_values[-1], num=len(self.x_values) * 10)
-
 
     def get_FWXM(self, x=50, round=False, interpolate=False):
         """Return the width at X-Max, where X is the percentage height.
