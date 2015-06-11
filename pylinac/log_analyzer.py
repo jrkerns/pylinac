@@ -215,15 +215,15 @@ class MachineLogs(list):
         """Calculate and return the average gamma of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
-        gamma_list = []
+        gamma_list = np.zeros(self.num_logs)
         if verbose:
             print("Calculating gammas:")
         for num, log in enumerate(self):
             log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
-            gamma_list.append(log.fluence.gamma.avg_gamma)
+            gamma_list[num] = log.fluence.gamma.avg_gamma
             if verbose:
                 print('{} of {}'.format(num, self.num_logs))
-        return np.array(gamma_list).mean()
+        return gamma_list.mean()
 
     def avg_gamma_pct(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, verbose=True):
         """Calculate and return the average gamma pass percent of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
