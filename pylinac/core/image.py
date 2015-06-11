@@ -58,7 +58,7 @@ class Image:
 
     Additionally, load from a UI dialog box::
 
-        >>> img = Image.open_UI()
+        >>> img = Image.from_UI()
 
     Or, load from an existing array::
 
@@ -82,16 +82,16 @@ class Image:
             except (IOError, AttributeError):
                 raise TypeError("Image input type not understood")
 
-    @classmethod
-    def from_file(cls, filename):
-        obj = cls()
-        try:
-            obj._load_dicom(filename)
-        except InvalidDicomError:
-            try:
-                obj._load_file(filename)
-            except OSError:
-                raise IOError("Image type not supported")
+    # @classmethod
+    # def from_file(cls, filename):
+    #     obj = cls()
+    #     try:
+    #         obj._load_dicom(filename)
+    #     except InvalidDicomError:
+    #         try:
+    #             obj._load_file(filename)
+    #         except OSError:
+    #             raise IOError("Image type not supported")
 
     @classmethod
     def from_array(cls, array):
@@ -99,11 +99,6 @@ class Image:
         obj.array = array
         obj.im_type = ARRAY
         return obj
-
-    # def _load_array(self, array):
-    #     """Load an array."""
-    #     self.array = array
-    #     self.im_type = ARRAY
 
     @property
     def dpi(self):
@@ -140,18 +135,34 @@ class Image:
 
     @property
     def SID(self):
+        """Return the SID."""
         return getattr(self, '_SID', None)
 
     @SID.setter
     def SID(self, value):
+        """Set the SID."""
         if not isinstance(value, (int, float, np.number)):
             raise ValueError("SID must be a number")
         self._SID = value
         # scale the dpmm/dpi by the SID
         self.dpmm = self.dpmm * self.SID / 100
 
+    def check_inversion(self):
+        """Check the image for inversion by sampling the 4 image corners.
+        If the average value of the four corners is above the average pixel value, then it is very likely inverted.
+        """
+        outer_edge = 10
+        inner_edge = 30
+        TL_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
+        BL_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
+        TR_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
+        BR_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
+        corner_avg = np.mean((TL_corner, BL_corner, TR_corner, BR_corner))
+        if corner_avg > np.mean(self.array.flatten()):
+            self.invert()
+
     @classmethod
-    def open_UI(cls, caption='', to_gray=True):
+    def from_UI(cls, caption='', to_gray=True):
         """Load an image using a UI dialog."""
         file_path = get_filepath_UI()
         if file_path:
@@ -159,7 +170,7 @@ class Image:
             return obj
 
     @classmethod
-    def open_multiple_UI(cls, caption='', to_gray=True):
+    def from_multiple_UI(cls, caption='', to_gray=True):
         """Load multiple images using a UI dialog.
 
         .. versionadded:: 0.5.1
@@ -169,7 +180,7 @@ class Image:
         """
         file_list = get_filenames_UI()
         if file_list:
-            obj = cls.combine_multiples(file_list)
+            obj = cls.from_multiples(file_list)
             return obj
 
     def _load_file(self, file_path):
@@ -331,7 +342,7 @@ class Image:
         return min_val
 
     @classmethod
-    def combine_multiples(cls, image_file_list):
+    def from_multiples(cls, image_file_list):
         """Combine multiple image files into one superimposed image.
 
         .. versionadded:: 0.5.1
@@ -357,5 +368,5 @@ class Image:
         return getattr(self.array, item)
 
 if __name__ == '__main__':
-    img = Image.open_multiple_UI()
+    img = Image.from_multiple_UI()
 
