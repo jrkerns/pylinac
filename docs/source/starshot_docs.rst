@@ -43,33 +43,34 @@ Typical Use
 The Starshot analysis can be run first by importing the Starshot class::
 
     from pylinac.starshot import Starshot
-    mystar = Starshot()
 
 A typical analysis sequence looks like so:
 
-* **Load image(s)** -- Loading film or superimposed EPID DICOM images into your Starshot class object can be done by
+* **Load image(s)** -- Loading film or superimposed EPID DICOM images can be done by
   passing the file path or by using a UI to find and get the file. The code might look like any of the following::
 
-    # set the file path
     star_img = "C:/QA Folder/gantry_starshot.tif"
-    # load the images from the file path
-    mystar.load_image(star_img)
+    mystar = Starshot.from_image(star_img)
 
-  or::
+  Or, use a dialog box::
 
-    # Load the image using a UI file dialog box
-    mystar.load_image_UI()
+    mystar = Starshot.from_image_UI()
 
   Multiple images can be easily superimposed and used; e.g. collimator shots at various angles::
 
-    # Select all the images from a UI box
-    mystar.load_multiple_images_UI()
+    mystar = Starshot.from_multiple_images_UI()
 
-  or::
+  Or, pass them programatically::
 
-    # set the file paths from a list
     star_imgs = ['path/star0.tif', 'path/star45.tif', 'path/star90.tif']
-    mystar.load_multiple_images()
+    mystar = Starshot.from_multiple_images()
+
+  .. note::
+    In previous versions of pylinac, loading images was instance-method based. This behavior has been deprecated in favor
+    of class-method constructors (``Starshot.from_X``). The reason for this is that
+    certain actions should only be allowed until after the image is loaded. Furthermore, loading the image should always be
+    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
+    Don't worry though, the old behavior still works.
 
 * **Analyze the images** -- After loading the image, all that needs to be done is analyze the image with a few
   settings passed in::

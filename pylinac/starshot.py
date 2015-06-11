@@ -25,10 +25,10 @@ class Starshot:
 
     Attributes
     ----------
-    image : core.image.Image
-    circle_profile : StarProfile
-    lines : list of Line instances
-    wobble : Wobble
+    image : :class:`~pylinac.core.image.Image`
+    circle_profile : :class:`~pylinac.starshot.StarProfile`
+    lines : list of :class:`~pylinac.core.geometry.Line` instances
+    wobble : :class:`~pylinac.starshot.Wobble`
 
     Examples
     --------
@@ -36,9 +36,8 @@ class Starshot:
         >>> Starshot().run_demo()
 
     Typical session:
-        >>> img_path = r"C:/QA/Starshots/Coll"
-        >>> mystar = Starshot()
-        >>> mystar.load_image(img_path)
+        >>> img_path = r"C:/QA/Starshots/Coll.jpeg"
+        >>> mystar = Starshot.from_image(img_path)
         >>> mystar.analyze()
         >>> print(mystar.return_results())
         >>> mystar.plot_analyzed_image()
@@ -49,6 +48,16 @@ class Starshot:
         self.lines = []  # a list which will hold Line instances representing radiation lines.
         self.wobble = Wobble()  # A Circle representing the radiation wobble
         self.tolerance = Tolerance(1, 'pixels')
+
+    @classmethod
+    def from_demo_image(cls):
+        """Construct a Starshot instance and load the demo image.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_demo_image()
+        return obj
 
     def load_demo_image(self):
         """Load the starshot demo image.
@@ -68,6 +77,16 @@ class Starshot:
         # demo_file = osp.join(demo_folder, 'DHMC_starshot.dcm')
         self.load_image(demo_file)
 
+    @classmethod
+    def from_image(cls, filepath):
+        """Construct a Starshot instance and load in an image.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_image(filepath)
+        return obj
+
     def load_image(self, filepath):
         """Load the image via the file path.
 
@@ -81,6 +100,16 @@ class Starshot:
         if self.image.shape[0] > 1100:
             self.image.median_filter(0.002)
 
+    @classmethod
+    def from_multiple_images(cls, filepath_list):
+        """Construct a Starshot instance and load in and combine multiple images.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_multiple_images(filepath_list)
+        return obj
+
     def load_multiple_images(self, filepath_list):
         """Load multiple images via the file path.
 
@@ -93,6 +122,16 @@ class Starshot:
         """
         self.image = Image.combine_multiples(filepath_list)
 
+    @classmethod
+    def from_multiple_images_UI(cls):
+        """Construct a Starshot instance and load in and combine multiple images via a UI dialog box.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_multiple_images_UI()
+        return obj
+
     def load_multiple_images_UI(self):
         """Load multiple images via a dialog box.
 
@@ -101,6 +140,16 @@ class Starshot:
         path_list = get_filenames_UI()
         if path_list:
             self.load_multiple_images(path_list)
+
+    @classmethod
+    def from_image_UI(cls):
+        """Construct a Starshot instance and get the image via a UI dialog box.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_image_UI()
+        return obj
 
     def load_image_UI(self):
         """Load the image by using a UI dialog box."""
@@ -562,9 +611,9 @@ class Tolerance:
 if __name__ == '__main__':
     pass
     # Starshot().run_demo()
-    star = Starshot()
+    star = Starshot.from_demo_image()
     # star.load_image_UI()
-    star.load_demo_image()
+    # star.load_demo_image()
     star.analyze(radius=0.95, min_peak_height=0.25, fwhm=True)
     # star.analyze(recursive=True)
     # print(star.return_results())
