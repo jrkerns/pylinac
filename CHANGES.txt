@@ -1,7 +1,26 @@
-V 0.6.0b  5/16/15
+V 0.6.0  6/10/15
+
+    General
+- Pylinac now has a wheel variation. Installation should thus be quicker for users with Python 3.4.
+
+    Class-based Constructors
+- This release presents a new way of loading and initializing classes for the PicketFence, Starshot, VMAT and CBCT classes.
+  Those classes all now have `X.from_Y`-type constructors. This allows the user to both initialize and load the images/data
+  in one step. Also prevents user from using methods before initialization (i.e. safer). See ReadTheDocs page for more info.
 
     Dependencies
 - Because the VMAT module was reworked and is now based on Varian specs, the pandas package will no longer be required. FutureWarnings have been removed.
+
+    CBCT
+- Bug #18 is fixed. This bug did not account for slice thickness when determining the slice positions of the
+  relevant slices.
+- Bug #19 is fixed. This bug allowed the loading of images that did not belong to the same study. An error is now raised
+  if such behavior is observed.
+- Demo files are now read from the zipfile, rather than being extracted and then potentially cleaning up afterward. Behavior
+  is now quicker and cleaner.
+- Individual plots of certain module/slices can now be done. Additionally, the MTF can be plotted.
+- The user can now adjust the relative position of the slice locations in the event the phantom is not set up to calibration
+  conditions.
 
     Log Analyzer
 - Keys in the `txt` attr dict weren't stripped and could have trailing spaces. Keys are now stripped.
@@ -12,6 +31,9 @@ V 0.6.0b  5/16/15
 - Rather than individual samples, 4 or 7 segments are created, 5x100mm each.
 - Deviation is now calculated for each segment, based on the average segment value.
 - The DRMLC test has changed name to MLCS. E.g. passing a test should be: myvmat.analyze('mlcs'), not myvmat.analyze('drmlc'); the latter will still work but raises a future warning.
+
+    Starshot
+- Fixed a bug where an image that did not have pixels/mm information would error out.
 
 
 V0.5.1  5/7/2015
