@@ -78,7 +78,7 @@ The minimum needed to get going is to:
         mycbct = CBCT()
         mycbct.load_zip_file('cbcts.zip')
 
-    This behavior has been deprecated in favor of class-method constructors (`CBCT.from_X`). The reason for this is that
+    This behavior has been deprecated in favor of class-method constructors (``CBCT.from_X``). The reason for this is that
     certain actions should only be allowed until after the images are loaded. Furthermore, loading the images should always be
     the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
     Don't worry though, the old behavior still works.
