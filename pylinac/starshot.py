@@ -11,6 +11,7 @@ import copy
 
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.optimize import differential_evolution
 
 from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Line, Circle
@@ -79,16 +80,6 @@ class Starshot:
         # demo_file = osp.join(demo_folder, 'DHMC_starshot.dcm')
         self.load_image(demo_file)
 
-    @classmethod
-    def from_image(cls, filepath):
-        """Construct a Starshot instance and load in an image.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_image(filepath)
-        return obj
-
     def load_image(self, filepath):
         """Load the image via the file path.
 
@@ -122,7 +113,7 @@ class Starshot:
         filepath_list : sequence
             An iterable sequence of filepath locations.
         """
-        self.image = Image.combine_multiples(filepath_list)
+        self.image = Image.from_multiples(filepath_list)
 
     @classmethod
     def from_multiple_images_UI(cls):
@@ -232,7 +223,7 @@ class Starshot:
         self.circle_profile.center = center_point
 
     @value_accept(radius=(0.2, 0.95), min_peak_height=(0.1, 0.9), SID=(40, 400))
-    def analyze(self, radius=0.95, min_peak_height=0.25, SID=100, fwhm=True, recursive=True):
+    def analyze(self, radius=0.85, min_peak_height=0.25, SID=100, fwhm=True, recursive=True):
         """Analyze the starshot image.
 
         Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -291,12 +282,14 @@ class Starshot:
             self.circle_profile.get_median_profile(self.image.array)
             # find the radiation lines using the peaks of the profile
             self.lines = self.circle_profile.find_rad_lines(min_peak_height, fwhm=fwhm)
+
+            self.find_wobble_minimize(SID)
             # find the wobble
-            self._find_wobble_2step(SID)
+            # self._find_wobble_2step(SID)
             if not recursive:
                 wobble_unreasonable = False
             else:
-                if self.wobble.radius_mm < 5 and self.wobble.center.dist_to(self.start_point) < 30:
+                if self.wobble.radius_mm < 5 and self.wobble.center.dist_to(self.start_point) < 50:
                     wobble_unreasonable = False
                 else:
                     if min_peak_height > 0.15:
@@ -359,6 +352,19 @@ class Starshot:
         else:
             self.wobble.radius /= SID / 100
             self.wobble.radius_mm /= SID / 100
+
+    def find_wobble_minimize(self, SID):
+        sp = copy.copy(self.circle_profile.center)
+
+        def f(p, lines):
+            return max(line.distance_to(Point(p[0], p[1])) for line in lines)
+
+        res = differential_evolution(f, bounds=[(sp.x*0.9, sp.x*1.1), (sp.y*0.9, sp.y*1.1)], args=(self.lines,))
+
+        self.wobble.radius = res.fun
+        self.wobble.center = Point(res.x[0], res.x[1])
+
+        self._scale_wobble(SID)
 
     def _find_wobble_2step(self, SID):
         """Find the smallest radius ("wobble") and center of a circle that touches all the star lines.
@@ -605,5 +611,5 @@ if __name__ == '__main__':
     star.analyze(radius=0.95, min_peak_height=0.25, fwhm=True)
     # star.analyze(recursive=True)
     print(star.return_results())
-    # star.plot_analyzed_image()
+    star.plot_analyzed_image()
     # star.save_analyzed_image('tester.png', bbox_inches='tight', pad_inches=0)
