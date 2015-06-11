@@ -56,7 +56,7 @@ class CBCT:
 
     Typical session:
         >>> cbct_folder = r"C:/QA/CBCT/June"
-        >>> mycbct = CBCT().from_folder(cbct_folder)
+        >>> mycbct = CBCT.from_folder(cbct_folder)
         >>> mycbct.analyze()
         >>> print(mycbct.return_results())
         >>> mycbct.plot_analyzed_image()
@@ -68,8 +68,6 @@ class CBCT:
         self.GEO = None
         self.LOCON = None
         self.SR = None
-        self.run_demo = self._run_demo
-        ttt = 1
 
     @classmethod
     def from_demo_images(cls):
@@ -426,19 +424,12 @@ class CBCT:
         self._construct_SR()
         self._construct_Locon()
 
-    @classmethod
-    def run_demo(cls):
-        obj = cls()
-        obj.run_demo()
-        return obj
-
-    def _run_demo(self, show=True):
+    def run_demo(self, show=True):
         """Run the CBCT demo using high-quality head protocol images."""
-        cbct = CBCT()
-        cbct.load_demo_images()
-        cbct.analyze()
-        print(cbct.return_results())
-        cbct.plot_analyzed_image(show)
+        self.load_demo_images()
+        self.analyze()
+        print(self.return_results())
+        self.plot_analyzed_image(show)
 
     @property
     def images_loaded(self):
@@ -1228,14 +1219,14 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 if __name__ == '__main__':
     # CBCT().run_demo()
     # zip_file = r"D:\Users\James\Dropbox\Programming\Python\Projects\PyCharm Projects\pylinac\tests\test_files\CBCT\Varian\Low dose thorax.zip"
-    CBCT.run_demo()
+    cbct = CBCT.from_demo_images()
     # cbct = CBCT()
     # cbct = CBCT.from_demo_images()
     # cbct.load_zip_file(zip_file)
     # cbct.load_demo_images()
     # cbct.algo_data.images = np.roll(cbct.algo_data.images, 30, axis=1)
-    # cbct.analyze()
-    # print(cbct.return_results())
+    cbct.analyze()
+    print(cbct.return_results())
     # cbct.plot_analyzed_image()
     # cbct.plot_analyzed_subimage('mtf')
     # cbct.save_analyzed_image('ttt.png')
