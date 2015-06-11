@@ -14,6 +14,7 @@ import os.path as osp
 import zipfile
 import math
 from io import BytesIO
+from functools import lru_cache
 
 import numpy as np
 from scipy import ndimage
@@ -22,7 +23,7 @@ import dicom
 from dicom.errors import InvalidDicomError
 import matplotlib.pyplot as plt
 
-from pylinac.core.decorators import value_accept, lazyproperty, type_accept
+from pylinac.core.decorators import value_accept, type_accept
 from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Circle, sector_mask, Line
 from pylinac.core.profile import CircleProfile, Profile
@@ -56,18 +57,20 @@ class CBCT:
 
     Typical session:
         >>> cbct_folder = r"C:/QA/CBCT/June"
-        >>> mycbct = CBCT.from_folder(cbct_folder)
+        >>> mycbct = CBCT(cbct_folder)
         >>> mycbct.analyze()
         >>> print(mycbct.return_results())
         >>> mycbct.plot_analyzed_image()
     """
-    def __init__(self):
+    def __init__(self, folderpath=None):
         self.settings = None
         self.HU = None
         self.UN = None
         self.GEO = None
         self.LOCON = None
         self.SR = None
+        if folderpath is not None:
+            self.load_folder(folderpath)
 
     @classmethod
     def from_demo_images(cls):
@@ -100,16 +103,6 @@ class CBCT:
         folder = get_folder_UI()
         if folder:
             self.load_folder(folder)
-
-    @classmethod
-    def from_folder(cls, folder):
-        """Initialize a CBCT object and specify a folder.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_folder(folder)
-        return obj
 
     def load_folder(self, folder):
         """Load the CT DICOM files string input.
@@ -477,17 +470,17 @@ class Settings:
         self.phantom_z_offset = 0  # z-offset in number of slices
         self.set_slice_nums()
 
-    @lazyproperty
+    @property
     def fov_ratio(self):
         """Field of View in mm / reference FOV (250mm)."""
         return self.dicom_metadata.DataCollectionDiameter / 250
 
-    @lazyproperty
+    @property
     def mm_per_pixel(self):
         """The millimeters per pixel of the DICOM images."""
         return self.dicom_metadata.PixelSpacing[0]
 
-    @lazyproperty
+    @property
     def manufacturer(self):
         """The linac manufacturer."""
         return self.dicom_metadata.Manufacturer
@@ -505,7 +498,8 @@ class Settings:
         else:
             raise ValueError("Unknown Manufacturer")
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def phantom_roll(self):
         """Lazy property returning the phantom roll in radians."""
         return self.calc_phantom_roll()
@@ -517,7 +511,7 @@ class Settings:
         HU = HU_Slice(self)
         return HU.determine_phantom_roll()
 
-    @lazyproperty
+    @property
     def expected_phantom_size(self):
         """Determine the expected size of the phantom in pixels."""
         phan_area = np.pi*100**2  # Area = pi*r^2

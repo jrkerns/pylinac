@@ -14,13 +14,14 @@ import csv
 import copy
 import warnings
 from io import BytesIO, StringIO
+from functools import lru_cache
 
 import numpy as np
 import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
 
 from pylinac import MEMORY_PROFILE, DEBUG
-from pylinac.core.decorators import type_accept, lazyproperty, value_accept
+from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file
 from pylinac.core.utilities import is_iterable
 
@@ -38,8 +39,8 @@ class MachineLogs(list):
     .. versionadded:: 0.4.1
 
     Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
-    @type_accept(dir=str)
-    def __init__(self, dir=None, recursive=True, verbose=True):
+    @type_accept(folder=str)
+    def __init__(self, folder=None, recursive=True, verbose=True):
         """
         Parameters
         ----------
@@ -55,18 +56,17 @@ class MachineLogs(list):
         --------
         Load a directory upon initialization::
 
-            >>> log_dir = r'C:\path\log\directory'
-            >>> logs = MachineLogs(log_dir)
+            >>> log_folder = r'C:\path\log\directory'
+            >>> logs = MachineLogs(log_folder)
 
         Or load them later directly::
 
             >>> logs = MachineLogs()
-            >>> logs.load_dir(log_dir)
+            >>> logs.load_folder(log_folder)
 
-        Or even using a UI dialog::
+        Or even using a UI dialog box::
 
-            >>> logs = MachineLogs()
-            >>> logs.load_dir_UI()
+            >>> logs = MachineLogs.from_folder_UI()
 
         Batch methods include determining the average gamma and average gamma pass value::
 
@@ -76,8 +76,8 @@ class MachineLogs(list):
             >>> 97.2
         """
         super().__init__()
-        if dir is not None and is_valid_dir(dir):
-            self.load_dir(dir, recursive, verbose)
+        if folder is not None and is_valid_dir(folder):
+            self.load_folder(folder, recursive, verbose)
 
     @property
     def num_logs(self):
@@ -102,8 +102,8 @@ class MachineLogs(list):
         """Return the number of Trajectory logs currently loaded."""
         return self._num_log_type(log_types['dlog'])
 
-    def load_dir(self, dir, recursive=True, verbose=True):
-        """Load a directory of log files.
+    def load_folder(self, dir, recursive=True, verbose=True):
+        """Load log files from a directory.
 
         Parameters
         ----------
@@ -144,11 +144,21 @@ class MachineLogs(list):
             if not recursive:
                 break  # break out of for loop after top level search
 
-    def load_dir_UI(self, recursive=True, verbose=True):
-        """Load a directory using a UI dialog box. See load_dir() for parameter info."""
+    @classmethod
+    def from_folder_UI(cls, recursive=True, verbose=True):
+        """Construct a MachineLogs instance and load a folder from a UI dialog box.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_folder_UI(recursive, verbose)
+        return obj
+
+    def load_folder_UI(self, recursive=True, verbose=True):
+        """Load a directory using a UI dialog box. See load_folder() for parameter info."""
         folder = get_folder_UI()
         if folder:
-            self.load_dir(folder, recursive, verbose)
+            self.load_folder(folder, recursive, verbose)
 
     def _clean_log_filenames(self, filenames, root, num_logs, num_skipped):
         """Extract the names of real log files from a list of files."""
@@ -171,6 +181,7 @@ class MachineLogs(list):
         return cleaned_filenames, num_logs, num_skipped
 
     def _check_empty(self):
+        """Check if any logs have been loaded."""
         if len(self) == 0:
             raise ValueError("No logs have been loaded yet.")
 
@@ -222,22 +233,22 @@ class MachineLogs(list):
             log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
             gamma_list[num] = log.fluence.gamma.avg_gamma
             if verbose:
-                print('{} of {}'.format(num, self.num_logs))
+                print('{} of {}'.format(num+1, self.num_logs))
         return gamma_list.mean()
 
     def avg_gamma_pct(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, verbose=True):
         """Calculate and return the average gamma pass percent of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
-        gamma_list = []
+        gamma_list = np.zeros(self.num_logs)
         if verbose:
             print("Calculating gamma pass percent:")
         for num, log in enumerate(self):
             log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
-            gamma_list.append(log.fluence.gamma.pass_prcnt)
+            gamma_list[num] = log.fluence.gamma.pass_prcnt
             if verbose:
-                print("{} of {}".format(num, self.num_logs))
-        return np.array(gamma_list).mean()
+                print("{} of {}".format(num+1, self.num_logs))
+        return gamma_list.mean()
 
     def to_csv(self):
         """Write trajectory logs to CSV. If there are both dynalogs and trajectory logs,
@@ -259,7 +270,7 @@ class MachineLog:
     If reading Trajectory logs, the .txt file is also loaded if it's around.
     """
 
-    def __init__(self, filename=''):
+    def __init__(self, filename='', exclude_beam_off=True):
         """
         Parameters
         ----------
@@ -268,6 +279,10 @@ class MachineLog:
             For dynalog files, load either the A*.dlg or B*.dlg file.
 
             .. warning:: Dynalogs must have names like "A*.dlg" and "B*.dlg" and be in the same folder, otherwise errors will ensue.
+
+        exclude_beam_off : boolean
+            If True (default), snapshots where the beam was not on will be removed.
+            If False, all data will be included.
 
         Examples
         --------
@@ -282,6 +297,10 @@ class MachineLog:
             >>> log = MachineLog()
             >>> log.load(mylogfile)
 
+        Or load from a UI dialog::
+
+            >>> log = MachineLog.from_UI()
+
         Run the demo::
 
             >>> MachineLog().run_dlog_demo()
@@ -289,11 +308,13 @@ class MachineLog:
 
         Attributes
         ----------
+        filename : str
+            The name of the file loaded in.
         header : A :class:`~pylinac.log_analyzer.Tlog_Header` or :class:`~pylinac.log_analyzer.Dlog_Header`, depending on the log type.
         axis_data : :class:`~pylinac.log_analyzer.Tlog_Axis_Data` or :class:`~pylinac.log_analyzer.Dlog_Axis_Data`, depending on the log type.
-        subbeams : list
-            Only applicable for autosequenced trajectory logs. Will contain instances of :class:`~pylinac.log_analyzer.Subbeam`; will be empty if
-            autosequencing was not done.
+        subbeams : :class:`~pylinac.log_analyzer.SubbeamHandler`
+            Will contain instances of :class:`~pylinac.log_analyzer.Subbeam`; will be empty if
+            autosequencing was not done on v2.1.
         txt : dict
             If working with trajectory logs and the associated .txt file is in the same directory, the txt file data will be loaded as a dictionary.
         fluence : :class:`~pylinac.log_analyzer.Fluence_Struct`
@@ -303,13 +324,13 @@ class MachineLog:
         log_is_loaded : bool
             Whether a log has yet been loaded.
         """
-        self._filename = ''
+        self.filename = ''
         self._cursor = 0
         self.fluence = Fluence_Struct()
 
         # Read file if passed in
         if filename is not '':
-            self.load(filename)
+            self.load(filename, exclude_beam_off)
 
     def run_tlog_demo(self):
         """Run the Trajectory log demo."""
@@ -325,13 +346,23 @@ class MachineLog:
 
     def load_demo_dynalog(self, exclude_beam_off=True):
         """Load the demo dynalog file included with the package."""
-        self._filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'AQA.dlg')
+        self.filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'AQA.dlg')
         self._read_log(exclude_beam_off)
 
     def load_demo_trajectorylog(self, exclude_beam_off=True):
         """Load the demo trajectory log included with the package."""
         filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
         self.load(filename, exclude_beam_off)
+
+    @classmethod
+    def from_UI(cls, exclude_beam_off=True):
+        """Construct an instance and load a log from a UI dialog box.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_UI(exclude_beam_off)
+        return obj
 
     def load_UI(self, exclude_beam_off=True):
         """Let user load a log file with a UI dialog box. """
@@ -358,7 +389,7 @@ class MachineLog:
         """
         if is_valid_file(filename):
             if is_log(filename):
-                self._filename = filename
+                self.filename = filename
                 self._read_log(exclude_beam_off)
             else:
                 raise IOError("File passed is not a valid log file")
@@ -435,7 +466,8 @@ class MachineLog:
         print("Gamma pass %: {:2.2f}".format(self.fluence.gamma.pass_prcnt))
         print("Gamma average: {:2.3f}".format(self.fluence.gamma.avg_gamma))
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def log_type(self):
         """Determine the MLC log type: Trajectory or Dynalog.
 
@@ -451,16 +483,16 @@ class MachineLog:
         ------
         ValueError : If log type cannot be determined.
         """
-        if is_dlog(self._filename):
+        if is_dlog(self.filename):
             log_type = log_types['dlog']
-        elif is_tlog(self._filename):
+        elif is_tlog(self.filename):
             log_type = log_types['tlog']
         return log_type
 
     @property
     def is_loaded(self):
         """Boolean specifying if a log has been loaded in yet."""
-        if self._filename == '':
+        if self.filename == '':
             return False
         else:
             return True
@@ -480,10 +512,10 @@ class MachineLog:
 
     @property
     def _filename_str(self):
-        if isinstance(self._filename, str):
-            return self._filename
+        if isinstance(self.filename, str):
+            return self.filename
         else:
-            return self._filename.name
+            return self.filename.name
 
     def to_csv(self, filename=None):
         """Write the log to a CSV file. Only applicable for Trajectory logs (Dynalogs are already similar to CSV).
@@ -495,10 +527,10 @@ class MachineLog:
             If a string, the filename will be named so.
         """
         is_file_object = False
-        if not is_tlog(self._filename):
+        if not is_tlog(self.filename):
             raise TypeError("Writing to CSV is only applicable to trajectory logs.")
         if filename is None:
-            filename = self._filename.replace('bin', 'csv')
+            filename = self.filename.replace('bin', 'csv')
         else:
             try:
                 if not filename.endswith('.csv'):
@@ -545,9 +577,9 @@ class MachineLog:
             raise AttributeError('Log file has not been specified. Use load_UI() or load()')
 
         # read log as appropriate to type
-        if is_tlog(self._filename):
+        if is_tlog(self.filename):
             self._read_tlog(exclude_beam_off)
-        elif is_dlog(self._filename):
+        elif is_dlog(self.filename):
             self._read_dlog(exclude_beam_off)
 
     def _read_dlog(self, exclude_beam_off):
@@ -555,10 +587,10 @@ class MachineLog:
         Formatting follows from the Dynalog File Viewer Reference Guide.
         """
         # if file is B*.dlg, replace with A*.dlg
-        other_dlg_file = _return_other_dlg(self._filename)
+        other_dlg_file = _return_other_dlg(self.filename)
 
         # create iterator object to read in lines
-        with open(self._filename) as csvf:
+        with open(self.filename) as csvf:
             dlgdata = csv.reader(csvf, delimiter=',')
             self.header, dlgdata = Dlog_Header(dlgdata)._read()
             self.axis_data = Dlog_Axis_Data(dlgdata, self.header, other_dlg_file)._read(exclude_beam_off)
@@ -568,11 +600,11 @@ class MachineLog:
     def _read_tlog(self, exclude_beam_off):
         """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog v2.1/3.0) log file specifications."""
         # read in associated *.txt file if in the same directory.
-        if is_tlog_txt_file_around(self._filename):
+        if is_tlog_txt_file_around(self.filename):
             self._read_txt_file()
 
         # read in trajectory log binary data
-        fcontent = open_file(self._filename).read()
+        fcontent = open_file(self.filename).read()
 
         # Unpack the content according to respective section and data type (see log specification file).
         self.header, self._cursor = Tlog_Header(fcontent, self._cursor)._read()
@@ -590,7 +622,7 @@ class MachineLog:
     def _read_txt_file(self):
         """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
         self.txt = {}
-        txt_filename = self._filename.replace('.bin', '.txt')
+        txt_filename = self.filename.replace('.bin', '.txt')
         with open(txt_filename) as csvfile:
             txt_reader = csv.reader(csvfile, delimiter='\n')
             for row in txt_reader:
@@ -626,7 +658,8 @@ class Axis:
                 pass
             self.expected = expected
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def difference(self):
         """Return an array of the difference between actual and expected positions.
 
@@ -675,7 +708,8 @@ class Axis:
 
 class _Axis_Moved:
     """Mixin class for Axis."""
-    @lazyproperty
+    @property
+    @lru_cache()
     def moved(self):
         """Return whether the axis moved during treatment."""
         threshold = 0.003
@@ -755,6 +789,7 @@ class Fluence(metaclass=ABCMeta):
         else:
             return True
 
+    @lru_cache()
     def calc_map(self, resolution=0.1):
         """Calculate a fluence pixel map.
 
@@ -777,8 +812,8 @@ class Fluence(metaclass=ABCMeta):
              40cm-wide linac head opening.
          """
         # return if map has already been calculated under the same conditions
-        if self.map_calced and self._same_conditions(resolution):
-            return self.pixel_map
+        # if self.map_calced and self._same_conditions(resolution):
+        #     return self.pixel_map
         # preallocate arrays for expected and actual fluence of number of leaf pairs-x-4000 (40cm = 4000um, etc)
         fluence = np.zeros((self._mlc.num_pairs, 400 / resolution), dtype=float)
 
@@ -908,6 +943,7 @@ class GammaFluence(Fluence):
         else:
             return False
 
+    @lru_cache()
     def calc_map(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, calc_individual_maps=False):
         """Calculate the gamma from the actual and expected fluences.
 
@@ -935,8 +971,8 @@ class GammaFluence(Fluence):
             A num_mlc_leaves-x-400/resolution numpy array.
         """
         # if gamma has been calculated under same conditions, return it
-        if self.map_calced and self._same_conditions(distTA, doseTA, threshold, resolution):
-            return self.pixel_map
+        # if self.map_calced and self._same_conditions(distTA, doseTA, threshold, resolution):
+        #     return self.pixel_map
 
         # calc fluences if need be
         if not self._actual_fluence.map_calced or resolution != self._actual_fluence.resolution:
@@ -1107,7 +1143,8 @@ class MLC:
         """Return the number of MLC leaves."""
         return len(self.leaf_axes)
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def num_snapshots(self):
         """Return the number of snapshots used for MLC RMS & Fluence calculations.
 
@@ -1117,12 +1154,14 @@ class MLC:
         """
         return len(self.snapshot_idx)
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def num_moving_leaves(self):
         """Return the number of leaves that moved."""
         return len(self.moving_leaves)
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def moving_leaves(self):
         """Return an array of the leaves that moved during treatment."""
         threshold = 0.003
@@ -1182,7 +1221,8 @@ class MLC:
         else:
             return False
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def _all_leaf_indices(self):
         """Return an array enumerated over all the leaves."""
         return np.array(range(1, len(self.leaf_axes) + 1))
@@ -1360,12 +1400,14 @@ class MLC:
         leaves -= 1
         return rms_array[leaves]
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def _abs_error_all_leaves(self):
         """Absolute error of all leaves."""
         return np.abs(self._error_array_all_leaves)
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def _error_array_all_leaves(self):
         """Error array of all leaves."""
         mlc_error = np.zeros((self.num_leaves, self.num_snapshots))
@@ -1382,7 +1424,8 @@ class MLC:
             arr[leaf, :] = getattr(self.leaf_axes[leaf + 1], dtype)[self.snapshot_idx]
         return arr
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def _RMS_array_all_leaves(self):
         """Return the RMS of all leaves."""
         rms_array = np.array([np.sqrt(np.sum(leafdata.difference[self.snapshot_idx] ** 2) / self.num_snapshots) for leafdata in self.leaf_axes.values()])
@@ -1888,7 +1931,8 @@ class Dlog_Axis_Data(DLog_Section):
             self.mlc.leaf_axes[leaf].actual *= dynalog_leaf_conversion / 1000
             self.mlc.leaf_axes[leaf].expected *= dynalog_leaf_conversion / 1000
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def num_beamholds(self):
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.beam_hold.actual)
@@ -1993,7 +2037,8 @@ class Tlog_Axis_Data(TLog_Section):
 
         return self, self._cursor
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def num_beamholds(self):
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.beam_hold.actual)

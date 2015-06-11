@@ -2,13 +2,13 @@
 """The picketfence module is used for loading and analyzing EPID images of a "picket fence", a common MLC
 pattern produced when performing linac QA."""
 import os.path as osp
+from functools import lru_cache
 
 import numpy as np
 import scipy.ndimage.filters as spfilt
 from scipy import signal
 import matplotlib.pyplot as plt
 
-from pylinac.core.decorators import lazyproperty
 from pylinac.core.geometry import Line, Rectangle
 from pylinac.core.io import get_filepath_UI
 from pylinac.core.profile import Profile
@@ -133,15 +133,6 @@ class PicketFence:
         im_open_path = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
         self.load_image(im_open_path)
 
-    @classmethod
-    def from_image(cls, filepath, filter=None):
-        """Construct a PicketFence instance and load an image.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_image(filepath, filter=filter)
-
     def load_image(self, file_path, filter=None):
         """Load the image
 
@@ -204,7 +195,7 @@ class PicketFence:
         """Pre-analysis"""
         self._clear_attrs()
         self._action_lvl = action_tolerance
-        self._check_inversion()
+        self.image.check_inversion()
         self._threshold()
         self._find_orientation()
 
@@ -394,20 +385,6 @@ class PicketFence:
                                                                                                   self.max_error_leaf)
         return string
 
-    def _check_inversion(self):
-        """Check the image for inversion (pickets are valleys, not peaks) by sampling the 4 image corners.
-        If the average value of the four corners is above the average pixel value, then it is very likely inverted.
-        """
-        outer_edge = 10
-        inner_edge = 30
-        TL_corner = self.image.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BL_corner = self.image.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        TR_corner = self.image.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BR_corner = self.image.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        corner_avg = np.mean((TL_corner, BL_corner, TR_corner, BR_corner))
-        if corner_avg > np.mean(self.image.array.flatten()):
-            self.image.invert()
-
     def _threshold(self):
         """Threshold the image by subtracting the minimum value. Allows for more accurate image orientation determination.
         """
@@ -421,16 +398,6 @@ class PicketFence:
         self._analysis_array = self.image.array.copy()
         self._analysis_array[self._analysis_array < min_val] = min_val
         self._analysis_array -= min_val
-
-    # @property
-    # def _analysis_array(self):
-    #     return getattr(self, '_aa', self.image.array.copy())
-    #
-    # @_analysis_array.setter
-    # def _analysis_array(self, array):
-    #     if array.shape != self.image.shape:
-    #         raise ValueError("Array size is not the same as the original image")
-    #     self._aa = array
 
     def _find_orientation(self):
         """Determine the orientation of the radiation strips by examining percentiles of the sum of each axes of the image.
@@ -482,7 +449,8 @@ class Picket:
         """The max error of the MLC measurements."""
         return self._error_array.max()
 
-    @lazyproperty
+    @property
+    @lru_cache
     def _error_array(self):
         err = []
         for meas in self.mlc_meas:

@@ -70,7 +70,7 @@ class VMAT:
         fs = get_filenames_UI()
         if len(fs) != 2:
             raise ValueError("Exactly 2 images must be selected")
-        self.load_images(fs[0], fs[1])
+        self.load_images(fs)
 
     @value_accept(im_type=im_types)
     def load_image_UI(self, im_type='open'):
@@ -106,16 +106,6 @@ class VMAT:
             self.image_open = img
         elif _is_dmlc_type(im_type):
             self.image_dmlc = img
-
-    @classmethod
-    def from_images(cls, images):
-        """Construct a VMAT instance and pass the DMLC and Open images.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_images(images)
-        return obj
 
     def load_images(self, images):
         """Load both images simultaneously, assuming a clear name convention:
@@ -211,16 +201,9 @@ class VMAT:
         self.segments = SegmentHandler(self.image_open, self.image_dmlc, self.settings)
 
     def _check_img_inversion(self):
-        """Check that the images are correctly inverted.
-
-        Pixel value should increase with dose. This is ensured by
-        sampling a corner and comparing to the mean image value.
-        """
-        top_corner = self.image_open.array[:20,:20].mean()
-        img_mean = self.image_open.array.mean()
-        if top_corner > img_mean:
-            self.image_open.invert()
-            self.image_dmlc.invert()
+        """Check that the images are correctly inverted."""
+        for image in [self.image_open, self.image_dmlc]:
+            image.check_inversion()
 
     @property
     def avg_abs_r_deviation(self):

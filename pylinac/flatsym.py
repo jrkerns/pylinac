@@ -460,7 +460,7 @@ class BeamImage(Image):
         if not self._img_is_loaded:
             raise AttributeError("An image has not yet been loaded")
 
-        self._check_inversion()
+        self.check_inversion()
         self.ground()
 
         col_prof = np.median(self.array, 0)
@@ -477,20 +477,6 @@ class BeamImage(Image):
             return x_cen
         elif _is_both_planes(plane):
             return y_cen, x_cen
-
-    def _check_inversion(self):
-        """Check the image for inversion (pickets are valleys, not peaks) by sampling the 4 image corners.
-        If the average value of the four corners is above the average pixel value, then it is very likely inverted.
-        """
-        outer_edge = 10
-        inner_edge = 30
-        TL_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BL_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        TR_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BR_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        corner_avg = np.mean((TL_corner, BL_corner, TR_corner, BR_corner))
-        if corner_avg > np.mean(self.array.flatten()):
-            self.invert()
 
     @property
     def _img_is_loaded(self):
