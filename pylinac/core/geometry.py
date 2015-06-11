@@ -6,7 +6,6 @@ import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 
-from pylinac.core.decorators import lazyproperty
 from pylinac.core.utilities import is_iterable, typed_property
 
 
@@ -52,10 +51,11 @@ class Point:
 
         Parameters
         ----------
-        point : Point
+        point : Point, 2 element iterable
             The other point to calculate distance to.
         """
-        return sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
+        p = Point(point)
+        return sqrt((self.x - p.x)**2 + (self.y - p.y)**2)
 
 
 class Scale:
@@ -139,7 +139,7 @@ class Line:
             self.m = m
             self.b = b
 
-    @lazyproperty
+    @property
     def m(self):
         """Return the slope of the line.
 
@@ -149,7 +149,7 @@ class Line:
         """
         return (self.point1.y - self.point2.y) / (self.point1.x - self.point2.x)
 
-    @lazyproperty
+    @property
     def b(self):
         """Return the y-intercept of the line.
 

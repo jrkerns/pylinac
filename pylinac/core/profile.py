@@ -2,6 +2,7 @@
 """Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
 
 import copy
+from functools import lru_cache
 
 import numpy as np
 from scipy import ndimage
@@ -9,7 +10,7 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
 from pylinac.core.common_functions import peak_detect
-from pylinac.core.decorators import value_accept, lazyproperty
+from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Circle
 
 
@@ -486,19 +487,22 @@ class SingleProfile:
 
         return x_data[peak]
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def lt_y_data_cubic(self):
         ydata_f = interp1d(self.x_values, self.ydata_left, kind='linear')
         y_data = ydata_f(self.x_data_cubic)
         return y_data
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def rt_y_data_cubic(self):
         ydata_f = interp1d(self.x_values, self.ydata_right, kind='linear')
         y_data = ydata_f(self.x_data_cubic)
         return y_data
 
-    @lazyproperty
+    @property
+    @lru_cache()
     def x_data_cubic(self):
         return np.linspace(start=self.x_values[0], stop=self.x_values[-1], num=len(self.x_values) * 10)
 

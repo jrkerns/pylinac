@@ -6,6 +6,7 @@ from functools import wraps
 from inspect import signature
 import time
 
+
 def timethis(func):
     """Report execution time of function."""
     @wraps(func)
@@ -16,24 +17,6 @@ def timethis(func):
         print(func.__name__, 'took {:3.2f}s'.format(end-start))
         return result
     return wrapper
-
-class lazyproperty:
-    """A decorator that returns a cached value if it has already been calculated.
-
-    This is based on the example in section 8.10 of Python Cookbook 3rd ed.
-    """
-    def __init__(self, func):
-        self.func = func
-
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        else:
-            # unwrap function; needed when chaining with other decorators
-            self.func = unwrap_func(self.func)
-            value = self.func(instance)
-            setattr(instance, self.func.__name__, value)
-            return value
 
 def type_accept(*type_args, **type_kwargs):
     """Decorator to check function/method input types. Based on Python Cookbook 3rd ed. #9.7."""
