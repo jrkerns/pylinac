@@ -35,6 +35,420 @@ np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Use
 known_manufacturers = {'Varian': 'Varian Medical Systems', 'Elekta': 'ELEKTA'}
 
 
+class CBCT:
+    """A class for loading and analyzing Cone-Beam CT DICOM files of a CatPhan 504 (Varian; Elekta 503 is being developed.)
+    Analyzes: Uniformity, Spatial Resolution, Image Scaling & HU Linearity.
+
+    Attributes
+    ----------
+    settings : :class:`~pylinac.cbct.Settings`
+    HU : :class:`~pylinac.cbct.HU_Slice`
+    UN : :class:`~pylinac.cbct.UNIF_Slice`
+    GEO : :class:`~pylinac.cbct.GEO_Slice`
+    LOCON: :class:`~pylinac.cbct.Locon_Slice`
+        In development.
+    SR : :class:`~pylinac.cbct.SR_Slice`
+
+    Examples
+    --------
+    Run the demo:
+        >>> CBCT().run_demo()
+
+    Typical session:
+        >>> cbct_folder = r"C:/QA/CBCT/June"
+        >>> mycbct = CBCT().from_folder(cbct_folder)
+        >>> mycbct.analyze()
+        >>> print(mycbct.return_results())
+        >>> mycbct.plot_analyzed_image()
+    """
+    def __init__(self):
+        self.settings = None
+        self.HU = None
+        self.UN = None
+        self.GEO = None
+        self.LOCON = None
+        self.SR = None
+        self.run_demo = self._run_demo
+        ttt = 1
+
+    @classmethod
+    def from_demo_images(cls):
+        """Construct a CBCT object and load the demo images.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_demo_images()
+        return obj
+
+    def load_demo_images(self):
+        """Load the CBCT demo images."""
+        cbct_demo_dir = osp.join(osp.dirname(osp.abspath(__file__)), 'demo_files', 'cbct')
+        demo_zip = osp.join(cbct_demo_dir, 'High quality head.zip')
+        self.load_zip_file(demo_zip)
+
+    @classmethod
+    def from_folder_UI(cls):
+        """Construct a CBCT object an get the files using a UI dialog box.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_folder_UI()
+        return obj
+
+    def load_folder_UI(self):
+        """Load the CT DICOM files from a folder using a UI dialog box."""
+        folder = get_folder_UI()
+        if folder:
+            self.load_folder(folder)
+
+    @classmethod
+    def from_folder(cls, folder):
+        """Initialize a CBCT object and specify a folder.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_folder(folder)
+        return obj
+
+    def load_folder(self, folder):
+        """Load the CT DICOM files string input.
+
+        Parameters
+        ----------
+        folder : str
+            Path to the folder.
+
+        Raises
+        ------
+        NotADirectoryError : if folder str passed is not a valid directory.
+        FileNotFoundError : If no CT images are found in the folder
+        """
+        if not osp.isdir(folder):
+            raise NotADirectoryError("Path given was not a Directory/Folder")
+
+        filelist = self._get_CT_filenames_from_folder(folder)
+        self._load_files(filelist)
+
+    @classmethod
+    def from_zip_file(cls, zip_file):
+        """Construct a CBCT object and pass the zip file.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_zip_file(zip_file)
+        return obj
+
+    def load_zip_file(self, zip_file):
+        """Load a CBCT dataset from a zip file.
+
+        Parameters
+        ----------
+        zip_file : str
+            Path to the zip file.
+
+        Raises
+        ------
+        FileExistsError : If zip_file passed was not a legitimate zip file.
+        FileNotFoundError : If no CT images are found in the folder
+        """
+        if not zipfile.is_zipfile(zip_file):
+            raise FileExistsError("Files given were not valid zip files")
+        else:
+            zfs = zipfile.ZipFile(zip_file)
+            # shutil.unpack_archive(zip_file, osp.dirname(zip_file))
+            filelist = self._get_CT_filenames_from_zip(zfs)
+            self._load_files(filelist, is_zip=True, zfiles=zfs)
+
+    def _get_CT_filenames_from_folder(self, folder):
+        """Walk through a folder to find DICOM CT images.
+
+        Parameters
+        ----------
+        folder : str
+            Path to the folder in question.
+
+        Raises
+        ------
+        FileNotFoundError : If no CT images are found in the folder
+        """
+        for par_dir, sub_dir, files in os.walk(folder):
+            filelist = [osp.join(par_dir, item) for item in files if item.endswith('.dcm') and item.startswith('CT')]
+            if filelist:
+                return filelist
+        raise FileNotFoundError("CT images were not found in the specified folder.")
+
+    def _get_CT_filenames_from_zip(self, zfile):
+        """Get the CT image file names from a zip file."""
+        allnames = zfile.namelist()
+        filelist = [item for item in allnames if os.path.basename(item).endswith('.dcm') and os.path.basename(item).startswith('CT')]
+        if filelist:
+            return filelist
+        raise FileNotFoundError("CT images were not found in the specified folder.")
+
+    def _load_files(self, file_list, is_zip=False, zfiles=None):
+        """Load CT DICOM files given a list of image paths.
+
+        Parameters
+        ----------
+        file_list : list
+            List containing strings to the CT images.
+        im_size : int
+            Specifies the size of images the DICOM images should be resized to;
+            used for simplicity of algorithm.
+        """
+        images, raw_im_order, dcm = self._validate_and_get_dcm_info(file_list, is_zip, zfiles)
+        sorted_images = self._sort_images(raw_im_order, images)
+        self.settings = Settings(sorted_images, dcm)
+
+    def _validate_and_get_dcm_info(self, file_list, is_zip, zfiles=None):
+        """Read in the images and perform validation."""
+        IMAGE_SIZE = 512
+
+        # initialize image array
+        images = np.zeros([IMAGE_SIZE, IMAGE_SIZE, len(file_list)], dtype=int)
+
+        raw_im_order = np.zeros(len(file_list))
+        # check that enough slices were loaded
+        # TODO: select better method for determining if enough slices were chosen
+        if len(file_list) < 20:
+            raise ValueError("Not enough slices were selected. Select all the files or change the SR slice value.")
+
+        # load dicom files from list names and get the image slice position
+        rd = None
+        for idx, item in enumerate(file_list):
+            if is_zip:
+                item = BytesIO(zfiles.read(item))
+            dcm = dicom.read_file(item)
+            if rd and rd != dcm.ReconstructionDiameter:
+                raise InvalidDicomError("CBCT dataset images are not from the same study")
+            rd = dcm.ReconstructionDiameter
+            raw_im_order[idx] = dcm.ImagePositionPatient[-1]
+
+            # resize image if need be
+            if dcm.pixel_array.shape != (IMAGE_SIZE, IMAGE_SIZE):
+                image = imresize(dcm.pixel_array, (IMAGE_SIZE, IMAGE_SIZE))
+            else:
+                image = dcm.pixel_array
+            # place image into images array
+            images[:, :, idx] = image
+        self._convert_imgs2HU(images, dcm)
+
+        return images, raw_im_order, dcm
+
+    def _sort_images(self, im_order, images):
+        """Sort and return the images according to the image order."""
+        sorted_images = np.zeros(images.shape, dtype=int)
+        for new, old in enumerate(np.argsort(im_order)):
+            sorted_images[:, :, new] = images[:, :, old]
+        return sorted_images
+
+    def _convert_imgs2HU(self, images, dcm):
+        """Convert the images from CT# to HU."""
+        images *= dcm.RescaleSlope
+        images += dcm.RescaleIntercept
+        return images
+
+    def _construct_HU(self):
+        """Construct the Houndsfield Unit Slice and its ROIs."""
+        self.HU = HU_Slice(self.settings)
+
+    def _construct_SR(self):
+        """Construct the Spatial Resolution Slice and its ROIs so MTF can be calculated."""
+        self.SR = SR_Slice(self.settings)
+        self.SR.calc_MTF()
+
+    def _construct_GEO(self):
+        """Construct the Geometry Slice and find the node centers."""
+        self.GEO = GEO_Slice(self.settings)
+        self.GEO.calc_node_centers()
+
+    def _construct_UNIF(self):
+        """Construct the Uniformity Slice and its ROIs."""
+        self.UN = UNIF_Slice(self.settings)
+
+    def _construct_Locon(self):
+        """Construct the Low Contrast Slice."""
+        self.LOCON = Locon_Slice(self.settings)
+
+    def plot_analyzed_image(self, show=True):
+        """Draw the ROIs and lines the calculations were done on or based on."""
+        # create figure
+        fig, ((UN_ax, HU_ax), (SR_ax, LOCON_ax)) = plt.subplots(2,2)
+
+        # Uniformity objects
+        UN_ax.imshow(self.UN.image.array)
+        for roi in self.UN.ROIs.values():
+            color = roi.get_pass_fail_color()
+            roi.add_to_axes(UN_ax, edgecolor=color)
+        UN_ax.autoscale(tight=True)
+        UN_ax.set_title('Uniformity Slice')
+
+        # HU objects
+        HU_ax.imshow(self.HU.image.array)
+        for roi in self.HU.ROIs.values():
+            color = roi.get_pass_fail_color()
+            roi.add_to_axes(HU_ax, edgecolor=color)
+        HU_ax.autoscale(tight=True)
+        HU_ax.set_title('HU & Geometric Slice')
+
+        # GEO objects
+        for line in self.GEO.lines.values():
+            line.add_to_axes(HU_ax, color='blue')
+
+        # SR objects
+        SR_ax.imshow(self.SR.image.array)
+        last_roi = len(self.SR.ROIs) - 1
+        for roi in [self.SR.ROIs[0], self.SR.ROIs[last_roi]]:
+            roi.add_to_axes(SR_ax, edgecolor='blue')
+        SR_ax.autoscale(tight=True)
+        SR_ax.set_title('Spatial Resolution Slice')
+
+        # Locon objects
+        LOCON_ax.imshow(self.LOCON.image.array)
+        LOCON_ax.set_title('Low Contrast (In Development)')
+
+        # show it all
+        if show:
+            plt.show()
+
+    def save_analyzed_image(self, filename, **kwargs):
+        """Save the analyzed plot."""
+        self.plot_analyzed_image(show=False)
+        plt.savefig(filename, **kwargs)
+
+    def plot_analyzed_subimage(self, subimage='hu', show=True):
+        """Plot a specific component of the CBCT analysis.
+
+        Parameters
+        ----------
+        subimage : {'hu', 'unif', 'sr', 'mtf'}
+            The subcomponent to plot.
+        show : bool
+            Whether to actually show the plot.
+        """
+        subimage = subimage.lower()
+        plt.clf()
+        plt.axis('off')
+
+        if subimage == 'hu':
+            # HU objects
+            plt.imshow(self.HU.image.array, cmap=plt.cm.Greys)
+            for roi in self.HU.ROIs.values():
+                color = roi.get_pass_fail_color()
+                roi.add_to_axes(plt.gca(), edgecolor=color)
+            # GEO objects
+            for line in self.GEO.lines.values():
+                line.add_to_axes(plt.gca(), color='blue')
+            # plt.title('HU & Geometric Slice')
+            plt.autoscale(tight=True)
+        elif subimage == 'unif':
+            plt.imshow(self.UN.image.array, cmap=plt.cm.Greys)
+            for roi in self.UN.ROIs.values():
+                color = roi.get_pass_fail_color()
+                roi.add_to_axes(plt.gca(), edgecolor=color)
+            plt.autoscale(tight=True)
+            # plt.title('Uniformity Slice')
+        elif subimage == 'sr':
+            # SR objects
+            plt.imshow(self.SR.image.array, cmap=plt.cm.Greys)
+            last_roi = len(self.SR.ROIs) - 1
+            for roi in [self.SR.ROIs[0], self.SR.ROIs[last_roi]]:
+                roi.add_to_axes(plt.gca(), edgecolor='blue')
+            plt.autoscale(tight=True)
+
+            # plt.title('Spatial Resolution Slice')
+        elif subimage == 'mtf':
+            plt.axis('on')
+            x = list(self.SR.LP_MTF.keys())
+            y = list(self.SR.LP_MTF.values())
+            plt.grid('on')
+            plt.plot(x, y, marker='o')
+            plt.ylim([0, 1.1])
+            plt.xlim([0.1, 1.3])
+            plt.xlabel('Line pairs / mm')
+            plt.ylabel('Relative MTF function')
+        else:
+            raise ValueError("Subimage parameter {} not understood".format(subimage))
+
+        if show:
+            plt.show()
+
+    def save_analyzed_subimage(self, filename, subimage='hu', **kwargs):
+        """Save a component image to file.
+
+        Parameters
+        ----------
+        filename : str, file object
+            The file to write the image to.
+        subimage : str
+            See :method:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
+        """
+        self.plot_analyzed_subimage(subimage, show=False)
+        plt.savefig(filename, **kwargs)
+
+    def return_results(self):
+        """Return the results of the analysis as a string. Use with print()."""
+        #TODO: make prettier
+        string = ('\n - CBCT QA Test - \n'
+                  'HU Regions: {}\n'
+                  'HU Passed?: {}\n'
+                  'Uniformity: {}\n'
+                  'Uniformity Passed?: {}\n'
+                  'MTF 80% (lp/mm): {}\n'
+                  'Geometric distances: {}\n'
+                  'Geometry Passed?: {}\n').format(self.HU.get_ROI_vals(), self.HU.overall_passed,
+                                                   self.UN.get_ROI_vals(), self.UN.overall_passed, self.SR.get_MTF(80),
+                                                   self.GEO.get_line_lengths(), self.GEO.overall_passed)
+        return string
+
+    def analyze(self, hu_tolerance=40, scaling_tolerance=1):
+        """Single-method full analysis of CBCT DICOM files.
+
+        Parameters
+        ----------
+        hu_tolerance : int
+            The HU tolerance value for both HU uniformity and linearity.
+        scaling_tolerance : float, int
+            The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP404 module).
+        """
+        if not self.images_loaded:
+            raise AttributeError("Images not yet loaded")
+        self.settings.hu_tolerance = hu_tolerance
+        self.settings.scaling_tolerance = scaling_tolerance
+
+        self._construct_HU()
+        self._construct_UNIF()
+        self._construct_GEO()
+        self._construct_SR()
+        self._construct_Locon()
+
+    @classmethod
+    def run_demo(cls):
+        obj = cls()
+        obj.run_demo()
+        return obj
+
+    def _run_demo(self, show=True):
+        """Run the CBCT demo using high-quality head protocol images."""
+        cbct = CBCT()
+        cbct.load_demo_images()
+        cbct.analyze()
+        print(cbct.return_results())
+        cbct.plot_analyzed_image(show)
+
+    @property
+    def images_loaded(self):
+        """Boolean property specifying if the images have been loaded."""
+        if self.settings is None:
+            return False
+        else:
+            return True
+
+
 class Settings:
     """Data structure for retaining certain settings and information regarding the CBCT algorithm and image data.
     This class is initialized during the CBCT image loading.
@@ -425,7 +839,6 @@ class UNIF_Slice(Base_HU_Slice):
         self.dist2objs /= self.settings.fov_ratio
         self.obj_radius /= self.settings.fov_ratio
 
-
 class Locon_Slice(Slice):
     """Class for analysis of the low contrast slice of the CBCT dicom data set."""
     # TODO: work on this
@@ -435,6 +848,7 @@ class Locon_Slice(Slice):
 
     def scale_by_FOV(self):
         pass
+
 
 class SR_Circle_ROI(CircleProfile, ROI):
     def __init__(self, name, slice_array, radius):
@@ -778,381 +1192,6 @@ class GEO_Slice(Slice):
                 return False
         return True
 
-
-class CBCT:
-    """A class for loading and analyzing Cone-Beam CT DICOM files of a CatPhan 504 (Varian; Elekta 503 is being developed.)
-    Analyzes: Uniformity, Spatial Resolution, Image Scaling & HU Linearity.
-
-    Attributes
-    ----------
-    settings : :class:`~pylinac.cbct.Settings`
-    HU : :class:`~pylinac.cbct.HU_Slice`
-    UN : :class:`~pylinac.cbct.UNIF_Slice`
-    GEO : :class:`~pylinac.cbct.GEO_Slice`
-    LOCON: :class:`~pylinac.cbct.Locon_Slice`
-        In development.
-    SR : :class:`~pylinac.cbct.SR_Slice`
-
-    Examples
-    --------
-    Run the demo:
-        >>> CBCT().run_demo()
-
-    Typical session:
-        >>> cbct_folder = r"C:/QA/CBCT/June"
-        >>> mycbct = CBCT()
-        >>> mycbct.load_folder(cbct_folder)
-        >>> mycbct.analyze()
-        >>> print(mycbct.return_results())
-        >>> mycbct.plot_analyzed_image()
-    """
-    def __init__(self):
-        self.settings = None
-        self.HU = None
-        self.UN = None
-        self.GEO = None
-        self.LOCON = None
-        self.SR = None
-
-    def load_demo_images(self, cleanup=True):
-        """Load the CBCT demo images.
-
-        Parameters
-        ----------
-        cleanup : bool
-            If True (default), delete the extracted demo files.
-            If False, leaves extracted files in the demo folder.
-            Useful if using the demo images repeatedly.
-        """
-        cbct_demo_dir = osp.join(osp.dirname(osp.abspath(__file__)), 'demo_files', 'cbct')
-        demo_zip = osp.join(cbct_demo_dir, 'High quality head.zip')
-        self.load_zip_file(demo_zip)
-
-    def load_folder_UI(self):
-        """Load the CT DICOM files from a folder using a UI."""
-        folder = get_folder_UI()
-        if folder:
-            self.load_folder(folder)
-
-    def load_folder(self, folder):
-        """Load the CT DICOM files string input.
-
-        Parameters
-        ----------
-        folder : str
-            Path to the folder.
-
-        Raises
-        ------
-        NotADirectoryError : if folder str passed is not a valid directory.
-        FileNotFoundError : If no CT images are found in the folder
-        """
-        if not osp.isdir(folder):
-            raise NotADirectoryError("Path given was not a Directory/Folder")
-
-        filelist = self._get_CT_filenames_from_folder(folder)
-        self._load_files(filelist)
-
-    def load_zip_file(self, zip_file):
-        """Load a CBCT dataset from a zip file.
-
-        Parameters
-        ----------
-        zip_file : str
-            Path to the zip file.
-
-        Raises
-        ------
-        FileExistsError : If zip_file passed was not a legitimate zip file.
-        FileNotFoundError : If no CT images are found in the folder
-        """
-        if not zipfile.is_zipfile(zip_file):
-            raise FileExistsError("Files given were not valid zip files")
-        else:
-            zfs = zipfile.ZipFile(zip_file)
-            # shutil.unpack_archive(zip_file, osp.dirname(zip_file))
-            filelist = self._get_CT_filenames_from_zip(zfs)
-            self._load_files(filelist, is_zip=True, zfiles=zfs)
-
-    def _get_CT_filenames_from_folder(self, folder):
-        """Walk through a folder to find DICOM CT images.
-
-        Parameters
-        ----------
-        folder : str
-            Path to the folder in question.
-
-        Raises
-        ------
-        FileNotFoundError : If no CT images are found in the folder
-        """
-        for par_dir, sub_dir, files in os.walk(folder):
-            filelist = [osp.join(par_dir, item) for item in files if item.endswith('.dcm') and item.startswith('CT')]
-            if filelist:
-                return filelist
-        raise FileNotFoundError("CT images were not found in the specified folder.")
-
-    def _get_CT_filenames_from_zip(self, zfile):
-        """Get the CT image file names from a zip file."""
-        allnames = zfile.namelist()
-        filelist = [item for item in allnames if os.path.basename(item).endswith('.dcm') and os.path.basename(item).startswith('CT')]
-        if filelist:
-            return filelist
-        raise FileNotFoundError("CT images were not found in the specified folder.")
-
-    def _load_files(self, file_list, is_zip=False, zfiles=None):
-        """Load CT DICOM files given a list of image paths.
-
-        Parameters
-        ----------
-        file_list : list
-            List containing strings to the CT images.
-        im_size : int
-            Specifies the size of images the DICOM images should be resized to;
-            used for simplicity of algorithm.
-        """
-        images, raw_im_order, dcm = self._validate_and_get_dcm_info(file_list, is_zip, zfiles)
-        sorted_images = self._sort_images(raw_im_order, images)
-        self.settings = Settings(sorted_images, dcm)
-
-    def _validate_and_get_dcm_info(self, file_list, is_zip, zfiles=None):
-        """Read in the images and perform validation."""
-        IMAGE_SIZE = 512
-
-        # initialize image array
-        images = np.zeros([IMAGE_SIZE, IMAGE_SIZE, len(file_list)], dtype=int)
-
-        raw_im_order = np.zeros(len(file_list))
-        # check that enough slices were loaded
-        # TODO: select better method for determining if enough slices were chosen
-        if len(file_list) < 20:
-            raise ValueError("Not enough slices were selected. Select all the files or change the SR slice value.")
-
-        # load dicom files from list names and get the image slice position
-        rd = None
-        for idx, item in enumerate(file_list):
-            if is_zip:
-                item = BytesIO(zfiles.read(item))
-            dcm = dicom.read_file(item)
-            if rd and rd != dcm.ReconstructionDiameter:
-                raise InvalidDicomError("CBCT dataset images are not from the same study")
-            rd = dcm.ReconstructionDiameter
-            raw_im_order[idx] = dcm.ImagePositionPatient[-1]
-
-            # resize image if need be
-            if dcm.pixel_array.shape != (IMAGE_SIZE, IMAGE_SIZE):
-                image = imresize(dcm.pixel_array, (IMAGE_SIZE, IMAGE_SIZE))
-            else:
-                image = dcm.pixel_array
-            # place image into images array
-            images[:, :, idx] = image
-        self._convert_imgs2HU(images, dcm)
-
-        return images, raw_im_order, dcm
-
-    def _sort_images(self, im_order, images):
-        """Sort and return the images according to the image order."""
-        sorted_images = np.zeros(images.shape, dtype=int)
-        for new, old in enumerate(np.argsort(im_order)):
-            sorted_images[:, :, new] = images[:, :, old]
-        return sorted_images
-
-    def _convert_imgs2HU(self, images, dcm):
-        """Convert the images from CT# to HU."""
-        images *= dcm.RescaleSlope
-        images += dcm.RescaleIntercept
-        return images
-
-    def _construct_HU(self):
-        """Construct the Houndsfield Unit Slice and its ROIs."""
-        self.HU = HU_Slice(self.settings)
-
-    def _construct_SR(self):
-        """Construct the Spatial Resolution Slice and its ROIs so MTF can be calculated."""
-        self.SR = SR_Slice(self.settings)
-        self.SR.calc_MTF()
-
-    def _construct_GEO(self):
-        """Construct the Geometry Slice and find the node centers."""
-        self.GEO = GEO_Slice(self.settings)
-        self.GEO.calc_node_centers()
-
-    def _construct_UNIF(self):
-        """Construct the Uniformity Slice and its ROIs."""
-        self.UN = UNIF_Slice(self.settings)
-
-    def _construct_Locon(self):
-        """Construct the Low Contrast Slice."""
-        self.LOCON = Locon_Slice(self.settings)
-
-    def plot_analyzed_image(self, show=True):
-        """Draw the ROIs and lines the calculations were done on or based on."""
-        # create figure
-        fig, ((UN_ax, HU_ax), (SR_ax, LOCON_ax)) = plt.subplots(2,2)
-
-        # Uniformity objects
-        UN_ax.imshow(self.UN.image.array)
-        for roi in self.UN.ROIs.values():
-            color = roi.get_pass_fail_color()
-            roi.add_to_axes(UN_ax, edgecolor=color)
-        UN_ax.autoscale(tight=True)
-        UN_ax.set_title('Uniformity Slice')
-
-        # HU objects
-        HU_ax.imshow(self.HU.image.array)
-        for roi in self.HU.ROIs.values():
-            color = roi.get_pass_fail_color()
-            roi.add_to_axes(HU_ax, edgecolor=color)
-        HU_ax.autoscale(tight=True)
-        HU_ax.set_title('HU & Geometric Slice')
-
-        # GEO objects
-        for line in self.GEO.lines.values():
-            line.add_to_axes(HU_ax, color='blue')
-
-        # SR objects
-        SR_ax.imshow(self.SR.image.array)
-        last_roi = len(self.SR.ROIs) - 1
-        for roi in [self.SR.ROIs[0], self.SR.ROIs[last_roi]]:
-            roi.add_to_axes(SR_ax, edgecolor='blue')
-        SR_ax.autoscale(tight=True)
-        SR_ax.set_title('Spatial Resolution Slice')
-
-        # Locon objects
-        LOCON_ax.imshow(self.LOCON.image.array)
-        LOCON_ax.set_title('Low Contrast (In Development)')
-
-        # show it all
-        if show:
-            plt.show()
-
-    def save_analyzed_image(self, filename, **kwargs):
-        """Save the analyzed plot."""
-        self.plot_analyzed_image(show=False)
-        plt.savefig(filename, **kwargs)
-
-    def plot_analyzed_subimage(self, subimage='hu', show=True):
-        """Plot a specific component of the CBCT analysis.
-
-        Parameters
-        ----------
-        subimage : {'hu', 'unif', 'sr', 'mtf'}
-            The subcomponent to plot.
-        show : bool
-            Whether to actually show the plot.
-        """
-        subimage = subimage.lower()
-        plt.clf()
-        plt.axis('off')
-
-        if subimage == 'hu':
-            # HU objects
-            plt.imshow(self.HU.image.array, cmap=plt.cm.Greys)
-            for roi in self.HU.ROIs.values():
-                color = roi.get_pass_fail_color()
-                roi.add_to_axes(plt.gca(), edgecolor=color)
-            # GEO objects
-            for line in self.GEO.lines.values():
-                line.add_to_axes(plt.gca(), color='blue')
-            # plt.title('HU & Geometric Slice')
-            plt.autoscale(tight=True)
-        elif subimage == 'unif':
-            plt.imshow(self.UN.image.array, cmap=plt.cm.Greys)
-            for roi in self.UN.ROIs.values():
-                color = roi.get_pass_fail_color()
-                roi.add_to_axes(plt.gca(), edgecolor=color)
-            plt.autoscale(tight=True)
-            # plt.title('Uniformity Slice')
-        elif subimage == 'sr':
-            # SR objects
-            plt.imshow(self.SR.image.array, cmap=plt.cm.Greys)
-            last_roi = len(self.SR.ROIs) - 1
-            for roi in [self.SR.ROIs[0], self.SR.ROIs[last_roi]]:
-                roi.add_to_axes(plt.gca(), edgecolor='blue')
-            plt.autoscale(tight=True)
-
-            # plt.title('Spatial Resolution Slice')
-        elif subimage == 'mtf':
-            plt.axis('on')
-            x = list(self.SR.LP_MTF.keys())
-            y = list(self.SR.LP_MTF.values())
-            plt.grid('on')
-            plt.plot(x, y, marker='o')
-            plt.ylim([0, 1.1])
-            plt.xlim([0.1, 1.3])
-            plt.xlabel('Line pairs / mm')
-            plt.ylabel('Relative MTF function')
-        else:
-            raise ValueError("Subimage parameter {} not understood".format(subimage))
-
-        if show:
-            plt.show()
-
-    def save_analyzed_subimage(self, filename, subimage='hu', **kwargs):
-        """Save a component image to file.
-
-        Parameters
-        ----------
-        filename : str, file object
-            The file to write the image to.
-        subimage : str
-            See :method:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
-        """
-        self.plot_analyzed_subimage(subimage, show=False)
-        plt.savefig(filename, **kwargs)
-
-    def return_results(self):
-        """Return the results of the analysis as a string. Use with print()."""
-        #TODO: make prettier
-        string = ('\n - CBCT QA Test - \n'
-                  'HU Regions: {}\n'
-                  'HU Passed?: {}\n'
-                  'Uniformity: {}\n'
-                  'Uniformity Passed?: {}\n'
-                  'MTF 80% (lp/mm): {}\n'
-                  'Geometric distances: {}\n'
-                  'Geometry Passed?: {}\n').format(self.HU.get_ROI_vals(), self.HU.overall_passed,
-                                                   self.UN.get_ROI_vals(), self.UN.overall_passed, self.SR.get_MTF(80),
-                                                   self.GEO.get_line_lengths(), self.GEO.overall_passed)
-        return string
-
-    def analyze(self, hu_tolerance=40, scaling_tolerance=1):
-        """Single-method full analysis of CBCT DICOM files.
-
-        Parameters
-        ----------
-        hu_tolerance : int
-            The HU tolerance value for both HU uniformity and linearity.
-        scaling_tolerance : float, int
-            The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP404 module).
-        """
-        if not self.images_loaded:
-            raise AttributeError("Images not yet loaded")
-        self.settings.hu_tolerance = hu_tolerance
-        self.settings.scaling_tolerance = scaling_tolerance
-
-        self._construct_HU()
-        self._construct_UNIF()
-        self._construct_GEO()
-        self._construct_SR()
-        self._construct_Locon()
-
-    def run_demo(self, show=True):
-        """Run the CBCT demo using high-quality head protocol images."""
-        cbct = CBCT()
-        cbct.load_demo_images()
-        cbct.analyze()
-        print(cbct.return_results())
-        cbct.plot_analyzed_image(show)
-
-    @property
-    def images_loaded(self):
-        """Boolean property specifying if the images have been loaded."""
-        if self.settings is None:
-            return False
-        else:
-            return True
-
 @value_accept(mode=('mean','median','max'))
 def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=1, mode='mean'):
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
@@ -1189,12 +1228,14 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 if __name__ == '__main__':
     # CBCT().run_demo()
     # zip_file = r"D:\Users\James\Dropbox\Programming\Python\Projects\PyCharm Projects\pylinac\tests\test_files\CBCT\Varian\Low dose thorax.zip"
-    cbct = CBCT()
+    CBCT.run_demo()
+    # cbct = CBCT()
+    # cbct = CBCT.from_demo_images()
     # cbct.load_zip_file(zip_file)
-    cbct.load_demo_images()
+    # cbct.load_demo_images()
     # cbct.algo_data.images = np.roll(cbct.algo_data.images, 30, axis=1)
-    cbct.analyze()
-    print(cbct.return_results())
-    cbct.plot_analyzed_image()
+    # cbct.analyze()
+    # print(cbct.return_results())
+    # cbct.plot_analyzed_image()
     # cbct.plot_analyzed_subimage('mtf')
     # cbct.save_analyzed_image('ttt.png')

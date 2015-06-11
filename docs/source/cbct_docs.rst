@@ -33,31 +33,30 @@ Results will be printed to the console and a figure showing the slices analyzed 
 Typical Use
 -----------
 
-CBCT analysis as done by this module closely follows what is specified in the CatPhan manuals, replacing the need for hand measurements.
-Assuming you've made a CBCT object as follows::
+CBCT analysis as done by this module closely follows what is specified in the CatPhan manuals, replacing the need for manual measurements.
+First, import the class::
 
     from pylinac.cbct import CBCT
-    mycbct = CBCT()
 
 The minimum needed to get going is to:
 
 * **Load images** -- Loading the DICOM images into your CBCT object can be done by passing the folder the images are located in.
-  This can be done directly, or by using a UI. The code might look like either of the following::
+  This can be done directly, or by using a UI. The code might look like any of the following::
 
     # set the folder path
     cbct_folder = r"C:/QA Folder/CBCT/June monthly"  # use of 'r' is for raw string; otherwise spaces and backslashes aren't interpreted properly
     # load the images from the file path
-    mycbct.load_folder(cbct_folder)
+    mycbct = CBCT.from_folder(cbct_folder)
 
-    # *OR*
+  or::
 
     zip_file = r"C:/QA Folder/CBCT/June monthly.zip"
-    mycbct.load_zip_file(zip_file)
+    mycbct = CBCT.from_zip_file(zip_file)
 
-    # *OR*
+  or::
 
     # Identify the folder using a UI
-    mycbct.load_folder_UI()
+    mycbct = CBCT.from_folder_UI()
 
 
 * **Analyze the images** -- Once the folder/images are loaded, tell CBCT to start analyzing the images. See the
@@ -72,6 +71,18 @@ The minimum needed to get going is to:
       mycbct.return_results()
       # view analyzed images
       mycbct.plot_analyzed_image()
+
+.. note::
+    In previous versions of pylinac, loading images was instance-method based, meaning loading looked like the following::
+
+        mycbct = CBCT()
+        mycbct.load_zip_file('cbcts.zip')
+
+    This behavior has been deprecated in favor of class-method constructors (`CBCT.from_X`). The reason for this is that
+    certain actions should only be allowed until after the images are loaded. Furthermore, loading the images should always be
+    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
+    Don't worry though, the old behavior still works.
+
 
 .. _acquiring_cbct_images:
 
