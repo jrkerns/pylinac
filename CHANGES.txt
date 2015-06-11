@@ -1,11 +1,13 @@
-V 0.6.0  6/10/15
+V 0.6.0  6/11/15
 
     General
 - Pylinac now has a wheel variation. Installation should thus be quicker for users with Python 3.4.
 
     Class-based Constructors
-- This release presents a new way of loading and initializing classes for the PicketFence, Starshot, VMAT and CBCT classes.
-  Those classes all now have `X.from_Y`-type constructors. This allows the user to both initialize and load the images/data
+- This release presents a normalized and new way of loading and initializing classes for the PicketFence, Starshot, VMAT and CBCT classes.
+  Those classes all now accept the image path (folder path for CBCT) in the initialization method. Loading other types of data is
+  should be delegated to class-based constructors (e.g. to load a zip file into the CBCT class, one would use
+  ``cbct = CBCT.from_zip_file('zfiles.zip')``). This allows the user to both initialize and load the images/data
   in one step. Also prevents user from using methods before initialization (i.e. safer). See ReadTheDocs page for more info.
 
     Dependencies

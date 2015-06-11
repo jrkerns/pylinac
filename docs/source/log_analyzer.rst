@@ -101,6 +101,10 @@ Or::
     log2 = MachineLog()
     log2.load(log_path)
 
+Or load a log from a UI dialog box::
+
+    log = MachineLog.from_UI()
+
 Pylinac will automatically infer the log type and load it into data structures for analysis.
 
 Working with the Data
@@ -309,6 +313,9 @@ API Documentation
     :no-show-inheritance:
 
 .. autoclass:: pylinac.log_analyzer.Tlog_Axis_Data
+    :no-show-inheritance:
+
+.. autoclass:: pylinac.log_analyzer.SubbeamHandler
     :no-show-inheritance:
 
 .. autoclass:: pylinac.log_analyzer.Subbeam

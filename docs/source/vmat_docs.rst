@@ -52,7 +52,7 @@ The minimum needed to get going is to:
 
       open_img = "C:/QA Folder/VMAT/open_field.dcm"  # note the 'open'
       dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"  # no 'open'
-      myvmat = VMAT.from_images(open_img, dmlc_img)  # the order doesn't matter
+      myvmat = VMAT((open_img, dmlc_img))  # the order doesn't matter
 
   Even easier, you can load the files using a UI dialog box::
 
@@ -74,8 +74,8 @@ The minimum needed to get going is to:
 
   .. note::
     In previous versions of pylinac, loading images was instance-method based and only allowed one image at a time,
-    meaning loading looked like the 3rd example above, no matter the name. This behavior has been deprecated in favor
-    of class-method constructors (``VMAT.from_X``). The reason for this is that
+    meaning loading looked like the 3rd example above, no matter the name. This behavior has been simplified in favor
+    of initialization normalization and adding class-method constructors (``VMAT.from_X``). The reason for this is that
     certain actions should only be allowed until after the images are loaded. Furthermore, loading the images should always be
     the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
     Don't worry though, the old behavior still works.

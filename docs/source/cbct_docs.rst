@@ -45,19 +45,29 @@ The minimum needed to get going is to:
 
     # set the folder path
     cbct_folder = r"C:/QA Folder/CBCT/June monthly"  # use of 'r' is for raw string; otherwise spaces and backslashes aren't interpreted properly
-    # load the images from the file path
-    mycbct = CBCT.from_folder(cbct_folder)
+    # load the images from the folder path
+    mycbct = CBCT(cbct_folder)
 
   or::
 
     zip_file = r"C:/QA Folder/CBCT/June monthly.zip"
     mycbct = CBCT.from_zip_file(zip_file)
 
-  or::
+  or using a dialog box::
 
     # Identify the folder using a UI
     mycbct = CBCT.from_folder_UI()
 
+  .. note::
+    In previous versions of pylinac, loading images was instance-method based, meaning loading looked like the following::
+
+        mycbct = CBCT()
+        mycbct.load_zip_file('cbcts.zip')
+
+    This behavior has been deprecated in favor of class-method constructors (``CBCT.from_X``). The reason for this is that
+    certain actions should only be allowed until after the images are loaded. Furthermore, loading the images should always be
+    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
+    Don't worry though, the old behavior still works.
 
 * **Analyze the images** -- Once the folder/images are loaded, tell CBCT to start analyzing the images. See the
   Algorithm section for details on how this is done::
@@ -72,18 +82,6 @@ The minimum needed to get going is to:
       # view analyzed images
       mycbct.plot_analyzed_image()
 
-.. note::
-    In previous versions of pylinac, loading images was instance-method based, meaning loading looked like the following::
-
-        mycbct = CBCT()
-        mycbct.load_zip_file('cbcts.zip')
-
-    This behavior has been deprecated in favor of class-method constructors (``CBCT.from_X``). The reason for this is that
-    certain actions should only be allowed until after the images are loaded. Furthermore, loading the images should always be
-    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
-    Don't worry though, the old behavior still works.
-
-
 .. _acquiring_cbct_images:
 
 Acquiring the Images
@@ -96,8 +94,7 @@ presets (Head, Pelvis, etc) and acquire the images. Export or copy the images to
 .. note::
     If the CatPhan is not aligned to the center of the HU module, you can set a z-offset in the algorithm like so::
 
-        cbct = CBCT()
-        cbct.load_folder('mycbctfolder')
+        cbct = CBCT('mycbctfolder')
         cbct.settings.phantom_z_offset = 5  # value is in number of slices
 
     See :class:`~pylinac.cbct.Settings` for further info.
@@ -138,7 +135,7 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
   could invalidate automatic results. The roll of the phantom is determined by examining the HU module and converting to
   binary. The air holes are then located and the angle of the two holes determines the phantom roll.
 
-    .. note::
+  .. note::
         For each step below, the "module" analyzed is actually the mean, median, or maximum of 3 slices (+/-1 slice around and
         including the nominal slice) to ensure robust measurements. Also, for each step/phantom module, the phantom center is
         determined, which corrects for the phantom pitch and yaw.

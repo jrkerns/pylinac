@@ -69,15 +69,15 @@ The minimum needed to get going is to:
   directly, or by using a UI dialog box to retrieve the image manually. The code might look like either of the following::
 
     pf_img = r"C:/QA Folder/June/PF_6_21.dcm"
-    mypf = PicketFence.from_image(pf_img)
+    mypf = PicketFence(pf_img)
 
   Or, load using a UI dialog box::
 
     mypf = PicketFence.from_image_UI()  # UI dialog will pop up
 
   .. note::
-    In previous versions of pylinac, loading images was instance-method based. This behavior has been deprecated in favor
-    of class-method constructors (``PicketFence.from_X``). The reason for this is that
+    In previous versions of pylinac, loading images was instance-method based. This behavior has been simplified in favor
+    of initialization normalization and adding class-method constructors (``PicketFence.from_X``). The reason for this is that
     certain actions should only be allowed until after the image is loaded. Furthermore, loading the image should always be
     the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
     Don't worry though, the old behavior still works.
