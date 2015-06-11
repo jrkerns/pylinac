@@ -45,13 +45,15 @@ class VMAT:
         A typical use case:
             >>> open_img = "C:/QA Folder/VMAT/open_field.dcm"
             >>> dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
-            >>> myvmat = VMAT.from_images(open_img, dmlc_img)
+            >>> myvmat = VMAT((open_img, dmlc_img))
             >>> myvmat.analyze(test='mlcs', tolerance=1.5)
             >>> print(myvmat.return_results())
             >>> myvmat.plot_analyzed_image()
     """
-    def __init__(self):
+    def __init__(self, images=None):
         self.settings = Settings('', 1.5)
+        if images is not None:
+            self.load_images(images)
 
     @classmethod
     def from_images_UI(cls):
@@ -106,16 +108,16 @@ class VMAT:
             self.image_dmlc = img
 
     @classmethod
-    def from_images(cls, img1, img2):
+    def from_images(cls, images):
         """Construct a VMAT instance and pass the DMLC and Open images.
 
         .. versionadded:: 0.6
         """
         obj = cls()
-        obj.load_images(img1, img2)
+        obj.load_images(images)
         return obj
 
-    def load_images(self, img1, img2):
+    def load_images(self, images):
         """Load both images simultaneously, assuming a clear name convention:
         the open image must have 'open' in the filename.
 
@@ -126,12 +128,15 @@ class VMAT:
         img1, img2 : str
             File paths to the images. Order does not matter. The open image must have 'open' somewhere in the name.
         """
-        for img in [img1, img2]:
-            if 'open' in img.lower():
+        if len(images) != 2:
+            raise ValueError("Exactly 2 images must be passed")
+
+        for image in images:
+            if 'open' in image.lower():
                 im_type = 'open'
             else:
                 im_type = 'dmlc'
-            self.load_image(img, im_type=im_type)
+            self.load_image(image, im_type=im_type)
 
     @classmethod
     def from_demo_images(cls, type='drgs'):
@@ -176,7 +181,7 @@ class VMAT:
     def run_demo_mlcs(self, tolerance=1.5):
         """Run the VMAT demo for the MLC leaf speed test."""
         self.load_demo_image('mlcs')
-        self.analyze(test='drmlc', tolerance=tolerance)
+        self.analyze(test='mlcs', tolerance=tolerance)
         print(self.return_results())
         self.plot_analyzed_image()
 
