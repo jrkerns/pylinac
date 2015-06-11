@@ -36,8 +36,7 @@ class PicketFence:
 
     Typical session:
         >>> img_path = r"C:/QA/June/PF.dcm"  # the EPID image
-        >>> mypf = PicketFence()
-        >>> mypf.load_image(img_path)
+        >>> mypf = PicketFence.from_image(img_path)
         >>> mypf.analyze(tolerance=0.5, action_tolerance=0.3)
         >>> print(mypf.return_results())
         >>> mypf.plot_analyzed_image()
@@ -117,10 +116,29 @@ class PicketFence:
         """Return the number of pickets determined."""
         return len(self.pickets)
 
+    @classmethod
+    def from_demo_image(cls):
+        """Construct a PicketFence instance using the demo image.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_demo_image()
+        return obj
+
     def load_demo_image(self):
         """Load the demo image that is included with pylinac."""
         im_open_path = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
         self.load_image(im_open_path)
+
+    @classmethod
+    def from_image(cls, filepath, filter=None):
+        """Construct a PicketFence instance and load an image.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_image(filepath, filter=filter)
 
     def load_image(self, file_path, filter=None):
         """Load the image
@@ -137,6 +155,16 @@ class PicketFence:
         if isinstance(filter, int):
             self.image.array = spfilt.median_filter(self.image.array, size=filter)
         self._clear_attrs()
+
+    @classmethod
+    def from_image_UI(cls):
+        """Construct a PicketFence instance and load an image using a dialog box.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_image_UI()
+        return obj
 
     def load_image_UI(self):
         """Load the image using a UI dialog box."""
@@ -181,8 +209,8 @@ class PicketFence:
         """Analysis"""
         self._construct_pickets(tolerance, action_tolerance)
         leaf_centers = self._find_leaf_centers(hdmlc)
-        self.calc_mlc_positions(leaf_centers)
-        self.calc_mlc_error()
+        self._calc_mlc_positions(leaf_centers)
+        self._calc_mlc_error()
 
     def _construct_pickets(self, tolerance, action_tolerance):
         """Construct the Picket instances."""
@@ -260,7 +288,7 @@ class PicketFence:
             leaf_center_idxs = np.array(peak_idxs[:-1]) + peak_diff / 2
         return leaf_center_idxs
 
-    def calc_mlc_positions(self, leaf_centers):
+    def _calc_mlc_positions(self, leaf_centers):
         """Calculate the positions of all the MLC pairs."""
         diff = np.diff(leaf_centers)
         sample_width = np.round(np.median(diff*2/5)/2).astype(int)
@@ -280,7 +308,7 @@ class PicketFence:
                     meas = MLC_Meas((mlc_rows[0], peak.idx), (mlc_rows[-1], peak.idx))
                 self.pickets[idx].mlc_meas.append(meas)
 
-    def calc_mlc_error(self):
+    def _calc_mlc_error(self):
         """Calculate the error of the MLC positions relative to the picket fit."""
         for picket in self.pickets:
             picket.fit_poly()
@@ -355,7 +383,7 @@ class PicketFence:
         plt.savefig(filename, **kwargs)
 
     def return_results(self):
-        """Print results of analysis."""
+        """Return results of analysis. Use with print()."""
         pass_pct = self.percent_passing
         string = "Picket Fence Results: \n{:2.1f}% " \
                  "Passed\nMedian Error: {:2.3f}mm \n" \
@@ -556,9 +584,9 @@ if __name__ == '__main__':
     # import cProfile
     # cProfile.run('PicketFence().run_demo()', sort=1)
     # PicketFence().run_demo()
-    pf = PicketFence()
+    pf = PicketFence.from_demo_image()
     # pf.open_UI()
-    pf.load_demo_image()
+    # pf.load_demo_image()
     # pf.image.rot90()
     # pf.image.array = rotate(pf.image.array, 0.5, reshape=False, mode='nearest')
     pf.analyze(tolerance=0.15, action_tolerance=0.03)

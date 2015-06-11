@@ -30,7 +30,7 @@ If an "action tolerance" is also passed to :func:`~pylinac.picketfence.PicketFen
 tolerance are turned magenta.
 
 Additionally, pylinac provides a semi-transparent colored overlay so that an "all clear"
-or "A pair failed" status is easily seen and not inadvertently overlooked. If any MLC position is outside the action
+or a "pair(s) failed" status is easily seen and not inadvertently overlooked. If any MLC position is outside the action
 tolerance or the absolute tolerance, the entire MLC pair area is colored the corresponding color. In this way, not
 every position needs be looked at. If all rows are green, then all positions passed.
 
@@ -51,28 +51,36 @@ Results will be printed to the console and a figure showing the analyzed picket 
 
 .. image:: images/PF_analyzed.png
 
+If you just want to use the demo image without doing analysis::
+
+    mypf = PicketFence.from_demo_image()
+
 Typical Use
 -----------
 
 Picket Fence tests are recommended to be done weekly. With automatic software analysis, this can be a trivial task.
-Once the test is delivered, retrieve the DICOM image and save it to a known location::
+Once the test is delivered, retrieve the DICOM image and save it to a known location. Then import the class::
 
     from pylinac.picketfence import PicketFence
-    mypf = PicketFence()
 
 The minimum needed to get going is to:
 
 * **Load the PF image** -- As with most other pylinac modules, loading images can be done by passing the image string
   directly, or by using a UI dialog box to retrieve the image manually. The code might look like either of the following::
 
-    pf_img = r"C:/QA Folder/June/PF_6_21.dcm"  # use of 'r' is for raw string; otherwise spaces and backslashes aren't interpreted properly
-    # load the images from the file path
-    mypf.load_image(pf_img)
+    pf_img = r"C:/QA Folder/June/PF_6_21.dcm"
+    mypf = PicketFence.from_image(pf_img)
 
-  Or::
+  Or, load using a UI dialog box::
 
-    # Identify the image using a UI
-    mypf.load_image_UI()
+    mypf = PicketFence.from_image_UI()  # UI dialog will pop up
+
+  .. note::
+    In previous versions of pylinac, loading images was instance-method based. This behavior has been deprecated in favor
+    of class-method constructors (``PicketFence.from_X``). The reason for this is that
+    certain actions should only be allowed until after the image is loaded. Furthermore, loading the image should always be
+    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
+    Don't worry though, the old behavior still works.
 
 * **Analyze the images** -- Once the image is loaded, tell PicketFence to start analyzing the image. See the
   Algorithm section for details on how this is done. While defaults exist, you may pass in a tolerance as well as
