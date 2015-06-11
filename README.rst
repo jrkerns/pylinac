@@ -5,6 +5,9 @@ Pylinac
     :target: https://pypi.python.org/pypi/pylinac
     :alt: Latest Version
 
+.. image:: https://img.shields.io/pypi/l/pylinac.svg
+    :target: https://pypi.python.org/pypi/pylinac/
+
 .. image:: https://travis-ci.org/jrkerns/pylinac.svg?branch=master
     :target: https://travis-ci.org/jrkerns/pylinac
 
