@@ -16,7 +16,7 @@ from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Line, Circle
 from pylinac.core.image import Image
 from pylinac.core.io import get_filepath_UI, get_filenames_UI
-from pylinac.core.profile import CircleProfile, SingleProfile
+from pylinac.core.profile import SingleProfile, CollapsedCircleProfile
 
 
 class Starshot:
@@ -37,17 +37,19 @@ class Starshot:
 
     Typical session:
         >>> img_path = r"C:/QA/Starshots/Coll.jpeg"
-        >>> mystar = Starshot.from_image(img_path)
+        >>> mystar = Starshot(img_path)
         >>> mystar.analyze()
         >>> print(mystar.return_results())
         >>> mystar.plot_analyzed_image()
     """
-    def __init__(self):
+    def __init__(self, filepath=None):
         # self.image = Image  # The image array and image property structure
         self.circle_profile = StarProfile()  # a circular profile which will detect radiation line locations
         self.lines = []  # a list which will hold Line instances representing radiation lines.
         self.wobble = Wobble()  # A Circle representing the radiation wobble
         self.tolerance = Tolerance(1, 'pixels')
+        if filepath is not None:
+            self.load_image(filepath)
 
     @classmethod
     def from_demo_image(cls):
@@ -514,7 +516,7 @@ class Wobble(Circle):
         return self.radius_mm*2
 
 
-class StarProfile(CircleProfile):
+class StarProfile(CollapsedCircleProfile):
     """Class that holds and analyzes the circular profile which finds the radiation lines."""
     def __init__(self, center=None, radius=None):
         super().__init__(center=center, radius=radius)
@@ -527,17 +529,7 @@ class StarProfile(CircleProfile):
         core.profile.CircleProfile.get_profile : Further parameter info
         """
         prof_size = 4*self.radius*np.pi
-        super().get_profile(image_array, prof_size)
-
-        mean_prof = np.zeros(prof_size)
-        rrange = np.linspace(start=0.9, stop=1, num=int(self.radius*0.1))
-        for rad in rrange[::-1]:
-            prof = CircleProfile(self.center, self.radius*rad)
-            prof.get_profile(image_array, prof_size)
-            mean_prof += prof.y_values
-        mean_prof /= len(rrange)
-
-        self.y_values = mean_prof
+        super().get_profile(image_array, size=prof_size)
         self._roll_prof_to_midvalley()
         self.ground()
 
@@ -545,10 +537,6 @@ class StarProfile(CircleProfile):
         """Roll the circle profile so that its edges are not near a radiation line.
             This is a prerequisite for properly finding star lines.
         """
-        # vals, indx = self.find_peaks(return_it=True)
-        # dindx = np.diff(indx)
-        # roll_amount = int(indx[0] - np.median(dindx)/2)
-        # Find index of the min value(s)
         roll_amount = np.where(self.y_values == self.y_values.min())[0][0]
         # Roll the profile and x and y coordinates
         self.y_values = np.roll(self.y_values, -roll_amount)
@@ -616,6 +604,6 @@ if __name__ == '__main__':
     # star.load_demo_image()
     star.analyze(radius=0.95, min_peak_height=0.25, fwhm=True)
     # star.analyze(recursive=True)
-    # print(star.return_results())
-    star.plot_analyzed_image()
+    print(star.return_results())
+    # star.plot_analyzed_image()
     # star.save_analyzed_image('tester.png', bbox_inches='tight', pad_inches=0)
