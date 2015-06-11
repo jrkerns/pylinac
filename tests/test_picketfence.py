@@ -16,16 +16,14 @@ class PF_EPID_demo(unittest.TestCase):
         self.pf.run_demo()
 
     def test_rotated_demo(self):
-        self.pf = PicketFence()
-        self.pf.load_demo_image()
+        self.pf = PicketFence.from_demo_image()
         self.pf.image.rot90()
         self.pf.analyze()
         self.pf.return_results()
         self.pf.plot_analyzed_image()
 
     def test_demo_lower_tolerance(self):
-        self.pf = PicketFence()
-        self.pf.load_demo_image()
+        self.pf = PicketFence.from_demo_image()
         self.pf.analyze(0.15, action_tolerance=0.05)
         self.pf.plot_analyzed_image()
         self.assertAlmostEqual(self.pf.percent_passing, 95, delta=0.5)
@@ -50,8 +48,7 @@ class PF_EPID_demo(unittest.TestCase):
         self.assertAlmostEqual(self.pf.max_error, 0.213, delta=0.08)
 
     def test_filter_on_load(self):
-        pf = PicketFence()
-        pf.load_image(osp.join(self.test_im_path, 'EPID-PF.dcm'), filter=3)
+        pf = PicketFence.from_image(osp.join(self.test_im_path, 'EPID-PF.dcm'), filter=3)
 
     def test_passed(self):
         self.assertTrue(self.pf.passed)

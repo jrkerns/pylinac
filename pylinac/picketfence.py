@@ -36,14 +36,16 @@ class PicketFence:
 
     Typical session:
         >>> img_path = r"C:/QA/June/PF.dcm"  # the EPID image
-        >>> mypf = PicketFence.from_image(img_path)
+        >>> mypf = PicketFence(img_path)
         >>> mypf.analyze(tolerance=0.5, action_tolerance=0.3)
         >>> print(mypf.return_results())
         >>> mypf.plot_analyzed_image()
     """
-    def __init__(self):
+    def __init__(self, filename=None, filter=None):
         self.pickets = []
         self._action_lvl = None
+        if filename is not None:
+            self.load_image(filename, filter)
 
     def _clear_attrs(self):
         """Clear attributes; necessary when new image loaded or analysis done on same image."""
