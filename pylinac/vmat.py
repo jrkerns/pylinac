@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from pylinac.core.decorators import value_accept, type_accept
 from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Rectangle
-from pylinac.core.io import get_filepath_UI
+from pylinac.core.io import get_filepath_UI, get_filenames_UI
 from pylinac.core.utilities import typed_property
 
 
@@ -27,6 +27,13 @@ class VMAT:
         regions of interest (segments) based on the Varian RapidArc QA specifications,
         specifically, the Dose Rate & Gantry Speed (DRGS) and Dose Rate & MLC speed (DRMLC) tests.
 
+        Attributes
+        ----------
+        image_open : :class:`~pylinac.core.image.Image`
+        image_dmlc : :class:`~pylinac.core.image.Image`
+        segments : :class:`~pylinac.vmat.SegmentHandler`
+        settings : :class:`~pylinac.vmat.Settings`
+
         Examples
         --------
         Run the DRGS demo:
@@ -38,26 +45,30 @@ class VMAT:
         A typical use case:
             >>> open_img = "C:/QA Folder/VMAT/open_field.dcm"
             >>> dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
-            >>> myvmat = VMAT()
-            >>> myvmat.load_image(open_img, im_type='open')
-            >>> myvmat.load_image(dmlc_img, im_type='dmlc')
+            >>> myvmat = VMAT.from_images(open_img, dmlc_img)
             >>> myvmat.analyze(test='mlcs', tolerance=1.5)
             >>> print(myvmat.return_results())
             >>> myvmat.plot_analyzed_image()
-
-        Attributes
-        ----------
-        image_open : :class:`~pylinac.core.image.ImageObj`
-            The open-field image object.
-        image_dmlc : :class:`~pylinac.core.image.ImageObj`
-            The dmlc-field image object.
-        segments : list
-            A list containing :class:`Segment` instances.
-        settings : :class:`~pylinac.vmat.Settings`
-            Settings for analysis.
     """
     def __init__(self):
         self.settings = Settings('', 1.5)
+
+    @classmethod
+    def from_images_UI(cls):
+        """Construct a VMAT instance and select the files via a UI dialog box.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_images_UI()
+        return obj
+
+    def load_images_UI(self):
+        """Load images via a UI dialog box. The open field must have 'open' in the name."""
+        fs = get_filenames_UI()
+        if len(fs) != 2:
+            raise ValueError("Exactly 2 images must be selected")
+        self.load_images(fs[0], fs[1])
 
     @value_accept(im_type=im_types)
     def load_image_UI(self, im_type='open'):
@@ -93,6 +104,44 @@ class VMAT:
             self.image_open = img
         elif _is_dmlc_type(im_type):
             self.image_dmlc = img
+
+    @classmethod
+    def from_images(cls, img1, img2):
+        """Construct a VMAT instance and pass the DMLC and Open images.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_images(img1, img2)
+        return obj
+
+    def load_images(self, img1, img2):
+        """Load both images simultaneously, assuming a clear name convention:
+        the open image must have 'open' in the filename.
+
+        .. versionadded:: 0.6
+
+        Parameters
+        ----------
+        img1, img2 : str
+            File paths to the images. Order does not matter. The open image must have 'open' somewhere in the name.
+        """
+        for img in [img1, img2]:
+            if 'open' in img.lower():
+                im_type = 'open'
+            else:
+                im_type = 'dmlc'
+            self.load_image(img, im_type=im_type)
+
+    @classmethod
+    def from_demo_images(cls, type='drgs'):
+        """Construct a VMAT instance using the demo images.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_demo_image(type=type)
+        return obj
 
     @value_accept(type=test_types)
     def load_demo_image(self, type='drgs'):
@@ -466,10 +515,12 @@ def _x_in_y(x, y):
 if __name__ == '__main__':
     vmat = VMAT()
     vmat.settings.x_offset = 20
-    vmat.load_demo_image()
+    vmat.load_images_UI()
+    # vmat.load_demo_image()
     vmat.analyze('drgs')
-    fig = vmat.plot_analyzed_image(image='dmlc')
+    # fig = vmat.plot_analyzed_image(image='dmlc')
     # plt.show(fig)
+    vmat.plot_analyzed_image()
     # vmat.save_analyzed_image('testt.png')
     # vmat.run_demo_mlcs()
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo

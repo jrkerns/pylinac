@@ -34,33 +34,51 @@ Image Acquisition
 If you want to perform these specific QA tests, you'll need DICOM plan files that control the linac precisely to deliver the test fields.
 These can be downloaded from my.varian.com. Once logged in, search for RapidArc and you should see two items called "RapidArc QA Test Procedures
 and Files for TrueBeam"; there will be a corresponding one for C-Series. Use the RT Plan files and follow the instructions, not including the assessment procedure,
-which is the point of this module. Save the images somewhere you can access.
+which is the point of this module. Save & move the images to a place you can use pylinac.
 
 Typical Use
 -----------
 
-The VMAT QA analysis follows what is specified in the Varian RapidArc QA tests and assumes your tests will run the exact same way. Let us assume
-you've made a VMAT object as follows::
+The VMAT QA analysis follows what is specified in the Varian RapidArc QA tests and assumes your tests will run the exact same way.
+Import the class::
 
     from pylinac.vmat import VMAT
-    myvmat = VMAT()
 
 The minimum needed to get going is to:
 
-* **Load images** -- Loading the EPID DICOM images into your VMAT class object can be done by passing the file path or by using a UI to
-  find and get each file. The code might look like either of the following::
+* **Load images** -- Loading the EPID DICOM images into your VMAT class object can be done by passing the file path(s) or by using a UI to
+  find and get the file(s). While each image can be loaded directly, using an easy naming convention can simplify the process. Just make
+  sure the string 'open' (case-insensitive) is in the Open field filename::
 
-      # set the file path
-      open_img = "C:/QA Folder/VMAT/open_field.dcm"
-      dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
-      # load the images from the file path
+      open_img = "C:/QA Folder/VMAT/open_field.dcm"  # note the 'open'
+      dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"  # no 'open'
+      myvmat = VMAT.from_images(open_img, dmlc_img)  # the order doesn't matter
+
+  Even easier, you can load the files using a UI dialog box::
+
+    myvmat = VMAT.from_images_UI()  # a dialog box will pop up for you to choose both images
+
+  You can also load the images one at a time. This is helpful when the file names do not follow the naming convention::
+
+      open_img = "path/to/img1.dcm"
+      dmlc_img = "path/to/img2.dcm"
+      myvmat = VMAT()
       myvmat.load_image(open_img, im_type='open')
       myvmat.load_image(dmlc_img, im_type='mlc')
 
-  or load from a UI dialog box::
+  Or load the files individually from a UI dialog box::
 
+      myvmat = VMAT()
       myvmat.load_image_UI(im_type='open')  # tkinter UI box will pop up
       myvmat.load_image_UI(im_type='mlc')
+
+  .. note::
+    In previous versions of pylinac, loading images was instance-method based and only allowed one image at a time,
+    meaning loading looked like the 3rd example above, no matter the name. This behavior has been deprecated in favor
+    of class-method constructors (``VMAT.from_X``). The reason for this is that
+    certain actions should only be allowed until after the images are loaded. Furthermore, loading the images should always be
+    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
+    Don't worry though, the old behavior still works.
 
 * **Analyze the images** -- This is where pylinac does its work. Once the images are loaded, tell VMAT to analyze the images. See the
   Algorithm section for details on how this is done. The test to run (whether DRGS or MLCS) needs to be specified. Tolerance
@@ -87,8 +105,7 @@ Furthermore, the location of the segments can be adjusted. Older QA tests had th
 The new revision of tests is now centered. To account for this, a :class:`~pylinac.vmat.Settings` class has been made
 and can be used to customize the position of segments. Both an ``x_offset`` and ``y_offset`` attribute can be adjusted::
 
-    myvmat = VMAT()
-    myvmat.load_demo_images('drgs')
+    myvmat = VMAT.from_demo_images('drgs')
     myvmat.settings.x_offset = 20
     myvmat.analyze('drgs')
 
@@ -159,11 +176,10 @@ API Documentation
 .. autoclass:: pylinac.vmat.VMAT
     :no-show-inheritance:
 
-.. autoclass:: pylinac.vmat.Segment
-
 .. autoclass:: pylinac.vmat.Settings
     :no-show-inheritance:
 
+.. autoclass:: pylinac.vmat.SegmentHandler
+    :no-show-inheritance:
 
-
-
+.. autoclass:: pylinac.vmat.Segment
