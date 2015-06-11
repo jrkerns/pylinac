@@ -121,12 +121,12 @@ class Test_CBCT_demo(unittest.TestCase, Varian_CBCT):
     @classmethod
     def setUpClass(cls):
         cls.cbct = CBCT()
-        cls.cbct.load_demo_images(cleanup=False)
+        cls.cbct.load_demo_images()
 
     @classmethod
     def tearDownClass(cls):
         """Remove the demo directory upon test class finish."""
-        cls.cbct.load_demo_images(cleanup=True)
+        cls.cbct.load_demo_images()
 
     def test_phantom_roll(self):
         exp_roll = 0.004
