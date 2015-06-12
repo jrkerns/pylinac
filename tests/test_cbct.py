@@ -1,7 +1,10 @@
 import unittest
+import os
 import os.path as osp
+import time
 
 import numpy as np
+from dicom.errors import InvalidDicomError
 
 from pylinac.cbct import CBCT
 from pylinac.core.geometry import Point
@@ -18,7 +21,20 @@ class Test_General(unittest.TestCase):
 
     def test_demo(self):
         """Run the demo to make sure it works."""
-        self.cbct.run_demo(show=False)
+        self.cbct.run_demo()
+
+    def test_loading(self):
+        """Test various loading schemes."""
+        # load demo images
+        CBCT.from_demo_images()
+
+        # load from folder directly
+        folder = osp.join(varian_test_file_dir, 'Pelvis')
+        CBCT(folder)
+
+        # load from zip file
+        zfile = osp.join(varian_test_file_dir, 'Pelvis.zip')
+        CBCT.from_zip_file(zfile)
 
     def test_images_not_loaded(self):
         """Raise error if trying to analyze when images aren't loaded yet."""
@@ -35,9 +51,20 @@ class Test_General(unittest.TestCase):
         not_image_folder = osp.join(osp.dirname(__file__), 'core')
         self.assertRaises(FileNotFoundError, self.cbct.load_folder, not_image_folder)
 
+        no_CT_images_zip = osp.join(varian_test_file_dir, 'dummy.zip')
+        self.assertRaises(FileNotFoundError, self.cbct.load_zip_file, no_CT_images_zip)
+
     def test_too_few_images_loaded(self):
         """Test when too few images are given to be loaded."""
-        pass
+        not_enough_images = osp.join(varian_test_file_dir, 'Pelvis_not_enough.zip')
+        with self.assertRaises(ValueError):
+            self.cbct.load_zip_file(not_enough_images)
+
+    def test_images_not_from_same_study(self):
+        """Loading images from different studies should raise and error."""
+        mixed_zip = osp.join(varian_test_file_dir, 'mixed_studies.zip')
+        with self.assertRaises(InvalidDicomError):
+            self.cbct.load_zip_file(mixed_zip)
 
     def test_phan_center(self):
         """Test locations of the phantom center."""
@@ -55,6 +82,30 @@ class Test_General(unittest.TestCase):
         self.assertAlmostEqual(self.cbct.HU.phan_center.x, shifted_phan_center.x, delta=0.7)
         self.assertAlmostEqual(self.cbct.HU.phan_center.y, shifted_phan_center.y, delta=0.7)
 
+    def test_save_image(self):
+        """Test that saving an image does something."""
+        filename = 'saved_img.jpg'
+
+        self.cbct.load_demo_images()
+        self.cbct.analyze(hu_tolerance=10, scaling_tolerance=0.01)
+        for method in ['save_analyzed_image', 'save_analyzed_subimage']:
+            methodcall = getattr(self.cbct, method)
+            methodcall(filename)
+            time.sleep(0.1)  # sleep just to let OS work
+            self.assertTrue(osp.isfile(filename), "Save file did not successfully save the image")
+
+            # cleanup
+            os.remove(filename)
+            self.assertFalse(osp.isfile(filename), "Save file test did not clean up saved image")
+
+    def test_plot_images(self):
+        """Test the various plotting functions."""
+        self.cbct.load_demo_images()
+        self.cbct.analyze()
+
+        self.cbct.plot_analyzed_image()
+        for item in ['hu', 'unif', 'mtf', 'sr']:
+            self.cbct.plot_analyzed_subimage(item)
 
 class Varian_CBCT:
     """A base class to use for Varian CBCT scans; does not inherit from TestCase as it would be run

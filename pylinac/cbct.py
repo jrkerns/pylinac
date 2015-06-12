@@ -27,7 +27,7 @@ from pylinac.core.decorators import value_accept, type_accept
 from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Circle, sector_mask, Line
 from pylinac.core.profile import CircleProfile, Profile
-from pylinac.core.io import get_folder_UI
+from pylinac.core.io import get_folder_UI, get_filepath_UI
 from pylinac.core.utilities import typed_property
 
 
@@ -122,6 +122,24 @@ class CBCT:
 
         filelist = self._get_CT_filenames_from_folder(folder)
         self._load_files(filelist)
+
+    @classmethod
+    def from_zip_file_UI(cls):
+        """Construct a CBCT object and pass the zip file.
+
+        .. versionadded:: 0.6
+        """
+        obj = cls()
+        obj.load_zip_file_UI()
+        return obj
+
+    def load_zip_file_UI(self):
+        """Load a zip file using a UI dialog box.
+
+        .. versionadded:: 0.6
+        """
+        zfile = get_filepath_UI()
+        self.load_zip_file(zfile)
 
     @classmethod
     def from_zip_file(cls, zip_file):
@@ -1210,17 +1228,8 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # ----------------------------------------
 # CBCT Demo
 # ----------------------------------------
-if __name__ == '__main__':
-    # CBCT().run_demo()
-    # zip_file = r"D:\Users\James\Dropbox\Programming\Python\Projects\PyCharm Projects\pylinac\tests\test_files\CBCT\Varian\Low dose thorax.zip"
-    cbct = CBCT.from_demo_images()
-    # cbct = CBCT()
-    # cbct = CBCT.from_demo_images()
-    # cbct.load_zip_file(zip_file)
-    # cbct.load_demo_images()
-    # cbct.algo_data.images = np.roll(cbct.algo_data.images, 30, axis=1)
-    cbct.analyze()
-    print(cbct.return_results())
-    # cbct.plot_analyzed_image()
-    # cbct.plot_analyzed_subimage('mtf')
-    # cbct.save_analyzed_image('ttt.png')
+# if __name__ == '__main__':
+    # cbct = CBCT.from_zip_file_UI()
+    # cbct.analyze()
+    # print(cbct.return_results())
+
