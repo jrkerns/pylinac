@@ -450,7 +450,7 @@ class Picket:
         return self._error_array.max()
 
     @property
-    @lru_cache
+    @lru_cache()
     def _error_array(self):
         err = []
         for meas in self.mlc_meas:
