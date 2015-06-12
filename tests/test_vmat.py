@@ -1,6 +1,8 @@
 from functools import partial
+import os
 import unittest
 import os.path as osp
+import time
 
 from pylinac.vmat import VMAT
 from pylinac.core.geometry import Point
@@ -43,6 +45,31 @@ class Test_general(unittest.TestCase):
         self.assertEqual(len(self.vmat.segments), 7)
         self.vmat.analyze('mlcs')
         self.assertEqual(len(self.vmat.segments), 4)
+
+    def test_passing_3_images(self):
+        """Test passing the wrong number of images."""
+        with self.assertRaises(ValueError):
+            self.vmat.load_images(('', '', ''))
+
+    def test_plotting(self):
+        self.vmat.load_demo_image()
+        self.vmat.analyze('drgs')
+        self.vmat.plot_analyzed_image('open')
+        self.vmat.plot_analyzed_image('dmlc')
+
+    def test_save_image(self):
+        filename = 'tester.jpg'
+        self.vmat.load_demo_image()
+        self.vmat.analyze('drgs', tolerance=0.2)
+
+        for image_type in ['open', 'dmlc']:
+            self.vmat.save_analyzed_image(filename, image_type)
+            time.sleep(0.1)  # sleep just to let OS work
+            self.assertTrue(osp.isfile(filename), "Save file did not successfully save the image")
+
+            # cleanup
+            os.remove(filename)
+            self.assertFalse(osp.isfile(filename), "Save file test did not clean up saved image")
 
 
 class VMATMixin:

@@ -68,8 +68,6 @@ class VMAT:
     def load_images_UI(self):
         """Load images via a UI dialog box. The open field must have 'open' in the name."""
         fs = get_filenames_UI()
-        if len(fs) != 2:
-            raise ValueError("Exactly 2 images must be selected")
         self.load_images(fs)
 
     @value_accept(im_type=im_types)
