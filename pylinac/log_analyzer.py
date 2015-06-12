@@ -782,13 +782,6 @@ class Fluence(metaclass=ABCMeta):
         else:
             return False
 
-    def _same_conditions(self, resolution):
-        """Return whether the conditions passed are the same as prior conditions (for semi-lazy operations)."""
-        if self.resolution != resolution:
-            return False
-        else:
-            return True
-
     @lru_cache()
     def calc_map(self, resolution=0.1):
         """Calculate a fluence pixel map.
@@ -932,16 +925,6 @@ class GammaFluence(Fluence):
         self._actual_fluence = actual_fluence
         self._expected_fluence = expected_fluence
         self._mlc = mlc_struct
-
-    def _same_conditions(self, doseTA, distTA, threshold, resolution):
-        """Determine if the passed conditions are the same as the existing ones.
-
-        See calc_map for parameter info.
-        """
-        if (self.distTA == distTA and self.doseTA == doseTA and self.threshold == threshold and self.resolution == resolution):
-            return True
-        else:
-            return False
 
     @lru_cache()
     def calc_map(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, calc_individual_maps=False):
