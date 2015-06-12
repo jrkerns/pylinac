@@ -340,10 +340,10 @@ class Starshot:
         """
         # convert wobble to mm if possible
         if self.image.dpmm is not None:
-            self._tolerance_unit = 'mm'
+            self.tolerance.unit = 'mm'
             self.wobble.radius_mm = self.wobble.radius / self.image.dpmm
         else:
-            self._tolerance_unit = 'pixels'
+            self.tolerance.unit = 'pixels'
             self.wobble.radius_mm = self.wobble.radius
 
         if self.image.SID is not None:
@@ -366,64 +366,64 @@ class Starshot:
 
         self._scale_wobble(SID)
 
-    def _find_wobble_2step(self, SID):
-        """Find the smallest radius ("wobble") and center of a circle that touches all the star lines.
-
-        Notes
-        -----
-        Wobble determination is accomplished by two rounds of searching. The first round finds the radius and center down to
-        the nearest pixel. The second round finds the center and radius down to sub-pixel precision using parameter scale.
-        This methodology is faster than one round of searching at sub-pixel precision.
-
-        See Also
-        --------
-        analyze : Further parameter info.
-        """
-        sp = copy.copy(self.circle_profile.center)
-
-        # first round of searching; this finds the circle to the nearest pixel
-        normal_tolerance, normal_scale = 0.05, 1.0
-        self._find_wobble(normal_tolerance, sp, normal_scale)
-
-        # second round of searching; this finds the circle down to sub-pixel precision
-        small_tolerance, small_scale = 0.0001, 100.0
-        self._find_wobble(small_tolerance, self.wobble.center, small_scale)
-
-        # scale the wobble based on the SID
-        self._scale_wobble(SID)
-
-    def _find_wobble(self, tolerance, start_point, scale):
-        """An iterative method that moves element by element to the point of minimum distance to all radiation lines.
-
-        Parameters
-        ----------
-        tolerance : float
-            The value differential between the outside elements and center element to stop the algorithm.
-        start_point : geometry.Point
-            The starting point for the algorithm.
-        scale : int, float
-            The scale of the search in pixels. E.g. 0.1 searches at 0.1 pixel precision.
-        """
-        # TODO: use an optimization function instead of evolutionary search
-        sp = start_point
-        # init conditions; initialize a 3x3 "ones" matrix and make corner value 0 to start minimum distance search.
-        distmax = np.ones((3, 3))
-        distmax[0, 0] = 0
-
-        # find min point within the given tolerance
-        while np.any(distmax < distmax[1, 1] - tolerance):  # while any edge pixel value + tolerance is less than the center one...
-            # find which pixel that is lower than center pixel
-            min_idx = np.unravel_index(distmax.argmin(),distmax.shape)
-            # set new starting point to min dist index point
-            sp.y += (min_idx[0] - 1)/scale
-            sp.x += (min_idx[1] - 1)/scale
-            for x in np.arange(-1,2):
-                for y in np.arange(-1,2):
-                    point = Point(y=sp.y+(y/scale), x=sp.x+(x/scale))
-                    distmax[y+1, x+1] = np.max([line.distance_to(point) for line in self.lines])
-
-        self.wobble.radius = distmax[1,1]
-        self.wobble.center = sp
+    # def _find_wobble_2step(self, SID):
+    #     """Find the smallest radius ("wobble") and center of a circle that touches all the star lines.
+    #
+    #     Notes
+    #     -----
+    #     Wobble determination is accomplished by two rounds of searching. The first round finds the radius and center down to
+    #     the nearest pixel. The second round finds the center and radius down to sub-pixel precision using parameter scale.
+    #     This methodology is faster than one round of searching at sub-pixel precision.
+    #
+    #     See Also
+    #     --------
+    #     analyze : Further parameter info.
+    #     """
+    #     sp = copy.copy(self.circle_profile.center)
+    #
+    #     # first round of searching; this finds the circle to the nearest pixel
+    #     normal_tolerance, normal_scale = 0.05, 1.0
+    #     self._find_wobble(normal_tolerance, sp, normal_scale)
+    #
+    #     # second round of searching; this finds the circle down to sub-pixel precision
+    #     small_tolerance, small_scale = 0.0001, 100.0
+    #     self._find_wobble(small_tolerance, self.wobble.center, small_scale)
+    #
+    #     # scale the wobble based on the SID
+    #     self._scale_wobble(SID)
+    #
+    # def _find_wobble(self, tolerance, start_point, scale):
+    #     """An iterative method that moves element by element to the point of minimum distance to all radiation lines.
+    #
+    #     Parameters
+    #     ----------
+    #     tolerance : float
+    #         The value differential between the outside elements and center element to stop the algorithm.
+    #     start_point : geometry.Point
+    #         The starting point for the algorithm.
+    #     scale : int, float
+    #         The scale of the search in pixels. E.g. 0.1 searches at 0.1 pixel precision.
+    #     """
+    #     # TODO: use an optimization function instead of evolutionary search
+    #     sp = start_point
+    #     # init conditions; initialize a 3x3 "ones" matrix and make corner value 0 to start minimum distance search.
+    #     distmax = np.ones((3, 3))
+    #     distmax[0, 0] = 0
+    #
+    #     # find min point within the given tolerance
+    #     while np.any(distmax < distmax[1, 1] - tolerance):  # while any edge pixel value + tolerance is less than the center one...
+    #         # find which pixel that is lower than center pixel
+    #         min_idx = np.unravel_index(distmax.argmin(),distmax.shape)
+    #         # set new starting point to min dist index point
+    #         sp.y += (min_idx[0] - 1)/scale
+    #         sp.x += (min_idx[1] - 1)/scale
+    #         for x in np.arange(-1,2):
+    #             for y in np.arange(-1,2):
+    #                 point = Point(y=sp.y+(y/scale), x=sp.x+(x/scale))
+    #                 distmax[y+1, x+1] = np.max([line.distance_to(point) for line in self.lines])
+    #
+    #     self.wobble.radius = distmax[1,1]
+    #     self.wobble.center = sp
 
     @property
     def passed(self):
@@ -448,7 +448,7 @@ class Starshot:
 
         string = ('\nResult: %s \n\n'
                   'The minimum circle that touches all the star lines has a diameter of %4.3g %s. \n\n'
-                  'The center of the minimum circle is at %4.1f, %4.1f') % (passfailstr, self.wobble.radius_mm*2, self._tolerance_unit,
+                  'The center of the minimum circle is at %4.1f, %4.1f') % (passfailstr, self.wobble.radius_mm*2, self.tolerance.unit,
                                                                             self.wobble.center.x, self.wobble.center.y)
         return string
 
