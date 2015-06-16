@@ -122,3 +122,6 @@ class Test_Image_Methods(unittest.TestCase):
         good_img_path = [img_path, img_path]
         combined_img = Image.from_multiples(good_img_path)
         self.assertIsInstance(combined_img, Image)
+
+    def test_plot(self):
+        self.img.plot()  # shouldn't raise
