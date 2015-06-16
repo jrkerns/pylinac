@@ -135,9 +135,9 @@ class Line:
             self.point1 = Point(point1)
             self.point2 = Point(point2)
         # otherwise by passing m and b...
-        elif m is not None and b is not None:
-            self.m = m
-            self.b = b
+        # elif m is not None and b is not None:
+        #     self.m = m
+        #     self.b = b
 
     @property
     def m(self):
