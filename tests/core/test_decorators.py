@@ -85,16 +85,15 @@ class Test_Decorators(unittest.TestCase):
 
         self.assertLess(cached_access_time, first_access_time)
 
-    def test_unwrap_func(self):
-        #TODO: can't figure this one out
-        class DumbClass:
-            # a wrapped function (due to decorator that doesn't use @wraps)
-            @lazyproperty
-            @type_accept()
-            def dumb_property(self):
-                return 'result'
-
-        d = DumbClass()
+    # def test_unwrap_func(self):
+    #     #TODO: can't figure this one out
+    #     class DumbClass:
+    #         # a wrapped function (due to decorator that doesn't use @wraps)
+    #         @type_accept()
+    #         def dumb_property(self):
+    #             return 'result'
+    #
+    #     d = DumbClass()
         # do something like assert dumb_property name isn't same as unwrapped name,
         # but dumb_property doesn't have __name__ attr.
 
