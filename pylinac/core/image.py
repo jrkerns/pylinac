@@ -243,6 +243,7 @@ class Image:
         """Plot the image."""
         plt.clf()
         plt.imshow(self.array, cmap=plt.cm.Greys)
+        plt.show()
 
     def median_filter(self, size=3, mode='reflect'):
         """Apply a median filter to the image.
