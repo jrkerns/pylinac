@@ -8,6 +8,7 @@ from PIL import Image as pImage
 import dicom
 from scipy import ndimage
 from scipy.misc import imresize
+import matplotlib.pyplot as plt
 
 from pylinac.core.decorators import type_accept
 from pylinac.core.geometry import Point
@@ -81,17 +82,6 @@ class Image:
                 self._load_file(filename)
             except (IOError, AttributeError):
                 raise TypeError("Image input type not understood")
-
-    # @classmethod
-    # def from_file(cls, filename):
-    #     obj = cls()
-    #     try:
-    #         obj._load_dicom(filename)
-    #     except InvalidDicomError:
-    #         try:
-    #             obj._load_file(filename)
-    #         except OSError:
-    #             raise IOError("Image type not supported")
 
     @classmethod
     def from_array(cls, array):
@@ -248,6 +238,11 @@ class Image:
             self.SID = sid
         except (AttributeError, ValueError):
             pass  # just don't set the SID
+
+    def plot(self):
+        """Plot the image."""
+        plt.clf()
+        plt.imshow(self.array, cmap=plt.cm.Greys)
 
     def median_filter(self, size=3, mode='reflect'):
         """Apply a median filter to the image.
