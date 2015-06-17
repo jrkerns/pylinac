@@ -568,8 +568,6 @@ class MachineLog:
 
         if not is_file_object:
             print("CSV file written to: " + filename)
-        else:
-            csv_file.close()
 
     def _read_log(self, exclude_beam_off):
         """Read in log based on what type of log it is: Trajectory or Dynalog."""
