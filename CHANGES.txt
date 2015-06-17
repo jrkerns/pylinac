@@ -1,11 +1,12 @@
-V 0.6.0  6/11/15
+V 0.6.0  6/17/15
 
     General
 - Pylinac now has a wheel variation. Installation should thus be quicker for users with Python 3.4.
+- Most main module classes now have a save method to save the image that is plotted by the plot method.
 
     Class-based Constructors
 - This release presents a normalized and new way of loading and initializing classes for the PicketFence, Starshot, VMAT and CBCT classes.
-  Those classes all now accept the image path (folder path for CBCT) in the initialization method. Loading other types of data is
+  Those classes all now accept the image path (folder path for CBCT) in the initialization method. Loading other types of data
   should be delegated to class-based constructors (e.g. to load a zip file into the CBCT class, one would use
   ``cbct = CBCT.from_zip_file('zfiles.zip')``). This allows the user to both initialize and load the images/data
   in one step. Also prevents user from using methods before initialization (i.e. safer). See ReadTheDocs page for more info.
@@ -36,6 +37,7 @@ V 0.6.0  6/11/15
 
     Starshot
 - Fixed a bug where an image that did not have pixels/mm information would error out.
+- Added a tolerance parameter to the analyze method.
 
 
 V0.5.1  5/7/2015
