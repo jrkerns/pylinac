@@ -29,7 +29,7 @@ setup(
     author_email='jkerns100@gmail.com',
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
     install_requires=["numpy >= 1.8",
-                      "scipy >= 0.13",
+                      "scipy >= 0.15",
                       "pydicom >= 0.9.9",
                       "matplotlib >= 1.3.1",
                       "Pillow >= 2.5"],
