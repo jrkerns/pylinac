@@ -394,7 +394,7 @@ class CBCT:
         filename : str, file object
             The file to write the image to.
         subimage : str
-            See :method:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
+            See :meth:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
         """
         self.plot_analyzed_subimage(subimage, show=False)
         plt.savefig(filename, **kwargs)
