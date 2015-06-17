@@ -271,7 +271,7 @@ class Starshot:
                 if len(self.circle_profile.peaks) < 6:
                     raise ValueError
                 self.lines = LineManager(self.circle_profile.peaks)
-                self.find_wobble_minimize(SID)
+                self._find_wobble_minimize(SID)
             except ValueError:
                 if not recursive:
                     raise RuntimeError("The algorithm was unable to properly detect the radiation lines. Try setting "
@@ -328,7 +328,7 @@ class Starshot:
             self.wobble.radius /= SID / 100
             self.wobble.radius_mm /= SID / 100
 
-    def find_wobble_minimize(self, SID):
+    def _find_wobble_minimize(self, SID):
         """Find the minimum distance wobble location and radius to all radiation lines."""
         sp = copy.copy(self.circle_profile.center)
 
@@ -509,7 +509,7 @@ class StarProfile(CollapsedCircleProfile):
 
         See Also
         --------
-        :method:`~pylinac.core.profile.CircleProfile.get_profile` : Further parameter info
+        :meth:`~pylinac.core.profile.CircleProfile.get_profile` : Further parameter info
         """
         prof_size = 4*self.radius*np.pi
         super().get_profile(image_array, size=prof_size)
