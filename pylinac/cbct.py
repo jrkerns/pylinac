@@ -414,7 +414,7 @@ class CBCT:
                                                    self.GEO.get_line_lengths(), self.GEO.overall_passed)
         return string
 
-    def analyze(self, hu_tolerance=40, scaling_tolerance=1):
+    def analyze(self, hu_tolerance=40, scaling_tolerance=1, z_offset=0):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -423,12 +423,25 @@ class CBCT:
             The HU tolerance value for both HU uniformity and linearity.
         scaling_tolerance : float, int
             The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP404 module).
+        z_offset : int
+            The phantom offset in the z-direction in number of slices. Only applicable if the phantom is not centered on the
+            HU linearity module (404). If it isn't centered, use this setting to correct the slice locations. Positive means
+            the phantom is further toward the gantry stand; negative means the phantom is further away from the gantry stand.
+            Also consider the slice thickness you're using. E.g. if the phantom was 2cm (20mm) toward the gantry and the slice thickness
+            was 2mm, the offset should be set to 20/2 = 10.
         """
         if not self.images_loaded:
             raise AttributeError("Images not yet loaded")
+
+        # set various setting values
         self.settings.hu_tolerance = hu_tolerance
         self.settings.scaling_tolerance = scaling_tolerance
+        self.settings.phantom_z_offset = z_offset
 
+        # Pre-analysis
+        self.settings.set_slice_nums()
+
+        # Analysis
         self._construct_HU()
         self._construct_UNIF()
         self._construct_GEO()
@@ -486,7 +499,6 @@ class Settings:
         self.hu_tolerance = 40
         self.scaling_tolerance = 1
         self.phantom_z_offset = 0  # z-offset in number of slices
-        self.set_slice_nums()
 
     @property
     def fov_ratio(self):
@@ -505,16 +517,10 @@ class Settings:
 
     def set_slice_nums(self):
         """Set the slice numbers for the slices of interest based on the manufacturer."""
-        if self.manufacturer in known_manufacturers.values():
-            if self.manufacturer == known_manufacturers['Varian']:
-                self.HU_slice_num = int(np.round((self.images.shape[-1] + self.phantom_z_offset) / 2))  # 32
-                self.UN_slice_num = int(self.HU_slice_num - np.round(74 / self.dicom_metadata.SliceThickness))  # 9
-                self.SR_slice_num = int(self.HU_slice_num + np.round(30 / self.dicom_metadata.SliceThickness))  # 44
-                self.LC_slice_num = int(self.HU_slice_num - np.round(30 / self.dicom_metadata.SliceThickness))
-            else:
-                raise NotImplementedError("Elekta not yet implemented")
-        else:
-            raise ValueError("Unknown Manufacturer")
+        self.HU_slice_num = int(np.round(self.images.shape[-1]/2 + self.phantom_z_offset))  # 32
+        self.UN_slice_num = int(self.HU_slice_num - np.round(74 / self.dicom_metadata.SliceThickness))  # 9
+        self.SR_slice_num = int(self.HU_slice_num + np.round(30 / self.dicom_metadata.SliceThickness))  # 44
+        self.LC_slice_num = int(self.HU_slice_num - np.round(30 / self.dicom_metadata.SliceThickness))
 
     @property
     @lru_cache()
