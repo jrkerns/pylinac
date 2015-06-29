@@ -20,9 +20,9 @@ Pylinac
 
 
 Pylinac provides TG-142 quality assurance (QA) tools to Python programmers as well as non-programmers in the field of 
-therapy medical physics. The package comes in two flavors: source-level and GUI-level. The source-level
-allows programmers and those familiar with Python to create custom tests with pylinac while the GUI-level will implement
-pylinac into a GUI and executable that any user can use, without having to program software.
+therapy medical physics. The package comes in two flavors: source-level and `web app <https://assuranceqa.herokuapp.com>`_. The source-level
+allows programmers and those familiar with Python to create custom tests with pylinac while the web app is for
+those who don't want or don't know how to program.
 
 Below are the tools currently available; tools will be added one at a time as they are developed.
 
