@@ -26,14 +26,12 @@ import matplotlib.pyplot as plt
 from pylinac.core.decorators import value_accept, type_accept
 from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Circle, sector_mask, Line
-from pylinac.core.profile import CircleProfile, Profile
+from pylinac.core.profile import CircleProfile, Profile, CollapsedCircleProfile
 from pylinac.core.io import get_folder_UI, get_filepath_UI
 from pylinac.core.utilities import typed_property
 
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
-
-known_manufacturers = {'Varian': 'Varian Medical Systems', 'Elekta': 'ELEKTA'}
 
 
 class CBCT:
@@ -104,6 +102,13 @@ class CBCT:
         if folder:
             self.load_folder(folder)
 
+    @classmethod
+    def from_folder(cls, folder):
+        """Load the CT DICOM files from a folder."""
+        obj = cls()
+        obj.load_folder(folder)
+        return obj
+
     def load_folder(self, folder):
         """Load the CT DICOM files string input.
 
@@ -168,7 +173,6 @@ class CBCT:
             raise FileExistsError("Files given were not valid zip files")
         else:
             zfs = zipfile.ZipFile(zip_file)
-            # shutil.unpack_archive(zip_file, osp.dirname(zip_file))
             filelist = self._get_CT_filenames_from_zip(zfs)
             self._load_files(filelist, is_zip=True, zfiles=zfs)
 
@@ -219,12 +223,7 @@ class CBCT:
 
         # initialize image array
         images = np.zeros([IMAGE_SIZE, IMAGE_SIZE, len(file_list)], dtype=int)
-
         raw_im_order = np.zeros(len(file_list))
-        # check that enough slices were loaded
-        # TODO: select better method for determining if enough slices were chosen
-        if len(file_list) < 20:
-            raise ValueError("Not enough slices were selected. Select all the files or change the SR slice value.")
 
         # load dicom files from list names and get the image slice position
         rd = None
@@ -289,35 +288,28 @@ class CBCT:
         fig, ((UN_ax, HU_ax), (SR_ax, LOCON_ax)) = plt.subplots(2,2)
 
         # Uniformity objects
-        UN_ax.imshow(self.UN.image.array)
-        for roi in self.UN.ROIs.values():
-            color = roi.get_pass_fail_color()
-            roi.add_to_axes(UN_ax, edgecolor=color)
+        UN_ax.imshow(self.UN.image.array, cmap=plt.cm.Greys)
+        self.UN.plot_rois(UN_ax)
         UN_ax.autoscale(tight=True)
         UN_ax.set_title('Uniformity Slice')
 
         # HU objects
-        HU_ax.imshow(self.HU.image.array)
-        for roi in self.HU.ROIs.values():
-            color = roi.get_pass_fail_color()
-            roi.add_to_axes(HU_ax, edgecolor=color)
+        HU_ax.imshow(self.HU.image.array, cmap=plt.cm.Greys)
+        self.HU.plot_rois(HU_ax)
         HU_ax.autoscale(tight=True)
         HU_ax.set_title('HU & Geometric Slice')
 
         # GEO objects
-        for line in self.GEO.lines.values():
-            line.add_to_axes(HU_ax, color='blue')
+        self.GEO.plot_lines(HU_ax)
 
         # SR objects
-        SR_ax.imshow(self.SR.image.array)
-        last_roi = len(self.SR.ROIs) - 1
-        for roi in [self.SR.ROIs[0], self.SR.ROIs[last_roi]]:
-            roi.add_to_axes(SR_ax, edgecolor='blue')
+        SR_ax.imshow(self.SR.image.array, cmap=plt.cm.Greys)
+        self.SR.plot_circles(SR_ax)
         SR_ax.autoscale(tight=True)
         SR_ax.set_title('Spatial Resolution Slice')
 
         # Locon objects
-        LOCON_ax.imshow(self.LOCON.image.array)
+        LOCON_ax.imshow(self.LOCON.image.array, cmap=plt.cm.Greys)
         LOCON_ax.set_title('Low Contrast (In Development)')
 
         # show it all
@@ -343,32 +335,21 @@ class CBCT:
         plt.clf()
         plt.axis('off')
 
-        if subimage == 'hu':
-            # HU objects
+        if subimage == 'hu':  # HU & GEO objects
             plt.imshow(self.HU.image.array, cmap=plt.cm.Greys)
-            for roi in self.HU.ROIs.values():
-                color = roi.get_pass_fail_color()
-                roi.add_to_axes(plt.gca(), edgecolor=color)
-            # GEO objects
-            for line in self.GEO.lines.values():
-                line.add_to_axes(plt.gca(), color='blue')
+            self.HU.plot_rois(plt.gca())
+            self.GEO.plot_lines(plt.gca())
             # plt.title('HU & Geometric Slice')
             plt.autoscale(tight=True)
-        elif subimage == 'unif':
+        elif subimage == 'unif':  # uniformity
             plt.imshow(self.UN.image.array, cmap=plt.cm.Greys)
-            for roi in self.UN.ROIs.values():
-                color = roi.get_pass_fail_color()
-                roi.add_to_axes(plt.gca(), edgecolor=color)
+            self.UN.plot_rois(plt.gca())
             plt.autoscale(tight=True)
             # plt.title('Uniformity Slice')
-        elif subimage == 'sr':
-            # SR objects
+        elif subimage == 'sr':  # SR objects
             plt.imshow(self.SR.image.array, cmap=plt.cm.Greys)
-            last_roi = len(self.SR.ROIs) - 1
-            for roi in [self.SR.ROIs[0], self.SR.ROIs[last_roi]]:
-                roi.add_to_axes(plt.gca(), edgecolor='blue')
+            self.SR.plot_circles(plt.gca())
             plt.autoscale(tight=True)
-
             # plt.title('Spatial Resolution Slice')
         elif subimage == 'mtf':
             plt.axis('on')
@@ -414,7 +395,7 @@ class CBCT:
                                                    self.GEO.get_line_lengths(), self.GEO.overall_passed)
         return string
 
-    def analyze(self, hu_tolerance=40, scaling_tolerance=1, z_offset=0):
+    def analyze(self, hu_tolerance=40, scaling_tolerance=1):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -436,10 +417,6 @@ class CBCT:
         # set various setting values
         self.settings.hu_tolerance = hu_tolerance
         self.settings.scaling_tolerance = scaling_tolerance
-        self.settings.phantom_z_offset = z_offset
-
-        # Pre-analysis
-        self.settings.set_slice_nums()
 
         # Analysis
         self._construct_HU()
@@ -476,29 +453,51 @@ class Settings:
         The HU tolerance value for both HU uniformity and linearity. Default is 40.
     scaling_tolerance : float, int
         The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP404 module). Default is 1.
-    phantom_z_offset : int
-        The phantom offset in the z-direction in number of slices. Only applicable if the phantom is not centered on the
-        HU linearity module (404). If it isn't centered, use this setting to correct the slice locations. Positive means
-        the phantom is further toward the gantry stand; negative means the phantom is further away from the gantry stand.
-        Also consider the slice thickness you're using. E.g. if the phantom is 2cm toward the gantry and the slice thickness
-        will be 2mm, the offset should be set to 20/2 = 10.
     """
-    HU_slice_num = typed_property('HU_slice_num', int)
-    UN_slice_num = typed_property('UN_slice_num', int)
-    SR_slice_num = typed_property('SR_slice_num', int)
-    LC_slice_num = typed_property('LC_slice_num', int)
     threshold = typed_property('threshold', int)
     hu_tolerance = typed_property('hu_tolerance', (int, float))
     scaling_tolerance = typed_property('scaling_tolerance', (int, float))
-    phantom_z_offset = typed_property('phantom_z_offset', int)
 
     def __init__(self, images, dicom_metadata):
         self.images = images
         self.dicom_metadata = dicom_metadata
-        self.threshold = -800  # threshold when converting to binary image
+        self.threshold = -800
         self.hu_tolerance = 40
         self.scaling_tolerance = 1
-        self.phantom_z_offset = 0  # z-offset in number of slices
+
+    @lru_cache()
+    def _find_HU_slice(self):
+        """Using a brute force search of the images, find the median HU linearity slice.
+
+        This method walks through all the images and takes a collapsed circle profile where the HU
+        linearity ROIs are. If the profile contains both low (<800) and high (>800) HU values and most values are the same
+        (i.e. its not an artifact, then
+        it can be assumed it is an HU linearity slice. The median of all applicable slices is the
+        center of the HU slice.
+
+        Returns
+        -------
+        int
+            The middle slice of the HU linearity module.
+        """
+        hu_slices = []
+        for image_number in range(self.num_images):
+            image = self.images[:, :, image_number]
+            slice = Slice(self, Image.from_array(image))
+            try:
+                slice.find_phan_center()
+            except ValueError:  # a slice without the phantom in view
+                continue
+            else:
+                circle_prof = CollapsedCircleProfile(slice.phan_center, radius=120/self.fov_ratio)
+                circle_prof.get_profile(image, width_ratio=0.05, num_profiles=5)
+                prof = circle_prof.y_values
+                # determine if the profile contains both low and high values and that most values are the same
+                if (np.percentile(prof, 2) < 800) and (np.percentile(prof, 98) > 800) and (np.percentile(prof, 80) - np.percentile(prof, 30) < 40):
+                    hu_slices.append(image_number)
+
+        center_hu_slice = int(np.median(hu_slices))
+        return center_hu_slice
 
     @property
     def fov_ratio(self):
@@ -511,16 +510,32 @@ class Settings:
         return self.dicom_metadata.PixelSpacing[0]
 
     @property
-    def manufacturer(self):
-        """The linac manufacturer."""
-        return self.dicom_metadata.Manufacturer
+    def hu_slice_num(self):
+        """Return the HU linearity slice number."""
+        slice = self._find_HU_slice()
+        if self._is_within_image_extent(slice):
+            return slice
 
-    def set_slice_nums(self):
-        """Set the slice numbers for the slices of interest based on the manufacturer."""
-        self.HU_slice_num = int(np.round(self.images.shape[-1]/2 + self.phantom_z_offset))  # 32
-        self.UN_slice_num = int(self.HU_slice_num - np.round(74 / self.dicom_metadata.SliceThickness))  # 9
-        self.SR_slice_num = int(self.HU_slice_num + np.round(30 / self.dicom_metadata.SliceThickness))  # 44
-        self.LC_slice_num = int(self.HU_slice_num - np.round(30 / self.dicom_metadata.SliceThickness))
+    @property
+    def un_slice_num(self):
+        """Return the HU uniformity slice number."""
+        slice = int(self.hu_slice_num - round(75/self.dicom_metadata.SliceThickness))
+        if self._is_within_image_extent(slice):
+            return slice
+
+    @property
+    def sr_slice_num(self):
+        """Return the Spatial Resolution slice number."""
+        slice = int(self.hu_slice_num + round(30/self.dicom_metadata.SliceThickness))
+        if self._is_within_image_extent(slice):
+            return slice
+
+    @property
+    def lc_slice_num(self):
+        """Return the low contrast slice number."""
+        slice = int(self.hu_slice_num - round(30/self.dicom_metadata.SliceThickness))
+        if self._is_within_image_extent(slice):
+            return slice
 
     @property
     @lru_cache()
@@ -536,10 +551,24 @@ class Settings:
         return HU.determine_phantom_roll()
 
     @property
+    @lru_cache()
     def expected_phantom_size(self):
         """Determine the expected size of the phantom in pixels."""
-        phan_area = np.pi*100**2  # Area = pi*r^2
+        phan_area = np.pi*101**2  # Area = pi*r^2; slightly larger value used based on actual values acquired
         return phan_area/self.mm_per_pixel**2
+
+    @property
+    def num_images(self):
+        """Return the number of images loaded."""
+        return self.images.shape[-1]
+
+    def _is_within_image_extent(self, image_num):
+        """Determine if the image number is beyond the edges of the images (negative or past last image)."""
+        if self.num_images - 1 > image_num > 1:
+            return True
+        else:
+            raise ValueError("The determined image number is beyond the image extent. Either the entire dataset "
+                             "wasn't loaded or the entire phantom wasn't scanned.")
 
 
 class ROI(metaclass=ABCMeta):
@@ -678,15 +707,18 @@ class HU_ROI(ROI_Disk):
             return failed
 
 
-class Slice(metaclass=ABCMeta):
-    """Abstract base class for analyzing specific slices of a CBCT dicom set."""
-    def __init__(self, settings):
+class Slice:
+    """Base class for analyzing specific slices of a CBCT dicom set."""
+    def __init__(self, settings, image=None):
         """
         Parameters
         ----------
         settings : :class:`~pylinac.cbct.Settings`
         """
-        self.image = np.ndarray  # place-holder; should be overloaded by subclass
+        if image is None:
+            self.image = np.ndarray
+        else:
+            self.image = image  # place-holder; should be overloaded by subclass
         self.ROIs = OrderedDict()
         self.settings = settings
 
@@ -708,16 +740,35 @@ class Slice(metaclass=ABCMeta):
             self.ROIs[roi.name] = roi
 
     def find_phan_center(self):
-        """Determine the location of the center of the phantom."""
+        """Determine the location of the center of the phantom.
+
+        The image is analyzed to see if:
+        1) the catphan is even in the image (if there were any ROIs detected)
+        2) an ROI is within the size criteria of the catphan
+        3) the ROI area that is filled compared to the bounding box area is close to that of a circle
+
+        Raises
+        ------
+        ValueError
+            If any of the above conditions are not met.
+        """
         SOI_bw = self.image.threshold(self.settings.threshold)  # convert slice to binary based on threshold
         SOI_bw = ndimage.binary_fill_holes(SOI_bw)  # fill in air pockets to make one solid ROI
         SOI_labeled, num_roi = ndimage.label(SOI_bw)  # identify the ROIs
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
         roi_sizes, bin_edges = np.histogram(SOI_labeled, bins=num_roi+1)  # hist will give the size of each label
-        idx = np.abs(roi_sizes - self.settings.expected_phantom_size).argmin()
-        SOI_bw_clean = np.where(SOI_labeled == idx, 1, 0)  # remove all ROIs except the largest one (the CatPhan)
-        center_pixel = ndimage.measurements.center_of_mass(SOI_bw_clean)  # returns (y,x)
+        rois_in_size_criteria = [self.settings.expected_phantom_size * 0.98 < roi_size < self.settings.expected_phantom_size * 1.02 for roi_size in roi_sizes]
+        if not any(rois_in_size_criteria):
+            raise ValueError("Unable to locate the CatPhan")
+        else:
+            catphan_idx = np.abs(roi_sizes - self.settings.expected_phantom_size).argmin()
+        SOI_bw_clean = np.where(SOI_labeled == catphan_idx, 1, 0)  # remove all ROIs except CatPhan
+        expected_fill_ratio = np.pi / 4  # the area of a circle divided by its bounding box
+        actual_fill_ratio = get_filled_area_ratio(SOI_bw_clean)
+        if (expected_fill_ratio * 1.02 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.98):
+            raise ValueError("Unable to locate the CatPhan")
+        center_pixel = get_center_of_mass(SOI_bw_clean)
         self.phan_center = Point(center_pixel[1], center_pixel[0])
 
         # Propagate the phantom center out to the ROIs (they initially don't have a center because it's relative
@@ -727,12 +778,7 @@ class Slice(metaclass=ABCMeta):
 
     @abstractproperty
     def scale_by_FOV(self):
-        """Scale certain distances by the Field of View ratio.
-
-        For Varian scans, there are two Field of View sizes, small (250mm) and
-        large (450mm). Reference distance is small; if a large FOV scan is loaded,
-        distances to the ROI, etc needs to be corrected for the wider FOV.
-        """
+        """Scale distances by the Field of View."""
 
 
 class Base_HU_Slice(Slice, metaclass=ABCMeta):
@@ -745,6 +791,12 @@ class Base_HU_Slice(Slice, metaclass=ABCMeta):
     def get_ROI_passing(self):
         """Return a dict of the pass/fails for the ROIs."""
         return {key: val.passed for key, val in self.ROIs.items()}
+
+    def plot_rois(self, axis):
+        """Plot the ROIs to the axis."""
+        for roi in self.ROIs.values():
+            color = roi.get_pass_fail_color()
+            roi.add_to_axes(axis, edgecolor=color)
 
     @property
     def overall_passed(self):
@@ -764,7 +816,7 @@ class HU_Slice(Base_HU_Slice):
     def __init__(self, settings):
         super().__init__(settings)
         self.scale_by_FOV()
-        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.HU_slice_num))
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.hu_slice_num))
 
         HU_ROIp = partial(HU_ROI, slice_array=self.image.array, radius=self.object_radius, dist_from_center=self.dist2objs,
                           tolerance=settings.hu_tolerance)
@@ -791,11 +843,8 @@ class HU_Slice(Base_HU_Slice):
 
          This algorithm uses the two air bubbles in the HU slice and the resulting angle between them.
         """
-        # convert slice to logical
         SOI = self.image.threshold(self.settings.threshold)
-        # invert the SOI; this makes the Air == 1 and phantom == 0
         SOI.invert()
-        # determine labels and number of rois of inverted SOI
         labels, no_roi = ndimage.measurements.label(SOI)
         # calculate ROI sizes of each label TODO: simplify the air bubble-finding
         roi_sizes = [ndimage.measurements.sum(SOI, labels, index=item) for item in range(1, no_roi + 1)]
@@ -829,7 +878,7 @@ class UNIF_Slice(Base_HU_Slice):
     def __init__(self, settings):
         super().__init__(settings)
         self.scale_by_FOV()
-        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.UN_slice_num))
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.un_slice_num))
 
         HU_ROIp = partial(HU_ROI, slice_array=self.image.array, tolerance=settings.hu_tolerance, radius=self.obj_radius,
                           dist_from_center=self.dist2objs)
@@ -848,12 +897,13 @@ class UNIF_Slice(Base_HU_Slice):
         self.dist2objs /= self.settings.fov_ratio
         self.obj_radius /= self.settings.fov_ratio
 
+
 class Locon_Slice(Slice):
     """Class for analysis of the low contrast slice of the CBCT dicom data set."""
     # TODO: work on this
     def __init__(self, settings):
         super().__init__(settings)
-        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.LC_slice_num))
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.lc_slice_num))
 
     def scale_by_FOV(self):
         pass
@@ -884,7 +934,7 @@ class SR_Slice(Slice):
     def __init__(self, settings):
         super().__init__(settings)
         self.scale_by_FOV()
-        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.SR_slice_num, mode='max'))
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.sr_slice_num, mode='max'))
 
         self.LP_MTF = OrderedDict()  # holds lp:mtf data
         for idx, radius in enumerate(self.radius2profs):
@@ -896,6 +946,12 @@ class SR_Slice(Slice):
     def scale_by_FOV(self):
         """Special overloading."""
         self.radius2profs = np.arange(int(round(95/self.settings.fov_ratio)), int(round(100/self.settings.fov_ratio)))
+
+    def plot_circles(self, axis):
+        """Plot the circles where the profile was taken within."""
+        last_roi = len(self.ROIs) - 1
+        for roi in [self.ROIs[0], self.ROIs[last_roi]]:
+            roi.add_to_axes(axis, edgecolor='blue')
 
     def calc_median_profile(self, roll_offset=0):
         """Calculate the median profile of the Line Pair region.
@@ -922,7 +978,6 @@ class SR_Slice(Slice):
 
         new_prof = Profile(prof)
         new_prof.filter(0.001)
-        # new_prof.ground()
         return new_prof
 
     def _find_LP_peaks(self, profile):
@@ -946,7 +1001,7 @@ class SR_Slice(Slice):
             Indices of peaks found.
         """
         max_vals_1, max_idx_1 = profile.find_peaks(min_peak_distance=150, max_num_peaks=2, exclude_rt_edge=0.9)
-        max_vals_2, max_idx_2 = profile.find_peaks(min_peak_distance=48, exclude_lt_edge=0.12, exclude_rt_edge=0.7)
+        max_vals_2, max_idx_2 = profile.find_peaks(min_peak_distance=42, exclude_lt_edge=0.12, exclude_rt_edge=0.7)
         max_vals_3, max_idx_3 = profile.find_peaks(min_peak_distance=25, exclude_lt_edge=0.3, exclude_rt_edge=0.65)
         max_vals = np.concatenate((max_vals_1, max_vals_2, max_vals_3))
         max_idxs = np.concatenate((max_idx_1, max_idx_2, max_idx_3))
@@ -1065,7 +1120,6 @@ class GEO_ROI(ROI_Disk):
         bw_node : numpy.array
             A masked 2D array the size of the Slice image, where only the node pixels have a value.
         """
-        # create mask
         masked_img = self.get_roi_mask()
         # threshold image
         upper_band_pass = np.where(masked_img > np.nanmedian(masked_img) * 1.4, 1, 0)
@@ -1140,7 +1194,7 @@ class GEO_Slice(Slice):
         super().__init__(settings)
         self.tolerance = settings.scaling_tolerance
         self.scale_by_FOV()
-        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.HU_slice_num, mode='median'))
+        self.image = Image.from_array(combine_surrounding_slices(self.settings.images, self.settings.hu_slice_num, mode='median'))
 
         GEO_ROIp = partial(GEO_ROI, slice_array=self.image.array, radius=self.obj_radius,
                            dist_from_center=self.dist2objs)
@@ -1163,6 +1217,11 @@ class GEO_Slice(Slice):
     def scale_by_FOV(self):
         self.obj_radius /= self.settings.fov_ratio
         self.dist2objs /= self.settings.fov_ratio
+
+    def plot_lines(self, axis):
+        """Plot the geometric node connection lines."""
+        for line in self.lines.values():
+            line.add_to_axes(axis, color='blue')
 
     def add_line(self, *lines):
         """Add GEO_Lines; sister method of add_ROI of Slice class.
@@ -1201,6 +1260,24 @@ class GEO_Slice(Slice):
                 return False
         return True
 
+
+def get_bounding_box(array):
+    """Get the bounding box values of an ROI in a 2D array."""
+    B = np.argwhere(array)
+    (ymin, xmin), (ymax, xmax) = B.min(0), B.max(0) + 1
+    return ymin, ymax, xmin, xmax
+
+def get_center_of_mass(array):
+    """Return the center of mass of the ROI."""
+    return ndimage.measurements.center_of_mass(array)  # returns (y,x)
+
+def get_filled_area_ratio(array):
+    """Return the ratio of the bounding box area and the area actually filled."""
+    ymin, ymax, xmin, xmax = get_bounding_box(array)
+    box_area = (ymax - ymin) * (xmax - xmin)
+    filled_area = np.sum(array)
+    return filled_area/box_area
+
 @value_accept(mode=('mean','median','max'))
 def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=1, mode='mean'):
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
@@ -1234,8 +1311,10 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # ----------------------------------------
 # CBCT Demo
 # ----------------------------------------
-# if __name__ == '__main__':
-    # cbct = CBCT.from_zip_file_UI()
-    # cbct.analyze()
-    # print(cbct.return_results())
+if __name__ == '__main__':
+    cbct = CBCT.from_zip_file_UI()
+    # cbct = CBCT.from_demo_images()
+    cbct.analyze()
+    print(cbct.return_results())
+    cbct.plot_analyzed_image()
 
