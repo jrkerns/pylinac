@@ -1,6 +1,6 @@
 
-"""The CBCT module automatically analyzes DICOM images of a CatPhan acquired when doing CBCT quality assurance. It can load a folder
-the images are in and automatically correct for phantom setup by determining the yaw, pitch, and roll of the phantom.
+"""The CBCT module automatically analyzes DICOM images of a CatPhan acquired when doing CBCT or regular CT quality assurance. It can load a folder or zip file that
+the images are in and automatically correct for phantom setup in 6 degrees.
 It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
 uniformity (CTP486) on the corresponding slice.
 

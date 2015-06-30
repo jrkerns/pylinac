@@ -82,23 +82,6 @@ The minimum needed to get going is to:
       # view analyzed images
       mycbct.plot_analyzed_image()
 
-.. _acquiring_cbct_images:
-
-Acquiring the Images
---------------------
-
-To correclty acquire CBCT images, set up your CatPhan 500 at the end of the couch. Align the phantom such that the lasers
-hit the phantom at the center of the HU module (404); this is the calibration condition. Select any of the acquisition
-presets (Head, Pelvis, etc) and acquire the images. Export or copy the images to the computer you will use for analysis.
-
-.. note::
-    If the CatPhan is not aligned to the center of the HU module, you can set a z-offset in the algorithm like so::
-
-        cbct = CBCT('mycbctfolder')
-        cbct.settings.phantom_z_offset = 5  # value is in number of slices
-
-    See :class:`~pylinac.cbct.Settings` for further info.
-
 Algorithm
 ---------
 
@@ -107,18 +90,15 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 **Allowances**
 
 * The images can be any size.
-* For Varian machines, the images can be acquired with any protocol (Pelvis, Head, etc).
-* The phantom can have significant translation in the Left-Right, Up-Down direction; i.e. the setup does not have
-  to be precise.
+* The phantom can have significant translation in all 3 directions.
 * The phantom can have significant roll and moderate yaw and pitch.
 
 **Restrictions**
 
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
-* The phantom used must be an unmodified CatPhan 504, as endorsed and supplied by Varian.
-* The phantom HU module (404) should be aligned to the lasers and have <0.5cm offset in the z (In-Out) direction (work to remove this is in the plans).
-  Otherwise a z-offset must be set in the algorithm. See :ref:`acquiring_cbct_images`.
+* The phantom used must be an unmodified CatPhan 504.
+* All 4 of the relevant modules must be within the scan extent. I.e. one can't scan only half the phantom.
 
 
 **Pre-Analysis**
@@ -128,6 +108,13 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
   analysis; this is accounted for in the physical spacing measurements.
 * **Convert to HU** -- The entire image set is converted from its raw values to HU by applying the rescale intercept
   and slope which is contained in the DICOM properties.
+* **Find the phantom z-location** -- Also upon loading, all the images are scanned to determine where the HU linearity
+  module (CTP404) is located. This is accomplished by examining each image slice and looking for 3 things:
+  * *If the CatPhan is in the image.* At the edges of the scan this may not be true.
+  * *If a circular profile has characteristics like the CTP404 module*. If the CatPhan is in the image, a circular profile is taken
+    at the location where the HU linearity regions of interest are located. If the profile contains low, high, and lots of medium
+    values then it is very likely the HU linearity module. All such slices are found and the median slice is set as the
+    HU linearity module location. All other modules are located relative to this position.
 
 **Analysis**
 
