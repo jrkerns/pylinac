@@ -102,13 +102,6 @@ class CBCT:
         if folder:
             self.load_folder(folder)
 
-    @classmethod
-    def from_folder(cls, folder):
-        """Load the CT DICOM files from a folder."""
-        obj = cls()
-        obj.load_folder(folder)
-        return obj
-
     def load_folder(self, folder):
         """Load the CT DICOM files string input.
 
