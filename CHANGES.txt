@@ -1,3 +1,17 @@
+V 0.7.0
+
+    CBCT
+-Whereas v0.6 attempted to fix an issue where if the phantom was not centered in the scan it would error out by adding
+ a z-offset, v0.7 is a move away from this idea. If the offset given was not correct then analysis would error disgracefully.
+ It is the point of automation to automatically detect things like where the phantom is in the dataset. Thus, v0.7 is a move
+ towards this goal. Briefly, upon loading all the images are scanned and the HU linearity slice is searched for. Of the detected
+ slices, the median value is taken. Other slices are known relative to this position.
+-As per above, the z-offset idea is no longer used or allowed.
+-Plots are now all shown in grayscale.
+-If the phantom was not completely scanned (at least the 4 modules of analysis) analysis will now error out more gracefully.
+-A 'from_folder()' class method was added.
+
+
 V 0.6.0  6/17/15
 
     General
