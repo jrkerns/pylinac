@@ -35,8 +35,8 @@ np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Use
 
 
 class CBCT:
-    """A class for loading and analyzing Cone-Beam CT DICOM files of a CatPhan 504 (Varian; Elekta 503 is being developed.)
-    Analyzes: Uniformity, Spatial Resolution, Image Scaling & HU Linearity.
+    """A class for loading and analyzing CT DICOM files of a CatPhan 504. Can be from a CBCT or CT scanner
+    Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
 
     Attributes
     ----------
@@ -285,12 +285,14 @@ class CBCT:
         self.UN.plot_rois(UN_ax)
         UN_ax.autoscale(tight=True)
         UN_ax.set_title('Uniformity Slice')
+        UN_ax.axis('off')
 
         # HU objects
         HU_ax.imshow(self.HU.image.array, cmap=plt.cm.Greys)
         self.HU.plot_rois(HU_ax)
         HU_ax.autoscale(tight=True)
         HU_ax.set_title('HU & Geometric Slice')
+        HU_ax.axis('off')
 
         # GEO objects
         self.GEO.plot_lines(HU_ax)
@@ -300,10 +302,12 @@ class CBCT:
         self.SR.plot_circles(SR_ax)
         SR_ax.autoscale(tight=True)
         SR_ax.set_title('Spatial Resolution Slice')
+        SR_ax.axis('off')
 
         # Locon objects
         LOCON_ax.imshow(self.LOCON.image.array, cmap=plt.cm.Greys)
         LOCON_ax.set_title('Low Contrast (In Development)')
+        LOCON_ax.axis('off')
 
         # show it all
         if show:
@@ -1305,8 +1309,8 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # CBCT Demo
 # ----------------------------------------
 if __name__ == '__main__':
-    cbct = CBCT.from_zip_file_UI()
-    # cbct = CBCT.from_demo_images()
+    # cbct = CBCT.from_zip_file_UI()
+    cbct = CBCT.from_demo_images()
     cbct.analyze()
     print(cbct.return_results())
     cbct.plot_analyzed_image()
