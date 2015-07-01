@@ -9,7 +9,6 @@ V 0.7.0
 -As per above, the z-offset idea is no longer used or allowed.
 -Plots are now all shown in grayscale.
 -If the phantom was not completely scanned (at least the 4 modules of analysis) analysis will now error out more gracefully.
--A 'from_folder()' class method was added.
 
 
 V 0.6.0  6/17/15
