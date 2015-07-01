@@ -1,5 +1,8 @@
 V 0.7.0
 
+    General
+-The scipy dependency has been bumped to v0.15 to accommodate the new differential evolution function using in the Starshot module.
+
     CBCT
 -Whereas v0.6 attempted to fix an issue where if the phantom was not centered in the scan it would error out by adding
  a z-offset, v0.7 is a move away from this idea. If the offset given was not correct then analysis would error disgracefully.
