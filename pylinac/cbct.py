@@ -154,20 +154,23 @@ class CBCT:
 
         Parameters
         ----------
-        zip_file : str
-            Path to the zip file.
+        zip_file : str, ZipFile
+            Path to the zip file or a ZipFile object.
 
         Raises
         ------
         FileExistsError : If zip_file passed was not a legitimate zip file.
         FileNotFoundError : If no CT images are found in the folder
         """
-        if not zipfile.is_zipfile(zip_file):
-            raise FileExistsError("Files given were not valid zip files")
-        else:
+        if isinstance(zip_file, zipfile.ZipFile):
+            zfs = zip_file
+        elif zipfile.is_zipfile(zip_file):
             zfs = zipfile.ZipFile(zip_file)
-            filelist = self._get_CT_filenames_from_zip(zfs)
-            self._load_files(filelist, is_zip=True, zfiles=zfs)
+        else:
+            raise FileExistsError("Files given were not valid zip files")
+
+        filelist = self._get_CT_filenames_from_zip(zfs)
+        self._load_files(filelist, is_zip=True, zfiles=zfs)
 
     def _get_CT_filenames_from_folder(self, folder):
         """Walk through a folder to find DICOM CT images.
