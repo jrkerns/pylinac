@@ -269,7 +269,6 @@ class MachineLog:
 
     If reading Trajectory logs, the .txt file is also loaded if it's around.
     """
-
     def __init__(self, filename='', exclude_beam_off=True):
         """
         Parameters
@@ -325,6 +324,7 @@ class MachineLog:
             Whether a log has yet been loaded.
         """
         self.filename = ''
+        self.url = None
         self._cursor = 0
         self.fluence = Fluence_Struct()
 
@@ -353,6 +353,23 @@ class MachineLog:
         """Load the demo trajectory log included with the package."""
         filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
         self.load(filename, exclude_beam_off)
+
+    @classmethod
+    def from_url(cls, url, exclude_beam_off=True):
+        """Load a log from a URL."""
+        obj = cls()
+        obj.load_url(url, exclude_beam_off)
+        return obj
+
+    def load_url(self, url, exclude_beam_off=True):
+        try:
+            import requests
+        except ImportError:
+            raise ImportError("Requests is not installed; cannot get the log from a URL")
+        response = requests.get(url)
+        stream = BytesIO(response.content)
+        self.load(stream, exclude_beam_off)
+        self.url = url
 
     @classmethod
     def from_UI(cls, exclude_beam_off=True):
@@ -515,7 +532,7 @@ class MachineLog:
         if isinstance(self.filename, str):
             return self.filename
         else:
-            return self.filename.name
+            return osp.basename(self.url)
 
     def to_csv(self, filename=None):
         """Write the log to a CSV file. Only applicable for Trajectory logs (Dynalogs are already similar to CSV).
@@ -538,7 +555,7 @@ class MachineLog:
             except AttributeError:
                 is_file_object = True
 
-        csv_file = open_file(filename)
+        csv_file = open_file(filename, 'w')
         writer = csv.writer(csv_file)
         # write header info
         header_titles = ('Tlog File:', 'Signature:', 'Version:', 'Header Size:', 'Sampling Inteval:',
@@ -2091,12 +2108,12 @@ def is_tlog(filename):
 def is_dlog(filename):
     """Boolean specifying if filename is a dynalog file."""
     if is_valid_file(filename, raise_error=False):
-        with open(filename, 'rb') as unknown_file:
-            header_sample = unknown_file.read(5).decode()
-            if 'B' in header_sample or 'A' in header_sample:
-                return True
-            else:
-                return False
+        unknown_file = open_file(filename)
+        header_sample = unknown_file.read(5).decode()
+        if 'B' in header_sample or 'A' in header_sample:
+            return True
+        else:
+            return False
     else:
         return False
 
