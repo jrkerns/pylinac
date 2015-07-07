@@ -109,12 +109,13 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 * **Convert to HU** -- The entire image set is converted from its raw values to HU by applying the rescale intercept
   and slope which is contained in the DICOM properties.
 * **Find the phantom z-location** -- Also upon loading, all the images are scanned to determine where the HU linearity
-  module (CTP404) is located. This is accomplished by examining each image slice and looking for 3 things:
-  * *If the CatPhan is in the image.* At the edges of the scan this may not be true.
-  * *If a circular profile has characteristics like the CTP404 module*. If the CatPhan is in the image, a circular profile is taken
-    at the location where the HU linearity regions of interest are located. If the profile contains low, high, and lots of medium
-    values then it is very likely the HU linearity module. All such slices are found and the median slice is set as the
-    HU linearity module location. All other modules are located relative to this position.
+  module (CTP404) is located. This is accomplished by examining each image slice and looking for 2 things:
+
+    * *If the CatPhan is in the image.* At the edges of the scan this may not be true.
+    * *If a circular profile has characteristics like the CTP404 module*. If the CatPhan is in the image, a circular profile is taken
+      at the location where the HU linearity regions of interest are located. If the profile contains low, high, and lots of medium
+      values then it is very likely the HU linearity module. All such slices are found and the median slice is set as the
+      HU linearity module location. All other modules are located relative to this position.
 
 **Analysis**
 
