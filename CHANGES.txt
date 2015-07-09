@@ -1,4 +1,14 @@
-V 0.7.0
+V 0.7.1 - 7/9/2015
+
+    General
+-Added `.from_url()` class method and `.load_url()` methods to most modules.
+
+    PicketFence
+-Fixed #23, which was not properly detecting pickets for picket patterns that covered less than half the image.
+-Fixed #24, which was failing analysis from small but very large noise. A small median filter is now applied to images upon loading.
+
+
+V 0.7.0 - 7/1/2015
 
     General
 -The scipy dependency has been bumped to v0.15 to accommodate the new differential evolution function using in the Starshot module.
