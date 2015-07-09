@@ -25,7 +25,7 @@ class PF_EPID_demo(unittest.TestCase):
         self.pf = PicketFence.from_demo_image()
         self.pf.analyze(0.15, action_tolerance=0.05)
         self.pf.plot_analyzed_image()
-        self.assertAlmostEqual(self.pf.percent_passing, 95, delta=0.5)
+        self.assertAlmostEqual(self.pf.percent_passing, 95, delta=1)
 
     def test_image_orientation(self):
         """Test image orientation."""

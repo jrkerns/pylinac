@@ -3,6 +3,7 @@
 pattern produced when performing linac QA."""
 import os.path as osp
 from functools import lru_cache
+from io import BytesIO
 
 import numpy as np
 import scipy.ndimage.filters as spfilt
@@ -51,6 +52,31 @@ class PicketFence:
         """Clear attributes; necessary when new image loaded or analysis done on same image."""
         self.pickets = []
         self._action_lvl = None
+
+    @classmethod
+    def from_url(cls, url):
+        """Instantiate from a URL.
+
+        .. versionadded:: 0.7.1
+        """
+        obj = cls()
+        obj.load_url(url)
+        return obj
+
+    def load_url(self, url):
+        """Load from a URL.
+
+        .. versionadded:: 0.7.1
+        """
+        try:
+            import requests
+        except ImportError:
+            raise ImportError("Requests is not installed; cannot get the log from a URL")
+        response = requests.get(url)
+        if response.status_code != 200:
+            raise ConnectionError("Could not connect to the URL")
+        stream = BytesIO(response.content)
+        self.load_image(stream)
 
     @property
     def passed(self):
@@ -195,6 +221,7 @@ class PicketFence:
         """Pre-analysis"""
         self._clear_attrs()
         self._action_lvl = action_tolerance
+        self.image.median_filter()
         self.image.check_inversion()
         self._threshold()
         self._find_orientation()
@@ -208,9 +235,9 @@ class PicketFence:
     def _construct_pickets(self, tolerance, action_tolerance):
         """Construct the Picket instances."""
         if self.orientation == orientations['UD']:
-            leaf_prof = np.median(self._analysis_array, 0)
+            leaf_prof = np.max(self._analysis_array, 0)
         else:
-            leaf_prof = np.median(self._analysis_array, 1)
+            leaf_prof = np.max(self._analysis_array, 1)
         leaf_prof = Profile(leaf_prof)
         _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=0.01, min_peak_height=0.5)
         for peak in range(len(peak_idxs)):
@@ -388,10 +415,12 @@ class PicketFence:
     def _threshold(self):
         """Threshold the image by subtracting the minimum value. Allows for more accurate image orientation determination.
         """
-        col_prof = np.median(self.image.array, 0)
+        col_prof = np.max(self.image.array, 0)
         col_prof = Profile(col_prof)
-        row_prof = np.median(self.image.array, 1)
+        col_prof.filter(3)
+        row_prof = np.max(self.image.array, 1)
         row_prof = Profile(row_prof)
+        row_prof.filter(3)
         _, r_peak_idx = row_prof.find_peaks(min_peak_distance=0.01, exclude_lt_edge=0.05, exclude_rt_edge=0.05)
         _, c_peak_idx = col_prof.find_peaks(min_peak_distance=0.01, exclude_lt_edge=0.05, exclude_rt_edge=0.05)
         min_val = self.image.array[r_peak_idx[0]:r_peak_idx[-1], c_peak_idx[0]:c_peak_idx[-1]].min()
@@ -554,7 +583,7 @@ if __name__ == '__main__':
     # import cProfile
     # cProfile.run('PicketFence().run_demo()', sort=1)
     # PicketFence().run_demo()
-    pf = PicketFence.from_demo_image()
+    pf = PicketFence(r'C:\Users\JRKerns\Desktop\PicketFence_new.dcm')
     # pf.open_UI()
     # pf.load_demo_image()
     # pf.image.rot90()
