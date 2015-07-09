@@ -4,6 +4,7 @@ images according to the Varian RapidArc QA tests and procedures, specifically th
 """
 import os.path as osp
 import warnings
+from io import BytesIO
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -105,7 +106,7 @@ class VMAT:
         elif _is_dmlc_type(im_type):
             self.image_dmlc = img
 
-    def load_images(self, images):
+    def load_images(self, images, names=None):
         """Load both images simultaneously, assuming a clear name convention:
         the open image must have 'open' in the filename.
 
@@ -113,14 +114,20 @@ class VMAT:
 
         Parameters
         ----------
-        img1, img2 : str
+        img1, img2 : str, URLs
             File paths to the images. Order does not matter. The open image must have 'open' somewhere in the name.
+        names : None, str
+            Internal keyword. If the passed images are URLs, then the names must also be passed. If loading URLs, use .from_urls() instead.
         """
         if len(images) != 2:
             raise ValueError("Exactly 2 images must be passed")
 
-        for image in images:
-            if 'open' in image.lower():
+        for idx, image in enumerate(images):
+            if names is not None:
+                name = names[idx]
+            else:
+                name = image
+            if 'open' in name.lower():
                 im_type = 'open'
             else:
                 im_type = 'dmlc'
@@ -155,6 +162,34 @@ class VMAT:
 
         self.load_image(im_open_path, im_type=im_types['OPEN'])
         self.load_image(im_dmlc_path, im_type=im_types['DMLC'])
+
+    @classmethod
+    def from_urls(cls, urls):
+        """Load from URLs.
+
+        .. versionadded:: 0.7.1
+        """
+        obj = cls()
+        obj.load_urls(urls)
+        return obj
+
+    def load_urls(self, urls):
+        """Load from URLs.
+
+        .. versionadded:: 0.7.1
+        """
+        try:
+            import requests
+        except ImportError:
+            raise ImportError("Requests is not installed; cannot get the log from a URL")
+        url_dict = {}
+        for idx, url in enumerate(urls):
+            response = requests.get(url)
+            if response.status_code != 200:
+                raise ConnectionError("Could not connect to the URL")
+            url_dict[idx] = BytesIO(response.content)
+        imgs = [item for item in url_dict.values()]
+        self.load_images(imgs, names=urls)
 
     @type_accept(tolerance=(int, float))
     def run_demo_drgs(self, tolerance=1.5):
@@ -499,9 +534,9 @@ def _x_in_y(x, y):
 # VMAT demo
 # -------------------
 if __name__ == '__main__':
-    vmat = VMAT()
-    vmat.settings.x_offset = 20
-    vmat.load_images_UI()
+    vmat = VMAT.from_urls(('https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_dmlc.dcm', 'https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_open.dcm'))
+    # vmat.settings.x_offset = 20
+    # vmat.load_images_UI()
     # vmat.load_demo_image()
     vmat.analyze('drgs')
     # fig = vmat.plot_analyzed_image(image='dmlc')

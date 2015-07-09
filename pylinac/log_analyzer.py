@@ -356,12 +356,19 @@ class MachineLog:
 
     @classmethod
     def from_url(cls, url, exclude_beam_off=True):
-        """Load a log from a URL."""
+        """Instantiate a log from a URL.
+
+        .. versionadded:: 0.7.1
+        """
         obj = cls()
         obj.load_url(url, exclude_beam_off)
         return obj
 
     def load_url(self, url, exclude_beam_off=True):
+        """Load a log from a URL.
+
+        .. versionadded:: 0.7.1
+        """
         try:
             import requests
         except ImportError:

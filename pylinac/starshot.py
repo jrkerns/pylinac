@@ -8,6 +8,7 @@ and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary opt
 
 import os.path as osp
 import copy
+from io import BytesIO
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,6 +55,31 @@ class Starshot:
         self.tolerance = Tolerance(1, 'pixels')
         if filepath is not None:
             self.load_image(filepath)
+
+    @classmethod
+    def from_url(cls, url):
+        """Instantiate from a URL.
+
+        .. versionadded:: 0.7.1
+        """
+        obj = cls()
+        obj.load_url(url)
+        return obj
+
+    def load_url(self, url):
+        """Load from a URL.
+
+        .. versionadded:: 0.7.1
+        """
+        try:
+            import requests
+        except ImportError:
+            raise ImportError("Requests is not installed; cannot get the log from a URL")
+        response = requests.get(url)
+        if response.status_code != 200:
+            raise ConnectionError("Could not connect to the URL")
+        stream = BytesIO(response.content)
+        self.load_image(stream)
 
     @classmethod
     def from_demo_image(cls):
@@ -546,6 +572,7 @@ def get_peak_height():
     for height in np.linspace(0.05, 0.95, 10):
         yield height
 
+
 def get_radius():
     for radius in np.linspace(0.95, 0.1, 10):
         yield radius
@@ -553,20 +580,10 @@ def get_radius():
 # ----------------------------
 # Starshot demo
 # ----------------------------
-# if __name__ == '__main__':
+if __name__ == '__main__':
+    pass
 #     import os
+#     url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/10X_collimator_dvTK5Jc.jpg'
+#     star = Starshot.from_url(url)
+#     ttt = 1
     # Starshot().run_demo()
-    # test_file_dir = osp.join(osp.dirname(osp.dirname(__file__)), 'tests', 'test_files', 'Starshot')
-    # star_file = osp.join(test_file_dir, 'starshot_gantry.tif')
-    # star = Starshot(star_file)
-    # img_dir = osp.join(osp.dirname(osp.dirname(__file__)), 'tests', 'test_files', 'Starshot', 'set')
-    # img_files = [osp.join(img_dir, filename) for filename in os.listdir(img_dir)]
-    # star = Starshot.from_multiple_images(img_files)
-    # star = Starshot.from_demo_image()
-    # star.load_image_UI()
-    # star.load_demo_image()
-    # star.analyze(radius=0.9, min_peak_height=0.25, fwhm=True, recursive=False)
-    # star.analyze(recursive=True)
-    # print(star.return_results())
-    # star.plot_analyzed_image()
-    # star.save_analyzed_image('tester.png', bbox_inches='tight', pad_inches=0)

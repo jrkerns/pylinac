@@ -87,6 +87,31 @@ class CBCT:
         self.load_zip_file(demo_zip)
 
     @classmethod
+    def from_url(cls, url):
+        """Instantiate from a URL.
+
+        .. versionadded:: 0.7.1
+        """
+        obj = cls()
+        obj.load_url(url)
+        return obj
+
+    def load_url(self, url):
+        """Load from a URL.
+
+        .. versionadded:: 0.7.1
+        """
+        try:
+            import requests
+        except ImportError:
+            raise ImportError("Requests is not installed; cannot get the log from a URL")
+        response = requests.get(url)
+        if response.status_code != 200:
+            raise ConnectionError("Could not connect to the URL")
+        stream = zipfile.ZipFile(BytesIO(response.content))
+        self.load_zip_file(stream)
+
+    @classmethod
     def from_folder_UI(cls):
         """Construct a CBCT object an get the files using a UI dialog box.
 
