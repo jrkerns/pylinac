@@ -42,8 +42,8 @@ install:
 
 # test script
 script:
-#  - python setup.py test
-  - coverage run --source=pylinac setup.py test
+  - python setup.py test
+#  - coverage run --source=pylinac setup.py test
 
 after_success:
   coveralls
