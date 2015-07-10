@@ -6,7 +6,6 @@ from functools import lru_cache
 from io import BytesIO
 
 import numpy as np
-import scipy.ndimage.filters as spfilt
 from scipy import signal
 import matplotlib.pyplot as plt
 
@@ -54,16 +53,16 @@ class PicketFence:
         self._action_lvl = None
 
     @classmethod
-    def from_url(cls, url):
+    def from_url(cls, url, filter=None):
         """Instantiate from a URL.
 
         .. versionadded:: 0.7.1
         """
         obj = cls()
-        obj.load_url(url)
+        obj.load_url(url, filter=None)
         return obj
 
-    def load_url(self, url):
+    def load_url(self, url, filter=None):
         """Load from a URL.
 
         .. versionadded:: 0.7.1
@@ -76,7 +75,7 @@ class PicketFence:
         if response.status_code != 200:
             raise ConnectionError("Could not connect to the URL")
         stream = BytesIO(response.content)
-        self.load_image(stream)
+        self.load_image(stream, filter=filter)
 
     @property
     def passed(self):
@@ -145,19 +144,19 @@ class PicketFence:
         return len(self.pickets)
 
     @classmethod
-    def from_demo_image(cls):
+    def from_demo_image(cls, filter=None):
         """Construct a PicketFence instance using the demo image.
 
         .. versionadded:: 0.6
         """
         obj = cls()
-        obj.load_demo_image()
+        obj.load_demo_image(filter=filter)
         return obj
 
-    def load_demo_image(self):
+    def load_demo_image(self, filter=None):
         """Load the demo image that is included with pylinac."""
         im_open_path = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
-        self.load_image(im_open_path)
+        self.load_image(im_open_path, filter=filter)
 
     def load_image(self, file_path, filter=None):
         """Load the image
@@ -172,23 +171,39 @@ class PicketFence:
         """
         self.image = Image(file_path)
         if isinstance(filter, int):
-            self.image.array = spfilt.median_filter(self.image.array, size=filter)
+            self.image.median_filter(size=filter)
         self._clear_attrs()
+        self._check_for_noise()
 
     @classmethod
-    def from_image_UI(cls):
+    def from_image_UI(cls, filter=None):
         """Construct a PicketFence instance and load an image using a dialog box.
 
         .. versionadded:: 0.6
         """
         obj = cls()
-        obj.load_image_UI()
+        obj.load_image_UI(filter=filter)
         return obj
 
-    def load_image_UI(self):
+    def load_image_UI(self, filter=None):
         """Load the image using a UI dialog box."""
         path = get_filepath_UI()
-        self.load_image(path)
+        self.load_image(path, filter=filter)
+
+    def _check_for_noise(self):
+        """Check if the image has extreme noise (dead pixel, etc) by comparing
+        min/max to 1/99 percentiles and smoothing if need be."""
+        while self._has_noise():
+            self.image.median_filter()
+
+    def _has_noise(self):
+        """Helper method to determine if there is spurious signal in the image."""
+        min = self.image.array.min()
+        max = self.image.array.max()
+        near_min, near_max = np.percentile(self.image.array, [0.5, 99.5])
+        max_is_extreme = max > near_max * 2
+        min_is_extreme = (min < near_min) and (abs(near_min - min) > 0.2 * near_max)
+        return max_is_extreme or min_is_extreme
 
     def run_demo(self, tolerance=0.5):
         """Run the Picket Fence demo using the demo image. See analyze() for parameter info."""
@@ -221,7 +236,6 @@ class PicketFence:
         """Pre-analysis"""
         self._clear_attrs()
         self._action_lvl = action_tolerance
-        self.image.median_filter()
         self.image.check_inversion()
         self._threshold()
         self._find_orientation()
@@ -235,9 +249,9 @@ class PicketFence:
     def _construct_pickets(self, tolerance, action_tolerance):
         """Construct the Picket instances."""
         if self.orientation == orientations['UD']:
-            leaf_prof = np.max(self._analysis_array, 0)
+            leaf_prof = np.mean(self._analysis_array, 0)
         else:
-            leaf_prof = np.max(self._analysis_array, 1)
+            leaf_prof = np.mean(self._analysis_array, 1)
         leaf_prof = Profile(leaf_prof)
         _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=0.01, min_peak_height=0.5)
         for peak in range(len(peak_idxs)):
@@ -415,10 +429,10 @@ class PicketFence:
     def _threshold(self):
         """Threshold the image by subtracting the minimum value. Allows for more accurate image orientation determination.
         """
-        col_prof = np.max(self.image.array, 0)
+        col_prof = np.mean(self.image.array, 0)
         col_prof = Profile(col_prof)
         col_prof.filter(3)
-        row_prof = np.max(self.image.array, 1)
+        row_prof = np.mean(self.image.array, 1)
         row_prof = Profile(row_prof)
         row_prof.filter(3)
         _, r_peak_idx = row_prof.find_peaks(min_peak_distance=0.01, exclude_lt_edge=0.05, exclude_rt_edge=0.05)
@@ -579,15 +593,17 @@ class MLC_Meas(Line):
 # Picket Fence Demo
 # -----------------------------------
 if __name__ == '__main__':
+    pass
     # from scipy.ndimage.interpolation import rotate
     # import cProfile
     # cProfile.run('PicketFence().run_demo()', sort=1)
     # PicketFence().run_demo()
-    pf = PicketFence(r'C:\Users\JRKerns\Desktop\PicketFence_new.dcm')
+    # pf = PicketFence(r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Picket Fence\AS500-UD.dcm')
+    # pf = PicketFence.from_demo_image()
     # pf.open_UI()
     # pf.load_demo_image()
     # pf.image.rot90()
     # pf.image.array = rotate(pf.image.array, 0.5, reshape=False, mode='nearest')
-    pf.analyze(tolerance=0.15, action_tolerance=0.03)
-    print(pf.return_results())
-    pf.plot_analyzed_image()
+    # pf.analyze(tolerance=0.15, action_tolerance=0.03)
+    # print(pf.return_results())
+    # pf.plot_analyzed_image()
