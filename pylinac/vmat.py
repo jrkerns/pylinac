@@ -23,6 +23,7 @@ im_types = {'OPEN': 'open', 'DMLC': 'dmlc'}
 DRGS_SETTINGS = {'X-plane offsets (mm)': (-60, -40, -20, 0, 20, 40, 60)}
 MLCS_SETTINGS = {'X-plane offsets (mm)': (-45, -15, 15, 45)}
 
+
 class VMAT:
     """The VMAT class analyzes two DICOM images acquired via a linac's EPID and analyzes
         regions of interest (segments) based on the Varian RapidArc QA specifications,
@@ -209,7 +210,7 @@ class VMAT:
         self.plot_analyzed_image()
 
     @type_accept(test=str)
-    @value_accept(test=test_types, tolerance=(0.1, 8))
+    @value_accept(test=test_types, tolerance=(0, 8))
     def analyze(self, test, tolerance=1.5):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
@@ -231,7 +232,7 @@ class VMAT:
         self._check_img_inversion()
 
         """Analysis"""
-        self.segments = SegmentHandler(self.image_open, self.image_dmlc, self.settings)
+        self.segments = SegmentManager(self.image_open, self.image_dmlc, self.settings)
 
     def _check_img_inversion(self):
         """Check that the images are correctly inverted."""
@@ -342,7 +343,8 @@ class VMAT:
 
         return string
 
-class SegmentHandler:
+
+class SegmentManager:
     """A class to handle the VMAT segments and perform actions across all segments."""
 
     def __init__(self, open_img, dmlc_img, settings):
