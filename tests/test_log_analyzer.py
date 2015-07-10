@@ -1,11 +1,14 @@
+import os
 from unittest import TestCase
 import time
 import os.path as osp
 
 from pylinac.log_analyzer import MachineLog, MachineLogs, log_types
 
+from tests.utils import save_file
 
-class Test_Log_Loading(TestCase):
+
+class TestLogLoading(TestCase):
     """Tests of dynalog files, mostly using the demo file."""
     test_dir = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
 
@@ -57,7 +60,12 @@ class Test_Log_Loading(TestCase):
         log = MachineLog(log_no_txt)
         self.assertFalse(hasattr(log, 'txt'))
 
-class Test_Dynalog_Demo(TestCase):
+    def test_from_url(self):
+        url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/Tlog2.bin'
+        log = MachineLog.from_url(url)
+
+
+class TestDynalogDemo(TestCase):
     """Tests having to do with trajectory log files."""
     @classmethod
     def setUpClass(cls):
@@ -132,8 +140,28 @@ class Test_Dynalog_Demo(TestCase):
         mlc = self.log.axis_data.mlc
         self.assertFalse(mlc.leaf_under_y_jaw(4))
 
+    def test_save_to_csv(self):
+        # should raise error since it's a dynalog
+        with self.assertRaises(TypeError):
+            self.log.to_csv('test.csv')
 
-class Test_Dlog_Fluence(TestCase):
+    def test_plot_all(self):
+        with self.assertRaises(AttributeError):
+            self.log.plot_all()
+
+        self.log.fluence.gamma.calc_map()
+        self.log.plot_all()
+
+    def test_treatment_type(self):
+        self.assertEqual(self.log.treatment_type, 'Dynamic IMRT')
+
+    def test_axis_moved(self):
+        self.assertFalse(self.log.axis_data.gantry.moved)
+        self.assertTrue(self.log.axis_data.mlc.leaf_axes[35].moved)
+
+
+class TestDlogFluence(TestCase):
+
     def setUp(self):
         self.log = MachineLog()
         self.log.load_demo_dynalog()
@@ -176,7 +204,7 @@ class Test_Dlog_Fluence(TestCase):
         self.assertAlmostEqual(fluence.gamma.histogram()[0][0], 155804, delta=100)
 
 
-class Test_Tlog_Demo(TestCase):
+class TestTlogDemo(TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -233,8 +261,30 @@ class Test_Tlog_Demo(TestCase):
         self.assertAlmostEqual(mlc.get_RMS_max(), 0.00216, delta=0.001)
         self.assertAlmostEqual(mlc.get_RMS_percentile(), 0.00196, delta=0.001)
 
+    def test_save_to_csv(self):
+        save_file('tester.csv', self.log.to_csv)
 
-class Test_Tlog_Fluence(TestCase):
+        # without filename should make one based off tlog name
+        self.log.to_csv()
+        time.sleep(0.1)
+        name = self.log._filename_str.replace('.bin', '.csv')
+        self.assertTrue(osp.isfile(name))
+        os.remove(name)
+        self.assertFalse(osp.isfile(name))
+
+    def test_plot_axes(self):
+        for methodname in ('plot_actual', 'plot_expected', 'plot_difference'):
+            method = getattr(self.log.axis_data.gantry, methodname)
+            method()
+
+    def test_save_axes(self):
+        for methodname in ('save_plot_actual', 'save_plot_expected', 'save_plot_difference'):
+            method = getattr(self.log.axis_data.gantry, methodname)
+            save_file('test.png', method)
+
+
+class TestTlogFluence(TestCase):
+
     def setUp(self):
         self.log = MachineLog()
         self.log.load_demo_trajectorylog()
@@ -246,6 +296,25 @@ class Test_Tlog_Fluence(TestCase):
         self.assertAlmostEqual(fluence.gamma.avg_gamma, 0.001, delta=0.005)
         self.assertAlmostEqual(fluence.gamma.histogram()[0][0], 240000, delta=100)
 
+    def test_plotting(self):
+        # raise error if map hasn't yet been calc'ed.
+        with self.assertRaises(AttributeError):
+            self.log.fluence.actual.plot_map()
+
+        self.log.fluence.actual.calc_map()
+        self.log.fluence.actual.plot_map()
+
+    def test_saving_plots(self):
+        self.log.fluence.gamma.calc_map()
+        save_file('test.png', self.log.fluence.gamma.save_map)
+
+    def test_subbeam_data(self):
+        """Test accessing the subbeam data."""
+        expected_vals = [310, 180, 3.7, 3.4, 3.8, 3.9]
+        for item, expval in zip(('gantry_angle', 'collimator_angle', 'jaw_x1', 'jaw_x2', 'jaw_y1', 'jaw_y2'), expected_vals):
+            val = getattr(self.log.subbeams[0], item)
+            self.assertAlmostEqual(val.actual, expval, delta=0.1)
+
 
 class Test_MachineLogs(TestCase):
     _logs_dir = osp.abspath(osp.join(osp.dirname(__file__), '.', 'test_files', 'MLC logs'))
@@ -256,14 +325,14 @@ class Test_MachineLogs(TestCase):
     def test_loading(self):
         # test root level directory
         logs = MachineLogs(self.logs_dir, recursive=False, verbose=True)
-        self.assertEqual(logs.num_logs, 13)
+        self.assertEqual(logs.num_logs, 7)
         # test recursive
         logs = MachineLogs(self.logs_dir, verbose=False)
-        self.assertEqual(logs.num_logs, 17)
+        self.assertEqual(logs.num_logs, 13)
         # test using method
         logs = MachineLogs()
         logs.load_folder(self.logs_dir, verbose=False)
-        self.assertEqual(logs.num_logs, 17)
+        self.assertEqual(logs.num_logs, 13)
 
     def test_basic_parameters(self):
         # no real test other than to make sure it works
@@ -272,8 +341,8 @@ class Test_MachineLogs(TestCase):
 
     def test_num_logs(self):
         logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
-        self.assertEqual(logs.num_logs, 13)
-        self.assertEqual(logs.num_tlogs, 13)
+        self.assertEqual(logs.num_logs, 7)
+        self.assertEqual(logs.num_tlogs, 7)
         self.assertEqual(logs.num_dlogs, 0)
 
         logs = MachineLogs(self.mix_type_dir, verbose=False)
@@ -310,6 +379,11 @@ class Test_MachineLogs(TestCase):
         logs = MachineLogs()
         single_log = MachineLog(single_file)
         logs.append(single_log)
+
+        # try to append something that's not a Log
+        log = None
+        with self.assertRaises(TypeError):
+            logs.append(log)
 
     def test_empty_op(self):
         """Test that error is raised if trying to do op with no logs."""

@@ -373,6 +373,7 @@ class MachineLog:
             import requests
         except ImportError:
             raise ImportError("Requests is not installed; cannot get the log from a URL")
+        print('Downloading log from', url)
         response = requests.get(url)
         stream = BytesIO(response.content)
         self.load(stream, exclude_beam_off)
@@ -523,16 +524,16 @@ class MachineLog:
 
     @property
     def treatment_type(self):
-        try:
+        try:  # tlog
             gantry_std = self.subbeams[0].gantry_angle.actual.std()
-            if gantry_std > 0.5:
-                return 'VMAT'
-            elif self.axis_data.mlc.get_RMS_avg(only_moving_leaves=True) > 0.05:
-                return 'Dynamic IMRT'
-            else:
-                return 'Static IMRT'
-        except IndexError:
-            return 'Unknown'
+        except AttributeError:  # dlog
+            gantry_std = self.axis_data.gantry.actual.std()
+        if gantry_std > 0.5:
+            return 'VMAT'
+        elif self.axis_data.mlc.get_RMS_avg(only_moving_leaves=True) > 0.05:
+            return 'Dynamic IMRT'
+        else:
+            return 'Static IMRT'
 
     @property
     def _filename_str(self):
@@ -595,10 +596,6 @@ class MachineLog:
 
     def _read_log(self, exclude_beam_off):
         """Read in log based on what type of log it is: Trajectory or Dynalog."""
-        if not self.is_loaded:
-            raise AttributeError('Log file has not been specified. Use load_UI() or load()')
-
-        # read log as appropriate to type
         if is_tlog(self.filename):
             self._read_tlog(exclude_beam_off)
         elif is_dlog(self.filename):
