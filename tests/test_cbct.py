@@ -125,7 +125,7 @@ class CBCTMixin:
         if cls.zip:
             cls.cbct = CBCT.from_zip_file(cls.location)
         else:
-            cls.cbct = CBCT.from_folder(cls.location)
+            cls.cbct = CBCT(cls.location)
 
     def test_all_passed(self, hu_tolerance=40, scaling_tolerance=1):
         """Test the pass flags for all tests."""
