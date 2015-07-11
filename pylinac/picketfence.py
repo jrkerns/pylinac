@@ -286,8 +286,8 @@ class PicketFence:
         leaf_prof.y_values[leaf_prof.y_values < min_val] = min_val
 
         # remove unevenness in signal
-        leaf_prof.y_values = signal.detrend(leaf_prof.y_values, bp=[int(len(leaf_prof.y_values)/3), int(len(leaf_prof.y_values)*2/3)])
-        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=self._sm_lf_meas_wdth, exclude_lt_edge=sm_ex, exclude_rt_edge=sm_ex)
+        # leaf_prof.y_values = signal.detrend(leaf_prof.y_values, bp=[int(len(leaf_prof.y_values)/3), int(len(leaf_prof.y_values)*2/3)])
+        # _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=self._sm_lf_meas_wdth, exclude_lt_edge=sm_ex, exclude_rt_edge=sm_ex)
         leaf_range = (peak_idxs[-1] - peak_idxs[0]) / self.image.dpmm  # mm
         sm_lf_range = 220  # mm
 
@@ -598,12 +598,12 @@ if __name__ == '__main__':
     # import cProfile
     # cProfile.run('PicketFence().run_demo()', sort=1)
     # PicketFence().run_demo()
-    # pf = PicketFence(r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Picket Fence\AS500-UD.dcm')
+    pf = PicketFence(r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Picket Fence\translated.dcm')
     # pf = PicketFence.from_demo_image()
     # pf.open_UI()
     # pf.load_demo_image()
     # pf.image.rot90()
     # pf.image.array = rotate(pf.image.array, 0.5, reshape=False, mode='nearest')
-    # pf.analyze(tolerance=0.15, action_tolerance=0.03)
-    # print(pf.return_results())
-    # pf.plot_analyzed_image()
+    pf.analyze(tolerance=0.15, action_tolerance=0.03, hdmlc=True)
+    print(pf.return_results())
+    pf.plot_analyzed_image(overlay=False)
