@@ -124,8 +124,20 @@ class Image:
         return Point(x_center, y_center)
 
     @property
+    def cax(self):
+        """Return the position of the CAX."""
+        try:
+            x = self.center.x - self._dcm_meta.XRayImageReceptorTranslation[0]
+            y = self.center.y - self._dcm_meta.XRayImageReceptorTranslation[1]
+        except AttributeError:
+            return None
+        else:
+            return Point(x, y)
+
+    @property
     def SID(self):
         """Return the SID."""
+        # return float(self._dcm_meta.RTImageSID)
         return getattr(self, '_SID', None)
 
     @SID.setter
@@ -219,6 +231,10 @@ class Image:
         dcm = dicom.read_file(file_path)
         self.array = dcm.pixel_array
         self.im_type = DICOM
+
+        # attach the metadata
+        self._dcm_meta = dicom.read_file(file_path, stop_before_pixels=True)
+
         # try to set the pixel spacing
         try:
             # most dicom files have this tag
