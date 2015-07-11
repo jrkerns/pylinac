@@ -83,7 +83,7 @@ class PFDemo(PFTestMixin, unittest.TestCase):
 
 class AS500(PFTestMixin, unittest.TestCase):
     """Tests for the AS500 image."""
-    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS500-UD.dcm')
+    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS500.dcm')
     picket_orientation = 'Up-Down'
     num_pickets = 10
     percent_passing = 100
@@ -93,7 +93,7 @@ class AS500(PFTestMixin, unittest.TestCase):
 
 class AS1000(PFTestMixin, unittest.TestCase):
     """Tests for the AS1000 image."""
-    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS1000-UD.dcm')
+    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS1000.dcm')
     picket_orientation = 'Up-Down'
     num_pickets = 10
     percent_passing = 100
@@ -103,12 +103,22 @@ class AS1000(PFTestMixin, unittest.TestCase):
 
 class AS1200(PFTestMixin, unittest.TestCase):
     """Tests for the AS1200 image."""
-    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS1200-UD.dcm')
+    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS1200.dcm')
     picket_orientation = 'Up-Down'
     num_pickets = 10
     percent_passing = 100
     max_error = 0.05
     abs_median_error = 0.02
+
+
+class AS1000HD(PFTestMixin, unittest.TestCase):
+    """Tests for the AS1000 image."""
+    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS1000-HD-small-pattern.dcm')
+    picket_orientation = 'Up-Down'
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0.17
+    abs_median_error = 0.07
 
 
 class GeneralTests(unittest.TestCase):
