@@ -118,20 +118,25 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
             if y_diff[idx+1] != 0:
                 peak_vals.append(y[idx + 1])
                 peak_idxs.append(x[idx + 1])
+            # elif idx >= len(y_diff) - 1:
+            #     pass
             # Else if the diff value is zero, it could be a flat peak, or it could keep going up; we don't know yet.
             else:
                 # Continue on until we find the next nonzero diff value.
-                shift = 1
-                while y_diff[(idx + 1) + shift] == 0:
-                    shift += 1
-                    if (idx + 1) + shift == len(y_diff)-1:
-                        break
-                # If the next diff is negative (or positive for min), we've found a peak. Also put the peak at the center of the flat
-                # region.
-                is_a_peak = y_diff[(idx + 1) + shift] < 0
-                if is_a_peak:
-                    peak_vals.append(y[(idx + 1) + np.round(shift / 2)])
-                    peak_idxs.append(x[(idx + 1) + np.round(shift / 2)])
+                try:
+                    shift = 0
+                    while y_diff[(idx + 1) + shift] == 0:
+                        shift += 1
+                        if (idx + 1 + shift) >= (len(y_diff)-1):
+                            break
+                    # If the next diff is negative (or positive for min), we've found a peak. Also put the peak at the center of the flat
+                    # region.
+                    is_a_peak = y_diff[(idx + 1) + shift] < 0
+                    if is_a_peak:
+                        peak_vals.append(y[(idx + 1) + np.round(shift / 2)])
+                        peak_idxs.append(x[(idx + 1) + np.round(shift / 2)])
+                except IndexError:
+                    pass
 
     # convert to numpy arrays
     peak_vals = np.array(peak_vals)
