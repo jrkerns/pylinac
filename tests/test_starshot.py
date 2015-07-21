@@ -1,12 +1,12 @@
 import os
 import os.path as osp
 import unittest
-import time
 
 import numpy as np
 
 from pylinac.starshot import Starshot
 from pylinac.core.geometry import Point
+from tests.utils import save_file
 
 
 test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
@@ -16,6 +16,7 @@ class Star_general_tests(unittest.TestCase):
     """Performs general tests (not image specific)."""
     def setUp(self):
         self.star = Starshot.from_demo_image()
+        self.star.analyze()
 
     def test_analyze_without_images(self):
         star = Starshot()
@@ -23,27 +24,27 @@ class Star_general_tests(unittest.TestCase):
 
     def test_save_image(self):
         """Test that saving an image does something."""
-        filename = 'saved_img.jpg'
-
-        self.star.analyze()
-        self.star.save_analyzed_image(filename)
-        time.sleep(0.1)  # sleep just to let OS work
-        self.assertTrue(osp.isfile(filename), "Save file did not successfully save the image")
-
-        # cleanup
-        os.remove(filename)
-        self.assertFalse(osp.isfile(filename), "Save file test did not clean up saved image")
+        save_file('test.jpg', self.star.save_analyzed_image)
 
 
 class StarMixin:
     # class attrs should be overridden by inheritors
+    star_file = ''
     wobble_diameter_mm = 0
     wobble_center = Point()
     num_rad_lines = 0
+    recursive = True
+    passes = True
+
+    @classmethod
+    def setUpClass(cls):
+        cls.star = Starshot(cls.star_file)
+        cls.star.analyze(recursive=cls.recursive)
 
     def test_passed(self):
         """Test that the demo image passed"""
-        self.assertTrue(self.star.passed, msg="Wobble was not within tolerance")
+        self.star.analyze()
+        self.assertEqual(self.star.passed, self.passes, msg="Wobble was not within tolerance")
 
     def test_wobble_diameter(self):
         """Test than the wobble radius is similar to what it has been shown to be)."""
@@ -71,15 +72,16 @@ class StarMixin:
             # print(self.star.wobble.diameter_mm)
 
 
-class Demo(unittest.TestCase, StarMixin):
+class Demo(StarMixin, unittest.TestCase):
     """Specific tests for the demo image"""
     wobble_diameter_mm = 0.3
     wobble_center = Point(1270, 1436)
     num_rad_lines = 4
 
-    def setUp(self):
-        self.star = Starshot.from_demo_image()
-        self.star.analyze()
+    @classmethod
+    def setUpClass(cls):
+        cls.star = Starshot.from_demo_image()
+        cls.star.analyze()
 
     def test_fails_with_tight_tol(self):
         self.star.analyze(tolerance=0.1)
@@ -114,32 +116,22 @@ class Demo(unittest.TestCase, StarMixin):
         self.test_wobble_diameter()
 
 
-class Collimator(unittest.TestCase, StarMixin):
+class Collimator(StarMixin, unittest.TestCase):
     star_file = osp.join(test_file_dir, '6XCollStar.tif')
     wobble_center = Point(1297, 1699)
     wobble_diameter_mm = 0.32
     num_rad_lines = 9
-
-    @classmethod
-    def setUpClass(cls):
-        cls.star = Starshot(cls.star_file)
-        cls.star.analyze(recursive=True)
 
     def test_not_fwhm_passes(self):
         self.star.analyze(fwhm=False)
         self.test_passed()
 
 
-class Collimator2(unittest.TestCase, StarMixin):
+class Collimator2(StarMixin, unittest.TestCase):
     star_file = osp.join(test_file_dir, '10XCollStar.bmp')
     wobble_center = Point(1370, 1454)
     wobble_diameter_mm = 0.3
     num_rad_lines = 4
-
-    @classmethod
-    def setUpClass(cls):
-        cls.star = Starshot(cls.star_file)
-        cls.star.analyze(recursive=True)
 
 
 class Multiples(StarMixin, unittest.TestCase):
@@ -166,17 +158,11 @@ class Multiples(StarMixin, unittest.TestCase):
         pass
 
 
-class Gantry(unittest.TestCase, StarMixin):
+class Gantry(StarMixin, unittest.TestCase):
     star_file = osp.join(test_file_dir, 'starshot_gantry.tif')
     wobble_center = Point(1302, 1513)
     wobble_diameter_mm = 0.95
     num_rad_lines = 9
-
-    @classmethod
-    def setUpClass(cls):
-        cls.star = Starshot()
-        cls.star.load_image(cls.star_file)
-        cls.star.analyze(recursive=True)
 
     def test_bad_input_no_recursion_fails(self):
         """Test that without recursion, a bad setup fails."""
@@ -186,3 +172,20 @@ class Gantry(unittest.TestCase, StarMixin):
         # but will pass with recursion
         self.star.analyze()
         self.test_passed()
+
+
+class Couch(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'couch.tif')
+    wobble_center = Point(732, 944)
+    wobble_diameter_mm = 2.1
+    num_rad_lines = 6
+    passes = False
+
+
+@unittest.skip
+class Couch2(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'AnnualGantryStarshot.tif')
+    wobble_center = Point(732, 944)
+    wobble_diameter_mm = 2.1
+    num_rad_lines = 6
+    passes = False

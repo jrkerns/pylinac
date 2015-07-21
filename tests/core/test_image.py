@@ -82,16 +82,6 @@ class Test_Image_Methods(unittest.TestCase):
     def test_invert(self):
         self.img.invert()
 
-    def test_dpi_change(self):
-        """Change the DPI and see if DPMM also changes."""
-        new_dpi = 100
-        self.img.dpi = new_dpi
-        self.assertEqual(self.img.dpmm, new_dpi/25.4)
-
-        new_dpmm = 3
-        self.img.dpmm = new_dpmm
-        self.assertEqual(self.img.dpi, new_dpmm*25.4)
-
     def test_dist2edge_min(self):
         dist = self.sm_arr.dist2edge_min(Point(1,3))
         self.assertEqual(dist, 1)
@@ -107,13 +97,8 @@ class Test_Image_Methods(unittest.TestCase):
         self.assertEqual(self.dcm.center.y, dcm_known_center.y)
 
     def test_SID(self):
-        self.assertEqual(self.dcm.SID, 105)
-        self.assertRaises(ValueError, setattr, self.dcm, 'SID', '105')
-        # test that the SID and DPMM change when set
-        old_dpmm = copy.copy(self.dcm.dpmm)
-        self.dcm.SID = 150
-        self.assertEqual(self.dcm.SID, 150)
-        self.assertEqual(self.dcm.dpmm, 150/100 * old_dpmm)
+        self.assertEqual(self.dcm.SID, 1050)
+        self.assertRaises(TypeError, setattr, self.dcm, 'SID', '105')
 
     def test_combine_multiples(self):
         bad_img_path = [dcm_path, img_path]

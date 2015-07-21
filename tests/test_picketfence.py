@@ -4,11 +4,14 @@ import os
 
 from pylinac.picketfence import PicketFence, osp, np
 
+test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
+
 
 class PFTestMixin:
     """Base Mixin for testing a picketfence image."""
     im_path = ''
     picket_orientation = ''
+    hdmlc = False
     num_pickets = 0
     percent_passing = 0
     max_error = 0
@@ -17,7 +20,7 @@ class PFTestMixin:
     @classmethod
     def setUpClass(cls):
         cls.pf = PicketFence(cls.im_path)
-        cls.pf.analyze()
+        cls.pf.analyze(hdmlc=cls.hdmlc)
 
     def test_passed(self):
         self.assertTrue(self.pf.passed)
@@ -40,7 +43,7 @@ class PFTestMixin:
     def test_all_orientations(self):
         median_errors = []
         for rotation in range(4):
-            self.pf.image.rot90(rotation)
+            self.pf.image.rot90()
             self.pf.analyze()
             median_errors.append(self.pf.abs_median_error)
 
@@ -83,7 +86,7 @@ class PFDemo(PFTestMixin, unittest.TestCase):
 
 class AS500(PFTestMixin, unittest.TestCase):
     """Tests for the AS500 image."""
-    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS500.dcm')
+    im_path = osp.join(test_file_dir, 'AS500.dcm')
     picket_orientation = 'Up-Down'
     num_pickets = 10
     percent_passing = 100
@@ -93,8 +96,41 @@ class AS500(PFTestMixin, unittest.TestCase):
 
 class AS1000(PFTestMixin, unittest.TestCase):
     """Tests for the AS1000 image."""
-    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS1000.dcm')
+    im_path = osp.join(test_file_dir, 'AS1000.dcm')
     picket_orientation = 'Up-Down'
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0.27
+    abs_median_error = 0.07
+
+
+class AS1000HD(PFTestMixin, unittest.TestCase):
+    """Tests for the AS1000 image."""
+    im_path = osp.join(test_file_dir, 'AS1000-HD.dcm')
+    picket_orientation = 'Up-Down'
+    hdmlc = True
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0.17
+    abs_median_error = 0.07
+
+
+class AS1000HDError(PFTestMixin, unittest.TestCase):
+    """Tests for the AS1000 image with a few errors introduced."""
+    im_path = osp.join(test_file_dir, 'AS1000-HD-error.dcm')
+    picket_orientation = 'Up-Down'
+    hdmlc = True
+    num_pickets = 6
+    percent_passing = 100
+    max_error = 0.27
+    abs_median_error = 0.03
+
+
+class AS1000HDSmallPattern(PFTestMixin, unittest.TestCase):
+    """Tests for the AS1000 image with a smaller pattern (only inner leaves)."""
+    im_path = osp.join(test_file_dir, 'AS1000-HD-small-pattern.dcm')
+    picket_orientation = 'Up-Down'
+    hdmlc = True
     num_pickets = 10
     percent_passing = 100
     max_error = 0.17
@@ -103,7 +139,7 @@ class AS1000(PFTestMixin, unittest.TestCase):
 
 class AS1200(PFTestMixin, unittest.TestCase):
     """Tests for the AS1200 image."""
-    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS1200.dcm')
+    im_path = osp.join(test_file_dir, 'AS1200.dcm')
     picket_orientation = 'Up-Down'
     num_pickets = 10
     percent_passing = 100
@@ -111,14 +147,31 @@ class AS1200(PFTestMixin, unittest.TestCase):
     abs_median_error = 0.02
 
 
-class AS1000HD(PFTestMixin, unittest.TestCase):
-    """Tests for the AS1000 image."""
-    im_path = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence', 'AS1000-HD-small-pattern.dcm')
+class AS1200HD(PFTestMixin, unittest.TestCase):
+    """Tests for the AS1200 image."""
+    im_path = osp.join(test_file_dir, 'AS1200-HD.dcm')
     picket_orientation = 'Up-Down'
+    hdmlc = True
     num_pickets = 10
     percent_passing = 100
-    max_error = 0.17
-    abs_median_error = 0.07
+    max_error = 0.05
+    abs_median_error = 0.02
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pf = PicketFence(cls.im_path)
+        cls.pf.analyze(hdmlc=cls.hdmlc, num_pickets=cls.num_pickets)
+
+
+class AS1200HDTranslated(PFTestMixin, unittest.TestCase):
+    """Tests for the AS1200 image."""
+    im_path = osp.join(test_file_dir, 'AS1200-HD_x2_y-3.dcm')
+    picket_orientation = 'Up-Down'
+    hdmlc = True
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0.05
+    abs_median_error = 0.02
 
 
 class GeneralTests(unittest.TestCase):

@@ -778,7 +778,7 @@ class Slice:
             If any of the above conditions are not met.
         """
         SOI_bw = self.image.threshold(self.settings.threshold)  # convert slice to binary based on threshold
-        SOI_bw = ndimage.binary_fill_holes(SOI_bw)  # fill in air pockets to make one solid ROI
+        SOI_bw = ndimage.binary_fill_holes(SOI_bw.array)  # fill in air pockets to make one solid ROI
         SOI_labeled, num_roi = ndimage.label(SOI_bw)  # identify the ROIs
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
@@ -872,7 +872,7 @@ class HU_Slice(Base_HU_Slice):
         SOI.invert()
         labels, no_roi = ndimage.measurements.label(SOI)
         # calculate ROI sizes of each label TODO: simplify the air bubble-finding
-        roi_sizes = [ndimage.measurements.sum(SOI, labels, index=item) for item in range(1, no_roi + 1)]
+        roi_sizes = [ndimage.measurements.sum(SOI.array, labels, index=item) for item in range(1, no_roi + 1)]
         # extract air bubble ROIs (based on size threshold)
         bubble_thresh = self.air_bubble_size
         air_bubbles = [idx + 1 for idx, item in enumerate(roi_sizes) if
@@ -1337,8 +1337,8 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # CBCT Demo
 # ----------------------------------------
 if __name__ == '__main__':
-    # cbct = CBCT.from_zip_file_UI()
-    cbct = CBCT.from_demo_images()
+    cbct = CBCT.from_folder_UI()
+    # cbct = CBCT.from_demo_images()
     cbct.analyze()
     print(cbct.return_results())
     cbct.plot_analyzed_image()

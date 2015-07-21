@@ -3,6 +3,7 @@
 import warnings
 
 from dicom.errors import InvalidDicomError
+from dicom.dataset import Dataset
 import numpy as np
 from PIL import Image as pImage
 import dicom
@@ -77,6 +78,7 @@ class Image:
         filename : str
             Path to the image file.
         """
+        self._SID = 1000
         if filename is not None:
             try:
                 self._load_file(filename)
@@ -92,29 +94,44 @@ class Image:
 
     @property
     def dpi(self):
-        return getattr(self, '_dpi', None)
-
-    @dpi.setter
-    @type_accept(dpi=(int, float, np.number))
-    def dpi(self, dpi):
-        self._dpi = dpi
-        # update the DPmm attr if need be
-        updated_dpmm = dpi / MM_per_INCH
-        if self.dpmm != updated_dpmm:
-            self.dpmm = updated_dpmm
+        if self.im_type == DICOM:
+            dpi = getattr(self, 'dpmm', None)
+            if dpi is not None:
+                dpi *= MM_per_INCH
+            return dpi
+        elif self.im_type == IMAGE:
+            try:
+                dpi = self._img_meta['dpi'][0]
+            except (IndexError, KeyError):
+                dpi = self._img_meta.get('dpi', None)
+            if dpi is not None:
+                dpi *= self.SID / 1000
+            return dpi
+        else:
+            return None
 
     @property
     def dpmm(self):
-        return getattr(self, '_dpmm', None)
-
-    @dpmm.setter
-    @type_accept(dpmm=(int, float, np.number))
-    def dpmm(self, dpmm):
-        self._dpmm = dpmm
-        # update the DPI attr if need be
-        updated_dpi = dpmm * MM_per_INCH
-        if self.dpi != updated_dpi:
-            self.dpi = updated_dpi
+        if self.im_type == DICOM:
+            try:
+                # most dicom files have this tag
+                dpmm = 1/self._dcm_meta.PixelSpacing[0]
+            except AttributeError:
+                try:
+                    # EPID images sometimes have this tag
+                    dpmm = 1/self._dcm_meta.ImagePlanePixelSpacing[0]
+                except AttributeError:
+                    dpmm = None
+            if dpmm is not None:
+                dpmm *= self.SID / 1000
+            return dpmm
+        elif self.im_type == IMAGE:
+            dpmm = self.dpi
+            if dpmm is not None:
+                dpmm /= MM_per_INCH
+            return dpmm
+        else:  # Array type
+            return None
 
     @property
     def center(self):
@@ -130,24 +147,29 @@ class Image:
             x = self.center.x - self._dcm_meta.XRayImageReceptorTranslation[0]
             y = self.center.y - self._dcm_meta.XRayImageReceptorTranslation[1]
         except AttributeError:
-            return None
+            return self.center
         else:
             return Point(x, y)
 
     @property
     def SID(self):
         """Return the SID."""
-        # return float(self._dcm_meta.RTImageSID)
-        return getattr(self, '_SID', None)
+        if self.im_type == DICOM:
+            sid = getattr(self._dcm_meta, 'RTImageSID', self._SID)
+        else:
+            sid = self._SID
+        return float(sid)
 
     @SID.setter
+    @type_accept(value=(int, float, np.number))
     def SID(self, value):
-        """Set the SID."""
-        if not isinstance(value, (int, float, np.number)):
-            raise ValueError("SID must be a number")
-        self._SID = value
-        # scale the dpmm/dpi by the SID
-        self.dpmm = self.dpmm * self.SID / 100
+        """Set the SID value; must be in mm."""
+        # if not isinstance(value, (int, float, np.number)):
+        #     raise ValueError("SID must be a number")
+        if self.im_type == DICOM:
+            raise AttributeError("Cannot set the SID for DICOM Images")
+        else:
+            self._SID = value
 
     def check_inversion(self):
         """Check the image for inversion by sampling the 4 image corners.
@@ -207,20 +229,10 @@ class Image:
         if img.mode == 'RGB' or img.mode == 'HSV':
             img = img.convert('F')
 
+        self._img_meta = img.info
+
         self.array = np.array(img)
         self.im_type = IMAGE
-
-        # explicitly set dpi, which also sets dpmm
-        if 'dpi' in img.info:
-            if len(img.info['dpi']) > 1:
-                if img.info['dpi'][0] != img.info['dpi'][1]:
-                    raise TypeError("Input image has different DPI values for horizontal and vertical")
-                self.dpi = img.info['dpi'][0]
-            else:
-                self.dpi = img.info['dpi']
-        else:
-            warnings.warn("Pixel distance information was not available. You can set the attribute"
-                          "explicitly if you know it.")
 
     def _construct_dicom(self, file_path):
         """Construct an object from a DICOM file (.dcm)."""
@@ -234,26 +246,6 @@ class Image:
 
         # attach the metadata
         self._dcm_meta = dicom.read_file(file_path, stop_before_pixels=True)
-
-        # try to set the pixel spacing
-        try:
-            # most dicom files have this tag
-            dpmm = 1/dcm.PixelSpacing[0]
-        except AttributeError:
-            # EPID images sometimes have this tag
-            dpmm = 1/dcm.ImagePlanePixelSpacing[0]
-        except:
-            warnings.warn("Pixel distance information for the DICOM file was not determined. You can set the "
-                          "attribute (.dpi or .dpmm) explicitly if you know it.")
-        finally:
-            self.dpmm = float(dpmm)
-
-        # try to set the SID
-        try:
-            sid = float(dcm.RTImageSID) / 10
-            self.SID = sid
-        except (AttributeError, ValueError):
-            pass  # just don't set the SID
 
     def plot(self):
         """Plot the image."""
@@ -375,9 +367,17 @@ class Image:
         init_obj.array = combined_arr
         return init_obj
 
-    def __getattr__(self, item):
-        """Set the Attribute getter to grab from the array if possible (for things like .shape, .size, etc)."""
-        return getattr(self.array, item)
+    @property
+    def shape(self):
+        return self.array.shape
+
+    @property
+    def size(self):
+        return self.array.size
+
+    # def __getattr__(self, item):
+    #     """Set the Attribute getter to grab from the array if possible (for things like .shape, .size, etc)."""
+    #     return getattr(self.array, item)
 
 if __name__ == '__main__':
     img = Image.from_multiple_UI()

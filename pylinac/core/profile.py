@@ -150,7 +150,7 @@ class Profile:
         self.find_peaks(min_peak_height, min_peak_distance, max_num_peaks, exclude_rt_edge=exclude_rt_edge, exclude_lt_edge=exclude_lt_edge)
 
         if not self.peaks:
-            raise AttributeError("No peaks were found; try lowering the minimum peak height or use a different region.")
+            return [], []
         subprofiles = self._subdivide_profiles()
 
         # update peak points with modified indices

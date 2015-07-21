@@ -19,6 +19,7 @@ from functools import lru_cache
 import numpy as np
 import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
+from build.lib.pylinac.core.decorators import timethis
 
 from pylinac import MEMORY_PROFILE, DEBUG
 from pylinac.core.decorators import type_accept, value_accept
@@ -344,10 +345,22 @@ class MachineLog:
         self.report_basic_parameters()
         self.plot_all()
 
+    @classmethod
+    def from_demo_dynalog(cls, exclude_beam_off=True):
+        obj = cls()
+        obj.load_demo_dynalog(exclude_beam_off)
+        return obj
+
     def load_demo_dynalog(self, exclude_beam_off=True):
         """Load the demo dynalog file included with the package."""
         self.filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'AQA.dlg')
         self._read_log(exclude_beam_off)
+
+    @classmethod
+    def from_demo_trajectorylog(cls, exclude_beam_off=True):
+        obj = cls()
+        obj.load_demo_trajectorylog(exclude_beam_off)
+        return obj
 
     def load_demo_trajectorylog(self, exclude_beam_off=True):
         """Load the demo trajectory log included with the package."""
@@ -420,6 +433,10 @@ class MachineLog:
                 raise IOError("File passed is not a valid log file")
 
     def plot_all(self):
+        warnings.warn(".plot_all() will be depricated in v1.0. Use .plot_summary() instead", FutureWarning)
+        self.plot_summary()
+
+    def plot_summary(self, show=True):
         """Plot actual & expected fluence, gamma map, gamma histogram,
             MLC error histogram, and MLC RMS histogram.
         """
@@ -466,12 +483,17 @@ class MachineLog:
             ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves+0.5])  # bit of padding since bar chart alignment is center
             plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both'), align='center')
 
-            # plt.tight_layout()
-            plt.show()
+            if show:
+                plt.show()
         else:
             raise AttributeError("Gamma map has not yet been calculated.")
 
-    def report_basic_parameters(self):
+    def save_summary(self, filename, **kwargs):
+        """Save the summary image to file."""
+        self.plot_summary(show=False)
+        plt.savefig(filename, **kwargs)
+
+    def report_basic_parameters(self, printout=True):
         """Print the common parameters analyzed when investigating machine logs:
 
         -Log type
@@ -482,14 +504,20 @@ class MachineLog:
         -Gamma pass percentage
         -Average gamma value
         """
-        print("MLC log type: " + self.log_type)
-        print("Average RMS of all leaves: {:3.3f} cm".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False)))
-        print("Max RMS error of all leaves: {:3.3f} cm".format(self.axis_data.mlc.get_RMS_max()))
-        print("95th percentile error: {:3.3f} cm".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False)))
-        print("Number of beam holdoffs: {:1.0f}".format(self.axis_data.num_beamholds))
+        log_type = "MLC log type: {}\n".format(self.log_type)
+        avg_rms = "Average RMS of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False))
+        max_rms = "Max RMS error of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_max())
+        p95 = "95th percentile error: {:3.3f} cm\n".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False))
+        num_holdoffs = "Number of beam holdoffs: {:1.0f}\n".format(self.axis_data.num_beamholds)
         self.fluence.gamma.calc_map()
-        print("Gamma pass %: {:2.2f}".format(self.fluence.gamma.pass_prcnt))
-        print("Gamma average: {:2.3f}".format(self.fluence.gamma.avg_gamma))
+        gamma_pass = "Gamma pass %: {:2.2f}\n".format(self.fluence.gamma.pass_prcnt)
+        gamma_avg = "Gamma average: {:2.3f}\n".format(self.fluence.gamma.avg_gamma)
+
+        string = log_type + avg_rms + max_rms + p95 + num_holdoffs + gamma_pass + gamma_avg
+        if printout:
+            print(string)
+        else:
+            return string
 
     @property
     @lru_cache()
@@ -946,6 +974,7 @@ class GammaFluence(Fluence):
         self._mlc = mlc_struct
 
     @lru_cache()
+    @timethis
     def calc_map(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, calc_individual_maps=False):
         """Calculate the gamma from the actual and expected fluences.
 
@@ -2185,5 +2214,8 @@ if __name__ == '__main__':
     filestr = os.path.join(os.path.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
     ofile = open_file(filestr)
     log = MachineLog(ofile)
-    f = StringIO()
-    log.to_csv(f)
+    log.fluence.gamma.calc_map()
+    log.plot_all()
+    # log.report_basic_parameters()
+    # f = StringIO()
+    # log.to_csv(f)

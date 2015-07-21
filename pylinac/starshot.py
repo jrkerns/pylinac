@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-The Starshot module analyses a starshot film or multiple superimposed EPID images that measures the wobble of the
-radiation spokes, whether gantry, collimator, or couch. It is based on ideas from
+The Starshot module analyses a starshot 1) film or 2) multiple superimposed EPID images that measures the wobble of the
+radiation spokes, whether gantry, collimator, MLC or couch. It is based on ideas from
 `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
-and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
+and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and
+`evolutionary optimization <http://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.optimize.differential_evolution.html>`_.
 """
 
 import os.path as osp
@@ -23,7 +24,7 @@ from pylinac.core.profile import SingleProfile, CollapsedCircleProfile
 
 class Starshot:
     """Class that can determine the wobble in a "starshot" image, be it gantry, collimator,
-        couch or MLC. The image can be DICOM or a scanned film (TIF, JPG, etc).
+    couch or MLC. The image can be a scanned film (TIF, JPG, etc) or a sequence of EPID DICOM images.
 
     Attributes
     ----------
@@ -260,11 +261,11 @@ class Starshot:
             If True (default), will recursively search for a "reasonable" wobble, meaning the wobble radius is
             <3mm. If the wobble found was unreasonable,
             the minimum peak height is iteratively adjusted from low to high at the passed radius.
-            If for all peak heights at that point the wobble is still unreasonable, the
-            radius is then iterated over from most distant inward.
+            If for all peak heights at the given radius the wobble is still unreasonable, the
+            radius is then iterated over from most distant inward, iterating over minimum peak heights at each radius.
             If False, will simply return the first determined value or raise error if a reasonable wobble could not be determined.
 
-            .. warning:: It is strongly recommended to leave this setting at True, unless you have a strong reason.
+            .. warning:: It is strongly recommended to leave this setting at True.
 
         Raises
         ------
@@ -348,11 +349,11 @@ class Starshot:
             self.wobble.radius_mm = self.wobble.radius
 
         if self.image.SID is not None:
-            self.wobble.radius /= self.image.SID / 100
-            self.wobble.radius_mm /= self.image.SID / 100
+            self.wobble.radius /= self.image.SID / 1000
+            self.wobble.radius_mm /= self.image.SID / 1000
         else:
-            self.wobble.radius /= SID / 100
-            self.wobble.radius_mm /= SID / 100
+            self.wobble.radius /= SID / 1000
+            self.wobble.radius_mm /= SID / 1000
 
     def _find_wobble_minimize(self, SID):
         """Find the minimum distance wobble location and radius to all radiation lines."""
@@ -581,9 +582,9 @@ def get_radius():
 # Starshot demo
 # ----------------------------
 if __name__ == '__main__':
-    pass
+    # pass
 #     import os
 #     url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/10X_collimator_dvTK5Jc.jpg'
 #     star = Starshot.from_url(url)
 #     ttt = 1
-    # Starshot().run_demo()
+    Starshot().run_demo()

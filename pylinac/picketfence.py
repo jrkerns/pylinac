@@ -212,7 +212,7 @@ class PicketFence:
         print(self.return_results())
         self.plot_analyzed_image()
 
-    def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False):
+    def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False, num_pickets=None):
         """Analyze the picket fence image.
 
         Parameters
@@ -241,19 +241,19 @@ class PicketFence:
         self._find_orientation()
 
         """Analysis"""
-        self._construct_pickets(tolerance, action_tolerance)
+        self._construct_pickets(tolerance, action_tolerance, num_pickets)
         leaf_centers = self._find_leaf_centers(hdmlc)
         self._calc_mlc_positions(leaf_centers)
         self._calc_mlc_error()
 
-    def _construct_pickets(self, tolerance, action_tolerance):
+    def _construct_pickets(self, tolerance, action_tolerance, num_pickets):
         """Construct the Picket instances."""
         if self.orientation == orientations['UD']:
             leaf_prof = np.mean(self._analysis_array, 0)
         else:
             leaf_prof = np.mean(self._analysis_array, 1)
         leaf_prof = Profile(leaf_prof)
-        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=0.01, min_peak_height=0.5)
+        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=0.01, min_peak_height=0.5, max_num_peaks=num_pickets)
         for peak in range(len(peak_idxs)):
             self.pickets.append(Picket(self.image, tolerance, self.orientation, action_tolerance))
 
@@ -265,62 +265,40 @@ class PicketFence:
         if hdmlc:
             sm_lf_wdth /= 2
             bg_lf_wdth /= 2
-        self._sm_lf_meas_wdth = slmw = int(round(sm_lf_wdth*3/4))
-        self._bg_lf_meas_wdth = blmw = int(round(bg_lf_wdth*3/4))
-        bl_ex = int(bg_lf_wdth/4)
-        sm_ex = int(sm_lf_wdth/4)
+        self._sm_lf_meas_wdth = int(round(sm_lf_wdth*3/4))
+        self._bg_lf_meas_wdth = int(round(bg_lf_wdth*3/4))
 
-        # generate leaf profile
+        if not hdmlc:
+            num_large_leaves = 20
+            num_small_leaves = 40
+        else:
+            num_large_leaves = 28
+            num_small_leaves = 32
+
+        # generate leaf center points based on physical widths
+        first_shift = bg_lf_wdth * (num_large_leaves / 2 - 1) + bg_lf_wdth * 0.75
+        second_shift = sm_lf_wdth * (num_small_leaves - 1) + bg_lf_wdth * 0.75
+
+        large = np.arange(num_large_leaves/2) * bg_lf_wdth
+        small = (np.arange(num_small_leaves) * sm_lf_wdth) + first_shift
+        large2 = (np.arange(num_large_leaves/2) * bg_lf_wdth) + first_shift + second_shift
+        leaf_centers = np.concatenate((large, small, large2))
+
+        # now adjust them to align with the iso
         if self.orientation == orientations['UD']:
-            leaf_prof = np.mean(self._analysis_array, 1)
-            center = self.image.center.y
+            leaf30_center = self.image.cax.y - sm_lf_wdth / 2
+            edge = self.image.shape[0]
         else:
-            leaf_prof = np.mean(self._analysis_array, 0)
-            center = self.image.center.x
-        leaf_prof = Profile(leaf_prof)
+            leaf30_center = self.image.cax.x - sm_lf_wdth / 2
+            edge = self.image.shape[1]
+        adjustment = leaf30_center - leaf_centers[29]
+        leaf_centers += adjustment
 
-        # ground profile to reasonable level
-        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=self._sm_lf_meas_wdth, exclude_lt_edge=sm_ex,
-                                            exclude_rt_edge=sm_ex)
-        min_val = leaf_prof.y_values[peak_idxs[0]:peak_idxs[-1]].min()
-        leaf_prof.y_values[leaf_prof.y_values < min_val] = min_val
+        # only include values that are reasonable (values might extend past image
+        values_in_image = (leaf_centers > 0+bg_lf_wdth) & (leaf_centers < edge-bg_lf_wdth)
+        leaf_centers = leaf_centers[values_in_image]
 
-        # remove unevenness in signal
-        # leaf_prof.y_values = signal.detrend(leaf_prof.y_values, bp=[int(len(leaf_prof.y_values)/3), int(len(leaf_prof.y_values)*2/3)])
-        # _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=self._sm_lf_meas_wdth, exclude_lt_edge=sm_ex, exclude_rt_edge=sm_ex)
-        leaf_range = (peak_idxs[-1] - peak_idxs[0]) / self.image.dpmm  # mm
-        sm_lf_range = 220  # mm
-
-        # find leaf peaks
-        if leaf_range > sm_lf_range:
-            lt_biglittle_lf_bndry = int(round(center - 100 * self.image.dpmm))
-            rt_biglittle_lf_bndry = int(round(center + 100 * self.image.dpmm))
-            pp = leaf_prof.subdivide([lt_biglittle_lf_bndry, rt_biglittle_lf_bndry], slmw)
-            if len(pp) != 3:
-                raise ValueError("3 Profiles weren't found but should have been")
-            # Left Big MLC region
-            _, peak_idxs = pp[0].find_peaks(min_peak_distance=blmw, exclude_lt_edge=bl_ex)
-            peak_diff = np.diff(peak_idxs).mean()
-            lt_v_idx = np.array(peak_idxs[:-1]) + peak_diff/2
-
-            # Middle, small MLC region
-            _, peak_idxs = pp[1].find_peaks(min_peak_distance=slmw)
-            peak_diff = np.diff(peak_idxs).mean()
-            mid_v_idx = np.array(peak_idxs[:-1]) + peak_diff / 2
-
-            # Right Big MLC region
-            _, peak_idxs = pp[2].find_peaks(min_peak_distance=blmw,
-                                            exclude_rt_edge=bl_ex)
-            peak_diff = np.diff(peak_idxs).mean()
-            rt_v_idx = np.array(peak_idxs[:-1]) + peak_diff / 2
-            leaf_center_idxs = np.concatenate((lt_v_idx, mid_v_idx, rt_v_idx))
-        else:
-            _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=slmw, exclude_lt_edge=sm_ex,
-                                                exclude_rt_edge=sm_ex)
-            _, peak_idxs = leaf_prof.find_FWXM_peaks(min_peak_distance=slmw, interpolate=True)
-            peak_diff = np.diff(peak_idxs).mean()
-            leaf_center_idxs = np.array(peak_idxs[:-1]) + peak_diff / 2
-        return leaf_center_idxs
+        return leaf_centers
 
     def _calc_mlc_positions(self, leaf_centers):
         """Calculate the positions of all the MLC pairs."""
@@ -334,13 +312,14 @@ class PicketFence:
             else:
                 pix_vals = np.median(self._analysis_array[:, mlc_rows], axis=1)
             prof = Profile(pix_vals)
-            prof.find_FWXM_peaks(fwxm=80, min_peak_distance=0.01, min_peak_height=0.5, interpolate=True)
-            for idx, peak in enumerate(prof.peaks):
-                if self.orientation == orientations['UD']:
-                    meas = MLC_Meas((peak.idx, mlc_rows[0]), (peak.idx, mlc_rows[-1]))
-                else:
-                    meas = MLC_Meas((mlc_rows[0], peak.idx), (mlc_rows[-1], peak.idx))
-                self.pickets[idx].mlc_meas.append(meas)
+            prof.find_FWXM_peaks(fwxm=80, min_peak_distance=0.01, min_peak_height=0.6, interpolate=True)
+            if len(prof.peaks) == self.num_pickets:
+                for idx, peak in enumerate(prof.peaks):
+                    if self.orientation == orientations['UD']:
+                        meas = MLC_Meas((peak.idx, mlc_rows[0]), (peak.idx, mlc_rows[-1]))
+                    else:
+                        meas = MLC_Meas((mlc_rows[0], peak.idx), (mlc_rows[-1], peak.idx))
+                    self.pickets[idx].mlc_meas.append(meas)
 
     def _calc_mlc_error(self):
         """Calculate the error of the MLC positions relative to the picket fit."""
@@ -598,12 +577,12 @@ if __name__ == '__main__':
     # import cProfile
     # cProfile.run('PicketFence().run_demo()', sort=1)
     # PicketFence().run_demo()
-    pf = PicketFence(r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Picket Fence\translated.dcm')
-    # pf = PicketFence.from_demo_image()
+    # pf = PicketFence(r'/home/james/Dropbox/Programming/Python/Projects/pylinac/tests/test_files/Picket Fence/AS1200-HD.dcm')
+    pf = PicketFence.from_demo_image()
     # pf.open_UI()
     # pf.load_demo_image()
-    # pf.image.rot90()
+    # pf.image.rot90(2)
     # pf.image.array = rotate(pf.image.array, 0.5, reshape=False, mode='nearest')
-    pf.analyze(tolerance=0.15, action_tolerance=0.03, hdmlc=True)
+    pf.analyze(tolerance=0.15, action_tolerance=0.03, hdmlc=False, num_pickets=10)
     print(pf.return_results())
-    pf.plot_analyzed_image(overlay=False)
+    pf.plot_analyzed_image(overlay=True)

@@ -397,5 +397,7 @@ class Test_MachineLogs(TestCase):
 
     def test_avg_gamma_pct(self):
         logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        for log in logs:
+            print(log.header.num_snapshots)
         gamma = logs.avg_gamma_pct()
         self.assertAlmostEqual(gamma, 100, delta=0.01)
