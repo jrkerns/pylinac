@@ -18,12 +18,9 @@ Intended Use
 Pylinac is intended to be used by two types of physicists: ones who know at least a bit of programming and those who know nothing about
 programming.
 
-For the first group, pylinac can be used within a Python environment to automate analysis of tests, either as a script or used
-within their own flavor of graphical user interface (GUI).
+For the first group, pylinac can be used within a Python environment to automate analysis of QA images.
 
-For the second group, pylinac will come with its own GUI, allowing those who don't know, or care to know, programming. The pylinac GUI will
-function like any other "normal" end-user software, with a display and buttons, etc. The pylinac GUI component of a module will be built on
-the underlying pylinac substructure, and will be built after the API component.
+For the second group, pylinac is also implemented as a `web app <assuranceqa.herokuapp.com>`_.
 
 Philosophy
 ----------

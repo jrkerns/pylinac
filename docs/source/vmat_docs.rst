@@ -95,8 +95,8 @@ The minimum needed to get going is to:
       # view analyzed images
       myvmat.plot_analyzed_image()
 
-Customizing
------------
+Tips & Tricks
+-------------
 
 The VMAT test can be customized using the ``tolerance`` parameter to whatever tolerance is needed, whether simply
 using a default (1.5), or a clinical value.

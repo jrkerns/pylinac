@@ -1,4 +1,6 @@
 
+.. _log_analyzer_module:
+
 =================================
 Log Analyzer module documentation
 =================================
@@ -192,7 +194,7 @@ That's not particularly interesting; perhaps we should check that there was no d
 
 Here's something interesting. The difference between expected and actual is greatest when the gantry starts and stops moving. But,
 notice that the difference is *positive* when the gantry starts moving--until right at the end, the gantry is leading rather than
-lagging![#leadlag]_
+lagging! [#leadlag]_
 
 Let's now take a look at MU::
 

@@ -55,11 +55,20 @@ If you just want to use the demo image without doing analysis::
 
     mypf = PicketFence.from_demo_image()
 
+Acquiring the Image
+-------------------
+
+The easiest way to acquire a picket fence image is using the EPID. In fact, pylinac will only analyze images
+acquired via an EPID, as the DICOM image it produces carries important information about the SID, pixel/mm conversion, etc.
+Depending on the EPID type and physicist, either the entire array of MLCs can be imaged at once, or only the middle
+leaves are acquired. Changing the SID can also change how many leaves are imaged. For analysis by pylinac,
+the SID does not matter, nor EPID type, nor panel translation.
+
 Typical Use
 -----------
 
 Picket Fence tests are recommended to be done weekly. With automatic software analysis, this can be a trivial task.
-Once the test is delivered, retrieve the DICOM image and save it to a known location. Then import the class::
+Once the test is delivered to the EPID, retrieve the DICOM image and save it to a known location. Then import the class::
 
     from pylinac.picketfence import PicketFence
 
@@ -82,11 +91,11 @@ The minimum needed to get going is to:
     the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
     Don't worry though, the old behavior still works.
 
-* **Analyze the images** -- Once the image is loaded, tell PicketFence to start analyzing the image. See the
+* **Analyze the image** -- Once the image is loaded, tell PicketFence to start analyzing the image. See the
   Algorithm section for details on how this is done. While defaults exist, you may pass in a tolerance as well as
   an "action" tolerance (meaning that while passing, action should be required above this tolerance)::
 
-    mypf.analyze(tolerance=0.5, action_tolerance=0.3)
+    mypf.analyze(tolerance=0.15, action_tolerance=0.03)  # tight tolerance to demo fail & warning overlay
 
 * **View the results** -- The PicketFence class can print out the summary of results to the console as well as
   draw a matplotlib image to show the image, MLC peaks, guard rails, and a color overlay for quick assessment::
@@ -96,6 +105,25 @@ The minimum needed to get going is to:
       # view analyzed image
       mypf.plot_analyzed_image()
 
+  which results in:
+
+.. image:: images/PF_tight_tolerance.png
+
+Tips & Tricks
+-------------
+
+Using the picketfence module in your own scripts? While the analysis results can be printed out,
+if you intend on using them elsewhere, they can be accessed through properties. Continuing from
+above::
+
+    mypf.max_error  # max error in mm
+    mypf.max_error_picket  # which picket contained the max error
+    mypf.max_error_leaf  # which leaf contained the maximum error
+    mypf.abs_median_error  # the absolute median error of all the leaves
+    mypf.num_pickets  # how many pickets were found
+    mypf.percent_passing  # the percent of MLC measurements below tolerance
+
+
 Algorithm
 ---------
 
@@ -104,17 +132,20 @@ The picket fence algorithm works like such:
 **Allowances**
 
 * The image can be any size.
-* Both leaf sizes can be analyzed (i.e. 5 and 10mm leaves for standard Millennium)
+* Various leaf sizes can be analyzed (e.g. 5 and 10mm leaves for standard Millennium).
+* Either standard or HD MLCs can be analyzed.
 * The image can be either orientation (pickets going up-down or left-right).
 * The image can be at any clinical SSD.
+* Any EPID type can be used (AS500, AS1000, AS1200).
+* The EPID panel can have an x or y offset (i.e. translation).
 
 **Restrictions**
 
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
-* The image must be an EPID dicom image.
+* The image must be a DICOM image acquired via the EPID.
 * Only Varian MLC models are supported (5/10mm or 2.5/5mm leaf combinations).
-* The delivery must be parallel to an image edge; i.e. the collimator should be 0, 90, or -90 degrees.
+* The delivery must be parallel to an image edge; i.e. the collimator should be at 0, 90, or -90 degrees.
 
 **Pre-Analysis**
 
@@ -148,6 +179,27 @@ The picket fence algorithm works like such:
   each peak of a picket are fitted to a 1D polynomial which is considered the ideal picket. Differences of each MLC position to the picket
   polynomial fit at that position are determined, which is the error. When plotted, errors are tested against the tolerance
   and action tolerance as appropriate.
+
+Troubleshooting
+---------------
+
+First, check the general :ref:`general_troubleshooting` section. Specific to the picket fence
+analysis, there are a few things you can do.
+
+* **Apply a filter upon load** - While pylinac tries to detect if there is unreasonable noise in
+  the image before analysis, there may still be noise that causes analysis to fail. A way to check
+  this is by applying a median filter upon loading the image::
+
+     mypf = PicketFence('mypf.dcm', filter=5)  # vary the filter size depending on the image
+
+  Then try performing the analysis.
+* **Check for streak artifacts** - It is possible in certain scenarios (e.g. TrueBeam dosimetry mode)
+  to have noteworthy artifacts in the image. If the artifacts are in the same direction as the pickets
+  then it is possible pylinac is tripping on these artifacts. You can reacquire the image in another mode or
+  simply try again in the same mode. You may also try cropping the image to exclude the artifact::
+
+     mypf = PicketFence('mypf.dcm')
+     mypf.image.array = mypf.image.array[200:400, 150:450]
 
 
 API Documentation

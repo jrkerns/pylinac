@@ -34,7 +34,7 @@ Results will be printed to the console and a matplotlib figure showing the analy
 Image Acquisition
 -----------------
 
-To capture starshot images, film is often used, but superimposed EPID images can also work for collimator measurements.
+To capture starshot images, film is often used, but a sequence of EPID images can also work for collimator measurements. Pylinac can automatically superimpose the images.
 See the literature mentioned in the :ref:`star_overview` for more info.
 
 Typical Use
@@ -72,8 +72,8 @@ A typical analysis sequence looks like so:
     the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
     Don't worry though, the old behavior still works.
 
-* **Analyze the images** -- After loading the image, all that needs to be done is analyze the image with a few
-  settings passed in::
+* **Analyze the image** -- After loading the image, all that needs to be done is analyze the image. You may optionally
+  pass in some settings::
 
     # analyze
     mystar.analyze(radius=50, tolerance=0.8) # see API docs for more parameter info
@@ -137,6 +137,7 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.starshot.Starshot
+    :no-show-inheritance:
 
 .. autoclass:: pylinac.starshot.StarProfile
 
