@@ -1339,10 +1339,7 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # CBCT Demo
 # ----------------------------------------
 if __name__ == '__main__':
-    folder = r'D:\Users\James\Downloads\CT_CatPhan'
-    # cbct = CBCT.from_folder_UI()
-    # cbct = CBCT.from_demo_images()
-    cbct = CBCT(folder)
+    cbct = CBCT.from_demo_images()
     cbct.analyze()
     print(cbct.return_results())
     cbct.plot_analyzed_image()
