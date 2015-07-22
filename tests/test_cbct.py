@@ -119,6 +119,8 @@ class Test_General(unittest.TestCase):
 class CBCTMixin:
     """A base class to use for Varian CBCT scans; does not inherit from TestCase as it would be run
         otherwise."""
+    hu_tolerance = 40
+    scaling_tolerance = 1
 
     @classmethod
     def setUpClass(cls):
@@ -127,9 +129,9 @@ class CBCTMixin:
         else:
             cls.cbct = CBCT(cls.location)
 
-    def test_all_passed(self, hu_tolerance=40, scaling_tolerance=1):
+    def test_all_passed(self):
         """Test the pass flags for all tests."""
-        self.cbct.analyze(hu_tolerance, scaling_tolerance)
+        self.cbct.analyze(self.hu_tolerance, self.scaling_tolerance)
         self.assertTrue(self.cbct.HU.overall_passed)
         self.assertTrue(self.cbct.UN.overall_passed)
         self.assertTrue(self.cbct.GEO.overall_passed)
@@ -218,14 +220,12 @@ class TestGEMonthlyCT(CBCTMixin, unittest.TestCase):
     location = osp.join(other_test_file_dir, 'GE.zip')
     zip = True
     expected_roll = 0
+    hu_tolerance = 60
     slice_locations = {'HU': 143, 'UN': 83, 'SR': 167, 'LC': 119}
     hu_values = {'Poly': -32, 'Acrylic': 119, 'Delrin': 333, 'Air': -946, 'Teflon': 909, 'PMP': -173, 'LDPE': -87}
     unif_values = {'Center': 12, 'Left': 11, 'Right': 11, 'Top': 11, 'Bottom': 12}
     mtf_values = {60: 0.69, 70: 0.57, 80: 0.48, 90: 0.40, 95: 0.30}
     line_lengths = {'Right-Vert': 50.08, 'Left-Vert': 50.12, 'Top-Horiz': 49.8, 'Bottom-Horiz': 50.05}
-
-    def test_all_passed(self, hu_tolerance=60):
-        super().test_all_passed(hu_tolerance)
 
 
 class TestToshibaMonthlyCT(CBCTMixin, unittest.TestCase):
@@ -233,11 +233,21 @@ class TestToshibaMonthlyCT(CBCTMixin, unittest.TestCase):
     location = osp.join(other_test_file_dir, 'Toshiba.zip')
     zip = True
     expected_roll = 0.002
+    hu_tolerance = 240
     slice_locations = {'HU': 36, 'UN': 11, 'SR': 46, 'LC': 26}
     hu_values = {'Poly': -32, 'Acrylic': 106, 'Delrin': 467, 'Air': -994, 'Teflon': 1214, 'PMP': -165, 'LDPE': -85}
     unif_values = {'Center': 8, 'Left': 7, 'Right': 7, 'Top': 7, 'Bottom': 6}
     mtf_values = {60: 0.58, 70: 0.46, 80: 0.36, 90: 0.28, 95: 0.24}
     line_lengths = {'Right-Vert': 50.1, 'Left-Vert': 50.08, 'Top-Horiz': 50.12, 'Bottom-Horiz': 49.9}
 
-    def test_all_passed(self, hu_tolerance=240):
-        super().test_all_passed(hu_tolerance)
+
+class TestEMCBCT(CBCTMixin, unittest.TestCase):
+    """A Varian CBCT dataset from E.M."""
+    location = osp.join(varian_test_file_dir, 'CT_CatPhan.zip')
+    zip = True
+    expected_roll = 0
+    slice_locations = {'HU': 60, 'UN': 22, 'SR': 75, 'LC': 45}
+    hu_values = {'Poly': -32, 'Acrylic': 121, 'Delrin': 353, 'Air': -995, 'Teflon': 945, 'PMP': -186, 'LDPE': -93}
+    unif_values = {'Center': -2, 'Left': 6, 'Right': 5, 'Top': 11, 'Bottom': 3}
+    mtf_values = {60: 0.86, 70: 0.75, 80: 0.62, 90: 0.50, 95: 0.44}
+    line_lengths = {'Right-Vert': 50.13, 'Left-Vert': 50.05, 'Top-Horiz': 49.95, 'Bottom-Horiz': 50}

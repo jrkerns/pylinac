@@ -870,7 +870,7 @@ class HU_Slice(Base_HU_Slice):
         """
         SOI = self.image.threshold(self.settings.threshold)
         SOI.invert()
-        labels, no_roi = ndimage.measurements.label(SOI)
+        labels, no_roi = ndimage.measurements.label(SOI.array)
         # calculate ROI sizes of each label TODO: simplify the air bubble-finding
         roi_sizes = [ndimage.measurements.sum(SOI.array, labels, index=item) for item in range(1, no_roi + 1)]
         # extract air bubble ROIs (based on size threshold)
@@ -879,7 +879,7 @@ class HU_Slice(Base_HU_Slice):
                        item < bubble_thresh * 1.5 and item > bubble_thresh / 1.5]
         # if the algo has worked correctly, it has found 2 and only 2 ROIs (the air bubbles)
         if len(air_bubbles) == 2:
-            air_bubble_CofM = ndimage.measurements.center_of_mass(SOI, labels, air_bubbles)
+            air_bubble_CofM = ndimage.measurements.center_of_mass(SOI.array, labels, air_bubbles)
             y_dist = air_bubble_CofM[0][0] - air_bubble_CofM[1][0]
             x_dist = air_bubble_CofM[0][1] - air_bubble_CofM[1][1]
             angle = np.arctan2(y_dist, x_dist)
@@ -1025,11 +1025,7 @@ class SR_Slice(Slice):
         max_idxs : numpy.array
             Indices of peaks found.
         """
-        max_vals_1, max_idx_1 = profile.find_peaks(min_peak_distance=150, max_num_peaks=2, exclude_rt_edge=0.9)
-        max_vals_2, max_idx_2 = profile.find_peaks(min_peak_distance=42, exclude_lt_edge=0.12, exclude_rt_edge=0.7)
-        max_vals_3, max_idx_3 = profile.find_peaks(min_peak_distance=25, exclude_lt_edge=0.3, exclude_rt_edge=0.65)
-        max_vals = np.concatenate((max_vals_1, max_vals_2, max_vals_3))
-        max_idxs = np.concatenate((max_idx_1, max_idx_2, max_idx_3))
+        max_vals, max_idxs = profile.find_peaks(min_peak_distance=150, max_num_peaks=17)
         if len(max_idxs) != 17:
             # TODO: add some robustness here
             raise ArithmeticError("Did not find the correct number of line pairs")
@@ -1060,11 +1056,11 @@ class SR_Slice(Slice):
         min_idxs = np.zeros(16)
         for idx in range(len(max_idxs) - 1):
             min_val, min_idx = profile.find_valleys(exclude_lt_edge=max_idxs[idx], exclude_rt_edge=len(profile.y_values) - max_idxs[idx+1], max_num_peaks=1)
-            min_vals[idx] = min_val[0]
-            min_idxs[idx] = min_idx[0]
-        # now delete the valleys *in between* the LP regions
-        min_vals = np.delete(min_vals, idx2del)
+            if len(min_val) > 0:
+                min_vals[idx] = min_val[0]
+                min_idxs[idx] = min_idx[0]
         min_idxs = np.delete(min_idxs, idx2del)
+        min_vals = np.delete(min_vals, idx2del)
         return min_vals, min_idxs
 
     def _calc_MTF(self, max_vals, min_vals):
@@ -1086,6 +1082,8 @@ class SR_Slice(Slice):
         """
         num_peaks = np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
         num_valleys = np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
+        max_vals = np.array(max_vals)
+        min_vals = np.array(min_vals)
         for key, LP_pair in zip(self.LP_freq, range(len(num_peaks) - 1)):
             region_max = max_vals[num_peaks[LP_pair]:num_peaks[LP_pair + 1]].mean()
             region_min = min_vals[num_valleys[LP_pair]:num_valleys[LP_pair + 1]].mean()
@@ -1098,6 +1096,10 @@ class SR_Slice(Slice):
     def calc_MTF(self):
         """Calculate the line pairs of the SR slice."""
         profile = self.calc_median_profile(roll_offset=self.settings.phantom_roll)
+        spacing_array = np.linspace(1, 5, num=2100)
+        spacing_array = (np.round(spacing_array)).astype(int)
+        spaced_array = np.repeat(profile.y_values[:2100], spacing_array)
+        profile = Profile(spaced_array)
         max_vals, max_idxs = self._find_LP_peaks(profile)
         min_vals, min_idxs = self._find_LP_valleys(profile, max_idxs)
         self._calc_MTF(max_vals, min_vals)
@@ -1337,8 +1339,10 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # CBCT Demo
 # ----------------------------------------
 if __name__ == '__main__':
-    cbct = CBCT.from_folder_UI()
+    folder = r'D:\Users\James\Downloads\CT_CatPhan'
+    # cbct = CBCT.from_folder_UI()
     # cbct = CBCT.from_demo_images()
+    cbct = CBCT(folder)
     cbct.analyze()
     print(cbct.return_results())
     cbct.plot_analyzed_image()
