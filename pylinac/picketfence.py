@@ -253,7 +253,7 @@ class PicketFence:
         else:
             leaf_prof = np.mean(self._analysis_array, 1)
         leaf_prof = Profile(leaf_prof)
-        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=0.01, min_peak_height=0.5, max_num_peaks=num_pickets)
+        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=0.02, min_peak_height=0.5, max_num_peaks=num_pickets)
         for peak in range(len(peak_idxs)):
             self.pickets.append(Picket(self.image, tolerance, self.orientation, action_tolerance))
 
@@ -577,12 +577,12 @@ if __name__ == '__main__':
     # import cProfile
     # cProfile.run('PicketFence().run_demo()', sort=1)
     # PicketFence().run_demo()
-    # pf = PicketFence(r'/home/james/Dropbox/Programming/Python/Projects/pylinac/tests/test_files/Picket Fence/AS1200-HD.dcm')
-    pf = PicketFence.from_demo_image()
+    pf = PicketFence(r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Picket Fence\AS1200-ExtendedSID.dcm')
+    # pf = PicketFence.from_demo_image()
     # pf.open_UI()
     # pf.load_demo_image()
     # pf.image.rot90(2)
     # pf.image.array = rotate(pf.image.array, 0.5, reshape=False, mode='nearest')
-    pf.analyze(tolerance=0.15, action_tolerance=0.03, hdmlc=False, num_pickets=10)
+    pf.analyze(tolerance=0.15, action_tolerance=0.03, hdmlc=False)
     print(pf.return_results())
     pf.plot_analyzed_image(overlay=True)
