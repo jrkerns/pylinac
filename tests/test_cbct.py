@@ -217,7 +217,7 @@ class Test_Varian_Low_Dose_Thorax(CBCTMixin, unittest.TestCase):
 
 class TestGEMonthlyCT(CBCTMixin, unittest.TestCase):
     """Test a monthly CT scan from GE."""
-    location = osp.join(other_test_file_dir, 'GE.zip')
+    location = osp.join(other_test_file_dir, 'GE_CT.zip')
     zip = True
     expected_roll = 0
     hu_tolerance = 60
