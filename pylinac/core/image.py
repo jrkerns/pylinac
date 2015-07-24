@@ -1,9 +1,6 @@
 
 """This module holds classes for image loading and manipulation."""
-import warnings
-
 from dicom.errors import InvalidDicomError
-from dicom.dataset import Dataset
 import numpy as np
 from PIL import Image as pImage
 import dicom
@@ -83,7 +80,7 @@ class Image:
             try:
                 self._load_file(filename)
             except (IOError, AttributeError):
-                raise TypeError("Image input type not understood")
+                raise TypeError("Image input '{}' not understood".format(filename))
 
     @classmethod
     def from_array(cls, array):
@@ -245,7 +242,7 @@ class Image:
         self.im_type = DICOM
 
         # attach the metadata
-        self._dcm_meta = dicom.read_file(file_path, stop_before_pixels=True)
+        self._dcm_meta = dcm
 
     def plot(self):
         """Plot the image."""
@@ -367,17 +364,9 @@ class Image:
         init_obj.array = combined_arr
         return init_obj
 
-    @property
-    def shape(self):
-        return self.array.shape
-
-    @property
-    def size(self):
-        return self.array.size
-
-    # def __getattr__(self, item):
-    #     """Set the Attribute getter to grab from the array if possible (for things like .shape, .size, etc)."""
-    #     return getattr(self.array, item)
+    def __getattr__(self, item):
+        """Set the Attribute getter to grab from the array if possible (for things like .shape, .size, etc)."""
+        return getattr(self.array, item)
 
 if __name__ == '__main__':
     img = Image.from_multiple_UI()
