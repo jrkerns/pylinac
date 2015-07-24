@@ -60,7 +60,7 @@ class CBCT:
         >>> print(mycbct.return_results())
         >>> mycbct.plot_analyzed_image()
     """
-    def __init__(self, folderpath=None):
+    def __init__(self, folderpath=None, read_all=False):
         self.settings = None
         self.HU = None
         self.UN = None
@@ -68,7 +68,7 @@ class CBCT:
         self.LOCON = None
         self.SR = None
         if folderpath is not None:
-            self.load_folder(folderpath)
+            self.load_folder(folderpath, read_all)
 
     @classmethod
     def from_demo_images(cls):
@@ -87,16 +87,16 @@ class CBCT:
         self.load_zip_file(demo_zip)
 
     @classmethod
-    def from_url(cls, url):
+    def from_url(cls, url, read_all=False):
         """Instantiate from a URL.
 
         .. versionadded:: 0.7.1
         """
         obj = cls()
-        obj.load_url(url)
+        obj.load_url(url, read_all)
         return obj
 
-    def load_url(self, url):
+    def load_url(self, url, read_all=False):
         """Load from a URL.
 
         .. versionadded:: 0.7.1
@@ -112,22 +112,22 @@ class CBCT:
         self.load_zip_file(stream)
 
     @classmethod
-    def from_folder_UI(cls):
+    def from_folder_UI(cls, read_all=False):
         """Construct a CBCT object an get the files using a UI dialog box.
 
         .. versionadded:: 0.6
         """
         obj = cls()
-        obj.load_folder_UI()
+        obj.load_folder_UI(read_all)
         return obj
 
-    def load_folder_UI(self):
+    def load_folder_UI(self, read_all=False):
         """Load the CT DICOM files from a folder using a UI dialog box."""
         folder = get_folder_UI()
         if folder:
-            self.load_folder(folder)
+            self.load_folder(folder, read_all)
 
-    def load_folder(self, folder):
+    def load_folder(self, folder, read_all=False):
         """Load the CT DICOM files string input.
 
         Parameters
@@ -143,11 +143,11 @@ class CBCT:
         if not osp.isdir(folder):
             raise NotADirectoryError("Path given was not a Directory/Folder")
 
-        filelist = self._get_CT_filenames_from_folder(folder)
+        filelist = self._get_CT_filenames_from_folder(folder, read_all)
         self._load_files(filelist)
 
     @classmethod
-    def from_zip_file_UI(cls):
+    def from_zip_file_UI(cls, read_all=False):
         """Construct a CBCT object and pass the zip file.
 
         .. versionadded:: 0.6
@@ -156,25 +156,25 @@ class CBCT:
         obj.load_zip_file_UI()
         return obj
 
-    def load_zip_file_UI(self):
+    def load_zip_file_UI(self, read_all=False):
         """Load a zip file using a UI dialog box.
 
         .. versionadded:: 0.6
         """
         zfile = get_filepath_UI()
-        self.load_zip_file(zfile)
+        self.load_zip_file(zfile, read_all)
 
     @classmethod
-    def from_zip_file(cls, zip_file):
+    def from_zip_file(cls, zip_file, read_all=False):
         """Construct a CBCT object and pass the zip file.
 
         .. versionadded:: 0.6
         """
         obj = cls()
-        obj.load_zip_file(zip_file)
+        obj.load_zip_file(zip_file, read_all)
         return obj
 
-    def load_zip_file(self, zip_file):
+    def load_zip_file(self, zip_file, read_all=False):
         """Load a CBCT dataset from a zip file.
 
         Parameters
@@ -194,10 +194,10 @@ class CBCT:
         else:
             raise FileExistsError("Files given were not valid zip files")
 
-        filelist = self._get_CT_filenames_from_zip(zfs)
+        filelist = self._get_CT_filenames_from_zip(zfs, read_all)
         self._load_files(filelist, is_zip=True, zfiles=zfs)
 
-    def _get_CT_filenames_from_folder(self, folder):
+    def _get_CT_filenames_from_folder(self, folder, read_all):
         """Walk through a folder to find DICOM CT images.
 
         Parameters
@@ -210,18 +210,39 @@ class CBCT:
         FileNotFoundError : If no CT images are found in the folder
         """
         for par_dir, sub_dir, files in os.walk(folder):
-            filelist = [osp.join(par_dir, item) for item in files if item.endswith('.dcm') and item.startswith('CT')]
+            if not read_all:
+                filelist = [osp.join(par_dir, item) for item in files if item.endswith('.dcm') and item.startswith('CT')]
+            else:
+                filelist = []
+                for name in files:
+                    name = osp.join(par_dir, name)
+                    try:
+                        ds = dicom.read_file(name, force=True, stop_before_pixels=True)
+                        if ds.SOPClassUID.name == 'CT Image Storage':
+                            filelist.append(name)
+                    except InvalidDicomError:
+                        pass
             if filelist:
                 return filelist
-        raise FileNotFoundError("CT images were not found in the specified folder.")
+        raise FileNotFoundError("CT images were not found in the specified folder; files should either start with 'CT' or set read_all=True.")
 
-    def _get_CT_filenames_from_zip(self, zfile):
+    def _get_CT_filenames_from_zip(self, zfile, read_all):
         """Get the CT image file names from a zip file."""
         allnames = zfile.namelist()
-        filelist = [item for item in allnames if os.path.basename(item).endswith('.dcm') and os.path.basename(item).startswith('CT')]
+        if not read_all:
+            filelist = [item for item in allnames if os.path.basename(item).endswith('.dcm') and os.path.basename(item).startswith('CT')]
+        else:
+            filelist = []
+            for name in allnames:
+                try:
+                    ds = dicom.read_file(BytesIO(zfile.read(name)), force=True, stop_before_pixels=True)
+                    if ds.SOPClassUID.name == 'CT Image Storage':
+                        filelist.append(name)
+                except InvalidDicomError:
+                    pass
         if filelist:
             return filelist
-        raise FileNotFoundError("CT images were not found in the specified folder.")
+        raise FileNotFoundError("CT images were not found in the specified folder; files should either start with 'CT' or set read_all=True.")
 
     def _load_files(self, file_list, is_zip=False, zfiles=None):
         """Load CT DICOM files given a list of image paths.
@@ -251,7 +272,7 @@ class CBCT:
         for idx, item in enumerate(file_list):
             if is_zip:
                 item = BytesIO(zfiles.read(item))
-            dcm = dicom.read_file(item)
+            dcm = dicom.read_file(item, force=True)
             if rd and rd != dcm.ReconstructionDiameter:
                 raise InvalidDicomError("CBCT dataset images are not from the same study")
             rd = dcm.ReconstructionDiameter
@@ -420,6 +441,17 @@ class CBCT:
                                                    self.GEO.get_line_lengths(), self.GEO.overall_passed)
         return string
 
+    def _return_results(self):
+        """Helper function to spit out values that will be tested."""
+        print(self.return_results())
+        print("Phantom roll: {}".format(self.settings.phantom_roll))
+        for mtf in (60, 70, 80, 90, 95):
+            mtfval = self.SR.get_MTF(mtf)
+            print("MTF({}): {}".format(mtf, mtfval))
+        for slice in ('hu_slice_num', 'un_slice_num', 'sr_slice_num', 'lc_slice_num'):
+            slicenum = getattr(self.settings, slice)
+            print(slice, slicenum)
+
     def analyze(self, hu_tolerance=40, scaling_tolerance=1):
         """Single-method full analysis of CBCT DICOM files.
 
@@ -544,7 +576,7 @@ class Settings:
     @property
     def un_slice_num(self):
         """Return the HU uniformity slice number."""
-        slice = int(self.hu_slice_num - round(75/self.dicom_metadata.SliceThickness))
+        slice = int(self.hu_slice_num - round(73/self.dicom_metadata.SliceThickness))
         if self._is_within_image_extent(slice):
             return slice
 
@@ -845,17 +877,23 @@ class HU_Slice(Base_HU_Slice):
 
         HU_ROIp = partial(HU_ROI, slice_array=self.image.array, radius=self.object_radius, dist_from_center=self.dist2objs,
                           tolerance=settings.hu_tolerance)
+        angle_offset = np.rad2deg(self.phantom_roll)
 
-        air = HU_ROIp('Air', 90, -1000)
-        pmp = HU_ROIp('PMP', 120, -200)
-        ldpe = HU_ROIp('LDPE', 180, -100)
-        poly = HU_ROIp('Poly', -120, -35)
-        acrylic = HU_ROIp('Acrylic', -60, 120)
-        delrin = HU_ROIp('Delrin', 0, 340)
-        teflon = HU_ROIp('Teflon', 60, 990)
+        air = HU_ROIp('Air', 90 + angle_offset, -1000)
+        pmp = HU_ROIp('PMP', 120 + angle_offset, -200)
+        ldpe = HU_ROIp('LDPE', 180 + angle_offset, -100)
+        poly = HU_ROIp('Poly', -120 + angle_offset, -35)
+        acrylic = HU_ROIp('Acrylic', -60 + angle_offset, 120)
+        delrin = HU_ROIp('Delrin', 0 + angle_offset, 340)
+        teflon = HU_ROIp('Teflon', 60 + angle_offset, 990)
         self.add_ROI(air, pmp, ldpe, poly, acrylic, delrin, teflon)
 
         super().find_phan_center()
+
+    @property
+    @lru_cache()
+    def phantom_roll(self):
+        return self.determine_phantom_roll()
 
     def scale_by_FOV(self):
         """Specially overloaded to account for air_bubble_size's *square* FOV relationship."""
@@ -994,7 +1032,7 @@ class SR_Slice(Slice):
         """
         # extract the profile for each ROI (5 adjacent profiles)
         for roi in self.ROIs.values():
-            roi.get_profile(self.image.array, size=2*np.pi*1000, start=np.pi+roll_offset)
+            roi.get_profile(self.image.array, size=2*np.pi*1000, start=np.pi-roll_offset)
         # average profiles together
         prof = np.zeros(len(roi.y_values))
         for idx, roi in enumerate(self.ROIs.values()):
@@ -1096,9 +1134,9 @@ class SR_Slice(Slice):
     def calc_MTF(self):
         """Calculate the line pairs of the SR slice."""
         profile = self.calc_median_profile(roll_offset=self.settings.phantom_roll)
-        spacing_array = np.linspace(1, 5, num=2100)
+        spacing_array = np.linspace(1, 5, num=2200)
         spacing_array = (np.round(spacing_array)).astype(int)
-        spaced_array = np.repeat(profile.y_values[:2100], spacing_array)
+        spaced_array = np.repeat(profile.y_values[:2200], spacing_array)
         profile = Profile(spaced_array)
         max_vals, max_idxs = self._find_LP_peaks(profile)
         min_vals, min_idxs = self._find_LP_valleys(profile, max_idxs)
@@ -1225,11 +1263,12 @@ class GEO_Slice(Slice):
 
         GEO_ROIp = partial(GEO_ROI, slice_array=self.image.array, radius=self.obj_radius,
                            dist_from_center=self.dist2objs)
+        angle_offset = np.rad2deg(self.settings.phantom_roll)
 
-        tl = GEO_ROIp(name='Top-Left', angle=-135)
-        tr = GEO_ROIp(name='Top-Right', angle=-45)
-        br = GEO_ROIp(name='Bottom-Right', angle=45)
-        bl = GEO_ROIp(name='Bottom-Left', angle=135)
+        tl = GEO_ROIp(name='Top-Left', angle=-135 + angle_offset)
+        tr = GEO_ROIp(name='Top-Right', angle=-45 + angle_offset)
+        br = GEO_ROIp(name='Bottom-Right', angle=45 + angle_offset)
+        bl = GEO_ROIp(name='Bottom-Left', angle=135 + angle_offset)
         self.add_ROI(tl, tr, br, bl)
 
         # Construct the Lines, mapping to the nodes they connect to
