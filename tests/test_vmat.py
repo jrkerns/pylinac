@@ -18,12 +18,6 @@ class TestGeneral(unittest.TestCase):
     def setUp(self):
         self.vmat = VMAT()
 
-    def test_demo_image_loads(self):
-        """Test the that demo images load properly."""
-        # shouldn't raise
-        self.vmat.load_demo_image('drgs')
-        self.vmat.load_demo_image('mlcs')
-
     def test_analyze_without_both_images_loaded(self):
         """Raise an error if both images aren't loaded when analyzing."""
         self.assertRaises(AttributeError, self.vmat.analyze, 'mlcs')
@@ -46,16 +40,6 @@ class TestGeneral(unittest.TestCase):
         self.vmat.analyze('mlcs')
         self.assertEqual(len(self.vmat.segments), 4)
 
-    def test_passing_3_images(self):
-        """Test passing the wrong number of images."""
-        with self.assertRaises(ValueError):
-            self.vmat.load_images(('', '', ''))
-
-    def test_from_urls(self):
-        urls = ['https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRGS_dmlc.dcm',
-                'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRGS_open.dcm']
-        vmat = VMAT.from_urls(urls)
-
     def test_img_inversion(self):
         """Check that the demo images indeed get inverted."""
         self.vmat.load_demo_image()
@@ -63,6 +47,73 @@ class TestGeneral(unittest.TestCase):
         self.vmat._check_img_inversion()
         top_corner_after = self.vmat.image_open.array[:20, :20].mean()
         self.assertNotEqual(top_corner_before, top_corner_after)
+
+    def test_analyze_without_test_type(self):
+        dmlc = osp.join(_vmat_test_files_dir, 'no_test_type_dmlc.dcm')
+        opn = osp.join(_vmat_test_files_dir, 'no_test_type_open.dcm')
+        self.vmat.load_images((dmlc, opn))
+
+        with self.assertRaises(ValueError):
+            self.vmat.analyze()
+
+        # but will run when test type is passed
+        self.vmat.analyze('drmlc')
+
+    def test_loading_with_bad_names(self):
+        one = osp.join(_vmat_test_files_dir, 'no_test_or_image_type_1.dcm')
+        two = osp.join(_vmat_test_files_dir, 'no_test_or_image_type_2.dcm')
+        with self.assertRaises(ValueError):
+            self.vmat.load_images((one, two))
+
+        # but will work when everything is specified
+        self.vmat.load_image(one, 'open')
+        self.vmat.load_image(two, 'dmlc')
+        self.vmat.analyze('drmlc')
+
+    def test_failure_with_tight_tolerance(self):
+        self.vmat.load_demo_image()
+        self.vmat.analyze(tolerance=0.1)
+        self.vmat.return_results()
+
+
+class TestLoading(unittest.TestCase):
+    """Tests of the various loading schemas."""
+
+    def setUp(self):
+        self.vmat = VMAT()
+
+    def test_load_image(self):
+        good_name = osp.join(_vmat_test_files_dir, 'no_test_type_dmlc.dcm')
+        bad_name = osp.join(_vmat_test_files_dir, 'no_test_or_image_type_1.dcm')
+
+        # image type can be determined from a good name
+        self.vmat.load_image(good_name)
+
+        # but not a bad one
+        with self.assertRaises(ValueError):
+            self.vmat.load_image(bad_name)
+
+    @unittest.skip
+    def test_from_urls(self):
+        urls = ['https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRGS_dmlc.dcm',
+                'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRGS_open.dcm']
+        vmat = VMAT.from_urls(urls)
+
+    def test_passing_3_images(self):
+        """Test passing the wrong number of images."""
+        with self.assertRaises(ValueError):
+            self.vmat.load_images(('', '', ''))
+
+    def test_demo_image_loads(self):
+        """Test the that demo images load properly."""
+        # shouldn't raise
+        self.vmat.load_demo_image('drgs')
+        self.vmat.load_demo_image('mlcs')
+
+    def test_from_zip(self):
+        path = osp.join(_vmat_test_files_dir, 'DRMLC.zip')
+        v = VMAT.from_zip(path)
+        v.analyze()
 
 
 class VMATMixin:
@@ -159,7 +210,7 @@ class TestMLCSDemo(VMATMixin, unittest.TestCase):
 class TestMLCS105(VMATMixin, unittest.TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
     filepaths = (osp.join(_vmat_test_files_dir, 'DRMLCopen-105-example.dcm'),
-                 osp.join(_vmat_test_files_dir, 'DRMLCmlc-105-example.dcm'))
+                 osp.join(_vmat_test_files_dir, 'DRMLCdmlc-105-example.dcm'))
     test_type = 'mlcs'
     segment_positions = {0: Point(391, 384), 2: Point(552, 384)}
     segment_values = {
@@ -174,7 +225,7 @@ class TestMLCS105(VMATMixin, unittest.TestCase):
 class TestDRGS105(VMATMixin, unittest.TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
     filepaths = (osp.join(_vmat_test_files_dir, 'DRGSopen-105-example.dcm'),
-                 osp.join(_vmat_test_files_dir, 'DRGSmlc-105-example.dcm'))
+                 osp.join(_vmat_test_files_dir, 'DRGSdmlc-105-example.dcm'))
     test_type = 'drgs'
     x_offset = 20
     segment_positions = {0: Point(371, 384), 2: Point(478, 384)}

@@ -1,3 +1,8 @@
+V 0.8.0 - 7/23/2015
+
+    VMAT
+-Added a `from_zip()` and `load_zip()` method to load a set of images that are in a zip file.
+
 V 0.7.1 - 7/9/2015
 
     General

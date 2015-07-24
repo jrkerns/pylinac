@@ -3,8 +3,8 @@
 images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS) and MLC speed (MLCS) tests.
 """
 import os.path as osp
-import warnings
 from io import BytesIO
+import zipfile
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -91,25 +91,49 @@ class VMAT:
             self.load_image(fs, im_type=im_type)
 
     @value_accept(im_type=im_types)
-    def load_image(self, file_path, im_type='open'):
+    def load_image(self, file_path, im_type=None):
         """Load the image directly by the file path.
 
         Parameters
         ----------
-        file_path : str
-            The path to the DICOM image.
-        im_type : {'open', 'mlcs'}
-            Specifies which file/image type is being loaded in.
+        file_path : str, file-like object
+            The path to the DICOM image or I/O stream.
+        im_type : {'open', 'mlcs', None}
+            Specifies what image type is being loaded in. If None, will try to determine the type from the name.
+            The name must have 'open' or 'dmlc' in the name.
         """
         img = Image(file_path)
-        if _is_open_type(im_type):
-            self.image_open = img
-        elif _is_dmlc_type(im_type):
-            self.image_dmlc = img
+        if im_type is not None:
+            if _is_open_type(im_type):
+                self.image_open = img
+            elif _is_dmlc_type(im_type):
+                self.image_dmlc = img
+        else:
+            # try to guess type by the name
+            imtype = self._try_to_guess_image_type(osp.basename(file_path))
+            if imtype is not None:
+                self.load_image(file_path, imtype)
+            else:
+                raise ValueError("Image type was not given nor could it be determined from the path name. Please enter and image type.")
+
+    @staticmethod
+    def _try_to_guess_image_type(name):
+        if 'open' in name.lower():
+            return 'open'
+        elif 'dmlc' in name.lower():
+            return 'dmlc'
+
+    def _try_to_guess_test(self, name):
+        # try to determine test type
+        if 'drmlc' in name.lower():
+            self.settings.test_type = 'drmlc'
+        elif 'drgs' in name.lower():
+            self.settings.test_type = 'drgs'
 
     def load_images(self, images, names=None):
         """Load both images simultaneously, assuming a clear name convention:
-        the open image must have 'open' in the filename.
+        1) The open image must have 'open' in the filename.
+        2) Optionally, the test type can be in the image names as well. If so, the test type is automatically determined.
 
         .. versionadded:: 0.6
 
@@ -120,7 +144,9 @@ class VMAT:
         names : None, str
             Internal keyword. If the passed images are URLs, then the names must also be passed. If loading URLs, use .from_urls() instead.
         """
-        if len(images) != 2:
+        if (names is not None) and (len(names) != 2):
+            raise ValueError("Exactly 2 images must be passed")
+        elif (names is None) and (len(images) != 2):
             raise ValueError("Exactly 2 images must be passed")
 
         for idx, image in enumerate(images):
@@ -130,9 +156,15 @@ class VMAT:
                 name = image
             if 'open' in name.lower():
                 im_type = 'open'
-            else:
+            elif 'dmlc' in name.lower():
                 im_type = 'dmlc'
+            else:
+                raise ValueError("Could not determine which image was open and DMLC; image names must have 'open' or 'dmlc' in the names when using `load_images()`")
             self.load_image(image, im_type=im_type)
+        if names is not None:
+            self._try_to_guess_test(name)
+        else:
+            self._try_to_guess_test(image)
 
     @classmethod
     def from_demo_images(cls, type='drgs'):
@@ -161,8 +193,34 @@ class VMAT:
             im_open_path = osp.join(demo_folder, "DRGS_open.dcm")
             im_dmlc_path = osp.join(demo_folder, 'DRGS_dmlc.dcm')
 
-        self.load_image(im_open_path, im_type=im_types['OPEN'])
-        self.load_image(im_dmlc_path, im_type=im_types['DMLC'])
+        self.load_images((im_open_path, im_dmlc_path))
+
+        # self.load_image(im_open_path, im_type=im_types['OPEN'])
+        # self.load_image(im_dmlc_path, im_type=im_types['DMLC'])
+
+    @classmethod
+    def from_zip(cls, path):
+        """Load VMAT images from a ZIP file that contains both images.
+
+        .. versionadded:: 0.8
+        """
+        obj = cls()
+        obj.load_zip(path)
+        return obj
+
+    def load_zip(self, zip_file):
+        """Load VMAT images from a ZIP file that contains both images.
+
+        .. versionadded:: 0.8
+        """
+        if isinstance(zip_file, zipfile.ZipFile):
+            zfs = zip_file
+        elif zipfile.is_zipfile(zip_file):
+            zfs = zipfile.ZipFile(zip_file)
+        else:
+            raise FileExistsError("File '{}' given was not a valid zip file".format(zip_file))
+        files = [BytesIO(zfs.read(name)) for name in zfs.namelist()]
+        self.load_images(files, names=zfs.namelist())
 
     @classmethod
     def from_urls(cls, urls):
@@ -211,13 +269,14 @@ class VMAT:
 
     @type_accept(test=str)
     @value_accept(test=test_types, tolerance=(0, 8))
-    def analyze(self, test, tolerance=1.5):
+    def analyze(self, test=None, tolerance=1.5):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
         Parameters
         ----------
-        test : {'drgs', 'mlcs'}
+        test : {'drgs', 'mlcs', None}
             The test to perform, either Dose Rate Gantry Speed ('drgs') or MLC Speed ('mlcs').
+            The default is None, which assumes a clear naming convention; see load_image() for info.
         tolerance : float, int, optional
             The tolerance of the sample deviations in percent. Default is 1.5.
             Must be between 0.1 and 8.
@@ -225,8 +284,11 @@ class VMAT:
         if not self.open_img_is_loaded or not self.dmlc_img_is_loaded:
             raise AttributeError("Open or MLC Image not loaded yet. Use .load_image() or .load_image_UI()")
 
-        self.settings.test_type = test
         self.settings.tolerance = tolerance/100
+        if test is None and self.settings.test_type is '':
+            raise ValueError("Test parameter must be given, either 'drgs' or 'drmlc'")
+        elif test is not None:
+            self.settings.test_type = test
 
         """Pre-Analysis"""
         self._check_img_inversion()
@@ -269,42 +331,27 @@ class VMAT:
         """Returns whether all the segment ratios passed the given tolerance."""
         return self.segments.passed
 
-    def _draw_objects(self, plot):
-        """Draw lines onto the matplotlib widget/figure showing the ROIS.
-
-        Parameters
-        ----------
-        plot : matplotlib.axes.Axes
-            The plot to draw the objects on.
-        """
-        for segment in self.segments:
-            color = segment.get_bg_color()
-            segment.add_to_axes(plot.axes, edgecolor=color)
-
+    @value_accept(image=('dmlc', 'open'))
     def plot_analyzed_image(self, image='dmlc', show=True):
-        """Create 1 figure with 2 plots showing the open and MLC images
-            with the samples and results drawn on.
+        """Plot
 
         Parameters
         ----------
-        plot1 : matplotlib.axes.plot
-            If passed, plots to this plot. If None, will create a new figure.
-        plot2 : matplotlib.axes.plot
-            Same as above; if plot1 is supplied but plot2 left as None, will put images into
-            one figure.
+        image : {'dmlc', 'open'}
+            Which image to plot over.
+        show : bool
+            Whether to actually show the image.
         """
         if image == 'dmlc':
             img = self.image_dmlc
         elif image == 'open':
             img = self.image_open
-        else:
-            raise ValueError("Parameter {} not understood".format(image))
 
         plt.clf()
         plt.axis('off')
+        plt.title(image.upper() + " Image")
         fig = plt.imshow(img, cmap=plt.cm.Greys)
-        if image == 'dmlc':
-            self._draw_objects(fig.axes)
+        self.segments.draw(fig.axes)
 
         if show:
             plt.show()
@@ -361,6 +408,18 @@ class SegmentManager:
 
     def __getitem__(self, item):
         return self.segments[item]
+
+    def draw(self, plot):
+        """Draw the segments onto a plot.
+
+        Parameters
+        ----------
+        plot : matplotlib.axes.Axes
+            The plot to draw the objects on.
+        """
+        for segment in self.segments:
+            color = segment.get_bg_color()
+            segment.add_to_axes(plot.axes, edgecolor=color)
 
     def _construct_segment_centers(self, test):
         """Construct the center points of the segments, depending on the test.
@@ -425,10 +484,7 @@ class SegmentManager:
     @property
     def passed(self):
         """Return whether all the images passed."""
-        for segment in self.segments:
-            if not segment.passed:
-                return False
-        return True
+        return all(segment.passed for segment in self.segments)
 
 
 class Segment(Rectangle):
@@ -471,17 +527,12 @@ class Segment(Rectangle):
 
     @property
     def passed(self):
-        if self.r_dev > self._tolerance*100:
-            return False
-        else:
-            return True
+        """Return whether the segment passed or failed."""
+        return self.r_dev < self._tolerance * 100
 
     def get_bg_color(self):
         """Get the background color of the segment when plotted, based on the pass/fail status."""
-        if self.passed:
-            color = 'blue'
-        else:
-            color = 'red'
+        color = 'blue' if self.passed else 'red'
         return color
 
 
@@ -521,8 +572,6 @@ def _test_is_drgs(test):
     return _x_in_y(test, 'drgs')
 
 def _test_is_mlcs(test):
-    if _x_in_y(test, 'drmlc'):
-        warnings.warn("Pylinac VMAT parameter 'drmlc' should be dropped in favor of 'mlcs'. 'drmlc' will be dropped in v0.7.0", FutureWarning)
     return _x_in_y(test, ('mlcs', 'drmlc'))
 
 def _x_in_y(x, y):
@@ -536,14 +585,18 @@ def _x_in_y(x, y):
 # VMAT demo
 # -------------------
 if __name__ == '__main__':
-    vmat = VMAT.from_urls(('https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_dmlc.dcm', 'https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_open.dcm'))
+    # vmat = VMAT.from_urls(('https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_dmlc.dcm', 'https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_open.dcm'))
+    # vmat = VMAT.from_demo_images()
+    # vmat = VMAT.from_zip(r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\pylinac\demo_files\vmat\vmat.zip')
     # vmat.settings.x_offset = 20
     # vmat.load_images_UI()
     # vmat.load_demo_image()
-    vmat.analyze('drgs')
+    # vmat.analyze()
     # fig = vmat.plot_analyzed_image(image='dmlc')
     # plt.show(fig)
-    vmat.plot_analyzed_image()
+    # print(vmat.return_results())
+    # vmat.plot_analyzed_image()
+    VMAT().run_demo_drgs()
     # vmat.save_analyzed_image('testt.png')
     # vmat.run_demo_mlcs()
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
