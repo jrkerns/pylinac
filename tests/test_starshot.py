@@ -27,6 +27,10 @@ class GeneralTests(unittest.TestCase):
         """Test that saving an image does something."""
         save_file('test.jpg', self.star.save_analyzed_image)
 
+    def test_from_url(self):
+        url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/10X_collimator_dvTK5Jc.jpg'
+        star = Starshot.from_url(url)  # shouldn't raise
+
 
 class StarMixin:
     """Mixin for testing a starshot image."""
