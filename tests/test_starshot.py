@@ -116,24 +116,6 @@ class Demo(StarMixin, unittest.TestCase):
         self.test_wobble_diameter()
 
 
-class Collimator(StarMixin, unittest.TestCase):
-    star_file = osp.join(test_file_dir, '6XCollStar.tif')
-    wobble_center = Point(1297, 1699)
-    wobble_diameter_mm = 0.32
-    num_rad_lines = 9
-
-    def test_not_fwhm_passes(self):
-        self.star.analyze(fwhm=False)
-        self.test_passed()
-
-
-class Collimator2(StarMixin, unittest.TestCase):
-    star_file = osp.join(test_file_dir, '10XCollStar.bmp')
-    wobble_center = Point(1370, 1454)
-    wobble_diameter_mm = 0.3
-    num_rad_lines = 4
-
-
 class Multiples(StarMixin, unittest.TestCase):
     """Test a starshot composed of multiple individual files."""
     num_rad_lines = 9
@@ -158,8 +140,163 @@ class Multiples(StarMixin, unittest.TestCase):
         pass
 
 
-class Gantry(StarMixin, unittest.TestCase):
-    star_file = osp.join(test_file_dir, 'starshot_gantry.tif')
+@unittest.skip
+class Starshot1(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#1.tif')
+    wobble_center = Point(508, 683)
+    wobble_diameter_mm = 0.2
+    num_rad_lines = 4
+
+
+@unittest.skip
+class Starshot2(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#2.tif')
+    wobble_center = Point(732, 260)
+    wobble_diameter_mm = 2.97
+    num_rad_lines = 4
+    passes = False
+
+
+@unittest.skip
+class Starshot3(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#3.tif')
+    wobble_center = Point(508, 683)
+    wobble_diameter_mm = 0.2
+    num_rad_lines = 4
+
+
+@unittest.skip
+class Starshot4(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#4.tif')
+    wobble_center = Point(508, 683)
+    wobble_diameter_mm = 0.2
+    num_rad_lines = 4
+
+
+@unittest.skip
+class Starshot5(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#5.tif')
+    wobble_center = Point(508, 683)
+    wobble_diameter_mm = 0.2
+    num_rad_lines = 4
+
+
+@unittest.skip
+class Starshot6(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#6.tif')
+    wobble_center = Point(508, 683)
+    wobble_diameter_mm = 0.2
+    num_rad_lines = 4
+
+
+@unittest.skip
+class Starshot7(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#7.tif')
+    wobble_center = Point(508, 683)
+    wobble_diameter_mm = 0.2
+    num_rad_lines = 4
+
+
+class Starshot8(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#8.tiff')
+    wobble_center = Point(686, 669)
+    wobble_diameter_mm = 0.4
+    num_rad_lines = 5
+
+
+class Starshot9(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#9.tiff')
+    wobble_center = Point(714, 611)
+    wobble_diameter_mm = 0.3
+    num_rad_lines = 5
+
+
+class Starshot10(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#10.tiff')
+    wobble_center = Point(725, 802)
+    wobble_diameter_mm = 0.6
+    num_rad_lines = 5
+
+
+class Starshot11(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#11.tiff')
+    wobble_center = Point(760, 650)
+    wobble_diameter_mm = 0.6
+    num_rad_lines = 4
+
+
+class Starshot12(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#12.tiff')
+    wobble_center = Point(315, 292)
+    wobble_diameter_mm = 0.9
+    num_rad_lines = 4
+
+
+class Starshot13(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#13.tiff')
+    wobble_center = Point(376, 303)
+    wobble_diameter_mm = 0.2
+    num_rad_lines = 4
+
+
+class Starshot14(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#14.tiff')
+    wobble_center = Point(334, 282)
+    wobble_diameter_mm = 0.55
+    num_rad_lines = 4
+
+
+class Starshot15(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#15.tiff')
+    wobble_center = Point(346, 309)
+    wobble_diameter_mm = 0.6
+    num_rad_lines = 4
+
+
+class Starshot16(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#16.tiff')
+    wobble_center = Point(1444, 1452)
+    wobble_diameter_mm = 0.6
+    num_rad_lines = 6
+
+
+class Starshot17(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#17.tiff')
+    wobble_center = Point(1475, 1361)
+    wobble_diameter_mm = 0.4
+    num_rad_lines = 6
+
+
+class Starshot18(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#18.tiff')
+    wobble_center = Point(1516, 1214)
+    wobble_diameter_mm = 0.6
+    num_rad_lines = 6
+
+
+class Starshot19(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#19.tiff')
+    wobble_center = Point(1475, 1276)
+    wobble_diameter_mm = 0.6
+    num_rad_lines = 6
+
+
+class Starshot20(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#20.tiff')
+    wobble_center = Point(347, 328)
+    wobble_diameter_mm = 0.75
+    num_rad_lines = 4
+
+
+class Starshot21(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#21.tiff')
+    wobble_center = Point(354, 294)
+    wobble_diameter_mm = 1.15
+    num_rad_lines = 4
+
+
+class Starshot22(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#22.tiff')
     wobble_center = Point(1302, 1513)
     wobble_diameter_mm = 0.95
     num_rad_lines = 9
@@ -174,18 +311,19 @@ class Gantry(StarMixin, unittest.TestCase):
         self.test_passed()
 
 
-class Couch(StarMixin, unittest.TestCase):
-    star_file = osp.join(test_file_dir, 'couch.tif')
-    wobble_center = Point(732, 944)
-    wobble_diameter_mm = 2.1
-    num_rad_lines = 6
-    passes = False
+class Starshot23(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#23.tif')
+    wobble_center = Point(1297, 1699)
+    wobble_diameter_mm = 0.32
+    num_rad_lines = 9
+
+    def test_not_fwhm_passes(self):
+        self.star.analyze(fwhm=False)
+        self.test_passed()
 
 
-@unittest.skip
-class Couch2(StarMixin, unittest.TestCase):
-    star_file = osp.join(test_file_dir, 'AnnualGantryStarshot.tif')
-    wobble_center = Point(732, 944)
-    wobble_diameter_mm = 2.1
-    num_rad_lines = 6
-    passes = False
+class Starshot24(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#24.tiff')
+    wobble_center = Point(1370, 1454)
+    wobble_diameter_mm = 0.3
+    num_rad_lines = 4
