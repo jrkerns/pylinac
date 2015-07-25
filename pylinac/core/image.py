@@ -223,7 +223,7 @@ class Image:
         img = pImage.open(file_path)
 
         # convert to gray if need be
-        if img.mode == 'RGB' or img.mode == 'HSV':
+        if img.mode not in ('F', 'L', '1'):
             img = img.convert('F')
 
         self._img_meta = img.info
