@@ -171,9 +171,12 @@ class Starshot:
 
     def _check_image_inversion(self):
         """Check the image for proper inversion, i.e. that pixel value increases with dose."""
-        # sum the image along each axis
-        x_sum = np.sum(self.image.array, 0)
-        y_sum = np.sum(self.image.array, 1)
+        # sum the image along each axis in the middle 80% to avoid pin pricks, artifacts, etc.
+        x_lt_edge, x_rt_edge = int(self.image.shape[1] * 0.1), int(self.image.shape[1] * 0.9)
+        x_sum = np.sum(self.image.array[:, x_lt_edge:x_rt_edge], 0)
+
+        y_lt_edge, y_rt_edge = int(self.image.shape[0] * 0.1), int(self.image.shape[0] * 0.9)
+        y_sum = np.sum(self.image.array[y_lt_edge:y_rt_edge, :], 1)
 
         # determine the point of max value for each sum profile
         xmaxind = np.argmax(x_sum)
@@ -204,23 +207,10 @@ class Starshot:
         x_sum = np.sum(central_array, 0)
         y_sum = np.sum(central_array, 1)
 
-        # Calculate Full-Width, 80% Maximum
+        # Calculate Full-Width, 80% Maximum center
         fwxm_x_point = SingleProfile(x_sum).get_FWXM_center(80) + left_third
         fwxm_y_point = SingleProfile(y_sum).get_FWXM_center(80) + top_third
-
-        # find maximum points
-        x_max = np.unravel_index(np.argmax(central_array), central_array.shape)[1] + left_third
-        y_max = np.unravel_index(np.argmax(central_array), central_array.shape)[0] + top_third
-
-        # which one is closer to the center
-        fwxm_dist = Point(fwxm_x_point, fwxm_y_point).dist_to(self.image.center)
-        max_dist = Point(x_max, y_max).dist_to(self.image.center)
-
-        if fwxm_dist < max_dist:
-            center_point = Point(fwxm_x_point, fwxm_y_point)
-        else:
-            center_point = Point(x_max, y_max)
-
+        center_point = Point(fwxm_x_point, fwxm_y_point)
         return center_point
 
     @value_accept(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95), SID=(40, 400))
@@ -363,7 +353,8 @@ class Starshot:
             """Calculate the maximum distance to any line from the given point."""
             return max(line.distance_to(Point(p[0], p[1])) for line in lines)
 
-        res = differential_evolution(distance, bounds=[(sp.x*0.95, sp.x*1.05), (sp.y*0.95, sp.y*1.05)], args=(self.lines,))
+        window_size = min(self.image.shape) * 0.15  # search for the minimum within a ~30% window
+        res = differential_evolution(distance, bounds=[(sp.x-window_size, sp.x+window_size), (sp.y-window_size, sp.y+window_size)], args=(self.lines,))
 
         self.wobble.radius = res.fun
         self.wobble.center = Point(res.x[0], res.x[1])
@@ -578,13 +569,9 @@ def get_radius():
     for radius in np.linspace(0.95, 0.1, 10):
         yield radius
 
+
 # ----------------------------
 # Starshot demo
 # ----------------------------
 if __name__ == '__main__':
-    # pass
-#     import os
-#     url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/10X_collimator_dvTK5Jc.jpg'
-#     star = Starshot.from_url(url)
-#     ttt = 1
     Starshot().run_demo()

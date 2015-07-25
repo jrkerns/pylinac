@@ -86,7 +86,7 @@ class PFDemo(PFTestMixin, unittest.TestCase):
 
 class AS500(PFTestMixin, unittest.TestCase):
     """Tests for the AS500 image."""
-    im_path = osp.join(test_file_dir, 'AS500.dcm')
+    im_path = osp.join(test_file_dir, 'AS500_PF.dcm')
     picket_orientation = 'Up-Down'
     num_pickets = 10
     percent_passing = 100
@@ -94,9 +94,59 @@ class AS500(PFTestMixin, unittest.TestCase):
     abs_median_error = 0.07
 
 
+class AS500_2(PFTestMixin, unittest.TestCase):
+    """Tests for the AS500#2 image."""
+    im_path = osp.join(test_file_dir, 'AS500#2.dcm')
+    picket_orientation = 'Up-Down'
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0.15
+    abs_median_error = 0.04
+
+
+class AS500_3(PFTestMixin, unittest.TestCase):
+    """Tests for the AS500#3 image."""
+    im_path = osp.join(test_file_dir, 'AS500#3.dcm')
+    picket_orientation = 'Up-Down'
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0.34
+    abs_median_error = 0.23
+
+
+class AS500_4(PFTestMixin, unittest.TestCase):
+    """Tests for the AS500#4 image."""
+    im_path = osp.join(test_file_dir, 'AS500#4.dcm')
+    picket_orientation = 'Up-Down'
+    num_pickets = 10
+    percent_passing = 99.2
+    max_error = 0.53
+    abs_median_error = 0.35
+
+
+class AS500_5(PFTestMixin, unittest.TestCase):
+    """Tests for the AS500#4 image."""
+    im_path = osp.join(test_file_dir, 'AS500#5.dcm')
+    picket_orientation = 'Up-Down'
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0.23
+    abs_median_error = 0.05
+
+
+class AS500error(PFTestMixin, unittest.TestCase):
+    """Tests for the AS500#2 image."""
+    im_path = osp.join(test_file_dir, 'AS500-error.dcm')
+    picket_orientation = 'Up-Down'
+    num_pickets = 10
+    percent_passing = 99.6
+    max_error = 0.57
+    abs_median_error = 0.37
+
+
 class AS1000(PFTestMixin, unittest.TestCase):
     """Tests for the AS1000 image."""
-    im_path = osp.join(test_file_dir, 'AS1000.dcm')
+    im_path = osp.join(test_file_dir, 'AS1000_PF.dcm')
     picket_orientation = 'Up-Down'
     num_pickets = 10
     percent_passing = 100
@@ -108,6 +158,27 @@ class AS1000_2(PFTestMixin, unittest.TestCase):
     """Tests for the AS1000 image."""
     im_path = osp.join(test_file_dir, 'AS1000#2.dcm')
     picket_orientation = 'Up-Down'
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0.27
+    abs_median_error = 0.07
+
+
+@unittest.skip
+class AS1000_3(PFTestMixin, unittest.TestCase):
+    """Tests for the AS1000 image."""
+    im_path = osp.join(test_file_dir, 'AS1000#3.dcm')
+    picket_orientation = 'Up-Down'
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0.27
+    abs_median_error = 0.07
+
+
+class AS1000_4(PFTestMixin, unittest.TestCase):
+    """Tests for the AS1000 image."""
+    im_path = osp.join(test_file_dir, 'AS1000#4.dcm')
+    picket_orientation = 'Left-Right'
     num_pickets = 10
     percent_passing = 100
     max_error = 0.27
@@ -194,8 +265,8 @@ class AS1200ExtendedSID(PFTestMixin, unittest.TestCase):
     picket_orientation = 'Up-Down'
     num_pickets = 10
     percent_passing = 100
-    max_error = 0.05
-    abs_median_error = 0.02
+    max_error = 0.13
+    abs_median_error = 0.05
 
 
 class AS1200ExtendedSIDVMAT(PFTestMixin, unittest.TestCase):
@@ -203,7 +274,7 @@ class AS1200ExtendedSIDVMAT(PFTestMixin, unittest.TestCase):
     im_path = osp.join(test_file_dir, 'AS1200-ExtendedSID-VMAT.dcm')
     picket_orientation = 'Up-Down'
     num_pickets = 10
-    percent_passing = 100
+    percent_passing = 99.5
     max_error = 0.16
     abs_median_error = 0.08
 
