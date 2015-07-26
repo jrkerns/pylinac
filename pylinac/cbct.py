@@ -1063,7 +1063,7 @@ class SR_Slice(Slice):
         max_idxs : numpy.array
             Indices of peaks found.
         """
-        max_vals, max_idxs = profile.find_peaks(min_peak_distance=150, max_num_peaks=17)
+        max_vals, max_idxs = profile.find_peaks(min_peak_distance=300, max_num_peaks=17, min_peak_height=0.05)
         if len(max_idxs) != 17:
             # TODO: add some robustness here
             raise ArithmeticError("Did not find the correct number of line pairs")
@@ -1092,6 +1092,7 @@ class SR_Slice(Slice):
         idx2del = np.array((1, 4, 7, 11))
         min_vals = np.zeros(16)
         min_idxs = np.zeros(16)
+        max_idxs = sorted(max_idxs)
         for idx in range(len(max_idxs) - 1):
             min_val, min_idx = profile.find_valleys(exclude_lt_edge=max_idxs[idx], exclude_rt_edge=len(profile.y_values) - max_idxs[idx+1], max_num_peaks=1)
             if len(min_val) > 0:
@@ -1134,10 +1135,11 @@ class SR_Slice(Slice):
     def calc_MTF(self):
         """Calculate the line pairs of the SR slice."""
         profile = self.calc_median_profile(roll_offset=self.settings.phantom_roll)
-        spacing_array = np.linspace(1, 5, num=2200)
+        spacing_array = np.linspace(1, 12, num=2200)
         spacing_array = (np.round(spacing_array)).astype(int)
         spaced_array = np.repeat(profile.y_values[:2200], spacing_array)
         profile = Profile(spaced_array)
+        profile.ground()
         max_vals, max_idxs = self._find_LP_peaks(profile)
         min_vals, min_idxs = self._find_LP_valleys(profile, max_idxs)
         self._calc_MTF(max_vals, min_vals)
@@ -1380,6 +1382,6 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 if __name__ == '__main__':
     cbct = CBCT.from_demo_images()
     cbct.analyze()
-    print(cbct.return_results())
+    print(cbct._return_results())
     cbct.plot_analyzed_image()
 
