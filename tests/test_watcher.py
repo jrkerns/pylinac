@@ -14,7 +14,7 @@ watcher_script = osp.join(osp.dirname(osp.dirname(osp.abspath(__file__))), 'pyli
 class WatcherTest(unittest.TestCase):
     """Test the watcher script by adding a file from every type of module."""
     files2analyze = [
-        osp.join(test_files_dir, 'Starshot', 'starshot_gantry.tif'),
+        osp.join(test_files_dir, 'Starshot', 'Starshot#1.tif'),
         osp.join(test_files_dir, 'Picket Fence', 'AS500_PF.dcm'),
         osp.join(test_files_dir, 'VMAT', 'DRMLC.zip'),
         osp.join(test_files_dir, 'CBCT', 'GE_CT.zip'),
