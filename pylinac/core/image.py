@@ -282,6 +282,10 @@ class Image:
     #     raise NotImplementedError()
         # self.array = ndimage.interpolation.rotate(self.array, angle, order=order, mode='wrap', reshape=False)
 
+    def roll(self, direction='x', amount=1):
+        axis = 1 if direction == 'x' else 0
+        self.array = np.roll(self.array, amount, axis=axis)
+
     def rot90(self, n=1):
         """Wrapper for numpy.rot90."""
         self.array = np.rot90(self.array, n)
