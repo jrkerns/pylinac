@@ -267,9 +267,9 @@ class VMAT:
         print(self.return_results())
         self.plot_analyzed_image()
 
-    @type_accept(test=str)
+    @type_accept(test=str, x_offset=int)
     @value_accept(test=test_types, tolerance=(0, 8))
-    def analyze(self, test=None, tolerance=1.5):
+    def analyze(self, test=None, tolerance=1.5, x_offset=0):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
         Parameters
@@ -279,7 +279,13 @@ class VMAT:
             The default is None, which assumes a clear naming convention; see load_image() for info.
         tolerance : float, int, optional
             The tolerance of the sample deviations in percent. Default is 1.5.
-            Must be between 0.1 and 8.
+            Must be between 0 and 8.
+        x_offset : int
+
+            .. versionadded:: 0.8
+
+            If the VMAT segments aren't aligned to the CAX (older VMAT images), the segments need a shift.
+            Positive moves the segments right, negative to the left.
         """
         if not self.open_img_is_loaded or not self.dmlc_img_is_loaded:
             raise AttributeError("Open or MLC Image not loaded yet. Use .load_image() or .load_image_UI()")
@@ -289,6 +295,7 @@ class VMAT:
             raise ValueError("Test parameter must be given, either 'drgs' or 'drmlc'")
         elif test is not None:
             self.settings.test_type = test
+        self.settings.x_offset = x_offset
 
         """Pre-Analysis"""
         self._check_img_inversion()
@@ -588,15 +595,15 @@ if __name__ == '__main__':
     # vmat = VMAT.from_urls(('https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_dmlc.dcm', 'https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_open.dcm'))
     # vmat = VMAT.from_demo_images()
     # vmat = VMAT.from_zip(r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\pylinac\demo_files\vmat\vmat.zip')
-    # vmat.settings.x_offset = 20
     # vmat.load_images_UI()
     # vmat.load_demo_image()
-    # vmat.analyze()
+    vmat = VMAT((r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\VMAT\DRMLC#2_dmlc.dcm', r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\VMAT\DRMLC#2_open.dcm'))
+    vmat.analyze(x_offset=0)
     # fig = vmat.plot_analyzed_image(image='dmlc')
     # plt.show(fig)
-    # print(vmat.return_results())
-    # vmat.plot_analyzed_image()
-    VMAT().run_demo_drgs()
+    print(vmat.return_results())
+    vmat.plot_analyzed_image()
+    # VMAT().run_demo_drgs()
     # vmat.save_analyzed_image('testt.png')
     # vmat.run_demo_mlcs()
     # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
