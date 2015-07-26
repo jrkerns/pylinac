@@ -9,8 +9,8 @@ from pylinac.core.geometry import Point
 from pylinac.core.image import Image, IMAGE, DICOM, ARRAY
 
 
-img_path = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'Starshot', '6XCollStar.tif')
-dcm_path = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'VMAT', 'DRGSmlc-105-example.dcm')
+img_path = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'Starshot', 'Starshot#1.tif')
+dcm_path = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'VMAT', 'DRGSdmlc-105-example.dcm')
 
 class Test_Image_Load(unittest.TestCase):
 
@@ -91,7 +91,7 @@ class Test_Image_Methods(unittest.TestCase):
 
     def test_center(self):
         self.assertIsInstance(self.img.center, Point)
-        img_known_center = Point(1420, 1702)
+        img_known_center = Point(512, 1702)
         dcm_known_center = Point(512, 384)
         self.assertEqual(self.img.center.x, img_known_center.x)
         self.assertEqual(self.dcm.center.y, dcm_known_center.y)
