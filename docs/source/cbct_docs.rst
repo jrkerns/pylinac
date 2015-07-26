@@ -142,11 +142,9 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
   determined and then the space between nodes is calculated.
 * **Calculate Spatial Resolution/MTF** -- The Spatial Resolution module (CTP528) contains 21 pairs of aluminum bars
   having varying thickness, which also corresponds to the thickness between the bars. One unique advantage of these
-  bars is that they are all focused on and equally distant to the phantom center. Thus, several circular profiles are
-  taken that go along all the line pairs. Starting on the proximal side of the line pairs, five profiles, each 1 pixel
-  apart, sample an entire circle that cuts through the line pairs. The five profiles are concatenated and the median
-  value extracted to effectively form one median profile. The peaks and valleys of the profile are located; peaks and
-  valleys of the same line pair are averages. The relative MTF (i.e. normalized to the first line pair) is then
+  bars is that they are all focused on and equally distant to the phantom center. This is taken advantage of by extracting
+  a collapsed circular profile about the line pairs. The peaks and valleys of the profile are located; peaks and
+  valleys of the same line pair are used to calculated the MTF. The relative MTF (i.e. normalized to the first line pair) is then
   calculated from these values.
 * **Calculate Low Contrast Resolution** -- Not yet implemented, but it's being examined.
 
@@ -154,6 +152,16 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 
 * **Test if values are within tolerance** -- For each module, the determined values are compared with the nominal values.
   If the difference between the two is below the specified tolerance then the module passes.
+
+Troubleshooting
+---------------
+
+First, check the general :ref:`general_troubleshooting` section. Specific to the CBCT
+analysis, there are a few things you can do, although most problems revolve around getting the data loaded.
+
+* If you're having trouble getting your dataset in, **Set read_all to True** - Using this parameter for:meth:`~pylinac.cbct.CBCT.analyze` allows pylinac to more fully read
+  incoming images, even ones that don't follow the naming protocol, although this adds a bit of time to the reading of the images. Also **make sure you've
+  scanned the whole phantom**; It doesn't have to be centered, but it has to capture all four modules.
 
 
 API Documentation

@@ -186,7 +186,9 @@ Troubleshooting
 First, check the general :ref:`general_troubleshooting` section. Specific to the picket fence
 analysis, there are a few things you can do.
 
-* **Apply a filter upon load** - While pylinac tries to detect if there is unreasonable noise in
+* **Ensure the HDMLC status** - If your image is from an HD MLC, you need to set the hdmlc parameter in
+  :meth:`~pylinac.picketfence.PicketFence.analyze` to True, and vic versa.
+* **Apply a filter upon load** - While pylinac tries to correct for unreasonable noise in
   the image before analysis, there may still be noise that causes analysis to fail. A way to check
   this is by applying a median filter upon loading the image::
 
@@ -194,13 +196,18 @@ analysis, there are a few things you can do.
 
   Then try performing the analysis.
 * **Check for streak artifacts** - It is possible in certain scenarios (e.g. TrueBeam dosimetry mode)
-  to have noteworthy artifacts in the image. If the artifacts are in the same direction as the pickets
+  to have noteworthy artifacts in the image like so:
+
+  .. image:: images/pf_with_streak.png
+
+  If the artifacts are in the same direction as the pickets
   then it is possible pylinac is tripping on these artifacts. You can reacquire the image in another mode or
   simply try again in the same mode. You may also try cropping the image to exclude the artifact::
 
      mypf = PicketFence('mypf.dcm')
-     mypf.image.array = mypf.image.array[200:400, 150:450]
-
+     mypf.image.array = mypf.image.array[200:400, 150:450]  # or whatever values you want
+* **Set the number of pickets** - If pylinac is catching too many pickets you can set
+  the number of pickets to find with :meth:`~pylinac.picketfence.PicketFence.analyze`.
 
 API Documentation
 -----------------
@@ -210,9 +217,19 @@ API Documentation
 
 Supporting Data Structures
 
+.. autoclass:: pylinac.picketfence.PicketHandler
+    :no-show-inheritance:
+
+.. autoclass:: pylinac.picketfence.Settings
+    :no-show-inheritance:
+
 .. autoclass:: pylinac.picketfence.Picket
     :no-show-inheritance:
 
-.. autoclass:: pylinac.picketfence.MLC_Meas
+.. autoclass:: pylinac.picketfence.MLCMeas
     :no-show-inheritance:
+
+.. autoclass:: pylinac.picketfence.Overlay
+    :no-show-inheritance:
+
 

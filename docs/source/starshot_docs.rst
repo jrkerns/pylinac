@@ -131,6 +131,18 @@ Algorithm
   tolerance. If the image carried a pixel/mm conversion ratio, the tolerance and result are in mm, otherwise they
   will be in pixels.
 
+Troubleshooting
+---------------
+
+First, check the general :ref:`general_troubleshooting` section, especially if an image won't load. Specific to the starshot
+analysis, there are a few things you can do.
+
+* **Set recursive to True** - This easy step in :meth:`~pylinac.starshot.Starshot.analyze` allows pylinac to search for a reasonable
+  wobble even if the conditions you passed don't for some reason give one.
+* **Make sure the center of the star is in the central 1/3 of the image** - Otherwise, pylinac won't find it.
+* **Make sure there aren't egregious artifacts** - Pin pricks can cause wild pixel values; crop them out if possible.
+
+
 .. _star_apidoc:
 
 API Documentation
