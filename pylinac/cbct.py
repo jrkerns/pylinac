@@ -461,12 +461,6 @@ class CBCT:
             The HU tolerance value for both HU uniformity and linearity.
         scaling_tolerance : float, int
             The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP404 module).
-        z_offset : int
-            The phantom offset in the z-direction in number of slices. Only applicable if the phantom is not centered on the
-            HU linearity module (404). If it isn't centered, use this setting to correct the slice locations. Positive means
-            the phantom is further toward the gantry stand; negative means the phantom is further away from the gantry stand.
-            Also consider the slice thickness you're using. E.g. if the phantom was 2cm (20mm) toward the gantry and the slice thickness
-            was 2mm, the offset should be set to 20/2 = 10.
         """
         if not self.images_loaded:
             raise AttributeError("Images not yet loaded")
