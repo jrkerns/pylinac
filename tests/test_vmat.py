@@ -128,6 +128,7 @@ class VMATMixin:
     avg_abs_r_deviation = 0
     avg_r_deviation = 0
     max_r_deviation = 0
+    passes = True
 
     def setUp(self):
         self.vmat = VMAT(self.filepaths)
@@ -136,7 +137,7 @@ class VMATMixin:
 
     def test_overall_passed(self):
         self.vmat.analyze(self.test_type)
-        self.assertTrue(self.vmat.passed)
+        self.assertEqual(self.vmat.passed, self.passes)
 
     def test_fail_with_tight_tolerance(self):
         self.vmat.analyze(self.test_type, tolerance=0.01)
@@ -236,3 +237,35 @@ class TestDRGS105(VMATMixin, unittest.TestCase):
     avg_abs_r_deviation = 0.34
     avg_r_deviation = 0
     max_r_deviation = 0.78
+
+
+class TestMLCS2(VMATMixin, unittest.TestCase):
+    """Tests of the result values of MLCS images at 105cm SID."""
+    filepaths = (osp.join(_vmat_test_files_dir, 'DRMLC#2_open.dcm'),
+                 osp.join(_vmat_test_files_dir, 'DRMLC#2_dmlc.dcm'))
+    test_type = 'mlcs'
+    segment_positions = {0: Point(199, 192), 2: Point(275, 192)}
+    segment_values = {
+        0: {'r_dev': 0.40, 'r_corr': 101.06},
+        2: {'r_dev': -0.49, 'r_corr': 100.16},
+    }
+    avg_abs_r_deviation = 0.4
+    avg_r_deviation = 0
+    max_r_deviation = -0.49
+
+
+class TestDRGS2(VMATMixin, unittest.TestCase):
+    """Tests of the result values of DRMLC images at 105cm SID."""
+    filepaths = (osp.join(_vmat_test_files_dir, 'DRGS#2_open.dcm'),
+                 osp.join(_vmat_test_files_dir, 'DRGS#2_dmlc.dcm'))
+    test_type = 'drgs'
+    x_offset = 12
+    segment_positions = {0: Point(179, 192), 2: Point(230, 192)}
+    segment_values = {
+        0: {'r_dev': 10.25, 'r_corr': 113.4},
+        4: {'r_dev': -2.06, 'r_corr': 100.73},
+    }
+    avg_abs_r_deviation = 2.9
+    avg_r_deviation = 0
+    max_r_deviation = 10.25
+    passes = False
