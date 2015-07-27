@@ -1,3 +1,6 @@
+"""The watcher file is a script meant to be run as an ongoing process to watch a given directory and analyzing files
+that may be moved there for certain keywords. Automatic processing will be started if the file contains the keywords."""
+
 import time
 import logging
 import os.path as osp
@@ -22,7 +25,17 @@ logging.basicConfig(level=logging.INFO,
 
 
 class AnalyzeMixin:
-    """Mixin for processing files caught by the pylinac watcher."""
+    """Mixin for processing files caught by the pylinac watcher.
+
+    Attributes
+    ----------
+    obj : class
+        The class that analyzes the file; e.g. Starshot, PicketFence, etc.
+    keywords : iterable
+        Holds the keywords that are looked for in the file name. If the filename has that keyword, analysis will be attempted on that file.
+    args : dict
+        Dictionary that holds the tolerance settings of analysis.
+    """
     obj = 'class that analyzes'
     keywords = ('',)
     save_image_method = 'save_analyzed_image'
@@ -38,17 +51,21 @@ class AnalyzeMixin:
 
     @property
     def img_filename(self):
+        """The name of the file for the analyzed image."""
         return self.basepath + '.png'
 
     @property
     def txt_filename(self):
+        """The name of the file for the text results."""
         return self.basepath + '.txt'
 
     def save_image(self):
+        """Save the analyzed image to file."""
         method = getattr(self.instance, self.save_image_method)
         method(self.img_filename)
 
     def save_text(self):
+        """Save the analysis results to a text file."""
         method = getattr(self.instance, self.save_text_method)
         with open(self.txt_filename, 'w') as txtfile:
             txtfile.write(method())
@@ -59,6 +76,7 @@ class AnalyzeMixin:
 
 
 class AnalyzeStar(AnalyzeMixin):
+    """Analysis class for starshots."""
     obj = Starshot
     keywords = ('star',)
     args = {'tolerance': 1, 'radius': 0.8}
@@ -68,6 +86,7 @@ class AnalyzeStar(AnalyzeMixin):
 
 
 class AnalyzePF(AnalyzeMixin):
+    """Analysis class for picket fences."""
     obj = PicketFence
     keywords = ('pf', 'picket')
     args = {'tolerance': 0.5, 'action_tolerance': 0.3}
@@ -77,6 +96,7 @@ class AnalyzePF(AnalyzeMixin):
 
 
 class AnalyzeCBCT(AnalyzeMixin):
+    """Analysis class for CBCTs."""
     obj = CBCT.from_zip_file
     keywords = ('cbct', 'ct')
     args = {'hu tolerance': 40, 'scaling tolerance': 1}
@@ -86,6 +106,7 @@ class AnalyzeCBCT(AnalyzeMixin):
 
 
 class AnalyzeVMAT(AnalyzeMixin):
+    """Analysis class for VMATs."""
     obj = VMAT.from_zip
     keywords = ('vmat', 'drgs', 'drmlc')
     args = {'tolerance': 1.5}
@@ -95,6 +116,7 @@ class AnalyzeVMAT(AnalyzeMixin):
 
 
 class AnalyzeLog(AnalyzeMixin):
+    """Analysis class for dynalogs or trajectory logs."""
     obj = MachineLog
     keywords = ('',)
     args = {'resolution': 0.1, 'distTA': 1, 'doseTA': 1, 'threshold': 10}

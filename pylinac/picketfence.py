@@ -1,6 +1,18 @@
 
-"""The picketfence module is used for loading and analyzing EPID images of a "picket fence", a common MLC
-pattern produced when performing linac QA."""
+"""The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
+Physicists regularly check MLC positioning through this test. This test can be done using film and one can
+"eyeball" it, but this is the 21st century and we have numerous ways of quantifying such data. This module
+attains to be one of them. It will load in an EPID dicom image and determine the MLC peaks, error of each MLC
+pair to the picket, and give a few visual indicators for passing/warning/failing.
+
+Features:
+
+* **Analyze either HD or regular MLCs** - Just pass a flag and tell pylinac whether it's HD or not.
+* **Easy-to-read pass/warn/fail overlay** - Analysis gives you easy-to-read tools for determining the status of an MLC pair.
+* **Any Source-to-Image distance** - Whatever your clinic uses as the SID for picket fence, pylinac can account for it.
+* **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
+* **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
+"""
 import os.path as osp
 from functools import lru_cache
 from io import BytesIO
@@ -215,15 +227,15 @@ class PicketFence:
 
             .. versionadded:: 0.8
 
-            The number of pickets in the image. A helper parameter, only needed if analysis is
-            catching things that shouldn't be pickets.
+            The number of pickets in the image. A helper parameter to limit the total number of pickets,
+            only needed if analysis is catching things that aren't pickets.
         sag_adjustment : float, int
 
             .. versionadded:: 0.8
 
             The amount of shift in mm to apply to the image to correct for EPID sag.
-            For Up-Down images, positive moves the image down, negative up.
-            For Left-Right images, positive moves the image left, negative right.
+            For Up-Down picket images, positive moves the image down, negative up.
+            For Left-Right picket images, positive moves the image left, negative right.
         """
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")

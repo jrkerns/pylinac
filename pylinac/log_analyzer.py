@@ -5,6 +5,13 @@ easily plottable.
 
 Unlike most other modules of pylinac, the log analyzer module has no end goal. Data is parsed from the logs, but what is done with that
 info, and which info is analyzed is up to the user.
+
+Features:
+
+* **Analyze Dynalogs or Trajectory logs** - Either platform is supported. Tlog versions 2.1 and 3.0 supported.
+* **Save Trajectory log data to CSV** - The Trajectory log binary data format does not allow for easy export of data. Pylinac lets you do
+  that so you can use Excel or other software that you use with Dynalogs.
+* **Plot or analyze any axis** - Every data axis can be plotted: the actual, expected, and even the difference.
 """
 from abc import ABCMeta, abstractproperty
 import struct
@@ -13,7 +20,7 @@ import os.path as osp
 import csv
 import copy
 import warnings
-from io import BytesIO, StringIO
+from io import BytesIO
 from functools import lru_cache
 
 import numpy as np
@@ -1181,7 +1188,7 @@ class MLC:
 
         .. warning::
             This number may not be the same as the number of recorded snapshots in the log
-            since the snapshots where the beam was off may not be included. See :method:`MachineLog.load`
+            since the snapshots where the beam was off may not be included. See :meth:`MachineLog.load`
         """
         return len(self.snapshot_idx)
 

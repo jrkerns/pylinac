@@ -1,10 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-The Starshot module analyses a starshot 1) film or 2) multiple superimposed EPID images that measures the wobble of the
-radiation spokes, whether gantry, collimator, MLC or couch. It is based on ideas from
-`Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
+The Starshot module analyses a starshot image made of radiation spokes, whether gantry, collimator, MLC or couch.
+It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
 and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and
-`evolutionary optimization <http://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.optimize.differential_evolution.html>`_.
+`evolutionary optimization <https://en.wikipedia.org/wiki/Evolutionary_computation>`_.
+
+Features:
+
+* **Analyze scanned film images, single EPID images, or a set of EPID images** -
+  Any image that you can load in can be analyzed, including 1 or a set of EPID DICOM images and
+  films that have been digitally scanned.
+* **Any image size** - Have machines with different EPIDs? Scanned your film at different resolutions? No problem.
+* **Dose/OD can be inverted** - Whether your device/image views dose as an increase in value or a decrease, pylinac
+  will detect it and invert if necessary.
+* **Automatic noise detection & correction** - Sometimes there's dirt on the scanned film; sometimes there's a dead pixel on the EPID.
+  Pylinac will detect these spurious noise signals and can avoid or account for them.
+* **Accurate, FWHM star line detection** - Pylinac uses not simply the maximum value to find the center of a star line,
+  but analyzes the entire star profile to determine the center of the FWHM, ensuring small noise or maximum value bias is avoided.
+* **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
+  do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
 
 import os.path as osp

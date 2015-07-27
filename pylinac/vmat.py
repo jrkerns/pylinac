@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 """The VMAT module consists of the class VMAT, which is capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
 images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS) and MLC speed (MLCS) tests.
+
+Features:
+
+* **Do both tests** - Pylinac can handle either DRGS or DRMLC tests.
+* **Adjust for offsets** - Older VMAT patterns were off-center. Easily account for the offset by passing it in.
+* **Automatic identification using file names** - If your file names are clear, the image type and test type don't even
+  have to be specified; just load and analyze.
 """
 import os.path as osp
 from io import BytesIO

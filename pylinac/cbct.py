@@ -5,6 +5,13 @@ It can analyze the HU regions and image scaling (CTP404), the high-contrast line
 uniformity (CTP486) on the corresponding slice.
 
 Currently only Varian (CatPhan 504) is supported, but Elekta (CatPhan 503) support is being worked on.
+
+Features:
+
+* **Automatic phantom registration** - Your phantom can be tilted, rotated, or translated--pylinac will register the phantom.
+* **Automatic testing of 4 major modules** - Major modules are automatically registered and analyzed.
+* **Any scan protocol** - Scan your CatPhan504 with any Varian protocol; or even scan it in a regular CT scanner.
+  Any field size or field extent is allowed.
 """
 from abc import ABCMeta, abstractproperty
 from collections import OrderedDict
