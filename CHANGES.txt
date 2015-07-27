@@ -1,7 +1,31 @@
 V 0.8.0 - 7/23/2015
 
+    Overview
+ There are 2 significant highlights for the v0.8.0 package:
+-An upgrade for the robustness of the package. A LOT of test images were added for the Starshot, CBCT, PicketFence, and VMAT modules and
+ numerous bugs were caught and fixed in the process.
+-The debut of the "directory watcher". Run this script to tell pylinac to watch a directory; if a file with certain keywords is placed in the directory,
+ pylinac will analyze the image and output the analyzed image and text file of results in the same directory.
+
+    General
+-A generic troubleshooting section has been added to the documentation, and several modules have specific troubleshooting sections to help identify common errors
+ and how to fix them.
+
     VMAT
 -Added a `from_zip()` and `load_zip()` method to load a set of images that are in a zip file.
+-Added an `x_offset` parameter to `analyze()` to make shifting segments easier.
+
+    PicketFence
+-Fixed #30, which wasn't catching errors on one side of the pickets, due to a signed error that should've been absolute.
+-Two new parameters have been added to `analyze()`: num_pickets and sag_adjustment, which are somewhat self-explanatory.
+ Consult the docs for more info.
+
+    Starshot
+-Fixed #29, which was causing analysis to fail for images with a pin prick.
+
+    CBCT
+-Fixed #28, which was applying the phantom roll adjustment the wrong direction.
+
 
 V 0.7.1 - 7/9/2015
 
