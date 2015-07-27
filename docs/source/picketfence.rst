@@ -5,11 +5,8 @@ Picket Fence module documentation
 Overview
 --------
 
-The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
-Physicists regularly check MLC positioning through this test. This test can be done using film and one can
-"eyeball" it, but this is the 21st century and we have numerous ways of quantifying such data. This module
-attains to be one of them. It will load in an EPID dicom image and determine the MLC peaks, error of each MLC
-pair to the picket, and give a few visual indicators for passing/warning/failing.
+.. automodule:: pylinac.picketfence
+    :no-members:
 
 Concepts
 --------
@@ -123,11 +120,18 @@ above::
     mypf.num_pickets  # how many pickets were found
     mypf.percent_passing  # the percent of MLC measurements below tolerance
 
+The EPID can also sag at certain angles. Because pylinac assumes a perfect panel, sometimes the analysis will
+not be centered exactly on the MLC leaves. If you want to correct for this, simply pass the EPID sag in mm::
+
+    mypf = PicketFence(r'C:/path/saggyPF.dcm')
+    mypf.analyze(sag_adjustment=0.6)
+
 
 Algorithm
 ---------
 
-The picket fence algorithm works like such:
+The picket fence algorithm uses expected positions of the MLCs and samples those regions for the center
+of the FWHM to determine the MLC positions:
 
 **Allowances**
 
@@ -149,32 +153,25 @@ The picket fence algorithm works like such:
 
 **Pre-Analysis**
 
+* **Check for noise** -- Dead pixels can cause wild values in an otherwise well-behaved image. These values can
+  disrupt analysis, but pylinac will try to detect the presence of noise and will apply a median filter if detected.
+
 * **Check image inversion** -- Upon loading, the image is sampled near all 4 corners for pixel values. If it
   is greater than the mean pixel value of the entire image the image is inverted.
 
-* **Threshold image** -- Profiles of the median value along each axis are created. Peaks are found along each axis
-  profile. The minimum pixel value of the image between the peak pixel ranges of both axes is determined.
-  A new analysis array is created, setting all pixel values lower than the minimum pixel value determined above to that
-  pixel value. The idea is to eliminate spurious edge pixels.
-
 * **Determine orientation** -- The image is summed along each axis. Pixel percentile values of each axis sum are
   sampled. The axis with a greater difference in percentile values is chosen as the orientation (The picket axis, it is
-  argued, will have more pixel value deviation than the axis parallel to leaf motion.)
+  argued, will have more pixel value variation than the axis parallel to leaf motion.)
+
+* **Adjust for EPID sag** -- If a nonzero value is passed for the sag adjustment, the image is shifted in the given
+  direction.
 
 **Analysis**
 
-* **Find leaf pair centers perpendicular to leaf motion** -- A profile along the axis parallel to leaf motion is created.
-  Trending is removed from the profile to eliminate uneven signal along the EPID panel. Peaks are found
-  from the axis profile, which correspond to the tongue-and-groove radiation peak between leaves.
-  The pixel range of the peaks determines if just the smaller MLCs have been used, or if the larger
-  MLCs have also been included. If they have been included, separate peak searches are performed
-  for the small and large leaf peaks, otherwise just a small MLC peak search is performed. Peak values, because
-  they correspond to the point *between* leaves, are then shifted by half an MLC width to align with the MLC center.
-* **Determine MLC picket positions** -- Once the leaf centers perpendicular to leaf motion are found, the positions
-  where the MLCs stopped to deliver a "picket" are determined. For each MLC pair, a profile from the analysis array
-  (thresheld image array) is created, composed of all the pixels along the axis of leaf motion and several pixels wide
-  (corresponding to ~1/2 a leaf width). From here, centers of the FWHM of each peak are found which correspond to
-  the positions of that MLC pair.
+* **Find the pickets** -- The mean profile of the image perpendicular to the MLC travel direction is taken. Major
+  peaks are assumed to be pickets.
+* **Find FWHM at each MLC position** -- For each picket, a sample of the image in the MLC travel direction is taken at each MLC position.
+  The center of the FWHM of the picket for that MLC position is recorded.
 * **Fit the picket to the positions & calculate error** -- Once all the MLC positions are determined, the positions from
   each peak of a picket are fitted to a 1D polynomial which is considered the ideal picket. Differences of each MLC position to the picket
   polynomial fit at that position are determined, which is the error. When plotted, errors are tested against the tolerance

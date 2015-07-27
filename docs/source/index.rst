@@ -38,7 +38,9 @@ or jump right in by doing :ref:`installation` and then :ref:`getting_started`! I
    log_analyzer
    picketfence
    flatsym
+   watcher
    core_modules
+   troubleshooting
 
 
 Indices and tables

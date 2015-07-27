@@ -26,12 +26,14 @@ class and then 2) run its demonstration method::
 Running this should result in a printing of information to the console and an image showing the analyzed image, like so::
 
     Result: PASS
-    The miminum circle that touches all the star lines has a radius of 0.494 mm.
-    The center of the minimum circle is at 1511.5, 1302.1
+
+    The minimum circle that touches all the star lines has a diameter of 0.332 mm.
+
+    The center of the minimum circle is at 1269.9, 1437.3
 
 .. image:: images/starshot_analyzed.png
-   :height: 340
-   :width: 300
+   :height: 350
+   :width: 350
 
 Congratulations! In 3 lines you've successfully used a pylinac module. Of course there's more to it than that; you'll want to analyze your
 own images. For further documentation on starshots, see :ref:`starshot_doc`.

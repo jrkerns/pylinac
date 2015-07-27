@@ -8,12 +8,8 @@ Log Analyzer module documentation
 Overview
 --------
 
-The log analyzer module reads and parses Varian linear accelerator machine logs, both Dynalogs and Trajectory logs. The module also
-calculates actual and expected fluences as well as performing gamma evaluations. Data is structured to be easily accessible and
-easily plotted.
-
-Unlike most other modules of pylinac, the log analyzer module has no end goal. Data is parsed from the logs, but what is done with that
-info, and which info is analyzed is up to the user.
+.. automodule:: pylinac.log_analyzer
+    :no-members:
 
 .. _log_concepts:
 

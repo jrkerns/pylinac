@@ -16,8 +16,12 @@ Geometry Module
 .. automodule:: pylinac.core.geometry
     :no-show-inheritance:
 
-IO Module
----------
+Profile Module
+--------------
+.. automodule:: pylinac.core.profile
+
+I/O Module
+----------
 .. automodule:: pylinac.core.io
 
 Utilities Module

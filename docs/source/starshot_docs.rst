@@ -35,7 +35,7 @@ Image Acquisition
 -----------------
 
 To capture starshot images, film is often used, but a sequence of EPID images can also work for collimator measurements. Pylinac can automatically superimpose the images.
-See the literature mentioned in the :ref:`star_overview` for more info.
+See the literature mentioned in the :ref:`star_overview` for more info on acquisition.
 
 Typical Use
 -----------
@@ -121,7 +121,7 @@ Algorithm
 * **Find spokes** -- The circle profile is analyzed for peaks. Optionally, the profile is reanalyzed to find the center
   of the FWHM. An even number of spokes must be found (1 for each side. E.g. 3 collimator angles should produce 6
   spokes, one for each side of the CAX).
-* **Match peaks** -- Peaks are matched to their counterparts opposite the CAX to compose a line using a simple peak offset.
+* **Match peaks** -- Peaks are matched to their counterparts opposite the CAX to compose a line using a simple peak number offset.
 * **Find wobble** -- Starting at the initial starting point, an evolutionary gradient method is utilized to find the
   point of minimum distance to all lines.
 

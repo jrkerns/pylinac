@@ -36,6 +36,27 @@ These can be downloaded from my.varian.com. Once logged in, search for RapidArc 
 and Files for TrueBeam"; there will be a corresponding one for C-Series. Use the RT Plan files and follow the instructions, not including the assessment procedure,
 which is the point of this module. Save & move the images to a place you can use pylinac.
 
+.. _naming_convention:
+
+Naming Convention
+-----------------
+
+For VMAT analysis, pylinac needs to know which image is the DMLC image. You can specify this when loading an image and pass the test
+type directly. However, if you follow a simple naming convention, you can skip that step.
+
+If the file has 'open' or 'dmlc' (case-insenitive) in the file name, pylinac will automatically assign the images.
+Also, if the filenames have 'drmlc' or 'drgs' in the file names, then the test type is automatically registered as well.
+The following example shows what this would look like::
+
+    # well-named files
+    img1 = r'C:/path/drmlc_open.dcm'
+    img2 = r'C:/path/drmlc_dmlc.dcm'
+    # reading these in now registers both which image is which and the test type
+    vmat = VMAT((img1, img2))
+    vmat.analyze() # no need for test type
+
+If your files don't follow this convention it's okay; you just need to specify the image and test types manually.
+
 Typical Use
 -----------
 
@@ -47,8 +68,7 @@ Import the class::
 The minimum needed to get going is to:
 
 * **Load images** -- Loading the EPID DICOM images into your VMAT class object can be done by passing the file path(s) or by using a UI to
-  find and get the file(s). While each image can be loaded directly, using an easy naming convention can simplify the process. Just make
-  sure the string 'open' (case-insensitive) is in the Open field filename::
+  find and get the file(s). While each image can be loaded directly, using an easy :ref:`naming_convention` can simplify the process::
 
       open_img = "C:/QA Folder/VMAT/open_field.dcm"  # note the 'open'
       dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"  # no 'open'
@@ -72,6 +92,10 @@ The minimum needed to get going is to:
       myvmat.load_image_UI(im_type='open')  # tkinter UI box will pop up
       myvmat.load_image_UI(im_type='mlc')
 
+  Finally, a zip file holding both the images can be used, but must follow the :ref:`naming_convention`::
+
+      myvmat = VMAT.from_zip(r'C:/path/to/zip.zip')
+
   .. note::
     In previous versions of pylinac, loading images was instance-method based and only allowed one image at a time,
     meaning loading looked like the 3rd example above, no matter the name. This behavior has been simplified in favor
@@ -81,8 +105,7 @@ The minimum needed to get going is to:
     Don't worry though, the old behavior still works.
 
 * **Analyze the images** -- This is where pylinac does its work. Once the images are loaded, tell VMAT to analyze the images. See the
-  Algorithm section for details on how this is done. The test to run (whether DRGS or MLCS) needs to be specified. Tolerance
-  can also be passed, but has a default value of 1.5%::
+  Algorithm section for details on how this is done. Tolerance can also be passed, but has a default value of 1.5%::
 
       # analyze
       myvmat.analyze(test='mlcs', tolerance=1.5)
@@ -102,12 +125,10 @@ The VMAT test can be customized using the ``tolerance`` parameter to whatever to
 using a default (1.5), or a clinical value.
 
 Furthermore, the location of the segments can be adjusted. Older QA tests had the segments slightly offset from center.
-The new revision of tests is now centered. To account for this, a :class:`~pylinac.vmat.Settings` class has been made
-and can be used to customize the position of segments. Both an ``x_offset`` and ``y_offset`` attribute can be adjusted::
+The new revision of tests is now centered. To account for this, just add an offset to analyze::
 
     myvmat = VMAT.from_demo_images('drgs')
-    myvmat.settings.x_offset = 20
-    myvmat.analyze('drgs')
+    myvmat.analyze(x_offset=20)
 
 The test results are also not constricted to just printing out. Important results can be accessed directly.
 Continuing from the example above::
@@ -179,7 +200,7 @@ API Documentation
 .. autoclass:: pylinac.vmat.Settings
     :no-show-inheritance:
 
-.. autoclass:: pylinac.vmat.SegmentHandler
+.. autoclass:: pylinac.vmat.SegmentManager
     :no-show-inheritance:
 
 .. autoclass:: pylinac.vmat.Segment

@@ -4,13 +4,16 @@ Pylinac General Overview
 ========================
 
 .. image:: /images/starshot_analyzed.png
-   :height: 340px
-   :width: 300px
+   :height: 300px
+   :width: 370px
 
 .. image:: /images/vmat_analyzed.png
-   :height: 340px
-   :width: 700px
+   :height: 320px
+   :width: 730px
 
+.. image:: /images/PF_tight_tolerance.png
+    :height: 450px
+    :width: 750px
 
 Intended Use
 ------------

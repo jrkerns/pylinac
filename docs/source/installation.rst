@@ -4,8 +4,7 @@
 Installation
 ============
 
-Installing pylinac is easy no matter your skill! However, no matter your skill level,
-please take a look at the note below Dependencies to avoid some initial frustration.
+Installing pylinac is easy no matter your skill!
 Determine where you're at and then read the relevant section:
 
 I know Python already
@@ -35,6 +34,10 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 * pydicom >= 0.9.9
 * Pillow >= 2.5
 
+See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/user/install.html>`_ if you don't yet have them.
+
+Optional dependencies:
+ * watchdog >= 0.8 -- This package is needed if using the "watcher" script
 
 I'm new to Python
 -----------------
@@ -92,7 +95,7 @@ is completely up to you. If you want one, here are some options:
 
 * `Spyder <https://code.google.com/p/spyderlib/>`_ - A MATLAB-like IDE with similar layout, preferred by many working in the scientific realm.
 
-  .. note:: Spyder comes with the Anaconda distribution.
+  .. note:: Spyder is part of the Anaconda distribution.
 
   .. image:: http://1.bp.blogspot.com/-KfAKKK_YN38/TkaV08KWgLI/AAAAAAAAB-s/TEDUviTJBeU/s1600/spyder_ipython012b.png
      :height: 400px
