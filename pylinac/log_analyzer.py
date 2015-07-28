@@ -862,7 +862,7 @@ class Fluence(metaclass=ABCMeta):
         # if self.map_calced and self._same_conditions(resolution):
         #     return self.pixel_map
         # preallocate arrays for expected and actual fluence of number of leaf pairs-x-4000 (40cm = 4000um, etc)
-        fluence = np.zeros((self._mlc.num_pairs, 400 / resolution), dtype=float)
+        fluence = np.zeros((self._mlc.num_pairs, 400 / resolution), dtype=np.float32)
 
         # calculate the MU delivered in each snapshot. For Tlogs this is absolute; for dynalogs it's normalized.
         mu_matrix = getattr(self._mu, self._fluence_type)
@@ -874,7 +874,7 @@ class Fluence(metaclass=ABCMeta):
 
         # calculate each "line" of fluence (the fluence of an MLC leaf pair, e.g. 1 & 61, 2 & 62, etc),
         # and add each "line" to the total fluence matrix
-        fluence_line = np.zeros((400 / resolution))
+        fluence_line = np.zeros((400 / resolution), dtype=np.float32)
         leaf_offset = self._mlc.num_pairs
         pos_offset = int(np.round(200 / resolution))
         for pair in range(1, self._mlc.num_pairs + 1):

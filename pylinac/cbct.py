@@ -271,7 +271,7 @@ class CBCT:
         IMAGE_SIZE = 512
 
         # initialize image array
-        images = np.zeros([IMAGE_SIZE, IMAGE_SIZE, len(file_list)], dtype=int)
+        images = np.zeros([IMAGE_SIZE, IMAGE_SIZE, len(file_list)], dtype=np.int16)
         raw_im_order = np.zeros(len(file_list))
 
         # load dicom files from list names and get the image slice position
@@ -291,7 +291,7 @@ class CBCT:
             else:
                 image = dcm.pixel_array
             # place image into images array
-            images[:, :, idx] = image
+            images[:, :, idx] = image.astype(np.int16)
         self._convert_imgs2HU(images, dcm)
 
         return images, raw_im_order, dcm
