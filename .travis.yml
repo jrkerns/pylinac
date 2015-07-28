@@ -5,6 +5,7 @@ python:
   - "3.3"
   - "3.4"
 
+sudo: false
 #env:
   # base versions
 #  - NUMPY_VER=1.8.1
@@ -18,18 +19,28 @@ python:
 install:
 
   # Install conda
-  - sudo pip install conda
-  # install deps
-  - sudo conda init
-  # update conda. The following line throws an error
-#  - sudo conda update --yes conda
-  - conda create -p $HOME/py --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pip setuptools pillow pyqt
-  - export PATH=$HOME/py/bin:$PATH
+    - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    - bash miniconda.sh -b -p $HOME/miniconda
+    - export PATH="$HOME/miniconda/bin:$PATH"
+    - hash -r
+    - conda config --set always_yes yes --set changeps1 no
+    - conda update -q conda
+    # Useful for debugging any issues with conda
+    - conda info -a
 
-  # setuptools is needed for pydicom
-#  - pip install setuptools -U
-  # syntax from: http://stackoverflow.com/questions/8247605/configuring-so-that-pip-install-can-work-from-github
-  # Update: isn't working because setup.py isn't found (not in root)
+    # Replace dep1 dep2 ... with your dependencies
+    - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pip setuptools pillow pyqt
+    - source activate test-environment
+    - python setup.py install
+
+#  - sudo pip install conda
+#  # install deps
+#  - sudo conda init
+#  # update conda. The following line throws an error
+##  - sudo conda update --yes conda
+#  - conda create -p $HOME/py --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pip setuptools pillow pyqt
+#  - export PATH=$HOME/py/bin:$PATH
+
   - pip install pydicom
   - pip install coveralls
 
