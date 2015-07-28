@@ -2,7 +2,6 @@
 # http://sburns.org/2014/03/28/faster-travis-builds.html
 language: python
 python:
-#  - "2.7"
   - "3.3"
   - "3.4"
 
@@ -17,7 +16,6 @@ python:
 
 # install dependencies
 install:
-
 
   # Install conda
   - sudo pip install conda
@@ -50,3 +48,7 @@ after_success:
 
 notifications:
   email: false
+
+branches:
+  except:
+   - minified
