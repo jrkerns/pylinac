@@ -328,11 +328,11 @@ class Test_MachineLogs(TestCase):
         self.assertEqual(logs.num_logs, 7)
         # test recursive
         logs = MachineLogs(self.logs_dir, verbose=False)
-        self.assertEqual(logs.num_logs, 13)
+        self.assertEqual(logs.num_logs, 8)
         # test using method
         logs = MachineLogs()
         logs.load_folder(self.logs_dir, verbose=False)
-        self.assertEqual(logs.num_logs, 13)
+        self.assertEqual(logs.num_logs, 8)
 
     def test_basic_parameters(self):
         # no real test other than to make sure it works

@@ -38,7 +38,7 @@ class Test_Utilities(unittest.TestCase):
     def test_is_dicom(self):
         """Test the is_dicom function."""
     
-        test_file = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'VMAT', 'DRGSmlc-105-example.dcm')
+        test_file = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'VMAT', 'DRGSdmlc-105-example.dcm')
         invalid_file = test_file.replace('DR', 'DR_')
         notdicom_file = osp.abspath(__file__)
 
