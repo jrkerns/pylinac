@@ -599,18 +599,7 @@ def _x_in_y(x, y):
 # VMAT demo
 # -------------------
 if __name__ == '__main__':
-    # vmat = VMAT.from_urls(('https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_dmlc.dcm', 'https://s3.amazonaws.com/assuranceqa/media/vmat/2015/05/31/03/DRGS_open.dcm'))
-    # vmat = VMAT.from_demo_images()
-    # vmat = VMAT.from_zip(r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\pylinac\demo_files\vmat\vmat.zip')
-    # vmat.load_images_UI()
-    # vmat.load_demo_image()
-    vmat = VMAT((r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\VMAT\DRMLC#2_dmlc.dcm', r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\VMAT\DRMLC#2_open.dcm'))
-    vmat.analyze(x_offset=0)
-    # fig = vmat.plot_analyzed_image(image='dmlc')
-    # plt.show(fig)
+    vmat = VMAT.load_demo_image()
+    vmat.analyze()
     print(vmat.return_results())
     vmat.plot_analyzed_image()
-    # VMAT().run_demo_drgs()
-    # vmat.save_analyzed_image('testt.png')
-    # vmat.run_demo_mlcs()
-    # VMAT().run_demo_drmlc()  # uncomment to run MLCS demo
