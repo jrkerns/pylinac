@@ -26,7 +26,6 @@ from functools import lru_cache
 import numpy as np
 import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
-from build.lib.pylinac.core.decorators import timethis
 
 from pylinac import MEMORY_PROFILE, DEBUG
 from pylinac.core.decorators import type_accept, value_accept
@@ -680,7 +679,7 @@ class MachineLog:
         with open(txt_filename) as csvfile:
             txt_reader = csv.reader(csvfile, delimiter='\n')
             for row in txt_reader:
-                if row:
+                if row and len(row) == 2:
                     items = row[0].split(':')
                     self.txt[items[0].strip()] = items[1].strip()
 
@@ -981,7 +980,6 @@ class GammaFluence(Fluence):
         self._mlc = mlc_struct
 
     @lru_cache()
-    @timethis
     def calc_map(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, calc_individual_maps=False):
         """Calculate the gamma from the actual and expected fluences.
 
@@ -2223,6 +2221,3 @@ if __name__ == '__main__':
     log = MachineLog(ofile)
     log.fluence.gamma.calc_map()
     log.plot_all()
-    # log.report_basic_parameters()
-    # f = StringIO()
-    # log.to_csv(f)

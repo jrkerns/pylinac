@@ -1,4 +1,9 @@
-V 0.8.0 - 7/23/2015
+V 0.8.1 - 7/30/2015
+
+Fixed a import bug
+
+
+V 0.8.0 - 7/28/2015
 
     Overview
  There are 2 significant highlights for the v0.8.0 package:
