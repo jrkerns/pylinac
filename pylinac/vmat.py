@@ -599,7 +599,7 @@ def _x_in_y(x, y):
 # VMAT demo
 # -------------------
 if __name__ == '__main__':
-    vmat = VMAT.load_demo_image()
-    vmat.analyze()
+    vmat = VMAT.from_demo_images()
+    vmat.analyze(x_offset=20)
     print(vmat.return_results())
     vmat.plot_analyzed_image()
