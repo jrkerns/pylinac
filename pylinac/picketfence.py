@@ -348,7 +348,7 @@ class Overlay:
             if self.settings.orientation == orientations['UD']:
                 r = Rectangle(self.image.shape[1], rect_width, center=(self.image.center.x, mlc.center.y))
             else:
-                r = Rectangle(rect_width, self.image.shape[0], center=(mlc.center.y, self.image.center.y))
+                r = Rectangle(rect_width, self.image.shape[0], center=(mlc.center.x, self.image.center.y))
             r.add_to_axes(axes.axes, edgecolor='none', fill=True, alpha=0.1, facecolor=color)
 
 
