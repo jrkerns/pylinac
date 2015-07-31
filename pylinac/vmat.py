@@ -361,11 +361,12 @@ class VMAT:
         elif image == 'open':
             img = self.image_open
 
-        plt.clf()
+        dpi = getattr(img, 'dpi', 96)
+        fig, ax = plt.subplots(dpi=dpi*2)
         plt.axis('off')
         plt.title(image.upper() + " Image")
-        fig = plt.imshow(img, cmap=plt.cm.Greys)
-        self.segments.draw(fig.axes)
+        ax.imshow(img, cmap=plt.cm.Greys)
+        self.segments.draw(ax)
 
         if show:
             plt.show()

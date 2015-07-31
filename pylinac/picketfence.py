@@ -260,8 +260,9 @@ class PicketFence:
             Do/don't plot the alpha overlay of the leaf status.
         """
         # plot the image
-        plt.clf()
-        ax = plt.imshow(self.image.array, cmap=plt.cm.Greys)
+        dpi = getattr(self.image, 'dpi', 96)
+        fig, ax = plt.subplots(dpi=dpi*2)
+        ax.imshow(self.image.array, cmap=plt.cm.Greys)
 
         # plot guard rails and mlc peaks as desired
         for p_num, picket in enumerate(self.pickets):
@@ -275,9 +276,9 @@ class PicketFence:
             o = Overlay(self.image, self.settings, self.pickets)
             o.add_to_axes(ax)
 
-        plt.xlim([0, self.image.shape[1]])
-        plt.ylim([0, self.image.shape[0]])
-        plt.axis('off')
+        ax.set_xlim([0, self.image.shape[1]])
+        ax.set_ylim([0, self.image.shape[0]])
+        ax.axis('off')
 
         if show:
             plt.show()

@@ -407,15 +407,16 @@ class Starshot:
         show : bool
             Whether to actually show the image.
         """
-        plt.clf()
-        imgplot = plt.imshow(self.image.array, cmap=plt.cm.Greys)
+        dpi = getattr(self.image, 'dpi', 96)
+        fig, ax = plt.subplots(dpi=dpi*2)
+        ax.imshow(self.image.array, cmap=plt.cm.Greys)
 
-        self.lines.plot(imgplot.axes)
-        self.wobble.add_to_axes(imgplot.axes, edgecolor='green')
-        self.circle_profile.add_to_axes(imgplot.axes, edgecolor='green')
+        self.lines.plot(ax)
+        self.wobble.add_to_axes(ax, edgecolor='green')
+        self.circle_profile.add_to_axes(ax, edgecolor='green')
 
-        imgplot.axes.autoscale(tight=True)
-        imgplot.axes.axis('off')
+        ax.autoscale(tight=True)
+        ax.axis('off')
 
         if show:
             plt.show()
