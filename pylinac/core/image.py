@@ -1,5 +1,10 @@
 
 """This module holds classes for image loading and manipulation."""
+import os.path as osp
+import os
+import zipfile
+from io import BytesIO
+
 from dicom.errors import InvalidDicomError
 import numpy as np
 from PIL import Image as pImage
@@ -18,6 +23,94 @@ DICOM = 'DICOM'
 IMAGE = 'Image'
 ARRAY = 'Array'
 MM_per_INCH = 25.4
+
+
+class DICOMStack:
+    """A class that loads and holds a stack of DICOM images (e.g. a CT dataset). The class can take
+    a folder or zip file and read any and all DICOM images. The images must all be the same size."""
+    metadata = None
+    array = None
+
+    def __init__(self, folder=None, dtype=int):
+        if folder is not None:
+            self._instantiate(data=folder, dtype=dtype)
+
+    def _instantiate(self, data, dtype, is_zip=False):
+        if is_zip:
+            metadatalist = self._get_ct_images_metadata_from_zip(data)
+        else:
+            metadatalist = self._get_ct_images_metadata_list(data)
+        self.metadata = metadatalist[-1]
+        self._check_all_from_same_study(metadatalist)
+        self._create_array(metadatalist, dtype)
+
+    def _get_ct_images_metadata_list(self, folder):
+        # read each file to see if it's a CT Image file
+        filelist = []
+        for par_dir, sub_dir, files in os.walk(folder):
+            for name in files:
+                try:
+                    ds = dicom.read_file(osp.join(par_dir, name), force=True)
+                    if ds.SOPClassUID.name == 'CT Image Storage':
+                        filelist.append(ds)
+                except InvalidDicomError:
+                    pass
+            if filelist:
+                return filelist
+        raise FileNotFoundError("No CT images were found within the specified folder.")
+
+    def _get_ct_images_metadata_from_zip(self, zfile):
+        """Get the CT image file names from a zip file."""
+        allfiles = zfile.namelist()
+        filelist = []
+        for name in allfiles:
+            try:
+                ds = dicom.read_file(BytesIO(zfile.read(name)), force=True)
+                if ds.SOPClassUID.name == 'CT Image Storage':
+                    filelist.append(ds)
+            except (InvalidDicomError, AttributeError):
+                pass
+        if filelist:
+            return filelist
+        raise FileNotFoundError("No CT images were found within the specified folder.")
+
+    def _check_all_from_same_study(self, metadatalist):
+        initial_uid = metadatalist[0].SeriesInstanceUID
+        if not all(ds.SeriesInstanceUID == initial_uid for ds in metadatalist):
+            raise ValueError("The images were not all from the same study")
+
+    def _create_array(self, metadatalist, dtype):
+        # create empty array the size of the images
+        image_shape = metadatalist[0].pixel_array.shape
+        self.array = np.zeros((image_shape[0], image_shape[1], len(metadatalist)), dtype=dtype)
+
+        # get the original image order
+        original_img_order = [ds.ImagePositionPatient[-1] for ds in metadatalist]
+
+        # set the image array according to the sorted order
+        for new, old in enumerate(np.argsort(original_img_order)):
+            self.array[:, :, new] = metadatalist[old].pixel_array
+
+        # convert values to proper HU
+        self.array *= self.metadata.RescaleSlope
+        self.array += self.metadata.RescaleIntercept
+
+    @classmethod
+    def from_zip(cls, zip_path, dtype=int):
+        if isinstance(zip_path, zipfile.ZipFile):
+            zfiles = zip_path
+        elif zipfile.is_zipfile(zip_path):
+            zfiles = zipfile.ZipFile(zip_path)
+        else:
+            raise FileExistsError("File given was not a valid zip file")
+
+        obj = cls()
+        obj._instantiate(data=zfiles, dtype=dtype, is_zip=True)
+        return obj
+
+    def plot(self, slice=0):
+        """Plot a slice of the DICOM dataset."""
+        plt.imshow(self.array[:, :, slice])
 
 
 class Image:
@@ -373,5 +466,6 @@ class Image:
         return getattr(self.array, item)
 
 if __name__ == '__main__':
-    img = Image.from_multiple_UI()
+    path = r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\pylinac\demo_files\cbct\High quality head.zip'
+    ds = DICOMStack.from_zip(path)
 
