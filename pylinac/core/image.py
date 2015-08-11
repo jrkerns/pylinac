@@ -53,7 +53,7 @@ class DICOMStack:
                     ds = dicom.read_file(osp.join(par_dir, name), force=True)
                     if ds.SOPClassUID.name == 'CT Image Storage':
                         filelist.append(ds)
-                except InvalidDicomError:
+                except (InvalidDicomError, AttributeError):
                     pass
             if filelist:
                 return filelist
@@ -110,8 +110,15 @@ class DICOMStack:
 
     def plot(self, slice=0):
         """Plot a slice of the DICOM dataset."""
-        plt.imshow(self.array[:, :, slice])
+        plt.imshow(self.slice(slice))
 
+    def slice(self, slice=0):
+        """Return an array for the given slice."""
+        return self.array[:, :, slice]
+
+    @property
+    def shape(self):
+        return self.array.shape
 
 class Image:
     """A class that holds an image as a numpy array, relevant image metadata (dpi, SID, etc),
@@ -402,7 +409,7 @@ class Image:
         -------
         A numpy array the same size as the original image.
         """
-        arr = array2logical(self.array, threshold)
+        arr = np.where(self.array >= threshold, 1, 0)
         return Image.from_array(arr)
 
     @type_accept(point=(Point, tuple))
@@ -464,6 +471,9 @@ class Image:
     def __getattr__(self, item):
         """Set the Attribute getter to grab from the array if possible (for things like .shape, .size, etc)."""
         return getattr(self.array, item)
+
+    def __getitem__(self, item):
+        return self.array[item]
 
 if __name__ == '__main__':
     path = r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\pylinac\demo_files\cbct\High quality head.zip'

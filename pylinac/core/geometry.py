@@ -249,6 +249,7 @@ class Rectangle:
         else:
             self.width = width
             self.height = height
+        self._as_int = as_int
 
         if not any((center, tl_corner, bl_corner)):
             raise ValueError("Must specify at least one anchor point for the box.")
@@ -264,6 +265,10 @@ class Rectangle:
             bl = self.bl_corner = Point(bl_corner, as_int=as_int)
             self.center = Point(bl.x + width / 2, bl.y + height / 2, as_int=as_int)
             self.tl_corner = Point(bl.x, bl.y + height, as_int=as_int)
+
+    @property
+    def tr_corner(self):
+        return Point(self.center.x + self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
 
     def add_to_axes(self, axes, edgecolor='black', angle=0.0, fill=False, alpha=1, facecolor='g'):
         """Plot the Rectangle to the axes.

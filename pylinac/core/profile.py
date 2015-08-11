@@ -8,6 +8,7 @@ import numpy as np
 from scipy import ndimage
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle as mpl_Circle
 
 from pylinac.core.common_functions import peak_detect
 from pylinac.core.decorators import value_accept
@@ -338,6 +339,7 @@ class CollapsedCircleProfile(CircleProfile):
             The number of profiles to take within the width ratio.
         """
         super().get_profile(image_array, size)
+        self.width_ratio = width_ratio
 
         interval = (2 * np.pi) / size
         radians = np.arange(0 + start, (2 * np.pi) + start - interval, interval)
@@ -356,6 +358,12 @@ class CollapsedCircleProfile(CircleProfile):
         profile /= num_profiles
 
         self.y_values = profile
+
+    def add_to_axes(self, axes, edgecolor='black', fill=False):
+        axes.add_patch(mpl_Circle((self.center.x, self.center.y), edgecolor=edgecolor, radius=self.radius*(1+self.width_ratio),
+                                  fill=fill))
+        axes.add_patch(mpl_Circle((self.center.x, self.center.y), edgecolor=edgecolor, radius=self.radius*(1-self.width_ratio),
+                                  fill=fill))
 
 
 class SingleProfile:
@@ -641,4 +649,38 @@ class SingleProfile:
         """Plot the profile"""
         plt.plot(self.x_values, self.y_values)
         plt.show()
+
+    def filter(self, size=0.05):
+        """Filter the profile with a median filter.
+
+        Parameters
+        ----------
+        size : int, float
+            Size of the median filter to apply.
+            If a float, the size is the ratio of the length. Must be in the range 0-1.
+            E.g. if size=0.1 for a 1000-element array, the filter will be 100 elements.
+            If an int, the filter is the size passed.
+        """
+        if isinstance(size, float):
+            if 0 < size < 1:
+                size *= len(self.y_values)
+                size = max(size, 1)
+            else:
+                raise TypeError("Float was passed but was not between 0 and 1")
+
+        self.y_values = ndimage.median_filter(self.y_values, size=size)
+
+    def ground(self):
+        """Ground the profile such that the lowest value is 0.
+
+        .. note::
+            This will also "ground" profiles that are negative or partially-negative.
+            For such profiles, be careful that this is the behavior you desire.
+        """
+        min_val = self.y_values.min()
+        self.y_values = self.y_values - min_val
+        return min_val
+
+    def gaussian_filter(self, sigma=3):
+        self.y_values = ndimage.gaussian_filter1d(self.y_values, sigma)
 
