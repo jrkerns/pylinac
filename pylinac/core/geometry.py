@@ -6,12 +6,11 @@ import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 
-from pylinac.core.utilities import is_iterable, typed_property
+from pylinac.core.utilities import is_iterable
 
 
 class Point:
     """A geometric point with x, y, and z coordinates/attributes."""
-    value = typed_property('value', (int, float, np.number, type(None)))
 
     def __init__(self, x=0, y=0, idx=None, value=None, as_int=False):
         """
@@ -56,13 +55,6 @@ class Point:
         """
         p = Point(point)
         return sqrt((self.x - p.x)**2 + (self.y - p.y)**2)
-
-
-class Scale:
-    """A 'scale' object with x and y attrs. Used in conjunction with scaling images up or down."""
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
 
 
 class Circle:
@@ -117,7 +109,7 @@ class Line:
     and here:
     http://www.mathsisfun.com/algebra/line-equation-2points.html
     """
-    def __init__(self, point1=None, point2=None, m=None, b=None):
+    def __init__(self, point1, point2):
         """
         Parameters
         ----------
@@ -125,19 +117,10 @@ class Line:
             One point of the line
         point2 : Point, optional
             Second point along the line.
-        m : int, float, optional
-            slope of the line (rise/run)
-        b : int, float, optional
-            y-intercept of the line
         """
-        # if created by passing two points...
-        if point1 is not None and point2 is not None:
-            self.point1 = Point(point1)
-            self.point2 = Point(point2)
-        # otherwise by passing m and b...
-        # elif m is not None and b is not None:
-        #     self.m = m
-        #     self.b = b
+        self.point1 = Point(point1)
+        self.point2 = Point(point2)
+
 
     @property
     def m(self):
@@ -172,20 +155,9 @@ class Line:
         return Point(mid_x, mid_y)
 
     @property
-    def is_finite(self):
-        """Boolean property specifying if the line is finite."""
-        if self.point1 is not None and self.point2 is not None:
-            return True
-        else:
-            return False
-
-    @property
     def length(self):
         """Return length of the line, if finite."""
-        if self.is_finite:
-            return self.point1.dist_to(self.point2)
-        else:
-            raise ValueError("Line is not finite")
+        return self.point1.dist_to(self.point2)
 
     def distance_to(self, point):
         """Calculate the minimum distance from the line to a point.
@@ -198,17 +170,11 @@ class Line:
             The point to calculate distance to.
         """
         point = Point(point)
-        # calculate from m*x+b definition
-        if self.point2 is None:
-            #TODO: work on this
-            raise NotImplementedError
-        # calculate from 2 points definition
-        else:
-            lp1 = self.point1
-            lp2 = self.point2
-            numerator = np.abs((lp2.x - lp1.x)*(lp1.y - point.y) - (lp1.x - point.x)*(lp2.y - lp1.y))
-            denominator = np.sqrt((lp2.x - lp1.x)**2 + (lp2.y - lp1.y)**2)
-            return numerator/denominator
+        lp1 = self.point1
+        lp2 = self.point2
+        numerator = np.abs((lp2.x - lp1.x)*(lp1.y - point.y) - (lp1.x - point.x)*(lp2.y - lp1.y))
+        denominator = np.sqrt((lp2.x - lp1.x)**2 + (lp2.y - lp1.y)**2)
+        return numerator/denominator
 
     def add_to_axes(self, axes, width=1, color='w'):
         """Plot the line to an axes.
@@ -225,8 +191,8 @@ class Line:
 
 class Rectangle:
     """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point."""
-    # @type_accept(center=Point, tl_corner=Point, bl_corner=Point)
-    def __init__(self, width, height, center=None, tl_corner=None, bl_corner=None, as_int=False):
+
+    def __init__(self, width, height, center, as_int=False):
         """
         Parameters
         ----------
@@ -236,10 +202,6 @@ class Rectangle:
             Height of the rectangle.
         center : Point, iterable, optional
             Center point of rectangle.
-        tl_corner : Point, iterable, optional
-            Top-Left corner of the rectangle.
-        bl_corner : Point, iterable, optional
-            Bottom-Left corner of the rectangle.
         as_int : bool
             If False (default), inputs are left as-is. If True, all inputs are converted to integers.
         """
@@ -250,21 +212,19 @@ class Rectangle:
             self.width = width
             self.height = height
         self._as_int = as_int
+        self.center = Point(center, as_int=as_int)
 
-        if not any((center, tl_corner, bl_corner)):
-            raise ValueError("Must specify at least one anchor point for the box.")
-        elif center is not None:
-            c = self.center = Point(center, as_int=as_int)
-            self.tl_corner = Point(c.x - width/2, c.y + height/2, as_int=as_int)
-            self.bl_corner = Point(c.x - width/2, c.y - height/2, as_int=as_int)
-        elif tl_corner is not None:
-            tl = self.tl_corner = Point(tl_corner, as_int=as_int)
-            self.center = Point(tl.x + width/2, tl.y - height/2, as_int=as_int)
-            self.bl_corner = Point(tl.x, tl.y - height, as_int=as_int)
-        elif bl_corner is not None:
-            bl = self.bl_corner = Point(bl_corner, as_int=as_int)
-            self.center = Point(bl.x + width / 2, bl.y + height / 2, as_int=as_int)
-            self.tl_corner = Point(bl.x, bl.y + height, as_int=as_int)
+    @property
+    def br_corner(self):
+        return Point(self.center.x + self.width / 2, self.center.y - self.height / 2, as_int=self._as_int)
+
+    @property
+    def bl_corner(self):
+        return Point(self.center.x - self.width / 2, self.center.y - self.height / 2, as_int=self._as_int)
+
+    @property
+    def tl_corner(self):
+        return Point(self.center.x - self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
 
     @property
     def tr_corner(self):
