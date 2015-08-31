@@ -222,8 +222,8 @@ class Starshot:
         y_sum = np.sum(central_array, 1)
 
         # Calculate Full-Width, 80% Maximum center
-        fwxm_x_point = SingleProfile(x_sum).get_FWXM_center(80) + left_third
-        fwxm_y_point = SingleProfile(y_sum).get_FWXM_center(80) + top_third
+        fwxm_x_point = SingleProfile(x_sum).fwxm_center(80) + left_third
+        fwxm_y_point = SingleProfile(y_sum).fwxm_center(80) + top_third
         center_point = Point(fwxm_x_point, fwxm_y_point)
         return center_point
 
@@ -299,7 +299,7 @@ class Starshot:
         while wobble_unreasonable:
             try:
                 self.circle_profile = StarProfile(self.image, focus_point, radius, min_peak_height, fwhm)
-                if len(self.circle_profile.peaks) < 6:
+                if (len(self.circle_profile.peaks) < 6) or (len(self.circle_profile.peaks) % 2 != 0):
                     raise ValueError
                 self.lines = LineManager(self.circle_profile.peaks)
                 self._find_wobble_minimize(SID)
@@ -307,17 +307,34 @@ class Starshot:
                 if not recursive:
                     raise RuntimeError("The algorithm was unable to properly detect the radiation lines. Try setting "
                                        "recursive to True or lower the minimum peak height")
-            finally:
+                else:
+                    try:
+                        min_peak_height = next(peak_gen)
+                    except StopIteration:
+                    # if no height setting works, change the radius and reset the height
+                        try:
+                            radius = next(radius_gen)
+                            peak_gen = get_peak_height()
+                        except StopIteration:
+                            raise RuntimeError("The algorithm was unable to determine a reasonable wobble. Try setting "
+                                               "recursive to False and manually adjusting algorithm parameters")
+
+            else:  # if no errors are raised
                 # set the focus point to the wobble minimum
-                focus_point = self.wobble.center
+                # focus_point = self.wobble.center
+            # finally:
                 # stop after first iteration if not recursive
                 if not recursive:
                     wobble_unreasonable = False
                 # otherwise, check if the wobble is reasonable
                 else:
                     # if so, stop
-                    if self.wobble.radius_mm < 3:
-                        wobble_unreasonable = False
+                    if self.wobble.diameter_mm < 3:
+                        focus_near_center = self.wobble.center.dist_to(focus_point) < 5
+                        if focus_near_center:
+                            wobble_unreasonable = False
+                        else:
+                            focus_point = self.wobble.center
                     # otherwise, iterate through peak height
                     else:
                         try:
@@ -368,7 +385,8 @@ class Starshot:
             return max(line.distance_to(Point(p[0], p[1])) for line in lines)
 
         window_size = min(self.image.shape) * 0.15  # search for the minimum within a ~30% window
-        res = differential_evolution(distance, bounds=[(sp.x-window_size, sp.x+window_size), (sp.y-window_size, sp.y+window_size)], args=(self.lines,))
+        res = differential_evolution(distance, bounds=[(sp.x-window_size, sp.x+window_size), (sp.y-window_size, sp.y+window_size)], args=(self.lines,),
+                                     mutation=(0.2, 1.5))
 
         self.wobble.radius = res.fun
         self.wobble.center = Point(res.x[0], res.x[1])
@@ -519,10 +537,9 @@ class LineManager:
 class StarProfile(CollapsedCircleProfile):
     """Class that holds and analyzes the circular profile which finds the radiation lines."""
     def __init__(self, image, start_point, radius, min_peak_height, fwhm):
-        super().__init__(center=start_point, radius=radius)
-        self.radius = self._convert_radius_perc2pix(image, start_point, radius)
-        self.get_median_profile(image.array)
-        # self.filter()
+        radius = self._convert_radius_perc2pix(image, start_point, radius)
+        size = np.pi * radius*2
+        super().__init__(center=start_point, radius=radius, image_array=image.array, width_ratio=0.05, size=size)
         self.get_peaks(min_peak_height, fwhm=fwhm)
 
     @staticmethod
@@ -537,33 +554,21 @@ class StarProfile(CollapsedCircleProfile):
         """
         return image.dist2edge_min(start_point) * radius
 
-    def get_median_profile(self, image_array):
-        """Take the profile over the image array. Overloads to also correct for profile positioning.
-
-        See Also
-        --------
-        :meth:`~pylinac.core.profile.CircleProfile.get_profile` : Further parameter info
-        """
-        prof_size = 4*self.radius*np.pi
-        super().get_profile(image_array, size=prof_size)
-        self._roll_prof_to_midvalley()
-        self.ground()
-
     def _roll_prof_to_midvalley(self):
         """Roll the circle profile so that its edges are not near a radiation line.
             This is a prerequisite for properly finding star lines.
         """
-        roll_amount = np.where(self.y_values == self.y_values.min())[0][0]
-        # Roll the profile and x and y coordinates
-        self.y_values = np.roll(self.y_values, -roll_amount)
-        self.x_locs = np.roll(self.x_locs, -roll_amount)
-        self.y_locs = np.roll(self.y_locs, -roll_amount)
+        roll_amount = np.where(self.values == self.values.min())[0][0]
+        self.roll_profile(roll_amount)
         return roll_amount
 
     def get_peaks(self, min_peak_height, min_peak_distance=0.02, fwhm=True):
         """Determine the peaks of the profile."""
+        self._roll_prof_to_midvalley()
+        self.filter(size=0.002, type='gaussian')
+        self.ground()
         if fwhm:
-            self.find_FWXM_peaks(fwxm=70, min_peak_height=min_peak_height, min_peak_distance=min_peak_distance)
+            self.find_fwxm_peaks(x=60, min_peak_height=min_peak_height, min_peak_distance=min_peak_distance, interpolate=True)
         else:
             self.find_peaks(min_peak_height, min_peak_distance)
 
@@ -589,4 +594,17 @@ def get_radius():
 # Starshot demo
 # ----------------------------
 if __name__ == '__main__':
-    Starshot().run_demo()
+    # Starshot().run_demo()
+    path = r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Starshot\Starshot#2.tif'
+    s = Starshot(path)
+    # s = Starshot.from_demo_image()
+    radii = np.arange(0.25, 0.9, 0.05)
+    # radii = (0.85,)
+    radii_vals = []
+    for radius in radii:
+        s.analyze(radius=radius)
+        radii_vals.append(s.wobble.diameter_mm)
+        # print(s.return_results())
+        # s.plot_analyzed_image()
+    print('Mean: ', np.mean(radii_vals))
+    print('Range: ', np.max(radii_vals) - np.min(radii_vals))

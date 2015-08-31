@@ -19,7 +19,7 @@ def _datacheck_peakdetect(values, x_data):
     x_data = np.array(x_data)
     return values, x_data
 
-def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, exclude_lt_edge=0.0,
+def peak_detect(y, x, threshold=0, min_peak_width=10, max_num_peaks=None, exclude_lt_edge=0.0,
                 exclude_rt_edge=0.0, find_min_instead=False):
     """Find the peaks or valleys of a 1D signal.
 
@@ -66,7 +66,7 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
     peak_vals = []  # a list to hold the y-values of the peaks. Will be converted to a numpy array
     peak_idxs = []  # ditto for x-values (index) of y data.
 
-    y, x = _datacheck_peakdetect(y, x)  # check length and convert to numpy arrays
+    # y, x = _datacheck_peakdetect(y, x)  # check length and convert to numpy arrays
 
     if find_min_instead:
         y = -y
@@ -117,7 +117,7 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
             # If the next value isn't zero it's a single-pixel peak. Easy enough.
             if y_diff[idx+1] != 0:
                 peak_vals.append(y[idx + 1])
-                peak_idxs.append(x[idx + 1])
+                peak_idxs.append(idx + 1 + l_edge)
             # elif idx >= len(y_diff) - 1:
             #     pass
             # Else if the diff value is zero, it could be a flat peak, or it could keep going up; we don't know yet.
@@ -134,7 +134,7 @@ def peak_detect(y, x=None, threshold=0, min_peak_width=10, max_num_peaks=None, e
                     is_a_peak = y_diff[(idx + 1) + shift] < 0
                     if is_a_peak:
                         peak_vals.append(y[(idx + 1) + np.round(shift / 2)])
-                        peak_idxs.append(x[(idx + 1) + np.round(shift / 2)])
+                        peak_idxs.append((idx + 1 + l_edge) + np.round(shift / 2))
                 except IndexError:
                     pass
 

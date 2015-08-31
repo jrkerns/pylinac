@@ -36,7 +36,7 @@ class AnalyzeMixin:
     args : dict
         Dictionary that holds the tolerance settings of analysis.
     """
-    obj = 'class that analyzes'
+    obj = object
     keywords = ('',)
     save_image_method = 'save_analyzed_image'
     save_text_method = 'return_results'

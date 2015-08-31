@@ -194,26 +194,26 @@ class BeamImage(Image):
             profile = self._get_profile(plane, position)
             symmetry, lt_edge, rt_edge, max_idx = self._get_symmetry(profile, method)
             # plot
-            axis.plot(profile.x_values, profile.y_values)
+            axis.plot(profile.x_values, profile.values)
 
             self._plot_annotation(axis, symmetry, method, profile, 'sym')
 
             self._plot_title(axis, plane, 'sym')
 
             # Add CAX and field edge lines
-            cax_idx = profile.get_FWXM_center()
+            cax_idx = profile.fwxm_center()
             axis.axvline(cax_idx, color='m', linestyle='-.')
             axis.axvline(lt_edge, color='g', linestyle='-.')
             axis.axvline(rt_edge, color='g', linestyle='-.')
 
             # Show max variation points
-            axis.plot(profile.x_values[max_idx], profile.y_values[max_idx], 'rx')
-            axis.plot(profile.x_values[rt_edge - (max_idx - lt_edge)], profile.y_values[rt_edge - (max_idx - lt_edge)], 'rx')
+            axis.plot(profile.x_values[max_idx], profile.values[max_idx], 'rx')
+            axis.plot(profile.x_values[rt_edge - (max_idx - lt_edge)], profile.values[rt_edge - (max_idx - lt_edge)], 'rx')
 
             if plot_mirror:
-                central_idx = int(round(profile.y_values.size/2))
+                central_idx = int(round(profile.values.size/2))
                 offset = cax_idx - central_idx
-                mirror_vals = profile.y_values[::-1]
+                mirror_vals = profile.values[::-1]
                 axis.plot(profile.x_values + 2*offset, mirror_vals)
 
             self._polish_plot(axis)
@@ -275,8 +275,8 @@ class BeamImage(Image):
     def _get_symmetry(self, profile, method):
         """Get the actual symmetry of a profile using a given method"""
         if method.lower() in (_Symmetry.VARIAN, _Symmetry.POINT_DIFFERENCE):
-            values, x_values = profile.get_field_values(field_width=0.8)
-            cax = profile.get_FWXM_center()
+            values, x_values = profile.field_values(field_width=0.8)
+            cax = profile.fwxm_center()
             dcax = profile.y_values[cax]
             max_val = 0
             for lt_pt, rt_pt, x_val in zip(values, values[::-1], x_values):
@@ -286,7 +286,7 @@ class BeamImage(Image):
                     max_idx = x_val
             symmetry = 100 * max_val / dcax
         elif method.lower() in (_Symmetry.ELEKTA, _Symmetry.PDQ_IEC):
-            values, x_values = profile.get_field_values(field_width=0.8)
+            values, x_values = profile.field_values(field_width=0.8)
             max_val = 0
             for lt_pt, rt_pt, x_val in zip(values, values[::-1], x_values):
                 val = max(abs(lt_pt / rt_pt), abs(rt_pt / lt_pt))
@@ -302,7 +302,7 @@ class BeamImage(Image):
         else:
             raise ValueError("Method parameter '{}' invalid".format(method))
 
-        lt_edge, rt_edge = profile.get_field_edges(field_width=0.8)
+        lt_edge, rt_edge = profile.field_edges(field_width=0.8)
 
         return symmetry, lt_edge, rt_edge, max_idx
 
@@ -349,19 +349,19 @@ class BeamImage(Image):
         """Get the flatness of the profile according to the specified method."""
         if method.lower() in (_Flatness.VOM80, _Flatness.VARIAN, _Flatness.SIEMENS):
             # Variation over Mean within 80% Field Width
-            dmax = profile.get_field_calculation(field_width=0.8, calculation='max')
-            dmin = profile.get_field_calculation(field_width=0.8, calculation='min')
+            dmax = profile.field_calculation(field_width=0.8, calculation='max')
+            dmin = profile.field_calculation(field_width=0.8, calculation='min')
             flatness = 100 * abs(dmax - dmin) / (dmax + dmin)
         elif method.lower() in (_Flatness.ELEKTA, _Flatness.IEC):
             # IEC convention:
             # TODO: add conditionals for small/large fields
-            dmax = profile.get_field_calculation(field_width=0.8, calculation='max')
-            dmin = profile.get_field_calculation(field_width=0.8, calculation='min')
+            dmax = profile.field_calculation(field_width=0.8, calculation='max')
+            dmin = profile.field_calculation(field_width=0.8, calculation='min')
             flatness = 100 * (dmax / dmin)
         else:
             raise ValueError("Method parameter '{}' invalid".format(method))
 
-        lt_edge, rt_edge = profile.get_field_edges(field_width=0.8)
+        lt_edge, rt_edge = profile.field_edges(field_width=0.8)
 
         return flatness, dmax, dmin, lt_edge, rt_edge
 
@@ -400,7 +400,7 @@ class BeamImage(Image):
             profile = self._get_profile(plane, pos)
             flatness, dmax, dmin, lt_edge, rt_edge = self._get_flatness(profile, method)
 
-            ax.plot(profile.x_values, profile.y_values)
+            ax.plot(profile.x_values, profile.values)
 
             ax.axhline(dmax, color='r')
             ax.axhline(dmin, color='r')
@@ -468,8 +468,8 @@ class BeamImage(Image):
         row_prof = np.median(self.array, 1)
         row_prof = SingleProfile(row_prof)
 
-        x_cen = col_prof.get_FWXM_center(round=True)
-        y_cen = row_prof.get_FWXM_center(round=True)
+        x_cen = col_prof.fwxm_center(round=True)
+        y_cen = row_prof.fwxm_center(round=True)
 
         if _is_crossplane(plane):
             return y_cen

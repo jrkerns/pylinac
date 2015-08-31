@@ -27,14 +27,9 @@ import numpy as np
 import scipy.ndimage.filters as spf
 import matplotlib.pyplot as plt
 
-from pylinac import MEMORY_PROFILE, DEBUG
 from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file
 from pylinac.core.utilities import is_iterable
-
-
-if DEBUG and MEMORY_PROFILE:
-    from memory_profile import profile
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -2216,8 +2211,14 @@ def write_array(writer, description, value, unit=None):
 
 
 if __name__ == '__main__':
-    filestr = os.path.join(os.path.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
-    ofile = open_file(filestr)
-    log = MachineLog(ofile)
-    log.fluence.gamma.calc_map()
-    log.plot_all()
+    # filestr = os.path.join(os.path.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
+    # ofile = open_file(filestr)
+    # log = MachineLog(ofile)
+    # log.fluence.gamma.calc_map()
+    # log.plot_all()
+
+    log = MachineLog.from_demo_trajectorylog()
+    mu_diff = np.diff(log.axis_data.mu.actual)
+    dose_rate = mu_diff *60000/20
+    plt.plot(dose_rate)
+

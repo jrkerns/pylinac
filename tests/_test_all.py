@@ -1,5 +1,5 @@
-# Test the entire package; an underscore precedes this file name
-# so it does not include itself in the test discovery.
+"""Test the entire package; an underscore precedes this file name
+so it does not include itself in the test discovery."""
 
 import unittest
 import os.path as osp

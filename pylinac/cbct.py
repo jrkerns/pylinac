@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 from pylinac.core.decorators import value_accept
 from pylinac.core.image import Image, DICOMStack
 from pylinac.core.geometry import Point, Circle, sector_mask, Line, Rectangle
-from pylinac.core.profile import Profile, CollapsedCircleProfile, SingleProfile
+from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from pylinac.core.io import get_folder_UI, get_filepath_UI
 
 
@@ -478,8 +478,8 @@ class Settings:
                 pass
             else:
                 circle_prof = CollapsedCircleProfile(center, radius=59/self.mm_per_pixel)
-                circle_prof.get_profile(slice.image, width_ratio=0.05, num_profiles=5)
-                prof = circle_prof.y_values
+                circle_prof._get_profile(slice.image, width_ratio=0.05, num_profiles=5)
+                prof = circle_prof.values
                 # determine if the profile contains both low and high values and that most values are the same
                 if (np.percentile(prof, 2) < 800) and (np.percentile(prof, 98) > 800) and (
                         np.percentile(prof, 80) - np.percentile(prof, 30) < 40):
@@ -710,7 +710,7 @@ class ThicknessROI(RectangleROI):
     def wire_fwhm(self):
         """The FWHM of the wire in pixels."""
         prof = self.long_profile
-        return prof.get_FWXM(interpolate=True)
+        return prof.fwxm(interpolate=True)
 
     @property
     def plot_color(self):
@@ -1077,7 +1077,7 @@ class SpatialResolutionSlice(Slice):
         `pylinac.core.profile.CollapsedCircleProfile` : A 1D profile of the Line Pair region.
         """
         circle_profile = CollapsedCircleProfile(self.phan_center, self.radius2linepairs)
-        circle_profile.get_profile(self.image, size=2 * np.pi * 1000, start=np.pi+np.deg2rad(self.settings.phantom_roll), width_ratio=0.05)
+        circle_profile._get_profile(self.image, size=2 * np.pi * 1000, start=np.pi+np.deg2rad(self.settings.phantom_roll), width_ratio=0.05)
         circle_profile.filter(0.001)
         return circle_profile
 
@@ -1090,8 +1090,8 @@ class SpatialResolutionSlice(Slice):
         in peak spacing as those of the larger areas.
         """
         spacing_array = np.linspace(1, 12, num=self.line_pair_cutoff, dtype=int)
-        spaced_array = np.repeat(self.circle_profile.y_values[:self.line_pair_cutoff], spacing_array)
-        profile = Profile(spaced_array)
+        spaced_array = np.repeat(self.circle_profile.values[:self.line_pair_cutoff], spacing_array)
+        profile = MultiProfile(spaced_array)
         profile.ground()
         return profile
 
@@ -1116,7 +1116,7 @@ class SpatialResolutionSlice(Slice):
         max_idxs = sorted(self.profile_peaks[1])
         for idx in range(len(max_idxs) - 1):
             min_val, min_idx = self.spaced_circle_profile.find_valleys(exclude_lt_edge=max_idxs[idx],
-                                                    exclude_rt_edge=len(self.spaced_circle_profile.y_values) - max_idxs[idx + 1],
+                                                    exclude_rt_edge=len(self.spaced_circle_profile.values) - max_idxs[idx + 1],
                                                     max_num_peaks=1)
             if len(min_val) > 0:
                 min_vals[idx] = min_val[0]
@@ -1283,9 +1283,9 @@ class GeoDiskROI(DiskROI):
             raise ValueError("Did not find the geometric node.")
         # determine the center of mass of the geometric node
         x_arr = np.abs(np.average(bw_node_cleaned, weights=self._array, axis=0))
-        x_com = SingleProfile(x_arr).get_FWXM_center(interpolate=True)
+        x_com = SingleProfile(x_arr).fwxm_center(interpolate=True)
         y_arr = np.abs(np.average(bw_node_cleaned, weights=self._array, axis=1))
-        y_com = SingleProfile(y_arr).get_FWXM_center(interpolate=True)
+        y_com = SingleProfile(y_arr).fwxm_center(interpolate=True)
         return Point(x_com, y_com)
 
 

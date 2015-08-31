@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 from pylinac.core.geometry import Line, Rectangle
 from pylinac.core.io import get_filepath_UI
-from pylinac.core.profile import Profile, SingleProfile
+from pylinac.core.profile import MultiProfile, SingleProfile
 from pylinac.core.image import Image
 
 orientations = {'UD': 'Up-Down', 'LR': 'Left-Right'}  # possible orientations of the pickets. UD is up-down, LR is left-right.
@@ -400,7 +400,7 @@ class PicketHandler:
             leaf_prof = np.mean(self.image_array, 0)
         else:
             leaf_prof = np.mean(self.image_array, 1)
-        return Profile(leaf_prof)
+        return MultiProfile(leaf_prof)
 
 
 class Picket:
@@ -441,7 +441,7 @@ class Picket:
             pix_vals = np.median(self.picket_array[:, mlc_rows], axis=1)
         if max(pix_vals) > np.percentile(self.picket_array, 80):
             prof = SingleProfile(pix_vals)
-            fw80mc = prof.get_FWXM_center(70, interpolate=True)
+            fw80mc = prof.fwxm_center(70, interpolate=True)
             return fw80mc + self.approximate_idx - self.spacing
 
     def add_mlc_meas(self, mlc_center, mlc_position):
@@ -644,7 +644,11 @@ class MLCMeas(Line):
 # Picket Fence Demo
 # -----------------------------------
 if __name__ == '__main__':
-    pf = PicketFence.from_demo_image()
+    path1 = r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Picket Fence\AS500#2.dcm'
+    path2 = r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Picket Fence\AS500#2.dcm'
+    pf = PicketFence()
+    pf.image = Image.from_multiples([path1, path2])
+    # pf = PicketFence.from_demo_image()
     pf.analyze()
     print(pf.return_results())
     pf.plot_analyzed_image()

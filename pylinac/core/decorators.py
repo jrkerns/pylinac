@@ -6,6 +6,8 @@ from functools import wraps
 from inspect import signature
 import time
 
+import numpy as np
+
 
 def timethis(func):
     """Report execution time of function."""
@@ -58,7 +60,7 @@ def value_accept(*value_args, **value_kwargs):
             # Enforce value assertions across supplied arguments
             for name, value in passed_values.arguments.items():
                 if name in bound_values:
-                    if type(value) in (float, int):
+                    if type(value) in (float, int, np.float64):
                         # value must be within a number range
                         if not bound_values[name][0] <= value <= bound_values[name][1]:
                             raise ValueError("Argument '{}' needs to be between {:f} and {:f}".format(name,
