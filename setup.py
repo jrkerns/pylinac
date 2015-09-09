@@ -6,8 +6,8 @@ from setuptools import setup, find_packages
 
 # 2 alt. To make a wheel, run $ python setup.py sdist bdist_wheel [upload]
 
-__version__ = '0.8.1'
-__version_info__ = (0, 8, 1)
+__version__ = '0.9.0'
+__version_info__ = (0, 9, 0)
 
 
 setup(
