@@ -81,7 +81,22 @@ class PFDemo(PFTestMixin, unittest.TestCase):
         pf = PicketFence.from_demo_image()
         pf.analyze(0.15, action_tolerance=0.05)
         pf.plot_analyzed_image()
-        self.assertAlmostEqual(pf.percent_passing, 93, delta=1)
+        self.assertAlmostEqual(pf.percent_passing, 94, delta=1)
+
+
+class MultipleImagesPF(PFTestMixin, unittest.TestCase):
+    """Test of a multiple image picket fence; e.g. EPID images."""
+    max_error = 0.112
+    abs_median_error = 0.019
+    picket_orientation = 'Left-Right'
+    num_pickets = 5
+
+    @classmethod
+    def setUpClass(cls):
+        path1 = osp.join(test_file_dir, 'combo-jaw.dcm')
+        path2 = osp.join(test_file_dir, 'combo-mlc.dcm')
+        cls.pf = PicketFence.from_multiple_images([path1, path2])
+        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
 
 
 class GeneralTests(unittest.TestCase):

@@ -178,6 +178,35 @@ class PicketFence:
         path = get_filepath_UI()
         self.load_image(path, filter=filter)
 
+    @classmethod
+    def from_multiple_images(cls, path_list):
+        """Load and superimpose multiple images and instantiate a Starshot object.
+
+        .. versionadded:: 0.9
+
+        Parameters
+        ----------
+        path_list : iterable
+            An iterable of path locations to the files to be loaded/combined.
+        """
+        obj = cls()
+        obj.load_multiple_images(path_list)
+        return obj
+
+    def load_multiple_images(self, path_list):
+        """Load and superimpose multiple images.
+
+        .. versionadded:: 0.9
+
+        Parameters
+        ----------
+        path_list : iterable
+            An iterable of path locations to the files to be loaded/combined.
+        """
+        self.image = Image.from_multiples(path_list, method='max')
+        self._check_for_noise()
+        self.image.check_inversion()
+
     def _check_for_noise(self):
         """Check if the image has extreme noise (dead pixel, etc) by comparing
         min/max to 1/99 percentiles and smoothing if need be."""
@@ -376,7 +405,7 @@ class PicketHandler:
     def find_pickets(self):
         """Find the pickets of the image."""
         leaf_prof = self.image_mlc_inplane_mean_profile
-        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=0.02, min_peak_height=0.5, max_num_peaks=self.num_pickets)
+        peak_idxs = leaf_prof.find_peaks(min_distance=0.02, threshold=0.5, max_number=self.num_pickets)
         peak_spacing = np.median(np.diff(peak_idxs))
 
         for peak_idx in peak_idxs:
@@ -644,11 +673,4 @@ class MLCMeas(Line):
 # Picket Fence Demo
 # -----------------------------------
 if __name__ == '__main__':
-    path1 = r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Picket Fence\AS500#2.dcm'
-    path2 = r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Picket Fence\AS500#2.dcm'
-    pf = PicketFence()
-    pf.image = Image.from_multiples([path1, path2])
-    # pf = PicketFence.from_demo_image()
-    pf.analyze()
-    print(pf.return_results())
-    pf.plot_analyzed_image()
+    PicketFence().run_demo()
