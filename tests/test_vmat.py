@@ -168,8 +168,8 @@ class VMATMixin:
 
 class TestDRGSDemo(VMATMixin, unittest.TestCase):
     """Tests of the result values of the DRGS demo images."""
-    filepaths = (osp.join(vmat_demo_files_dir, 'drgs_dmlc.dcm'),
-                 osp.join(vmat_demo_files_dir, 'drgs_open.dcm'))
+    filepaths = (osp.join(vmat_demo_files_dir, 'DRGS_dmlc.dcm'),
+                 osp.join(vmat_demo_files_dir, 'DRGS_open.dcm'))
     test_type = 'drgs'
     segment_positions = {0: Point(161, 192), 4: Point(314, 192)}
     segment_values = {
@@ -188,8 +188,8 @@ class TestDRGSDemo(VMATMixin, unittest.TestCase):
 
 class TestMLCSDemo(VMATMixin, unittest.TestCase):
     """Tests of the result values of the DRMLC demo images."""
-    filepaths = (osp.join(vmat_demo_files_dir, 'drmlc_dmlc.dcm'),
-                 osp.join(vmat_demo_files_dir, 'drmlc_open.dcm'))
+    filepaths = (osp.join(vmat_demo_files_dir, 'DRMLC_dmlc.dcm'),
+                 osp.join(vmat_demo_files_dir, 'DRMLC_open.dcm'))
     test_type = 'mlcs'
     segment_positions = {0: Point(170, 192), 2: Point(285, 192)}
     segment_values = {
