@@ -13,7 +13,7 @@ from scipy import ndimage
 from scipy.misc import imresize
 import matplotlib.pyplot as plt
 
-from pylinac.core.decorators import type_accept
+from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.geometry import Point
 from pylinac.core.io import get_filepath_UI, get_filenames_UI
 from pylinac.core.utilities import typed_property
@@ -447,24 +447,32 @@ class Image:
         return min_val
 
     @classmethod
-    def from_multiples(cls, image_file_list):
+    @value_accept(method=('mean', 'max'))
+    def from_multiples(cls, image_file_list, method='mean'):
         """Combine multiple image files into one superimposed image.
 
         .. versionadded:: 0.5.1
         """
         # open first one to get initial settings
         init_obj = cls(image_file_list[0])
+        init_obj.check_inversion()
         concat_arr = init_obj.array
         initial_shape = init_obj.shape
+
+        # open each image and append each array
         for img_file in image_file_list[1:]:
             obj = cls(img_file)
             if obj.shape != initial_shape:
-                 raise AttributeError("Images must be the same size when combining.")
+                raise AttributeError("Images must be the same size when combining.")
+            obj.check_inversion()
             concat_arr = np.dstack((concat_arr, obj.array))
 
-        # create new mean array
-        combined_arr = np.mean(concat_arr, axis=2)
-        # use the initial Image object and replace its array (thus keeping all the other properties)
+        # create new array
+        if method == 'mean':
+            combined_arr = np.mean(concat_arr, axis=2)
+        elif method == 'max':
+            combined_arr = np.max(concat_arr, axis=2)
+        # use the initial Image object and replace its array, thus keeping all the other properties
         init_obj.array = combined_arr
         return init_obj
 
