@@ -51,15 +51,6 @@ class Test_Utilities(unittest.TestCase):
         # test invalid path
         self.assertRaises(IOError, is_dicom, invalid_file)
 
-    def test_array2logical(self):
-        arr = np.ones((2,2))
-        arr[0, :] = 5
-
-        log_arr = array2logical(arr, threshold=3)
-
-        self.assertEqual(log_arr[0,0], 1)
-        self.assertEqual(log_arr[1, 1], 0)
-
     def test_typed_property(self):
 
         class DumbClass:
