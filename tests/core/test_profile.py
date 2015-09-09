@@ -12,7 +12,6 @@ class SingleProfileMixin:
 
     ydata = np.ndarray
     normalize_sides = True
-    fwxm_values = {30: 0, 50: 0, 80: 0}
     fwxm_indices = {30: 0, 50: 0, 80: 0}
     fwxm_center_values = {40: 0, 60: 0, 80: 0}
     fwxm_center_indices = {40: 0, 60: 0, 80: 0}
@@ -29,16 +28,16 @@ class SingleProfileMixin:
 
     def test_fwxms(self):
         for fwxm, fwhm_idx in self.fwxm_indices.items():
-            self.assertAlmostEqual(self.profile.fwxm(fwxm), fwhm_idx, delta=0.1)
+            self.assertAlmostEqual(self.profile.fwxm(fwxm), fwhm_idx, delta=1)
         for fwxm, fwhm_idx in self.fwxm_indices.items():
             self.assertAlmostEqual(self.profile.fwxm(fwxm, interpolate=True), fwhm_idx, delta=1)
 
     def test_fwxm_centers(self):
         # test indices, interpolated and not interpolated
         for fwxm, fwhm_val in self.fwxm_center_values.items():
-            self.assertAlmostEqual(self.profile.fwxm_center(fwxm, type='value'), fwhm_val, delta=0.1)
+            self.assertAlmostEqual(self.profile.fwxm_center(fwxm, kind='value'), fwhm_val, delta=0.1)
         for fwxm, fwhm_val in self.fwxm_center_values.items():
-            self.assertAlmostEqual(self.profile.fwxm_center(fwxm, type='value', interpolate=True), fwhm_val, delta=0.1)
+            self.assertAlmostEqual(self.profile.fwxm_center(fwxm, kind='value', interpolate=True), fwhm_val, delta=0.1)
 
         # test indices, interpolated and not interpolated
         for fwxm, fwhm_idx in self.fwxm_center_indices.items():
@@ -83,12 +82,12 @@ class SingleProfileTriangle(SingleProfileMixin, TestCase):
 
     xdata = np.linspace(0, 2*np.pi, num=200)
     ydata = sps.sawtooth(xdata, width=0.5)
-    fwxm_indices = {30: 140, 50: 100, 80: 40}
+    fwxm_indices = {30: 140, 50: 101, 80: 41}
     fwxm_center_values = {40: 1, 60: 1, 80: 1}
     fwxm_center_indices = {40: 100, 60: 100, 80: 100}
     penumbra_widths_8020 = {'left': 60, 'right': 60, 'both': 60}
     penumbra_widths_9010 = {'left': 80, 'right': 80, 'both': 80}
-    field_edge_indices = (60, 140)
+    field_edge_indices = (59, 140)
     field_calculations = {'max': 0.99, 'mean': 0.60, 'min': 0.21}
     field_value_length = 80
     peak_idx = 100
@@ -103,15 +102,10 @@ class SingleProfileCutoffTriangle(SingleProfileMixin, TestCase):
     fwxm_center_indices = {40: 107, 60: 110.5, 80: 114}
     penumbra_widths_8020 = {'left': 70, 'right': 49, 'both': 59.5}
     penumbra_widths_9010 = {'left': 94, 'right': 65, 'both': 79.5}
-    field_edge_indices = (69, 149)
+    field_edge_indices = (68, 149)
     field_calculations = {'max': 0.99, 'mean': 0.64, 'min': 0.18}
     field_value_length = 80
     peak_idx = 117
-
-    # def test_out_of_range(self):
-    #     """Try to grab a value that is below the profile range"""
-    #     with self.assertRaises(IndexError):
-    #         self.profile.fwxm(20)
 
 
 class MultiProfileTestMixin:
@@ -206,17 +200,14 @@ class CircleProfileTestMixin:
 
 class CircleProfileStarshot(CircleProfileTestMixin, TestCase):
 
-    peak_idxs = (115, 254, 391, 522, 640, 752, 865, 984)
-    valley_idxs = (16., 35., 49., 62., 147., 187., 284., 321., 454.,
-                   482., 582., 603., 618., 699., 786., 811., 921., 952.)
-    fwxm_peak_idxs = (115.0, 255.0, 391.0, 521.5, 641.0, 753.0, 866.0, 985.0)
+    peak_idxs = [218., 480., 738., 985., 1209., 1420., 1633., 1857.]
+    valley_idxs = [118., 338., 606., 911., 1138., 1364., 1529., 1799.]
+    fwxm_peak_idxs = [219.5, 479.5, 738.0, 984.5, 1209.0, 1421.0, 1633.5, 1857.5]
 
 
 class CollapsedCircleProfileStarshot(CircleProfileTestMixin, TestCase):
 
     klass = CollapsedCircleProfile
-    peak_idxs = (115, 254, 391, 522, 640, 752, 865, 984)
-    valley_idxs = [8., 19., 47., 77., 193., 204., 296., 323., 350.,
-                   440., 462., 568., 584., 599., 676., 687., 701., 715.,
-                   777., 789., 809., 897., 923., 944., 955.]
-    fwxm_peak_idxs = [115.5, 254.5, 391.0, 521.5, 641.0, 753.0, 866.0, 984.5]
+    peak_idxs = [241., 529., 812., 1083., 1330., 1563., 1796., 2044.]
+    valley_idxs = [100., 405., 673., 960., 1241., 1481., 1714., 1916.]
+    fwxm_peak_idxs = [241.0, 529.5, 812.5, 1084.0, 1330.5, 1563.0, 1797.0, 2043.5]
