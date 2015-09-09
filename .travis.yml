@@ -15,24 +15,16 @@ install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
-    # Useful for debugging any issues with conda
   - conda info -a
 
-    # Replace dep1 dep2 ... with your dependencies
+  # Set up conda
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pip setuptools pillow pyqt
   - source activate test-environment
-#  - python setup.py install
 
-#  - sudo pip install conda
-#  # install deps
-#  - sudo conda init
-#  # update conda. The following line throws an error
-##  - sudo conda update --yes conda
-#  - conda create -p $HOME/py --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pip setuptools pillow pyqt
-#  - export PATH=$HOME/py/bin:$PATH
-
+  # install deps
   - pip install pydicom
   - pip install coveralls
+  - pip install watchdog
 
   # install your own package into the environment
   - python setup.py install
