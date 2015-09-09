@@ -140,7 +140,7 @@ class TestRectangle(unittest.TestCase):
         rect = Rectangle(width=self.width, height=self.height, center=self.center)
         self.assertEqual(rect.width, self.width)
         self.assertEqual(rect.height, self.height)
-        self.assertEqual(rect.center, self.center)
+        test_point_equality(rect.center, self.center)
 
         rect_as_int = Rectangle(width=self.width, height=self.height, center=self.center, as_int=True)
         self.assertEqual(rect_as_int.width, 7)
