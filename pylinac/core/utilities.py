@@ -26,6 +26,14 @@ def typed_property(name, expected_type_or_tuple_of_types):
 
     return prop
 
+
+def simple_round(number, decimals=0):
+    """Round a number to the given number of decimals. Fixes small floating number errors."""
+    num = int(round(number * 10 ** decimals))
+    num /= 10 ** decimals
+    return num
+
+
 def is_dicom(file):
     """Boolean specifying if file is a proper DICOM file.
 
@@ -63,19 +71,19 @@ def is_iterable(object):
     else:
         return False
 
-@type_accept(array=np.ndarray)
-def array2logical(array, threshold):
-    """Return a 'logical' (binary) version of the input array based on a threshold.
-
-    Parameters
-    ----------
-    array : numpy.ndarray
-        numpy array to be analyzed for conversion.
-    threshold : int, float
-        Specifies the threshold value. If an array value is below the
-        threshold value, it is converted to 0, otherwise to 1.
-    """
-    return np.where(array >= threshold, 1, 0)
+# @type_accept(array=np.ndarray)
+# def array2logical(array, threshold):
+#     """Return a 'logical' (binary) version of the input array based on a threshold.
+#
+#     Parameters
+#     ----------
+#     array : numpy.ndarray
+#         numpy array to be analyzed for conversion.
+#     threshold : int, float
+#         Specifies the threshold value. If an array value is below the
+#         threshold value, it is converted to 0, otherwise to 1.
+#     """
+#     return np.where(array >= threshold, 1, 0)
 
 def go_up_dirlevel(levels=0):
     """Go up directory levels from where the caller file is located.
