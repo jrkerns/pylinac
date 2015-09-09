@@ -75,13 +75,6 @@ class GeneralTests(unittest.TestCase):
         self.assertAlmostEqual(self.cbct.hu.phan_center.x, known_phan_center.x, delta=0.7)
         self.assertAlmostEqual(self.cbct.hu.phan_center.y, known_phan_center.y, delta=0.7)
 
-        # test a shifted image set
-        # shifted_phan_center = Point(287, 255)
-        # self.cbct.settings.images = np.roll(self.cbct.settings.images, 30, axis=1)
-        # self.cbct._construct_HU()
-        # self.assertAlmostEqual(self.cbct.hu.phan_center.x, shifted_phan_center.x, delta=0.7)
-        # self.assertAlmostEqual(self.cbct.hu.phan_center.y, shifted_phan_center.y, delta=0.7)
-
     @unittest.skip
     def test_finding_HU_slice(self):
         """Test the robustness of the algorithm to find the HU linearity slice."""
@@ -163,7 +156,7 @@ class CBCTMixin:
     def test_slice_locations(self):
         """Test the locations of the slices of interest."""
         for attr, slice_name in zip(('hu_slice_num', 'un_slice_num', 'sr_slice_num', 'lc_slice_num'), ('HU', 'UN', 'SR', 'LC')):
-            self.assertEqual(getattr(self.cbct.settings, attr), self.slice_locations[slice_name])
+            self.assertAlmostEqual(getattr(self.cbct.settings, attr), self.slice_locations[slice_name], delta=1)
 
     def test_phantom_roll(self):
         """Test the roll of the phantom."""
@@ -191,7 +184,7 @@ class CBCTMixin:
         """Test MTF values."""
         for key, exp_mtf in self.mtf_values.items():
             meas_mtf = self.cbct.spatialres.mtf(key)
-            self.assertAlmostEqual(exp_mtf, meas_mtf, delta=0.05)
+            self.assertAlmostEqual(exp_mtf, meas_mtf, delta=0.1)
 
 
 class CBCTDemo(CBCTMixin, unittest.TestCase):
@@ -200,7 +193,7 @@ class CBCTDemo(CBCTMixin, unittest.TestCase):
     slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -45, 'Acrylic': 117, 'Delrin': 341, 'Air': -998, 'Teflon': 997, 'PMP': -200, 'LDPE': -103}
     unif_values = {'Center': 17, 'Left': 10, 'Right': 0, 'Top': 6, 'Bottom': 6}
-    mtf_values = {60: 1.19, 70: 1.19, 80: 1.11, 90: 0.85, 95: 0.71}
+    mtf_values = {80: 0.76, 90: 0.61, 60: 0.99, 70: 0.88, 95: 0.45}
     avg_line_length = 49.92
     lowcon_visible = 4
 
@@ -217,6 +210,6 @@ class CBCT4(CBCTMixin, unittest.TestCase):
     slice_locations = {'HU': 31, 'UN': 2, 'SR': 43, 'LC': 19}
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
     unif_values = {'Center': 21, 'Left': 13, 'Right': 30, 'Top': 23, 'Bottom': 20}
-    mtf_values = {60: 0.88, 70: 0.83, 80: 0.73, 90: 0.60, 95: 0.48}
+    mtf_values = {80: 0.47, 90: 0.39, 60: 0.63, 70: 0.55, 95: 0.3}
     avg_line_length = 49.94
     thickness_passed = False

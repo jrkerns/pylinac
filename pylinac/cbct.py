@@ -29,7 +29,7 @@ from pylinac.core.image import Image, DICOMStack
 from pylinac.core.geometry import Point, Circle, sector_mask, Line, Rectangle
 from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from pylinac.core.io import get_folder_UI, get_filepath_UI
-
+from pylinac.core.utilities import simple_round
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -365,9 +365,11 @@ class CBCT:
         """Helper function to spit out values that will be tested."""
         print(self.return_results())
         print("Phantom roll: {}".format(self.settings.phantom_roll))
+        mtfs = {}
         for mtf in (60, 70, 80, 90, 95):
             mtfval = self.spatialres.mtf(mtf)
-            print("MTF({}): {}".format(mtf, mtfval))
+            mtfs[mtf] = mtfval
+        print(mtfs)
         for slice in ('hu_slice_num', 'un_slice_num', 'sr_slice_num', 'lc_slice_num'):
             slicenum = getattr(self.settings, slice)
             print(slice, slicenum)
@@ -477,8 +479,7 @@ class Settings:
             except ValueError:  # a slice without the phantom in view
                 pass
             else:
-                circle_prof = CollapsedCircleProfile(center, radius=59/self.mm_per_pixel)
-                circle_prof._get_profile(slice.image, width_ratio=0.05, num_profiles=5)
+                circle_prof = CollapsedCircleProfile(center, radius=59/self.mm_per_pixel, image_array=slice.image, width_ratio=0.05, num_profiles=5)
                 prof = circle_prof.values
                 # determine if the profile contains both low and high values and that most values are the same
                 if (np.percentile(prof, 2) < 800) and (np.percentile(prof, 98) > 800) and (
@@ -918,9 +919,9 @@ class UniformitySlice(Slice, ROIManagerMixin):
     def _setup_rois(self):
         self.rois = OrderedDict()
         for name, angle, nominal_value in zip(self.roi_names, self.roi_angles, self.roi_nominal_values):
-            self.rois[name] = HUDiskROI(self.image, angle, self.roi_radius, self.dist2rois,
+            distance = self.dist2rois if name != 'Center' else 0
+            self.rois[name] = HUDiskROI(self.image, angle, self.roi_radius, distance,
                                         self.phan_center, nominal_value, self.tolerance)
-        self.rois['Center']._dist_from_center = 0
 
     @property
     def slice_num(self):
@@ -1048,7 +1049,7 @@ class SpatialResolutionSlice(Slice):
     num_peaks = np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
     num_valleys = np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
     radius2linepairs_mm = 47.5
-    line_pair_cutoff = 2200
+    line_pair_cutoff = 0.34
 
     def __init__(self, *args, **kwargs):
         super().__init__(combine_method='max', *args, **kwargs)
@@ -1076,9 +1077,10 @@ class SpatialResolutionSlice(Slice):
         -------
         `pylinac.core.profile.CollapsedCircleProfile` : A 1D profile of the Line Pair region.
         """
-        circle_profile = CollapsedCircleProfile(self.phan_center, self.radius2linepairs)
-        circle_profile._get_profile(self.image, size=2 * np.pi * 1000, start=np.pi+np.deg2rad(self.settings.phantom_roll), width_ratio=0.05)
-        circle_profile.filter(0.001)
+        circle_profile = CollapsedCircleProfile(self.phan_center, self.radius2linepairs, image_array=self.image,
+                                                start_angle=np.pi + np.deg2rad(self.settings.phantom_roll),
+                                                width_ratio=0.04, sampling_ratio=2)
+        circle_profile.filter(0.001, kind='gaussian')
         return circle_profile
 
     @property
@@ -1089,41 +1091,65 @@ class SpatialResolutionSlice(Slice):
         The line pairs change in spacing, and this function stretches out the later sections to be similar
         in peak spacing as those of the larger areas.
         """
-        spacing_array = np.linspace(1, 12, num=self.line_pair_cutoff, dtype=int)
-        spaced_array = np.repeat(self.circle_profile.values[:self.line_pair_cutoff], spacing_array)
+        line_cutoff = int(self.line_pair_cutoff * len(self.circle_profile.values))
+        spacing_array = np.linspace(1, 12, num=line_cutoff, dtype=int)
+        spaced_array = np.repeat(self.circle_profile.values[:line_cutoff], spacing_array)
         profile = MultiProfile(spaced_array)
         profile.ground()
         return profile
 
     @property
     @lru_cache()
-    def profile_peaks(self):
+    def profile_peaks_idxs(self):
         """Return the peak values and indices of the spaced-out profile."""
-        max_vals, max_idxs = self.spaced_circle_profile.find_peaks(min_peak_distance=300, max_num_peaks=17, min_peak_height=0.05)
+        max_idxs = self.spaced_circle_profile.find_peaks(min_distance=0.025, max_number=17, threshold=0.05)
         if len(max_idxs) != 17:
             # TODO: add some robustness here
             raise ArithmeticError("Did not find the correct number of line pairs")
-        return np.array(max_vals), max_idxs
+        return max_idxs
 
     @property
     @lru_cache()
-    def profile_valleys(self):
+    def profile_peaks_vals(self):
+        """Return the peak values and indices of the spaced-out profile."""
+        max_vals = self.spaced_circle_profile.find_peaks(min_distance=0.025, max_number=17, threshold=0.05, kind='value')
+        if len(max_vals) != 17:
+            raise ArithmeticError("Did not find the correct number of line pairs")
+        return max_vals
+
+    @property
+    @lru_cache()
+    def profile_valleys_idxs(self):
+        """Return the valley values and indices of the spaced-out profile,
+            with valleys in-between line-pair regions removed."""
+        idx2del = np.array((1, 4, 8, 12))
+        min_idxs = np.zeros(16)
+        max_idxs = sorted(self.profile_peaks_idxs)
+        for idx in range(len(max_idxs) - 1):
+            min_idx = self.spaced_circle_profile.find_valleys(search_region=(int(max_idxs[idx]),
+                                                                             int(max_idxs[idx + 1])),
+                                                              max_number=1)
+            if len(min_idx) > 0:
+                min_idxs[idx] = min_idx[0]
+        min_idxs = np.delete(min_idxs, idx2del)
+        return min_idxs
+
+    @property
+    @lru_cache()
+    def profile_valleys_vals(self):
         """Return the valley values and indices of the spaced-out profile,
             with valleys in-between line-pair regions removed."""
         idx2del = np.array((1, 4, 8, 12))
         min_vals = np.zeros(16)
-        min_idxs = np.zeros(16)
-        max_idxs = sorted(self.profile_peaks[1])
+        max_idxs = sorted(self.profile_peaks_idxs)
         for idx in range(len(max_idxs) - 1):
-            min_val, min_idx = self.spaced_circle_profile.find_valleys(exclude_lt_edge=max_idxs[idx],
-                                                    exclude_rt_edge=len(self.spaced_circle_profile.values) - max_idxs[idx + 1],
-                                                    max_num_peaks=1)
-            if len(min_val) > 0:
-                min_vals[idx] = min_val[0]
-                min_idxs[idx] = min_idx[0]
-        min_idxs = np.delete(min_idxs, idx2del)
+            min_idx = self.spaced_circle_profile.find_valleys(search_region=(int(max_idxs[idx]),
+                                                                             int(max_idxs[idx + 1])),
+                                                              max_number=1, kind='value')
+            if len(min_idx) > 0:
+                min_vals[idx] = min_idx[0]
         min_vals = np.delete(min_vals, idx2del)
-        return min_vals, min_idxs
+        return min_vals
 
     def mtf(self, percent=None, region=None):
         """Return the MTF value of the spatial resolution. Only one of the two parameters may be used.
@@ -1148,7 +1174,7 @@ class SpatialResolutionSlice(Slice):
             y_vals_intrp = np.interp(x_vals_intrp, x_vals, y_vals)
             # TODO: warn user if value at MTF edge; may not be true MTF
             mtf_percent = x_vals_intrp[np.argmin(np.abs(y_vals_intrp - (percent / 100)))]
-            return mtf_percent
+            return simple_round(mtf_percent, 2)
         elif region is not None:
             return self.line_pair_mtfs[region]
 
@@ -1160,8 +1186,8 @@ class SpatialResolutionSlice(Slice):
         num_valleys = self.num_valleys
         mtfs = []
         for frequency, region in zip(self.line_pair_frequency, range(len(num_peaks) - 1)):
-            region_max = self.profile_peaks[0][num_peaks[region]:num_peaks[region + 1]].mean()
-            region_min = self.profile_valleys[0][num_valleys[region]:num_valleys[region + 1]].mean()
+            region_max = self.profile_peaks_vals[num_peaks[region]:num_peaks[region + 1]].mean()
+            region_min = self.profile_valleys_vals[num_valleys[region]:num_valleys[region + 1]].mean()
             mtfs.append((region_max - region_min) / (region_max + region_min))
         # normalize the values by the first LP
         mtfs = np.array(mtfs) / max(mtfs)
@@ -1387,10 +1413,6 @@ class GeometrySlice(Slice, ROIManagerMixin):
         for line in self.lines.values():
             line.add_to_axes(axis, color=line.pass_fail_color)
 
-    # @property
-    # def line_lengths(self):
-    #     return {key: value.length_mm for key, value in self.lines.items()}
-
     @property
     def avg_line_length(self):
         return np.mean([line.length_mm for line in self.lines.values()])
@@ -1452,8 +1474,5 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # CBCT Demo
 # ----------------------------------------
 if __name__ == '__main__':
-    cbct = CBCT.from_demo_images()
-    cbct.analyze()
-    print(cbct._return_results())
-    cbct.plot_analyzed_image()
+    CBCT().run_demo()
 
