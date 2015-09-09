@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from pylinac.core.decorators import type_accept
 from pylinac.core.geometry import Point
 from pylinac.core.io import get_filepath_UI, get_filenames_UI
-from pylinac.core.utilities import array2logical, typed_property
+from pylinac.core.utilities import typed_property
 
 
 DICOM = 'DICOM'
@@ -53,7 +53,7 @@ class DICOMStack:
                     ds = dicom.read_file(osp.join(par_dir, name), force=True)
                     if ds.SOPClassUID.name == 'CT Image Storage':
                         filelist.append(ds)
-                except (InvalidDicomError, AttributeError):
+                except (InvalidDicomError, AttributeError, MemoryError):
                     pass
             if filelist:
                 return filelist
