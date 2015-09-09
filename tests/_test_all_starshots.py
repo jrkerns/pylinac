@@ -80,7 +80,6 @@ class Starshot12(StarMixin, unittest.TestCase):
     wobble_center = Point(315, 292)
     wobble_diameter_mm = 0.88
     num_rad_lines = 4
-    passes = False
 
 
 class Starshot13(StarMixin, unittest.TestCase):
@@ -107,7 +106,7 @@ class Starshot15(StarMixin, unittest.TestCase):
 class Starshot16(StarMixin, unittest.TestCase):
     star_file = osp.join(test_file_dir, 'Starshot#16.tiff')
     wobble_center = Point(1444, 1452)
-    wobble_diameter_mm = 0.4
+    wobble_diameter_mm = 0.6
     num_rad_lines = 6
 
 
@@ -142,7 +141,8 @@ class Starshot20(StarMixin, unittest.TestCase):
 class Starshot21(StarMixin, unittest.TestCase):
     star_file = osp.join(test_file_dir, 'Starshot#21.tiff')
     wobble_center = Point(354, 294)
-    wobble_diameter_mm = 1.42
+    wobble_diameter_mm = 1.4
+    wobble_tolerance = 0.5
     num_rad_lines = 4
     passes = False
 
@@ -151,6 +151,7 @@ class Starshot22(StarMixin, unittest.TestCase):
     star_file = osp.join(test_file_dir, 'Starshot#22.tiff')
     wobble_center = Point(1305, 1513)
     wobble_diameter_mm = 0.8
+    wobble_tolerance = 0.3
     num_rad_lines = 9
 
     def test_bad_input_no_recursion_fails(self):
@@ -173,8 +174,27 @@ class Starshot23(StarMixin, unittest.TestCase):
 class Starshot24(StarMixin, unittest.TestCase):
     star_file = osp.join(test_file_dir, 'Starshot#24.tiff')
     wobble_center = Point(1370, 1454)
-    wobble_diameter_mm = 0.8
+    wobble_diameter_mm = 0.3
     num_rad_lines = 4
-    wobble_tolerance = 0.45
-    passes = False
+
+
+class Starshot25(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#25.tiff')
+    wobble_center = Point(286, 279)
+    wobble_diameter_mm = 0.3
+    num_rad_lines = 4
+
+
+class Starshot26(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#26.tiff')
+    wobble_center = Point(1511, 1452)
+    wobble_diameter_mm = 0.5
+    num_rad_lines = 4
+
+
+class Starshot27(StarMixin, unittest.TestCase):
+    star_file = osp.join(test_file_dir, 'Starshot#27.tiff')
+    wobble_center = Point(1105, 1306)
+    wobble_diameter_mm = 0.4
+    num_rad_lines = 6
 

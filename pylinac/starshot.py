@@ -108,7 +108,7 @@ class Starshot:
 
     def load_demo_image(self):
         """Load the starshot demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'starshot', '10X_collimator.tif')
+        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'starshot', 'starshot.tif')
         self.load_image(demo_file)
 
     def load_image(self, filepath):
@@ -329,7 +329,7 @@ class Starshot:
                 # otherwise, check if the wobble is reasonable
                 else:
                     # if so, stop
-                    if self.wobble.diameter_mm < 3:
+                    if self.wobble.diameter_mm < 2:
                         focus_near_center = self.wobble.center.dist_to(focus_point) < 5
                         if focus_near_center:
                             wobble_unreasonable = False
@@ -538,8 +538,7 @@ class StarProfile(CollapsedCircleProfile):
     """Class that holds and analyzes the circular profile which finds the radiation lines."""
     def __init__(self, image, start_point, radius, min_peak_height, fwhm):
         radius = self._convert_radius_perc2pix(image, start_point, radius)
-        size = np.pi * radius*2
-        super().__init__(center=start_point, radius=radius, image_array=image.array, width_ratio=0.05, size=size)
+        super().__init__(center=start_point, radius=radius, image_array=image.array, width_ratio=0.05)
         self.get_peaks(min_peak_height, fwhm=fwhm)
 
     @staticmethod
@@ -565,10 +564,10 @@ class StarProfile(CollapsedCircleProfile):
     def get_peaks(self, min_peak_height, min_peak_distance=0.02, fwhm=True):
         """Determine the peaks of the profile."""
         self._roll_prof_to_midvalley()
-        self.filter(size=0.002, type='gaussian')
+        # self.filter(size=0.002, kind='gaussian')
         self.ground()
         if fwhm:
-            self.find_fwxm_peaks(x=60, min_peak_height=min_peak_height, min_peak_distance=min_peak_distance, interpolate=True)
+            self.find_fwxm_peaks(x=60, threshold=min_peak_height, min_distance=min_peak_distance, interpolate=True)
         else:
             self.find_peaks(min_peak_height, min_peak_distance)
 
@@ -594,17 +593,4 @@ def get_radius():
 # Starshot demo
 # ----------------------------
 if __name__ == '__main__':
-    # Starshot().run_demo()
-    path = r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac\tests\test_files\Starshot\Starshot#2.tif'
-    s = Starshot(path)
-    # s = Starshot.from_demo_image()
-    radii = np.arange(0.25, 0.9, 0.05)
-    # radii = (0.85,)
-    radii_vals = []
-    for radius in radii:
-        s.analyze(radius=radius)
-        radii_vals.append(s.wobble.diameter_mm)
-        # print(s.return_results())
-        # s.plot_analyzed_image()
-    print('Mean: ', np.mean(radii_vals))
-    print('Range: ', np.max(radii_vals) - np.min(radii_vals))
+    Starshot().run_demo()

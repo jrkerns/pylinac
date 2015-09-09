@@ -21,7 +21,8 @@ class GeneralTests(unittest.TestCase):
 
     def test_analyze_without_images(self):
         star = Starshot()
-        self.assertRaises(AttributeError, star.analyze)
+        with self.assertRaises(AttributeError):
+            star.analyze()
 
     def test_save_image(self):
         """Test that saving an image does something."""
@@ -84,7 +85,7 @@ class StarMixin:
 
 class Demo(StarMixin, unittest.TestCase):
     """Specific tests for the demo image"""
-    star_file = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'starshot', '10X_collimator.tif')
+    star_file = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'starshot', 'starshot.tif')
     wobble_diameter_mm = 0.31
     wobble_center = Point(1270, 1437)
     num_rad_lines = 4
@@ -128,6 +129,7 @@ class Multiples(StarMixin, unittest.TestCase):
     num_rad_lines = 9
     wobble_center = Point(254, 192)
     wobble_diameter_mm = 0.8
+    test_all_radii = False
 
     @classmethod
     def setUpClass(cls):
@@ -136,16 +138,6 @@ class Multiples(StarMixin, unittest.TestCase):
         cls.star = Starshot.from_multiple_images(img_files)
         cls.star.analyze(radius=0.6)
 
-    def test_radius_larger_than_passed(self):
-        """Test the outcome of an analysis where the passed radius is outside the edge of the radiation lines."""
-        # with recursive recovers
-        self.star.analyze(radius=0.9)
-        self.test_passed()
-        self.test_wobble_center()
-
-    def test_all_radii_give_same_wobble(self):
-        pass
-
 
 class Starshot1(StarMixin, unittest.TestCase):
     star_file = osp.join(test_file_dir, 'Starshot#1.tif')
@@ -153,4 +145,7 @@ class Starshot1(StarMixin, unittest.TestCase):
     wobble_diameter_mm = 0.23
     num_rad_lines = 4
 
+
+class Starshot1FWHM(Starshot1):
+    fwhm = False
 
