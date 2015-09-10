@@ -593,7 +593,7 @@ class MachineLog:
                 is_file_object = True
 
         csv_file = open_file(filename, 'w')
-        writer = csv.writer(csv_file)
+        writer = csv.writer(csv_file, lineterminator='\n')
         # write header info
         header_titles = ('Tlog File:', 'Signature:', 'Version:', 'Header Size:', 'Sampling Inteval:',
                          'Number of Axes:', 'Axis Enumeration:', 'Samples per Axis:', 'Axis Scale:',
