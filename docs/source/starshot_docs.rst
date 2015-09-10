@@ -18,7 +18,8 @@ Running the Demo
 
 To run the Starshot demo, create a script or start an interpreter and input::
 
-    from pylinac.starshot import Starshot
+    from pylinac import Starshot
+
     Starshot().run_demo()
 
 Results will be printed to the console and a matplotlib figure showing the analyzed starshot image will pop up::
@@ -42,7 +43,7 @@ Typical Use
 
 The Starshot analysis can be run first by importing the Starshot class::
 
-    from pylinac.starshot import Starshot
+    from pylinac import Starshot
 
 A typical analysis sequence looks like so:
 
@@ -63,7 +64,7 @@ A typical analysis sequence looks like so:
   Or, pass them programatically::
 
     star_imgs = ['path/star0.tif', 'path/star45.tif', 'path/star90.tif']
-    mystar = Starshot.from_multiple_images()
+    mystar = Starshot.from_multiple_images(star_imgs)
 
   .. note::
     In previous versions of pylinac, loading images was instance-method based. This behavior has been simplified in favor
@@ -75,7 +76,6 @@ A typical analysis sequence looks like so:
 * **Analyze the image** -- After loading the image, all that needs to be done is analyze the image. You may optionally
   pass in some settings::
 
-    # analyze
     mystar.analyze(radius=50, tolerance=0.8) # see API docs for more parameter info
 
 * **View the results** -- Starshot can print out the summary of results to the console as well as draw a matplotlib image to show the
@@ -106,6 +106,10 @@ Algorithm
 
 **Pre-Analysis**
 
+
+* **Check for image noise** -- The image is checked for unreasonable noise by comparing the min and max
+  to the 1/99th percentile pixel values respectively. If there is a large difference then there is likely an artifact
+  and a median filter is applied until the min/max and 1/99th percentiles are similar.
 * **Check image inversion** -- The image is checked for proper inversion by summing the image along each axis and then
   effectively finding the point of maximum value. If the point is not in the central 1/3 of the image, it is thought to be inverted.
   This check can be skipped but is enabled by default.
@@ -119,11 +123,12 @@ Algorithm
 * **Extract circle profile** -- A circular profile is extracted from the image centered around the starting point
   and at the radius given.
 * **Find spokes** -- The circle profile is analyzed for peaks. Optionally, the profile is reanalyzed to find the center
-  of the FWHM. An even number of spokes must be found (1 for each side. E.g. 3 collimator angles should produce 6
+  of the FWHM. An even number of spokes must be found (1 for each side; e.g. 3 collimator angles should produce 6
   spokes, one for each side of the CAX).
 * **Match peaks** -- Peaks are matched to their counterparts opposite the CAX to compose a line using a simple peak number offset.
 * **Find wobble** -- Starting at the initial starting point, an evolutionary gradient method is utilized to find the
-  point of minimum distance to all lines.
+  point of minimum distance to all lines. If recursive is set to True and a "reasonable" wobble (<2mm) is not found
+  using the passes settings, the peak height and radius are iterated until a reasonable wobble is found.
 
 **Post-Analysis**
 

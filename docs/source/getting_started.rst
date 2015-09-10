@@ -5,17 +5,17 @@ Getting Started
 ===============
 
 Getting started with pylinac is easy! Once installed, you can write your own script in a matter of minutes.
-Each module of pylinac addresses the topic of its name (e.g. the ``Starshot`` class, surprisingly, performs
+Each module of pylinac addresses the topic of its name (e.g. the :class:`~pylinac.starshot.Starshot` class, surprisingly, performs
 starshot analysis). Furthermore, each module is designed as similarly as possible
 to one another. So once you start using one module, it's easy to use another (see :ref:`module_design`).
 Each module also has its own demo to show off what it can do.
 
-Example
--------
+Running a Demo
+--------------
 
 Let's get started by running a demo of the ``Starshot`` module. First, import the Starshot class::
 
-    from pylinac.starshot import Starshot
+    from pylinac import Starshot
 
 This class has all the capabilities of loading and analyzing a Starshot image. Let's 1) create an instance of that
 class and then 2) run its demonstration method::
@@ -42,9 +42,10 @@ Loading in Images/Data
 ----------------------
 
 All modules have multiple ways of loading in your data. The best way to use a given module's main class is
-with the class-based constructors. Let's use the ``log_analyzer`` module to demonstrate::
+instantiating with the image/data file name. If you have something else (e.g. a URL or set of multiple images)
+you can use the class-based constructors that always start with ``from_``. Let's use the ``log_analyzer`` module to demonstrate::
 
-    from pylinac.log_analyzer import MachineLog
+    from pylinac import MachineLog
 
 We can pass the path to the log, and this would be the standard way of constructing::
 
@@ -65,5 +66,5 @@ If for any reason you don't have data and want to experiment, you can easily loa
     dlog = MachineLog.from_demo_dynalog()
 
 You can find out more about logs in the :ref:`log_analyzer_module`. All modules are similar however;
-the main class can be loaded through class-based constructors, through a UI dialog box, from a URL,
+the main class can be instantiated directly, through class-based constructors, through a UI dialog box, from a URL,
 and all main classes have a demo dataset and demo method.

@@ -51,11 +51,12 @@ The following example shows what this would look like::
     # well-named files
     img1 = r'C:/path/drmlc_open.dcm'
     img2 = r'C:/path/drmlc_dmlc.dcm'
-    # reading these in now registers both which image is which and the test type
+    # reading these in registers both image type and test type
     vmat = VMAT((img1, img2))
     vmat.analyze() # no need for test type
 
-If your files don't follow this convention it's okay; you just need to specify the image and test types manually.
+If your files don't follow this convention it's okay; you just need to specify the image and test types manually. See below
+and :meth:`~pylinac.vmat.VMAT.analyze` for more info.
 
 Typical Use
 -----------
@@ -107,8 +108,10 @@ The minimum needed to get going is to:
 * **Analyze the images** -- This is where pylinac does its work. Once the images are loaded, tell VMAT to analyze the images. See the
   Algorithm section for details on how this is done. Tolerance can also be passed, but has a default value of 1.5%::
 
-      # analyze
       myvmat.analyze(test='mlcs', tolerance=1.5)
+
+  .. note::
+    The ``test`` parameter does not need to be specified if the :ref:`naming_convention` for tests is followed.
 
 * **View the results** -- The VMAT module can print out the summary of results to the console as well as draw a matplotlib image to show where the
   segments were placed and their values::
@@ -117,6 +120,8 @@ The minimum needed to get going is to:
       print(myvmat.return_results())
       # view analyzed images
       myvmat.plot_analyzed_image()
+
+  .. image:: images/vmat_analyzed.png
 
 Tips & Tricks
 -------------

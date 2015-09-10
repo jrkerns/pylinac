@@ -1,4 +1,6 @@
 
+.. _dir_watching:
+
 ==================
 Directory Watching
 ==================

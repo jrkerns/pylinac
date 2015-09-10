@@ -56,7 +56,7 @@ Running the Demo
 
 As usual, the module comes with demo files and methods::
 
-    >>> from pylinac.log_analyzer import MachineLog
+    >>> from pylinac import MachineLog
     >>> MachineLog().run_dlg_demo()
 
 Which will output the following::
@@ -89,7 +89,7 @@ Loading Data
 
 Logs can be loaded one of two ways: upon class initialization and through the load method::
 
-    from pylinac.log_analyzer import MachineLog
+    from pylinac import MachineLog
 
     log_path = "C:/path/to/tlog.bin"
     log = MachineLog(log_path)
@@ -114,9 +114,8 @@ trajectory logs, with a *Header* and *Axis Data* structure, and possibly a *Subb
 the log is a Trajectory log and was autosequenced. For accessible attributes, see :class:`MachineLog`.
 Let's get started by loading a log and looking at some info::
 
-    >>> from pylinac.log_analyzer import MachineLog
+    >>> from pylinac import MachineLog
     >>> log = MachineLog()
-
     >>> log.is_loaded  # is a log loaded?
     False
     >>> log.load_demo_dynalog() # better load one then
@@ -141,11 +140,11 @@ Let's explore the header::
     >>> log.header.clinac_scale  # 0-> Varian; 1-> IEC 60601-2-1
     ['1']
 
-Now, the axis data::
+Now, the axis data (see :class:`~pylinac.log_analyzer.Axis` for more info on methods & properties)::
 
     >>> log.axis_data.gantry.moved  # did the gantry move during delivery?
     False
-    >>> log.axis_data.gantry.actual[0]  # actual gantry angle in degrees
+    >>> log.axis_data.gantry.actual[0]  # actual gantry angle of the first snapshot in degrees
     180.0
     >>> log.axis_data.jaws.x2.moved  # jaw data are under the 'jaws' structure
     False
@@ -267,7 +266,7 @@ batch methods are included.
 
 Let's assume all of your logs for the past week are in a folder. You'd like to quickly see what the average gamma is of the files::
 
-    >>> from pylinac.log_analyzer import MachineLogs
+    >>> from pylinac import MachineLogs
     >>> log_dir = r"C:\path\to\log\directory"
     >>> logs = MachineLogs(log_dir)
     >>> logs.avg_gamma(resolution=0.2)
@@ -290,7 +289,6 @@ Trajectory logs in a MachineLogs instance can also be converted to CSV, just as 
 API Documentation
 -----------------
 .. autoclass:: pylinac.log_analyzer.MachineLogs
-    :no-show-inheritance:
 
 .. autoclass:: pylinac.log_analyzer.MachineLog
     :no-show-inheritance:

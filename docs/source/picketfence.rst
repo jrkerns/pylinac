@@ -36,21 +36,21 @@ Running the Demo
 
 To run the picketfence demo, create a script or start in interpreter and input::
 
-    from pylinac.picketfence import PicketFence
+    from pylinac import PicketFence
     PicketFence().run_demo()
 
 Results will be printed to the console and a figure showing the analyzed picket fence image will pop up::
 
     Picket Fence Results:
     100.0% Passed
-    Median Error: 0.067mm
-    Max Error: 0.214mm on Picket: 1, Leaf: 21
+    Median Error: 0.062mm
+    Max Error: 0.208mm on Picket: 3, Leaf: 22
 
 .. image:: images/PF_analyzed.png
 
 If you just want to use the demo image without doing analysis::
 
-    mypf = PicketFence.from_demo_image()
+    pf = PicketFence.from_demo_image()
 
 Acquiring the Image
 -------------------
@@ -67,19 +67,26 @@ Typical Use
 Picket Fence tests are recommended to be done weekly. With automatic software analysis, this can be a trivial task.
 Once the test is delivered to the EPID, retrieve the DICOM image and save it to a known location. Then import the class::
 
-    from pylinac.picketfence import PicketFence
+    from pylinac import PicketFence
 
 The minimum needed to get going is to:
 
-* **Load the PF image** -- As with most other pylinac modules, loading images can be done by passing the image string
+* **Load the image** -- As with most other pylinac modules, loading images can be done by passing the image string
   directly, or by using a UI dialog box to retrieve the image manually. The code might look like either of the following::
 
     pf_img = r"C:/QA Folder/June/PF_6_21.dcm"
-    mypf = PicketFence(pf_img)
+    pf = PicketFence(pf_img)
 
   Or, load using a UI dialog box::
 
-    mypf = PicketFence.from_image_UI()  # UI dialog will pop up
+    pf = PicketFence.from_image_UI()  # UI dialog will pop up
+
+  You may also load multiple images that become superimposed (e.g. an MLC & Jaw irradiation)::
+
+    img1 = r'path/to/image1.dcm'
+    img2 = r'path/to/image2.dcm'
+    pf = PicketFence.from_multiple_images([img1, img2])
+
 
   .. note::
     In previous versions of pylinac, loading images was instance-method based. This behavior has been simplified in favor
@@ -92,15 +99,15 @@ The minimum needed to get going is to:
   Algorithm section for details on how this is done. While defaults exist, you may pass in a tolerance as well as
   an "action" tolerance (meaning that while passing, action should be required above this tolerance)::
 
-    mypf.analyze(tolerance=0.15, action_tolerance=0.03)  # tight tolerance to demo fail & warning overlay
+    pf.analyze(tolerance=0.15, action_tolerance=0.03)  # tight tolerance to demo fail & warning overlay
 
 * **View the results** -- The PicketFence class can print out the summary of results to the console as well as
   draw a matplotlib image to show the image, MLC peaks, guard rails, and a color overlay for quick assessment::
 
       # print results to the console
-      print(mypf.return_results())
+      print(pf.return_results())
       # view analyzed image
-      mypf.plot_analyzed_image()
+      pf.plot_analyzed_image()
 
   which results in:
 
@@ -113,24 +120,24 @@ Using the picketfence module in your own scripts? While the analysis results can
 if you intend on using them elsewhere, they can be accessed through properties. Continuing from
 above::
 
-    mypf.max_error  # max error in mm
-    mypf.max_error_picket  # which picket contained the max error
-    mypf.max_error_leaf  # which leaf contained the maximum error
-    mypf.abs_median_error  # the absolute median error of all the leaves
-    mypf.num_pickets  # how many pickets were found
-    mypf.percent_passing  # the percent of MLC measurements below tolerance
+    pf.max_error  # max error in mm
+    pf.max_error_picket  # which picket contained the max error
+    pf.max_error_leaf  # which leaf contained the maximum error
+    pf.abs_median_error  # the absolute median error of all the leaves
+    pf.num_pickets  # how many pickets were found
+    pf.percent_passing  # the percent of MLC measurements below tolerance
 
 The EPID can also sag at certain angles. Because pylinac assumes a perfect panel, sometimes the analysis will
 not be centered exactly on the MLC leaves. If you want to correct for this, simply pass the EPID sag in mm::
 
-    mypf = PicketFence(r'C:/path/saggyPF.dcm')
-    mypf.analyze(sag_adjustment=0.6)
+    pf = PicketFence(r'C:/path/saggyPF.dcm')
+    pf.analyze(sag_adjustment=0.6)
 
 
 Algorithm
 ---------
 
-The picket fence algorithm uses expected positions of the MLCs and samples those regions for the center
+The picket fence algorithm uses expected lateral positions of the MLCs and samples those regions for the center
 of the FWHM to determine the MLC positions:
 
 **Allowances**
@@ -139,8 +146,8 @@ of the FWHM to determine the MLC positions:
 * Various leaf sizes can be analyzed (e.g. 5 and 10mm leaves for standard Millennium).
 * Either standard or HD MLCs can be analyzed.
 * The image can be either orientation (pickets going up-down or left-right).
-* The image can be at any clinical SSD.
-* Any EPID type can be used (AS500, AS1000, AS1200).
+* The image can be at any SSD.
+* Any EPID type can be used (aS500, aS1000, aS1200).
 * The EPID panel can have an x or y offset (i.e. translation).
 
 **Restrictions**
@@ -163,8 +170,8 @@ of the FWHM to determine the MLC positions:
   sampled. The axis with a greater difference in percentile values is chosen as the orientation (The picket axis, it is
   argued, will have more pixel value variation than the axis parallel to leaf motion.)
 
-* **Adjust for EPID sag** -- If a nonzero value is passed for the sag adjustment, the image is shifted in the given
-  direction.
+* **Adjust for EPID sag** -- If a nonzero value is passed for the sag adjustment, the image is shifted along the axis of
+  the pickets; i.e. a +1 mm adjustment for an Up-Down picket image will move expected MLC positions up 1 mm.
 
 **Analysis**
 
@@ -183,13 +190,13 @@ Troubleshooting
 First, check the general :ref:`general_troubleshooting` section. Specific to the picket fence
 analysis, there are a few things you can do.
 
-* **Ensure the HDMLC status** - If your image is from an HD MLC, you need to set the hdmlc parameter in
+* **Ensure the HDMLC status** - If your image is from an HD MLC, you need to set the ``hdmlc`` parameter in
   :meth:`~pylinac.picketfence.PicketFence.analyze` to True, and vic versa.
 * **Apply a filter upon load** - While pylinac tries to correct for unreasonable noise in
   the image before analysis, there may still be noise that causes analysis to fail. A way to check
   this is by applying a median filter upon loading the image::
 
-     mypf = PicketFence('mypf.dcm', filter=5)  # vary the filter size depending on the image
+     pf = PicketFence('mypf.dcm', filter=5)  # vary the filter size depending on the image
 
   Then try performing the analysis.
 * **Check for streak artifacts** - It is possible in certain scenarios (e.g. TrueBeam dosimetry mode)
@@ -201,8 +208,9 @@ analysis, there are a few things you can do.
   then it is possible pylinac is tripping on these artifacts. You can reacquire the image in another mode or
   simply try again in the same mode. You may also try cropping the image to exclude the artifact::
 
-     mypf = PicketFence('mypf.dcm')
-     mypf.image.array = mypf.image.array[200:400, 150:450]  # or whatever values you want
+     pf = PicketFence('mypf.dcm')
+     pf.image.array = mypf.image.array[200:400, 150:450]  # or whatever values you want
+
 * **Set the number of pickets** - If pylinac is catching too many pickets you can set
   the number of pickets to find with :meth:`~pylinac.picketfence.PicketFence.analyze`.
 

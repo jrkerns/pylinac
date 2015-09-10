@@ -2,7 +2,7 @@
 """The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
 Physicists regularly check MLC positioning through this test. This test can be done using film and one can
 "eyeball" it, but this is the 21st century and we have numerous ways of quantifying such data. This module
-attains to be one of them. It will load in an EPID dicom image and determine the MLC peaks, error of each MLC
+attains to be one of them. It can load in an EPID dicom image (or superimpose multiple images) and determine the MLC peaks, error of each MLC
 pair to the picket, and give a few visual indicators for passing/warning/failing.
 
 Features:
@@ -58,7 +58,7 @@ class PicketFence:
         filename : str, None
             Name of the file as a string. If None, image must be loaded later.
         filter : int, None
-            The filter size to apply to the image upon load.
+            The median filter size to apply to the image upon load.
         """
         if filename is not None:
             self.load_image(filename, filter)
@@ -282,7 +282,7 @@ class PicketFence:
         Parameters
         ----------
         guard_rails : bool
-            Do/don't plot the picket "guard rails".
+            Do/don't plot the picket "guard rails" around the ideal picket
         mlc_peaks : bool
             Do/don't plot the MLC positions.
         overlay : bool
@@ -433,7 +433,7 @@ class PicketHandler:
 
 
 class Picket:
-    """Holds *Picket* information in a Picket Fence test."""
+    """Holds picket information in a Picket Fence test."""
     def __init__(self, image, settings, approximate_idx, spacing):
         """
         Attributes

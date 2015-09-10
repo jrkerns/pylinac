@@ -261,8 +261,7 @@ class VMAT:
     def run_demo_drgs(self, tolerance=1.5):
         """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
         self.load_demo_image('drgs')
-        self.settings.x_offset = 20  # old images (rev1, not new rev2's), which are offset
-        self.analyze(test='drgs', tolerance=tolerance)
+        self.analyze(test='drgs', tolerance=tolerance, x_offset=20)  # old images (rev1, not new rev2's), which are offset
         print(self.return_results())
         self.plot_analyzed_image()
 
@@ -600,7 +599,4 @@ def _x_in_y(x, y):
 # VMAT demo
 # -------------------
 if __name__ == '__main__':
-    vmat = VMAT.from_demo_images()
-    vmat.analyze(x_offset=20)
-    print(vmat.return_results())
-    vmat.plot_analyzed_image()
+    VMAT().run_demo_mlcs()

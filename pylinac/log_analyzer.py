@@ -2211,4 +2211,4 @@ def write_array(writer, description, value, unit=None):
 
 
 if __name__ == '__main__':
-    MachineLog.run_tlog_demo()
+    MachineLog().run_tlog_demo()

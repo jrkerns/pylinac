@@ -1,3 +1,23 @@
+V 0.9.0 - 9/10/2015
+
+    Overview
+ This release has a few new features for the CBCT class, but is mostly an internal improvement.
+If you only use the main classes (CBCT, PicketFence, Starshot, etc), there should be no changes needed.
+
+    CBCT
+-The CBCT analysis now examines low contrast ROIs and slice thickness.
+
+    Starshot
+-Fixes #32 which was causing FWHM peaks on starshots to sometimes be erronous for uint8/uint16 images.
+
+    PicketFence
+-Adds #31, a method for loading multiple images into PicketFence.
+
+    Log Analyzer
+-Fixes a bug which sometimes caused the parsing of the associated .txt log file for trajectory logs
+ to crash.
+
+
 V 0.8.2 - 7/31/2015
 
 -Fixed a bug with the picket fence overlay for left-right picket patterns.

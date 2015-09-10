@@ -20,7 +20,6 @@ Features:
 * **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
   do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
-
 import os.path as osp
 import copy
 from io import BytesIO
@@ -46,6 +45,7 @@ class Starshot:
     circle_profile : :class:`~pylinac.starshot.StarProfile`
     lines : :class:`~pylinac.starshot.LineManager`
     wobble : :class:`~pylinac.starshot.Wobble`
+    tolerance : :class:`~pylinac.starshot.Tolerance`
 
     Examples
     --------

@@ -1,16 +1,16 @@
 
-"""The CBCT module automatically analyzes DICOM images of a CatPhan acquired when doing CBCT or regular CT quality assurance. It can load a folder or zip file that
-the images are in and automatically correct for phantom setup in 6 degrees.
-It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
-uniformity (CTP486) on the corresponding slice.
+"""The CBCT module automatically analyzes DICOM images of a CatPhan 504 acquired when doing CBCT or regular CT quality assurance.
+It can load a folder or zip file that the images are in and automatically correct for phantom setup in 6 degrees.
+It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF),
+the HU uniformity (CTP486), and Low Contrast (CTP515) on the corresponding slices.
 
-Currently only Varian (CatPhan 504) is supported, but Elekta (CatPhan 503) support is being worked on.
+Currently only the CatPhan 504 (Varian's default phantom) is supported, but CatPhan 503 (Elekta) support is being worked on.
 
 Features:
 
 * **Automatic phantom registration** - Your phantom can be tilted, rotated, or translated--pylinac will register the phantom.
 * **Automatic testing of 4 major modules** - Major modules are automatically registered and analyzed.
-* **Any scan protocol** - Scan your CatPhan504 with any Varian protocol; or even scan it in a regular CT scanner.
+* **Any scan protocol** - Scan your CatPhan 504 with any Varian protocol; or even scan it in a regular CT scanner.
   Any field size or field extent is allowed.
 """
 import os.path as osp
@@ -40,10 +40,11 @@ class CBCT:
 
     Attributes
     ----------
+    dicom_stack : :class:`~pylinac.core.image.DICOMStack`
     settings : :class:`~pylinac.cbct.Settings`
     hu : :class:`~pylinac.cbct.HUSlice`
     uniformity : :class:`~pylinac.cbct.UniformitySlice`
-    geometric : :class:`~pylinac.cbct.GeometricSlice`
+    geometry : :class:`~pylinac.cbct.GeometricSlice`
     lowcontrast: :class:`~pylinac.cbct.LowContrastSlice`
     spatialres : :class:`~pylinac.cbct.SpatialResolutionSlice`
     thickness : :class:`~pylinac.cbct.ThicknessSlice`
@@ -211,7 +212,7 @@ class CBCT:
         thickness : bool
             Whether to show the wire ramp boxes.
         low_contrast : bool
-            Whether to show the low contrast bubble circles
+            Whether to show the low contrast bubble circles.
         show : bool
             Whether to plot the image or not.
         """
@@ -276,7 +277,7 @@ class CBCT:
         Parameters
         ----------
         subimage : {'hu', 'un', 'sp', 'lc', 'mtf', 'lin', 'prof'}
-            The subcomponent to plot. values must contain one of the following letter combinations.
+            The subcomponent to plot. Values must contain one of the following letter combinations.
             E.g. 'linearity', 'linear', and 'lin' will all draw the HU linearity values.
             'hu' draws the HU linearity image.
             'un' draws the HU uniformity image.
@@ -384,13 +385,13 @@ class CBCT:
         scaling_tolerance : float, int
             The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP404 module).
         thickness_tolerance : float, int
-            The tolerance of the thickness calculation, based on the wire ramps in the CTP404 module.
+            The tolerance of the thickness calculation in mm, based on the wire ramps in the CTP404 module.
 
             .. warning:: Thickness accuracy degrades with image noise; i.e. low mAs images are less accurate.
         low_contrast_tolerance : int
-            The number of low-contrast bubbles needed to be "detected" to pass.
+            The number of low-contrast bubbles needed to be "seen" to pass.
         contrast_threshold : float, int
-            The threshold for "detecting" low-contrast image.
+            The threshold for "detecting" low-contrast image. See RTD for calculation info.
         """
         if not self.images_loaded:
             raise AttributeError("Images not yet loaded")
@@ -520,7 +521,7 @@ class Settings:
 
         Returns
         -------
-        float : the angle of the phantom in degrees.
+        float : the angle of the phantom in **degrees**.
         """
         slice_of_interest = Image.from_array(self.dicom_stack.slice(self.hu_slice_num)).threshold(self.threshold)
         slice_of_interest.invert()

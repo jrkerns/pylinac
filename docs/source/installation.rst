@@ -37,7 +37,8 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/user/install.html>`_ if you don't yet have them.
 
 Optional dependencies:
- * watchdog >= 0.8 -- This package is needed if using the "watcher" script
+ * watchdog >= 0.8 -- This package is needed if using the "watcher" script. See :ref:`dir_watching`.
+ * requests >= 2.6 -- Needed if instantiating from a URL.
 
 I'm new to Python
 -----------------
