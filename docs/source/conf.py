@@ -25,16 +25,16 @@ sys.path.append(os.path.abspath('sphinxext'))
 
 # Trouble building on RTD with numpy/scipy: http://blog.rtwilson.com/how-to-make-your-sphinx-documentation-compile-with-readthedocs-when-youre-using-numpy-and-scipy/
 # import mock
-from unittest import mock
+# from unittest import mock
 
-MOCK_MODULES = ['numpy','dicom', 'dicom.errors', 'scipy',
+autodoc_mock_imports = ['numpy','dicom', 'dicom.errors', 'scipy',
                 'Pillow','PIL','pandas',
                 'tkinter', 'tkinter.filedialog',
                 'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize', 'scipy.misc',
                 'scipy.interpolate',
                 'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches']
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
+# for mod_name in MOCK_MODULES:
+#     sys.modules[mod_name] = mock.Mock()
 
 # TODO: replace above with: autodoc_mock_imports when RTD upgrades to v1.3; http://sphinx-doc.org/latest/ext/autodoc.html#confval-autodoc_mock_imports
 

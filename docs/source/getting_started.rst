@@ -33,7 +33,7 @@ Running this should result in a printing of information to the console and an im
 
 .. image:: images/starshot_analyzed.png
    :height: 350
-   :width: 350
+   :width: 500
 
 Congratulations! In 3 lines you've successfully used a pylinac module. Of course there's more to it than that; you'll want to analyze your
 own images. For further documentation on starshots, see :ref:`starshot_doc`.

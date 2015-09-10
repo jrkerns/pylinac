@@ -44,7 +44,7 @@ class CBCT:
     settings : :class:`~pylinac.cbct.Settings`
     hu : :class:`~pylinac.cbct.HUSlice`
     uniformity : :class:`~pylinac.cbct.UniformitySlice`
-    geometry : :class:`~pylinac.cbct.GeometricSlice`
+    geometry : :class:`~pylinac.cbct.GeometrySlice`
     lowcontrast: :class:`~pylinac.cbct.LowContrastSlice`
     spatialres : :class:`~pylinac.cbct.SpatialResolutionSlice`
     thickness : :class:`~pylinac.cbct.ThicknessSlice`

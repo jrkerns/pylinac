@@ -40,7 +40,7 @@ class VMAT:
         ----------
         image_open : :class:`~pylinac.core.image.Image`
         image_dmlc : :class:`~pylinac.core.image.Image`
-        segments : :class:`~pylinac.vmat.SegmentHandler`
+        segments : :class:`~pylinac.vmat.SegmentManager`
         settings : :class:`~pylinac.vmat.Settings`
 
         Examples

@@ -5,7 +5,7 @@ Pylinac General Overview
 
 .. image:: /images/starshot_analyzed.png
    :height: 300px
-   :width: 370px
+   :width: 500px
 
 .. image:: /images/vmat_analyzed.png
    :height: 320px
