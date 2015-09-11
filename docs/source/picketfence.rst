@@ -218,23 +218,15 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.picketfence.PicketFence
-    :members:
 
 Supporting Data Structures
 
 .. autoclass:: pylinac.picketfence.PicketHandler
-    :members:
 
 .. autoclass:: pylinac.picketfence.Settings
-    :members:
 
 .. autoclass:: pylinac.picketfence.Picket
-    :members:
 
 .. autoclass:: pylinac.picketfence.MLCMeas
-    :members:
 
 .. autoclass:: pylinac.picketfence.Overlay
-    :members:
-
-

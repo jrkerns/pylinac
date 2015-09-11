@@ -47,19 +47,13 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.watcher.AnalyzeMixin
-    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzeStar
-    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzePF
-    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzeCBCT
-    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzeVMAT
-    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzeLog
-    :members:

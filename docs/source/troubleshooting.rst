@@ -20,9 +20,10 @@ error, you can try a few simple things to fix it.
   ways, and also have different methods of resolution.
 * And if none of those work, **Post a question on the forum, email me, or file an issue on Github** -
   You may have found a bug and it needs fixing!
-  * `Forum <https://groups.google.com/forum/#!forum/pylinac>`_
-  * `Email <mailto:jkerns100@gmail.com>`_
-  * `Issue tracker <https://github.com/jrkerns/pylinac/issues>`_
+
+  - `Forum <https://groups.google.com/forum/#!forum/pylinac>`_
+  - `Email <mailto:jkerns100@gmail.com>`_
+  - `Issue tracker <https://github.com/jrkerns/pylinac/issues>`_
 
 
 Loading TIFF Files

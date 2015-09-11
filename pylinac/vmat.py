@@ -146,8 +146,8 @@ class VMAT:
 
         Parameters
         ----------
-        img1, img2 : str, URLs
-            File paths to the images. Order does not matter. The open image must have 'open' somewhere in the name.
+        images : str
+            File paths to the images. Order does not matter. The open image must have ``open`` somewhere in the name.
         names : None, str
             Internal keyword. If the passed images are URLs, then the names must also be passed. If loading URLs, use .from_urls() instead.
         """

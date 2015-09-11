@@ -278,16 +278,17 @@ class CBCT:
         ----------
         subimage : {'hu', 'un', 'sp', 'lc', 'mtf', 'lin', 'prof'}
             The subcomponent to plot. Values must contain one of the following letter combinations.
-            E.g. 'linearity', 'linear', and 'lin' will all draw the HU linearity values.
-            'hu' draws the HU linearity image.
-            'un' draws the HU uniformity image.
-            'sp' draws the Spatial Resolution image.
-            'lc' draws the Low Contrast image.
-            'mtf' draws the RMTF plot.
-            'lin' draws the HU linearity values. Used with ``delta``.
-            'prof' draws the HU uniformity profiles.
+            E.g. ``linearity``, ``linear``, and ``lin`` will all draw the HU linearity values.
+
+            * ``hu`` draws the HU linearity image.
+            * ``un`` draws the HU uniformity image.
+            * ``sp`` draws the Spatial Resolution image.
+            * ``lc`` draws the Low Contrast image.
+            * ``mtf`` draws the RMTF plot.
+            * ``lin`` draws the HU linearity values. Used with ``delta``.
+            * ``prof`` draws the HU uniformity profiles.
         delta : bool
-            Only for use with 'lin'. Whether to plot the HU delta or actual values.
+            Only for use with ``lin``. Whether to plot the HU delta or actual values.
         show : bool
             Whether to actually show the plot.
         """
@@ -774,7 +775,7 @@ class Slice:
         """
         Parameters
         ----------
-        dicom_stack : :class:`~pylinac.image.DICOMStack`
+        dicom_stack : :class:`~pylinac.core.image.DICOMStack`
         settings : :class:`~pylinac.cbct.Settings`
         slice_num : int
             The slice number of the DICOM array desired. If None, will use the ``slice_num`` property of subclass.
@@ -783,7 +784,8 @@ class Slice:
         combine_method : {'mean', 'max'}
             How to combine the slices if ``combine`` is True.
         num_slices : int
-            The number of slices on either side of the nominal slice to combine to improve signal/noise.
+            The number of slices on either side of the nominal slice to combine to improve signal/noise; only
+            applicable if ``combine`` is True.
         """
         self.settings = settings
         if slice_num is not None:
@@ -1047,8 +1049,8 @@ class SpatialResolutionSlice(Slice):
         The approximate index to stop analyzing the line profile (higher indices are too hard to analyze).
     """
     line_pair_frequency = (0.2, 0.4, 0.6, 0.8, 1, 1.2)
-    num_peaks = np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
-    num_valleys = np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
+    # num_peaks = np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
+    # num_valleys = np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
     radius2linepairs_mm = 47.5
     line_pair_cutoff = 0.34
 
@@ -1059,6 +1061,15 @@ class SpatialResolutionSlice(Slice):
     def slice_num(self):
         """The slice number of the spatial resolution module."""
         return self.settings.sr_slice_num
+
+    @property
+    def num_peaks(self):
+        return np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
+
+    @property
+    def num_valleys(self):
+        return np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
+
 
     @property
     def radius2linepairs(self):

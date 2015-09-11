@@ -291,45 +291,30 @@ API Documentation
 
 .. autoclass:: pylinac.log_analyzer.MachineLogs
 
-
 .. autoclass:: pylinac.log_analyzer.MachineLog
-
 
 .. autoclass:: pylinac.log_analyzer.Axis
 
-
 .. autoclass:: pylinac.log_analyzer.MLC
-
 
 .. autoclass:: pylinac.log_analyzer.Dlog_Header
 
-
 .. autoclass:: pylinac.log_analyzer.Dlog_Axis_Data
-
 
 .. autoclass:: pylinac.log_analyzer.Tlog_Header
 
-
 .. autoclass:: pylinac.log_analyzer.Tlog_Axis_Data
-
 
 .. autoclass:: pylinac.log_analyzer.SubbeamHandler
 
-
 .. autoclass:: pylinac.log_analyzer.Subbeam
-
 
 .. autoclass:: pylinac.log_analyzer.Fluence_Struct
 
-
 .. autoclass:: pylinac.log_analyzer.Fluence
-
 
 .. autoclass:: pylinac.log_analyzer.GammaFluence
 
-
 .. autoclass:: pylinac.log_analyzer.Jaw_Struct
 
-
 .. autoclass:: pylinac.log_analyzer.Couch_Struct
-

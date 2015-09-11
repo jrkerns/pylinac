@@ -154,16 +154,11 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.starshot.Starshot
-    :members:
 
 .. autoclass:: pylinac.starshot.StarProfile
-    :members:
 
 .. autoclass:: pylinac.starshot.Wobble
-    :members:
 
 .. autoclass:: pylinac.starshot.LineManager
-    :members:
 
 .. autoclass:: pylinac.starshot.Tolerance
-    :members:

@@ -200,13 +200,9 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.vmat.VMAT
-    :members:
 
 .. autoclass:: pylinac.vmat.Settings
-    :members:
 
 .. autoclass:: pylinac.vmat.SegmentManager
-    :members:
 
 .. autoclass:: pylinac.vmat.Segment
-    :members:

@@ -16,7 +16,12 @@ Great! To get started, simply install pylinac via PyPI::
 
 Alternatively, you can install from the github repository directly::
 
-    pip install https://github.com/jrkerns/pylinac/zipball/master
+    pip install https://github.com/jrkerns/pylinac/zipball/minified
+
+.. note::
+    Install the ``minified`` branch as it does not contain all the tests in ``master``, which is quite hefty.
+    Note that this also will not include the demo files. Intall the master branch or simply download
+    the files directly to use the demo files.
 
 If you run into issues be sure to upgrade pip all the way ``pip install pip --upgrade``, then retry.
 

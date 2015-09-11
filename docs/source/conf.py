@@ -36,8 +36,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'sphinx.ext.mathjax',
-    # 'sphinx.ext.napoleon',
-    'sphinxcontrib.napoleon',
+    'sphinx.ext.napoleon',
 ]
 
 autodoc_mock_imports = ['numpy', 'dicom', 'dicom.errors', 'scipy',
@@ -50,7 +49,7 @@ autodoc_mock_imports = ['numpy', 'dicom', 'dicom.errors', 'scipy',
                         'requests', 'watchdog', 'watchdog.observers', 'watchdog.events']
 
 autoclass_content = 'both'
-autodoc_default_flags = ['show-inheritance',
+autodoc_default_flags = ['show-inheritance', 'members'
                          ]  # See: http://sphinx-doc.org/latest/ext/autodoc.html#confval-autodoc_default_flags
 autodoc_member_order = 'bysource'
 
@@ -134,7 +133,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'default'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

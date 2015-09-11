@@ -646,7 +646,7 @@ class CircleProfile(MultiProfile, Circle):
 
         See Also
         --------
-        Circle : Further parameter info.
+        `~pylinac.core.geometry.Circle` : Further parameter info.
         """
         Circle.__init__(self, center, radius)
         self._ensure_array_size(image_array, self.radius + self.center.x, self.radius + self.center.y)

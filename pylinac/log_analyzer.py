@@ -497,13 +497,13 @@ class MachineLog:
     def report_basic_parameters(self, printout=True):
         """Print the common parameters analyzed when investigating machine logs:
 
-        -Log type
-        -Average MLC RMS
-        -Maximum MLC RMS
-        -95th percentile MLC error
-        -Number of beam holdoffs
-        -Gamma pass percentage
-        -Average gamma value
+        - Log type
+        - Average MLC RMS
+        - Maximum MLC RMS
+        - 95th percentile MLC error
+        - Number of beam holdoffs
+        - Gamma pass percentage
+        - Average gamma value
         """
         log_type = "MLC log type: {}\n".format(self.log_type)
         avg_rms = "Average RMS of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False))
