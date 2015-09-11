@@ -1,4 +1,4 @@
-V 0.9.0 - 9/10/2015
+V 0.9.0 - 9/11/2015
 
     Overview
  This release has a few new features for the CBCT class, but is mostly an internal improvement.
@@ -6,6 +6,8 @@ If you only use the main classes (CBCT, PicketFence, Starshot, etc), there shoul
 
     CBCT
 -The CBCT analysis now examines low contrast ROIs and slice thickness.
+-CBCT components have been renamed. E.g. the HU linearity attr has been renamed ``hu`` from ``HU``.
+ See the CBCT class docs for new names: http://pylinac.readthedocs.org/en/latest/cbct_docs.html#pylinac.cbct.CBCT
 
     Starshot
 -Fixes #32 which was causing FWHM peaks on starshots to sometimes be erronous for uint8/uint16 images.
