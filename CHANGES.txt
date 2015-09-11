@@ -10,7 +10,7 @@ If you only use the main classes (CBCT, PicketFence, Starshot, etc), there shoul
  See the CBCT class docs for new names: http://pylinac.readthedocs.org/en/latest/cbct_docs.html#pylinac.cbct.CBCT
 
     Starshot
--Fixes #32 which was causing FWHM peaks on starshots to sometimes be erronous for uint8/uint16 images.
+-Fixes #32 which was causing FWHM peaks on starshots to sometimes be erroneous for uint8/uint16 images.
 
     PicketFence
 -Adds #31, a method for loading multiple images into PicketFence.
@@ -29,7 +29,7 @@ V 0.8.2 - 7/31/2015
 
 V 0.8.1 - 7/30/2015
 
-Fixed a import bug
+Fixed an import bug
 
 
 V 0.8.0 - 7/28/2015
