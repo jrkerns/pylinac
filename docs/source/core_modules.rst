@@ -9,26 +9,31 @@ directly, or as the base for mixin classes or methods.
 Image Module
 ------------
 .. automodule:: pylinac.core.image
-    :no-show-inheritance:
+    :members:
+
 
 Geometry Module
 ---------------
 .. automodule:: pylinac.core.geometry
-    :no-show-inheritance:
+    :members:
 
 Profile Module
 --------------
+
 .. automodule:: pylinac.core.profile
+    :members:
 
 I/O Module
 ----------
 .. automodule:: pylinac.core.io
+    :members:
 
 Utilities Module
 ----------------
 .. automodule:: pylinac.core.utilities
+    :members:
 
 Decorators Module
 -----------------
 .. automodule:: pylinac.core.decorators
-
+    :members:

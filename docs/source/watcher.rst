@@ -47,19 +47,19 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.watcher.AnalyzeMixin
-    :no-show-inheritance:
+    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzeStar
-    :no-members:
+    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzePF
-    :no-members:
+    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzeCBCT
-    :no-members:
+    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzeVMAT
-    :no-members:
+    :members:
 
 .. autoclass:: pylinac.watcher.AnalyzeLog
-    :no-members:
+    :members:

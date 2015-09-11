@@ -200,12 +200,13 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.vmat.VMAT
-    :no-show-inheritance:
+    :members:
 
 .. autoclass:: pylinac.vmat.Settings
-    :no-show-inheritance:
+    :members:
 
 .. autoclass:: pylinac.vmat.SegmentManager
-    :no-show-inheritance:
+    :members:
 
 .. autoclass:: pylinac.vmat.Segment
+    :members:

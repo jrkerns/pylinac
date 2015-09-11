@@ -806,7 +806,7 @@ class Fluence(metaclass=ABCMeta):
     resolution : int, float
         The resolution of the fluence calculation; -1 means calculation has not been done yet.
     """
-    pixel_map = np.ndarray
+    pixel_map = object
     resolution = -1
     _fluence_type = ''  # must be specified by subclass
 
@@ -956,7 +956,7 @@ class GammaFluence(Fluence):
     avg_gamma = -1
     # doseTA_map = np.ndarray
     # distTA_map = np.ndarray
-    passfail_map = np.ndarray
+    passfail_map = object
     bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1]
 
     def __init__(self, actual_fluence, expected_fluence, mlc_struct):

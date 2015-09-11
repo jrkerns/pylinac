@@ -218,23 +218,23 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.picketfence.PicketFence
-    :no-show-inheritance:
+    :members:
 
 Supporting Data Structures
 
 .. autoclass:: pylinac.picketfence.PicketHandler
-    :no-show-inheritance:
+    :members:
 
 .. autoclass:: pylinac.picketfence.Settings
-    :no-show-inheritance:
+    :members:
 
 .. autoclass:: pylinac.picketfence.Picket
-    :no-show-inheritance:
+    :members:
 
 .. autoclass:: pylinac.picketfence.MLCMeas
-    :no-show-inheritance:
+    :members:
 
 .. autoclass:: pylinac.picketfence.Overlay
-    :no-show-inheritance:
+    :members:
 
 

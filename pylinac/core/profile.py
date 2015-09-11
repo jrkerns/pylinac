@@ -25,7 +25,7 @@ class SingleProfile:
     """
     interpolation_factor = 100
     interpolation_type = 'linear'
-    _values = np.ndarray
+    _values = object  # ndarray, but Sphinx/napoleon won't compile as `np.ndarray`
 
     def __init__(self, values, normalize_sides=True, initial_peak=None):
         """

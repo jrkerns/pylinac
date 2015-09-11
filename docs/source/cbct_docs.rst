@@ -183,46 +183,58 @@ API Documentation
 The CBCT class uses several other classes. There are several Slices of Interest (SOI), most of which contain Regions of Interest (ROI).
 
 .. autoclass:: pylinac.cbct.CBCT
-    :no-show-inheritance:
+    :members:
 
 Supporting Data Structure
 
 .. autoclass:: pylinac.cbct.Settings
-    :no-show-inheritance:
+    :members:
 
 Slice Objects
 
 .. autoclass:: pylinac.cbct.Slice
-    :no-show-inheritance:
+    :members:
 
 .. autoclass:: pylinac.cbct.HUSlice
+    :members:
 
 .. autoclass:: pylinac.cbct.UniformitySlice
+    :members:
 
 .. autoclass:: pylinac.cbct.GeometrySlice
+    :members:
 
 .. autoclass:: pylinac.cbct.SpatialResolutionSlice
+    :members:
 
 .. autoclass:: pylinac.cbct.LowContrastSlice
 
+
 .. autoclass:: pylinac.cbct.ThicknessSlice
+
 
 ROI Objects
 
 .. autoclass:: pylinac.cbct.ROIManagerMixin
 
+
 .. autoclass:: pylinac.cbct.DiskROI
+
 
 .. autoclass:: pylinac.cbct.HUDiskROI
 
+
 .. autoclass:: pylinac.cbct.GeoDiskROI
+
 
 .. autoclass:: pylinac.cbct.LowContrastDiskROI
 
+
 .. autoclass:: pylinac.cbct.RectangleROI
+
 
 .. autoclass:: pylinac.cbct.ThicknessROI
 
-.. autoclass:: pylinac.cbct.GeometricLine
 
+.. autoclass:: pylinac.cbct.GeometricLine
 

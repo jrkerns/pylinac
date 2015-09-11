@@ -288,46 +288,48 @@ Trajectory logs in a MachineLogs instance can also be converted to CSV, just as 
 
 API Documentation
 -----------------
+
 .. autoclass:: pylinac.log_analyzer.MachineLogs
 
+
 .. autoclass:: pylinac.log_analyzer.MachineLog
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Axis
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.MLC
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Dlog_Header
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Dlog_Axis_Data
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Tlog_Header
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Tlog_Axis_Data
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.SubbeamHandler
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Subbeam
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Fluence_Struct
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Fluence
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.GammaFluence
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Jaw_Struct
-    :no-show-inheritance:
+
 
 .. autoclass:: pylinac.log_analyzer.Couch_Struct
-    :no-show-inheritance:
+
