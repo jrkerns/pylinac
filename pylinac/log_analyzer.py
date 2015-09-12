@@ -9,9 +9,11 @@ info, and which info is analyzed is up to the user.
 Features:
 
 * **Analyze Dynalogs or Trajectory logs** - Either platform is supported. Tlog versions 2.1 and 3.0 supported.
+* **Read in both .bin and .txt Trajectory log files** - Read in the machine data from both .bin and .txt files to get all the information recorded.
+  See :attr:`~pylinac.log_analyzer.MachineLog.txt`.
 * **Save Trajectory log data to CSV** - The Trajectory log binary data format does not allow for easy export of data. Pylinac lets you do
   that so you can use Excel or other software that you use with Dynalogs.
-* **Plot or analyze any axis** - Every data axis can be plotted: the actual, expected, and even the difference.
+* **Plot or analyze any axis** - Every data axis can be accessed and plotted: the actual, expected, and even the difference.
 """
 from abc import ABCMeta, abstractproperty
 import struct
