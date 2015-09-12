@@ -35,8 +35,8 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'sphinx.ext.mathjax',
-    # 'sphinx.ext.napoleon',
-    'sphinxcontrib.napoleon'
+    'sphinx.ext.napoleon',
+    # 'sphinxcontrib.napoleon'
 ]
 
 autodoc_mock_imports = ['numpy', 'dicom', 'dicom.errors', 'scipy',
