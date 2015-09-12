@@ -827,7 +827,7 @@ class Fluence(metaclass=ABCMeta):
     @property
     def map_calced(self):
         """Return a boolean specifying whether the fluence has been calculated."""
-        if isinstance(self.pixel_map.size, int):
+        if hasattr(self.pixel_map, 'size'):
             return True
         else:
             return False
@@ -1003,10 +1003,6 @@ class GammaFluence(Fluence):
         numpy.ndarray
             A num_mlc_leaves-x-400/resolution numpy array.
         """
-        # if gamma has been calculated under same conditions, return it
-        # if self.map_calced and self._same_conditions(distTA, doseTA, threshold, resolution):
-        #     return self.pixel_map
-
         # calc fluences if need be
         if not self._actual_fluence.map_calced or resolution != self._actual_fluence.resolution:
             self._actual_fluence.calc_map(resolution)
