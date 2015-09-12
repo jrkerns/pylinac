@@ -1427,6 +1427,8 @@ class MLC:
         """
         rms_array = self._RMS_array_all_leaves
         leaves -= 1
+        if len(leaves) == 0:
+            return np.array([0])
         return rms_array[leaves]
 
     @property
