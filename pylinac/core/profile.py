@@ -693,7 +693,6 @@ class CircleProfile(MultiProfile, Circle):
         self._y_locations = array
 
     @property
-    @lru_cache()
     def _profile(self):
         """The actual profile array; private attr that is passed to MultiProfile."""
         return ndimage.map_coordinates(self.image_array, [self.y_locations, self.x_locations], order=0)
