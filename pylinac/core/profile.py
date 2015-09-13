@@ -82,7 +82,6 @@ class SingleProfile:
             return self._grounded_values
 
     @property
-    @lru_cache()
     def _grounded_values(self):
         """Ground the profile such that the lowest value is 0.
         """
@@ -214,13 +213,11 @@ class SingleProfile:
         return y_data
 
     @property
-    @lru_cache()
     def _indices_interp(self):
         """Interpolated values of the profile index data."""
         return np.linspace(start=0, stop=len(self.values)-1, num=(len(self.values)-1) * self.interpolation_factor)
 
     @property
-    @lru_cache()
     def _indices(self):
         """Values of the profile index data."""
         return np.linspace(start=0, stop=len(self.values)-1, num=len(self.values))
@@ -664,7 +661,6 @@ class CircleProfile(MultiProfile, Circle):
         return np.pi * self.radius * 2 * self.sampling_ratio
 
     @property
-    @lru_cache()
     def _radians(self):
         interval = (2 * np.pi) / self.size
         rads = np.arange(0 + self.start_angle, (2 * np.pi) + self.start_angle - interval, interval)
