@@ -18,9 +18,13 @@ def full_test_suite_discovery():
 # ---------------------------
 # Actual testing
 # ---------------------------
-# import a runner to run tests
-runner = unittest.TextTestRunner()
-# run test discovery
-test_suite = full_test_suite_discovery()
-# run test runner
-runner.run(test_suite)
+def run():
+    # import a runner to run tests
+    runner = unittest.TextTestRunner()
+    # run test discovery
+    test_suite = full_test_suite_discovery()
+    # run test runner
+    runner.run(test_suite)
+
+if __name__ == "__main__":
+    run()
