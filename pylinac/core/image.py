@@ -92,8 +92,8 @@ class DICOMStack:
             self.array[:, :, new] = metadatalist[old].pixel_array
 
         # convert values to proper HU
-        self.array *= self.metadata.RescaleSlope
-        self.array += self.metadata.RescaleIntercept
+        self.array *= int(self.metadata.RescaleSlope)
+        self.array += int(self.metadata.RescaleIntercept)
 
     @classmethod
     def from_zip(cls, zip_path, dtype=int):

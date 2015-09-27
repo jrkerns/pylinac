@@ -94,7 +94,7 @@ class SingleProfile:
     def _initial_peak_idx(self):
         """The initial peak index."""
         x_idx = self._get_initial_peak(self._passed_initial_peak)
-        return x_idx
+        return int(x_idx)
 
     @_initial_peak_idx.setter
     def _initial_peak_idx(self, value):
@@ -155,7 +155,7 @@ class SingleProfile:
         """
         # get peak
         peak = copy.copy(self._initial_peak_idx)
-        peak = peak*self.interpolation_factor if interpolate else peak
+        peak = int(peak*self.interpolation_factor if interpolate else peak)
 
         # get y-data
         if side == LEFT:
@@ -603,7 +603,7 @@ class MultiProfile:
             peak_idx = peaks[idx+1].idx - left_end
             right_end = peaks[idx+2].idx
 
-            values = self.values[left_end:right_end]
+            values = self.values[int(left_end):int(right_end)]
 
             subprofile = SingleProfile(values, initial_peak=peak_idx)
             subprofile.interpolation_factor = interpolation_factor
@@ -721,8 +721,8 @@ class CircleProfile(MultiProfile, Circle):
     def _map_peaks(self):
         """Map found peaks to the x,y locations on the image/array; i.e. adds x,y coordinates to the peak locations"""
         for peak in self.peaks:
-            peak.x = self.x_locations[peak.idx]
-            peak.y = self.y_locations[peak.idx]
+            peak.x = self.x_locations[int(peak.idx)]
+            peak.y = self.y_locations[int(peak.idx)]
 
     def roll_profile(self, amount):
         """Roll the profile and x and y coordinates."""
@@ -954,7 +954,7 @@ def peak_detect(values, threshold=0, min_distance=10, max_number=None, search_re
                     # region.
                     is_a_peak = values_diff[(idx + 1) + shift] < 0
                     if is_a_peak:
-                        peak_vals.append(values[(idx + 1) + np.round(shift / 2)])
+                        peak_vals.append(values[int((idx + 1) + np.round(shift / 2))])
                         peak_idxs.append((idx + 1 + left_index) + np.round(shift / 2))
                 except IndexError:
                     pass

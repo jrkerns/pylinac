@@ -340,7 +340,7 @@ class MachineLog:
         """Run the Trajectory log demo."""
         self.load_demo_trajectorylog()
         self.report_basic_parameters()
-        self.plot_all()
+        self.plot_summary()
 
     def run_dlog_demo(self):
         """Run the dynalog demo."""
@@ -434,10 +434,6 @@ class MachineLog:
                 self._read_log(exclude_beam_off)
             else:
                 raise IOError("File passed is not a valid log file")
-
-    def plot_all(self):
-        warnings.warn(".plot_all() will be depricated in v1.0. Use .plot_summary() instead", FutureWarning)
-        self.plot_summary()
 
     def plot_summary(self, show=True):
         """Plot actual & expected fluence, gamma map, gamma histogram,
@@ -858,7 +854,7 @@ class Fluence(metaclass=ABCMeta):
         # if self.map_calced and self._same_conditions(resolution):
         #     return self.pixel_map
         # preallocate arrays for expected and actual fluence of number of leaf pairs-x-4000 (40cm = 4000um, etc)
-        fluence = np.zeros((self._mlc.num_pairs, 400 / resolution), dtype=np.float32)
+        fluence = np.zeros((self._mlc.num_pairs, int(400 / resolution)), dtype=np.float32)
 
         # calculate the MU delivered in each snapshot. For Tlogs this is absolute; for dynalogs it's normalized.
         mu_matrix = getattr(self._mu, self._fluence_type)
@@ -870,7 +866,7 @@ class Fluence(metaclass=ABCMeta):
 
         # calculate each "line" of fluence (the fluence of an MLC leaf pair, e.g. 1 & 61, 2 & 62, etc),
         # and add each "line" to the total fluence matrix
-        fluence_line = np.zeros((400 / resolution), dtype=np.float32)
+        fluence_line = np.zeros(int(400 / resolution), dtype=np.float32)
         leaf_offset = self._mlc.num_pairs
         pos_offset = int(np.round(200 / resolution))
         for pair in range(1, self._mlc.num_pairs + 1):
