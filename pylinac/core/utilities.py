@@ -10,6 +10,15 @@ from pylinac.core.decorators import type_accept
 from pylinac.core.io import is_valid_file
 
 
+def import_mpld3():
+    """Try importing MPLD3. Raises error if not installed. Returns the MPLD3 library."""
+    try:
+        import mpld3
+    except ImportError:
+        raise ImportError("The MPLD3 library must be installed to make interactive plots. See http://mpld3.github.io/index.html for info.")
+    return mpld3
+
+
 def typed_property(name, expected_type_or_tuple_of_types):
     """Type-enforced property. Python Cookbook 9.21 (3rd ed)."""
     storage_name = '_' + name
