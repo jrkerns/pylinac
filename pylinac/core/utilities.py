@@ -6,7 +6,6 @@ from collections import Iterable
 
 import numpy as np
 
-from pylinac.core.decorators import type_accept
 from pylinac.core.io import is_valid_file
 
 
@@ -17,6 +16,18 @@ def import_mpld3():
     except ImportError:
         raise ImportError("The MPLD3 library must be installed to make interactive plots. See http://mpld3.github.io/index.html for info.")
     return mpld3
+
+
+def get_url(url):
+    """Get the response from the URL."""
+    try:
+        import requests
+    except ImportError:
+        raise ImportError("Requests is not installed; cannot get the log from a URL")
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise ConnectionError("Could not connect to the URL")
+    return response
 
 
 def typed_property(name, expected_type_or_tuple_of_types):
@@ -69,9 +80,11 @@ def is_dicom(file):
     else:
         return False
 
+
 def isnumeric(object):
     """Check whether the passed object is numeric in any sense."""
     return isinstance(object, (int, float, decimal.Decimal, np.number))
+
 
 def is_iterable(object):
     """Determine if an object is iterable."""
@@ -80,19 +93,6 @@ def is_iterable(object):
     else:
         return False
 
-# @type_accept(array=np.ndarray)
-# def array2logical(array, threshold):
-#     """Return a 'logical' (binary) version of the input array based on a threshold.
-#
-#     Parameters
-#     ----------
-#     array : numpy.ndarray
-#         numpy array to be analyzed for conversion.
-#     threshold : int, float
-#         Specifies the threshold value. If an array value is below the
-#         threshold value, it is converted to 0, otherwise to 1.
-#     """
-#     return np.where(array >= threshold, 1, 0)
 
 def go_up_dirlevel(levels=0):
     """Go up directory levels from where the caller file is located.

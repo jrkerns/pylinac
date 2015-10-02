@@ -33,6 +33,7 @@ from pylinac.core.geometry import Point, Line, Circle
 from pylinac.core.image import Image
 from pylinac.core.io import get_filepath_UI, get_filenames_UI
 from pylinac.core.profile import SingleProfile, CollapsedCircleProfile
+from pylinac.core.utilities import get_url
 
 
 class Starshot:
@@ -86,13 +87,7 @@ class Starshot:
 
         .. versionadded:: 0.7.1
         """
-        try:
-            import requests
-        except ImportError:
-            raise ImportError("Requests is not installed; cannot get the log from a URL")
-        response = requests.get(url)
-        if response.status_code != 200:
-            raise ConnectionError("Could not connect to the URL")
+        response = get_url(url)
         stream = BytesIO(response.content)
         self.load_image(stream)
 

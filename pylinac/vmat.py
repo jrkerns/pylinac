@@ -20,8 +20,7 @@ from pylinac.core.decorators import value_accept, type_accept
 from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Rectangle
 from pylinac.core.io import get_filepath_UI, get_filenames_UI
-from pylinac.core.utilities import typed_property
-
+from pylinac.core.utilities import typed_property, get_url
 
 test_types = {'DRGS': 'drgs', 'MLCS': 'mlcs', 'DRMLC': 'drmlc'}
 im_types = {'OPEN': 'open', 'DMLC': 'dmlc'}
@@ -244,15 +243,9 @@ class VMAT:
 
         .. versionadded:: 0.7.1
         """
-        try:
-            import requests
-        except ImportError:
-            raise ImportError("Requests is not installed; cannot get the log from a URL")
         url_dict = {}
         for idx, url in enumerate(urls):
-            response = requests.get(url)
-            if response.status_code != 200:
-                raise ConnectionError("Could not connect to the URL")
+            response = get_url(url)
             url_dict[idx] = BytesIO(response.content)
         imgs = [item for item in url_dict.values()]
         self.load_images(imgs, names=urls)
