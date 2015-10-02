@@ -34,6 +34,22 @@ Results will be printed to the console and a figure showing the slices analyzed 
 
 .. image:: images/cbct_analyzed.png
 
+As well, you can plot individual pieces of the analysis::
+
+    cbct = CBCT.from_demo_images()
+    cbct.analyze()
+    cbct.plot_analyzed_subimage('linearity')
+
+.. raw:: html
+    :file: images/cbct_hu_lin.html
+
+Or::
+
+    cbct.plot_analyzed_subimage('rmtf')
+
+.. raw:: html
+    :file: images/cbct_rmtf.html
+
 Typical Use
 -----------
 
@@ -82,7 +98,7 @@ The minimum needed to get going is to:
   samples were taken and their values::
 
       # print results to the console
-      mycbct.return_results()
+      print(mycbct.return_results())
       # view analyzed images
       mycbct.plot_analyzed_image()
 

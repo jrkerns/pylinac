@@ -57,7 +57,7 @@ Running the Demo
 As usual, the module comes with demo files and methods::
 
     >>> from pylinac import MachineLog
-    >>> MachineLog().run_dlg_demo()
+    >>> MachineLog().run_dlog_demo()
 
 Which will output the following::
 
@@ -69,7 +69,7 @@ Which will output the following::
     Gamma pass %: 99.83
     Gamma average: 0.021
 
-.. image:: images/dlog_results.png
+.. image:: images/logs/dlog_results.png
 
 The same can be done using the demo Trajectory log::
 
@@ -82,7 +82,7 @@ The same can be done using the demo Trajectory log::
     Gamma pass %: 100.00
     Gamma average: 0.002
 
-.. image:: images/tlog_analyzed.png
+.. image:: images/logs/tlog_analyzed.png
 
 Loading Data
 ------------
@@ -179,13 +179,15 @@ Let's look at the gantry actual value::
 
     >>> log.axis_data.gantry.plot_actual()
 
-.. image:: images/log_gantry_actual.png
+.. raw:: html
+    :file: images/logs/gantry_actual.html
 
 That's not particularly interesting; perhaps we should check that there was no difference between the actual and expected value::
 
     >>> log.axis_data.gantry.plot_difference()
 
-.. image:: images/log_gantry_diff.png
+.. raw:: html
+    :file: images/logs/gantry_difference.html
 
 Here's something interesting. The difference between expected and actual is greatest when the gantry starts and stops moving. But,
 notice that the difference is *positive* when the gantry starts moving--until right at the end, the gantry is leading rather than
@@ -195,13 +197,15 @@ Let's now take a look at MU::
 
     >>> log.axis_data.mu.plot_actual()
 
-.. image:: images/log_mu_actual.png
+.. raw:: html
+    :file: images/logs/tlog_mu_actual.html
 
 Now, the difference::
 
     >>> log.axis_data.mu.plot_difference()
 
-.. image:: images/log_mu_diff.png
+.. raw:: html
+    :file: images/logs/tlog_mu_difference.html
 
 As you can see, pylinac could be very helpful in diagnosing errors or problems with various axes. E.g. based on questionable RMS
 performance, a loose MLC leaf could be examined by examining the difference using the methods shown.
@@ -215,7 +219,7 @@ Let's move on and look at/calculate fluences::
     >>> log.fluence.actual.calc_map(resolution=0.1)  # let's calculate it
     >>> log.fluence.actual.plot_map()  # and then plot it
 
-.. image:: images/tlog_actual_fluence.png
+.. image:: images/logs/tlog_actual_fluence.png
 
 The same can be done for the expected fluence.
 
@@ -242,9 +246,58 @@ Finally, let's take a look at that gamma map::
 
     >>> log.fluence.gamma.plot_map()
 
-.. image:: images/log_gamma.png
+.. image:: images/logs/log_gamma.png
 
 .. [#leadlag] The beam isn't on during the gantry movement, so it's not as interesting as it could be, but it's still noteworthy.
+
+Plotting Axes
+-------------
+
+Each and every axis of the log can be accessed as a numpy array, plotted, and even plotted interactively.
+For each axis, the actual, expected, and difference can be accessed. Dynalogs don't have expected values for anything
+but the MLCs, so there are inherent limitations.
+
+For Trajectory logs the axes include:
+    * Collimator
+    * Gantry
+    * Jaws (X1, X2, Y1, Y2)
+    * Couch (Vertical, Lateral, Longitudinal, Rotation, Pitch, Roll)
+    * MU
+    * Beam hold state
+    * Control Point
+    * MLC positions
+
+For Dynalogs the axes include:
+    * MU (relative)
+    * Previous segment number
+    * Beam hold state
+    * Previous dose index
+    * Next dose index
+    * Gantry
+    * Collimator
+    * Jaws (X1, X2, Y1, Y2)
+    * Carriage A
+    * Carriage B
+    * MLC positions
+
+Let's look at an example::
+
+    from pylinac import MachineLog
+
+    log = MachineLog.from_demo_trajectorylog()
+    gantry_array = log.axis_data.gantry.actual  # numpy array
+    log.axis_data.mu.plot_actual()  # matplotlib figure
+
+.. image:: images/logs/log_mu_actual.png
+
+Or plot the figure interactively::
+
+    log.axis_data.mu.plot_actual(interactive=True)
+    # note the home/pan/zoom tools in the figure below
+
+.. raw:: html
+    :file: images/logs/tlog_mu_actual.html
+
 
 Converting Trajectory logs
 --------------------------

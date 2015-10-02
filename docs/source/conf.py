@@ -36,6 +36,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
+    # 'matplotlib.sphinxext.plot_directive',
     # 'sphinxcontrib.napoleon'
 ]
 
@@ -45,7 +46,7 @@ autodoc_mock_imports = ['numpy', 'dicom', 'dicom.errors', 'scipy',
                         'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize',
                         'scipy.misc',
                         'scipy.interpolate',
-                        'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches',
+                        'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches', 'mpl_toolkits.axes_grid1',
                         'requests', 'watchdog', 'watchdog.observers', 'watchdog.events']
 
 autoclass_content = 'both'

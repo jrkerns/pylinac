@@ -14,7 +14,7 @@ Running the Demo
 
 To run the VMAT demo, create a script or start an interpreter session and input::
 
-    from pylinac.vmat import VMAT
+    from pylinac import VMAT
     VMAT().run_demo_drgs()
     # alternatively, you can run the MLC Speed demo by:
     VMAT().run_demo_mlcs()
@@ -64,7 +64,7 @@ Typical Use
 The VMAT QA analysis follows what is specified in the Varian RapidArc QA tests and assumes your tests will run the exact same way.
 Import the class::
 
-    from pylinac.vmat import VMAT
+    from pylinac import VMAT
 
 The minimum needed to get going is to:
 

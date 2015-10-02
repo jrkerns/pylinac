@@ -37,6 +37,7 @@ Running the Demo
 To run the picketfence demo, create a script or start in interpreter and input::
 
     from pylinac import PicketFence
+
     PicketFence().run_demo()
 
 Results will be printed to the console and a figure showing the analyzed picket fence image will pop up::
@@ -47,6 +48,19 @@ Results will be printed to the console and a figure showing the analyzed picket 
     Max Error: 0.208mm on Picket: 3, Leaf: 22
 
 .. image:: images/PF_analyzed.png
+
+Or plot the figure interactively::
+
+  PicketFence().run_demo(interactive=True)
+
+.. raw:: html
+  :file: images/PF_analyzed.html
+
+Note the Home/Pan/Zoom tools in the corner when hovering. Additionally, hovering over a leaf pair shows the error.
+
+.. note::
+
+  MPLD3 currently does not show images/arrays well, so you may not be able to see the underlying EPID image.
 
 If you just want to use the demo image without doing analysis::
 
