@@ -24,7 +24,7 @@ therapy medical physics. The package comes in two flavors: source-level and `web
 allows programmers and those familiar with Python to create custom tests with pylinac while the web app is for
 those who don't want or don't know how to program.
 
-Below are the tools currently available; tools will be added one at a time as they are developed.
+Below are the tools currently available:
 
 * `Starshot Analysis <http://pylinac.readthedocs.org/en/latest/starshot_docs.html>`_ -
     The Starshot module analyses a starshot image made of radiation spokes, whether gantry, collimator, MLC or couch.
@@ -46,6 +46,17 @@ Below are the tools currently available; tools will be added one at a time as th
       but analyzes the entire star profile to determine the center of the FWHM, ensuring small noise or maximum value bias is avoided.
     * **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
       do an adaptive search by adjusting parameters to find a "reasonable" wobble.
+
+    Example script::
+
+        from pylinac import Starshot
+
+        star = Starshot("mystarshot.tif")
+        star.analyze(radius=60, tolerance=0.75)
+        print(star.return_results())  # prints out wobble information
+        star.plot_analyzed_image()  # shows a matplotlib figure
+
+
 * `VMAT QA <http://pylinac.readthedocs.org/en/latest/vmat_docs.html>`_ -
     The VMAT module consists of the class VMAT, which is capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
     images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS) and MLC speed (MLCS) tests.
@@ -56,6 +67,16 @@ Below are the tools currently available; tools will be added one at a time as th
     * **Adjust for offsets** - Older VMAT patterns were off-center. Easily account for the offset by passing it in.
     * **Automatic identification using file names** - If your file names are clear, the image type and test type don't even
       have to be specified; just load and analyze.
+
+    Example script::
+
+        from pylinac import VMAT
+
+        vmat = VMAT.from_zip("myvmatimages.zip")
+        vmat.analyze(test='mlcs', tolerance=1.5)
+        print(vmat.return_results())  # prints out ROI information
+        vmat.plot_analyzed_image()  # shows a matplotlib figure
+
 * `CT & CBCT QA <http://pylinac.readthedocs.org/en/latest/cbct_docs.html>`_ -
     The CBCT module automatically analyzes DICOM images of a CatPhan acquired when doing CBCT or regular CT quality assurance. It can load a folder or zip file that
     the images are in and automatically correct for phantom setup in 6 degrees.
@@ -70,6 +91,16 @@ Below are the tools currently available; tools will be added one at a time as th
     * **Automatic testing of 4 major modules** - Major modules are automatically registered and analyzed.
     * **Any scan protocol** - Scan your CatPhan504 with any Varian protocol; or even scan it in a regular CT scanner.
       Any field size or field extent is allowed.
+
+    Example script::
+
+        from pylinac import CBCT
+
+        cbct = CBCT("my/cbct_image_folder")
+        cbct.analyze(hu_tolerance=40)
+        print(cbct.return_results())
+        cbct.plot_analyzed_image()
+
 * `Log Analysis <http://pylinac.readthedocs.org/en/latest/log_analyzer.html>`_ -
     The log analyzer module reads and parses Varian linear accelerator machine logs, both Dynalogs and Trajectory logs. The module also
     calculates actual and expected fluences as well as performing gamma evaluations. Data is structured to be easily accessible and
@@ -84,6 +115,18 @@ Below are the tools currently available; tools will be added one at a time as th
     * **Save Trajectory log data to CSV** - The Trajectory log binary data format does not allow for easy export of data. Pylinac lets you do
       that so you can use Excel or other software that you use with Dynalogs.
     * **Plot or analyze any axis** - Every data axis can be plotted: the actual, expected, and even the difference.
+    * **View actual or expected fluences & calculate gamma** - View fluences and gamma maps for any log.
+
+    Example script::
+
+        from pylinac import MachineLog
+
+        log = MachineLog("tlog.bin")
+        # after loading, explore any Axis of the Varian structure
+        log.axis_data.gantry.plot_actual()  # plot the gantry position throughout treatment
+        log.fluence.gamma.calc_map(doseTA=1, distTA=1, threshold=10, resolution=0.1)
+        log.fluence.gamma.plot_map()  # show the gamma map as a matplotlib figure
+
 * `Picket Fence MLC Analysis <http://pylinac.readthedocs.org/en/latest/picketfence.html>`_ -
     The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
     Physicists regularly check MLC positioning through this test. This test can be done using film and one can
@@ -98,6 +141,16 @@ Below are the tools currently available; tools will be added one at a time as th
     * **Any Source-to-Image distance** - Whatever your clinic uses as the SID for picket fence, pylinac can account for it.
     * **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
     * **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
+
+    Example script::
+
+        from pylinac import PicketFence
+
+        pf = PicketFence("mypf.dcm")
+        pf.analyze(tolerance=0.5, action_tolerance=0.25)
+        print(pf.return_results())
+        pf.plot_analyzed_image()
+
 * `Flatness/Symmetry Analysis <http://pylinac.readthedocs.org/en/latest/flatsym.html>`_ -
     Analysis of Flatness & Symmetry of film or EPID images. Multiple equation definitions, in/cross plane.
 
