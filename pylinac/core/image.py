@@ -447,7 +447,7 @@ class Image:
         return min_val
 
     @classmethod
-    @value_accept(method=('mean', 'max'))
+    @value_accept(method=('mean', 'max', 'sum'))
     def from_multiples(cls, image_file_list, method='mean'):
         """Combine multiple image files into one superimposed image.
 
@@ -472,6 +472,8 @@ class Image:
             combined_arr = np.mean(concat_arr, axis=2)
         elif method == 'max':
             combined_arr = np.max(concat_arr, axis=2)
+        elif method == 'sum':
+            combined_arr = np.sum(concat_arr, axis=2)
         # use the initial Image object and replace its array, thus keeping all the other properties
         init_obj.array = combined_arr
         return init_obj
