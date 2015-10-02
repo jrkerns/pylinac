@@ -1,3 +1,16 @@
+V 1.0.0 - ??
+
+    Overview
+This release debuts the new interactive plotting for certain figures.
+Quickly, matplotlib line/bar plots (not images/arrays) can be plotted and saved in HTML using the MPLD3 library.
+Several numpy array indexing calls were converted to ints from floats to avoid the new 1.9 numpy type-casting warnings.
+
+    Picket Fence
+The analyzed image now has the option of showing a lear error subplot beside the image. The image is aligned
+to the image such that the leaves align with the image.
+
+
+
 V 0.9.1 - 9/13/2015
 
     Fixed a bug with the log analyzer treatment type property
