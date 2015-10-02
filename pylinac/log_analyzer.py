@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 
 from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file
-from pylinac.core.utilities import is_iterable
+from pylinac.core.utilities import is_iterable, import_mpld3, get_url
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -48,7 +48,7 @@ class MachineLogs(list):
         """
         Parameters
         ----------
-        dir : str
+        folder : str
             The directory of interest. Will walk through and process any logs, Trajectory or dynalog, it finds.
             Non-log files will be skipped.
         recursive : bool
@@ -346,7 +346,7 @@ class MachineLog:
         """Run the dynalog demo."""
         self.load_demo_dynalog()
         self.report_basic_parameters()
-        self.plot_all()
+        self.plot_summary()
 
     @classmethod
     def from_demo_dynalog(cls, exclude_beam_off=True):
@@ -385,12 +385,7 @@ class MachineLog:
 
         .. versionadded:: 0.7.1
         """
-        try:
-            import requests
-        except ImportError:
-            raise ImportError("Requests is not installed; cannot get the log from a URL")
-        print('Downloading log from', url)
-        response = requests.get(url)
+        response = get_url(url)
         stream = BytesIO(response.content)
         self.load(stream, exclude_beam_off)
         self.url = url
@@ -683,8 +678,6 @@ class Axis:
     Attributes
     ----------
     Parameters are Attributes
-    difference : numpy.ndarray
-        An array of the difference between actual and expected values.
     """
     def __init__(self, actual, expected=None):
         """
@@ -719,40 +712,52 @@ class Axis:
         else:
             raise AttributeError("Expected positions not passed to Axis")
 
-    def plot_actual(self):
+    def plot_actual(self, interactive=False):
         """Plot the actual positions as a matplotlib figure."""
-        self._plot('actual')
+        self._plot('actual', interactive=interactive)
 
-    def save_plot_actual(self, filename, **kwargs):
+    def save_plot_actual(self, filename, interactive=False, **kwargs):
         self._plot('actual', show=False)
-        plt.savefig(filename, **kwargs)
+        self._save(filename, interactive, **kwargs)
 
-    def plot_expected(self):
+    def plot_expected(self, interactive=False):
         """Plot the expected positions as a matplotlib figure."""
-        self._plot('expected')
+        self._plot('expected', interactive=interactive)
 
-    def save_plot_expected(self, filename, **kwargs):
+    def save_plot_expected(self, filename, interactive=False, **kwargs):
         self._plot('expected', show=False)
-        plt.savefig(filename, **kwargs)
+        self._save(filename, interactive, **kwargs)
 
-    def plot_difference(self):
+    def plot_difference(self, interactive=False):
         """Plot the difference of positions as a matplotlib figure."""
-        self._plot('difference')
+        self._plot('difference', interactive=interactive)
 
-    def save_plot_difference(self, filename, **kwargs):
+    def save_plot_difference(self, filename, interactive=False, **kwargs):
         self._plot('difference', show=False)
-        plt.savefig(filename, **kwargs)
+        self._save(filename, interactive, **kwargs)
 
     @value_accept(param=('actual', 'expected', 'difference'))
-    def _plot(self, param='', show=True):
-        """Plot the parameter, actual, expected, or difference"""
+    def _plot(self, param='', interactive=False, show=True):
+        """Plot the parameter: actual, expected, or difference."""
         plt.plot(getattr(self, param))
         plt.autoscale(axis='x', tight=True)
         if show:
-            plt.show()
+            if interactive:
+                mpld3 = import_mpld3()
+                mpld3.show()
+            else:
+                plt.show()
+
+    def _save(self, filename, interactive, **kwargs):
+        """Save the figure to a file, either .png or .html."""
+        if interactive:
+            mpld3 = import_mpld3()
+            mpld3.save_html(plt.gcf(), filename)
+        else:
+            plt.savefig(filename, **kwargs)
 
 
-class _Axis_Moved:
+class AxisMovedMixin:
     """Mixin class for Axis."""
     @property
     @lru_cache()
@@ -765,29 +770,29 @@ class _Axis_Moved:
             return False
 
 
-class Leaf_Axis(Axis, _Axis_Moved):
+class LeafAxis(Axis, AxisMovedMixin):
     """Axis holding leaf information."""
     def __init__(self, actual, expected):
         # force expected argument to be supplied
         super().__init__(actual, expected)
 
 
-class Gantry_Axis(Axis, _Axis_Moved):
+class GantryAxis(Axis, AxisMovedMixin):
     """Axis holding gantry information."""
     pass
 
 
-class Head_Axis(Axis, _Axis_Moved):
+class HeadAxis(Axis, AxisMovedMixin):
     """Axis holding head information (e.g. jaw positions, collimator)."""
     pass
 
 
-class Couch_Axis(Axis, _Axis_Moved):
+class CouchAxis(Axis, AxisMovedMixin):
     """Axis holding couch information."""
     pass
 
 
-class Beam_Axis(Axis):
+class BeamAxis(Axis):
     """Axis holding beam information (e.g. MU, beam hold status)."""
     pass
 
@@ -813,7 +818,7 @@ class Fluence(metaclass=ABCMeta):
         Parameters
         ----------
         mlc_struct : MLC_Struct
-        mu_axis : Beam_Axis
+        mu_axis : BeamAxis
         jaw_struct : Jaw_Struct
         """
         self._mlc = mlc_struct
@@ -1197,13 +1202,13 @@ class MLC:
                 indices += (leaf_num,)
         return np.array(indices)
 
-    @type_accept(leaf_axis=Leaf_Axis, leaf_num=int)
+    @type_accept(leaf_axis=LeafAxis, leaf_num=int)
     def add_leaf_axis(self, leaf_axis, leaf_num):
         """Add a leaf axis to the MLC data structure.
 
         Parameters
         ----------
-        leaf_axis : Leaf_Axis
+        leaf_axis : LeafAxis
             The leaf axis to be added.
         leaf_num : int
             The leaf number.
@@ -1555,10 +1560,10 @@ class Jaw_Struct:
     """
     def __init__(self, x1, y1, x2, y2):
         if not all((
-                isinstance(x1, Head_Axis),
-                isinstance(y1, Head_Axis),
-                isinstance(x2, Head_Axis),
-                isinstance(y2, Head_Axis))):
+                isinstance(x1, HeadAxis),
+                isinstance(y1, HeadAxis),
+                isinstance(x2, HeadAxis),
+                isinstance(y2, HeadAxis))):
             raise TypeError("Head_Axis not passed into Jaw structure")
         self.x1 = x1
         self.y1 = y1
@@ -1577,10 +1582,10 @@ class Couch_Struct:
     rotn : :class:`~pylinac.log_analyzer.Axis`
     """
     def __init__(self, vertical, longitudinal, lateral, rotational, roll=None, pitch=None):
-        if not all((isinstance(vertical, Couch_Axis),
-                    isinstance(longitudinal, Couch_Axis),
-                    isinstance(lateral, Couch_Axis),
-                    isinstance(rotational, Couch_Axis))):
+        if not all((isinstance(vertical, CouchAxis),
+                    isinstance(longitudinal, CouchAxis),
+                    isinstance(lateral, CouchAxis),
+                    isinstance(rotational, CouchAxis))):
             raise TypeError("Couch structure must be passed Couch Axes.")
         self.vert = vertical
         self.long = longitudinal
@@ -1910,14 +1915,14 @@ class Dlog_Axis_Data(DLog_Section):
         self.beam_on = Axis(matrix[:, 3])
         self.prior_dose_index = Axis(matrix[:, 4])  # currently not used for anything
         self.next_dose_index = Axis(matrix[:, 5])  # ditto
-        self.gantry = Gantry_Axis(matrix[:, 6] /10)
-        self.collimator = Head_Axis(matrix[:, 7] /10)
+        self.gantry = GantryAxis(matrix[:, 6] / 10)
+        self.collimator = HeadAxis(matrix[:, 7] / 10)
 
         # jaws are in mm; convert to cm by /10
-        jaw_y1 = Head_Axis(matrix[:, 8] / 10)
-        jaw_y2 = Head_Axis(matrix[:, 9] / 10)
-        jaw_x1 = Head_Axis(matrix[:, 10] / 10)
-        jaw_x2 = Head_Axis(matrix[:, 11] / 10)
+        jaw_y1 = HeadAxis(matrix[:, 8] / 10)
+        jaw_y2 = HeadAxis(matrix[:, 9] / 10)
+        jaw_x1 = HeadAxis(matrix[:, 10] / 10)
+        jaw_x2 = HeadAxis(matrix[:, 11] / 10)
         self.jaws = Jaw_Struct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
 
         # carriages are in 100ths of mm; converted to cm.
@@ -1934,7 +1939,7 @@ class Dlog_Axis_Data(DLog_Section):
 
         self.mlc = MLC(snapshots, self.jaws)
         for leaf in range(1, (self._header.num_mlc_leaves // 2) + 1):
-            axis = Leaf_Axis(expected=matrix[:, (leaf-1)*4+14], actual=matrix[:, (leaf-1)*4+15])
+            axis = LeafAxis(expected=matrix[:, (leaf - 1) * 4 + 14], actual=matrix[:, (leaf - 1) * 4 + 15])
             self.mlc.add_leaf_axis(axis, leaf)
 
         # read in "B"-file to get bank B MLC positions. The file must be in the same folder as the "A"-file.
@@ -1945,7 +1950,7 @@ class Dlog_Axis_Data(DLog_Section):
 
         # Add bank B MLC positions to mlc snapshot arrays
         for leaf in range(1, (self._header.num_mlc_leaves // 2) + 1):
-            axis = Leaf_Axis(expected=matrix[:, (leaf-1)*4 + 14], actual=matrix[:, (leaf-1)*4 + 15])
+            axis = LeafAxis(expected=matrix[:, (leaf - 1) * 4 + 14], actual=matrix[:, (leaf - 1) * 4 + 15])
             self.mlc.add_leaf_axis(axis, leaf+self._header.num_mlc_leaves//2)
 
         self._scale_dlog_mlc_pos()
@@ -2015,36 +2020,36 @@ class Tlog_Axis_Data(TLog_Section):
 
         column = snapshot_col_gen()
 
-        self.collimator = self._get_axis(snapshot_data, next(column), Head_Axis)
+        self.collimator = self._get_axis(snapshot_data, next(column), HeadAxis)
 
-        self.gantry = self._get_axis(snapshot_data, next(column), Gantry_Axis)
+        self.gantry = self._get_axis(snapshot_data, next(column), GantryAxis)
 
-        jaw_y1 = self._get_axis(snapshot_data, next(column), Head_Axis)
-        jaw_y2 = self._get_axis(snapshot_data, next(column), Head_Axis)
-        jaw_x1 = self._get_axis(snapshot_data, next(column), Head_Axis)
-        jaw_x2 = self._get_axis(snapshot_data, next(column), Head_Axis)
+        jaw_y1 = self._get_axis(snapshot_data, next(column), HeadAxis)
+        jaw_y2 = self._get_axis(snapshot_data, next(column), HeadAxis)
+        jaw_x1 = self._get_axis(snapshot_data, next(column), HeadAxis)
+        jaw_x2 = self._get_axis(snapshot_data, next(column), HeadAxis)
         self.jaws = Jaw_Struct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
 
-        vrt = self._get_axis(snapshot_data, next(column), Couch_Axis)
-        lng = self._get_axis(snapshot_data, next(column), Couch_Axis)
-        lat = self._get_axis(snapshot_data, next(column), Couch_Axis)
-        rtn = self._get_axis(snapshot_data, next(column), Couch_Axis)
+        vrt = self._get_axis(snapshot_data, next(column), CouchAxis)
+        lng = self._get_axis(snapshot_data, next(column), CouchAxis)
+        lat = self._get_axis(snapshot_data, next(column), CouchAxis)
+        rtn = self._get_axis(snapshot_data, next(column), CouchAxis)
         if is_tlog_v3(self._header.version):
-            rol = self._get_axis(snapshot_data, next(column), Couch_Axis)
-            pit = self._get_axis(snapshot_data, next(column), Couch_Axis)
+            rol = self._get_axis(snapshot_data, next(column), CouchAxis)
+            pit = self._get_axis(snapshot_data, next(column), CouchAxis)
         else:
             rol = None
             pit = None
         self.couch = Couch_Struct(vrt, lng, lat, rtn, rol, pit)
 
-        self.mu = self._get_axis(snapshot_data, next(column), Beam_Axis)
+        self.mu = self._get_axis(snapshot_data, next(column), BeamAxis)
 
-        self.beam_hold = self._get_axis(snapshot_data, next(column), Beam_Axis)
+        self.beam_hold = self._get_axis(snapshot_data, next(column), BeamAxis)
 
-        self.control_point = self._get_axis(snapshot_data, next(column), Beam_Axis)
+        self.control_point = self._get_axis(snapshot_data, next(column), BeamAxis)
 
-        self.carriage_A = self._get_axis(snapshot_data, next(column), Head_Axis)
-        self.carriage_B = self._get_axis(snapshot_data, next(column), Head_Axis)
+        self.carriage_A = self._get_axis(snapshot_data, next(column), HeadAxis)
+        self.carriage_B = self._get_axis(snapshot_data, next(column), HeadAxis)
 
         # remove snapshots where the beam wasn't on if flag passed
         if exclude_beam_off:
@@ -2059,7 +2064,7 @@ class Tlog_Axis_Data(TLog_Section):
 
         self.mlc = MLC(snapshots, self.jaws, hdmlc)
         for leaf_num in range(1, self._header.num_mlc_leaves+1):
-            leaf_axis = self._get_axis(snapshot_data, next(column), Leaf_Axis)
+            leaf_axis = self._get_axis(snapshot_data, next(column), LeafAxis)
             self.mlc.add_leaf_axis(leaf_axis, leaf_num)
 
         return self, self._cursor

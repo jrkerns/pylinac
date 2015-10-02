@@ -29,7 +29,7 @@ from pylinac.core.image import Image, DICOMStack
 from pylinac.core.geometry import Point, Circle, sector_mask, Line, Rectangle
 from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from pylinac.core.io import get_folder_UI, get_filepath_UI
-from pylinac.core.utilities import simple_round
+from pylinac.core.utilities import simple_round, import_mpld3, get_url
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -98,6 +98,7 @@ class CBCT:
         """Instantiate from a URL.
 
         .. versionadded:: 0.7.1
+        .. note:: ``requests`` must be installed to use this feature.
         """
         obj = cls()
         obj.load_url(url)
@@ -107,14 +108,9 @@ class CBCT:
         """Load from a URL.
 
         .. versionadded:: 0.7.1
+        .. note:: ``requests`` must be installed to use this feature.
         """
-        try:
-            import requests
-        except ImportError:
-            raise ImportError("Requests is not installed; cannot get the log from a URL")
-        response = requests.get(url)
-        if response.status_code != 200:
-            raise ConnectionError("Could not connect to the URL")
+        response = get_url(url)
         stream = zipfile.ZipFile(BytesIO(response.content))
         self.load_zip_file(stream)
 
@@ -271,7 +267,7 @@ class CBCT:
         self.plot_analyzed_image(show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_analyzed_subimage(self, subimage='hu', delta=True, show=True):
+    def plot_analyzed_subimage(self, subimage='hu', delta=True, interactive=False, show=True):
         """Plot a specific component of the CBCT analysis.
 
         Parameters
@@ -289,12 +285,22 @@ class CBCT:
             * ``prof`` draws the HU uniformity profiles.
         delta : bool
             Only for use with ``lin``. Whether to plot the HU delta or actual values.
+        interactive : bool
+            If False (default), the figure is plotted statically as a matplotlib figure.
+            If True, the figure is plotted as an HTML page in the default browser that can have tooltips.
+            This setting is only applicable for ``mtf``, ``lin``, and ``prof``, i.e. the "regular" plots. Image
+            plotting does not work with mpld3.
+
+            .. note:: mpld3 must be installed to use this feature.
+
         show : bool
             Whether to actually show the plot.
         """
         subimage = subimage.lower()
         plt.clf()
         plt.axis('off')
+        if interactive:
+            mpld3 = import_mpld3()
 
         if 'hu' in subimage:  # HU, GEO & thickness objects
             plt.imshow(self.hu.image.array, cmap=plt.cm.Greys)
@@ -315,21 +321,38 @@ class CBCT:
             self.lowcontrast.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'mtf' in subimage:
+            subimage = 'mtf'
             plt.axis('on')
-            self.spatialres.plot_mtf(plt.gca())
+            points = self.spatialres.plot_mtf(plt.gca())
+            if interactive:
+                labels = ['MTF: {:3.3f}'.format(i) for i in self.spatialres.line_pair_mtfs]
+                tooltip = mpld3.plugins.PointLabelTooltip(points[0], labels, location='top right')
+                mpld3.plugins.connect(plt.gcf(), tooltip)
         elif 'lin' in subimage:
+            subimage = 'lin'
             plt.axis('on')
-            self.hu.plot_linearity(plt.gca(), delta)
+            points = self.hu.plot_linearity(plt.gca(), delta)
+            if interactive:
+                delta_values = [roi.value_diff for roi in self.hu.rois.values()]
+                actual_values = [roi.pixel_value for roi in self.hu.rois.values()]
+                names = [roi for roi in self.hu.rois.keys()]
+                labels = ['{} -- Actual: {:3.1f}; Difference: {:3.1f}'.format(name, actual, delta) for name, actual, delta in zip(names, actual_values, delta_values)]
+                tooltip = mpld3.plugins.PointLabelTooltip(points[0], labels, location='top right')
+                mpld3.plugins.connect(plt.gcf(), tooltip)
         elif 'prof' in subimage:
+            subimage = 'prof'
             plt.axis('on')
             self.uniformity.plot_profiles(plt.gca())
         else:
             raise ValueError("Subimage parameter {} not understood".format(subimage))
 
         if show:
-            plt.show()
+            if interactive and (subimage in ('mtf', 'lin', 'prof')):
+                mpld3.show()
+            else:
+                plt.show()
 
-    def save_analyzed_subimage(self, filename, subimage='hu', **kwargs):
+    def save_analyzed_subimage(self, filename, subimage='hu', interactive=False, **kwargs):
         """Save a component image to file.
 
         Parameters
@@ -338,9 +361,19 @@ class CBCT:
             The file to write the image to.
         subimage : str
             See :meth:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
+        interactive : bool
+            If False (default), saves a matplotlib figure as a .png image.
+            If True, saves an html file, which can be opened in a browser, etc.
+
+            .. note:: mpld3 must be installed to use this feature.
         """
-        self.plot_analyzed_subimage(subimage, show=False)
-        plt.savefig(filename, **kwargs)
+        self.plot_analyzed_subimage(subimage, interactive=interactive, show=False)
+        if interactive and (subimage in ('mtf', 'lin', 'prof')):
+            mpld3 = import_mpld3()
+            mpld3.save_html(plt.gcf(), filename)
+        else:
+            plt.savefig(filename, **kwargs)
+        print("CBCT subimage figure saved to {}".format(osp.abspath(filename)))
 
     def return_results(self):
         """Return the results of the analysis as a string. Use with print()."""
@@ -575,7 +608,7 @@ class RectangleROI(Rectangle):
         y_shift = -np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         center = Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
-        super().__init__(width, height, center)
+        super().__init__(width, height, center, as_int=True)
         self._array = array
 
     @property
@@ -890,7 +923,7 @@ class HUSlice(Slice, ROIManagerMixin):
             values = [roi.pixel_value for roi in self.rois.values()]
             nominal_values = self.roi_nominal_values
             ylabel = 'Measured Values'
-        axis.plot(self.roi_nominal_values, values, 'g+', markersize=15, mew=2)
+        points = axis.plot(self.roi_nominal_values, values, 'g+', markersize=15, mew=2)
         axis.plot(self.roi_nominal_values, nominal_values)
         axis.plot(self.roi_nominal_values, np.array(nominal_values) + self.tolerance, 'r--')
         axis.plot(self.roi_nominal_values, np.array(nominal_values) - self.tolerance, 'r--')
@@ -898,6 +931,7 @@ class HUSlice(Slice, ROIManagerMixin):
         axis.grid('on')
         axis.set_xlabel("Nominal Values")
         axis.set_ylabel(ylabel)
+        return points
 
     @property
     def overall_passed(self):
@@ -946,17 +980,18 @@ class UniformitySlice(Slice, ROIManagerMixin):
         """
         if axis is None:
             fig, axis = plt.subplots()
-        horiz_data = self.image[self.phan_center.y, :]
-        vert_data = self.image[:, self.phan_center.x]
+        horiz_data = self.image[int(self.phan_center.y), :]
+        vert_data = self.image[:, int(self.phan_center.x)]
         axis.plot(horiz_data, 'g', label='Horizontal')
         axis.plot(vert_data, 'b', label='Vertical')
         axis.autoscale(tight=True)
         axis.set_ylim([-100, 100])
-        axis.axhline(self.tolerance, c='red')
-        axis.axhline(-self.tolerance, c='red')
+        # TODO: replace .plot() calls with .axhline() calls when mpld3 fixes functionality
+        axis.plot([i for i in range(len(horiz_data))], [self.tolerance] * len(horiz_data), 'r-', linewidth=3)
+        axis.plot([i for i in range(len(horiz_data))], [-self.tolerance] * len(horiz_data), 'r-', linewidth=3)
         axis.grid('on')
         axis.set_ylabel("HU")
-        axis.legend(loc=8, fontsize='small')
+        axis.legend(loc=8, fontsize='small', title="")
 
     @property
     def overall_passed(self):
@@ -1217,11 +1252,12 @@ class SpatialResolutionSlice(Slice):
             fig, axis = plt.subplots()
         line_pairs = self.line_pair_frequency
         mtf_vals = self.line_pair_mtfs
-        axis.plot(line_pairs, mtf_vals, marker='o')
+        points = axis.plot(line_pairs, mtf_vals, marker='o')
         axis.margins(0.05)
         axis.grid('on')
         axis.set_xlabel('Line pairs / mm')
         axis.set_ylabel("Relative MTF")
+        return points
 
 
 class ThicknessSlice(Slice, ROIManagerMixin):
