@@ -2,6 +2,7 @@ import os
 from unittest import TestCase
 import time
 import os.path as osp
+from functools import partial
 
 from pylinac.log_analyzer import MachineLog, MachineLogs, log_types
 
@@ -147,10 +148,10 @@ class TestDynalogDemo(TestCase):
 
     def test_plot_all(self):
         with self.assertRaises(AttributeError):
-            self.log.plot_all()
+            self.log.plot_summary()
 
         self.log.fluence.gamma.calc_map()
-        self.log.plot_all()
+        self.log.plot_summary()
 
     def test_treatment_type(self):
         self.assertEqual(self.log.treatment_type, 'Dynamic IMRT')
@@ -279,8 +280,13 @@ class TestTlogDemo(TestCase):
 
     def test_save_axes(self):
         for methodname in ('save_plot_actual', 'save_plot_expected', 'save_plot_difference'):
+            # save matplotlib figures
             method = getattr(self.log.axis_data.gantry, methodname)
             save_file('test.png', method)
+
+            # save MPLD3 HTML
+            method = partial(method, interactive=True)
+            save_file('test.html', method)
 
 
 class TestTlogFluence(TestCase):

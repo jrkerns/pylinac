@@ -7,7 +7,7 @@ import numpy as np
 
 from pylinac.cbct import CBCT
 from pylinac.core.geometry import Point
-
+from tests.utils import save_file
 
 varian_test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Varian')
 other_test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'CBCT')
@@ -93,13 +93,7 @@ class GeneralTests(unittest.TestCase):
         self.cbct.analyze(hu_tolerance=10, scaling_tolerance=0.01)
         for method in ['save_analyzed_image', 'save_analyzed_subimage']:
             methodcall = getattr(self.cbct, method)
-            methodcall(filename)
-            time.sleep(0.1)  # sleep just to let OS work
-            self.assertTrue(osp.isfile(filename), "Save file did not successfully save the image")
-
-            # cleanup
-            os.remove(filename)
-            self.assertFalse(osp.isfile(filename), "Save file test did not clean up saved image")
+            save_file(filename, methodcall)
 
     def test_plot_images(self):
         """Test the various plotting functions."""
@@ -117,7 +111,7 @@ class GeneralTests(unittest.TestCase):
 
 
 class CBCTMixin:
-    """A mixin to use for Varian CBCT scans; does not inherit from TestCase as it would be run
+    """A mixin to use for testing Varian CBCT scans; does not inherit from TestCase as it would be run
         otherwise."""
     hu_tolerance = 40
     scaling_tolerance = 1

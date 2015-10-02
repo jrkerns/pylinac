@@ -4,7 +4,8 @@ import os
 
 
 def save_file(filename, method):
-
+    """Save a file using the passed method and assert it exists after saving.
+    Also deletes the file after checking for existence."""
     method(filename)
     time.sleep(0.15)  # sleep just to let OS work
     assert osp.isfile(filename), "Save file did not successfully save the image"
