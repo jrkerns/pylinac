@@ -1,11 +1,8 @@
-import os
-from unittest import TestCase
-import time
-import os.path as osp
 from functools import partial
+import os.path as osp
+from unittest import TestCase
 
-from pylinac.log_analyzer import MachineLog, MachineLogs, log_types
-
+from pylinac.log_analyzer import MachineLog, MachineLogs, DYNALOG, TRAJECTORY_LOG, STATIC_IMRT, DYNAMIC_IMRT, VMAT
 from tests.utils import save_file
 
 
@@ -63,266 +60,224 @@ class TestLogLoading(TestCase):
 
     def test_from_url(self):
         url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/Tlog2.bin'
-        log = MachineLog.from_url(url)
+        MachineLog.from_url(url)  # shouldn't raise
 
 
-class TestDynalogDemo(TestCase):
-    """Tests having to do with trajectory log files."""
-    @classmethod
-    def setUpClass(cls):
-        cls.log = MachineLog()
-        cls.log.load_demo_dynalog()
+class TestLogPlottingSaving(TestCase):
+    """Test the plotting methods and plot saving methods."""
+    tlog = MachineLog.from_demo_trajectorylog()
+    dlog = MachineLog.from_demo_dynalog()
 
-    def test_type(self):
-        """Test all kinds of things about the dynalog demo."""
-        self.assertTrue(self.log.log_type == log_types['dlog'])
-
-    def test_header(self):
-        """Test header info of the dynalog; ensures data integrity."""
-        header = self.log.header
-        self.assertEqual(header.version, 'B')
-        self.assertEqual(header.patient_name, ['Clinac4 QA', '', 'Clinac4 QA'])
-        self.assertEqual(header.plan_filename, ['1.2.246.352.71.5.1399119341.107477.20110923193623', '21'])
-        self.assertEqual(header.tolerance, 102)
-        self.assertEqual(header.num_mlc_leaves, 120)
-        self.assertEqual(header.clinac_scale, 1)
-
-    def test_axis_data(self):
-        """Sample a few points from the axis data to ensure integrity."""
-        axis_data = self.log.axis_data
-        # properties
-        self.assertEqual(axis_data.num_beamholds, 20)
-        self.assertEqual(axis_data.num_snapshots, 99)
-        self.assertEqual(len(axis_data.beam_hold.actual), 99)
-        # MU data
-        self.assertEqual(axis_data.mu.actual[0], 0)
-        self.assertEqual(axis_data.mu.actual[-1], 25000)
-        self.assertEqual(axis_data.mu.expected[0], 0)
-        self.assertEqual(axis_data.mu.expected[-1], 25000)
-        # jaws
-        self.assertEqual(axis_data.jaws.x1.actual[0], 8)
-        self.assertEqual(axis_data.jaws.y1.actual[-1], 20)
-        self.assertRaises(AttributeError, axis_data.jaws.x2.plot_expected)
-
-    def test_mlc(self):
-        """Test integrity of MLC data & methods."""
-        mlc = self.log.axis_data.mlc
-        self.assertEqual(mlc.num_leaves, 120)
-        self.assertEqual(mlc.num_pairs, 60)
-        self.assertEqual(mlc.num_snapshots, 21)  # snapshots where beam was on
-        self.assertEqual(len(mlc.moving_leaves), 60)
-        self.assertFalse(mlc.hdmlc)
-
-    def test_mlc_positions(self):
-        """Test some MLC positions."""
-        mlc = self.log.axis_data.mlc
-        self.assertAlmostEqual(mlc.leaf_axes[1].actual[0], 7.564, delta=0.001)
-        self.assertAlmostEqual(mlc.leaf_axes[120].expected[-1], -4.994, delta=0.001)
-        self.assertAlmostEqual(mlc.leaf_axes[1].difference[0], 0, delta=0.1)
-
-    def test_mlc_leafpair_moved(self):
-        mlc = self.log.axis_data.mlc
-        self.assertTrue(mlc.leaf_moved(9))
-        self.assertFalse(mlc.leaf_moved(8))
-        self.assertTrue(mlc.pair_moved(3))
-
-    def test_RMS_error(self):
-        mlc = self.log.axis_data.mlc
-        self.assertAlmostEqual(mlc.get_RMS_avg(), 0.0373, delta=0.001)
-        self.assertAlmostEqual(mlc.get_RMS_avg(bank='a'), 0.0375, delta=0.001)
-        self.assertAlmostEqual(mlc.get_RMS_avg(only_moving_leaves=True), 0.074, delta=0.01)
-        self.assertAlmostEqual(mlc.get_RMS_max(), 0.0756, delta=0.001)
-        self.assertAlmostEqual(mlc.get_RMS_percentile(), 0.0754, delta=0.001)
-        self.assertAlmostEqual(len(mlc.get_RMS('b')), 60)
-        self.assertAlmostEqual(mlc.get_RMS((1,3)).mean(), 0.0717, delta=0.001)
-        self.assertAlmostEqual(mlc.create_error_array((2,3), False).mean(), 0.034, delta=0.001)
-
-    def test_under_jaws(self):
-        mlc = self.log.axis_data.mlc
-        self.assertFalse(mlc.leaf_under_y_jaw(4))
-
-    def test_save_to_csv(self):
-        # should raise error since it's a dynalog
-        with self.assertRaises(TypeError):
-            self.log.to_csv('test.csv')
-
-    def test_plot_all(self):
-        with self.assertRaises(AttributeError):
-            self.log.plot_summary()
-
-        self.log.fluence.gamma.calc_map()
-        self.log.plot_summary()
-
-    def test_treatment_type(self):
-        self.assertEqual(self.log.treatment_type, 'Dynamic IMRT')
-
-    def test_axis_moved(self):
-        self.assertFalse(self.log.axis_data.gantry.moved)
-        self.assertTrue(self.log.axis_data.mlc.leaf_axes[35].moved)
-
-
-class TestDlogFluence(TestCase):
-
-    def setUp(self):
-        self.log = MachineLog()
-        self.log.load_demo_dynalog()
-
-    def test_demo(self):
-        self.log.run_dlog_demo()
-
-    def test_fluence(self):
-        fluence = self.log.fluence
-
-        self.assertFalse(fluence.actual.map_calced)
-        self.assertFalse(fluence.expected.map_calced)
-        self.assertFalse(fluence.gamma.map_calced)
-        self.assertRaises(AttributeError, fluence.actual.plot_map)
-
-        # do repeating fluence calcs; ensure semi-lazy property
-        start = time.time()
-        fluence.actual.calc_map()
-        end = time.time()
-        first_calc_time = end - start
-        start = time.time()
-        fluence.actual.calc_map()
-        end = time.time()
-        second_calc_time = end - start
-        self.assertLess(second_calc_time, first_calc_time)
-
-        # same for gamma
-        start = time.time()
-        fluence.gamma.calc_map(resolution=0.15)
-        end = time.time()
-        first_calc_time = end - start
-        start = time.time()
-        fluence.gamma.calc_map(resolution=0.15)
-        end = time.time()
-        second_calc_time = end - start
-        self.assertLess(second_calc_time, first_calc_time)
-
-        self.assertAlmostEqual(fluence.gamma.pass_prcnt, 99.85, delta=0.1)
-        self.assertAlmostEqual(fluence.gamma.avg_gamma, 0.019, delta=0.005)
-        self.assertAlmostEqual(fluence.gamma.histogram()[0][0], 155804, delta=100)
-
-
-class TestTlogDemo(TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.log = MachineLog()
-        cls.log.load_demo_trajectorylog()
-
-    def test_demo(self):
-        MachineLog().run_tlog_demo()
-
-    def test_type(self):
-        self.assertTrue(self.log.log_type, log_types['tlog'])
-
-    def test_header(self):
-        header = self.log.header
-        self.assertEqual(header.header, 'VOSTL')
-        self.assertEqual(header.version, 2.1)
-        self.assertEqual(header.header_size, 1024)
-        self.assertEqual(header.sampling_interval, 20)
-        self.assertEqual(header.num_axes, 14)
-        self.assertEqual(header.axis_enum.size, 14)
-        self.assertEqual(header.samples_per_axis.size, 14)
-        self.assertEqual(header.samples_per_axis[-1], 122)
-        self.assertEqual(header.num_mlc_leaves, 120)
-        self.assertEqual(header.axis_scale, 1)
-        self.assertEqual(header.num_subbeams, 2)
-        self.assertEqual(header.is_truncated, 0)
-        self.assertEqual(header.num_snapshots, 5200)
-        self.assertEqual(header.mlc_model, 3)
-
-    def test_axis_data(self):
-        axis_data = self.log.axis_data
-        self.assertAlmostEqual(axis_data.collimator.actual[0], 180, delta=0.1)
-        self.assertAlmostEqual(axis_data.mu.difference[1], 0.0000337, delta=0.01)
-        self.assertAlmostEqual(axis_data.gantry.expected[2], 310, delta=0.1)
-
-    def test_mlc(self):
-        mlc = self.log.axis_data.mlc
-        self.assertTrue(mlc.hdmlc)
-        self.assertEqual(mlc.num_leaves, 120)
-        self.assertEqual(mlc.num_pairs, 60)
-        self.assertEqual(mlc.num_snapshots, 1021)
-
-        log_no_exclusion = MachineLog()
-        log_no_exclusion.load_demo_trajectorylog(exclude_beam_off=False)
-        self.assertEqual(log_no_exclusion.axis_data.mlc.num_snapshots, 5200)
-
-    def test_under_jaws(self):
-        mlc = self.log.axis_data.mlc
-        self.assertTrue(mlc.leaf_under_y_jaw(4))
-
-    def test_RMS_error(self):
-        mlc = self.log.axis_data.mlc
-        self.assertAlmostEqual(mlc.get_RMS_avg(), 0.001, delta=0.001)
-        self.assertAlmostEqual(mlc.get_RMS_max(), 0.00216, delta=0.001)
-        self.assertAlmostEqual(mlc.get_RMS_percentile(), 0.00196, delta=0.001)
-
-    def test_save_to_csv(self):
-        save_file('tester.csv', self.log.to_csv)
-
-        # without filename should make one based off tlog name
-        self.log.to_csv()
-        time.sleep(0.1)
-        name = self.log._filename_str.replace('.bin', '.csv')
-        self.assertTrue(osp.isfile(name))
-        os.remove(name)
-        self.assertFalse(osp.isfile(name))
+    def test_save_tlog_to_csv(self):
+            # save *with* a filename
+            save_file('tester.csv', self.tlog.to_csv)
+            # save *without* a filename
+            # save_file(None, self.tlog.to_csv)
 
     def test_plot_axes(self):
         for methodname in ('plot_actual', 'plot_expected', 'plot_difference'):
-            method = getattr(self.log.axis_data.gantry, methodname)
-            method()
+            method = getattr(self.tlog.axis_data.gantry, methodname)
+            method()  # shouldn't raise
 
     def test_save_axes(self):
         for methodname in ('save_plot_actual', 'save_plot_expected', 'save_plot_difference'):
             # save matplotlib figures
-            method = getattr(self.log.axis_data.gantry, methodname)
+            method = getattr(self.tlog.axis_data.gantry, methodname)
             save_file('test.png', method)
 
             # save MPLD3 HTML
             method = partial(method, interactive=True)
             save_file('test.html', method)
 
-
-class TestTlogFluence(TestCase):
-
-    def setUp(self):
-        self.log = MachineLog()
-        self.log.load_demo_trajectorylog()
-
-    def test_fluence(self):
-        fluence = self.log.fluence
-        fluence.gamma.calc_map()
-        self.assertAlmostEqual(fluence.gamma.pass_prcnt, 100, delta=0.1)
-        self.assertAlmostEqual(fluence.gamma.avg_gamma, 0.001, delta=0.005)
-        self.assertAlmostEqual(fluence.gamma.histogram()[0][0], 240000, delta=100)
-
-    def test_plotting(self):
+    def test_fluence_plotting(self):
         # raise error if map hasn't yet been calc'ed.
         with self.assertRaises(AttributeError):
-            self.log.fluence.actual.plot_map()
+            self.dlog.fluence.actual.plot_map()
 
-        self.log.fluence.actual.calc_map()
-        self.log.fluence.actual.plot_map()
+        self.dlog.fluence.actual.calc_map()
+        self.dlog.fluence.actual.plot_map()
 
-    def test_saving_plots(self):
-        self.log.fluence.gamma.calc_map()
-        save_file('test.png', self.log.fluence.gamma.save_map)
+    def test_saving_fluence_plots(self):
+        self.dlog.fluence.gamma.calc_map()
+        save_file('test.png', self.dlog.fluence.gamma.save_map)
+
+    def test_save_summary(self):
+        self.tlog.fluence.gamma.calc_map()
+        save_file('summary.png', self.tlog.save_summary)
+
+
+class TestLogMixin:
+    """Mixin to use when testing a single machine log; must be mixed with unittest.TestCase."""
+    log_path = ''
+    log_type = TRAJECTORY_LOG
+    num_mlc_leaves = 120
+    num_snapshots = 0
+    num_beamholds = 0
+    num_moving_leaves = 0
+    treatment_type = STATIC_IMRT
+    static_axes = []
+    moving_axes = []
+    leaf_move_status = {'moving': tuple(), 'static': tuple()}
+    average_rms = 0
+    maximum_rms = 0
+    average_gamma = 0
+    percent_pass_gamma = 100
+    mu_delivered = 25000  # always 25,000 for dynalogs, variable for trajectory logs
+    version = 2.1  # or 3.0, or 'B' if dynalog
+
+    # Trajectory log-specific data
+    header = 'VOSTL'
+    header_size = 1024
+    sampling_interval = 20
+    num_axes = 14
+    axis_scale = 1
+    num_subbeams = 0
+    is_truncated = 0
+    mlc_model = 3
+    first_subbeam_data = {'gantry_angle': 0, 'collimator_angle': 0, 'jaw_x1': 0, 'jaw_x2': 0, 'jaw_y1': 0, 'jaw_y2': 0}
+
+    # Dynalog-specific data
+    tolerance = 102
+    clinac_scale = 1
+
+    @classmethod
+    def setUpClass(cls):
+        cls.log = MachineLog(cls.log_path)
+        cls.log.fluence.gamma.calc_map()
+
+    def test_log_type(self):
+        """Test all kinds of things about the dynalog demo."""
+        self.assertEqual(self.log.log_type, self.log_type)
+
+    def test_num_leaves(self):
+        """Test the number of MLC leaves and pairs."""
+        self.assertEqual(self.log.header.num_mlc_leaves, self.num_mlc_leaves)
+
+    def test_treatment_type(self):
+        """Test the treatment type."""
+        self.assertEqual(self.log.treatment_type, self.treatment_type)
+
+    def test_num_snapshots(self):
+        """Test the number of snapshots in the log."""
+        if self.log.log_type == DYNALOG:
+            self.assertEqual(self.log.axis_data.num_snapshots, self.num_snapshots)
+        else:
+            self.assertEqual(self.log.header.num_snapshots, self.num_snapshots)
+
+    def test_num_beamholds(self):
+        """Test the number of times the beam was held in the log."""
+        self.assertEqual(self.log.axis_data.num_beamholds, self.num_beamholds)
+
+    def test_rms_error(self):
+        """Test the average and maximum RMS errors."""
+        self.assertAlmostEqual(self.log.axis_data.mlc.get_RMS_avg(), self.average_rms, delta=0.01)
+        self.assertAlmostEqual(self.log.axis_data.mlc.get_RMS_max(), self.maximum_rms, delta=0.01)
+
+    def test_fluence_gamma(self):
+        """Test gamma results for fluences."""
+        self.assertAlmostEqual(self.log.fluence.gamma.avg_gamma, self.average_gamma, delta=0.01)
+        self.assertAlmostEqual(self.log.fluence.gamma.pass_prcnt, self.percent_pass_gamma, delta=0.1)
+
+    def test_header(self):
+        """Test a few header values; depends on log type."""
+        header = self.log.header
+        self.assertEqual(header.version, self.version)
+        if self.log_type == DYNALOG:
+            self.assertEqual(header.tolerance, self.tolerance)
+            self.assertEqual(header.clinac_scale, self.clinac_scale)
+        else:
+            self.assertEqual(header.header, self.header)
+            self.assertEqual(header.header_size, self.header_size)
+            self.assertEqual(header.sampling_interval, self.sampling_interval)
+            self.assertEqual(header.num_axes, self.num_axes)
+            self.assertEqual(header.axis_scale, self.axis_scale)
+            self.assertEqual(header.num_subbeams, self.num_subbeams)
+            self.assertEqual(header.is_truncated, self.is_truncated)
+            self.assertEqual(header.mlc_model, self.mlc_model)
+
+    def test_mu_delivered(self):
+        """Test the number of MU delivered during the log."""
+        self.assertAlmostEqual(self.log.axis_data.mu.actual[-1], self.mu_delivered, delta=0.01)
+
+    def test_static_axes(self):
+        """Test that certain axes did not move during treatment."""
+        for axis_name in self.static_axes:
+            axis = getattr(self.log.axis_data, axis_name)
+            self.assertFalse(axis.moved)
 
     def test_subbeam_data(self):
-        """Test accessing the subbeam data."""
-        expected_vals = [310, 180, 3.7, 3.4, 3.8, 3.9]
-        for item, expval in zip(('gantry_angle', 'collimator_angle', 'jaw_x1', 'jaw_x2', 'jaw_y1', 'jaw_y2'), expected_vals):
-            val = getattr(self.log.subbeams[0], item)
-            self.assertAlmostEqual(val.actual, expval, delta=0.1)
+        """Test the first subbeam data."""
+        if self.log_type == TRAJECTORY_LOG:
+            first_subbeam = self.log.subbeams[0]
+            for key, known_value in self.first_subbeam_data.items():
+                axis = getattr(first_subbeam, key)
+                self.assertAlmostEqual(known_value, axis.actual, delta=0.1)
+
+    def test_leaf_moved_status(self):
+        """Test that the given leaves either moved or did not move."""
+        moving_leaves = self.leaf_move_status['moving']
+        for leaf in moving_leaves:
+            self.assertTrue(self.log.axis_data.mlc.leaf_moved(leaf))
+
+        static_leaves = self.leaf_move_status['static']
+        for leaf in static_leaves:
+            self.assertFalse(self.log.axis_data.mlc.leaf_moved(leaf))
 
 
-class Test_MachineLogs(TestCase):
+class DynalogDemo(TestLogMixin, TestCase):
+    """Tests of the dynalog demo."""
+    log_type = DYNALOG
+    treatment_type = DYNAMIC_IMRT
+    num_beamholds = 20
+    num_snapshots = 99
+    average_rms = 0.037
+    maximum_rms = 0.076
+    average_gamma = 0.019
+    percent_pass_gamma = 99.85
+    version = 'B'
+    tolerance = 102
+    clinac_scale = 1
+    leaf_move_status = {'moving': (9, 3), 'static': (8, )}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.log = MachineLog.from_demo_dynalog()
+        cls.log.fluence.gamma.calc_map()
+
+    def test_demo(self):
+        """Test the run demo method."""
+        # shouldn't raise
+        MachineLog().run_dlog_demo()
+
+
+class TrajectoryLogDemo(TestLogMixin, TestCase):
+    """Tests for the demo trajectory log."""
+    log_type = TRAJECTORY_LOG
+    num_snapshots = 5200  # excluded: 1021
+    num_subbeams = 2
+    version = 2.1
+    static_axes = ['collimator']
+    moving_axes = ['gantry']
+    average_rms = 0.001
+    maximum_rms = 0.002
+    average_gamma = 0.001
+    percent_pass_gamma = 100
+    mu_delivered = 183
+    first_subbeam_data = {'gantry_angle': 310, 'collimator_angle': 180, 'jaw_x1': 3.7, 'jaw_x2': 3.4, 'jaw_y1': 3.8,
+                          'jaw_y2': 3.9}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.log = MachineLog.from_demo_trajectorylog()
+        cls.log.fluence.gamma.calc_map()
+
+    def test_demo(self):
+        """Test the run demo method."""
+        # shouldn't raise
+        MachineLog().run_tlog_demo()
+
+
+class TestMachineLogs(TestCase):
     _logs_dir = osp.abspath(osp.join(osp.dirname(__file__), '.', 'test_files', 'MLC logs'))
     logs_dir = osp.join(_logs_dir, 'SG TB1 MLC')
     logs_altdir = osp.join(_logs_dir, 'altdir')
@@ -407,3 +362,7 @@ class Test_MachineLogs(TestCase):
             print(log.header.num_snapshots)
         gamma = logs.avg_gamma_pct()
         self.assertAlmostEqual(gamma, 100, delta=0.01)
+
+    def test_writing_to_csv(self):
+        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        logs.to_csv()

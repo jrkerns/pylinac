@@ -35,7 +35,11 @@ from pylinac.core.utilities import is_iterable, import_mpld3, get_url
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
-log_types = {'dlog': 'Dynalog', 'tlog': 'Trajectory log'}
+DYNALOG = 'Dynalog'
+TRAJECTORY_LOG = 'Trajectory log'
+STATIC_IMRT = 'Static IMRT'
+DYNAMIC_IMRT = 'Dynamic IMRT'
+VMAT = 'VMAT'
 
 
 class MachineLogs(list):
@@ -52,9 +56,9 @@ class MachineLogs(list):
             The directory of interest. Will walk through and process any logs, Trajectory or dynalog, it finds.
             Non-log files will be skipped.
         recursive : bool
-            Whether to walk through subfolders of passed directory. Only used if ``dir`` is a valid log directory.
+            Whether to walk through subfolders of passed directory. Only used if ``folder`` is a valid log directory.
         verbose : bool
-            If True (default), prints load status at each log. Only used if ``dir`` is a valid log directory.
+            If True (default), prints load status at each log. Only used if ``folder`` is a valid log directory.
 
         Examples
         --------
@@ -88,7 +92,6 @@ class MachineLogs(list):
         """Return the number of logs currently loaded."""
         return len(self)
 
-    @value_accept(log_type=log_types)
     def _num_log_type(self, log_type):
         num = 0
         for log in self:
@@ -99,12 +102,12 @@ class MachineLogs(list):
     @property
     def num_tlogs(self):
         """Return the number of Trajectory logs currently loaded."""
-        return self._num_log_type(log_types['tlog'])
+        return self._num_log_type(TRAJECTORY_LOG)
 
     @property
     def num_dlogs(self):
         """Return the number of Trajectory logs currently loaded."""
-        return self._num_log_type(log_types['dlog'])
+        return self._num_log_type(DYNALOG)
 
     def load_folder(self, dir, recursive=True, verbose=True):
         """Load log files from a directory.
@@ -259,7 +262,7 @@ class MachineLogs(list):
         only the trajectory logs will be written. File names will be the same as the original log file names."""
         num_written = 0
         for log in self:
-            if is_tlog(log._filename):
+            if is_tlog(log.filename):
                 log.to_csv()
                 num_written += 1
         if num_written:
@@ -531,9 +534,9 @@ class MachineLog:
         ValueError : If log type cannot be determined.
         """
         if is_dlog(self.filename):
-            log_type = log_types['dlog']
+            log_type = DYNALOG
         elif is_tlog(self.filename):
-            log_type = log_types['tlog']
+            log_type = TRAJECTORY_LOG
         return log_type
 
     @property
@@ -900,7 +903,7 @@ class Fluence(metaclass=ABCMeta):
                     rt_jaw_pos = right_jaw_data.max()
                     left_edge = max(lt_mlc_pos, lt_jaw_pos)
                     right_edge = min(rt_mlc_pos, rt_jaw_pos)
-                    fluence_line[left_edge:right_edge] = MU_cumulative
+                    fluence_line[int(left_edge):int(right_edge)] = MU_cumulative
                 fluence[pair - 1, :] = fluence_line
 
         self.pixel_map = fluence
