@@ -14,20 +14,22 @@ Features:
 * **Save Trajectory log data to CSV** - The Trajectory log binary data format does not allow for easy export of data. Pylinac lets you do
   that so you can use Excel or other software that you use with Dynalogs.
 * **Plot or analyze any axis** - Every data axis can be accessed and plotted: the actual, expected, and even the difference.
+* **Calculate fluences and gamma** - Besides reading in the MLC positions, pylinac calculates the actual and expected fluence
+  as well as the gamma map; DTA and threshold values are adjustable.
 """
 from abc import ABCMeta, abstractproperty
-import struct
+import copy
+import csv
+from functools import lru_cache
+from io import BytesIO
 import os
 import os.path as osp
-import csv
-import copy
+import struct
 import warnings
-from io import BytesIO
-from functools import lru_cache
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage.filters as spf
-import matplotlib.pyplot as plt
 
 from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file
@@ -333,7 +335,7 @@ class MachineLog:
         self.filename = ''
         self.url = None
         self._cursor = 0
-        self.fluence = Fluence_Struct()
+        self.fluence = FluenceStruct()
 
         # Read file if passed in
         if filename is not '':
@@ -636,10 +638,10 @@ class MachineLog:
         # create iterator object to read in lines
         with open(self.filename) as csvf:
             dlgdata = csv.reader(csvf, delimiter=',')
-            self.header, dlgdata = Dlog_Header(dlgdata)._read()
-            self.axis_data = Dlog_Axis_Data(dlgdata, self.header, other_dlg_file)._read(exclude_beam_off)
+            self.header, dlgdata = DlogHeader(dlgdata)._read()
+            self.axis_data = DlogAxisData(dlgdata, self.header, other_dlg_file)._read(exclude_beam_off)
 
-        self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
+        self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
     def _read_tlog(self, exclude_beam_off):
         """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog v2.1/3.0) log file specifications."""
@@ -651,15 +653,15 @@ class MachineLog:
         fcontent = open_file(self.filename).read()
 
         # Unpack the content according to respective section and data type (see log specification file).
-        self.header, self._cursor = Tlog_Header(fcontent, self._cursor)._read()
+        self.header, self._cursor = TlogHeader(fcontent, self._cursor)._read()
 
         self.subbeams, self._cursor = SubbeamHandler(fcontent, self._cursor, self.header)._read()
 
-        self.axis_data, self._cursor = Tlog_Axis_Data(fcontent, self._cursor, self.header)._read(exclude_beam_off)
+        self.axis_data, self._cursor = TlogAxisData(fcontent, self._cursor, self.header)._read(exclude_beam_off)
 
         # self.crc = CRC(fcontent, self._cursor).read()
 
-        self.fluence = Fluence_Struct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
+        self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
         self.subbeams.post_hoc_metadata(self.axis_data)
 
@@ -692,6 +694,7 @@ class Axis:
             The array of expected position values. Not applicable for dynalog axes other than MLCs.
         """
         self.actual = actual
+        self.expected = expected
         if expected is not None:
             try:
                 if len(actual) != len(expected):
@@ -1123,7 +1126,7 @@ class GammaFluence(Fluence):
             raise AttributeError("Map not yet calculated; use calc_map()")
 
 
-class Fluence_Struct:
+class FluenceStruct:
     """Structure for data and methods having to do with fluences.
 
     Attributes
@@ -1342,7 +1345,6 @@ class MLC:
             raise TypeError("Input must be iterable, or specify an MLC bank")
         return self.create_RMS_array(np.array(leaves_or_bank))
 
-
     def get_leaves(self, bank='both', only_moving_leaves=False):
         """Return a list of leaves that match the given conditions.
 
@@ -1551,7 +1553,7 @@ class MLC:
         plt.savefig(filename, **kwargs)
 
 
-class Jaw_Struct:
+class JawStruct:
     """Jaw Axes data structure.
 
     Attributes
@@ -1574,7 +1576,7 @@ class Jaw_Struct:
         self.y2 = y2
 
 
-class Couch_Struct:
+class CouchStruct:
     """Couch Axes data structure.
 
     Attributes
@@ -1599,18 +1601,18 @@ class Couch_Struct:
             self.pitch = pitch
 
 
-class Log_Section(metaclass=ABCMeta):
+class LogSection(metaclass=ABCMeta):
     @abstractproperty
     def _read(self):
         pass
 
 
-class DLog_Section(Log_Section, metaclass=ABCMeta):
+class DlogSection(LogSection, metaclass=ABCMeta):
     def __init__(self, log_content):
         self._log_content = log_content
 
 
-class TLog_Section(Log_Section, metaclass=ABCMeta):
+class TlogSection(LogSection, metaclass=ABCMeta):
     def __init__(self, log_content, cursor):
         self._log_content = log_content
         self._cursor = cursor
@@ -1661,7 +1663,7 @@ class TLog_Section(Log_Section, metaclass=ABCMeta):
         return output
 
 
-class Subbeam(TLog_Section):
+class Subbeam(TlogSection):
     """Data structure for trajectory log "subbeams". Only applicable for auto-sequenced beams.
 
     Attributes
@@ -1698,26 +1700,32 @@ class Subbeam(TLog_Section):
 
     @property
     def gantry_angle(self):
+        """Median gantry angle of the subbeam."""
         return self._get_metadata_axis('gantry')
 
     @property
     def collimator_angle(self):
+        """Median collimator angle of the subbeam."""
         return self._get_metadata_axis('collimator')
 
     @property
     def jaw_x1(self):
+        """Median X1 position of the subbeam."""
         return self._get_metadata_axis('jaws', 'x1')
 
     @property
     def jaw_x2(self):
+        """Median X2 position of the subbeam."""
         return self._get_metadata_axis('jaws', 'x2')
 
     @property
     def jaw_y1(self):
+        """Median Y1 position of the subbeam."""
         return self._get_metadata_axis('jaws', 'y1')
 
     @property
     def jaw_y2(self):
+        """Median Y2 position of the subbeam."""
         return self._get_metadata_axis('jaws', 'y2')
 
     def _get_metadata_axis(self, attr, subattr=None):
@@ -1780,7 +1788,7 @@ class SubbeamHandler:
         return self.subbeams[item]
 
 
-class Tlog_Header(TLog_Section):
+class TlogHeader(TlogSection):
     """A header object, one of 4 sections of a trajectory log. Holds sampling interval, version, etc.
 
     Attributes
@@ -1833,7 +1841,7 @@ class Tlog_Header(TLog_Section):
         return self, self._cursor
 
 
-class Dlog_Header(DLog_Section):
+class DlogHeader(DlogSection):
     """The Header section of a dynalog file.
 
     Attributes
@@ -1864,7 +1872,7 @@ class Dlog_Header(DLog_Section):
         return self, self._log_content
 
 
-class Dlog_Axis_Data(DLog_Section):
+class DlogAxisData(DlogSection):
     """Axis data for dynalogs.
 
     Attributes
@@ -1926,7 +1934,7 @@ class Dlog_Axis_Data(DLog_Section):
         jaw_y2 = HeadAxis(matrix[:, 9] / 10)
         jaw_x1 = HeadAxis(matrix[:, 10] / 10)
         jaw_x2 = HeadAxis(matrix[:, 11] / 10)
-        self.jaws = Jaw_Struct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
+        self.jaws = JawStruct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
 
         # carriages are in 100ths of mm; converted to cm.
         self.carriage_A = Axis(matrix[:, 12] / 1000)
@@ -1975,7 +1983,7 @@ class Dlog_Axis_Data(DLog_Section):
         return num_holds
 
 
-class Tlog_Axis_Data(TLog_Section):
+class TlogAxisData(TlogSection):
     """One of four data structures outlined in the Trajectory log file specification.
         Holds information on all Axes measured.
 
@@ -2031,7 +2039,7 @@ class Tlog_Axis_Data(TLog_Section):
         jaw_y2 = self._get_axis(snapshot_data, next(column), HeadAxis)
         jaw_x1 = self._get_axis(snapshot_data, next(column), HeadAxis)
         jaw_x2 = self._get_axis(snapshot_data, next(column), HeadAxis)
-        self.jaws = Jaw_Struct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
+        self.jaws = JawStruct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
 
         vrt = self._get_axis(snapshot_data, next(column), CouchAxis)
         lng = self._get_axis(snapshot_data, next(column), CouchAxis)
@@ -2043,7 +2051,7 @@ class Tlog_Axis_Data(TLog_Section):
         else:
             rol = None
             pit = None
-        self.couch = Couch_Struct(vrt, lng, lat, rtn, rol, pit)
+        self.couch = CouchStruct(vrt, lng, lat, rtn, rol, pit)
 
         self.mu = self._get_axis(snapshot_data, next(column), BeamAxis)
 
@@ -2100,7 +2108,7 @@ class Tlog_Axis_Data(TLog_Section):
                          actual=snapshot_data[:, column + 1])
 
 
-class CRC(TLog_Section):
+class CRC(TlogSection):
     """The last data section of a Trajectory log. Is a 2 byte cyclic redundancy check (CRC), specifically
         a CRC-16-CCITT. The seed is OxFFFF."""
     def __init__(self, log_content, cursor):

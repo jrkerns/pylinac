@@ -99,9 +99,13 @@ Or::
     log2 = MachineLog()
     log2.load(log_path)
 
-Or load a log from a UI dialog box::
+There are also ways to load logs from other sources. For example, load a log from a UI dialog box::
 
     log = MachineLog.from_UI()
+
+Or load from a URL::
+
+    log = MachineLog.from_url('http://myserver.com/logs/1')
 
 Pylinac will automatically infer the log type and load it into data structures for analysis.
 
@@ -111,202 +115,244 @@ Working with the Data
 Working with the log data is straightforward once the data structures and Axes are understood
 (See :ref:`log_concepts` for more info). Pylinac follows the data structures specified by Varian for
 trajectory logs, with a *Header* and *Axis Data* structure, and possibly a *Subbeams* structure if
-the log is a Trajectory log and was autosequenced. For accessible attributes, see :class:`MachineLog`.
-Let's get started by loading a log and looking at some info::
+the log is a Trajectory log and was autosequenced. For accessible attributes, see :class:`MachineLog`. The
+following sections explore each major section of log data and the data structures pylinac creates to assist
+in data analysis.
 
-    >>> from pylinac import MachineLog
-    >>> log = MachineLog()
-    >>> log.is_loaded  # is a log loaded?
-    False
-    >>> log.load_demo_dynalog() # better load one then
-    >>> log.log_type
-    'Dynalog'
+.. note:: It may be helpful to also read the log specification format in parallel with this guide. It is easier to
+ see that pylinac follows the log specifications and where the info comes from. Log specifications are on MyVarian.com.
 
-    >>> log.report_basic_parameters()
-    MLC log type: Dynalog
-    Average RMS of all leaves: 0.074 cm
-    Max RMS error of all leaves: 0.076 cm
-    95th percentile error: 0.088 cm
-    Number of beam holdoffs: 20
-    Gamma pass %: 99.83
-    Gamma average: 0.021
+Working with the Header
+^^^^^^^^^^^^^^^^^^^^^^^
 
-Let's explore the header::
+Header information is essentially anything that isn't axis measurement data; it's metadata about the file, format,
+machine configuration, etc. Because of the different file formats, there are separate classes for Trajectory log and
+Dynalog headers. The classes are:
 
-    >>> log.header
-    <__main__.Dlog_Header at 0x8fba450>
-    >>> log.header.num_mlc_leaves
-    120
-    >>> log.header.clinac_scale  # 0-> Varian; 1-> IEC 60601-2-1
-    ['1']
+    * :class:`~pylinac.log_analyzer.TlogHeader`
+    * :class:`~pylinac.log_analyzer.DlogHeader`
 
-Now, the axis data (see :class:`~pylinac.log_analyzer.Axis` for more info on methods & properties)::
+Header attributes are listed in the class API docs by following the above links. For completeness they are also listed
+here. For Trajectory logs:
 
-    >>> log.axis_data.gantry.moved  # did the gantry move during delivery?
-    False
-    >>> log.axis_data.gantry.actual[0]  # actual gantry angle of the first snapshot in degrees
-    180.0
-    >>> log.axis_data.jaws.x2.moved  # jaw data are under the 'jaws' structure
-    False
+    * :attr:`~pylinac.log_analyzer.TlogHeader.header`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.version`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.header_size`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.sampling_interval`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.num_axes`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.axis_enum`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.samples_per_axis`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.num_mlc_leaves`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.axis_scale`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.num_subbeams`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.is_truncated`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.num_snapshots`
+    * :attr:`~pylinac.log_analyzer.TlogHeader.mlc_model`
 
-MLC data is within the axis data::
+For Dynalogs the following header information is available:
 
-    >>> log.axis_data.mlc.num_leaves  # specified in header, but also a property here
-    120
-    >>> log.axis_data.mlc.num_moving_leaves
-    60
-    >>> log.axis_data.mlc.leaf_axes[1]
-    <__main__.Leaf_Axis at 0x8fba710>
-    >>> log.axis_data.num_snapshots  # number of snapshots recorded
+    * :attr:`~pylinac.log_analyzer.DlogHeader.version`
+    * :attr:`~pylinac.log_analyzer.DlogHeader.patient_name`
+    * :attr:`~pylinac.log_analyzer.DlogHeader.plan_filename`
+    * :attr:`~pylinac.log_analyzer.DlogHeader.tolerance`
+    * :attr:`~pylinac.log_analyzer.DlogHeader.num_mlc_leaves`
+    * :attr:`~pylinac.log_analyzer.DlogHeader.clinac_scale`
+
+.. rubric:: Example
+
+Let's explore the header of the demo trajectory log::
+
+    >>> tlog = MachineLog.from_demo_trajectorylog()
+    >>> tlog.header.header
+    'VOSTL'
+    >>> tlog.header.version
+    2.1
+    >>> tlog.header.num_subbeams
+    2
+
+Working with Axis Data
+^^^^^^^^^^^^^^^^^^^^^^
+
+Axis data is all the information relating to the measurements of the various machine axes and is accessible
+under the :attr:`~pylinac.log_analyzer.MachineLog.axis_data` attribute. This includes the gantry,
+collimator, MLCs, etc. Trajectory logs capture more information than Dynalogs, and additionally hold the expected
+positions not only for MLCs but also for all axes. Every measurement axis has :class:`~pylinac.log_analyzer.Axis` as
+its base; they all have similar methods to access and plot the data (see :ref:`plotting`). However, not all attributes
+are axes. Pylinac adds properties to the axis data structure for ease of use (e.g. the number of snapshots)
+For Trajectory logs the following attributes are available,
+based on the :class:`~pylinac.log_analyzer.TlogAxisData` class:
+
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.collimator`
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.gantry`
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.jaws`
+
+      .. note::
+            The ``jaws`` attribute is a data structure to hold all 4 jaw axes; see
+            :class:`~pylinac.log_analyzer.JawStruct`
+
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.couch`
+
+      .. note::
+            The ``couch`` attribute is a data structure to hold lateral, longitudinal, etc couch positions; see
+            :class:`~pylinac.log_analyzer.CouchStruct`
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.mu`
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.beam_hold`
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.control_point`
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.carriage_A`
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.carriage_B`
+    * :attr:`~pylinac.log_analyzer.TlogAxisData.mlc`
+
+      .. note::
+        The ``mlc`` attribute is a data structure to hold leaf information; see
+        :class:`~pylinac.log_analyzer.MLC` for attributes and the :ref:`mlc` section for more info.
+
+Dynalogs have similar attributes, derived from the :class:`~pylinac.log_analyzer.DlogAxisData` class:
+
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.collimator`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.gantry`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.jaws`
+
+      .. note::
+        The ``jaws`` attribute is a data structure to hold all 4 jaw axes; see
+        :class:`~pylinac.log_analyzer.JawStruct`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.num_snapshots`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.mu`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.beam_hold`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.beam_on`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.previous_segment_num`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.previous_dose_index`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.next_dose_index`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.carriage_A`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.carriage_B`
+    * :attr:`~pylinac.log_analyzer.DlogAxisData.mlc`
+
+      .. note::
+        The ``mlc`` attribute is a data structure to hold leaf information; see
+        :class:`~pylinac.log_analyzer.MLC` for attributes and the :ref:`mlc` section for more info.
+
+.. rubric:: Example
+
+Let's access a few axis data attributes::
+
+    >>> log = MachineLog.from_demo_dynalog()
+    >>> log.axis_data.mu.actual  # a numpy array
+    array([  0, 100, ...
+    >>> log.axis_data.num_snapshots
     99
-    >>> log.axis_data.mlc.num_snapshots  # the snapshots used for MLC RMS & Fluence calcs (where beam was on)
-    21
-    >>> log.axis_data.mlc.hdmlc
+    >>> log.axis_data.gantry.actual
+    array([ 180, 180, 180, ...
+
+.. _mlc:
+
+Working with MLC Data
+^^^^^^^^^^^^^^^^^^^^^
+
+Although MLC data is acquired and included in Trajectory logs and Dynalogs, it is not always easy to parse. Additionally,
+a physicist may be interested in the MLC metrics of a log (RMS, etc). Pylinac provides tools for accessing MLC raw data as
+well as helper methods and properties via the :class:`~pylinac.log_analyzer.MLC` class. Note that this class is consistent
+between Trajectory logs and Dynalogs. This class is reachable through the :attr:`~pylinac.log_analyzer.MachineLog.axis_data`
+attribute as ``mlc``.
+
+Accessing Leaf data
+###################
+
+Leaf data for any leaf is available under the :attr:`~pylinac.log_analyzer.MLC.leaf_axes` attribute which is a dict. The leaves are keyed
+by the leaf number and the value is an :class:`~pylinac.log_analyzer.Axis`. Example::
+
+    >>> log = MachineLog.from_demo_trajectorylog()
+    >>> log.axis_data.mlc.leaf_axes[1].actual  # numpy array of the 'actual' values for leaf #1
+    array([ 7.56374, ...
+    >>> log.axis_data.mlc.leaf_axes[84].difference  # actual values minus the planned values for leaf 84
+    array([-0.001966, ...
+
+MLC helper methods/properties
+#############################
+
+Beyond direct MLC data, pylinac provides a number of helper methods and properties to make working with MLC data easier
+and more helpful. All the methods are listed in the :class:`~pylinac.log_analyzer.MLC` class, but some examples of use
+are given here::
+
+    >>> log = MachineLog.from_demo_dynalog()
+    >>> log.axis_data.mlc.get_error_percentile(percentile=95)  # get an MLC error percentile value
+    0.08847
+    >>> log.axis_data.mlc.leaf_moved(12)  # did leaf 12 move during treatment?
     False
+    >>> log.axis_data.mlc.get_RMS_avg()  # get the average RMS error
+    0.03733
+    >>> log.axis_data.mlc.get_RMS_avg('A')  # get the average RMS error for bank A
+    0.03746
+    >>> log.axis_data.mlc.num_leaves  # the number of MLC leaves
+    120
+    >>> log.axis_data.mlc.num_moving_leaves  # the number of leaves that moved during treatment
+    60
 
-Trust but Verify
-----------------
+.. _fluences:
 
-Log data is meant to be easily extracted and easy to use with other scripts or programs you may have. However, a good physicist
-always wants to verify that their data is correct, and pylinac is no different. Virtually every data unit recorded is an
-:class:`~pylinac.log_analyzer.Axis`, which means it is plottable. Furthermore, fluences are also able to be calculated and viewed for
-verification. Let's load the trajectory log demo file and start exploring further::
+Working with Fluences
+^^^^^^^^^^^^^^^^^^^^^
 
-    >>> log = MachineLog()
-    >>> log.load_demo_trajectorylog()
+Fluences created by the MLCs can also be accessed and viewed. Fluences are accessible under the :class:`~pylinac.log_analyzer.MachineLog.fluence`
+attribute. There are three subclasses that handle the fluences:
+The fluence actually delivered is in :class:`~pylinac.log_analyzer.ActualFluence`, the fluence planned is in
+:class:`~pylinac.log_analyzer.ExpectedFluence`, and the gamma of the fluences is in :class:`~pylinac.log_analyzer.GammaFluence`.
+Each fluence must be calculated, however pylinac makes reasonable defaults and has a few shortcuts. The actual and
+expected fluences can be calculated to any resolution in the leaf-moving direction. Some examples::
 
-Let's look at the gantry actual value::
+    >>> log = MachineLog.from_demo_dynalog()
+    >>> log.fluence.actual.calc_map()  # calculate the actual fluence; returns a numpy array
+    array([ 0, 0, ...
+    >>> log.fluence.expected.calc_map(resolution=1)  # calculate at 1mm resolution
+    array([ 0, 0, ...
+    >>> log.fluence.gamma.calc_map(distTA=0.5, doseTA=1, resolution=0.1)
+    array([ 0, 0, ...
+    >>> log.fluence.gamma.pass_prcnt  # the gamma passing percentage
+    99.82
+    >>> log.fluence.gamma.avg_gamma  # the average gamma value
+    0.0208
 
-    >>> log.axis_data.gantry.plot_actual()
+.. _plotting:
 
-.. raw:: html
-    :file: images/logs/gantry_actual.html
+Plotting & Saving Axes/Fluences
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-That's not particularly interesting; perhaps we should check that there was no difference between the actual and expected value::
+Each and every axis of the log can be accessed as a numpy array and/or plotted.
+For each axis the "actual" array/plot is always available. Dynalogs only have expected values for the MLCs.
+Trajectory logs have the actual and expected values for all axes. Additionally, if an axis has actual and
+expected arrays, then the difference is also available.
 
-    >>> log.axis_data.gantry.plot_difference()
+Example of plotting the MU actual::
 
-.. raw:: html
-    :file: images/logs/gantry_difference.html
-
-Here's something interesting. The difference between expected and actual is greatest when the gantry starts and stops moving. But,
-notice that the difference is *positive* when the gantry starts moving--until right at the end, the gantry is leading rather than
-lagging! [#leadlag]_
-
-Let's now take a look at MU::
-
-    >>> log.axis_data.mu.plot_actual()
+    log = MachineLog.from_demo_trajectorylog()
+    log.axis_data.mu.plot_actual()
 
 .. raw:: html
     :file: images/logs/tlog_mu_actual.html
 
-Now, the difference::
+Plot the Gantry difference::
 
-    >>> log.axis_data.mu.plot_difference()
+    log.axis_data.gantry.plot_difference()
 
-.. raw:: html
-    :file: images/logs/tlog_mu_difference.html
+Now lets plot fluences::
 
-As you can see, pylinac could be very helpful in diagnosing errors or problems with various axes. E.g. based on questionable RMS
-performance, a loose MLC leaf could be examined by examining the difference using the methods shown.
-
-Let's move on and look at/calculate fluences::
-
-    >>> log.fluence.actual  # actual, expected, and gamma are all under the 'fluence' structure
-    <__main__.ActualFluence at 0x8fbaef0>
-    >>> log.fluence.actual.map_calced  # Is the map calculated yet?
-    False
-    >>> log.fluence.actual.calc_map(resolution=0.1)  # let's calculate it
-    >>> log.fluence.actual.plot_map()  # and then plot it
+    log.fluence.actual.plot_map()
+    log.fluence.gamma.plot_map()
 
 .. image:: images/logs/tlog_actual_fluence.png
 
-The same can be done for the expected fluence.
-
-The gamma map can be calculated without having to calculate the actual and expected maps beforehand; however, if they have been and the
-conditions are the same, they will not be recalculated. The maps are semi-lazy properties, and will not recalculate if passed the same
-conditions, thus saving calculation some time::
-
-    >>> log.fluence.gamma.calc_map(resolution=0.1)  # won't recalc ``actual`` since resolution is the same (see above); will automatically
-    calc
-    expected at 0.1mm
-    >>> log.fluence.gamma.calc_map(resolution=0.2)  # will recalculate both at given resolution
-    >>> log.fluence.gamma.calc_map(resolution=0.2, doseTA=2)  # will recalc because dose-to-agreement is different
-    >>> log.fluence.gamma.calc_map()  # let's go back to the default
-    >>> log.fluence.gamma.avg_gamma
-    0.0016321959397489856
-    >>> log.fluence.gamma.pass_prcnt
-    100.0
-    >>> log.fluence.gamma.doseTA  # see gamma.calc_map() parameters
-    1
-    >>> log.fluence.gamma.threshold  # the threshold dose percent value not included in the gamma calculation
-    10
-
-Finally, let's take a look at that gamma map::
-
-    >>> log.fluence.gamma.plot_map()
-
 .. image:: images/logs/log_gamma.png
 
-.. [#leadlag] The beam isn't on during the gantry movement, so it's not as interesting as it could be, but it's still noteworthy.
 
-Plotting Axes
--------------
-
-Each and every axis of the log can be accessed as a numpy array, plotted, and even plotted interactively.
-For each axis, the actual, expected, and difference can be accessed. Dynalogs don't have expected values for anything
-but the MLCs, so there are inherent limitations.
-
-For Trajectory logs the axes include:
-    * Collimator
-    * Gantry
-    * Jaws (X1, X2, Y1, Y2)
-    * Couch (Vertical, Lateral, Longitudinal, Rotation, Pitch, Roll)
-    * MU
-    * Beam hold state
-    * Control Point
-    * MLC positions
-
-For Dynalogs the axes include:
-    * MU (relative)
-    * Previous segment number
-    * Beam hold state
-    * Previous dose index
-    * Next dose index
-    * Gantry
-    * Collimator
-    * Jaws (X1, X2, Y1, Y2)
-    * Carriage A
-    * Carriage B
-    * MLC positions
-
-Let's look at an example::
-
-    from pylinac import MachineLog
-
-    log = MachineLog.from_demo_trajectorylog()
-    gantry_array = log.axis_data.gantry.actual  # numpy array
-    log.axis_data.mu.plot_actual()  # matplotlib figure
-
-.. image:: images/logs/log_mu_actual.png
-
-Or plot the figure interactively::
-
-    log.axis_data.mu.plot_actual(interactive=True)
-    # note the home/pan/zoom tools in the figure below
-
-.. raw:: html
-    :file: images/logs/tlog_mu_actual.html
-
-
-Converting Trajectory logs
---------------------------
+Converting Trajectory logs to CSV
+---------------------------------
 
 If you already have the log files, you obviously have a record of treatment. However, trajectory logs are in binary
 format and are not easily readable without tools like pylinac. You can save trajectory logs in a more readable format
 through the :meth:`~pylinac.log_analyzer.MachineLog.to_csv()` method. This will write the log to a comma-separated
 variable (CSV) file, which can be read with Excel and many other programs. You can do further or specialized analysis
-with the CSV files if you wish, without having to use pylinac.
+with the CSV files if you wish, without having to use pylinac::
+
+    log = MachineLog.from_demo_trajectorylog()
+    log.to_csv()
 
 Batch Processing
 ----------------
@@ -350,24 +396,28 @@ API Documentation
 
 .. autoclass:: pylinac.log_analyzer.MLC
 
-.. autoclass:: pylinac.log_analyzer.Dlog_Header
+.. autoclass:: pylinac.log_analyzer.DlogHeader
 
-.. autoclass:: pylinac.log_analyzer.Dlog_Axis_Data
+.. autoclass:: pylinac.log_analyzer.DlogAxisData
 
-.. autoclass:: pylinac.log_analyzer.Tlog_Header
+.. autoclass:: pylinac.log_analyzer.TlogHeader
 
-.. autoclass:: pylinac.log_analyzer.Tlog_Axis_Data
+.. autoclass:: pylinac.log_analyzer.TlogAxisData
 
 .. autoclass:: pylinac.log_analyzer.SubbeamHandler
 
 .. autoclass:: pylinac.log_analyzer.Subbeam
 
-.. autoclass:: pylinac.log_analyzer.Fluence_Struct
+.. autoclass:: pylinac.log_analyzer.FluenceStruct
 
 .. autoclass:: pylinac.log_analyzer.Fluence
 
+.. autoclass:: pylinac.log_analyzer.ActualFluence
+
+.. autoclass:: pylinac.log_analyzer.ExpectedFluence
+
 .. autoclass:: pylinac.log_analyzer.GammaFluence
 
-.. autoclass:: pylinac.log_analyzer.Jaw_Struct
+.. autoclass:: pylinac.log_analyzer.JawStruct
 
-.. autoclass:: pylinac.log_analyzer.Couch_Struct
+.. autoclass:: pylinac.log_analyzer.CouchStruct
