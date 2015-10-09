@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """The VMAT module consists of the class VMAT, which is capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
-images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS) and MLC speed (MLCS) tests.
+images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS)
+and Dose-Rate & MLC speed (DRMLC) tests.
 
 Features:
 
@@ -9,21 +10,27 @@ Features:
 * **Automatic identification using file names** - If your file names are clear, the image type and test type don't even
   have to be specified; just load and analyze.
 """
-import os.path as osp
 from io import BytesIO
+import os.path as osp
 import zipfile
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 from pylinac.core.decorators import value_accept, type_accept
-from pylinac.core.image import Image
 from pylinac.core.geometry import Point, Rectangle
+from pylinac.core.image import Image
 from pylinac.core.io import get_filepath_UI, get_filenames_UI
-from pylinac.core.utilities import typed_property, get_url
+from pylinac.core.profile import SingleProfile
+from pylinac.core.utilities import typed_property, get_url, import_mpld3
 
-test_types = {'DRGS': 'drgs', 'MLCS': 'mlcs', 'DRMLC': 'drmlc'}
-im_types = {'OPEN': 'open', 'DMLC': 'dmlc'}
+# test types
+DRGS = 'drgs'
+DRMLC = 'drmlc'
+# image types
+DMLC = 'dmlc'
+OPEN = 'open'
+PROFILE = 'profile'
 
 # ROI settings according to Varian
 DRGS_SETTINGS = {'X-plane offsets (mm)': (-60, -40, -20, 0, 20, 40, 60)}
@@ -54,7 +61,7 @@ class VMAT:
             >>> open_img = "C:/QA Folder/VMAT/open_field.dcm"
             >>> dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
             >>> myvmat = VMAT((open_img, dmlc_img))
-            >>> myvmat.analyze(test='mlcs', tolerance=1.5)
+            >>> myvmat.analyze(test='drmlc', tolerance=1.5)
             >>> print(myvmat.return_results())
             >>> myvmat.plot_analyzed_image()
     """
@@ -78,7 +85,7 @@ class VMAT:
         fs = get_filenames_UI()
         self.load_images(fs)
 
-    @value_accept(im_type=im_types)
+    @value_accept(im_type=(OPEN, DMLC))
     def load_image_UI(self, im_type='open'):
         """Open a UI file browser to load dicom image.
 
@@ -96,7 +103,7 @@ class VMAT:
         if fs:  # if user didn't hit cancel
             self.load_image(fs, im_type=im_type)
 
-    @value_accept(im_type=im_types)
+    @value_accept(im_type=(OPEN, DMLC))
     def load_image(self, file_path, im_type=None):
         """Load the image directly by the file path.
 
@@ -131,10 +138,10 @@ class VMAT:
 
     def _try_to_guess_test(self, name):
         # try to determine test type
-        if 'drmlc' in name.lower():
-            self.settings.test_type = 'drmlc'
-        elif 'drgs' in name.lower():
-            self.settings.test_type = 'drgs'
+        if DRMLC in name.lower():
+            self.settings.test_type = DRMLC
+        elif DRGS in name.lower():
+            self.settings.test_type = DRGS
 
     def load_images(self, images, names=None):
         """Load both images simultaneously, assuming a clear name convention:
@@ -160,10 +167,10 @@ class VMAT:
                 name = names[idx]
             else:
                 name = image
-            if 'open' in name.lower():
-                im_type = 'open'
-            elif 'dmlc' in name.lower():
-                im_type = 'dmlc'
+            if OPEN in name.lower():
+                im_type = OPEN
+            elif DMLC in name.lower():
+                im_type = DMLC
             else:
                 raise ValueError("Could not determine which image was open and DMLC; image names must have 'open' or 'dmlc' in the names when using `load_images()`")
             self.load_image(image, im_type=im_type)
@@ -182,13 +189,13 @@ class VMAT:
         obj.load_demo_image(type=type)
         return obj
 
-    @value_accept(type=test_types)
+    @value_accept(type=(DRGS, DRMLC))
     def load_demo_image(self, type='drgs'):
         """Load the demo DICOM images from demo files folder.
 
         Parameters
         ----------
-        type : {'drgs', 'mlcs'}
+        type : {'drgs', 'drmlc'}
             Test type of images to load.
         """
         demo_folder = osp.join(osp.dirname(osp.abspath(__file__)), "demo_files", 'vmat')
@@ -200,9 +207,6 @@ class VMAT:
             im_dmlc_path = osp.join(demo_folder, 'DRGS_dmlc.dcm')
 
         self.load_images((im_open_path, im_dmlc_path))
-
-        # self.load_image(im_open_path, im_type=im_types['OPEN'])
-        # self.load_image(im_dmlc_path, im_type=im_types['DMLC'])
 
     @classmethod
     def from_zip(cls, path):
@@ -267,7 +271,7 @@ class VMAT:
         self.plot_analyzed_image()
 
     @type_accept(test=str, x_offset=int)
-    @value_accept(test=test_types, tolerance=(0, 8))
+    @value_accept(test=(DRMLC, DRGS), tolerance=(0, 8))
     def analyze(self, test=None, tolerance=1.5, x_offset=0):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
@@ -337,36 +341,110 @@ class VMAT:
         """Returns whether all the segment ratios passed the given tolerance."""
         return self.segments.passed
 
-    @value_accept(image=('dmlc', 'open'))
-    def plot_analyzed_image(self, image='dmlc', show=True):
-        """Plot
+    def plot_analyzed_image(self, show=True):
+        """Plot the analyzed images. Shows the open and dmlc images with the segments drawn; also plots the median
+        profiles of the two images for visual comparison.
 
         Parameters
         ----------
-        image : {'dmlc', 'open'}
-            Which image to plot over.
         show : bool
             Whether to actually show the image.
         """
-        if image == 'dmlc':
-            img = self.image_dmlc
-        elif image == 'open':
-            img = self.image_open
-
-        dpi = getattr(img, 'dpi', 96)
-        fig, ax = plt.subplots(dpi=dpi*2)
-        plt.axis('off')
-        plt.title(image.upper() + " Image")
-        ax.imshow(img, cmap=plt.cm.Greys)
-        self.segments.draw(ax)
+        fig, axes = plt.subplots(ncols=3)
+        for subimage, axis in zip((OPEN, DMLC, PROFILE), axes):
+            self.plot_analyzed_subimage(subimage=subimage, ax=axis, show=False)
 
         if show:
             plt.show()
 
-    def save_analyzed_image(self, filename, image='dmlc', **kwargs):
-        """Save the analyzed images."""
-        self.plot_analyzed_image(image, show=False)
+    def save_analyzed_image(self, filename, **kwargs):
+        """Save the analyzed images as a png file.
+
+        Parameters
+        ----------
+        filename : str, file-object
+            Where to save the file to.
+        kwargs
+            Passed to matplotlib.
+        """
+        self.plot_analyzed_image(show=False)
         plt.savefig(filename, **kwargs)
+
+    @value_accept(subimage=(DMLC, OPEN, PROFILE))
+    def plot_analyzed_subimage(self, subimage='dmlc', show=True, ax=None):
+        """Plot an individual piece of the VMAT analysis.
+
+        Parameters
+        ----------
+        subimage : str
+            Specifies which image to plot.
+        show : bool
+            Whether to actually plot the image.
+        ax : matplotlib Axes, None
+            If None (default), creates a new figure to plot to, otherwise plots to the given axes.
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        # plot DMLC or OPEN image
+        if subimage in (DMLC, OPEN):
+            if subimage == DMLC:
+                img = self.image_dmlc
+            elif subimage == OPEN:
+                img = self.image_open
+            ax.imshow(img, cmap=plt.cm.Greys)
+            self.segments.draw(ax)
+
+        # plot profile
+        elif subimage == PROFILE:
+            dmlc_prof, open_prof = self.median_profiles
+            ax.plot(dmlc_prof.values)
+            ax.plot(open_prof.values)
+            ax.autoscale(axis='x', tight=True)
+            ax.grid()
+
+        if show:
+            plt.show()
+
+    def save_analyzed_subimage(self, filename, subimage='dmlc', interactive=False, **kwargs):
+        """Save a subplot to file.
+
+        Parameters
+        ----------
+        filename : str, file-object
+            Where to save the file to.
+        subimage : str
+            Which subplot to save.
+        interactive : bool
+            Only applicable for the profile subplot. If False, saves as a .png image, else saves as an interactive
+            HTML file.
+        kwargs
+            Passed to matplotlib.
+        """
+        self.plot_analyzed_subimage(subimage, show=False)
+        if interactive and (subimage == PROFILE):
+            mpld3 = import_mpld3()
+            mpld3.save_html(plt.gcf(), filename)
+        else:
+            plt.savefig(filename, **kwargs)
+
+    @property
+    def median_profiles(self):
+        """Return two median profiles from the open and dmlc image. For visual comparison."""
+        # dmlc median profile
+        dmlc_prof = SingleProfile(np.median(self.image_dmlc, axis=0))
+        dmlc_prof.stretch()
+        # open median profile
+        open_prof = SingleProfile(np.median(self.image_open, axis=0))
+        open_prof.stretch()
+
+        # normalize the profiles to near the same value
+        norm_val = np.percentile(dmlc_prof.values, 90)
+        dmlc_prof.normalize(norm_val)
+        norm_val = np.percentile(open_prof.values, 90)
+        open_prof.normalize(norm_val)
+
+        return dmlc_prof, open_prof
 
     def return_results(self):
         """A string of the summary of the analysis results.
@@ -570,16 +648,16 @@ class Settings:
 
 
 def _is_open_type(image_type):
-    return _x_in_y(image_type, 'open')
+    return _x_in_y(image_type, OPEN)
 
 def _is_dmlc_type(image_type):
-    return _x_in_y(image_type, 'dmlc')
+    return _x_in_y(image_type, DMLC)
 
 def _test_is_drgs(test):
-    return _x_in_y(test, 'drgs')
+    return _x_in_y(test, DRGS)
 
 def _test_is_mlcs(test):
-    return _x_in_y(test, ('mlcs', 'drmlc'))
+    return _x_in_y(test, DRMLC)
 
 def _x_in_y(x, y):
     if x.lower() in y:
