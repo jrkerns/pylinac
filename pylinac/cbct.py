@@ -15,7 +15,7 @@ Features:
 """
 import os.path as osp
 import zipfile
-from io import BytesIO
+from io import BytesIO, StringIO
 from functools import lru_cache
 from collections import OrderedDict
 from abc import abstractmethod
@@ -373,7 +373,8 @@ class CBCT:
             mpld3.save_html(plt.gcf(), filename)
         else:
             plt.savefig(filename, **kwargs)
-        print("CBCT subimage figure saved to {}".format(osp.abspath(filename)))
+        if isinstance(filename, str):
+            print("CBCT subimage figure saved to {}".format(osp.abspath(filename)))
 
     def return_results(self):
         """Return the results of the analysis as a string. Use with print()."""
