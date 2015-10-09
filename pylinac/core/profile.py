@@ -403,6 +403,36 @@ class SingleProfile:
         elif kind == 'gaussian':
             self.values = ndimage.gaussian_filter(self.values, sigma=size)
 
+    def normalize(self, norm_val='max'):
+        """Normalize the profile to the given value.
+
+        Parameters
+        ----------
+        norm_val : str, number
+            If a string, must be 'max', which normalizes the values to the maximum value.
+            If a number, normalizes all values to that number.
+        """
+        if norm_val == 'max':
+            val = self.values.max()
+        else:
+            val = norm_val
+        self.values /= val
+
+    def stretch(self, min=0, max=1):
+        """'Stretch' the profile to the min and max parameter values.
+
+        Parameters
+        ----------
+        min : number
+            The new minimum of the values
+        max : number
+            The new maximum value.
+        """
+        old_min = self.values.min()
+        old_max = self.values.max()
+        old_range = old_max - old_min
+        self.values = max - (((max - min) * (old_max - self.values)) / old_range)
+
 
 class MultiProfile:
     """A class for analyzing 1-D profiles that contain multiple signals. Methods are mostly for *finding & filtering*
