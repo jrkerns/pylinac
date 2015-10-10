@@ -199,7 +199,7 @@ class PicketFence:
         path_list : iterable
             An iterable of path locations to the files to be loaded/combined.
         """
-        self.image = Image.from_multiples(path_list, method='sum')
+        self.image = Image.from_multiples(path_list, method='mean')
         self._check_for_noise()
         self.image.check_inversion()
 
@@ -394,7 +394,8 @@ class PicketFence:
             mpld3.save_html(plt.gcf(), filename)
         else:
             plt.savefig(filename, **kwargs)
-        print("Picket fence image saved to: {}".format(osp.abspath(filename)))
+        if isinstance(filename, str):
+            print("Picket fence image saved to: {}".format(osp.abspath(filename)))
 
     def return_results(self):
         """Return results of analysis. Use with print()."""
