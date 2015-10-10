@@ -24,13 +24,19 @@ class GeneralTests(unittest.TestCase):
         with self.assertRaises(AttributeError):
             star.analyze()
 
-    def test_save_image(self):
+    def test_save_analyzed_image(self):
         """Test that saving an image does something."""
-        save_file('test.jpg', self.star.save_analyzed_image)
+        save_file(self.star.save_analyzed_image)
+
+    def test_save_analyzed_subimage(self):
+        # save as normal file
+        save_file(self.star.save_analyzed_subimage)
+        # save into buffer
+        save_file(self.star.save_analyzed_subimage, as_file_object='b')
 
     def test_from_url(self):
         url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/10X_collimator_dvTK5Jc.jpg'
-        star = Starshot.from_url(url)  # shouldn't raise
+        Starshot.from_url(url)  # shouldn't raise
 
 
 class StarMixin:

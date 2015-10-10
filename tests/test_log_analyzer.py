@@ -69,10 +69,7 @@ class TestLogPlottingSaving(TestCase):
     dlog = MachineLog.from_demo_dynalog()
 
     def test_save_tlog_to_csv(self):
-            # save *with* a filename
-            save_file('tester.csv', self.tlog.to_csv)
-            # save *without* a filename
-            # save_file(None, self.tlog.to_csv)
+        save_file(self.tlog.to_csv)
 
     def test_plot_axes(self):
         for methodname in ('plot_actual', 'plot_expected', 'plot_difference'):
@@ -83,11 +80,10 @@ class TestLogPlottingSaving(TestCase):
         for methodname in ('save_plot_actual', 'save_plot_expected', 'save_plot_difference'):
             # save matplotlib figures
             method = getattr(self.tlog.axis_data.gantry, methodname)
-            save_file('test.png', method)
+            save_file(method)
 
             # save MPLD3 HTML
-            method = partial(method, interactive=True)
-            save_file('test.html', method)
+            save_file(method, interactive=True, as_file_object='str')
 
     def test_fluence_plotting(self):
         # raise error if map hasn't yet been calc'ed.
@@ -99,11 +95,11 @@ class TestLogPlottingSaving(TestCase):
 
     def test_saving_fluence_plots(self):
         self.dlog.fluence.gamma.calc_map()
-        save_file('test.png', self.dlog.fluence.gamma.save_map)
+        save_file(self.dlog.fluence.gamma.save_map)
 
     def test_save_summary(self):
         self.tlog.fluence.gamma.calc_map()
-        save_file('summary.png', self.tlog.save_summary)
+        save_file(self.tlog.save_summary)
 
 
 class TestLogMixin:

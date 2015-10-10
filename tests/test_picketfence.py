@@ -1,8 +1,7 @@
 import unittest
-import time
-import os
 
 from pylinac.picketfence import PicketFence, osp, np
+from tests.utils import save_file
 
 test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
 
@@ -52,20 +51,6 @@ class PFTestMixin:
         for error in median_errors:
             self.assertAlmostEqual(error, np.mean(median_errors), delta=0.1)
 
-    def test_plotting(self):
-        self.pf.plot_analyzed_image()
-
-    def test_saving_image(self):
-        filename = 'tester.png'
-        self.pf.save_analyzed_image(filename)
-
-        time.sleep(0.1)  # sleep just to let OS work
-        self.assertTrue(osp.isfile(filename), "Save file did not successfully save the image")
-
-        # cleanup
-        os.remove(filename)
-        self.assertFalse(osp.isfile(filename), "Save file test did not clean up saved image")
-
 
 class PFDemo(PFTestMixin, unittest.TestCase):
     """Tests specifically for the EPID demo image."""
@@ -101,13 +86,17 @@ class MultipleImagesPF(PFTestMixin, unittest.TestCase):
 
 class GeneralTests(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.pf = PicketFence.from_demo_image()
+        cls.pf.analyze()
+
     def test_filter_on_load(self):
         PicketFence(osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence',
                     'EPID-PF-LR.dcm'), filter=3)
 
     def test_bad_tolerance_values(self):
-        pf = PicketFence.from_demo_image()
-        self.assertRaises(ValueError, pf.analyze, 0.2, 0.3)
+        self.assertRaises(ValueError, self.pf.analyze, 0.2, 0.3)
 
     def test_from_url(self):
         """Test getting a PF image from a URL."""
@@ -117,4 +106,11 @@ class GeneralTests(unittest.TestCase):
 
         bad_url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/AS500-UD_not_real.dcm'
         with self.assertRaises(ConnectionError):
-            pf = PicketFence.from_url(bad_url)
+            PicketFence.from_url(bad_url)  # shouldn't raise
+
+    def test_plotting(self):
+        self.pf.plot_analyzed_image()
+
+    def test_saving_image(self):
+        save_file(self.pf.save_analyzed_image)
+        save_file(self.pf.save_analyzed_image, interactive=True)

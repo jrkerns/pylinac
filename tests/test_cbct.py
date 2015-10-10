@@ -1,7 +1,5 @@
-import unittest
-import os
 import os.path as osp
-import time
+import unittest
 
 import numpy as np
 
@@ -87,13 +85,11 @@ class GeneralTests(unittest.TestCase):
 
     def test_save_image(self):
         """Test that saving an image does something."""
-        filename = 'saved_img.jpg'
-
         self.cbct.load_demo_images()
         self.cbct.analyze(hu_tolerance=10, scaling_tolerance=0.01)
         for method in ['save_analyzed_image', 'save_analyzed_subimage']:
             methodcall = getattr(self.cbct, method)
-            save_file(filename, methodcall)
+            save_file(methodcall)
 
     def test_plot_images(self):
         """Test the various plotting functions."""
