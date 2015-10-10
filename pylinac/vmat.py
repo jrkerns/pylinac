@@ -350,9 +350,12 @@ class VMAT:
         show : bool
             Whether to actually show the image.
         """
-        fig, axes = plt.subplots(ncols=3)
-        for subimage, axis in zip((OPEN, DMLC, PROFILE), axes):
+        fig, axes = plt.subplots(ncols=3, sharex=True)
+        subimages = (OPEN, DMLC, PROFILE)
+        titles = ('Open Image', 'DMLC Image', 'Median Profiles')
+        for subimage, axis, title in zip(subimages, axes, titles):
             self.plot_analyzed_subimage(subimage=subimage, ax=axis, show=False)
+            axis.set_title(title)
 
         if show:
             plt.show()
@@ -394,6 +397,8 @@ class VMAT:
                 img = self.image_open
             ax.imshow(img, cmap=plt.cm.Greys)
             self.segments.draw(ax)
+            plt.sca(ax)
+            plt.axis('off')
 
         # plot profile
         elif subimage == PROFILE:
