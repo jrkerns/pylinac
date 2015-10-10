@@ -122,7 +122,7 @@ class TestPlottingSaving(unittest.TestCase):
         # save as normal file
         save_file(self.vmat.save_analyzed_image)
         # save from buffer
-        save_file(self.vmat.save_analyzed_image, as_file_object=True)
+        save_file(self.vmat.save_analyzed_image, as_file_object='b')
 
     def test_plot_subimage(self):
         for subimage in (DMLC, OPEN, PROFILE):
