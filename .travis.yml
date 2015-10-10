@@ -25,6 +25,8 @@ install:
   - pip install pydicom
   - pip install coveralls
   - pip install watchdog
+  - pip install requests
+  - pip install mpld3
 
   # install your own package into the environment
   - python setup.py install
@@ -33,8 +35,8 @@ install:
 
 # test script
 script:
-  - python setup.py test
-#  - coverage run --source=pylinac setup.py test
+#  - python setup.py test
+  - coverage run --source=pylinac setup.py test
 
 after_success:
   coveralls
