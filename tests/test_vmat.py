@@ -1,10 +1,9 @@
 from functools import partial
-import unittest
 import os.path as osp
+import unittest
 
-from pylinac.vmat import VMAT
 from pylinac.core.geometry import Point
-
+from pylinac.vmat import VMAT, DMLC, OPEN, PROFILE, DRGS, DRMLC
 from tests.utils import save_file
 
 vmat_test_files_dir = osp.join(osp.dirname(__file__), 'test_files', 'VMAT')
@@ -21,7 +20,7 @@ class TestGeneral(unittest.TestCase):
 
     def test_analyze_without_both_images_loaded(self):
         """Raise an error if both images aren't loaded when analyzing."""
-        self.assertRaises(AttributeError, self.vmat.analyze, 'mlcs')
+        self.assertRaises(AttributeError, self.vmat.analyze, DRMLC)
         self.vmat.load_demo_image('drgs')
         self.vmat.analyze('drgs')  # shouldn't raise
 
@@ -32,14 +31,6 @@ class TestGeneral(unittest.TestCase):
         self.vmat.load_demo_image()
         self.assertTrue(self.vmat.open_img_is_loaded)
         self.assertTrue(self.vmat.dmlc_img_is_loaded)
-
-    def test_number_of_segments(self):
-        """Test that the right amount of segments are constructed based on the given test."""
-        self.vmat.load_demo_image()
-        self.vmat.analyze('drgs')
-        self.assertEqual(len(self.vmat.segments), 7)
-        self.vmat.analyze('mlcs')
-        self.assertEqual(len(self.vmat.segments), 4)
 
     def test_img_inversion(self):
         """Check that the demo images indeed get inverted."""
@@ -58,17 +49,6 @@ class TestGeneral(unittest.TestCase):
             self.vmat.analyze()
 
         # but will run when test type is passed
-        self.vmat.analyze('drmlc')
-
-    def test_loading_with_bad_names(self):
-        one = osp.join(vmat_test_files_dir, 'no_test_or_image_type_1.dcm')
-        two = osp.join(vmat_test_files_dir, 'no_test_or_image_type_2.dcm')
-        with self.assertRaises(ValueError):
-            self.vmat.load_images((one, two))
-
-        # but will work when everything is specified
-        self.vmat.load_image(one, 'open')
-        self.vmat.load_image(two, 'dmlc')
         self.vmat.analyze('drmlc')
 
     def test_failure_with_tight_tolerance(self):
@@ -94,11 +74,10 @@ class TestLoading(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.vmat.load_image(bad_name)
 
-    @unittest.skip
     def test_from_urls(self):
         urls = ['https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRGS_dmlc.dcm',
                 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRGS_open.dcm']
-        vmat = VMAT.from_urls(urls)
+        VMAT.from_urls(urls)  # shouldn't raise
 
     def test_passing_3_images(self):
         """Test passing the wrong number of images."""
@@ -108,13 +87,55 @@ class TestLoading(unittest.TestCase):
     def test_demo_image_loads(self):
         """Test the that demo images load properly."""
         # shouldn't raise
-        self.vmat.load_demo_image('drgs')
-        self.vmat.load_demo_image('mlcs')
+        self.vmat.load_demo_image(DRGS)
+        self.vmat.load_demo_image(DRMLC)
 
     def test_from_zip(self):
         path = osp.join(vmat_test_files_dir, 'DRMLC.zip')
         v = VMAT.from_zip(path)
         v.analyze()
+
+    def test_loading_with_bad_names(self):
+        one = osp.join(vmat_test_files_dir, 'no_test_or_image_type_1.dcm')
+        two = osp.join(vmat_test_files_dir, 'no_test_or_image_type_2.dcm')
+        with self.assertRaises(ValueError):
+            self.vmat.load_images((one, two))
+
+        # but will work when everything is specified
+        self.vmat.load_image(one, OPEN)
+        self.vmat.load_image(two, DMLC)
+        self.vmat.analyze(DRMLC)
+
+
+class TestPlottingSaving(unittest.TestCase):
+    """Test the plotting and plot saving methods."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.vmat = VMAT.from_demo_images()
+        cls.vmat.analyze()
+
+    def test_plot_analyzed_image(self):
+        self.vmat.plot_analyzed_image()
+
+    def test_save_analyzed_image(self):
+        # save as normal file
+        save_file(self.vmat.save_analyzed_image)
+        # save from buffer
+        save_file(self.vmat.save_analyzed_image, as_file_object=True)
+
+    def test_plot_subimage(self):
+        for subimage in (DMLC, OPEN, PROFILE):
+            self.vmat.plot_analyzed_image(subimage)
+
+    def test_save_subimage(self):
+        for subimage in (DMLC, OPEN, PROFILE):
+            save_file(self.vmat.save_analyzed_subimage, subimage)
+            save_file(self.vmat.save_analyzed_subimage, subimage, as_file_object='bytes')
+        # also do interactive
+        save_file(self.vmat.save_analyzed_subimage, PROFILE, interactive=True)
+        save_file(self.vmat.save_analyzed_subimage, PROFILE, interactive=True, as_file_object='str')
+
 
 
 class VMATMixin:
@@ -153,13 +174,6 @@ class VMATMixin:
             within_01(self.vmat.segments[key].r_dev, value['r_dev'])
             within_01(self.vmat.segments[key].r_corr, value['r_corr'])
 
-    def test_plotting(self):
-        self.vmat.plot_analyzed_image('open')
-        self.vmat.plot_analyzed_image('dmlc')
-
-    def test_saving_images(self):
-        save_file('test.png', self.vmat.save_analyzed_image)
-
     def test_deviations(self):
         self.assertAlmostEqual(self.vmat.avg_abs_r_deviation, self.avg_abs_r_deviation, delta=0.05)
         self.assertAlmostEqual(self.vmat.avg_r_deviation, self.avg_r_deviation, delta=0.02)
@@ -170,7 +184,7 @@ class TestDRGSDemo(VMATMixin, unittest.TestCase):
     """Tests of the result values of the DRGS demo images."""
     filepaths = (osp.join(vmat_demo_files_dir, 'DRGS_dmlc.dcm'),
                  osp.join(vmat_demo_files_dir, 'DRGS_open.dcm'))
-    test_type = 'drgs'
+    test_type = DRGS
     segment_positions = {0: Point(161, 192), 4: Point(314, 192)}
     segment_values = {
         0: {'r_dev': 0.965, 'r_corr': 101.85},
@@ -190,7 +204,7 @@ class TestMLCSDemo(VMATMixin, unittest.TestCase):
     """Tests of the result values of the DRMLC demo images."""
     filepaths = (osp.join(vmat_demo_files_dir, 'DRMLC_dmlc.dcm'),
                  osp.join(vmat_demo_files_dir, 'DRMLC_open.dcm'))
-    test_type = 'mlcs'
+    test_type = DRMLC
     segment_positions = {0: Point(170, 192), 2: Point(285, 192)}
     segment_values = {
         0: {'r_dev': 0.437, 'r_corr': 100.89},
@@ -208,7 +222,7 @@ class TestMLCS105(VMATMixin, unittest.TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRMLCopen-105-example.dcm'),
                  osp.join(vmat_test_files_dir, 'DRMLCdmlc-105-example.dcm'))
-    test_type = 'mlcs'
+    test_type = DRMLC
     segment_positions = {0: Point(391, 384), 2: Point(552, 384)}
     segment_values = {
         0: {'r_dev': -0.040, 'r_corr': 100.83},
@@ -223,7 +237,7 @@ class TestDRGS105(VMATMixin, unittest.TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRGSopen-105-example.dcm'),
                  osp.join(vmat_test_files_dir, 'DRGSdmlc-105-example.dcm'))
-    test_type = 'drgs'
+    test_type = DRGS
     x_offset = 20
     segment_positions = {0: Point(371, 384), 2: Point(478, 384)}
     segment_values = {
@@ -239,7 +253,7 @@ class TestMLCS2(VMATMixin, unittest.TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRMLC#2_open.dcm'),
                  osp.join(vmat_test_files_dir, 'DRMLC#2_dmlc.dcm'))
-    test_type = 'mlcs'
+    test_type = DRMLC
     segment_positions = {0: Point(199, 192), 2: Point(275, 192)}
     segment_values = {
         0: {'r_dev': 0.40, 'r_corr': 101.06},
@@ -254,7 +268,7 @@ class TestDRGS2(VMATMixin, unittest.TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRGS#2_open.dcm'),
                  osp.join(vmat_test_files_dir, 'DRGS#2_dmlc.dcm'))
-    test_type = 'drgs'
+    test_type = DRGS
     x_offset = 12
     segment_positions = {0: Point(191, 192), 2: Point(242, 192)}
     segment_values = {

@@ -265,8 +265,8 @@ class VMAT:
     @type_accept(tolerance=(int, float))
     def run_demo_mlcs(self, tolerance=1.5):
         """Run the VMAT demo for the MLC leaf speed test."""
-        self.load_demo_image('mlcs')
-        self.analyze(test='mlcs', tolerance=tolerance)
+        self.load_demo_image(DRMLC)
+        self.analyze(test=DRMLC, tolerance=tolerance)
         print(self.return_results())
         self.plot_analyzed_image()
 
