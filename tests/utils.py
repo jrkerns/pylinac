@@ -1,17 +1,20 @@
-import os.path as osp
-import time
-import os
+from tempfile import TemporaryFile
+from io import BytesIO, StringIO
 
 
-def save_file(filename, method):
+def save_file(method, *args, as_file_object=None, **kwargs):
     """Save a file using the passed method and assert it exists after saving.
     Also deletes the file after checking for existence."""
-    method(filename)
-    time.sleep(0.15)  # sleep just to let OS work
-    assert osp.isfile(filename), "Save file did not successfully save the image"
-    # cleanup
-    os.remove(filename)
-    assert not osp.isfile(filename), "Save file test did not clean up saved image"
+    if as_file_object is None:  # regular file
+        with TemporaryFile(mode='w') as tfile:
+            method(tfile, *args, **kwargs)
+    else:
+        if 'b' in as_file_object:
+            temp = BytesIO
+        elif 's' in as_file_object:
+            temp = StringIO
+        with temp() as t:
+            method(t, *args, **kwargs)
 
 
 def test_point_equality(point1, point2):
