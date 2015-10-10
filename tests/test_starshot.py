@@ -4,8 +4,8 @@ import unittest
 
 import numpy as np
 
-from pylinac.starshot import Starshot
 from pylinac.core.geometry import Point
+from pylinac.starshot import Starshot
 from tests.utils import save_file
 
 

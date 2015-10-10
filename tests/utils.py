@@ -1,5 +1,5 @@
-from tempfile import TemporaryFile
 from io import BytesIO, StringIO
+from tempfile import TemporaryFile
 
 
 def save_file(method, *args, as_file_object=None, **kwargs):

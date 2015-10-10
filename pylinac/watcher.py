@@ -1,11 +1,11 @@
 """The watcher file is a script meant to be run as an ongoing process to watch a given directory and analyzing files
 that may be moved there for certain keywords. Automatic processing will be started if the file contains the keywords."""
 
-import time
+import abc
 import logging
 import os.path as osp
 import sys
-import abc
+import time
 
 try:
     from watchdog.observers import Observer
@@ -13,10 +13,10 @@ try:
 except ImportError:
     raise ImportError("Watchdog must be installed to perform file watching.")
 
-from pylinac.starshot import Starshot
-from pylinac.picketfence import PicketFence
 from pylinac.cbct import CBCT
 from pylinac.log_analyzer import MachineLog
+from pylinac.picketfence import PicketFence
+from pylinac.starshot import Starshot
 from pylinac.vmat import VMAT
 
 logging.basicConfig(level=logging.INFO,

@@ -1,19 +1,19 @@
 from functools import partial
 import os.path as osp
-import unittest
+from unittest import TestCase
 
 from pylinac.core.geometry import Point
 from pylinac.vmat import VMAT, DMLC, OPEN, PROFILE, DRGS, DRMLC
 from tests.utils import save_file
 
-vmat_test_files_dir = osp.join(osp.dirname(__file__), 'test_files', 'VMAT')
 vmat_demo_files_dir = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'vmat')
+vmat_test_files_dir = osp.join(osp.dirname(__file__), 'test_files', 'VMAT')
 
-within_1 = partial(unittest.TestCase().assertAlmostEqual, delta=1)
-within_01 = partial(unittest.TestCase().assertAlmostEqual, delta=0.1)
+within_1 = partial(TestCase().assertAlmostEqual, delta=1)
+within_01 = partial(TestCase().assertAlmostEqual, delta=0.1)
 
 
-class TestGeneral(unittest.TestCase):
+class TestGeneral(TestCase):
     """Generic tests for VMAT class."""
     def setUp(self):
         self.vmat = VMAT()
@@ -57,7 +57,7 @@ class TestGeneral(unittest.TestCase):
         self.vmat.return_results()
 
 
-class TestLoading(unittest.TestCase):
+class TestLoading(TestCase):
     """Tests of the various loading schemas."""
 
     def setUp(self):
@@ -107,7 +107,7 @@ class TestLoading(unittest.TestCase):
         self.vmat.analyze(DRMLC)
 
 
-class TestPlottingSaving(unittest.TestCase):
+class TestPlottingSaving(TestCase):
     """Test the plotting and plot saving methods."""
 
     @classmethod
@@ -180,7 +180,7 @@ class VMATMixin:
         self.assertAlmostEqual(self.vmat.max_r_deviation, self.max_r_deviation, delta=0.1)
 
 
-class TestDRGSDemo(VMATMixin, unittest.TestCase):
+class TestDRGSDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRGS demo images."""
     filepaths = (osp.join(vmat_demo_files_dir, 'DRGS_dmlc.dcm'),
                  osp.join(vmat_demo_files_dir, 'DRGS_open.dcm'))
@@ -200,7 +200,7 @@ class TestDRGSDemo(VMATMixin, unittest.TestCase):
         self.vmat.run_demo_drgs()
 
 
-class TestMLCSDemo(VMATMixin, unittest.TestCase):
+class TestMLCSDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRMLC demo images."""
     filepaths = (osp.join(vmat_demo_files_dir, 'DRMLC_dmlc.dcm'),
                  osp.join(vmat_demo_files_dir, 'DRMLC_open.dcm'))
@@ -218,7 +218,7 @@ class TestMLCSDemo(VMATMixin, unittest.TestCase):
         self.vmat.run_demo_mlcs()
 
 
-class TestMLCS105(VMATMixin, unittest.TestCase):
+class TestMLCS105(VMATMixin, TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRMLCopen-105-example.dcm'),
                  osp.join(vmat_test_files_dir, 'DRMLCdmlc-105-example.dcm'))
@@ -233,7 +233,7 @@ class TestMLCS105(VMATMixin, unittest.TestCase):
     max_r_deviation = 0.04
 
 
-class TestDRGS105(VMATMixin, unittest.TestCase):
+class TestDRGS105(VMATMixin, TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRGSopen-105-example.dcm'),
                  osp.join(vmat_test_files_dir, 'DRGSdmlc-105-example.dcm'))
@@ -249,7 +249,7 @@ class TestDRGS105(VMATMixin, unittest.TestCase):
     max_r_deviation = 0.78
 
 
-class TestMLCS2(VMATMixin, unittest.TestCase):
+class TestMLCS2(VMATMixin, TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRMLC#2_open.dcm'),
                  osp.join(vmat_test_files_dir, 'DRMLC#2_dmlc.dcm'))
@@ -264,7 +264,7 @@ class TestMLCS2(VMATMixin, unittest.TestCase):
     max_r_deviation = -0.49
 
 
-class TestDRGS2(VMATMixin, unittest.TestCase):
+class TestDRGS2(VMATMixin, TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRGS#2_open.dcm'),
                  osp.join(vmat_test_files_dir, 'DRGS#2_dmlc.dcm'))

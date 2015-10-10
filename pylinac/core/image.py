@@ -1,28 +1,28 @@
 
 """This module holds classes for image loading and manipulation."""
+from io import BytesIO
 import os.path as osp
 import os
 import zipfile
-from io import BytesIO
 
+import dicom
 from dicom.errors import InvalidDicomError
+import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image as pImage
-import dicom
 from scipy import ndimage
 from scipy.misc import imresize
-import matplotlib.pyplot as plt
 
 from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.geometry import Point
 from pylinac.core.io import get_filepath_UI, get_filenames_UI
-from pylinac.core.utilities import typed_property
 from pylinac.core.profile import stretch as stretcharray
+from pylinac.core.utilities import typed_property
 
 
+ARRAY = 'Array'
 DICOM = 'DICOM'
 IMAGE = 'Image'
-ARRAY = 'Array'
 MM_per_INCH = 25.4
 
 

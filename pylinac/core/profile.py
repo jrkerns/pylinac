@@ -3,10 +3,10 @@ import copy
 from functools import lru_cache
 
 import numpy as np
+from matplotlib.patches import Circle as mpl_Circle
+import matplotlib.pyplot as plt
 from scipy import ndimage
 from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
-from matplotlib.patches import Circle as mpl_Circle
 
 from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Circle

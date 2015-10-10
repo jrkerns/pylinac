@@ -1,4 +1,3 @@
-from functools import partial
 import os.path as osp
 from unittest import TestCase
 

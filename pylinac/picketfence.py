@@ -13,18 +13,18 @@ Features:
 * **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
 * **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
 """
-import os.path as osp
 from functools import lru_cache
 from io import BytesIO
+import os.path as osp
 
-import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import numpy as np
 
 from pylinac.core.geometry import Line, Rectangle
+from pylinac.core.image import Image
 from pylinac.core.io import get_filepath_UI
 from pylinac.core.profile import MultiProfile, SingleProfile
-from pylinac.core.image import Image
 from pylinac.core.utilities import import_mpld3, get_url
 
 orientations = {'UD': 'Up-Down', 'LR': 'Left-Right'}  # possible orientations of the pickets. UD is up-down, LR is left-right.

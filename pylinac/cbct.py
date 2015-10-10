@@ -13,22 +13,22 @@ Features:
 * **Any scan protocol** - Scan your CatPhan 504 with any Varian protocol; or even scan it in a regular CT scanner.
   Any field size or field extent is allowed.
 """
-import os.path as osp
-import zipfile
-from io import BytesIO, StringIO
-from functools import lru_cache
-from collections import OrderedDict
 from abc import abstractmethod
+from collections import OrderedDict
+from functools import lru_cache
+from io import BytesIO
+from os import path as osp
+import zipfile
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
-import matplotlib.pyplot as plt
 
 from pylinac.core.decorators import value_accept
-from pylinac.core.image import Image, DICOMStack
 from pylinac.core.geometry import Point, Circle, sector_mask, Line, Rectangle
-from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
+from pylinac.core.image import Image, DICOMStack
 from pylinac.core.io import get_folder_UI, get_filepath_UI
+from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from pylinac.core.utilities import simple_round, import_mpld3, get_url
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.

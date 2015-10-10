@@ -1,11 +1,11 @@
 """Module for analyzing images, either film or EPID, for flatness and symmetry."""
 import os.path as osp
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
-from pylinac.core.image import Image
 from pylinac.core.decorators import type_accept
+from pylinac.core.image import Image
 from pylinac.core.io import is_valid_file
 from pylinac.core.profile import SingleProfile
 from pylinac.core.utilities import is_iterable, isnumeric

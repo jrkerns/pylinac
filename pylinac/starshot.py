@@ -20,12 +20,12 @@ Features:
 * **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
   do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
-import os.path as osp
 import copy
 from io import BytesIO
+import os.path as osp
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.optimize import differential_evolution
 
 from pylinac.core.decorators import value_accept

@@ -1,4 +1,4 @@
-import unittest
+from unittest import TestCase
 
 from pylinac.picketfence import PicketFence, osp, np
 from tests.utils import save_file
@@ -52,7 +52,7 @@ class PFTestMixin:
             self.assertAlmostEqual(error, np.mean(median_errors), delta=0.1)
 
 
-class PFDemo(PFTestMixin, unittest.TestCase):
+class PFDemo(PFTestMixin, TestCase):
     """Tests specifically for the EPID demo image."""
     im_path = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
     picket_orientation = 'Left-Right'
@@ -69,7 +69,7 @@ class PFDemo(PFTestMixin, unittest.TestCase):
         self.assertAlmostEqual(pf.percent_passing, 94, delta=1)
 
 
-class MultipleImagesPF(PFTestMixin, unittest.TestCase):
+class MultipleImagesPF(PFTestMixin, TestCase):
     """Test of a multiple image picket fence; e.g. EPID images."""
     max_error = 0.112
     abs_median_error = 0.019
@@ -84,7 +84,7 @@ class MultipleImagesPF(PFTestMixin, unittest.TestCase):
         cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
 
 
-class GeneralTests(unittest.TestCase):
+class GeneralTests(TestCase):
 
     @classmethod
     def setUpClass(cls):

@@ -1,10 +1,10 @@
-import unittest
 import os
-import subprocess
-import time
 import os.path as osp
+import subprocess
 import shutil
 import sys
+import time
+import unittest
 
 test_files_dir = osp.join(osp.dirname(osp.abspath(__file__)), 'test_files')
 watcher_dir = osp.join(test_files_dir, 'watcher')
