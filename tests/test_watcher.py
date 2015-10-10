@@ -46,6 +46,7 @@ class WatcherTest(unittest.TestCase):
     def process_file(self, filepath):
         # copy the file over to the watcher directory
         shutil.copy(filepath, watcher_dir)
+        time.sleep(1)
         new_path = osp.join(watcher_dir, osp.basename(filepath))
 
         # wait for processing to finish by checking when the .txt file is generated
