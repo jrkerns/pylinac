@@ -1,19 +1,24 @@
-V 1.0.0 - 10/9/2015
+V 1.0.0 - 10/10/2015
 
     Overview
-This release debuts the new interactive plotting for certain figures.
-Quickly, matplotlib line/bar plots (not images/arrays) can be plotted and saved in HTML using the MPLD3 library.
-This is less of interest to users doing interactive work, but this adds the ability to embed HTML plots in web pages.
-Several numpy array indexing calls were converted to ints from floats to avoid the new 1.9 numpy type-casting warnings.
+-This release debuts the new interactive plotting for certain figures.
+ Quickly, matplotlib line/bar plots (althouth not yet images/arrays) can be plotted and saved in HTML using the MPLD3 library.
+ This is less of interest to users doing interactive work, but this adds the ability to embed HTML plots in web pages.
+-Several numpy array indexing calls were converted to ints from floats to avoid the new 1.9 numpy type-casting warnings.
  This also speeds up indexing calls slightly.
 
     Picket Fence
-The analyzed image now has the option of showing a leaf error subplot beside the image. The image is aligned
-to the image such that the leaves align with the image.
+-The analyzed image now has the option of showing a leaf error subplot beside the image. The image is aligned
+ to the image such that the leaves align with the image.
 
     Starshot
-The ``plot_analyzed_image`` method has a new parameter: ``with_zoomed_img``; a boolean that, if True, will plot
-two axes; one of the zoomed out image and another zoomed in on the wobble circle.
+-Plotting the analyzed starshot image now shows both the zoomed-out image and a second, zoomed-in view of the wobble.
+-Each subplot can be plotted and saved individually.
+
+    VMAT
+-Plotting the analyzed image now shows the open and dmlc images and the segment outlines as well as a profile comparison
+ between the two images. Each subplot can also be plotted and saved individually.
+-`MLCS` is no longer a test option; `DRMLC` should be used instead.
 
 
 V 0.9.1 - 9/13/2015
