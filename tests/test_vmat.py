@@ -200,7 +200,7 @@ class TestDRGSDemo(VMATMixin, TestCase):
         self.vmat.run_demo_drgs()
 
 
-class TestMLCSDemo(VMATMixin, TestCase):
+class TestDRMLCDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRMLC demo images."""
     filepaths = (osp.join(vmat_demo_files_dir, 'DRMLC_dmlc.dcm'),
                  osp.join(vmat_demo_files_dir, 'DRMLC_open.dcm'))
@@ -215,10 +215,10 @@ class TestMLCSDemo(VMATMixin, TestCase):
     max_r_deviation = 0.44
 
     def test_demo(self):
-        self.vmat.run_demo_mlcs()
+        self.vmat.run_demo_drmlc()
 
 
-class TestMLCS105(VMATMixin, TestCase):
+class TestDRMLC105(VMATMixin, TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRMLCopen-105-example.dcm'),
                  osp.join(vmat_test_files_dir, 'DRMLCdmlc-105-example.dcm'))
@@ -249,7 +249,7 @@ class TestDRGS105(VMATMixin, TestCase):
     max_r_deviation = 0.78
 
 
-class TestMLCS2(VMATMixin, TestCase):
+class TestDRMLC2(VMATMixin, TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
     filepaths = (osp.join(vmat_test_files_dir, 'DRMLC#2_open.dcm'),
                  osp.join(vmat_test_files_dir, 'DRMLC#2_dmlc.dcm'))

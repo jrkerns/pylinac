@@ -55,7 +55,7 @@ class VMAT:
             >>> VMAT().run_demo_drgs()
 
         Run the DRMLC demo:
-            >>> VMAT().run_demo_mlcs()
+            >>> VMAT().run_demo_drmlc()
 
         A typical use case:
             >>> open_img = "C:/QA Folder/VMAT/open_field.dcm"
@@ -263,7 +263,7 @@ class VMAT:
         self.plot_analyzed_image()
 
     @type_accept(tolerance=(int, float))
-    def run_demo_mlcs(self, tolerance=1.5):
+    def run_demo_drmlc(self, tolerance=1.5):
         """Run the VMAT demo for the MLC leaf speed test."""
         self.load_demo_image(DRMLC)
         self.analyze(test=DRMLC, tolerance=tolerance)
@@ -432,6 +432,8 @@ class VMAT:
             mpld3.save_html(plt.gcf(), filename)
         else:
             plt.savefig(filename, **kwargs)
+        if isinstance(filename, str):
+            print("VMAT subimage figure saved to {}".format(osp.abspath(filename)))
 
     @property
     def median_profiles(self):
@@ -675,4 +677,4 @@ def _x_in_y(x, y):
 # VMAT demo
 # -------------------
 if __name__ == '__main__':
-    VMAT().run_demo_mlcs()
+    VMAT().run_demo_drmlc()
