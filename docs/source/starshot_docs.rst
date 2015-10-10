@@ -26,9 +26,9 @@ Results will be printed to the console and a matplotlib figure showing the analy
 
     Result: PASS
 
-    The minimum circle that touches all the star lines has a diameter of 0.385 mm.
+    The minimum circle that touches all the star lines has a diameter of 0.434 mm.
 
-    The center of the minimum circle is at 1269.3, 1437.8
+    The center of the minimum circle is at 1270.1, 1437.1
 
 .. image:: images/starshot_analyzed.png
 
@@ -79,12 +79,24 @@ A typical analysis sequence looks like so:
     mystar.analyze(radius=50, tolerance=0.8) # see API docs for more parameter info
 
 * **View the results** -- Starshot can print out the summary of results to the console as well as draw a matplotlib image to show the
-  detected radiation lines and wobble circle (zoom in to see the wobble circle)::
+  detected radiation lines and wobble circle::
 
       # print results to the console
       print(mystar.return_results())
       # view analyzed image
       mystar.plot_analyzed_image()
+
+  Each subplot can be plotted independently as well::
+
+      # just the wobble plot
+      mystar.plot_analyzed_subimage('wobble')
+      # just the zoomed-out plot
+      mystar.plot_analyzed_subimage('whole')
+
+  Saving the images is also just as easy::
+
+      mystar.save_analyzed_image('mystar.png')
+
 
 Algorithm
 ---------

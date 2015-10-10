@@ -85,7 +85,7 @@ The minimum needed to get going is to:
       dmlc_img = "path/to/img2.dcm"
       myvmat = VMAT()
       myvmat.load_image(open_img, im_type='open')
-      myvmat.load_image(dmlc_img, im_type='mlc')
+      myvmat.load_image(dmlc_img, im_type='dmlc')
 
   Or load the files individually from a UI dialog box::
 
@@ -108,7 +108,7 @@ The minimum needed to get going is to:
 * **Analyze the images** -- This is where pylinac does its work. Once the images are loaded, tell VMAT to analyze the images. See the
   Algorithm section for details on how this is done. Tolerance can also be passed, but has a default value of 1.5%::
 
-      myvmat.analyze(test='mlcs', tolerance=1.5)
+      myvmat.analyze(test='drmlc', tolerance=1.5)
 
   .. note::
     The ``test`` parameter does not need to be specified if the :ref:`naming_convention` for tests is followed.
@@ -122,6 +122,14 @@ The minimum needed to get going is to:
       myvmat.plot_analyzed_image()
 
   .. image:: images/vmat_analyzed.png
+
+  The individual plots can also be plotted and saved::
+
+      myvmat.plot_analyzed_subimage('profile')
+      myvmat.save_analyzed_subimage('myprofile.png', subimage='profile')
+
+  .. raw:: html
+      :file: images/vmat_profiles.html
 
 Tips & Tricks
 -------------

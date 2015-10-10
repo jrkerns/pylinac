@@ -34,11 +34,12 @@ Results will be printed to the console and a figure showing the slices analyzed 
 
 .. image:: images/cbct_analyzed.png
 
-As well, you can plot individual pieces of the analysis::
+As well, you can plot and save individual pieces of the analysis::
 
     cbct = CBCT.from_demo_images()
     cbct.analyze()
     cbct.plot_analyzed_subimage('linearity')
+    cbct.save_analyzed_subimage('linearity.png', subimage='linearity')
 
 .. raw:: html
     :file: images/cbct_hu_lin.html
@@ -101,6 +102,8 @@ The minimum needed to get going is to:
       print(mycbct.return_results())
       # view analyzed images
       mycbct.plot_analyzed_image()
+      # save the image
+      mycbct.save_analyzed_image('mycbct.png')
 
 Algorithm
 ---------

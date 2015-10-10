@@ -27,9 +27,9 @@ Running this should result in a printing of information to the console and an im
 
     Result: PASS
 
-    The minimum circle that touches all the star lines has a diameter of 0.332 mm.
+    The minimum circle that touches all the star lines has a diameter of 0.434 mm.
 
-    The center of the minimum circle is at 1269.9, 1437.3
+    The center of the minimum circle is at 1270.1, 1437.1
 
 .. image:: images/starshot_analyzed.png
    :height: 350

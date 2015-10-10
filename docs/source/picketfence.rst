@@ -125,7 +125,12 @@ The minimum needed to get going is to:
 
   which results in:
 
-.. image:: images/PF_tight_tolerance.png
+  .. image:: images/PF_tight_tolerance.png
+
+  The plot is also able to be saved::
+
+      pf.save_analyzed_image('mypf.png')
+
 
 Tips & Tricks
 -------------
