@@ -18,6 +18,23 @@ INDEX = 'index'
 BOTH = 'both'
 
 
+def stretch(array, min=0, max=1):
+    """'Stretch' the profile to the min and max parameter values.
+
+    Parameters
+    ----------
+    min : number
+        The new minimum of the values
+    max : number
+        The new maximum value.
+    """
+    old_min = array.min()
+    old_max = array.max()
+    old_range = old_max - old_min
+    stretched_array = max - (((max - min) * (old_max - array)) / old_range)
+    return stretched_array
+
+
 class SingleProfile:
     """A profile that has one large signal, e.g. a radiation beam profile.
     Signal analysis methods are given, mostly based on FWXM calculations.
@@ -428,10 +445,7 @@ class SingleProfile:
         max : number
             The new maximum value.
         """
-        old_min = self.values.min()
-        old_max = self.values.max()
-        old_range = old_max - old_min
-        self.values = max - (((max - min) * (old_max - self.values)) / old_range)
+        self.values = stretch(self.values, min=min, max=max)
 
 
 class MultiProfile:
