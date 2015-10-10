@@ -26,5 +26,4 @@ def run():
     # run test runner
     runner.run(test_suite)
 
-if __name__ == "__main__":
-    run()
+run()
