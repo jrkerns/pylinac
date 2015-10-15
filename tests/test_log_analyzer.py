@@ -1,8 +1,78 @@
 import os.path as osp
+import os
 from unittest import TestCase
+import shutil
 
 from pylinac.log_analyzer import MachineLog, MachineLogs, DYNALOG, TRAJECTORY_LOG, STATIC_IMRT, DYNAMIC_IMRT, VMAT
 from tests.utils import save_file
+
+test_dir = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
+
+
+class TestAnonymize(TestCase):
+    """Test the anonymization method."""
+    anon_originals_folder = osp.join(test_dir, '_anonbase')
+    anon_folder = osp.join(test_dir, 'anonymous')
+    files = []
+
+    @classmethod
+    def setUpClass(cls):
+        # move over files from other directory, since the filenames get overridden
+        for file in os.listdir(cls.anon_originals_folder):
+            file = osp.join(cls.anon_originals_folder, file)
+            shutil.copy(file, cls.anon_folder)
+
+    @classmethod
+    def tearDownClass(cls):
+        # remove files from anonymous folder
+        for file in os.listdir(cls.anon_folder):
+            file = osp.join(cls.anon_folder, file)
+            os.remove(file)
+
+    def test_dynalog(self):
+        # test making an anonymized copy
+        dlog_file = osp.join(self.anon_folder, 'A1234_patientid.dlg')
+        dlog = MachineLog(dlog_file)
+        dlog.anonymize()
+
+        # test doing inplace anonymization
+        files = dlog.anonymize(inplace=True, suffix='inplace')
+        for file in files:
+            self.assertTrue('inplace' in file)
+
+    def test_trajectorylog(self):
+        tlog_file = osp.join(self.anon_folder, 'PatientID_4DC Treatment_JST90_TX_20140712094246.bin')
+        tlog = MachineLog(tlog_file)
+        tlog.anonymize()
+
+        # test destination
+        tlog.anonymize(destination=self.anon_folder)  # shouldn't raise
+
+        files = tlog.anonymize(inplace=True, suffix='inplace')
+        for file in files:
+            self.assertTrue('inplace' in file)
+
+    def test_from_stream(self):
+        """Anonymizing a log that was loaded from a stream should fail (no filename to replace)."""
+        url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/Tlog2.bin'
+        tlog = MachineLog.from_url(url)
+        with self.assertRaises(IOError):
+            tlog.anonymize()
+
+    def test_bad_name(self):
+        """Test that a log with a bad name (no underscore) fails gracefully."""
+        dlog_file = osp.join(self.anon_folder, 'Adlog1.dlg')
+        dlog = MachineLog(dlog_file)
+        with self.assertRaises(NameError):
+            dlog.anonymize()
+
+    def test_machinelogs(self):
+        """Test anonymization of multiple machine logs."""
+        logs = MachineLogs()
+        logs.append(osp.join(self.anon_folder, 'A1234_patientid.dlg'))
+        logs.append(osp.join(self.anon_folder, 'PatientID_4DC Treatment_JST90_TX_20140712094246.bin'))
+
+        logs.anonymize()  # shouldn't raise
 
 
 class TestLogLoading(TestCase):

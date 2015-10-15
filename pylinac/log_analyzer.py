@@ -24,6 +24,7 @@ from functools import lru_cache
 from io import BytesIO
 import os
 import os.path as osp
+import shutil
 import struct
 import warnings
 
@@ -272,6 +273,43 @@ class MachineLogs(list):
         else:
             print('\n\nNo files written')
 
+    def anonymize(self, inplace=False, suffix=None):
+        """Save an anonymized version of the log.
+
+        For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
+        This will rename both A* and B* logs if both are present in the same directory.
+
+        For trajectory logs, the patient ID in the filename is replaced with `Anonymous<suffix>` for the .bin file. If the
+        associated .txt file is in the same directory it will similarly replace the patient ID in the filename with
+        `Anonymous<suffix>`. Additionally, the `Patient ID` row will be replaced with `Patient ID: Anonymous<suffix>`.
+
+        .. note::
+            Anonymization is only available for logs loaded locally (i.e. not from a URL or a data stream). To
+            anonymize such a log it must be first downloaded or written to a file, then loaded in.
+
+        .. note::
+            Anonymization is done to the log *file* itself. The current instance(s) of `MachineLog` will not be anonymized.
+
+        Parameters
+        ----------
+        inplace : bool
+            If False (default), creates an anonymized *copy* of the log(s).
+            If True, *renames and replaces* the content of the log file.
+        suffix : str, optional
+            An optional suffix that is added after `Anonymous` to give specificity to the log.
+
+        Returns
+        -------
+        list
+            A list containing the paths to the newly written files.
+        """
+        file_list = []
+        for log in self:
+            files = log.anonymize(inplace=inplace, suffix=suffix)
+            file_list += files
+        print("\n\nDone anonymizing!")
+        return file_list
+
 
 class MachineLog:
     """Reads in and analyzes MLC log files, both dynalog and trajectory logs, from Varian linear accelerators.
@@ -517,6 +555,104 @@ class MachineLog:
             print(string)
         else:
             return string
+
+    def anonymize(self, inplace=False, destination=None, suffix=None):
+        """Save an anonymized version of the log.
+
+        For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
+        This will rename both A* and B* logs if both are present in the same directory.
+
+        For trajectory logs, the patient ID in the filename is replaced with `Anonymous<suffix>` for the .bin file. If the
+        associated .txt file is in the same directory it will similarly replace the patient ID in the filename with
+        `Anonymous<suffix>`. Additionally, the `Patient ID` row will be replaced with `Patient ID: Anonymous<suffix>`.
+
+        .. note::
+            Anonymization is only available for logs loaded locally (i.e. not from a URL or a data stream). To
+            anonymize such a log it must be first downloaded or written to a file, then loaded in.
+
+        .. note::
+            Anonymization is done to the log *file* itself. The current instance of `MachineLog` will not be anonymized.
+
+        Parameters
+        ----------
+        inplace : bool
+            If False (default), creates an anonymized *copy* of the log(s).
+            If True, *renames and replaces* the content of the log file.
+        suffix : str, optional
+            An optional suffix that is added after `Anonymous` to give specificity to the log.
+
+        Returns
+        -------
+        list
+            A list containing the paths to the newly written files.
+        """
+        if self.url is not None:
+            raise IOError("Log was loaded from a data stream. "
+                          "Download or write to file first and then reload the log to anonymize.")
+        if suffix is None:
+            suffix = ''
+        dlog = self.log_type == DYNALOG
+        tlog = self.log_type == TRAJECTORY_LOG
+        tlog_and_txt = tlog and is_tlog_txt_file_around(self.filename)
+
+        # get base file name
+        base_filename = osp.basename(self.filename)
+        under_index = base_filename.find('_')
+        if under_index < 0:
+            raise NameError("Filename `{}` has no underscore. "
+                            "Place an underscore between the patient ID and the rest of the filename and try again.".format(base_filename))
+
+        # determine destination directory
+        if destination is None:
+            dest_dir = osp.dirname(self.filename)
+        else:
+            if not osp.isdir(destination):
+                raise NotADirectoryError("Specified destination `{}` was not a valid directory".format(destination))
+            dest_dir = destination
+
+        # create anonymized filenames
+        if tlog:
+            anonymous_base_filename = 'Anonymous' + suffix + base_filename[under_index:]
+            anonymous_filename = osp.join(dest_dir, anonymous_base_filename)
+            anonymous_txtfilename = anonymous_filename.replace('.bin', '.txt')
+        else:
+            anonymous_base_filename = base_filename[:under_index] + '_Anonymous' + suffix + '.dlg'
+            anonymous_filename = osp.join(dest_dir, anonymous_base_filename)
+            other_filename = _return_other_dlg(self.filename, raise_find_error=False)
+            if other_filename is not None:
+                anonymous_base_filename = osp.basename(other_filename)[:under_index] + '_Anonymous' + suffix + '.dlg'
+                anonymous_filenameB = osp.join(dest_dir, anonymous_base_filename)
+
+        # copy or rename the files, depending on `inplace` parameter
+        method = os.rename if inplace else shutil.copy
+        method(self.filename, anonymous_filename)
+        if tlog_and_txt:
+            old_txt_file = self.filename.replace('.bin', '.txt')
+            method(old_txt_file, anonymous_txtfilename)
+        elif dlog:
+            method(other_filename, anonymous_filenameB)
+
+        # replace Patient ID line in tlog .txt file or dynalog file
+        if tlog_and_txt or (self.log_type == DYNALOG):
+            if tlog_and_txt:
+                files = [anonymous_txtfilename]
+                line = 0
+            else:
+                files = [anonymous_filename, anonymous_filenameB]
+                line = 1
+            for file in files:
+                # read in the text file, replace the patient ID line, and rewrite it back
+                with open(file) as f:
+                    txtdata = f.readlines()
+                txtdata[line] = 'Patient ID:\tAnonymous' + suffix + '\n'
+                with open(file, mode='w') as f:
+                    f.writelines(txtdata)
+                print('Anonymized file written to: ', file)
+
+        if tlog:
+            return [anonymous_filename, anonymous_txtfilename]
+        else:
+            return files
 
     @property
     @lru_cache()
