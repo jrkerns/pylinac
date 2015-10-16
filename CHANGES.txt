@@ -1,3 +1,7 @@
+V 1.0.1 - 10/15/2015
+
+-Fixes #37. Reading in a trajectory log txt file with a blank line caused a crash.
+
 V 1.0.0 - 10/10/2015
 
     Overview

@@ -827,12 +827,12 @@ class MachineLog:
         """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
         self.txt = {}
         txt_filename = self.filename.replace('.bin', '.txt')
-        with open(txt_filename) as csvfile:
-            txt_reader = csv.reader(csvfile, delimiter='\n')
-            for row in txt_reader:
-                if row and isinstance(row, list):
-                    items = row[0].split(':', 1)
-                    self.txt[items[0].strip()] = items[1].strip()
+        with open(txt_filename) as txtfile:
+            txtdata = txtfile.readlines()
+        for line in txtdata:
+            items = line.split(':')
+            if len(items) == 2:
+                self.txt[items[0].strip()] = items[1].strip()
 
 
 class Axis:
