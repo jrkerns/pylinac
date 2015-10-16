@@ -1,5 +1,8 @@
 """Travis CI memory can't handle all the picketfences; thus only test them when explicitly asked to."""
+import concurrent.futures
+import os
 import os.path as osp
+import time
 from unittest import TestCase, skip
 
 from tests.test_picketfence import PFTestMixin, test_file_dir, PicketFence
@@ -214,3 +217,33 @@ class AS1200HDTranslated(PFTestMixin, TestCase):
     hdmlc = True
     max_error = 0.05
     abs_median_error = 0.02
+
+
+def run_pf(path):
+    """Function to pass to the process pool executor to process picket fence images."""
+    try:
+        mypf = PicketFence(path)
+        mypf.analyze()
+        return 'Success'
+    except:
+        return 'Failure at {}'.format(path)
+
+
+class TestImageBank(TestCase):
+    """Test the picket fences in the large image bank. Only tests the analysis runs; no details are tested."""
+    image_bank_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'Picket Fences'))
+
+    def test_all(self):
+        futures = []
+        start = time.time()
+        with concurrent.futures.ProcessPoolExecutor() as exec:
+            for pdir, sdir, files in os.walk(self.image_bank_dir):
+                for file in files:
+                    filepath = osp.join(pdir, file)
+                    if filepath.endswith('.dcm'):
+                        future = exec.submit(run_pf, filepath)
+                        futures.append(future)
+            for future in concurrent.futures.as_completed(futures):
+                print(future.result())
+        end = time.time() - start
+        print('Processing of {} files took {}s'.format(len(futures), end))
