@@ -355,28 +355,28 @@ class TestMachineLogs(TestCase):
 
     def test_loading(self):
         # test root level directory
-        logs = MachineLogs(self.logs_dir, recursive=False, verbose=True)
+        logs = MachineLogs(self.logs_dir, recursive=False)
         self.assertEqual(logs.num_logs, 7)
         # test recursive
-        logs = MachineLogs(self.logs_dir, verbose=False)
+        logs = MachineLogs(self.logs_dir)
         self.assertEqual(logs.num_logs, 8)
         # test using method
         logs = MachineLogs()
-        logs.load_folder(self.logs_dir, verbose=False)
+        logs.load_folder(self.logs_dir)
         self.assertEqual(logs.num_logs, 8)
 
     def test_basic_parameters(self):
         # no real test other than to make sure it works
-        logs = MachineLogs(self.logs_dir, verbose=False)
+        logs = MachineLogs(self.logs_dir)
         logs.report_basic_parameters()
 
     def test_num_logs(self):
-        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        logs = MachineLogs(self.logs_dir, recursive=False)
         self.assertEqual(logs.num_logs, 7)
         self.assertEqual(logs.num_tlogs, 7)
         self.assertEqual(logs.num_dlogs, 0)
 
-        logs = MachineLogs(self.mix_type_dir, verbose=False)
+        logs = MachineLogs(self.mix_type_dir)
         self.assertEqual(logs.num_dlogs, 1)
         self.assertEqual(logs.num_tlogs, 2)
 
@@ -388,13 +388,13 @@ class TestMachineLogs(TestCase):
     def test_mixed_types(self):
         """test mixed directory (tlogs & dlogs)"""
         log_dir = osp.join(self._logs_dir, 'mixed_types')
-        logs = MachineLogs(log_dir, verbose=False)
+        logs = MachineLogs(log_dir)
         self.assertEqual(logs.num_logs, 3)
 
     def test_dlog_matches_missing(self):
         """Test that Dlogs without a match are skipped."""
         log_dir = osp.join(self._logs_dir, 'some_matches_missing')
-        logs = MachineLogs(log_dir, verbose=False)
+        logs = MachineLogs(log_dir)
         self.assertEqual(logs.num_logs, 1)
 
     def test_append(self):
@@ -422,19 +422,17 @@ class TestMachineLogs(TestCase):
         self.assertRaises(ValueError, logs.avg_gamma)
 
     def test_avg_gamma(self):
-        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        logs = MachineLogs(self.logs_dir, recursive=False)
         gamma = logs.avg_gamma()
         self.assertAlmostEqual(gamma, 0, delta=0.002)
 
     def test_avg_gamma_pct(self):
-        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
-        for log in logs:
-            print(log.header.num_snapshots)
+        logs = MachineLogs(self.logs_dir, recursive=False)
         gamma = logs.avg_gamma_pct()
         self.assertAlmostEqual(gamma, 100, delta=0.01)
 
     def test_writing_to_csv(self):
-        logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
+        logs = MachineLogs(self.logs_dir, recursive=False)
         files = logs.to_csv()
         self.assertIsInstance(files, list)
         # clean up by deleting files

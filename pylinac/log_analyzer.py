@@ -26,7 +26,6 @@ import os
 import os.path as osp
 import shutil
 import struct
-import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -51,7 +50,7 @@ class MachineLogs(list):
 
     Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
     @type_accept(folder=str)
-    def __init__(self, folder=None, recursive=True, verbose=True):
+    def __init__(self, folder=None, recursive=True):
         """
         Parameters
         ----------
@@ -88,7 +87,7 @@ class MachineLogs(list):
         """
         super().__init__()
         if folder is not None and is_valid_dir(folder):
-            self.load_folder(folder, recursive, verbose)
+            self.load_folder(folder, recursive)
 
     @property
     def num_logs(self):
@@ -112,7 +111,7 @@ class MachineLogs(list):
         """Return the number of Trajectory logs currently loaded."""
         return self._num_log_type(DYNALOG)
 
-    def load_folder(self, dir, recursive=True, verbose=True):
+    def load_folder(self, dir, recursive=True):
         """Load log files from a directory.
 
         Parameters
@@ -136,39 +135,38 @@ class MachineLogs(list):
             if not recursive:
                 break
         if num_logs == 0:
-            warnings.warn("No logs found.")
+            print("No logs found.")
             return
 
         # actual log loading
         load_num = 1
-        if verbose:
-            print("{} logs found. \n{} logs skipped. \nLog loaded:".format(num_logs, num_skipped))
+        print("{} logs found. \n{} logs skipped.".format(num_logs, num_skipped))
         for root, dirs, files in os.walk(dir):
             cleaned_files, _, _ = self._clean_log_filenames(files, root, num_logs, num_skipped)
             for name in cleaned_files:
                 pth = osp.join(root, name)
                 self.append(pth)
-                if verbose:
-                    print("{} of {}".format(load_num, num_logs))
-                    load_num += 1
+                print("Log loaded: {} of {}".format(load_num, num_logs), end='\r')
+                load_num += 1
             if not recursive:
                 break  # break out of for loop after top level search
+        print('')
 
     @classmethod
-    def from_folder_UI(cls, recursive=True, verbose=True):
+    def from_folder_UI(cls, recursive=True):
         """Construct a MachineLogs instance and load a folder from a UI dialog box.
 
         .. versionadded:: 0.6
         """
         obj = cls()
-        obj.load_folder_UI(recursive, verbose)
+        obj.load_folder_UI(recursive)
         return obj
 
-    def load_folder_UI(self, recursive=True, verbose=True):
+    def load_folder_UI(self, recursive=True):
         """Load a directory using a UI dialog box. See load_folder() for parameter info."""
         folder = get_folder_UI()
         if folder:
-            self.load_folder(folder, recursive, verbose)
+            self.load_folder(folder, recursive)
 
     def _clean_log_filenames(self, filenames, root, num_logs, num_skipped):
         """Extract the names of real log files from a list of files."""
@@ -203,8 +201,8 @@ class MachineLogs(list):
         - Average gamma pass percent of all logs
         """
         print("Number of logs: {}".format(self.num_logs))
-        print("Average gamma: {:3.2f}".format(self.avg_gamma(verbose=False)))
-        print("Average gamma pass percent: {:3.1f}".format(self.avg_gamma_pct(verbose=False)))
+        print("Average gamma: {:3.2f}".format(self.avg_gamma()))
+        print("Average gamma pass percent: {:3.1f}".format(self.avg_gamma_pct()))
 
     def append(self, obj, recursive=True):
         """Append a log. Overloads list method.
@@ -232,32 +230,30 @@ class MachineLogs(list):
         else:
             raise TypeError("Can only append MachineLog or string pointing to a log or log directory.")
 
-    def avg_gamma(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, verbose=True):
+    def avg_gamma(self, doseTA=1, distTA=1, threshold=10, resolution=0.1):
         """Calculate and return the average gamma of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
         gamma_list = np.zeros(self.num_logs)
-        if verbose:
-            print("Calculating gammas:")
+
         for num, log in enumerate(self):
             log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
             gamma_list[num] = log.fluence.gamma.avg_gamma
-            if verbose:
-                print('{} of {}'.format(num+1, self.num_logs))
+            print('Calculating gammas: {} of {}'.format(num+1, self.num_logs), end='\r')
+        print('')
         return gamma_list.mean()
 
-    def avg_gamma_pct(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, verbose=True):
+    def avg_gamma_pct(self, doseTA=1, distTA=1, threshold=10, resolution=0.1):
         """Calculate and return the average gamma pass percent of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
         gamma_list = np.zeros(self.num_logs)
-        if verbose:
-            print("Calculating gamma pass percent:")
+
         for num, log in enumerate(self):
             log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
             gamma_list[num] = log.fluence.gamma.pass_prcnt
-            if verbose:
-                print("{} of {}".format(num+1, self.num_logs))
+            print("Calculating gamma pass percent: {} of {}".format(num+1, self.num_logs), end='\r')
+        print('')
         return gamma_list.mean()
 
     def to_csv(self):
@@ -606,6 +602,8 @@ class MachineLog:
         dlog = self.log_type == DYNALOG
         if dlog:
             both_dlogs = _return_other_dlg(self.filename, raise_find_error=False) is not None
+        else:
+            both_dlogs = False
         tlog = self.log_type == TRAJECTORY_LOG
         tlog_and_txt = tlog and is_tlog_txt_file_around(self.filename)
 
