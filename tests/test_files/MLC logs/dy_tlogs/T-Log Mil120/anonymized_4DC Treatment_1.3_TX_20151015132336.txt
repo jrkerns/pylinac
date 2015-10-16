@@ -1,0 +1,62 @@
+Patient ID:	Anonymous
+Plan Name:	4DC Treatment
+Plan UID:	1.2.840.113854.41736114915100926808078707658745179728
+Beam Number :	3
+Beam Name :	1.3:TX
+Original MU :	45
+Wedge Info
+Wedge Number :	1
+Wedge ID :	EDW45OUT
+Wedge Factor :	
+Wedge Type :	DYNAMIC
+Wedge Angle (deg):	45
+Wedge Orientation :	180
+Wedge Source to Wedge Tray Distance :	574
+
+Logging Scale :	IEC
+X1 (Cms):	14.10
+X2 (Cms):	1.60
+Y1 (Cms):	0.10
+Y2 (Cms):	11.30
+Gantry Rotation Angle (deg):	180.00
+Energy :	10x
+MU1 :	26.68
+MU2 :	26.72
+Radiation Time (mins):	0.0672
+DoseRate (MU/min):	398.31
+PFN High Voltage Power Supply Current (A):	1.462296
+PFN Actual Voltage (KV):	19.11121
+RF Driver Voltage (V):	4.26
+RF Forward Power (W):	1.433105
+AFC Error (V):	0.000517178
+Gun Current (A):	0.1120453
+Gun High Voltage (V):	-9891
+Gun Grid Voltage (V):	44.90607
+Gun Filament Step Voltage (V):	5.300003
+Gun Filament Voltage (V):	5.223083
+Bend Magnet Current (A):	27.5116
+Bend Magnet Voltage (V):	3.790894
+Accelerator Solenoid Current (A):	35.3775
+Klystron Solenoid Current (A):	38.86108
+Radial Symmetry (%):	-0.00069303
+Transverse Symmetry (%):	-0.00170045
+Target Current (nC):	145.3093
+Buncher Radial Current (A):	0.1499329
+Buncher Transverse Current (A):	0.06005859
+Angle Radial Current (A):	0.08827209
+Angle Transverse Current (A):	0.08287048
+Position Radial Current (A):	0.4821167
+Position Transverse Current (A):	0.2970276
+Trim : (A)	-0.01696777
+Accelerator Vacion Current (uA):	0
+Positive 5V dc:	5.010805
+Positive 24V dc:	23.66651
+Analog Negative 5V dc:	5.078108
+Analog Positive 5V dc:	4.933701
+Negative 12V dc:	12.3223
+Positive 3V dc:	3.296725
+Node Power Supply Voltage (V):	23.76816
+Water Level :	Normal
+City Water Temperature (deg C):	20.59776
+Internal Water Supply Temperature (deg C):	39.79852
+Gas Pressure (PSI):	30.91099

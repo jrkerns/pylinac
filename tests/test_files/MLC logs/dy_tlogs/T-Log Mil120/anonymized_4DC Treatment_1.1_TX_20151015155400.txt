@@ -1,0 +1,54 @@
+Patient ID:	Anonymous
+Plan Name:	4DC Treatment
+Plan UID:	1.2.840.113854.219459422375478628797891758843717685237
+Beam Number :	2
+Beam Name :	1.1:TX
+Original MU :	156
+
+Logging Scale :	IEC
+X1 (Cms):	3.70
+X2 (Cms):	8.00
+Y1 (Cms):	20.00
+Y2 (Cms):	0.00
+Gantry Rotation Angle (deg):	300.00
+Energy :	6x
+MU1 :	80.77
+MU2 :	80.79
+Radiation Time (mins):	0.2052
+DoseRate (MU/min):	398.43
+PFN High Voltage Power Supply Current (A):	1.494583
+PFN Actual Voltage (KV):	19.36905
+RF Driver Voltage (V):	4.055
+RF Forward Power (W):	1.443481
+AFC Error (V):	-0.000406145
+Gun Current (A):	0.5901337
+Gun High Voltage (V):	-14886
+Gun Grid Voltage (V):	173.5973
+Gun Filament Step Voltage (V):	5.300003
+Gun Filament Voltage (V):	5.223083
+Bend Magnet Current (A):	16.25977
+Bend Magnet Voltage (V):	2.258301
+Accelerator Solenoid Current (A):	34.9472
+Klystron Solenoid Current (A):	38.85498
+Radial Symmetry (%):	0.00065372
+Transverse Symmetry (%):	-0.00270368
+Target Current (nC):	315.6907
+Buncher Radial Current (A):	0.07998657
+Buncher Transverse Current (A):	0.06492615
+Angle Radial Current (A):	0.03448486
+Angle Transverse Current (A):	0.127121
+Position Radial Current (A):	0.2837372
+Position Transverse Current (A):	0.6572723
+Trim : (A)	-0.03604126
+Accelerator Vacion Current (uA):	0.0003051758
+Positive 5V dc:	5.011067
+Positive 24V dc:	23.67459
+Analog Negative 5V dc:	5.078299
+Analog Positive 5V dc:	4.93412
+Negative 12V dc:	12.32187
+Positive 3V dc:	3.297765
+Node Power Supply Voltage (V):	23.76816
+Water Level :	Normal
+City Water Temperature (deg C):	20.25789
+Internal Water Supply Temperature (deg C):	39.90209
+Gas Pressure (PSI):	30.97521
