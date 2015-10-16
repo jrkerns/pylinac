@@ -16,6 +16,8 @@ Features:
 * **Plot or analyze any axis** - Every data axis can be accessed and plotted: the actual, expected, and even the difference.
 * **Calculate fluences and gamma** - Besides reading in the MLC positions, pylinac calculates the actual and expected fluence
   as well as the gamma map; DTA and threshold values are adjustable.
+* **Anonymize logs** - Both dynalogs and trajectory logs can be "anonymized" by removing the Patient ID from the filename(s)
+  and file data.
 """
 from abc import ABCMeta, abstractproperty
 import copy
@@ -1017,11 +1019,10 @@ class Fluence(metaclass=ABCMeta):
              be the number of MLC pairs by 400 / resolution since the MLCs can move anywhere within the
              40cm-wide linac head opening.
          """
-        # return if map has already been calculated under the same conditions
-        # if self.map_calced and self._same_conditions(resolution):
-        #     return self.pixel_map
-        # preallocate arrays for expected and actual fluence of number of leaf pairs-x-4000 (40cm = 4000um, etc)
         fluence = np.zeros((self._mlc.num_pairs, int(400 / resolution)), dtype=np.float32)
+
+        self.pixel_map = fluence
+        self.resolution = resolution
 
         # calculate the MU delivered in each snapshot. For Tlogs this is absolute; for dynalogs it's normalized.
         mu_matrix = getattr(self._mu, self._fluence_type)
@@ -1031,6 +1032,9 @@ class Fluence(metaclass=ABCMeta):
         MU_differential = MU_differential / mu_matrix[-1]
         MU_cumulative = 1
 
+        # check if the beam was actually on (e.g. kV setups don't)
+        if len(self._mlc.snapshot_idx) < 1:
+            return fluence
         # calculate each "line" of fluence (the fluence of an MLC leaf pair, e.g. 1 & 61, 2 & 62, etc),
         # and add each "line" to the total fluence matrix
         fluence_line = np.zeros(int(400 / resolution), dtype=np.float32)
@@ -1065,8 +1069,7 @@ class Fluence(metaclass=ABCMeta):
                     fluence_line[int(left_edge):int(right_edge)] = MU_cumulative
                 fluence[pair - 1, :] = fluence_line
 
-        self.pixel_map = fluence
-        self.resolution = resolution
+
         return fluence
 
     def plot_map(self, show=True):
