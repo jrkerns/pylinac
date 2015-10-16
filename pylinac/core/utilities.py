@@ -24,7 +24,7 @@ def get_url(url):
         import requests
     except ImportError:
         raise ImportError("Requests is not installed; cannot get the log from a URL")
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)
     if response.status_code != 200:
         raise ConnectionError("Could not connect to the URL")
     return response
