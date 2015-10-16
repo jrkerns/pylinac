@@ -578,6 +578,9 @@ class MachineLog:
         inplace : bool
             If False (default), creates an anonymized *copy* of the log(s).
             If True, *renames and replaces* the content of the log file.
+        destination : str, optional
+            A string specifying the directory where the newly anonymized logs should be placed.
+            If None, will place the logs in the same directory as the originals.
         suffix : str, optional
             An optional suffix that is added after `Anonymous` to give specificity to the log.
 
@@ -592,6 +595,8 @@ class MachineLog:
         if suffix is None:
             suffix = ''
         dlog = self.log_type == DYNALOG
+        if dlog:
+            both_dlogs = _return_other_dlg(self.filename, raise_find_error=False) is not None
         tlog = self.log_type == TRAJECTORY_LOG
         tlog_and_txt = tlog and is_tlog_txt_file_around(self.filename)
 
@@ -649,10 +654,12 @@ class MachineLog:
                     f.writelines(txtdata)
                 print('Anonymized file written to: ', file)
 
-        if tlog:
+        if tlog_and_txt:
             return [anonymous_filename, anonymous_txtfilename]
-        else:
+        elif both_dlogs:
             return files
+        else:
+            return [anonymous_filename]
 
     @property
     @lru_cache()

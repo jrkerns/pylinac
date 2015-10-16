@@ -15,12 +15,13 @@ class TestAnonymize(TestCase):
     anon_folder = osp.join(test_dir, 'anonymous')
     files = []
 
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         # move over files from other directory, since the filenames get overridden
-        for file in os.listdir(cls.anon_originals_folder):
-            file = osp.join(cls.anon_originals_folder, file)
-            shutil.copy(file, cls.anon_folder)
+        for file in os.listdir(self.anon_originals_folder):
+            basefile = osp.join(self.anon_originals_folder, file)
+            destfile = osp.join(self.anon_folder, file)
+            if not osp.isfile(destfile):
+                shutil.copy(basefile, self.anon_folder)
 
     @classmethod
     def tearDownClass(cls):
@@ -45,12 +46,14 @@ class TestAnonymize(TestCase):
         tlog = MachineLog(tlog_file)
         tlog.anonymize()
 
-        # test destination
-        tlog.anonymize(destination=self.anon_folder)  # shouldn't raise
-
         files = tlog.anonymize(inplace=True, suffix='inplace')
         for file in files:
             self.assertTrue('inplace' in file)
+
+    def test_destination(self):
+        tlog_file = osp.join(self.anon_folder, 'PatientID_4DC Treatment_JST90_TX_20140712094246.bin')
+        tlog = MachineLog(tlog_file)
+        tlog.anonymize(destination=self.anon_folder)  # shouldn't raise
 
     def test_from_stream(self):
         """Anonymizing a log that was loaded from a stream should fail (no filename to replace)."""
@@ -81,7 +84,7 @@ class TestLogLoading(TestCase):
 
     def test_loading(self):
         """Test that loading the badly-named dynalog still loads and identifies properly."""
-        test_tlog = osp.join(self.test_dir, 'tlogs', "qqq2106_4DC Treatment_JS0_TX_20140712095629.bin")
+        test_tlog = osp.join(self.test_dir, 'tlogs', "Anonymous_4DC Treatment_JS0_TX_20140712095629.bin")
         # should produce no errors
         # load method 1
         MachineLog(test_tlog)
@@ -114,15 +117,15 @@ class TestLogLoading(TestCase):
 
     def test_txt_file_also_loads_if_around(self):
         # has a .txt file
-        log_with_txt = osp.join(self.test_dir, 'SG TB1 MLC', "qqq2106_4DC Treatment_JST90_TX_20140712094246.bin")
+        log_with_txt = osp.join(self.test_dir, 'SG TB1 MLC', "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin")
 
         log = MachineLog(log_with_txt)
         self.assertTrue(hasattr(log, 'txt'))
         self.assertIsInstance(log.txt, dict)
-        self.assertEqual(log.txt['Patient ID'], 'qqq2106')
+        self.assertEqual(log.txt['Patient ID'], 'Anonymous')
 
         # DOESN'T have a txt file
-        log_no_txt = osp.join(self.test_dir, 'tlogs', "qqq2106_4DC Treatment_JS0_TX_20140712095629.bin")
+        log_no_txt = osp.join(self.test_dir, 'tlogs', "Anonymous_4DC Treatment_JS0_TX_20140712095629.bin")
 
         log = MachineLog(log_no_txt)
         self.assertFalse(hasattr(log, 'txt'))
@@ -399,7 +402,7 @@ class TestMachineLogs(TestCase):
         self.assertEqual(logs.num_logs, 4)
         # append a file string
         logs = MachineLogs()
-        single_file = osp.join(self.logs_altdir, 'qqq2106_4DC Treatment_JST90_TX_20140712094246.bin')
+        single_file = osp.join(self.logs_altdir, 'Anonymous_4DC Treatment_JST90_TX_20140712094246.bin')
         logs.append(single_file)
         # append a MachineLog
         logs = MachineLogs()
