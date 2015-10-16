@@ -338,7 +338,7 @@ class Image:
             file_path.seek(0)
         except AttributeError:
             pass
-        dcm = dicom.read_file(file_path)
+        dcm = dicom.read_file(file_path, force=True)
         self.array = dcm.pixel_array
         self.im_type = DICOM
 

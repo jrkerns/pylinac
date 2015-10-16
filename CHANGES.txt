@@ -1,3 +1,9 @@
+V 1.1.0 - Future
+
+    Log Analyzer
+-Logs can now be anonymized using the `.anonymize()` method for both MachineLog and MachineLogs.
+-The `.to_csv()` methods for MachineLog and MachineLogs returns a list of the newly created files.
+
 V 1.0.1 - 10/15/2015
 
 -Fixes #37. Reading in a trajectory log txt file with a blank line caused a crash.
