@@ -206,16 +206,18 @@ class PicketFence:
     def _check_for_noise(self):
         """Check if the image has extreme noise (dead pixel, etc) by comparing
         min/max to 1/99 percentiles and smoothing if need be."""
-        while self._has_noise():
+        safety_stop = 5
+        while self._has_noise() and safety_stop > 0:
             self.image.median_filter()
+            safety_stop -= 1
 
     def _has_noise(self):
         """Helper method to determine if there is spurious signal in the image."""
         min = self.image.array.min()
         max = self.image.array.max()
         near_min, near_max = np.percentile(self.image.array, [0.5, 99.5])
-        max_is_extreme = max > near_max * 2
-        min_is_extreme = (min < near_min) and (abs(near_min - min) > 0.2 * near_max)
+        max_is_extreme = max > near_max * 1.25
+        min_is_extreme = (min < near_min * 0.75) and (abs(min - near_min) > 0.1 * (near_max - near_min))
         return max_is_extreme or min_is_extreme
 
     def _adjust_for_sag(self, sag):
