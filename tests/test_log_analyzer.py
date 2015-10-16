@@ -38,6 +38,7 @@ class TestAnonymize(TestCase):
 
         # test doing inplace anonymization
         files = dlog.anonymize(inplace=True, suffix='inplace')
+        self.assertIsInstance(files, list)
         for file in files:
             self.assertTrue('inplace' in file)
 
@@ -47,6 +48,7 @@ class TestAnonymize(TestCase):
         tlog.anonymize()
 
         files = tlog.anonymize(inplace=True, suffix='inplace')
+        self.assertIsInstance(files, list)
         for file in files:
             self.assertTrue('inplace' in file)
 
@@ -117,7 +119,7 @@ class TestLogLoading(TestCase):
 
     def test_txt_file_also_loads_if_around(self):
         # has a .txt file
-        log_with_txt = osp.join(self.test_dir, 'SG TB1 MLC', "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin")
+        log_with_txt = osp.join(self.test_dir, 'sg_tlogs', "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin")
 
         log = MachineLog(log_with_txt)
         self.assertTrue(hasattr(log, 'txt'))
@@ -347,7 +349,7 @@ class TrajectoryLogDemo(TestLogMixin, TestCase):
 
 class TestMachineLogs(TestCase):
     _logs_dir = osp.abspath(osp.join(osp.dirname(__file__), '.', 'test_files', 'MLC logs'))
-    logs_dir = osp.join(_logs_dir, 'SG TB1 MLC')
+    logs_dir = osp.join(_logs_dir, 'sg_tlogs')
     logs_altdir = osp.join(_logs_dir, 'altdir')
     mix_type_dir = osp.join(_logs_dir, 'mixed_types')
 
@@ -433,4 +435,8 @@ class TestMachineLogs(TestCase):
 
     def test_writing_to_csv(self):
         logs = MachineLogs(self.logs_dir, recursive=False, verbose=False)
-        logs.to_csv()
+        files = logs.to_csv()
+        self.assertIsInstance(files, list)
+        # clean up by deleting files
+        for file in files:
+            os.remove(file)

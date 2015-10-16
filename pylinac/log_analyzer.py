@@ -262,16 +262,25 @@ class MachineLogs(list):
 
     def to_csv(self):
         """Write trajectory logs to CSV. If there are both dynalogs and trajectory logs,
-        only the trajectory logs will be written. File names will be the same as the original log file names."""
+        only the trajectory logs will be written. File names will be the same as the original log file names.
+
+        Returns
+        -------
+        list
+            A list of all the filenames of the newly created CSV files.
+        """
         num_written = 0
+        files = []
         for log in self:
             if is_tlog(log.filename):
-                log.to_csv()
+                file = log.to_csv()
                 num_written += 1
+                files += [file]
         if num_written:
-            print('\n\nAll CSV files written!')
+            print('\nAll trajectory logs written to CSV files!')
         else:
-            print('\n\nNo files written')
+            print('\nNo files written. Either no logs are loaded or all logs were dynalogs.')
+        return files
 
     def anonymize(self, inplace=False, suffix=None):
         """Save an anonymized version of the log.
@@ -720,6 +729,11 @@ class MachineLog:
         filename : None, str
             If None (default), the CSV filename will be the same as the filename of the log.
             If a string, the filename will be named so.
+
+        Returns
+        -------
+        str
+            The full filename of the newly created CSV file.
         """
         is_file_object = False
         if not is_tlog(self.filename):
@@ -763,6 +777,7 @@ class MachineLog:
 
         if not is_file_object:
             print("CSV file written to: " + filename)
+            return filename
 
     def _read_log(self, exclude_beam_off):
         """Read in log based on what type of log it is: Trajectory or Dynalog."""
