@@ -23,7 +23,7 @@ from pylinac.core.utilities import typed_property
 ARRAY = 'Array'
 DICOM = 'DICOM'
 IMAGE = 'Image'
-MM_per_INCH = 25.4
+MM_PER_INCH = 25.4
 
 
 class DICOMStack:
@@ -121,6 +121,7 @@ class DICOMStack:
     def shape(self):
         return self.array.shape
 
+
 class Image:
     """A class that holds an image as a numpy array, relevant image metadata (dpi, SID, etc),
     and methods for image (array) manipulation (resize, rotate, etc).
@@ -165,131 +166,73 @@ class Image:
         >>> arr = np.arange(36).reshape(6,6)
         >>> img = Image(arr)
     """
-    # SID = typed_property('SID', (int, float, np.number))
-    im_type = typed_property('im_type', str)
-    array = typed_property('array', np.ndarray)
-
-    def __init__(self, filename=None):
-        """
-        Parameters
-        ----------
-        filename : str
-            Path to the image file.
-        """
-        self._SID = 1000
-        if filename is not None:
-            try:
-                self._load_file(filename)
-            except (IOError, AttributeError):
-                raise TypeError("Image input '{}' not understood".format(filename))
 
     @classmethod
-    def from_array(cls, array):
-        obj = cls()
-        obj.array = array
-        obj.im_type = ARRAY
-        return obj
-
-    @property
-    def dpi(self):
-        if self.im_type == DICOM:
-            dpi = getattr(self, 'dpmm', None)
-            if dpi is not None:
-                dpi *= MM_per_INCH
-            return dpi
-        elif self.im_type == IMAGE:
-            try:
-                dpi = self._img_meta['dpi'][0]
-            except (IndexError, KeyError):
-                dpi = self._img_meta.get('dpi', None)
-            if dpi is not None:
-                dpi *= self.SID / 1000
-            return dpi
-        else:
-            return None
-
-    @property
-    def dpmm(self):
-        if self.im_type == DICOM:
-            try:
-                # most dicom files have this tag
-                dpmm = 1/self._dcm_meta.PixelSpacing[0]
-            except AttributeError:
-                try:
-                    # EPID images sometimes have this tag
-                    dpmm = 1/self._dcm_meta.ImagePlanePixelSpacing[0]
-                except AttributeError:
-                    dpmm = None
-            if dpmm is not None:
-                dpmm *= self.SID / 1000
-            return dpmm
-        elif self.im_type == IMAGE:
-            dpmm = self.dpi
-            if dpmm is not None:
-                dpmm /= MM_per_INCH
-            return dpmm
-        else:  # Array type
-            return None
-
-    @property
-    def center(self):
-        """Return the center position of the image array as a Point."""
-        x_center = self.shape[1] / 2
-        y_center = self.shape[0] / 2
-        return Point(x_center, y_center)
-
-    @property
-    def cax(self):
-        """Return the position of the CAX."""
-        try:
-            x = self.center.x - self._dcm_meta.XRayImageReceptorTranslation[0]
-            y = self.center.y - self._dcm_meta.XRayImageReceptorTranslation[1]
-        except AttributeError:
-            return self.center
-        else:
-            return Point(x, y)
-
-    @property
-    def SID(self):
-        """Return the SID."""
-        if self.im_type == DICOM:
-            sid = getattr(self._dcm_meta, 'RTImageSID', self._SID)
-        else:
-            sid = self._SID
-        return float(sid)
-
-    @SID.setter
-    @type_accept(value=(int, float, np.number))
-    def SID(self, value):
-        """Set the SID value; must be in mm."""
-        # if not isinstance(value, (int, float, np.number)):
-        #     raise ValueError("SID must be a number")
-        if self.im_type == DICOM:
-            raise AttributeError("Cannot set the SID for DICOM Images")
-        else:
-            self._SID = value
-
-    def check_inversion(self):
-        """Check the image for inversion by sampling the 4 image corners.
-        If the average value of the four corners is above the average pixel value, then it is very likely inverted.
-        """
-        outer_edge = 10
-        inner_edge = 30
-        TL_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BL_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        TR_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BR_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        corner_avg = np.mean((TL_corner, BL_corner, TR_corner, BR_corner))
-        if corner_avg > np.mean(self.array.flatten()):
-            self.invert()
+    def load_from_array(cls, array, **kwargs):
+        return ArrayImage(array, **kwargs)
 
     @classmethod
-    def from_UI(cls, caption='', to_gray=True):
+    def load_from_dicom(cls, filepath):
+        """Construct an image from a DICOM file."""
+        return DicomImage(filepath)
+        # return a DicomImage instance
+
+    @classmethod
+    def load_from_dicom_ui(cls):
         """Load an image using a UI dialog."""
         file_path = get_filepath_UI()
         if file_path:
-            obj = cls(file_path, to_gray)
-            return obj
+            pass
+
+    @classmethod
+    def load_from_file(cls, filepath, **kwargs):
+        """Construct an image from a "regular" image file (.tif, .jpg)."""
+        return FileImage(filepath, **kwargs)
+
+    @classmethod
+    def load_from_file_ui(cls, filepath):
+        """Construct an image from a "regular" image file (.tif, .jpg)."""
+        pass
+
+    @classmethod
+    def load(cls, path, **kwargs):
+        if cls._is_dicom(path):
+            return cls.load_from_dicom(path)
+        elif cls._is_image_file(path):
+            return cls.load_from_file(path, **kwargs)
+        elif cls._is_array(path):
+            return cls.load_from_array(path, **kwargs)
+        else:
+            raise TypeError("The argument `{}` was not found to be a valid DICOM file, Image file, or array".format(path))
+
+    @staticmethod
+    def _rewind_file(path):
+        try:
+            path.seek(0)
+        except:
+            pass
+        return path
+
+    @staticmethod
+    def _is_dicom(path):
+        try:
+            ds = dicom.read_file(path, stop_before_pixels=True, force=True)
+            ds.SOPClassUID
+            return True
+        except:
+            return False
+
+    @staticmethod
+    def _is_image_file(path):
+        try:
+            pImage.open(path)
+            return True
+        except TypeError:
+            return False
+
+    @staticmethod
+    def _is_array(obj):
+        return isinstance(obj, np.ndarray)
 
     @classmethod
     def from_multiple_UI(cls, caption='', to_gray=True):
@@ -304,148 +247,6 @@ class Image:
         if file_list:
             obj = cls.from_multiples(file_list)
             return obj
-
-    def _load_file(self, file_path):
-        """Load a file."""
-        try:
-            self._construct_dicom(file_path)
-        except InvalidDicomError:
-            try:
-                self._construct_image(file_path)
-            except OSError:
-                raise IOError("Image type not supported")
-
-    def _construct_image(self, file_path):
-        """Construct an object from an image file (TIF, JPEG, etc)."""
-        try:
-            file_path.seek(0)
-        except AttributeError:
-            pass
-        img = pImage.open(file_path)
-
-        # convert to gray if need be
-        if img.mode not in ('F', 'L', '1'):
-            img = img.convert('F')
-
-        self._img_meta = img.info
-
-        self.array = np.array(img)
-        self.im_type = IMAGE
-
-    def _construct_dicom(self, file_path):
-        """Construct an object from a DICOM file (.dcm)."""
-        try:
-            file_path.seek(0)
-        except AttributeError:
-            pass
-        dcm = dicom.read_file(file_path, force=True)
-        self.array = dcm.pixel_array
-        self.im_type = DICOM
-
-        # attach the metadata
-        self._dcm_meta = dcm
-
-    def plot(self):
-        """Plot the image."""
-        plt.clf()
-        plt.imshow(self.array, cmap=plt.cm.Greys)
-        plt.show()
-
-    def median_filter(self, size=3, mode='reflect'):
-        """Apply a median filter to the image.
-
-        Wrapper for scipy's `median <http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html>`_ filter function:
-        """
-        if isinstance(size, float):
-            if size < 1:
-                size = max(int(self.array.shape[0]*size), 1)
-            else:
-                raise ValueError("If size is a float, it must be <1.0")
-        self.array = ndimage.median_filter(self.array, size=size, mode=mode)
-
-    @type_accept(pixels=int)
-    def remove_edges(self, pixels=15):
-        """Removes pixels on all edges of the image.
-
-        Parameters
-        ----------
-        pixels : int
-            Number of pixels to cut off all sides of the image.
-        """
-        self.array = self.array[pixels - 1:-pixels-1, pixels - 1:-pixels-1]
-
-    def invert(self):
-        """Invert (imcomplement) the image."""
-        orig_array = self.array
-        self.array = -orig_array + orig_array.max() + orig_array.min()
-
-    # def rotate(self, angle, order=3):
-    #     raise NotImplementedError()
-        # self.array = ndimage.interpolation.rotate(self.array, angle, order=order, mode='wrap', reshape=False)
-
-    def roll(self, direction='x', amount=1):
-        axis = 1 if direction == 'x' else 0
-        self.array = np.roll(self.array, amount, axis=axis)
-
-    def rot90(self, n=1):
-        """Wrapper for numpy.rot90."""
-        self.array = np.rot90(self.array, n)
-
-    def resize(self, size, interp='bilinear'):
-        """Resize/scale the image.
-
-        Wrapper for scipy's `imresize <http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.misc.imresize.html>`_:
-        """
-        self.array = imresize(self.array, size=size, interp=interp, mode='F')
-
-    def threshold(self, threshold):
-        """Convert the pixel array to a black & white array based on the threshold.
-
-        Parameters
-        ----------
-        threshold : int
-            If the value is less than the threshold it is set to 0, otherwise to 1.
-
-        Returns
-        -------
-        A numpy array the same size as the original image.
-        """
-        arr = np.where(self.array >= threshold, 1, 0)
-        return Image.from_array(arr)
-
-    @type_accept(point=(Point, tuple))
-    def dist2edge_min(self, point):
-        """Calculates minimum distance from given point to image edges.
-
-        Parameters
-        ----------
-        point : geometry.Point, tuple
-
-        Returns
-        -------
-        float
-        """
-        if isinstance(point, tuple):
-            point = Point(point)
-        rows = self.shape[0]
-        cols = self.shape[1]
-        disttoedge = np.zeros(4)
-        disttoedge[0] = rows - point.y
-        disttoedge[1] = cols - point.x
-        disttoedge[2] = point.y
-        disttoedge[3] = point.x
-        return min(disttoedge)
-
-    def ground(self):
-        """Ground the profile such that the lowest value is 0.
-
-        .. note::
-            This will also "ground" profiles that are negative or partially-negative.
-            For such profiles, be careful that this is the behavior you desire.
-        """
-        min_val = self.array.min()
-        self.array -= min_val
-        return min_val
 
     @classmethod
     @value_accept(method=('mean', 'max', 'sum'))
@@ -486,9 +287,233 @@ class Image:
         init_obj.check_inversion()
         return init_obj
 
+
+class BaseImage:
+    """Base class for the Image classes."""
+    array = typed_property('array', np.ndarray)
+
+    def __init__(self, path):
+        if not osp.isfile(path):
+            raise FileExistsError("File `{}` does not exist".format(path))
+        # rewind the file if it's a stream
+        try:
+            path.seek(0)
+        except AttributeError:
+            pass
+
+    @property
+    def center(self):
+        """Return the center position of the image array as a Point."""
+        x_center = self.shape[1] / 2
+        y_center = self.shape[0] / 2
+        return Point(x_center, y_center)
+
+    def plot(self):
+        """Plot the image."""
+        plt.clf()
+        plt.imshow(self.array, cmap=plt.cm.Greys)
+        plt.show()
+
+    def median_filter(self, size=3, mode='reflect'):
+        """Apply a median filter to the image.
+
+        Wrapper for scipy's `median <http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html>`_ filter function:
+        """
+        if isinstance(size, float):
+            if size < 1:
+                size = max(int(self.array.shape[0] * size), 1)
+            else:
+                raise ValueError("If size is a float, it must be <1.0")
+        self.array = ndimage.median_filter(self.array, size=size, mode=mode)
+
+    @type_accept(pixels=int)
+    def remove_edges(self, pixels=15):
+        """Removes pixels on all edges of the image.
+
+        Parameters
+        ----------
+        pixels : int
+            Number of pixels to cut off all sides of the image.
+        """
+        self.array = self.array[pixels - 1:-pixels - 1, pixels - 1:-pixels - 1]
+
+    def invert(self):
+        """Invert (imcomplement) the image."""
+        orig_array = self.array
+        self.array = -orig_array + orig_array.max() + orig_array.min()
+
+        # def rotate(self, angle, order=3):
+        #     raise NotImplementedError()
+        # self.array = ndimage.interpolation.rotate(self.array, angle, order=order, mode='wrap', reshape=False)
+
+    def roll(self, direction='x', amount=1):
+        axis = 1 if direction == 'x' else 0
+        self.array = np.roll(self.array, amount, axis=axis)
+
+    def rot90(self, n=1):
+        """Wrapper for numpy.rot90."""
+        self.array = np.rot90(self.array, n)
+
+    def resize(self, size, interp='bilinear'):
+        """Resize/scale the image.
+
+        Wrapper for scipy's `imresize <http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.misc.imresize.html>`_:
+        """
+        self.array = imresize(self.array, size=size, interp=interp, mode='F')
+
+    def threshold(self, threshold):
+        """Convert the pixel array to a black & white array based on the threshold.
+
+        Parameters
+        ----------
+        threshold : int
+            If the value is less than the threshold it is set to 0, otherwise to 1.
+
+        Returns
+        -------
+        A numpy array the same size as the original image.
+        """
+        arr = np.where(self.array >= threshold, 1, 0)
+        return Image.load_from_array(arr)
+
+    @type_accept(point=(Point, tuple))
+    def dist2edge_min(self, point):
+        """Calculates minimum distance from given point to image edges.
+
+        Parameters
+        ----------
+        point : geometry.Point, tuple
+
+        Returns
+        -------
+        float
+        """
+        if isinstance(point, tuple):
+            point = Point(point)
+        rows = self.shape[0]
+        cols = self.shape[1]
+        disttoedge = np.zeros(4)
+        disttoedge[0] = rows - point.y
+        disttoedge[1] = cols - point.x
+        disttoedge[2] = point.y
+        disttoedge[3] = point.x
+        return min(disttoedge)
+
+    def ground(self):
+        """Ground the profile such that the lowest value is 0.
+
+        .. note::
+            This will also "ground" profiles that are negative or partially-negative.
+            For such profiles, be careful that this is the behavior you desire.
+        """
+        min_val = self.array.min()
+        self.array -= min_val
+        return min_val
+
+    def check_inversion(self):
+        """Check the image for inversion by sampling the 4 image corners.
+        If the average value of the four corners is above the average pixel value, then it is very likely inverted.
+        """
+        outer_edge = 10
+        inner_edge = 30
+        TL_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
+        BL_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
+        TR_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
+        BR_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
+        corner_avg = np.mean((TL_corner, BL_corner, TR_corner, BR_corner))
+        if corner_avg > np.mean(self.array.flatten()):
+            self.invert()
+
     def __getattr__(self, item):
         """Set the Attribute getter to grab from the array if possible (for things like .shape, .size, etc)."""
         return getattr(self.array, item)
 
     def __getitem__(self, item):
         return self.array[item]
+
+
+class DicomImage(BaseImage):
+    """An image from a DICOM RTImage file."""
+
+    def __init__(self, path):
+        super().__init__(path)
+        self.dicom_dataset = dicom.read_file(path)
+        self.array = self.dicom_dataset.pixel_array
+
+    @property
+    def sid(self):
+        """Return the SID in mm."""
+        return float(self.dicom_dataset.RTImageSID)
+
+    @property
+    def dpi(self):
+        return self.dpmm * MM_PER_INCH
+
+    @property
+    def dpmm(self):
+        try:
+            # most dicom files have this tag
+            dpmm = 1 / self.dicom_dataset.PixelSpacing[0]
+        except AttributeError:
+            try:
+                # EPID images sometimes have this tag
+                dpmm = 1 / self.dicom_dataset.ImagePlanePixelSpacing[0]
+            except AttributeError:
+                raise ("No pixel/distance conversion tag found")
+        dpmm *= self.sid / 1000
+        return dpmm
+
+    @property
+    def cax(self):
+        """Return the position of the CAX."""
+        try:
+            x = self.center.x - self.dicom_dataset.XRayImageReceptorTranslation[0]
+            y = self.center.y - self.dicom_dataset.XRayImageReceptorTranslation[1]
+        except AttributeError:
+            return self.center
+        else:
+            return Point(x, y)
+
+
+class FileImage(BaseImage):
+    """An image from a "regular" file (.tif, .jpg, .bmp)."""
+
+    def __init__(self, path, **kwargs):
+        super().__init__(path)
+        pil_image = pImage.open(path)
+        # convert to gray if need be
+        if pil_image.mode not in ('F', 'L', '1'):
+            pil_image = pil_image.convert('F')
+        self.info = pil_image.info
+        self.array = np.array(pil_image)
+        self._dpi = kwargs.get('dpi')
+        self.sid = kwargs.get('sid')
+
+    @property
+    def dpi(self):
+        if self._dpi is not None:
+            dpi = self._dpi
+        else:
+            try:
+                dpi = self.info['dpi'][0]
+            except (IndexError, KeyError):
+                dpi = self.info.get('dpi', None)
+            if dpi is None:
+                raise AttributeError("No pixel/distance conversion tag found. If you know the DPI, set the attr or pass it in during construction")
+        if self.sid is not None:
+            dpi *= self.sid / 1000
+        return dpi
+
+    @property
+    def dpmm(self):
+        return self.dpi / MM_PER_INCH
+
+
+class ArrayImage(BaseImage):
+    """An image constructed solely from a numpy array."""
+
+    def __init__(self, array, **kwargs):
+        self.array = array
+        self.dpi = kwargs.get('dpi')
+        self.sid = kwargs.get('sid')
+

@@ -114,7 +114,7 @@ class Starshot:
         filepath : str
             Path to the file to be loaded.
         """
-        self.image = Image(filepath)
+        self.image = Image.load(filepath)
 
     @classmethod
     def from_multiple_images(cls, filepath_list):
@@ -364,9 +364,9 @@ class Starshot:
             self.tolerance.unit = 'pixels'
             self.wobble.radius_mm = self.wobble.radius
 
-        if self.image.SID is not None:
-            self.wobble.radius /= self.image.SID / 1000
-            self.wobble.radius_mm /= self.image.SID / 1000
+        if self.image.sid is not None:
+            self.wobble.radius /= self.image.sid / 1000
+            self.wobble.radius_mm /= self.image.sid / 1000
         else:
             self.wobble.radius /= SID / 1000
             self.wobble.radius_mm /= SID / 1000

@@ -558,7 +558,7 @@ class Settings:
         -------
         float : the angle of the phantom in **degrees**.
         """
-        slice_of_interest = Image.from_array(self.dicom_stack.slice(self.hu_slice_num)).threshold(self.threshold)
+        slice_of_interest = Image.load_from_array(self.dicom_stack.slice(self.hu_slice_num)).threshold(self.threshold)
         slice_of_interest.invert()
         labels, no_roi = ndimage.measurements.label(slice_of_interest.array)
         # calculate ROI sizes of each label TODO: simplify the air bubble-finding
@@ -736,7 +736,7 @@ class ThicknessROI(RectangleROI):
     @property
     def long_profile(self):
         """The profile along the axis perpendicular to ramped wire."""
-        img = Image.from_array(self.pixel_array)
+        img = Image.load_from_array(self.pixel_array)
         img.median_filter()
         prof = SingleProfile(img.array.max(axis=np.argmin(img.shape)))
         prof.filter(0.05)
@@ -828,7 +828,7 @@ class Slice:
             array = combine_surrounding_slices(dicom_stack.array, self.slice_num, mode=combine_method, slices_plusminus=num_slices)
         else:
             array = dicom_stack.slice(self.slice_num)
-        self.image = Image.from_array(array)
+        self.image = Image.load_from_array(array)
 
     @property
     def __getitem__(self, item):

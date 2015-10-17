@@ -115,7 +115,7 @@ class VMAT:
             Specifies what image type is being loaded in. If None, will try to determine the type from the name.
             The name must have 'open' or 'dmlc' in the name.
         """
-        img = Image(file_path)
+        img = Image.load_from_dicom(file_path)
         if im_type is not None:
             if _is_open_type(im_type):
                 self.image_open = img

@@ -153,7 +153,7 @@ class PicketFence:
             If None (default), no filtering will be done to the image.
             If an int, will perform median filtering over image of size *filter*.
         """
-        self.image = Image(file_path)
+        self.image = Image.load(file_path)
         if isinstance(filter, int):
             self.image.median_filter(size=filter)
         self._check_for_noise()
