@@ -139,9 +139,9 @@ class UnitTests(unittest.TestCase):
 
         float_pos = 0.4
         fl_input = self.img._parse_position(float_pos, 'i')
-        self.assertAlmostEqual(fl_input, float_pos*self.img.array.shape[1], delta=1)
+        self.assertAlmostEqual(fl_input, float_pos*self.img.image.shape[1], delta=1)
         fl_input = self.img._parse_position(float_pos, 'x')
-        self.assertAlmostEqual(fl_input, float_pos * self.img.array.shape[0], delta=1)
+        self.assertAlmostEqual(fl_input, float_pos * self.img.image.shape[0], delta=1)
 
         self.assertRaises(ValueError, self.img._parse_position, position, 'both')
         # self.assertRaises(ValueError, self.img._parse_position, 1.1, 'x')
@@ -223,7 +223,7 @@ class UnitTests(unittest.TestCase):
         """Test that inverting the image doesn't change the flat/sym values."""
         sym = self.img.symmetry('x')
         flat = self.img.flatness('in')
-        self.img.invert()
+        self.img.image.invert()
         i_sym = self.img.symmetry('x')
         i_flat = self.img.flatness('in')
         self.assertAlmostEqual(sym, i_sym, delta=0.01)

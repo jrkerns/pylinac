@@ -29,7 +29,7 @@ class _Flatness:
     IEC = 'iec'
 
 
-class BeamImage(Image):
+class BeamImage:
     """Class for analyzing flatness & symmetry of a 2D beam image (perpendicular to the beam)."""
     @type_accept(filepath=str)
     def __init__(self, filepath=None):
@@ -41,19 +41,19 @@ class BeamImage(Image):
             If a str, path to the image file.
         """
         if filepath is not None and is_valid_file(filepath):
-            self._load_file(filepath)
+            self.image = Image.load(filepath)
         else:
-            self.array = np.zeros((1,1))
+            self.image = np.zeros((1,1))
 
     def load_demo_image(self):
         """Load the demo image."""
         demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'flatsym', 'flatsym_demo.dcm')
-        self._load_file(demo_file)
+        self.image = Image.load(demo_file)
 
     def _plot_image(self, ax, plane, position):
         """Plot the image analyzed and a line showing where the profile was taken."""
         # position = self._convert_position(position, plane)
-        ax.imshow(self.array, cmap=plt.cm.Greys)
+        ax.imshow(self.image, cmap=plt.cm.Greys)
         ax.set_title("Image")
         self._polish_plot(ax)
         if _is_crossplane(plane):
@@ -249,10 +249,10 @@ class BeamImage(Image):
     def _check_position_inbounds(self, position, plane):
         """Check that the position is within the image index bounds."""
         if _is_crossplane(plane):
-            if position >= self.array.shape[1]:
+            if position >= self.image.shape[1]:
                 raise IndexError("Y-position {} is out of bounds of image array".format(position))
         elif _is_inplane(plane):
-            if position >= self.array.shape[0]:
+            if position >= self.image.shape[0]:
                 raise IndexError("X-position {} is out of bounds of image array".format(position))
 
     def _parse_position(self, position, plane):
@@ -260,9 +260,9 @@ class BeamImage(Image):
             raise ValueError("Plane argument '{}' must be either inplane or crossplane".format(plane))
         if isinstance(position, (float, np.float64)) and 0 < position < 1:
             if _is_crossplane(plane):
-                arr_side = self.array.shape[0]
+                arr_side = self.image.shape[0]
             elif _is_inplane(plane):
-                arr_side = self.array.shape[1]
+                arr_side = self.image.shape[1]
             pos = int(round(position * arr_side))
         elif isinstance(position, (int, float, np.float64)):
             pos = int(position)
@@ -327,9 +327,9 @@ class BeamImage(Image):
         #         x = position
 
         if _is_crossplane(plane):
-            prof = SingleProfile(self.array[position[0], :])
+            prof = SingleProfile(self.image[position[0], :])
         elif _is_inplane(plane):
-            prof = SingleProfile(self.array[:, position[0]])
+            prof = SingleProfile(self.image[:, position[0]])
         return prof
 
     def flatness(self, plane='crossplane', position='auto', method='varian'):
@@ -463,12 +463,12 @@ class BeamImage(Image):
         if not self._img_is_loaded:
             raise AttributeError("An image has not yet been loaded")
 
-        self.check_inversion()
-        self.ground()
+        self.image.check_inversion()
+        self.image.ground()
 
-        col_prof = np.median(self.array, 0)
+        col_prof = np.median(self.image, 0)
         col_prof = SingleProfile(col_prof)
-        row_prof = np.median(self.array, 1)
+        row_prof = np.median(self.image, 1)
         row_prof = SingleProfile(row_prof)
 
         x_cen = col_prof.fwxm_center()
@@ -484,7 +484,7 @@ class BeamImage(Image):
     @property
     def _img_is_loaded(self):
         """Boolean specifying if an image has been loaded."""
-        if self.array.size == 1:
+        if self.image.size == 1:
             return False
         else:
             return True
