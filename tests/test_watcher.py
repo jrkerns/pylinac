@@ -18,7 +18,7 @@ class WatcherTest(unittest.TestCase):
         osp.join(test_files_dir, 'Picket Fence', 'AS500_PF.dcm'),
         osp.join(test_files_dir, 'VMAT', 'DRMLC.zip'),
         osp.join(test_files_dir, 'CBCT', 'GE_CT.zip'),
-        osp.join(test_files_dir, 'MLC logs', 'tlogs', 'qqq2106_4DC Treatment_JS0_TX_20140712095629.bin')
+        osp.join(test_files_dir, 'MLC logs', 'tlogs', 'Anonymous_4DC Treatment_JS0_TX_20140712095629.bin')
     ]
 
     @classmethod
