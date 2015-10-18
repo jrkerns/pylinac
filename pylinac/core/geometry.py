@@ -56,6 +56,12 @@ class Point:
         p = Point(point)
         return sqrt((self.x - p.x)**2 + (self.y - p.y)**2)
 
+    def __eq__(self, other):
+        for attr in ('x', 'y', 'idx', 'value'):
+            if getattr(self, attr) != getattr(other, attr):
+                return False
+        return True
+
 
 class Circle:
     """A geometric circle with center Point, radius, and diameter."""
