@@ -141,7 +141,7 @@ class Starshot:
         filepath_list : sequence
             An iterable sequence of filepath locations.
         """
-        self.image = Image.from_multiples(filepath_list)
+        self.image = Image.load_multiples(filepath_list)
 
     @classmethod
     def from_multiple_images_UI(cls):

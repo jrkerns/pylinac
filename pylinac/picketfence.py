@@ -199,7 +199,7 @@ class PicketFence:
         path_list : iterable
             An iterable of path locations to the files to be loaded/combined.
         """
-        self.image = Image.from_multiples(path_list, method='mean')
+        self.image = Image.load_multiples(path_list, method='mean')
         self._check_for_noise()
         self.image.check_inversion()
 
@@ -543,9 +543,9 @@ class Settings:
 
 class PicketHandler:
     """Finds and handles the pickets of the image."""
-    def __init__(self, image_array, settings, num_pickets):
+    def __init__(self, image, settings, num_pickets):
         self.pickets = []
-        self.image_array = image_array
+        self.image = image
         self.settings = settings
         self.num_pickets = num_pickets
         self.find_pickets()
@@ -578,7 +578,7 @@ class PicketHandler:
         peak_spacing = np.median(np.diff(peak_idxs))
 
         for peak_idx in peak_idxs:
-            self.pickets.append(Picket(self.image_array, self.settings, peak_idx, peak_spacing/2))
+            self.pickets.append(Picket(self.image, self.settings, peak_idx, peak_spacing/2))
 
     @property
     def passed(self):
@@ -595,9 +595,9 @@ class PicketHandler:
     def image_mlc_inplane_mean_profile(self):
         """A profile of the image along the MLC travel direction."""
         if self.settings.orientation == orientations['UD']:
-            leaf_prof = np.mean(self.image_array, 0)
+            leaf_prof = np.mean(self.image, 0)
         else:
-            leaf_prof = np.mean(self.image_array, 1)
+            leaf_prof = np.mean(self.image, 1)
         return MultiProfile(leaf_prof)
 
 
@@ -663,9 +663,9 @@ class Picket:
     def picket_array(self):
         """A slice of the whole image that contains the area around the picket."""
         if self.settings.orientation == orientations['UD']:
-            array = self.image.array[:, int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing)]
+            array = self.image[:, int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing)]
         else:
-            array = self.image.array[int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing), :]
+            array = self.image[int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing), :]
         return array
 
     @property

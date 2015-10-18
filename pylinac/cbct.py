@@ -15,6 +15,7 @@ Features:
 """
 from abc import abstractmethod
 from collections import OrderedDict
+import copy
 from functools import lru_cache
 from io import BytesIO
 from os import path as osp
@@ -519,7 +520,7 @@ class Settings:
                 prof = circle_prof.values
                 # determine if the profile contains both low and high values and that most values are the same
                 if (np.percentile(prof, 2) < 800) and (np.percentile(prof, 98) > 800) and (
-                        np.percentile(prof, 80) - np.percentile(prof, 30) < 40):
+                        np.percentile(prof, 80) - np.percentile(prof, 30) < 70):
                     hu_slices.append(image_number)
 
         center_hu_slice = int(np.median(hu_slices))
@@ -558,18 +559,19 @@ class Settings:
         -------
         float : the angle of the phantom in **degrees**.
         """
-        slice_of_interest = Image.load_from_array(self.dicom_stack.slice(self.hu_slice_num)).threshold(self.threshold)
-        slice_of_interest.invert()
-        labels, no_roi = ndimage.measurements.label(slice_of_interest.array)
+        slice = Image.load(self.dicom_stack.slice(self.hu_slice_num))
+        slice.threshold(self.threshold)
+        slice.invert()
+        labels, no_roi = ndimage.measurements.label(slice)
         # calculate ROI sizes of each label TODO: simplify the air bubble-finding
-        roi_sizes = [ndimage.measurements.sum(slice_of_interest.array, labels, index=item) for item in range(1, no_roi + 1)]
+        roi_sizes = [ndimage.measurements.sum(slice, labels, index=item) for item in range(1, no_roi + 1)]
         # extract air bubble ROIs (based on size threshold)
         bubble_thresh = self.air_bubble_size
         air_bubbles = [idx + 1 for idx, item in enumerate(roi_sizes) if
                        item < bubble_thresh * 1.5 and item > bubble_thresh / 1.5]
         # if the algo has worked correctly, it has found 2 and only 2 ROIs (the air bubbles)
         if len(air_bubbles) == 2:
-            air_bubble_CofM = ndimage.measurements.center_of_mass(slice_of_interest.array, labels, air_bubbles)
+            air_bubble_CofM = ndimage.measurements.center_of_mass(slice, labels, air_bubbles)
             y_dist = air_bubble_CofM[0][0] - air_bubble_CofM[1][0]
             x_dist = air_bubble_CofM[0][1] - air_bubble_CofM[1][1]
             angle = np.arctan2(y_dist, x_dist)
@@ -736,7 +738,7 @@ class ThicknessROI(RectangleROI):
     @property
     def long_profile(self):
         """The profile along the axis perpendicular to ramped wire."""
-        img = Image.load_from_array(self.pixel_array)
+        img = Image.load(self.pixel_array)
         img.median_filter()
         prof = SingleProfile(img.array.max(axis=np.argmin(img.shape)))
         prof.filter(0.05)
@@ -828,7 +830,7 @@ class Slice:
             array = combine_surrounding_slices(dicom_stack.array, self.slice_num, mode=combine_method, slices_plusminus=num_slices)
         else:
             array = dicom_stack.slice(self.slice_num)
-        self.image = Image.load_from_array(array)
+        self.image = Image.load(array)
 
     @property
     def __getitem__(self, item):
@@ -849,8 +851,9 @@ class Slice:
         ValueError
             If any of the above conditions are not met.
         """
-        SOI_bw = self.image.threshold(self.settings.threshold)  # convert slice to binary based on threshold
-        SOI_labeled, num_roi = ndimage.label(SOI_bw)  # identify the ROIs
+        slice_copy = copy.deepcopy(self.image)
+        slice_copy.threshold(self.settings.threshold)  # convert slice to binary based on threshold
+        SOI_labeled, num_roi = ndimage.label(slice_copy.array)  # identify the ROIs
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
         roi_sizes, bin_edges = np.histogram(SOI_labeled, bins=num_roi+1)  # hist will give the size of each label
