@@ -11,8 +11,10 @@ from pylinac.core.utilities import is_iterable
 
 class Point:
     """A geometric point with x, y, and z coordinates/attributes."""
+    _attr_list = ['x', 'y', 'z', 'idx', 'value']
+    _coord_list = ['x', 'y', 'z']
 
-    def __init__(self, x=0, y=0, idx=None, value=None, as_int=False):
+    def __init__(self, x=0, y=0, z=0, idx=None, value=None, as_int=False):
         """
         Parameters
         ----------
@@ -29,21 +31,23 @@ class Point:
             If True, coordinates are converted to integers.
         """
         if isinstance(x, Point):
-            for attr in ['x', 'y', 'idx', 'value']:
+            for attr in self._attr_list:
                 item = getattr(x, attr)
                 setattr(self, attr, item)
         elif is_iterable(x):
-            for attr, item in zip(['x', 'y', 'idx', 'value'], x):
+            for attr, item in zip(self._attr_list, x):
                 setattr(self, attr, item)
         else:
             self.x = x
             self.y = y
+            self.z = z
             self.idx = idx
             self.value = value
 
         if as_int:
             self.x = int(round(self.x))
             self.y = int(round(self.y))
+            self.z = int(round(self.z))
 
     def dist_to(self, point):
         """Calculate the distance to the given point.
@@ -54,10 +58,15 @@ class Point:
             The other point to calculate distance to.
         """
         p = Point(point)
-        return sqrt((self.x - p.x)**2 + (self.y - p.y)**2)
+        return sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
+
+    def as_array(self, only_coords=True):
+        """Return the point as a numpy array."""
+        return np.array([getattr(self, item) for item in self._coord_list])
 
     def __eq__(self, other):
-        for attr in ('x', 'y', 'idx', 'value'):
+        # if all attrs equal, points considered equal
+        for attr in self._attr_list:
             if getattr(self, attr) != getattr(other, attr):
                 return False
         return True
@@ -175,11 +184,13 @@ class Line:
         point : Point, iterable
             The point to calculate distance to.
         """
-        point = Point(point)
-        lp1 = self.point1
-        lp2 = self.point2
-        numerator = np.abs((lp2.x - lp1.x)*(lp1.y - point.y) - (lp1.x - point.x)*(lp2.y - lp1.y))
-        denominator = np.sqrt((lp2.x - lp1.x)**2 + (lp2.y - lp1.y)**2)
+        point = Point(point).as_array()
+        lp1 = self.point1.as_array()
+        lp2 = self.point2.as_array()
+        # numerator = np.abs((lp2.x - lp1.x)*(lp1.y - point.y) - (lp1.x - point.x)*(lp2.y - lp1.y))
+        # denominator = np.sqrt((lp2.x - lp1.x)**2 + (lp2.y - lp1.y)**2)
+        numerator = sum(abs(x) for x in np.cross((lp2 - lp1), (lp1 - point)))
+        denominator = sum(abs(x) for x in lp2 - lp1)
         return numerator/denominator
 
     def add_to_axes(self, axes, width=1, color='w'):
