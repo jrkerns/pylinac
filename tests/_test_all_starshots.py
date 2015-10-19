@@ -1,8 +1,12 @@
 """Travis CI memory can't handle all the starshots; thus only test them when explicitly asked to."""
+import concurrent.futures
+import os
 import os.path as osp
 from unittest import TestCase
+import time
 
-from tests.test_starshot import StarMixin, test_file_dir, Point
+from pylinac.core.image import Image
+from tests.test_starshot import StarMixin, test_file_dir, Point, Starshot
 
 
 class Starshot2(StarMixin, TestCase):
@@ -198,3 +202,36 @@ class Starshot27(StarMixin, TestCase):
     wobble_diameter_mm = 0.4
     num_rad_lines = 6
 
+
+def run_star(path):
+    """Function to pass to the process pool executor to process picket fence images."""
+    try:
+        mystar = Starshot(path)
+        mystar.analyze()
+        return 'Success'
+    except:
+        return 'Failure at {}'.format(path)
+
+
+class TestImageBank(TestCase):
+    """Test the picket fences in the large image bank. Only tests the analysis runs; no details are tested."""
+    image_bank_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'Starshots'))
+
+    def test_all(self):
+        futures = []
+        start = time.time()
+        with concurrent.futures.ProcessPoolExecutor() as exec:
+            for pdir, sdir, files in os.walk(self.image_bank_dir):
+                for file in files:
+                    filepath = osp.join(pdir, file)
+                    try:
+                        Image.load(filepath)
+                    except:
+                        pass
+                    else:
+                        future = exec.submit(run_star, filepath)
+                        futures.append(future)
+            for future in concurrent.futures.as_completed(futures):
+                print(future.result())
+        end = time.time() - start
+        print('Processing of {} files took {}s'.format(len(futures), end))
