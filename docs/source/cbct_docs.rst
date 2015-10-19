@@ -194,6 +194,8 @@ Most problems in this module revolve around getting the data loaded.
 
 * If you're having trouble getting your dataset in, make sure you're loading the whole dataset.
   Also make sure you've scanned the whole phantom.
+* Make sure there are no external markers on the CatPhan (e.g. BBs), otherwise the localization
+  algorithm will not be able to properly locate the phantom within the image.
 
 
 API Documentation
