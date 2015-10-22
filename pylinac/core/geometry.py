@@ -64,12 +64,42 @@ class Point:
         """Return the point as a numpy array."""
         return np.array([getattr(self, item) for item in self._coord_list])
 
+    def __repr__(self):
+        return "Point(x={:3.2f}, y={:3.2f}, z={:3.2f})".format(self.x, self.y, self.z)
+
     def __eq__(self, other):
         # if all attrs equal, points considered equal
         for attr in self._attr_list:
             if getattr(self, attr) != getattr(other, attr):
                 return False
         return True
+
+    def __sub__(self, other):
+        p = Point()
+        for attr in self._attr_list:
+            try:
+                diff = getattr(self, attr) - getattr(other, attr)
+            except TypeError:
+                diff = None
+            setattr(p, attr, diff)
+        return p
+
+    def __mul__(self, other):
+        for attr in self._attr_list:
+            try:
+                self.__dict__[attr] *= other
+            except TypeError:
+                pass
+
+    def __truediv__(self, other):
+        for attr in self._attr_list:
+            val = getattr(self, attr)
+            try:
+                setattr(self, attr, val/other)
+            except TypeError:
+                pass
+        return self
+
 
 
 class Circle:

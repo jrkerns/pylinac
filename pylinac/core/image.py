@@ -391,6 +391,9 @@ class BaseImage:
     def ndim(self):
         return self.array.ndim
 
+    def sum(self):
+        return self.array.sum()
+
     def __len__(self):
         return len(self.array)
 

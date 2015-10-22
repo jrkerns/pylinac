@@ -9,6 +9,17 @@ import numpy as np
 from pylinac.core.io import is_valid_file
 
 
+def is_close(val, target, delta=1):
+    """Return whether the value is near the target value."""
+    try:
+        targets = (value for value in target)
+    except AttributeError:
+        targets = [target]
+    for target in targets:
+        if (val < target + delta) and (val > target - delta):
+            return True
+    return False
+
 def import_mpld3():
     """Try importing MPLD3. Raises error if not installed. Returns the MPLD3 library."""
     try:
