@@ -793,11 +793,15 @@ class MachineLog:
         # if file is B*.dlg, replace with A*.dlg
         other_dlg_file = _return_other_dlg(self.filename)
 
+        # determine which one is the A*.dlg file
+        a_file = self.filename if osp.basename(self.filename).startswith('A') else other_dlg_file
+        b_file = self.filename if osp.basename(self.filename).startswith('B') else other_dlg_file
+
         # create iterator object to read in lines
-        with open(self.filename) as csvf:
+        with open(a_file) as csvf:
             dlgdata = csv.reader(csvf, delimiter=',')
             self.header, dlgdata = DlogHeader(dlgdata)._read()
-            self.axis_data = DlogAxisData(dlgdata, self.header, other_dlg_file)._read(exclude_beam_off)
+            self.axis_data = DlogAxisData(dlgdata, self.header, b_file)._read(exclude_beam_off)
 
         self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
@@ -1043,10 +1047,10 @@ class Fluence(metaclass=ABCMeta):
         for pair in range(1, self._mlc.num_pairs + 1):
             if not self._mlc.leaf_under_y_jaw(pair):
                 fluence_line[:] = 0  # emtpy the line values on each new leaf pair
-                left_leaf_data = getattr(self._mlc.leaf_axes[pair], self._fluence_type)
-                left_leaf_data = -np.round(left_leaf_data * 10 / resolution) + pos_offset
-                right_leaf_data = getattr(self._mlc.leaf_axes[pair + leaf_offset], self._fluence_type)
+                right_leaf_data = getattr(self._mlc.leaf_axes[pair], self._fluence_type)
                 right_leaf_data = np.round(right_leaf_data * 10 / resolution) + pos_offset
+                left_leaf_data = getattr(self._mlc.leaf_axes[pair + leaf_offset], self._fluence_type)
+                left_leaf_data = -np.round(left_leaf_data * 10 / resolution) + pos_offset
                 left_jaw_data = np.round((200 / resolution) - (self._jaws.x1.actual * 10 / resolution))
                 right_jaw_data = np.round((self._jaws.x2.actual * 10 / resolution) + (200 / resolution))
                 if self._mlc.pair_moved(pair):
