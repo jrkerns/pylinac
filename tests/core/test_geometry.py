@@ -13,10 +13,11 @@ class TestPoint(unittest.TestCase):
 
     x = 5
     y = -14
+    z = 0
     idx = 14
     value = 13.28
-    coord_iter = (x, y)
-    all_vals_iter = (x, y, idx, value)
+    coord_iter = (x, y, z)
+    all_vals_iter = (x, y, z, idx, value)
 
     def test_inputs(self):
         # create an empty point
@@ -59,7 +60,7 @@ class TestPoint(unittest.TestCase):
     def test_dist_to(self):
         p = Point(1,1)
         correct_dist = math.sqrt(8)
-        meas_dist = p.dist_to(Point(3,3))
+        meas_dist = p.distance_to(Point(3,3))
         self.assertAlmostEqual(correct_dist, meas_dist)
 
 
@@ -120,9 +121,9 @@ class TestLine(unittest.TestCase):
 
     def test_dist2point(self):
 
-        point = Point(0,3)
-        line = Line((0,0), (1,1))
-        exp_dist = 2.12
+        point = Point(1,0)
+        line = Line((0,0), (0,1))
+        exp_dist = 1
 
         self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
 

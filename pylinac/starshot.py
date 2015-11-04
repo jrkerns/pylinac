@@ -325,7 +325,7 @@ class Starshot:
                 else:
                     # if so, stop
                     if self.wobble.diameter_mm < 2:
-                        focus_near_center = self.wobble.center.dist_to(focus_point) < 5
+                        focus_near_center = self.wobble.center.distance_to(focus_point) < 5
                         if focus_near_center:
                             wobble_unreasonable = False
                         else:

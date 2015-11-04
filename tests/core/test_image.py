@@ -152,7 +152,7 @@ class TestDicomImage(TestCase):
         self.assertAlmostEqual(self.dcm.dpmm, 2.68, delta=0.01)
 
     def test_cax(self):
-        self.assertLessEqual(self.dcm.cax.dist_to(self.dcm.center), 1.5)
+        self.assertLessEqual(self.dcm.cax.distance_to(self.dcm.center), 1.5)
 
 
 class TestFileImage(TestCase):
