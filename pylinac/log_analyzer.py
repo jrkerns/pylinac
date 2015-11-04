@@ -888,10 +888,10 @@ class Fluence(metaclass=ABCMeta):
         for pair in range(1, self._mlc.num_pairs + 1):
             if not self._mlc.leaf_under_y_jaw(pair):
                 fluence_line[:] = 0  # emtpy the line values on each new leaf pair
-                left_leaf_data = getattr(self._mlc.leaf_axes[pair], self._fluence_type)
-                left_leaf_data = -np.round(left_leaf_data * 10 / resolution) + pos_offset
-                right_leaf_data = getattr(self._mlc.leaf_axes[pair + leaf_offset], self._fluence_type)
+                right_leaf_data = getattr(self._mlc.leaf_axes[pair], self._fluence_type)
                 right_leaf_data = np.round(right_leaf_data * 10 / resolution) + pos_offset
+                left_leaf_data = getattr(self._mlc.leaf_axes[pair + leaf_offset], self._fluence_type)
+                left_leaf_data = -np.round(left_leaf_data * 10 / resolution) + pos_offset
                 left_jaw_data = np.round((200 / resolution) - (self._jaws.x1.actual * 10 / resolution))
                 right_jaw_data = np.round((self._jaws.x2.actual * 10 / resolution) + (200 / resolution))
                 if self._mlc.pair_moved(pair):
