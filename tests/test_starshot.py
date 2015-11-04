@@ -92,7 +92,7 @@ class StarMixin:
 class Demo(StarMixin, unittest.TestCase):
     """Specific tests for the demo image"""
     star_file = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'starshot', 'starshot.tif')
-    wobble_diameter_mm = 0.31
+    wobble_diameter_mm = 0.30
     wobble_center = Point(1270, 1437)
     num_rad_lines = 4
 
