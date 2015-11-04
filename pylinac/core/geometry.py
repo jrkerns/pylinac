@@ -1,12 +1,62 @@
 
 """Module for classes that represent common geometric objects or patterns."""
-from math import sqrt
+from itertools import zip_longest
+import math
 
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 
 from pylinac.core.utilities import is_iterable
+
+
+def tan(degrees):
+    return math.tan(math.radians(degrees))
+
+
+def cos(degrees):
+    return math.cos(math.radians(degrees))
+
+
+def sin(degrees):
+    return math.sin(math.radians(degrees))
+
+
+class Vector:
+    """A vector with x, y, and z coordinates."""
+    def __init__(self, x=0, y=0, z=0):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def __repr__(self):
+        return "Vector(x={:.2f}, y={:.2f}, z={:.2f})".format(self.x, self.y, self.z)
+
+    def as_scalar(self):
+        """Return the scalar equivalent of the vector."""
+        return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def distance_to(self, thing):
+        """Calculate the distance to the given point.
+
+        Parameters
+        ----------
+        thing : Circle, Point, 2 element iterable
+            The other point to calculate distance to.
+        """
+        if isinstance(thing, Circle):
+            return abs(np.sqrt((self.x - thing.center.x)**2 + (self.y - thing.center.y)**2) - thing.radius)
+        else:
+            p = Point(thing)
+            return math.sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
+
+
+def vector_is_close(vector1, vector2, delta=0.1):
+    """Determine if two vectors are with delta of each other; this is a simple coordinate comparison check."""
+    for attr in ('x', 'y', 'z'):
+        if not getattr(vector2, attr) + delta >= getattr(vector1, attr) >= getattr(vector2, attr) - delta:
+            return False
+    return True
 
 
 class Point:
@@ -32,10 +82,10 @@ class Point:
         """
         if isinstance(x, Point):
             for attr in self._attr_list:
-                item = getattr(x, attr)
+                item = getattr(x, attr, None)
                 setattr(self, attr, item)
         elif is_iterable(x):
-            for attr, item in zip(self._attr_list, x):
+            for attr, item in zip_longest(self._attr_list, x, fillvalue=0):
                 setattr(self, attr, item)
         else:
             self.x = x
@@ -49,30 +99,32 @@ class Point:
             self.y = int(round(self.y))
             self.z = int(round(self.z))
 
-    def dist_to(self, point):
+    def distance_to(self, thing):
         """Calculate the distance to the given point.
 
         Parameters
         ----------
-        point : Point, 2 element iterable
-            The other point to calculate distance to.
+        thing : Circle, Point, 2 element iterable
+            The other thing to calculate distance to.
         """
-        p = Point(point)
-        return sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
+        if isinstance(thing, Circle):
+            return abs(np.sqrt((self.x - thing.center.x)**2 + (self.y - thing.center.y)**2) - thing.radius)
+        p = Point(thing)
+        return math.sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
 
     def as_array(self, only_coords=True):
         """Return the point as a numpy array."""
-        return np.array([getattr(self, item) for item in self._coord_list])
+        if only_coords:
+            return np.array([getattr(self, item) for item in self._coord_list])
+        else:
+            return np.array([getattr(self, item) for item in self._attr_list if (getattr(self, item) is not None)])
 
     def __repr__(self):
         return "Point(x={:3.2f}, y={:3.2f}, z={:3.2f})".format(self.x, self.y, self.z)
 
     def __eq__(self, other):
         # if all attrs equal, points considered equal
-        for attr in self._attr_list:
-            if getattr(self, attr) != getattr(other, attr):
-                return False
-        return True
+        return all(getattr(self, attr) == getattr(other, attr) for attr in self._attr_list)
 
     def __sub__(self, other):
         p = Point()
@@ -99,7 +151,6 @@ class Point:
             except TypeError:
                 pass
         return self
-
 
 
 class Circle:
@@ -166,7 +217,6 @@ class Line:
         self.point1 = Point(point1)
         self.point2 = Point(point2)
 
-
     @property
     def m(self):
         """Return the slope of the line.
@@ -202,7 +252,7 @@ class Line:
     @property
     def length(self):
         """Return length of the line, if finite."""
-        return self.point1.dist_to(self.point2)
+        return self.point1.distance_to(self.point2)
 
     def distance_to(self, point):
         """Calculate the minimum distance from the line to a point.
