@@ -635,11 +635,15 @@ class MachineLog:
         # if file is B*.dlg, replace with A*.dlg
         other_dlg_file = _return_other_dlg(self.filename)
 
+        # determine which one is the A*.dlg file
+        a_file = self.filename if osp.basename(self.filename).startswith('A') else other_dlg_file
+        b_file = self.filename if osp.basename(self.filename).startswith('B') else other_dlg_file
+
         # create iterator object to read in lines
-        with open(self.filename) as csvf:
+        with open(a_file) as csvf:
             dlgdata = csv.reader(csvf, delimiter=',')
             self.header, dlgdata = DlogHeader(dlgdata)._read()
-            self.axis_data = DlogAxisData(dlgdata, self.header, other_dlg_file)._read(exclude_beam_off)
+            self.axis_data = DlogAxisData(dlgdata, self.header, b_file)._read(exclude_beam_off)
 
         self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
