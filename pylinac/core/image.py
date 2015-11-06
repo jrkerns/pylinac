@@ -255,6 +255,8 @@ class BaseImage:
             path.seek(0)
         elif not osp.isfile(path):
             raise FileExistsError("File `{}` does not exist".format(path))
+        else:
+            self.filename = path
 
     @property
     def center(self):
