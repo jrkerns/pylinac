@@ -119,7 +119,7 @@ class TestLogLoading(TestCase):
 
     def test_txt_file_also_loads_if_around(self):
         # has a .txt file
-        log_with_txt = osp.join(self.test_dir, 'sg_tlogs', "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin")
+        log_with_txt = osp.join(self.test_dir, 'mixed_types', "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin")
 
         log = MachineLog(log_with_txt)
         self.assertTrue(hasattr(log, 'txt'))
@@ -349,21 +349,21 @@ class TrajectoryLogDemo(TestLogMixin, TestCase):
 
 class TestMachineLogs(TestCase):
     _logs_dir = osp.abspath(osp.join(osp.dirname(__file__), '.', 'test_files', 'MLC logs'))
-    logs_dir = osp.join(_logs_dir, 'sg_tlogs')
+    logs_dir = osp.join(_logs_dir, 'mixed_types')
     logs_altdir = osp.join(_logs_dir, 'altdir')
     mix_type_dir = osp.join(_logs_dir, 'mixed_types')
 
     def test_loading(self):
         # test root level directory
         logs = MachineLogs(self.logs_dir, recursive=False)
-        self.assertEqual(logs.num_logs, 7)
+        self.assertEqual(logs.num_logs, 3)
         # test recursive
         logs = MachineLogs(self.logs_dir)
-        self.assertEqual(logs.num_logs, 8)
+        self.assertEqual(logs.num_logs, 3)
         # test using method
         logs = MachineLogs()
         logs.load_folder(self.logs_dir)
-        self.assertEqual(logs.num_logs, 8)
+        self.assertEqual(logs.num_logs, 3)
 
     def test_basic_parameters(self):
         # no real test other than to make sure it works
@@ -372,9 +372,9 @@ class TestMachineLogs(TestCase):
 
     def test_num_logs(self):
         logs = MachineLogs(self.logs_dir, recursive=False)
-        self.assertEqual(logs.num_logs, 7)
-        self.assertEqual(logs.num_tlogs, 7)
-        self.assertEqual(logs.num_dlogs, 0)
+        self.assertEqual(logs.num_logs, 3)
+        self.assertEqual(logs.num_tlogs, 2)
+        self.assertEqual(logs.num_dlogs, 1)
 
         logs = MachineLogs(self.mix_type_dir)
         self.assertEqual(logs.num_dlogs, 1)
