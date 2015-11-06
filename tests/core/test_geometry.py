@@ -63,6 +63,10 @@ class TestPoint(unittest.TestCase):
         meas_dist = p.distance_to(Point(3,3))
         self.assertAlmostEqual(correct_dist, meas_dist)
 
+        p = Point(3, 0)
+        c = Circle((0, 0), radius=2)
+        self.assertEqual(p.distance_to(c), 1)
+
 
 class TestCircle(unittest.TestCase):
 
