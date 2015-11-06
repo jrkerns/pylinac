@@ -16,6 +16,12 @@ class GeneralTests(TestCase):
     def setUpClass(cls):
         cls.wl = WinstonLutz(cls.image_dir)
 
+    def test_loading_demo_files(self):
+        wl = WinstonLutz.from_demo_images()  # shouldn't raise
+
+    def test_run_demo(self):
+        WinstonLutz().run_demo()  # shouldn't raise
+
     def test_plot(self):
         self.wl.plot_images()  # shouldn't raise
         self.wl.plot_gantry_sag()
@@ -71,6 +77,13 @@ class WinstonLutzMixin:
         self.assertTrue(vector_is_close(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector))
 
 
+# class WLDemo(WinstonLutzMixin, TestCase):
+#
+#     @classmethod
+#     def setUpClass(cls):
+#         cls.wl = WinstonLutz.from_demo_images()
+
+
 class WLKiX(WinstonLutzMixin, TestCase):
     image_dir = image_bank_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'Winston-Lutz', 'Katy iX'))
     num_images = 17
@@ -98,6 +111,6 @@ class WLChTB(WinstonLutzMixin, TestCase):
     couch_iso2bb_vector = Vector(-0.25, -0.2)
     cax2bb_max_distance = 0.5
     cax2bb_median_distance = 0.3
-    variable_axes = {0: 'Collimator'}
+    variable_axes = {0: 'Gantry'}
 
 
