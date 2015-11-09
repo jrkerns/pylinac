@@ -223,8 +223,9 @@ class VMAT:
 
         .. versionadded:: 0.8
         """
-        files = load_zipfile(zip_file, read=True)
-        self.load_images(files, names=zfs.namelist())
+        zfiles = load_zipfile(zip_file)
+        images = [BytesIO(zfiles.read(name)) for name in zfiles.namelist()]
+        self.load_images(images, names=zfiles.namelist())
 
     @classmethod
     def from_urls(cls, urls):
