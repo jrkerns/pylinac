@@ -174,7 +174,7 @@ class CircleProfileTestMixin:
 
     @classmethod
     def setUpClass(cls):
-        image = Image(cls.image_file_location)
+        image = Image.load(cls.image_file_location)
         cls.profile = cls.klass(cls.center_point, cls.radius, image.array)
 
     def test_locations(self):

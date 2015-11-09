@@ -560,7 +560,7 @@ class Settings:
         float : the angle of the phantom in **degrees**.
         """
         slice = Image.load(self.dicom_stack.slice(self.hu_slice_num))
-        slice.threshold(self.threshold)
+        slice = slice.as_binary(self.threshold)
         slice.invert()
         labels, no_roi = ndimage.measurements.label(slice)
         # calculate ROI sizes of each label TODO: simplify the air bubble-finding
@@ -851,9 +851,8 @@ class Slice:
         ValueError
             If any of the above conditions are not met.
         """
-        slice_copy = copy.deepcopy(self.image)
-        slice_copy.threshold(self.settings.threshold)  # convert slice to binary based on threshold
-        SOI_labeled, num_roi = ndimage.label(slice_copy.array)  # identify the ROIs
+        sl = self.image.as_binary(self.settings.threshold)  # convert slice to binary based on threshold
+        SOI_labeled, num_roi = ndimage.label(sl)  # identify the ROIs
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
         roi_sizes, bin_edges = np.histogram(SOI_labeled, bins=num_roi+1)  # hist will give the size of each label

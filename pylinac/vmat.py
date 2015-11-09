@@ -22,7 +22,7 @@ from pylinac.core.geometry import Point, Rectangle
 from pylinac.core.image import Image
 from pylinac.core.io import get_filepath_UI, get_filenames_UI
 from pylinac.core.profile import SingleProfile
-from pylinac.core.utilities import typed_property, get_url, import_mpld3
+from pylinac.core.utilities import typed_property, get_url, import_mpld3, load_zipfile
 
 # test types
 DRGS = 'drgs'
@@ -223,14 +223,9 @@ class VMAT:
 
         .. versionadded:: 0.8
         """
-        if isinstance(zip_file, zipfile.ZipFile):
-            zfs = zip_file
-        elif zipfile.is_zipfile(zip_file):
-            zfs = zipfile.ZipFile(zip_file)
-        else:
-            raise FileExistsError("File '{}' given was not a valid zip file".format(zip_file))
-        files = [BytesIO(zfs.read(name)) for name in zfs.namelist()]
-        self.load_images(files, names=zfs.namelist())
+        zfiles = load_zipfile(zip_file)
+        images = [BytesIO(zfiles.read(name)) for name in zfiles.namelist()]
+        self.load_images(images, names=zfiles.namelist())
 
     @classmethod
     def from_urls(cls, urls):

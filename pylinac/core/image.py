@@ -122,14 +122,14 @@ class DICOMStack:
 
 
 class Image:
-    """A swiss army knife, delegate class for loading in images and image-like things.
+    """A swiss-army knife, delegate class for loading in images and image-like things.
 
     The class should not be instantiated directly, but through its class methods. These methods
     return not an `Image` class but one of three specialized image classes:
 
     * `~pylinac.core.image.DicomImage` : Handles all DICOM images; utilizes pydicom.
     * `~pylinac.core.image.FileImage` : Handles JPEG, BMP, TIF, and other "regular" image files; utilizes Pillow.
-    * `~pylinac.core.image.ArrayImage` : Handles 2D numpy arrays; convenient for doing array processing of arrays
+    * `~pylinac.core.image.ArrayImage` : Handles 2D numpy arrays; convenient for doing processing of arrays
       that represent an image.
 
     There are two methods to construct these classes:
@@ -255,6 +255,8 @@ class BaseImage:
             path.seek(0)
         elif not osp.isfile(path):
             raise FileExistsError("File `{}` does not exist".format(path))
+        else:
+            self.filename = path
 
     @property
     def center(self):
@@ -263,11 +265,16 @@ class BaseImage:
         y_center = self.shape[0] / 2
         return Point(x_center, y_center)
 
-    def plot(self):
+    def plot(self, ax=None, show=True, clear_fig=False):
         """Plot the image."""
-        plt.clf()
-        plt.imshow(self.array, cmap=plt.cm.Greys)
-        plt.show()
+        if ax is None:
+            fig, ax = plt.subplots()
+        if clear_fig:
+            plt.clf()
+        ax.imshow(self.array, cmap=plt.cm.Greys)
+        if show:
+            plt.show()
+        return ax
 
     def median_filter(self, size=3, mode='reflect'):
         """Apply a median filter to the image.
@@ -317,19 +324,29 @@ class BaseImage:
         self.array = imresize(self.array, size=size, interp=interp, mode='F')
 
     def threshold(self, threshold):
-        """Convert the pixel array to a black & white array based on the threshold.
+        """Use a high-pass threshold on the array.
 
         Parameters
         ----------
         threshold : int
-            If the value is less than the threshold it is set to 0, otherwise to 1.
+            If the value is less than the threshold it is set to 0, otherwise the original value is left as-is.
+        """
+        self.array = np.where(self.array >= threshold, self, 0)
+
+    def as_binary(self, threshold):
+        """Return a binary (black & white) image based on the given threshold.
+
+        Parameters
+        ----------
+        threshold : int, float
+            The threshold value. If the value is above or equal to the threshold it is set to 1, otherwise to 0.
 
         Returns
         -------
-        A numpy array the same size as the original image.
+        ArrayImage
         """
-        self.array = np.where(self.array >= threshold, 1, 0)
-        # return Image.load(arr)
+        array = np.where(self.array >= threshold, 1, 0)
+        return ArrayImage(array)
 
     @type_accept(point=(Point, tuple))
     def dist2edge_min(self, point):
@@ -390,6 +407,9 @@ class BaseImage:
     @property
     def ndim(self):
         return self.array.ndim
+
+    def sum(self):
+        return self.array.sum()
 
     def __len__(self):
         return len(self.array)
