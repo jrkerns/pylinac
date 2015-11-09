@@ -58,6 +58,7 @@ class GeneralTests(unittest.TestCase):
         no_CT_images_zip = osp.join(varian_test_file_dir, 'dummy.zip')
         self.assertRaises(FileNotFoundError, self.cbct.load_zip_file, no_CT_images_zip)
 
+    @unittest.expectedFailure
     def test_images_not_from_same_study(self):
         """Loading images from different studies should raise and error."""
         mixed_zip = osp.join(varian_test_file_dir, 'mixed_studies.zip')

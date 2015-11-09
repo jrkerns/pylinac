@@ -6,9 +6,6 @@ from pylinac import WinstonLutz
 from pylinac.core.geometry import Vector, vector_is_close
 
 
-image_bank_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'Winston-Lutz', 'Chicago', 'WL-Final_C&G&C_Final'))
-
-
 class GeneralTests(TestCase):
     image_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'Winston-Lutz', 'Chicago', 'WL-Final_C&G&C_Final'))
 
@@ -61,7 +58,7 @@ class WinstonLutzMixin:
         # test iso vector
         self.assertTrue(vector_is_close(self.wl.gantry_iso2bb_vector, self.gantry_iso2bb_vector))
 
-    def test_gantry_sage(self):
+    def test_gantry_sag(self):
         self.assertAlmostEqual(self.wl.gantry_sag(), self.gantry_sag, delta=0.15)
 
     def test_collimator_iso(self):
@@ -77,15 +74,24 @@ class WinstonLutzMixin:
         self.assertTrue(vector_is_close(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector))
 
 
-# class WLDemo(WinstonLutzMixin, TestCase):
-#
-#     @classmethod
-#     def setUpClass(cls):
-#         cls.wl = WinstonLutz.from_demo_images()
+class WLDemo(WinstonLutzMixin, TestCase):
+    num_images = 17
+    gantry_sag = 1
+    gantry_iso_size = 0.7
+    gantry_iso2bb_vector = Vector(0.2, 0.1, 0.4)
+    collimator_iso_size = 0.5
+    collimator_iso2bb_vector = Vector(0.2, 0.4, 0)
+    couch_iso_size = 1.2
+    couch_iso2bb_vector = Vector(-1, -0.4, 0)
+    variable_axes = {0: 'Reference'}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.wl = WinstonLutz.from_demo_images()
 
 
 class WLKiX(WinstonLutzMixin, TestCase):
-    image_dir = image_bank_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'Winston-Lutz', 'Katy iX'))
+    image_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'Winston-Lutz', 'Katy iX'))
     num_images = 17
     gantry_iso_size = 0.72
     gantry_iso2bb_vector = Vector(-0.3, 0.1, -0.2)
