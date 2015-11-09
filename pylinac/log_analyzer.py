@@ -19,6 +19,7 @@ Features:
 * **Anonymize logs** - Both dynalogs and trajectory logs can be "anonymized" by removing the Patient ID from the filename(s)
   and file data.
 """
+import tempfile
 from abc import ABCMeta, abstractproperty
 import copy
 import csv
@@ -28,6 +29,7 @@ import os
 import os.path as osp
 import shutil
 import struct
+import zipfile
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,7 +37,7 @@ import scipy.ndimage.filters as spf
 
 from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file
-from pylinac.core.utilities import is_iterable, import_mpld3, get_url
+from pylinac.core.utilities import is_iterable, import_mpld3, get_url, load_zipfile
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -90,6 +92,26 @@ class MachineLogs(list):
         super().__init__()
         if folder is not None and is_valid_dir(folder):
             self.load_folder(folder, recursive)
+
+    @classmethod
+    def from_zip(cls, zfile):
+        """Instantiate from a ZIP archive."""
+        obj = cls()
+        # extract files to a temporary folder so that dynalog pairs can be matched, etc
+        with tempfile.TemporaryDirectory() as tmpdir:
+            zfiles = zipfile.ZipFile(zfile)
+            zfiles.extractall(path=tmpdir)
+            # walk the files looking for machine logs
+            for pdir, sdir, files in os.walk(tmpdir):
+                for file in files:
+                    file = osp.join(pdir, file)
+                    try:
+                        log = MachineLog(file)
+                    except:
+                        pass
+                    else:
+                        obj.append(log)
+        return obj
 
     @property
     def num_logs(self):

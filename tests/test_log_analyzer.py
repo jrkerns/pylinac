@@ -364,6 +364,10 @@ class TestMachineLogs(TestCase):
         logs = MachineLogs()
         logs.load_folder(self.logs_dir)
         self.assertEqual(logs.num_logs, 3)
+        # test using zip file
+        zfile = osp.join(self._logs_dir, 'mixed_types.zip')
+        logs = MachineLogs.from_zip(zfile)
+        self.assertEqual(logs.num_logs, 4)
 
     def test_basic_parameters(self):
         # no real test other than to make sure it works
