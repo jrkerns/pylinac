@@ -9,7 +9,7 @@ Features:
   of the collimator and couch can also be determined.
 * **Image plotting** - WL images can be plotted separately or together, each of which shows the field CAX, BB and
   scalar distance from BB to CAX.
-* **Gantry sag** - The sag of the gantry in the gun/target direction is also quantified and can be plotted.
+* **Gantry sag** - The sag of the gantry is also quantified and can be plotted.
 """
 from functools import lru_cache
 from itertools import zip_longest
