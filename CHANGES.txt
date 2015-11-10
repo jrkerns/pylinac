@@ -1,3 +1,7 @@
+V 1.1.1 - 11/10/2015
+
+-Winston-Lutz demo images were not included in the pypi package.
+
 V 1.1.0 - 11/9/2015
 
 This release debuts the new Winston-Lutz module, which easily loads any number of EPID images,
