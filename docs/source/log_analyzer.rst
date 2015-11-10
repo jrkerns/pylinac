@@ -354,6 +354,15 @@ with the CSV files if you wish, without having to use pylinac::
     log = MachineLog.from_demo_trajectorylog()
     log.to_csv()
 
+Anonymizing Logs
+----------------
+
+Machine logs can be anonymized using the :meth:`~pylinac.log_analyzer.MachineLog.anonymize` method, available to
+both :class:`~pylinac.log_analyzer.MachineLog` and :class:`~pylinac.log_analyzer.MachineLogs`. Example script::
+
+    log = MachineLog.from_demo_trajectorylog()
+    log.anonymize()
+
 Batch Processing
 ----------------
 
