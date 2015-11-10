@@ -1,8 +1,22 @@
-V 1.1.0 - Future
+V 1.1.0 - 11/9/2015
+
+This release debuts the new Winston-Lutz module, which easily loads any number of EPID images,
+finds the field CAX and the BB, and can plot various metrics. See the full docs for more info:
+http://pylinac.readthedocs.org/en/latest/winston_lutz.html
 
     Log Analyzer
 -Logs can now be anonymized using the `.anonymize()` method for both MachineLog and MachineLogs.
 -The `.to_csv()` methods for MachineLog and MachineLogs returns a list of the newly created files.
+-MachineLogs can now load from a zip archive using `.from_zip()`.
+
+V 1.0.3
+
+-Fixes #39. MachineLog fluence was inverted in the left-right direction.
+-Fixes #40. MachineLog fluence calculations from dynalogs were dependent on the load order (A-file vs. B-file).
+
+V 1.0.2
+
+-Fixes #38. MachineLog fluence calculations would crash if there was no beam-on snapshots (e.g. kV images).
 
 V 1.0.1 - 10/15/2015
 

@@ -6,8 +6,8 @@ from setuptools import setup, find_packages
 
 # 2 alt. To make a wheel, run $ python setup.py sdist bdist_wheel [upload]
 
-__version__ = '1.0.1'
-__version_info__ = (1, 0, 1)
+__version__ = '1.1.0'
+__version_info__ = (1, 1, 0)
 
 
 setup(
@@ -15,7 +15,7 @@ setup(
     version=__version__,
     packages=find_packages(),
     # include_package_data=True,
-    package_data={'pylinac' :
+    package_data={'pylinac':
                       ['demo_files/cbct/*',
                        'demo_files/log_reader/*',
                        'demo_files/starshot/*',
