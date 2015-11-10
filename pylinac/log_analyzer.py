@@ -95,7 +95,13 @@ class MachineLogs(list):
 
     @classmethod
     def from_zip(cls, zfile):
-        """Instantiate from a ZIP archive."""
+        """Instantiate from a ZIP archive.
+
+        Parameters
+        ----------
+        zfile : str
+            Path to the zip archive.
+        """
         obj = cls()
         # extract files to a temporary folder so that dynalog pairs can be matched, etc
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -115,10 +121,11 @@ class MachineLogs(list):
 
     @property
     def num_logs(self):
-        """Return the number of logs currently loaded."""
+        """The number of logs currently loaded."""
         return len(self)
 
     def _num_log_type(self, log_type):
+        """The number of a given log type."""
         num = 0
         for log in self:
             if log.log_type == log_type:
@@ -127,12 +134,12 @@ class MachineLogs(list):
 
     @property
     def num_tlogs(self):
-        """Return the number of Trajectory logs currently loaded."""
+        """The number of Trajectory logs currently loaded."""
         return self._num_log_type(TRAJECTORY_LOG)
 
     @property
     def num_dlogs(self):
-        """Return the number of Trajectory logs currently loaded."""
+        """The number of Trajectory logs currently loaded."""
         return self._num_log_type(DYNALOG)
 
     def load_folder(self, dir, recursive=True):
