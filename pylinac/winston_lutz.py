@@ -59,7 +59,7 @@ class WinstonLutz:
 
         Attributes
         ----------
-        images : `~pylinac.winston_lutz.ImageManager` instance
+        images : :class:`~pylinac.winston_lutz.ImageManager` instance
         """
         if directory is not None:
             self.images = ImageManager(directory)
@@ -550,11 +550,12 @@ class WLImage(DicomImage):
         """The axis that is varying.
 
         There are five types of images:
-        - Reference : All axes are at 0.
-        - Gantry: All axes but gantry at 0.
-        - Collimator : All axes but collimator at 0.
-        - Couch : All axes but couch at 0.
-        - Combo : More than one axis is not at 0.
+
+        * Reference : All axes are at 0.
+        * Gantry: All axes but gantry at 0.
+        * Collimator : All axes but collimator at 0.
+        * Couch : All axes but couch at 0.
+        * Combo : More than one axis is not at 0.
         """
         G0 = is_close(self.gantry_angle, [0, 360])
         B0 = is_close(self.collimator_angle, [0, 360])

@@ -19,12 +19,20 @@ To run the Winston-Lutz demo, create a script or start an interpreter session an
 
 Results will be printed to the console and a figure showing the zoomed-in images will be generated::
 
-    Dose Rate & MLC Speed
-    Test Results (Tol. +/-1.5%): PASS
-    Max Deviation: 0.437%
-    Absolute Mean Deviation: 0.382%
+    Winston-Lutz Analysis
 
-.. image:: images/vmat_analyzed.png
+    Number of images: 17
+    Maximum 2D CAX->BB distance: 1.25mm
+    Median 2D CAX->BB distance: 0.62mm
+    Gantry 3D isocenter radius: 0.67mm
+    Gantry iso->BB vector: Vector(x=0.22, y=0.10, z=0.38)
+    Gantry sag in the z-direction: 1.01mm
+    Collimator 2D isocenter radius: 0.51mm
+    Collimator 2D iso->BB vector: Vector(x=0.17, y=0.38, z=0.00)
+    Couch 2D isocenter radius: 1.20mm
+    Couch 2D iso->BB vector: Vector(x=-0.94, y=-0.35, z=0.00)
+
+.. image:: images/winston_lutz_demo.png
 
 Image Acquisition
 -----------------
@@ -42,7 +50,7 @@ Coordinate Space
 ----------------
 
 When interpreting results from a Winston-Lutz test, it's important to know the coordinates, origin, etc. Pylinac uses
-the same coordinate space as `Winkler et al`_ . All coordinates are looking from the foot of the table toward the gantry:
+the same coordinate space as `Winkler et al`_. All coordinates are looking from the foot of the table toward the gantry:
 
 * **X-axis** - Lateral, or left-right, with right being positive.
 * **Y-axis** - Anterior-Posterior, or up-down, with up being positive.
@@ -127,8 +135,8 @@ The algorithm works like such:
     Collimator iso size is always in the plane normal to the gantry, while couch iso size is always in
     the x-z plane.
 
-.. `Winkler et al` http://iopscience.iop.org/article/10.1088/0031-9155/48/9/303/meta;jsessionid=269700F201744D2EAB897C14D1F4E7B3.c2.iopscience.cld.iop.org
-.. `Du et al` http://scitation.aip.org/content/aapm/journal/medphys/37/5/10.1118/1.3397452
+.. _Winkler et al: http://iopscience.iop.org/article/10.1088/0031-9155/48/9/303/meta;jsessionid=269700F201744D2EAB897C14D1F4E7B3.c2.iopscience.cld.iop.org
+.. _Du et al: http://scitation.aip.org/content/aapm/journal/medphys/37/5/10.1118/1.3397452
 
 API Documentation
 -----------------
