@@ -137,7 +137,7 @@ def analysis_should_be_done(path):
     path = osp.basename(path).lower()
     for analysis_class in (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzeLog, AnalyzePF):
         for keyword in analysis_class.keywords:
-            if (keyword in path) and not any(item in path for item in ('.png', '.txt')):
+            if (keyword in path.lower()) and not any(item in path for item in ('.png', '.txt')):
                 # more specific filtering of data by type
                 if analysis_class in (AnalyzeCBCT, AnalyzeVMAT):
                     if path.endswith('.zip'):
