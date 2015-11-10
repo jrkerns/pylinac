@@ -26,6 +26,33 @@ those who don't want or don't know how to program.
 
 Below are the tools currently available:
 
+* `Winston-Lutz Analysis <http://pylinac.readthedocs.org/en/latest/winston_lutz.html>`_ -
+    The Winston-Lutz module analyzes EPID images taken of a small radiation field and BB to determine the 2D
+    distance from BB to field CAX. Additionally, the isocenter size of the gantry, collimator, and couch can
+    all be determined *without the BB being at isocenter*. Analysis is based on
+    `Winkler et al <http://iopscience.iop.org/article/10.1088/0031-9155/48/9/303/meta;jsessionid=269700F201744D2EAB897C14D1F4E7B3.c2.iopscience.cld.iop.org>`_
+    and `Du et al <http://scitation.aip.org/content/aapm/journal/medphys/37/5/10.1118/1.3397452>`_.
+
+    Features:
+
+    * **Automatic field & BB positioning** - When an image or directory is loaded, the field CAX and the BB
+      are automatically found, along with the vector and scalar distance between them.
+    * **Isocenter size determination** - Using backprojections of the EPID images, the 3D gantry isocenter size
+      and position can be determined *independent of the BB position*. Additionally, the 2D planar isocenter size
+      of the collimator and couch can also be determined.
+    * **Image plotting** - WL images can be plotted separately or together, each of which shows the field CAX, BB and
+      scalar distance from BB to CAX.
+    * **Gantry sag** - The sag of the gantry is also quantified and can be plotted.
+
+    Example script::
+
+        from pylinac import WinstonLutz
+
+        path = 'path/to/image/directory`
+        wl = WinstonLutz(path)  # images are analyzed upon loading
+        wl.plot_summary()
+        print(wl.results())
+
 * `Starshot Analysis <http://pylinac.readthedocs.org/en/latest/starshot_docs.html>`_ -
     The Starshot module analyses a starshot image made of radiation spokes, whether gantry, collimator, MLC or couch.
     It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
@@ -55,7 +82,6 @@ Below are the tools currently available:
         star.analyze(radius=60, tolerance=0.75)
         print(star.return_results())  # prints out wobble information
         star.plot_analyzed_image()  # shows a matplotlib figure
-
 
 * `VMAT QA <http://pylinac.readthedocs.org/en/latest/vmat_docs.html>`_ -
     The VMAT module consists of the class VMAT, which is capable of loading an EPID DICOM Open field image and MLC field image and analyzing the

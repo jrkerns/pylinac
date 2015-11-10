@@ -6,8 +6,8 @@ from setuptools import setup, find_packages
 
 # 2 alt. To make a wheel, run $ python setup.py sdist bdist_wheel [upload]
 
-__version__ = '1.1.0'
-__version_info__ = (1, 1, 0)
+__version__ = '1.1.1'
+__version_info__ = (1, 1, 1)
 
 
 setup(
@@ -21,7 +21,8 @@ setup(
                        'demo_files/starshot/*',
                        'demo_files/picket_fence/*',
                        'demo_files/vmat/*',
-                       'demo_files/flatsym/*']}, # http://stackoverflow.com/questions/7522250/how-to-include-package-data-with-setuptools-distribute
+                       'demo_files/flatsym/*',
+                       'demo_files/winston_lutz/*']}, # http://stackoverflow.com/questions/7522250/how-to-include-package-data-with-setuptools-distribute
     zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
     keywords='medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog trajectory log',
