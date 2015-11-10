@@ -1,5 +1,7 @@
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac.picketfence import PicketFence, osp, np
 from tests.utils import save_file
 
@@ -22,6 +24,10 @@ class PFTestMixin:
     def setUpClass(cls):
         cls.pf = PicketFence(cls.im_path)
         cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
 
     def test_passed(self):
         self.assertEqual(self.pf.passed, self.passes)

@@ -3,6 +3,8 @@ import os
 from unittest import TestCase
 import shutil
 
+import matplotlib.pyplot as plt
+
 from pylinac.log_analyzer import MachineLog, MachineLogs, DYNALOG, TRAJECTORY_LOG, STATIC_IMRT, DYNAMIC_IMRT, VMAT
 from tests.utils import save_file
 
@@ -29,6 +31,7 @@ class TestAnonymize(TestCase):
         for file in os.listdir(cls.anon_folder):
             file = osp.join(cls.anon_folder, file)
             os.remove(file)
+        plt.close('all')
 
     def test_dynalog(self):
         # test making an anonymized copy

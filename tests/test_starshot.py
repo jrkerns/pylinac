@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import unittest
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac.core.geometry import Point
@@ -56,6 +57,10 @@ class StarMixin:
     def setUpClass(cls):
         cls.star = Starshot(cls.star_file)
         cls.star.analyze(recursive=cls.recursive, min_peak_height=cls.min_peak_height, fwhm=cls.fwxm)
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
 
     def test_passed(self):
         """Test that the demo image passed"""
