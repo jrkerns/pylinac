@@ -127,15 +127,15 @@ class Image:
     The class should not be instantiated directly, but through its class methods. These methods
     return not an `Image` class but one of three specialized image classes:
 
-    * `~pylinac.core.image.DicomImage` : Handles all DICOM images; utilizes pydicom.
-    * `~pylinac.core.image.FileImage` : Handles JPEG, BMP, TIF, and other "regular" image files; utilizes Pillow.
-    * `~pylinac.core.image.ArrayImage` : Handles 2D numpy arrays; convenient for doing processing of arrays
+    * :class:`~pylinac.core.image.DicomImage` : Handles all DICOM images; utilizes pydicom.
+    * :class:`~pylinac.core.image.FileImage` : Handles JPEG, BMP, TIF, and other "regular" image files; utilizes Pillow.
+    * :class:`~pylinac.core.image.ArrayImage` : Handles 2D numpy arrays; convenient for doing processing of arrays
       that represent an image.
 
     There are two methods to construct these classes:
 
-    * `.load()` : For loading single images/arrays.
-    * `.load_multiples()` : For loading and superimposing multiple images/arrays. All the images must be the same size.
+    * :meth:`~pylinac.core.image.Image.load` : For loading single images/arrays.
+    * :meth:`~pylinac.core.image.Image.load_multiples` : For loading and superimposing multiple images/arrays. All the images must be the same size.
 
     Examples
     --------
@@ -165,12 +165,12 @@ class Image:
         path : str, file-object
             The path to the image file or data stream or array.
         kwargs
-            See `~pylinac.core.image.FileImage` or `~pylinac.core.image.ArrayImage` for keyword arguments.
+            See :class:`~pylinac.core.image.FileImage` or :class:`~pylinac.core.image.ArrayImage` for keyword arguments.
 
         Returns
         -------
-        `~pylinac.core.image.FileImage`, `~pylinac.core.image.ArrayImage`,
-        or `~pylinac.core.image.DicomImage` instance, depending on file type.
+        :class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.ArrayImage`,
+          or :class:`~pylinac.core.image.DicomImage` instance, depending on file type.
         """
         if cls._is_array(path):
             return ArrayImage(path, **kwargs)
