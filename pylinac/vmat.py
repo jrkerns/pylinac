@@ -12,7 +12,6 @@ Features:
 """
 from io import BytesIO
 import os.path as osp
-import zipfile
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,9 +19,9 @@ import numpy as np
 from pylinac.core.decorators import value_accept, type_accept
 from pylinac.core.geometry import Point, Rectangle
 from pylinac.core.image import Image
-from pylinac.core.io import get_filepath_UI, get_filenames_UI
+from pylinac.core.io import get_filepath_UI, get_filenames_UI, get_url, load_zipfile
 from pylinac.core.profile import SingleProfile
-from pylinac.core.utilities import typed_property, get_url, import_mpld3, load_zipfile
+from pylinac.core.utilities import typed_property, import_mpld3
 
 # test types
 DRGS = 'drgs'

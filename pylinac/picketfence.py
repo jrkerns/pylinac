@@ -23,9 +23,9 @@ import numpy as np
 
 from pylinac.core.geometry import Line, Rectangle
 from pylinac.core.image import Image
-from pylinac.core.io import get_filepath_UI
+from pylinac.core.io import get_filepath_UI, get_url
 from pylinac.core.profile import MultiProfile, SingleProfile
-from pylinac.core.utilities import import_mpld3, get_url
+from pylinac.core.utilities import import_mpld3
 
 orientations = {'UD': 'Up-Down', 'LR': 'Left-Right'}  # possible orientations of the pickets. UD is up-down, LR is left-right.
 

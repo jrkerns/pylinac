@@ -23,8 +23,9 @@ from scipy import ndimage, optimize
 from pylinac.cbct import get_filled_area_ratio, get_bounding_box
 from pylinac.core.geometry import Point, Line, Circle, Vector, tan, cos, sin
 from pylinac.core.image import DicomImage, Image
+from pylinac.core.io import load_zipfile
 from pylinac.core.profile import SingleProfile
-from pylinac.core.utilities import is_close, load_zipfile
+from pylinac.core.utilities import is_close
 
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'

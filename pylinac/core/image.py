@@ -3,7 +3,6 @@
 from io import BytesIO
 import os.path as osp
 import os
-import zipfile
 
 import dicom
 from dicom.errors import InvalidDicomError
@@ -15,9 +14,9 @@ from scipy.misc import imresize
 
 from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.geometry import Point
+from pylinac.core.io import load_zipfile
 from pylinac.core.profile import stretch as stretcharray
 from pylinac.core.utilities import typed_property
-
 
 ARRAY = 'Array'
 DICOM = 'DICOM'
@@ -97,12 +96,7 @@ class DICOMStack:
 
     @classmethod
     def from_zip(cls, zip_path, dtype=int):
-        if isinstance(zip_path, zipfile.ZipFile):
-            zfiles = zip_path
-        elif zipfile.is_zipfile(zip_path):
-            zfiles = zipfile.ZipFile(zip_path)
-        else:
-            raise FileExistsError("File given was not a valid zip file")
+        zfiles = load_zipfile(zip_path)
 
         obj = cls()
         obj._instantiate(data=zfiles, dtype=dtype, is_zip=True)

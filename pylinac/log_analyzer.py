@@ -36,8 +36,8 @@ import numpy as np
 import scipy.ndimage.filters as spf
 
 from pylinac.core.decorators import type_accept, value_accept
-from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file
-from pylinac.core.utilities import is_iterable, import_mpld3, get_url
+from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file, get_url
+from pylinac.core.utilities import is_iterable, import_mpld3
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
