@@ -1040,12 +1040,3 @@ def peak_detect(values, threshold=0, min_distance=10, max_number=None, search_re
         peak_vals = -peak_vals
 
     return peak_vals, peak_idxs
-
-
-if __name__ == '__main__':
-    import scipy.signal as sps
-    xdata = np.linspace(0, 1.7 * np.pi, num=200)
-    ydata = sps.sawtooth(xdata, width=0.5)
-    s = SingleProfile(ydata, normalize_sides=True)
-    s._penumbra_point('right', 50, interpolate=True, kind='value')
-    s.fwxm_center()
