@@ -1,4 +1,3 @@
-
 """The CBCT module automatically analyzes DICOM images of a CatPhan 504 acquired when doing CBCT or regular CT quality assurance.
 It can load a folder or zip file that the images are in and automatically correct for phantom setup in 6 degrees.
 It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF),
@@ -28,6 +27,7 @@ from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Circle, sector_mask, Line, Rectangle
 from pylinac.core.image import Image, DICOMStack
 from pylinac.core.io import get_folder_UI, get_filepath_UI, get_url
+from pylinac.core.mask import filled_area_ratio
 from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from pylinac.core.utilities import simple_round, import_mpld3
 
@@ -841,7 +841,7 @@ class Slice:
         """Determine the location of the center of the phantom.
 
         The image is analyzed to see if:
-        1) the catphan is even in the image (if there were any ROIs detected)
+        1) the CatPhan is even in the image (if there were any ROIs detected)
         2) an ROI is within the size criteria of the catphan
         3) the ROI area that is filled compared to the bounding box area is close to that of a circle
 
@@ -850,23 +850,28 @@ class Slice:
         ValueError
             If any of the above conditions are not met.
         """
-        sl = self.image.as_binary(self.settings.threshold)  # convert slice to binary based on threshold
-        SOI_labeled, num_roi = ndimage.label(sl)  # identify the ROIs
+        # convert the slice to binary and label ROIs
+        sl = self.image.as_binary(self.settings.threshold)
+        labeled_arr, num_roi = ndimage.label(sl)
+        # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
-        roi_sizes, bin_edges = np.histogram(SOI_labeled, bins=num_roi+1)  # hist will give the size of each label
+        # determine if one of the ROIs is the size of the CatPhan and drop all others
+        roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi+1)
         rois_in_size_criteria = [self.settings.expected_phantom_size * 0.98 < roi_size < self.settings.expected_phantom_size * 1.02 for roi_size in roi_sizes]
         if not any(rois_in_size_criteria):
             raise ValueError("Unable to locate the CatPhan")
         else:
-            catphan_idx = np.abs(roi_sizes - self.settings.expected_phantom_size).argmin()
-        SOI_bw_clean = np.where(SOI_labeled == catphan_idx, 1, 0)  # remove all ROIs except CatPhan
-        expected_fill_ratio = np.pi / 4  # the area of a circle divided by its bounding box
-        actual_fill_ratio = get_filled_area_ratio(SOI_bw_clean)
+            catphan_label_id = np.abs(roi_sizes - self.settings.expected_phantom_size).argmin()
+        catphan_arr = np.where(labeled_arr == catphan_label_id, 1, 0)
+        # Check that the ROI is circular
+        expected_fill_ratio = np.pi / 4
+        actual_fill_ratio = filled_area_ratio(catphan_arr)
         if (expected_fill_ratio * 1.02 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.98):
             raise ValueError("Unable to locate the CatPhan")
-        center_pixel = get_center_of_mass(SOI_bw_clean)
-        return Point(center_pixel[1], center_pixel[0])
+        # get center pixel based on ROI location
+        center_pixel = ndimage.center_of_mass(catphan_arr)
+        return Point(center_pixel[1], center_pixel[0])  # scipy returns coordinates as (y,x), thus the flip
 
 
 class HUSlice(Slice, ROIManagerMixin):
@@ -1472,23 +1477,6 @@ class GeometrySlice(Slice, ROIManagerMixin):
         """Teturns whether all the line lengths were within tolerance."""
         return all(line.passed for line in self.lines.values())
 
-
-def get_bounding_box(array):
-    """Get the bounding box values of an ROI in a 2D array."""
-    B = np.argwhere(array)
-    (ymin, xmin), (ymax, xmax) = B.min(0), B.max(0) + 1
-    return ymin, ymax, xmin, xmax
-
-def get_center_of_mass(array):
-    """Return the center of mass of the ROI."""
-    return ndimage.measurements.center_of_mass(array)  # returns (y,x)
-
-def get_filled_area_ratio(array):
-    """Return the ratio of the bounding box area and the area actually filled."""
-    ymin, ymax, xmin, xmax = get_bounding_box(array)
-    box_area = (ymax - ymin) * (xmax - xmin)
-    filled_area = np.sum(array)
-    return filled_area/box_area
 
 @value_accept(mode=('mean','median','max'))
 def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=1, mode='mean'):

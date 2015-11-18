@@ -20,10 +20,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage, optimize
 
-from pylinac.cbct import get_filled_area_ratio, get_bounding_box
 from pylinac.core.geometry import Point, Line, Circle, Vector, tan, cos, sin
 from pylinac.core.image import DicomImage, Image
 from pylinac.core.io import load_zipfile
+from pylinac.core.mask import filled_area_ratio, bounding_box
 from pylinac.core.profile import SingleProfile
 from pylinac.core.utilities import is_close
 
@@ -376,7 +376,7 @@ class WLImage(DicomImage):
         min = np.percentile(self.array, 5)
         max = self.array.max()
         threshold_img = self.as_binary((max - min)/2 + min)
-        [*edges] = get_bounding_box(threshold_img)
+        [*edges] = bounding_box(threshold_img)
         edges[0] -= 10
         edges[1] += 10
         edges[2] -= 10
@@ -397,7 +397,7 @@ class WLImage(DicomImage):
 
         def is_boxlike(array):
             """Whether the binary object's dimensions are symmetric, i.e. box-like"""
-            ymin, ymax, xmin, xmax = get_bounding_box(array)
+            ymin, ymax, xmin, xmax = bounding_box(array)
             y = abs(ymax - ymin)
             x = abs(xmax - xmin)
             if x > max(y * 1.05, y+3) or x < min(y * 0.95, y-3):
@@ -415,12 +415,12 @@ class WLImage(DicomImage):
         while not found:
             try:
                 lower_thresh = hmax - spread / 2
-                t = np.where((max_thresh > self) & (self >= lower_thresh), 1, 0)
-                labeled_arr, num_roi = ndimage.measurements.label(t)
+                binary_arr = np.where((max_thresh > self) & (self >= lower_thresh), 1, 0)
+                labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
                 roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
                 bw_node_cleaned = np.where(labeled_arr == np.argsort(roi_sizes)[-3], 1, 0)
                 expected_fill_ratio = np.pi / 4
-                actual_fill_ratio = get_filled_area_ratio(bw_node_cleaned)
+                actual_fill_ratio = filled_area_ratio(bw_node_cleaned)
                 if (expected_fill_ratio * 1.1 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.9):
                     raise ValueError
                 if not is_boxlike(bw_node_cleaned):
