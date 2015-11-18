@@ -1,42 +1,13 @@
 """Utility functions for pylinac."""
 import decimal
 import inspect
-from io import BytesIO
 import os.path as osp
 from collections import Iterable
-import zipfile
 
 import numpy as np
 
 from pylinac.core.io import is_valid_file
 
-
-def load_zipfile(zfilename, read=False):
-    """Read a .zip file.
-
-    Parameters
-    ----------
-    zfilename : str
-        Path to the zip file.
-    read : bool
-        Whether to read the zip files.
-
-    Returns
-    -------
-    files
-        If read is False (default), returns a python zipfile.ZipFile object. If read is True, returns
-        a list of BytesIO objects.
-    """
-    if isinstance(zfilename, zipfile.ZipFile):
-        zfiles = zfilename
-    elif zipfile.is_zipfile(zfilename):
-        zfiles = zipfile.ZipFile(zfilename)
-    else:
-        raise FileExistsError("File '{}' given was not a valid zip file".format(zfilename))
-    if read:
-        return [BytesIO(zfiles.read(name)) for name in zfiles.namelist()]
-    else:
-        return zfiles
 
 def is_close(val, target, delta=1):
     """Return whether the value is near the target value."""
@@ -56,18 +27,6 @@ def import_mpld3():
     except ImportError:
         raise ImportError("The MPLD3 library must be installed to make interactive plots. See http://mpld3.github.io/index.html for info.")
     return mpld3
-
-
-def get_url(url):
-    """Get the response from the URL."""
-    try:
-        import requests
-    except ImportError:
-        raise ImportError("Requests is not installed; cannot get the log from a URL")
-    response = requests.get(url, timeout=10)
-    if response.status_code != 200:
-        raise ConnectionError("Could not connect to the URL")
-    return response
 
 
 def typed_property(name, expected_type_or_tuple_of_types):

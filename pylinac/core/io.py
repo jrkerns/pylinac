@@ -1,8 +1,50 @@
 """I/O helper functions for pylinac."""
 
+from io import BytesIO
 import os.path as osp
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
+import zipfile
+
+
+def load_zipfile(zfilename, read=False):
+    """Read a .zip file.
+
+    Parameters
+    ----------
+    zfilename : str
+        Path to the zip file.
+    read : bool
+        Whether to read the zip files.
+
+    Returns
+    -------
+    files
+        If read is False (default), returns a python zipfile.ZipFile object. If read is True, returns
+        a list of BytesIO objects.
+    """
+    if isinstance(zfilename, zipfile.ZipFile):
+        zfiles = zfilename
+    elif zipfile.is_zipfile(zfilename):
+        zfiles = zipfile.ZipFile(zfilename)
+    else:
+        raise FileExistsError("File '{}' given was not a valid zip file".format(zfilename))
+    if read:
+        return [BytesIO(zfiles.read(name)) for name in zfiles.namelist()]
+    else:
+        return zfiles
+
+
+def get_url(url):
+    """Get the response from the URL."""
+    try:
+        import requests
+    except ImportError:
+        raise ImportError("Requests is not installed; cannot get the log from a URL")
+    response = requests.get(url, timeout=10)
+    if response.status_code != 200:
+        raise ConnectionError("Could not connect to the URL")
+    return response
 
 
 def is_valid_file(file_path, raise_error=True):
