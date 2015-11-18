@@ -5,7 +5,7 @@ import os.path as osp
 import time
 from unittest import TestCase, skip
 
-from tests.test_picketfence import PFTestMixin, test_file_dir, PicketFence
+from tests.test_picketfence import PFTestMixin, test_file_dir, PicketFence, LEFT_RIGHT
 
 
 class AS500(PFTestMixin, TestCase):
@@ -46,7 +46,7 @@ class AS5005(PFTestMixin, TestCase):
 class AS5006(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
     im_path = osp.join(test_file_dir, 'AS500#6.dcm')
-    picket_orientation = 'Left-Right'
+    picket_orientation = LEFT_RIGHT
     max_error = 0.23
     abs_median_error = 0.06
 
@@ -75,7 +75,7 @@ class AS5009(PFTestMixin, TestCase):
 class AS50010(PFTestMixin, TestCase):
     """Tests for the AS500#4 image."""
     im_path = osp.join(test_file_dir, 'AS500#10.dcm')
-    picket_orientation = 'Left-Right'
+    picket_orientation = LEFT_RIGHT
     max_error = 0.24
     abs_median_error = 0.05
 
@@ -114,7 +114,7 @@ class AS1000_3(PFTestMixin, TestCase):
 class AS1000_4(PFTestMixin, TestCase):
     """Tests for the AS1000 image."""
     im_path = osp.join(test_file_dir, 'AS1000#4.dcm')
-    picket_orientation = 'Left-Right'
+    picket_orientation = LEFT_RIGHT
     max_error = 0.18
     abs_median_error = 0.05
 
@@ -122,7 +122,7 @@ class AS1000_4(PFTestMixin, TestCase):
 class AS1000_90(PFTestMixin, TestCase):
     """Tests for the AS1000 image."""
     im_path = osp.join(test_file_dir, 'AS1000-90.dcm')
-    picket_orientation = 'Left-Right'
+    picket_orientation = LEFT_RIGHT
     max_error = 0.23
     abs_median_error = 0.05
 

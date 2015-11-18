@@ -27,7 +27,9 @@ from pylinac.core.io import get_filepath_UI, get_url
 from pylinac.core.profile import MultiProfile, SingleProfile
 from pylinac.core.utilities import import_mpld3
 
-orientations = {'UD': 'Up-Down', 'LR': 'Left-Right'}  # possible orientations of the pickets. UD is up-down, LR is left-right.
+# possible orientations of the pickets.
+UP_DOWN = 'Up-Down'
+LEFT_RIGHT = 'Left-Right'
 
 
 class PicketFence:
@@ -223,7 +225,7 @@ class PicketFence:
     def _adjust_for_sag(self, sag):
         """Roll the image to adjust for EPID sag."""
         sag_pixels = int(round(sag * self.settings.dpmm))
-        direction = 'y' if self.orientation == orientations['UD'] else 'x'
+        direction = 'y' if self.orientation == UP_DOWN else 'x'
         self.image.roll(direction, sag_pixels)
 
     def run_demo(self, tolerance=0.5, action_tolerance=0.25, interactive=False):
@@ -339,7 +341,7 @@ class PicketFence:
 
         # make the new axis
         divider = make_axes_locatable(ax)
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             axtop = divider.append_axes('right', 2, pad=1, sharey=ax)
         else:
             axtop = divider.append_axes('bottom', 2, pad=1, sharex=ax)
@@ -348,7 +350,7 @@ class PicketFence:
         pos, vals, err, leaf_nums = self.pickets.error_hist()
 
         # plot the leaf errors as a bar plot
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             axtop.barh(pos, vals, xerr=err, height=self.pickets[0].sample_width * 2, alpha=0.4, align='center')
             # plot the tolerance line(s)
             # TODO: replace .plot() calls with .axhline when mpld3 fixes funtionality
@@ -427,9 +429,9 @@ class PicketFence:
         # The true picket side will have a greater difference in
         # percentiles than will the non-picket size.
         if row_range < col_range:
-            orientation = orientations['LR']
+            orientation = LEFT_RIGHT
         else:
-            orientation = orientations['UD']
+            orientation = UP_DOWN
         return orientation
 
 
@@ -458,7 +460,7 @@ class Overlay:
                 color = 'r'
 
             # create a rectangle overlay
-            if self.settings.orientation == orientations['UD']:
+            if self.settings.orientation == UP_DOWN:
                 r = Rectangle(self.image.shape[1], rect_width, center=(self.image.center.x, mlc.center.y))
             else:
                 r = Rectangle(rect_width, self.image.shape[0], center=(mlc.center.x, self.image.center.y))
@@ -480,7 +482,7 @@ class Settings:
     @property
     def figure_size(self):
         """The size of the figure to draw; depends on the picket orientation."""
-        if self.orientation == orientations['UD']:
+        if self.orientation == UP_DOWN:
             return (12, 8)
         else:
             return (9, 9)
@@ -525,7 +527,7 @@ class Settings:
         leaf_centers = np.concatenate((large_leaf_section, small_leaf_section, large_leaf_section2))
 
         # now adjust them to align with the iso
-        if self.orientation == orientations['UD']:
+        if self.orientation == UP_DOWN:
             leaf30_center = self.image.cax.y - self.small_leaf_width / 2
             edge = self.image.shape[0]
         else:
@@ -564,7 +566,7 @@ class PicketHandler:
             error_means.append(np.mean(errors))
             error_stds.append(np.std(errors))
             mlc_leaves.append(mlc_meas.leaf_pair)
-            if self.settings.orientation == orientations['UD']:
+            if self.settings.orientation == UP_DOWN:
                 error_plot_positions.append(mlc_meas.center.y)
             else:
                 error_plot_positions.append(mlc_meas.center.x)
@@ -594,7 +596,7 @@ class PicketHandler:
     @property
     def image_mlc_inplane_mean_profile(self):
         """A profile of the image along the MLC travel direction."""
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             leaf_prof = np.mean(self.image, 0)
         else:
             leaf_prof = np.mean(self.image, 1)
@@ -633,7 +635,7 @@ class Picket:
     def find_mlc_peak(self, mlc_center):
         """Determine the center of the picket."""
         mlc_rows = np.arange(mlc_center - self.sample_width, mlc_center + self.sample_width + 1)
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             pix_vals = np.median(self.picket_array[mlc_rows, :], axis=0)
         else:
             pix_vals = np.median(self.picket_array[:, mlc_rows], axis=1)
@@ -647,7 +649,7 @@ class Picket:
         upper_point = mlc_center - self.sample_width / 2
         lower_point = mlc_center + self.sample_width / 2
 
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             meas = MLCMeas((mlc_position, upper_point), (mlc_position, lower_point), self.settings)
         else:
             meas = MLCMeas((upper_point, mlc_position), (lower_point, mlc_position), self.settings)
@@ -662,7 +664,7 @@ class Picket:
     @lru_cache()
     def picket_array(self):
         """A slice of the whole image that contains the area around the picket."""
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             array = self.image[:, int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing)]
         else:
             array = self.image[int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing), :]
@@ -705,7 +707,7 @@ class Picket:
         """The fit of a polynomial to the MLC measurements."""
         x = np.array([mlc.point1.y for mlc in self.mlc_meas])
         y = np.array([mlc.point1.x for mlc in self.mlc_meas])
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             fit = np.polyfit(x, y, 1)
         else:
             fit = np.polyfit(y, x, 1)
@@ -727,14 +729,14 @@ class Picket:
 
     def add_guards_to_axes(self, axis, color='g'):
         """Plot guard rails to the axis."""
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             length = self.image.shape[0]
         else:
             length = self.image.shape[1]
         x_data = np.arange(length)
         left_y_data = self.left_guard(x_data)
         right_y_data = self.right_guard(x_data)
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             axis.plot(left_y_data, x_data, color=color)
             axis.plot(right_y_data, x_data, color=color)
         else:
@@ -769,7 +771,7 @@ class MLCMeas(Line):
     @property
     def error(self):
         """The error (difference) of the MLC measurement and the picket fit."""
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             picket_pos = self.fit(self.center.y)
             mlc_pos = self.center.x
         else:
@@ -800,7 +802,7 @@ class MLCMeas(Line):
         leaves = [0, 0]
 
         # get distance between MLC point and EPID center in *pixels*
-        if self.settings.orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             mlc_loc = self.center.y
             epid_center = self.settings.image_center.y
         else:

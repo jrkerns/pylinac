@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
-from pylinac.picketfence import PicketFence, osp, np
+from pylinac.picketfence import PicketFence, osp, np, UP_DOWN, LEFT_RIGHT
 from tests.utils import save_file
 
 test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
@@ -11,7 +11,7 @@ test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
 class PFTestMixin:
     """Base Mixin for testing a picketfence image."""
     im_path = ''
-    picket_orientation = 'Up-Down'
+    picket_orientation = UP_DOWN
     hdmlc = False
     num_pickets = 10
     percent_passing = 100
@@ -61,7 +61,7 @@ class PFTestMixin:
 class PFDemo(PFTestMixin, TestCase):
     """Tests specifically for the EPID demo image."""
     im_path = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
-    picket_orientation = 'Left-Right'
+    picket_orientation = LEFT_RIGHT
     max_error = 0.217
     abs_median_error = 0.06
 
@@ -79,7 +79,7 @@ class MultipleImagesPF(PFTestMixin, TestCase):
     """Test of a multiple image picket fence; e.g. EPID images."""
     max_error = 0.112
     abs_median_error = 0.019
-    picket_orientation = 'Left-Right'
+    picket_orientation = LEFT_RIGHT
     num_pickets = 5
 
     @classmethod
