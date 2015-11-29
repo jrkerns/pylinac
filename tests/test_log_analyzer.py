@@ -28,7 +28,9 @@ class TestAnonymize(TestCase):
     @classmethod
     def tearDownClass(cls):
         # remove files from anonymous folder
-        for file in os.listdir(cls.anon_folder):
+        files = os.listdir(cls.anon_folder)
+        files.remove('dummy.txt')
+        for file in files:
             file = osp.join(cls.anon_folder, file)
             os.remove(file)
         plt.close('all')
