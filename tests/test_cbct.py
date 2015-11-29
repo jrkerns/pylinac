@@ -1,17 +1,20 @@
 import os.path as osp
 import unittest
+from unittest import TestCase
 
+import gc
 import numpy as np
+import time
 
 from pylinac.cbct import CBCT
 from pylinac.core.geometry import Point
 from tests.utils import save_file
 
-varian_test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Varian')
-other_test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'CBCT')
+VARIAN_DIR = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Varian')
+ELEKTA_DIR = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Elekta')
 
 
-class GeneralTests(unittest.TestCase):
+class GeneralTests(TestCase):
     """Test general things when using cbct module."""
 
     def setUp(self):
@@ -33,11 +36,11 @@ class GeneralTests(unittest.TestCase):
         CBCT.from_demo_images()
 
         # load from folder directly
-        folder = osp.join(varian_test_file_dir, 'Pelvis')
+        folder = osp.join(VARIAN_DIR, 'Pelvis')
         CBCT(folder)
 
         # load from zip file
-        zfile = osp.join(varian_test_file_dir, 'Pelvis.zip')
+        zfile = osp.join(VARIAN_DIR, 'Pelvis.zip')
         CBCT.from_zip_file(zfile)
 
     def test_images_not_loaded(self):
@@ -55,13 +58,13 @@ class GeneralTests(unittest.TestCase):
         not_image_folder = osp.join(osp.dirname(__file__), 'core')
         self.assertRaises(FileNotFoundError, self.cbct.load_folder, not_image_folder)
 
-        no_CT_images_zip = osp.join(varian_test_file_dir, 'dummy.zip')
+        no_CT_images_zip = osp.join(VARIAN_DIR, 'dummy.zip')
         self.assertRaises(FileNotFoundError, self.cbct.load_zip_file, no_CT_images_zip)
 
     @unittest.expectedFailure
     def test_images_not_from_same_study(self):
         """Loading images from different studies should raise and error."""
-        mixed_zip = osp.join(varian_test_file_dir, 'mixed_studies.zip')
+        mixed_zip = osp.join(VARIAN_DIR, 'mixed_studies.zip')
         with self.assertRaises(ValueError):
             self.cbct.load_zip_file(mixed_zip)
 
@@ -116,9 +119,12 @@ class CBCTMixin:
     expected_roll = 0
     slice_locations = {}
     hu_values = {}
+    hu_passed = True
     unif_values = {}
+    unif_passed = True
     mtf_values = {}
     avg_line_length = 50
+    length_passed = True
     thickness_passed = True
     lowcon_visible = 0
 
@@ -130,19 +136,25 @@ class CBCTMixin:
             cls.cbct = CBCT(cls.location)
         cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
 
+    @classmethod
+    def tearDownClass(cls):
+        delattr(cls, 'cbct')
+        time.sleep(1)
+        gc.collect()
+
     def test_slice_thickness(self):
         """Test the slice thickness."""
         self.assertEqual(self.cbct.thickness.passed, self.thickness_passed)
 
     def test_lowcontrast_bubbles(self):
         """Test the number of low contrast bubbles visible."""
-        self.assertEqual(self.cbct.lowcontrast.rois_visible, self.lowcon_visible)
+        self.assertAlmostEqual(self.cbct.lowcontrast.rois_visible, self.lowcon_visible, delta=1)
 
     def test_all_passed(self):
         """Test the pass flags for all tests."""
-        self.assertTrue(self.cbct.hu.overall_passed)
-        self.assertTrue(self.cbct.uniformity.overall_passed)
-        self.assertTrue(self.cbct.geometry.overall_passed)
+        self.assertEqual(self.cbct.hu.overall_passed, self.hu_passed)
+        self.assertEqual(self.cbct.uniformity.overall_passed, self.unif_passed)
+        self.assertEqual(self.cbct.geometry.overall_passed, self.length_passed)
 
     def test_slice_locations(self):
         """Test the locations of the slices of interest."""
@@ -178,7 +190,7 @@ class CBCTMixin:
             self.assertAlmostEqual(exp_mtf, meas_mtf, delta=0.1)
 
 
-class CBCTDemo(CBCTMixin, unittest.TestCase):
+class CBCTDemo(CBCTMixin, TestCase):
     """Test the CBCT demo (Varian high quality head protocol)."""
     expected_roll = 0.3
     slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
@@ -194,9 +206,9 @@ class CBCTDemo(CBCTMixin, unittest.TestCase):
         cls.cbct.analyze()
 
 
-class CBCT4(CBCTMixin, unittest.TestCase):
+class CBCT4(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_4.zip')
+    location = osp.join(VARIAN_DIR, 'CBCT_4.zip')
     expected_roll = 2.57
     slice_locations = {'HU': 31, 'UN': 2, 'SR': 43, 'LC': 19}
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
@@ -204,3 +216,16 @@ class CBCT4(CBCTMixin, unittest.TestCase):
     mtf_values = {80: 0.47, 90: 0.39, 60: 0.63, 70: 0.55, 95: 0.3}
     avg_line_length = 49.94
     thickness_passed = False
+
+
+class Elekta2(CBCTMixin, TestCase):
+    """An Elekta CBCT dataset"""
+    location = osp.join(ELEKTA_DIR, 'Elekta_2.zip')
+    slice_locations = {'HU': 162, 'UN': 52, 'SR': 132, 'LC': 132}
+    hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 253, 'PMP': -399, 'LDPE': -350}
+    hu_passed = False
+    unif_values = {'Center': -285, 'Left': -279, 'Right': -278, 'Top': -279, 'Bottom': -279}
+    unif_passed = False
+    mtf_values = {80: 0.53, 90: 0.44, 60: 0.74, 70: 0.63, 95: 0.36}
+    avg_line_length = 49.22
+    lowcon_visible = 2

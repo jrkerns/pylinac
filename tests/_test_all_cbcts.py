@@ -5,12 +5,14 @@ import os.path as osp
 import time
 from unittest import TestCase
 
-from tests.test_cbct import CBCTMixin, varian_test_file_dir, other_test_file_dir, CBCT
+from tests.test_cbct import CBCTMixin, CBCT
+
+TEST_DIR = osp.join(osp.dirname(__file__), '..', '..', 'pylinac test files', 'CBCT')
 
 
 class VarianPelvis(CBCTMixin, TestCase):
     """Test the Varian Pelvis protocol CBCT."""
-    location = osp.join(varian_test_file_dir, 'Pelvis.zip')
+    location = osp.join(TEST_DIR, 'Pelvis.zip')
     expected_roll = 0.24
     slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -36, 'Acrylic': 114, 'Delrin': 342, 'Air': -993, 'Teflon': 992, 'PMP': -188, 'LDPE': -95}
@@ -22,7 +24,7 @@ class VarianPelvis(CBCTMixin, TestCase):
 
 class VarianPelvisSpotlight(CBCTMixin, TestCase):
     """Test the Varian Pelvis Spotlight protocol CBCT."""
-    location = osp.join(varian_test_file_dir, 'Pelvis spotlight.zip')
+    location = osp.join(TEST_DIR, 'Pelvis spotlight.zip')
     expected_roll = 0.26
     slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -43, 'Acrylic': 118, 'Delrin': 341, 'Air': -998, 'Teflon': 967, 'PMP': -198, 'LDPE': -100}
@@ -34,7 +36,7 @@ class VarianPelvisSpotlight(CBCTMixin, TestCase):
 
 class VarianLowDoseThorax(CBCTMixin, TestCase):
     """Test the Varian Low-Dose Thorax protocol CBCT."""
-    location = osp.join(varian_test_file_dir, 'Low dose thorax.zip')
+    location = osp.join(TEST_DIR, 'Low dose thorax.zip')
     expected_roll = 0.29
     slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -46, 'Acrylic': 119, 'Delrin': 341, 'Air': -998, 'Teflon': 992, 'PMP': -193, 'LDPE': -97}
@@ -46,7 +48,7 @@ class VarianLowDoseThorax(CBCTMixin, TestCase):
 
 class VarianStandardHead(CBCTMixin, TestCase):
     """Test the Varian Standard Head protocol CBCT."""
-    location = osp.join(varian_test_file_dir, 'Standard head.zip')
+    location = osp.join(TEST_DIR, 'Standard head.zip')
     expected_roll = 0.19
     slice_locations = {'HU': 31, 'UN': 2, 'SR': 43, 'LC': 19}
     hu_values = {'Poly': -43, 'Acrylic': 124, 'Delrin': 345, 'Air': -991, 'Teflon': 997, 'PMP': -199, 'LDPE': -101}
@@ -58,7 +60,7 @@ class VarianStandardHead(CBCTMixin, TestCase):
 
 class VarianLowDoseHead(CBCTMixin, TestCase):
     """Test the Varian Low-Dose Head protocol CBCT."""
-    location = osp.join(varian_test_file_dir, 'Low dose head.zip')
+    location = osp.join(TEST_DIR, 'Low dose head.zip')
     expected_roll = 0.4
     slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -41, 'Acrylic': 123, 'Delrin': 350, 'Air': -990, 'Teflon': 998, 'PMP': -200, 'LDPE': -103}
@@ -71,7 +73,7 @@ class VarianLowDoseHead(CBCTMixin, TestCase):
 
 class GEMonthlyCT(CBCTMixin, TestCase):
     """Test a monthly CT scan from GE."""
-    location = osp.join(other_test_file_dir, 'GE_CT.zip')
+    location = osp.join(TEST_DIR, 'GE_CT.zip')
     expected_roll = -0.05
     hu_tolerance = 90
     slice_locations = {'HU': 143, 'UN': 85, 'SR': 167, 'LC': 119}
@@ -84,7 +86,7 @@ class GEMonthlyCT(CBCTMixin, TestCase):
 
 class ToshibaMonthlyCT(CBCTMixin, TestCase):
     """Test a monthly CT scan from Toshiba."""
-    location = osp.join(other_test_file_dir, 'Toshiba.zip')
+    location = osp.join(TEST_DIR, 'Toshiba.zip')
     expected_roll = 0.1
     hu_tolerance = 240
     slice_locations = {'HU': 36, 'UN': 12, 'SR': 46, 'LC': 26}
@@ -96,7 +98,7 @@ class ToshibaMonthlyCT(CBCTMixin, TestCase):
 
 class CBCT1(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_1.zip')
+    location = osp.join(TEST_DIR, 'CBCT_1.zip')
     expected_roll = 0.53
     slice_locations = {'HU': 31, 'UN': 2, 'SR': 43, 'LC': 19}
     hu_values = {'Poly': -39, 'Acrylic': 130, 'Delrin': 347, 'Air': -986, 'Teflon': 1002, 'PMP': -189, 'LDPE': -90}
@@ -109,7 +111,7 @@ class CBCT1(CBCTMixin, TestCase):
 
 class CBCT2(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_2.zip')
+    location = osp.join(TEST_DIR, 'CBCT_2.zip')
     expected_roll = 0.2
     hu_tolerance = 50
     slice_locations = {'HU': 34, 'UN': 5, 'SR': 46, 'LC': 22}
@@ -122,7 +124,7 @@ class CBCT2(CBCTMixin, TestCase):
 
 class CBCT3(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_3.zip')
+    location = osp.join(TEST_DIR, 'CBCT_3.zip')
     expected_roll = 2.66
     hu_tolerance = 50
     slice_locations = {'HU': 35, 'UN': 6, 'SR': 47, 'LC': 23}
@@ -137,7 +139,7 @@ class CBCT3(CBCTMixin, TestCase):
 
 class CBCT5(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_5.zip')
+    location = osp.join(TEST_DIR, 'CBCT_5.zip')
     slice_locations = {'HU': 35, 'UN': 6, 'SR': 47, 'LC': 23}
     hu_values = {'Poly': -54, 'Acrylic': 101, 'Delrin': 328, 'Air': -999, 'Teflon': 975, 'PMP': -203, 'LDPE': -110}
     unif_values = {'Center': 19, 'Left': -8, 'Right': -5, 'Top': -7, 'Bottom': -6}
@@ -148,7 +150,7 @@ class CBCT5(CBCTMixin, TestCase):
 
 class CBCT6(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_6.zip')
+    location = osp.join(TEST_DIR, 'CBCT_6.zip')
     expected_roll = -0.2
     slice_locations = {'HU': 38, 'UN': 9, 'SR': 50, 'LC': 26}
     hu_values = {'Poly': -42, 'Acrylic': 107, 'Delrin': 327, 'Air': -994, 'Teflon': 972, 'PMP': -192, 'LDPE': -100}
@@ -160,7 +162,7 @@ class CBCT6(CBCTMixin, TestCase):
 
 class CBCT7(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_7.zip')
+    location = osp.join(TEST_DIR, 'CBCT_7.zip')
     expected_roll = -0.5
     slice_locations = {'HU': 36, 'UN': 7, 'SR': 48, 'LC': 24}
     hu_values = {'Poly': -50, 'Acrylic': 108, 'Delrin': 334, 'Air': -999, 'Teflon': 982, 'PMP': -200, 'LDPE': -107}
@@ -173,7 +175,7 @@ class CBCT7(CBCTMixin, TestCase):
 
 class CBCT8(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_8.zip')
+    location = osp.join(TEST_DIR, 'CBCT_8.zip')
     expected_roll = -0.55
     slice_locations = {'HU': 39, 'UN': 10, 'SR': 51, 'LC': 27}
     hu_values = {'Poly': -37, 'Acrylic': 114, 'Delrin': 334, 'Air': -994, 'Teflon': 982, 'PMP': -186, 'LDPE': -97}
@@ -185,7 +187,7 @@ class CBCT8(CBCTMixin, TestCase):
 
 class CBCT9(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_9.zip')
+    location = osp.join(TEST_DIR, 'CBCT_9.zip')
     expected_roll = -0.4
     slice_locations = {'HU': 35, 'UN': 6, 'SR': 47, 'LC': 23}
     hu_values = {'Poly': -53, 'Acrylic': 105, 'Delrin': 330, 'Air': -999, 'Teflon': 978, 'PMP': -199, 'LDPE': -107}
@@ -197,7 +199,7 @@ class CBCT9(CBCTMixin, TestCase):
 
 class CBCT10(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_10.zip')
+    location = osp.join(TEST_DIR, 'CBCT_10.zip')
     expected_roll = -0.4
     slice_locations = {'HU': 38, 'UN': 9, 'SR': 50, 'LC': 26}
     hu_values = {'Poly': -37, 'Acrylic': 109, 'Delrin': 334, 'Air': -992, 'Teflon': 985, 'PMP': -186, 'LDPE': -93}
@@ -208,7 +210,7 @@ class CBCT10(CBCTMixin, TestCase):
 
 class CBCT11(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_11.zip')
+    location = osp.join(TEST_DIR, 'CBCT_11.zip')
     expected_roll = -0.5
     slice_locations = {'HU': 38, 'UN': 9, 'SR': 50, 'LC': 26}
     hu_values = {'Poly': -37, 'Acrylic': 108, 'Delrin': 332, 'Air': -992, 'Teflon': 982, 'PMP': -189, 'LDPE': -95}
@@ -220,7 +222,7 @@ class CBCT11(CBCTMixin, TestCase):
 
 class CBCT12(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_12.zip')
+    location = osp.join(TEST_DIR, 'CBCT_12.zip')
     expected_roll = -0.06
     slice_locations = {'HU': 35, 'UN': 6, 'SR': 47, 'LC': 23}
     hu_values = {'Poly': -55, 'Acrylic': 112, 'Delrin': 335, 'Air': -999, 'Teflon': 982, 'PMP': -201, 'LDPE': -107}
@@ -232,7 +234,7 @@ class CBCT12(CBCTMixin, TestCase):
 
 class CBCT13(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_13.zip')
+    location = osp.join(TEST_DIR, 'CBCT_13.zip')
     expected_roll = -0.2
     slice_locations = {'HU': 36, 'UN': 7, 'SR': 48, 'LC': 24}
     hu_values = {'Poly': -53, 'Acrylic': 106, 'Delrin': 329, 'Air': -999, 'Teflon': 976, 'PMP': -200, 'LDPE': -107}
@@ -244,7 +246,7 @@ class CBCT13(CBCTMixin, TestCase):
 
 class CBCT14(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_14.zip')
+    location = osp.join(TEST_DIR, 'CBCT_14.zip')
     expected_roll = -0.84
     slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -41, 'Acrylic': 125, 'Delrin': 334, 'Air': -995, 'Teflon': 986, 'PMP': -184, 'LDPE': -89}
@@ -256,7 +258,7 @@ class CBCT14(CBCTMixin, TestCase):
 
 class CBCT15(CBCTMixin, TestCase):
     """A Varian CBCT dataset."""
-    location = osp.join(varian_test_file_dir, 'CBCT_15.zip')
+    location = osp.join(TEST_DIR, 'CBCT_15.zip')
     hu_tolerance = 50
     slice_locations = {'HU': 60, 'UN': 23, 'SR': 75, 'LC': 45}
     hu_values = {'Poly': -32, 'Acrylic': 121, 'Delrin': 353, 'Air': -998, 'Teflon': 945, 'PMP': -186, 'LDPE': -93}
@@ -267,7 +269,7 @@ class CBCT15(CBCTMixin, TestCase):
 
 class CBCT16(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_16.zip')
+    location = osp.join(TEST_DIR, 'CBCT_16.zip')
     expected_roll = -0.2
     slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -37, 'Acrylic': 128, 'Delrin': 342, 'Air': -995, 'Teflon': 1000, 'PMP': -181, 'LDPE': -87}
@@ -279,7 +281,7 @@ class CBCT16(CBCTMixin, TestCase):
 
 class CBCT17(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(varian_test_file_dir, 'CBCT_17.zip')
+    location = osp.join(TEST_DIR, 'CBCT_17.zip')
     expected_roll = -0.45
     slice_locations = {'HU': 34, 'UN': 5, 'SR': 46, 'LC': 22}
     hu_values = {'Poly': -46, 'Acrylic': 117, 'Delrin': 344, 'Air': -989, 'Teflon': 989, 'PMP': -197, 'LDPE': -101}
@@ -287,6 +289,43 @@ class CBCT17(CBCTMixin, TestCase):
     mtf_values = {80: 0.68, 90: 0.34, 60: 0.93, 70: 0.8, 95: 0.27}
     avg_line_length = 49.94
     lowcon_visible = 1
+
+
+class Elekta4(CBCTMixin, TestCase):
+    """An Elekta CBCT dataset"""
+    location = osp.join(TEST_DIR, 'Elekta_4.zip')
+    slice_locations = {'HU': 130, 'UN': 20, 'SR': 100, 'LC': 100}
+    hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 249, 'PMP': -401, 'LDPE': -352}
+    hu_passed = False
+    unif_values = {'Center': -273, 'Left': -267, 'Right': -266, 'Top': -267, 'Bottom': -267}
+    unif_passed = False
+    mtf_values = {80: 0.52, 90: 0.45, 60: 0.69, 70: 0.59, 95: 0.41}
+    avg_line_length = 49.37
+    lowcon_visible = 1
+
+
+class Elekta7(CBCTMixin, TestCase):
+    """An Elekta CBCT dataset"""
+    location = osp.join(TEST_DIR, 'Elekta_7.zip')
+    slice_locations = {'HU': 159, 'UN': 49, 'SR': 129, 'LC': 129}
+    hu_values = {'Poly': -128, 'Acrylic': -16, 'Delrin': 141, 'Air': -782, 'Teflon': 541, 'PMP': -226, 'LDPE': -164}
+    hu_passed = False
+    unif_values = {'Center': -81, 'Left': -73, 'Right': -72, 'Top': -73, 'Bottom': -73}
+    unif_passed = False
+    mtf_values = {80: 0.5, 90: 0.43, 60: 0.68, 70: 0.58, 95: 0.36}
+    avg_line_length = 49.96
+
+
+class Elekta8(CBCTMixin, TestCase):
+    """An Elekta CBCT dataset"""
+    location = osp.join(TEST_DIR, 'Elekta_8.zip')
+    slice_locations = {'HU': 159, 'UN': 49, 'SR': 129, 'LC': 129}
+    hu_values = {'Poly': -324, 'Acrylic': -229, 'Delrin': -97, 'Air': -868, 'Teflon': 245, 'PMP': -406, 'LDPE': -356}
+    hu_passed = False
+    unif_values = {'Center': -293, 'Left': -286, 'Right': -285, 'Top': -286, 'Bottom': -286}
+    unif_passed = False
+    mtf_values = {80: 0.42, 90: 0.42, 60: 0.6, 70: 0.51, 95: 0.25}
+    avg_line_length = 49.28
 
 
 def run_cbct(path):

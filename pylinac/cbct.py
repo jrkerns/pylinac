@@ -15,23 +15,24 @@ Features:
 from abc import abstractmethod
 from collections import OrderedDict
 from functools import lru_cache
-from io import BytesIO
 from os import path as osp
-import zipfile
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
 
 from pylinac.core.decorators import value_accept
-from pylinac.core.geometry import Point, Circle, sector_mask, Line, Rectangle
+from pylinac.core.geometry import Point, Circle, Line, Rectangle
 from pylinac.core.image import Image, DICOMStack
 from pylinac.core.io import get_folder_UI, get_filepath_UI, get_url
-from pylinac.core.mask import filled_area_ratio
+from pylinac.core.mask import filled_area_ratio, sector_mask
 from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from pylinac.core.utilities import simple_round, import_mpld3
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
+
+ELEKTA = 'ELEKTA'
+VARIAN = 'Varian Medical Systems'
 
 
 class CBCT:
@@ -110,9 +111,8 @@ class CBCT:
         .. versionadded:: 0.7.1
         .. note:: ``requests`` must be installed to use this feature.
         """
-        response = get_url(url)
-        stream = zipfile.ZipFile(BytesIO(response.content))
-        self.load_zip_file(stream)
+        filename = get_url(url)
+        self.load_zip_file(filename)
 
     @classmethod
     def from_folder_UI(cls):
@@ -212,6 +212,8 @@ class CBCT:
         show : bool
             Whether to plot the image or not.
         """
+        if self.settings.manufacturer == ELEKTA:
+            low_contrast = False
         # set up grid and axes
         grid_size = (2,4)
         unif_ax = plt.subplot2grid(grid_size, (0, 0))
@@ -225,7 +227,7 @@ class CBCT:
         # plot the images
         show_section = [uniformity, hu, spatial_res, low_contrast]
         axes = (unif_ax, hu_ax, sr_ax, lowcon_ax)
-        items = ('uniformity', 'hu', 'spatialres', 'lowcontrast')
+        items = ['uniformity', 'hu', 'spatialres', 'lowcontrast']
         titles = ('Uniformity', 'HU & Geometry', 'Spatial Resolution', 'Low Contrast')
         for show_unit, axis, title, item in zip(show_section, axes, titles, items):
             if show_unit:
@@ -234,7 +236,10 @@ class CBCT:
                 klass.plot_rois(axis)
                 axis.autoscale(tight=True)
                 axis.set_title(title)
-                axis.axis('off')
+            else:
+                axis.set_frame_on(False)
+            axis.axis('off')
+
         # geometry & slice thickness don't have their own axes
         if geometry:
             self.geometry.plot_lines(hu_ax)
@@ -487,6 +492,11 @@ class Settings:
         return (np.pi*self.air_bubble_radius_mm**2)/self.mm_per_pixel**2
 
     @property
+    def manufacturer(self):
+        """The manufacturer of the equipment."""
+        return self.dicom_stack.metadata.Manufacturer
+
+    @property
     def mm_per_pixel(self):
         """The millimeters per pixel of the DICOM images."""
         return self.dicom_stack.metadata.PixelSpacing[0]
@@ -518,25 +528,37 @@ class Settings:
                 circle_prof = CollapsedCircleProfile(center, radius=59/self.mm_per_pixel, image_array=slice.image, width_ratio=0.05, num_profiles=5)
                 prof = circle_prof.values
                 # determine if the profile contains both low and high values and that most values are the same
-                if (np.percentile(prof, 2) < 800) and (np.percentile(prof, 98) > 800) and (
-                        np.percentile(prof, 80) - np.percentile(prof, 30) < 70):
+                low_end, high_end = np.percentile(prof, [2, 98])
+                median = np.median(prof)
+                if (low_end < median - 400) and (high_end > median + 400) and (
+                        np.percentile(prof, 80) - np.percentile(prof, 20) < 70):
                     hu_slices.append(image_number)
 
-        center_hu_slice = int(np.median(hu_slices))
+        if len(hu_slices) == 0:
+            raise ValueError("No slices were found that resembled the HU linearity module")
+        center_hu_slice = int(round(np.median(hu_slices)))
         if self._is_within_image_extent(center_hu_slice):
             return center_hu_slice
 
     @property
     def un_slice_num(self):
         """The HU uniformity slice number."""
-        slice = int(self.hu_slice_num - round(73/self.dicom_stack.metadata.SliceThickness))
+        if self.manufacturer == ELEKTA:
+            shift = 110
+        else:
+            shift = 73
+        slice = int(self.hu_slice_num - round(shift/self.dicom_stack.metadata.SliceThickness))
         if self._is_within_image_extent(slice):
             return slice
 
     @property
     def sr_slice_num(self):
         """The Spatial Resolution slice number."""
-        slice = int(self.hu_slice_num + round(30/self.dicom_stack.metadata.SliceThickness))
+        if self.manufacturer == ELEKTA:
+            shift = -30
+        else:
+            shift = 30
+        slice = int(self.hu_slice_num + round(shift/self.dicom_stack.metadata.SliceThickness))
         if self._is_within_image_extent(slice):
             return slice
 
@@ -587,7 +609,11 @@ class Settings:
     @property
     def expected_phantom_size(self):
         """The expected size of the phantom in pixels, based on a 20cm wide phantom."""
-        phan_area = np.pi*(101**2)  # Area = pi*r^2; slightly larger value used based on actual values acquired
+        if self.manufacturer == ELEKTA:
+            radius = 97.5
+        else:
+            radius = 101
+        phan_area = np.pi*(radius**2)  # Area = pi*r^2; slightly larger value used based on actual values acquired
         return phan_area/(self.mm_per_pixel**2)
 
     @property
@@ -801,7 +827,7 @@ class ROIManagerMixin:
     def plot_rois(self, axis):
         """Plot the ROIs to the axis."""
         for roi in self.rois.values():
-            roi.add_to_axes(axis, edgecolor=roi.plot_color)
+            roi.plot2axes(axis, edgecolor=roi.plot_color)
 
 
 class Slice:
@@ -852,6 +878,7 @@ class Slice:
         """
         # convert the slice to binary and label ROIs
         sl = self.image.as_binary(self.settings.threshold)
+        sl = ndimage.morphology.binary_fill_holes(sl)
         labeled_arr, num_roi = ndimage.label(sl)
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
@@ -867,7 +894,7 @@ class Slice:
         # Check that the ROI is circular
         expected_fill_ratio = np.pi / 4
         actual_fill_ratio = filled_area_ratio(catphan_arr)
-        if (expected_fill_ratio * 1.02 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.98):
+        if (expected_fill_ratio * 1.02 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.97):
             raise ValueError("Unable to locate the CatPhan")
         # get center pixel based on ROI location
         center_pixel = ndimage.center_of_mass(catphan_arr)
@@ -1063,7 +1090,7 @@ class LowContrastSlice(Slice, ROIManagerMixin):
         """Plot the ROIs to an axis."""
         super().plot_rois(axis)
         for roi in self.bg_rois.values():
-            roi.add_to_axes(axis, 'blue')
+            roi.plot2axes(axis, 'blue')
 
     @property
     def overall_passed(self):
@@ -1112,7 +1139,6 @@ class SpatialResolutionSlice(Slice):
     def num_valleys(self):
         return np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
 
-
     @property
     def radius2linepairs(self):
         """Radius from the phantom center to the line-pair region, corrected for pixel spacing."""
@@ -1120,7 +1146,7 @@ class SpatialResolutionSlice(Slice):
 
     def plot_rois(self, axis):
         """Plot the circles where the profile was taken within."""
-        self.circle_profile.add_to_axes(axis, edgecolor='blue')
+        self.circle_profile.plot2axes(axis, edgecolor='blue')
 
     @property
     @lru_cache()
@@ -1131,9 +1157,15 @@ class SpatialResolutionSlice(Slice):
         -------
         `pylinac.core.profile.CollapsedCircleProfile` : A 1D profile of the Line Pair region.
         """
+        if self.settings.manufacturer == ELEKTA:
+            start_angle = 0
+            ccw = False
+        else:
+            start_angle = np.pi
+            ccw = True
         circle_profile = CollapsedCircleProfile(self.phan_center, self.radius2linepairs, image_array=self.image,
-                                                start_angle=np.pi + np.deg2rad(self.settings.phantom_roll),
-                                                width_ratio=0.04, sampling_ratio=2)
+                                                start_angle=start_angle + np.deg2rad(self.settings.phantom_roll),
+                                                width_ratio=0.04, sampling_ratio=2, ccw=ccw)
         circle_profile.filter(0.001, kind='gaussian')
         return circle_profile
 
@@ -1466,7 +1498,7 @@ class GeometrySlice(Slice, ROIManagerMixin):
     def plot_lines(self, axis):
         """Plot the geometric node connection lines."""
         for line in self.lines.values():
-            line.add_to_axes(axis, color=line.pass_fail_color)
+            line.plot2axes(axis, color=line.pass_fail_color)
 
     @property
     def avg_line_length(self):
@@ -1513,4 +1545,3 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 # ----------------------------------------
 if __name__ == '__main__':
     CBCT().run_demo()
-
