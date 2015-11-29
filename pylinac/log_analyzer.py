@@ -19,24 +19,22 @@ Features:
 * **Anonymize logs** - Both dynalogs and trajectory logs can be "anonymized" by removing the Patient ID from the filename(s)
   and file data.
 """
-import tempfile
 from abc import ABCMeta, abstractproperty
 import copy
 import csv
 from functools import lru_cache
-from io import BytesIO
 import os
 import os.path as osp
 import shutil
 import struct
-import zipfile
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage.filters as spf
 
 from pylinac.core.decorators import type_accept, value_accept
-from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file, get_url
+from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file, get_url, \
+    TemporaryZipDirectory
 from pylinac.core.utilities import is_iterable, import_mpld3
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
@@ -103,12 +101,10 @@ class MachineLogs(list):
             Path to the zip archive.
         """
         obj = cls()
-        # extract files to a temporary folder so that dynalog pairs can be matched, etc
-        with tempfile.TemporaryDirectory() as tmpdir:
-            zfiles = zipfile.ZipFile(zfile)
-            zfiles.extractall(path=tmpdir)
+        # extract files to a temporary folder
+        with TemporaryZipDirectory(zfile) as tzd:
             # walk the files looking for machine logs
-            for pdir, sdir, files in os.walk(tmpdir):
+            for pdir, sdir, files in os.walk(tzd):
                 for file in files:
                     file = osp.join(pdir, file)
                     try:
@@ -155,8 +151,6 @@ class MachineLogs(list):
         recursive : bool
             If True (default), will walk through subfolders of passed directory.
             If False, will only search root directory.
-        verbose : bool
-            If True (default), prints load status at each log.
         """
         # do initial walk to get file count
         num_logs = 0
@@ -464,9 +458,8 @@ class MachineLog:
 
         .. versionadded:: 0.7.1
         """
-        response = get_url(url)
-        stream = BytesIO(response.content)
-        self.load(stream, exclude_beam_off)
+        filename = get_url(url)
+        self.load(filename, exclude_beam_off)
         self.url = url
 
     @classmethod
@@ -2317,7 +2310,7 @@ def is_tlog_txt_file_around(tlog_filename):
         txt_filename = tlog_filename.replace('.bin', '.txt')
     except:
         return False
-    if osp.isfile(txt_filename):
+    if '.txt' in txt_filename and osp.isfile(txt_filename):
         return True
     else:
         return False

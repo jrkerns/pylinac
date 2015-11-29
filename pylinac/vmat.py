@@ -241,11 +241,7 @@ class VMAT:
 
         .. versionadded:: 0.7.1
         """
-        url_dict = {}
-        for idx, url in enumerate(urls):
-            response = get_url(url)
-            url_dict[idx] = BytesIO(response.content)
-        imgs = [item for item in url_dict.values()]
+        imgs = [get_url(url) for url in urls]
         self.load_images(imgs, names=urls)
 
     @type_accept(tolerance=(int, float))
@@ -505,7 +501,7 @@ class SegmentManager:
         """
         for segment in self.segments:
             color = segment.get_bg_color()
-            segment.add_to_axes(plot.axes, edgecolor=color)
+            segment.plot2axes(plot.axes, edgecolor=color)
 
     def _construct_segment_centers(self, test):
         """Construct the center points of the segments, depending on the test.

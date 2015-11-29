@@ -21,7 +21,6 @@ Features:
   do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
 import copy
-from io import BytesIO
 import os.path as osp
 
 import matplotlib.pyplot as plt
@@ -86,9 +85,8 @@ class Starshot:
 
         .. versionadded:: 0.7.1
         """
-        response = get_url(url)
-        stream = BytesIO(response.content)
-        self.load_image(stream)
+        filename = get_url(url)
+        self.load_image(filename)
 
     @classmethod
     def from_demo_image(cls):
@@ -447,8 +445,8 @@ class Starshot:
         # show analyzed image
         ax.imshow(self.image.array, cmap=plt.cm.Greys)
         self.lines.plot(ax)
-        self.wobble.add_to_axes(ax, edgecolor='green')
-        self.circle_profile.add_to_axes(ax, edgecolor='green')
+        self.wobble.plot2axes(ax, edgecolor='green')
+        self.circle_profile.plot2axes(ax, edgecolor='green')
         ax.autoscale(tight=True)
         ax.axis('off')
 
@@ -571,7 +569,7 @@ class LineManager:
     def plot(self, axis):
         """Plot the lines to the axis."""
         for line in self.lines:
-            line.add_to_axes(axis, color='blue')
+            line.plot2axes(axis, color='blue')
 
 
 class StarProfile(CollapsedCircleProfile):
@@ -598,7 +596,7 @@ class StarProfile(CollapsedCircleProfile):
             This is a prerequisite for properly finding star lines.
         """
         roll_amount = np.where(self.values == self.values.min())[0][0]
-        self.roll_profile(roll_amount)
+        self.roll(roll_amount)
         return roll_amount
 
     def get_peaks(self, min_peak_height, min_peak_distance=0.02, fwhm=True):

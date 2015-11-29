@@ -1,4 +1,3 @@
-
 """The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
 Physicists regularly check MLC positioning through this test. This test can be done using film and one can
 "eyeball" it, but this is the 21st century and we have numerous ways of quantifying such data. This module
@@ -14,7 +13,6 @@ Features:
 * **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
 """
 from functools import lru_cache
-from io import BytesIO
 import os.path as osp
 
 import matplotlib.pyplot as plt
@@ -82,9 +80,8 @@ class PicketFence:
 
         .. versionadded:: 0.7.1
         """
-        response = get_url(url)
-        stream = BytesIO(response.content)
-        self.load_image(stream, filter=filter)
+        filename = get_url(url)
+        self.load_image(filename, filter=filter)
 
     @property
     def passed(self):
@@ -109,7 +106,7 @@ class PicketFence:
 
     @property
     def max_error_picket(self):
-        """Return the picket number where the maximum error occured."""
+        """Return the picket number where the maximum error occurred."""
         return np.argmax([picket.max_error for picket in self.pickets])
 
     @property
@@ -315,7 +312,7 @@ class PicketFence:
                 picket.add_guards_to_axes(ax.axes)
             if mlc_peaks:
                 for idx, mlc_meas in enumerate(picket.mlc_meas):
-                    mlc_meas.add_to_axes(ax.axes, width=1.5)
+                    mlc_meas.plot2axes(ax.axes, width=1.5)
 
         # plot the overlay if desired.
         if overlay:
@@ -464,7 +461,7 @@ class Overlay:
                 r = Rectangle(self.image.shape[1], rect_width, center=(self.image.center.x, mlc.center.y))
             else:
                 r = Rectangle(rect_width, self.image.shape[0], center=(mlc.center.x, self.image.center.y))
-            r.add_to_axes(axes.axes, edgecolor='none', fill=True, alpha=0.1, facecolor=color)
+            r.plot2axes(axes.axes, edgecolor='none', fill=True, alpha=0.1, facecolor=color)
 
 
 class Settings:
@@ -751,9 +748,9 @@ class MLCMeas(Line):
         self.settings = settings
         self.fit = None
 
-    def add_to_axes(self, axes, width=1):
+    def plot2axes(self, axes, width=1):
         """Plot the measurement to the axes."""
-        super().add_to_axes(axes, width, color=self.bg_color)
+        super().plot2axes(axes, width, color=self.bg_color)
 
     @property
     def bg_color(self):

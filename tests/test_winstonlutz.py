@@ -1,5 +1,4 @@
 """Tests for the Winston-Lutz module."""
-import os.path as osp
 from unittest import TestCase
 
 from pylinac import WinstonLutz

@@ -195,7 +195,7 @@ class CircleProfileTestMixin:
 
     def test_add_to_axes(self):
         # shouldn't raise
-        self.profile.add_to_axes()
+        self.profile.plot2axes()
 
 
 class CircleProfileStarshot(CircleProfileTestMixin, TestCase):

@@ -1,3 +1,4 @@
+from urllib.error import HTTPError
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
@@ -111,7 +112,7 @@ class GeneralTests(TestCase):
         pf.analyze()
 
         bad_url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/AS500-UD_not_real.dcm'
-        with self.assertRaises(ConnectionError):
+        with self.assertRaises(HTTPError):
             PicketFence.from_url(bad_url)  # shouldn't raise
 
     def test_plotting(self):
