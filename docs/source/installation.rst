@@ -33,7 +33,7 @@ Dependencies
 
 Pylinac, as a scientific package, has fairly standard scientific dependencies (>= means at least that version or newer):
 
-* numpy >= 1.8
+* numpy >= 1.9
 * scipy >= 0.15
 * matplotlib >= 1.3.1
 * pydicom >= 0.9.9
