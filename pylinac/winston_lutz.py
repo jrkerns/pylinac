@@ -283,13 +283,19 @@ class WinstonLutz:
         self.plot_images(show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_summary(self):
+    def plot_summary(self, show=True):
         """Plot a summary figure showing the gantry sag and wobble plots of the three axes."""
         fig, ax = plt.subplots(2, 2, figsize=(9, 7))
         self.plot_gantry_sag(ax.flatten()[0], show=False)
         for axis, ax in zip((GANTRY, COLLIMATOR, COUCH), ax.flatten()[1:]):
             self.plot_axis_images(axis=axis, ax=ax, show=False)
-        plt.show()
+        if show:
+            plt.show()
+
+    def save_summary(self, filename, **kwargs):
+        """Save the summary image."""
+        self.plot_summary(show=False)
+        plt.savefig(filename, **kwargs)
 
     def results(self):
         """Return the analysis results summary."""
