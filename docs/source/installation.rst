@@ -14,16 +14,11 @@ Great! To get started, simply install pylinac via PyPI::
 
     pip install pylinac
 
-Alternatively, you can install from the github repository directly::
+If you run into issues:
 
-    pip install https://github.com/jrkerns/pylinac/zipball/minified
-
-.. note::
-    Install the ``minified`` branch as it does not contain all the tests in ``master``, which is quite hefty.
-    Note that this also will not include the demo files. Intall the master branch or simply download
-    the files directly to use the demo files.
-
-If you run into issues be sure to upgrade pip all the way ``pip install pip --upgrade``, then retry.
+  * Try upgrading pip all the way ``pip install pip --upgrade``.
+  * If there are LAPACK/BLAS compilation errors from scipy/numpy install numpy and scipy
+    using ``conda``, and install pylinac using the ``--no-deps`` flag: ``pip install pylinac --no-deps``.
 
 Finally, you can download the repo (from github) and run ``setup.py install`` in the root directory
 
@@ -43,7 +38,6 @@ See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/
 
 Optional dependencies:
  * watchdog >= 0.8 -- Needed if using the "watcher" script. See :ref:`dir_watching`.
- * requests >= 2.6 -- Needed if getting datasets from a URL.
  * mpld3 >= 0.2 -- For making interactive HTML plots.
 
 I'm new to Python
