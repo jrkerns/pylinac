@@ -35,7 +35,87 @@ def stretch(array, min=0, max=1):
     return stretched_array
 
 
-class SingleProfile:
+class ProfileMixin:
+    """A mixin to provide various manipulations of 1D profile data."""
+
+    def invert(self):
+        """Invert (imcomplement) the profile."""
+        orig_array = self.values
+        self.values = -orig_array + orig_array.max() + orig_array.min()
+
+    def normalize(self, norm_val='max'):
+        """Normalize the profile to the given value.
+
+        Parameters
+        ----------
+        norm_val : str, number
+            If a string, must be 'max', which normalizes the values to the maximum value.
+            If a number, normalizes all values to that number.
+        """
+        if norm_val == 'max':
+            val = self.values.max()
+        else:
+            val = norm_val
+        self.values /= val
+
+    def stretch(self, min=0, max=1):
+        """'Stretch' the profile to the min and max parameter values.
+
+        Parameters
+        ----------
+        min : number
+            The new minimum of the values
+        max : number
+            The new maximum value.
+        """
+        self.values = stretch(self.values, min=min, max=max)
+
+    def ground(self):
+        """Ground the profile such that the lowest value is 0.
+
+        Returns
+        -------
+        float
+            The minimum value that was used as the grounding value.
+        """
+        min_val = self.values.min()
+        self.values = self.values - min_val
+        return min_val
+
+    @value_accept(kind=('median', 'gaussian'))
+    def filter(self, size=0.05, kind='median'):
+        """Filter the profile.
+
+        Parameters
+        ----------
+        size : int, float
+            Size of the median filter to apply.
+            If a float, the size is the ratio of the length. Must be in the range 0-1.
+            E.g. if size=0.1 for a 1000-element array, the filter will be 100 elements.
+            If an int, the filter is the size passed.
+        kind : {'median', 'gaussian'}
+            The kind of filter to apply. If gaussian, *size* is the sigma value.
+        """
+        if isinstance(size, float):
+            if 0 < size < 1:
+                size *= len(self.values)
+                size = max(size, 1)
+            else:
+                raise TypeError("Float was passed but was not between 0 and 1")
+
+        if kind == 'median':
+            self.values = ndimage.median_filter(self.values, size=size)
+        elif kind == 'gaussian':
+            self.values = ndimage.gaussian_filter(self.values, sigma=size)
+
+    def __len__(self):
+        return len(self.values)
+
+    def __getitem__(self, items):
+        return self.values[items]
+
+
+class SingleProfile(ProfileMixin):
     """A profile that has one large signal, e.g. a radiation beam profile.
     Signal analysis methods are given, mostly based on FWXM calculations.
     Profiles with multiple peaks are better suited by the MultiProfile class.
@@ -394,61 +474,8 @@ class SingleProfile:
         plt.plot(self.values)
         plt.show()
 
-    @value_accept(kind=('median', 'gaussian'))
-    def filter(self, size=0.05, kind='median'):
-        """Filter the profile with a median or gaussian filter.
 
-        Parameters
-        ----------
-        size : int, float
-            Size of the filter to apply.
-            If a float, the size is the ratio of the length. Must be in the range 0-1.
-            E.g. if size=0.1 for a 1000-element array, the filter will be 100 elements.
-            If an int, the filter is the size passed.
-        kind : {'median', 'gaussian'}
-            The kind of filter to apply. If gaussian, *size* is the sigma value.
-        """
-        if isinstance(size, float):
-            if 0 < size < 1:
-                size *= len(self.values)
-                size = max(size, 1)
-            else:
-                raise TypeError("Float was passed but was not between 0 and 1")
-
-        if kind == 'median':
-            self.values = ndimage.median_filter(self.values, size=size)
-        elif kind == 'gaussian':
-            self.values = ndimage.gaussian_filter(self.values, sigma=size)
-
-    def normalize(self, norm_val='max'):
-        """Normalize the profile to the given value.
-
-        Parameters
-        ----------
-        norm_val : str, number
-            If a string, must be 'max', which normalizes the values to the maximum value.
-            If a number, normalizes all values to that number.
-        """
-        if norm_val == 'max':
-            val = self.values.max()
-        else:
-            val = norm_val
-        self.values /= val
-
-    def stretch(self, min=0, max=1):
-        """'Stretch' the profile to the min and max parameter values.
-
-        Parameters
-        ----------
-        min : number
-            The new minimum of the values
-        max : number
-            The new maximum value.
-        """
-        self.values = stretch(self.values, min=min, max=max)
-
-
-class MultiProfile:
+class MultiProfile(ProfileMixin):
     """A class for analyzing 1-D profiles that contain multiple signals. Methods are mostly for *finding & filtering*
     the signals, peaks, valleys, etc. Profiles with a single peak (e.g. radiation beam profiles) are better suited by the SingleProfile class.
 
@@ -472,44 +499,6 @@ class MultiProfile:
         self.values = values
         self.peaks = []
         self.valleys = []
-
-    @value_accept(kind=('median', 'gaussian'))
-    def filter(self, size=0.05, kind='median'):
-        """Filter the profile.
-
-        Parameters
-        ----------
-        size : int, float
-            Size of the median filter to apply.
-            If a float, the size is the ratio of the length. Must be in the range 0-1.
-            E.g. if size=0.1 for a 1000-element array, the filter will be 100 elements.
-            If an int, the filter is the size passed.
-        kind : {'median', 'gaussian'}
-            The kind of filter to apply. If gaussian, *size* is the sigma value.
-        """
-        if isinstance(size, float):
-            if 0 < size < 1:
-                size *= len(self.values)
-                size = max(size, 1)
-            else:
-                raise TypeError("Float was passed but was not between 0 and 1")
-
-        if kind == 'median':
-            self.values = ndimage.median_filter(self.values, size=size)
-        elif kind == 'gaussian':
-            self.values = ndimage.gaussian_filter(self.values, sigma=size)
-
-    def ground(self):
-        """Ground the profile such that the lowest value is 0.
-
-        Returns
-        -------
-        float
-            The minimum value that was used as the grounding value.
-        """
-        min_val = self.values.min()
-        self.values = self.values - min_val
-        return min_val
 
     def plot(self, show_peaks=True):
         """Plot the profile.
@@ -768,14 +757,14 @@ class CircleProfile(MultiProfile, Circle):
             peak.x = self.x_locations[int(peak.idx)]
             peak.y = self.y_locations[int(peak.idx)]
 
-    def roll_profile(self, amount):
+    def roll(self, amount):
         """Roll the profile and x and y coordinates."""
         self.values = np.roll(self.values, -amount)
         self.x_locations = np.roll(self.x_locations, -amount)
         self.y_locations = np.roll(self.y_locations, -amount)
 
-    def add_to_axes(self, axes=None, edgecolor='black', fill=False, plot_peaks=True):
-        """Plot to an axes.
+    def plot2axes(self, axes=None, edgecolor='black', fill=False, plot_peaks=True):
+        """Plot the circle to an axes.
 
         Parameters
         ----------
@@ -869,7 +858,7 @@ class CollapsedCircleProfile(CircleProfile):
         profile /= self.num_profiles
         return profile
 
-    def add_to_axes(self, axes=None, edgecolor='black', fill=False, plot_peaks=True):
+    def plot2axes(self, axes=None, edgecolor='black', fill=False, plot_peaks=True):
         """Add 2 circles to the axes: one at the maximum and minimum radius of the ROI.
 
         See Also
@@ -890,7 +879,7 @@ class CollapsedCircleProfile(CircleProfile):
             axes.scatter(x_locs, y_locs, s=20, marker='x', c=edgecolor)
 
 
-def peak_detect(values, threshold=0, min_distance=10, max_number=None, search_region=(0.0, 1.0), find_min_instead=False):
+def peak_detect(values, threshold=None, min_distance=10, max_number=None, search_region=(0.0, 1.0), find_min_instead=False):
     """Find the peaks or valleys of a 1D signal.
 
     Uses the difference (np.diff) in signal to find peaks. Current limitations include:
@@ -958,6 +947,8 @@ def peak_detect(values, threshold=0, min_distance=10, max_number=None, search_re
         threshold = threshold * data_range + values.min()
     elif isinstance(threshold, float) and threshold >= 1:
         raise ValueError("When threshold is passed a float, value must be less than 1")
+    elif threshold is None:
+        threshold = values.min()
 
     """Take difference"""
     values_diff = np.diff(values.astype(float))  # y and y_diff must be converted to signed type.
