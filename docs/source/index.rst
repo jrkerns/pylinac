@@ -41,6 +41,7 @@ or jump right in by doing :ref:`installation` and then :ref:`getting_started`! I
    flatsym
    watcher
    core_modules
+   pylinac_core_hacking
    troubleshooting
    changelog
 
