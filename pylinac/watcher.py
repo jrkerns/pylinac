@@ -13,11 +13,7 @@ try:
 except ImportError:
     raise ImportError("Watchdog must be installed to perform file watching.")
 
-from pylinac.cbct import CBCT
-from pylinac.log_analyzer import MachineLog
-from pylinac.picketfence import PicketFence
-from pylinac.starshot import Starshot
-from pylinac.vmat import VMAT
+from pylinac import CBCT, VMAT, Starshot, PicketFence, MachineLog, WinstonLutz
 
 logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',
@@ -71,6 +67,17 @@ class AnalyzeMixin:
             txtfile.write(method())
 
     @abc.abstractproperty
+    def analyze(self):
+        pass
+
+
+class AnalyzeWL(AnalyzeMixin):
+    """Analysis class for Winston-Lutz images."""
+    obj = WinstonLutz.from_zip
+    keywords = ('wl', 'winston',)
+    save_text_method = 'results'
+    save_image_method = 'save_summary'
+
     def analyze(self):
         pass
 
@@ -135,11 +142,11 @@ def analysis_should_be_done(path):
     """Return boolean of whether the file should be analysed, based on if the filename
     has a keyword."""
     path = osp.basename(path).lower()
-    for analysis_class in (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzeLog, AnalyzePF):
+    for analysis_class in (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzeLog, AnalyzePF, AnalyzeWL):
         for keyword in analysis_class.keywords:
             if (keyword in path.lower()) and not any(item in path for item in ('.png', '.txt')):
                 # more specific filtering of data by type
-                if analysis_class in (AnalyzeCBCT, AnalyzeVMAT):
+                if analysis_class in (AnalyzeCBCT, AnalyzeVMAT, AnalyzeWL):
                     if path.endswith('.zip'):
                         time.sleep(2)
                         return True, analysis_class
