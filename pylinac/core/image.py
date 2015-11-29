@@ -14,7 +14,7 @@ from scipy.misc import imresize
 
 from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.geometry import Point
-from pylinac.core.io import load_zipfile
+from pylinac.core.io import load_zipfile, get_url
 from pylinac.core.profile import stretch as stretcharray
 from pylinac.core.utilities import typed_property
 
@@ -175,6 +175,20 @@ class Image:
         else:
             raise TypeError("The argument `{}` was not found to be a valid DICOM file, Image file, or array".format(path))
 
+    @classmethod
+    def load_url(cls, url):
+        """Load an image from a URL.
+
+        Parameters
+        ----------
+        url : str
+            A string pointing to a valid URL that points to a file.
+
+            .. note:: For some images, the raw binary URL must be used, not simply the basic link.
+        """
+        filename = get_url(url)
+        return cls.load(filename)
+
     @staticmethod
     def _is_dicom(path):
         """Whether the file is a readable DICOM file via pydicom."""
@@ -232,7 +246,7 @@ class Image:
         return first_img
 
 
-class BaseImage:
+class ImageMixin:
     """Base class for the Image classes.
 
     Attributes
@@ -412,7 +426,7 @@ class BaseImage:
         return self.array[item]
 
 
-class DicomImage(BaseImage):
+class DicomImage(ImageMixin):
     """An image from a DICOM RTImage file.
 
     Attributes
@@ -470,7 +484,7 @@ class DicomImage(BaseImage):
             return Point(x, y)
 
 
-class FileImage(BaseImage):
+class FileImage(ImageMixin):
     """An image from a "regular" file (.tif, .jpg, .bmp).
 
     Attributes
@@ -527,7 +541,7 @@ class FileImage(BaseImage):
         return self.dpi / MM_PER_INCH
 
 
-class ArrayImage(BaseImage):
+class ArrayImage(ImageMixin):
     """An image constructed solely from a numpy array."""
 
     def __init__(self, array, *, dpi=None, sid=1000):
