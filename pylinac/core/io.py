@@ -2,8 +2,11 @@
 
 from io import BytesIO
 import os.path as osp
+from tempfile import TemporaryDirectory
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askopenfilenames, askdirectory
+from urllib.request import urlretrieve
+from urllib.error import HTTPError
 import zipfile
 
 
@@ -35,16 +38,28 @@ def load_zipfile(zfilename, read=False):
         return zfiles
 
 
-def get_url(url):
+class TemporaryZipDirectory(TemporaryDirectory):
+    """Creates a temporary directory that unpacks a ZIP archive."""
+    def __init__(self, zfile):
+        super().__init__()
+        zfiles = zipfile.ZipFile(zfile)
+        zfiles.extractall(path=self.name)
+
+
+class TemporaryZipURLDirectory(TemporaryZipDirectory):
+    """Creates a temporary directory that downloads & extracts a ZIP archive from a URL."""
+    def __init__(self, url):
+        zfile = get_url(url)
+        super().__init__(zfile)
+
+
+def get_url(url, destination=None):
     """Get the response from the URL."""
     try:
-        import requests
-    except ImportError:
-        raise ImportError("Requests is not installed; cannot get the log from a URL")
-    response = requests.get(url, timeout=10)
-    if response.status_code != 200:
-        raise ConnectionError("Could not connect to the URL")
-    return response
+        filename, _ = urlretrieve(url, filename=destination)
+    except HTTPError as e:
+        raise e
+    return filename
 
 
 def is_valid_file(file_path, raise_error=True):
