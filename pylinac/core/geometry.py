@@ -1,4 +1,3 @@
-
 """Module for classes that represent common geometric objects or patterns."""
 from itertools import zip_longest
 import math
@@ -11,14 +10,17 @@ from pylinac.core.utilities import is_iterable
 
 
 def tan(degrees):
+    """Calculate the tangent of the given degrees."""
     return math.tan(math.radians(degrees))
 
 
 def cos(degrees):
+    """Calculate the cosine of the given degrees."""
     return math.cos(math.radians(degrees))
 
 
 def sin(degrees):
+    """Calculate the sine of the given degrees."""
     return math.sin(math.radians(degrees))
 
 
@@ -180,7 +182,7 @@ class Circle:
         """Get the diameter of the circle."""
         return self.radius*2
 
-    def add_to_axes(self, axes, edgecolor='black', fill=False):
+    def plot2axes(self, axes, edgecolor='black', fill=False):
         """Plot the Circle on the axes.
 
         Parameters
@@ -273,7 +275,7 @@ class Line:
         denominator = sum(abs(x) for x in lp2 - lp1)
         return numerator/denominator
 
-    def add_to_axes(self, axes, width=1, color='w'):
+    def plot2axes(self, axes, width=1, color='w'):
         """Plot the line to an axes.
 
         Parameters
@@ -327,7 +329,7 @@ class Rectangle:
     def tr_corner(self):
         return Point(self.center.x + self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
 
-    def add_to_axes(self, axes, edgecolor='black', angle=0.0, fill=False, alpha=1, facecolor='g'):
+    def plot2axes(self, axes, edgecolor='black', angle=0.0, fill=False, alpha=1, facecolor='g'):
         """Plot the Rectangle to the axes.
 
         Parameters
@@ -350,47 +352,3 @@ class Rectangle:
                                      facecolor=facecolor,
                                      fill=fill))
 
-
-def sector_mask(shape, center, radius, angle_range=(0, 360)):
-    """Return a circular arc-shaped boolean mask.
-
-    Parameters
-    ----------
-    shape : tuple
-        Shape of the image matrix. Usually easiest to pass something like array.shape
-    center : Point, iterable
-        The center point of the desired mask.
-    radius : int, float
-        Radius of the mask.
-    angle_range : iterable
-        The angle range of the mask. E.g. the default (0, 360) creates an entire circle.
-        The start/stop angles should be given in clockwise order. 0 is right (0 on unit circle).
-
-    References
-    ----------
-    https://stackoverflow.com/questions/18352973/mask-a-circular-sector-in-a-numpy-array/18354475#18354475
-    """
-
-    x, y = np.ogrid[:shape[0], :shape[1]]
-    cy, cx = center.x, center.y
-    # tmin, tmax = np.deg2rad(angle_range)
-    tmin, tmax = angle_range
-
-    # ensure stop angle > start angle
-    if tmax < tmin:
-        tmax += 2 * np.pi
-
-    # convert cartesian --> polar coordinates
-    r2 = (x - cx) * (x - cx) + (y - cy) * (y - cy)
-    theta = np.arctan2(x - cx, y - cy) - tmin
-
-    # wrap angles between 0 and 2*pi
-    theta %= (2 * np.pi)
-
-    # circular mask
-    circmask = r2 <= radius * radius
-
-    # angular mask
-    anglemask = theta <= (tmax - tmin)
-
-    return circmask * anglemask
