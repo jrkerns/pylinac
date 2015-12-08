@@ -1,5 +1,6 @@
 
 """This module holds classes for image loading and manipulation."""
+import copy
 from io import BytesIO
 import os.path as osp
 import os
@@ -11,6 +12,7 @@ import numpy as np
 from PIL import Image as pImage
 from scipy import ndimage
 from scipy.misc import imresize
+import scipy.ndimage.filters as spf
 
 from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.geometry import Point
@@ -284,17 +286,43 @@ class ImageMixin:
             plt.show()
         return ax
 
-    def median_filter(self, size=3, mode='reflect'):
-        """Apply a median filter to the image.
+    # def median_filter(self, size=3, mode='reflect'):
+    #     """Apply a median filter to the image.
+    #
+    #     Wrapper for scipy's `median <http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html>`_ filter function:
+    #     """
+    #     if isinstance(size, float):
+    #         if size < 1:
+    #             size = max(int(self.array.shape[0] * size), 1)
+    #         else:
+    #             raise ValueError("If size is a float, it must be <1.0")
+    #     self.array = ndimage.median_filter(self.array, size=size, mode=mode)
 
-        Wrapper for scipy's `median <http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html>`_ filter function:
+    @value_accept(kind=('median', 'gaussian'))
+    def filter(self, size=0.05, kind='median'):
+        """Filter the profile.
+
+        Parameters
+        ----------
+        size : int, float
+            Size of the median filter to apply.
+            If a float, the size is the ratio of the length. Must be in the range 0-1.
+            E.g. if size=0.1 for a 1000-element array, the filter will be 100 elements.
+            If an int, the filter is the size passed.
+        kind : {'median', 'gaussian'}
+            The kind of filter to apply. If gaussian, *size* is the sigma value.
         """
         if isinstance(size, float):
-            if size < 1:
-                size = max(int(self.array.shape[0] * size), 1)
+            if 0 < size < 1:
+                size *= len(self.array)
+                size = max(size, 1)
             else:
-                raise ValueError("If size is a float, it must be <1.0")
-        self.array = ndimage.median_filter(self.array, size=size, mode=mode)
+                raise TypeError("Float was passed but was not between 0 and 1")
+
+        if kind == 'median':
+            self.array = ndimage.median_filter(self.array, size=size)
+        elif kind == 'gaussian':
+            self.array = ndimage.gaussian_filter(self.array, sigma=size)
 
     @type_accept(pixels=int)
     def remove_edges(self, pixels=15):
@@ -390,6 +418,21 @@ class ImageMixin:
         self.array -= min_val
         return min_val
 
+    def normalize(self, norm_val='max'):
+        """Normalize the image values to the given value.
+
+        Parameters
+        ----------
+        norm_val : str, number
+            If a string, must be 'max', which normalizes the values to the maximum value.
+            If a number, normalizes all values to that number.
+        """
+        if norm_val == 'max':
+            val = self.array.max()
+        else:
+            val = norm_val
+        self.array /= val
+
     def check_inversion(self):
         """Check the image for inversion by sampling the 4 image corners.
         If the average value of the four corners is above the average pixel value, then it is very likely inverted.
@@ -403,6 +446,34 @@ class ImageMixin:
         corner_avg = np.mean((TL_corner, BL_corner, TR_corner, BR_corner))
         if corner_avg > np.mean(self.array.flatten()):
             self.invert()
+
+    def gamma(self, reference_image, doseTA=1, distTA=1, threshold=10, resolution=0.1):
+        actual = ArrayImage(copy.copy(self.array))
+        actual.check_inversion()
+        actual.ground()
+        actual.normalize()
+        expected = ArrayImage(copy.copy(reference_image.array))
+        expected.check_inversion()
+        expected.ground()
+        expected.normalize()
+
+        # set dose values below threshold to 0 so gamma doesn't calculate over it
+        actual.array[actual < (threshold / 100) * np.max(actual)] = 0
+        expected.array[expected < (threshold / 100) * np.max(expected)] = 0
+
+        distTA_pixels = self.dpmm * distTA
+
+        # image gradient using sobel filter
+        img_x = spf.sobel(actual, 1)
+        img_y = spf.sobel(actual, 0)
+        grad_img = img_x + img_y
+
+        # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
+        subtracted_img = np.abs(expected - actual)
+        denom = np.sqrt((doseTA / 100.0 ** 2) + ((distTA_pixels ** 2) * (grad_img ** 2)))
+        gamma_map = subtracted_img / denom
+
+        return gamma_map
 
     @property
     def shape(self):
@@ -435,7 +506,7 @@ class DicomImage(ImageMixin):
         The dataset of the file as returned by pydicom.
     """
 
-    def __init__(self, path):
+    def __init__(self, path, dtype=np.float):
         """
         Parameters
         ----------
@@ -444,7 +515,7 @@ class DicomImage(ImageMixin):
         """
         super().__init__(path)
         self.dicom_dataset = dicom.read_file(path, force=True)
-        self.array = self.dicom_dataset.pixel_array
+        self.array = np.array(self.dicom_dataset.pixel_array, dtype=dtype)
 
     @property
     def sid(self):
@@ -544,8 +615,8 @@ class FileImage(ImageMixin):
 class ArrayImage(ImageMixin):
     """An image constructed solely from a numpy array."""
 
-    def __init__(self, array, *, dpi=None, sid=1000):
-        self.array = array
+    def __init__(self, array, *, dpi=None, sid=1000, dtype=np.float):
+        self.array = np.array(array, dtype=dtype)
         self._dpi = dpi
         self.sid = sid
 
@@ -559,3 +630,6 @@ class ArrayImage(ImageMixin):
             return self._dpi
         else:
             raise AttributeError("No pixel/distance conversion value; pass one in during construction")
+
+    def __sub__(self, other):
+        return ArrayImage(self.array - other.array)
