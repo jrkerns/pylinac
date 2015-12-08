@@ -163,8 +163,8 @@ class Image:
 
         Returns
         -------
-        :class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.ArrayImage`,
-          or :class:`~pylinac.core.image.DicomImage` instance, depending on file type.
+        ::class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.ArrayImage`, or :class:`~pylinac.core.image.DicomImage`
+            Return type depends on input image.
         """
         if cls._is_array(path):
             return ArrayImage(path, **kwargs)
@@ -176,7 +176,7 @@ class Image:
             raise TypeError("The argument `{}` was not found to be a valid DICOM file, Image file, or array".format(path))
 
     @classmethod
-    def load_url(cls, url):
+    def load_url(cls, url, **kwargs):
         """Load an image from a URL.
 
         Parameters
@@ -184,10 +184,10 @@ class Image:
         url : str
             A string pointing to a valid URL that points to a file.
 
-            .. note:: For some images, the raw binary URL must be used, not simply the basic link.
+            .. note:: For some images (e.g. Github), the raw binary URL must be used, not simply the basic link.
         """
         filename = get_url(url)
-        return cls.load(filename)
+        return cls.load(filename, **kwargs)
 
     @staticmethod
     def _is_dicom(path):
@@ -215,13 +215,13 @@ class Image:
 
     @classmethod
     @value_accept(method=('mean', 'max', 'sum'))
-    def load_multiples(cls, image_file_list, method='mean', stretch=True):
+    def load_multiples(cls, image_file_list, method='mean', stretch=True, **kwargs):
         """Combine multiple image files into one superimposed image.
 
         .. versionadded:: 0.5.1
         """
         # load images
-        img_list = [cls.load(path) for path in image_file_list]
+        img_list = [cls.load(path, **kwargs) for path in image_file_list]
         first_img = img_list[0]
 
         # check that all images are the same size and stretch if need be

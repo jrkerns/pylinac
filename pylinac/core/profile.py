@@ -621,7 +621,7 @@ class MultiProfile(ProfileMixin):
         Returns
         -------
         list
-            SingleProfiles
+            List of :class:`~pylinac.core.profile.SingleProfile`
         """
         # append the peak list to include the endpoints of the profile
         peaks = self.peaks.copy()
