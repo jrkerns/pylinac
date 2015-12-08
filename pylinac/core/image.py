@@ -139,7 +139,7 @@ class Image:
 
         >>> my_image = "C:\QA\image.tif"
         >>> img = Image.load(my_image)  # returns a FileImage
-        >>> img.median_filter(5)
+        >>> img.filter(5)
 
     Loading from an array is just like loading from a file::
 
@@ -286,18 +286,6 @@ class ImageMixin:
             plt.show()
         return ax
 
-    # def median_filter(self, size=3, mode='reflect'):
-    #     """Apply a median filter to the image.
-    #
-    #     Wrapper for scipy's `median <http://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.filters.median_filter.html>`_ filter function:
-    #     """
-    #     if isinstance(size, float):
-    #         if size < 1:
-    #             size = max(int(self.array.shape[0] * size), 1)
-    #         else:
-    #             raise ValueError("If size is a float, it must be <1.0")
-    #     self.array = ndimage.median_filter(self.array, size=size, mode=mode)
-
     @value_accept(kind=('median', 'gaussian'))
     def filter(self, size=0.05, kind='median'):
         """Filter the profile.
@@ -359,15 +347,23 @@ class ImageMixin:
         """
         self.array = imresize(self.array, size=size, interp=interp, mode='F')
 
-    def threshold(self, threshold):
-        """Use a high-pass threshold on the array.
+    @value_accept(kind=('high', 'low'))
+    def threshold(self, threshold, kind='high'):
+        """Apply a threshold filter.
 
         Parameters
         ----------
         threshold : int
-            If the value is less than the threshold it is set to 0, otherwise the original value is left as-is.
+            The cutoff value.
+        kind : str
+            If ``high`` (default), will apply a high-pass threshold. All values above the cutoff are left as-is.
+            Remaining points are set to 0.
+            If ``low``, will apply a low-pass threshold.
         """
-        self.array = np.where(self.array >= threshold, self, 0)
+        if kind == 'high':
+            self.array = np.where(self.array >= threshold, self, 0)
+        else:
+            self.array = np.where(self.array <= threshold, self, 0)
 
     def as_binary(self, threshold):
         """Return a binary (black & white) image based on the given threshold.
@@ -447,31 +443,58 @@ class ImageMixin:
         if corner_avg > np.mean(self.array.flatten()):
             self.invert()
 
-    def gamma(self, reference_image, doseTA=1, distTA=1, threshold=10, resolution=0.1):
-        actual = ArrayImage(copy.copy(self.array))
-        actual.check_inversion()
-        actual.ground()
-        actual.normalize()
-        expected = ArrayImage(copy.copy(reference_image.array))
-        expected.check_inversion()
-        expected.ground()
-        expected.normalize()
+    def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=10):
+        """Calculate the gamma between the current image (reference) and a comparison image.
 
-        # set dose values below threshold to 0 so gamma doesn't calculate over it
-        actual.array[actual < (threshold / 100) * np.max(actual)] = 0
-        expected.array[expected < (threshold / 100) * np.max(expected)] = 0
+        The gamma calculation is based on `Bakai et al
+        <http://iopscience.iop.org/0031-9155/48/21/006/>`_ eq.6,
+        which is a quicker alternative to the standard Low gamma equation.
 
+        Parameters
+        ----------
+        comparison_image :
+            The comparison image. Must be a :class:`~pylinac.core.image.ArrayImage`,
+            :class:`~pylinac.core.image.DicomImage`, or :class:`~pylinac.core.image.FileImage`.
+            The image must have the same DPI/DPMM to be comparable.
+            The size of the images must also be the same.
+        doseTA : int, float
+            Dose-to-agreement in percent; e.g. 2 is 2%.
+        distTA : int, float
+            Distance-to-agreement in mm.
+        threshold : int, float
+            The dose threshold percentage of the maximum dose, below which is not analyzed.
+
+        Returns
+        -------
+        gamma_map : numpy.ndarray
+            The calculated gamma map.
+        """
+        # set up reference and comparison images
+        ref_img = ArrayImage(copy.copy(self.array))
+        ref_img.check_inversion()
+        ref_img.ground()
+        ref_img.normalize()
+        comp_img = ArrayImage(copy.copy(comparison_image.array))
+        comp_img.check_inversion()
+        comp_img.ground()
+        comp_img.normalize()
+
+        # invalidate dose values below threshold so gamma doesn't calculate over it
+        ref_img.array[ref_img < (threshold / 100) * np.max(ref_img)] = np.NaN
+        comp_img.array[comp_img < (threshold / 100) * np.max(comp_img)] = np.NaN
+
+        # convert distance value from mm to pixels
         distTA_pixels = self.dpmm * distTA
 
-        # image gradient using sobel filter
-        img_x = spf.sobel(actual, 1)
-        img_y = spf.sobel(actual, 0)
+        # construct image gradient using sobel filter
+        img_x = spf.sobel(ref_img, 1)
+        img_y = spf.sobel(ref_img, 0)
         grad_img = img_x + img_y
 
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
-        subtracted_img = np.abs(expected - actual)
-        denom = np.sqrt((doseTA / 100.0 ** 2) + ((distTA_pixels ** 2) * (grad_img ** 2)))
-        gamma_map = subtracted_img / denom
+        subtracted_img = np.abs(comp_img - ref_img)
+        denominator = np.sqrt((doseTA / 100.0 ** 2) + ((distTA_pixels ** 2) * (grad_img ** 2)))
+        gamma_map = subtracted_img / denominator
 
         return gamma_map
 
