@@ -73,12 +73,12 @@ class TestBaseImage(TestCase):
 
     def test_median_filter(self):
         filter_size = 3
-        self.arr.median_filter(filter_size)
+        self.arr.filter(filter_size)
         self.assertEqual(self.arr.array[0, 0], 1)
         filter_size = 0.03
-        self.arr.median_filter(filter_size)
+        self.arr.filter(filter_size)
 
-        self.assertRaises(ValueError, self.img.median_filter, 1.1)
+        self.assertRaises(ValueError, self.img.filter, 1.1)
 
     def test_ground(self):
         old_min_val = copy.copy(self.dcm.array.min())
