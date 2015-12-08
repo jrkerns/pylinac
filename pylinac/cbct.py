@@ -415,7 +415,7 @@ class CBCT:
             slicenum = getattr(self.settings, slice)
             print(slice, slicenum)
 
-    def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2, low_contrast_tolerance=1, contrast_threshold=10):
+    def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2, low_contrast_tolerance=1, contrast_threshold=15):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -1052,24 +1052,25 @@ class LowContrastSlice(Slice, ROIManagerMixin):
         A list identifying which of the ``roi_names`` are the background ROIs.
     """
     dist2rois_mm = 50
-    bg_dist2rois_mm = [35, 65]
-    roi_radius_mm = [7, 4, 3.5, 3, 2.5, 2]
+    inner_bg_dist_mm = [37, 39, 40, 40.5, 41.5, 41.5]
+    outer_bg_dist_mm = [63, 61, 60, 59.5, 58.5, 58.5]
+    roi_radius_mm = [6, 3.5, 3, 2.5, 2, 1.5]
     bg_roi_radius_mm = 4
     roi_names = ['15', '9', '8', '7', '6', '5']
-    roi_nominal_angles = [-86.5, -67.1, -52.4, -38.5, -25, -12.9]
+    roi_nominal_angles = [-87.4, -69.1, -52.7, -38.5, -25.1, -12.9]
 
     def __init__(self, dicom_stack, settings):
-        super().__init__(dicom_stack, settings, num_slices=2)
+        super().__init__(dicom_stack, settings, num_slices=3)
         self._setup_rois()
 
     def _setup_rois(self):
         self.rois = OrderedDict()
         self.inner_bg_rois = OrderedDict()
         self.outer_bg_rois = OrderedDict()
-        for name, angle, radius in zip(self.roi_names, self.roi_angles, self.roi_radius):
-            self.inner_bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.bg_dist2rois[0],
+        for idx, (name, angle, radius) in enumerate(zip(self.roi_names, self.roi_angles, self.roi_radius)):
+            self.inner_bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.inner_bg_dist[idx],
                                                           self.phan_center, self.settings.contrast_threshold)
-            self.outer_bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.bg_dist2rois[1],
+            self.outer_bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.outer_bg_dist[idx],
                                                           self.phan_center, self.settings.contrast_threshold)
             background_val = np.mean([self.inner_bg_rois[name].pixel_value, self.outer_bg_rois[name].pixel_value])
             self.rois[name] = LowContrastDiskROI(self.image, angle, radius, self.dist2rois,
@@ -1084,9 +1085,12 @@ class LowContrastSlice(Slice, ROIManagerMixin):
         return self.settings.lc_slice_num
 
     @property
-    def bg_dist2rois(self):
-        """Distance from the phantom center to the ROIs, corrected for pixel spacing."""
-        return np.array(self.bg_dist2rois_mm) / self.settings.mm_per_pixel
+    def inner_bg_dist(self):
+        return np.array(self.inner_bg_dist_mm) / self.settings.mm_per_pixel
+
+    @property
+    def outer_bg_dist(self):
+        return np.array(self.outer_bg_dist_mm) / self.settings.mm_per_pixel
 
     @property
     def bg_roi_radius(self):
@@ -1115,6 +1119,27 @@ class LowContrastSlice(Slice, ROIManagerMixin):
     def overall_passed(self):
         """Whether there were enough low contrast ROIs "seen"."""
         return sum(roi.passed for roi in self.rois.values()) >= self.tolerance
+
+    def plot_contrast(self, axis=None):
+        """Plot the contrast constant.
+
+        Parameters
+        ----------
+        axis : None, matplotlib.Axes
+            The axis to plot the contrast on. If None, will create a new figure.
+        """
+        if axis is None:
+            fig, axis = plt.subplots()
+        else:
+            axis = axis.twinx().twiny()
+        sizes = np.array(list(self.rois.keys()), dtype=int)
+        contrasts = [roi.contrast_constant for roi in self.rois.values()]
+        points = axis.plot(sizes, contrasts)
+        axis.margins(0.05)
+        axis.grid('on')
+        axis.set_xlabel('ROI size (mm)')
+        axis.set_ylabel("Contrast * Diameter")
+        return points
 
 
 class SpatialResolutionSlice(Slice):
