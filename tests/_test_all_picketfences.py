@@ -225,6 +225,13 @@ def run_pf(path):
         mypf = PicketFence(path)
         mypf.analyze()
         return 'Success'
+    except ValueError:
+        try:
+            mypf = PicketFence(path, filter=3)
+            mypf.analyze()
+            return 'Success'
+        except:
+            return 'Failure at {}'.format(path)
     except:
         return 'Failure at {}'.format(path)
 

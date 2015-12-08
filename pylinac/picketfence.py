@@ -207,7 +207,7 @@ class PicketFence:
         min/max to 1/99 percentiles and smoothing if need be."""
         safety_stop = 5
         while self._has_noise() and safety_stop > 0:
-            self.image.filter()
+            self.image.filter(size=3)
             safety_stop -= 1
 
     def _has_noise(self):
