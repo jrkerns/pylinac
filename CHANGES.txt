@@ -1,3 +1,16 @@
+V 1.2.0 - ??
+
+    General Changes
+
+-A new ``mask`` core module was created for binary array operations.
+-The ``requests`` package is no longer needed for downloading URLs; the urllib module is now used instead.
+-Requirements were fixed in the docs and setup.py; a numpy function was being used that was introduced in
+ v1.9 even though v1.8 was stated as the minimum; the new requirement is v1.9.
+
+
+    CBCT
+-CatPhan 503 (Elekta) is now supported.
+
 V 1.1.1 - 11/10/2015
 
 -Winston-Lutz demo images were not included in the pypi package.
