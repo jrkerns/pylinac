@@ -1,15 +1,15 @@
-"""The CBCT module automatically analyzes DICOM images of a CatPhan 504 acquired when doing CBCT or regular CT quality assurance.
+"""The CBCT module automatically analyzes DICOM images of a CatPhan 504 or 503 acquired when doing CBCT or regular CT quality assurance.
 It can load a folder or zip file that the images are in and automatically correct for phantom setup in 6 degrees.
 It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF),
 the HU uniformity (CTP486), and Low Contrast (CTP515) on the corresponding slices.
 
-Currently only the CatPhan 504 (Varian's default phantom) is supported, but CatPhan 503 (Elekta) support is being worked on.
+As of version 1.2, the cbct module can analyze the CatPhan 503, Elekta's CBCT phantom.
 
 Features:
 
 * **Automatic phantom registration** - Your phantom can be tilted, rotated, or translated--pylinac will register the phantom.
-* **Automatic testing of 4 major modules** - Major modules are automatically registered and analyzed.
-* **Any scan protocol** - Scan your CatPhan 504 with any Varian protocol; or even scan it in a regular CT scanner.
+* **Automatic testing of all major modules** - Major modules are automatically registered and analyzed.
+* **Any scan protocol** - Scan your CatPhan with any protocol; even scan it in a regular CT scanner.
   Any field size or field extent is allowed.
 """
 from abc import abstractmethod
@@ -36,7 +36,7 @@ VARIAN = 'Varian Medical Systems'
 
 
 class CBCT:
-    """A class for loading and analyzing CT DICOM files of a CatPhan 504. Can be from a CBCT or CT scanner
+    """A class for loading and analyzing CT DICOM files of a CatPhan 504 & CatPhan 503. Can be from a CBCT or CT scanner
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
 
     Attributes
