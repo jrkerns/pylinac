@@ -40,7 +40,7 @@ class GeneralTests(TestCase):
         CBCT(folder)
 
         # load from zip file
-        zfile = osp.join(VARIAN_DIR, 'Pelvis.zip')
+        zfile = osp.join(VARIAN_DIR, 'CBCT_4.zip')
         CBCT.from_zip_file(zfile)
 
     def test_images_not_loaded(self):
@@ -193,12 +193,12 @@ class CBCTMixin:
 class CBCTDemo(CBCTMixin, TestCase):
     """Test the CBCT demo (Varian high quality head protocol)."""
     expected_roll = -0.3
-    slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
+    slice_locations = {'HU': 32, 'UN': 6, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -45, 'Acrylic': 117, 'Delrin': 341, 'Air': -998, 'Teflon': 997, 'PMP': -200, 'LDPE': -103}
     unif_values = {'Center': 17, 'Left': 10, 'Right': 0, 'Top': 6, 'Bottom': 6}
     mtf_values = {80: 0.76, 90: 0.61, 60: 0.99, 70: 0.88, 95: 0.45}
     avg_line_length = 49.92
-    lowcon_visible = 1
+    lowcon_visible = 3
 
     @classmethod
     def setUpClass(cls):
@@ -210,13 +210,13 @@ class CBCT4(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
     location = osp.join(VARIAN_DIR, 'CBCT_4.zip')
     expected_roll = -2.57
-    slice_locations = {'HU': 31, 'UN': 2, 'SR': 43, 'LC': 19}
+    slice_locations = {'HU': 31, 'UN': 6, 'SR': 43, 'LC': 19}
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
-    unif_values = {'Center': 21, 'Left': 13, 'Right': 30, 'Top': 23, 'Bottom': 20}
+    unif_values = {'Center': 17, 'Left': 10, 'Right': 22, 'Top': 18, 'Bottom': 13}
     mtf_values = {80: 0.47, 90: 0.39, 60: 0.63, 70: 0.55, 95: 0.3}
     avg_line_length = 49.94
-    thickness_passed = False
-    lowcon_visible = 5
+    # thickness_passed = False
+    lowcon_visible = 3
 
 
 class Elekta2(CBCTMixin, TestCase):

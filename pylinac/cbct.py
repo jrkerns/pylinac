@@ -531,7 +531,7 @@ class Settings:
                 low_end, high_end = np.percentile(prof, [2, 98])
                 median = np.median(prof)
                 if (low_end < median - 400) and (high_end > median + 400) and (
-                        np.percentile(prof, 80) - np.percentile(prof, 20) < 70):
+                        np.percentile(prof, 80) - np.percentile(prof, 20) < 100):
                     hu_slices.append(image_number)
 
         if len(hu_slices) == 0:
@@ -1164,7 +1164,7 @@ class SpatialResolutionSlice(Slice):
     line_pair_frequency = (0.2, 0.4, 0.6, 0.8, 1, 1.2)
     # num_peaks = np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
     # num_valleys = np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
-    radius2linepairs_mm = 47.5
+    radius2linepairs_mm = 47
     line_pair_cutoff = 0.34
 
     def __init__(self, *args, **kwargs):

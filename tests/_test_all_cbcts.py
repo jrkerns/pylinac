@@ -7,16 +7,16 @@ from unittest import TestCase
 
 from tests.test_cbct import CBCTMixin, CBCT
 
-TEST_DIR = osp.join(osp.dirname(__file__), '..', '..', 'pylinac test files', 'CBCT')
+TEST_DIR = osp.join(osp.dirname(osp.dirname(osp.dirname(__file__))), 'pylinac test files', 'CBCT')
 
 
 class VarianPelvis(CBCTMixin, TestCase):
     """Test the Varian Pelvis protocol CBCT."""
     location = osp.join(TEST_DIR, 'Pelvis.zip')
-    expected_roll = 0.24
-    slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
+    expected_roll = -0.24
+    slice_locations = {'HU': 32, 'UN': 7, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -36, 'Acrylic': 114, 'Delrin': 342, 'Air': -993, 'Teflon': 992, 'PMP': -188, 'LDPE': -95}
-    unif_values = {'Center': 23, 'Left': 5, 'Right': 4, 'Top': 4, 'Bottom': 4}
+    unif_values = {'Center': 17, 'Left': 5, 'Right': 4, 'Top': 4, 'Bottom': 4}
     mtf_values = {60: 0.65, 70: 0.560, 80: 0.48, 90: 0.40, 95: 0.30}
     avg_line_length = 49.8
     lowcon_visible = 3
@@ -25,10 +25,10 @@ class VarianPelvis(CBCTMixin, TestCase):
 class VarianPelvisSpotlight(CBCTMixin, TestCase):
     """Test the Varian Pelvis Spotlight protocol CBCT."""
     location = osp.join(TEST_DIR, 'Pelvis spotlight.zip')
-    expected_roll = 0.26
-    slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
+    expected_roll = -0.26
+    slice_locations = {'HU': 32, 'UN': 7, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -43, 'Acrylic': 118, 'Delrin': 341, 'Air': -998, 'Teflon': 967, 'PMP': -198, 'LDPE': -100}
-    unif_values = {'Center': 19, 'Left': 3, 'Right': -1, 'Top': -1, 'Bottom': 0}
+    unif_values = {'Center': 15, 'Left': 3, 'Right': -1, 'Top': -1, 'Bottom': 0}
     mtf_values = {60: 0.97, 70: 0.87, 80: 0.75, 90: 0.59, 95: 0.45}
     avg_line_length = 49.94
     lowcon_visible = 5
@@ -37,10 +37,10 @@ class VarianPelvisSpotlight(CBCTMixin, TestCase):
 class VarianLowDoseThorax(CBCTMixin, TestCase):
     """Test the Varian Low-Dose Thorax protocol CBCT."""
     location = osp.join(TEST_DIR, 'Low dose thorax.zip')
-    expected_roll = 0.29
-    slice_locations = {'HU': 32, 'UN': 3, 'SR': 44, 'LC': 20}
+    expected_roll = -0.29
+    slice_locations = {'HU': 32, 'UN': 7, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -46, 'Acrylic': 119, 'Delrin': 341, 'Air': -998, 'Teflon': 992, 'PMP': -193, 'LDPE': -97}
-    unif_values = {'Center': 23, 'Left': 7, 'Right': -1, 'Top': 3, 'Bottom': 2}
+    unif_values = {'Center': 19, 'Left': 7, 'Right': -1, 'Top': 3, 'Bottom': 2}
     mtf_values = {60: 0.56, 70: 0.50, 80: 0.43, 90: 0.34, 95: 0.27}
     avg_line_length = 49.76
     lowcon_visible = 2
