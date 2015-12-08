@@ -8,6 +8,7 @@ if sys.version_info[0] < 3:
 
 from pylinac.cbct import CBCT
 from pylinac.flatsym import BeamImage
+from pylinac.kv import LeedsTOR
 from pylinac.log_analyzer import MachineLog, MachineLogs
 from pylinac.picketfence import PicketFence
 from pylinac.starshot import Starshot
