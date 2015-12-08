@@ -592,25 +592,26 @@ class Settings:
                        item < bubble_thresh * 1.5 and item > bubble_thresh / 1.5]
         # if the algo has worked correctly, it has found 2 and only 2 ROIs (the air bubbles)
         if len(air_bubbles) == 2:
-            air_bubble_CofM = ndimage.measurements.center_of_mass(slice, labels, air_bubbles)
-            y_dist = air_bubble_CofM[0][0] - air_bubble_CofM[1][0]
-            x_dist = air_bubble_CofM[0][1] - air_bubble_CofM[1][1]
-            angle = np.arctan2(y_dist, x_dist)
-            if angle < 0:
-                roll = abs(angle) - np.pi / 2
+            com1, com2 = ndimage.measurements.center_of_mass(slice, labels, air_bubbles)
+            if com1[0] < com2[0]:
+                lower_com = com1
+                upper_com = com2
             else:
-                roll = angle - np.pi / 2
-            phan_roll = roll
+                lower_com = com2
+                upper_com = com1
+            y_dist = upper_com[0] - lower_com[0]
+            x_dist = upper_com[1] - lower_com[1]
+            phan_roll = np.arctan2(y_dist, x_dist)
         else:
             phan_roll = 0
             print("Warning: CBCT phantom roll unable to be determined; assuming 0")
-        return np.rad2deg(phan_roll)
+        return np.rad2deg(phan_roll) - 90
 
     @property
     def expected_phantom_size(self):
         """The expected size of the phantom in pixels, based on a 20cm wide phantom."""
         if self.manufacturer == ELEKTA:
-            radius = 97.5
+            radius = 98.5
         else:
             radius = 101
         phan_area = np.pi*(radius**2)  # Area = pi*r^2; slightly larger value used based on actual values acquired
@@ -633,7 +634,7 @@ class Settings:
 class RectangleROI(Rectangle):
     """Class that represents a rectangular ROI."""
     def __init__(self, array, width, height, angle, dist_from_center, phantom_center):
-        y_shift = -np.sin(np.deg2rad(angle)) * dist_from_center
+        y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         center = Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
         super().__init__(width, height, center, as_int=True)
@@ -668,7 +669,7 @@ class DiskROI(Circle):
 
     def _get_shifted_center(self, angle, dist_from_center, phantom_center):
         """The center of the ROI; corrects for phantom dislocation and roll."""
-        y_shift = -np.sin(np.deg2rad(angle)) * dist_from_center
+        y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
@@ -726,7 +727,7 @@ class HUDiskROI(DiskROI):
 
 class LowContrastDiskROI(DiskROI):
     """A class for analyzing the low-contrast disks."""
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold):
+    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold, background=None):
         """
         Parameters
         ----------
@@ -735,16 +736,22 @@ class LowContrastDiskROI(DiskROI):
         """
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.contrast_threshold = contrast_threshold
+        self.background = background
+
+    @property
+    def contrast_to_noise(self):
+        """The contrast to noise ratio of the bubble: (Signal - Background)/Stdev."""
+        return (self.pixel_value - self.background)/self.std
 
     @property
     def contrast(self):
-        """The true contrast of the bubble: (Signal - Background)/Stdev."""
-        return (self.pixel_value - self.background)/self.std
+        """The contrast of the bubble compared to background: (ROI - backg) / (ROI + backg)."""
+        return (self.pixel_value - self.background) / (self.pixel_value + self.background)
 
     @property
     def contrast_constant(self):
         """The contrast value times the bubble diameter."""
-        return self.contrast*self.diameter
+        return self.contrast_to_noise * self.diameter
 
     @property
     def passed(self):
@@ -885,7 +892,7 @@ class Slice:
             raise ValueError("Unable to locate the CatPhan")
         # determine if one of the ROIs is the size of the CatPhan and drop all others
         roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi+1)
-        rois_in_size_criteria = [self.settings.expected_phantom_size * 0.98 < roi_size < self.settings.expected_phantom_size * 1.02 for roi_size in roi_sizes]
+        rois_in_size_criteria = [self.settings.expected_phantom_size * 0.96 < roi_size < self.settings.expected_phantom_size * 1.04 for roi_size in roi_sizes]
         if not any(rois_in_size_criteria):
             raise ValueError("Unable to locate the CatPhan")
         else:
@@ -894,7 +901,7 @@ class Slice:
         # Check that the ROI is circular
         expected_fill_ratio = np.pi / 4
         actual_fill_ratio = filled_area_ratio(catphan_arr)
-        if (expected_fill_ratio * 1.02 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.97):
+        if (expected_fill_ratio * 1.02 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.95):
             raise ValueError("Unable to locate the CatPhan")
         # get center pixel based on ROI location
         center_pixel = ndimage.center_of_mass(catphan_arr)
@@ -915,7 +922,7 @@ class HUSlice(Slice, ROIManagerMixin):
     roi_radius_mm = 5
     roi_names = ['Air', 'PMP', 'LDPE', 'Poly', 'Acrylic', 'Delrin', 'Teflon']
     roi_nominal_values = [-1000, -200, -100, -35, 120, 340, 990]
-    roi_nominal_angles = [90, 120, 180, -120, -60, 0, 60]
+    roi_nominal_angles = [-90, -120, 180, 120, 60, 0, -60]
 
     def __init__(self, dicom_stack, settings):
         super().__init__(dicom_stack, settings)
@@ -981,7 +988,7 @@ class UniformitySlice(Slice, ROIManagerMixin):
     roi_radius_mm = 10
     roi_names = ['Top', 'Right', 'Bottom', 'Left', 'Center']
     roi_nominal_values = [0, 0, 0, 0, 0]
-    roi_nominal_angles = [-90, 0, 90, 180, 0]
+    roi_nominal_angles = [90, 0, -90, 180, 0]
 
     def __init__(self, dicom_stack, settings):
         super().__init__(dicom_stack, settings)
@@ -1043,13 +1050,13 @@ class LowContrastSlice(Slice, ROIManagerMixin):
     ----------
     roi_background_names : list
         A list identifying which of the ``roi_names`` are the background ROIs.
-
     """
     dist2rois_mm = 50
-    roi_radius_mm = [7, 7, 4.5, 4, 3.5, 3, 2.5, 7]
-    roi_names = ['bg', '15', '9', '8', '7', '6', '5', 'bg2']
-    roi_background_names = ['bg', 'bg2']
-    roi_nominal_angles = [110, 89, 68.6, 52.4, 37.6, 26.6, 12.9, -10]
+    bg_dist2rois_mm = 35
+    roi_radius_mm = [7, 4.5, 4, 3.5, 3, 2.5]
+    bg_roi_radius_mm = 4
+    roi_names = ['15', '9', '8', '7', '6', '5']
+    roi_nominal_angles = [-86.5, -67.1, -52.4, -37.6, -25, -12.9]
 
     def __init__(self, dicom_stack, settings):
         super().__init__(dicom_stack, settings)
@@ -1057,16 +1064,13 @@ class LowContrastSlice(Slice, ROIManagerMixin):
 
     def _setup_rois(self):
         self.rois = OrderedDict()
-        self.bg_rois = {}
+        self.bg_rois = OrderedDict()
         for name, angle, radius in zip(self.roi_names, self.roi_angles, self.roi_radius):
-            if name not in self.roi_background_names:
-                self.rois[name] = LowContrastDiskROI(self.image, angle, radius, self.dist2rois,
-                                                     self.phan_center, self.settings.contrast_threshold)
-            else:
-                self.bg_rois[name] = LowContrastDiskROI(self.image, angle, radius, self.dist2rois,
-                                                        self.phan_center, self.settings.contrast_threshold)
-        for roi in self.rois.values():
-            roi.background = np.mean([roi.pixel_value for roi in self.bg_rois.values()])
+            self.bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.bg_dist2rois,
+                                                    self.phan_center, self.settings.contrast_threshold)
+            background_val = self.bg_rois[name].pixel_value
+            self.rois[name] = LowContrastDiskROI(self.image, angle, radius, self.dist2rois,
+                                                 self.phan_center, self.settings.contrast_threshold, background_val)
 
     @property
     def tolerance(self):
@@ -1075,6 +1079,16 @@ class LowContrastSlice(Slice, ROIManagerMixin):
     @property
     def slice_num(self):
         return self.settings.lc_slice_num
+
+    @property
+    def bg_dist2rois(self):
+        """Distance from the phantom center to the ROIs, corrected for pixel spacing."""
+        return self.bg_dist2rois_mm / self.settings.mm_per_pixel
+
+    @property
+    def bg_roi_radius(self):
+        """A list of the ROI radii, scaled to pixels."""
+        return self.bg_roi_radius_mm / self.settings.mm_per_pixel
 
     @property
     def roi_radius(self):
@@ -1155,7 +1169,7 @@ class SpatialResolutionSlice(Slice):
 
         Returns
         -------
-        `pylinac.core.profile.CollapsedCircleProfile` : A 1D profile of the Line Pair region.
+        :class:`pylinac.core.profile.CollapsedCircleProfile` : A 1D profile of the Line Pair region.
         """
         if self.settings.manufacturer == ELEKTA:
             start_angle = 0
