@@ -546,7 +546,7 @@ class Settings:
         if self.manufacturer == ELEKTA:
             shift = 110
         else:
-            shift = 73
+            shift = 65
         slice = int(self.hu_slice_num - round(shift/self.dicom_stack.metadata.SliceThickness))
         if self._is_within_image_extent(slice):
             return slice
@@ -771,7 +771,7 @@ class ThicknessROI(RectangleROI):
     def long_profile(self):
         """The profile along the axis perpendicular to ramped wire."""
         img = Image.load(self.pixel_array)
-        img.median_filter()
+        img.filter()
         prof = SingleProfile(img.array.max(axis=np.argmin(img.shape)))
         prof.filter(0.05)
         return prof
@@ -1052,23 +1052,26 @@ class LowContrastSlice(Slice, ROIManagerMixin):
         A list identifying which of the ``roi_names`` are the background ROIs.
     """
     dist2rois_mm = 50
-    bg_dist2rois_mm = 35
-    roi_radius_mm = [7, 4.5, 4, 3.5, 3, 2.5]
+    bg_dist2rois_mm = [35, 65]
+    roi_radius_mm = [7, 4, 3.5, 3, 2.5, 2]
     bg_roi_radius_mm = 4
     roi_names = ['15', '9', '8', '7', '6', '5']
-    roi_nominal_angles = [-86.5, -67.1, -52.4, -37.6, -25, -12.9]
+    roi_nominal_angles = [-86.5, -67.1, -52.4, -38.5, -25, -12.9]
 
     def __init__(self, dicom_stack, settings):
-        super().__init__(dicom_stack, settings)
+        super().__init__(dicom_stack, settings, num_slices=2)
         self._setup_rois()
 
     def _setup_rois(self):
         self.rois = OrderedDict()
-        self.bg_rois = OrderedDict()
+        self.inner_bg_rois = OrderedDict()
+        self.outer_bg_rois = OrderedDict()
         for name, angle, radius in zip(self.roi_names, self.roi_angles, self.roi_radius):
-            self.bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.bg_dist2rois,
-                                                    self.phan_center, self.settings.contrast_threshold)
-            background_val = self.bg_rois[name].pixel_value
+            self.inner_bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.bg_dist2rois[0],
+                                                          self.phan_center, self.settings.contrast_threshold)
+            self.outer_bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.bg_dist2rois[1],
+                                                          self.phan_center, self.settings.contrast_threshold)
+            background_val = np.mean([self.inner_bg_rois[name].pixel_value, self.outer_bg_rois[name].pixel_value])
             self.rois[name] = LowContrastDiskROI(self.image, angle, radius, self.dist2rois,
                                                  self.phan_center, self.settings.contrast_threshold, background_val)
 
@@ -1083,7 +1086,7 @@ class LowContrastSlice(Slice, ROIManagerMixin):
     @property
     def bg_dist2rois(self):
         """Distance from the phantom center to the ROIs, corrected for pixel spacing."""
-        return self.bg_dist2rois_mm / self.settings.mm_per_pixel
+        return np.array(self.bg_dist2rois_mm) / self.settings.mm_per_pixel
 
     @property
     def bg_roi_radius(self):
@@ -1103,7 +1106,9 @@ class LowContrastSlice(Slice, ROIManagerMixin):
     def plot_rois(self, axis):
         """Plot the ROIs to an axis."""
         super().plot_rois(axis)
-        for roi in self.bg_rois.values():
+        for roi in self.inner_bg_rois.values():
+            roi.plot2axes(axis, 'blue')
+        for roi in self.outer_bg_rois.values():
             roi.plot2axes(axis, 'blue')
 
     @property
@@ -1487,7 +1492,7 @@ class GeometrySlice(Slice, ROIManagerMixin):
     def __init__(self, dicom_stack, settings):
         super().__init__(dicom_stack, settings)
         # apply a filter to reduce salt & pepper noise around nodes
-        self.image.median_filter(size=3)
+        self.image.filter(size=3)
         self._setup_rois()
 
     def _setup_rois(self):
