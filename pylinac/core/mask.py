@@ -20,6 +20,14 @@ def filled_area_ratio(array):
     return filled_area / box_area
 
 
+def square_ratio(array):
+    """Determine the width/height ratio of the ROI"""
+    ymin, ymax, xmin, xmax = bounding_box(array)
+    y = abs(ymax - ymin)
+    x = abs(xmax - xmin)
+    return y/x
+
+
 def sector_mask(shape, center, radius, angle_range=(0, 360)):
     """Return a circular arc-shaped boolean mask.
 
