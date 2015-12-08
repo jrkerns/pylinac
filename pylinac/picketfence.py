@@ -154,7 +154,7 @@ class PicketFence:
         """
         self.image = Image.load(file_path)
         if isinstance(filter, int):
-            self.image.median_filter(size=filter)
+            self.image.filter(size=filter)
         self._check_for_noise()
         self.image.check_inversion()
 
@@ -207,7 +207,7 @@ class PicketFence:
         min/max to 1/99 percentiles and smoothing if need be."""
         safety_stop = 5
         while self._has_noise() and safety_stop > 0:
-            self.image.median_filter()
+            self.image.filter()
             safety_stop -= 1
 
     def _has_noise(self):
