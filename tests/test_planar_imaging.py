@@ -1,7 +1,7 @@
 import os.path as osp
 from unittest import TestCase
 
-from pylinac.kv import LeedsTOR
+from pylinac.planar_imaging import LeedsTOR
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'kV')
 

@@ -1,4 +1,4 @@
-"""The kV module analyzes phantom images taken with the kV imager; for example, the Leeds phantom."""
+"""The planar imaging module analyzes phantom images taken with the kV or MV imager in 2D; for example, the Leeds and PipsPro phantoms."""
 from functools import lru_cache
 import os.path as osp
 
