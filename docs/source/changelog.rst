@@ -9,18 +9,49 @@ V 1.2.0
 General Changes
 ^^^^^^^^^^^^^^^
 
-* A new ``mask`` core module was created for binary array operations.
-* The ``requests`` package is no longer needed for downloading URLs; the urllib module is now used instead.
+* CatPhan 503 (Elekta) analysis is now supported.
+* A new planar imaging module has been added for 2D phantom analysis; currently the Leeds TOR phantom is available.
+* The ``requests`` package is no longer needed for downloading URLs; the urllib stdlib module is now used instead.
 * Requirements were fixed in the docs and setup.py; a numpy function was being used that was introduced in
   v1.9 even though v1.8 was stated as the minimum; the new requirement is v1.9.
-* The core modules had several changes, but since no one uses them the changes are documented.
+
+Core Modules
+^^^^^^^^^^^^
 * A tutorial on the use of the core modules is now available.
+* A new ``mask`` core module was created for binary array operations.
+* `(#42) <https://github.com/jrkerns/pylinac/issues/42>`_ The Image classes now have a :class:`~pylinac.core.image.ImageMixin.gamma` method available.
+* The Image classes' ``median_filter()`` method has been renamed to :meth:`~pylinac.core.image.ImageMixin.filter`, which allows for different types
+  of filters to be passed in.
+* The Image class can now load directly from a URL: :meth:`~pylinac.core.image.Image.load_url`.
 
 CBCT
 ^^^^
 
 * CatPhan 503 (Elekta) is now supported. Usage is exactly the same except for the low-contrast module, which
   is not present in the 503.
+* The low contrast measurements now use two background bubbles on either side of each contrast ROI. The default contrast
+  threshold has been bumped to 15, which is still arbitrary but fits most eyeball values.
+
+Starshot
+^^^^^^^^
+
+* `(#43) <https://github.com/jrkerns/pylinac/issues/43>`_ Keyword arguments can be passed to the init and class methods regarding the image info. For example,
+  if a .tif file is loaded but the DPI is not in the image header it can be passed in like so:
+
+  .. code-block:: python
+
+     star = Starshot('mystar.tif', dpi=100, sid=1000)
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* 2D analysis of the Leeds TOR phantom is available. Tests low and high contrast.
+  A new :ref:`planar_imaging` doc page has been created.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* A :meth:`~pylinac.winston_lutz.WinstonLutz.save_summary` method has been added for saving the plot to file.
 
 V 1.1.1
 -------
