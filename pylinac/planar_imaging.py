@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
 
-from pylinac.cbct import DiskROI, LowContrastDiskROI
+from pylinac.cbct import DiskROI, LowContrastDiskROI as LCDiskROI
 from pylinac.core.geometry import Point
 from pylinac.core.image import Image
 from pylinac.core.io import get_url
@@ -154,7 +154,7 @@ class LeedsTOR:
         bubble_dist = 0.8 * radius
         crois = []
         for angle_delta in bubble_angles:
-            roi = LeedsLowContrastDistROI(self.image, angle - angle_delta , bubble_radius, bubble_dist, center, self.low_contrast_threshold)
+            roi = LowContrastDiskROI(self.image, angle - angle_delta, bubble_radius, bubble_dist, center, self.low_contrast_threshold)
             crois.append(roi)
 
         # sample reference ROIs
@@ -207,6 +207,13 @@ class LeedsTOR:
         """Instantiate and load the demo image."""
         demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'kv', 'leeds.dcm')
         return cls(demo_file)
+
+    @staticmethod
+    def run_demo():
+        """Run the Leeds TOR phantom analysis demonstration."""
+        leeds = LeedsTOR.from_demo_image()
+        leeds.analyze()
+        leeds.plot_analyzed_image()
 
     def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.4):
         """Analyze the image.
@@ -294,7 +301,7 @@ class LeedsTOR:
         plt.savefig(filename, **kwargs)
 
 
-class LeedsLowContrastDistROI(LowContrastDiskROI):
+class LowContrastDiskROI(LCDiskROI):
     """A low-contrast ROI class that uses the actual contrast value for pass/fail status rather than the contrast constant."""
 
     @property
