@@ -6,8 +6,8 @@ from setuptools import setup, find_packages
 
 # 2 alt. To make a wheel, run $ python setup.py sdist bdist_wheel [upload]
 
-__version__ = '1.1.1'
-__version_info__ = (1, 1, 1)
+__version__ = '1.2.0'
+__version_info__ = (1, 2, 0)
 
 
 setup(
@@ -29,7 +29,7 @@ setup(
     author='James Kerns',
     author_email='jkerns100@gmail.com',
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
-    install_requires=["numpy >= 1.8",
+    install_requires=["numpy >= 1.9",
                       "scipy >= 0.15",
                       "pydicom >= 0.9.9",
                       "matplotlib >= 1.3.1",
