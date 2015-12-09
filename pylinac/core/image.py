@@ -446,6 +446,8 @@ class ImageMixin:
     def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=10):
         """Calculate the gamma between the current image (reference) and a comparison image.
 
+        .. versionadded:: 1.2
+
         The gamma calculation is based on `Bakai et al
         <http://iopscience.iop.org/0031-9155/48/21/006/>`_ eq.6,
         which is a quicker alternative to the standard Low gamma equation.
@@ -469,6 +471,12 @@ class ImageMixin:
         gamma_map : numpy.ndarray
             The calculated gamma map.
         """
+        # error checking
+        if self.dpi != comparison_image.dpi:
+            raise AttributeError("The image DPIs to not match; cannot perform gamma calculation.")
+        if self.shape != comparison_image.shape:
+            raise AttributeError("The images are not the same size; cannot perform gamma calculation.")
+
         # set up reference and comparison images
         ref_img = ArrayImage(copy.copy(self.array))
         ref_img.check_inversion()
@@ -481,7 +489,6 @@ class ImageMixin:
 
         # invalidate dose values below threshold so gamma doesn't calculate over it
         ref_img.array[ref_img < (threshold / 100) * np.max(ref_img)] = np.NaN
-        comp_img.array[comp_img < (threshold / 100) * np.max(comp_img)] = np.NaN
 
         # convert distance value from mm to pixels
         distTA_pixels = self.dpmm * distTA

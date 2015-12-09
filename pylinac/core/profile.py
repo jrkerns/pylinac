@@ -676,7 +676,7 @@ class CircleProfile(MultiProfile, Circle):
 
         See Also
         --------
-        `~pylinac.core.geometry.Circle` : Further parameter info.
+        :class:`~pylinac.core.geometry.Circle` : Further parameter info.
         """
         Circle.__init__(self, center, radius)
         self._ensure_array_size(image_array, self.radius + self.center.x, self.radius + self.center.y)
@@ -814,7 +814,7 @@ class CollapsedCircleProfile(CircleProfile):
 
         See Also
         --------
-        CircleProfile : Further parameter info.
+        :class:`~pylinac.core.profile.CircleProfile` : Further parameter info.
         """
         self.width_ratio = width_ratio
         self.num_profiles = num_profiles
@@ -863,7 +863,7 @@ class CollapsedCircleProfile(CircleProfile):
 
         See Also
         --------
-        CircleProfile.add_to_axes : Further parameter info.
+        :meth:`~pylinac.core.profile.CircleProfile.plot2axes` : Further parameter info.
         """
         if axes is None:
             fig, axes = plt.subplots()
