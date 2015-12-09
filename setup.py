@@ -22,7 +22,8 @@ setup(
                        'demo_files/picket_fence/*',
                        'demo_files/vmat/*',
                        'demo_files/flatsym/*',
-                       'demo_files/winston_lutz/*']}, # http://stackoverflow.com/questions/7522250/how-to-include-package-data-with-setuptools-distribute
+                       'demo_files/winston_lutz/*',
+                       'demo_files/planar_imaging/*']}, # http://stackoverflow.com/questions/7522250/how-to-include-package-data-with-setuptools-distribute
     zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
     keywords='medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog trajectory log',
