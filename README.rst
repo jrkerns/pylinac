@@ -32,6 +32,25 @@ for creating your own radiation therapy algorithms.
 
 Below are the high-level tools currently available:
 
+* `Planar Phantom Analysis (Leeds) <http://pylinac.readthedocs.org/en/latest/planar_imaging.html>`_ -
+   The planar imaging module analyzes 2D phantoms. Currently only the LeedsTOR phantom is supported.
+
+   Features:
+
+   * **Automatic phantom localization** - Set up your phantom any way you like; automatic positioning,
+     angle, and inversion correction mean you can set up how you like, nor will setup variations give you headache.
+     **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
+     as you see fit.
+
+    Example script::
+
+        from pylinac import LeedsTOR
+
+        path = 'path/to/image.dcm`
+        leeds = LeedsTOR(path)
+        leeds.analyze()
+        leeds.plot_analyzed_image()
+
 * `Winston-Lutz Analysis <http://pylinac.readthedocs.org/en/latest/winston_lutz.html>`_ -
     The Winston-Lutz module analyzes EPID images taken of a small radiation field and BB to determine the 2D
     distance from BB to field CAX. Additionally, the isocenter size of the gantry, collimator, and couch can
@@ -110,18 +129,16 @@ Below are the high-level tools currently available:
         vmat.plot_analyzed_image()  # shows a matplotlib figure
 
 * `CT & CBCT QA <http://pylinac.readthedocs.org/en/latest/cbct_docs.html>`_ -
-    The CBCT module automatically analyzes DICOM images of a CatPhan acquired when doing CBCT or regular CT quality assurance. It can load a folder or zip file that
+    The CBCT module automatically analyzes DICOM images of a CatPhan 504 or 503 acquired when doing CBCT or regular CT quality assurance. It can load a folder or zip file that
     the images are in and automatically correct for phantom setup in 6 degrees.
     It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
     uniformity (CTP486) on the corresponding slice.
-
-    Currently only Varian (CatPhan 504) is supported, but Elekta (CatPhan 503) support is being worked on.
 
     Features:
 
     * **Automatic phantom registration** - Your phantom can be tilted, rotated, or translated--pylinac will register the phantom.
     * **Automatic testing of 4 major modules** - Major modules are automatically registered and analyzed.
-    * **Any scan protocol** - Scan your CatPhan504 with any Varian protocol; or even scan it in a regular CT scanner.
+    * **Any scan protocol** - Scan your CatPhan with any protocol; or even scan it in a regular CT scanner.
       Any field size or field extent is allowed.
 
     Example script::
@@ -148,6 +165,7 @@ Below are the high-level tools currently available:
       that so you can use Excel or other software that you use with Dynalogs.
     * **Plot or analyze any axis** - Every data axis can be plotted: the actual, expected, and even the difference.
     * **View actual or expected fluences & calculate gamma** - View fluences and gamma maps for any log.
+    * **Anonymization** - Anonymize your logs so you can share them with others.
 
     Example script::
 
