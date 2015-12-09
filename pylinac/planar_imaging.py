@@ -205,7 +205,7 @@ class LeedsTOR:
     @classmethod
     def from_demo_image(cls):
         """Instantiate and load the demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'kv', 'leeds.dcm')
+        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'planar_imaging', 'leeds.dcm')
         return cls(demo_file)
 
     @staticmethod
