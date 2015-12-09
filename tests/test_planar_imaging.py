@@ -1,6 +1,8 @@
 import os.path as osp
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac.planar_imaging import LeedsTOR
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'kV')
@@ -12,6 +14,10 @@ class LeedsTORTestMixin:
     @classmethod
     def setUpClass(cls):
         cls.leeds = LeedsTOR(osp.join(TEST_DIR, cls.filename))
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
 
     def test_analyze(self):
         # test that the phantom runs

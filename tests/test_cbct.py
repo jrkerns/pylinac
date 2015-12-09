@@ -1,10 +1,11 @@
+import gc
 import os.path as osp
+import time
 import unittest
 from unittest import TestCase
 
-import gc
+import matplotlib.pyplot as plt
 import numpy as np
-import time
 
 from pylinac.cbct import CBCT
 from pylinac.core.geometry import Point
@@ -139,6 +140,7 @@ class CBCTMixin:
     @classmethod
     def tearDownClass(cls):
         delattr(cls, 'cbct')
+        plt.close('all')
         time.sleep(1)
         gc.collect()
 

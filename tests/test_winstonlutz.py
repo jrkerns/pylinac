@@ -1,6 +1,8 @@
 """Tests for the Winston-Lutz module."""
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac import WinstonLutz
 from pylinac.core.geometry import Vector, vector_is_close
 
@@ -42,6 +44,10 @@ class WinstonLutzMixin:
     @classmethod
     def setUpClass(cls):
         cls.wl = WinstonLutz(cls.image_dir)
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
 
     def test_number_of_images(self):
         self.assertEqual(len(self.wl.images), self.num_images)
