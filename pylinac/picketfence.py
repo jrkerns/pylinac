@@ -225,12 +225,13 @@ class PicketFence:
         direction = 'y' if self.orientation == UP_DOWN else 'x'
         self.image.roll(direction, sag_pixels)
 
-    def run_demo(self, tolerance=0.5, action_tolerance=0.25, interactive=False):
+    @staticmethod
+    def run_demo(tolerance=0.5, action_tolerance=0.25, interactive=False):
         """Run the Picket Fence demo using the demo image. See analyze() for parameter info."""
-        self.load_demo_image()
-        self.analyze(tolerance, action_tolerance=action_tolerance)
-        print(self.return_results())
-        self.plot_analyzed_image(interactive=interactive, leaf_error_subplot=True)
+        pf = PicketFence.from_demo_image()
+        pf.analyze(tolerance, action_tolerance=action_tolerance)
+        print(pf.return_results())
+        pf.plot_analyzed_image(interactive=interactive, leaf_error_subplot=True)
 
     def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False, num_pickets=None, sag_adjustment=0):
         """Analyze the picket fence image.

@@ -244,21 +244,23 @@ class VMAT:
         imgs = [get_url(url) for url in urls]
         self.load_images(imgs, names=urls)
 
+    @staticmethod
     @type_accept(tolerance=(int, float))
-    def run_demo_drgs(self, tolerance=1.5):
+    def run_demo_drgs(tolerance=1.5):
         """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
-        self.load_demo_image('drgs')
-        self.analyze(test='drgs', tolerance=tolerance, x_offset=20)  # old images (rev1, not new rev2's), which are offset
-        print(self.return_results())
-        self.plot_analyzed_image()
+        vmat = VMAT.from_demo_images(DRGS)
+        vmat.analyze(test=DRGS, tolerance=tolerance, x_offset=20)  # old images (rev1, not new rev2's), which are offset
+        print(vmat.return_results())
+        vmat.plot_analyzed_image()
 
+    @staticmethod
     @type_accept(tolerance=(int, float))
-    def run_demo_drmlc(self, tolerance=1.5):
+    def run_demo_drmlc(tolerance=1.5):
         """Run the VMAT demo for the MLC leaf speed test."""
-        self.load_demo_image(DRMLC)
-        self.analyze(test=DRMLC, tolerance=tolerance)
-        print(self.return_results())
-        self.plot_analyzed_image()
+        vmat = VMAT.from_demo_images(DRMLC)
+        vmat.analyze(test=DRMLC, tolerance=tolerance)
+        print(vmat.return_results())
+        vmat.plot_analyzed_image()
 
     @type_accept(test=str, x_offset=int)
     @value_accept(test=(DRMLC, DRGS), tolerance=(0, 8))

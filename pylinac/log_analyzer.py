@@ -409,17 +409,19 @@ class MachineLog:
         if filename is not '':
             self.load(filename, exclude_beam_off)
 
-    def run_tlog_demo(self):
+    @staticmethod
+    def run_tlog_demo():
         """Run the Trajectory log demo."""
-        self.load_demo_trajectorylog()
-        self.report_basic_parameters()
-        self.plot_summary()
+        tlog = MachineLog.from_demo_trajectorylog()
+        tlog.report_basic_parameters()
+        tlog.plot_summary()
 
-    def run_dlog_demo(self):
+    @staticmethod
+    def run_dlog_demo():
         """Run the dynalog demo."""
-        self.load_demo_dynalog()
-        self.report_basic_parameters()
-        self.plot_summary()
+        dlog = MachineLog.from_demo_dynalog()
+        dlog.report_basic_parameters()
+        dlog.plot_summary()
 
     @classmethod
     def from_demo_dynalog(cls, exclude_beam_off=True):

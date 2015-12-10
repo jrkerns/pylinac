@@ -451,12 +451,13 @@ class CBCT:
         self.thickness = ThicknessSlice(self.dicom_stack, self.settings)
         self.geometry = GeometrySlice(self.dicom_stack, self.settings)
 
-    def run_demo(self, show=True):
+    @staticmethod
+    def run_demo(show=True):
         """Run the CBCT demo using high-quality head protocol images."""
-        self.load_demo_images()
-        self.analyze()
-        print(self.return_results())
-        self.plot_analyzed_image(show)
+        cbct = CBCT.from_demo_images()
+        cbct.analyze()
+        print(cbct.return_results())
+        cbct.plot_analyzed_image(show)
 
     @property
     def images_loaded(self):

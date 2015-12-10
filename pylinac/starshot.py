@@ -514,12 +514,13 @@ class Starshot:
         self.plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
+    @staticmethod
     def run_demo(self):
         """Demonstrate the Starshot module using the demo image."""
-        self.load_demo_image()
-        self.analyze()
-        print(self.return_results())
-        self.plot_analyzed_image()
+        star = Starshot.from_demo_image()
+        star.analyze()
+        print(star.return_results())
+        star.plot_analyzed_image()
 
 
 class Wobble(Circle):
