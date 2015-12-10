@@ -1,4 +1,3 @@
-
 """This module holds classes for image loading and manipulation."""
 import copy
 from io import BytesIO
@@ -16,7 +15,7 @@ import scipy.ndimage.filters as spf
 
 from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.geometry import Point
-from pylinac.core.io import load_zipfile, get_url
+from pylinac.core.io import get_url, TemporaryZipDirectory
 from pylinac.core.profile import stretch as stretcharray
 from pylinac.core.utilities import typed_property
 
@@ -24,97 +23,6 @@ ARRAY = 'Array'
 DICOM = 'DICOM'
 IMAGE = 'Image'
 MM_PER_INCH = 25.4
-
-
-class DICOMStack:
-    """A class that loads and holds a stack of DICOM images (e.g. a CT dataset). The class can take
-    a folder or zip file and read any and all DICOM images. The images must all be the same size."""
-    metadata = None
-    array = None
-
-    def __init__(self, folder=None, dtype=int):
-        if folder is not None:
-            self._instantiate(data=folder, dtype=dtype)
-
-    def _instantiate(self, data, dtype, is_zip=False):
-        if is_zip:
-            metadatalist = self._get_ct_images_metadata_from_zip(data)
-        else:
-            metadatalist = self._get_ct_images_metadata_list(data)
-        self.metadata = metadatalist[-1]
-        self._check_all_from_same_study(metadatalist)
-        self._create_array(metadatalist, dtype)
-
-    def _get_ct_images_metadata_list(self, folder):
-        # read each file to see if it's a CT Image file
-        filelist = []
-        for par_dir, sub_dir, files in os.walk(folder):
-            for name in files:
-                try:
-                    ds = dicom.read_file(osp.join(par_dir, name), force=True)
-                    if ds.SOPClassUID.name == 'CT Image Storage':
-                        filelist.append(ds)
-                except (InvalidDicomError, AttributeError, MemoryError):
-                    pass
-            if filelist:
-                return filelist
-        raise FileNotFoundError("No CT images were found within the specified folder.")
-
-    def _get_ct_images_metadata_from_zip(self, zfile):
-        """Get the CT image file names from a zip file."""
-        allfiles = zfile.namelist()
-        filelist = []
-        for name in allfiles:
-            try:
-                ds = dicom.read_file(BytesIO(zfile.read(name)), force=True)
-                if ds.SOPClassUID.name == 'CT Image Storage':
-                    filelist.append(ds)
-            except (InvalidDicomError, AttributeError):
-                pass
-        if filelist:
-            return filelist
-        raise FileNotFoundError("No CT images were found within the specified folder.")
-
-    def _check_all_from_same_study(self, metadatalist):
-        initial_uid = metadatalist[0].SeriesInstanceUID
-        if not all(ds.SeriesInstanceUID == initial_uid for ds in metadatalist):
-            raise ValueError("The images were not all from the same study")
-
-    def _create_array(self, metadatalist, dtype):
-        # create empty array the size of the images
-        image_shape = metadatalist[0].pixel_array.shape
-        self.array = np.zeros((image_shape[0], image_shape[1], len(metadatalist)), dtype=dtype)
-
-        # get the original image order
-        original_img_order = [ds.ImagePositionPatient[-1] for ds in metadatalist]
-
-        # set the image array according to the sorted order
-        for new, old in enumerate(np.argsort(original_img_order)):
-            self.array[:, :, new] = metadatalist[old].pixel_array
-
-        # convert values to proper HU
-        self.array *= int(self.metadata.RescaleSlope)
-        self.array += int(self.metadata.RescaleIntercept)
-
-    @classmethod
-    def from_zip(cls, zip_path, dtype=int):
-        zfiles = load_zipfile(zip_path)
-
-        obj = cls()
-        obj._instantiate(data=zfiles, dtype=dtype, is_zip=True)
-        return obj
-
-    def plot(self, slice=0):
-        """Plot a slice of the DICOM dataset."""
-        plt.imshow(self.slice(slice))
-
-    def slice(self, slice=0):
-        """Return an array for the given slice."""
-        return self.array[:, :, slice]
-
-    @property
-    def shape(self):
-        return self.array.shape
 
 
 class Image:
@@ -191,30 +99,6 @@ class Image:
         filename = get_url(url)
         return cls.load(filename, **kwargs)
 
-    @staticmethod
-    def _is_dicom(path):
-        """Whether the file is a readable DICOM file via pydicom."""
-        try:
-            ds = dicom.read_file(path, stop_before_pixels=True, force=True)
-            ds.SOPClassUID
-            return True
-        except:
-            return False
-
-    @staticmethod
-    def _is_image_file(path):
-        """Whether the file is a readable image file via Pillow."""
-        try:
-            pImage.open(path)
-            return True
-        except:
-            return False
-
-    @staticmethod
-    def _is_array(obj):
-        """Whether the object is a numpy array."""
-        return isinstance(obj, np.ndarray)
-
     @classmethod
     @value_accept(method=('mean', 'max', 'sum'))
     def load_multiples(cls, image_file_list, method='mean', stretch=True, **kwargs):
@@ -246,6 +130,30 @@ class Image:
         first_img.array = combined_arr
         first_img.check_inversion()
         return first_img
+
+    @staticmethod
+    def _is_dicom(path):
+        """Whether the file is a readable DICOM file via pydicom."""
+        try:
+            ds = dicom.read_file(path, stop_before_pixels=True, force=True)
+            ds.SOPClassUID
+            return True
+        except:
+            return False
+
+    @staticmethod
+    def _is_image_file(path):
+        """Whether the file is a readable image file via Pillow."""
+        try:
+            pImage.open(path)
+            return True
+        except:
+            return False
+
+    @staticmethod
+    def _is_array(obj):
+        """Whether the object is a numpy array."""
+        return isinstance(obj, np.ndarray)
 
 
 class ImageMixin:
@@ -443,7 +351,7 @@ class ImageMixin:
         if corner_avg > np.mean(self.array.flatten()):
             self.invert()
 
-    def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=10):
+    def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=0.1):
         """Calculate the gamma between the current image (reference) and a comparison image.
 
         .. versionadded:: 1.2
@@ -463,8 +371,9 @@ class ImageMixin:
             Dose-to-agreement in percent; e.g. 2 is 2%.
         distTA : int, float
             Distance-to-agreement in mm.
-        threshold : int, float
+        threshold : float
             The dose threshold percentage of the maximum dose, below which is not analyzed.
+            Must be between 0 and 1.
 
         Returns
         -------
@@ -488,7 +397,7 @@ class ImageMixin:
         comp_img.normalize()
 
         # invalidate dose values below threshold so gamma doesn't calculate over it
-        ref_img.array[ref_img < (threshold / 100) * np.max(ref_img)] = np.NaN
+        ref_img.array[ref_img < threshold * np.max(ref_img)] = np.NaN
 
         # convert distance value from mm to pixels
         distTA_pixels = self.dpmm * distTA
@@ -532,11 +441,11 @@ class DicomImage(ImageMixin):
 
     Attributes
     ----------
-    dicom_dataset : pydicom Dataset
+    metadata : pydicom Dataset
         The dataset of the file as returned by pydicom.
     """
 
-    def __init__(self, path, dtype=np.float):
+    def __init__(self, path, dtype=None):
         """
         Parameters
         ----------
@@ -544,13 +453,21 @@ class DicomImage(ImageMixin):
             The path to the file or the data stream.
         """
         super().__init__(path)
-        self.dicom_dataset = dicom.read_file(path, force=True)
-        self.array = np.array(self.dicom_dataset.pixel_array, dtype=dtype)
+        # read the file once to get just the DICOM metadata
+        self.metadata = dicom.read_file(path, force=True, stop_before_pixels=True)
+        # read a second time to get pixel data
+        ds = dicom.read_file(path, force=True)
+        if dtype is not None:
+            self.array = ds.pixel_array.astype(dtype)
+        else:
+            self.array = ds.pixel_array
+        # convert values to proper HU: real_values = slope * raw + intercept
+        self.array = int(self.metadata.RescaleSlope)*self.array + int(self.metadata.RescaleIntercept)
 
     @property
     def sid(self):
         """The Source-to-Image in mm."""
-        return float(self.dicom_dataset.RTImageSID)
+        return float(self.metadata.RTImageSID)
 
     @property
     def dpi(self):
@@ -563,11 +480,11 @@ class DicomImage(ImageMixin):
         the dpmm will scale back to 100cm."""
         try:
             # most dicom files have this tag
-            dpmm = 1 / self.dicom_dataset.PixelSpacing[0]
+            dpmm = 1 / self.metadata.PixelSpacing[0]
         except AttributeError:
             try:
                 # EPID images sometimes have this tag
-                dpmm = 1 / self.dicom_dataset.ImagePlanePixelSpacing[0]
+                dpmm = 1 / self.metadata.ImagePlanePixelSpacing[0]
             except AttributeError:
                 raise ("No pixel/distance conversion tag found")
         dpmm *= self.sid / 1000
@@ -577,8 +494,8 @@ class DicomImage(ImageMixin):
     def cax(self):
         """The position of the beam central axis. If no DICOM translation tags are found then the center is returned."""
         try:
-            x = self.center.x - self.dicom_dataset.XRayImageReceptorTranslation[0]
-            y = self.center.y - self.dicom_dataset.XRayImageReceptorTranslation[1]
+            x = self.center.x - self.metadata.XRayImageReceptorTranslation[0]
+            y = self.center.y - self.metadata.XRayImageReceptorTranslation[1]
         except AttributeError:
             return self.center
         else:
@@ -663,3 +580,119 @@ class ArrayImage(ImageMixin):
 
     def __sub__(self, other):
         return ArrayImage(self.array - other.array)
+
+
+class DicomImageStack:
+    """A class that loads and holds a stack of DICOM images (e.g. a CT dataset). The class can take
+    a folder or zip file and will read CT images. The images must all be the same size. Supports
+    indexing to individual images.
+
+    Attributes
+    ----------
+    images : list
+        Holds instances of :class:`~pylinac.core.image.DicomImage`s. Can be accessed via index;
+        i.e. self[0] == self.images[0].
+    """
+
+    def __init__(self, folder=None, dtype=None):
+        """Load a folder with DICOM CT images.
+
+        Parameters
+        ----------
+        folder : str
+            Path to the folder.
+        dtype : dtype, None, optional
+            The data type to cast the image data as. If None, will use whatever raw image format is.
+        """
+        self.images = []
+        if folder is not None:
+            self._get_datasets(folder, dtype=dtype)
+
+    @classmethod
+    def from_zip(cls, zip_path, dtype=None):
+        """Load a DICOM ZIP archive.
+
+        Parameters
+        ----------
+        zip_path : str
+            Path to the ZIP archive.
+        dtype : dtype, None, optional
+            The data type to cast the image data as. If None, will use whatever raw image format is.
+        """
+        obj = cls()
+        obj._get_datasets(zip_path, dtype=dtype, zip=True)
+        return obj
+
+    def _get_datasets(self, folder, zip=False, dtype=None):
+        """Read and load DICOM files from a folder or zip archive.
+
+        Parameters
+        ----------
+        folder : str
+            Path to folder with CT images or path to zip archive of CT images.
+        zip : bool
+            Whether ``folder`` is a zip archive or not.
+        dtype : dtype, None, optional
+            The data type to cast the image data as. If None, will use whatever raw image format is.
+        """
+        # unpack zip archive if passed one
+        if zip:
+            if osp.isfile(folder):
+                temp_folder = TemporaryZipDirectory(folder)
+                folder = temp_folder.name
+            else:
+                raise FileExistsError("Zip archive `{}` not found".format(folder))
+
+        # load in images in their received order
+        for pdir, sdir, files in os.walk(folder):
+            for file in files:
+                path = osp.join(pdir, file)
+                if self._is_CT_slice(path):
+                    img = DicomImage(path)
+                    self.images.append(img)
+
+        # cleanup zip archive if passed one
+        if zip:
+            temp_folder.cleanup()
+
+        # check that at least 1 image was loaded
+        if len(self.images) < 1:
+            raise FileNotFoundError("No files were found in the specified location: {}".format(folder))
+
+        # error checking
+        self._check_all_from_same_study()
+        # get the original image order
+        original_img_order = [int(round(image.metadata.ImagePositionPatient[-1])) for image in self.images]
+        # correctly reorder the images
+        self.images = [self.images[i] for i in np.argsort(original_img_order)]
+
+    @staticmethod
+    def _is_CT_slice(file):
+        """Test if the file is a CT Image storage DICOM file."""
+        try:
+            ds = dicom.read_file(file, force=True, stop_before_pixels=True)
+            return ds.SOPClassUID.name == 'CT Image Storage'
+        except (InvalidDicomError, AttributeError, MemoryError):
+            return False
+
+    def _check_all_from_same_study(self):
+        """Check that all the images are from the same study."""
+        initial_uid = self.images[0].metadata.SeriesInstanceUID
+        if not all(image.metadata.SeriesInstanceUID == initial_uid for image in self.images):
+            raise ValueError("The images were not all from the same study")
+
+    def plot(self, slice=0):
+        """Plot a slice of the DICOM dataset."""
+        self.images[slice].plot()
+
+    @property
+    def metadata(self):
+        """The metadata of the first image; shortcut attribute. Only attributes that are common throughout the stack should be used,
+        otherwise the individual image metadata should be used."""
+        return self.images[0].metadata
+
+    def __getitem__(self, item):
+        return self.images[item]
+
+    def __len__(self):
+        return len(self.images)

@@ -23,7 +23,7 @@ from scipy import ndimage
 
 from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Circle, Line, Rectangle
-from pylinac.core.image import Image, DICOMStack
+from pylinac.core.image import Image, DicomImageStack
 from pylinac.core.io import get_folder_UI, get_filepath_UI, get_url
 from pylinac.core.mask import filled_area_ratio, sector_mask
 from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
@@ -145,7 +145,7 @@ class CBCT:
         """
         if not osp.isdir(folder):
             raise NotADirectoryError("Path given was not a Directory/Folder")
-        self.dicom_stack = DICOMStack(folder)
+        self.dicom_stack = DicomImageStack(folder)
         self.settings = Settings(self.dicom_stack)
 
     @classmethod
@@ -189,7 +189,7 @@ class CBCT:
         FileExistsError : If zip_file passed was not a legitimate zip file.
         FileNotFoundError : If no CT images are found in the folder
         """
-        self.dicom_stack = DICOMStack.from_zip(zip_file)
+        self.dicom_stack = DicomImageStack.from_zip(zip_file)
         self.settings = Settings(self.dicom_stack)
 
     def plot_analyzed_image(self, hu=True, geometry=True, uniformity=True, spatial_res=True, thickness=True, low_contrast=True, show=True):
@@ -518,7 +518,7 @@ class Settings:
             The middle slice of the HU linearity module.
         """
         hu_slices = []
-        for image_number in range(self.num_images):
+        for image_number in range(0, self.num_images, 2):
             slice = Slice(self.dicom_stack, self, image_number, combine=False)
             try:
                 center = slice.phan_center
@@ -580,7 +580,7 @@ class Settings:
         -------
         float : the angle of the phantom in **degrees**.
         """
-        slice = Image.load(self.dicom_stack.slice(self.hu_slice_num))
+        slice = self.dicom_stack[self.hu_slice_num]
         slice = slice.as_binary(self.threshold)
         slice.invert()
         labels, no_roi = ndimage.measurements.label(slice)
@@ -620,7 +620,7 @@ class Settings:
     @property
     def num_images(self):
         """Return the number of images loaded."""
-        return self.dicom_stack.shape[-1]
+        return len(self.dicom_stack)
 
     def _is_within_image_extent(self, image_num):
         """Determine if the image number is beyond the edges of the images (negative or past last image)."""
@@ -843,7 +843,7 @@ class Slice:
         """
         Parameters
         ----------
-        dicom_stack : :class:`~pylinac.core.image.DICOMStack`
+        dicom_stack : :class:`~pylinac.core.image.DicomImageStack`
         settings : :class:`~pylinac.cbct.Settings`
         slice_num : int
             The slice number of the DICOM array desired. If None, will use the ``slice_num`` property of subclass.
@@ -859,9 +859,9 @@ class Slice:
         if slice_num is not None:
             self.slice_num = slice_num
         if combine:
-            array = combine_surrounding_slices(dicom_stack.array, self.slice_num, mode=combine_method, slices_plusminus=num_slices)
+            array = combine_surrounding_slices(dicom_stack, self.slice_num, mode=combine_method, slices_plusminus=num_slices)
         else:
-            array = dicom_stack.slice(self.slice_num)
+            array = dicom_stack[self.slice_num].array
         self.image = Image.load(array)
 
     @property
@@ -1555,13 +1555,13 @@ class GeometrySlice(Slice, ROIManagerMixin):
 
 
 @value_accept(mode=('mean','median','max'))
-def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=1, mode='mean'):
+def combine_surrounding_slices(dicomstack, nominal_slice_num, slices_plusminus=1, mode='mean'):
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
 
     Parameters
     ----------
-    im_array : numpy.array
-        The original 3D numpy array of images.
+    dicomstack : `~pylinac.core.image.DicomImageStack`
+        The CBCT DICOM stack.
     nominal_slice_num : int
         The slice of interest (along 3rd dim).
     slices_plusminus: int
@@ -1571,17 +1571,19 @@ def combine_surrounding_slices(slice_array, nominal_slice_num, slices_plusminus=
 
     Returns
     -------
-    comb_slice : numpy.array
-        An array the same size in the first two dimensions of im_array, combined.
+    combined_array : numpy.array
+        The combined array of the DICOM stack slices.
     """
-    slices = slice_array[:,:,nominal_slice_num-slices_plusminus:nominal_slice_num+slices_plusminus+1]
+    slices = range(nominal_slice_num - slices_plusminus, nominal_slice_num + slices_plusminus + 1)
+    arrays = tuple(dicomstack[s].array for s in slices)
+    array_stack = np.dstack(arrays)
     if mode == 'mean':
-        comb_slice = np.mean(slices, 2)
+        combined_array = np.mean(array_stack, 2)
     elif mode == 'median':
-        comb_slice = np.median(slices, 2)
+        combined_array = np.median(array_stack, 2)
     else:
-        comb_slice = np.max(slices, 2)
-    return comb_slice
+        combined_array = np.max(array_stack, 2)
+    return combined_array
 
 
 # ----------------------------------------
