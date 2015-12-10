@@ -166,7 +166,7 @@ class ImageMixin:
     center : geometry.Point
         The center pixel of the image as a Point.
     """
-    array = typed_property('array', np.ndarray)
+    # array = typed_property('array', np.ndarray)
 
     def __init__(self, path):
         if isinstance(path, BytesIO):
@@ -456,13 +456,16 @@ class DicomImage(ImageMixin):
         # read the file once to get just the DICOM metadata
         self.metadata = dicom.read_file(path, force=True, stop_before_pixels=True)
         # read a second time to get pixel data
+        if isinstance(path, BytesIO):
+            path.seek(0)
         ds = dicom.read_file(path, force=True)
         if dtype is not None:
             self.array = ds.pixel_array.astype(dtype)
         else:
             self.array = ds.pixel_array
         # convert values to proper HU: real_values = slope * raw + intercept
-        self.array = int(self.metadata.RescaleSlope)*self.array + int(self.metadata.RescaleIntercept)
+        if self.metadata.SOPClassUID.name == 'CT Image Storage':
+            self.array = int(self.metadata.RescaleSlope)*self.array + int(self.metadata.RescaleIntercept)
 
     @property
     def sid(self):
