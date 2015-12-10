@@ -450,17 +450,17 @@ class WLImage(DicomImage):
     @property
     def gantry_angle(self):
         """Gantry angle of the irradiation."""
-        return self.dicom_dataset.GantryAngle
+        return self.metadata.GantryAngle
 
     @property
     def collimator_angle(self):
         """Collimator angle of the irradiation."""
-        return self.dicom_dataset.BeamLimitingDeviceAngle
+        return self.metadata.BeamLimitingDeviceAngle
 
     @property
     def couch_angle(self):
         """Couch angle of the irradiation."""
-        return self.dicom_dataset.PatientSupportAngle
+        return self.metadata.PatientSupportAngle
 
     @property
     def y_offset(self):
