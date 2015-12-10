@@ -14,6 +14,8 @@ General Changes
 * The ``requests`` package is no longer needed for downloading URLs; the urllib stdlib module is now used instead.
 * Requirements were fixed in the docs and setup.py; a numpy function was being used that was introduced in
   v1.9 even though v1.8 was stated as the minimum; the new requirement is v1.9.
+* Demonstration methods for the main classes have been fully converted to static methods. This means, for example,
+  the following are equivalent: ``CBCT().run_demo()`` and ``CBCT.run_demo()``.
 
 Core Modules
 ^^^^^^^^^^^^
