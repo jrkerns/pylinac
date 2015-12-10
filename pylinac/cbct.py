@@ -503,7 +503,7 @@ class Settings:
         return self.dicom_stack.metadata.PixelSpacing[0]
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def hu_slice_num(self):
         """Using a brute force search of the images, find the median HU linearity slice.
 
@@ -571,7 +571,7 @@ class Settings:
             return slice
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def phantom_roll(self):
         """Determine the "roll" of the phantom.
 
@@ -778,7 +778,7 @@ class ThicknessROI(RectangleROI):
         return prof
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def wire_fwhm(self):
         """The FWHM of the wire in pixels."""
         prof = self.long_profile
@@ -870,7 +870,7 @@ class Slice:
         return self.image.array[item]
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def phan_center(self):
         """Determine the location of the center of the phantom.
 
@@ -1194,7 +1194,7 @@ class SpatialResolutionSlice(Slice):
         self.circle_profile.plot2axes(axis, edgecolor='blue')
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def circle_profile(self):
         """Calculate the median profile of the Line Pair region.
 
@@ -1215,7 +1215,7 @@ class SpatialResolutionSlice(Slice):
         return circle_profile
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def spaced_circle_profile(self):
         """The median profile of the line pair region with equalized spacing applied.
 
@@ -1230,7 +1230,7 @@ class SpatialResolutionSlice(Slice):
         return profile
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def profile_peaks_idxs(self):
         """Return the peak values and indices of the spaced-out profile."""
         max_idxs = self.spaced_circle_profile.find_peaks(min_distance=0.025, max_number=17, threshold=0.05)
@@ -1240,7 +1240,7 @@ class SpatialResolutionSlice(Slice):
         return max_idxs
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def profile_peaks_vals(self):
         """Return the peak values and indices of the spaced-out profile."""
         max_vals = self.spaced_circle_profile.find_peaks(min_distance=0.025, max_number=17, threshold=0.05, kind='value')
@@ -1249,7 +1249,7 @@ class SpatialResolutionSlice(Slice):
         return max_vals
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def profile_valleys_idxs(self):
         """Return the valley values and indices of the spaced-out profile,
             with valleys in-between line-pair regions removed."""
@@ -1266,7 +1266,7 @@ class SpatialResolutionSlice(Slice):
         return min_idxs
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def profile_valleys_vals(self):
         """Return the valley values and indices of the spaced-out profile,
             with valleys in-between line-pair regions removed."""
@@ -1310,7 +1310,7 @@ class SpatialResolutionSlice(Slice):
             return self.line_pair_mtfs[region]
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def line_pair_mtfs(self):
         """The discrete MTF values at the line-pair regions."""
         num_peaks = self.num_peaks
@@ -1428,7 +1428,7 @@ class GeoDiskROI(DiskROI):
         return bw_node
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=2)
     def node_center(self):
         """Find the center of the geometric node within the ROI."""
         bw_node = self._threshold_node()
