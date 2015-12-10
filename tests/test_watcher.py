@@ -17,11 +17,11 @@ WATCHER_SCRIPT = osp.join(PYLINAC_DIR, 'watcher.py')
 class WatcherTest(unittest.TestCase):
     """Test the watcher script by adding a file from every type of module."""
     files2analyze = [
-        # osp.join(TEST_DIR, 'Starshot', 'Starshot#1.tif'),
-        # osp.join(TEST_DIR, 'Picket Fence', 'AS500_PF.dcm'),
-        # osp.join(TEST_DIR, 'VMAT', 'DRMLC.zip'),
-        # osp.join(TEST_DIR, 'CBCT', 'Varian', 'CBCT_4.zip'),
-        # osp.join(TEST_DIR, 'MLC logs', 'tlogs', 'Anonymous_4DC Treatment_JS0_TX_20140712095629.bin'),
+        osp.join(TEST_DIR, 'Starshot', 'Starshot#1.tif'),
+        osp.join(TEST_DIR, 'Picket Fence', 'AS500_PF.dcm'),
+        osp.join(TEST_DIR, 'VMAT', 'DRMLC.zip'),
+        osp.join(TEST_DIR, 'CBCT', 'Varian', 'CBCT_4.zip'),
+        osp.join(TEST_DIR, 'MLC logs', 'tlogs', 'Anonymous_4DC Treatment_JS0_TX_20140712095629.bin'),
         osp.join(PYLINAC_DIR, 'demo_files', 'winston_lutz', 'winston_lutz.zip')
     ]
 
