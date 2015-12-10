@@ -71,14 +71,18 @@ class TestBaseImage(TestCase):
         # ensure original metadata is still the same
         self.assertEqual(new_dpi, orig_dpi)
 
-    def test_median_filter(self):
+    def test_filter(self):
+        # test integer filter size
         filter_size = 3
         self.arr.filter(filter_size)
         self.assertEqual(self.arr.array[0, 0], 1)
+        # test float filter size
         filter_size = 0.03
         self.arr.filter(filter_size)
-
-        self.assertRaises(ValueError, self.img.filter, 1.1)
+        # test using invalid float value
+        self.assertRaises(TypeError, self.img.filter, 1.1)
+        # test using a gaussian filter
+        self.arr.filter(kind='gaussian')
 
     def test_ground(self):
         old_min_val = copy.copy(self.dcm.array.min())
@@ -134,11 +138,35 @@ class TestBaseImage(TestCase):
         self.assertNotEqual(orig_val, inverted_val)
 
     def test_threshold(self):
+        # apply high-pass threshold
         orig_val = self.arr[0, 4]
         self.arr.threshold(threshold=10)
         zeroed_val = self.arr[0, 4]
         self.assertNotEqual(orig_val, zeroed_val)
         self.assertEqual(zeroed_val, 0)
+
+        # apply low-pass threshold
+        orig_val = self.arr[-1, -1]
+        self.arr.threshold(threshold=20, kind='low')
+        zeroed_val = self.arr[-1, -1]
+        self.assertNotEqual(orig_val, zeroed_val)
+        self.assertEqual(zeroed_val, 0)
+
+    def test_gamma(self):
+        array = np.arange(49).reshape((7,7))
+        ref_img = Image.load(array, dpi=1)
+        comp_img = Image.load(array, dpi=1)
+        comp_img.roll(amount=1)
+        g_map = ref_img.gamma(comp_img)
+
+        num_passing_pixels = np.nansum(g_map < 1)
+        num_calced_pixels = np.nansum(g_map >= 0)
+        pass_pct = num_passing_pixels / num_calced_pixels * 100
+        average_gamma = np.nanmean(g_map)
+        expected_pass_pct = 86
+        expected_avg_gamma = 0.78
+        self.assertAlmostEqual(pass_pct, expected_pass_pct, delta=1)
+        self.assertAlmostEqual(average_gamma, expected_avg_gamma, delta=0.02)
 
 
 class TestDicomImage(TestCase):
