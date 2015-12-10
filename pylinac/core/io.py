@@ -24,7 +24,7 @@ def load_zipfile(zfilename, read=False):
     -------
     files
         If read is False (default), returns a python zipfile.ZipFile object. If read is True, returns
-        a list of BytesIO objects.
+        an iterator of BytesIO objects.
     """
     if isinstance(zfilename, zipfile.ZipFile):
         zfiles = zfilename
@@ -33,7 +33,7 @@ def load_zipfile(zfilename, read=False):
     else:
         raise FileExistsError("File '{}' given was not a valid zip file".format(zfilename))
     if read:
-        return [BytesIO(zfiles.read(name)) for name in zfiles.namelist()]
+        return (BytesIO(zfiles.read(name)) for name in zfiles.namelist())
     else:
         return zfiles
 

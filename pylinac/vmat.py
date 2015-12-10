@@ -223,7 +223,7 @@ class VMAT:
         .. versionadded:: 0.8
         """
         zfiles = load_zipfile(zip_file)
-        images = [BytesIO(zfiles.read(name)) for name in zfiles.namelist()]
+        images = (BytesIO(zfiles.read(name)) for name in zfiles.namelist())
         self.load_images(images, names=zfiles.namelist())
 
     @classmethod
