@@ -39,7 +39,7 @@ Below are the high-level tools currently available:
 
    * **Automatic phantom localization** - Set up your phantom any way you like; automatic positioning,
      angle, and inversion correction mean you can set up how you like, nor will setup variations give you headache.
-     **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
+   * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
      as you see fit.
 
     Example script::
