@@ -11,7 +11,7 @@ def full_test_suite_discovery():
     package_dir = osp.dirname(__file__)
     # suite = unittest.defaultTestLoader.loadTestsFromModule(osp.join(test_dir, 'test_cbct'))
     # loader.loadTestsFromModule(osp.join(test_dir, 'test_cbct'))
-    suite = unittest.TestLoader().discover(package_dir)
+    suite = unittest.defaultTestLoader.discover(package_dir)
     return suite
 
 

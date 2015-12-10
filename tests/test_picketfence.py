@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from pylinac.picketfence import PicketFence, osp, np, UP_DOWN, LEFT_RIGHT
 from tests.utils import save_file
 
-test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
+TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
 
 
 class PFTestMixin:
@@ -85,8 +85,8 @@ class MultipleImagesPF(PFTestMixin, TestCase):
 
     @classmethod
     def setUpClass(cls):
-        path1 = osp.join(test_file_dir, 'combo-jaw.dcm')
-        path2 = osp.join(test_file_dir, 'combo-mlc.dcm')
+        path1 = osp.join(TEST_DIR, 'combo-jaw.dcm')
+        path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
         cls.pf = PicketFence.from_multiple_images([path1, path2])
         cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
 
