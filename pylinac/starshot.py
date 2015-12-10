@@ -515,7 +515,7 @@ class Starshot:
         plt.savefig(filename, **kwargs)
 
     @staticmethod
-    def run_demo(self):
+    def run_demo():
         """Demonstrate the Starshot module using the demo image."""
         star = Starshot.from_demo_image()
         star.analyze()
