@@ -17,7 +17,6 @@ from pylinac.core.decorators import type_accept, value_accept
 from pylinac.core.geometry import Point
 from pylinac.core.io import get_url, TemporaryZipDirectory
 from pylinac.core.profile import stretch as stretcharray
-from pylinac.core.utilities import typed_property
 
 ARRAY = 'Array'
 DICOM = 'DICOM'
@@ -69,7 +68,8 @@ class Image:
         path : str, file-object
             The path to the image file or data stream or array.
         kwargs
-            See :class:`~pylinac.core.image.FileImage` or :class:`~pylinac.core.image.ArrayImage` for keyword arguments.
+            See :class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.DicomImage`,
+            or :class:`~pylinac.core.image.ArrayImage` for keyword arguments.
 
         Returns
         -------
@@ -79,7 +79,7 @@ class Image:
         if cls._is_array(path):
             return ArrayImage(path, **kwargs)
         elif cls._is_dicom(path):
-            return DicomImage(path)
+            return DicomImage(path, **kwargs)
         elif cls._is_image_file(path):
             return FileImage(path, **kwargs)
         else:
@@ -335,7 +335,7 @@ class ImageMixin:
             val = self.array.max()
         else:
             val = norm_val
-        self.array /= val
+        self.array = self.array / val
 
     def check_inversion(self):
         """Check the image for inversion by sampling the 4 image corners.
@@ -442,15 +442,17 @@ class DicomImage(ImageMixin):
     Attributes
     ----------
     metadata : pydicom Dataset
-        The dataset of the file as returned by pydicom.
+        The dataset of the file as returned by pydicom without pixel data.
     """
 
-    def __init__(self, path, dtype=None):
+    def __init__(self, path, *, dtype=None):
         """
         Parameters
         ----------
         path : str, file-object
             The path to the file or the data stream.
+        dtype : dtype, None, optional
+            The data type to cast the image data as. If None, will use whatever raw image format is.
         """
         super().__init__(path)
         # read the file once to get just the DICOM metadata
@@ -542,6 +544,7 @@ class FileImage(ImageMixin):
 
     @property
     def dpi(self):
+        """The dots-per-inch of the image, defined at isocenter."""
         try:
             dpi = self.info['dpi'][0]
         except (IndexError, KeyError):
@@ -559,23 +562,46 @@ class FileImage(ImageMixin):
 
     @property
     def dpmm(self):
+        """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
+        the dpmm will scale back to 100cm."""
         return self.dpi / MM_PER_INCH
 
 
 class ArrayImage(ImageMixin):
     """An image constructed solely from a numpy array."""
 
-    def __init__(self, array, *, dpi=None, sid=1000, dtype=np.float):
-        self.array = np.array(array, dtype=dtype)
+    def __init__(self, array, *, dpi=None, sid=1000, dtype=None):
+        """
+        Parameters
+        ----------
+        array : numpy.ndarray
+            The image array.
+        dpi : int, float
+            The dots-per-inch of the image, defined at isocenter.
+
+            .. note:: If a DPI tag is found in the image, that value will override the parameter, otherwise this one
+                will be used.
+        sid : int, float
+            The Source-to-Image distance in mm.
+        dtype : dtype, None, optional
+            The data type to cast the image data as. If None, will use whatever raw image format is.
+        """
+        if dtype is not None:
+            self.array = np.array(array, dtype=dtype)
+        else:
+            self.array = array
         self._dpi = dpi
         self.sid = sid
 
     @property
     def dpmm(self):
+        """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
+        the dpmm will scale back to 100cm."""
         return self.dpi / MM_PER_INCH
 
     @property
     def dpi(self):
+        """The dots-per-inch of the image, defined at isocenter."""
         if self._dpi is not None:
             return self._dpi
         else:
@@ -593,7 +619,7 @@ class DicomImageStack:
     Attributes
     ----------
     images : list
-        Holds instances of :class:`~pylinac.core.image.DicomImage`s. Can be accessed via index;
+        Holds instances of :class:`~pylinac.core.image.DicomImage`. Can be accessed via index;
         i.e. self[0] == self.images[0].
     """
 
