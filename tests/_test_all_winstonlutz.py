@@ -1,6 +1,7 @@
 from unittest import TestCase
+import os.path as osp
 
-from tests.test_winstonlutz import WinstonLutzMixin, Vector, osp
+from tests.test_winstonlutz import WinstonLutzMixin, Vector
 
 
 class WLKiX(WinstonLutzMixin, TestCase):
