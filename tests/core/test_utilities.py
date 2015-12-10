@@ -2,7 +2,7 @@ import unittest
 
 from pylinac.core.utilities import *
 
-class Test_Utilities(unittest.TestCase):
+class TestUtilities(unittest.TestCase):
 
     def test_isnumeric(self):
         # test numerics

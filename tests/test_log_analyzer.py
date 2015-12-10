@@ -8,13 +8,13 @@ import matplotlib.pyplot as plt
 from pylinac.log_analyzer import MachineLog, MachineLogs, DYNALOG, TRAJECTORY_LOG, STATIC_IMRT, DYNAMIC_IMRT, VMAT
 from tests.utils import save_file
 
-test_dir = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
+TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
 
 
 class TestAnonymize(TestCase):
     """Test the anonymization method."""
-    anon_originals_folder = osp.join(test_dir, '_anonbase')
-    anon_folder = osp.join(test_dir, 'anonymous')
+    anon_originals_folder = osp.join(TEST_DIR, '_anonbase')
+    anon_folder = osp.join(TEST_DIR, 'anonymous')
     files = []
 
     def setUp(self):
@@ -87,11 +87,10 @@ class TestAnonymize(TestCase):
 
 class TestLogLoading(TestCase):
     """Tests of dynalog files, mostly using the demo file."""
-    test_dir = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
 
     def test_loading(self):
         """Test that loading the badly-named dynalog still loads and identifies properly."""
-        test_tlog = osp.join(self.test_dir, 'tlogs', "Anonymous_4DC Treatment_JS0_TX_20140712095629.bin")
+        test_tlog = osp.join(TEST_DIR, 'tlogs', "Anonymous_4DC Treatment_JS0_TX_20140712095629.bin")
         # should produce no errors
         # load method 1
         MachineLog(test_tlog)
@@ -108,23 +107,23 @@ class TestLogLoading(TestCase):
         self.assertRaises(IOError, MachineLog, not_a_log)
 
     def test_dynalog_loading(self):
-        a_file = osp.join(self.test_dir, 'dlogs', 'Adlog1.dlg')
+        a_file = osp.join(TEST_DIR, 'dlogs', 'Adlog1.dlg')
         MachineLog(a_file)
 
-        b_file = osp.join(self.test_dir, 'dlogs', 'Bdlog1.dlg')
+        b_file = osp.join(TEST_DIR, 'dlogs', 'Bdlog1.dlg')
         MachineLog(b_file)
 
-        a_but_not_b_dir = osp.join(self.test_dir, 'a_no_b_dir', 'Adlog1.dlg')
+        a_but_not_b_dir = osp.join(TEST_DIR, 'a_no_b_dir', 'Adlog1.dlg')
         self.assertRaises(FileNotFoundError, MachineLog, a_but_not_b_dir)
-        b_but_not_a_dir = osp.join(self.test_dir, 'b_no_a_dir', 'Bdlog1.dlg')
+        b_but_not_a_dir = osp.join(TEST_DIR, 'b_no_a_dir', 'Bdlog1.dlg')
         self.assertRaises(FileNotFoundError, MachineLog, b_but_not_a_dir)
 
-        bad_name_dlg = osp.join(self.test_dir, 'bad_names', 'bad_name_dlg.dlg')
+        bad_name_dlg = osp.join(TEST_DIR, 'bad_names', 'bad_name_dlg.dlg')
         self.assertRaises(ValueError, MachineLog, bad_name_dlg)
 
     def test_txt_file_also_loads_if_around(self):
         # has a .txt file
-        log_with_txt = osp.join(self.test_dir, 'mixed_types', "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin")
+        log_with_txt = osp.join(TEST_DIR, 'mixed_types', "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin")
 
         log = MachineLog(log_with_txt)
         self.assertTrue(hasattr(log, 'txt'))
@@ -132,7 +131,7 @@ class TestLogLoading(TestCase):
         self.assertEqual(log.txt['Patient ID'], 'Anonymous')
 
         # DOESN'T have a txt file
-        log_no_txt = osp.join(self.test_dir, 'tlogs', "Anonymous_4DC Treatment_JS0_TX_20140712095629.bin")
+        log_no_txt = osp.join(TEST_DIR, 'tlogs', "Anonymous_4DC Treatment_JS0_TX_20140712095629.bin")
 
         log = MachineLog(log_no_txt)
         self.assertFalse(hasattr(log, 'txt'))

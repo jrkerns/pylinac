@@ -9,8 +9,7 @@ from pylinac.core.geometry import Point
 from pylinac.starshot import Starshot
 from tests.utils import save_file
 
-
-test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
+TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
 
 
 class GeneralTests(unittest.TestCase):
@@ -144,14 +143,14 @@ class Multiples(StarMixin, unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        img_dir = osp.join(test_file_dir, 'set')
+        img_dir = osp.join(TEST_DIR, 'set')
         img_files = [osp.join(img_dir, filename) for filename in os.listdir(img_dir)]
         cls.star = Starshot.from_multiple_images(img_files)
         cls.star.analyze(radius=0.6)
 
 
 class Starshot1(StarMixin, unittest.TestCase):
-    star_file = osp.join(test_file_dir, 'Starshot#1.tif')
+    star_file = osp.join(TEST_DIR, 'Starshot#1.tif')
     wobble_center = Point(508, 683)
     wobble_diameter_mm = 0.23
     num_rad_lines = 4

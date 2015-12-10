@@ -5,7 +5,8 @@ import os.path as osp
 
 from pylinac.core.io import is_valid_dir, is_valid_file, open_file
 
-class Test_IO(unittest.TestCase):
+
+class TestIO(unittest.TestCase):
 
     def test_invalid_file_str(self):
         not_a_file = "file"

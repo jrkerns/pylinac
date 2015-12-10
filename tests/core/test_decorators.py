@@ -3,7 +3,7 @@ import unittest
 from pylinac.core.decorators import *
 
 
-class Test_Decorators(unittest.TestCase):
+class TestDecorators(unittest.TestCase):
 
     def test_timethis(self):
         @timethis
