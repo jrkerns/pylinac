@@ -337,12 +337,12 @@ class ImageMixin:
             val = norm_val
         self.array = self.array / val
 
-    def check_inversion(self):
+    def check_inversion(self, box_size=20, offset=10):
         """Check the image for inversion by sampling the 4 image corners.
         If the average value of the four corners is above the average pixel value, then it is very likely inverted.
         """
-        outer_edge = 10
-        inner_edge = 30
+        outer_edge = offset
+        inner_edge = offset + box_size
         TL_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
         BL_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
         TR_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
@@ -425,6 +425,10 @@ class ImageMixin:
     @property
     def ndim(self):
         return self.array.ndim
+
+    @property
+    def dtype(self):
+        return self.array.dtype
 
     def sum(self):
         return self.array.sum()

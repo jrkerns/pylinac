@@ -1,4 +1,5 @@
 """The planar imaging module analyzes phantom images taken with the kV or MV imager in 2D; for example, the Leeds and PipsPro phantoms."""
+import copy
 from functools import lru_cache
 import os.path as osp
 
@@ -51,37 +52,73 @@ class LeedsTOR:
             A numpy array with labeled ROIs
         """
         found = False
-        thres_pct = 40
+        thres_pct = 98
+        sobel_img = self._calculate_sobel()
 
         # threshold image iteratively until the ring structure is found
         while not found:
+            if thres_pct < 0:
+                raise ValueError("Could not locate the Leeds phantom within the image.")
             # threshold and label the binary image
-            threshold = np.percentile(self.image, thres_pct)
-            bin_img = self.image.as_binary(threshold)
+            threshold = np.percentile(sobel_img, thres_pct)
+            bin_img = sobel_img.as_binary(threshold)
             labeled_arr, num_roi = ndimage.label(bin_img)
             roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
             # search through the ROIs for a ring-like structure
+            circle_rois = []
+            size_thresh = int(0.01 * bin_img.size)
             for roi in range(num_roi):
-                if roi_sizes[roi] < 200:
+                if roi_sizes[roi] < size_thresh:
                     continue
                 roi_img = np.where(labeled_arr == roi, 1, 0)
                 ymin, ymax, xmin, xmax = bounding_box(roi_img)
                 fill_area = filled_area_ratio(roi_img)
-                is_squarelike = 0.97 < square_ratio(roi_img) < 1.03
-                is_hollow = fill_area < 0.07
-                is_mediumsized = (ymax - ymin) * (xmax - xmin) > 0.3 * self.image.shape[0] * self.image.shape[1]
+                is_squarelike = 0.96 < square_ratio(roi_img) < 1.04
+                is_hollow = fill_area < 0.12
+                is_mediumsized = (ymax - ymin) * (xmax - xmin) > 0.2 * self.image.shape[0] * self.image.shape[1]
 
                 if is_squarelike and is_hollow and is_mediumsized:
+                    circle_rois.append(roi)
+            # search through possible ROIs to find the smallest (innermost) circle
+            cir = np.inf
+            for roi in circle_rois:
+                roi_img = np.where(labeled_arr == roi, 1, 0)
+                ymin, ymax, xmin, xmax = bounding_box(roi_img)
+                yextent = ymax - ymin
+                if yextent < cir:
+                    inc = roi
                     found = True
-                    break
 
-            thres_pct += 7
+            thres_pct -= 4
 
+        roi_img = np.where(labeled_arr == inc, 1, 0)
+        ymin, ymax, xmin, xmax = bounding_box(roi_img)
         # determine center of ROI, which is the center of phantom
         x_cen = (xmax - xmin)/2 + xmin
         y_cen = (ymax - ymin)/2 + ymin
         radius = (xmax - xmin)/2
         return Point(x_cen, y_cen), radius, labeled_arr
+
+    def _calculate_sobel(self):
+        """Calculate and return the Sobel gradient image"""
+        # filter image copy
+        sobel = copy.copy(self.image)
+        sobel = ndimage.gaussian_filter(sobel, sigma=int(round(max(sobel.shape) * 0.003)))
+        # calculate sobel
+        sobel_x = ndimage.filters.sobel(sobel)
+        sobel_y = ndimage.filters.sobel(sobel, axis=0)
+        sobel_img = sobel_x + sobel_y
+        # calculate sobel from the other direction
+        img_inv = np.fliplr(sobel)
+        sobel_x = ndimage.filters.sobel(img_inv)
+        sobel_y = ndimage.filters.sobel(img_inv, axis=0)
+        # invert other sobel back to original position
+        sobel_img_inv = np.fliplr(sobel_x + sobel_y)
+        # combine and filter sobels
+        total_sobel = sobel_img ** 2 + sobel_img_inv ** 2
+        total_sobel = ndimage.filters.gaussian_filter(total_sobel, sigma=int(round(max(sobel.shape) * 0.003)))
+        sobel_img = Image.load(total_sobel)
+        return sobel_img
 
     def _find_angle(self, labeled_array, radius, center):
         """Find the angle of the phantom from the center to the lead square.
@@ -91,7 +128,7 @@ class LeedsTOR:
         angle : float
             The angle of the phantom in radians.
         """
-        expected_size = (radius ** 2) * 0.116
+        expected_size = radius * 20
         roi_sizes, bin_edges = np.histogram(labeled_array, bins=labeled_array.max() + 1)
 
         # search for the square-like ROI
@@ -99,15 +136,16 @@ class LeedsTOR:
         roi = 0
         while not found:
             if roi >= len(roi_sizes):
-                raise ValueError("Could not find the Leeds phantom within the image.")
-            if roi_sizes[roi] < 100:
+                raise ValueError("Could not determine the angle of the Leeds phantom.")
+            if roi_sizes[roi] < 0.0001*self.image.size:
                 roi += 1
                 continue
             roi_img = np.where(labeled_array == roi, 1, 0)
+            roi_img = ndimage.morphology.binary_fill_holes(roi_img)
             fill_area = filled_area_ratio(roi_img)
-            is_squarelike = 0.98 < square_ratio(roi_img) < 1.02
+            is_squarelike = 0.94 < square_ratio(roi_img) < 1.06
             is_solid = fill_area > 0.5
-            is_right_size = expected_size * 1.04 > roi_sizes[roi] > expected_size * 0.96
+            is_right_size = expected_size * 2 > roi_sizes[roi] > expected_size * 0.25
 
             if is_squarelike and is_solid and is_right_size:
                 found = True
@@ -145,13 +183,12 @@ class LeedsTOR:
             Reference ROIs that determine the background pixel values.
         """
         angle = np.degrees(angle)
-        # bubble_angles = [60, 45, 30, 15, 0, -15, -30, -45, -60, -120, -135, -150, -165, -180, 165, 150, 135, 120]
         bubble_angles = list(range(30, 151, 15))
         bubble_angles += list(range(210, 331, 15))
         bubble_radius = 0.03 * radius
 
         # sample contrast ROIs
-        bubble_dist = 0.8 * radius
+        bubble_dist = 0.775 * radius
         crois = []
         for angle_delta in bubble_angles:
             roi = LowContrastDiskROI(self.image, angle - angle_delta, bubble_radius, bubble_dist, center, self.low_contrast_threshold)
@@ -181,7 +218,7 @@ class LeedsTOR:
         angle = np.degrees(angle)
 
         # sample ROIs of the reference areas
-        ref_angles = [303, 270]
+        ref_angles = [303, 271]
         ref_dists = [0.3 * radius, 0.25 * radius]
         ref_radius = 0.04 * radius
         rrois = []
@@ -192,7 +229,7 @@ class LeedsTOR:
         mtf_norm_val = (rrois[0].pixel_value - rrois[1].pixel_value) / (rrois[0].pixel_value + rrois[1].pixel_value)
 
         # sample ROIs of each line pair region
-        contrast_angles = [-144.8, -115.1, -62.5, -169.7, -153.4, -23.7, 169.7, 151.6, 30.2]
+        contrast_angles = [-144.8, -115.1, -62.5, -169.7, -153.4, -25, 169.7, 151.6, 29]
         contrast_dists = np.array([0.3, 0.187, 0.187, 0.252, 0.092, 0.094, 0.252, 0.094, 0.0958]) * radius
         contrast_radii = np.array([0.04, 0.04, 0.04, 0.03, 0.03, 0.02, 0.02, 0.018, 0.018, 0.015, 0.015, 0.012]) * radius
         crois = []
@@ -215,7 +252,7 @@ class LeedsTOR:
         leeds.analyze()
         leeds.plot_analyzed_image()
 
-    def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.4):
+    def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.4, invert=False):
         """Analyze the image.
 
         Parameters
@@ -224,7 +261,14 @@ class LeedsTOR:
             The threshold for the low-contrast bubbles to be "seen".
         hi_contrast_threshold : float
             The threshold percentage that the relative MTF must be above to be "seen". Must be between 0 and 1.
+        invert : bool
+            Whether to force an inversion of the image. Pylinac tries to infer the correct inversion but uneven
+            backgrounds can cause this analysis to fail. If the contrasts/MTF ROIs appear correctly located but the
+            plots are wonky, try setting this to True.
         """
+        self.image.check_inversion(box_size=30, offset=int(0.05*max(self.image.shape)))
+        if invert:
+            self.image.invert()
         self.low_contrast_threshold = low_contrast_threshold
         self.hi_contrast_threshold = hi_contrast_threshold
         center, radius, binary_img = self._find_phantom()
