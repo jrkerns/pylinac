@@ -3,6 +3,10 @@
 Changelog
 =========
 
+V 1.2.1
+
+* `(#44) <https://github.com/jrkerns/pylinac/issues/44>`_ Fixed a stale wheel build causing ``pip install`` to install v1.1.
+
 V 1.2.0
 -------
 
