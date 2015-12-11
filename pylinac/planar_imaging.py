@@ -185,10 +185,10 @@ class LeedsTOR:
         angle = np.degrees(angle)
         bubble_angles = list(range(30, 151, 15))
         bubble_angles += list(range(210, 331, 15))
-        bubble_radius = 0.03 * radius
+        bubble_radius = 0.025 * radius
 
         # sample contrast ROIs
-        bubble_dist = 0.775 * radius
+        bubble_dist = 0.785 * radius
         crois = []
         for angle_delta in bubble_angles:
             roi = LowContrastDiskROI(self.image, angle - angle_delta, bubble_radius, bubble_dist, center, self.low_contrast_threshold)

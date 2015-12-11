@@ -1,6 +1,6 @@
 
-__version__ = '0.9.0'
-__version_info__ = (0, 9, 0)
+__version__ = '1.2.2'
+__version_info__ = (1, 2, 2)
 
 import sys
 if sys.version_info[0] < 3:
