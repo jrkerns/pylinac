@@ -232,7 +232,7 @@ class TestImageBank(TestCase):
                         future = exec.submit(run_star, filepath)
                         futures.append(future)
             for future in concurrent.futures.as_completed(futures):
-                if future.result() != 'Sucess':
+                if future.result() != 'Success':
                     print(future.result())
         end = time.time() - start
         print('Processing of {} files took {}s'.format(len(futures), end))
