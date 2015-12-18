@@ -14,8 +14,9 @@ from pylinac.core.io import get_url
 from pylinac.core.profile import CollapsedCircleProfile
 
 
-class PipsPro:
-    """Class for analyzing high and low contrast of a PipsPro MV phantom."""
+class ImagePhantomBase:
+    """Base class for planar phantom classes."""
+    _demo_filename = ''
 
     def __init__(self, filepath):
         """
@@ -26,12 +27,11 @@ class PipsPro:
         """
         self.image = Image.load(filepath)
         self.image.invert()
-        self.image.ground()
 
     @classmethod
     def from_demo_image(cls):
         """Instantiate and load the demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'planar_imaging', 'pipspro.dcm')
+        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'planar_imaging', cls._demo_filename)
         return cls(demo_file)
 
     @classmethod
@@ -45,10 +45,28 @@ class PipsPro:
         image_file = get_url(url)
         return cls(image_file)
 
+    def save_analyzed_image(self, filename, **kwargs):
+        """Save the analyzed image to a file.
+
+        Parameters
+        ----------
+        filename : str
+            The location and filename to save to.
+        kwargs
+            Keyword arguments are passed to plt.savefig().
+        """
+        self.plot_analyzed_image(show=False)
+        plt.savefig(filename, **kwargs)
+
+
+class PipsProQC3(ImagePhantomBase):
+    """Class for analyzing high and low contrast of the PipsPro QC-3 MV phantom."""
+    _demo_filename = 'pipspro.dcm'
+
     @staticmethod
     def run_demo():
         """Run the PipsPro QC-3 phantom analysis demonstration."""
-        pp = PipsPro.from_demo_image()
+        pp = PipsProQC3.from_demo_image()
         pp.analyze()
         pp.plot_analyzed_image()
 
@@ -159,9 +177,21 @@ class PipsPro:
         self._lcbgroi, self._lcrois = self._low_contrast()
         self._hcrois = self._high_contrast()
 
-    def plot_analyzed_image(self, image=True, lowcontrast=True, highcontrast=True, show=True):
-        """Plot the analyzed image."""
-        num_plots = sum((image, lowcontrast, highcontrast))
+    def plot_analyzed_image(self, image=True, low_contrast=True, high_contrast=True, show=True):
+        """Plot the analyzed image.
+
+        Parameters
+        ----------
+        image : bool
+            Show the image.
+        low_contrast : bool
+            Show the low contrast values plot.
+        high_contrast : bool
+            Show the high contrast values plot.
+        show : bool
+            Whether to actually show the image when called.
+        """
+        num_plots = sum((image, low_contrast, high_contrast))
         if num_plots < 1:
             return
         # set up axes and make axes iterable
@@ -187,12 +217,12 @@ class PipsPro:
                 roi.plot2axes(img_ax, edgecolor=roi.plot_color)
 
         # plot the low contrast values
-        if lowcontrast:
+        if low_contrast:
             lowcon_ax = next(axes)
             _plot_lowcontrast(lowcon_ax, self._lcrois, self.low_contrast_threshold)
 
         # plot the high contrast MTF
-        if highcontrast:
+        if high_contrast:
             hicon_ax = next(axes)
             mtfs = [roi.mtf for roi in self._hcrois]
             mtfs /= mtfs[0]
@@ -201,44 +231,10 @@ class PipsPro:
         if show:
             plt.show()
 
-    def save_analyzed_image(self, filename, **kwargs):
-        """Save the analyzed image to a file.
 
-        Parameters
-        ----------
-        filename : str
-            The location and filename to save to.
-        kwargs
-            Keyword arguments are passed to plt.savefig().
-        """
-        self.plot_analyzed_image(show=False)
-        plt.savefig(filename, **kwargs)
-
-
-class LeedsTOR:
+class LeedsTOR(ImagePhantomBase):
     """Class that analyzes Leeds TOR phantom planar kV images for kV QA."""
-
-    def __init__(self, filepath):
-        """
-        Parameters
-        ----------
-        filepath : str
-            Path to the local file.
-        """
-        self.image = Image.load(filepath)
-        self.image.invert()
-        self.image.ground()
-
-    @classmethod
-    def from_url(cls, url):
-        """
-        Parameters
-        ----------
-        url : str
-            The URL to the image.
-        """
-        image_file = get_url(url)
-        return cls(image_file)
+    _demo_filename = 'leeds.dcm'
 
     @property
     @lru_cache()
@@ -417,12 +413,6 @@ class LeedsTOR:
 
         return crois, rrois
 
-    @classmethod
-    def from_demo_image(cls):
-        """Instantiate and load the demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'planar_imaging', 'leeds.dcm')
-        return cls(demo_file)
-
     @staticmethod
     def run_demo():
         """Run the Leeds TOR phantom analysis demonstration."""
@@ -482,6 +472,8 @@ class LeedsTOR:
             Whether to actually show the image when called.
         """
         num_plots = sum((image, low_contrast, high_contrast))
+        if num_plots < 1:
+            return
         fig, axes = plt.subplots(1, num_plots)
         fig.subplots_adjust(wspace=0.4)
         if num_plots < 2:
@@ -519,19 +511,6 @@ class LeedsTOR:
 
         if show:
             plt.show()
-
-    def save_analyzed_image(self, filename, **kwargs):
-        """Save the analyzed image to a file.
-
-        Parameters
-        ----------
-        filename : str
-            The location and filename to save to.
-        kwargs
-            Keyword arguments are passed to plt.savefig().
-        """
-        self.plot_analyzed_image(show=False)
-        plt.savefig(filename, **kwargs)
 
 
 class LowContrastDiskROI(LCDiskROI):
@@ -590,6 +569,7 @@ class HighContrastDiskROI(DiskROI):
 
 
 def _get_canny_regions(image, sigma=2, percentiles=(0.001, 0.01)):
+    """Compute the canny edges of the image and return the connected regions found."""
     img_copy = copy.copy(image)
     img_copy.filter(kind='gaussian', size=sigma)
     img_copy.ground()
@@ -601,6 +581,7 @@ def _get_canny_regions(image, sigma=2, percentiles=(0.001, 0.01)):
 
 
 def _plot_lowcontrast(axes, rois, threshold):
+    """Plot the low contrast ROIs to an axes."""
     line1, = axes.plot([roi.contrast for roi in rois], marker='o', color='m', label='Contrast')
     axes.axhline(threshold, color='k')
     axes.grid('on')
@@ -613,6 +594,7 @@ def _plot_lowcontrast(axes, rois, threshold):
 
 
 def _plot_highcontrast(axes, rois, threshold):
+    """Plot the high contrast ROIs to an axes."""
     axes.plot(rois, marker='*')
     axes.axhline(threshold, color='k')
     axes.grid('on')
