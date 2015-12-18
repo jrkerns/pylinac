@@ -25,7 +25,7 @@ from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Circle, Line, Rectangle
 from pylinac.core.image import Image, DicomImageStack
 from pylinac.core.io import get_folder_UI, get_filepath_UI, get_url
-from pylinac.core.mask import filled_area_ratio, sector_mask
+from pylinac.core.mask import filled_area_ratio, sector_mask, circle_mask
 from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from pylinac.core.utilities import simple_round, import_mpld3
 
@@ -675,21 +675,23 @@ class DiskROI(Circle):
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
     @property
+    @lru_cache()
     def pixel_value(self):
         """The median pixel value of the ROI."""
         masked_img = self._get_roi_mask()
         return np.nanmedian(masked_img)
 
     @property
+    @lru_cache()
     def std(self):
         """The standard deviation of the pixel values."""
         masked_img = self._get_roi_mask()
         return np.nanstd(masked_img)
 
+    @lru_cache(maxsize=2)
     def _get_roi_mask(self):
         """Return a masked array of the ROI."""
-        mask = sector_mask(self._array.shape, self.center, self.radius)
-        masked_img = np.where(mask == True, self._array, np.NaN)
+        masked_img = circle_mask(self._array, self.center, self.radius)
         return masked_img
 
 
