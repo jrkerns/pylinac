@@ -18,7 +18,7 @@ install:
   - conda info -a
 
   # Set up conda
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pip setuptools pillow pyqt
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pip setuptools pillow pyqt skimage
   - source activate test-environment
 
   # install deps
