@@ -7,7 +7,7 @@ from unittest import TestCase
 import matplotlib.pyplot as plt
 
 from pylinac.core.image import Image
-from pylinac import LeedsTOR, PipsPro
+from pylinac import LeedsTOR, PipsProQC3
 
 IMAGE_BANK_DIR = osp.abspath(osp.join('..', '..', 'unorganized linac data', '2D Image quality phantoms'))
 
@@ -27,7 +27,7 @@ def run_leeds(path):
 def run_pipspro(path):
     """Function to pass to the process pool executor to process picket fence images."""
     try:
-        pp = PipsPro(path)
+        pp = PipsProQC3(path)
         pp.analyze()
         pp.plot_analyzed_image()
     except:
