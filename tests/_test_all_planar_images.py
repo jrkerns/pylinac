@@ -4,10 +4,12 @@ import os.path as osp
 import time
 from unittest import TestCase
 
-from pylinac.core.image import Image
-from pylinac import LeedsTOR
+import matplotlib.pyplot as plt
 
-IMAGE_BANK_DIR = osp.abspath(osp.join('..', '..', 'unorganized linac data', '2D Image quality phantoms', 'Leeds'))
+from pylinac.core.image import Image
+from pylinac import LeedsTOR, PipsPro
+
+IMAGE_BANK_DIR = osp.abspath(osp.join('..', '..', 'unorganized linac data', '2D Image quality phantoms'))
 
 
 def run_leeds(path):
@@ -16,19 +18,71 @@ def run_leeds(path):
         # print('Processing: {}'.format(path))
         leeds = LeedsTOR(path)
         leeds.analyze()
+        leeds.plot_analyzed_image()
         return 'Success'
     except:
         return 'Failure at {}'.format(path)
 
 
-class TestImageBank(TestCase):
+def run_pipspro(path):
+    """Function to pass to the process pool executor to process picket fence images."""
+    try:
+        pp = PipsPro(path)
+        pp.analyze()
+        pp.plot_analyzed_image()
+    except:
+        return 'Failure at {}'.format(path)
+    else:
+        plt.close('all')
+        return 'Success'
+
+
+class ImageBankMixin:
+    func = object
+    IMAGE_DIR = ''
+
+    @classmethod
+    def setUpClass(cls):
+        cls.IMAGE_DIR = osp.join(IMAGE_BANK_DIR, cls.IMAGE_DIR)
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
+
+    def test_all(self, func):
+        futures = []
+        start = time.time()
+        with concurrent.futures.ProcessPoolExecutor() as exec:
+            for pdir, sdir, files in os.walk(self.IMAGE_DIR):
+                for file in files:
+                    filepath = osp.join(pdir, file)
+                    try:
+                        Image.load(filepath)
+                    except:
+                        pass
+                    else:
+                        future = exec.submit(func, filepath)
+                        futures.append(future)
+            for future in concurrent.futures.as_completed(futures):
+                if future.result() != 'Success':
+                    print(future.result())
+        end = time.time() - start
+        print('Processing of {} files took {}s'.format(len(futures), end))
+
+
+class TestLeedsImageBank(TestCase):
     """Test the picket fences in the large image bank. Only tests the analysis runs; no details are tested."""
+    IMAGE_DIR = 'Leeds'
+
+    @classmethod
+    def setUpClass(cls):
+        cls.IMAGE_DIR = osp.join(IMAGE_BANK_DIR, cls.IMAGE_DIR)
 
     def test_all(self):
         futures = []
         start = time.time()
         with concurrent.futures.ProcessPoolExecutor() as exec:
-            for pdir, sdir, files in os.walk(IMAGE_BANK_DIR):
+            for pdir, sdir, files in os.walk(self.IMAGE_DIR):
                 for file in files:
                     filepath = osp.join(pdir, file)
                     try:
@@ -41,5 +95,35 @@ class TestImageBank(TestCase):
             for future in concurrent.futures.as_completed(futures):
                 if future.result() != 'Success':
                     print(future.result())
+        end = time.time() - start
+        print('Processing of {} files took {}s'.format(len(futures), end))
+
+
+class TestPipsProImageBank(ImageBankMixin, TestCase):
+    """Test the picket fences in the large image bank. Only tests the analysis runs; no details are tested."""
+    IMAGE_DIR = 'PipsPro'
+
+    @classmethod
+    def setUpClass(cls):
+        cls.IMAGE_DIR = osp.join(IMAGE_BANK_DIR, cls.IMAGE_DIR)
+
+    def test_all(self):
+        # super().test_all(run_pipspro)
+        futures = []
+        start = time.time()
+        with concurrent.futures.ProcessPoolExecutor() as exec:
+            for pdir, sdir, files in os.walk(self.IMAGE_DIR):
+                for file in files:
+                    filepath = osp.join(pdir, file)
+                    try:
+                        Image.load(filepath)
+                    except:
+                        pass
+                    else:
+                        future = exec.submit(run_pipspro, filepath)
+                        futures.append(future)
+            for idx, future in enumerate(concurrent.futures.as_completed(futures)):
+                # if future.result() != 'Success':
+                print(future.result(), idx)
         end = time.time() - start
         print('Processing of {} files took {}s'.format(len(futures), end))

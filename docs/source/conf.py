@@ -46,8 +46,9 @@ autodoc_mock_imports = ['numpy', 'dicom', 'dicom.errors', 'scipy',
                         'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize',
                         'scipy.misc',
                         'scipy.interpolate',
+                        'skimage',
                         'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches', 'mpl_toolkits.axes_grid1',
-                        'requests', 'watchdog', 'watchdog.observers', 'watchdog.events']
+                        'watchdog', 'watchdog.observers', 'watchdog.events']
 
 autoclass_content = 'both'
 autodoc_default_flags = ['show-inheritance', 'members'
