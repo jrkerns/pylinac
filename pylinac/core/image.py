@@ -433,6 +433,13 @@ class ImageMixin:
     def sum(self):
         return self.array.sum()
 
+    def ravel(self):
+        return self.array.ravel()
+
+    @property
+    def flat(self):
+        return self.array.flat
+
     def __len__(self):
         return len(self.array)
 
