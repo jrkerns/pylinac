@@ -19,7 +19,7 @@ import numpy as np
 from pylinac.core.decorators import value_accept, type_accept
 from pylinac.core.geometry import Point, Rectangle
 from pylinac.core.image import Image
-from pylinac.core.io import get_filepath_UI, get_filenames_UI, get_url, load_zipfile
+from pylinac.core.io import get_url, load_zipfile
 from pylinac.core.profile import SingleProfile
 from pylinac.core.utilities import typed_property, import_mpld3
 
@@ -68,39 +68,6 @@ class VMAT:
         self.settings = Settings('', 1.5)
         if images is not None:
             self.load_images(images)
-
-    @classmethod
-    def from_images_UI(cls):
-        """Construct a VMAT instance and select the files via a UI dialog box.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_images_UI()
-        return obj
-
-    def load_images_UI(self):
-        """Load images via a UI dialog box. The open field must have 'open' in the name."""
-        fs = get_filenames_UI()
-        self.load_images(fs)
-
-    @value_accept(im_type=(OPEN, DMLC))
-    def load_image_UI(self, im_type='open'):
-        """Open a UI file browser to load dicom image.
-
-        Parameters
-        ----------
-        im_type : {'open', 'mlcs'}
-            Specifies which file/image type is being loaded in.
-        """
-        if _is_open_type(im_type):
-            caption = "Select Open Field EPID Image..."
-        elif _is_dmlc_type(im_type):
-            caption = "Select MLC Field EPID Image..."
-
-        fs = get_filepath_UI(self, caption=caption)
-        if fs:  # if user didn't hit cancel
-            self.load_image(fs, im_type=im_type)
 
     @value_accept(im_type=(OPEN, DMLC))
     def load_image(self, file_path, im_type=None):

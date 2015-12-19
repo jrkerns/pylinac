@@ -507,16 +507,3 @@ def _is_both_planes(plane):
         return True
     else:
         return False
-
-
-# if __name__ == '__main__':
-#     img = BeamImage()
-#     img.load_demo_image()
-    # img.flatness()
-    # print(img.symmetry(plane='x'))
-    # print(img.flatness(plane='i'))
-    # img.plot_flatsym(plane='both')
-    # img.plot_symmetry(plane='both')
-    # axx = img.plot_symmetry()
-    # ttt = 1
-    # img.run_demo(plane='x')

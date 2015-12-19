@@ -21,7 +21,7 @@ import numpy as np
 
 from pylinac.core.geometry import Line, Rectangle
 from pylinac.core.image import Image
-from pylinac.core.io import get_filepath_UI, get_url
+from pylinac.core.io import get_url
 from pylinac.core.profile import MultiProfile, SingleProfile
 from pylinac.core.utilities import import_mpld3
 
@@ -157,21 +157,6 @@ class PicketFence:
             self.image.filter(size=filter)
         self._check_for_noise()
         self.image.check_inversion()
-
-    @classmethod
-    def from_image_UI(cls, filter=None):
-        """Construct a PicketFence instance and load an image using a dialog box.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_image_UI(filter=filter)
-        return obj
-
-    def load_image_UI(self, filter=None):
-        """Load the image using a UI dialog box."""
-        path = get_filepath_UI()
-        self.load_image(path, filter=filter)
 
     @classmethod
     def from_multiple_images(cls, path_list):

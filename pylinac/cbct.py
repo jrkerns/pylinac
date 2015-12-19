@@ -24,7 +24,7 @@ from scipy import ndimage
 from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Circle, Line, Rectangle
 from pylinac.core.image import Image, DicomImageStack
-from pylinac.core.io import get_folder_UI, get_filepath_UI, get_url
+from pylinac.core.io import get_url
 from pylinac.core.mask import filled_area_ratio, circle_mask
 from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from pylinac.core.utilities import simple_round, import_mpld3
@@ -114,22 +114,6 @@ class CBCT:
         filename = get_url(url)
         self.load_zip_file(filename)
 
-    @classmethod
-    def from_folder_UI(cls):
-        """Construct a CBCT object an get the files using a UI dialog box.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_folder_UI()
-        return obj
-
-    def load_folder_UI(self):
-        """Load the CT DICOM files from a folder using a UI dialog box."""
-        folder = get_folder_UI()
-        if folder:
-            self.load_folder(folder)
-
     def load_folder(self, folder):
         """Load the CT DICOM files string input.
 
@@ -147,24 +131,6 @@ class CBCT:
             raise NotADirectoryError("Path given was not a Directory/Folder")
         self.dicom_stack = DicomImageStack(folder)
         self.settings = Settings(self.dicom_stack)
-
-    @classmethod
-    def from_zip_file_UI(cls):
-        """Construct a CBCT object and pass the zip file.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_zip_file_UI()
-        return obj
-
-    def load_zip_file_UI(self):
-        """Load a zip file using a UI dialog box.
-
-        .. versionadded:: 0.6
-        """
-        zfile = get_filepath_UI()
-        self.load_zip_file(zfile)
 
     @classmethod
     def from_zip_file(cls, zip_file):
@@ -675,20 +641,19 @@ class DiskROI(Circle):
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def pixel_value(self):
         """The median pixel value of the ROI."""
         masked_img = self._get_roi_mask()
         return np.nanmedian(masked_img)
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def std(self):
         """The standard deviation of the pixel values."""
         masked_img = self._get_roi_mask()
         return np.nanstd(masked_img)
 
-    @lru_cache(maxsize=2)
     def _get_roi_mask(self):
         """Return a masked array of the ROI."""
         masked_img = circle_mask(self._array, self.center, self.radius)
@@ -1587,10 +1552,3 @@ def combine_surrounding_slices(dicomstack, nominal_slice_num, slices_plusminus=1
     else:
         combined_array = np.max(array_stack, 2)
     return combined_array
-
-
-# ----------------------------------------
-# CBCT Demo
-# ----------------------------------------
-if __name__ == '__main__':
-    CBCT().run_demo()

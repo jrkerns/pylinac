@@ -30,7 +30,7 @@ from scipy.optimize import differential_evolution
 from pylinac.core.decorators import value_accept
 from pylinac.core.geometry import Point, Line, Circle
 from pylinac.core.image import Image
-from pylinac.core.io import get_filepath_UI, get_filenames_UI, get_url
+from pylinac.core.io import get_url
 from pylinac.core.profile import SingleProfile, CollapsedCircleProfile
 
 
@@ -161,41 +161,6 @@ class Starshot:
             Passed to :meth:`~pylinac.core.image.Image.load_multiples()`
         """
         self.image = Image.load_multiples(filepath_list, **kwargs)
-
-    @classmethod
-    def from_multiple_images_UI(cls):
-        """Construct a Starshot instance and load in and combine multiple images via a UI dialog box.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_multiple_images_UI()
-        return obj
-
-    def load_multiple_images_UI(self):
-        """Load multiple images via a dialog box.
-
-        .. versionadded:: 0.5.1
-        """
-        path_list = get_filenames_UI()
-        if path_list:
-            self.load_multiple_images(path_list)
-
-    @classmethod
-    def from_image_UI(cls):
-        """Construct a Starshot instance and get the image via a UI dialog box.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_image_UI()
-        return obj
-
-    def load_image_UI(self):
-        """Load the image by using a UI dialog box."""
-        path = get_filepath_UI()
-        if path:
-            self.load_image(path)
 
     def _check_image_inversion(self):
         """Check the image for proper inversion, i.e. that pixel value increases with dose."""
@@ -648,10 +613,3 @@ def get_peak_height():
 def get_radius():
     for radius in np.linspace(0.95, 0.1, 10):
         yield radius
-
-
-# ----------------------------
-# Starshot demo
-# ----------------------------
-if __name__ == '__main__':
-    Starshot().run_demo()

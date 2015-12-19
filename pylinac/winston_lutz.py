@@ -577,7 +577,3 @@ class WLImage(DicomImage):
             return REFERENCE
         else:
             return COMBO
-
-
-if __name__ == '__main__':
-    WinstonLutz().run_demo()

@@ -33,8 +33,7 @@ import numpy as np
 import scipy.ndimage.filters as spf
 
 from pylinac.core.decorators import type_accept, value_accept
-from pylinac.core.io import is_valid_file, is_valid_dir, get_folder_UI, get_filepath_UI, open_file, get_url, \
-    TemporaryZipDirectory
+from pylinac.core.io import is_valid_file, is_valid_dir, open_file, get_url, TemporaryZipDirectory
 from pylinac.core.utilities import is_iterable, import_mpld3
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
@@ -75,10 +74,6 @@ class MachineLogs(list):
 
             >>> logs = MachineLogs()
             >>> logs.load_folder(log_folder)
-
-        Or even using a UI dialog box::
-
-            >>> logs = MachineLogs.from_folder_UI()
 
         Batch methods include determining the average gamma and average gamma pass value::
 
@@ -176,22 +171,6 @@ class MachineLogs(list):
             if not recursive:
                 break  # break out of for loop after top level search
         print('')
-
-    @classmethod
-    def from_folder_UI(cls, recursive=True):
-        """Construct a MachineLogs instance and load a folder from a UI dialog box.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_folder_UI(recursive)
-        return obj
-
-    def load_folder_UI(self, recursive=True):
-        """Load a directory using a UI dialog box. See load_folder() for parameter info."""
-        folder = get_folder_UI()
-        if folder:
-            self.load_folder(folder, recursive)
 
     def _clean_log_filenames(self, filenames, root, num_logs, num_skipped):
         """Extract the names of real log files from a list of files."""
@@ -463,22 +442,6 @@ class MachineLog:
         filename = get_url(url)
         self.load(filename, exclude_beam_off)
         self.url = url
-
-    @classmethod
-    def from_UI(cls, exclude_beam_off=True):
-        """Construct an instance and load a log from a UI dialog box.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_UI(exclude_beam_off)
-        return obj
-
-    def load_UI(self, exclude_beam_off=True):
-        """Let user load a log file with a UI dialog box. """
-        filename = get_filepath_UI()
-        if filename: # if user didn't hit cancel...
-            self.load(filename, exclude_beam_off)
 
     def load(self, filename, exclude_beam_off=True):
         """Load the log file directly by passing the path to the file.
@@ -1221,7 +1184,7 @@ class GammaFluence(Fluence):
             gamma_map[leaf] = np.abs(actual[leaf, :] - expected[leaf, :]) / np.sqrt(
                 (doseTA / 100.0 ** 2) + ((distTA / resolution ** 2) * (img_x[leaf, :] ** 2)))
         # construct binary pass/fail map
-        self.passfail_map = np.array(np.where(gamma_map >= 1, 1, 0)[0], dtype=bool)
+        self.passfail_map = np.where(gamma_map >= 1, 1, 0).astype(bool)
 
         # if calc_individual_maps:
         #     # calculate DoseTA map (drops distTA calc from gamma eq)
@@ -2312,28 +2275,20 @@ def is_tlog_txt_file_around(tlog_filename):
         txt_filename = tlog_filename.replace('.bin', '.txt')
     except:
         return False
-    if '.txt' in txt_filename and osp.isfile(txt_filename):
-        return True
     else:
-        return False
+        return '.txt' in txt_filename and osp.isfile(txt_filename)
 
 
 def is_log(filename):
     """Boolean specifying if filename is a valid log file."""
-    if is_tlog(filename) or is_dlog(filename):
-        return True
-    else:
-        return False
+    return is_tlog(filename) or is_dlog(filename)
 
 def is_tlog(filename):
     """Boolean specifying if filename is a Trajectory log file."""
     if is_valid_file(filename, raise_error=False):
         unknown_file = open_file(filename)
         header_sample = unknown_file.read(5).decode()
-        if 'V' in header_sample:
-            return True
-        else:
-            return False
+        return 'V' in header_sample
     else:
         return False
 
@@ -2342,19 +2297,13 @@ def is_dlog(filename):
     if is_valid_file(filename, raise_error=False):
         unknown_file = open_file(filename)
         header_sample = unknown_file.read(5).decode()
-        if 'B' in header_sample or 'A' in header_sample:
-            return True
-        else:
-            return False
+        return 'B' in header_sample or 'A' in header_sample
     else:
         return False
 
 def is_tlog_v3(version):
     """Return whether the Tlog version is 3 or not."""
-    if version >= 3:
-        return True
-    else:
-        return False
+    return version >= 3
 
 def snapshot_col_gen():
     """Generator function for iterating through the snapshot data columns."""
@@ -2407,7 +2356,3 @@ def write_array(writer, description, value, unit=None):
             dtype_desc = description + dtype + ' in units of ' + unit
         arr2write = np.insert(getattr(value, attr).astype(object), 0, dtype_desc)
         writer.writerow(arr2write)
-
-
-if __name__ == '__main__':
-    MachineLog().run_tlog_demo()
