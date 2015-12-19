@@ -1,6 +1,8 @@
 import os.path as osp
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac import LeedsTOR, PipsProQC3
 from tests.utils import save_file
 
@@ -13,6 +15,10 @@ class LeedsTORTestMixin:
     @classmethod
     def setUpClass(cls):
         cls.leeds = LeedsTOR(osp.join(TEST_DIR, cls.filename))
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
 
     def test_analyze(self):
         self.leeds.analyze()
@@ -32,6 +38,9 @@ class LeedsDemo(LeedsTORTestMixin, TestCase):
 
     def test_demo(self):
         LeedsTOR.run_demo()  # shouldn't raise
+
+    def test_url(self):
+        LeedsTOR.from_url('https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/leeds.dcm')
 
 
 class LeedsCCW(LeedsTORTestMixin, TestCase):
@@ -66,6 +75,9 @@ class PipsProDemo(PipsProTestMixin, TestCase):
 
     def test_demo(self):
         PipsProQC3.run_demo()  # shouldn't raise
+
+    def test_url(self):
+        PipsProQC3.from_url('https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/pipspro.dcm')
 
 
 class PipsPro1(PipsProTestMixin, TestCase):

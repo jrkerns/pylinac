@@ -170,10 +170,15 @@ class TestLogPlottingSaving(TestCase):
 
         self.dlog.fluence.actual.calc_map()
         self.dlog.fluence.actual.plot_map()
+        self.dlog.fluence.gamma.calc_map()
+        self.dlog.fluence.gamma.histogram()
+        self.dlog.fluence.gamma.plot_histogram()
+        self.dlog.fluence.gamma.plot_passfail_map()
 
     def test_saving_fluence_plots(self):
         self.dlog.fluence.gamma.calc_map()
         save_file(self.dlog.fluence.gamma.save_map)
+        save_file(self.dlog.fluence.gamma.save_histogram)
 
     def test_save_summary(self):
         self.tlog.fluence.gamma.calc_map()

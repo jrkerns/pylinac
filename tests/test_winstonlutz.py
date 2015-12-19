@@ -1,10 +1,13 @@
 """Tests for the Winston-Lutz module."""
+import os.path as osp
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
 from pylinac import WinstonLutz
 from pylinac.core.geometry import Vector, vector_is_close
+from pylinac.core.io import TemporaryZipDirectory
+from tests.utils import save_file
 
 
 class GeneralTests(TestCase):
@@ -16,6 +19,12 @@ class GeneralTests(TestCase):
     def test_loading_demo_files(self):
         wl = WinstonLutz.from_demo_images()  # shouldn't raise
 
+    def test_loading(self):
+        # load from uncompressed files
+        demo_file = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'winston_lutz', 'winston_lutz.zip')
+        with TemporaryZipDirectory(demo_file) as tempz:
+            wl = WinstonLutz(tempz)
+
     def test_run_demo(self):
         WinstonLutz().run_demo()  # shouldn't raise
 
@@ -25,6 +34,10 @@ class GeneralTests(TestCase):
 
     def test_results(self):
         print(self.wl.results())  # shouldn't raise
+
+    def test_save(self):
+        save_file(self.wl.save_summary)
+        save_file(self.wl.save_images)
 
 
 class WinstonLutzMixin:

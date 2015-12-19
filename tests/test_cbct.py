@@ -44,6 +44,9 @@ class GeneralTests(TestCase):
         zfile = osp.join(VARIAN_DIR, 'CBCT_4.zip')
         CBCT.from_zip_file(zfile)
 
+        # load from url
+        CBCT.from_url('https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/CBCT_4.zip')
+
     def test_images_not_loaded(self):
         """Raise error if trying to analyze when images aren't loaded yet."""
         self.assertRaises(AttributeError, self.cbct.analyze)
