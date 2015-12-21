@@ -16,12 +16,19 @@ Geometry Module
 
 Profile Module
 --------------
-
 .. automodule:: pylinac.core.profile
 
 I/O Module
 ----------
 .. automodule:: pylinac.core.io
+
+ROI Module
+----------
+.. automodule:: pylinac.core.roi
+
+Mask Module
+-----------
+.. automodule:: pylinac.core.mask
 
 Utilities Module
 ----------------

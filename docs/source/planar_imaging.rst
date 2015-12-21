@@ -87,6 +87,7 @@ The algorithm works like such:
 
 * The images can be acquired at any SID.
 * The images can be acquired with any size kV imager.
+* The phantom can be at any distance.
 * The phantom can be at any angle.
 * The phantom can be flipped either way.
 
@@ -94,22 +95,23 @@ The algorithm works like such:
 
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
-* The phantom must not be touching any image edges.
+* The phantom must not be touching or close to any image edges.
 
 **Pre-Analysis**
 
-* **Determine phantom location** -- The Leeds phantom is found by searching for the circular metal ring
-  near the edge of the phantom. The image is converted to binary based on an initial threshold. If a ring-like
-  structure is found then the center of the ring is determined as the phantom center. If the ring structure
-  was not found the image is iteratively converted to binary again with a slightly higher threshold until the
-  structure is found.
-* **Determine phantom angle** -- To find the rotational angle of the phantom, a similar process is employed.
-  The original image is converted to binary and the lead square is iteratively searched for by looking for an
-  appropriately-sized and solid square ROI. Once found, the angle between the phantom center and lead square
-  provides the baseline angle.
+* **Determine phantom location** -- The Leeds phantom is found by performing a canny edge detection
+  algorithm to the image. The thin structures found are sifted by finding appropriately-sized ROIs.
+  This may include the outer phantom edge and the metal ring just inside. The average central position
+  of the circular ROIs is set as the phantom center.
+* **Determine phantom angle** -- To find the rotational angle of the phantom, a similar process is employed,
+  but square-like features are searched for in the edge detection image. Because there are two square areas,
+  the ROI with the highest attenuation (lead) is chosen. The angle between the phantom center and the lead
+  square center is set as the angle.
 * **Determine rotation direction** -- The phantom might be placed upside down. To keep analysis consistent,
   a circular profile is sampled at the radius of the low contrast ROIs starting at the lead square. Peaks are
   searched for on each semicircle. The side with the most peaks is the side with the higher contrast ROIs.
+  Analysis is always done counter-clockwise. If the ROIs happen to be clockwise, the image is flipped
+  left-right and angle/center inverted.
 
 **Analysis**
 
@@ -124,6 +126,34 @@ The algorithm works like such:
 
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+Troubleshooting
+^^^^^^^^^^^^^^^
+
+If you're having trouble getting the Leeds phantom analysis to work, first check out the :ref:`general_troubleshooting`
+section. If the issue is not listed there, then it may be one of the issues below.
+
+The most common reason for failing is having the phantom near an image edge. The resulting
+error is usually that the phantom angle cannot be determined. For example, this image would throw an
+error:
+
+.. image:: images/bad_leeds.jpg
+
+The below image also fails. Technically, the phantom is in the image, but the top blade skews the pixel
+values such that the phantom edge cannot be properly found at the top. This fails to identify the true phantom
+edge, causing the angle to also not be found:
+
+.. image:: images/bad_leeds2.jpg
+
+Another problem is that the image may have a non-uniform background. This can cause pylinac's automatic
+inversion correction to incorrectly invert the image. For example, this image falsely inverts:
+
+.. image:: images/leeds_uneven.jpg
+
+When analyzed, the angle is 180 degrees opposite the lead square, causing the ROIs to be
+flipped 180 degrees. To correct this problem, pass ``invert=True`` to :meth:`~pylinac.planar_imaging.LeedsTOR.analyze`.
+This will force pylinac to invert the image the opposite way and correctly identify the lead square.
+
 
 PipsPro Phantom
 ---------------
@@ -197,6 +227,7 @@ The algorithm works like such:
 **Allowances**
 
 * The images can be acquired at any SID.
+* The phantom can be at any distance.
 * The images can be acquired with any EPID.
 * The phantom can be somewhat offset from the ideal 45 degree orientation.
 
@@ -234,9 +265,7 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.planar_imaging.LeedsTOR
+  :inherited-members:
 
-.. autoclass:: pylinac.planar_imaging.PipsPro
-
-.. autoclass:: pylinac.planar_imaging.LowContrastDiskROI
-
-.. autoclass:: pylinac.planar_imaging.HighContrastDiskROI
+.. autoclass:: pylinac.planar_imaging.PipsProQC3
+  :inherited-members:
