@@ -102,13 +102,13 @@ class PipsProQC3(ImagePhantomBase):
     Attributes
     ----------
     lc_rois : list
-        :class:`~pylinac.planar_imaging.LowContrastDiskROI` instances of the low
+        :class:`~pylinac.core.roi.LowContrastDiskROI` instances of the low
         contrast ROIs, other than the reference ROI (below).
     lc_ref_rois : list
-        :class:`~pylinac.planar_imaging.LowContrastDiskROI` instance of the low
+        :class:`~pylinac.core.roi.LowContrastDiskROI` instance of the low
         contrast reference ROI (15mm PVC).
     hc_rois : list
-        :class:`~pylinac.planar_imaging.HighContrastDiskROI` instances of the
+        :class:`~pylinac.core.roi.HighContrastDiskROI` instances of the
         high contrast line pair regions.
     """
     _demo_filename = 'pipspro.dcm'
@@ -285,16 +285,16 @@ class LeedsTOR(ImagePhantomBase):
     Attributes
     ----------
     lc_rois : list
-        :class:`~pylinac.planar_imaging.LowContrastDiskROI` instances of the low
+        :class:`~pylinac.core.roi.LowContrastDiskROI` instances of the low
         contrast ROIs.
     lc_ref_rois : list
-        :class:`~pylinac.planar_imaging.LowContrastDiskROI` instances of the low
+        :class:`~pylinac.core.roi.LowContrastDiskROI` instances of the low
         contrast reference ROIs, which are placed just inside each contrast ROI.
     hc_rois : list
-        :class:`~pylinac.planar_imaging.HighContrastDiskROI` instances of the
+        :class:`~pylinac.core.roi.HighContrastDiskROI` instances of the
         high contrast line pair regions.
     hc_ref_rois : list
-        :class:`~pylinac.planar_imaging.HighContrastDiskROI` instances of the
+        :class:`~pylinac.core.roi.HighContrastDiskROI` instances of the
         2 solid areas beside the high contrast line pair regions, which determine
         the normalized MTF value.
     """
@@ -410,9 +410,9 @@ class LeedsTOR(ImagePhantomBase):
         Returns
         -------
         contrast ROIs : list
-            :class:`~pylinac.planar_imaging.LowContrastDistROI` instances of the contrast ROIs.
+            :class:`~pylinac.core.roi.LowContrastDistROI` instances of the contrast ROIs.
         reference ROIs : list
-            :class:`~pylinac.planar_imaging.LowContrastDistROI` instances of the reference ROIs;
+            :class:`~pylinac.core.roi.LowContrastDistROI` instances of the reference ROIs;
             pixel values of the reference ROIs determines the background for the contrast ROIs.
         """
         angle = np.degrees(angle)
@@ -445,9 +445,9 @@ class LeedsTOR(ImagePhantomBase):
         Returns
         -------
         contrast ROIs : list
-            :class:`~pylinac.planar_imaging.HighContrastDiskROI` instances of the line pairs.
+            :class:`~pylinac.core.roi.HighContrastDiskROI` instances of the line pairs.
         reference ROIs : list
-            :class:`~pylinac.planar_imaging.HighContrastDiskROI` instances of the solid ROIs that
+            :class:`~pylinac.core.roi.HighContrastDiskROI` instances of the solid ROIs that
             determine the normalization value for MTF.
         """
         angle = np.degrees(angle)
