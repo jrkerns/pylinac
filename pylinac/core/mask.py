@@ -1,8 +1,5 @@
 """Module for processing "masked" arrays, i.e. binary images."""
-import copy
-
 import numpy as np
-from pylinac.core.decorators import timethis
 
 
 def bounding_box(array):
@@ -29,16 +26,6 @@ def square_ratio(array):
     y = abs(ymax - ymin)
     x = abs(xmax - xmin)
     return y/x
-
-
-def circle_mask(array, center, radius):
-    # http://scikit-image.org/docs/dev/auto_examples/plot_camera_numpy.html
-    masked_array = np.copy(array).astype(np.float)
-    l_x, l_y = array.shape[0], array.shape[1]
-    X, Y = np.ogrid[:l_x, :l_y]
-    outer_disk_mask = (X - center.y) ** 2 + (Y - center.x) ** 2 > radius ** 2
-    masked_array[outer_disk_mask] = np.NaN
-    return masked_array
 
 
 def sector_mask(shape, center, radius, angle_range=(0, 360)):

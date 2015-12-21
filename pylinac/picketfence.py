@@ -568,7 +568,7 @@ class PicketHandler:
     @property
     def passed(self):
         """Whether all the pickets passed tolerance."""
-        return all(picket.passed for picket in self)
+        return all(picket.passed_constant for picket in self)
 
     def __getitem__(self, item):
         return self.pickets[item]
@@ -672,11 +672,11 @@ class Picket:
     @property
     def passed(self):
         """Whether or not all the measurements passed."""
-        return all(meas.passed for meas in self.mlc_meas)
+        return all(meas.passed_constant for meas in self.mlc_meas)
 
     def mlc_passed(self, mlc):
         """Return whether a specific MLC has passed tolerance."""
-        return self.mlc_meas[mlc].passed
+        return self.mlc_meas[mlc].passed_constant
 
     def mlc_passed_action(self, mlc):
         """Return whether a specific MLC has passed the action tolerance."""

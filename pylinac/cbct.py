@@ -22,11 +22,12 @@ import numpy as np
 from scipy import ndimage
 
 from pylinac.core.decorators import value_accept
-from pylinac.core.geometry import Point, Circle, Line, Rectangle
+from pylinac.core.geometry import Point, Line
 from pylinac.core.image import Image, DicomImageStack
 from pylinac.core.io import get_url
-from pylinac.core.mask import filled_area_ratio, circle_mask
+from pylinac.core.mask import filled_area_ratio
 from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
+from pylinac.core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from pylinac.core.utilities import simple_round, import_mpld3
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
@@ -598,68 +599,6 @@ class Settings:
                              "wasn't loaded or the entire phantom wasn't scanned.")
 
 
-class RectangleROI(Rectangle):
-    """Class that represents a rectangular ROI."""
-    def __init__(self, array, width, height, angle, dist_from_center, phantom_center):
-        y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
-        x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
-        center = Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
-        super().__init__(width, height, center, as_int=True)
-        self._array = array
-
-    @property
-    def pixel_array(self):
-        """The pixel array within the ROI."""
-        return self._array[self.bl_corner.x:self.tr_corner.x, self.bl_corner.y:self.tr_corner.y]
-
-
-class DiskROI(Circle):
-    """An class representing a disk-shaped Region of Interest on a CBCT slice."""
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center):
-        """
-        Parameters
-        ----------
-        array : ndarray
-            The 2D array representing the image the disk is on.
-        angle : int, float
-            The angle of the ROI in degrees from the phantom center.
-        roi_radius : int, float
-            The radius of the ROI from the center of the phantom.
-        dist_from_center : int, float
-            The distance of the ROI from the phantom center.
-        phantom_center : tuple
-            The location of the phantom center.
-        """
-        center = self._get_shifted_center(angle, dist_from_center, phantom_center)
-        super().__init__(center_point=center, radius=roi_radius)
-        self._array = array
-
-    def _get_shifted_center(self, angle, dist_from_center, phantom_center):
-        """The center of the ROI; corrects for phantom dislocation and roll."""
-        y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
-        x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
-        return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
-
-    @property
-    @lru_cache(maxsize=1)
-    def pixel_value(self):
-        """The median pixel value of the ROI."""
-        masked_img = self._get_roi_mask()
-        return np.nanmedian(masked_img)
-
-    @property
-    @lru_cache(maxsize=1)
-    def std(self):
-        """The standard deviation of the pixel values."""
-        masked_img = self._get_roi_mask()
-        return np.nanstd(masked_img)
-
-    def _get_roi_mask(self):
-        """Return a masked array of the ROI."""
-        masked_img = circle_mask(self._array, self.center, self.radius)
-        return masked_img
-
-
 class HUDiskROI(DiskROI):
     """An HU ROI object. Represents a circular area measuring either HU sample (Air, Poly, ...)
     or HU uniformity (bottom, left, ...).
@@ -686,45 +625,6 @@ class HUDiskROI(DiskROI):
     def passed(self):
         """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
         return self.value_diff <= self.tolerance
-
-    @property
-    def plot_color(self):
-        """Return one of two colors depending on if ROI passed."""
-        return 'blue' if self.passed else 'red'
-
-
-class LowContrastDiskROI(DiskROI):
-    """A class for analyzing the low-contrast disks."""
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold, background=None):
-        """
-        Parameters
-        ----------
-        contrast_threshold : float, int
-            The threshold for considering a bubble to be "seen".
-        """
-        super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
-        self.contrast_threshold = contrast_threshold
-        self.background = background
-
-    @property
-    def contrast_to_noise(self):
-        """The contrast to noise ratio of the bubble: (Signal - Background)/Stdev."""
-        return (self.pixel_value - self.background)/self.std
-
-    @property
-    def contrast(self):
-        """The contrast of the bubble compared to background: (ROI - backg) / (ROI + backg)."""
-        return (self.pixel_value - self.background) / (self.pixel_value + self.background)
-
-    @property
-    def contrast_constant(self):
-        """The contrast value times the bubble diameter."""
-        return self.contrast_to_noise * self.diameter
-
-    @property
-    def passed(self):
-        """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
-        return self.contrast_constant > self.contrast_threshold
 
     @property
     def plot_color(self):
@@ -799,10 +699,13 @@ class ROIManagerMixin:
         """Return a dict of the HU values of the HU ROIs."""
         return {key: val.pixel_value for key, val in self.rois.items()}
 
-    def plot_rois(self, axis):
+    def plot_rois(self, axis, threshold=None):
         """Plot the ROIs to the axis."""
         for roi in self.rois.values():
-            roi.plot2axes(axis, edgecolor=roi.plot_color)
+            if not threshold:
+                roi.plot2axes(axis, edgecolor=roi.plot_color)
+            else:
+                roi.plot2axes(axis, edgecolor=roi.plot_color_constant)
 
 
 class Slice:
@@ -869,7 +772,7 @@ class Slice:
         # Check that the ROI is circular
         expected_fill_ratio = np.pi / 4
         actual_fill_ratio = filled_area_ratio(catphan_arr)
-        if (expected_fill_ratio * 1.02 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.95):
+        if (expected_fill_ratio * 1.02 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.9):
             raise ValueError("Unable to locate the CatPhan")
         # get center pixel based on ROI location
         center_pixel = ndimage.center_of_mass(catphan_arr)
@@ -1073,11 +976,11 @@ class LowContrastSlice(Slice, ROIManagerMixin):
     @property
     def rois_visible(self):
         """The number of ROIs "visible"."""
-        return sum(roi.passed for roi in self.rois.values())
+        return sum(roi.passed_constant for roi in self.rois.values())
 
     def plot_rois(self, axis):
         """Plot the ROIs to an axis."""
-        super().plot_rois(axis)
+        super().plot_rois(axis, threshold='constant')
         for roi in self.inner_bg_rois.values():
             roi.plot2axes(axis, 'blue')
         for roi in self.outer_bg_rois.values():
@@ -1086,7 +989,7 @@ class LowContrastSlice(Slice, ROIManagerMixin):
     @property
     def overall_passed(self):
         """Whether there were enough low contrast ROIs "seen"."""
-        return sum(roi.passed for roi in self.rois.values()) >= self.tolerance
+        return sum(roi.passed_constant for roi in self.rois.values()) >= self.tolerance
 
     def plot_contrast(self, axis=None):
         """Plot the contrast constant.
@@ -1387,7 +1290,7 @@ class GeoDiskROI(DiskROI):
         bw_node : numpy.array
             A masked 2D array the size of the Slice image, where only the node pixels have a value.
         """
-        masked_img = self._get_roi_mask()
+        masked_img = self.circle_mask()
         # threshold image
         upper_band_pass = np.where(masked_img > np.nanmedian(masked_img) * 1.4, 1, 0)
         lower_band_pass = np.where(masked_img < np.nanmedian(masked_img) * 0.6, 1, 0)

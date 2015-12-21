@@ -535,7 +535,7 @@ class SegmentManager:
     @property
     def passed(self):
         """Return whether all the images passed."""
-        return all(segment.passed for segment in self.segments)
+        return all(segment.passed_constant for segment in self.segments)
 
 
 class Segment(Rectangle):

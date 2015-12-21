@@ -149,7 +149,7 @@ class CBCTMixin:
 
     def test_slice_thickness(self):
         """Test the slice thickness."""
-        self.assertEqual(self.cbct.thickness.passed, self.thickness_passed)
+        self.assertEqual(self.cbct.thickness.passed_constant, self.thickness_passed)
 
     def test_lowcontrast_bubbles(self):
         """Test the number of low contrast bubbles visible."""
