@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import feature, measure
 
-from pylinac.cbct import DiskROI, LowContrastDiskROI as LCDiskROI
+from pylinac.core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
 from pylinac.core.geometry import Point
 from pylinac.core.image import Image
 from pylinac.core.io import get_url
@@ -58,9 +58,59 @@ class ImagePhantomBase:
         self.plot_analyzed_image(show=False)
         plt.savefig(filename, **kwargs)
 
+    def _get_canny_regions(self, sigma=2, percentiles=(0.001, 0.01)):
+        """Compute the canny edges of the image and return the connected regions found."""
+        # copy, filter, and ground the image
+        img_copy = copy.copy(self.image)
+        img_copy.filter(kind='gaussian', size=sigma)
+        img_copy.ground()
+
+        # computer the canny edges with very low thresholds (detects nearly everything)
+        lo_th, hi_th = np.percentile(img_copy, percentiles)
+        c = feature.canny(img_copy, low_threshold=lo_th, high_threshold=hi_th)
+
+        # label the canny edge regions
+        labeled = measure.label(c)
+        regions = measure.regionprops(labeled, intensity_image=img_copy)
+        return regions
+
+    def _plot_lowcontrast(self, axes, rois, threshold):
+        """Plot the low contrast ROIs to an axes."""
+        line1, = axes.plot([roi.contrast for roi in rois], marker='o', color='m', label='Contrast')
+        axes.axhline(threshold, color='k')
+        axes.grid('on')
+        axes.set_title('Low-frequency Contrast')
+        axes.set_xlabel('ROI #')
+        axes.set_ylabel('Contrast')
+        axes2 = axes.twinx()
+        line2, = axes2.plot([roi.contrast_to_noise for roi in rois], marker='^', label='CNR')
+        axes.legend(handles=[line1, line2])
+
+    def _plot_highcontrast(self, axes, rois, threshold):
+        """Plot the high contrast ROIs to an axes."""
+        axes.plot(rois, marker='*')
+        axes.axhline(threshold, color='k')
+        axes.grid('on')
+        axes.set_title('High-frequency rMTF')
+        axes.set_xlabel('Line pair region #')
+        axes.set_ylabel('relative MTF')
+
 
 class PipsProQC3(ImagePhantomBase):
-    """Class for analyzing high and low contrast of the PipsPro QC-3 MV phantom."""
+    """Class for analyzing high and low contrast of the PipsPro QC-3 MV phantom.
+
+    Attributes
+    ----------
+    lc_rois : list
+        :class:`~pylinac.planar_imaging.LowContrastDiskROI` instances of the low
+        contrast ROIs, other than the reference ROI (below).
+    lc_ref_rois : list
+        :class:`~pylinac.planar_imaging.LowContrastDiskROI` instance of the low
+        contrast reference ROI (15mm PVC).
+    hc_rois : list
+        :class:`~pylinac.planar_imaging.HighContrastDiskROI` instances of the
+        high contrast line pair regions.
+    """
     _demo_filename = 'pipspro.dcm'
 
     @staticmethod
@@ -70,11 +120,88 @@ class PipsProQC3(ImagePhantomBase):
         pp.analyze()
         pp.plot_analyzed_image()
 
+    def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.5, invert=False):
+        """Analyze the PipsPro phantom.
+
+        Parameters
+        ----------
+        low_contrast_threshold : float
+            The threshold for the low-contrast bubbles to be "seen".
+        hi_contrast_threshold : float
+            The threshold percentage that the relative MTF must be above to be "seen". Must be between 0 and 1.
+        invert : bool
+            Whether to force an inversion of the image. Pylinac tries to infer the correct inversion but uneven
+            backgrounds can cause this analysis to fail. If the contrasts/MTF ROIs appear correctly located but the
+            plots are wonky, try setting this to True.
+        """
+        self.image.check_inversion(box_size=30, offset=int(0.05 * max(self.image.shape)))
+        if invert:
+            self.image.invert()
+        self.low_contrast_threshold = low_contrast_threshold
+        self.hi_contrast_threshold = hi_contrast_threshold
+
+        self.lc_ref_rois, self.lc_rois = self._low_contrast()
+        self.hc_rois = self._high_contrast()
+
+    def plot_analyzed_image(self, image=True, low_contrast=True, high_contrast=True, show=True):
+        """Plot the analyzed image.
+
+        Parameters
+        ----------
+        image : bool
+            Show the image.
+        low_contrast : bool
+            Show the low contrast values plot.
+        high_contrast : bool
+            Show the high contrast values plot.
+        show : bool
+            Whether to actually show the image when called.
+        """
+        num_plots = sum((image, low_contrast, high_contrast))
+        if num_plots < 1:
+            return
+        # set up axes and make axes iterable
+        fig, axes = plt.subplots(1, num_plots)
+        fig.subplots_adjust(wspace=0.4)
+        if num_plots < 2:
+            axes = (axes,)
+        axes = iter(axes)
+
+        # plot the marked image
+        if image:
+            img_ax = next(axes)
+            self.image.plot(ax=img_ax, show=False)
+            img_ax.axis('off')
+            img_ax.set_title('PipsPro Phantom Analysis')
+
+            # plot the low contrast ROIs
+            self.lc_ref_rois.plot2axes(img_ax, edgecolor='b')
+            for roi in self.lc_rois:
+                roi.plot2axes(img_ax, edgecolor=roi.plot_color_constant)
+            # plot the high-contrast ROIs
+            for roi in self.hc_rois:
+                roi.plot2axes(img_ax, edgecolor='b')
+
+        # plot the low contrast values
+        if low_contrast:
+            lowcon_ax = next(axes)
+            self._plot_lowcontrast(lowcon_ax, self.lc_rois, self.low_contrast_threshold)
+
+        # plot the high contrast MTF
+        if high_contrast:
+            hicon_ax = next(axes)
+            mtfs = [roi.mtf for roi in self.hc_rois]
+            mtfs /= mtfs[0]
+            self._plot_highcontrast(hicon_ax, mtfs, self.hi_contrast_threshold)
+
+        if show:
+            plt.show()
+
     @property
     @lru_cache()
     def _phan_region(self):
         """The skimage region of the phantom outline."""
-        regions = _get_canny_regions(self.image)
+        regions = self._get_canny_regions()
         blobs = []
         for phantom_idx, region in enumerate(regions):
             if region.area < 50:
@@ -124,10 +251,7 @@ class PipsProQC3(ImagePhantomBase):
         -------
         center : Point
         """
-        bbox = self._phan_region.bbox
-        y = abs(bbox[0] - bbox[2]) / 2 + min(bbox[0], bbox[2])
-        x = abs(bbox[1] - bbox[3]) / 2 + min(bbox[1], bbox[3])
-        return Point(x, y)
+        return bbox_center(self._phan_region)
 
     def _low_contrast(self):
         """Sample the detail contrast regions."""
@@ -154,86 +278,26 @@ class PipsProQC3(ImagePhantomBase):
             rrois.append(roi)
         return rrois
 
-    def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.5, invert=False):
-        """Analyze the PipsPro phantom.
-
-        Parameters
-        ----------
-        low_contrast_threshold : float
-            The threshold for the low-contrast bubbles to be "seen".
-        hi_contrast_threshold : float
-            The threshold percentage that the relative MTF must be above to be "seen". Must be between 0 and 1.
-        invert : bool
-            Whether to force an inversion of the image. Pylinac tries to infer the correct inversion but uneven
-            backgrounds can cause this analysis to fail. If the contrasts/MTF ROIs appear correctly located but the
-            plots are wonky, try setting this to True.
-        """
-        self.image.check_inversion(box_size=30, offset=int(0.05 * max(self.image.shape)))
-        if invert:
-            self.image.invert()
-        self.low_contrast_threshold = low_contrast_threshold
-        self.hi_contrast_threshold = hi_contrast_threshold
-
-        self._lcbgroi, self._lcrois = self._low_contrast()
-        self._hcrois = self._high_contrast()
-
-    def plot_analyzed_image(self, image=True, low_contrast=True, high_contrast=True, show=True):
-        """Plot the analyzed image.
-
-        Parameters
-        ----------
-        image : bool
-            Show the image.
-        low_contrast : bool
-            Show the low contrast values plot.
-        high_contrast : bool
-            Show the high contrast values plot.
-        show : bool
-            Whether to actually show the image when called.
-        """
-        num_plots = sum((image, low_contrast, high_contrast))
-        if num_plots < 1:
-            return
-        # set up axes and make axes iterable
-        fig, axes = plt.subplots(1, num_plots)
-        fig.subplots_adjust(wspace=0.4)
-        if num_plots < 2:
-            axes = (axes,)
-        axes = iter(axes)
-
-        # plot the marked image
-        if image:
-            img_ax = next(axes)
-            self.image.plot(ax=img_ax, show=False)
-            img_ax.axis('off')
-            img_ax.set_title('PipsPro Phantom Analysis')
-
-            # plot the low contrast ROIs
-            self._lcbgroi.plot2axes(img_ax, edgecolor='b')
-            for roi in self._lcrois:
-                roi.plot2axes(img_ax, edgecolor=roi.plot_color)
-            # plot the high-contrast ROIs
-            for roi in self._hcrois:
-                roi.plot2axes(img_ax, edgecolor=roi.plot_color)
-
-        # plot the low contrast values
-        if low_contrast:
-            lowcon_ax = next(axes)
-            _plot_lowcontrast(lowcon_ax, self._lcrois, self.low_contrast_threshold)
-
-        # plot the high contrast MTF
-        if high_contrast:
-            hicon_ax = next(axes)
-            mtfs = [roi.mtf for roi in self._hcrois]
-            mtfs /= mtfs[0]
-            _plot_highcontrast(hicon_ax, mtfs, self.hi_contrast_threshold)
-
-        if show:
-            plt.show()
-
 
 class LeedsTOR(ImagePhantomBase):
-    """Class that analyzes Leeds TOR phantom planar kV images for kV QA."""
+    """Class that analyzes Leeds TOR phantom planar kV images for kV QA.
+
+    Attributes
+    ----------
+    lc_rois : list
+        :class:`~pylinac.planar_imaging.LowContrastDiskROI` instances of the low
+        contrast ROIs.
+    lc_ref_rois : list
+        :class:`~pylinac.planar_imaging.LowContrastDiskROI` instances of the low
+        contrast reference ROIs, which are placed just inside each contrast ROI.
+    hc_rois : list
+        :class:`~pylinac.planar_imaging.HighContrastDiskROI` instances of the
+        high contrast line pair regions.
+    hc_ref_rois : list
+        :class:`~pylinac.planar_imaging.HighContrastDiskROI` instances of the
+        2 solid areas beside the high contrast line pair regions, which determine
+        the normalized MTF value.
+    """
     _demo_filename = 'leeds.dcm'
 
     @property
@@ -244,7 +308,7 @@ class LeedsTOR(ImagePhantomBase):
         for idx, region in enumerate(self._regions):
             if region.area < 100:
                 continue
-            round = region.eccentricity < 0.25
+            round = region.eccentricity < 0.3
             if round:
                 blobs.append(idx)
         if not blobs:
@@ -255,7 +319,7 @@ class LeedsTOR(ImagePhantomBase):
     @lru_cache()
     def _regions(self):
         """All the regions of the canny image that were labeled."""
-        regions = _get_canny_regions(self.image)
+        regions = self._get_canny_regions()
         return regions
 
     def _determine_phantom_center(self):
@@ -273,9 +337,9 @@ class LeedsTOR(ImagePhantomBase):
                    np.isclose(self._regions[roi].major_axis_length, self._determine_radius() * 3.35, rtol=0.3)]
 
         # get average center of all circles
-        bboxs = [self._regions[roi].bbox for roi in circles]
-        y = np.mean([abs(bbox[0] - bbox[2]) / 2 + min(bbox[0], bbox[2]) for bbox in bboxs])
-        x = np.mean([abs(bbox[1] - bbox[3]) / 2 + min(bbox[1], bbox[3]) for bbox in bboxs])
+        circle_rois = [self._regions[roi] for roi in circles]
+        y = np.mean([bbox_center(roi).y for roi in circle_rois])
+        x = np.mean([bbox_center(roi).x for roi in circle_rois])
         return Point(x, y)
 
     def _determine_phantom_angle(self, center):
@@ -302,9 +366,7 @@ class LeedsTOR(ImagePhantomBase):
         regions = self._regions
         lead_idx = np.argsort([regions[roi].mean_intensity for roi in square_rois])[-1]
         lead_roi = regions[square_rois[lead_idx]]
-        y = abs(lead_roi.bbox[0] - lead_roi.bbox[2]) / 2 + min(lead_roi.bbox[0], lead_roi.bbox[2])
-        x = abs(lead_roi.bbox[1] - lead_roi.bbox[3]) / 2 + min(lead_roi.bbox[1], lead_roi.bbox[3])
-        lead_center = Point(x, y)
+        lead_center = bbox_center(lead_roi)
 
         adjacent = lead_center.x - center.x
         opposite = lead_center.y - center.y
@@ -445,11 +507,16 @@ class LeedsTOR(ImagePhantomBase):
         angle = self._determine_phantom_angle(center)
         if not self._is_clockwise(center, radius, angle):
             center, angle = self._flip_image_data(center, angle)
-        self.lcrois, self.lcrrois = self._low_contrast(radius, center, angle)
-        self.hcrois, self.hcrrois = self._high_contrast(radius, angle, center)
+        self.lc_rois, self.lc_ref_rois = self._low_contrast(radius, center, angle)
+        self.hc_rois, self.hc_ref_rois = self._high_contrast(radius, angle, center)
 
     def _flip_image_data(self, center, angle):
-        """Flip the image left->right and invert the center, and angle as appropriate."""
+        """Flip the image left->right and invert the center, and angle as appropriate.
+
+        Sometimes the Leeds phantom is set upside down on the imaging panel. Pylinac's
+        analysis goes counter-clockwise, so this method flips the image and coordinates to
+        make the image ccw. Quicker than flipping the image and reanalyzing.
+        """
         self.image.array = np.fliplr(self.image.array)
         new_x = self.image.shape[1] - center.x
         new_center = Point(new_x, center.y)
@@ -487,117 +554,27 @@ class LeedsTOR(ImagePhantomBase):
             img_ax.set_title('Leeds TOR Phantom Analysis')
 
             # plot the low contrast ROIs
-            for roi in self.lcrois:
+            for roi in self.lc_rois:
                 roi.plot2axes(img_ax, edgecolor=roi.plot_color)
-            for roi in self.lcrrois:
+            for roi in self.lc_ref_rois:
                 roi.plot2axes(img_ax, edgecolor='g')
             # plot the high-contrast ROIs
-            for roi in self.hcrois:
+            for roi in self.hc_rois:
                 roi.plot2axes(img_ax, edgecolor=roi.plot_color)
-            for roi in self.hcrrois:
+            for roi in self.hc_ref_rois:
                 roi.plot2axes(img_ax, edgecolor='g')
 
         # plot the low contrast values
         if low_contrast:
             lowcon_ax = next(axes)
-            _plot_lowcontrast(lowcon_ax, self.lcrois, self.low_contrast_threshold)
+            self._plot_lowcontrast(lowcon_ax, self.lc_rois, self.low_contrast_threshold)
 
         # plot the high contrast MTF
         if high_contrast:
             hicon_ax = next(axes)
-            hc_rois = [roi.mtf for roi in self.hcrois]
+            hc_rois = [roi.mtf for roi in self.hc_rois]
             hc_rois.insert(0, 1)
-            _plot_highcontrast(hicon_ax, hc_rois, self.hi_contrast_threshold)
+            self._plot_highcontrast(hicon_ax, hc_rois, self.hi_contrast_threshold)
 
         if show:
             plt.show()
-
-
-class LowContrastDiskROI(LCDiskROI):
-    """A low-contrast ROI class that uses the actual contrast value for pass/fail status rather than the contrast constant."""
-
-    @property
-    def passed(self):
-        return self.contrast > self.contrast_threshold
-
-
-class HighContrastDiskROI(DiskROI):
-    """A class for analyzing the high-contrast disks."""
-
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold, mtf_norm=None):
-        """
-        Parameters
-        ----------
-        contrast_threshold : float, int
-            The threshold for considering a bubble to be "seen".
-        """
-        super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
-        self.contrast_threshold = contrast_threshold
-        self.mtf_norm = mtf_norm
-
-    @property
-    def mtf(self):
-        """The contrast of the bubble compared to background: (ROI - backg) / (ROI + backg)."""
-        mtf = (self.max - self.min) / (self.max + self.min)
-        if self.mtf_norm is not None:
-            mtf /= self.mtf_norm
-        return mtf
-
-    @property
-    def passed(self):
-        """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
-        return self.mtf > self.contrast_threshold
-
-    @property
-    def plot_color(self):
-        """Return one of two colors depending on if ROI passed."""
-        return 'blue' if self.passed else 'red'
-
-    @property
-    @lru_cache()
-    def max(self):
-        """The max pixel value of the ROI."""
-        masked_img = self._get_roi_mask()
-        return np.nanmax(masked_img)
-
-    @property
-    @lru_cache()
-    def min(self):
-        """The min pixel value of the ROI."""
-        masked_img = self._get_roi_mask()
-        return np.nanmin(masked_img)
-
-
-def _get_canny_regions(image, sigma=2, percentiles=(0.001, 0.01)):
-    """Compute the canny edges of the image and return the connected regions found."""
-    img_copy = copy.copy(image)
-    img_copy.filter(kind='gaussian', size=sigma)
-    img_copy.ground()
-    lo_th, hi_th = np.percentile(img_copy, percentiles)
-    c = feature.canny(img_copy, low_threshold=lo_th, high_threshold=hi_th)
-    labeled = measure.label(c)
-    regions = measure.regionprops(labeled, intensity_image=img_copy)
-    return regions
-
-
-def _plot_lowcontrast(axes, rois, threshold):
-    """Plot the low contrast ROIs to an axes."""
-    line1, = axes.plot([roi.contrast for roi in rois], marker='o', color='m', label='Contrast')
-    axes.axhline(threshold, color='k')
-    axes.grid('on')
-    axes.set_title('Low-frequency Contrast')
-    axes.set_xlabel('ROI #')
-    axes.set_ylabel('Contrast')
-    axes2 = axes.twinx()
-    line2, = axes2.plot([roi.contrast_to_noise for roi in rois], marker='^', label='CNR')
-    axes.legend(handles=[line1, line2])
-
-
-def _plot_highcontrast(axes, rois, threshold):
-    """Plot the high contrast ROIs to an axes."""
-    axes.plot(rois, marker='*')
-    axes.axhline(threshold, color='k')
-    axes.grid('on')
-    axes.set_title('High-frequency rMTF')
-    axes.set_xlabel('Line pair region #')
-    axes.set_ylabel('relative MTF')
