@@ -350,7 +350,7 @@ class TestImageBank(TestCase):
                 if files and files[0].endswith('.dcm'):
                     future = exec.submit(run_cbct, pdir)
                     futures.append(future)
-            for future in concurrent.futures.as_completed(futures):
-                print(future.result())
+            for idx, future in enumerate(concurrent.futures.as_completed(futures)):
+                print(future.result(), idx)
         end = time.time() - start
         print('Processing of {} files took {}s'.format(len(futures), end))
