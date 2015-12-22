@@ -174,11 +174,13 @@ A figure showing the phantom, low contrast plot, and RMTF will be generated:
 
 .. image:: images/pipspro_analysis.png
 
+.. _pipspro_image_acquisition:
+
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
 
 The PipsPro phantom has a specific setup as recommended by the manufacturer. The phantom should be angled 45
-degrees, with the "1" pointed toward the gantry stand and centered on the EPID. For best results when using pylinac,
+degrees, with the "1" pointed toward the gantry stand and centered along the CAX. For best results when using pylinac,
 open the jaws to fully cover the EPID.
 
 Typical Use
@@ -259,6 +261,17 @@ The algorithm works like such:
 
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+Troubleshooting
+^^^^^^^^^^^^^^^
+
+If you're having issues with the PipsPro class, make sure you have correctly positioned the phantom as per
+the manufacturer's instructions (also see :ref:`pipspro_image_acquisition`). One issue that may arise is incorrect
+inversion. If the jaws are closed tightly around the phantom, the automatic inversion correction may falsely
+invert the image, just as for the Leeds phantom. If you have an image like the one below, add ``invert=True``
+to :meth:`~pylinac.planar_imaging.PipsProQC3.analyze`.
+
+.. image:: images/closed_pipspro.jpg
 
 
 API Documentation

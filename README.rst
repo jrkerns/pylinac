@@ -32,8 +32,8 @@ for creating your own radiation therapy algorithms.
 
 Below are the high-level tools currently available:
 
-* `Planar Phantom Analysis (Leeds) <http://pylinac.readthedocs.org/en/latest/planar_imaging.html>`_ -
-   The planar imaging module analyzes 2D phantoms. Currently only the LeedsTOR phantom is supported.
+* `Planar Phantom Analysis (Leeds TOR, PipsPro QC-3) <http://pylinac.readthedocs.org/en/latest/planar_imaging.html>`_ -
+   The planar imaging module analyzes 2D phantoms. Currently only the LeedsTOR kV phantom and PipsPro QC-3 MV phantom.
 
    Features:
 
@@ -42,14 +42,19 @@ Below are the high-level tools currently available:
    * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
      as you see fit.
 
-    Example script::
+   Example script::
 
-        from pylinac import LeedsTOR
+        from pylinac import LeedsTOR, PipsProQC3
 
-        path = 'path/to/image.dcm`
+        path = 'path/to/leeds.dcm`
         leeds = LeedsTOR(path)
         leeds.analyze()
         leeds.plot_analyzed_image()
+
+        path = 'path/to/pipspro.dcm'
+        pp = PipsProQC3(path)
+        pp.analyze()
+        pp.plot_analyzed_image()
 
 * `Winston-Lutz Analysis <http://pylinac.readthedocs.org/en/latest/winston_lutz.html>`_ -
     The Winston-Lutz module analyzes EPID images taken of a small radiation field and BB to determine the 2D
