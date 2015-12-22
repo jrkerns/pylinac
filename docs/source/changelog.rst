@@ -10,8 +10,11 @@ General Changes
 ^^^^^^^^^^^^^^^
 
 * A new dependency has been added: `scikit-image <http://scikit-image.org/>`_. Given that pylinac is largely an image
-  processing library, this is actually overdue. The package is easily installed via
-  ``conda install scikit-image`` if using the Anaconda distribution.
+  processing library, this is actually overdue. Several extremely helpful functions exist that are made use
+  of in both the new modules and will slowly be incorporated into the old modules as needed.
+  The package is easily installed via pip (``pip install scikit-image``)
+  or via conda (``conda install scikit-image``) if using the Anaconda distribution. Finally, if simply upgrading
+  pylinac scikit-image will automatically install via pip. For the sake of installation speed I'd recommend conda.
 * A new planar imaging class has been added:
   `PipsProQC3 <http://pylinac.readthedocs.org/en/latest/planar_imaging.html#pipspro-phantom>`_.
   This class analyzes the PipsPro QC-3 MV imaging phantom. The class locates and analyzes low and high contrast ROIs.
