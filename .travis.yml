@@ -7,6 +7,11 @@ python:
 sudo:
   false
 
+cache:
+  directories:
+    - $HOME/miniconda
+    - $HOME/.cache/pip
+
 install:
 
   # Install conda
