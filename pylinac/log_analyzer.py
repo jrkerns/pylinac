@@ -981,10 +981,7 @@ class Fluence(metaclass=ABCMeta):
     @property
     def map_calced(self):
         """Return a boolean specifying whether the fluence has been calculated."""
-        if hasattr(self.pixel_map, 'size'):
-            return True
-        else:
-            return False
+        return hasattr(self.pixel_map, 'size')
 
     @lru_cache()
     def calc_map(self, resolution=0.1):
@@ -1057,7 +1054,6 @@ class Fluence(metaclass=ABCMeta):
                     right_edge = min(rt_mlc_pos, rt_jaw_pos)
                     fluence_line[int(left_edge):int(right_edge)] = MU_cumulative
                 fluence[pair - 1, :] = fluence_line
-
 
         return fluence
 
