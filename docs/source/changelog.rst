@@ -15,15 +15,21 @@ General Changes
   The package is easily installed via pip (``pip install scikit-image``)
   or via conda (``conda install scikit-image``) if using the Anaconda distribution. Finally, if simply upgrading
   pylinac scikit-image will automatically install via pip. For the sake of installation speed I'd recommend conda.
-* A new planar imaging class has been added:
-  `PipsProQC3 <http://pylinac.readthedocs.org/en/latest/planar_imaging.html#pipspro-phantom>`_.
-  This class analyzes the PipsPro QC-3 MV imaging phantom. The class locates and analyzes low and high contrast ROIs.
 * ROI sampling for CBCT and Leeds classes have been sped up ~10x, making analysis moderately to much faster.
 * All user-interface dialog functions/methods have been deprecated. E.g. ``PicketFence.from_UI()`` is
   no longer a valid method. To retain similar functionality use Tk to open your own dialog box and
   then pass in the file name. Specifically, this applies to the VMAT, Starshot, PicketFence, MachineLog(s),
   FlatSym, and CBCT classes. The original goal of pylinac was to be used for a standalone desktop application.
   The assuranceqa.com web interface is the successor to that idea and does not need those UI methods.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* A new planar imaging class has been added:
+  `PipsProQC3 <http://pylinac.readthedocs.org/en/latest/planar_imaging.html#pipspro-phantom>`_.
+  This class analyzes the PipsPro QC-3 MV imaging phantom. The class locates and analyzes low and high contrast ROIs.
+* The Leeds phantom utilizes the scikit-image library to do a canny edge search to find the phantom.
+  This will bring more stability for this class.
 
 V 1.2.2
 -------
