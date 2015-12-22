@@ -103,7 +103,7 @@ class Demo(StarMixin, unittest.TestCase):
     def test_fails_with_tight_tol(self):
         star = Starshot.from_demo_image()
         star.analyze(tolerance=0.1)
-        self.assertFalse(star.passed_constant)
+        self.assertFalse(star.passed)
 
     def test_bad_inputs_still_recovers(self):
         self.star.analyze(radius=0.3, min_peak_height=0.1)
