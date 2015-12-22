@@ -33,6 +33,7 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 * matplotlib >= 1.3.1
 * pydicom >= 0.9.9
 * Pillow >= 2.5
+* scikit-image >= 0.11
 
 See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/user/install.html>`_ if you don't yet have them.
 

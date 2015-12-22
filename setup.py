@@ -6,8 +6,8 @@ from setuptools import setup, find_packages
 
 # 2 alt. To make a wheel, run $ python setup.py sdist bdist_wheel [upload]
 
-__version__ = '1.2.2'
-__version_info__ = (1, 2, 2)
+__version__ = '1.3.0'
+__version_info__ = (1, 3, 0)
 
 
 setup(
@@ -34,6 +34,7 @@ setup(
                       "scipy >= 0.15",
                       "pydicom >= 0.9.9",
                       "matplotlib >= 1.3.1",
+                      "scikit-image >= 0.11",
                       "Pillow >= 2.5"],
     test_suite='tests._test_all',
     classifiers=[
