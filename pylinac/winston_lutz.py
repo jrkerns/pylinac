@@ -20,12 +20,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage, optimize
 
-from pylinac.core.geometry import Point, Line, Circle, Vector, tan, cos, sin
-from pylinac.core.image import DicomImage, Image
-from pylinac.core.io import load_zipfile
-from pylinac.core.mask import filled_area_ratio, bounding_box
-from pylinac.core.profile import SingleProfile
-from pylinac.core.utilities import is_close
+from .core.geometry import Point, Line, Circle, Vector, tan, cos, sin
+from .core.image import DicomImage, Image
+from .core.io import TemporaryZipDirectory
+from .core.mask import filled_area_ratio, bounding_box
+from .core.profile import SingleProfile
+from .core.utilities import is_close
 
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'
@@ -62,8 +62,7 @@ class WinstonLutz:
         ----------
         images : :class:`~pylinac.winston_lutz.ImageManager` instance
         """
-        if directory is not None:
-            self.images = ImageManager(directory)
+        self.images = ImageManager(directory)
 
     @staticmethod
     def run_demo():
@@ -75,7 +74,7 @@ class WinstonLutz:
     @classmethod
     def from_demo_images(cls):
         """Instantiate using the demo images."""
-        demo_path = osp.join(osp.dirname(osp.abspath(__file__)), "demo_files", 'winston_lutz', 'winston_lutz.zip')
+        demo_path = osp.join(osp.dirname(osp.abspath(__file__)), 'demo_files', 'winston_lutz', 'winston_lutz.zip')
         obj = cls.from_zip(demo_path)
         return obj
 
@@ -85,11 +84,11 @@ class WinstonLutz:
 
         Parameters
         ----------
-        zfile : str, zipfile.ZipFile object
-            Path to the zipfile or Python ZipFile object.
+        zfile : str
+            Path to the archive file.
         """
-        obj = cls()
-        obj.images = ImageManager(zfile, zip=True)
+        with TemporaryZipDirectory(zfile) as tmpz:
+            obj = cls(tmpz)
         return obj
 
     @lru_cache()
@@ -320,35 +319,22 @@ class WinstonLutz:
 
 class ImageManager(list):
     """Manages the images of a Winston-Lutz test."""
-    def __init__(self, directory, zip=False):
+    def __init__(self, directory):
         """
         Parameters
         ----------
         directory : str
             The path to the images.
-        zip : bool
-            Whether or not `directory` points to a zip file.
         """
         super().__init__()
-        if not zip:
-            # load all DICOM files
-            for basefile in os.listdir(directory):
-                file = osp.join(directory, basefile)
-                try:
-                    image = WLImage(file)
-                except:
-                    pass  # not a DICOM file
-                else:
-                    self.append(image)
-        else:
-            files = load_zipfile(directory, read=True)
-            for file in files:
-                try:
-                    image = WLImage(file)
-                except:
-                    pass  # not a DICOM file
-                else:
-                    self.append(image)
+        for basefile in os.listdir(directory):
+            file = osp.join(directory, basefile)
+            try:
+                image = WLImage(file)
+            except:
+                pass  # not a DICOM file
+            else:
+                self.append(image)
 
 
 class WLImage(DicomImage):
