@@ -37,7 +37,7 @@ REFERENCE = 'Reference'
 class WinstonLutz:
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
-    def __init__(self, directory=None):
+    def __init__(self, directory):
         """
         Parameters
         ----------

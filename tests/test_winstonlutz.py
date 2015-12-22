@@ -26,7 +26,7 @@ class GeneralTests(TestCase):
             wl = WinstonLutz(tempz)
 
     def test_run_demo(self):
-        WinstonLutz().run_demo()  # shouldn't raise
+        WinstonLutz.run_demo()  # shouldn't raise
 
     def test_plot(self):
         self.wl.plot_images()  # shouldn't raise

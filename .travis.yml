@@ -21,7 +21,6 @@ install:
   - chmod +x miniconda.sh
   - ./miniconda.sh -b
   - cd ..
-#  - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda3/bin:$PATH"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
