@@ -4,11 +4,11 @@ import os.path as osp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pylinac.core.decorators import type_accept
-from pylinac.core.image import Image
-from pylinac.core.io import is_valid_file
-from pylinac.core.profile import SingleProfile
-from pylinac.core.utilities import is_iterable, isnumeric
+from .core.decorators import type_accept
+from .core.image import Image
+from .core.io import is_valid_file
+from .core.profile import SingleProfile
+from .core.utilities import is_iterable, isnumeric
 
 
 class _Symmetry:

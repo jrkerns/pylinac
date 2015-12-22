@@ -3,7 +3,7 @@ from functools import lru_cache
 
 import numpy as np
 
-from pylinac.core.geometry import Circle, Point, Rectangle
+from .geometry import Circle, Point, Rectangle
 
 
 def bbox_center(region):

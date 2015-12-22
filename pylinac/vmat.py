@@ -16,12 +16,12 @@ import os.path as osp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pylinac.core.decorators import value_accept, type_accept
-from pylinac.core.geometry import Point, Rectangle
-from pylinac.core.image import Image
-from pylinac.core.io import get_url, load_zipfile
-from pylinac.core.profile import SingleProfile
-from pylinac.core.utilities import typed_property, import_mpld3
+from .core.decorators import value_accept, type_accept
+from .core.geometry import Point, Rectangle
+from .core.image import Image
+from .core.io import get_url, load_zipfile
+from .core.profile import SingleProfile
+from .core.utilities import typed_property, import_mpld3
 
 # test types
 DRGS = 'drgs'
@@ -535,7 +535,7 @@ class SegmentManager:
     @property
     def passed(self):
         """Return whether all the images passed."""
-        return all(segment.passed_constant for segment in self.segments)
+        return all(segment.passed for segment in self.segments)
 
 
 class Segment(Rectangle):
@@ -630,10 +630,3 @@ def _x_in_y(x, y):
         return True
     else:
         return False
-
-
-# -------------------
-# VMAT demo
-# -------------------
-if __name__ == '__main__':
-    VMAT().run_demo_drmlc()

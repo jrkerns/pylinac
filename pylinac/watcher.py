@@ -13,7 +13,7 @@ try:
 except ImportError:
     raise ImportError("Watchdog must be installed to perform file watching.")
 
-from pylinac import CBCT, VMAT, Starshot, PicketFence, MachineLog, WinstonLutz
+from . import CBCT, VMAT, Starshot, PicketFence, MachineLog, WinstonLutz
 
 logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',

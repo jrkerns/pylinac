@@ -6,7 +6,7 @@ import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 
-from pylinac.core.utilities import is_iterable
+from .utilities import is_iterable
 
 
 def tan(degrees):

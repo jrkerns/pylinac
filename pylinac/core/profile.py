@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 from scipy.interpolate import interp1d
 
-from pylinac.core.decorators import value_accept
-from pylinac.core.geometry import Point, Circle
+from .decorators import value_accept
+from .geometry import Point, Circle
 
 LEFT = 'left'
 RIGHT = 'right'

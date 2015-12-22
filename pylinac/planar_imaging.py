@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import feature, measure
 
-from pylinac.core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
-from pylinac.core.geometry import Point
-from pylinac.core.image import Image
-from pylinac.core.io import get_url
-from pylinac.core.profile import CollapsedCircleProfile
+from .core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
+from .core.geometry import Point
+from .core.image import Image
+from .core.io import get_url
+from .core.profile import CollapsedCircleProfile
 
 
 class ImagePhantomBase:

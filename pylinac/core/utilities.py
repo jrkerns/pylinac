@@ -6,7 +6,7 @@ from collections import Iterable
 
 import numpy as np
 
-from pylinac.core.io import is_valid_file
+from .io import is_valid_file
 
 
 def is_close(val, target, delta=1):

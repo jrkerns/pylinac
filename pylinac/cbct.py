@@ -21,14 +21,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
 
-from pylinac.core.decorators import value_accept
-from pylinac.core.geometry import Point, Line
-from pylinac.core.image import Image, DicomImageStack
-from pylinac.core.io import get_url
-from pylinac.core.mask import filled_area_ratio
-from pylinac.core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
-from pylinac.core.roi import DiskROI, LowContrastDiskROI, RectangleROI
-from pylinac.core.utilities import simple_round, import_mpld3
+from .core.decorators import value_accept
+from .core.geometry import Point, Line
+from .core.image import Image, DicomImageStack
+from .core.io import get_url
+from .core.mask import filled_area_ratio
+from .core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
+from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
+from .core.utilities import simple_round, import_mpld3
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -99,8 +99,12 @@ class CBCT:
     def from_url(cls, url):
         """Instantiate from a URL.
 
+        Parameters
+        ----------
+        url : str
+            URL pointing to a zip archive of CBCT images.
+
         .. versionadded:: 0.7.1
-        .. note:: ``requests`` must be installed to use this feature.
         """
         obj = cls()
         obj.load_url(url)
@@ -110,7 +114,6 @@ class CBCT:
         """Load from a URL.
 
         .. versionadded:: 0.7.1
-        .. note:: ``requests`` must be installed to use this feature.
         """
         filename = get_url(url)
         self.load_zip_file(filename)

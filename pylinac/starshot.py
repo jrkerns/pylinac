@@ -27,11 +27,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import differential_evolution
 
-from pylinac.core.decorators import value_accept
-from pylinac.core.geometry import Point, Line, Circle
-from pylinac.core.image import Image
-from pylinac.core.io import get_url
-from pylinac.core.profile import SingleProfile, CollapsedCircleProfile
+from .core.decorators import value_accept
+from .core.geometry import Point, Line, Circle
+from .core.image import Image
+from .core.io import get_url
+from .core.profile import SingleProfile, CollapsedCircleProfile
 
 
 class Starshot:

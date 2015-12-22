@@ -32,9 +32,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage.filters as spf
 
-from pylinac.core.decorators import type_accept, value_accept
-from pylinac.core.io import is_valid_file, is_valid_dir, open_file, get_url, TemporaryZipDirectory
-from pylinac.core.utilities import is_iterable, import_mpld3
+from .core.decorators import type_accept, value_accept
+from .core.io import is_valid_file, is_valid_dir, open_file, get_url, TemporaryZipDirectory
+from .core.utilities import is_iterable, import_mpld3
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -60,8 +60,6 @@ class MachineLogs(list):
             Non-log files will be skipped.
         recursive : bool
             Whether to walk through subfolders of passed directory. Only used if ``folder`` is a valid log directory.
-        verbose : bool
-            If True (default), prints load status at each log. Only used if ``folder`` is a valid log directory.
 
         Examples
         --------

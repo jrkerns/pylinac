@@ -19,11 +19,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
-from pylinac.core.geometry import Line, Rectangle
-from pylinac.core.image import Image
-from pylinac.core.io import get_url
-from pylinac.core.profile import MultiProfile, SingleProfile
-from pylinac.core.utilities import import_mpld3
+from .core.geometry import Line, Rectangle
+from .core.image import Image
+from .core.io import get_url
+from .core.profile import MultiProfile, SingleProfile
+from .core.utilities import import_mpld3
 
 # possible orientations of the pickets.
 UP_DOWN = 'Up-Down'
@@ -568,7 +568,7 @@ class PicketHandler:
     @property
     def passed(self):
         """Whether all the pickets passed tolerance."""
-        return all(picket.passed_constant for picket in self)
+        return all(picket.passed for picket in self)
 
     def __getitem__(self, item):
         return self.pickets[item]
@@ -672,11 +672,11 @@ class Picket:
     @property
     def passed(self):
         """Whether or not all the measurements passed."""
-        return all(meas.passed_constant for meas in self.mlc_meas)
+        return all(meas.passed for meas in self.mlc_meas)
 
     def mlc_passed(self, mlc):
         """Return whether a specific MLC has passed tolerance."""
-        return self.mlc_meas[mlc].passed_constant
+        return self.mlc_meas[mlc].passed
 
     def mlc_passed_action(self, mlc):
         """Return whether a specific MLC has passed the action tolerance."""

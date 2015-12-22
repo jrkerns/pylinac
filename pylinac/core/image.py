@@ -13,10 +13,10 @@ from scipy import ndimage
 from scipy.misc import imresize
 import scipy.ndimage.filters as spf
 
-from pylinac.core.decorators import type_accept, value_accept
-from pylinac.core.geometry import Point
-from pylinac.core.io import get_url, TemporaryZipDirectory
-from pylinac.core.profile import stretch as stretcharray
+from .decorators import type_accept, value_accept
+from .geometry import Point
+from .io import get_url, TemporaryZipDirectory
+from .profile import stretch as stretcharray
 
 ARRAY = 'Array'
 DICOM = 'DICOM'
