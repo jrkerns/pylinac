@@ -1,4 +1,13 @@
-"""The planar imaging module analyzes phantom images taken with the kV or MV imager in 2D; for example, the Leeds and PipsPro phantoms."""
+"""The planar imaging module analyzes phantom images taken with the kV or MV imager in 2D;
+for example, the Leeds and PipsPro phantoms.
+
+Features:
+
+* **Automatic phantom localization** - Set up your phantom any way you like; automatic positioning,
+  angle, and inversion correction mean you can set up how you like, nor will setup variations give you headache.
+* **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
+  as you see fit.
+"""
 import copy
 from functools import lru_cache
 import os.path as osp
