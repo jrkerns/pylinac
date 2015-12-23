@@ -826,10 +826,3 @@ class MLCMeas(Line):
         leaves[1] = 121 - leaves[0]
 
         return leaves
-
-
-# -----------------------------------
-# Picket Fence Demo
-# -----------------------------------
-if __name__ == '__main__':
-    PicketFence().run_demo()
