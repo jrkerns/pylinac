@@ -356,8 +356,8 @@ class MachineLog:
 
         Run the demo::
 
-            >>> MachineLog().run_dlog_demo()
-            >>> MachineLog().run_tlog_demo()
+            >>> MachineLog.run_dlog_demo()
+            >>> MachineLog.run_tlog_demo()
 
         Attributes
         ----------
@@ -681,13 +681,20 @@ class MachineLog:
     @property
     def is_loaded(self):
         """Boolean specifying if a log has been loaded in yet."""
-        if self.filename == '':
-            return False
-        else:
-            return True
+        return self.filename == ''
 
     @property
     def treatment_type(self):
+        """The treatment type of the log. Possible options:
+
+        Returns
+        -------
+        str
+            One of the following:
+            * VMAT
+            * Dynamic IMRT
+            * Static IMRT
+        """
         try:  # tlog
             gantry_std = self.subbeams[0].gantry_angle.actual.std()
         except AttributeError:  # dlog
@@ -802,7 +809,7 @@ class MachineLog:
         # Unpack the content according to respective section and data type (see log specification file).
         self.header, self._cursor = TlogHeader(fcontent, self._cursor)._read()
 
-        self.subbeams, self._cursor = SubbeamHandler(fcontent, self._cursor, self.header)._read()
+        self.subbeams, self._cursor = SubbeamManager(fcontent, self._cursor, self.header)._read()
 
         self.axis_data, self._cursor = TlogAxisData(fcontent, self._cursor, self.header)._read(exclude_beam_off)
 
@@ -1396,10 +1403,7 @@ class MLC:
         """
         a_leaf = pair_num
         b_leaf = pair_num + self.num_pairs
-        if self.leaf_moved(a_leaf) or self.leaf_moved(b_leaf):
-            return True
-        else:
-            return False
+        return self.leaf_moved(a_leaf) or self.leaf_moved(b_leaf)
 
     @property
     @lru_cache()
@@ -1642,10 +1646,7 @@ class MLC:
             thickness= inner_leaf_thickness
         else:  # between 50 and 70
             thickness = outer_leaf_thickness
-        if mlc_position < y1_position or mlc_position - thickness > y2_position:
-            return True
-        else:
-            return False
+        return mlc_position < y1_position or mlc_position - thickness > y2_position
 
     def get_snapshot_values(self, bank_or_leaf='both', dtype='actual'):
         """Retrieve the snapshot data of the given MLC bank or leaf/leaves
@@ -1882,7 +1883,7 @@ class Subbeam(TlogSection):
         return Axis(np.median(actual), np.median(expected))
 
 
-class SubbeamHandler:
+class SubbeamManager:
     """One of 4 subsections of a trajectory log. Holds a list of Subbeams; only applicable for auto-sequenced beams."""
     def __init__(self, log_content, cursor, header):
         self._log_content = log_content
