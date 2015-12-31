@@ -758,14 +758,13 @@ class Slice:
             If any of the above conditions are not met.
         """
         # convert the slice to binary and label ROIs
-        sl = self.image.as_binary(self.settings.threshold)
-        sl = ndimage.morphology.binary_fill_holes(sl)
-        labeled_arr, num_roi = ndimage.label(sl)
+        slice_img = self.image.as_binary(self.settings.threshold)
+        labeled_arr, num_roi = ndimage.label(slice_img)
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
         # determine if one of the ROIs is the size of the CatPhan and drop all others
-        roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi+1)
+        roi_sizes, _ = np.histogram(labeled_arr, bins=num_roi+1)
         rois_in_size_criteria = [self.settings.expected_phantom_size * 0.96 < roi_size < self.settings.expected_phantom_size * 1.04 for roi_size in roi_sizes]
         if not any(rois_in_size_criteria):
             raise ValueError("Unable to locate the CatPhan")
