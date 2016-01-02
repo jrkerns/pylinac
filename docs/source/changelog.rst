@@ -3,6 +3,12 @@
 Changelog
 =========
 
+V 1.3.1
+-------
+
+* `(#46) <https://github.com/jrkerns/pylinac/issues/46>`_ - Fixes CBCT analysis where there is a ring artifact outside the phantom.
+  Incidentally, analysis is sped up by ~10%.
+
 V 1.3.0
 -------
 
