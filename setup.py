@@ -14,7 +14,6 @@ setup(
     name='pylinac',
     version=__version__,
     packages=find_packages(),
-    # include_package_data=True,
     package_data={'pylinac':
                       ['demo_files/cbct/*',
                        'demo_files/log_reader/*',
@@ -36,6 +35,7 @@ setup(
                       "matplotlib >= 1.3.1",
                       "scikit-image >= 0.11",
                       "Pillow >= 2.5"],
+    license='MIT',
     test_suite='tests._test_all',
     classifiers=[
         "Development Status :: 4 - Beta",
