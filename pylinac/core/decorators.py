@@ -16,7 +16,7 @@ def timethis(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        print(func.__name__, 'took {:3.2f}s'.format(end-start))
+        print(func.__name__, 'took {0:3.2f}s'.format(end-start))
         return result
     return wrapper
 
@@ -36,11 +36,11 @@ def type_accept(*type_args, **type_kwargs):
                 if name in bound_types:
                     if type(bound_types[name]) in (type, ABCMeta):  # Single-type comparisons
                         if not isinstance(value, bound_types[name]):
-                            raise TypeError("Argument '{}' must be {}".format(name, bound_types[name]))
+                            raise TypeError("Argument '{0}' must be {1}".format(name, bound_types[name]))
                     else:
                         if type(value) not in bound_types[name]:
                             if value not in bound_types[name]:
-                                raise TypeError("Argument '{}' must be {}".format(name, bound_types[name]))
+                                raise TypeError("Argument '{0}' must be {1}".format(name, bound_types[name]))
             return func(*args, **kwargs)
         return wrapper
     return decorate
@@ -63,13 +63,13 @@ def value_accept(*value_args, **value_kwargs):
                     if type(value) in (float, int, np.float64):
                         # value must be within a number range
                         if not bound_values[name][0] <= value <= bound_values[name][1]:
-                            raise ValueError("Argument '{}' needs to be between {:f} and {:f}".format(name,
+                            raise ValueError("Argument '{0}' needs to be between {1:f} and {2:f}".format(name,
                                                                                                     bound_values[name][0],
                                                                                                     bound_values[name][1]))
                     else:
                         # value is a str and must be one of the accepted str values
                         if value not in bound_values[name]:
-                            raise ValueError("Argument '{}' must be one of {}".format(name, bound_values[name]))
+                            raise ValueError("Argument '{0}' must be one of {1}".format(name, bound_values[name]))
             return func(*args, **kwargs)
         return wrapper
     return decorate

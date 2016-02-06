@@ -233,7 +233,7 @@ class BeamImage:
                 y = self._parse_position(position[0], 'x')
                 x = self._parse_position(position[1], 'y')
             else:
-                raise ValueError("Position argument '{}' must be 'auto' or 2-element sequence to do both planes".format(position))
+                raise ValueError("Position argument '{0}' must be 'auto' or 2-element sequence to do both planes".format(position))
             return [y, x]
         elif _is_crossplane(plane) or _is_inplane(plane):
             if position == 'auto':
@@ -241,23 +241,23 @@ class BeamImage:
             elif isnumeric(position):
                 loc = self._parse_position(position, plane)
             else:
-                raise ValueError("Position argument '{}' must be 'auto' or a number to do single planes".format(position))
+                raise ValueError("Position argument '{0}' must be 'auto' or a number to do single planes".format(position))
             return [loc,]
         else:
-            raise ValueError("Plane argument '{}' not understood".format(plane))
+            raise ValueError("Plane argument '{0}' not understood".format(plane))
 
     def _check_position_inbounds(self, position, plane):
         """Check that the position is within the image index bounds."""
         if _is_crossplane(plane):
             if position >= self.image.shape[1]:
-                raise IndexError("Y-position {} is out of bounds of image array".format(position))
+                raise IndexError("Y-position {0} is out of bounds of image array".format(position))
         elif _is_inplane(plane):
             if position >= self.image.shape[0]:
-                raise IndexError("X-position {} is out of bounds of image array".format(position))
+                raise IndexError("X-position {0} is out of bounds of image array".format(position))
 
     def _parse_position(self, position, plane):
         if not _is_crossplane(plane) and not _is_inplane(plane):
-            raise ValueError("Plane argument '{}' must be either inplane or crossplane".format(plane))
+            raise ValueError("Plane argument '{0}' must be either inplane or crossplane".format(plane))
         if isinstance(position, (float, np.float64)) and 0 < position < 1:
             if _is_crossplane(plane):
                 arr_side = self.image.shape[0]
@@ -267,7 +267,7 @@ class BeamImage:
         elif isinstance(position, (int, float, np.float64)):
             pos = int(position)
         else:
-            raise ValueError("Position argument '{}' not understood.".format(position))
+            raise ValueError("Position argument '{0}' not understood.".format(position))
 
         self._check_position_inbounds(pos, plane)
         return pos
@@ -303,7 +303,7 @@ class BeamImage:
         #     symmetry = (100 * abs(lt_area - rt_area) / (lt_area + rt_area)) / 2
         #     max_idx = 0
         else:
-            raise ValueError("Method parameter '{}' invalid".format(method))
+            raise ValueError("Method parameter '{0}' invalid".format(method))
 
         lt_edge, rt_edge = profile.field_edges(field_width=0.8)
 
@@ -362,7 +362,7 @@ class BeamImage:
             dmin = profile.field_calculation(field_width=0.8, calculation='min')
             flatness = 100 * (dmax / dmin)
         else:
-            raise ValueError("Method parameter '{}' invalid".format(method))
+            raise ValueError("Method parameter '{0}' invalid".format(method))
 
         lt_edge, rt_edge = profile.field_edges(field_width=0.8)
 
@@ -439,7 +439,7 @@ class BeamImage:
         else:
             t = 'Flatness'
         ax.text(near_left_edge, near_top,
-                '{}: {:2.2f}%'.format(t, value) + '\nUsing ' + method.capitalize() + ' convention',
+                '{0}: {1:2.2f}%'.format(t, value) + '\nUsing ' + method.capitalize() + ' convention',
                 rotation=-90)
 
         return ax

@@ -19,6 +19,6 @@ def save_file(method, *args, as_file_object=None, **kwargs):
 
 def test_point_equality(point1, point2):
     if point1.x != point2.x:
-        raise ValueError("{} does not equal {}".format(point1.x, point2.x))
+        raise ValueError("{0} does not equal {1}".format(point1.x, point2.x))
     if point1.y != point2.y:
-        raise ValueError("{} does not equal {}".format(point1.y, point2.y))
+        raise ValueError("{0} does not equal {1}".format(point1.y, point2.y))

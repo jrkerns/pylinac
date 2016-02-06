@@ -29,7 +29,7 @@ def load_zipfile(zfilename, read=False):
     elif zipfile.is_zipfile(zfilename):
         zfiles = zipfile.ZipFile(zfilename)
     else:
-        raise FileExistsError("File '{}' given was not a valid zip file".format(zfilename))
+        raise FileExistsError("File '{0}' given was not a valid zip file".format(zfilename))
     if read:
         return (BytesIO(zfiles.read(name)) for name in zfiles.namelist())
     else:
@@ -87,7 +87,7 @@ def is_valid_file(file_path, raise_error=True):
         elif not raise_error:
             return False
         else:
-            raise FileExistsError("{} is not a valid file".format(file_path))
+            raise FileExistsError("{0} is not a valid file".format(file_path))
 
 def open_file(file, mode='rb'):
     """Open a file if a file is a string, or open the object if file is a file object.
@@ -102,7 +102,7 @@ def open_file(file, mode='rb'):
             file.seek(0)
             openfile = file
         except:
-            raise TypeError("Could not open file: {}".format(file))
+            raise TypeError("Could not open file: {0}".format(file))
     return openfile
 
 def is_valid_dir(dir_path, raise_error=True):
@@ -112,4 +112,4 @@ def is_valid_dir(dir_path, raise_error=True):
     elif not raise_error:
         return False
     else:
-        raise NotADirectoryError("{} does not point to a valid directory".format(dir_path))
+        raise NotADirectoryError("{0} does not point to a valid directory".format(dir_path))

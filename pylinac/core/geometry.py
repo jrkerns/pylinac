@@ -32,7 +32,7 @@ class Vector:
         self.z = z
 
     def __repr__(self):
-        return "Vector(x={:.2f}, y={:.2f}, z={:.2f})".format(self.x, self.y, self.z)
+        return "Vector(x={0:.2f}, y={1:.2f}, z={2:.2f})".format(self.x, self.y, self.z)
 
     def as_scalar(self):
         """Return the scalar equivalent of the vector."""
@@ -122,7 +122,7 @@ class Point:
             return np.array([getattr(self, item) for item in self._attr_list if (getattr(self, item) is not None)])
 
     def __repr__(self):
-        return "Point(x={:3.2f}, y={:3.2f}, z={:3.2f})".format(self.x, self.y, self.z)
+        return "Point(x={0:3.2f}, y={1:3.2f}, z={2:3.2f})".format(self.x, self.y, self.z)
 
     def __eq__(self, other):
         # if all attrs equal, points considered equal

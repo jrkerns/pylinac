@@ -83,7 +83,7 @@ class Image:
         elif cls._is_image_file(path):
             return FileImage(path, **kwargs)
         else:
-            raise TypeError("The argument `{}` was not found to be a valid DICOM file, Image file, or array".format(path))
+            raise TypeError("The argument `{0}` was not found to be a valid DICOM file, Image file, or array".format(path))
 
     @classmethod
     def load_url(cls, url, **kwargs):
@@ -172,7 +172,7 @@ class ImageMixin:
         if isinstance(path, BytesIO):
             path.seek(0)
         elif not osp.isfile(path):
-            raise FileExistsError("File `{}` does not exist".format(path))
+            raise FileExistsError("File `{0}` does not exist".format(path))
         else:
             self.filename = path
 
@@ -681,7 +681,7 @@ class DicomImageStack:
                 temp_folder = TemporaryZipDirectory(folder)
                 folder = temp_folder.name
             else:
-                raise FileExistsError("Zip archive `{}` not found".format(folder))
+                raise FileExistsError("Zip archive `{0}` not found".format(folder))
 
         # load in images in their received order
         for pdir, sdir, files in os.walk(folder):
@@ -697,7 +697,7 @@ class DicomImageStack:
 
         # check that at least 1 image was loaded
         if len(self.images) < 1:
-            raise FileNotFoundError("No files were found in the specified location: {}".format(folder))
+            raise FileNotFoundError("No files were found in the specified location: {0}".format(folder))
 
         # error checking
         self._check_all_from_same_study()
