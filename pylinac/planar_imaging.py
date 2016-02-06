@@ -83,7 +83,8 @@ class ImagePhantomBase:
         regions = measure.regionprops(labeled, intensity_image=img_copy)
         return regions
 
-    def _plot_lowcontrast(self, axes, rois, threshold):
+    @staticmethod
+    def _plot_lowcontrast(axes, rois, threshold):
         """Plot the low contrast ROIs to an axes."""
         line1, = axes.plot([roi.contrast for roi in rois], marker='o', color='m', label='Contrast')
         axes.axhline(threshold, color='k')
@@ -95,7 +96,8 @@ class ImagePhantomBase:
         line2, = axes2.plot([roi.contrast_to_noise for roi in rois], marker='^', label='CNR')
         axes.legend(handles=[line1, line2])
 
-    def _plot_highcontrast(self, axes, rois, threshold):
+    @staticmethod
+    def _plot_highcontrast(axes, rois, threshold):
         """Plot the high contrast ROIs to an axes."""
         axes.plot(rois, marker='*')
         axes.axhline(threshold, color='k')
@@ -221,7 +223,7 @@ class PipsProQC3(ImagePhantomBase):
             if semi_round and hollow and angled:
                 blobs.append(phantom_idx)
 
-        if len(blobs) < 1:
+        if not blobs:
             raise ValueError("Unable to find the PipsPro phantom in the image.")
 
         # find the biggest ROI and call that the phantom outline

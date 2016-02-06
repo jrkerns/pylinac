@@ -247,6 +247,7 @@ class Line:
 
     @property
     def center(self):
+        """Return the center of the line as a Point."""
         mid_x = np.abs((self.point2.x - self.point1.x)/2 + self.point1.x)
         mid_y = (self.point2.y - self.point1.y) / 2 + self.point1.y
         return Point(mid_x, mid_y)

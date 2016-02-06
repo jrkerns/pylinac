@@ -176,8 +176,7 @@ class Starshot:
         ymaxind = np.argmax(y_sum)
 
         # If that maximum point isn't near the center (central 1/3), invert image.
-        center_in_central_third = ((xmaxind > len(x_sum) / 3 and xmaxind < len(x_sum) * 2 / 3) and
-                               (ymaxind > len(y_sum) / 3 and ymaxind < len(y_sum) * 2 / 3))
+        center_in_central_third = (len(x_sum) * 2 / 3 > xmaxind > len(x_sum) / 3) and (len(y_sum) * 2 / 3 > ymaxind > len(y_sum) / 3)
         if not center_in_central_third:
             self.image.invert()
 

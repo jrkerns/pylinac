@@ -146,14 +146,14 @@ def analysis_should_be_done(path):
         for keyword in analysis_class.keywords:
             if (keyword in path.lower()) and not any(item in path for item in ('.png', '.txt')):
                 # more specific filtering of data by type
-                if analysis_class in (AnalyzeCBCT, AnalyzeVMAT, AnalyzeWL):
-                    if path.endswith('.zip'):
-                        time.sleep(2)
-                        return True, analysis_class
-                elif analysis_class == AnalyzeLog:
-                    if path.endswith('.dlg') or path.endswith('.bin'):
-                        time.sleep(1)
-                        return True, analysis_class
+                is_valid_zip_obj = analysis_class in (AnalyzeCBCT, AnalyzeVMAT, AnalyzeWL) and path.endswith('.zip')
+                is_machine_log = analysis_class == AnalyzeLog and (path.endswith('.dlg') or path.endswith('.bin'))
+                if is_valid_zip_obj:
+                    time.sleep(2)
+                    return True, analysis_class
+                elif is_machine_log:
+                    time.sleep(1)
+                    return True, analysis_class
                 else:
                     time.sleep(1)
                     return True, analysis_class

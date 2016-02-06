@@ -16,7 +16,7 @@ def is_close(val, target, delta=1):
     except AttributeError:
         targets = [target]
     for target in targets:
-        if (val < target + delta) and (val > target - delta):
+        if target - delta < val < target + delta:
             return True
     return False
 

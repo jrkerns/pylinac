@@ -45,7 +45,8 @@ class DiskROI(Circle):
         super().__init__(center_point=center, radius=roi_radius)
         self._array = array
 
-    def _get_shifted_center(self, angle, dist_from_center, phantom_center):
+    @staticmethod
+    def _get_shifted_center(angle, dist_from_center, phantom_center):
         """The center of the ROI; corrects for phantom dislocation and roll."""
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center

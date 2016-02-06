@@ -505,7 +505,7 @@ class Settings:
                         np.percentile(prof, 80) - np.percentile(prof, 20) < 100):
                     hu_slices.append(image_number)
 
-        if len(hu_slices) == 0:
+        if not hu_slices:
             raise ValueError("No slices were found that resembled the HU linearity module")
         center_hu_slice = int(round(np.median(hu_slices)))
         if self._is_within_image_extent(center_hu_slice):
@@ -560,7 +560,7 @@ class Settings:
         # extract air bubble ROIs (based on size threshold)
         bubble_thresh = self.air_bubble_size
         air_bubbles = [idx + 1 for idx, item in enumerate(roi_sizes) if
-                       item < bubble_thresh * 1.5 and item > bubble_thresh / 1.5]
+                       bubble_thresh / 1.5 < item < bubble_thresh * 1.5]
         # if the algo has worked correctly, it has found 2 and only 2 ROIs (the air bubbles)
         if len(air_bubbles) == 2:
             com1, com2 = ndimage.measurements.center_of_mass(slice, labels, air_bubbles)
@@ -774,7 +774,7 @@ class Slice:
         # Check that the ROI is circular
         expected_fill_ratio = np.pi / 4
         actual_fill_ratio = filled_area_ratio(catphan_arr)
-        if (expected_fill_ratio * 1.02 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.9):
+        if not expected_fill_ratio * 1.02 > actual_fill_ratio > expected_fill_ratio * 0.9:
             raise ValueError("Unable to locate the CatPhan")
         # get center pixel based on ROI location
         center_pixel = ndimage.center_of_mass(catphan_arr)
