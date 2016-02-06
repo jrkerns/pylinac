@@ -357,7 +357,7 @@ class PicketFence:
 
         # add tooltips if interactive
         if interactive:
-            labels = [['Leaf pair {}/{}, Avg Error: {:3.3f}mm, Stdev: {:3.3f}mm'.format(leaf_num[0], leaf_num[1], err, std)]
+            labels = [['Leaf pair {0}/{1}, Avg Error: {2:3.3f}mm, Stdev: {3:3.3f}mm'.format(leaf_num[0], leaf_num[1], err, std)]
                       for leaf_num, err, std in zip(leaf_nums, vals, err)]
             mpld3 = import_mpld3()
             for num, patch in enumerate(axtop.axes.patches):
@@ -382,7 +382,7 @@ class PicketFence:
         else:
             plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
-            print("Picket fence image saved to: {}".format(osp.abspath(filename)))
+            print("Picket fence image saved to: {0}".format(osp.abspath(filename)))
 
     def return_results(self):
         """Return results of analysis. Use with print()."""

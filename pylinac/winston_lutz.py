@@ -353,7 +353,7 @@ class WLImage(DicomImage):
         self.bb = self._find_bb()
 
     def __repr__(self):
-        return "WLImage(G={:.1f}, B={:.1f}, P={:.1f})".format(self.gantry_angle, self.collimator_angle, self.couch_angle)
+        return "WLImage(G={0:.1f}, B={1:.1f}, P={2:.1f})".format(self.gantry_angle, self.collimator_angle, self.couch_angle)
 
     def _find_field_centroid(self):
         """Find the centroid of the radiation field based on a 50% height threshold.
@@ -527,8 +527,8 @@ class WLImage(DicomImage):
         ax.set_xlim([self.bounding_box[2], self.bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
-        ax.set_xlabel("G={:.0f}, B={:.0f}, P={:.0f}".format(self.gantry_angle, self.collimator_angle, self.couch_angle))
-        ax.set_ylabel("CAX to BB: {:3.2f}mm".format(self.cax2bb_distance))
+        ax.set_xlabel("G={0:.0f}, B={1:.0f}, P={2:.0f}".format(self.gantry_angle, self.collimator_angle, self.couch_angle))
+        ax.set_ylabel("CAX to BB: {0:3.2f}mm".format(self.cax2bb_distance))
         if show:
             plt.show()
         return ax

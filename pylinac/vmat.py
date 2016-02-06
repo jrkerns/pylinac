@@ -392,7 +392,7 @@ class VMAT:
         else:
             plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
-            print("VMAT subimage figure saved to {}".format(osp.abspath(filename)))
+            print("VMAT subimage figure saved to {0}".format(osp.abspath(filename)))
 
     @property
     def median_profiles(self):

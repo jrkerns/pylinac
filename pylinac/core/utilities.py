@@ -40,7 +40,7 @@ def typed_property(name, expected_type_or_tuple_of_types):
     @prop.setter
     def prop(self, value):
         if not isinstance(value, expected_type_or_tuple_of_types):
-            raise TypeError("{} must be a {}. Got: {}".format(name, expected_type_or_tuple_of_types, type(value)))
+            raise TypeError("{0} must be a {1}. Got: {2}".format(name, expected_type_or_tuple_of_types, type(value)))
         setattr(self, storage_name, value)
 
     return prop

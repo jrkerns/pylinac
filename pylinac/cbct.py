@@ -300,7 +300,7 @@ class CBCT:
             plt.axis('on')
             points = self.spatialres.plot_mtf(plt.gca())
             if interactive:
-                labels = ['MTF: {:3.3f}'.format(i) for i in self.spatialres.line_pair_mtfs]
+                labels = ['MTF: {0:3.3f}'.format(i) for i in self.spatialres.line_pair_mtfs]
                 tooltip = mpld3.plugins.PointLabelTooltip(points[0], labels, location='top right')
                 mpld3.plugins.connect(plt.gcf(), tooltip)
         elif 'lin' in subimage:
@@ -311,7 +311,7 @@ class CBCT:
                 delta_values = [roi.value_diff for roi in self.hu.rois.values()]
                 actual_values = [roi.pixel_value for roi in self.hu.rois.values()]
                 names = [roi for roi in self.hu.rois.keys()]
-                labels = ['{} -- Actual: {:3.1f}; Difference: {:3.1f}'.format(name, actual, delta) for name, actual, delta in zip(names, actual_values, delta_values)]
+                labels = ['{0} -- Actual: {1:3.1f}; Difference: {2:3.1f}'.format(name, actual, delta) for name, actual, delta in zip(names, actual_values, delta_values)]
                 tooltip = mpld3.plugins.PointLabelTooltip(points[0], labels, location='top right')
                 mpld3.plugins.connect(plt.gcf(), tooltip)
         elif 'prof' in subimage:
@@ -319,7 +319,7 @@ class CBCT:
             plt.axis('on')
             self.uniformity.plot_profiles(plt.gca())
         else:
-            raise ValueError("Subimage parameter {} not understood".format(subimage))
+            raise ValueError("Subimage parameter {0} not understood".format(subimage))
 
         if show:
             if interactive and (subimage in ('mtf', 'lin', 'prof')):
@@ -349,7 +349,7 @@ class CBCT:
         else:
             plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
-            print("CBCT subimage figure saved to {}".format(osp.abspath(filename)))
+            print("CBCT subimage figure saved to {0}".format(osp.abspath(filename)))
 
     def return_results(self):
         """Return the results of the analysis as a string. Use with print()."""
@@ -375,7 +375,7 @@ class CBCT:
     def _return_results(self):
         """Helper function to spit out values that will be tested."""
         print(self.return_results())
-        print("Phantom roll: {}".format(self.settings.phantom_roll))
+        print("Phantom roll: {0}".format(self.settings.phantom_roll))
         mtfs = {}
         for mtf in (60, 70, 80, 90, 95):
             mtfval = self.spatialres.mtf(mtf)
