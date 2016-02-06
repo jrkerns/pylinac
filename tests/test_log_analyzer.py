@@ -334,6 +334,7 @@ class TrajectoryLogDemo(TestLogMixin, TestCase):
     log_type = TRAJECTORY_LOG
     num_snapshots = 5200  # excluded: 1021
     num_subbeams = 2
+    num_beamholds = 19
     version = 2.1
     static_axes = ['collimator']
     moving_axes = ['gantry']

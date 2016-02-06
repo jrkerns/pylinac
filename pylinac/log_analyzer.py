@@ -681,7 +681,7 @@ class MachineLog:
     @property
     def is_loaded(self):
         """Boolean specifying if a log has been loaded in yet."""
-        return self.filename == ''
+        return self.filename != ''
 
     @property
     def treatment_type(self):
@@ -2124,7 +2124,7 @@ class DlogAxisData(DlogSection):
     def num_beamholds(self):
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.beam_hold.actual)
-        num_holds = int(np.sum(diffmatrix == 1))
+        num_holds = int(np.sum(diffmatrix > 0))
         return num_holds
 
 
@@ -2230,7 +2230,7 @@ class TlogAxisData(TlogSection):
     def num_beamholds(self):
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.beam_hold.actual)
-        num_holds = int(np.sum(diffmatrix == 1))
+        num_holds = int(np.sum(diffmatrix > 0))
         return num_holds
 
     def _get_axis(self, snapshot_data, column, axis_type):
