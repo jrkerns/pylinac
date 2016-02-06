@@ -429,11 +429,9 @@ class VMAT:
             passfail_str = 'FAIL'
 
         if _test_is_drgs(self.settings.test_type):
-            string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
-                      (self.settings.tolerance * 100, passfail_str))
+            string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-{0:2.1f}%): {1!s}\n'.format(self.settings.tolerance * 100, passfail_str))
         elif _test_is_mlcs(self.settings.test_type):
-            string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-%2.1f%%): %s\n' %
-                      (self.settings.tolerance * 100, passfail_str))
+            string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-{0:2.1f}%): {1!s}\n'.format(self.settings.tolerance * 100, passfail_str))
 
         string += ('Max Deviation: %4.3f%%\n'
                    'Absolute Mean Deviation: %4.3f%%' %
