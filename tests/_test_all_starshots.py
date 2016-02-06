@@ -201,38 +201,3 @@ class Starshot27(StarMixin, TestCase):
     wobble_center = Point(1105, 1306)
     wobble_diameter_mm = 0.4
     num_rad_lines = 6
-
-
-def run_star(path):
-    """Function to pass to the process pool executor to process picket fence images."""
-    try:
-        mystar = Starshot(path)
-        mystar.analyze()
-        return 'Success'
-    except:
-        return 'Failure at {}'.format(path)
-
-
-class TestImageBank(TestCase):
-    """Test the picket fences in the large image bank. Only tests the analysis runs; no details are tested."""
-    image_bank_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'Starshots'))
-
-    def test_all(self):
-        futures = []
-        start = time.time()
-        with concurrent.futures.ProcessPoolExecutor() as exec:
-            for pdir, sdir, files in os.walk(self.image_bank_dir):
-                for file in files:
-                    filepath = osp.join(pdir, file)
-                    try:
-                        Image.load(filepath)
-                    except:
-                        pass
-                    else:
-                        future = exec.submit(run_star, filepath)
-                        futures.append(future)
-            for future in concurrent.futures.as_completed(futures):
-                if future.result() != 'Success':
-                    print(future.result())
-        end = time.time() - start
-        print('Processing of {} files took {}s'.format(len(futures), end))

@@ -326,31 +326,3 @@ class Elekta8(CBCTMixin, TestCase):
     unif_passed = False
     mtf_values = {80: 0.42, 90: 0.42, 60: 0.6, 70: 0.51, 95: 0.25}
     avg_line_length = 49.28
-
-
-def run_cbct(path):
-    """Function to pass to the process pool executor to process cbct images."""
-    try:
-        mypf = CBCT(path)
-        mypf.analyze()
-        return 'Success'
-    except:
-        return 'Failure at {}'.format(path)
-
-
-class TestImageBank(TestCase):
-    """Test the CBCTs in the large image bank. Only tests the analysis runs; no details are tested."""
-    image_bank_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'CBCTs'))
-
-    def test_all(self):
-        futures = []
-        start = time.time()
-        with concurrent.futures.ProcessPoolExecutor() as exec:
-            for pdir, sdir, files in os.walk(self.image_bank_dir):
-                if files and files[0].endswith('.dcm'):
-                    future = exec.submit(run_cbct, pdir)
-                    futures.append(future)
-            for idx, future in enumerate(concurrent.futures.as_completed(futures)):
-                print(future.result(), idx)
-        end = time.time() - start
-        print('Processing of {} files took {}s'.format(len(futures), end))
