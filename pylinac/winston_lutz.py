@@ -22,7 +22,7 @@ from scipy import ndimage, optimize
 
 from .core.geometry import Point, Line, Circle, Vector, tan, cos, sin
 from .core.image import DicomImage, Image
-from .core.io import TemporaryZipDirectory
+from .core.io import TemporaryZipDirectory, get_url
 from .core.mask import filled_area_ratio, bounding_box
 from .core.profile import SingleProfile
 from .core.utilities import is_close
@@ -46,6 +46,10 @@ class WinstonLutz:
 
         Examples
         --------
+        Run the demo:
+
+            >>> WinstonLutz.run_demo()
+
         Load a directory with Winston-Lutz EPID images::
 
             >>> wl = WinstonLutz('path/to/directory')
@@ -63,13 +67,6 @@ class WinstonLutz:
         images : :class:`~pylinac.winston_lutz.ImageManager` instance
         """
         self.images = ImageManager(directory)
-
-    @staticmethod
-    def run_demo():
-        """Run the Winston-Lutz demo, which loads the demo files, prints results, and plots a summary image."""
-        wl = WinstonLutz.from_demo_images()
-        print(wl.results())
-        wl.plot_summary()
 
     @classmethod
     def from_demo_images(cls):
@@ -90,6 +87,25 @@ class WinstonLutz:
         with TemporaryZipDirectory(zfile) as tmpz:
             obj = cls(tmpz)
         return obj
+
+    @classmethod
+    def from_url(cls, url):
+        """Instantiate from a URL
+
+        Parameters
+        ----------
+        url : str
+            URL that points to a zip archive of the DICOM images.
+        """
+        zfile = get_url(url)
+        return cls.from_zip(zfile)
+
+    @staticmethod
+    def run_demo():
+        """Run the Winston-Lutz demo, which loads the demo files, prints results, and plots a summary image."""
+        wl = WinstonLutz.from_demo_images()
+        print(wl.results())
+        wl.plot_summary()
 
     @lru_cache()
     def _minimize_axis(self, axis='Gantry'):

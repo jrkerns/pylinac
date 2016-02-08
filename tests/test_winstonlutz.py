@@ -25,6 +25,10 @@ class GeneralTests(TestCase):
         with TemporaryZipDirectory(demo_file) as tempz:
             wl = WinstonLutz(tempz)
 
+    def test_url_load(self):
+        url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/winston_lutz.zip'
+        WinstonLutz.from_url(url)  # shouldn't raise
+
     def test_run_demo(self):
         WinstonLutz.run_demo()  # shouldn't raise
 
