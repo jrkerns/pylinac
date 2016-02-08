@@ -113,7 +113,7 @@ class GeneralTests(TestCase):
 
         bad_url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/AS500-UD_not_real.dcm'
         with self.assertRaises(HTTPError):
-            PicketFence.from_url(bad_url)  # shouldn't raise
+            PicketFence.from_url(bad_url)
 
     def test_plotting(self):
         self.pf.plot_analyzed_image()

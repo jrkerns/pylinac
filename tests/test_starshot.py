@@ -2,7 +2,6 @@ import os
 import os.path as osp
 import unittest
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac.core.geometry import Point
@@ -18,11 +17,6 @@ class GeneralTests(unittest.TestCase):
     def setUp(self):
         self.star = Starshot.from_demo_image()
         self.star.analyze()
-
-    def test_analyze_without_images(self):
-        star = Starshot()
-        with self.assertRaises(AttributeError):
-            star.analyze()
 
     def test_save_analyzed_image(self):
         """Test that saving an image does something."""
@@ -56,10 +50,6 @@ class StarMixin:
     def setUpClass(cls):
         cls.star = Starshot(cls.star_file)
         cls.star.analyze(recursive=cls.recursive, min_peak_height=cls.min_peak_height, fwhm=cls.fwxm)
-
-    @classmethod
-    def tearDownClass(cls):
-        plt.close('all')
 
     def test_passed(self):
         """Test that the demo image passed"""

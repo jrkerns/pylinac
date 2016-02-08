@@ -1,8 +1,6 @@
 import os.path as osp
 from unittest import TestCase
 
-import matplotlib.pyplot as plt
-
 from pylinac import LeedsTOR, PipsProQC3
 from tests.utils import save_file
 
@@ -15,10 +13,6 @@ class LeedsTORTestMixin:
     @classmethod
     def setUpClass(cls):
         cls.leeds = LeedsTOR(osp.join(TEST_DIR, cls.filename))
-
-    @classmethod
-    def tearDownClass(cls):
-        plt.close('all')
 
     def test_analyze(self):
         self.leeds.analyze()
@@ -66,6 +60,7 @@ class PipsProTestMixin:
     def test_saving(self):
         self.pipspro.plot_analyzed_image()
         save_file(self.pipspro.save_analyzed_image)
+
 
 class PipsProDemo(PipsProTestMixin, TestCase):
 

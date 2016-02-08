@@ -51,10 +51,10 @@ class VMAT:
         Examples
         --------
         Run the DRGS demo:
-            >>> VMAT().run_demo_drgs()
+            >>> VMAT.run_demo_drgs()
 
         Run the DRMLC demo:
-            >>> VMAT().run_demo_drmlc()
+            >>> VMAT.run_demo_drmlc()
 
         A typical use case:
             >>> open_img = "C:/QA Folder/VMAT/open_field.dcm"
@@ -77,7 +77,7 @@ class VMAT:
         ----------
         file_path : str, file-like object
             The path to the DICOM image or I/O stream.
-        im_type : {'open', 'mlcs', None}
+        im_type : {'open', 'dmlc', None}
             Specifies what image type is being loaded in. If None, will try to determine the type from the name.
             The name must have 'open' or 'dmlc' in the name.
         """
@@ -212,7 +212,6 @@ class VMAT:
         self.load_images(imgs, names=urls)
 
     @staticmethod
-    @type_accept(tolerance=(int, float))
     def run_demo_drgs(tolerance=1.5):
         """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
         vmat = VMAT.from_demo_images(DRGS)
@@ -221,7 +220,6 @@ class VMAT:
         vmat.plot_analyzed_image()
 
     @staticmethod
-    @type_accept(tolerance=(int, float))
     def run_demo_drmlc(tolerance=1.5):
         """Run the VMAT demo for the MLC leaf speed test."""
         vmat = VMAT.from_demo_images(DRMLC)
