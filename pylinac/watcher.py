@@ -104,7 +104,7 @@ class AnalyzePF(AnalyzeMixin):
 
 class AnalyzeCBCT(AnalyzeMixin):
     """Analysis class for CBCTs."""
-    obj = CBCT.from_zip_file
+    obj = CBCT.from_zip
     keywords = ('cbct', 'ct')
     args = {'hu tolerance': 40, 'scaling tolerance': 1}
 
@@ -142,20 +142,18 @@ def analysis_should_be_done(path):
     """Return boolean of whether the file should be analysed, based on if the filename
     has a keyword."""
     path = osp.basename(path).lower()
-    for analysis_class in (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzeLog, AnalyzePF, AnalyzeWL):
+    for analysis_class in (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog):
         for keyword in analysis_class.keywords:
             if (keyword in path.lower()) and not any(item in path for item in ('.png', '.txt')):
                 # more specific filtering of data by type
                 is_valid_zip_obj = analysis_class in (AnalyzeCBCT, AnalyzeVMAT, AnalyzeWL) and path.endswith('.zip')
                 is_machine_log = analysis_class == AnalyzeLog and (path.endswith('.dlg') or path.endswith('.bin'))
+
                 if is_valid_zip_obj:
-                    time.sleep(2)
                     return True, analysis_class
                 elif is_machine_log:
-                    time.sleep(1)
                     return True, analysis_class
                 else:
-                    time.sleep(1)
                     return True, analysis_class
     return False, None
 
@@ -169,9 +167,13 @@ class FileAnalyzerEvent(FileSystemEventHandler):
         do_analysis, analysis_class = analysis_should_be_done(full_file_path)
         # process it if so
         if do_analysis:
-            logging.info(full_file_path + " file found and will be analyzed...")
-            analysis_class(full_file_path)
-            logging.info(full_file_path + " was analyzed and now has an associated .txt and .png file")
+            time.sleep(1)
+            try:
+                logging.info(full_file_path + " file found and will be analyzed...")
+                analysis_class(full_file_path)
+                logging.info(full_file_path + " was analyzed and now has an associated .txt and .png file")
+            except BaseException as e:
+                logging.info(full_file_path + " encountered an error and was not processed." + e)
         else:
             logging.info(full_file_path + " was added but was not deemed a file to be analyzed.")
 

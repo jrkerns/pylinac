@@ -3,10 +3,8 @@ import os
 from unittest import TestCase
 import shutil
 
-import matplotlib.pyplot as plt
-
 from pylinac.log_analyzer import MachineLog, MachineLogs, DYNALOG, TRAJECTORY_LOG, STATIC_IMRT, DYNAMIC_IMRT, VMAT
-from tests.utils import save_file
+from tests.utils import save_file, LoadingTestBase
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
 
@@ -33,7 +31,6 @@ class TestAnonymize(TestCase):
         for file in files:
             file = osp.join(cls.anon_folder, file)
             os.remove(file)
-        plt.close('all')
 
     def test_dynalog(self):
         # test making an anonymized copy
@@ -85,8 +82,11 @@ class TestAnonymize(TestCase):
         logs.anonymize()  # shouldn't raise
 
 
-class TestLogLoading(TestCase):
+class TestLogLoading(LoadingTestBase, TestCase):
     """Tests of dynalog files, mostly using the demo file."""
+    klass = MachineLog
+    demo_method = None
+    url = 'Tlog2.bin'
 
     def test_loading(self):
         """Test that loading the badly-named dynalog still loads and identifies properly."""
@@ -129,10 +129,6 @@ class TestLogLoading(TestCase):
 
         log = MachineLog(log_no_txt)
         self.assertFalse(hasattr(log, 'txt'))
-
-    def test_from_url(self):
-        url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/Tlog2.bin'
-        MachineLog.from_url(url)  # shouldn't raise
 
 
 class TestLogPlottingSaving(TestCase):

@@ -6,6 +6,7 @@ import os.path as osp
 from unittest import TestCase
 
 from pylinac import CBCT
+from tests import TEST_BANK_DIR
 
 
 def run_cbct(path):
@@ -19,7 +20,7 @@ def run_cbct(path):
 
 
 class TestCBCTBank(TestCase):
-    image_bank_dir = osp.abspath(osp.join('..', '..', 'unorganized linac data', 'CBCTs'))
+    image_bank_dir = osp.join(TEST_BANK_DIR, 'CBCTs')
 
     def test_all(self):
         futures = []

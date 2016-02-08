@@ -2,14 +2,20 @@ import os.path as osp
 import unittest
 from unittest import TestCase
 
-import numpy as np
-
-from pylinac.cbct import CBCT
+from pylinac import CBCT
 from pylinac.core.geometry import Point
-from tests.utils import save_file
+from tests.utils import save_file, LoadingTestBase
 
 VARIAN_DIR = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Varian')
 ELEKTA_DIR = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Elekta')
+
+
+class CBCTLoading(LoadingTestBase, TestCase):
+    klass = CBCT
+    constructor_input = osp.join(VARIAN_DIR, 'Pelvis')
+    demo_method = 'from_demo_images'
+    url = 'CBCT_4.zip'
+    zip = osp.join(VARIAN_DIR, 'CBCT_4.zip')
 
 
 class GeneralTests(TestCase):
@@ -27,42 +33,12 @@ class GeneralTests(TestCase):
         self.cbct.analyze()
         self.cbct._return_results()
 
-    def test_loading(self):
-        """Test various loading schemes."""
-        # load demo images
-        CBCT.from_demo_images()
-
-        # load from folder directly
-        folder = osp.join(VARIAN_DIR, 'Pelvis')
-        CBCT(folder)
-
-        # load from zip file
-        zfile = osp.join(VARIAN_DIR, 'CBCT_4.zip')
-        CBCT.from_zip_file(zfile)
-
-        # load from url
-        CBCT.from_url('https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/CBCT_4.zip')
-
-    def test_bad_files(self):
-        """Test bad file inputs."""
-        not_a_folder = "notafolder"
-        self.assertRaises(NotADirectoryError, CBCT, not_a_folder)
-
-        not_a_zip = "notazip.zip"
-        self.assertRaises(FileNotFoundError, CBCT.from_zip_file, not_a_zip)
-
-        not_image_folder = osp.join(osp.dirname(__file__), 'core')
-        self.assertRaises(FileNotFoundError, CBCT, not_image_folder)
-
-        no_CT_images_zip = osp.join(VARIAN_DIR, 'dummy.zip')
-        self.assertRaises(FileNotFoundError, CBCT.from_zip_file, no_CT_images_zip)
-
     @unittest.expectedFailure
     def test_images_not_from_same_study(self):
         """Loading images from different studies should raise and error."""
         mixed_zip = osp.join(VARIAN_DIR, 'mixed_studies.zip')
         with self.assertRaises(ValueError):
-            CBCT.from_zip_file(mixed_zip)
+            CBCT.from_zip(mixed_zip)
 
     def test_phan_center(self):
         """Test locations of the phantom center."""
@@ -71,25 +47,22 @@ class GeneralTests(TestCase):
         self.assertAlmostEqual(self.cbct.hu.phan_center.x, known_phan_center.x, delta=0.7)
         self.assertAlmostEqual(self.cbct.hu.phan_center.y, known_phan_center.y, delta=0.7)
 
-    @unittest.skip
-    def test_finding_HU_slice(self):
-        """Test the robustness of the algorithm to find the HU linearity slice."""
-        self.assertEqual(self.cbct.settings.hu_slice_num, 32)
 
-        # roll the phantom data by 4 slices
-        np.roll(self.cbct.settings.images, 4, axis=2)
+class PlottingSaving(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cbct = CBCT.from_demo_images()
+        cls.cbct.analyze()
 
     def test_save_image(self):
         """Test that saving an image does something."""
-        self.cbct.analyze(hu_tolerance=10, scaling_tolerance=0.01)
         for method in ['save_analyzed_image', 'save_analyzed_subimage']:
             methodcall = getattr(self.cbct, method)
             save_file(methodcall)
 
     def test_plot_images(self):
         """Test the various plotting functions."""
-        self.cbct.analyze()
-
         self.cbct.plot_analyzed_image()
         for item in ['hu', 'un', 'mtf', 'sp', 'prof', 'lin', 'lc']:
             self.cbct.plot_analyzed_subimage(item)
@@ -103,6 +76,8 @@ class GeneralTests(TestCase):
 class CBCTMixin:
     """A mixin to use for testing Varian CBCT scans; does not inherit from TestCase as it would be run
         otherwise."""
+    filename = ''
+    dir_location = VARIAN_DIR
     hu_tolerance = 40
     scaling_tolerance = 1
     zip = True
@@ -120,11 +95,16 @@ class CBCTMixin:
 
     @classmethod
     def setUpClass(cls):
+        filename = cls.get_filename()
         if cls.zip:
-            cls.cbct = CBCT.from_zip_file(cls.location)
+            cls.cbct = CBCT.from_zip(filename)
         else:
-            cls.cbct = CBCT(cls.location)
+            cls.cbct = CBCT(filename)
         cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
+
+    @classmethod
+    def get_filename(cls):
+        return osp.join(cls.dir_location, cls.filename)
 
     def test_slice_thickness(self):
         """Test the slice thickness."""
@@ -192,7 +172,7 @@ class CBCTDemo(CBCTMixin, TestCase):
 
 class CBCT4(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    location = osp.join(VARIAN_DIR, 'CBCT_4.zip')
+    filename = 'CBCT_4.zip'
     expected_roll = -2.57
     slice_locations = {'HU': 31, 'UN': 6, 'SR': 43, 'LC': 19}
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
@@ -205,7 +185,8 @@ class CBCT4(CBCTMixin, TestCase):
 
 class Elekta2(CBCTMixin, TestCase):
     """An Elekta CBCT dataset"""
-    location = osp.join(ELEKTA_DIR, 'Elekta_2.zip')
+    filename = 'Elekta_2.zip'
+    dir_location = ELEKTA_DIR
     slice_locations = {'HU': 162, 'UN': 52, 'SR': 132, 'LC': 132}
     hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 253, 'PMP': -399, 'LDPE': -350}
     hu_passed = False

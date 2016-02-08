@@ -2,8 +2,6 @@ from functools import partial
 import os.path as osp
 from unittest import TestCase
 
-import matplotlib.pyplot as plt
-
 from pylinac.core.geometry import Point
 from pylinac.vmat import VMAT, DMLC, OPEN, PROFILE, DRGS, DRMLC
 from tests.utils import save_file
@@ -139,7 +137,6 @@ class TestPlottingSaving(TestCase):
         save_file(self.vmat.save_analyzed_subimage, PROFILE, interactive=True, as_file_object='str')
 
 
-
 class VMATMixin:
     filepaths = ('open', 'dmlc')
     test_type = ''
@@ -153,10 +150,6 @@ class VMATMixin:
     avg_r_deviation = 0
     max_r_deviation = 0
     passes = True
-
-    @classmethod
-    def tearDownClass(cls):
-        plt.close('all')
 
     def setUp(self):
         self.vmat = VMAT(self.filepaths)

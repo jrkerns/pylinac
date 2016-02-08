@@ -29,13 +29,13 @@ class WatcherTest(unittest.TestCase):
     def setUpClass(cls):
         """Setup the watcher."""
         cls.watching_process = subprocess.Popen([sys.executable, WATCHER_SCRIPT, WATCHER_DIR])
-        time.sleep(1)
+        time.sleep(3)  # process needs some time before it starts reading file changes
 
     @classmethod
     def tearDownClass(cls):
         """Kill watcher and remove all files from the watcher director."""
         cls.watching_process.kill()
-        time.sleep(1)
+        # time.sleep(1)
         files = os.listdir(WATCHER_DIR)
         files.remove('dummy.txt')
         for fyle in files:
@@ -50,15 +50,16 @@ class WatcherTest(unittest.TestCase):
     def process_file(self, filepath):
         # copy the file over to the watcher directory
         shutil.copy(filepath, WATCHER_DIR)
-        time.sleep(1)
+        print("{} moved into watcher folder".format(filepath))
         new_path = osp.join(WATCHER_DIR, osp.basename(filepath))
 
         # wait for processing to finish by checking when the .txt file is generated
         _, file_ext = osp.splitext(new_path)
         safety_timer = 0
-        while not osp.isfile(new_path.replace(file_ext, '.txt')) and safety_timer < 30:
+        while not osp.isfile(new_path.replace(file_ext, '.txt')):
             time.sleep(0.5)
             safety_timer += 0.5
+            if safety_timer > 10:
+                print("Process timed out after 30 seconds and was not completed.")
+                break
 
-        if safety_timer >= 30:
-            print("Process timed out after 30 seconds and was not completed.")

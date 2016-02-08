@@ -1,4 +1,3 @@
-"""Tests for the Winston-Lutz module."""
 import os.path as osp
 from unittest import TestCase
 
@@ -6,8 +5,14 @@ import matplotlib.pyplot as plt
 
 from pylinac import WinstonLutz
 from pylinac.core.geometry import Vector, vector_is_close
-from pylinac.core.io import TemporaryZipDirectory
-from tests.utils import save_file
+from tests.utils import save_file, LoadingTestBase
+
+
+class TestWLLoading(LoadingTestBase, TestCase):
+    klass = WinstonLutz
+    demo_method = 'from_demo_images'
+    url = 'winston_lutz.zip'
+    zip = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'winston_lutz', 'winston_lutz.zip')
 
 
 class GeneralTests(TestCase):
@@ -16,28 +21,21 @@ class GeneralTests(TestCase):
     def setUpClass(cls):
         cls.wl = WinstonLutz.from_demo_images()
 
-    def test_loading_demo_files(self):
-        wl = WinstonLutz.from_demo_images()  # shouldn't raise
-
-    def test_loading(self):
-        # load from uncompressed files
-        demo_file = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'winston_lutz', 'winston_lutz.zip')
-        with TemporaryZipDirectory(demo_file) as tempz:
-            wl = WinstonLutz(tempz)
-
-    def test_url_load(self):
-        url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/winston_lutz.zip'
-        WinstonLutz.from_url(url)  # shouldn't raise
-
     def test_run_demo(self):
         WinstonLutz.run_demo()  # shouldn't raise
+
+    def test_results(self):
+        print(self.wl.results())  # shouldn't raise
+
+
+class TestPlottingSaving(TestCase):
+
+    def setUp(self):
+        self.wl = WinstonLutz.from_demo_images()
 
     def test_plot(self):
         self.wl.plot_images()  # shouldn't raise
         self.wl.plot_gantry_sag()
-
-    def test_results(self):
-        print(self.wl.results())  # shouldn't raise
 
     def test_save(self):
         save_file(self.wl.save_summary)

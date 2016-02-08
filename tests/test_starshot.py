@@ -1,18 +1,22 @@
 import os
 import os.path as osp
-import unittest
+from unittest import TestCase
 
 import numpy as np
 
 from pylinac.core.geometry import Point
 from pylinac.starshot import Starshot
-from tests.utils import save_file
+from tests.utils import save_file, LoadingTestBase
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
 
 
-class GeneralTests(unittest.TestCase):
-    """Performs general tests (not image specific)."""
+class TestStarshotLoading(LoadingTestBase, TestCase):
+    klass = Starshot
+    url = '10X_collimator_dvTK5Jc.jpg'
+
+
+class TestPlottingSaving(TestCase):
 
     def setUp(self):
         self.star = Starshot.from_demo_image()
@@ -28,14 +32,11 @@ class GeneralTests(unittest.TestCase):
         # save into buffer
         save_file(self.star.save_analyzed_subimage, as_file_object='b')
 
-    def test_from_url(self):
-        url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/10X_collimator_dvTK5Jc.jpg'
-        Starshot.from_url(url)  # shouldn't raise
-
 
 class StarMixin:
     """Mixin for testing a starshot image."""
     star_file = ''
+    dir_location = TEST_DIR
     wobble_diameter_mm = 0
     wobble_center = Point()
     num_rad_lines = 0
@@ -48,8 +49,13 @@ class StarMixin:
 
     @classmethod
     def setUpClass(cls):
-        cls.star = Starshot(cls.star_file)
+        filename = cls.get_filename()
+        cls.star = Starshot(filename)
         cls.star.analyze(recursive=cls.recursive, min_peak_height=cls.min_peak_height, fwhm=cls.fwxm)
+
+    @classmethod
+    def get_filename(cls):
+        return osp.join(cls.dir_location, cls.star_file)
 
     def test_passed(self):
         """Test that the demo image passed"""
@@ -77,18 +83,21 @@ class StarMixin:
     def test_all_radii_give_same_wobble(self):
         """Test that the wobble stays roughly the same for all radii."""
         if self.test_all_radii:
-            star = Starshot(self.star_file)
+            star = Starshot(self.get_filename())
             for radius in np.linspace(0.9, 0.25, 8):
                 star.analyze(radius=float(radius), min_peak_height=self.min_peak_height, recursive=self.recursive)
                 self.assertAlmostEqual(star.wobble.diameter_mm, self.wobble_diameter_mm, delta=self.wobble_tolerance)
 
 
-class Demo(StarMixin, unittest.TestCase):
+class Demo(StarMixin, TestCase):
     """Specific tests for the demo image"""
-    star_file = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'starshot', 'starshot.tif')
     wobble_diameter_mm = 0.30
     wobble_center = Point(1270, 1437)
     num_rad_lines = 4
+
+    @classmethod
+    def get_filename(cls):
+        return osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'starshot', 'starshot.tif')
 
     def test_fails_with_tight_tol(self):
         star = Starshot.from_demo_image()
@@ -124,7 +133,7 @@ class Demo(StarMixin, unittest.TestCase):
         self.test_wobble_diameter()
 
 
-class Multiples(StarMixin, unittest.TestCase):
+class Multiples(StarMixin, TestCase):
     """Test a starshot composed of multiple individual EPID images."""
     num_rad_lines = 9
     wobble_center = Point(254, 192)
@@ -139,8 +148,8 @@ class Multiples(StarMixin, unittest.TestCase):
         cls.star.analyze(radius=0.6)
 
 
-class Starshot1(StarMixin, unittest.TestCase):
-    star_file = osp.join(TEST_DIR, 'Starshot#1.tif')
+class Starshot1(StarMixin, TestCase):
+    star_file = 'Starshot#1.tif'
     wobble_center = Point(508, 683)
     wobble_diameter_mm = 0.23
     num_rad_lines = 4

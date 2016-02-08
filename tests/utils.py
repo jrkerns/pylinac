@@ -7,8 +7,7 @@ from tempfile import TemporaryFile
 
 from pylinac.core.image import Image
 
-
-DATA_BANK_DIR = osp.abspath(osp.join('..', '..', 'unorganized linac data'))
+DATA_BANK_DIR = osp.abspath(osp.join('..', '..', 'pylinac test files'))
 
 
 def save_file(method, *args, as_file_object=None, **kwargs):
@@ -31,6 +30,35 @@ def test_point_equality(point1, point2):
         raise ValueError("{} does not equal {}".format(point1.x, point2.x))
     if point1.y != point2.y:
         raise ValueError("{} does not equal {}".format(point1.y, point2.y))
+
+
+class LoadingTestBase:
+    """This class can be used as a base for a module's loading test class."""
+    klass = object
+    constructor_input = None
+    demo_method = 'from_demo_image'
+    url = None
+    zip = None
+
+    @property
+    def real_url(self):
+        return 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/' + self.url
+
+    def test_consructor(self):
+        if self.constructor_input is not None:
+            self.klass(self.constructor_input)
+
+    def test_from_demo(self):
+        if self.demo_method is not None:
+            getattr(self.klass, self.demo_method)()
+
+    def test_from_url(self):
+        if self.url is not None:
+            self.klass.from_url(self.real_url)
+
+    def test_from_zip(self):
+        if self.zip is not None:
+            self.klass.from_zip(self.zip)
 
 
 class DataBankMixin:

@@ -323,7 +323,7 @@ class MachineLog:
 
     If reading Trajectory logs, the .txt file is also loaded if it's around.
     """
-    def __init__(self, filename='', exclude_beam_off=True):
+    def __init__(self, filename, exclude_beam_off=True):
         """
         Parameters
         ----------
@@ -379,7 +379,7 @@ class MachineLog:
             self.filename = filename
             self._read_log(exclude_beam_off)
         else:
-            raise IOError("File passed is not a valid log file")
+            raise IOError("{} was not a valid log file".format(filename))
 
     @classmethod
     def from_demo_dynalog(cls, exclude_beam_off=True):

@@ -1,17 +1,52 @@
-from urllib.error import HTTPError
 from unittest import TestCase
 
-import matplotlib.pyplot as plt
-
 from pylinac.picketfence import PicketFence, osp, np, UP_DOWN, LEFT_RIGHT
-from tests.utils import save_file
+
+from tests.utils import save_file, LoadingTestBase
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
+
+
+class TestLoading(LoadingTestBase, TestCase):
+    klass = PicketFence
+    constructor_input = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence',
+                                 'EPID-PF-LR.dcm')
+    url = 'AS500-UD.dcm'
+
+    def test_filter_on_load(self):
+        PicketFence(self.constructor_input, filter=3)  # shouldn't raise
+
+
+class GeneralTests(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pf = PicketFence.from_demo_image()
+        cls.pf.analyze()
+
+    def test_bad_tolerance_values(self):
+        self.assertRaises(ValueError, self.pf.analyze, 0.2, 0.3)
+
+
+class TestPlottingSaving(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pf = PicketFence.from_demo_image()
+        cls.pf.analyze()
+
+    def test_plotting(self):
+        self.pf.plot_analyzed_image()
+
+    def test_saving_image(self):
+        save_file(self.pf.save_analyzed_image)
+        save_file(self.pf.save_analyzed_image, interactive=True)
 
 
 class PFTestMixin:
     """Base Mixin for testing a picketfence image."""
     im_path = ''
+    dir_location = TEST_DIR
     picket_orientation = UP_DOWN
     hdmlc = False
     num_pickets = 10
@@ -23,12 +58,12 @@ class PFTestMixin:
 
     @classmethod
     def setUpClass(cls):
-        cls.pf = PicketFence(cls.im_path)
+        cls.pf = PicketFence(cls.get_filename())
         cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
 
     @classmethod
-    def tearDownClass(cls):
-        plt.close('all')
+    def get_filename(cls):
+        return osp.join(cls.dir_location, cls.im_path)
 
     def test_passed(self):
         self.assertEqual(self.pf.passed, self.passes)
@@ -61,10 +96,13 @@ class PFTestMixin:
 
 class PFDemo(PFTestMixin, TestCase):
     """Tests specifically for the EPID demo image."""
-    im_path = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
     picket_orientation = LEFT_RIGHT
     max_error = 0.217
     abs_median_error = 0.06
+
+    @classmethod
+    def get_filename(cls):
+        return osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
 
     def test_demo(self):
         self.pf.run_demo()
@@ -89,35 +127,3 @@ class MultipleImagesPF(PFTestMixin, TestCase):
         path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
         cls.pf = PicketFence.from_multiple_images([path1, path2])
         cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
-
-
-class GeneralTests(TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.pf = PicketFence.from_demo_image()
-        cls.pf.analyze()
-
-    def test_filter_on_load(self):
-        PicketFence(osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence',
-                    'EPID-PF-LR.dcm'), filter=3)
-
-    def test_bad_tolerance_values(self):
-        self.assertRaises(ValueError, self.pf.analyze, 0.2, 0.3)
-
-    def test_from_url(self):
-        """Test getting a PF image from a URL."""
-        url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/AS500-UD.dcm'
-        pf = PicketFence.from_url(url)
-        pf.analyze()
-
-        bad_url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/AS500-UD_not_real.dcm'
-        with self.assertRaises(HTTPError):
-            PicketFence.from_url(bad_url)
-
-    def test_plotting(self):
-        self.pf.plot_analyzed_image()
-
-    def test_saving_image(self):
-        save_file(self.pf.save_analyzed_image)
-        save_file(self.pf.save_analyzed_image, interactive=True)
