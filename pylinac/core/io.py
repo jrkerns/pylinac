@@ -52,7 +52,13 @@ class TemporaryZipURLDirectory(TemporaryZipDirectory):
 
 
 def get_url(url, destination=None):
-    """Get the response from the URL."""
+    """Download a URL to a local file.
+
+    Parameters
+    ----------
+    destination : str, None
+        The destination of the file. If None is given the file is saved to a temporary directory.
+    """
     try:
         filename, _ = urlretrieve(url, filename=destination)
     except HTTPError as e:
