@@ -18,6 +18,10 @@ Pylinac
 .. image:: https://coveralls.io/repos/jrkerns/pylinac/badge.svg?branch=master
     :target: https://coveralls.io/r/jrkerns/pylinac
 
+.. image:: https://www.quantifiedcode.com/api/v1/project/25e3cefc2cc84052bbd127c3386adf69/badge.svg
+    :target: https://www.quantifiedcode.com/app/project/25e3cefc2cc84052bbd127c3386adf69
+    :alt: Code issues
+
 
 Pylinac provides TG-142 quality assurance (QA) tools to Python programmers as well as non-programmers in the field of 
 therapy medical physics. The package comes in two flavors: source-level and `web app <https://assuranceqa.herokuapp.com>`_. The source-level
