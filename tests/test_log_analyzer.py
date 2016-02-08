@@ -62,11 +62,11 @@ class TestAnonymize(TestCase):
         tlog = MachineLog(tlog_file)
         tlog.anonymize(destination=self.anon_folder)  # shouldn't raise
 
-    def test_from_stream(self):
+    def test_from_url(self):
         """Anonymizing a log that was loaded from a stream should fail (no filename to replace)."""
         url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/Tlog2.bin'
         tlog = MachineLog.from_url(url)
-        with self.assertRaises(IOError):
+        with self.assertRaises(NameError):
             tlog.anonymize()
 
     def test_bad_name(self):
@@ -92,17 +92,11 @@ class TestLogLoading(TestCase):
         """Test that loading the badly-named dynalog still loads and identifies properly."""
         test_tlog = osp.join(TEST_DIR, 'tlogs', "Anonymous_4DC Treatment_JS0_TX_20140712095629.bin")
         # should produce no errors
-        # load method 1
         MachineLog(test_tlog)
-        # load method 2
-        log = MachineLog()
-        self.assertFalse(log.is_loaded)
-        log.load(test_tlog)
-        self.assertTrue(log.is_loaded)
 
         # throw an error for files that aren't logs
         not_a_file = test_tlog.replace(".bin", 'blahblah.bin')
-        self.assertRaises(FileExistsError, MachineLog, not_a_file)
+        self.assertRaises(IOError, MachineLog, not_a_file)
         not_a_log = osp.join(osp.dirname(__file__), 'test_files', 'VMAT', 'DRGSmlc-105-example.dcm')
         self.assertRaises(IOError, MachineLog, not_a_log)
 
@@ -326,7 +320,7 @@ class DynalogDemo(TestLogMixin, TestCase):
     def test_demo(self):
         """Test the run demo method."""
         # shouldn't raise
-        MachineLog().run_dlog_demo()
+        MachineLog.run_dlog_demo()
 
 
 class TrajectoryLogDemo(TestLogMixin, TestCase):
@@ -354,7 +348,7 @@ class TrajectoryLogDemo(TestLogMixin, TestCase):
     def test_demo(self):
         """Test the run demo method."""
         # shouldn't raise
-        MachineLog().run_tlog_demo()
+        MachineLog.run_tlog_demo()
 
 
 class TestMachineLogs(TestCase):

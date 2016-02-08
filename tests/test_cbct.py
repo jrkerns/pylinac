@@ -1,10 +1,7 @@
-import gc
 import os.path as osp
-import time
 import unittest
 from unittest import TestCase
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac.cbct import CBCT
@@ -19,7 +16,7 @@ class GeneralTests(TestCase):
     """Test general things when using cbct module."""
 
     def setUp(self):
-        self.cbct = CBCT()
+        self.cbct = CBCT.from_demo_images()
 
     def test_demo(self):
         """Run the demo to make sure it works."""
@@ -27,7 +24,6 @@ class GeneralTests(TestCase):
 
     def test_helpers(self):
         """Test the various helper methods."""
-        self.cbct.load_demo_images()
         self.cbct.analyze()
         self.cbct._return_results()
 
@@ -47,35 +43,29 @@ class GeneralTests(TestCase):
         # load from url
         CBCT.from_url('https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/CBCT_4.zip')
 
-    def test_images_not_loaded(self):
-        """Raise error if trying to analyze when images aren't loaded yet."""
-        self.assertRaises(AttributeError, self.cbct.analyze)
-
     def test_bad_files(self):
         """Test bad file inputs."""
         not_a_folder = "notafolder"
-        self.assertRaises(NotADirectoryError, self.cbct.load_folder, not_a_folder)
+        self.assertRaises(NotADirectoryError, CBCT, not_a_folder)
 
         not_a_zip = "notazip.zip"
-        self.assertRaises(FileExistsError, self.cbct.load_zip_file, not_a_zip)
+        self.assertRaises(FileNotFoundError, CBCT.from_zip_file, not_a_zip)
 
         not_image_folder = osp.join(osp.dirname(__file__), 'core')
-        self.assertRaises(FileNotFoundError, self.cbct.load_folder, not_image_folder)
+        self.assertRaises(FileNotFoundError, CBCT, not_image_folder)
 
         no_CT_images_zip = osp.join(VARIAN_DIR, 'dummy.zip')
-        self.assertRaises(FileNotFoundError, self.cbct.load_zip_file, no_CT_images_zip)
+        self.assertRaises(FileNotFoundError, CBCT.from_zip_file, no_CT_images_zip)
 
     @unittest.expectedFailure
     def test_images_not_from_same_study(self):
         """Loading images from different studies should raise and error."""
         mixed_zip = osp.join(VARIAN_DIR, 'mixed_studies.zip')
         with self.assertRaises(ValueError):
-            self.cbct.load_zip_file(mixed_zip)
+            CBCT.from_zip_file(mixed_zip)
 
     def test_phan_center(self):
         """Test locations of the phantom center."""
-        self.cbct.load_demo_images()
-
         known_phan_center = Point(257, 255)
         self.cbct.analyze()
         self.assertAlmostEqual(self.cbct.hu.phan_center.x, known_phan_center.x, delta=0.7)
@@ -84,8 +74,6 @@ class GeneralTests(TestCase):
     @unittest.skip
     def test_finding_HU_slice(self):
         """Test the robustness of the algorithm to find the HU linearity slice."""
-        self.cbct.load_demo_images()
-
         self.assertEqual(self.cbct.settings.hu_slice_num, 32)
 
         # roll the phantom data by 4 slices
@@ -93,7 +81,6 @@ class GeneralTests(TestCase):
 
     def test_save_image(self):
         """Test that saving an image does something."""
-        self.cbct.load_demo_images()
         self.cbct.analyze(hu_tolerance=10, scaling_tolerance=0.01)
         for method in ['save_analyzed_image', 'save_analyzed_subimage']:
             methodcall = getattr(self.cbct, method)
@@ -101,7 +88,6 @@ class GeneralTests(TestCase):
 
     def test_plot_images(self):
         """Test the various plotting functions."""
-        self.cbct.load_demo_images()
         self.cbct.analyze()
 
         self.cbct.plot_analyzed_image()
@@ -139,13 +125,6 @@ class CBCTMixin:
         else:
             cls.cbct = CBCT(cls.location)
         cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
-
-    @classmethod
-    def tearDownClass(cls):
-        delattr(cls, 'cbct')
-        plt.close('all')
-        time.sleep(1)
-        gc.collect()
 
     def test_slice_thickness(self):
         """Test the slice thickness."""

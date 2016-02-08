@@ -337,24 +337,21 @@ class MachineLog:
             If True (default), snapshots where the beam was not on will be removed.
             If False, all data will be included.
 
+            .. warning::
+                Including beam off data may affect fluence and gamma results. E.g. in a step-&-shoot IMRT
+                delivery, leaves move between segments while the beam is held. If beam-off data is included,
+                the RMS and fluence errors may not correspond to what was delivered.
+
         Examples
         --------
-        Load a file upon initialization::
+        Load a trajectory log or dynalog file::
 
-            >>> mylogfile = "C:/path/to/log.bin"
-            >>> log = MachineLog(mylogfile)
+            >>> mytlogfile = "C:/path/to/log.bin"
+            >>> tlog = MachineLog(mytlogfile)
+            >>> mydlogfile = "C:/path/to/dynalog.dlg"
+            >>> dlog = MachineLog(mydlogfile)
 
-        Or::
-
-            >>> mylogfile = "C:/path/to/A1.dlg"  # B must also be here
-            >>> log = MachineLog()
-            >>> log.load(mylogfile)
-
-        Or load from a UI dialog::
-
-            >>> log = MachineLog.from_UI()
-
-        Run the demo::
+        Run the demos::
 
             >>> MachineLog.run_dlog_demo()
             >>> MachineLog.run_tlog_demo()
@@ -374,17 +371,33 @@ class MachineLog:
             Contains actual and expected fluence data, including gamma.
         log_type : str
             The log type loaded; either 'Dynalog' or 'Trajectory log'
-        log_is_loaded : bool
-            Whether a log has yet been loaded.
         """
-        self.filename = ''
-        self.url = None
         self._cursor = 0
         self.fluence = FluenceStruct()
 
-        # Read file if passed in
-        if filename is not '':
-            self.load(filename, exclude_beam_off)
+        if is_log(filename):
+            self.filename = filename
+            self._read_log(exclude_beam_off)
+        else:
+            raise IOError("File passed is not a valid log file")
+
+    @classmethod
+    def from_demo_dynalog(cls, exclude_beam_off=True):
+        """Load and instantiate from the demo dynalog file included with the package."""
+        dyn_file = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'AQA.dlg')
+        return cls(dyn_file, exclude_beam_off)
+
+    @classmethod
+    def from_demo_trajectorylog(cls, exclude_beam_off=True):
+        """Load and instantiate from the demo trajetory log file included with the package."""
+        filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
+        return cls(filename, exclude_beam_off)
+
+    @classmethod
+    def from_url(cls, url, exclude_beam_off=True):
+        """Instantiate a log from a URL."""
+        filename = get_url(url)
+        return cls(filename, exclude_beam_off)
 
     @staticmethod
     def run_tlog_demo():
@@ -399,71 +412,6 @@ class MachineLog:
         dlog = MachineLog.from_demo_dynalog()
         dlog.report_basic_parameters()
         dlog.plot_summary()
-
-    @classmethod
-    def from_demo_dynalog(cls, exclude_beam_off=True):
-        obj = cls()
-        obj.load_demo_dynalog(exclude_beam_off)
-        return obj
-
-    def load_demo_dynalog(self, exclude_beam_off=True):
-        """Load the demo dynalog file included with the package."""
-        self.filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'AQA.dlg')
-        self._read_log(exclude_beam_off)
-
-    @classmethod
-    def from_demo_trajectorylog(cls, exclude_beam_off=True):
-        obj = cls()
-        obj.load_demo_trajectorylog(exclude_beam_off)
-        return obj
-
-    def load_demo_trajectorylog(self, exclude_beam_off=True):
-        """Load the demo trajectory log included with the package."""
-        filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
-        self.load(filename, exclude_beam_off)
-
-    @classmethod
-    def from_url(cls, url, exclude_beam_off=True):
-        """Instantiate a log from a URL.
-
-        .. versionadded:: 0.7.1
-        """
-        obj = cls()
-        obj.load_url(url, exclude_beam_off)
-        return obj
-
-    def load_url(self, url, exclude_beam_off=True):
-        """Load a log from a URL.
-
-        .. versionadded:: 0.7.1
-        """
-        filename = get_url(url)
-        self.load(filename, exclude_beam_off)
-        self.url = url
-
-    def load(self, filename, exclude_beam_off=True):
-        """Load the log file directly by passing the path to the file.
-
-        Parameters
-        ----------
-        filename : str
-            The path to the log file.
-
-        exclude_beam_off : boolean
-            If True (default), snapshots where the beam was not on will be removed.
-            If False, all data will be included.
-
-            .. warning::
-                Including beam off data may affect fluence and gamma results. E.g. in a step-&-shoot IMRT
-                delivery, leaves move between segments while the beam is held. If beam-off data is included,
-                the RMS and fluence errors may not correspond to what was delivered.
-        """
-        if is_valid_file(filename):
-            if is_log(filename):
-                self.filename = filename
-                self._read_log(exclude_beam_off)
-            else:
-                raise IOError("File passed is not a valid log file")
 
     def plot_summary(self, show=True):
         """Plot actual & expected fluence, gamma map, gamma histogram,
@@ -581,9 +529,6 @@ class MachineLog:
         list
             A list containing the paths to the newly written files.
         """
-        if self.url is not None:
-            raise IOError("Log was loaded from a data stream. "
-                          "Download or write to file first and then reload the log to anonymize.")
         if suffix is None:
             suffix = ''
         dlog = self.log_type == DYNALOG
@@ -679,11 +624,6 @@ class MachineLog:
         return log_type
 
     @property
-    def is_loaded(self):
-        """Boolean specifying if a log has been loaded in yet."""
-        return self.filename != ''
-
-    @property
     def treatment_type(self):
         """The treatment type of the log. Possible options:
 
@@ -705,13 +645,6 @@ class MachineLog:
             return 'Dynamic IMRT'
         else:
             return 'Static IMRT'
-
-    @property
-    def _filename_str(self):
-        if isinstance(self.filename, str):
-            return self.filename
-        else:
-            return osp.basename(self.url)
 
     def to_csv(self, filename=None):
         """Write the log to a CSV file. Only applicable for Trajectory logs (Dynalogs are already similar to CSV).
@@ -746,7 +679,7 @@ class MachineLog:
                          'Number of Axes:', 'Axis Enumeration:', 'Samples per Axis:', 'Axis Scale:',
                          'Number of Subbeams:', 'Is Truncated?', 'Number of Snapshots:', 'MLC Model:')
         h = self.header
-        header_values = (self._filename_str, h.header, h.version, h.header_size, h.sampling_interval,
+        header_values = (self.filename, h.header, h.version, h.header_size, h.sampling_interval,
                          h.num_axes, h.axis_enum, h.samples_per_axis, h.axis_scale, h.num_subbeams, h.is_truncated,
                          h.num_snapshots, h.mlc_model)
         for title, value in zip(header_titles, header_values):

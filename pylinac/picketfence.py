@@ -44,7 +44,7 @@ class PicketFence:
     Examples
     --------
     Run the demo::
-        >>> PicketFence().run_demo()
+        >>> PicketFence.run_demo()
 
     Typical session:
         >>> img_path = r"C:/QA/June/PF.dcm"  # the EPID image
@@ -53,35 +53,49 @@ class PicketFence:
         >>> print(mypf.return_results())
         >>> mypf.plot_analyzed_image()
     """
-    def __init__(self, filename=None, filter=None):
+    def __init__(self, filename, filter=None):
         """
         Parameters
         ----------
         filename : str, None
             Name of the file as a string. If None, image must be loaded later.
         filter : int, None
-            The median filter size to apply to the image upon load.
+            If None (default), no filtering will be done to the image.
+            If an int, will perform median filtering over image of size *filter*.
         """
         if filename is not None:
-            self.load_image(filename, filter)
+            self.image = Image.load(filename)
+            if isinstance(filter, int):
+                self.image.filter(size=filter)
+            self._check_for_noise()
+            self.image.check_inversion()
 
     @classmethod
     def from_url(cls, url, filter=None):
-        """Instantiate from a URL.
-
-        .. versionadded:: 0.7.1
-        """
-        obj = cls()
-        obj.load_url(url, filter=filter)
-        return obj
-
-    def load_url(self, url, filter=None):
-        """Load from a URL.
-
-        .. versionadded:: 0.7.1
-        """
+        """Instantiate from a URL."""
         filename = get_url(url)
-        self.load_image(filename, filter=filter)
+        return cls(filename, filter=filter)
+
+    @classmethod
+    def from_demo_image(cls, filter=None):
+        """Construct a PicketFence instance using the demo image."""
+        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
+        return cls(demo_file)
+
+    @classmethod
+    def from_multiple_images(cls, path_list):
+        """Load and superimpose multiple images and instantiate a Starshot object.
+
+        Parameters
+        ----------
+        path_list : iterable
+            An iterable of path locations to the files to be loaded/combined.
+        """
+        obj = cls.from_demo_image()
+        obj.image = Image.load_multiples(path_list, method='mean')
+        obj._check_for_noise()
+        obj.image.check_inversion()
+        return obj
 
     @property
     def passed(self):
@@ -125,67 +139,6 @@ class PicketFence:
     def num_pickets(self):
         """Return the number of pickets determined."""
         return len(self.pickets)
-
-    @classmethod
-    def from_demo_image(cls, filter=None):
-        """Construct a PicketFence instance using the demo image.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_demo_image(filter=filter)
-        return obj
-
-    def load_demo_image(self, filter=None):
-        """Load the demo image that is included with pylinac."""
-        im_open_path = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
-        self.load_image(im_open_path, filter=filter)
-
-    def load_image(self, file_path, filter=None):
-        """Load the image
-
-        Parameters
-        ----------
-        file_path : str
-            Path to the image file.
-        filter : int, None
-            If None (default), no filtering will be done to the image.
-            If an int, will perform median filtering over image of size *filter*.
-        """
-        self.image = Image.load(file_path)
-        if isinstance(filter, int):
-            self.image.filter(size=filter)
-        self._check_for_noise()
-        self.image.check_inversion()
-
-    @classmethod
-    def from_multiple_images(cls, path_list):
-        """Load and superimpose multiple images and instantiate a Starshot object.
-
-        .. versionadded:: 0.9
-
-        Parameters
-        ----------
-        path_list : iterable
-            An iterable of path locations to the files to be loaded/combined.
-        """
-        obj = cls()
-        obj.load_multiple_images(path_list)
-        return obj
-
-    def load_multiple_images(self, path_list):
-        """Load and superimpose multiple images.
-
-        .. versionadded:: 0.9
-
-        Parameters
-        ----------
-        path_list : iterable
-            An iterable of path locations to the files to be loaded/combined.
-        """
-        self.image = Image.load_multiples(path_list, method='mean')
-        self._check_for_noise()
-        self.image.check_inversion()
 
     def _check_for_noise(self):
         """Check if the image has extreme noise (dead pixel, etc) by comparing

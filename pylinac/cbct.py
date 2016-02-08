@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
 
+from .core.io import TemporaryZipDirectory
 from .core.decorators import value_accept
 from .core.geometry import Point, Line
 from .core.image import Image, DicomImageStack
@@ -54,7 +55,7 @@ class CBCT:
     Examples
     --------
     Run the demo:
-        >>> CBCT().run_demo()
+        >>> CBCT.run_demo()
 
     Typical session:
         >>> cbct_folder = r"C:/QA/CBCT/June"
@@ -63,13 +64,17 @@ class CBCT:
         >>> print(mycbct.return_results())
         >>> mycbct.plot_analyzed_image()
     """
-    def __init__(self, folderpath=None):
+    def __init__(self, folderpath):
         """
         Parameters
         ----------
-        folderpath : str, None
-            If None, the images must be loaded later.
-            If a string, must point to the CBCT image folder location.
+        folderpath : str
+            String that points to the CBCT image folder location.
+
+        Raises
+        ------
+        NotADirectoryError : If folder str passed is not a valid directory.
+        FileNotFoundError : If no CT images are found in the folder
         """
         self.settings = None
         self.hu = None
@@ -77,77 +82,32 @@ class CBCT:
         self.geometry = None
         self.lowcontrast = None
         self.spatialres = None
-        if folderpath is not None:
-            self.load_folder(folderpath)
+        if not osp.isdir(folderpath):
+            raise NotADirectoryError("Path given was not a Directory/Folder")
+        self.dicom_stack = DicomImageStack(folderpath)
+        self.settings = Settings(self.dicom_stack)
 
     @classmethod
     def from_demo_images(cls):
-        """Construct a CBCT object and load the demo images.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_demo_images()
-        return obj
-
-    def load_demo_images(self):
-        """Load the CBCT demo images."""
+        """Construct a CBCT object from the demo images."""
         cbct_demo_zip = osp.join(osp.dirname(osp.abspath(__file__)), 'demo_files', 'cbct', 'High quality head.zip')
-        self.load_zip_file(cbct_demo_zip)
+        return cls.from_zip_file(cbct_demo_zip)
 
     @classmethod
     def from_url(cls, url):
-        """Instantiate from a URL.
+        """Instantiate a CBCT object from a URL pointing to a .zip object.
 
         Parameters
         ----------
         url : str
             URL pointing to a zip archive of CBCT images.
-
-        .. versionadded:: 0.7.1
-        """
-        obj = cls()
-        obj.load_url(url)
-        return obj
-
-    def load_url(self, url):
-        """Load from a URL.
-
-        .. versionadded:: 0.7.1
         """
         filename = get_url(url)
-        self.load_zip_file(filename)
-
-    def load_folder(self, folder):
-        """Load the CT DICOM files string input.
-
-        Parameters
-        ----------
-        folder : str
-            Path to the folder.
-
-        Raises
-        ------
-        NotADirectoryError : If folder str passed is not a valid directory.
-        FileNotFoundError : If no CT images are found in the folder
-        """
-        if not osp.isdir(folder):
-            raise NotADirectoryError("Path given was not a Directory/Folder")
-        self.dicom_stack = DicomImageStack(folder)
-        self.settings = Settings(self.dicom_stack)
+        return cls.from_zip_file(filename)
 
     @classmethod
     def from_zip_file(cls, zip_file):
         """Construct a CBCT object and pass the zip file.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_zip_file(zip_file)
-        return obj
-
-    def load_zip_file(self, zip_file):
-        """Load a CBCT dataset from a zip file.
 
         Parameters
         ----------
@@ -159,8 +119,9 @@ class CBCT:
         FileExistsError : If zip_file passed was not a legitimate zip file.
         FileNotFoundError : If no CT images are found in the folder
         """
-        self.dicom_stack = DicomImageStack.from_zip(zip_file)
-        self.settings = Settings(self.dicom_stack)
+        with TemporaryZipDirectory(zip_file) as temp_zip:
+            obj = cls(temp_zip)
+        return obj
 
     def plot_analyzed_image(self, hu=True, geometry=True, uniformity=True, spatial_res=True, thickness=True, low_contrast=True, show=True):
         """Plot the images used in the calculate and summary data.
@@ -403,9 +364,6 @@ class CBCT:
         contrast_threshold : float, int
             The threshold for "detecting" low-contrast image. See RTD for calculation info.
         """
-        if not self.images_loaded:
-            raise AttributeError("Images not yet loaded")
-
         # set various setting values
         self.settings.hu_tolerance = hu_tolerance
         self.settings.scaling_tolerance = scaling_tolerance
@@ -428,11 +386,6 @@ class CBCT:
         cbct.analyze()
         print(cbct.return_results())
         cbct.plot_analyzed_image(show)
-
-    @property
-    def images_loaded(self):
-        """Boolean property specifying if the images have been loaded."""
-        return False if self.settings is None else True
 
 
 class Settings:
@@ -1132,7 +1085,7 @@ class SpatialResolutionSlice(Slice):
             min_idx = self.spaced_circle_profile.find_valleys(search_region=(int(max_idxs[idx]),
                                                                              int(max_idxs[idx + 1])),
                                                               max_number=1)
-            if len(min_idx) > 0:
+            if min_idx:
                 min_idxs[idx] = min_idx[0]
         min_idxs = np.delete(min_idxs, idx2del)
         return min_idxs
@@ -1149,7 +1102,7 @@ class SpatialResolutionSlice(Slice):
             min_idx = self.spaced_circle_profile.find_valleys(search_region=(int(max_idxs[idx]),
                                                                              int(max_idxs[idx + 1])),
                                                               max_number=1, kind='value')
-            if len(min_idx) > 0:
+            if min_idx:
                 min_vals[idx] = min_idx[0]
         min_vals = np.delete(min_vals, idx2del)
         return min_vals

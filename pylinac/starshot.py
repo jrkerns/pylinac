@@ -49,7 +49,7 @@ class Starshot:
     Examples
     --------
     Run the demo:
-        >>> Starshot().run_demo()
+        >>> Starshot.run_demo()
 
     Typical session:
         >>> img_path = r"C:/QA/Starshots/Coll.jpeg"
@@ -58,7 +58,7 @@ class Starshot:
         >>> print(mystar.return_results())
         >>> mystar.plot_analyzed_image()
     """
-    def __init__(self, filepath=None, **kwargs):
+    def __init__(self, filepath, **kwargs):
         """
         Parameters
         ----------
@@ -67,32 +67,16 @@ class Starshot:
         kwargs
             Passed to :meth:`~pylinac.core.image.Image.load`.
         """
+        if not osp.isfile(filepath):
+            raise FileExistsError("Path given did not point to a valid file")
+
         self.wobble = Wobble()
         self.tolerance = Tolerance(1, 'pixels')
-        if filepath is not None:
-            self.load_image(filepath, **kwargs)
+        self.image = Image.load(filepath, **kwargs)
 
     @classmethod
     def from_url(cls, url, **kwargs):
         """Instantiate from a URL.
-
-        .. versionadded:: 0.7.1
-
-        Parameters
-        ----------
-        url : str
-            URL of the raw file.
-        kwargs
-            Passed to :meth:`~pylinac.core.image.Image.load()`.
-        """
-        obj = cls()
-        obj.load_url(url, **kwargs)
-        return obj
-
-    def load_url(self, url, **kwargs):
-        """Load from a URL.
-
-        .. versionadded:: 0.7.1
 
         Parameters
         ----------
@@ -102,65 +86,28 @@ class Starshot:
             Passed to :meth:`~pylinac.core.image.Image.load()`.
         """
         filename = get_url(url)
-        self.load_image(filename, **kwargs)
+        return cls(filename, **kwargs)
 
     @classmethod
     def from_demo_image(cls):
-        """Construct a Starshot instance and load the demo image.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_demo_image()
-        return obj
-
-    def load_demo_image(self):
-        """Load the starshot demo image."""
+        """Construct a Starshot instance and load the demo image."""
         demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'starshot', 'starshot.tif')
-        self.load_image(demo_file)
-
-    def load_image(self, filepath, **kwargs):
-        """Load the image via the file path.
-
-        Parameters
-        ----------
-        filepath : str
-            Path to the file to be loaded.
-        kwargs
-            Passed to :meth:`~pylinac.core.image.Image.load()`.
-        """
-        self.image = Image.load(filepath, **kwargs)
+        return cls(demo_file)
 
     @classmethod
     def from_multiple_images(cls, filepath_list, **kwargs):
         """Construct a Starshot instance and load in and combine multiple images.
-
-        .. versionadded:: 0.6
 
         Parameters
         ----------
         filepath_list : iterable
             An iterable of file paths to starshot images that are to be superimposed.
         kwargs
-            Passed to :meth:`~pylinac.core.image.Image.load()`.
+            Passed to :meth:`~pylinac.core.image.Image.load_multiples()`.
         """
-        obj = cls()
-        obj.load_multiple_images(filepath_list, **kwargs)
+        obj = cls.from_demo_image()
+        obj.image = Image.load_multiples(filepath_list, **kwargs)
         return obj
-
-    def load_multiple_images(self, filepath_list, **kwargs):
-        """Load multiple images via the file path.
-
-        .. versionadded:: 0.5.1
-
-        Parameters
-        ----------
-        filepath_list : sequence
-            An iterable sequence of filepath locations.
-        kwargs
-            Passed to :meth:`~pylinac.core.image.Image.load_multiples()`
-        """
-        self.image = Image.load_multiples(filepath_list, **kwargs)
 
     def _check_image_inversion(self):
         """Check the image for proper inversion, i.e. that pixel value increases with dose."""
