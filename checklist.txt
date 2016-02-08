@@ -2,7 +2,7 @@ Version Release Checklist
 
 - Run tests: tests/_test_all.py
 - Increment version number in: 1) setup.py, 2) docs/source/conf.py
-- List changes in CHANGES.txt
+- List changes in docs/source
 If a new module:
     - Add demo files directory to setup.py package data
     - Add snippet to README.rst

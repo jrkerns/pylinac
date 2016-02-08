@@ -91,7 +91,7 @@ class CBCT:
     def from_demo_images(cls):
         """Construct a CBCT object from the demo images."""
         cbct_demo_zip = osp.join(osp.dirname(osp.abspath(__file__)), 'demo_files', 'cbct', 'High quality head.zip')
-        return cls.from_zip_file(cbct_demo_zip)
+        return cls.from_zip(cbct_demo_zip)
 
     @classmethod
     def from_url(cls, url):
@@ -103,10 +103,10 @@ class CBCT:
             URL pointing to a zip archive of CBCT images.
         """
         filename = get_url(url)
-        return cls.from_zip_file(filename)
+        return cls.from_zip(filename)
 
     @classmethod
-    def from_zip_file(cls, zip_file):
+    def from_zip(cls, zip_file):
         """Construct a CBCT object and pass the zip file.
 
         Parameters
@@ -1247,8 +1247,9 @@ class GeoDiskROI(DiskROI):
         """
         masked_img = self.circle_mask()
         # threshold image
-        upper_band_pass = np.where(masked_img > np.nanmedian(masked_img) * 1.4, 1, 0)
-        lower_band_pass = np.where(masked_img < np.nanmedian(masked_img) * 0.6, 1, 0)
+        nanmedian = np.nanmedian(masked_img)
+        upper_band_pass = masked_img > nanmedian * 1.4
+        lower_band_pass = masked_img < nanmedian * 0.6
         bw_node = upper_band_pass + lower_band_pass
         return bw_node
 
