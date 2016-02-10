@@ -43,6 +43,7 @@ TRAJECTORY_LOG = 'Trajectory log'
 STATIC_IMRT = 'Static IMRT'
 DYNAMIC_IMRT = 'Dynamic IMRT'
 VMAT = 'VMAT'
+IMAGING = 'Imaging'
 
 
 class MachineLogs(list):
@@ -634,17 +635,22 @@ class MachineLog:
             * VMAT
             * Dynamic IMRT
             * Static IMRT
+            * Imaging
         """
-        try:  # tlog
-            gantry_std = self.subbeams[0].gantry_angle.actual.std()
-        except AttributeError:  # dlog
+        if self.log_type == TRAJECTORY_LOG:
+            try:
+                gantry_std = self.subbeams[0].gantry_angle.actual.std()
+            except IndexError:
+                # no beam-on snapshots, thus imaging log
+                return IMAGING
+        else:
             gantry_std = self.axis_data.gantry.actual.std()
         if gantry_std > 0.5:
-            return 'VMAT'
+            return VMAT
         elif self.axis_data.mlc.get_RMS_avg(only_moving_leaves=True) > 0.05:
-            return 'Dynamic IMRT'
+            return DYNAMIC_IMRT
         else:
-            return 'Static IMRT'
+            return STATIC_IMRT
 
     def to_csv(self, filename=None):
         """Write the log to a CSV file. Only applicable for Trajectory logs (Dynalogs are already similar to CSV).
@@ -1366,7 +1372,12 @@ class MLC:
         """
         leaves = self.get_leaves(bank, only_moving_leaves)
         rms_array = self.create_RMS_array(leaves)
-        return np.mean(rms_array)
+        rms = np.mean(rms_array)
+        if np.isnan(rms):
+            return 0
+        else:
+            return rms
+
 
     def get_RMS_max(self, bank='both'):
         """Return the overall maximum RMS of given leaves.
@@ -1382,7 +1393,11 @@ class MLC:
         """
         leaves = self.get_leaves(bank)
         rms_array = self.create_RMS_array(leaves)
-        return np.max(rms_array)
+        rms = np.max(rms_array)
+        if np.isnan(rms):
+            return 0
+        else:
+            return rms
 
     def get_RMS_percentile(self, percentile=95, bank='both', only_moving_leaves=False):
         """Return the n-th percentile value of RMS for the given leaves.
