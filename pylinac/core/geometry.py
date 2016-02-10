@@ -219,6 +219,14 @@ class Line:
         self.point1 = Point(point1)
         self.point2 = Point(point2)
 
+    def __repr__(self):
+        return 'Line: p1:(x={:.1f}, y={:.1f}, z={:.1f}), p2:(x={:.1f}, y={:.1f}, z={:.1f})'.format(self.point1.x,
+                                                                                 self.point1.y,
+                                                                                 self.point1.z,
+                                                                                 self.point2.x,
+                                                                                 self.point2.y,
+                                                                                 self.point2.z)
+
     @property
     def m(self):
         """Return the slope of the line.
@@ -270,10 +278,12 @@ class Line:
         point = Point(point).as_array()
         lp1 = self.point1.as_array()
         lp2 = self.point2.as_array()
+        # lp1 = self.point1
+        # lp2 = self.point2
         # numerator = np.abs((lp2.x - lp1.x)*(lp1.y - point.y) - (lp1.x - point.x)*(lp2.y - lp1.y))
         # denominator = np.sqrt((lp2.x - lp1.x)**2 + (lp2.y - lp1.y)**2)
-        numerator = sum(abs(x) for x in np.cross((lp2 - lp1), (lp1 - point)))
-        denominator = sum(abs(x) for x in lp2 - lp1)
+        numerator = np.sqrt(np.sum(np.power(np.cross((lp2 - lp1), (lp1 - point)), 2)))
+        denominator = np.sqrt(np.sum(np.power(lp2 - lp1, 2)))
         return numerator/denominator
 
     def plot2axes(self, axes, width=1, color='w'):
