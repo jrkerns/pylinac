@@ -67,12 +67,9 @@ class Starshot:
         kwargs
             Passed to :meth:`~pylinac.core.image.Image.load`.
         """
-        if not osp.isfile(filepath):
-            raise FileExistsError("Path given did not point to a valid file")
-
+        self.image = Image.load(filepath, **kwargs)
         self.wobble = Wobble()
         self.tolerance = Tolerance(1, 'pixels')
-        self.image = Image.load(filepath, **kwargs)
 
     @classmethod
     def from_url(cls, url, **kwargs):
