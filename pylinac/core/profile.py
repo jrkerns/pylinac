@@ -588,7 +588,7 @@ class MultiProfile(ProfileMixin):
         interpolation_factor : int
             The interpolation multiplication factor. E.g. if 10, the profile is interpolated to have 10x the number
             of values. Only used if `interpolate` is True.
-        interpolated_type : {'linear', 'cubic'}
+        interpolation_type : {'linear', 'cubic'}
             The type of interpolation to perform. Only used if `interpolate` is True.
 
         See Also
