@@ -343,14 +343,15 @@ class ImageManager(list):
             The path to the images.
         """
         super().__init__()
-        for basefile in os.listdir(directory):
-            file = osp.join(directory, basefile)
-            try:
-                image = WLImage(file)
-            except:
-                pass  # not a DICOM file
-            else:
-                self.append(image)
+        for pdir, _, files in os.walk(directory):
+            for file in files:
+                filepath = osp.join(pdir, file)
+                try:
+                    image = WLImage(filepath)
+                except:
+                    pass  # not a DICOM file
+                else:
+                    self.append(image)
 
 
 class WLImage(DicomImage):
