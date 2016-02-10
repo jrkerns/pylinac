@@ -399,7 +399,7 @@ class Settings:
     air_bubble_radius_mm : int, float
         The size of the "Air" HU ROIs in mm; for finding the phantom roll.
     """
-    threshold = -800
+    threshold = -600
     hu_tolerance = 40
     scaling_tolerance = 1
     thickness_tolerance = 0.2
@@ -718,7 +718,7 @@ class Slice:
             raise ValueError("Unable to locate the CatPhan")
         # determine if one of the ROIs is the size of the CatPhan and drop all others
         roi_sizes, _ = np.histogram(labeled_arr, bins=num_roi+1)
-        rois_in_size_criteria = [self.settings.expected_phantom_size * 0.96 < roi_size < self.settings.expected_phantom_size * 1.04 for roi_size in roi_sizes]
+        rois_in_size_criteria = [self.settings.expected_phantom_size * 0.93 < roi_size < self.settings.expected_phantom_size * 1.04 for roi_size in roi_sizes]
         if not any(rois_in_size_criteria):
             raise ValueError("Unable to locate the CatPhan")
         else:
@@ -1245,7 +1245,7 @@ class GeoDiskROI(DiskROI):
         bw_node : numpy.array
             A masked 2D array the size of the Slice image, where only the node pixels have a value.
         """
-        masked_img = self.circle_mask()
+        masked_img = np.abs(self.circle_mask())
         # threshold image
         nanmedian = np.nanmedian(masked_img)
         upper_band_pass = masked_img > nanmedian * 1.4
@@ -1259,16 +1259,18 @@ class GeoDiskROI(DiskROI):
         """Find the center of the geometric node within the ROI."""
         bw_node = self._threshold_node()
         # label ROIs found
-        labeled_arr, num_roi = ndimage.measurements.label(bw_node)
+        bw_node_filled = ndimage.morphology.binary_fill_holes(bw_node)
+        labeled_arr, num_roi = ndimage.measurements.label(bw_node_filled)
         roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi+1)  # hist will give the size of each label
         bw_node_cleaned = np.where(labeled_arr == np.argsort(roi_sizes)[-2], 1, 0)  # remove all ROIs except the second largest one (largest one is the air itself)
         labeled_arr, num_roi = ndimage.measurements.label(bw_node_cleaned)
         if num_roi != 1:
             raise ValueError("Did not find the geometric node.")
         # determine the center of mass of the geometric node
-        x_arr = np.abs(np.average(bw_node_cleaned, weights=self._array, axis=0))
+        weights = np.abs(self._array)
+        x_arr = np.abs(np.average(bw_node_cleaned, weights=weights, axis=0))
         x_com = SingleProfile(x_arr).fwxm_center(interpolate=True)
-        y_arr = np.abs(np.average(bw_node_cleaned, weights=self._array, axis=1))
+        y_arr = np.abs(np.average(bw_node_cleaned, weights=weights, axis=1))
         y_com = SingleProfile(y_arr).fwxm_center(interpolate=True)
         return Point(x_com, y_com)
 
