@@ -128,7 +128,21 @@ class TestLine(unittest.TestCase):
         point = Point(1,0)
         line = Line((0,0), (0,1))
         exp_dist = 1
+        self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
 
+        point = Point(1, 1)
+        line = Line((0, 0), (1, 1))
+        exp_dist = 0
+        self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
+
+        point = Point(1, 1, 1)
+        line = Line((0,0,0), (0, 0, 1))
+        exp_dist = math.sqrt(2)
+        self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
+
+        point = Point(3, 0, 0)
+        line = Line((0, 0, 0), (3, 3, 0))
+        exp_dist = math.sqrt(18) / 2
         self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
 
 

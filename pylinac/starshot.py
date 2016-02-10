@@ -25,7 +25,7 @@ import os.path as osp
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import differential_evolution
+from scipy import optimize
 
 from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle
@@ -299,16 +299,18 @@ class Starshot:
             self.wobble.radius_mm /= SID / 1000
 
     def _find_wobble_minimize(self, SID):
-        """Find the minimum distance wobble location and radius to all radiation lines."""
+        """Find the minimum distance wobble location and radius to all radiation lines.
+
+        The minimum is found using a scipy minimization function.
+        """
+        # starting point
         sp = copy.copy(self.circle_profile.center)
 
         def distance(p, lines):
             """Calculate the maximum distance to any line from the given point."""
             return max(line.distance_to(Point(p[0], p[1])) for line in lines)
 
-        window_size = min(self.image.shape) * 0.15  # search for the minimum within a ~30% window
-        res = differential_evolution(distance, bounds=[(sp.x-window_size, sp.x+window_size), (sp.y-window_size, sp.y+window_size)], args=(self.lines,),
-                                     mutation=(0.2, 1.5))
+        res = optimize.minimize(distance, sp.as_array(), args=(self.lines,), method='Nelder-Mead', options={'ftol': 0.001})
 
         self.wobble.radius = res.fun
         self.wobble.center = Point(res.x[0], res.x[1])
@@ -507,7 +509,7 @@ class StarProfile(CollapsedCircleProfile):
     """Class that holds and analyzes the circular profile which finds the radiation lines."""
     def __init__(self, image, start_point, radius, min_peak_height, fwhm):
         radius = self._convert_radius_perc2pix(image, start_point, radius)
-        super().__init__(center=start_point, radius=radius, image_array=image.array, width_ratio=0.05)
+        super().__init__(center=start_point, radius=radius, image_array=image.array, width_ratio=0.1)
         self.get_peaks(min_peak_height, fwhm=fwhm)
 
     @staticmethod
@@ -536,7 +538,7 @@ class StarProfile(CollapsedCircleProfile):
         # self.filter(size=0.002, kind='gaussian')
         self.ground()
         if fwhm:
-            self.find_fwxm_peaks(x=60, threshold=min_peak_height, min_distance=min_peak_distance, interpolate=True)
+            self.find_fwxm_peaks(x=80, threshold=min_peak_height, min_distance=min_peak_distance, interpolate=True)
         else:
             self.find_peaks(min_peak_height, min_peak_distance)
 
