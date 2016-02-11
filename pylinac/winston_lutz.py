@@ -90,7 +90,7 @@ class WinstonLutz:
 
     @classmethod
     def from_url(cls, url):
-        """Instantiate from a URL
+        """Instantiate from a URL.
 
         Parameters
         ----------
@@ -343,6 +343,8 @@ class ImageManager(list):
             The path to the images.
         """
         super().__init__()
+        if not osp.isdir(directory):
+            raise ValueError("Invalid directory passed. Check the correct method and file was used.")
         for pdir, _, files in os.walk(directory):
             for file in files:
                 filepath = osp.join(pdir, file)
@@ -403,16 +405,6 @@ class WLImage(DicomImage):
         Point
             The weighted-pixel value location of the BB.
         """
-
-        def is_boxlike(array):
-            """Whether the binary object's dimensions are symmetric, i.e. box-like"""
-            ymin, ymax, xmin, xmax = bounding_box(array)
-            y = abs(ymax - ymin)
-            x = abs(xmax - xmin)
-            if x > max(y * 1.05, y+3) or x < min(y * 0.95, y-3):
-                return False
-            return True
-
         # get initial starting conditions
         hmin = np.percentile(self.array, 5)
         hmax = self.array.max()
@@ -427,26 +419,27 @@ class WLImage(DicomImage):
                 binary_arr = np.where((max_thresh > self) & (self >= lower_thresh), 1, 0)
                 labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
                 roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
-                bw_node_cleaned = np.where(labeled_arr == np.argsort(roi_sizes)[-3], 1, 0)
-                expected_fill_ratio = np.pi / 4
-                actual_fill_ratio = filled_area_ratio(bw_node_cleaned)
-                if (expected_fill_ratio * 1.1 < actual_fill_ratio) or (actual_fill_ratio < expected_fill_ratio * 0.9):
+                bw_bb_img = np.where(labeled_arr == np.argsort(roi_sizes)[-3], 1, 0)
+
+                if not is_round(bw_bb_img):
                     raise ValueError
-                if not is_boxlike(bw_node_cleaned):
+                if not is_modest_size(bw_bb_img, self.bounding_box):
+                    raise ValueError
+                if not is_circular(bw_bb_img):
                     raise ValueError
             except (IndexError, ValueError):
                 max_thresh -= 0.05 * spread
                 if max_thresh < hmin:
-                    raise ValueError("Unable to locate the BB")
+                    raise ValueError("Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images.")
             else:
                 found = True
 
         # determine the center of mass of the BB
         inv_img = Image.load(self.array)
         inv_img.invert()
-        x_arr = np.abs(np.average(bw_node_cleaned, weights=inv_img, axis=0))
+        x_arr = np.abs(np.average(bw_bb_img, weights=inv_img, axis=0))
         x_com = SingleProfile(x_arr).fwxm_center(interpolate=True)
-        y_arr = np.abs(np.average(bw_node_cleaned, weights=inv_img, axis=1))
+        y_arr = np.abs(np.average(bw_bb_img, weights=inv_img, axis=1))
         y_com = SingleProfile(y_arr).fwxm_center(interpolate=True)
         return Point(x_com, y_com)
 
@@ -580,3 +573,27 @@ class WLImage(DicomImage):
             return REFERENCE
         else:
             return COMBO
+
+
+def is_circular(logical_array):
+    """Whether the binary object's dimensions are symmetric, i.e. a perfect circle. Used to find the BB."""
+    ymin, ymax, xmin, xmax = bounding_box(logical_array)
+    y = abs(ymax - ymin)
+    x = abs(xmax - xmin)
+    if x > max(y * 1.05, y + 3) or x < min(y * 0.95, y - 3):
+        return False
+    return True
+
+
+def is_modest_size(logical_array, field_bounding_box):
+    """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
+    bbox = field_bounding_box
+    rad_field_area = (bbox[1] - bbox[0]) * (bbox[3] - bbox[2])
+    return rad_field_area * 0.003 < np.sum(logical_array) < rad_field_area * 0.3
+
+
+def is_round(logical_array):
+    """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
+    expected_fill_ratio = np.pi / 4
+    actual_fill_ratio = filled_area_ratio(logical_array)
+    return expected_fill_ratio * 1.1 > actual_fill_ratio > expected_fill_ratio * 0.9
