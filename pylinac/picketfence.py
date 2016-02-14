@@ -374,6 +374,7 @@ class PicketFence:
         return string
 
     @property
+    @lru_cache(maxsize=1)
     def orientation(self):
         """The orientation of the image, either Up-Down or Left-Right."""
         # replace any dead pixels with median value
@@ -666,6 +667,7 @@ class Picket:
             raise AttributeError("No action tolerance was specified")
 
     @property
+    @lru_cache(maxsize=2)
     def fit(self):
         """The fit of a polynomial to the MLC measurements."""
         if self.settings.log_fits is not None:
