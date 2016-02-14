@@ -74,6 +74,8 @@ class PicketFence:
             self.image.check_inversion()
         if log is not None:
             self.load_log(log)
+        else:
+            self._log_fits = None
 
     @classmethod
     def from_url(cls, url, filter=None):
@@ -171,15 +173,15 @@ class PicketFence:
     def load_log(self, log):
         """Load a machine log that corresponds to the picket fence delivery."""
         mlog = MachineLog(log)
-        fl = mlog.fluence.actual.calc_map(equal_aspect=True)
-        fli = Image.load(fl, dpi=254)
+        fl = mlog.fluence.expected.calc_map(equal_aspect=True)
+        fli = Image.load(fl, dpi=254)  # 254 pix/in => 1 pix/0.1mm (default fluence calc)
         # crop fluence array to same physical size as EPID
-        # self.image.physical_shape
         hdiff = fli.physical_shape[0] - self.image.physical_shape[0]
         wdiff = fli.physical_shape[1] - self.image.physical_shape[1]
         fli.remove_edges(int(min(hdiff, wdiff) * fli.dpmm / 2 + 2))
         new_array = Image.load(fli.array, dpi=254)
-        pf = PicketFence(new_array)
+        pf = PicketFence.from_demo_image()
+        pf.image = new_array
         pf.analyze()
         self._log_fits = cycle([p.fit for p in pf.pickets])
         # resize image
@@ -437,7 +439,7 @@ class Settings:
         self.image = image
         self.dpmm = image.dpmm
         self.mmpd = 1/image.dpmm
-        self.image_center = image.cax
+        self.image_center = image.center
         self.log_fits = log_fits
 
     @property
@@ -489,10 +491,10 @@ class Settings:
 
         # now adjust them to align with the iso
         if self.orientation == UP_DOWN:
-            leaf30_center = self.image.cax.y - self.small_leaf_width / 2
+            leaf30_center = self.image_center.y - self.small_leaf_width / 2
             edge = self.image.shape[0]
         else:
-            leaf30_center = self.image.cax.x - self.small_leaf_width / 2
+            leaf30_center = self.image_center.x - self.small_leaf_width / 2
             edge = self.image.shape[1]
         adjustment = leaf30_center - leaf_centers[29]
         leaf_centers += adjustment
