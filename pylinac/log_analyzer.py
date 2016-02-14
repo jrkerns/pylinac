@@ -20,6 +20,7 @@ Features:
   and file data.
 """
 from abc import ABCMeta, abstractproperty
+import concurrent.futures
 import copy
 import csv
 from functools import lru_cache
@@ -98,15 +99,7 @@ class MachineLogs(list):
         # extract files to a temporary folder
         with TemporaryZipDirectory(zfile) as tzd:
             # walk the files looking for machine logs
-            for pdir, sdir, files in os.walk(tzd):
-                for file in files:
-                    file = osp.join(pdir, file)
-                    try:
-                        log = MachineLog(file)
-                    except:
-                        pass
-                    else:
-                        obj.append(log)
+            obj.load_folder(tzd)
         return obj
 
     @property
@@ -223,7 +216,7 @@ class MachineLogs(list):
             if is_log(obj):
                 log = MachineLog(obj)
                 super().append(log)
-            elif is_valid_dir(obj, raise_error=False):
+            elif osp.isdir(obj):
                 for root, dirs, files in os.walk(obj):
                     for name in files:
                         pth = osp.join(root, name)
@@ -532,13 +525,13 @@ class MachineLog:
         """
         if suffix is None:
             suffix = ''
-        dlog = self.log_type == DYNALOG
-        if dlog:
+        is_dlog = self.log_type == DYNALOG
+        if is_dlog:
             both_dlogs = _return_other_dlg(self.filename, raise_find_error=False) is not None
         else:
             both_dlogs = False
-        tlog = self.log_type == TRAJECTORY_LOG
-        tlog_and_txt = tlog and is_tlog_txt_file_around(self.filename)
+        is_tlog = self.log_type == TRAJECTORY_LOG
+        is_tlog_and_txt = is_tlog and is_tlog_txt_file_around(self.filename)
 
         # get base file name
         base_filename = osp.basename(self.filename)
@@ -556,7 +549,7 @@ class MachineLog:
             dest_dir = destination
 
         # create anonymized filenames
-        if tlog:
+        if is_tlog:
             anonymous_base_filename = 'Anonymous' + suffix + base_filename[under_index:]
             anonymous_filename = osp.join(dest_dir, anonymous_base_filename)
             anonymous_txtfilename = anonymous_filename.replace('.bin', '.txt')
@@ -571,15 +564,15 @@ class MachineLog:
         # copy or rename the files, depending on `inplace` parameter
         method = os.rename if inplace else shutil.copy
         method(self.filename, anonymous_filename)
-        if tlog_and_txt:
+        if is_tlog_and_txt:
             old_txt_file = self.filename.replace('.bin', '.txt')
             method(old_txt_file, anonymous_txtfilename)
-        elif dlog:
+        elif is_dlog:
             method(other_filename, anonymous_filenameB)
 
         # replace Patient ID line in tlog .txt file or dynalog file
-        if tlog_and_txt or (self.log_type == DYNALOG):
-            if tlog_and_txt:
+        if is_tlog_and_txt or (self.log_type == DYNALOG):
+            if is_tlog_and_txt:
                 files = [anonymous_txtfilename]
                 line = 0
             else:
@@ -594,7 +587,7 @@ class MachineLog:
                     f.writelines(txtdata)
                 print('Anonymized file written to: ', file)
 
-        if tlog_and_txt:
+        if is_tlog_and_txt:
             return [anonymous_filename, anonymous_txtfilename]
         elif both_dlogs:
             return files
@@ -602,7 +595,7 @@ class MachineLog:
             return [anonymous_filename]
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def log_type(self):
         """Determine the MLC log type: Trajectory or Dynalog.
 
@@ -797,7 +790,7 @@ class Axis:
             self.expected = expected
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def difference(self):
         """Return an array of the difference between actual and expected positions.
 
@@ -859,7 +852,7 @@ class Axis:
 class AxisMovedMixin:
     """Mixin class for Axis."""
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def moved(self):
         """Return whether the axis moved during treatment."""
         threshold = 0.003
@@ -929,7 +922,7 @@ class Fluence(metaclass=ABCMeta):
         """Return a boolean specifying whether the fluence has been calculated."""
         return hasattr(self.pixel_map, 'size')
 
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def calc_map(self, resolution=0.1):
         """Calculate a fluence pixel map.
 
@@ -952,21 +945,24 @@ class Fluence(metaclass=ABCMeta):
              40cm-wide linac head opening.
          """
         fluence = np.zeros((self._mlc.num_pairs, int(400 / resolution)), dtype=np.float32)
-
         self.pixel_map = fluence
         self.resolution = resolution
 
+        # check if the beam was actually on at all (e.g. kV setups)
+        if len(self._mlc.snapshot_idx) < 1:
+            return fluence
+
         # calculate the MU delivered in each snapshot. For Tlogs this is absolute; for dynalogs it's normalized.
         mu_matrix = getattr(self._mu, self._fluence_type)
+        # if very little MU was delivered (e.g. MV setup), return
+        if np.max(mu_matrix) < 0.5:
+            return fluence
         MU_differential = np.zeros(len(mu_matrix))
         MU_differential[0] = mu_matrix[0]
         MU_differential[1:] = np.diff(mu_matrix)
         MU_differential = MU_differential / mu_matrix[-1]
         MU_cumulative = 1
 
-        # check if the beam was actually on (e.g. kV setups don't)
-        if len(self._mlc.snapshot_idx) < 1:
-            return fluence
         # calculate each "line" of fluence (the fluence of an MLC leaf pair, e.g. 1 & 61, 2 & 62, etc),
         # and add each "line" to the total fluence matrix
         fluence_line = np.zeros(int(400 / resolution), dtype=np.float32)
@@ -1073,7 +1069,7 @@ class GammaFluence(Fluence):
         self._expected_fluence = expected_fluence
         self._mlc = mlc_struct
 
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def calc_map(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, calc_individual_maps=False):
         """Calculate the gamma from the actual and expected fluences.
 
@@ -1270,7 +1266,7 @@ class MLC:
         return len(self.leaf_axes)
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def num_snapshots(self):
         """Return the number of snapshots used for MLC RMS & Fluence calculations.
 
@@ -1281,13 +1277,13 @@ class MLC:
         return len(self.snapshot_idx)
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def num_moving_leaves(self):
         """Return the number of leaves that moved."""
         return len(self.moving_leaves)
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def moving_leaves(self):
         """Return an array of the leaves that moved during treatment."""
         threshold = 0.003
@@ -1345,7 +1341,7 @@ class MLC:
         return self.leaf_moved(a_leaf) or self.leaf_moved(b_leaf)
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _all_leaf_indices(self):
         """Return an array enumerated over all the leaves."""
         return np.array(range(1, len(self.leaf_axes) + 1))
@@ -1534,13 +1530,13 @@ class MLC:
         return rms_array[leaves]
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _abs_error_all_leaves(self):
         """Absolute error of all leaves."""
         return np.abs(self._error_array_all_leaves)
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _error_array_all_leaves(self):
         """Error array of all leaves."""
         mlc_error = np.zeros((self.num_leaves, self.num_snapshots))
@@ -1558,7 +1554,7 @@ class MLC:
         return arr
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _RMS_array_all_leaves(self):
         """Return the RMS of all leaves."""
         rms_array = np.array([np.sqrt(np.sum(leafdata.difference[self.snapshot_idx] ** 2) / self.num_snapshots) for leafdata in self.leaf_axes.values()])
@@ -2068,7 +2064,7 @@ class DlogAxisData(DlogSection):
             self.mlc.leaf_axes[leaf].expected *= dynalog_leaf_conversion / 1000
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def num_beamholds(self):
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.beam_hold.actual)
@@ -2174,7 +2170,7 @@ class TlogAxisData(TlogSection):
         return self, self._cursor
 
     @property
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def num_beamholds(self):
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.beam_hold.actual)
@@ -2212,6 +2208,55 @@ class CRC(TlogSection):
         # TODO: figure this out
         pass
 
+
+def anonymize(source, inplace=True, destination=None, recursive=True):
+    """Quickly anonymize an individual log or directory of logs.
+    For directories, threaded execution makes this much faster (~6x) than loading a ``MachineLogs``
+    instance of the folder and using the ``.anonymize()`` method.
+
+    .. note::
+        Because ``MachineLog`` instances are not overly memory-efficient, you *may* run into ``MemoryError`` issues.
+        To avoid this, try not to anonymize more than ~3000 logs at once.
+
+    Parameters
+    ----------
+    source : str
+        Points to the local log file or log folder.
+    inplace : bool
+        Whether to edit the file itself, or created an anonymized copy and leave the original.
+    destination : str, None
+        Where the put the anonymized logs. Must point to an existing directory. If None, will place the logs in their original location.
+    recursive : bool
+        Whether to recursively enter sub-directories below the root source folder.
+    """
+    # if a file, just anonymize it
+    if osp.isfile(source):
+        log = MachineLog(source)
+        log.anonymize(inplace=inplace, destination=destination)
+    # if a dir, start a threaded executor and walk the folder.
+    elif osp.isdir(source):
+        futures = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()*8) as exec:
+            for pdir, sdir, files in os.walk(source):
+                for file in files:
+                    filepath = osp.join(pdir, file)
+                    if is_log(filepath):
+                        future = exec.submit(_anonymize, filepath, inplace, destination)
+                        futures.append(future)
+                if not recursive:
+                    break
+            concurrent.futures.wait(futures)
+        print("All logs in {} have been anonymized.".format(source))
+    else:
+        raise ValueError("{} is not a log file or directory.".format(source))
+
+
+def _anonymize(filepath, inplace, destination):
+    """Function to anonymize logs; exclusively for use with ``anonymize()``."""
+    log = MachineLog(filepath)
+    log.anonymize(inplace=inplace, destination=destination)
+
+
 def is_tlog_txt_file_around(tlog_filename):
     """Boolean specifying if a Tlog *.txt file is available."""
     try:
@@ -2226,6 +2271,7 @@ def is_log(filename):
     """Boolean specifying if filename is a valid log file."""
     return is_tlog(filename) or is_dlog(filename)
 
+
 def is_tlog(filename):
     """Boolean specifying if filename is a Trajectory log file."""
     if is_valid_file(filename, raise_error=False):
@@ -2234,6 +2280,7 @@ def is_tlog(filename):
         return 'V' in header_sample
     else:
         return False
+
 
 def is_dlog(filename):
     """Boolean specifying if filename is a dynalog file."""
