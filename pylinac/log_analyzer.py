@@ -923,7 +923,7 @@ class Fluence(metaclass=ABCMeta):
         return hasattr(self.pixel_map, 'size')
 
     @lru_cache(maxsize=1)
-    def calc_map(self, resolution=0.1):
+    def calc_map(self, resolution=0.1, equal_aspect=False):
         """Calculate a fluence pixel map.
 
         Fluence calculation is done by adding fluence snapshot by snapshot, and leaf pair by leaf pair.
@@ -944,13 +944,39 @@ class Fluence(metaclass=ABCMeta):
              be the number of MLC pairs by 400 / resolution since the MLCs can move anywhere within the
              40cm-wide linac head opening.
          """
-        fluence = np.zeros((self._mlc.num_pairs, int(400 / resolution)), dtype=np.float32)
+        if equal_aspect:
+            fluence = np.zeros((int(400/resolution), int(400/resolution)), dtype=np.float32)
+        else:
+            fluence = np.zeros((self._mlc.num_pairs, int(400 / resolution)), dtype=np.float32)
+
         self.pixel_map = fluence
         self.resolution = resolution
 
         # check if the beam was actually on at all (e.g. kV setups)
         if len(self._mlc.snapshot_idx) < 1:
             return fluence
+
+        if self._mlc.hdmlc:
+            num_sm = 32
+            sm_sz = 2.5 / resolution
+            num_lg = 14
+            lg_sz = 5 / resolution
+        else:
+            num_sm = 40
+            sm_sz = 5 / resolution
+            num_lg = 10
+            lg_sz = 10 / resolution
+
+        lg = np.repeat(lg_sz, num_lg)
+        sm = np.repeat(sm_sz, num_sm)
+        lg2 = np.repeat(lg_sz, num_lg)
+        leaves = np.concatenate((lg, sm, lg))
+        cl = np.cumsum(leaves)
+        cl2 = np.insert(cl, 0, 0)
+
+        def yield_leaf_width():
+            for idx in range(60):
+                yield (int(cl2[idx]), int(cl[idx]))
 
         # calculate the MU delivered in each snapshot. For Tlogs this is absolute; for dynalogs it's normalized.
         mu_matrix = getattr(self._mu, self._fluence_type)
@@ -968,7 +994,7 @@ class Fluence(metaclass=ABCMeta):
         fluence_line = np.zeros(int(400 / resolution), dtype=np.float32)
         leaf_offset = self._mlc.num_pairs
         pos_offset = int(np.round(200 / resolution))
-        for pair in range(1, self._mlc.num_pairs + 1):
+        for pair, width in zip(range(1, self._mlc.num_pairs + 1), yield_leaf_width()):
             if not self._mlc.leaf_under_y_jaw(pair):
                 fluence_line[:] = 0  # emtpy the line values on each new leaf pair
                 right_leaf_data = getattr(self._mlc.leaf_axes[pair], self._fluence_type)
@@ -995,7 +1021,10 @@ class Fluence(metaclass=ABCMeta):
                     left_edge = max(lt_mlc_pos, lt_jaw_pos)
                     right_edge = min(rt_mlc_pos, rt_jaw_pos)
                     fluence_line[int(left_edge):int(right_edge)] = MU_cumulative
-                fluence[pair - 1, :] = fluence_line
+                if equal_aspect:
+                    fluence[width[0]:width[1], :] = np.tile(fluence_line, [width[1] - width[0], 1])
+                else:
+                    fluence[pair - 1, :] = fluence_line
 
         return fluence
 
