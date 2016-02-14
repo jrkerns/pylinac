@@ -14,11 +14,14 @@ Features:
 """
 from functools import lru_cache
 import os.path as osp
+from itertools import cycle
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
+from scipy import ndimage
 
+from pylinac import MachineLog
 from .core.geometry import Line, Rectangle
 from .core.image import Image
 from .core.io import get_url
@@ -162,6 +165,25 @@ class PicketFence:
         sag_pixels = int(round(sag * self.settings.dpmm))
         direction = 'y' if self.orientation == UP_DOWN else 'x'
         self.image.roll(direction, sag_pixels)
+
+    def load_log(self, log):
+        """Load a machine log that corresponds to the picket fence delivery."""
+        mlog = MachineLog(log)
+        fl = mlog.fluence.actual.calc_map(equal_aspect=True)
+        fli = Image.load(fl, dpi=254)
+        # crop fluence array to same physical size as EPID
+        # self.image.physical_shape
+        hdiff = fli.physical_shape[0] - self.image.physical_shape[0]
+        wdiff = fli.physical_shape[1] - self.image.physical_shape[1]
+        fli.remove_edges(int(min(hdiff, wdiff) * fli.dpmm / 2 + 2))
+        new_array = Image.load(fli.array, dpi=254)
+        pf = PicketFence(new_array)
+        pf.analyze()
+        self._log_fits = cycle([p.fit for p in pf.pickets])
+        # resize image
+        zoom_factor = fli.shape[1] / self.image.shape[1]
+        array = ndimage.interpolation.zoom(self.image, zoom_factor)
+        self.image = Image.load(array, dpi=self.image.dpi * zoom_factor, sid=self.image.sid)
 
     @staticmethod
     def run_demo(tolerance=0.5, action_tolerance=0.25, interactive=False):
