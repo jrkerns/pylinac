@@ -399,7 +399,7 @@ class Settings:
     air_bubble_radius_mm : int, float
         The size of the "Air" HU ROIs in mm; for finding the phantom roll.
     """
-    threshold = -600
+    threshold = -300
     hu_tolerance = 40
     scaling_tolerance = 1
     thickness_tolerance = 0.2
@@ -426,7 +426,7 @@ class Settings:
         return self.dicom_stack.metadata.PixelSpacing[0]
 
     @property
-    @lru_cache(maxsize=2)
+    @lru_cache(maxsize=1)
     def hu_slice_num(self):
         """Using a brute force search of the images, find the median HU linearity slice.
 
