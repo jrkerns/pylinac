@@ -357,11 +357,21 @@ with the CSV files if you wish, without having to use pylinac::
 Anonymizing Logs
 ----------------
 
-Machine logs can be anonymized using the :meth:`~pylinac.log_analyzer.MachineLog.anonymize` method, available to
+Machine logs can be anonymized two ways. The first is using the :meth:`~pylinac.log_analyzer.MachineLog.anonymize` method, available to
 both :class:`~pylinac.log_analyzer.MachineLog` and :class:`~pylinac.log_analyzer.MachineLogs`. Example script::
 
     log = MachineLog.from_demo_trajectorylog()
     log.anonymize()
+
+The other way is the use the module function :func:`~pylinac.log_analyzer.anonymize`. This function will anonymize a single
+log file or a whole directory. If you plan on anonymizing a lot of logs, use this method as it is threaded and is much faster::
+
+    from pylinac.log_analyzer import anonymize
+
+    log_file = 'path/to/tlog.bin'
+    anonymize(log_file)
+    log_dir = 'path/to/log/folder'
+    anonymize(log_dir) # VERY fast
 
 Batch Processing
 ----------------
@@ -430,3 +440,5 @@ API Documentation
 .. autoclass:: pylinac.log_analyzer.JawStruct
 
 .. autoclass:: pylinac.log_analyzer.CouchStruct
+
+.. autofunction:: pylinac.log_analyzer.anonymize

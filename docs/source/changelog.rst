@@ -3,6 +3,63 @@
 Changelog
 =========
 
+V 1.4.0 (unreleased)
+--------------------
+
+General Changes
+^^^^^^^^^^^^^^^
+
+* Nearly all instance-based loading methods (e.g. ``Starshot().load('myfile')``) have been deprecated.
+  Essentially, you can no longer do empty constructor calls (``PicketFence()``).
+  The only way to load data is through the existing class-based methods (e.g. ``Starshot('myfile')``, ``Starshot.from_url('http...')``, etc).
+  The class-based methods have existed for several versions, and they are now the preferred and only way.
+* Since v1.2 most URLs were downloaded and then the local (but temporary) files were loaded. This practice has now been
+  standardized for all modules. I.e. any ``from_url()``-style calls downloads a temporary file and loads that.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* A ``from_url()`` method has been added.
+* Upon loading, all files are searched within the directory, not just the root level.
+  This allows for nested files to be included.
+
+CBCT
+^^^^
+
+* The ``from_zip_file()`` class constructor method has been renamed to ``from_zip()`` to be consistent with the rest
+  of pylinac's similar constructors.
+
+Log Analyzer
+------------
+
+* A new ``treatment_type`` has been added for CBCT and kV logs: ``Imaging``.
+* A new function has been added to the module: ``anonymize()``. This function is similar to the ``.anonymize()`` method,
+  but doesn't require you to load the logs manually. The function is also threaded so it's very fast for mass anonymization.
+
+Starshot
+--------
+
+* The starshot minimization algorithm has been changed from `differential evolution <http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution>`_ to the
+  more predictable `minimize <http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize>`_.
+  Previously, results would *often* be predictable, but would occasionally give really good or really bad results even though no input
+  was changed. This was due to the algorithm; now that a stable algorithm is being used, results are reproducible.
+
+Bug Fixes
+^^^^^^^^^
+
+* `(#47) <https://github.com/jrkerns/pylinac/issues/47>`_ - Fixes the trajectory log number of beam holds calculation. Thanks, Anthony.
+* `(#50) <https://github.com/jrkerns/pylinac/issues/50>`_ - Fixes RMS calculations for "imaging" trajectory logs. Previously,
+  the RMS calculation would return ``nan``, but now returns 0.
+* `(#51) <https://github.com/jrkerns/pylinac/issues/51>`_ - Results of the starshot wobble were sometimes extremely high or low.
+  This has been fixed by using a more stable minimization function.
+* `(#52) <https://github.com/jrkerns/pylinac/issues/52>`_ - The starshot wobble diameter was incorrect. A recent change
+  of the point-to-line algorithm from 2D to 3D caused this issue and has been fixed.
+* `(#53) <https://github.com/jrkerns/pylinac/issues/53>`_ - The Winston-Lutz BB-finding algorithm would sometimes pick up noise, mis-locating the BB.
+  A size criteria has been added to avoid detecting specks of noise.
+* `(#54) <https://github.com/jrkerns/pylinac/issues/54>`_ - Imaging Trajectory logs, besides having no RMS calculation, was producing warnings when calculating
+  the fluence. Since there is no fluence for kV imaging logs, the fluence now simply returns an 0'd fluence array.
+
+
 V 1.3.1
 -------
 
