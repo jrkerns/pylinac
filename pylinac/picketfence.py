@@ -56,7 +56,7 @@ class PicketFence:
         >>> print(mypf.return_results())
         >>> mypf.plot_analyzed_image()
     """
-    def __init__(self, filename, filter=None):
+    def __init__(self, filename, filter=None, log=None):
         """
         Parameters
         ----------
@@ -72,6 +72,8 @@ class PicketFence:
                 self.image.filter(size=filter)
             self._check_for_noise()
             self.image.check_inversion()
+        if log is not None:
+            self.load_log(log)
 
     @classmethod
     def from_url(cls, url, filter=None):
@@ -228,7 +230,7 @@ class PicketFence:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
 
         """Pre-analysis"""
-        self.settings = Settings(self.orientation, tolerance, action_tolerance, hdmlc, self.image)
+        self.settings = Settings(self.orientation, tolerance, action_tolerance, hdmlc, self.image, self._log_fits)
         self._adjust_for_sag(sag_adjustment)
 
         """Analysis"""
@@ -427,7 +429,7 @@ class Overlay:
 
 class Settings:
     """Simple class to hold various settings and info for PF analysis/plotting."""
-    def __init__(self, orientation, tolerance, action_tolerance, hdmlc, image):
+    def __init__(self, orientation, tolerance, action_tolerance, hdmlc, image, log_fits):
         self.orientation = orientation
         self.tolerance = tolerance
         self.action_tolerance = action_tolerance
@@ -436,6 +438,7 @@ class Settings:
         self.dpmm = image.dpmm
         self.mmpd = 1/image.dpmm
         self.image_center = image.cax
+        self.log_fits = log_fits
 
     @property
     def figure_size(self):
@@ -663,6 +666,8 @@ class Picket:
     @property
     def fit(self):
         """The fit of a polynomial to the MLC measurements."""
+        if self.settings.log_fits is not None:
+            return next(self.settings.log_fits)
         x = np.array([mlc.point1.y for mlc in self.mlc_meas])
         y = np.array([mlc.point1.x for mlc in self.mlc_meas])
         if self.settings.orientation == UP_DOWN:
