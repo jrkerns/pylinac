@@ -2,6 +2,8 @@ from functools import partial
 import os.path as osp
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac.core.geometry import Point
 from pylinac.vmat import VMAT, DMLC, OPEN, PROFILE, DRGS, DRMLC
 from tests.utils import save_file
@@ -114,6 +116,10 @@ class TestPlottingSaving(TestCase):
     def setUpClass(cls):
         cls.vmat = VMAT.from_demo_images()
         cls.vmat.analyze()
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
 
     def test_plot_analyzed_image(self):
         self.vmat.plot_analyzed_image()

@@ -3,9 +3,12 @@ import os
 from unittest import TestCase
 import shutil
 
-from pylinac.log_analyzer import MachineLog, MachineLogs, DYNALOG, TRAJECTORY_LOG, STATIC_IMRT, DYNAMIC_IMRT, VMAT
-from tests.utils import save_file, LoadingTestBase
+import matplotlib.pyplot as plt
 
+from pylinac.log_analyzer import MachineLog, MachineLogs, DYNALOG, TRAJECTORY_LOG, STATIC_IMRT, DYNAMIC_IMRT, VMAT
+from tests.utils import save_file, LoadingTestBase, LocationMixin
+
+plt.close('all')  # close all open figures; minimizes memory leaks
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
 
 
@@ -175,10 +178,9 @@ class TestLogPlottingSaving(TestCase):
         save_file(self.tlog.save_summary)
 
 
-class TestLogMixin:
+class TestLogBase(LocationMixin):
     """Mixin to use when testing a single machine log; must be mixed with unittest.TestCase."""
-    log_path = ''
-    log_type = TRAJECTORY_LOG
+    # log_type = TRAJECTORY_LOG
     num_mlc_leaves = 120
     num_snapshots = 0
     num_beamholds = 0
@@ -202,7 +204,7 @@ class TestLogMixin:
     axis_scale = 1
     num_subbeams = 0
     is_truncated = 0
-    mlc_model = 3
+    mlc_model = 2
     first_subbeam_data = {'gantry_angle': 0, 'collimator_angle': 0, 'jaw_x1': 0, 'jaw_x2': 0, 'jaw_y1': 0, 'jaw_y2': 0}
 
     # Dynalog-specific data
@@ -211,12 +213,8 @@ class TestLogMixin:
 
     @classmethod
     def setUpClass(cls):
-        cls.log = MachineLog(cls.log_path)
+        cls.log = MachineLog(cls.get_filename())
         cls.log.fluence.gamma.calc_map()
-
-    def test_log_type(self):
-        """Test all kinds of things about the dynalog demo."""
-        self.assertEqual(self.log.log_type, self.log_type)
 
     def test_num_leaves(self):
         """Test the number of MLC leaves and pairs."""
@@ -251,7 +249,7 @@ class TestLogMixin:
         """Test a few header values; depends on log type."""
         header = self.log.header
         self.assertEqual(header.version, self.version)
-        if self.log_type == DYNALOG:
+        if self.log.log_type == DYNALOG:
             self.assertEqual(header.tolerance, self.tolerance)
             self.assertEqual(header.clinac_scale, self.clinac_scale)
         else:
@@ -266,7 +264,7 @@ class TestLogMixin:
 
     def test_mu_delivered(self):
         """Test the number of MU delivered during the log."""
-        self.assertAlmostEqual(self.log.axis_data.mu.actual[-1], self.mu_delivered, delta=0.01)
+        self.assertAlmostEqual(self.log.axis_data.mu.actual[-1], self.mu_delivered, delta=1)
 
     def test_static_axes(self):
         """Test that certain axes did not move during treatment."""
@@ -274,9 +272,9 @@ class TestLogMixin:
             axis = getattr(self.log.axis_data, axis_name)
             self.assertFalse(axis.moved)
 
-    def test_subbeam_data(self):
+    def test_first_subbeam_data(self):
         """Test the first subbeam data."""
-        if self.log_type == TRAJECTORY_LOG:
+        if self.log.log_type == TRAJECTORY_LOG:
             first_subbeam = self.log.subbeams[0]
             for key, known_value in self.first_subbeam_data.items():
                 axis = getattr(first_subbeam, key)
@@ -293,7 +291,7 @@ class TestLogMixin:
             self.assertFalse(self.log.axis_data.mlc.leaf_moved(leaf))
 
 
-class DynalogDemo(TestLogMixin, TestCase):
+class DynalogDemo(TestLogBase, TestCase):
     """Tests of the dynalog demo."""
     log_type = DYNALOG
     treatment_type = DYNAMIC_IMRT
@@ -319,18 +317,16 @@ class DynalogDemo(TestLogMixin, TestCase):
         MachineLog.run_dlog_demo()
 
 
-class TrajectoryLogDemo(TestLogMixin, TestCase):
+class TrajectoryLogDemo(TestLogBase, TestCase):
     """Tests for the demo trajectory log."""
-    log_type = TRAJECTORY_LOG
     num_snapshots = 5200  # excluded: 1021
     num_subbeams = 2
     num_beamholds = 19
-    version = 2.1
+    mlc_model = 3
     static_axes = ['collimator']
     moving_axes = ['gantry']
     average_rms = 0.001
     maximum_rms = 0.002
-    average_gamma = 0.001
     percent_pass_gamma = 100
     mu_delivered = 183
     first_subbeam_data = {'gantry_angle': 310, 'collimator_angle': 180, 'jaw_x1': 3.7, 'jaw_x2': 3.4, 'jaw_y1': 3.8,
@@ -367,7 +363,7 @@ class TestMachineLogs(TestCase):
         # test using zip file
         zfile = osp.join(self._logs_dir, 'mixed_types.zip')
         logs = MachineLogs.from_zip(zfile)
-        self.assertEqual(logs.num_logs, 4)
+        self.assertEqual(logs.num_logs, 3)
 
     def test_basic_parameters(self):
         # no real test other than to make sure it works

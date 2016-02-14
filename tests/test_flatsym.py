@@ -91,6 +91,10 @@ class UnitTests(unittest.TestCase):
         self.img = BeamImage()
         self.img.load_demo_image()
 
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
+
     def test_get_symmetry(self):
         prof = self.img._get_profile('x', 'auto')
 

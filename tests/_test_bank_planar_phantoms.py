@@ -28,14 +28,14 @@ def run_pipspro(path):
 
 
 class TestLeedsImageBank(DataBankMixin, TestCase):
-    DATA_DIR = '2D Image quality phantoms/Leeds'
+    DATA_DIR = ['2D Image quality phantoms', 'Leeds']
 
     def test_all(self):
         super().test_all(run_leeds)
 
 
 class TestPipsProImageBank(DataBankMixin, TestCase):
-    DATA_DIR = '2D Image quality phantoms/PipsPro'
+    DATA_DIR = ['2D Image quality phantoms', 'PipsPro']
 
     def test_all(self):
         super().test_all(run_pipspro)

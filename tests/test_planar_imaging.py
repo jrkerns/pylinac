@@ -1,22 +1,28 @@
 import os.path as osp
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac import LeedsTOR, PipsProQC3
-from tests.utils import save_file
+from tests.utils import save_file, LocationMixin
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Planar imaging')
 
 
-class PlanarPhantomMixin:
+class PlanarPhantomMixin(LocationMixin):
     klass = object
-    filename = None
+    dir_location = TEST_DIR
 
     @classmethod
     def setUpClass(cls):
-        if cls.filename is None:
+        if not cls.file_path:
             cls.instance = cls.klass.from_demo_image()
         else:
-            cls.instance = cls.klass(osp.join(TEST_DIR, cls.filename))
+            cls.instance = cls.klass(cls.get_filename())
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
 
     def test_analyze(self):
         self.instance.analyze()
@@ -46,7 +52,7 @@ class LeedsDemo(LeedsTORTestMixin, TestCase):
 
 
 class LeedsCCW(LeedsTORTestMixin, TestCase):
-    filename = 'Leeds_ccw.dcm'
+    file_path = ['Leeds_ccw.dcm']
 
 
 class PipsProTestMixin(PlanarPhantomMixin):
@@ -63,4 +69,4 @@ class PipsProDemo(PipsProTestMixin, TestCase):
 
 
 class PipsPro1(PipsProTestMixin, TestCase):
-    filename = 'PIPSpro 2.5MV.dcm'
+    file_path = ['PIPSpro 2.5MV.dcm']

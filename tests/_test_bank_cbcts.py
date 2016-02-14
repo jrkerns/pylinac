@@ -1,36 +1,27 @@
 """Run through the CBCT image bank. Since the criteria and analysis are different than the default DataBankMixin, we must create our own."""
-import concurrent.futures
-import time
-import os
-import os.path as osp
 from unittest import TestCase
+from zipfile import BadZipfile
 
 from pylinac import CBCT
-from tests import TEST_BANK_DIR
+from tests.utils import DataBankMixin
 
 
 def run_cbct(path):
     """Function to pass to the process pool executor to process cbct images."""
     try:
-        mypf = CBCT(path)
+        mypf = CBCT.from_zip(path)
         mypf.analyze()
         return 'Success'
-    except:
-        return 'Failure at {}'.format(path)
+    except (ValueError, FileNotFoundError, BadZipfile) as e:
+        return 'Failure: {} @ {}'.format(e, path)
 
 
-class TestCBCTBank(TestCase):
-    image_bank_dir = osp.join(TEST_BANK_DIR, 'CBCTs')
+class CBCTTestBank(DataBankMixin, TestCase):
+    DATA_DIR = ['CBCTs']
+    print_success_path = True
+
+    def file_should_be_processed(self, filepath):
+        return filepath.endswith('.zip')
 
     def test_all(self):
-        futures = []
-        start = time.time()
-        with concurrent.futures.ProcessPoolExecutor() as exec:
-            for pdir, sdir, files in os.walk(self.image_bank_dir):
-                if files and files[0].endswith('.dcm'):
-                    future = exec.submit(run_cbct, pdir)
-                    futures.append(future)
-            for idx, future in enumerate(concurrent.futures.as_completed(futures)):
-                print(future.result(), idx)
-        end = time.time() - start
-        print('Processing of {} files took {}s'.format(len(futures), end))
+        super().test_all(run_cbct)

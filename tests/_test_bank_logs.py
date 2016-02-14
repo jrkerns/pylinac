@@ -8,15 +8,15 @@ from tests.utils import DataBankMixin
 def run_log(path):
     """Function to pass to the process pool executor to process machine logs."""
     try:
-        mypf = MachineLog(path)
-        mypf.fluence.actual.calc_map()
+        log = MachineLog(path)
+        log.fluence.gamma.calc_map()
         return 'Success'
-    except:
-        return 'Failure at {}'.format(path)
+    except (ValueError,) as e:
+        return 'Failure: {} @ {}'.format(e, path)
 
 
 class TestLogBank(DataBankMixin, TestCase):
-    DATA_DIR = 'Machine logs'
+    DATA_DIR = ['Machine logs']
 
     def file_should_be_processed(self, filepath):
         return filepath.endswith('.dlg') or filepath.endswith('.bin')

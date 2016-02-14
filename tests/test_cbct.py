@@ -2,12 +2,15 @@ import os.path as osp
 import unittest
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac import CBCT
 from pylinac.core.geometry import Point
-from tests.utils import save_file, LoadingTestBase
+from tests.utils import save_file, LoadingTestBase, LocationMixin
 
 VARIAN_DIR = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Varian')
 ELEKTA_DIR = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Elekta')
+plt.close('all')
 
 
 class CBCTLoading(LoadingTestBase, TestCase):
@@ -55,6 +58,10 @@ class PlottingSaving(TestCase):
         cls.cbct = CBCT.from_demo_images()
         cls.cbct.analyze()
 
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
+
     def test_save_image(self):
         """Test that saving an image does something."""
         for method in ['save_analyzed_image', 'save_analyzed_subimage']:
@@ -73,10 +80,10 @@ class PlottingSaving(TestCase):
             self.cbct.plot_analyzed_subimage('sr')
 
 
-class CBCTMixin:
+class CBCTMixin(LocationMixin):
     """A mixin to use for testing Varian CBCT scans; does not inherit from TestCase as it would be run
         otherwise."""
-    filename = ''
+    file_path = []
     dir_location = VARIAN_DIR
     hu_tolerance = 40
     scaling_tolerance = 1
@@ -103,8 +110,9 @@ class CBCTMixin:
         cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
 
     @classmethod
-    def get_filename(cls):
-        return osp.join(cls.dir_location, cls.filename)
+    def tearDownClass(cls):
+        # somewhere there is a memory leak if ``cbct`` isn't deleted.
+        delattr(cls, 'cbct')
 
     def test_slice_thickness(self):
         """Test the slice thickness."""
@@ -127,7 +135,7 @@ class CBCTMixin:
 
     def test_phantom_roll(self):
         """Test the roll of the phantom."""
-        self.assertAlmostEqual(self.cbct.settings.phantom_roll, self.expected_roll, delta=0.1)
+        self.assertAlmostEqual(self.cbct.settings.phantom_roll, self.expected_roll, delta=0.3)
 
     def test_HU_values(self):
         """Test HU values."""
@@ -145,7 +153,7 @@ class CBCTMixin:
 
     def test_geometry_line_length(self):
         """Test the geometry distances."""
-        self.assertAlmostEqual(self.avg_line_length, self.cbct.geometry.avg_line_length, delta=0.05)
+        self.assertAlmostEqual(self.avg_line_length, self.cbct.geometry.avg_line_length, delta=0.1)
 
     def test_MTF_values(self):
         """Test MTF values."""
@@ -172,7 +180,7 @@ class CBCTDemo(CBCTMixin, TestCase):
 
 class CBCT4(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
-    filename = 'CBCT_4.zip'
+    file_path = ['CBCT_4.zip']
     expected_roll = -2.57
     slice_locations = {'HU': 31, 'UN': 6, 'SR': 43, 'LC': 19}
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
@@ -185,7 +193,7 @@ class CBCT4(CBCTMixin, TestCase):
 
 class Elekta2(CBCTMixin, TestCase):
     """An Elekta CBCT dataset"""
-    filename = 'Elekta_2.zip'
+    file_path = ['Elekta_2.zip']
     dir_location = ELEKTA_DIR
     slice_locations = {'HU': 162, 'UN': 52, 'SR': 132, 'LC': 132}
     hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 253, 'PMP': -399, 'LDPE': -350}
@@ -193,5 +201,4 @@ class Elekta2(CBCTMixin, TestCase):
     unif_values = {'Center': -285, 'Left': -279, 'Right': -278, 'Top': -279, 'Bottom': -279}
     unif_passed = False
     mtf_values = {80: 0.53, 90: 0.44, 60: 0.74, 70: 0.63, 95: 0.36}
-    avg_line_length = 49.22
     lowcon_visible = 2

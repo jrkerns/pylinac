@@ -1,9 +1,12 @@
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac.picketfence import PicketFence, osp, np, UP_DOWN, LEFT_RIGHT
 
-from tests.utils import save_file, LoadingTestBase
+from tests.utils import save_file, LoadingTestBase, LocationMixin
 
+plt.close('all')
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
 
 
@@ -43,9 +46,8 @@ class TestPlottingSaving(TestCase):
         save_file(self.pf.save_analyzed_image, interactive=True)
 
 
-class PFTestMixin:
+class PFTestMixin(LocationMixin):
     """Base Mixin for testing a picketfence image."""
-    im_path = ''
     dir_location = TEST_DIR
     picket_orientation = UP_DOWN
     hdmlc = False
@@ -60,10 +62,6 @@ class PFTestMixin:
     def setUpClass(cls):
         cls.pf = PicketFence(cls.get_filename())
         cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
-
-    @classmethod
-    def get_filename(cls):
-        return osp.join(cls.dir_location, cls.im_path)
 
     def test_passed(self):
         self.assertEqual(self.pf.passed, self.passes)

@@ -23,7 +23,7 @@ def run_pf(path):
 
 
 class PicketFenceTestBank(DataBankMixin, TestCase):
-    DATA_DIR = 'Picket Fences'
+    DATA_DIR = ['Picket Fences']
 
     def file_should_be_processed(self, filepath):
         return filepath.endswith('.dcm')

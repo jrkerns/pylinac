@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 
 from pylinac import WinstonLutz
 from pylinac.core.geometry import Vector, vector_is_close
-from tests.utils import save_file, LoadingTestBase
+from tests import TEST_BANK_DIR
+from tests.utils import save_file, LoadingTestBase, LocationMixin
 
 
 class TestWLLoading(LoadingTestBase, TestCase):
@@ -33,6 +34,10 @@ class TestPlottingSaving(TestCase):
     def setUp(self):
         self.wl = WinstonLutz.from_demo_images()
 
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
+
     def test_plot(self):
         self.wl.plot_images()  # shouldn't raise
         self.wl.plot_gantry_sag()
@@ -42,9 +47,10 @@ class TestPlottingSaving(TestCase):
         save_file(self.wl.save_images)
 
 
-class WinstonLutzMixin:
-    image_dir = ''
+class WinstonLutzMixin(LocationMixin):
+    dir_location = osp.join(TEST_BANK_DIR, 'Winston-Lutz')
     num_images = 0
+    zip = True
     gantry_iso_size = 0
     gantry_iso2bb_vector = Vector
     gantry_sag = 0
@@ -58,18 +64,18 @@ class WinstonLutzMixin:
 
     @classmethod
     def setUpClass(cls):
-        cls.wl = WinstonLutz(cls.image_dir)
-
-    @classmethod
-    def tearDownClass(cls):
-        plt.close('all')
+        filename = cls.get_filename()
+        if cls.zip:
+            cls.wl = WinstonLutz.from_zip(filename)
+        else:
+            cls.wl = WinstonLutz(filename)
 
     def test_number_of_images(self):
         self.assertEqual(len(self.wl.images), self.num_images)
 
     def test_variable_axes(self):
         for idx, axis in self.variable_axes.items():
-            self.assertEqual(self.wl.images[idx].variable_axis, axis)
+            self.assertEqual(axis, self.wl.images[idx].variable_axis)
 
     def test_gantry_iso(self):
         # test iso size

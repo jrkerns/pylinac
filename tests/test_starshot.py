@@ -2,12 +2,14 @@ import os
 import os.path as osp
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac.core.geometry import Point
 from pylinac.starshot import Starshot
-from tests.utils import save_file, LoadingTestBase
+from tests.utils import save_file, LoadingTestBase, LocationMixin
 
+plt.close('all')
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
 
 
@@ -33,9 +35,8 @@ class TestPlottingSaving(TestCase):
         save_file(self.star.save_analyzed_subimage, as_file_object='b')
 
 
-class StarMixin:
+class StarMixin(LocationMixin):
     """Mixin for testing a starshot image."""
-    star_file = ''
     dir_location = TEST_DIR
     wobble_diameter_mm = 0
     wobble_center = Point()
@@ -52,10 +53,6 @@ class StarMixin:
         filename = cls.get_filename()
         cls.star = Starshot(filename)
         cls.star.analyze(recursive=cls.recursive, min_peak_height=cls.min_peak_height, fwhm=cls.fwxm)
-
-    @classmethod
-    def get_filename(cls):
-        return osp.join(cls.dir_location, cls.star_file)
 
     def test_passed(self):
         """Test that the demo image passed"""
@@ -139,17 +136,19 @@ class Multiples(StarMixin, TestCase):
     wobble_center = Point(254, 192)
     wobble_diameter_mm = 0.8
     test_all_radii = False
+    wobble_tolerance = 0.3
+    passes = False
 
     @classmethod
     def setUpClass(cls):
         img_dir = osp.join(TEST_DIR, 'set')
         img_files = [osp.join(img_dir, filename) for filename in os.listdir(img_dir)]
         cls.star = Starshot.from_multiple_images(img_files)
-        cls.star.analyze(radius=0.6)
+        cls.star.analyze(radius=0.8)
 
 
 class Starshot1(StarMixin, TestCase):
-    star_file = 'Starshot#1.tif'
+    file_path = ['Starshot#1.tif']
     wobble_center = Point(508, 683)
     wobble_diameter_mm = 0.23
     num_rad_lines = 4

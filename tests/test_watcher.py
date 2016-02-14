@@ -35,7 +35,7 @@ class WatcherTest(unittest.TestCase):
     def tearDownClass(cls):
         """Kill watcher and remove all files from the watcher director."""
         cls.watching_process.kill()
-        # time.sleep(1)
+        time.sleep(1)
         files = os.listdir(WATCHER_DIR)
         files.remove('dummy.txt')
         for fyle in files:
