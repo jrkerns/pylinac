@@ -20,7 +20,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
 from .core.geometry import Line, Rectangle
-from .core.image import Image
+from .core.image import DicomImage
 from .core.io import get_url
 from .core.profile import MultiProfile, SingleProfile
 from .core.utilities import import_mpld3
@@ -28,6 +28,36 @@ from .core.utilities import import_mpld3
 # possible orientations of the pickets.
 UP_DOWN = 'Up-Down'
 LEFT_RIGHT = 'Left-Right'
+
+
+class PFDicomImage(DicomImage):
+
+    def __init__(self, path, **kwargs):
+        super().__init__(path, **kwargs)
+        self._check_for_noise()
+        self.check_inversion()
+
+    def _check_for_noise(self):
+        """Check if the image has extreme noise (dead pixel, etc) by comparing
+        min/max to 1/99 percentiles and smoothing if need be."""
+        safety_stop = 5
+        while self._has_noise() and safety_stop > 0:
+            self.filter(size=3)
+            safety_stop -= 1
+
+    def _has_noise(self):
+        """Helper method to determine if there is spurious signal in the image."""
+        min = self.array.min()
+        max = self.array.max()
+        near_min, near_max = np.percentile(self.array, [0.5, 99.5])
+        max_is_extreme = max > near_max * 1.25
+        min_is_extreme = (min < near_min * 0.75) and (abs(min - near_min) > 0.1 * (near_max - near_min))
+        return max_is_extreme or min_is_extreme
+
+    def adjust_for_sag(self, sag, orientation):
+        """Roll the image to adjust for EPID sag."""
+        direction = 'y' if orientation == UP_DOWN else 'x'
+        self.roll(direction, sag)
 
 
 class PicketFence:
@@ -64,11 +94,9 @@ class PicketFence:
             If an int, will perform median filtering over image of size *filter*.
         """
         if filename is not None:
-            self.image = Image.load(filename)
+            self.image = PFDicomImage(filename)
             if isinstance(filter, int):
                 self.image.filter(size=filter)
-            self._check_for_noise()
-            self.image.check_inversion()
 
     @classmethod
     def from_url(cls, url, filter=None):
@@ -80,7 +108,7 @@ class PicketFence:
     def from_demo_image(cls, filter=None):
         """Construct a PicketFence instance using the demo image."""
         demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
-        return cls(demo_file)
+        return cls(demo_file, filter=filter)
 
     @classmethod
     def from_multiple_images(cls, path_list):
@@ -92,9 +120,7 @@ class PicketFence:
             An iterable of path locations to the files to be loaded/combined.
         """
         obj = cls.from_demo_image()
-        obj.image = Image.load_multiples(path_list, method='mean')
-        obj._check_for_noise()
-        obj.image.check_inversion()
+        obj.image = PFDicomImage.from_multiples(path_list, method='mean')
         return obj
 
     @property
@@ -140,29 +166,6 @@ class PicketFence:
         """Return the number of pickets determined."""
         return len(self.pickets)
 
-    def _check_for_noise(self):
-        """Check if the image has extreme noise (dead pixel, etc) by comparing
-        min/max to 1/99 percentiles and smoothing if need be."""
-        safety_stop = 5
-        while self._has_noise() and safety_stop > 0:
-            self.image.filter(size=3)
-            safety_stop -= 1
-
-    def _has_noise(self):
-        """Helper method to determine if there is spurious signal in the image."""
-        min = self.image.array.min()
-        max = self.image.array.max()
-        near_min, near_max = np.percentile(self.image.array, [0.5, 99.5])
-        max_is_extreme = max > near_max * 1.25
-        min_is_extreme = (min < near_min * 0.75) and (abs(min - near_min) > 0.1 * (near_max - near_min))
-        return max_is_extreme or min_is_extreme
-
-    def _adjust_for_sag(self, sag):
-        """Roll the image to adjust for EPID sag."""
-        sag_pixels = int(round(sag * self.settings.dpmm))
-        direction = 'y' if self.orientation == UP_DOWN else 'x'
-        self.image.roll(direction, sag_pixels)
-
     @staticmethod
     def run_demo(tolerance=0.5, action_tolerance=0.25, interactive=False):
         """Run the Picket Fence demo using the demo image. See analyze() for parameter info."""
@@ -207,7 +210,9 @@ class PicketFence:
 
         """Pre-analysis"""
         self.settings = Settings(self.orientation, tolerance, action_tolerance, hdmlc, self.image)
-        self._adjust_for_sag(sag_adjustment)
+        # adjust for sag
+        sag_pixels = int(round(sag_adjustment * self.settings.dpmm))
+        self.image.adjust_for_sag(sag_pixels, self.orientation)
 
         """Analysis"""
         self.pickets = PicketHandler(self.image, self.settings, num_pickets)
