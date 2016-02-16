@@ -24,6 +24,15 @@ IMAGE = 'Image'
 MM_PER_INCH = 25.4
 
 
+def is_image(path):
+    """Determine whether the path is a valid image file."""
+    try:
+        load(path)
+        return True
+    except:
+        return False
+
+
 def load(path, **kwargs):
     """Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
@@ -181,6 +190,8 @@ class BaseImage:
 
     Attributes
     ----------
+    path : str
+        The path to the image file.
     array : numpy.ndarray
         The actual image pixel array.
     """
@@ -188,6 +199,7 @@ class BaseImage:
     def __init__(self, path):
         if not osp.isfile(path):
             raise FileExistsError("File `{0}` does not exist".format(path))
+        self.path = path
 
     @classmethod
     def from_multiples(cls, filelist, method='mean', stretch=True, **kwargs):
