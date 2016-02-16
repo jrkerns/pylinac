@@ -156,17 +156,14 @@ class Image:
         return isinstance(obj, np.ndarray)
 
 
-class ImageMixin:
+class BaseImage:
     """Base class for the Image classes.
 
     Attributes
     ----------
     array : numpy.ndarray
         The actual image pixel array.
-    center : geometry.Point
-        The center pixel of the image as a Point.
     """
-    # array = typed_property('array', np.ndarray)
 
     def __init__(self, path):
         if isinstance(path, BytesIO):
@@ -175,6 +172,32 @@ class ImageMixin:
             raise FileExistsError("File `{0}` does not exist".format(path))
         else:
             self.filename = path
+
+    @classmethod
+    def from_multiples(cls, filelist, method='mean', stretch=True, **kwargs):
+        img_list = [cls(path, **kwargs) for path in filelist]
+        first_img = img_list[0]
+
+        # check that all images are the same size and stretch if need be
+        for img in img_list:
+            if img.shape != first_img.shape:
+                raise ValueError("Images were not the same shape")
+            if stretch:
+                img.array = stretcharray(img.array)
+
+        # stack and combine arrays
+        new_array = np.dstack(tuple(img.array for img in img_list))
+        if method == 'mean':
+            combined_arr = np.mean(new_array, axis=2)
+        elif method == 'max':
+            combined_arr = np.max(new_array, axis=2)
+        elif method == 'sum':
+            combined_arr = np.sum(new_array, axis=2)
+
+        # replace array of first object and return
+        first_img.array = combined_arr
+        first_img.check_inversion()
+        return first_img
 
     @property
     def center(self):
@@ -235,10 +258,6 @@ class ImageMixin:
         """Invert (imcomplement) the image."""
         orig_array = self.array
         self.array = -orig_array + orig_array.max() + orig_array.min()
-
-        # def rotate(self, angle, order=3):
-        #     raise NotImplementedError()
-        # self.array = ndimage.interpolation.rotate(self.array, angle, order=order, mode='wrap', reshape=False)
 
     def roll(self, direction='x', amount=1):
         axis = 1 if direction == 'x' else 0
@@ -447,7 +466,7 @@ class ImageMixin:
         return self.array[item]
 
 
-class DicomImage(ImageMixin):
+class DicomImage(BaseImage):
     """An image from a DICOM RTImage file.
 
     Attributes
@@ -518,7 +537,7 @@ class DicomImage(ImageMixin):
             return Point(x, y)
 
 
-class FileImage(ImageMixin):
+class FileImage(BaseImage):
     """An image from a "regular" file (.tif, .jpg, .bmp).
 
     Attributes
@@ -578,7 +597,7 @@ class FileImage(ImageMixin):
         return self.dpi / MM_PER_INCH
 
 
-class ArrayImage(ImageMixin):
+class ArrayImage(BaseImage):
     """An image constructed solely from a numpy array."""
 
     def __init__(self, array, *, dpi=None, sid=1000, dtype=None):
