@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import feature, measure
 
+from .core import image
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
 from .core.geometry import Point
-from .core.image import Image
 from .core.io import get_url
 from .core.profile import CollapsedCircleProfile
 
@@ -34,7 +34,7 @@ class ImagePhantomBase:
         filepath : str
             Path to the image file.
         """
-        self.image = Image.load(filepath)
+        self.image = image.load(filepath)
         self.image.invert()
 
     @classmethod

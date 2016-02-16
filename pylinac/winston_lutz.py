@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage, optimize
 
+from .core import image
 from .core.geometry import Point, Line, Circle, Vector, tan, cos, sin
-from .core.image import DicomImage, Image
 from .core.io import TemporaryZipDirectory, get_url
 from .core.mask import filled_area_ratio, bounding_box
 from .core.profile import SingleProfile
@@ -356,7 +356,7 @@ class ImageManager(list):
                     self.append(image)
 
 
-class WLImage(DicomImage):
+class WLImage(image.DicomImage):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
     def __init__(self, file):
@@ -435,7 +435,7 @@ class WLImage(DicomImage):
                 found = True
 
         # determine the center of mass of the BB
-        inv_img = Image.load(self.array)
+        inv_img = image.load(self.array)
         inv_img.invert()
         x_arr = np.abs(np.average(bw_bb_img, weights=inv_img, axis=0))
         x_com = SingleProfile(x_arr).fwxm_center(interpolate=True)

@@ -21,10 +21,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
 
+from .core import image
 from .core.io import TemporaryZipDirectory
 from .core.decorators import value_accept
 from .core.geometry import Point, Line
-from .core.image import Image, DicomImageStack
 from .core.io import get_url
 from .core.mask import filled_area_ratio
 from .core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
@@ -84,7 +84,7 @@ class CBCT:
         self.spatialres = None
         if not osp.isdir(folderpath):
             raise NotADirectoryError("Path given was not a Directory/Folder")
-        self.dicom_stack = DicomImageStack(folderpath)
+        self.dicom_stack = image.DicomImageStack(folderpath)
         self.settings = Settings(self.dicom_stack)
 
     @classmethod
@@ -594,7 +594,7 @@ class ThicknessROI(RectangleROI):
     @property
     def long_profile(self):
         """The profile along the axis perpendicular to ramped wire."""
-        img = Image.load(self.pixel_array)
+        img = image.load(self.pixel_array)
         img.filter()
         prof = SingleProfile(img.array.max(axis=np.argmin(img.shape)))
         prof.filter(0.05)
@@ -689,7 +689,7 @@ class Slice:
             array = combine_surrounding_slices(dicom_stack, self.slice_num, mode=combine_method, slices_plusminus=num_slices)
         else:
             array = dicom_stack[self.slice_num].array
-        self.image = Image.load(array)
+        self.image = image.load(array)
 
     @property
     def __getitem__(self, item):

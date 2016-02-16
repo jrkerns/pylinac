@@ -19,8 +19,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
+from .core import image
 from .core.geometry import Line, Rectangle
-from .core.image import DicomImage
 from .core.io import get_url
 from .core.profile import MultiProfile, SingleProfile
 from .core.utilities import import_mpld3
@@ -30,7 +30,8 @@ UP_DOWN = 'Up-Down'
 LEFT_RIGHT = 'Left-Right'
 
 
-class PFDicomImage(DicomImage):
+class PFDicomImage(image.DicomImage):
+    """A subclass of a DICOM image that checks for noise and inversion when instantiated. Can also adjust for EPID sag."""
 
     def __init__(self, path, **kwargs):
         super().__init__(path, **kwargs)

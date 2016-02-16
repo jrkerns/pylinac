@@ -27,9 +27,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import optimize
 
+from .core import image
 from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle
-from .core.image import Image
 from .core.io import get_url
 from .core.profile import SingleProfile, CollapsedCircleProfile
 
@@ -67,7 +67,7 @@ class Starshot:
         kwargs
             Passed to :meth:`~pylinac.core.image.Image.load`.
         """
-        self.image = Image.load(filepath, **kwargs)
+        self.image = image.load(filepath, **kwargs)
         self.wobble = Wobble()
         self.tolerance = Tolerance(1, 'pixels')
 
@@ -103,7 +103,7 @@ class Starshot:
             Passed to :meth:`~pylinac.core.image.Image.load_multiples()`.
         """
         obj = cls.from_demo_image()
-        obj.image = Image.load_multiples(filepath_list, **kwargs)
+        obj.image = image.load_multiples(filepath_list, **kwargs)
         return obj
 
     def _check_image_inversion(self):

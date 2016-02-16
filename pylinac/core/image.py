@@ -24,136 +24,156 @@ IMAGE = 'Image'
 MM_PER_INCH = 25.4
 
 
-class Image:
-    """A swiss-army knife, delegate class for loading in images and image-like things.
+def load(path, **kwargs):
+    """Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
-    The class should not be instantiated directly, but through its class methods. These methods
-    return not an `Image` class but one of three specialized image classes:
+    Parameters
+    ----------
+    path : str, file-object
+        The path to the image file or data stream or array.
+    kwargs
+        See :class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.DicomImage`,
+        or :class:`~pylinac.core.image.ArrayImage` for keyword arguments.
 
-    * :class:`~pylinac.core.image.DicomImage` : Handles all DICOM images; utilizes pydicom.
-    * :class:`~pylinac.core.image.FileImage` : Handles JPEG, BMP, TIF, and other "regular" image files; utilizes Pillow.
-    * :class:`~pylinac.core.image.ArrayImage` : Handles 2D numpy arrays; convenient for doing processing of arrays
-      that represent an image.
-
-    There are two methods to construct these classes:
-
-    * :meth:`~pylinac.core.image.Image.load` : For loading single images/arrays.
-    * :meth:`~pylinac.core.image.Image.load_multiples` : For loading and superimposing multiple images/arrays. All the images must be the same size.
+    Returns
+    -------
+    ::class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.ArrayImage`, or :class:`~pylinac.core.image.DicomImage`
+        Return type depends on input image.
 
     Examples
     --------
     Load an image from a file::
 
+        >>> from pylinac.core.image import load
         >>> my_image = "C:\QA\image.tif"
-        >>> img = Image.load(my_image)  # returns a FileImage
+        >>> img = load(my_image)  # returns a FileImage
         >>> img.filter(5)
 
     Loading from an array is just like loading from a file::
 
         >>> arr = np.arange(36).reshape(6, 6)
-        >>> img = Image.load(arr)  # returns an ArrayImage
+        >>> img = load(arr)  # returns an ArrayImage
+    """
+    if isinstance(path, (DicomImage, FileImage, ArrayImage)):
+        return path
 
+    if _is_array(path):
+        return ArrayImage(path, **kwargs)
+    elif _is_dicom(path):
+        return DicomImage(path, **kwargs)
+    elif _is_image_file(path):
+        return FileImage(path, **kwargs)
+    else:
+        raise TypeError("The argument `{0}` was not found to be a valid DICOM file, Image file, or array".format(path))
+
+
+def load_url(url, **kwargs):
+    """Load an image from a URL.
+
+    Parameters
+    ----------
+    url : str
+        A string pointing to a valid URL that points to a file.
+
+        .. note:: For some images (e.g. Github), the raw binary URL must be used, not simply the basic link.
+    """
+    filename = get_url(url)
+    return load(filename, **kwargs)
+
+
+@value_accept(method=('mean', 'max', 'sum'))
+def load_multiples(image_file_list, method='mean', stretch=True, **kwargs):
+    """Combine multiple image files into one superimposed image.
+
+    Parameters
+    ----------
+    image_file_list : list
+        A list of the files to be superimposed.
+    method : {'mean', 'max', 'sum'}
+        A string specifying how the image values should be combined.
+    stretch : bool
+        Whether to normalize the images being combined by stretching their high/low values to the same values across images.
+    kwargs :
+        Further keyword arguments are passed to the load function.
+
+    Examples
+    --------
     Load multiple images::
 
+        >>> from pylinac.core.image import load_multiples
         >>> paths = ['starshot1.tif', 'starshot2.tif']
-        >>> superimposed_img = Image.load_multiples(paths)
+        >>> superimposed_img = load_multiples(paths)
+    """
+    # load images
+    img_list = [load(path, **kwargs) for path in image_file_list]
+    first_img = img_list[0]
+
+    # check that all images are the same size and stretch if need be
+    for img in img_list:
+        if img.shape != first_img.shape:
+            raise ValueError("Images were not the same shape")
+        if stretch:
+            img.array = stretcharray(img.array)
+
+    # stack and combine arrays
+    new_array = np.dstack(tuple(img.array for img in img_list))
+    if method == 'mean':
+        combined_arr = np.mean(new_array, axis=2)
+    elif method == 'max':
+        combined_arr = np.max(new_array, axis=2)
+    elif method == 'sum':
+        combined_arr = np.sum(new_array, axis=2)
+
+    # replace array of first object and return
+    first_img.array = combined_arr
+    first_img.check_inversion()
+    return first_img
+
+
+def _is_dicom(path):
+    """Whether the file is a readable DICOM file via pydicom."""
+    try:
+        ds = dicom.read_file(path, stop_before_pixels=True, force=True)
+        ds.SOPClassUID
+        return True
+    except:
+        return False
+
+
+def _is_image_file(path):
+    """Whether the file is a readable image file via Pillow."""
+    try:
+        pImage.open(path)
+        return True
+    except:
+        return False
+
+
+def _is_array(obj):
+    """Whether the object is a numpy array."""
+    return isinstance(obj, np.ndarray)
+
+
+class Image:
+    """A swiss-army knife, delegate class for loading in images and image-like things.
+
+    Deprecated since v1.4 in favor of the module functions: ``load``, ``load_url``, and ``load_multiples``.
     """
 
     @classmethod
     def load(cls, path, **kwargs):
-        """Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
-
-        Parameters
-        ----------
-        path : str, file-object
-            The path to the image file or data stream or array.
-        kwargs
-            See :class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.DicomImage`,
-            or :class:`~pylinac.core.image.ArrayImage` for keyword arguments.
-
-        Returns
-        -------
-        ::class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.ArrayImage`, or :class:`~pylinac.core.image.DicomImage`
-            Return type depends on input image.
-        """
-        if cls._is_array(path):
-            return ArrayImage(path, **kwargs)
-        elif cls._is_dicom(path):
-            return DicomImage(path, **kwargs)
-        elif cls._is_image_file(path):
-            return FileImage(path, **kwargs)
-        else:
-            raise TypeError("The argument `{0}` was not found to be a valid DICOM file, Image file, or array".format(path))
+        """See :func:`~pylinac.core.image.load`"""
+        return load(path, **kwargs)
 
     @classmethod
     def load_url(cls, url, **kwargs):
-        """Load an image from a URL.
-
-        Parameters
-        ----------
-        url : str
-            A string pointing to a valid URL that points to a file.
-
-            .. note:: For some images (e.g. Github), the raw binary URL must be used, not simply the basic link.
-        """
-        filename = get_url(url)
-        return cls.load(filename, **kwargs)
+        """See :func:`~pylinac.core.image.load_url`"""
+        return load_url(url, **kwargs)
 
     @classmethod
-    @value_accept(method=('mean', 'max', 'sum'))
     def load_multiples(cls, image_file_list, method='mean', stretch=True, **kwargs):
-        """Combine multiple image files into one superimposed image.
-
-        .. versionadded:: 0.5.1
-        """
-        # load images
-        img_list = [cls.load(path, **kwargs) for path in image_file_list]
-        first_img = img_list[0]
-
-        # check that all images are the same size and stretch if need be
-        for img in img_list:
-            if img.shape != first_img.shape:
-                raise ValueError("Images were not the same shape")
-            if stretch:
-                img.array = stretcharray(img.array)
-
-        # stack and combine arrays
-        new_array = np.dstack(tuple(img.array for img in img_list))
-        if method == 'mean':
-            combined_arr = np.mean(new_array, axis=2)
-        elif method == 'max':
-            combined_arr = np.max(new_array, axis=2)
-        elif method == 'sum':
-            combined_arr = np.sum(new_array, axis=2)
-
-        # replace array of first object and return
-        first_img.array = combined_arr
-        first_img.check_inversion()
-        return first_img
-
-    @staticmethod
-    def _is_dicom(path):
-        """Whether the file is a readable DICOM file via pydicom."""
-        try:
-            ds = dicom.read_file(path, stop_before_pixels=True, force=True)
-            ds.SOPClassUID
-            return True
-        except:
-            return False
-
-    @staticmethod
-    def _is_image_file(path):
-        """Whether the file is a readable image file via Pillow."""
-        try:
-            pImage.open(path)
-            return True
-        except:
-            return False
-
-    @staticmethod
-    def _is_array(obj):
-        """Whether the object is a numpy array."""
-        return isinstance(obj, np.ndarray)
+        """See :func:`~pylinac.core.image.load_multiples`"""
+        return load_multiples(image_file_list, method, stretch, **kwargs)
 
 
 class BaseImage:
@@ -166,38 +186,13 @@ class BaseImage:
     """
 
     def __init__(self, path):
-        if isinstance(path, BytesIO):
-            path.seek(0)
-        elif not osp.isfile(path):
+        if not osp.isfile(path):
             raise FileExistsError("File `{0}` does not exist".format(path))
-        else:
-            self.filename = path
 
     @classmethod
     def from_multiples(cls, filelist, method='mean', stretch=True, **kwargs):
-        img_list = [cls(path, **kwargs) for path in filelist]
-        first_img = img_list[0]
-
-        # check that all images are the same size and stretch if need be
-        for img in img_list:
-            if img.shape != first_img.shape:
-                raise ValueError("Images were not the same shape")
-            if stretch:
-                img.array = stretcharray(img.array)
-
-        # stack and combine arrays
-        new_array = np.dstack(tuple(img.array for img in img_list))
-        if method == 'mean':
-            combined_arr = np.mean(new_array, axis=2)
-        elif method == 'max':
-            combined_arr = np.max(new_array, axis=2)
-        elif method == 'sum':
-            combined_arr = np.sum(new_array, axis=2)
-
-        # replace array of first object and return
-        first_img.array = combined_arr
-        first_img.check_inversion()
-        return first_img
+        """Load an instance from multiple image items. See :func:`~pylinac.core.image.load_multiples`."""
+        return load_multiples(filelist, method, stretch, **kwargs)
 
     @property
     def center(self):
