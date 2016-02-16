@@ -384,10 +384,11 @@ class WLImage(DicomImage):
         edges
             The bounding box of the field, plus a small margin.
         """
-        min = np.percentile(self.array, 5)
-        max = self.array.max()
+        min, max = np.percentile(self.array, [5, 99.9])
         threshold_img = self.as_binary((max - min)/2 + min)
-        [*edges] = bounding_box(threshold_img)
+        # clean single-pixel noise from outside field
+        cleaned_img = ndimage.binary_erosion(threshold_img)
+        [*edges] = bounding_box(cleaned_img)
         edges[0] -= 10
         edges[1] += 10
         edges[2] -= 10
@@ -406,8 +407,7 @@ class WLImage(DicomImage):
             The weighted-pixel value location of the BB.
         """
         # get initial starting conditions
-        hmin = np.percentile(self.array, 5)
-        hmax = self.array.max()
+        hmin, hmax = np.percentile(self.array, [5, 99.9])
         spread = hmax - hmin
         max_thresh = hmax
 
