@@ -17,26 +17,12 @@ within_01 = partial(TestCase().assertAlmostEqual, delta=0.1)
 
 class TestGeneral(TestCase):
     """Generic tests for VMAT class."""
+
     def setUp(self):
-        self.vmat = VMAT()
-
-    def test_analyze_without_both_images_loaded(self):
-        """Raise an error if both images aren't loaded when analyzing."""
-        self.assertRaises(AttributeError, self.vmat.analyze, DRMLC)
-        self.vmat.load_demo_image('drgs')
-        self.vmat.analyze('drgs')  # shouldn't raise
-
-    def test_img_loaded_tags(self):
-        """Test the 'is_loaded' type tags."""
-        self.assertFalse(self.vmat.open_img_is_loaded)
-        self.assertFalse(self.vmat.dmlc_img_is_loaded)
-        self.vmat.load_demo_image()
-        self.assertTrue(self.vmat.open_img_is_loaded)
-        self.assertTrue(self.vmat.dmlc_img_is_loaded)
+        self.vmat = VMAT.from_demo_images()
 
     def test_img_inversion(self):
         """Check that the demo images indeed get inverted."""
-        self.vmat.load_demo_image()
         top_corner_before = self.vmat.image_open.array[:20, :20].mean()
         self.vmat._check_img_inversion()
         top_corner_after = self.vmat.image_open.array[:20, :20].mean()
@@ -45,16 +31,15 @@ class TestGeneral(TestCase):
     def test_analyze_without_test_type(self):
         dmlc = osp.join(TEST_DIR, 'no_test_type_dmlc.dcm')
         opn = osp.join(TEST_DIR, 'no_test_type_open.dcm')
-        self.vmat.load_images((dmlc, opn))
+        vmat = VMAT((dmlc, opn))
 
         with self.assertRaises(ValueError):
-            self.vmat.analyze()
+            vmat.analyze()
 
         # but will run when test type is passed
-        self.vmat.analyze('drmlc')
+        vmat.analyze('drmlc')
 
     def test_failure_with_tight_tolerance(self):
-        self.vmat.load_demo_image()
         self.vmat.analyze(tolerance=0.1)
         self.vmat.return_results()
 
@@ -62,35 +47,19 @@ class TestGeneral(TestCase):
 class TestLoading(TestCase):
     """Tests of the various loading schemas."""
 
-    def setUp(self):
-        self.vmat = VMAT()
-
-    def test_load_image(self):
-        good_name = osp.join(TEST_DIR, 'no_test_type_dmlc.dcm')
-        bad_name = osp.join(TEST_DIR, 'no_test_or_image_type_1.dcm')
-
-        # image type can be determined from a good name
-        self.vmat.load_image(good_name)
-
-        # but not a bad one
-        with self.assertRaises(ValueError):
-            self.vmat.load_image(bad_name)
-
     def test_from_urls(self):
-        urls = ['https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRGS_dmlc.dcm',
-                'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRGS_open.dcm']
-        VMAT.from_urls(urls)  # shouldn't raise
+        VMAT.from_url('https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRMLC.zip')  # shouldn't raise
 
     def test_passing_3_images(self):
         """Test passing the wrong number of images."""
         with self.assertRaises(ValueError):
-            self.vmat.load_images(('', '', ''))
+            VMAT(('', '', ''))
 
     def test_demo_image_loads(self):
         """Test the that demo images load properly."""
         # shouldn't raise
-        self.vmat.load_demo_image(DRGS)
-        self.vmat.load_demo_image(DRMLC)
+        VMAT.from_demo_images(DRGS)
+        VMAT.from_demo_images(DRMLC)
 
     def test_from_zip(self):
         path = osp.join(TEST_DIR, 'DRMLC.zip')
@@ -101,12 +70,11 @@ class TestLoading(TestCase):
         one = osp.join(TEST_DIR, 'no_test_or_image_type_1.dcm')
         two = osp.join(TEST_DIR, 'no_test_or_image_type_2.dcm')
         with self.assertRaises(ValueError):
-            self.vmat.load_images((one, two))
+            VMAT((one, two))
 
         # but will work when everything is specified
-        self.vmat.load_image(one, OPEN)
-        self.vmat.load_image(two, DMLC)
-        self.vmat.analyze(DRMLC)
+        v1 = VMAT(images=(one, two), delivery_types=['open', 'dmlc'])
+        v1.analyze(DRMLC)
 
 
 class TestPlottingSaving(TestCase):

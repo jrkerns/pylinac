@@ -10,25 +10,27 @@ Features:
 * **Automatic identification using file names** - If your file names are clear, the image type and test type don't even
   have to be specified; just load and analyze.
 """
-from io import BytesIO
+import os
 import os.path as osp
+from itertools import zip_longest
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .core import image
 from .core.decorators import value_accept, type_accept
 from .core.geometry import Point, Rectangle
-from .core.image import Image
-from .core.io import get_url, load_zipfile
+from .core.io import get_url, TemporaryZipDirectory
 from .core.profile import SingleProfile
 from .core.utilities import typed_property, import_mpld3
 
 # test types
 DRGS = 'drgs'
 DRMLC = 'drmlc'
-# image types
+# delivery types
 DMLC = 'dmlc'
 OPEN = 'open'
+# other constants
 PROFILE = 'profile'
 
 # ROI settings according to Varian
@@ -59,105 +61,50 @@ class VMAT:
         A typical use case:
             >>> open_img = "C:/QA Folder/VMAT/open_field.dcm"
             >>> dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
-            >>> myvmat = VMAT((open_img, dmlc_img))
+            >>> myvmat = VMAT(images=(open_img, dmlc_img))
             >>> myvmat.analyze(test='drmlc', tolerance=1.5)
             >>> print(myvmat.return_results())
             >>> myvmat.plot_analyzed_image()
     """
-    def __init__(self, images=None):
+    def __init__(self, images, delivery_types=None):
+        """
+        Parameters
+        ----------
+        images : iterable (list, tuple, etc)
+            A sequence of paths to the image files.
+        delivery_types : iterable, None
+            If None (default), the image paths names must follow the `Naming Convention <http://pylinac.readthedocs.org/en/latest/vmat_docs.html#naming-convention>`_.
+            If the image paths do not follow the naming convention, a 2-element string sequence for ``delivery_types`` must be passed in. E.g. ``['open', 'dmlc']``.
+        """
         self.settings = Settings('', 1.5)
-        if images is not None:
-            self.load_images(images)
 
-    @value_accept(im_type=(OPEN, DMLC))
-    def load_image(self, file_path, im_type=None):
-        """Load the image directly by the file path.
+        # error checks
+        if len(images) != 2:
+            raise ValueError("Exactly 2 images (open, DMLC) must be passed")
+        if delivery_types and len(delivery_types) != 2:
+            raise ValueError("Delivery types must be 2 elements long")
+        if delivery_types is None:
+            delivery_types = []
 
-        Parameters
-        ----------
-        file_path : str, file-like object
-            The path to the DICOM image or I/O stream.
-        im_type : {'open', 'dmlc', None}
-            Specifies what image type is being loaded in. If None, will try to determine the type from the name.
-            The name must have 'open' or 'dmlc' in the name.
-        """
-        img = Image.load(file_path)
-        if im_type is not None:
-            if _is_open_type(im_type):
-                self.image_open = img
-            elif _is_dmlc_type(im_type):
-                self.image_dmlc = img
-        else:
-            # try to guess type by the name
-            imtype = self._try_to_guess_image_type(osp.basename(file_path))
-            if imtype is not None:
-                self.load_image(file_path, imtype)
+        # walk over images and load the open and DMLC fields
+        for img, deliv in zip_longest(images, delivery_types, fillvalue=''):
+            if OPEN in img.lower() or OPEN == deliv.lower():
+                self.image_open = image.load(img)
+            elif DMLC in img.lower() or DMLC == deliv.lower():
+                self.image_dmlc = image.load(img)
             else:
-                raise ValueError("Image type was not given nor could it be determined from the path name. Please enter and image type.")
+                raise ValueError("Image file names must follow the naming convention (e.g. 'DRGS_open.dcm'), or the delivery types must be passed explicitly")
 
-    @staticmethod
-    def _try_to_guess_image_type(name):
-        if 'open' in name.lower():
-            return 'open'
-        elif 'dmlc' in name.lower():
-            return 'dmlc'
-
-    def _try_to_guess_test(self, name):
         # try to determine test type
-        if DRMLC in name.lower():
-            self.settings.test_type = DRMLC
-        elif DRGS in name.lower():
+        if all(DRGS in osp.basename(img).lower() for img in images):
             self.settings.test_type = DRGS
-
-    def load_images(self, images, names=None):
-        """Load both images simultaneously, assuming a clear name convention:
-        1) The open image must have 'open' in the filename.
-        2) Optionally, the test type can be in the image names as well. If so, the test type is automatically determined.
-
-        .. versionadded:: 0.6
-
-        Parameters
-        ----------
-        images : str
-            File paths to the images. Order does not matter. The open image must have ``open`` somewhere in the name.
-        names : None, str
-            Internal keyword. If the passed images are URLs, then the names must also be passed. If loading URLs, use .from_urls() instead.
-        """
-        if (names is not None) and (len(names) != 2):
-            raise ValueError("Exactly 2 images must be passed")
-        elif (names is None) and (len(images) != 2):
-            raise ValueError("Exactly 2 images must be passed")
-
-        for idx, image in enumerate(images):
-            if names is not None:
-                name = names[idx]
-            else:
-                name = image
-            if OPEN in name.lower():
-                im_type = OPEN
-            elif DMLC in name.lower():
-                im_type = DMLC
-            else:
-                raise ValueError("Could not determine which image was open and DMLC; image names must have 'open' or 'dmlc' in the names when using `load_images()`")
-            self.load_image(image, im_type=im_type)
-        if names is not None:
-            self._try_to_guess_test(name)
-        else:
-            self._try_to_guess_test(image)
+        elif all(DRMLC in osp.basename(img).lower() for img in images):
+            self.settings.test_type = DRMLC
 
     @classmethod
+    @value_accept(type=(DRGS, DRMLC))
     def from_demo_images(cls, type='drgs'):
         """Construct a VMAT instance using the demo images.
-
-        .. versionadded:: 0.6
-        """
-        obj = cls()
-        obj.load_demo_image(type=type)
-        return obj
-
-    @value_accept(type=(DRGS, DRMLC))
-    def load_demo_image(self, type='drgs'):
-        """Load the demo DICOM images from demo files folder.
 
         Parameters
         ----------
@@ -165,51 +112,38 @@ class VMAT:
             Test type of images to load.
         """
         demo_folder = osp.join(osp.dirname(osp.abspath(__file__)), "demo_files", 'vmat')
-        if _test_is_mlcs(type):
+        if type.lower() == DRMLC:
             im_open_path = osp.join(demo_folder, "DRMLC_open.dcm")
             im_dmlc_path = osp.join(demo_folder, 'DRMLC_dmlc.dcm')
         else:
             im_open_path = osp.join(demo_folder, "DRGS_open.dcm")
             im_dmlc_path = osp.join(demo_folder, 'DRGS_dmlc.dcm')
-
-        self.load_images((im_open_path, im_dmlc_path))
+        return cls(images=(im_open_path, im_dmlc_path))
 
     @classmethod
     def from_zip(cls, path):
         """Load VMAT images from a ZIP file that contains both images.
 
-        .. versionadded:: 0.8
+        Parameters
+        ----------
+        path : str
+            Path to the ZIP archive which holds the VMAT image files.
         """
-        obj = cls()
-        obj.load_zip(path)
-        return obj
-
-    def load_zip(self, zip_file):
-        """Load VMAT images from a ZIP file that contains both images.
-
-        .. versionadded:: 0.8
-        """
-        zfiles = load_zipfile(zip_file)
-        images = (BytesIO(zfiles.read(name)) for name in zfiles.namelist())
-        self.load_images(images, names=zfiles.namelist())
+        with TemporaryZipDirectory(path) as tmpzip:
+            img_files = [osp.join(tmpzip, file) for file in os.listdir(tmpzip) if image.is_image(osp.join(tmpzip, file))]
+            return cls(images=img_files)
 
     @classmethod
-    def from_urls(cls, urls):
+    def from_url(cls, url):
         """Load from URLs.
 
-        .. versionadded:: 0.7.1
+        Parameters
+        ----------
+        url : str
+            Must point to a valid URL that is a ZIP archive of two VMAT images.
         """
-        obj = cls()
-        obj.load_urls(urls)
-        return obj
-
-    def load_urls(self, urls):
-        """Load from URLs.
-
-        .. versionadded:: 0.7.1
-        """
-        imgs = [get_url(url) for url in urls]
-        self.load_images(imgs, names=urls)
+        zfile = get_url(url)
+        return cls.from_zip(zfile)
 
     @staticmethod
     def run_demo_drgs(tolerance=1.5):
@@ -236,7 +170,8 @@ class VMAT:
         ----------
         test : {'drgs', 'mlcs', None}
             The test to perform, either Dose Rate Gantry Speed ('drgs') or MLC Speed ('mlcs').
-            The default is None, which assumes a clear naming convention; see load_image() for info.
+            If None (default), the images passed in must have followed the clear `Naming Convention <http://pylinac.readthedocs.org/en/latest/vmat_docs.html#naming-convention>`_.
+            If the images did not follow the naming convention then a string specifying the test type must be passed in.
         tolerance : float, int, optional
             The tolerance of the sample deviations in percent. Default is 1.5.
             Must be between 0 and 8.
@@ -247,14 +182,11 @@ class VMAT:
             If the VMAT segments aren't aligned to the CAX (older VMAT images), the segments need a shift.
             Positive moves the segments right, negative to the left.
         """
-        if not self.open_img_is_loaded or not self.dmlc_img_is_loaded:
-            raise AttributeError("Open or MLC Image not loaded yet. Use .load_image() or .load_image_UI()")
-
         self.settings.tolerance = tolerance/100
         if test is None and self.settings.test_type is '':
             raise ValueError("Test parameter must be given, either 'drgs' or 'drmlc'")
         elif test is not None:
-            self.settings.test_type = test
+            self.settings.test_type = test.lower()
         self.settings.x_offset = x_offset
 
         """Pre-Analysis"""
@@ -282,16 +214,6 @@ class VMAT:
     def max_r_deviation(self):
         """Return the value of the maximum R_deviation segment."""
         return self.segments.max_r_deviation
-
-    @property
-    def open_img_is_loaded(self):
-        """Status of open image."""
-        return hasattr(self, 'image_open')
-
-    @property
-    def dmlc_img_is_loaded(self):
-        """Status of DMLC image."""
-        return hasattr(self, 'image_dmlc')
 
     @property
     def passed(self):
@@ -426,9 +348,9 @@ class VMAT:
         else:
             passfail_str = 'FAIL'
 
-        if _test_is_drgs(self.settings.test_type):
+        if self.settings.test_type == DRGS:
             string = ('Dose Rate & Gantry Speed \nTest Results (Tol. +/-{0:2.1f}%): {1!s}\n'.format(self.settings.tolerance * 100, passfail_str))
-        elif _test_is_mlcs(self.settings.test_type):
+        elif self.settings.test_type == DRMLC:
             string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-{0:2.1f}%): {1!s}\n'.format(self.settings.tolerance * 100, passfail_str))
 
         string += ('Max Deviation: %4.3f%%\n'
@@ -475,7 +397,7 @@ class SegmentManager:
         ----------
         test : {'drgs', 'mlcs'}
         """
-        if _test_is_drgs(test):
+        if test == DRGS:
             num = 7
             offsets = DRGS_SETTINGS['X-plane offsets (mm)']
         else:
@@ -607,22 +529,3 @@ class Settings:
         self.tolerance = tolerance
         self.x_offset = 0
         self.y_offset = 0
-
-
-def _is_open_type(image_type):
-    return _x_in_y(image_type, OPEN)
-
-def _is_dmlc_type(image_type):
-    return _x_in_y(image_type, DMLC)
-
-def _test_is_drgs(test):
-    return _x_in_y(test, DRGS)
-
-def _test_is_mlcs(test):
-    return _x_in_y(test, DRMLC)
-
-def _x_in_y(x, y):
-    if x.lower() in y:
-        return True
-    else:
-        return False
