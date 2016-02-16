@@ -1,5 +1,5 @@
 import unittest
-from unittest import TestCase
+from unittest import TestCase, skip
 
 from tests.test_winstonlutz import WinstonLutzMixin, Vector
 
@@ -183,3 +183,19 @@ class BayAreaiX0(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.25
     cax2bb_median_distance = 0.6
     variable_axes = {0: 'Reference'}
+
+
+@skip  # not a full dataset, but important to test that dead pixels are accounted for.
+class DeadPixel(WinstonLutzMixin, TestCase):
+    file_path = ['DeadPixelWL.zip']
+    num_images = 8
+    gantry_iso_size = 0.2
+    gantry_iso2bb_vector = Vector(0.3, 0.1, 0.4)
+    gantry_sag = 0.4
+    collimator_iso_size = 0.5
+    collimator_iso2bb_vector = Vector(0.2, 0.4)
+    couch_iso_size = 1.2
+    couch_iso2bb_vector = Vector(-1.0, -0.4)
+    cax2bb_max_distance = 1.25
+    cax2bb_median_distance = 0.6
+    variable_axes = {0: 'Combo'}
