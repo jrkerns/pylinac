@@ -73,7 +73,7 @@ class PicketFence:
             self._check_for_noise()
             self.image.check_inversion()
         if log is not None:
-            self.load_log(log)
+            self._load_log(log)
         else:
             self._log_fits = None
 
@@ -170,8 +170,11 @@ class PicketFence:
         direction = 'y' if self.orientation == UP_DOWN else 'x'
         self.image.roll(direction, sag_pixels)
 
-    def load_log(self, log):
-        """Load a machine log that corresponds to the picket fence delivery."""
+    def _load_log(self, log):
+        """Load a machine log that corresponds to the picket fence delivery.
+
+        This log determines the location of the Pickets. The MLC peaks are then compared to the expected log pickets,
+        not a simple fit of the peaks."""
         mlog = MachineLog(log)
         fl = mlog.fluence.expected.calc_map(equal_aspect=True)
         fli = Image.load(fl, dpi=254)  # 254 pix/in => 1 pix/0.1mm (default fluence calc)
