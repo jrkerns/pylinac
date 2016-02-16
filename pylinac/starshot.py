@@ -200,9 +200,6 @@ class Starshot:
         RuntimeError
             If a reasonable wobble value was not found.
         """
-        if not self.image_is_loaded:
-            raise AttributeError("Starshot image not yet loaded")
-
         self.tolerance.value = tolerance
         self._check_image_inversion()
 
@@ -269,11 +266,6 @@ class Starshot:
                             except StopIteration:
                                 raise RuntimeError("The algorithm was unable to determine a reasonable wobble. Try setting "
                                                    "recursive to False and manually adjusting algorithm parameters")
-
-    @property
-    def image_is_loaded(self):
-        """Boolean property specifying if an image has been loaded."""
-        return hasattr(self.image, 'size')
 
     def _scale_wobble(self, SID):
         """Scale the determined wobble by the SID.
