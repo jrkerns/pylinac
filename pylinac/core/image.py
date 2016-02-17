@@ -25,7 +25,7 @@ MM_PER_INCH = 25.4
 
 
 def is_image(path):
-    """Determine whether the path is a valid image file."""
+    """Determine whether the path is a valid image file. Returns boolean."""
     try:
         load(path)
         return True

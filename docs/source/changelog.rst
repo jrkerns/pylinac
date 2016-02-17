@@ -12,9 +12,15 @@ General Changes
 * Nearly all instance-based loading methods (e.g. ``Starshot().load('myfile')``) have been deprecated.
   Essentially, you can no longer do empty constructor calls (``PicketFence()``).
   The only way to load data is through the existing class-based methods (e.g. ``Starshot('myfile')``, ``Starshot.from_url('http...')``, etc).
-  The class-based methods have existed for several versions, and they are now the preferred and only way.
+  The class-based methods have existed for several versions, and they are now the preferred and only way as there is
+  no use case for an empty instance.
 * Since v1.2 most URLs were downloaded and then the local (but temporary) files were loaded. This practice has now been
   standardized for all modules. I.e. any ``from_url()``-style calls downloads a temporary file and loads that.
+* Loading images using the ``Image`` class has been deprecated (but still works) in favor of the new functions in the same module with the same name.
+  I.e. any ``Image.load('my/file')`` calls should be replaces with ``from pylinac.core.image import load``, ``load('my/file')``.
+  Functionality is exactly the same, but supports a better abstraction (there is no reason for a class for just behaviors).
+  The same change applies for the other loading methods of the Image class: ``load_url`` and ``load_multiples``. The ``Image``
+  class is still available but will be removed in v1.5.
 
 Winston-Lutz
 ^^^^^^^^^^^^
@@ -26,23 +32,34 @@ Winston-Lutz
 CBCT
 ^^^^
 
-* The ``from_zip_file()`` class constructor method has been renamed to ``from_zip()`` to be consistent with the rest
+* The ``.from_zip_file()`` class constructor method has been renamed to ``from_zip()`` to be consistent with the rest
   of pylinac's similar constructors.
 
 Log Analyzer
-------------
+^^^^^^^^^^^^
 
 * A new ``treatment_type`` has been added for CBCT and kV logs: ``Imaging``.
 * A new function has been added to the module: ``anonymize()``. This function is similar to the ``.anonymize()`` method,
   but doesn't require you to load the logs manually. The function is also threaded so it's very fast for mass anonymization.
 
 Starshot
---------
+^^^^^^^^
 
 * The starshot minimization algorithm has been changed from `differential evolution <http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution>`_ to the
   more predictable `minimize <http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize>`_.
   Previously, results would *often* be predictable, but would occasionally give really good or really bad results even though no input
   was changed. This was due to the algorithm; now that a stable algorithm is being used, results are reproducible.
+
+VMAT
+^^^^
+
+* The VMAT loading scheme got a few changes. The `Naming Convention <http://pylinac.readthedocs.org/en/latest/vmat_docs.html#naming-convention>`_
+  is still the same, but images are always loaded upon instantiation (see General Changes). Also, if the naming convention isn't used,
+  image delivery types can be passed in during construction; e.g.::
+
+      VMAT(images=(img1, img2), delivery_types=['open', 'dmlc']
+
+* Loading from a URL has been renamed from ``from_urls()`` to ``from_url()`` and assumes it points to a ZIP archive with the images inside.
 
 Bug Fixes
 ^^^^^^^^^
@@ -58,7 +75,8 @@ Bug Fixes
   A size criteria has been added to avoid detecting specks of noise.
 * `(#54) <https://github.com/jrkerns/pylinac/issues/54>`_ - Imaging Trajectory logs, besides having no RMS calculation, was producing warnings when calculating
   the fluence. Since there is no fluence for kV imaging logs, the fluence now simply returns an 0'd fluence array.
-
+* `(#55) <https://github.com/jrkerns/pylinac/issues/55>`_ - Dead pixels outside the field were throwing off the thresholding algorithm and not detecting
+  the field and/or BB.
 
 V 1.3.1
 -------
