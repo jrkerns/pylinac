@@ -14,6 +14,7 @@ Features:
 """
 from functools import lru_cache
 import os.path as osp
+from tempfile import TemporaryDirectory
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -121,7 +122,11 @@ class PicketFence:
             An iterable of path locations to the files to be loaded/combined.
         """
         obj = cls.from_demo_image()
-        obj.image = PFDicomImage.from_multiples(path_list, method='mean')
+        # save a combined image to a temporary dir, then load it back in as a PFDicomImage
+        with TemporaryDirectory() as tmp:
+            filename = osp.join(tmp, 'mydcm.dcm')
+            image.load_multiples(path_list, method='mean').save(filename)
+            obj.image = PFDicomImage(filename)
         return obj
 
     @property
@@ -520,6 +525,8 @@ class PicketHandler:
         leaf_prof = self.image_mlc_inplane_mean_profile
         peak_idxs = leaf_prof.find_peaks(min_distance=0.02, threshold=0.5, max_number=self.num_pickets)
         peak_spacing = np.median(np.diff(peak_idxs))
+        if np.isnan(peak_spacing):
+            peak_spacing = 20
 
         for peak_idx in peak_idxs:
             self.pickets.append(Picket(self.image, self.settings, peak_idx, peak_spacing/2))
