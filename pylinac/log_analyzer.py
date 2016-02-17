@@ -24,6 +24,7 @@ import concurrent.futures
 import copy
 import csv
 from functools import lru_cache
+import multiprocessing
 import os
 import os.path as osp
 import shutil
@@ -34,7 +35,7 @@ import numpy as np
 import scipy.ndimage.filters as spf
 
 from .core.decorators import type_accept, value_accept
-from .core.io import is_valid_file, is_valid_dir, open_file, get_url, TemporaryZipDirectory
+from .core.io import get_url, TemporaryZipDirectory
 from .core.utilities import is_iterable, import_mpld3
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
@@ -53,7 +54,7 @@ class MachineLogs(list):
 
     Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
     @type_accept(folder=str)
-    def __init__(self, folder=None, recursive=True):
+    def __init__(self, folder, recursive=True):
         """
         Parameters
         ----------
@@ -70,11 +71,6 @@ class MachineLogs(list):
             >>> log_folder = r'C:\path\log\directory'
             >>> logs = MachineLogs(log_folder)
 
-        Or load them later directly::
-
-            >>> logs = MachineLogs()
-            >>> logs.load_folder(log_folder)
-
         Batch methods include determining the average gamma and average gamma pass value::
 
             >>> logs.avg_gamma()
@@ -83,8 +79,7 @@ class MachineLogs(list):
             >>> 97.2
         """
         super().__init__()
-        if folder is not None and is_valid_dir(folder):
-            self.load_folder(folder, recursive)
+        self.load_folder(folder, recursive)
 
     @classmethod
     def from_zip(cls, zfile):
@@ -95,11 +90,10 @@ class MachineLogs(list):
         zfile : str
             Path to the zip archive.
         """
-        obj = cls()
         # extract files to a temporary folder
         with TemporaryZipDirectory(zfile) as tzd:
             # walk the files looking for machine logs
-            obj.load_folder(tzd)
+            obj = cls(tzd)
         return obj
 
     @property
@@ -671,7 +665,7 @@ class MachineLog:
             except AttributeError:
                 is_file_object = True
 
-        csv_file = open_file(filename, 'w')
+        csv_file = open(filename, mode='w')
         writer = csv.writer(csv_file, lineterminator='\n')
         # write header info
         header_titles = ('Tlog File:', 'Signature:', 'Version:', 'Header Size:', 'Sampling Inteval:',
@@ -736,7 +730,7 @@ class MachineLog:
             self._read_txt_file()
 
         # read in trajectory log binary data
-        fcontent = open_file(self.filename).read()
+        fcontent = open(self.filename, mode='rb').read()
 
         # Unpack the content according to respective section and data type (see log specification file).
         self.header, self._cursor = TlogHeader(fcontent, self._cursor)._read()
@@ -2229,6 +2223,11 @@ def anonymize(source, inplace=True, destination=None, recursive=True):
     recursive : bool
         Whether to recursively enter sub-directories below the root source folder.
     """
+    def _anonymize(filepath, inplace, destination):
+        """Function to anonymize logs; used in the thread executor."""
+        log = MachineLog(filepath)
+        log.anonymize(inplace=inplace, destination=destination)
+
     # if a file, just anonymize it
     if osp.isfile(source):
         log = MachineLog(source)
@@ -2236,7 +2235,7 @@ def anonymize(source, inplace=True, destination=None, recursive=True):
     # if a dir, start a threaded executor and walk the folder.
     elif osp.isdir(source):
         futures = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()*8) as exec:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()*8) as exec:
             for pdir, sdir, files in os.walk(source):
                 for file in files:
                     filepath = osp.join(pdir, file)
@@ -2249,12 +2248,6 @@ def anonymize(source, inplace=True, destination=None, recursive=True):
         print("All logs in {} have been anonymized.".format(source))
     else:
         raise ValueError("{} is not a log file or directory.".format(source))
-
-
-def _anonymize(filepath, inplace, destination):
-    """Function to anonymize logs; exclusively for use with ``anonymize()``."""
-    log = MachineLog(filepath)
-    log.anonymize(inplace=inplace, destination=destination)
 
 
 def is_tlog_txt_file_around(tlog_filename):
@@ -2274,9 +2267,9 @@ def is_log(filename):
 
 def is_tlog(filename):
     """Boolean specifying if filename is a Trajectory log file."""
-    if is_valid_file(filename, raise_error=False):
-        unknown_file = open_file(filename)
-        header_sample = unknown_file.read(5).decode()
+    if osp.isfile(filename):
+        with open(filename, mode='rb') as f:
+            header_sample = f.read(5).decode()
         return 'V' in header_sample
     else:
         return False
@@ -2284,16 +2277,18 @@ def is_tlog(filename):
 
 def is_dlog(filename):
     """Boolean specifying if filename is a dynalog file."""
-    if is_valid_file(filename, raise_error=False):
-        unknown_file = open_file(filename)
-        header_sample = unknown_file.read(5).decode()
+    if osp.isfile(filename):
+        with open(filename, mode='rb') as f:
+            header_sample = f.read(5).decode()
         return 'B' in header_sample or 'A' in header_sample
     else:
         return False
 
+
 def is_tlog_v3(version):
     """Return whether the Tlog version is 3 or not."""
     return version >= 3
+
 
 def snapshot_col_gen():
     """Generator function for iterating through the snapshot data columns."""
@@ -2301,6 +2296,7 @@ def snapshot_col_gen():
     while True:
         yield col
         col += 2
+
 
 def _return_other_dlg(dlg_filename, raise_find_error=True):
     """Return the filename of the corresponding dynalog file.
@@ -2334,8 +2330,10 @@ def _return_other_dlg(dlg_filename, raise_find_error=True):
     else:
         return
 
+
 def write_single_value(writer, description, value, unit=None):
     writer.writerow([description, str(value), unit])
+
 
 def write_array(writer, description, value, unit=None):
     # write expected

@@ -6,7 +6,6 @@ import numpy as np
 
 from .core.decorators import type_accept
 from .core.image import Image
-from .core.io import is_valid_file
 from .core.profile import SingleProfile
 from .core.utilities import is_iterable, isnumeric
 
@@ -40,7 +39,7 @@ class BeamImage:
             If None, image must be loaded later.
             If a str, path to the image file.
         """
-        if filepath is not None and is_valid_file(filepath):
+        if filepath is not None and osp.isfile(filepath):
             self.image = Image.load(filepath)
         else:
             self.image = np.zeros((1,1))
