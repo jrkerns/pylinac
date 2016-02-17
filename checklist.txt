@@ -6,3 +6,5 @@ Version Release Checklist
 If a new module:
     - Add demo files directory to setup.py package data
     - Add snippet to README.rst
+run setup.py task..., `sdist` with option `bdist_wheel` to make a wheel
+upload to PyPI: `twine upload dist/pylinac-...*` where ... is e.g. `1.4.0`
