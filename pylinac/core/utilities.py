@@ -1,12 +1,8 @@
 """Utility functions for pylinac."""
 import decimal
-import inspect
-import os.path as osp
 from collections import Iterable
 
 import numpy as np
-
-from .io import is_valid_file
 
 
 def is_close(val, target, delta=1):
@@ -19,6 +15,7 @@ def is_close(val, target, delta=1):
         if target - delta < val < target + delta:
             return True
     return False
+
 
 def import_mpld3():
     """Try importing MPLD3. Raises error if not installed. Returns the MPLD3 library."""
@@ -70,7 +67,6 @@ def is_dicom(file):
     pydicom.filereader.read_preamble
     pydicom.filereader.read_partial
     """
-    is_valid_file(file, raise_error=True)
     fp = open(file, 'rb')
     preamble = fp.read(0x80)
     prefix = fp.read(4)
@@ -91,22 +87,3 @@ def is_iterable(object):
         return True
     else:
         return False
-
-
-def go_up_dirlevel(levels=0):
-    """Go up directory levels from where the caller file is located.
-
-    Parameters
-    ----------
-    levels : int
-        Specifies how many levels to go up. 0 goes to the current directory.
-    """
-    calling_file = inspect.stack()[1][1]
-    calling_dir = osp.dirname(calling_file)
-    new_dir = calling_dir
-    while levels > 0:
-        old_dir = new_dir
-        new_dir = osp.dirname(old_dir)
-        levels -= 1
-    return new_dir
-
