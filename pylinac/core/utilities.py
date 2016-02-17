@@ -6,7 +6,21 @@ import numpy as np
 
 
 def is_close(val, target, delta=1):
-    """Return whether the value is near the target value."""
+    """Return whether the value is near the target value(s).
+
+    Parameters
+    ----------
+    val : number
+        The value being compared against.
+    target : number, iterable
+        If a number, the values are simply evaluated.
+        If a sequence, each target is compared to ``val``.
+        If any values of ``target`` are close, the comparison is considered True.
+
+    Returns
+    -------
+    bool
+    """
     try:
         targets = (value for value in target)
     except AttributeError:

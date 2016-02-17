@@ -3,6 +3,7 @@ import os.path as osp
 
 from pylinac.core.utilities import *
 
+
 class TestUtilities(unittest.TestCase):
 
     def test_isnumeric(self):
