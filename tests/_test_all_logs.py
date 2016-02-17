@@ -28,12 +28,14 @@ class Two(LogBankBase, TestCase):
 
 
 class DynalogArc(LogBankBase, TestCase):
-    file_path = ['Katy iX', 'A20120712122417_Arc1.dlg']
+    file_path = ['Katy iX', 'A20120712122417_Anonymous.dlg']
     treatment_type = VMAT
     version = 'B'
+    tolerance = 510
     mu_delivered = 2696
     num_snapshots = 1151
     average_rms = 0.16
+    maximum_rms = 0.205
 
 
 class Four(LogBankBase, TestCase):
@@ -110,7 +112,7 @@ class OpenPort(LogBankBase, TestCase):
 
 
 class Six(LogBankBase, TestCase):
-    file_path = ['Bay Area iX', 'A20121212123129_IEC.dlg']
+    file_path = ['Bay Area iX', 'A20121212123129_Anonymous.dlg']
     treatment_type = VMAT
     version = 'B'
     tolerance = 510
@@ -120,12 +122,3 @@ class Six(LogBankBase, TestCase):
     num_subbeams = 1
     num_axes = 16
     mu_delivered = 2696
-
-
-class Ten(LogBankBase, TestCase):
-    file_path = ['Satellites', 'Katy', '1025136_4DC Treatment_A_TX_20131121100100.bin']
-    num_subbeams = 9
-    mu_delivered = 850
-    first_subbeam_data = {'collimator_angle': 90}
-    num_beamholds = 128
-    num_snapshots = 28120

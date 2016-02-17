@@ -1,6 +1,8 @@
 """Run through the 2D planar phantom image bank."""
 from unittest import TestCase
 
+import matplotlib.pyplot as plt
+
 from pylinac import LeedsTOR, PipsProQC3
 from tests.utils import DataBankMixin
 
@@ -9,6 +11,7 @@ def process_phantom(phantom, path):
     try:
         phantom.analyze()
         phantom.plot_analyzed_image()
+        plt.close('all')
     except:
         return 'Failure at {}'.format(path)
     else:

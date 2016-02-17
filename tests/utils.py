@@ -4,7 +4,7 @@ import multiprocessing
 import os
 import os.path as osp
 import time
-from tempfile import TemporaryFile
+from tempfile import TemporaryFile, NamedTemporaryFile, TemporaryDirectory
 
 from pylinac.core.image import Image
 
@@ -15,8 +15,9 @@ def save_file(method, *args, as_file_object=None, **kwargs):
     """Save a file using the passed method and assert it exists after saving.
     Also deletes the file after checking for existence."""
     if as_file_object is None:  # regular file
-        with TemporaryFile(mode='w') as tfile:
-            method(tfile, *args, **kwargs)
+        with TemporaryDirectory() as tmpdir:
+            tmpfile = osp.join(tmpdir, 'myfile')
+            method(tmpfile, *args, **kwargs)
     else:
         if 'b' in as_file_object:
             temp = BytesIO

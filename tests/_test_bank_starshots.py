@@ -16,7 +16,7 @@ def run_star(path):
 
 
 class StarshotBank(DataBankMixin, TestCase):
-    DATA_DIR = 'Starshots'
+    DATA_DIR = ['Starshots']
 
     def test_all(self):
         super().test_all(run_star)

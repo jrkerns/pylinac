@@ -11,7 +11,6 @@ class PFBankMixin(PFTestMixin):
     dir_location = osp.join(TEST_BANK_DIR, 'Picket Fences')
 
 
-@skip  # file missing
 class AS500(PFBankMixin, TestCase):
     """Tests for the AS500 image."""
     file_path = ['AS500_PF.dcm']

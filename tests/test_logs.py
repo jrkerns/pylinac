@@ -5,7 +5,7 @@ import shutil
 
 import matplotlib.pyplot as plt
 
-from pylinac.log_analyzer import MachineLog, MachineLogs, DYNALOG, TRAJECTORY_LOG, STATIC_IMRT, DYNAMIC_IMRT, VMAT
+from pylinac.log_analyzer import MachineLog, MachineLogs, DYNALOG, TRAJECTORY_LOG, STATIC_IMRT, DYNAMIC_IMRT, VMAT, anonymize
 from tests.utils import save_file, LoadingTestBase, LocationMixin
 
 plt.close('all')  # close all open figures; minimizes memory leaks
@@ -34,6 +34,12 @@ class TestAnonymize(TestCase):
         for file in files:
             file = osp.join(cls.anon_folder, file)
             os.remove(file)
+
+    def test_anonymize_function(self):
+        # shouldn't raise
+        anonymize(osp.join(self.anon_folder, 'A1234_patientid.dlg'))
+        anonymize(self.anon_folder, inplace=False)
+        anonymize(self.anon_folder, recursive=False)
 
     def test_dynalog(self):
         # test making an anonymized copy
@@ -75,14 +81,6 @@ class TestAnonymize(TestCase):
         dlog = MachineLog(dlog_file)
         with self.assertRaises(NameError):
             dlog.anonymize()
-
-    def test_machinelogs(self):
-        """Test anonymization of multiple machine logs."""
-        logs = MachineLogs()
-        logs.append(osp.join(self.anon_folder, 'A1234_patientid.dlg'))
-        logs.append(osp.join(self.anon_folder, 'PatientID_4DC Treatment_JST90_TX_20140712094246.bin'))
-
-        logs.anonymize()  # shouldn't raise
 
 
 class TestLogLoading(LoadingTestBase, TestCase):
@@ -356,10 +354,6 @@ class TestMachineLogs(TestCase):
         # test recursive
         logs = MachineLogs(self.logs_dir)
         self.assertEqual(logs.num_logs, 3)
-        # test using method
-        logs = MachineLogs()
-        logs.load_folder(self.logs_dir)
-        self.assertEqual(logs.num_logs, 3)
         # test using zip file
         zfile = osp.join(self._logs_dir, 'mixed_types.zip')
         logs = MachineLogs.from_zip(zfile)
@@ -399,15 +393,13 @@ class TestMachineLogs(TestCase):
 
     def test_append(self):
         # append a directory
-        logs = MachineLogs()
+        logs = MachineLogs(self.logs_altdir)
         logs.append(self.logs_altdir)
-        self.assertEqual(logs.num_logs, 4)
+        self.assertEqual(logs.num_logs, 8)
         # append a file string
-        logs = MachineLogs()
         single_file = osp.join(self.logs_altdir, 'Anonymous_4DC Treatment_JST90_TX_20140712094246.bin')
         logs.append(single_file)
         # append a MachineLog
-        logs = MachineLogs()
         single_log = MachineLog(single_file)
         logs.append(single_log)
 
@@ -415,11 +407,6 @@ class TestMachineLogs(TestCase):
         log = None
         with self.assertRaises(TypeError):
             logs.append(log)
-
-    def test_empty_op(self):
-        """Test that error is raised if trying to do op with no logs."""
-        logs = MachineLogs()
-        self.assertRaises(ValueError, logs.avg_gamma)
 
     def test_avg_gamma(self):
         logs = MachineLogs(self.logs_dir, recursive=False)

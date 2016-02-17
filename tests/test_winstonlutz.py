@@ -81,7 +81,8 @@ class WinstonLutzMixin(LocationMixin):
         # test iso size
         self.assertAlmostEqual(self.wl.gantry_iso_size, self.gantry_iso_size, delta=0.2)
         # test iso vector
-        self.assertTrue(vector_is_close(self.wl.gantry_iso2bb_vector, self.gantry_iso2bb_vector))
+        self.assertTrue(vector_is_close(self.wl.gantry_iso2bb_vector, self.gantry_iso2bb_vector),
+                        msg="{} was != {}".format(self.wl.gantry_iso2bb_vector, self.gantry_iso2bb_vector))
 
     def test_gantry_sag(self):
         self.assertAlmostEqual(self.wl.gantry_sag(), self.gantry_sag, delta=0.15)
@@ -90,13 +91,15 @@ class WinstonLutzMixin(LocationMixin):
         # test iso size
         self.assertAlmostEqual(self.wl.collimator_iso_size, self.collimator_iso_size, delta=0.2)
         # test iso vector
-        self.assertTrue(vector_is_close(self.wl.collimator_iso2bb_vector, self.collimator_iso2bb_vector))
+        self.assertTrue(vector_is_close(self.wl.collimator_iso2bb_vector, self.collimator_iso2bb_vector),
+                        msg="{} was != {}".format(self.wl.collimator_iso2bb_vector, self.collimator_iso2bb_vector))
 
     def test_couch_iso(self):
         # test iso size
         self.assertAlmostEqual(self.wl.couch_iso_size, self.couch_iso_size, delta=0.2)
         # test iso vector
-        self.assertTrue(vector_is_close(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector))
+        self.assertTrue(vector_is_close(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector),
+                        msg="{} was != {}".format(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector))
 
 
 class WLDemo(WinstonLutzMixin, TestCase):
