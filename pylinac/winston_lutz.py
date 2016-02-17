@@ -596,4 +596,4 @@ def is_round(logical_array):
     """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
     expected_fill_ratio = np.pi / 4
     actual_fill_ratio = filled_area_ratio(logical_array)
-    return expected_fill_ratio * 1.1 > actual_fill_ratio > expected_fill_ratio * 0.9
+    return expected_fill_ratio * 1.1 > actual_fill_ratio > expected_fill_ratio * 0.8
