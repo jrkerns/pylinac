@@ -49,6 +49,12 @@ class PicketFence:
     Run the demo::
         >>> PicketFence.run_demo()
 
+    Load the demo image:
+        >>> pf = PicketFence.from_demo_image()
+
+    Load an image along with its machine log:
+        >>> pf_w_log = PicketFence('my/pf.dcm', log='my/log.bin')
+
     Typical session:
         >>> img_path = r"C:/QA/June/PF.dcm"  # the EPID image
         >>> mypf = PicketFence(img_path)
@@ -64,7 +70,11 @@ class PicketFence:
             Name of the file as a string. If None, image must be loaded later.
         filter : int, None
             If None (default), no filtering will be done to the image.
-            If an int, will perform median filtering over image of size *filter*.
+            If an int, will perform median filtering over image of size ``filter``.
+        log : str
+            Path to a log file corresponding to the delivery. The expected fluence of the log file is
+            used to construct the pickets. MLC peaks are then compared to an absolute reference instead of
+            a fitted picket.
         """
         if filename is not None:
             self.image = Image.load(filename)
@@ -87,7 +97,7 @@ class PicketFence:
     def from_demo_image(cls, filter=None):
         """Construct a PicketFence instance using the demo image."""
         demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
-        return cls(demo_file)
+        return cls(demo_file, filter)
 
     @classmethod
     def from_multiple_images(cls, path_list):
