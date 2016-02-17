@@ -139,7 +139,7 @@ class CBCT:
         thickness : bool
             Whether to show the wire ramp boxes.
         low_contrast : bool
-            Whether to show the low contrast bubble circles.
+            Whether to show the low contrast bubble circles. Not applicable for the CatPhan 503.
         show : bool
             Whether to plot the image or not.
         """
@@ -399,7 +399,7 @@ class Settings:
     air_bubble_radius_mm : int, float
         The size of the "Air" HU ROIs in mm; for finding the phantom roll.
     """
-    threshold = -300
+    threshold = -600
     hu_tolerance = 40
     scaling_tolerance = 1
     thickness_tolerance = 0.2
