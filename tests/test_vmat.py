@@ -21,13 +21,6 @@ class TestGeneral(TestCase):
     def setUp(self):
         self.vmat = VMAT.from_demo_images()
 
-    def test_img_inversion(self):
-        """Check that the demo images indeed get inverted."""
-        top_corner_before = self.vmat.image_open.array[:20, :20].mean()
-        self.vmat._check_img_inversion()
-        top_corner_after = self.vmat.image_open.array[:20, :20].mean()
-        self.assertNotEqual(top_corner_before, top_corner_after)
-
     def test_analyze_without_test_type(self):
         dmlc = osp.join(TEST_DIR, 'no_test_type_dmlc.dcm')
         opn = osp.join(TEST_DIR, 'no_test_type_open.dcm')

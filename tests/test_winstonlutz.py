@@ -101,13 +101,13 @@ class WinstonLutzMixin(LocationMixin):
 
 class WLDemo(WinstonLutzMixin, TestCase):
     num_images = 17
-    gantry_sag = 1
-    gantry_iso_size = 0.7
-    gantry_iso2bb_vector = Vector(0.2, 0.1, 0.4)
-    collimator_iso_size = 0.5
-    collimator_iso2bb_vector = Vector(0.2, 0.4, 0)
-    couch_iso_size = 1.2
-    couch_iso2bb_vector = Vector(-1, -0.4, 0)
+    gantry_sag = 0.9
+    gantry_iso_size = 0.5
+    gantry_iso2bb_vector = Vector(0.3, 0.2, 0.5)
+    collimator_iso_size = 0.6
+    collimator_iso2bb_vector = Vector(0.15, 0.4, 0)
+    couch_iso_size = 1.1
+    couch_iso2bb_vector = Vector(-0.5, -0.35, 0)
     variable_axes = {0: 'Reference'}
 
     @classmethod

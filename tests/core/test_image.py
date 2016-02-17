@@ -130,13 +130,6 @@ class TestBaseImage(TestCase):
         shifted_val = self.dcm[-1, 0]
         self.assertEqual(orig_val, shifted_val)
 
-    def test_check_inversion(self):
-        # original dicom needs inversion
-        orig_val = self.dcm[0, 0]
-        self.dcm.check_inversion()
-        inverted_val = self.dcm[0, 0]
-        self.assertNotEqual(orig_val, inverted_val)
-
     def test_threshold(self):
         # apply high-pass threshold
         orig_val = self.arr[0, 4]

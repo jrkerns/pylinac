@@ -65,7 +65,7 @@ class Starshot:
         filepath : str, optional
             The path to the image file. If None, the image must be loaded later.
         kwargs
-            Passed to :meth:`~pylinac.core.image.Image.load`.
+            Passed to :func:`~pylinac.core.image.load`.
         """
         self.image = image.load(filepath, **kwargs)
         self.wobble = Wobble()
@@ -80,7 +80,7 @@ class Starshot:
         url : str
             URL of the raw file.
         kwargs
-            Passed to :meth:`~pylinac.core.image.Image.load()`.
+            Passed to :func:`~pylinac.core.image.load`.
         """
         filename = get_url(url)
         return cls(filename, **kwargs)
@@ -100,7 +100,7 @@ class Starshot:
         filepath_list : iterable
             An iterable of file paths to starshot images that are to be superimposed.
         kwargs
-            Passed to :meth:`~pylinac.core.image.Image.load_multiples()`.
+            Passed to :func:`~pylinac.core.image.load_multiples`.
         """
         obj = cls.from_demo_image()
         obj.image = image.load_multiples(filepath_list, **kwargs)
