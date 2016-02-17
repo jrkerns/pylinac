@@ -26,11 +26,7 @@ MM_PER_INCH = 25.4
 
 def is_image(path):
     """Determine whether the path is a valid image file. Returns boolean."""
-    try:
-        load(path)
-        return True
-    except:
-        return False
+    return any((_is_array(path), _is_dicom(path), _is_image_file(path)))
 
 
 def load(path, **kwargs):
@@ -513,7 +509,7 @@ class DicomImage(BaseImage):
             self.array = int(self.metadata.RescaleSlope)*self.array + int(self.metadata.RescaleIntercept)
 
     def save(self, filename):
-        """Save the DICOM image to a .dcm file."""
+        """Save the image instance back out to a .dcm file."""
         if self.metadata.SOPClassUID.name == 'CT Image Storage':
             self.array = (self.array - int(self.metadata.RescaleIntercept)) / int(self.metadata.RescaleSlope)
         self.metadata.PixelData = self.array.astype(self._original_dtype).tostring()
@@ -685,7 +681,24 @@ class DicomImageStack:
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
         self.images = []
-        self._get_datasets(folder, dtype=dtype)
+        # load in images in their received order
+        for pdir, sdir, files in os.walk(folder):
+            for file in files:
+                path = osp.join(pdir, file)
+                if self._is_CT_slice(path):
+                    img = DicomImage(path, dtype=dtype)
+                    self.images.append(img)
+
+        # check that at least 1 image was loaded
+        if len(self.images) < 1:
+            raise FileNotFoundError("No files were found in the specified location: {0}".format(folder))
+
+        # error checking
+        self._check_all_from_same_study()
+        # get the original image order
+        original_img_order = [int(round(image.metadata.ImagePositionPatient[-1])) for image in self.images]
+        # correctly reorder the images
+        self.images = [self.images[i] for i in np.argsort(original_img_order)]
 
     @classmethod
     def from_zip(cls, zip_path, dtype=None):
@@ -701,37 +714,6 @@ class DicomImageStack:
         with TemporaryZipDirectory(zip_path) as tmpzip:
             obj = cls(tmpzip, dtype)
         return obj
-
-    def _get_datasets(self, folder, dtype=None):
-        """Read and load DICOM files from a folder or zip archive.
-
-        Parameters
-        ----------
-        folder : str
-            Path to folder with CT images or path to zip archive of CT images.
-        zip : bool
-            Whether ``folder`` is a zip archive or not.
-        dtype : dtype, None, optional
-            The data type to cast the image data as. If None, will use whatever raw image format is.
-        """
-        # load in images in their received order
-        for pdir, sdir, files in os.walk(folder):
-            for file in files:
-                path = osp.join(pdir, file)
-                if self._is_CT_slice(path):
-                    img = DicomImage(path)
-                    self.images.append(img)
-
-        # check that at least 1 image was loaded
-        if len(self.images) < 1:
-            raise FileNotFoundError("No files were found in the specified location: {0}".format(folder))
-
-        # error checking
-        self._check_all_from_same_study()
-        # get the original image order
-        original_img_order = [int(round(image.metadata.ImagePositionPatient[-1])) for image in self.images]
-        # correctly reorder the images
-        self.images = [self.images[i] for i in np.argsort(original_img_order)]
 
     @staticmethod
     def _is_CT_slice(file):

@@ -5,48 +5,56 @@ import os.path as osp
 import numpy as np
 
 from pylinac.core.geometry import Point
-from pylinac.core.image import Image, DicomImage, ArrayImage, FileImage
+from pylinac.core import image
+from pylinac.core.image import DicomImage, ArrayImage, FileImage, DicomImageStack
+from pylinac.core.io import TemporaryZipDirectory
+from tests.utils import save_file
 
-
-tif_path = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'Starshot', 'Starshot#1.tif')
-png_path = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'Starshot', 'Starshot#1.png')
-dcm_path = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'VMAT', 'DRGSdmlc-105-example.dcm')
+test_dir = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files')
+tif_path = osp.join(test_dir, 'Starshot', 'Starshot#1.tif')
+png_path = osp.join(test_dir, 'Starshot', 'Starshot#1.png')
+dcm_path = osp.join(test_dir, 'VMAT', 'DRGSdmlc-105-example.dcm')
 dcm_url = 'https://github.com/jrkerns/pylinac/blob/master/pylinac/demo_files/picket_fence/EPID-PF-LR.dcm?raw=true'
 
 
-class TestImage(TestCase):
-    """Test the Image class."""
+class TestImages(TestCase):
+    """Test the image loading functions."""
 
-    def test_url(self):
-        img = Image.load_url(dcm_url)
+    def test_load_url(self):
+        img = image.load_url(dcm_url)
         self.assertIsInstance(img, DicomImage)
 
-    def test_dicom(self):
-        img = Image.load(dcm_path)
+    def test_load_dicom(self):
+        img = image.load(dcm_path)
         self.assertIsInstance(img, DicomImage)
 
-    def test_file(self):
-        img = Image.load(tif_path)
+    def test_load_file(self):
+        img = image.load(tif_path)
         self.assertIsInstance(img, FileImage)
 
-    def test_array(self):
+    def test_load_array(self):
         arr = np.arange(36).reshape(6, 6)
-        img = Image.load(arr)
+        img = image.load(arr)
         self.assertIsInstance(img, ArrayImage)
 
-    def test_multiples(self):
+    def test_load_multiples(self):
         paths = [dcm_path, dcm_path, dcm_path]
-        img = Image.load_multiples(paths)
+        img = image.load_multiples(paths)
         self.assertIsInstance(img, DicomImage)
 
         # test non-superimposable images
         paths = [dcm_path, tif_path]
         with self.assertRaises(ValueError):
-            Image.load_multiples(paths)
+            image.load_multiples(paths)
 
     def test_nonsense(self):
         with self.assertRaises(TypeError):
-            Image.load('blahblah')
+            image.load('blahblah')
+
+    def test_is_image(self):
+        self.assertTrue(image.is_image(dcm_path))
+        # not an image
+        self.assertFalse(image.is_image(osp.join(test_dir, 'MLC logs', 'dlogs', 'Adlog1.dlg')))
 
 
 class TestBaseImage(TestCase):
@@ -54,10 +62,10 @@ class TestBaseImage(TestCase):
     ArrayImage, and FileImage) are tested."""
 
     def setUp(self):
-        self.img = Image.load(tif_path)
-        self.dcm = Image.load(dcm_path)
+        self.img = image.load(tif_path)
+        self.dcm = image.load(dcm_path)
         array = np.arange(42).reshape(6, 7)
-        self.arr = Image.load(array)
+        self.arr = image.load(array)
 
     def test_remove_edges(self):
         """Remove the edges from a pixel array."""
@@ -147,8 +155,8 @@ class TestBaseImage(TestCase):
 
     def test_gamma(self):
         array = np.arange(49).reshape((7,7))
-        ref_img = Image.load(array, dpi=1)
-        comp_img = Image.load(array, dpi=1)
+        ref_img = image.load(array, dpi=1)
+        comp_img = image.load(array, dpi=1)
         comp_img.roll(amount=1)
         g_map = ref_img.gamma(comp_img)
 
@@ -166,7 +174,7 @@ class TestDicomImage(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.dcm = Image.load(dcm_path)
+        cls.dcm = image.load(dcm_path)
 
     def test_sid(self):
         self.assertEqual(self.dcm.sid, 1050)
@@ -179,6 +187,9 @@ class TestDicomImage(TestCase):
 
     def test_cax(self):
         self.assertLessEqual(self.dcm.cax.distance_to(self.dcm.center), 1.5)
+
+    def test_save(self):
+        save_file(self.dcm.save)
 
 
 class TestFileImage(TestCase):
@@ -227,3 +238,20 @@ class TestArrayImage(TestCase):
         ai2 = ArrayImage(arr, dpi=20)
         self.assertEqual(ai2.dpi, 20)
         self.assertEqual(ai2.dpmm, 20/25.4)
+
+
+class TestDicomStack(TestCase):
+    stack_location = osp.join(test_dir, 'CBCT', 'Varian', 'CBCT_4.zip')
+
+    def test_loading(self):
+        # test normal construction
+        with TemporaryZipDirectory(self.stack_location) as tmpzip:
+            dstack = DicomImageStack(tmpzip)
+            self.assertEqual(len(dstack), 64)
+        # test zip
+        dstack = DicomImageStack.from_zip(self.stack_location)
+
+    def test_mixed_studies(self):
+        mixed_study_zip = osp.join(test_dir, 'CBCT', 'Varian', 'mixed_studies.zip')
+        with self.assertRaises(ValueError):
+            DicomImageStack.from_zip(mixed_study_zip)
