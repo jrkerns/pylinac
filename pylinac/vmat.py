@@ -58,6 +58,15 @@ class VMAT:
         Run the DRMLC demo:
             >>> VMAT.run_demo_drmlc()
 
+        Load images directly:
+            >>> VMAT(images=('myvmat1.dcm', 'myvmat2.dcm'), delivery_types=['open', 'dmlc'])
+
+        Or load from a ZIP archive:
+            >>> VMAT.from_zip('myvmat.zip')
+
+        Or load from a URL:
+            >>> VMAT.from_url('http://myserver.com/vmat.zip')
+
         A typical use case:
             >>> open_img = "C:/QA Folder/VMAT/open_field.dcm"
             >>> dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
@@ -345,9 +354,6 @@ class VMAT:
         str
             The results string showing the overall result and deviation statistics by segment.
         """
-        # mlcs_seg_strs = ('1.7cm/s', '2.0cm/s', '1.0cm/s', '0.5cm/s')  # See TB RA procedure for values; != to Ling et al.
-        # DRGS_seg_strs = ('105MU/min', '210MU/min', '314MU/min', '417MU/min', '524MU/min', '592MU/min', '600MU/min')
-
         if self.passed:
             passfail_str = 'PASS'
         else:
@@ -506,8 +512,7 @@ class Segment(Rectangle):
 
     def get_bg_color(self):
         """Get the background color of the segment when plotted, based on the pass/fail status."""
-        color = 'blue' if self.passed else 'red'
-        return color
+        return 'blue' if self.passed else 'red'
 
 
 class Settings:
