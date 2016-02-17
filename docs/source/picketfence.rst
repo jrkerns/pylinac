@@ -119,6 +119,27 @@ The minimum needed to get going is to:
 
       pf.save_analyzed_image('mypf.png')
 
+Using a Machine Log
+-------------------
+
+As of v1.4, you can load a machine log along with your picket fence image. The algorithm will use the expected
+fluence of the log to determine where the pickets should be instead of fitting to the MLC peaks. Usage looks like this::
+
+    from pylinac import PicketFence
+
+    pf = PicketFence('my/pf.dcm', log='my/pf_log.bin')
+    ...
+
+Everything else is the same except the measurements are **absolute**.
+
+.. warning::
+    While using a machine log makes the MLC peak error absolute, there may be EPID twist or sag that
+    will exaggerate differences that may or may not be real. Be sure to understand how your imager moves
+    during your picket fence delivery. Even TrueBeams are not immune to EPID twist.
+
+Results will look similar. Here's an example of the results of using a log:
+
+.. image:: images/PF_with_log.png
 
 Tips & Tricks
 -------------

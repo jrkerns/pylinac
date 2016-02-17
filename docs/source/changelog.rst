@@ -34,6 +34,15 @@ General Changes
   The same change applies for the other loading methods of the Image class: ``load_url`` and ``load_multiples``. The ``Image``
   class is still available but will be removed in v1.5.
 
+Picket Fence
+^^^^^^^^^^^^
+
+* ``PicketFence`` can now load a machine log along with the image to use the expected fluence to determine error. This
+  means if an MLC bank is systematically shifted it is now detectable, unlike when the pickets are fitted to the MLC peaks.
+  Usage is one extra parameter::
+
+      pf = PicketFence('my/pf.dcm', log='my/pf_log.bin')
+
 Winston-Lutz
 ^^^^^^^^^^^^
 
