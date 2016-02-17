@@ -122,12 +122,10 @@ class VMAT:
         """
         demo_folder = osp.join(osp.dirname(osp.abspath(__file__)), "demo_files", 'vmat')
         if type.lower() == DRMLC:
-            im_open_path = osp.join(demo_folder, "DRMLC_open.dcm")
-            im_dmlc_path = osp.join(demo_folder, 'DRMLC_dmlc.dcm')
+            zip_file = osp.join(demo_folder, 'drmlc.zip')
         else:
-            im_open_path = osp.join(demo_folder, "DRGS_open.dcm")
-            im_dmlc_path = osp.join(demo_folder, 'DRGS_dmlc.dcm')
-        return cls(images=(im_open_path, im_dmlc_path))
+            zip_file = osp.join(demo_folder, 'drgs.zip')
+        return cls.from_zip(zip_file)
 
     @classmethod
     def from_zip(cls, path):
