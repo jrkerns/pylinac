@@ -1,39 +1,9 @@
 """I/O helper functions for pylinac."""
-
-from io import BytesIO
 import os.path as osp
 from tempfile import TemporaryDirectory
 from urllib.error import HTTPError
 from urllib.request import urlretrieve
 import zipfile
-
-
-def load_zipfile(zfilename, read=False):
-    """Read a .zip file.
-
-    Parameters
-    ----------
-    zfilename : str
-        Path to the zip file.
-    read : bool
-        Whether to read the zip files.
-
-    Returns
-    -------
-    files
-        If read is False (default), returns a python zipfile.ZipFile object. If read is True, returns
-        an iterator of BytesIO objects.
-    """
-    if isinstance(zfilename, zipfile.ZipFile):
-        zfiles = zfilename
-    elif zipfile.is_zipfile(zfilename):
-        zfiles = zipfile.ZipFile(zfilename)
-    else:
-        raise FileExistsError("File '{0}' given was not a valid zip file".format(zfilename))
-    if read:
-        return (BytesIO(zfiles.read(name)) for name in zfiles.namelist())
-    else:
-        return zfiles
 
 
 class TemporaryZipDirectory(TemporaryDirectory):
@@ -42,13 +12,6 @@ class TemporaryZipDirectory(TemporaryDirectory):
         super().__init__()
         zfiles = zipfile.ZipFile(zfile)
         zfiles.extractall(path=self.name)
-
-
-class TemporaryZipURLDirectory(TemporaryZipDirectory):
-    """Creates a temporary directory that downloads & extracts a ZIP archive from a URL."""
-    def __init__(self, url):
-        zfile = get_url(url)
-        super().__init__(zfile)
 
 
 def get_url(url, destination=None):

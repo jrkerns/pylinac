@@ -669,7 +669,7 @@ class DicomImageStack:
         i.e. self[0] == self.images[0].
     """
 
-    def __init__(self, folder=None, dtype=None):
+    def __init__(self, folder, dtype=None):
         """Load a folder with DICOM CT images.
 
         Parameters
@@ -680,8 +680,7 @@ class DicomImageStack:
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
         self.images = []
-        if folder is not None:
-            self._get_datasets(folder, dtype=dtype)
+        self._get_datasets(folder, dtype=dtype)
 
     @classmethod
     def from_zip(cls, zip_path, dtype=None):
@@ -694,11 +693,11 @@ class DicomImageStack:
         dtype : dtype, None, optional
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
-        obj = cls()
-        obj._get_datasets(zip_path, dtype=dtype, zip=True)
+        with TemporaryZipDirectory(zip_path) as tmpzip:
+            obj = cls(tmpzip, dtype)
         return obj
 
-    def _get_datasets(self, folder, zip=False, dtype=None):
+    def _get_datasets(self, folder, dtype=None):
         """Read and load DICOM files from a folder or zip archive.
 
         Parameters
@@ -710,14 +709,6 @@ class DicomImageStack:
         dtype : dtype, None, optional
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
-        # unpack zip archive if passed one
-        if zip:
-            if osp.isfile(folder):
-                temp_folder = TemporaryZipDirectory(folder)
-                folder = temp_folder.name
-            else:
-                raise FileExistsError("Zip archive `{0}` not found".format(folder))
-
         # load in images in their received order
         for pdir, sdir, files in os.walk(folder):
             for file in files:
@@ -725,10 +716,6 @@ class DicomImageStack:
                 if self._is_CT_slice(path):
                     img = DicomImage(path)
                     self.images.append(img)
-
-        # cleanup zip archive if passed one
-        if zip:
-            temp_folder.cleanup()
 
         # check that at least 1 image was loaded
         if len(self.images) < 1:

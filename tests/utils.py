@@ -1,5 +1,6 @@
 import concurrent.futures
 from io import BytesIO, StringIO
+import multiprocessing
 import os
 import os.path as osp
 import time
@@ -96,7 +97,7 @@ class DataBankMixin:
     """
     DATA_DIR = []
     executor = 'ProcessPoolExecutor'
-    workers = os.cpu_count() - 1
+    workers = multiprocessing.cpu_count() - 1
     print_success_path = False
 
     @classmethod
