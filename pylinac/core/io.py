@@ -1,6 +1,6 @@
 """I/O helper functions for pylinac."""
 from tempfile import TemporaryDirectory
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import urlretrieve
 import zipfile
 
@@ -23,6 +23,6 @@ def get_url(url, destination=None):
     """
     try:
         filename, _ = urlretrieve(url, filename=destination)
-    except HTTPError as e:
+    except (HTTPError, URLError, ValueError) as e:
         raise e
     return filename
