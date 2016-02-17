@@ -113,6 +113,10 @@ class PicketFence:
             self.image = PFDicomImage(filename)
             if isinstance(filter, int):
                 self.image.filter(size=filter)
+        if log is not None:
+            self._load_log(log)
+        else:
+            self._log_fits = None
 
     @classmethod
     def from_url(cls, url, filter=None):
@@ -221,6 +225,7 @@ class PicketFence:
         hdiff = fli.physical_shape[0] - self.image.physical_shape[0]
         wdiff = fli.physical_shape[1] - self.image.physical_shape[1]
         fli.remove_edges(int(min(hdiff, wdiff) * fli.dpmm / 2 + 2))
+        # reload new cropped array into PicketFence
         new_array = Image.load(fli.array, dpi=254)
         pf = PicketFence.from_demo_image()
         pf.image = new_array
@@ -274,10 +279,11 @@ class PicketFence:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
 
         """Pre-analysis"""
-        self.settings = Settings(self.orientation, tolerance, action_tolerance, hdmlc, self.image)
+        self.settings = Settings(self.orientation, tolerance, action_tolerance, hdmlc, self.image, self._log_fits)
         # adjust for sag
-        sag_pixels = int(round(sag_adjustment * self.settings.dpmm))
-        self.image.adjust_for_sag(sag_pixels, self.orientation)
+        if sag_adjustment != 0:
+            sag_pixels = int(round(sag_adjustment * self.settings.dpmm))
+            self.image.adjust_for_sag(sag_pixels, self.orientation)
 
         """Analysis"""
         self.pickets = PicketHandler(self.image, self.settings, num_pickets)
@@ -484,7 +490,11 @@ class Settings:
         self.image = image
         self.dpmm = image.dpmm
         self.mmpd = 1/image.dpmm
-        self.image_center = image.cax
+        try:
+            self.image_center = image.cax
+        except AttributeError:
+            self.image_center = image.center
+        self.log_fits = log_fits
 
     @property
     def figure_size(self):

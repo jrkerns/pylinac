@@ -19,6 +19,12 @@ class TestLoading(LoadingTestBase, TestCase):
     def test_filter_on_load(self):
         PicketFence(self.constructor_input, filter=3)  # shouldn't raise
 
+    def test_load_with_log(self):
+        log_file = osp.join(TEST_DIR, 'PF_log.bin')
+        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        pf = PicketFence(pf_file, log=log_file)
+        pf.analyze(hdmlc=True)
+
 
 class GeneralTests(TestCase):
 
