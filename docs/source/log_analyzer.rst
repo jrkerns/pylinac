@@ -57,7 +57,7 @@ Running the Demo
 As usual, the module comes with demo files and methods::
 
     >>> from pylinac import MachineLog
-    >>> MachineLog().run_dlog_demo()
+    >>> MachineLog.run_dlog_demo()
 
 Which will output the following::
 
@@ -73,7 +73,7 @@ Which will output the following::
 
 The same can be done using the demo Trajectory log::
 
-    >>> MachineLog().run_tlog_demo()
+    >>> MachineLog.run_tlog_demo()
     MLC log type: Trajectory log
     Average RMS of all leaves: 0.001 cm
     Max RMS error of all leaves: 0.002 cm
@@ -87,25 +87,27 @@ The same can be done using the demo Trajectory log::
 Loading Data
 ------------
 
-Logs can be loaded one of two ways: upon class initialization and through the load method::
+Logs are loaded upon class initialization::
 
     from pylinac import MachineLog
 
     log_path = "C:/path/to/tlog.bin"
     log = MachineLog(log_path)
 
-Or::
-
-    log2 = MachineLog()
-    log2.load(log_path)
-
-There are also ways to load logs from other sources. For example, load a log from a UI dialog box::
-
-    log = MachineLog.from_UI()
-
 Or load from a URL::
 
-    log = MachineLog.from_url('http://myserver.com/logs/1')
+    log = MachineLog.from_url('http://myserver.com/logs/1.dlg')
+
+When dealing with multiple logs, use ``MachineLogs``::
+
+    from pylinac import MachineLogs  # note the `s`
+
+    log_folder = "path/to/folder"
+    logs = MachineLogs(log_folder)
+
+Or load from a ZIP archive::
+
+    logs = MachineLogs.from_zip('path/to/logs.zip')
 
 Pylinac will automatically infer the log type and load it into data structures for analysis.
 

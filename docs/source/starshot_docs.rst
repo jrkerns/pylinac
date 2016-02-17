@@ -53,25 +53,10 @@ A typical analysis sequence looks like so:
     star_img = "C:/QA Folder/gantry_starshot.tif"
     mystar = Starshot(star_img)
 
-  Or, use a dialog box::
-
-    mystar = Starshot.from_image_UI()
-
   Multiple images can be easily superimposed and used; e.g. collimator shots at various angles::
-
-    mystar = Starshot.from_multiple_images_UI()
-
-  Or, pass them programatically::
 
     star_imgs = ['path/star0.tif', 'path/star45.tif', 'path/star90.tif']
     mystar = Starshot.from_multiple_images(star_imgs)
-
-  .. note::
-    In previous versions of pylinac, loading images was instance-method based. This behavior has been simplified in favor
-    of initialization normalization and adding class-method constructors (``Starshot.from_X``). The reason for this is that
-    certain actions should only be allowed until after the image is loaded. Furthermore, loading the image should always be
-    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
-    Don't worry though, the old behavior still works.
 
 * **Analyze the image** -- After loading the image, all that needs to be done is analyze the image. You may optionally
   pass in some settings::

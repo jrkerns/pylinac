@@ -34,7 +34,7 @@ Loading TIFF files can be tricky since there are many variations of the TIFF ima
 pylinac uses. But sometimes even Pillow has trouble. If you've tried loading a TIFF file and it
 just doesn't seem to be working you can try two things:
 
-    * Install ``pillow`` with ``conda``; when installing this way more libraries are installed (vs. pip )that pillow can leverage.
+    * Install ``pillow`` with ``conda``; when installing this way more libraries are installed (vs. ``pip``) that pillow can leverage.
     * Resave the image with another program. While I can't tell you exactly what will work, one solution
       that's worked for me is using `GIMP <http://www.gimp.org/>`_. It's free; just open up your TIFF
       files and then export them back to TIFF. It may not seem like that should change anything, but my anecdotal

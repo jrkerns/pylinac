@@ -11,8 +11,8 @@ Overview
     :no-members:
 
 
-Leeds Phantom
--------------
+Leeds TOR Phantom
+-----------------
 
 The Leeds phantom is used to measure image quality metrics for the kV imager of a linac. It contains both
 high and low contrast ROIs.
@@ -155,14 +155,14 @@ flipped 180 degrees. To correct this problem, pass ``invert=True`` to :meth:`~py
 This will force pylinac to invert the image the opposite way and correctly identify the lead square.
 
 
-PipsPro Phantom
----------------
+PipsPro QC-3 Phantom
+--------------------
 
 The PipsPro phantom is an MV imaging quality assurance phantom and has high and low contrast regions,
 just as the Leeds phantom, but with different geometric configurations.
 
-Running the Leeds Demo
-^^^^^^^^^^^^^^^^^^^^^^
+Running the PipsPro Demo
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 To run the PipsPro demo, create a script or start an interpreter session and input::
 
@@ -268,11 +268,8 @@ Troubleshooting
 If you're having issues with the PipsPro class, make sure you have correctly positioned the phantom as per
 the manufacturer's instructions (also see :ref:`pipspro_image_acquisition`). One issue that may arise is incorrect
 inversion. If the jaws are closed tightly around the phantom, the automatic inversion correction may falsely
-invert the image, just as for the Leeds phantom. If you have an image like the one below, add ``invert=True``
+invert the image, just as for the Leeds phantom. If you have an image that looks inverted or just plain weird, add ``invert=True``
 to :meth:`~pylinac.planar_imaging.PipsProQC3.analyze`.
-
-.. image:: images/closed_pipspro.jpg
-
 
 API Documentation
 -----------------

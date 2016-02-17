@@ -15,7 +15,7 @@ Running the Demo
 To run the Winston-Lutz demo, create a script or start an interpreter session and input::
 
     from pylinac import WinstonLutz
-    WinstonLutz().run_demo()
+    WinstonLutz.run_demo()
 
 Results will be printed to the console and a figure showing the zoomed-in images will be generated::
 
@@ -68,7 +68,11 @@ From here, you can load a directory::
     my_directory = 'path/to/wl_images'
     wl = WinstonLutz(my_directory)
 
-And that's it! From here, you can view images, gantry sag, or print the results::
+You can also load a ZIP archive with the images in it::
+
+    wl = WinstonLutz.from_zip('path/to/wl.zip')
+
+And that's it! Once loaded you can view images, gantry sag, or print the results::
 
     wl.plot_images()
     wl.plot_gantry_sag()

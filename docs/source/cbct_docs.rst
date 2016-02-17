@@ -72,23 +72,11 @@ The minimum needed to get going is to:
   or load a zip file of the images::
 
     zip_file = r"C:/QA Folder/CBCT/June monthly.zip"
-    mycbct = CBCT.from_zip_file(zip_file)
+    mycbct = CBCT.from_zip(zip_file)
 
-  or using a dialog box::
+  You can also use the demo images provided::
 
-    # Identify the folder using a UI
-    mycbct = CBCT.from_folder_UI()
-
-  .. note::
-    In previous versions of pylinac, loading images was instance-method based, meaning loading looked like the following::
-
-        mycbct = CBCT()
-        mycbct.load_zip_file('cbcts.zip')
-
-    This behavior has been deprecated in favor of class-method constructors (``CBCT.from_X``). The reason for this is that
-    certain actions should only be allowed until after the images are loaded. Furthermore, loading the images should always be
-    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
-    Don't worry though, the old behavior still works.
+    mycbct = CBCT.from_demo_images()
 
 * **Analyze the images** -- Once the folder/images are loaded, tell CBCT to start analyzing the images. See the
   Algorithm section for details on how this is done::

@@ -15,9 +15,9 @@ Running the Demo
 To run the VMAT demo, create a script or start an interpreter session and input::
 
     from pylinac import VMAT
-    VMAT().run_demo_drgs()
+    VMAT.run_demo_drgs()
     # alternatively, you can run the MLC Speed demo by:
-    VMAT().run_demo_mlcs()
+    VMAT.run_demo_mlcs()
 
 Results will be printed to the console and a figure showing both the Open field and MLC field image will pop up::
 
@@ -44,15 +44,15 @@ Naming Convention
 For VMAT analysis, pylinac needs to know which image is the DMLC image. You can specify this when loading an image and pass the test
 type directly. However, if you follow a simple naming convention, you can skip that step.
 
-If the file has 'open' or 'dmlc' (case-insenitive) in the file name, pylinac will automatically assign the images.
-Also, if the filenames have 'drmlc' or 'drgs' in the file names, then the test type is automatically registered as well.
+**If the file has 'open' or 'dmlc' (case-insenitive) in the file name, pylinac will automatically assign the images.
+Also, if the filenames have 'drmlc' or 'drgs' in the file names, then the test type is automatically registered as well.**
 The following example shows what this would look like::
 
     # well-named files
-    img1 = r'C:/path/drmlc_open.dcm'
+    img1 = r'C:/path/drmlc_open.dcm'  # note the drmlc, which is the test type and the open which is the delivery
     img2 = r'C:/path/drmlc_dmlc.dcm'
     # reading these in registers both image type and test type
-    vmat = VMAT((img1, img2))
+    vmat = VMAT(images=(img1, img2))
     vmat.analyze() # no need for test type
 
 If your files don't follow this convention it's okay; you just need to specify the image and test types manually. See below
@@ -68,42 +68,31 @@ Import the class::
 
 The minimum needed to get going is to:
 
-* **Load images** -- Loading the EPID DICOM images into your VMAT class object can be done by passing the file path(s) or by using a UI to
-  find and get the file(s). While each image can be loaded directly, using an easy :ref:`naming_convention` can simplify the process::
+* **Load images** -- Loading the EPID DICOM images into your VMAT class object can be done by passing the file paths,
+  passing a ZIP archive, or passing a URL. While the image delivery types can be passed, using an easy :ref:`naming_convention` can simplify the process::
 
       open_img = "C:/QA Folder/VMAT/open_field.dcm"  # note the 'open'
-      dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"  # no 'open'
-      myvmat = VMAT((open_img, dmlc_img))  # the order doesn't matter
+      dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"  # note the 'dmlc'
+      myvmat = VMAT(images=(open_img, dmlc_img))  # the order doesn't matter in this case
 
-  Even easier, you can load the files using a UI dialog box::
+  However, if our names weren't so clearly named, we can just pass the delivery types, which assign the images::
 
-    myvmat = VMAT.from_images_UI()  # a dialog box will pop up for you to choose both images
+      img1 = "C:/QA/vmat1.dcm"  # the open field
+      img2 = "C:/QA/vmat2.dcm"  # the dmlc field
+      myvmat = VMAT(images=[img1, img2], delivery_types=['open', 'dmlc'])
 
-  You can also load the images one at a time. This is helpful when the file names do not follow the naming convention::
-
-      open_img = "path/to/img1.dcm"
-      dmlc_img = "path/to/img2.dcm"
-      myvmat = VMAT()
-      myvmat.load_image(open_img, im_type='open')
-      myvmat.load_image(dmlc_img, im_type='dmlc')
-
-  Or load the files individually from a UI dialog box::
-
-      myvmat = VMAT()
-      myvmat.load_image_UI(im_type='open')  # tkinter UI box will pop up
-      myvmat.load_image_UI(im_type='mlc')
-
-  Finally, a zip file holding both the images can be used, but must follow the :ref:`naming_convention`::
+  A zip file holding both the images can be used, but must follow the :ref:`naming_convention`::
 
       myvmat = VMAT.from_zip(r'C:/path/to/zip.zip')
 
-  .. note::
-    In previous versions of pylinac, loading images was instance-method based and only allowed one image at a time,
-    meaning loading looked like the 3rd example above, no matter the name. This behavior has been simplified in favor
-    of initialization normalization and adding class-method constructors (``VMAT.from_X``). The reason for this is that
-    certain actions should only be allowed until after the images are loaded. Furthermore, loading the images should always be
-    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
-    Don't worry though, the old behavior still works.
+  A URL can be passed which must point to a ZIP archive hosted on a server::
+
+     myvmat = VMAT.from_url('http://myserver.org/vmat.zip')
+
+  Finally, if you don't have any images, you can use the demo ones provided::
+
+     drgs_vmat = VMAT.from_demo_images(type='drgs')
+     drmlc_vmat = VMAT.from_demo_images(type='drmlc')
 
 * **Analyze the images** -- This is where pylinac does its work. Once the images are loaded, tell VMAT to analyze the images. See the
   Algorithm section for details on how this is done. Tolerance can also be passed, but has a default value of 1.5%::

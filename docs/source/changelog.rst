@@ -15,9 +15,20 @@ General Changes
   The class-based methods have existed for several versions, and they are now the preferred and only way as there is
   no use case for an empty instance.
 * Since v1.2 most URLs were downloaded and then the local (but temporary) files were loaded. This practice has now been
-  standardized for all modules. I.e. any ``from_url()``-style calls downloads a temporary file and loads that.
+  standardized for all modules. I.e. any ``from_url()``-style call downloads a temporary file and loads that.
 * Loading images using the ``Image`` class has been deprecated (but still works) in favor of the new functions in the same module with the same name.
-  I.e. any ``Image.load('my/file')`` calls should be replaces with ``from pylinac.core.image import load``, ``load('my/file')``.
+  Where previously one would do::
+
+        from pylinac.core.image import Image
+
+        img = Image.load('my/file.dcm')
+
+  One should now do::
+
+       from pylinac.core.image import load
+
+       img = load('my/file.dcm')
+
   Functionality is exactly the same, but supports a better abstraction (there is no reason for a class for just behaviors).
   The same change applies for the other loading methods of the Image class: ``load_url`` and ``load_multiples``. The ``Image``
   class is still available but will be removed in v1.5.

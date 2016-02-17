@@ -51,12 +51,7 @@ We can pass the path to the log, and this would be the standard way of construct
 
     log = MachineLog(r"C:/John/QA/log.dlg")
 
-But perhaps we don't know the full path to the file and we want to look around for it::
-
-    log = MachineLog.from_UI()
-
-From here, a dialog box will pop open and you can look around and find your log. Perhaps the
-data is stored online somewhere. You can load in the data from a URL::
+Perhaps the data is stored online somewhere. You can load in the data from a URL::
 
     log = MachineLog.from_url('https://myserver.com/logs/log23.bin')
 
@@ -66,5 +61,5 @@ If for any reason you don't have data and want to experiment, you can easily loa
     dlog = MachineLog.from_demo_dynalog()
 
 You can find out more about logs in the :ref:`log_analyzer_module`. All modules are similar however;
-the main class can be instantiated directly, through class-based constructors, through a UI dialog box, from a URL,
+the main class can be instantiated directly, through class-based constructors, from a URL,
 and all main classes have a demo dataset and demo method.

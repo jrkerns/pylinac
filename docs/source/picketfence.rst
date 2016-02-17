@@ -38,7 +38,7 @@ To run the picketfence demo, create a script or start in interpreter and input::
 
     from pylinac import PicketFence
 
-    PicketFence().run_demo()
+    PicketFence.run_demo()
 
 Results will be printed to the console and a figure showing the analyzed picket fence image will pop up::
 
@@ -51,7 +51,7 @@ Results will be printed to the console and a figure showing the analyzed picket 
 
 Or plot the figure interactively::
 
-  PicketFence().run_demo(interactive=True)
+  PicketFence.run_demo(interactive=True)
 
 .. raw:: html
   :file: images/PF_analyzed.html
@@ -61,10 +61,6 @@ Note the Home/Pan/Zoom tools in the corner when hovering. Additionally, hovering
 .. note::
 
   MPLD3 currently does not show images/arrays well, so you may not be able to see the underlying EPID image.
-
-If you just want to use the demo image without doing analysis::
-
-    pf = PicketFence.from_demo_image()
 
 Acquiring the Image
 -------------------
@@ -91,23 +87,15 @@ The minimum needed to get going is to:
     pf_img = r"C:/QA Folder/June/PF_6_21.dcm"
     pf = PicketFence(pf_img)
 
-  Or, load using a UI dialog box::
-
-    pf = PicketFence.from_image_UI()  # UI dialog will pop up
-
   You may also load multiple images that become superimposed (e.g. an MLC & Jaw irradiation)::
 
     img1 = r'path/to/image1.dcm'
     img2 = r'path/to/image2.dcm'
     pf = PicketFence.from_multiple_images([img1, img2])
 
+  As well, you can use the demo image provided::
 
-  .. note::
-    In previous versions of pylinac, loading images was instance-method based. This behavior has been simplified in favor
-    of initialization normalization and adding class-method constructors (``PicketFence.from_X``). The reason for this is that
-    certain actions should only be allowed until after the image is loaded. Furthermore, loading the image should always be
-    the first action of the analysis sequence. By using class constructors, certain pitfalls and errors can be avoided.
-    Don't worry though, the old behavior still works.
+     pf = PicketFence.from_demo_image()
 
 * **Analyze the image** -- Once the image is loaded, tell PicketFence to start analyzing the image. See the
   Algorithm section for details on how this is done. While defaults exist, you may pass in a tolerance as well as
@@ -151,7 +139,6 @@ not be centered exactly on the MLC leaves. If you want to correct for this, simp
 
     pf = PicketFence(r'C:/path/saggyPF.dcm')
     pf.analyze(sag_adjustment=0.6)
-
 
 Algorithm
 ---------
