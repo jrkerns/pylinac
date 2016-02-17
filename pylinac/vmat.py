@@ -330,10 +330,10 @@ class VMAT:
     def median_profiles(self):
         """Return two median profiles from the open and dmlc image. For visual comparison."""
         # dmlc median profile
-        dmlc_prof = SingleProfile(np.median(self.image_dmlc, axis=0))
+        dmlc_prof = SingleProfile(np.mean(self.image_dmlc, axis=0))
         dmlc_prof.stretch()
         # open median profile
-        open_prof = SingleProfile(np.median(self.image_open, axis=0))
+        open_prof = SingleProfile(np.mean(self.image_open, axis=0))
         open_prof.stretch()
 
         # normalize the profiles to near the same value

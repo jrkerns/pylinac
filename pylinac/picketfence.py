@@ -14,14 +14,18 @@ Features:
 """
 from functools import lru_cache
 import os.path as osp
+from itertools import cycle
 from tempfile import TemporaryDirectory
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
+from scipy import ndimage
 
+from pylinac import MachineLog
 from .core import image
 from .core.geometry import Line, Rectangle
+from .core.image import Image
 from .core.io import get_url
 from .core.profile import MultiProfile, SingleProfile
 from .core.utilities import import_mpld3
@@ -78,6 +82,12 @@ class PicketFence:
     Run the demo::
         >>> PicketFence.run_demo()
 
+    Load the demo image:
+        >>> pf = PicketFence.from_demo_image()
+
+    Load an image along with its machine log:
+        >>> pf_w_log = PicketFence('my/pf.dcm', log='my/log.bin')
+
     Typical session:
         >>> img_path = r"C:/QA/June/PF.dcm"  # the EPID image
         >>> mypf = PicketFence(img_path)
@@ -85,7 +95,7 @@ class PicketFence:
         >>> print(mypf.return_results())
         >>> mypf.plot_analyzed_image()
     """
-    def __init__(self, filename, filter=None):
+    def __init__(self, filename, filter=None, log=None):
         """
         Parameters
         ----------
@@ -93,7 +103,11 @@ class PicketFence:
             Name of the file as a string. If None, image must be loaded later.
         filter : int, None
             If None (default), no filtering will be done to the image.
-            If an int, will perform median filtering over image of size *filter*.
+            If an int, will perform median filtering over image of size ``filter``.
+        log : str
+            Path to a log file corresponding to the delivery. The expected fluence of the log file is
+            used to construct the pickets. MLC peaks are then compared to an absolute reference instead of
+            a fitted picket.
         """
         if filename is not None:
             self.image = PFDicomImage(filename)
@@ -171,6 +185,51 @@ class PicketFence:
     def num_pickets(self):
         """Return the number of pickets determined."""
         return len(self.pickets)
+
+    def _check_for_noise(self):
+        """Check if the image has extreme noise (dead pixel, etc) by comparing
+        min/max to 1/99 percentiles and smoothing if need be."""
+        safety_stop = 5
+        while self._has_noise() and safety_stop > 0:
+            self.image.filter(size=3)
+            safety_stop -= 1
+
+    def _has_noise(self):
+        """Helper method to determine if there is spurious signal in the image."""
+        min = self.image.array.min()
+        max = self.image.array.max()
+        near_min, near_max = np.percentile(self.image.array, [0.5, 99.5])
+        max_is_extreme = max > near_max * 1.25
+        min_is_extreme = (min < near_min * 0.75) and (abs(min - near_min) > 0.1 * (near_max - near_min))
+        return max_is_extreme or min_is_extreme
+
+    def _adjust_for_sag(self, sag):
+        """Roll the image to adjust for EPID sag."""
+        sag_pixels = int(round(sag * self.settings.dpmm))
+        direction = 'y' if self.orientation == UP_DOWN else 'x'
+        self.image.roll(direction, sag_pixels)
+
+    def _load_log(self, log):
+        """Load a machine log that corresponds to the picket fence delivery.
+
+        This log determines the location of the Pickets. The MLC peaks are then compared to the expected log pickets,
+        not a simple fit of the peaks."""
+        mlog = MachineLog(log)
+        fl = mlog.fluence.expected.calc_map(equal_aspect=True)
+        fli = Image.load(fl, dpi=254)  # 254 pix/in => 1 pix/0.1mm (default fluence calc)
+        # crop fluence array to same physical size as EPID
+        hdiff = fli.physical_shape[0] - self.image.physical_shape[0]
+        wdiff = fli.physical_shape[1] - self.image.physical_shape[1]
+        fli.remove_edges(int(min(hdiff, wdiff) * fli.dpmm / 2 + 2))
+        new_array = Image.load(fli.array, dpi=254)
+        pf = PicketFence.from_demo_image()
+        pf.image = new_array
+        pf.analyze()
+        self._log_fits = cycle([p.fit for p in pf.pickets])
+        # resize image
+        zoom_factor = fli.shape[1] / self.image.shape[1]
+        array = ndimage.interpolation.zoom(self.image, zoom_factor)
+        self.image = Image.load(array, dpi=self.image.dpi * zoom_factor, sid=self.image.sid)
 
     @staticmethod
     def run_demo(tolerance=0.5, action_tolerance=0.25, interactive=False):
@@ -359,6 +418,7 @@ class PicketFence:
         return string
 
     @property
+    @lru_cache(maxsize=1)
     def orientation(self):
         """The orientation of the image, either Up-Down or Left-Right."""
         # replace any dead pixels with median value
@@ -416,7 +476,7 @@ class Overlay:
 
 class Settings:
     """Simple class to hold various settings and info for PF analysis/plotting."""
-    def __init__(self, orientation, tolerance, action_tolerance, hdmlc, image):
+    def __init__(self, orientation, tolerance, action_tolerance, hdmlc, image, log_fits):
         self.orientation = orientation
         self.tolerance = tolerance
         self.action_tolerance = action_tolerance
@@ -475,10 +535,10 @@ class Settings:
 
         # now adjust them to align with the iso
         if self.orientation == UP_DOWN:
-            leaf30_center = self.image.cax.y - self.small_leaf_width / 2
+            leaf30_center = self.image_center.y - self.small_leaf_width / 2
             edge = self.image.shape[0]
         else:
-            leaf30_center = self.image.cax.x - self.small_leaf_width / 2
+            leaf30_center = self.image_center.x - self.small_leaf_width / 2
             edge = self.image.shape[1]
         adjustment = leaf30_center - leaf_centers[29]
         leaf_centers += adjustment
@@ -652,8 +712,11 @@ class Picket:
             raise AttributeError("No action tolerance was specified")
 
     @property
+    @lru_cache(maxsize=2)
     def fit(self):
         """The fit of a polynomial to the MLC measurements."""
+        if self.settings.log_fits is not None:
+            return next(self.settings.log_fits)
         x = np.array([mlc.point1.y for mlc in self.mlc_meas])
         y = np.array([mlc.point1.x for mlc in self.mlc_meas])
         if self.settings.orientation == UP_DOWN:

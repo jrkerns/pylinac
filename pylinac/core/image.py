@@ -213,6 +213,11 @@ class BaseImage:
         y_center = self.shape[0] / 2
         return Point(x_center, y_center)
 
+    @property
+    def physical_shape(self):
+        """The physical size of the image in mm."""
+        return (self.shape[0] / self.dpmm, self.shape[1] / self.dpmm)
+
     def plot(self, ax=None, show=True, clear_fig=False):
         """Plot the image."""
         if ax is None:
