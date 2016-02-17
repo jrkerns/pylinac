@@ -3,8 +3,8 @@
 Changelog
 =========
 
-V 1.4.0 (unreleased)
---------------------
+V 1.4.0
+-------
 
 General Changes
 ^^^^^^^^^^^^^^^
@@ -15,7 +15,8 @@ General Changes
   The class-based methods have existed for several versions, and they are now the preferred and only way as there is
   no use case for an empty instance.
 * Since v1.2 most URLs were downloaded and then the local (but temporary) files were loaded. This practice has now been
-  standardized for all modules. I.e. any ``from_url()``-style call downloads a temporary file and loads that.
+  standardized for all modules. I.e. any ``from_url()``-style call downloads a temporary file and loads that. Because the
+  downloads are to a temporary directory, then are removed upon exit.
 * Loading images using the ``Image`` class has been deprecated (but still works) in favor of the new functions in the same module with the same name.
   Where previously one would do::
 
@@ -43,7 +44,7 @@ Winston-Lutz
 CBCT
 ^^^^
 
-* The ``.from_zip_file()`` class constructor method has been renamed to ``from_zip()`` to be consistent with the rest
+* The ``from_zip_file()`` class constructor method has been renamed to ``from_zip()`` to be consistent with the rest
   of pylinac's similar constructors.
 
 Log Analyzer
@@ -51,7 +52,12 @@ Log Analyzer
 
 * A new ``treatment_type`` has been added for CBCT and kV logs: ``Imaging``.
 * A new function has been added to the module: ``anonymize()``. This function is similar to the ``.anonymize()`` method,
-  but doesn't require you to load the logs manually. The function is also threaded so it's very fast for mass anonymization.
+  but doesn't require you to load the logs manually. The function is also threaded so it's very fast for mass anonymization::
+
+     from pylinac.log_analyzer import anonymize
+
+     anonymize('my/log/folder')
+     anonymize('mylog.bin')
 
 Starshot
 ^^^^^^^^
