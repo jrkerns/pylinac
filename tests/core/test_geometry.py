@@ -1,9 +1,5 @@
-
-
 """Test the various geometric patterns in the pylinac.core.geometry module."""
-
 import unittest
-import math
 
 from pylinac.core.geometry import *
 from tests.utils import test_point_equality
