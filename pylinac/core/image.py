@@ -63,7 +63,7 @@ def load(path, **kwargs):
         >>> arr = np.arange(36).reshape(6, 6)
         >>> img = load(arr)  # returns an ArrayImage
     """
-    if isinstance(path, (DicomImage, FileImage, ArrayImage)):
+    if isinstance(path, BaseImage):
         return path
 
     if _is_array(path):
@@ -122,7 +122,7 @@ def load_multiples(image_file_list, method='mean', stretch=True, **kwargs):
         if img.shape != first_img.shape:
             raise ValueError("Images were not the same shape")
         if stretch:
-            img.array = stretcharray(img.array)
+            img.array = stretcharray(img.array, fill_dtype=first_img.array.dtype)
 
     # stack and combine arrays
     new_array = np.dstack(tuple(img.array for img in img_list))
@@ -493,7 +493,8 @@ class DicomImage(BaseImage):
         """
         super().__init__(path)
         # read the file once to get just the DICOM metadata
-        self.metadata = dicom.read_file(path, force=True, stop_before_pixels=True)
+        self.metadata = dicom.read_file(path, force=True)
+        self._original_dtype = self.metadata.pixel_array.dtype
         # read a second time to get pixel data
         if isinstance(path, BytesIO):
             path.seek(0)
@@ -505,6 +506,14 @@ class DicomImage(BaseImage):
         # convert values to proper HU: real_values = slope * raw + intercept
         if self.metadata.SOPClassUID.name == 'CT Image Storage':
             self.array = int(self.metadata.RescaleSlope)*self.array + int(self.metadata.RescaleIntercept)
+
+    def save(self, filename):
+        """Save the DICOM image to a .dcm file."""
+        if self.metadata.SOPClassUID.name == 'CT Image Storage':
+            self.array = (self.array - int(self.metadata.RescaleIntercept)) / int(self.metadata.RescaleSlope)
+        self.metadata.PixelData = self.array.astype(self._original_dtype).tostring()
+        self.metadata.save_as(filename)
+        return filename
 
     @property
     def sid(self):
