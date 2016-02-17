@@ -18,8 +18,9 @@ INDEX = 'index'
 BOTH = 'both'
 
 
-def stretch(array, min=0, max=1):
-    """'Stretch' the profile to the min and max parameter values.
+def stretch(array, min=0, max=1, fill_dtype=None):
+    """'Stretch' the profile to the fit a new min and max value and interpolate in between.
+    From: http://www.labri.fr/perso/nrougier/teaching/numpy.100/  exercise #17
 
     Parameters
     ----------
@@ -27,12 +28,23 @@ def stretch(array, min=0, max=1):
         The new minimum of the values
     max : number
         The new maximum value.
+    fill_dtype : numpy data type
+        If None (default), the array will be stretched to the passed min and max.
+        If a numpy data type (e.g. np.int16), the array will be stretched to fit the full range of values
+        of that data type. If a value is given for this parameter, it overrides ``min`` and ``max``.
     """
-    old_min = array.min()
-    old_max = array.max()
-    old_range = old_max - old_min
-    stretched_array = max - (((max - min) * (old_max - array)) / old_range)
-    return stretched_array
+    new_max = max
+    new_min = min
+    if fill_dtype is not None:
+        di = np.iinfo(fill_dtype)
+        new_max = di.max
+        new_min = di.min
+    # perfectly normalize the array (0..1)
+    stretched_array = (array - array.min())/(array.max() - array.min())
+    # stretch normalized array to new max/min
+    stretched_array *= new_max
+    stretched_array += new_min
+    return stretched_array.astype(array.dtype)
 
 
 class ProfileMixin:
