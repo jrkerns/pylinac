@@ -826,6 +826,7 @@ class Axis:
     def _plot(self, param='', interactive=False, show=True):
         """Plot the parameter: actual, expected, or difference."""
         plt.plot(getattr(self, param))
+        plt.grid('on')
         plt.autoscale(axis='x', tight=True)
         if show:
             if interactive:
