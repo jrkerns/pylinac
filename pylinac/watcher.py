@@ -1,10 +1,8 @@
 """The watcher file is a script meant to be run as an ongoing process to watch a given directory and analyzing files
 that may be moved there for certain keywords. Automatic processing will be started if the file contains the keywords."""
-
 import abc
 import logging
 import os.path as osp
-import sys
 import time
 
 try:
@@ -178,15 +176,14 @@ class FileAnalyzerEvent(FileSystemEventHandler):
             logging.info(full_file_path + " was added but was not deemed a file to be analyzed.")
 
 
-if __name__ == "__main__":
+def start_watching(directory=None):
+    """Start watching the directory and analyze any applicable files that may be moved there."""
+    logging.info("Starting watcher...")
     event_handler = FileAnalyzerEvent()
     observer = Observer()
-    path = sys.argv[1] if len(sys.argv) > 1 else '.'
-    observer.schedule(event_handler, path, recursive=True)
-    logging.info("Pylinac now watching at " + osp.abspath(path))
+    observer.schedule(event_handler, directory, recursive=True)
+    logging.info("Pylinac now watching at " + osp.abspath(directory))
     observer.start()
     while True:
         time.sleep(1)
     observer.join()
-
-
