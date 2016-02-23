@@ -223,10 +223,18 @@ class PicketFence:
         fli = Image.load(fl, dpi=254)  # 254 pix/in => 1 pix/0.1mm (default fluence calc)
         # crop fluence array to same physical size as EPID
         hdiff = fli.physical_shape[0] - self.image.physical_shape[0]
+        if hdiff < 0:
+            phys_hdiff = int(round(-hdiff * self.image.dpmm / 2))
+            self.image.remove_edges(phys_hdiff, edges=('top', 'bottom'))
+        else:
+            phys_hdiff = int(round(-hdiff * fli.dpmm / 2))
+            fli.remove_edges(phys_hdiff, edges=('top', 'bottom'))
         wdiff = fli.physical_shape[1] - self.image.physical_shape[1]
-        fli.remove_edges(int(min(hdiff, wdiff) * fli.dpmm / 2 + 2))
+        if wdiff > 0:
+            phys_wdiff = int(round(wdiff * fli.dpmm / 2))
+            fli.remove_edges(phys_wdiff, edges=('left', 'right'))
         # reload new cropped array into PicketFence
-        new_array = Image.load(fli.array, dpi=254)
+        new_array = Image.load(fli.array, dpi=254)  # TODO: seems redundant
         pf = PicketFence.from_demo_image()
         pf.image = new_array
         pf.analyze()

@@ -8,12 +8,12 @@ info, and which info is analyzed is up to the user.
 
 Features:
 
-* **Analyze Dynalogs or Trajectory logs** - Either platform is supported. Tlog versions 2.1 and 3.0 supported.
+* **Analyze Dynalogs or Trajectory logs** - Either platform is supported. Tlog versions 2.1 and 3.0 are supported.
 * **Read in both .bin and .txt Trajectory log files** - Read in the machine data from both .bin and .txt files to get all the information recorded.
-  See :attr:`~pylinac.log_analyzer.MachineLog.txt`.
+  See the :attr:`~pylinac.log_analyzer.MachineLog.txt` attribute.
 * **Save Trajectory log data to CSV** - The Trajectory log binary data format does not allow for easy export of data. Pylinac lets you do
   that so you can use Excel or other software that you use with Dynalogs.
-* **Plot or analyze any axis** - Every data axis can be accessed and plotted: the actual, expected, and even the difference.
+* **Plot or analyze any axis** - Every data axis (e.g. gantry, y1, beam holds, MLC leaves) can be accessed and plotted: the actual, expected, and even the difference.
 * **Calculate fluences and gamma** - Besides reading in the MLC positions, pylinac calculates the actual and expected fluence
   as well as the gamma map; DTA and threshold values are adjustable.
 * **Anonymize logs** - Both dynalogs and trajectory logs can be "anonymized" by removing the Patient ID from the filename(s)
@@ -938,10 +938,14 @@ class Fluence(metaclass=ABCMeta):
              be the number of MLC pairs by 400 / resolution since the MLCs can move anywhere within the
              40cm-wide linac head opening.
          """
-        if equal_aspect:
-            fluence = np.zeros((int(400/resolution), int(400/resolution)), dtype=np.float32)
+        if self._mlc.hdmlc:
+            height = 220
         else:
-            fluence = np.zeros((self._mlc.num_pairs, int(400 / resolution)), dtype=np.float32)
+            height = 400
+        if equal_aspect:
+            fluence = np.zeros((int(height/resolution), int(400/resolution)), dtype=np.float16)
+        else:
+            fluence = np.zeros((self._mlc.num_pairs, int(400 / resolution)), dtype=np.float16)
 
         self.pixel_map = fluence
         self.resolution = resolution
