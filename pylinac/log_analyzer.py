@@ -1140,7 +1140,7 @@ class GammaFluence(Fluence):
         gamma_map = np.zeros(expected.shape)
 
         # image gradient in x-direction (leaf movement direction) using sobel filter
-        img_x = spf.sobel(actual, 1)
+        img_x = spf.sobel(actual.astype(np.float32), 1)
 
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
         for leaf in range(self._mlc.num_pairs):
