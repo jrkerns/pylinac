@@ -20,14 +20,15 @@ Because the ``log_analyzer`` module functions without an end goal, the data has 
 few concepts that should be grasped before diving in.
 
 * **Log Sections** - Upon log parsing, all data is placed into data structures. Varian has designated 4 sections for Trajectory logs:
-  *Header*, *Axis Data*, *Subbeams*, and *CRC*. The *Subbeams* are only applicable for auto-sequenced beams, and the *CRC* is specific to
+  *Header*, *Axis Data*, *Subbeams*, and *CRC*. The *Subbeams* are only applicable for auto-sequenced beams and all v3.0 logs, and the *CRC* is specific to
   the Trajectory log. The *Header* and *Axis Data* however, are common to both Trajectory logs and Dynalogs.
 
    .. note::
     Dynalogs do not have explicit sections like the Trajectory logs,
     but pylinac formats them to have these two data structures for consistency.
 
-* **Leaf Indexing & Positions** - Varian leaf identification is 1-index based, over against Python's 0-based indexing.
+* **Leaf Indexing & Positions** - Varian leaf identification is 1-index based, over against Python's 0-based indexing. Thus,
+  indexing the first MLC leaf would be ``[1]``, not ``[0]``.
 
     .. warning:: When slicing or analyzing leaf data, keep the Varian 1-index base in mind.
 
@@ -43,11 +44,11 @@ few concepts that should be grasped before diving in.
     Dynalog files are inherently in mm for collimator and gantry axes, tenths of degrees for rotational axes, and
     MLC positions are not at isoplane. For consistency, Dynalog values are converted to Trajectory log specs, meaning
     linear axes, both collimator and MLCs are in cm at isoplane, and rotational axes are in degrees. Dynalog MU is always
-    from 0 to 25000 no matter the delivered MU (i.e. it's relative).
+    from 0 to 25000 no matter the delivered MU (i.e. it's relative), unless it was a VMAT delivery, in which case the MU is actually the gantry position.
 
 
-* **All Data Axes are similar** - Log files capture machine data in "control cycles", aka "snapshots" or "heartbeats". Let's assume a
-  log has captured 100 control cycles. Axis data that was captured will all be similar. They will all have an *actual* and sometimes an
+* **All data Axes are similar** - Log files capture machine data in "control cycles", aka "snapshots" or "heartbeats". Let's assume a
+  log has captured 100 control cycles. Axis data that was captured will all be similar (e.g. gantry, collimator, jaws). They will all have an *actual* and sometimes an
   *expected* value for each cycle. Pylinac formats these as 1D numpy arrays along with a difference array if applicable. Each of these
   arrays can be quickly plotted for visual analysis. See :class:`~pylinac.log_analyzer.Axis` for more info.
 
@@ -98,7 +99,7 @@ Or load from a URL::
 
     log = MachineLog.from_url('http://myserver.com/logs/1.dlg')
 
-When dealing with multiple logs, use ``MachineLogs``::
+When dealing with multiple logs, use :class:`~pylinac.log_analyzer.MachineLogs`::
 
     from pylinac import MachineLogs  # note the `s`
 
@@ -305,7 +306,7 @@ expected fluences can be calculated to any resolution in the leaf-moving directi
     array([ 0, 0, ...
     >>> log.fluence.expected.calc_map(resolution=1)  # calculate at 1mm resolution
     array([ 0, 0, ...
-    >>> log.fluence.gamma.calc_map(distTA=0.5, doseTA=1, resolution=0.1)
+    >>> log.fluence.gamma.calc_map(distTA=0.5, doseTA=1, resolution=0.1)  # change the gamma criteria
     array([ 0, 0, ...
     >>> log.fluence.gamma.pass_prcnt  # the gamma passing percentage
     99.82
@@ -334,7 +335,14 @@ Plot the Gantry difference::
 
     log.axis_data.gantry.plot_difference()
 
-Now lets plot fluences::
+.. raw:: html
+    :file: image/logs/gantry_difference.html
+
+Axis plots are just as easily saved::
+
+    log.axis_data.gantry.save_plot_difference(filename='gantry diff.png')
+
+Now, lets plot fluences::
 
     log.fluence.actual.plot_map()
     log.fluence.gamma.plot_map()

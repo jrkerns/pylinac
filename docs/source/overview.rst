@@ -69,6 +69,8 @@ pylinac.
 
 * **Each module has its own demonstration method(s)** -- If you don't yet have an image or data and want to see how a module works
   you can run and inspect the code of the demo to get an idea. Most demo methods have a name like or starts with ``.run_demo()``.
+* **Each module has its own demo image/dataset(s)** -- Want to test the analysis but are having trouble with your image? Use the provided
+  demo images. All major classes have a demo image or dataset and are usually similar to ``.from_demo_image()``.
 * **Each module has similar load, analyze, and show methods and behavior** -- The normal flow of a pylinac module use is to 1) Load the data in,
   2) Analyze the data, and 3) Show the results.
 * **Most modules can be fully utilized in a few lines** -- The whole point of pylinac is to automate and simplify the process of

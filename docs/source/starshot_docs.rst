@@ -20,7 +20,7 @@ To run the Starshot demo, create a script or start an interpreter and input::
 
     from pylinac import Starshot
 
-    Starshot().run_demo()
+    Starshot.run_demo()
 
 Results will be printed to the console and a matplotlib figure showing the analyzed starshot image will pop up::
 

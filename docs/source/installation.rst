@@ -87,15 +87,15 @@ Most languages don't have an official IDE, and some people may tell you IDEs are
 call me a cripple because I find them extremely useful. As with all power, it must be wielded carefully though. The option of getting an IDE
 is completely up to you. If you want one, here are some options:
 
-* `PyCharm <https://www.jetbrains.com/pycharm/>`_ - A fully-featured, rich IDE, it's arguably king of the heavyweights and *free*. At least try it.
+* `PyCharm <https://www.jetbrains.com/pycharm/>`_ - A fully-featured, rich IDE. It's arguably king of the heavyweights and *free*. At least try it.
+  Here's the PyCharm `quick start guide <https://www.jetbrains.com/pycharm/quickstart/>`_.
 
   .. image:: https://confluence.jetbrains.com/download/attachments/51188837/pyCharm3.png
      :height: 400px
      :width: 600px
 
-  Here's the PyCharm `quick start guide <https://www.jetbrains.com/pycharm/quickstart/>`_.
-
 * `Spyder <https://code.google.com/p/spyderlib/>`_ - A MATLAB-like IDE with similar layout, preferred by many working in the scientific realm.
+  Here are the `Spyder docs <https://pythonhosted.org/spyder/>`_.
 
   .. note:: Spyder is part of the Anaconda distribution.
 
@@ -103,4 +103,3 @@ is completely up to you. If you want one, here are some options:
      :height: 400px
      :width: 600px
 
-  Here are the `Spyder docs <https://pythonhosted.org/spyder/>`_.

@@ -12,10 +12,10 @@ Overview
 Running the Demo
 ----------------
 
-To run the CBCT demo, create a script or start in interpreter and input::
+To run the CBCT demo, create a script or start an interpreter and input::
 
     from pylinac import CBCT
-    CBCT().run_demo() # the demo is a Varian high quality head scan
+    CBCT.run_demo() # the demo is a Varian high quality head scan
 
 Results will be printed to the console and a figure showing the slices analyzed will pop up::
 
@@ -61,12 +61,10 @@ First, import the class::
 
 The minimum needed to get going is to:
 
-* **Load images** -- Loading the DICOM images into your CBCT object can be done by passing the folder the images are located in.
-  This can be done directly, or by using a UI. The code might look like any of the following::
+* **Load images** -- Loading the DICOM images into your CBCT object is done by passing the images in during construction.
+  The most direct way is to pass in the directory where the images are::
 
-    # set the folder path
-    cbct_folder = r"C:/QA Folder/CBCT/June monthly"  # use of 'r' is for raw string; otherwise spaces and backslashes aren't interpreted properly
-    # load the images from the folder path
+    cbct_folder = r"C:/QA Folder/CBCT/June monthly"
     mycbct = CBCT(cbct_folder)
 
   or load a zip file of the images::
@@ -79,7 +77,7 @@ The minimum needed to get going is to:
     mycbct = CBCT.from_demo_images()
 
 * **Analyze the images** -- Once the folder/images are loaded, tell CBCT to start analyzing the images. See the
-  Algorithm section for details on how this is done::
+  Algorithm section for details and :meth:`~pylinac.cbct.CBCT.analyze`` for analysis options::
 
     mycbct.analyze()
 

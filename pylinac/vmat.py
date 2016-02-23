@@ -129,7 +129,7 @@ class VMAT:
 
     @classmethod
     def from_zip(cls, path):
-        """Load VMAT images from a ZIP file that contains both images.
+        """Load VMAT images from a ZIP file that contains both images. Must follow the naming convention.
 
         Parameters
         ----------
@@ -147,7 +147,7 @@ class VMAT:
 
     @classmethod
     def from_url(cls, url):
-        """Load from URLs.
+        """Load a ZIP archive from a URL.  Must follow the naming convention.
 
         Parameters
         ----------

@@ -2,8 +2,7 @@
 """
 The Starshot module analyses a starshot image made of radiation spokes, whether gantry, collimator, MLC or couch.
 It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
-and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and
-`evolutionary optimization <https://en.wikipedia.org/wiki/Evolutionary_computation>`_.
+and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_.
 
 Features:
 
