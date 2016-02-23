@@ -36,13 +36,6 @@ class GeneralTests(TestCase):
         self.cbct.analyze()
         self.cbct._return_results()
 
-    @unittest.expectedFailure
-    def test_images_not_from_same_study(self):
-        """Loading images from different studies should raise and error."""
-        mixed_zip = osp.join(VARIAN_DIR, 'mixed_studies.zip')
-        with self.assertRaises(ValueError):
-            CBCT.from_zip(mixed_zip)
-
     def test_phan_center(self):
         """Test locations of the phantom center."""
         known_phan_center = Point(257, 255)
