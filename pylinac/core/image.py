@@ -252,7 +252,7 @@ class BaseImage:
             self.array = ndimage.gaussian_filter(self.array, sigma=size)
 
     @type_accept(pixels=int)
-    def remove_edges(self, pixels=15):
+    def remove_edges(self, pixels=15, edges=('top', 'bottom', 'left', 'right')):
         """Removes pixels on all edges of the image.
 
         Parameters
@@ -260,7 +260,14 @@ class BaseImage:
         pixels : int
             Number of pixels to cut off all sides of the image.
         """
-        self.array = self.array[pixels - 1:-pixels - 1, pixels - 1:-pixels - 1]
+        if 'top' in edges:
+            self.array = self.array[pixels:, :]
+        if 'bottom' in edges:
+            self.array = self.array[:-pixels, :]
+        if 'left' in edges:
+            self.array = self.array[:, pixels:]
+        if 'right' in edges:
+            self.array = self.array[:, :-pixels]
 
     def invert(self):
         """Invert (imcomplement) the image."""
