@@ -6,8 +6,8 @@ from setuptools import setup, find_packages
 
 # 2 alt. To make a wheel, run $ python setup.py sdist bdist_wheel [upload]
 
-__version__ = '1.4.1'
-__version_info__ = (1, 4, 1)
+__version__ = '1.5.0'
+__version_info__ = (1, 5, 0)
 
 
 setup(
@@ -15,7 +15,8 @@ setup(
     version=__version__,
     packages=find_packages(),
     package_data={'pylinac':
-                      ['demo_files/cbct/*',
+                      ['watcher_config.yaml',
+                       'demo_files/cbct/*',
                        'demo_files/log_reader/*',
                        'demo_files/starshot/*',
                        'demo_files/picket_fence/*',
@@ -34,8 +35,10 @@ setup(
                       "pydicom >= 0.9.9",
                       "matplotlib >= 1.3.1",
                       "scikit-image >= 0.11",
-                      "Pillow >= 2.5",
-                      "click > 6.0"],
+                      "Pillow >= 2.5"],
+    extras_require={
+        'console': ["click", "pyyaml", "watchdog", "yagmail"],
+    },
     entry_points={
         'console_scripts':
             ['pylinac=pylinac.scripts:cli']
