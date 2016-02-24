@@ -19,7 +19,7 @@ try:
 except ImportError:
     raise ImportError("Yagmail must be installed to perform file watching. Run ``pip install yagmail`` and try again.")
 
-from pylinac import CBCT, VMAT, Starshot, PicketFence, MachineLog, WinstonLutz
+from pylinac import CBCT, VMAT, Starshot, PicketFence, MachineLog, WinstonLutz, LeedsTOR, PipsProQC3
 
 logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',
@@ -155,6 +155,18 @@ class AnalyzeWL(AnalyzeMixin):
         return send
 
 
+class AnalyzeLeeds(AnalyzeMixin):
+    """Analysis class for Leeds TOR phantom."""
+    obj = LeedsTOR
+    config_name = 'leeds'
+
+
+class AnalyzePipsPro(AnalyzeMixin):
+    """Analysis class for PipsPro QC-3."""
+    obj = PipsProQC3
+    config_name = 'pipspro'
+
+
 class AnalyzeStar(AnalyzeMixin):
     """Analysis class for starshots."""
     obj = Starshot
@@ -229,7 +241,8 @@ def analysis_should_be_done(path, config):
     if any(item in path for item in ('.png', '.txt')):
         return False, None
     else:
-        for analysis_class in (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog):
+        analysis_classes = (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog, AnalyzeLeeds, AnalyzePipsPro)
+        for analysis_class in analysis_classes:
             analysis_instance = analysis_class(path, config)
             if analysis_instance.keyword_in_here():
                 return True, analysis_instance

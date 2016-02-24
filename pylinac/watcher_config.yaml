@@ -1,7 +1,6 @@
 general:
   file-suffix: _analysis
 
-
 email:
   enable-all: false
   enable-failure: false
@@ -11,7 +10,6 @@ email:
     - recipient1@domain.com
     - recipient2@domain.com
   subject: Pylinac results
-
 
 log-analysis:
   analysis:
@@ -24,7 +22,6 @@ log-analysis:
     avg-rms: 0.05
     max-rms: 0.5
 
-
 winston-lutz:
   keywords:
     - wl
@@ -35,7 +32,6 @@ winston-lutz:
     mean-cax-bb-distance: 2
     max-cax-bb-distance: 2.5
 
-
 starshot:
   keywords:
     - star
@@ -44,7 +40,6 @@ starshot:
     radius: 0.8
   failure:
     passed: false
-
 
 picketfence:
   keywords:
@@ -56,7 +51,6 @@ picketfence:
     hdmlc: false
   failure:
     passed: false
-
 
 cbct:
   keywords:
@@ -71,7 +65,6 @@ cbct:
     geometry-passed: false
     thickness-passed: false
 
-
 vmat:
   keywords:
     - vmat
@@ -82,3 +75,20 @@ vmat:
     tolerance: 1.5
   failure:
     passed: false
+
+leeds:
+  keywords:
+    - leed
+    - tor
+  analysis:
+    low_contrast_threshold: 0.005
+    hi_contrast_threshold: 0.4
+
+pipspro:
+  keywords:
+    - pips
+    - pro
+    - qc
+  analysis:
+    low_contrast_threshold: 0.005
+    hi_contrast_threshold: 0.4
