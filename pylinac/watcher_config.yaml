@@ -1,0 +1,84 @@
+general:
+  file-suffix: _analysis
+
+
+email:
+  enable-all: false
+  enable-failure: false
+  sender: sender@gmail.com  # sender MUST be a Gmail account
+  sender-password: senderpassword
+  recipients:
+    - recipient1@domain.com
+    - recipient2@domain.com
+  subject: Pylinac results
+
+
+log-analysis:
+  analysis:
+    doseTA: 1
+    distTA: 1
+    threshold: 10
+    resolution: 0.1
+  failure:
+    gamma: 95
+    avg-rms: 0.05
+    max-rms: 0.5
+
+
+winston-lutz:
+  keywords:
+    - wl
+    - winston
+    - lutz
+  failure:
+    gantry-iso-size: 2
+    mean-cax-bb-distance: 2
+    max-cax-bb-distance: 2.5
+
+
+starshot:
+  keywords:
+    - star
+  analysis:
+    tolerance: 1
+    radius: 0.8
+  failure:
+    passed: false
+
+
+picketfence:
+  keywords:
+    - pf
+    - picket
+  analysis:
+    tolerance: 0.5
+    action_tolerance: 0.3
+    hdmlc: false
+  failure:
+    passed: false
+
+
+cbct:
+  keywords:
+    - cbct
+    - ct
+  analysis:
+    hu_tolerance: 40
+    scaling_tolerance: 1
+  failure:
+    hu-passed: false
+    uniformity-passed: false
+    geometry-passed: false
+    thickness-passed: false
+
+
+vmat:
+  keywords:
+    - vmat
+    - drgs
+    - drmlc
+    - mlcs
+  analysis:
+    tolerance: 1.5
+  failure:
+    passed: false

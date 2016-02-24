@@ -1,6 +1,6 @@
 """The watcher file is a script meant to be run as an ongoing process to watch a given directory and analyzing files
 that may be moved there for certain keywords. Automatic processing will be started if the file contains the keywords."""
-import abc
+import datetime
 import logging
 import os.path as osp
 import time
@@ -9,7 +9,15 @@ try:
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
 except ImportError:
-    raise ImportError("Watchdog must be installed to perform file watching.")
+    raise ImportError("Watchdog must be installed to perform file watching. Run ``pip install watchdog`` and try again.")
+try:
+    import yaml
+except ImportError:
+    raise ImportError("PyYaml must be installed to perform file watching. Run ``pip install pyyaml`` and try again.")
+try:
+    import yagmail
+except ImportError:
+    raise ImportError("Yagmail must be installed to perform file watching. Run ``pip install yagmail`` and try again.")
 
 from pylinac import CBCT, VMAT, Starshot, PicketFence, MachineLog, WinstonLutz
 
@@ -25,33 +33,82 @@ class AnalyzeMixin:
     ----------
     obj : class
         The class that analyzes the file; e.g. Starshot, PicketFence, etc.
-    keywords : iterable
-        Holds the keywords that are looked for in the file name. If the filename has that keyword, analysis will be attempted on that file.
-    args : dict
-        Dictionary that holds the tolerance settings of analysis.
     """
     obj = object
-    keywords = ('',)
+    config_name = ''
     save_image_method = 'save_analyzed_image'
     save_text_method = 'return_results'
-    args = {}
+    expecting_zip = False
 
-    def __init__(self, path):
-        self.basepath = osp.splitext(path)[0]
-        self.instance = self.obj(path)
+    def __init__(self, path, config):
+        self.full_path = path
+        self.local_path = osp.basename(path)
+        self.base_name = osp.splitext(self.local_path)[0]
+        self.config = config
+
+    def process(self):
+        logging.info(self.local_path + " file found and will be analyzed...")
+        self.instance = self.obj(self.full_path)
         self.analyze()
         self.save_image()
         self.save_text()
+        if self.config['email']['enable-all']:
+            self.send_email()
+        elif self.config['email']['enable-failure'] and self.should_send_failure_email():
+            self.send_email()
+        logging.info(self.local_path + " was analyzed and now has an associated .txt and .png file")
 
     @property
     def img_filename(self):
         """The name of the file for the analyzed image."""
-        return self.basepath + '.png'
+        return self.base_name + self.config['general']['file-suffix'] + '.png'
 
     @property
     def txt_filename(self):
         """The name of the file for the text results."""
-        return self.basepath + '.txt'
+        return self.base_name + self.config['general']['file-suffix'] + '.txt'
+
+    @property
+    def keywords(self):
+        """The keywords that signal a file is of a certain analysis type."""
+        return self.config[self.config_name]['keywords']
+
+    def keyword_in_here(self):
+        if not self.expecting_zip:
+            return any(keyword in self.local_path.lower() for keyword in self.keywords)
+        else:
+            return any(keyword in self.local_path.lower() for keyword in self.keywords) and self.local_path.endswith('.zip')
+
+    @property
+    def failure_settings(self):
+        return self.config[self.config_name]['failure']
+
+    @property
+    def analysis_settings(self):
+        return self.config[self.config_name]['analysis']
+
+    def send_email(self):
+        """Send an email with the analysis results."""
+        # compose message
+        current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        if self.config['email']['enable-all']:
+            statement = 'The pylinac watcher analyzed the file "{}" at {}. '
+            statement += 'The analysis results are at "{}" and have also been attached here.'
+            statement = statement.format(self.local_path, current_time, osp.dirname(self.full_path))
+        elif self.config['email']['enable-failure']:
+            statement = 'The pylinac watcher analyzed the file "{}" at {} and '
+            statement += 'found something that failed your configuration settings.'
+            statement += 'The analysis results are at "{}" and have also been attached here.'
+            statement = statement.format(self.local_path, current_time,
+                                                                                                                                                             osp.dirname(self.full_path))
+        # send the email
+        contents = [statement, self.img_filename, self.txt_filename]
+        yagserver = yagmail.SMTP(self.config['email']['sender'], self.config['email']['sender-password'])
+        recipients = [email for email in self.config['email']['recipients']]
+        yagserver.send(to=recipients,
+                       subject=self.config['email']['subject'],
+                       contents=contents)
+        logging.info("An email was sent to the recipients with the results")
 
     def save_image(self):
         """Save the analyzed image to file."""
@@ -64,122 +121,150 @@ class AnalyzeMixin:
         with open(self.txt_filename, 'w') as txtfile:
             txtfile.write(method())
 
-    @abc.abstractproperty
+    def should_send_failure_email(self):
+        """Check whether analysis results were poor."""
+        return not self.instance.passed
+
     def analyze(self):
-        pass
+        self.instance.analyze(**self.analysis_settings)
 
 
 class AnalyzeWL(AnalyzeMixin):
     """Analysis class for Winston-Lutz images."""
     obj = WinstonLutz.from_zip
-    keywords = ('wl', 'winston',)
     save_text_method = 'results'
     save_image_method = 'save_summary'
+    config_name = 'winston-lutz'
+    expecting_zip = True
 
     def analyze(self):
         pass
+
+    def should_send_failure_email(self):
+        send = False
+        for key, val in self.failure_settings:
+            if key == 'gantry-iso-size':
+                if self.instance.gantry_iso_size > val:
+                    send = True
+            if key == 'mean-cax-bb-distance':
+                if self.instance.cax2bb_distance() > val:
+                    send = True
+            if key == 'max-cax-bb-distance':
+                if self.instance.cax2bb_distance('max') > val:
+                    send = True
+        return send
 
 
 class AnalyzeStar(AnalyzeMixin):
     """Analysis class for starshots."""
     obj = Starshot
-    keywords = ('star',)
-    args = {'tolerance': 1, 'radius': 0.8}
-
-    def analyze(self):
-        self.instance.analyze(tolerance=self.args['tolerance'], radius=self.args['radius'])
+    config_name = 'starshot'
 
 
 class AnalyzePF(AnalyzeMixin):
     """Analysis class for picket fences."""
     obj = PicketFence
-    keywords = ('pf', 'picket')
-    args = {'tolerance': 0.5, 'action_tolerance': 0.3}
-
-    def analyze(self):
-        self.instance.analyze(tolerance=self.args['tolerance'], action_tolerance=self.args['action_tolerance'])
+    config_name = 'picketfence'
 
 
 class AnalyzeCBCT(AnalyzeMixin):
     """Analysis class for CBCTs."""
     obj = CBCT.from_zip
-    keywords = ('cbct', 'ct')
-    args = {'hu tolerance': 40, 'scaling tolerance': 1}
+    config_name = 'cbct'
+    expecting_zip = True
 
-    def analyze(self):
-        self.instance.analyze(hu_tolerance=self.args['hu tolerance'], scaling_tolerance=self.args['scaling tolerance'])
+    def should_send_failure_email(self):
+        send = False
+        for key, val in self.failure_settings:
+            if key == 'hu-passed':
+                if not self.instance.hu.overall_passed:
+                    send = True
+            if key == 'uniformity-passed':
+                if not self.instance.uniformity.overall_passed:
+                    send = True
+            if key == 'geometry-passed':
+                if not self.instance.geometry.overall_passed:
+                    send = True
+            if key == 'thickness-passed':
+                if not self.instance.thickness.passed:
+                    send = True
+        return send
 
 
 class AnalyzeVMAT(AnalyzeMixin):
     """Analysis class for VMATs."""
     obj = VMAT.from_zip
-    keywords = ('vmat', 'drgs', 'drmlc')
-    args = {'tolerance': 1.5}
-
-    def analyze(self):
-        self.instance.analyze(tolerance=self.args['tolerance'])
+    config_name = 'vmat'
+    expecting_zip = True
 
 
 class AnalyzeLog(AnalyzeMixin):
     """Analysis class for dynalogs or trajectory logs."""
     obj = MachineLog
-    keywords = ('',)
-    args = {'resolution': 0.1, 'distTA': 1, 'doseTA': 1, 'threshold': 10}
     save_image_method = 'save_summary'
 
     def analyze(self):
-        self.instance.fluence.gamma.calc_map(doseTA=self.args['doseTA'], distTA=self.args['distTA'],
-                                             resolution=self.args['resolution'], threshold=self.args['threshold'])
+        self.instance.fluence.gamma.calc_map(**self.analysis_settings)
+
+    def keyword_in_here(self):
+        return self.local_path.endswith('.dlg') or self.local_path.endswith('.bin')
 
     def save_text(self):
         with open(self.txt_filename, 'w') as txtfile:
             txtfile.write(self.instance.report_basic_parameters(False))
 
+    def should_send_failure_email(self):
+        send = False
+        gamma_too_low = self.instance.fluence.gamma.pass_prcnt < self.gamma_action_tolerance
+        rms_too_high = self.instance.mlc.get_RMS_percentile() > self.rms_action_tolerance
+        if gamma_too_low or rms_too_high:
+            send = True
+        return send
 
-def analysis_should_be_done(path):
+
+def analysis_should_be_done(path, config):
     """Return boolean of whether the file should be analysed, based on if the filename
     has a keyword."""
-    path = osp.basename(path).lower()
-    for analysis_class in (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog):
-        for keyword in analysis_class.keywords:
-            if (keyword in path.lower()) and not any(item in path for item in ('.png', '.txt')):
-                # more specific filtering of data by type
-                is_valid_zip_obj = analysis_class in (AnalyzeCBCT, AnalyzeVMAT, AnalyzeWL) and path.endswith('.zip')
-                is_machine_log = analysis_class == AnalyzeLog and (path.endswith('.dlg') or path.endswith('.bin'))
-
-                if is_valid_zip_obj:
-                    return True, analysis_class
-                elif is_machine_log:
-                    return True, analysis_class
-                else:
-                    return True, analysis_class
-    return False, None
+    # return if not an analysis-worthy file
+    if any(item in path for item in ('.png', '.txt')):
+        return False, None
+    else:
+        for analysis_class in (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog):
+            analysis_instance = analysis_class(path, config)
+            if analysis_instance.keyword_in_here():
+                return True, analysis_instance
+        return False, None
 
 
 class FileAnalyzerEvent(FileSystemEventHandler):
     """Handler for file events."""
 
+    def __init__(self, config):
+        self.config = config
+
     def on_created(self, event):
         full_file_path = osp.abspath(event.src_path)
+        local_path = osp.basename(full_file_path)
         # determine if file has keyword in it
-        do_analysis, analysis_class = analysis_should_be_done(full_file_path)
+        do_analysis, analysis_instance = analysis_should_be_done(full_file_path, self.config)
         # process it if so
         if do_analysis:
             time.sleep(1)
             try:
-                logging.info(full_file_path + " file found and will be analyzed...")
-                analysis_class(full_file_path)
-                logging.info(full_file_path + " was analyzed and now has an associated .txt and .png file")
+                analysis_instance.process()
             except BaseException as e:
-                logging.info(full_file_path + " encountered an error and was not processed." + e)
+                logging.info(local_path + " encountered an error and was not processed." + e)
         else:
-            logging.info(full_file_path + " was added but was not deemed a file to be analyzed.")
+            logging.info(local_path + " was added but was not deemed a file to be analyzed.")
 
 
-def start_watching(directory=None):
+def start_watching(directory, config_file=None):
     """Start watching the directory and analyze any applicable files that may be moved there."""
     logging.info("Starting watcher...")
-    event_handler = FileAnalyzerEvent()
+    # set up configuration
+    config = load_config(config_file)
+    # set up file watcher
+    event_handler = FileAnalyzerEvent(config)
     observer = Observer()
     observer.schedule(event_handler, directory, recursive=True)
     logging.info("Pylinac now watching at " + osp.abspath(directory))
@@ -187,3 +272,13 @@ def start_watching(directory=None):
     while True:
         time.sleep(1)
     observer.join()
+
+
+def load_config(config_file=None):
+    """Load an external configuration YAML file, or load the default one."""
+    if config_file is None:
+        yaml_config_file = osp.join(osp.dirname(__file__), 'watcher_config.yaml')
+    else:
+        yaml_config_file = config_file
+    config = yaml.load(open(yaml_config_file).read())
+    return config
