@@ -5,6 +5,9 @@
 # keywords are character sequences that must be in the file name to be considered of that analysis type
 general:
   file-suffix: _analysis  # the suffix added to the .png and .txt file created after analysis
+  avoid-keywords:  # keywords that cause a skip of analysis
+    - .png
+    - .txt
 
 email:
   enable-all: false  # set to true to send an email after every analysis
