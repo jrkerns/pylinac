@@ -37,15 +37,15 @@ for creating your own radiation therapy algorithms.
 Below are the high-level tools currently available:
 
 * `Continuous Directory Watching <http://pylinac.readthedocs.org/en/stable/watcher.html>`_ -
-  True, one-time "set it and forget it" service that analyzes any file that enters the folder. Files with
-  keywords and certain file types are analyzed automatically.
-  Only two lines of code: 1) install, 2) run::
+   True, one-time "set it and forget it" service that analyzes any file that enters the folder. Files with
+   keywords and certain file types are analyzed automatically.
+   Only two lines of code: 1) install, 2) run::
 
-    $ pip install pylinac
-    $ pylinac watch "dir/to/watch"
+     $ pip install pylinac
+     $ pylinac watch "dir/to/watch"
 
-  And that's it! No code to write; no fuss, no muss.
-  Analysis settings are customizable and includes optional email service upon analysis.
+   And that's it! No code to write; no fuss, no muss.
+   Analysis settings are customizable and includes optional email service upon analysis.
 
 * `Planar Phantom Analysis (Leeds TOR, PipsPro QC-3) <http://pylinac.readthedocs.org/en/stable/planar_imaging.html>`_ -
    The planar imaging module analyzes 2D phantoms. Currently only the LeedsTOR kV phantom and PipsPro QC-3 MV phantom.
