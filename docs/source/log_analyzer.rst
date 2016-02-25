@@ -336,7 +336,7 @@ Plot the Gantry difference::
     log.axis_data.gantry.plot_difference()
 
 .. raw:: html
-    :file: image/logs/gantry_difference.html
+    :file: images/logs/gantry_difference.html
 
 Axis plots are just as easily saved::
 
@@ -433,7 +433,7 @@ API Documentation
 
 .. autoclass:: pylinac.log_analyzer.TlogAxisData
 
-.. autoclass:: pylinac.log_analyzer.SubbeamHandler
+.. autoclass:: pylinac.log_analyzer.SubbeamManager
 
 .. autoclass:: pylinac.log_analyzer.Subbeam
 

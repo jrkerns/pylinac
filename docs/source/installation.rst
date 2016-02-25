@@ -22,6 +22,7 @@ If you run into issues:
 
 Finally, you can download the repo (from github) and run ``setup.py install`` in the root directory
 
+.. _dependencies:
 
 Dependencies
 ------------
@@ -38,8 +39,16 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/user/install.html>`_ if you don't yet have them.
 
 Optional dependencies:
- * watchdog >= 0.8 -- Needed if using the "watcher" script. See :ref:`dir_watching`.
  * mpld3 >= 0.2 -- For making interactive HTML plots.
+
+ To use the pylinac console script a few additional dependencies are needed:
+ * watchdog
+ * click
+ * pyyaml
+ * yagmail (only if email settings are configured)
+
+ To install these console dependencies in one go run ``pip install pylinac[console]``. Otherwise, install
+ them individually.
 
 I'm new to Python
 -----------------
@@ -50,7 +59,8 @@ Since most physicists don't program, or if they do it's in MATLAB, this section 
 just pylinac but Python in general and all its wonderful goodness! Getting started with Python takes some work to
 get set up and running, but it's well worth the effort.
 
-**Get a Distribution Stack**
+Get a Distribution Stack
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Scientific computing with Python requires some specialized packages which require some specialized computing libraries.
 While it's possible you have those libraries (for some odd reason), it's not likely. Thus, it's often best to install
@@ -80,7 +90,8 @@ See `Scipy's Installation Options <http://www.scipy.org/install.html>`_ for more
 .. note:: You can install multiple Python stacks/versions, but only one is "active" at any given time.
 
 
-**Get an IDE (optional)**
+Get an IDE (optional)
+^^^^^^^^^^^^^^^^^^^^^
 
 If you come from MATLAB, it's helpful to realize that MATLAB is both a language and an Integrated Development Environment (IDE).
 Most languages don't have an official IDE, and some people may tell you IDEs are a crutch. If being a cyborg with superpowers is a crutch, then
@@ -102,4 +113,3 @@ is completely up to you. If you want one, here are some options:
   .. image:: http://1.bp.blogspot.com/-KfAKKK_YN38/TkaV08KWgLI/AAAAAAAAB-s/TEDUviTJBeU/s1600/spyder_ipython012b.png
      :height: 400px
      :width: 600px
-

@@ -5,55 +5,85 @@
 Directory Watching
 ==================
 
-As of version 0.8, you can now set up a script to run that watches a directory for incoming files and analyzes them with
-pylinac if certain keywords are in the file.
+The directory watcher service allows one to "set it and forget it" and let pylinac analyze files that
+are moved to an appointed directory. Results can be emailed upon analysis.
+The service allows for configurable analysis settings and email settings.
 
 Setup
 -----
 
 .. note::
-    To use the watcher script, `watchdog <http://pythonhosted.org/watchdog/>`_ must be installed.
+    To use the watcher service a few dependencies must be installed that are not required for normal pylinac usage;
+    see :ref:`dependencies` for more.
 
-To use the watcher script, locate the pylinac package on the computer. Then, open up a terminal and run the watcher.py file::
+To use the watcher service, make sure you have v1.5+, then open up a terminal and run the console command::
 
-    > python "C:\path\to\pylinac\watcher.py"
+    > pylinac watch "dir/to/watch"
 
-This will watch the directory the watcher script is in. To watch a different directory, pass it as an argument::
-
-    > python "C:\path\to\pylinac\watcher.py" "C:\path\to\watch"
-
-A logger will notify when the script has started, when a file gets added, and what the analysis status is. If a file
+The ``watch`` argument initiates a thread that runs in the terminal. The directory to start watching is also
+required. A logger will notify when the script has started, when a file gets added, and what the analysis status is. If a file
 gets analyzed successfully, a .png and .txt file with the same name as the original file will be generated in the directory.
+You can also set up and email service when analysis runs, described below.
 
-Tweaking
---------
+How it works
+------------
 
-The watcher script runs using default values for keywords and tolerance. To adjust these values, change the ``keywords``
-and ``args`` attributes. See the API docs.
+The watcher service keeps an eye on a directory and watches for any files being added. If a file is moved
+into the directory, the file is immediately checked to see if pylinac can analyze it. Because many files use the
+same format (e.g. DICOM), keywords are used to filter which type of analysis should be done. When a file is
+deemed analysis-worthy, pylinac will then run the analysis automatically and generate a .png and .txt file with
+the analysis summary image and quantitative results, respectively. If the email service is setup, an email
+can be sent either on any analysis done or only on failing analyses.
 
-The defaults are as follows:
+Configuration
+-------------
+
+The watcher service runs using default values for keywords and tolerance. These values are in a YAML
+configuration file. Pylinac comes with a default file and settings. You can make your own YAML config file
+and pass that into the service initialization call::
+
+    > pylinac watch "dir/to/watch" --config="my/config.yaml"
+
+The YAML configuration file is the way to change keywords, change analysis settings, and set up email service.
+You can use/copy the `pylinac default YAML <https://github.com/jrkerns/pylinac/blob/master/pylinac/watcher_config.yaml>`_
+file as a starting template.
 
 .. note::
-    Only .zip files are accepted for CBCT and VMAT analysis. Only .bin or .dlg files are
-    acceptable for machine logs.
+    Only .zip files are accepted for CBCT, VMAT, and Winston-Lutz analyses. The ZIP archive
+    filename must contain a keyword.
 
-* **Starshots** - keywords: 'star'; radius: 0.8; tolerance: 1
-* **Picket Fences** - keywords: 'pf', 'picket'; tolerance: 0.5mm; action tolerance: 0.3mm
-* **CBCTs** - keywords: 'ct', 'cbct'; HU tolerance: 40HUs; scaling tolerance: 1mm
-* **VMATs** - keywords: 'vmat', 'drgs', 'drmlc'; tolerance: 1.5%
-* **Logs** - keywords: None; resolution: 0.1mm; distance to agreement: 1mm; dose to agreement: 1%; threshold: 10%
+.. note::
+    Only .bin or .dlg files are acceptable for machine logs. There are no keywords for logs.
 
-API Documentation
------------------
+Setting up Email
+----------------
 
-.. autoclass:: pylinac.watcher.AnalyzeMixin
+The pylinac watcher service allows the user to set up an email trigger. The user must supply a
+Gmail account (...@gmail.com). The gmail account name and password must be supplied in the YAML
+configuration file.
 
-.. autoclass:: pylinac.watcher.AnalyzeStar
+.. warning::
+    It is strongly recommended to create an *ad hoc* account for the watcher service. To
+    use the email service requires that the account have lower-than-normal security by nature of
+    the non-Gmail origin (i.e. you didn't log in and send it yourself).
 
-.. autoclass:: pylinac.watcher.AnalyzePF
+To allow gmail to send the emails, log into the gmail account and go to account settings. Go to the
+sign in & security section. At the very bottom in the section "Connected apps & sites" will be an
+option to "Allow less secure apps". Turn this ON. This account will now allow the watcher service to
+send emails.
 
-.. autoclass:: pylinac.watcher.AnalyzeCBCT
+.. warning::
+    I'll say it again: don't use your personal account for this. Create a new account for the
+    sole purpose of sending pylinac analysis emails.
 
-.. autoclass:: pylinac.watcher.AnalyzeVMAT
+In the YAML config file you can set emails to be sent after every analysis or only when an analysis
+fails. The emails will contain a simple message, let you know when it was analyzed, and where to find
+the results. All the emails also have the results attached, so no need to dig for the files.
 
-.. autoclass:: pylinac.watcher.AnalyzeLog
+Default YAML Configuration
+--------------------------
+
+The default configuration is reproduced here. All options are listed. You may remove or add keywords at will.
+The analysis options must match the parameter names exaclty (e.g. ``hu_tolerance``, ``doseTA``).
+
+.. literalinclude:: watcher_config.yaml

@@ -14,10 +14,6 @@ try:
     import yaml
 except ImportError:
     raise ImportError("PyYaml must be installed to perform file watching. Run ``pip install pyyaml`` and try again.")
-try:
-    import yagmail
-except ImportError:
-    raise ImportError("Yagmail must be installed to perform file watching. Run ``pip install yagmail`` and try again.")
 
 from pylinac import CBCT, VMAT, Starshot, PicketFence, MachineLog, WinstonLutz, LeedsTOR, PipsProQC3
 
@@ -89,6 +85,11 @@ class AnalyzeMixin:
 
     def send_email(self):
         """Send an email with the analysis results."""
+        try:
+            import yagmail
+        except ImportError:
+            raise ImportError("Yagmail must be installed to perform file watching. Run ``pip install yagmail`` and try again.")
+
         # compose message
         current_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if self.config['email']['enable-all']:
