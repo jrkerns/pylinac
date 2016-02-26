@@ -19,7 +19,7 @@ email:
     - recipient2@domain.com
   subject: Pylinac results  # subject line of the email
 
-log-analysis:
+logs:
   analysis:
     doseTA: 1
     distTA: 1

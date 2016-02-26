@@ -1,5 +1,6 @@
 """Scripts to run pylinac from the command line."""
 import os.path as osp
+import sys
 
 from pylinac.watcher import start_watching
 try:
@@ -26,5 +27,7 @@ def watch(directory, config=None):
 cli.add_command(watch)
 
 if __name__ == '__main__':
-    the_dir = osp.dirname(__file__)
-    watch((the_dir,))
+    try:
+        watch((sys.argv[1],))
+    except IndexError:
+        watch((osp.dirname(__file__),))

@@ -55,7 +55,7 @@ class AnalyzeMixin:
         """
         self.full_path = path
         self.local_path = osp.basename(path)
-        self.base_name = osp.splitext(self.local_path)[0]
+        self.base_name = osp.splitext(self.full_path)[0]
         self.config = config
 
     def process(self):
@@ -69,7 +69,7 @@ class AnalyzeMixin:
             self.send_email()
         elif self.config['email']['enable-failure'] and self.should_send_failure_email():
             self.send_email()
-        logging.info(self.local_path + " was analyzed and now has an associated .txt and .png file")
+        logging.info("Finished analysis on " + self.local_path)
 
     @property
     def img_filename(self):
@@ -182,11 +182,17 @@ class AnalyzeLeeds(AnalyzeMixin):
     obj = LeedsTOR
     config_name = 'leeds'
 
+    def save_text(self):
+        pass
+
 
 class AnalyzePipsPro(AnalyzeMixin):
     """Analysis runner for PipsPro QC-3."""
     obj = PipsProQC3
     config_name = 'pipspro'
+
+    def save_text(self):
+        pass
 
 
 class AnalyzeStar(AnalyzeMixin):
@@ -233,6 +239,7 @@ class AnalyzeLog(AnalyzeMixin):
     """Analysis runner for dynalogs or trajectory logs."""
     obj = MachineLog
     save_image_method = 'save_summary'
+    config_name = 'logs'
 
     def analyze(self):
         """Log analysis is done via calculating gamma."""
