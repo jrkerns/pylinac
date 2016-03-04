@@ -611,7 +611,7 @@ class FileImage(BaseImage):
                 dpi = None
         if dpi is None:
             if self._dpi is None:
-                raise AttributeError("No pixel/distance conversion tag found. If you know the DPI, pass it in during construction.")
+                return
             else:
                 dpi = self._dpi
         dpi *= self.sid / 1000
@@ -621,7 +621,10 @@ class FileImage(BaseImage):
     def dpmm(self):
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
-        return self.dpi / MM_PER_INCH
+        try:
+            return self.dpi / MM_PER_INCH
+        except:
+            return
 
 
 class ArrayImage(BaseImage):
