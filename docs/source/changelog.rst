@@ -3,6 +3,13 @@
 Changelog
 =========
 
+V 1.4.1
+-------
+
+* `(#56) <https://github.com/jrkerns/pylinac/issues/56>`_ - Fixes a starshot issue where if the SID wasn't 100 it was corrected for twice.
+* `(#57) <https://github.com/jrkerns/pylinac/issues/57>`_ - CR images sometimes have an RTImageSID tag, but isn't numeric; this caused SID calculation errors.
+
+
 V 1.4.0
 -------
 
