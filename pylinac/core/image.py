@@ -523,27 +523,33 @@ class DicomImage(BaseImage):
     @property
     def sid(self):
         """The Source-to-Image in mm."""
-        return float(self.metadata.RTImageSID)
+        try:
+            return float(self.metadata.RTImageSID)
+        except:
+            return
 
     @property
     def dpi(self):
         """The dots-per-inch of the image, defined at isocenter."""
-        return self.dpmm * MM_PER_INCH
+        try:
+            return self.dpmm * MM_PER_INCH
+        except:
+            return
 
     @property
     def dpmm(self):
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
-        try:
-            # most dicom files have this tag
-            dpmm = 1 / self.metadata.PixelSpacing[0]
-        except AttributeError:
+        dpmm = None
+        for tag in ('PixelSpacing', 'ImagePlanePixelSpacing'):
             try:
-                # EPID images sometimes have this tag
-                dpmm = 1 / self.metadata.ImagePlanePixelSpacing[0]
+                dpmm = 1 / getattr(self.metadata, tag)[0]
             except AttributeError:
-                raise ("No pixel/distance conversion tag found")
-        dpmm *= self.sid / 1000
+                pass
+            else:
+                if self.sid is not None:
+                    dpmm *= self.sid / 1000
+                break
         return dpmm
 
     @property
