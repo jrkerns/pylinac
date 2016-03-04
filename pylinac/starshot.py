@@ -283,11 +283,10 @@ class Starshot:
             self.wobble.radius_mm = self.wobble.radius
 
         if self.image.sid is not None:
-            self.wobble.radius /= self.image.sid / 1000
-            self.wobble.radius_mm /= self.image.sid / 1000
+            pass
         else:
-            self.wobble.radius /= SID / 1000
-            self.wobble.radius_mm /= SID / 1000
+            self.wobble.radius /= SID / 100
+            self.wobble.radius_mm /= SID / 100
 
     def _find_wobble_minimize(self, SID):
         """Find the minimum distance wobble location and radius to all radiation lines.

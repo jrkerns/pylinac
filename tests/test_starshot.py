@@ -44,19 +44,30 @@ class StarMixin(LocationMixin):
     recursive = True
     passes = True
     min_peak_height = 0.25
+    radius = 0.85
     test_all_radii = True
     fwxm = True
     wobble_tolerance = 0.2
+    is_dir = False
 
     @classmethod
     def setUpClass(cls):
+        cls.star = cls.construct_star()
+        cls.star.analyze(recursive=cls.recursive, min_peak_height=cls.min_peak_height, fwhm=cls.fwxm, radius=cls.radius)
+
+    @classmethod
+    def construct_star(cls):
         filename = cls.get_filename()
-        cls.star = Starshot(filename)
-        cls.star.analyze(recursive=cls.recursive, min_peak_height=cls.min_peak_height, fwhm=cls.fwxm)
+        if cls.is_dir:
+            files = [osp.join(filename, file) for file in os.listdir(filename)]
+            star = Starshot.from_multiple_images(files)
+        else:
+            star = Starshot(filename)
+        return star
 
     def test_passed(self):
         """Test that the demo image passed"""
-        self.star.analyze(recursive=self.recursive, min_peak_height=self.min_peak_height)
+        self.star.analyze(recursive=self.recursive, min_peak_height=self.min_peak_height, fwhm=self.fwxm, radius=self.radius)
         self.assertEqual(self.star.passed, self.passes, msg="Wobble was not within tolerance")
 
     def test_wobble_diameter(self):
@@ -80,9 +91,9 @@ class StarMixin(LocationMixin):
     def test_all_radii_give_same_wobble(self):
         """Test that the wobble stays roughly the same for all radii."""
         if self.test_all_radii:
-            star = Starshot(self.get_filename())
+            star = self.construct_star()
             for radius in np.linspace(0.9, 0.25, 8):
-                star.analyze(radius=float(radius), min_peak_height=self.min_peak_height, recursive=self.recursive)
+                star.analyze(radius=float(radius), min_peak_height=self.min_peak_height, recursive=self.recursive, fwhm=self.fwxm)
                 self.assertAlmostEqual(star.wobble.diameter_mm, self.wobble_diameter_mm, delta=self.wobble_tolerance)
 
 

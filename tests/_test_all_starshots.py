@@ -209,3 +209,20 @@ class Starshot27(StarBankMixin, TestCase):
     wobble_center = Point(1105, 1306)
     wobble_diameter_mm = 0.4
     num_rad_lines = 6
+
+
+class CRStarshot(StarBankMixin, TestCase):
+    file_path = ['CR-Starshot.dcm']
+    wobble_center = Point(1030.5, 1253.6)
+    wobble_diameter_mm = 0.3
+    num_rad_lines = 6
+
+
+class ChicagoSet(StarBankMixin, TestCase):
+    file_path = ['Chicago']
+    wobble_center = Point(638, 639.3)
+    wobble_diameter_mm = 0.65
+    num_rad_lines = 5
+    radius = 0.5
+    is_dir = True
+    test_all_radii = False
