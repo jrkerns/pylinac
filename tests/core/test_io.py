@@ -12,11 +12,11 @@ class TestIO(unittest.TestCase):
         """Test the TemporaryZipDirectory."""
         zfile = osp.join(osp.dirname(__file__), '..', 'test_files', 'VMAT', 'DRMLC.zip')
 
-        # test context manager
+        # test context manager use; shouldn't raise
         with TemporaryZipDirectory(zfile) as tmpzip:
             files = os.listdir(tmpzip)
             # test that they are real files
-            osp.isfile(files[0])
+            self.assertTrue(osp.isfile(files[0]))
             # test that both images were unpacked
             self.assertEqual(len(files), 2, msg="There were not 2 files found")
 

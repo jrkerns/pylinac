@@ -17,7 +17,7 @@ dcm_path = osp.join(test_dir, 'VMAT', 'DRGSdmlc-105-example.dcm')
 dcm_url = 'https://github.com/jrkerns/pylinac/blob/master/pylinac/demo_files/picket_fence/EPID-PF-LR.dcm?raw=true'
 
 
-class TestImages(TestCase):
+class TestLoaders(TestCase):
     """Test the image loading functions."""
 
     def test_load_url(self):
@@ -58,7 +58,7 @@ class TestImages(TestCase):
 
 
 class TestBaseImage(TestCase):
-    """Test the methods of BaseImage. Since it's a semi-abstract class, its subclasses (DicomImage,
+    """Test the basic methods of BaseImage. Since it's a semi-abstract class, its subclasses (DicomImage,
     ArrayImage, and FileImage) are tested."""
 
     def setUp(self):
