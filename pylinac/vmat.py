@@ -137,13 +137,8 @@ class VMAT:
             Path to the ZIP archive which holds the VMAT image files.
         """
         with TemporaryZipDirectory(path) as tmpzip:
-            img_files = []
-            for pdir, _, files in os.walk(tmpzip):
-                for file in files:
-                    file_path = osp.join(pdir, file)
-                    if image.is_image(file_path):
-                        img_files.append(file_path)
-            return cls(images=img_files)
+            image_files = image.retrieve_image_files(tmpzip)
+            return cls(images=image_files)
 
     @classmethod
     def from_url(cls, url):

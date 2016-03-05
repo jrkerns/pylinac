@@ -345,15 +345,10 @@ class ImageManager(list):
         super().__init__()
         if not osp.isdir(directory):
             raise ValueError("Invalid directory passed. Check the correct method and file was used.")
-        for pdir, _, files in os.walk(directory):
-            for file in files:
-                filepath = osp.join(pdir, file)
-                try:
-                    image = WLImage(filepath)
-                except:
-                    pass  # not a DICOM file
-                else:
-                    self.append(image)
+        image_files = image.retrieve_image_files(directory)
+        for file in image_files:
+            img = WLImage(file)
+            self.append(img)
 
 
 class WLImage(image.DicomImage):

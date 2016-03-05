@@ -25,8 +25,30 @@ MM_PER_INCH = 25.4
 
 
 def is_image(path):
-    """Determine whether the path is a valid image file. Returns boolean."""
+    """Determine whether the path is a valid image file.
+
+    Returns
+    -------
+    bool
+    """
     return any((_is_array(path), _is_dicom(path), _is_image_file(path)))
+
+
+def retrieve_image_files(path):
+    """Retrieve the file names of all the valid image files in the path.
+
+    Returns
+    -------
+    list
+        Contains strings pointing to valid image paths.
+    """
+    image_file_paths = []
+    for pdir, _, files in os.walk(path):
+        for file in files:
+            file_path = osp.join(pdir, file)
+            if is_image(file_path):
+                image_file_paths.append(file_path)
+    return image_file_paths
 
 
 def load(path, **kwargs):
@@ -47,7 +69,7 @@ def load(path, **kwargs):
 
     Examples
     --------
-    Load an image from a file::
+    Load an image from a file and then apply a filter::
 
         >>> from pylinac.core.image import load
         >>> my_image = "C:\QA\image.tif"
@@ -490,7 +512,7 @@ class DicomImage(BaseImage):
         The dataset of the file as returned by pydicom without pixel data.
     """
 
-    def __init__(self, path, *, dtype=None):
+    def __init__(self, path, *, dtype=None, dpi=None, sid=None):
         """
         Parameters
         ----------
@@ -500,6 +522,8 @@ class DicomImage(BaseImage):
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
         super().__init__(path)
+        self._sid = sid
+        self._dpi = dpi
         # read the file once to get just the DICOM metadata
         self.metadata = dicom.read_file(path, force=True)
         self._original_dtype = self.metadata.pixel_array.dtype
@@ -529,7 +553,7 @@ class DicomImage(BaseImage):
         try:
             return float(self.metadata.RTImageSID)
         except:
-            return
+            return self._sid
 
     @property
     def dpi(self):
@@ -537,7 +561,7 @@ class DicomImage(BaseImage):
         try:
             return self.dpmm * MM_PER_INCH
         except:
-            return
+            return self._dpi
 
     @property
     def dpmm(self):
@@ -553,6 +577,8 @@ class DicomImage(BaseImage):
                 if self.sid is not None:
                     dpmm *= self.sid / 1000
                 break
+        if dpmm is None and self._dpi is not None:
+            return self._dpi / MM_PER_INCH
         return dpmm
 
     @property
@@ -578,7 +604,7 @@ class FileImage(BaseImage):
         The SID value as passed in upon construction.
     """
 
-    def __init__(self, path, *, dpi=None, sid=1000):
+    def __init__(self, path, *, dpi=None, sid=None):
         """
         Parameters
         ----------
@@ -617,7 +643,8 @@ class FileImage(BaseImage):
                 return
             else:
                 dpi = self._dpi
-        dpi *= self.sid / 1000
+        if self.sid is not None:
+            dpi *= self.sid / 1000
         return dpi
 
     @property
@@ -633,7 +660,7 @@ class FileImage(BaseImage):
 class ArrayImage(BaseImage):
     """An image constructed solely from a numpy array."""
 
-    def __init__(self, array, *, dpi=None, sid=1000, dtype=None):
+    def __init__(self, array, *, dpi=None, sid=None, dtype=None):
         """
         Parameters
         ----------
@@ -660,15 +687,20 @@ class ArrayImage(BaseImage):
     def dpmm(self):
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
-        return self.dpi / MM_PER_INCH
+        try:
+            return self.dpi / MM_PER_INCH
+        except:
+            return
 
     @property
     def dpi(self):
         """The dots-per-inch of the image, defined at isocenter."""
+        dpi = None
         if self._dpi is not None:
-            return self._dpi
-        else:
-            raise AttributeError("No pixel/distance conversion value; pass one in during construction")
+            dpi = self._dpi
+            if self.sid is not None:
+                dpi *= self.sid / 1000
+        return dpi
 
     def __sub__(self, other):
         return ArrayImage(self.array - other.array)
