@@ -29,7 +29,7 @@ from scipy import optimize
 from .core import image
 from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle
-from .core.io import get_url
+from .core.io import get_url, TemporaryZipDirectory
 from .core.profile import SingleProfile, CollapsedCircleProfile
 
 
@@ -68,7 +68,11 @@ class Starshot:
         """
         self.image = image.load(filepath, **kwargs)
         self.wobble = Wobble()
-        self.tolerance = Tolerance(1, 'pixels')
+        self.tolerance = 1
+        if self.image.dpmm is None:
+            raise ValueError("DPI was not a tag in the image nor was it passed in. Please pass a DPI value")
+        if self.image.sid is None:
+            raise ValueError("Source-to-Image distance was not an image tag and was not passed in. Please pass an SID value.")
 
     @classmethod
     def from_url(cls, url, **kwargs):
@@ -88,7 +92,7 @@ class Starshot:
     def from_demo_image(cls):
         """Construct a Starshot instance and load the demo image."""
         demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'starshot', 'starshot.tif')
-        return cls(demo_file)
+        return cls(demo_file, sid=1000)
 
     @classmethod
     def from_multiple_images(cls, filepath_list, **kwargs):
@@ -104,6 +108,27 @@ class Starshot:
         obj = cls.from_demo_image()
         obj.image = image.load_multiples(filepath_list, **kwargs)
         return obj
+
+    @classmethod
+    def from_zip(cls, zip_file, **kwargs):
+        """Construct a Starshot instance from a ZIP archive.
+
+        Parameters
+        ----------
+        zip_file : str
+            Points to the ZIP archive. Can contain a single or multiple images. If multiple images
+            the images are combined and thus should be from the same test sequence.
+        kwargs
+            Passed to :func:`~pylinac.core.image.load_multiples`.
+        """
+        with TemporaryZipDirectory(zip_file) as tmpdir:
+            image_files = image.retrieve_image_files(tmpdir)
+            if not image_files:
+                raise IndexError("No valid starshot images were found in {}".format(zip_file))
+            if len(image_files) > 1:
+                return cls.from_multiple_images(image_files, **kwargs)
+            else:
+                return cls(image_files[0], **kwargs)
 
     def _check_image_inversion(self):
         """Check the image for proper inversion, i.e. that pixel value increases with dose."""
@@ -148,8 +173,8 @@ class Starshot:
         center_point = Point(fwxm_x_point, fwxm_y_point)
         return center_point
 
-    @value_accept(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95), SID=(40, 400))
-    def analyze(self, radius=0.85, min_peak_height=0.25, tolerance=1.0, SID=100, start_point=None, fwhm=True, recursive=True):
+    @value_accept(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
+    def analyze(self, radius=0.85, min_peak_height=0.25, tolerance=1.0, start_point=None, fwhm=True, recursive=True):
         """Analyze the starshot image.
 
         Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -165,15 +190,7 @@ class Starshot:
             radiation peaks that vary in magnitude (e.g. different MU delivered or gantry shot), but could also pick up noise.
             If necessary, lower value for gantry shots and increase for noisy images.
         tolerance : int, float, optional
-            The tolerance to test against for a pass/fail result. If the image has a pixel/mm conversion factor, the tolerance is in mm.
-            If the image has not conversion factor, the tolerance is in pixels.
-        SID : int, float, optional
-            The source-to-image distance in cm. If a value != 100 is passed in, results will be scaled to 100cm. E.g. a wobble of
-            3.0 pixels at an SID of 150cm will calculate to 2.0 pixels [3 / (150/100)].
-
-            .. note::
-                For EPID images (e.g. superimposed collimator shots), the SID is in the DICOM file and this
-                value will always be used if it can be found, otherwise the passed value will be used.
+            The tolerance in mm to test against for a pass/fail result.
         start_point : 2-element iterable, optional
             A point where the algorithm should use for determining the circle profile.
             If None (default), will search for a reasonable maximum point nearest the center of the image.
@@ -194,20 +211,18 @@ class Starshot:
 
         Raises
         ------
-        AttributeError
-            If an image has not yet been loaded.
         RuntimeError
             If a reasonable wobble value was not found.
         """
-        self.tolerance.value = tolerance
+        self.tolerance = tolerance
         self._check_image_inversion()
 
         if start_point is None:
             start_point = self._get_reasonable_start_point()
 
-        self._get_reasonable_wobble(start_point, SID, fwhm, min_peak_height, radius, recursive)
+        self._get_reasonable_wobble(start_point, fwhm, min_peak_height, radius, recursive)
 
-    def _get_reasonable_wobble(self, start_point, SID, fwhm, min_peak_height, radius, recursive):
+    def _get_reasonable_wobble(self, start_point, fwhm, min_peak_height, radius, recursive):
         """Determine a wobble that is "reasonable". If recursive is false, the first iteration will be passed,
         otherwise the parameters will be tweaked to search for a reasonable wobble."""
         wobble_unreasonable = True
@@ -220,7 +235,7 @@ class Starshot:
                 if (len(self.circle_profile.peaks) < 6) or (len(self.circle_profile.peaks) % 2 != 0):
                     raise ValueError
                 self.lines = LineManager(self.circle_profile.peaks)
-                self._find_wobble_minimize(SID)
+                self._find_wobble_minimize()
             except ValueError:
                 if not recursive:
                     raise RuntimeError("The algorithm was unable to properly detect the radiation lines. Try setting "
@@ -266,29 +281,7 @@ class Starshot:
                                 raise RuntimeError("The algorithm was unable to determine a reasonable wobble. Try setting "
                                                    "recursive to False and manually adjusting algorithm parameters")
 
-    def _scale_wobble(self, SID):
-        """Scale the determined wobble by the SID.
-
-        Parameters
-        ----------
-        SID : int, float
-            Source to image distance in cm.
-        """
-        # convert wobble to mm if possible
-        if self.image.dpmm is not None:
-            self.tolerance.unit = 'mm'
-            self.wobble.radius_mm = self.wobble.radius / self.image.dpmm
-        else:
-            self.tolerance.unit = 'pixels'
-            self.wobble.radius_mm = self.wobble.radius
-
-        if self.image.sid is not None:
-            pass
-        else:
-            self.wobble.radius /= SID / 100
-            self.wobble.radius_mm /= SID / 100
-
-    def _find_wobble_minimize(self, SID):
+    def _find_wobble_minimize(self):
         """Find the minimum distance wobble location and radius to all radiation lines.
 
         The minimum is found using a scipy minimization function.
@@ -303,14 +296,13 @@ class Starshot:
         res = optimize.minimize(distance, sp.as_array(), args=(self.lines,), method='Nelder-Mead', options={'ftol': 0.001})
 
         self.wobble.radius = res.fun
+        self.wobble.radius_mm = res.fun / self.image.dpmm
         self.wobble.center = Point(res.x[0], res.x[1])
-
-        self._scale_wobble(SID)
 
     @property
     def passed(self):
         """Boolean specifying whether the determined wobble was within tolerance."""
-        return self.wobble.radius_mm * 2 < self.tolerance.value
+        return self.wobble.radius_mm * 2 < self.tolerance
 
     @property
     def _passfail_str(self):
@@ -326,8 +318,8 @@ class Starshot:
             A string with a statement of the minimum circle.
         """
         string = ('\nResult: %s \n\n'
-                  'The minimum circle that touches all the star lines has a diameter of %4.3g %s. \n\n'
-                  'The center of the minimum circle is at %4.1f, %4.1f') % (self._passfail_str, self.wobble.radius_mm*2, self.tolerance.unit,
+                  'The minimum circle that touches all the star lines has a diameter of %4.3g mm. \n\n'
+                  'The center of the minimum circle is at %4.1f, %4.1f') % (self._passfail_str, self.wobble.radius_mm*2,
                                                                             self.wobble.center.x, self.wobble.center.y)
         return string
 
@@ -531,13 +523,6 @@ class StarProfile(CollapsedCircleProfile):
             self.find_fwxm_peaks(x=80, threshold=min_peak_height, min_distance=min_peak_distance, interpolate=True)
         else:
             self.find_peaks(min_peak_height, min_peak_distance)
-
-
-class Tolerance:
-    """A class for holding tolerance information."""
-    def __init__(self, value=None, unit=None):
-        self.value = value
-        self.unit = unit
 
 
 def get_peak_height():
