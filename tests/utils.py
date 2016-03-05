@@ -59,6 +59,7 @@ class LoadingTestBase:
     demo_method = 'from_demo_image'
     url = None
     zip = None
+    kwargs = {}
 
     @property
     def real_url(self):
@@ -66,7 +67,7 @@ class LoadingTestBase:
 
     def test_consructor(self):
         if self.constructor_input is not None:
-            self.klass(self.constructor_input)
+            self.klass(self.constructor_input, **self.kwargs)
 
     def test_from_demo(self):
         if self.demo_method is not None:
@@ -74,11 +75,11 @@ class LoadingTestBase:
 
     def test_from_url(self):
         if self.url is not None:
-            self.klass.from_url(self.real_url)
+            self.klass.from_url(self.real_url, **self.kwargs)
 
     def test_from_zip(self):
         if self.zip is not None:
-            self.klass.from_zip(self.zip)
+            self.klass.from_zip(self.zip, **self.kwargs)
 
 
 class DataBankMixin:

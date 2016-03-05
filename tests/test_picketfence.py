@@ -12,8 +12,7 @@ TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
 
 class TestLoading(LoadingTestBase, TestCase):
     klass = PicketFence
-    constructor_input = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence',
-                                 'EPID-PF-LR.dcm')
+    constructor_input = osp.join(TEST_DIR, 'AS500_PF.dcm')
     url = 'AS500-UD.dcm'
 
     def test_filter_on_load(self):

@@ -16,6 +16,23 @@ TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
 class TestStarshotLoading(LoadingTestBase, TestCase):
     klass = Starshot
     url = '10X_collimator_dvTK5Jc.jpg'
+    kwargs = {'dpi': 10, 'sid': 1000}
+
+    def test_no_dpi(self):
+        # the url file doesn't have DPI or SID
+        with self.assertRaises(ValueError):
+            Starshot.from_url(self.real_url)
+        # ...and only passing one value in isn't enough
+        with self.assertRaises(ValueError):
+            Starshot.from_url(self.real_url, dpi=self.kwargs['dpi'])
+
+    def test_no_sid(self):
+        filename = osp.join(TEST_DIR, 'CR-Starshot.dcm')
+        # there is no SID inherently. Thus, should raise error
+        with self.assertRaises(ValueError):
+            Starshot(filename)
+        # ...but run when SID is passed
+        Starshot(filename, sid=1000)
 
 
 class TestPlottingSaving(TestCase):
@@ -49,6 +66,7 @@ class StarMixin(LocationMixin):
     fwxm = True
     wobble_tolerance = 0.2
     is_dir = False
+    kwargs = {'sid': 1000}
 
     @classmethod
     def setUpClass(cls):
@@ -60,9 +78,9 @@ class StarMixin(LocationMixin):
         filename = cls.get_filename()
         if cls.is_dir:
             files = [osp.join(filename, file) for file in os.listdir(filename)]
-            star = Starshot.from_multiple_images(files)
+            star = Starshot.from_multiple_images(files, **cls.kwargs)
         else:
-            star = Starshot(filename)
+            star = Starshot(filename, **cls.kwargs)
         return star
 
     def test_passed(self):
@@ -107,39 +125,6 @@ class Demo(StarMixin, TestCase):
     def get_filename(cls):
         return osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'starshot', 'starshot.tif')
 
-    def test_fails_with_tight_tol(self):
-        star = Starshot.from_demo_image()
-        star.analyze(tolerance=0.1)
-        self.assertFalse(star.passed)
-
-    def test_bad_inputs_still_recovers(self):
-        self.star.analyze(radius=0.3, min_peak_height=0.1)
-        self.test_wobble_center()
-        self.test_wobble_diameter()
-
-    def test_demo_runs(self):
-        """Test that the demo runs without error."""
-        self.star.run_demo()
-
-    def test_image_inverted(self):
-        """Check that the demo image was actually inverted, as it needs to be."""
-        star = Starshot.from_demo_image()
-        top_left_corner_val_before = star.image.array[0,0]
-        star._check_image_inversion()
-        top_left_corner_val_after = star.image.array[0,0]
-        self.assertNotEqual(top_left_corner_val_before, top_left_corner_val_after)
-
-    def test_SID_can_be_overridden_for_nonEPID(self):
-        self.star.analyze(SID=400)
-        self.assertNotEqual(self.star.wobble.diameter, self.wobble_diameter_mm*2)
-
-    def test_bad_start_point_recovers(self):
-        """Test that even at a distance start point, the search algorithm recovers."""
-        self.star.analyze(start_point=(1000, 1000))
-        self.test_passed()
-        self.test_wobble_center()
-        self.test_wobble_diameter()
-
 
 class Multiples(StarMixin, TestCase):
     """Test a starshot composed of multiple individual EPID images."""
@@ -168,3 +153,41 @@ class Starshot1(StarMixin, TestCase):
 class Starshot1FWHM(Starshot1):
     fwhm = False
 
+
+class CRStarshot(StarMixin, TestCase):
+    file_path = ['CR-Starshot.dcm']
+    wobble_center = Point(1030.5, 1253.6)
+    wobble_diameter_mm = 0.3
+    num_rad_lines = 6
+
+
+class GeneralTests(Demo, TestCase):
+
+    def test_demo_runs(self):
+        """Test that the demo runs without error."""
+        self.star.run_demo()
+
+    def test_fails_with_tight_tol(self):
+        star = Starshot.from_demo_image()
+        star.analyze(tolerance=0.1)
+        self.assertFalse(star.passed)
+
+    def test_bad_inputs_still_recovers(self):
+        self.star.analyze(radius=0.3, min_peak_height=0.1)
+        self.test_wobble_center()
+        self.test_wobble_diameter()
+
+    def test_image_inverted(self):
+        """Check that the demo image was actually inverted, as it needs to be."""
+        star = Starshot.from_demo_image()
+        top_left_corner_val_before = star.image.array[0, 0]
+        star._check_image_inversion()
+        top_left_corner_val_after = star.image.array[0, 0]
+        self.assertNotEqual(top_left_corner_val_before, top_left_corner_val_after)
+
+    def test_bad_start_point_recovers(self):
+        """Test that even at a distance start point, the search algorithm recovers."""
+        self.star.analyze(start_point=(1000, 1000))
+        self.test_passed()
+        self.test_wobble_center()
+        self.test_wobble_diameter()
