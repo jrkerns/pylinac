@@ -1,0 +1,8 @@
+conda:
+  file: condaenv.yml
+
+python:
+  version: 3
+  setup_py_install: false
+
+requirements_file: requirements.txt
