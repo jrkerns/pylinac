@@ -16,23 +16,14 @@ TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
 class TestStarshotLoading(LoadingTestBase, TestCase):
     klass = Starshot
     url = '10X_collimator_dvTK5Jc.jpg'
-    kwargs = {'dpi': 10, 'sid': 1000}
+    kwargs = {'dpi': 10}
 
     def test_no_dpi(self):
-        # the url file doesn't have DPI or SID
+        # raise error when DPI isn't in image or given
         with self.assertRaises(ValueError):
             Starshot.from_url(self.real_url)
-        # ...and only passing one value in isn't enough
-        with self.assertRaises(ValueError):
-            Starshot.from_url(self.real_url, dpi=self.kwargs['dpi'])
-
-    def test_no_sid(self):
-        filename = osp.join(TEST_DIR, 'CR-Starshot.dcm')
-        # there is no SID inherently. Thus, should raise error
-        with self.assertRaises(ValueError):
-            Starshot(filename)
-        # ...but run when SID is passed
-        Starshot(filename, sid=1000)
+        # but is fine when DPI is given
+        Starshot.from_url(self.real_url, dpi=self.kwargs['dpi'])
 
 
 class TestPlottingSaving(TestCase):

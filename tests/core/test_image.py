@@ -195,9 +195,9 @@ class TestDicomImage(TestCase):
 class TestFileImage(TestCase):
 
     def test_sid(self):
-        # default sid is 1000
+        # default sid is None
         fi = FileImage(tif_path)
-        self.assertEqual(fi.sid, 1000)
+        self.assertIsNone(fi.sid)
 
         # SID can be set though
         fi2 = FileImage(tif_path, sid=1500)
@@ -217,8 +217,8 @@ class TestFileImage(TestCase):
 
         # not in certain other files
         fi_jpg = FileImage(png_path)
-        with self.assertRaises(AttributeError):
-            fi_jpg.dpi
+        self.assertIsNone(fi_jpg.dpi)
+
         # but DPI can be set though
         fi_jpg2 = FileImage(png_path, dpi=100)
         # shouldn't raise
@@ -231,9 +231,8 @@ class TestArrayImage(TestCase):
     def test_dpmm(self):
         arr = np.arange(42).reshape(6, 7)
         ai = ArrayImage(arr)
-        # errors if not passed in
-        with self.assertRaises(AttributeError):
-            ai.dpi
+
+        self.assertIsNone(ai.dpi)
 
         ai2 = ArrayImage(arr, dpi=20)
         self.assertEqual(ai2.dpi, 20)
