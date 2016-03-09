@@ -33,7 +33,7 @@ class AnalyzeMixin:
         The string that references the class in the YAML config file.
     save_image_method : str
         String-ified method name for saving the image to file.
-    save_test_method : str
+    save_text_method : str
         String-ified method name for saving the text results to file.
     expecting_zip : bool
         Whether the class expects to find a ZIP archive, or normal file.
@@ -287,7 +287,7 @@ def analysis_should_be_done(path, config):
         return False, None
 
 
-class FileAnalyzerEvent(FileSystemEventHandler):
+class FileEventAnalyzerHandler(FileSystemEventHandler):
     """Handler for file events."""
 
     def __init__(self, config):
@@ -316,7 +316,7 @@ def start_watching(directory, config_file=None):
     # set up configuration
     config = load_config(config_file)
     # set up file watcher
-    event_handler = FileAnalyzerEvent(config)
+    event_handler = FileEventAnalyzerHandler(config)
     observer = Observer()
     observer.schedule(event_handler, directory, recursive=True)
     logging.info("Pylinac now watching at " + osp.abspath(directory))
