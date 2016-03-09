@@ -3,6 +3,7 @@ python:
   - "3.3"
   - "3.4"
   - "3.5"
+  - "pypy"
 
 sudo:
   false
@@ -38,6 +39,8 @@ install:
   - pip install requests
   - pip install jinja2
   - pip install mpld3
+  - pip install click
+  - pip install pyyaml
 
   # install your own package into the environment
   - python setup.py install
