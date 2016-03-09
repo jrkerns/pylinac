@@ -157,5 +157,3 @@ API Documentation
 .. autoclass:: pylinac.starshot.Wobble
 
 .. autoclass:: pylinac.starshot.LineManager
-
-.. autoclass:: pylinac.starshot.Tolerance

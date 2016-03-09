@@ -3,6 +3,40 @@
 Changelog
 =========
 
+V 1.5.0
+-------
+
+General Changes
+^^^^^^^^^^^^^^^
+
+* The pylinac directory watcher service got a nice overhaul. Now, rather than running the watcher script file directly, you
+  can simply type ``pylinac watch "my/dir"`` in a terminal. This is accomplished through the use of console scripts in the Python setup file.
+  Once you upgrade to v1.5, this console command immediately becomes available. See the updated docs on `Directory Watching <http://pylinac.readthedocs.org/en/latest/watcher.html>`_.
+  Previously, customizing behavior required changing the watcher script directly. Now, a YAML file can be generated that contains all the
+  analysis configurations. Create and customize your own to change tolerances and even to trigger emails on analyses.
+
+Starshot
+^^^^^^^^
+
+* Relative analysis is no longer allowed. I.e. you can no longer pass images that do not have a DPI (SID is optional). If the image does not
+  have the DPI value inherently (e.g. jpg), you must pass it explicitly to the Starshot constructor.
+* Added a ``.from_zip()`` class method. This can contain a single image (to save space) or a set of images that will be combined.
+
+Log Analyzer
+^^^^^^^^^^^^
+
+* The `anonymize <http://pylinac.readthedocs.org/en/stable/log_analyzer.html#pylinac.log_analyzer.anonymize>`_ function received
+  an optimization that boosted anonymization speed by ~3x for Trajectory logs and ~2x for Dynalogs. This function is *very* fast.
+* Trajectory log subbeam fluences are now available. This works the same way as for the entire log::
+
+    log = MachineLog.from_demo_dynalog()
+    # calculate & view total actual fluence
+    log.fluence.actual.calc_map()
+    log.fluence.actual.plot_map()
+    # calculate & view the fluence from the first subbeam
+    log.subbeams[0].fluence.actual.calc_map()
+    log.subbeams[0].fluence.actual.plot_map()
+
 V 1.4.1
 -------
 

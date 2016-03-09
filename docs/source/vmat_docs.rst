@@ -148,8 +148,8 @@ Algorithm
 The VMAT analysis algorithm is based on the Varian RapidArc QA Test Procedures for C-Series and Truebeam. Two tests
 (besides Picket Fence, which has its own module) are specified. Each test takes 10x0.5cm samples, each corresponding to
 a distinct section of radiation. A corrected reading of each segment is made, defined as:
-:math:`R_{corr}(x) = \frac{R_{DRGS}(x)}{R_{open}(x)} * 100`. The reading deviation of each segment is calculated as:
-:math:`R_{deviation}(x) = \frac{R_{corr}(x)}{R_{corr}} * 100 - 100`, where :math:`R_{corr}` is the average of all segments.
+:math:`M_{corr}(x) = \frac{M_{DRGS}(x)}{M_{open}(x)} * 100`. The reading deviation of each segment is calculated as:
+:math:`M_{deviation}(x) = \frac{M_{corr}(x)}{M_{corr}} * 100 - 100`, where :math:`M_{corr}` is the average of all segments.
 
 The algorithm works like such:
 
@@ -181,7 +181,7 @@ The algorithm works like such:
 * **Calculate sample boundaries** -- Segment positions are always the same and are determined by offsets from the center pixel given by Varian.
   These values are then scaled with the image scaling factor determined above.
 * **Calculate the corrected reading** -- For each segment, the mean pixel value is determined for both the open and DMLC image.
-  These values are used to determine the corrected reading: :math:`R_{corr}`.
+  These values are used to determine the corrected reading: :math:`M_{corr}`.
 * **Calculate sample and segment ratios** -- Once the images are normalized to themselves, the sample values of the DMLC
   field are divided by their corresponding open field values.
 * **Calculate segment deviations** -- Segment deviation is then calculated once all the corrected readings are determined.

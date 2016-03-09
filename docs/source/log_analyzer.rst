@@ -342,15 +342,35 @@ Axis plots are just as easily saved::
 
     log.axis_data.gantry.save_plot_difference(filename='gantry diff.png')
 
-Now, lets plot fluences::
+Now, lets plot the actual fluence::
 
     log.fluence.actual.plot_map()
-    log.fluence.gamma.plot_map()
 
-.. image:: images/logs/tlog_actual_fluence.png
+.. plot::
+
+    from pylinac import MachineLog
+    log = MachineLog.from_demo_trajectorylog()
+    log.fluence.actual.calc_map()
+    log.fluence.actual.plot_map()
+
+And the fluence gamma::
+
+    log.fluence.gamma.plot_map()
 
 .. image:: images/logs/log_gamma.png
 
+Additionally, you can calculate and view the fluences of subbeams if you're working with trajectory logs::
+
+    log = MachineLog.from_demo_trajectorylog()
+    log.subbeams[0].fluence.actual.calc_map()
+    log.subbeams[0].fluence.actual.plot_map()
+
+.. plot::
+
+    from pylinac import MachineLog
+    log = MachineLog.from_demo_trajectorylog()
+    log.subbeams[0].fluence.gamma.calc_map()
+    log.subbeams[0].fluence.actual.plot_map()
 
 Converting Trajectory logs to CSV
 ---------------------------------

@@ -36,20 +36,20 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
-    # 'matplotlib.sphinxext.plot_directive',
+    'matplotlib.sphinxext.plot_directive',
     # 'sphinxcontrib.napoleon'
 ]
 
-autodoc_mock_imports = ['numpy', 'dicom', 'dicom.errors', 'scipy',
-                        'Pillow', 'PIL', 'pandas',
-                        'tkinter', 'tkinter.filedialog',
-                        'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize',
-                        'scipy.misc',
-                        'scipy.interpolate',
-                        'skimage',
-                        'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches', 'mpl_toolkits.axes_grid1',
-                        'watchdog', 'watchdog.observers', 'watchdog.events']
-
+# autodoc_mock_imports = ['numpy', 'dicom', 'dicom.errors', 'scipy',
+#                         'Pillow', 'PIL', 'pandas',
+#                         'tkinter', 'tkinter.filedialog',
+#                         'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize',
+#                         'scipy.misc',
+#                         'scipy.interpolate',
+#                         'skimage',
+#                         'mpl_toolkits.axes_grid1',
+#                         'watchdog', 'watchdog.observers', 'watchdog.events']
+# 'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm', 'matplotlib.patches',
 autoclass_content = 'both'
 autodoc_default_flags = ['show-inheritance', 'members'
                          ]  # See: http://sphinx-doc.org/latest/ext/autodoc.html#confval-autodoc_default_flags
