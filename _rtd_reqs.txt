@@ -1,2 +1,6 @@
+matplotlib
+pydicom
+click
+yagmail
 watchdog
-requests
+pyyaml
