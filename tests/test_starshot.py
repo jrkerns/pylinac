@@ -16,14 +16,14 @@ TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
 class TestStarshotLoading(LoadingTestBase, TestCase):
     klass = Starshot
     url = '10X_collimator_dvTK5Jc.jpg'
-    kwargs = {'dpi': 10}
+    kwargs = {'dpi': 30, 'sid': 1000}
 
     def test_no_dpi(self):
         # raise error when DPI isn't in image or given
         with self.assertRaises(ValueError):
             Starshot.from_url(self.real_url)
         # but is fine when DPI is given
-        Starshot.from_url(self.real_url, dpi=self.kwargs['dpi'])
+        Starshot.from_url(self.real_url, **self.kwargs)
 
 
 class TestPlottingSaving(TestCase):

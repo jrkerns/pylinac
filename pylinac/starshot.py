@@ -52,7 +52,7 @@ class Starshot:
 
     Typical session:
         >>> img_path = r"C:/QA/Starshots/Coll.jpeg"
-        >>> mystar = Starshot(img_path)
+        >>> mystar = Starshot(img_path, dpi=105, sid=1000)
         >>> mystar.analyze()
         >>> print(mystar.return_results())
         >>> mystar.plot_analyzed_image()
