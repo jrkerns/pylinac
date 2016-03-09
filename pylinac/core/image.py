@@ -569,16 +569,14 @@ class DicomImage(BaseImage):
         the dpmm will scale back to 100cm."""
         dpmm = None
         for tag in ('PixelSpacing', 'ImagePlanePixelSpacing'):
-            try:
-                dpmm = 1 / getattr(self.metadata, tag)[0]
-            except AttributeError:
-                pass
-            else:
-                if self.sid is not None:
-                    dpmm *= self.sid / 1000
+            mmpd = self.metadata.get(tag)
+            if mmpd is not None:
+                dpmm = 1 / mmpd[0]
                 break
-        if dpmm is None and self._dpi is not None:
-            return self._dpi / MM_PER_INCH
+        if dpmm is not None and self.sid is not None:
+            dpmm *= self.sid / 1000
+        elif dpmm is None and self._dpi is not None:
+            dpmm = self._dpi / MM_PER_INCH
         return dpmm
 
     @property
@@ -631,19 +629,15 @@ class FileImage(BaseImage):
     @property
     def dpi(self):
         """The dots-per-inch of the image, defined at isocenter."""
-        try:
-            dpi = self.info['dpi'][0]
-        except (IndexError, KeyError):
-            try:
-                dpi = self.info['resolution'][0]
-            except:
-                dpi = None
+        dpi = None
+        for key in ('dpi', 'resolution'):
+            dpi = self.info.get(key)
+            if dpi is not None:
+                dpi = dpi[0]
+                break
         if dpi is None:
-            if self._dpi is None:
-                return
-            else:
-                dpi = self._dpi
-        if self.sid is not None:
+            dpi = self._dpi
+        if self.sid is not None and dpi is not None:
             dpi *= self.sid / 1000
         return dpi
 
@@ -653,7 +647,7 @@ class FileImage(BaseImage):
         the dpmm will scale back to 100cm."""
         try:
             return self.dpi / MM_PER_INCH
-        except:
+        except TypeError:
             return
 
 
