@@ -1884,6 +1884,9 @@ class SubbeamManager:
             Gives the subbeams more information, as not much is given directly in the logs."""
         for idx, beam in enumerate(self.subbeams):
             self._set_beamon_snapshots(axis_data, idx)
+            mlc_subsection = copy.copy(axis_data.mlc)
+            mlc_subsection.snapshot_idx = [idx for idx, i in enumerate(beam._snapshots) if i]
+            beam.fluence = FluenceStruct(mlc_subsection, axis_data.mu, axis_data.jaws)
 
     def _set_beamon_snapshots(self, axis_data, beam_num):
         """Get the snapshot indices 1) where the beam was on and 2) between the subbeam control point values."""
