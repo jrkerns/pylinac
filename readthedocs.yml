@@ -5,4 +5,4 @@ python:
   version: 3
   setup_py_install: true
 
-requirements_file: requirements.txt
+requirements_file: _rtd_reqs.txt
