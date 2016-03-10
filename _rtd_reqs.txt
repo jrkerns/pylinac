@@ -1,6 +1,1 @@
-matplotlib
-pydicom
-click
-yagmail
-watchdog
-pyyaml
+

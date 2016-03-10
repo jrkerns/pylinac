@@ -1,8 +1,0 @@
-conda:
-  file: condaenv.yml
-
-python:
-  version: 3
-  setup_py_install: false
-
-requirements_file: _rtd_reqs.txt
