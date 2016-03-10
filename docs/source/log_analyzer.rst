@@ -346,12 +346,7 @@ Now, lets plot the actual fluence::
 
     log.fluence.actual.plot_map()
 
-.. plot::
-
-    from pylinac import MachineLog
-    log = MachineLog.from_demo_trajectorylog()
-    log.fluence.actual.calc_map()
-    log.fluence.actual.plot_map()
+.. image:: images/logs/tlog_actual_fluence.png
 
 And the fluence gamma::
 

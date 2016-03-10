@@ -19,6 +19,7 @@ Pylinac Documentation
 .. image:: https://coveralls.io/repos/jrkerns/pylinac/badge.svg?branch=master
     :target: https://coveralls.io/r/jrkerns/pylinac
 
+.. include:: ../../README.rst
 
 Welcome to Pylinac! This package is designed to help medical physicists perform linear accelerator quality assurance (QA),
 mostly from TG-142, easily and automatically. Pylinac contains a number of modules, each one addressing a common QA need. Code is
