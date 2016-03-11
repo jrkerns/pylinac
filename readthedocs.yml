@@ -2,4 +2,4 @@ python:
   version: 3
 
 conda:
-  file: condaenv.yml
+  file: pylinacconfig.yml

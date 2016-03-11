@@ -9,18 +9,28 @@ Pylinac
     :target: https://pypi.python.org/pypi/pylinac
     :alt: Latest Version
 
+.. image:: https://anaconda.org/jrkerns/pylinac/badges/installer/conda.svg
+    :target: https://conda.anaconda.org/jrkerns
+
 .. image:: https://img.shields.io/pypi/l/pylinac.svg
     :target: https://pypi.python.org/pypi/pylinac/
+    :alt: MIT
 
 .. image:: https://travis-ci.org/jrkerns/pylinac.svg?branch=master
     :target: https://travis-ci.org/jrkerns/pylinac
+    :alt: Travis CI
 
 .. image:: https://coveralls.io/repos/jrkerns/pylinac/badge.svg?branch=master
     :target: https://coveralls.io/r/jrkerns/pylinac
+    :alt: Code Coverage
 
 .. image:: https://www.quantifiedcode.com/api/v1/project/25e3cefc2cc84052bbd127c3386adf69/badge.svg
     :target: https://www.quantifiedcode.com/app/project/25e3cefc2cc84052bbd127c3386adf69
     :alt: Code issues
+
+.. image:: https://readthedocs.org/projects/pylinac/badge/?version=stable
+    :target: http://pylinac.readthedocs.org/en/stable/?badge=stable
+    :alt: Documentation Status
 
 
 Pylinac provides TG-142 quality assurance (QA) tools to Python programmers as well as non-programmers in the field of 
