@@ -39,7 +39,8 @@ extensions = [
     'matplotlib.sphinxext.plot_directive',
 ]
 
-autodoc_mock_imports = ['dicom', 'dicom.errors',
+autodoc_mock_imports = [
+                        # 'dicom', 'dicom.errors',
                         # 'Pillow', 'PIL',
                         # 'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize',
                         # 'scipy.misc',

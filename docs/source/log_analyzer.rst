@@ -70,7 +70,10 @@ Which will output the following::
     Gamma pass %: 99.83
     Gamma average: 0.021
 
-.. image:: images/logs/dlog_results.png
+.. plot::
+
+    from pylinac import MachineLog
+    MachineLog.run_dlog_demo()
 
 The same can be done using the demo Trajectory log::
 
@@ -83,7 +86,10 @@ The same can be done using the demo Trajectory log::
     Gamma pass %: 100.00
     Gamma average: 0.002
 
-.. image:: images/logs/tlog_analyzed.png
+.. plot::
+
+    from pylinac import MachineLog
+    MachineLog.run_tlog_demo()
 
 Loading Data
 ------------
@@ -346,13 +352,23 @@ Now, lets plot the actual fluence::
 
     log.fluence.actual.plot_map()
 
-.. image:: images/logs/tlog_actual_fluence.png
+.. plot::
+
+    from pylinac import MachineLog
+    log = MachineLog.from_demo_trajectorylog()
+    log.fluence.actual.calc_map()
+    log.fluence.actual.plot_map()
 
 And the fluence gamma::
 
     log.fluence.gamma.plot_map()
 
-.. image:: images/logs/log_gamma.png
+.. plot::
+
+    from pylinac import MachineLog
+    log = MachineLog.from_demo_trajectorylog()
+    log.fluence.gamma.calc_map()
+    log.fluence.gamma.plot_map()
 
 Additionally, you can calculate and view the fluences of subbeams if you're working with trajectory logs::
 

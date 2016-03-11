@@ -47,7 +47,10 @@ Results will be printed to the console and a figure showing the analyzed picket 
     Median Error: 0.062mm
     Max Error: 0.208mm on Picket: 3, Leaf: 22
 
-.. image:: images/PF_analyzed.png
+.. plot::
+
+    from pylinac import PicketFence
+    PicketFence.run_demo()
 
 Or plot the figure interactively::
 
@@ -113,7 +116,12 @@ The minimum needed to get going is to:
 
   which results in:
 
-  .. image:: images/PF_tight_tolerance.png
+  .. plot::
+
+    from pylinac import PicketFence
+    pf = PicketFence.from_demo_image()
+    pf.analyze(tolerance=0.15, action_tolerance=0.03)
+    pf.plot_analyzed_image()
 
   The plot is also able to be saved::
 

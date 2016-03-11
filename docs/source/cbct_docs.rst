@@ -32,7 +32,10 @@ Results will be printed to the console and a figure showing the slices analyzed 
     Slice Thickness (mm): 2.4705078124999997
     Slice Thickeness Passed? True
 
-.. image:: images/cbct_analyzed.png
+.. plot::
+
+    from pylinac import CBCT
+    CBCT.run_demo()
 
 As well, you can plot and save individual pieces of the analysis::
 
