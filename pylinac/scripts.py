@@ -1,10 +1,12 @@
-"""Scripts to run pylinac from the command line."""
+"""Scripts to run pylinac from the command line. Built on examples given in Click documentation."""
 import os.path as osp
 import sys
 
 from pylinac.watcher import start_watching
+from pylinac import log_analyzer
 try:
     import click
+    from click.testing import CliRunner
 except ImportError as e:
     e.msg = "To run pylinac scripts you must have `click` installed. Run `pip install click`, then try again."
     raise e
@@ -16,7 +18,7 @@ def cli():
     pass
 
 
-@click.command()
+@cli.command()
 @click.argument('directory', type=click.Path(exists=True))
 @click.option('--config', type=click.Path(exists=True))
 def watch(directory, config=None):
@@ -24,7 +26,13 @@ def watch(directory, config=None):
     start_watching(directory, config)
 
 
-cli.add_command(watch)
+@cli.command()
+@click.argument('directory', type=click.Path(exists=True))
+@click.option('--destination', type=click.Path(exists=True), help='Destination folder to place anonymized logs.')
+@click.option('--in-place', is_flag=True, help='Whether to modify logs in-place.')
+def anonymize(directory, destination=None, in_place=None):
+    log_analyzer.anonymize(directory, inplace=in_place, destination=destination)
+
 
 if __name__ == '__main__':
     try:

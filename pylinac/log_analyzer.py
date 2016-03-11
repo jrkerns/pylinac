@@ -38,6 +38,7 @@ from .core.decorators import type_accept, value_accept
 from .core.io import get_url, TemporaryZipDirectory
 from .core.utilities import is_iterable, import_mpld3
 
+plt.rcParams['image.cmap'] = 'viridis'
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
 DYNALOG = 'Dynalog'
@@ -2240,9 +2241,9 @@ class CRC(TlogSection):
         pass
 
 
-def anonymize(source, inplace=True, destination=None, recursive=True):
+def anonymize(source, inplace=False, destination=None, recursive=True):
     """Quickly anonymize an individual log or directory of logs.
-    For directories, threaded execution makes this much faster (~6x) than loading a ``MachineLogs``
+    For directories, threaded execution makes this much faster (10-20x) than loading a ``MachineLogs``
     instance of the folder and using the ``.anonymize()`` method.
 
     .. note::
@@ -2252,7 +2253,7 @@ def anonymize(source, inplace=True, destination=None, recursive=True):
     Parameters
     ----------
     source : str
-        Points to the local log file or log folder.
+        Points to a local log file (e.g. .dlg or .bin file) or to a directory containing log files.
     inplace : bool
         Whether to edit the file itself, or created an anonymized copy and leave the original.
     destination : str, None
@@ -2262,8 +2263,9 @@ def anonymize(source, inplace=True, destination=None, recursive=True):
     """
     def _anonymize(filepath, inplace, destination):
         """Function to anonymize logs; used in the thread executor."""
-        log = MachineLog(filepath)
-        log.anonymize(inplace=inplace, destination=destination)
+        if is_tlog(filepath) or (is_dlog(filepath) and osp.basename(filepath).startswith("A")):
+            log = MachineLog(filepath)
+            log.anonymize(inplace=inplace, destination=destination)
 
     # if a file, just anonymize it
     if osp.isfile(source):
@@ -2276,9 +2278,8 @@ def anonymize(source, inplace=True, destination=None, recursive=True):
             for pdir, sdir, files in os.walk(source):
                 for file in files:
                     filepath = osp.join(pdir, file)
-                    if is_log(filepath):
-                        future = exec.submit(_anonymize, filepath, inplace, destination)
-                        futures.append(future)
+                    future = exec.submit(_anonymize, filepath, inplace, destination)
+                    futures.append(future)
                 if not recursive:
                     break
             concurrent.futures.wait(futures)

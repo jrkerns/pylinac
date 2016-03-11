@@ -633,7 +633,7 @@ class FileImage(BaseImage):
         for key in ('dpi', 'resolution'):
             dpi = self.info.get(key)
             if dpi is not None:
-                dpi = dpi[0]
+                dpi = float(dpi[0])
                 break
         if dpi is None:
             dpi = self._dpi
