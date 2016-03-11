@@ -39,15 +39,15 @@ extensions = [
     'matplotlib.sphinxext.plot_directive',
 ]
 
-autodoc_mock_imports = [
-                        'dicom', 'dicom.errors',
+# autodoc_mock_imports = [
+                        # 'dicom', 'dicom.errors',
                         # 'Pillow', 'PIL',
                         # 'scipy.ndimage.filters', 'scipy.ndimage', 'scipy.ndimage.measurements', 'scipy.optimize',
                         # 'scipy.misc',
                         # 'scipy.interpolate',
                         # 'skimage',
                         # 'matplotlib.patches',
-                        'watchdog', 'watchdog.observers', 'watchdog.events']
+                        # 'watchdog', 'watchdog.observers', 'watchdog.events']
 # 'mpl_toolkits.axes_grid1', 'matplotlib', 'matplotlib.pyplot', 'matplotlib.cm',
 autoclass_content = 'both'
 autodoc_default_flags = ['show-inheritance', 'members'
