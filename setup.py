@@ -38,6 +38,7 @@ setup(
                       "Pillow >= 2.5"],
     extras_require={
         'console': ["click", "pyyaml", "watchdog", "yagmail"],
+        'interactive': ["mpld3"]
     },
     entry_points={
         'console_scripts':
