@@ -10,17 +10,43 @@ Determine where you're at and then read the relevant section:
 I know Python already
 ---------------------
 
-Great! To get started, simply install pylinac via PyPI::
+Great! To get started, there are two direct ways to get ``pylinac``.
 
-    pip install pylinac
+Using ``conda``
+^^^^^^^^^^^^^^^
 
-If you run into issues:
+The first and recommended way to get ``pylinac`` is through ``conda``.
+Make sure you have ``conda`` first (:ref:`distro_stack`). Add my channel to your conda configuration, and then install:
 
-  * Try upgrading pip all the way ``pip install pip --upgrade``.
-  * If there are LAPACK/BLAS compilation errors from scipy/numpy install numpy and scipy
-    using ``conda``, and install pylinac using the ``--no-deps`` flag: ``pip install pylinac --no-deps``.
+.. code-block:: bash
 
-Finally, you can download the repo (from github) and run ``setup.py install`` in the root directory
+    $ conda config --add channels jrkerns
+    $ conda install pylinac
+
+Adding a channel allows ``conda`` to search those additional channels when using ``install`` or ``search``. This also makes upgrading easier.
+
+
+Using ``pip``
+^^^^^^^^^^^^^
+
+Pylinac can also install via ``pip``/PyPI:
+
+.. code-block:: bash
+
+    $ pip install pylinac
+
+.. warning::
+
+    By hook or crook, you must have ``scikit-image`` installed to install ``pylinac`` as ``pip``-installing ``scikit-image`` fails.
+    Usually that means you already have ``conda`` and should just use that instead.
+
+.. note::
+
+    Installation via ``conda`` is almost always faster than ``pip``.
+
+.. note::
+
+    Installing from source (``setup.py install``) is possible but not recommended as downloading the source includes numerous sizable test files.
 
 .. _dependencies:
 
@@ -39,16 +65,18 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/user/install.html>`_ if you don't yet have them.
 
 Optional dependencies:
+
  * mpld3 >= 0.2 -- For making interactive HTML plots.
 
- To use the pylinac console script a few additional dependencies are needed:
+To use the pylinac console script a few additional dependencies are needed:
+
  * watchdog
  * click
  * pyyaml
  * yagmail (only if email settings are configured)
 
- To install these console dependencies in one go run ``pip install pylinac[console]``. Otherwise, install
- them individually.
+To install these console dependencies in one go, run ``pip install pylinac[console]``. Otherwise, install
+them individually.
 
 I'm new to Python
 -----------------
@@ -56,8 +84,10 @@ I'm new to Python
 That's okay! If you're not a programmer at all you'll have a few things to do to get up and running,
 but never fear. Using pylinac requires not just the base language Python, but a few dependencies as well.
 Since most physicists don't program, or if they do it's in MATLAB, this section will help jumpstart your use of not
-just pylinac but Python in general and all its wonderful goodness! Getting started with Python takes some work to
+just ``pylinac`` but Python in general and all its wonderful goodness! Getting started with Python takes some work to
 get set up and running, but it's well worth the effort.
+
+.. _distro_stack:
 
 Get a Distribution Stack
 ^^^^^^^^^^^^^^^^^^^^^^^^

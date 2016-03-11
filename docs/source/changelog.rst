@@ -10,16 +10,43 @@ General Changes
 ^^^^^^^^^^^^^^^
 
 * The pylinac directory watcher service got a nice overhaul. Now, rather than running the watcher script file directly, you
-  can simply type ``pylinac watch "my/dir"`` in a terminal. This is accomplished through the use of console scripts in the Python setup file.
+  can use it via the console like so:
+
+  .. code-block:: bash
+
+        $ pylinac watch "path/to/dir"
+
+  This is accomplished through the use of console scripts in the Python setup file.
   Once you upgrade to v1.5, this console command immediately becomes available. See the updated docs on `Directory Watching <http://pylinac.readthedocs.org/en/latest/watcher.html>`_.
   Previously, customizing behavior required changing the watcher script directly. Now, a YAML file can be generated that contains all the
   analysis configurations. Create and customize your own to change tolerances and even to trigger emails on analyses.
+* You can now anonymize logs via console scripts:
+
+  .. code-block:: bash
+
+       $ pylinac anonymize "path/to/log/dir"
+
+* Pylinac is now on `anaconda.org <https://anaconda.org/jrkerns/pylinac>`_ -- i.e. you can install via ``conda`` and forget about dependency & installation issues.
+  This is the recommended way to install pylinac now. To install, add the proper channel to the conda configuration settings.
+
+  .. code-block:: bash
+
+        $ conda config --add channels jrkerns
+
+  Then, installation and upgrading is as simple as:
+
+  .. code-block:: bash
+
+        $ conda install pylinac
+
+  The advantage of saving the channel is that upgrading or installing in other environments is always as easy as ``conda install pylinac``.
 
 Starshot
 ^^^^^^^^
 
-* Relative analysis is no longer allowed. I.e. you can no longer pass images that do not have a DPI (SID is optional). If the image does not
-  have the DPI value inherently (e.g. jpg), you must pass it explicitly to the Starshot constructor.
+* Relative analysis is no longer allowed. I.e. you can no longer pass images that do not have a DPI or SID. If the image does not
+  have these values inherently (e.g. jpg), you must pass it explicitly to the Starshot constructor. No changes are required for EPID images
+  since those tags are in the image file.
 * Added a ``.from_zip()`` class method. This can contain a single image (to save space) or a set of images that will be combined.
 
 Log Analyzer

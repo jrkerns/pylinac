@@ -9,21 +9,23 @@ The directory watcher service allows one to "set it and forget it" and let pylin
 are moved to an appointed directory. Results can be emailed upon analysis.
 The service allows for configurable analysis settings and email settings.
 
-Setup
------
+How to use
+----------
 
 .. note::
     To use the watcher service a few dependencies must be installed that are not required for normal pylinac usage;
     see :ref:`dependencies` for more.
 
-To use the watcher service, make sure you have v1.5+, then open up a terminal and run the console command::
+To use the watcher service, make sure you have v1.5+, then open up a terminal and run the console command:
 
-    > pylinac watch "dir/to/watch"
+.. code-block:: bash
+
+    $ pylinac watch "dir/to/watch"
 
 The ``watch`` argument initiates a thread that runs in the terminal. The directory to start watching is also
 required. A logger will notify when the script has started, when a file gets added, and what the analysis status is. If a file
-gets analyzed successfully, a .png and .txt file with the same name as the original file will be generated in the directory.
-You can also set up and email service when analysis runs, described below.
+gets analyzed successfully, a .png and .txt file with the same name as the originals plus a suffix (default is ``_analysis``) will be generated in the directory.
+You can also set up an email service when analysis runs, described below.
 
 How it works
 ------------
@@ -86,4 +88,4 @@ Default YAML Configuration
 The default configuration is reproduced here. All options are listed. You may remove or add keywords at will.
 The analysis options must match the parameter names exaclty (e.g. ``hu_tolerance``, ``doseTA``).
 
-.. literalinclude:: watcher_config.yaml
+.. literalinclude:: ../../pylinac/watcher_config.yml

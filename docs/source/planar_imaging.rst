@@ -70,14 +70,14 @@ The minimum needed to get going is to:
   method. Note that each subimage can be turned on or off.::
 
       # don't show the low contrast plot
-      leeds.plot_analyzed_image(lowcontrast=False)
+      leeds.plot_analyzed_image(low_contrast=False)
 
   .. plot::
 
     from pylinac import LeedsTOR
     leeds = LeedsTOR.from_demo_image()
     leeds.analyze(low_contrast_threshold=0.01, hi_contrast_threshold=0.5)
-    leeds.plot_analyzed_image(lowcontrast=False)
+    leeds.plot_analyzed_image(low_contrast=False)
 
   The figure can also be saved::
 
@@ -224,14 +224,14 @@ The minimum needed to get going is to:
   method. Note that each subimage can be turned on or off.::
 
       # don't show the low contrast plot
-      pp.plot_analyzed_image(lowcontrast=False)
+      pp.plot_analyzed_image(low_contrast=False)
 
     .. plot::
 
         from pylinac import PipsProQC3
         leeds = PipsProQC3.from_demo_image()
         leeds.analyze(low_contrast_threshold=0.01, hi_contrast_threshold=0.5)
-        leeds.plot_analyzed_image(lowcontrast=False)
+        leeds.plot_analyzed_image(low_contrast=False)
 
   The figure can also be saved::
 
