@@ -68,16 +68,9 @@ class TestAnonymize(TestCase):
         tlog = MachineLog(tlog_file)
         tlog.anonymize(destination=self.anon_folder)  # shouldn't raise
 
-    def test_from_url(self):
-        """Anonymizing a log that was loaded from a stream should fail (no filename to replace)."""
-        url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/Tlog2.bin'
-        tlog = MachineLog.from_url(url)
-        with self.assertRaises(NameError):
-            tlog.anonymize()
-
     def test_bad_name(self):
         """Test that a log with a bad name (no underscore) fails gracefully."""
-        dlog_file = osp.join(self.anon_folder, 'Adlog1.dlg')
+        dlog_file = osp.join(self.anon_folder, 'A1234patientid.dlg')
         dlog = MachineLog(dlog_file)
         with self.assertRaises(NameError):
             dlog.anonymize()

@@ -14,7 +14,7 @@ class TestIO(unittest.TestCase):
 
         # test context manager use; shouldn't raise
         with TemporaryZipDirectory(zfile) as tmpzip:
-            files = os.listdir(tmpzip)
+            files = [osp.join(tmpzip, file) for file in os.listdir(tmpzip)]
             # test that they are real files
             self.assertTrue(osp.isfile(files[0]))
             # test that both images were unpacked
