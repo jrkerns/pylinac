@@ -61,7 +61,7 @@ class AnalyzeMixin:
     def process(self):
         """Process the file; includes analysis, saving results to file, and sending emails."""
         logging.info(self.local_path + " file found and will be analyzed...")
-        self.instance = self.obj(self.full_path)
+        self.instance = self.obj(self.full_path, **self.constructor_kwargs)
         self.analyze()
         self.save_image()
         self.save_text()
@@ -70,6 +70,11 @@ class AnalyzeMixin:
         elif self.config['email']['enable-failure'] and self.should_send_failure_email():
             self.send_email()
         logging.info("Finished analysis on " + self.local_path)
+
+    @property
+    def constructor_kwargs(self):
+        """Any keyword arguments meant to be given to the constructor call."""
+        return {}
 
     @property
     def img_filename(self):
@@ -200,6 +205,10 @@ class AnalyzeStar(AnalyzeMixin):
     obj = Starshot
     config_name = 'starshot'
 
+    @property
+    def constructor_kwargs(self):
+        return self.config[self.config_name]['analysis']['sid']
+
 
 class AnalyzePF(AnalyzeMixin):
     """Analysis runner for picket fences."""
@@ -329,7 +338,7 @@ def start_watching(directory, config_file=None):
 def load_config(config_file=None):
     """Load an external configuration YAML file, or load the default one."""
     if config_file is None:
-        yaml_config_file = osp.join(osp.dirname(__file__), 'watcher_config.yaml')
+        yaml_config_file = osp.join(osp.dirname(__file__), 'watcher_config.yml')
     else:
         yaml_config_file = config_file
     config = yaml.load(open(yaml_config_file).read())

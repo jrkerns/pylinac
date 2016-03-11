@@ -1,4 +1,5 @@
 # Pylinac Watcher Service Configuration File
+# See documentation here: http://pylinac.readthedocs.org/en/latest/watcher.html#configuration
 # Copy and edit this file to customize analysis
 # For each section's `analysis` group, the values correspond to the main class' `analyze()` keyword parameters.
 # The `failure` section is the criteria for sending "failure" emails
@@ -46,6 +47,7 @@ starshot:
   analysis:
     tolerance: 1
     radius: 0.8
+    sid: 1000  # ignored for EPID images since SID is embedded; If using CR or film, set to the value your clinic does starshots at.
   failure:
     passed: false
 
