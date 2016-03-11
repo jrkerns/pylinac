@@ -2,4 +2,4 @@ python:
   version: 3
 
 conda:
-  file: pylinacconfig.yml
+  file: rtdconda.yml
