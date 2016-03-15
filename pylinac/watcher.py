@@ -207,7 +207,13 @@ class AnalyzeStar(AnalyzeMixin):
 
     @property
     def constructor_kwargs(self):
-        return self.config[self.config_name]['analysis']['sid']
+        return {'sid': self.config[self.config_name]['analysis']['sid']}
+
+    @property
+    def analysis_settings(self):
+        settings = super().analysis_settings
+        settings.pop('sid')
+        return settings
 
 
 class AnalyzePF(AnalyzeMixin):
@@ -342,4 +348,5 @@ def load_config(config_file=None):
     else:
         yaml_config_file = config_file
     config = yaml.load(open(yaml_config_file).read())
+    logging.info("Using configuration file: {}".format(yaml_config_file))
     return config

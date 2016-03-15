@@ -1,4 +1,5 @@
 """Scripts to run pylinac from the command line. Built on examples given in Click documentation."""
+import argparse
 import os.path as osp
 import sys
 
@@ -29,7 +30,7 @@ def watch(directory, config=None):
 @cli.command()
 @click.argument('directory', type=click.Path(exists=True))
 @click.option('--destination', type=click.Path(exists=True), help='Destination folder to place anonymized logs.')
-@click.option('--in-place', is_flag=True, help='Whether to modify logs in-place.')
+@click.option('--in-place', is_flag=True, help='Whether to modify logs in-place or create copies.')
 def anonymize(directory, destination=None, in_place=None):
     log_analyzer.anonymize(directory, inplace=in_place, destination=destination)
 
