@@ -23,7 +23,7 @@ def is_close(val, target, delta=1):
     """
     try:
         targets = (value for value in target)
-    except AttributeError:
+    except (AttributeError, TypeError):
         targets = [target]
     for target in targets:
         if target - delta < val < target + delta:
