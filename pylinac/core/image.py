@@ -13,6 +13,7 @@ from scipy import ndimage
 from scipy.misc import imresize
 import scipy.ndimage.filters as spf
 
+from .utilities import is_close
 from .decorators import type_accept, value_accept
 from .geometry import Point
 from .io import get_url, TemporaryZipDirectory
@@ -22,6 +23,54 @@ ARRAY = 'Array'
 DICOM = 'DICOM'
 IMAGE = 'Image'
 MM_PER_INCH = 25.4
+
+
+def equate_log_fluence_and_epid(fluence_img, epid_img):
+    """Crop and resize two images to make them:
+      * The same pixel dimensions
+      * The same DPI
+
+    The usefulness of the function comes when trying to compare images from different sources.
+    The best example is calculating gamma on a machine log fluence and EPID image. The physical
+    and pixel dimensions must be normalized, the SID normalized
+
+    Parameters
+    ----------
+    image1
+    image2
+
+    Returns
+    -------
+    fluence_img : `~pylinac.core
+    """
+    fluence_img = copy.deepcopy(fluence_img)
+    epid_img = copy.deepcopy(epid_img)
+    # crop images to be the same physical size
+    # ...crop height
+    physical_height_diff = fluence_img.physical_shape[0] - epid_img.physical_shape[0]
+    if physical_height_diff < 0:
+        pixel_height_diff = int(round(-physical_height_diff * epid_img.dpmm / 2))
+        epid_img.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
+    else:
+        pixel_height_diff = int(round(-physical_height_diff * fluence_img.dpmm / 2))
+        fluence_img.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
+
+    # ...crop width
+    physical_width_diff = fluence_img.physical_shape[1] - epid_img.physical_shape[1]
+    if physical_width_diff > 0:
+        pixel_width_diff = int(round(physical_width_diff * fluence_img.dpmm / 2))
+        fluence_img.remove_edges(pixel_width_diff, edges=('left', 'right'))
+    else:
+        pixel_width_diff = int(round(physical_width_diff * epid_img.dpmm / 2))
+        epid_img.remove_edges(pixel_width_diff, edges=('left', 'right'))
+
+    # resize EPID array to normalize pixel dimensions to those of the log
+    zoom_factor = fluence_img.shape[1] / epid_img.shape[1]
+    epid_array = ndimage.interpolation.zoom(epid_img, zoom_factor)
+    # epid_img.array = epid_array
+    epid_array_img = load(epid_array, dpi=epid_img.dpi * zoom_factor)
+
+    return fluence_img, epid_array_img
 
 
 def is_image(path):
@@ -234,7 +283,7 @@ class BaseImage:
     @property
     def physical_shape(self):
         """The physical size of the image in mm."""
-        return (self.shape[0] / self.dpmm, self.shape[1] / self.dpmm)
+        return self.shape[0] / self.dpmm, self.shape[1] / self.dpmm
 
     def plot(self, ax=None, show=True, clear_fig=False):
         """Plot the image."""
@@ -437,10 +486,12 @@ class BaseImage:
             The calculated gamma map.
         """
         # error checking
-        if self.dpi != comparison_image.dpi:
-            raise AttributeError("The image DPIs to not match; cannot perform gamma calculation.")
-        if self.shape != comparison_image.shape:
-            raise AttributeError("The images are not the same size; cannot perform gamma calculation.")
+        if not is_close(self.dpi, comparison_image.dpi, delta=0.1):
+            raise AttributeError("The image DPIs to not match: {:.2f} vs. {:.2f}".format(self.dpi, comparison_image.dpi))
+        same_x = is_close(self.shape[1], comparison_image.shape[1], delta=1.1)
+        same_y = is_close(self.shape[0], comparison_image.shape[0], delta=1.1)
+        if not (same_x and same_y):
+            raise AttributeError("The images are not the same size: {} vs. {}".format(self.shape, comparison_image.shape))
 
         # set up reference and comparison images
         ref_img = ArrayImage(copy.copy(self.array))
