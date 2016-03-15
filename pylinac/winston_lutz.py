@@ -224,7 +224,7 @@ class WinstonLutz:
 
         Parameters
         ----------
-        axis : {'Gantry', 'Collimator', 'Couch', 'Combo'}
+        axis : {'Gantry', 'Collimator', 'Couch'}
             The images/markers from which accelerator axis to plot.
         show : bool
             Whether to actually show the images.
@@ -242,7 +242,10 @@ class WinstonLutz:
             ys = [img.bb.y for img in images[1:]]
             marker = 'ro'
         ax.plot(xs, ys, marker, ms=8)
+        # set labels
         ax.set_title(axis + ' wobble')
+        ax.set_xlabel(axis + ' axis images superimposed')
+        ax.set_ylabel(axis + " iso size: {0:3.2f}mm".format(getattr(self, axis.lower() + '_iso_size')))
         if show:
             plt.show()
 
