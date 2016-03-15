@@ -13,7 +13,6 @@ Features:
 """
 from functools import lru_cache
 from itertools import zip_longest
-import os
 import os.path as osp
 
 import matplotlib.pyplot as plt
@@ -168,7 +167,7 @@ class WinstonLutz:
     def gantry_sag(self, axis='z'):
         """The range of gantry sag along the given axis."""
         attr = axis + '_offset'
-        sag_array = [getattr(image, attr) for image in self.images if getattr(image, attr) is not None]
+        sag_array = [getattr(image, attr) for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
         return max(sag_array) - min(sag_array)
 
     def cax2bb_distance(self, metric='max'):
@@ -321,12 +320,12 @@ class WinstonLutz:
                  "Number of images: {}\n" \
                  "Maximum 2D CAX->BB distance: {:.2f}mm\n" \
                  "Median 2D CAX->BB distance: {:.2f}mm\n" \
-                 "Gantry 3D isocenter radius: {:.2f}mm\n" \
+                 "Gantry 3D isocenter size: {:.2f}mm\n" \
                  "Gantry iso->BB vector: {}\n" \
                  "Gantry sag in the z-direction: {:.2f}mm\n" \
-                 "Collimator 2D isocenter radius: {:.2f}mm\n" \
+                 "Collimator 2D isocenter size: {:.2f}mm\n" \
                  "Collimator 2D iso->BB vector: {}\n" \
-                 "Couch 2D isocenter radius: {:.2f}mm\n" \
+                 "Couch 2D isocenter size: {:.2f}mm\n" \
                  "Couch 2D iso->BB vector: {}".format(
                     len(self.images), self.cax2bb_distance('max'), self.cax2bb_distance('median'),
                     self.gantry_iso_size, self.gantry_iso2bb_vector, self.gantry_sag(),
@@ -414,7 +413,8 @@ class WLImage(image.DicomImage):
         while not found:
             try:
                 lower_thresh = hmax - spread / 3
-                binary_arr = np.where((max_thresh > self) & (self >= lower_thresh), 1, 0)
+                # binary_arr = np.where((max_thresh > self) & (self >= lower_thresh), 1, 0)
+                binary_arr = np.logical_and((max_thresh > self), (self >= lower_thresh))
                 labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
                 roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
                 bw_bb_img = np.where(labeled_arr == np.argsort(roi_sizes)[-3], 1, 0)

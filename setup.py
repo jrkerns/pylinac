@@ -15,7 +15,7 @@ setup(
     version=__version__,
     packages=find_packages(),
     package_data={'pylinac':
-                      ['watcher_config.yaml',
+                      ['watcher_config.yml',
                        'demo_files/cbct/*',
                        'demo_files/log_reader/*',
                        'demo_files/starshot/*',
