@@ -1704,7 +1704,7 @@ class CouchStruct:
     latl : :class:`~pylinac.log_analyzer.Axis`
     rotn : :class:`~pylinac.log_analyzer.Axis`
     """
-    def __init__(self, vertical, longitudinal, lateral, rotational, roll=None, pitch=None):
+    def __init__(self, vertical, longitudinal, lateral, rotational, pitch=None, roll=None):
         if not all((isinstance(vertical, CouchAxis),
                     isinstance(longitudinal, CouchAxis),
                     isinstance(lateral, CouchAxis),
@@ -1714,9 +1714,9 @@ class CouchStruct:
         self.long = longitudinal
         self.latl = lateral
         self.rotn = rotational
-        if roll is not None:
-            self.roll = roll
+        if pitch is not None:
             self.pitch = pitch
+            self.roll = roll
 
 
 class LogSection(metaclass=ABCMeta):
@@ -2167,12 +2167,12 @@ class TlogAxisData(TlogSection):
         lat = self._get_axis(snapshot_data, next(column), CouchAxis)
         rtn = self._get_axis(snapshot_data, next(column), CouchAxis)
         if is_tlog_v3(self._header.version):
-            rol = self._get_axis(snapshot_data, next(column), CouchAxis)
-            pit = self._get_axis(snapshot_data, next(column), CouchAxis)
+            pitch = self._get_axis(snapshot_data, next(column), CouchAxis)
+            roll = self._get_axis(snapshot_data, next(column), CouchAxis)
         else:
-            rol = None
-            pit = None
-        self.couch = CouchStruct(vrt, lng, lat, rtn, rol, pit)
+            pitch = None
+            roll = None
+        self.couch = CouchStruct(vrt, lng, lat, rtn, pitch, roll)
 
         self.mu = self._get_axis(snapshot_data, next(column), BeamAxis)
 
