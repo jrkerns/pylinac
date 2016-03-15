@@ -10,7 +10,7 @@ Pylinac
     :alt: Latest Version
 
 .. image:: https://anaconda.org/jrkerns/pylinac/badges/installer/conda.svg
-    :target: https://conda.anaconda.org/jrkerns
+    :target: https://anaconda.org/jrkerns/pylinac
 
 .. image:: https://img.shields.io/pypi/l/pylinac.svg
     :target: https://pypi.python.org/pypi/pylinac/
