@@ -131,9 +131,9 @@ class WinstonLutz:
 
     @property
     def gantry_iso_size(self):
-        """The radius of the 3D gantry isocenter size in mm. Only images where the collimator
+        """The diameter of the 3D gantry isocenter size in mm. Only images where the collimator
         and couch were at 0 are used to determine this value."""
-        return self._minimize_axis(GANTRY).fun
+        return self._minimize_axis(GANTRY).fun * 2
 
     @property
     def gantry_iso2bb_vector(self):
@@ -143,9 +143,9 @@ class WinstonLutz:
 
     @property
     def collimator_iso_size(self):
-        """The 2D collimator isocenter size in mm. The iso size is in the plane
+        """The 2D collimator isocenter size (diameter) in mm. The iso size is in the plane
         normal to the gantry."""
-        return self._minimize_axis(COLLIMATOR).fun
+        return self._minimize_axis(COLLIMATOR).fun * 2
 
     @property
     def collimator_iso2bb_vector(self):
@@ -155,9 +155,9 @@ class WinstonLutz:
 
     @property
     def couch_iso_size(self):
-        """The radius of the 2D couch isocenter size in mm. Only images where
+        """The diameter of the 2D couch isocenter size in mm. Only images where
         the gantry and collimator were at zero are used to determine this value."""
-        return self._minimize_axis(COUCH).x[3]
+        return self._minimize_axis(COUCH).x[3] * 2
 
     @property
     def couch_iso2bb_vector(self):
@@ -413,7 +413,7 @@ class WLImage(image.DicomImage):
         found = False
         while not found:
             try:
-                lower_thresh = hmax - spread / 2
+                lower_thresh = hmax - spread / 3
                 binary_arr = np.where((max_thresh > self) & (self >= lower_thresh), 1, 0)
                 labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
                 roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
@@ -594,4 +594,4 @@ def is_round(logical_array):
     """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
     expected_fill_ratio = np.pi / 4
     actual_fill_ratio = filled_area_ratio(logical_array)
-    return expected_fill_ratio * 1.1 > actual_fill_ratio > expected_fill_ratio * 0.8
+    return expected_fill_ratio * 1.2 > actual_fill_ratio > expected_fill_ratio * 0.8
