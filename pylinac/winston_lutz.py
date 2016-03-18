@@ -407,13 +407,11 @@ class WLImage(image.DicomImage):
         hmin, hmax = np.percentile(self.array, [5, 99.9])
         spread = hmax - hmin
         max_thresh = hmax
-
+        lower_thresh = hmax - spread / 1.5
         # search for the BB by iteratively lowering the low-pass threshold value until the BB is found.
         found = False
         while not found:
             try:
-                lower_thresh = hmax - spread / 3
-                # binary_arr = np.where((max_thresh > self) & (self >= lower_thresh), 1, 0)
                 binary_arr = np.logical_and((max_thresh > self), (self >= lower_thresh))
                 labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
                 roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
@@ -423,7 +421,7 @@ class WLImage(image.DicomImage):
                     raise ValueError
                 if not is_modest_size(bw_bb_img, self.bounding_box):
                     raise ValueError
-                if not is_circular(bw_bb_img):
+                if not is_symmetric(bw_bb_img):
                     raise ValueError
             except (IndexError, ValueError):
                 max_thresh -= 0.05 * spread
@@ -573,7 +571,7 @@ class WLImage(image.DicomImage):
             return COMBO
 
 
-def is_circular(logical_array):
+def is_symmetric(logical_array):
     """Whether the binary object's dimensions are symmetric, i.e. a perfect circle. Used to find the BB."""
     ymin, ymax, xmin, xmax = bounding_box(logical_array)
     y = abs(ymax - ymin)
