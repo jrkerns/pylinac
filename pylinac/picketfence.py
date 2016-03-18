@@ -20,12 +20,10 @@ from tempfile import TemporaryDirectory
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
-from scipy import ndimage
 
 from pylinac import MachineLog
 from .core import image
 from .core.geometry import Line, Rectangle
-from .core.image import Image
 from .core.io import get_url
 from .core.profile import MultiProfile, SingleProfile
 from .core.utilities import import_mpld3
@@ -216,33 +214,21 @@ class PicketFence:
     def _load_log(self, log):
         """Load a machine log that corresponds to the picket fence delivery.
 
-        This log determines the location of the Pickets. The MLC peaks are then compared to the expected log pickets,
+        This log determines the location of the pickets. The MLC peaks are then compared to the expected log pickets,
         not a simple fit of the peaks."""
+        # load the log fluence image
         mlog = MachineLog(log)
         fl = mlog.fluence.expected.calc_map(equal_aspect=True)
-        fli = Image.load(fl, dpi=254)  # 254 pix/in => 1 pix/0.1mm (default fluence calc)
-        # crop fluence array to same physical size as EPID
-        hdiff = fli.physical_shape[0] - self.image.physical_shape[0]
-        if hdiff < 0:
-            phys_hdiff = int(round(-hdiff * self.image.dpmm / 2))
-            self.image.remove_edges(phys_hdiff, edges=('top', 'bottom'))
-        else:
-            phys_hdiff = int(round(-hdiff * fli.dpmm / 2))
-            fli.remove_edges(phys_hdiff, edges=('top', 'bottom'))
-        wdiff = fli.physical_shape[1] - self.image.physical_shape[1]
-        if wdiff > 0:
-            phys_wdiff = int(round(wdiff * fli.dpmm / 2))
-            fli.remove_edges(phys_wdiff, edges=('left', 'right'))
-        # reload new cropped array into PicketFence
-        new_array = Image.load(fli.array, dpi=254)  # TODO: seems redundant
+        fli = image.load(fl, dpi=254)  # 254 pix/in => 1 pix/0.1mm (default fluence calc)
+
+        # equate them such that they're the same size & DPI
+        fluence_img, self.image = image.equate_log_fluence_and_epid(fluence_img=fli, epid_img=self.image)
+
+        # get picket fits from the modified fluence image
         pf = PicketFence.from_demo_image()
-        pf.image = new_array
+        pf.image = fluence_img
         pf.analyze()
         self._log_fits = cycle([p.fit for p in pf.pickets])
-        # resize image
-        zoom_factor = fli.shape[1] / self.image.shape[1]
-        array = ndimage.interpolation.zoom(self.image, zoom_factor)
-        self.image = Image.load(array, dpi=self.image.dpi * zoom_factor, sid=self.image.sid)
 
     @staticmethod
     def run_demo(tolerance=0.5, action_tolerance=0.25, interactive=False):
