@@ -260,10 +260,6 @@ class AnalyzeLog(AnalyzeMixin):
         """Log analysis is done via calculating gamma."""
         self.instance.fluence.gamma.calc_map(**self.analysis_settings)
 
-    def keyword_in_here(self):
-        """Log keywords just check file extensions."""
-        return self.local_path.endswith('.dlg') or self.local_path.endswith('.bin')
-
     def save_text(self):
         """Special text save method."""
         with open(self.txt_filename, 'w') as txtfile:

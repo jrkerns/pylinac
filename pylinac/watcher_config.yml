@@ -21,6 +21,9 @@ email:
   subject: Pylinac results  # subject line of the email
 
 logs:
+  keywords:
+    - .dlg
+    - .bin
   analysis:
     doseTA: 1
     distTA: 1
