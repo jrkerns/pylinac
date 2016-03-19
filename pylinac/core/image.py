@@ -36,12 +36,16 @@ def equate_log_fluence_and_epid(fluence_img, epid_img):
 
     Parameters
     ----------
-    image1
-    image2
+    fluence_img : {`~pylinac.core.image.ArrayImage`, `~pylinac.core.image.DicomImage`, `~pylinac.core.image.FileImage`}
+        The log fluence image. Must have DPI and SID.
+    epid_img : {`~pylinac.core.image.ArrayImage`, `~pylinac.core.image.DicomImage`, `~pylinac.core.image.FileImage`}
+        The EPID image. Must have DPI and SID.
 
     Returns
     -------
-    fluence_img : `~pylinac.core
+    fluence_img : `~pylinac.core.image.ArrayImage`
+    epid_img : `~pylinac.core.image.ArrayImage`
+        The returns are new instances of Images.
     """
     fluence_img = copy.deepcopy(fluence_img)
     epid_img = copy.deepcopy(epid_img)
@@ -67,7 +71,6 @@ def equate_log_fluence_and_epid(fluence_img, epid_img):
     # resize EPID array to normalize pixel dimensions to those of the log
     zoom_factor = fluence_img.shape[1] / epid_img.shape[1]
     epid_array = ndimage.interpolation.zoom(epid_img, zoom_factor)
-    # epid_img.array = epid_array
     epid_array_img = load(epid_array, dpi=epid_img.dpi * zoom_factor)
 
     return fluence_img, epid_array_img
@@ -324,12 +327,14 @@ class BaseImage:
 
     @type_accept(pixels=int)
     def remove_edges(self, pixels=15, edges=('top', 'bottom', 'left', 'right')):
-        """Removes pixels on all edges of the image.
+        """Removes pixels on all edges of the image in-place.
 
         Parameters
         ----------
         pixels : int
             Number of pixels to cut off all sides of the image.
+        edges : tuple
+            Which edges to remove from. Can be any combination of the four edges.
         """
         if 'top' in edges:
             self.array = self.array[pixels:, :]
@@ -345,12 +350,23 @@ class BaseImage:
         orig_array = self.array
         self.array = -orig_array + orig_array.max() + orig_array.min()
 
+    @type_accept(direction=str, amount=int)
     def roll(self, direction='x', amount=1):
+        """Roll the image array around in-place. Wrapper for np.roll().
+
+        Parameters
+        ----------
+        direction : {'x', 'y'}
+            The axis to roll over.
+        amount : int
+            The amount of elements to roll over.
+        """
         axis = 1 if direction == 'x' else 0
         self.array = np.roll(self.array, amount, axis=axis)
 
+    @type_accept(n=int)
     def rot90(self, n=1):
-        """Wrapper for numpy.rot90."""
+        """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW."""
         self.array = np.rot90(self.array, n)
 
     def resize(self, size, interp='bilinear'):
@@ -456,6 +472,7 @@ class BaseImage:
         if corner_avg > np.mean(self.array.flatten()):
             self.invert()
 
+    @value_accept(threshold=(0.0, 1.0))
     def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=0.1):
         """Calculate the gamma between the current image (reference) and a comparison image.
 
@@ -467,10 +484,8 @@ class BaseImage:
 
         Parameters
         ----------
-        comparison_image :
-            The comparison image. Must be a :class:`~pylinac.core.image.ArrayImage`,
-            :class:`~pylinac.core.image.DicomImage`, or :class:`~pylinac.core.image.FileImage`.
-            The image must have the same DPI/DPMM to be comparable.
+        comparison_image : {:class:`~pylinac.core.image.ArrayImage`, :class:`~pylinac.core.image.DicomImage`, or :class:`~pylinac.core.image.FileImage`}
+            The comparison image. The image must have the same DPI/DPMM to be comparable.
             The size of the images must also be the same.
         doseTA : int, float
             Dose-to-agreement in percent; e.g. 2 is 2%.
@@ -484,6 +499,10 @@ class BaseImage:
         -------
         gamma_map : numpy.ndarray
             The calculated gamma map.
+
+        See Also
+        --------
+        :func:`~pylinac.core.image.equate_log_fluence_and_epid`
         """
         # error checking
         if not is_close(self.dpi, comparison_image.dpi, delta=0.1):
@@ -510,9 +529,9 @@ class BaseImage:
         distTA_pixels = self.dpmm * distTA
 
         # construct image gradient using sobel filter
-        img_x = spf.sobel(ref_img, 1)
-        img_y = spf.sobel(ref_img, 0)
-        grad_img = img_x + img_y
+        img_x = spf.sobel(ref_img.as_type(np.float32), 1)
+        img_y = spf.sobel(ref_img.as_type(np.float32), 0)
+        grad_img = np.hypot(img_x, img_y)
 
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
         subtracted_img = np.abs(comp_img - ref_img)
@@ -520,6 +539,9 @@ class BaseImage:
         gamma_map = subtracted_img / denominator
 
         return gamma_map
+
+    def as_type(self, dtype):
+        return self.array.astype(dtype)
 
     @property
     def shape(self):
