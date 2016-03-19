@@ -38,7 +38,6 @@ from .core.decorators import type_accept, value_accept
 from .core.io import get_url, TemporaryZipDirectory
 from .core.utilities import is_iterable, import_mpld3
 
-plt.rcParams['image.cmap'] = 'viridis'
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
 DYNALOG = 'Dynalog'
