@@ -1,6 +1,6 @@
 
-__version__ = '1.3.1'
-__version_info__ = (1, 3, 1)
+__version__ = '1.5.0'
+__version_info__ = (1, 5, 0)
 
 import sys
 if sys.version_info[0] < 3:
@@ -14,3 +14,4 @@ from pylinac.picketfence import PicketFence
 from pylinac.starshot import Starshot
 from pylinac.vmat import VMAT
 from pylinac.winston_lutz import WinstonLutz
+from pylinac.core import decorators, geometry, image, io, mask, profile, roi, utilities
