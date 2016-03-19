@@ -67,7 +67,9 @@ Below are the high-level tools currently available:
    * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
      as you see fit.
 
-   Example script::
+   Example script:
+
+   .. code-block:: python
 
         from pylinac import LeedsTOR, PipsProQC3
 
