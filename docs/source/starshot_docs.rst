@@ -30,10 +30,7 @@ Results will be printed to the console and a matplotlib figure showing the analy
 
     The center of the minimum circle is at 1270.1, 1437.1
 
-.. plot::
-
-    from pylinac import Starshot
-    Starshot.run_demo()
+.. image:: images/starshot_analyzed.png
 
 Image Acquisition
 -----------------

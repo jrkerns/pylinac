@@ -28,10 +28,7 @@ To run the Leeds TOR demo, create a script or start an interpreter session and i
 
 A figure showing the phantom, low contrast plot, and RMTF will be generated:
 
-.. plot::
-
-    from pylinac import LeedsTOR
-    LeedsTOR.run_demo()
+.. image:: images/leeds_analysis.png
 
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
@@ -72,12 +69,7 @@ The minimum needed to get going is to:
       # don't show the low contrast plot
       leeds.plot_analyzed_image(low_contrast=False)
 
-  .. plot::
-
-    from pylinac import LeedsTOR
-    leeds = LeedsTOR.from_demo_image()
-    leeds.analyze(low_contrast_threshold=0.01, hi_contrast_threshold=0.5)
-    leeds.plot_analyzed_image(low_contrast=False)
+  .. image:: images/leeds_analysis.png
 
   The figure can also be saved::
 
@@ -180,10 +172,7 @@ To run the PipsPro demo, create a script or start an interpreter session and inp
 
 A figure showing the phantom, low contrast plot, and RMTF will be generated:
 
-.. plot::
-
-    from pylinac import PipsProQC3
-    PipsProQC3.run_demo()
+.. image:: images/pipspro_analysis.png
 
 .. _pipspro_image_acquisition:
 
@@ -226,12 +215,7 @@ The minimum needed to get going is to:
       # don't show the low contrast plot
       pp.plot_analyzed_image(low_contrast=False)
 
-  .. plot::
-
-        from pylinac import PipsProQC3
-        leeds = PipsProQC3.from_demo_image()
-        leeds.analyze(low_contrast_threshold=0.01, hi_contrast_threshold=0.5)
-        leeds.plot_analyzed_image(low_contrast=False)
+  .. image:: images/pipspro_no_lc.png
 
   The figure can also be saved::
 
