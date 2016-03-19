@@ -1,11 +1,11 @@
 package:
   name: pylinac
-  version: "1.4.1"
+  version: "1.5.0"
 
 source:
-  fn: pylinac-1.4.1.zip
-  url: https://pypi.python.org/packages/source/p/pylinac/pylinac-1.4.1.zip
-  md5: 58043afddace5b2783caa1b9cddd889c
+  fn: pylinac-1.5.0.zip
+  url: https://pypi.python.org/packages/source/p/pylinac/pylinac-1.5.0.zip
+  md5: bcd4255c3792cc91576e78f012f30009
 #  patches:
    # List any patch files here
    # - fix.patch
