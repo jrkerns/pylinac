@@ -32,8 +32,8 @@ import struct
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.ndimage.filters as spf
 
+from .core import image
 from .core.decorators import type_accept, value_accept
 from .core.io import get_url, TemporaryZipDirectory
 from .core.utilities import is_iterable, import_mpld3
@@ -221,7 +221,7 @@ class MachineLogs(list):
         else:
             raise TypeError("Can only append MachineLog or string pointing to a log or log directory.")
 
-    def avg_gamma(self, doseTA=1, distTA=1, threshold=10, resolution=0.1):
+    def avg_gamma(self, doseTA=1, distTA=1, threshold=0.1, resolution=0.1):
         """Calculate and return the average gamma of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
@@ -234,7 +234,7 @@ class MachineLogs(list):
         print('')
         return gamma_list.mean()
 
-    def avg_gamma_pct(self, doseTA=1, distTA=1, threshold=10, resolution=0.1):
+    def avg_gamma_pct(self, doseTA=1, distTA=1, threshold=0.1, resolution=0.1):
         """Calculate and return the average gamma pass percent of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
@@ -412,20 +412,20 @@ class MachineLog:
             ax.set_title('Actual Fluence', fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
             ax.autoscale(tight=True)
-            plt.imshow(self.fluence.actual.pixel_map, aspect='auto', interpolation='none')
+            plt.imshow(self.fluence.actual.array, aspect='auto', interpolation='none')
 
             # plot the expected fluence
             ax = plt.subplot(2, 3, 2)
             ax.set_title("Expected Fluence", fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.expected.pixel_map, aspect='auto', interpolation='none')
+            plt.imshow(self.fluence.expected.array, aspect='auto', interpolation='none')
 
             # plot the gamma map
             gmma = self.fluence.gamma
             ax = plt.subplot(2, 3, 3)
             ax.set_title("Gamma Map ({:2.2f}% passing @ {}%/{}mm)".format(gmma.pass_prcnt, gmma.doseTA, gmma.distTA), fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.gamma.pixel_map, aspect='auto', interpolation='none', vmax=1)
+            plt.imshow(self.fluence.gamma.array, aspect='auto', interpolation='none', vmax=1)
             plt.colorbar(ax=ax)
 
             # plot the gamma histogram
@@ -433,7 +433,7 @@ class MachineLog:
             ax.set_yscale('log')
             ax.set_title("Gamma Histogram (Avg: {:2.3f})".format(self.fluence.gamma.avg_gamma), fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
-            plt.hist(self.fluence.gamma.pixel_map.flatten(), self.fluence.gamma.bins)
+            plt.hist(self.fluence.gamma.array.flatten(), self.fluence.gamma.bins)
 
             # plot the MLC error histogram
             ax = plt.subplot(2, 3, 5)
@@ -628,7 +628,9 @@ class MachineLog:
         if self.log_type == TRAJECTORY_LOG:
             try:
                 gantry_std = self.subbeams[0].gantry_angle.actual.std()
-            except IndexError:
+                if np.isnan(gantry_std):
+                    raise ValueError
+            except (IndexError, ValueError):
                 # no beam-on snapshots, thus imaging log
                 return IMAGING
         else:
@@ -890,14 +892,14 @@ class Fluence(metaclass=ABCMeta):
 
     Attributes
     ----------
-    pixel_map : numpy.ndarray
+    array : numpy.ndarray
         An array representing the fluence map; will be num_mlc_pairs-x-400/resolution.
         E.g., assuming a Millennium 120 MLC model and a fluence resolution of 0.1mm, the resulting
         matrix will be 60-x-4000.
     resolution : int, float
         The resolution of the fluence calculation; -1 means calculation has not been done yet.
     """
-    pixel_map = object
+    array = object
     resolution = -1
     _fluence_type = ''  # must be specified by subclass
 
@@ -916,7 +918,7 @@ class Fluence(metaclass=ABCMeta):
     @property
     def map_calced(self):
         """Return a boolean specifying whether the fluence has been calculated."""
-        return hasattr(self.pixel_map, 'size')
+        return hasattr(self.array, 'size')
 
     @lru_cache(maxsize=1)
     def calc_map(self, resolution=0.1, equal_aspect=False):
@@ -949,7 +951,7 @@ class Fluence(metaclass=ABCMeta):
         else:
             fluence = np.zeros((self._mlc.num_pairs, int(400 / resolution)), dtype=np.float16)
 
-        self.pixel_map = fluence
+        self.array = fluence
         self.resolution = resolution
 
         # check if the beam was actually on at all (e.g. kV setups)
@@ -969,7 +971,6 @@ class Fluence(metaclass=ABCMeta):
 
         lg = np.repeat(lg_sz, num_lg)
         sm = np.repeat(sm_sz, num_sm)
-        lg2 = np.repeat(lg_sz, num_lg)
         leaves = np.concatenate((lg, sm, lg))
         cl = np.cumsum(leaves)
         cl2 = np.insert(cl, 0, 0)
@@ -1033,7 +1034,7 @@ class Fluence(metaclass=ABCMeta):
         if not self.map_calced:
             raise AttributeError("Map not yet calculated; use calc_map()")
         plt.clf()
-        plt.imshow(self.pixel_map, aspect='auto')
+        plt.imshow(self.array, aspect='auto')
         if show:
             plt.show()
 
@@ -1058,7 +1059,7 @@ class GammaFluence(Fluence):
 
     Attributes
     ----------
-    pixel_map : numpy.ndarray
+    array : numpy.ndarray
         The gamma map. Only available after calling calc_map()
     passfail_map : numpy.ndarray
         The gamma pass/fail map; pixels that pass (<1.0) are set to 0, while failing pixels (>=1.0) are set to 1.
@@ -1078,9 +1079,7 @@ class GammaFluence(Fluence):
     threshold = -1
     pass_prcnt = -1
     avg_gamma = -1
-    # doseTA_map = np.ndarray
-    # distTA_map = np.ndarray
-    passfail_map = object
+    passfail_array = object
     bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1]
 
     def __init__(self, actual_fluence, expected_fluence, mlc_struct):
@@ -1099,7 +1098,7 @@ class GammaFluence(Fluence):
         self._mlc = mlc_struct
 
     @lru_cache(maxsize=1)
-    def calc_map(self, doseTA=1, distTA=1, threshold=10, resolution=0.1, calc_individual_maps=False):
+    def calc_map(self, doseTA=1, distTA=1, threshold=0.1, resolution=0.1, calc_individual_maps=False):
         """Calculate the gamma from the actual and expected fluences.
 
         The gamma calculation is based on `Bakai et al
@@ -1131,55 +1130,32 @@ class GammaFluence(Fluence):
         if not self._expected_fluence.map_calced or resolution != self._expected_fluence.resolution:
             self._expected_fluence.calc_map(resolution)
 
-        actual = copy.copy(self._actual_fluence.pixel_map)
-        expected = copy.copy(self._expected_fluence.pixel_map)
-
-        # set dose values below threshold to 0 so gamma doesn't calculate over it
-        actual[actual < (threshold / 100) * np.max(actual)] = 0
-        expected[expected < (threshold / 100) * np.max(expected)] = 0
-
-        # preallocation
-        gamma_map = np.zeros(expected.shape)
-
-        # image gradient in x-direction (leaf movement direction) using sobel filter
-        img_x = spf.sobel(actual.astype(np.float32), 1)
-
-        # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
-        for leaf in range(self._mlc.num_pairs):
-            gamma_map[leaf] = np.abs(actual[leaf, :] - expected[leaf, :]) / np.sqrt(
-                (doseTA / 100.0 ** 2) + ((distTA / resolution ** 2) * (img_x[leaf, :] ** 2)))
-        # construct binary pass/fail map
-        self.passfail_map = np.where(gamma_map >= 1, 1, 0).astype(bool)
-
-        # if calc_individual_maps:
-        #     # calculate DoseTA map (drops distTA calc from gamma eq)
-        #     self.doseTA_map = np.zeros(gamma_map.shape)
-        #     for leaf in range(self.mlc.num_pairs):
-        #         self.doseTA_map[leaf] = (actual[leaf, :] - expected[leaf, :]) / np.sqrt(
-        #             (DoseTA / 100.0 ** 2))
-        #     # calculate DistTA map (drops DoseTA calc from gamma eq)
-        #     self.distTA_map = np.zeros(gamma_map.shape)
-        #     for leaf in range(self.mlc.num_pairs):
-        #         self.distTA_map[leaf] = (actual[leaf, :] - expected[leaf, :]) / np.sqrt(
-        #             ((DistTA / resolution ** 2) * (img_x[leaf, :] ** 2)))
+        actual_img = image.load(self._actual_fluence.array, dpi=25.4 / resolution)
+        expected_img = image.load(self._expected_fluence.array, dpi=25.4 / resolution)
+        gamma_map = actual_img.gamma(expected_img, doseTA=doseTA, distTA=distTA, threshold=threshold)
 
         # calculate standard metrics
+        self.passfail_array = np.where(gamma_map > 1, 1, 0).astype(bool)
         self.pass_prcnt = (np.sum(gamma_map < 1) / np.sum(gamma_map >= 0)) * 100
+        if np.isnan(self.pass_prcnt):
+            self.pass_prcnt = 100
         self.avg_gamma = np.nanmean(gamma_map)
+        if np.isnan(self.avg_gamma):
+            self.avg_gamma = 0
 
         self.distTA = distTA
         self.doseTA = doseTA
         self.threshold = threshold
         self.resolution = resolution
 
-        self.pixel_map = gamma_map
+        self.array = gamma_map
         return gamma_map
 
     def plot_map(self, show=True):
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         if not self.map_calced:
             raise AttributeError("Map not yet calculated; use calc_map()")
-        plt.imshow(self.pixel_map, aspect='auto', vmax=1)
+        plt.imshow(self.array, aspect='auto', vmax=1)
         plt.colorbar()
         plt.show()
 
@@ -1201,7 +1177,7 @@ class GammaFluence(Fluence):
         if self.map_calced:
             if bins is None:
                 bins = self.bins
-            hist_arr, bin_edges = np.histogram(self.pixel_map, bins=bins)
+            hist_arr, bin_edges = np.histogram(self.array, bins=bins)
             return hist_arr, bin_edges
         else:
             raise AttributeError("Gamma map not yet calculated")
@@ -1220,7 +1196,7 @@ class GammaFluence(Fluence):
             if bins is None:
                 bins = self.bins
             plt.clf()
-            plt.hist(self.pixel_map.flatten(), bins=bins)
+            plt.hist(self.array.flatten(), bins=bins)
             plt.yscale(scale)
             if show:
                 plt.show()
@@ -1235,7 +1211,7 @@ class GammaFluence(Fluence):
     def plot_passfail_map(self):
         """Plot the binary gamma map, only showing whether pixels passed or failed."""
         if self.map_calced:
-            plt.imshow(self.passfail_map)
+            plt.imshow(self.passfail_array)
             plt.show()
         else:
             raise AttributeError("Map not yet calculated; use calc_map()")
