@@ -4,6 +4,8 @@ dependencies:
 - numpy=1.10.4=py34_1
 - pillow=3.1.1=py34_0
 - python=3.4.4=0
+- pip=8.1.0=py34._0
+- setuptools=20.2.2=py34_0
 - scikit-image=0.12.3=np110py34_0
 - scipy=0.17.0=np110py34_2
 - pip:
