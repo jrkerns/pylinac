@@ -1,10 +1,14 @@
 Version Release Checklist
 
 - Run tests: tests/_test_all.py
-- Increment version number in: 1) setup.py, 2) docs/source/conf.py
+- Increment version number in:
+    - setup.py,
+    - pylinac/__init__.py
+    - docs/source/conf.py
 - List changes in docs/source/changelog.rst
-If a new module:
+- If a new module:
     - Add demo files directory to setup.py package data
     - Add snippet to README.rst
-run setup.py task..., `sdist` with option `bdist_wheel` to make a wheel
-upload to PyPI: `twine upload dist/pylinac-...*` where ... is e.g. `1.4.0`
+- Build: run setup.py task..., `sdist` with option `bdist_wheel` to make a wheel
+- Upload to PyPI: `twine upload dist/pylinac-...*` where ... is the version; e.g. `1.4.0`
+  to upload both the .zip and .whl files.

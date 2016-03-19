@@ -1,13 +1,6 @@
 from setuptools import setup, find_packages
 
-# PyPI checklist:
-# 1. Ensure version has incremented.
-# 2. To make life easy, in PyCharm, go to Tools/Run setup.py task.../sdist with command line option "upload" to push to PyPI
-
-# 2 alt. To make a wheel, run $ python setup.py sdist bdist_wheel [upload]
-
 __version__ = '1.5.0'
-__version_info__ = (1, 5, 0)
 
 
 setup(
