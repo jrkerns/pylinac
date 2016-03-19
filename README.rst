@@ -101,7 +101,9 @@ Below are the high-level tools currently available:
       scalar distance from BB to CAX.
     * **Gantry sag** - The sag of the gantry is also quantified and can be plotted.
 
-    Example script::
+    Example script:
+
+    .. code-block:: python
 
         from pylinac import WinstonLutz
 
@@ -130,7 +132,9 @@ Below are the high-level tools currently available:
     * **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
       do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 
-    Example script::
+    Example script:
+
+    .. code-block:: python
 
         from pylinac import Starshot
 
@@ -150,7 +154,9 @@ Below are the high-level tools currently available:
     * **Automatic identification using file names** - If your file names are clear, the image type and test type don't even
       have to be specified; just load and analyze.
 
-    Example script::
+    Example script:
+
+    .. code-block:: python
 
         from pylinac import VMAT
 
@@ -172,7 +178,9 @@ Below are the high-level tools currently available:
     * **Any scan protocol** - Scan your CatPhan with any protocol; or even scan it in a regular CT scanner.
       Any field size or field extent is allowed.
 
-    Example script::
+    Example script:
+
+    .. code-block:: python
 
         from pylinac import CBCT
 
@@ -198,7 +206,9 @@ Below are the high-level tools currently available:
     * **View actual or expected fluences & calculate gamma** - View fluences and gamma maps for any log.
     * **Anonymization** - Anonymize your logs so you can share them with others.
 
-    Example script::
+    Example script:
+
+    .. code-block:: python
 
         from pylinac import MachineLog
 
@@ -223,7 +233,9 @@ Below are the high-level tools currently available:
     * **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
     * **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
 
-    Example script::
+    Example script:
+
+    .. code-block:: python
 
         from pylinac import PicketFence
 
