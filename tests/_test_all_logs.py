@@ -32,6 +32,7 @@ class DynalogArc(LogBankBase, TestCase):
     treatment_type = VMAT
     version = 'B'
     tolerance = 510
+    average_gamma = 0.06
     mu_delivered = 2696
     num_snapshots = 1151
     average_rms = 0.16
@@ -81,7 +82,7 @@ class DoubleExposure(LogBankBase, TestCase):
     num_snapshots = 750
     version = 3
     mlc_model = 3
-    average_gamma = 0.3
+    average_gamma = 0.2
     num_subbeams = 2
     num_axes = 16
     mu_delivered = 2
@@ -122,3 +123,4 @@ class Six(LogBankBase, TestCase):
     num_subbeams = 1
     num_axes = 16
     mu_delivered = 2696
+    average_gamma = 0.03

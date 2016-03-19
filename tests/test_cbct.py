@@ -1,5 +1,4 @@
 import os.path as osp
-import unittest
 from unittest import TestCase
 
 import matplotlib.pyplot as plt

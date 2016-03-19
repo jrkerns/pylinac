@@ -12,7 +12,7 @@ def run_wl(path):
         if my_wl.gantry_iso_size > 3:
             raise ValueError
         return 'Success'
-    except (ValueError, AttributeError) as e:
+    except Exception as e:
         return 'Failure: {} @ {}'.format(e, path)
 
 

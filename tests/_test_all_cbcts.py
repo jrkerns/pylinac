@@ -334,3 +334,24 @@ class Elekta8(CBCTBankMixin, TestCase):
     unif_values = {'Center': -293, 'Left': -286, 'Right': -285, 'Top': -286, 'Bottom': -286}
     unif_passed = False
     mtf_values = {80: 0.42, 90: 0.42, 60: 0.7, 70: 0.51, 95: 0.25}
+
+
+class UNC100kV(CBCTBankMixin, TestCase):
+    file_path = ['UNC-Chapel Hill', '100kV_CBCT_Feb2016.zip']
+    slice_locations = {'HU': 131, 'UN': 58, 'SR': 111, 'LC': 111}
+    hu_values = {'Poly': -112, 'Acrylic': 40.2, 'Delrin': 245, 'Air': -973, 'Teflon': 848, 'PMP': -239, 'LDPE': -168}
+    hu_passed = False
+    unif_values = {'Center': -45, 'Left': -72, 'Right': -73, 'Top': -71, 'Bottom': -61}
+    unif_passed = False
+    mtf_values = {80: 0.81, 90: 0.66, 60: 1.1, 70: 0.91, 95: 0.56}
+
+
+class UNC120kV(CBCTBankMixin, TestCase):
+    file_path = ['UNC-Chapel Hill', '120kV_CBCT_Feb2016.zip']
+    slice_locations = {'HU': 124, 'UN': 51, 'SR': 104, 'LC': 104}
+    hu_values = {'Poly': -281, 'Acrylic': -212, 'Delrin': -67, 'Air': -886, 'Teflon': 335, 'PMP': -365, 'LDPE': -298}
+    hu_passed = False
+    unif_values = {'Center': -223, 'Left': -236, 'Right': -238, 'Top': -239, 'Bottom': -232}
+    unif_passed = False
+    mtf_values = {80: 0.73, 90: 0.96, 60: 0.2, 70: 0.81, 95: 0.51}
+    thickness_passed = False

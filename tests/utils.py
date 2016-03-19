@@ -6,7 +6,7 @@ import os.path as osp
 import time
 from tempfile import TemporaryDirectory
 
-from pylinac.core.image import Image
+from pylinac.core import image
 
 DATA_BANK_DIR = osp.abspath(osp.join('..', '..', 'pylinac test files'))
 
@@ -111,7 +111,7 @@ class DataBankMixin:
     def file_should_be_processed(self, filepath):
         """Decision of whether file should be run. Returns boolean."""
         try:
-            Image.load(filepath)
+            image.load(filepath)
             return True
         except:
             return False

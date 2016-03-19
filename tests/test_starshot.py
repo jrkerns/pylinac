@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac.core.geometry import Point
-from pylinac.starshot import Starshot
+from pylinac import Starshot
 from tests.utils import save_file, LoadingTestBase, LocationMixin
 
 plt.close('all')

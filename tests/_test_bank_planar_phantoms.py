@@ -12,8 +12,8 @@ def process_phantom(phantom, path):
         phantom.analyze()
         phantom.plot_analyzed_image()
         plt.close('all')
-    except:
-        return 'Failure at {}'.format(path)
+    except Exception as e:
+        return 'Failure: {} @ {}'.format(e, path)
     else:
         return 'Success'
 

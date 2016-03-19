@@ -1,12 +1,11 @@
+import os.path as osp
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
-from pylinac.picketfence import PicketFence, osp, np, UP_DOWN, LEFT_RIGHT
-
+from pylinac.picketfence import PicketFence, UP_DOWN, LEFT_RIGHT
 from tests.utils import save_file, LoadingTestBase, LocationMixin
 
-plt.close('all')
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
 
 
@@ -35,6 +34,9 @@ class GeneralTests(TestCase):
     def test_bad_tolerance_values(self):
         self.assertRaises(ValueError, self.pf.analyze, 0.2, 0.3)
 
+    def test_demo(self):
+        PicketFence.run_demo()
+
 
 class TestPlottingSaving(TestCase):
 
@@ -42,6 +44,10 @@ class TestPlottingSaving(TestCase):
     def setUpClass(cls):
         cls.pf = PicketFence.from_demo_image()
         cls.pf.analyze()
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
 
     def test_plotting(self):
         self.pf.plot_analyzed_image()
@@ -62,10 +68,17 @@ class PFTestMixin(LocationMixin):
     abs_median_error = 0
     sag_adjustment = 0
     passes = True
+    log = None
+
+    @classmethod
+    def get_logfile(cls):
+        """Return the canonical path to the log file."""
+        if cls.log is not None:
+            return osp.join(cls.dir_location, *cls.log)
 
     @classmethod
     def setUpClass(cls):
-        cls.pf = PicketFence(cls.get_filename())
+        cls.pf = PicketFence(cls.get_filename(), log=cls.get_logfile())
         cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
 
     def test_passed(self):
@@ -86,16 +99,6 @@ class PFTestMixin(LocationMixin):
     def test_abs_median_error(self):
         self.assertAlmostEqual(self.pf.abs_median_error, self.abs_median_error, delta=0.05)
 
-    def test_all_orientations(self):
-        median_errors = []
-        for rotation in range(4):
-            self.pf.image.rot90()
-            self.pf.analyze(hdmlc=self.hdmlc, sag_adjustment=self.sag_adjustment)
-            median_errors.append(self.pf.abs_median_error)
-
-        for error in median_errors:
-            self.assertAlmostEqual(error, np.mean(median_errors), delta=0.1)
-
 
 class PFDemo(PFTestMixin, TestCase):
     """Tests specifically for the EPID demo image."""
@@ -106,9 +109,6 @@ class PFDemo(PFTestMixin, TestCase):
     @classmethod
     def get_filename(cls):
         return osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
-
-    def test_demo(self):
-        self.pf.run_demo()
 
     def test_demo_lower_tolerance(self):
         pf = PicketFence.from_demo_image()

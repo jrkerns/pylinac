@@ -221,3 +221,23 @@ class AS1200HDTranslated(PFBankMixin, TestCase):
     hdmlc = True
     max_error = 0.05
     abs_median_error = 0.02
+
+
+class ChicagoNoError(PFBankMixin, TestCase):
+    file_path = ['Chicago', 'PF no error.dcm']
+    log = ['Chicago', 'PF no error tlog.bin']
+    hdmlc = True
+    max_error = 0.9
+    abs_median_error = 0.2
+    passes = False
+    percent_passing = 87
+
+
+class ChicagoError(PFBankMixin, TestCase):
+    file_path = ['Chicago', 'PF point2mm error.dcm']
+    log = ['Chicago', 'PF point2mm tlog.bin']
+    hdmlc = True
+    max_error = 0.8
+    abs_median_error = 0.25
+    passes = False
+    percent_passing = 95

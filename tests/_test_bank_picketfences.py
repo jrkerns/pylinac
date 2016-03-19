@@ -10,16 +10,20 @@ def run_pf(path):
     try:
         mypf = PicketFence(path)
         mypf.analyze()
+        if mypf.max_error > 1.2:
+            raise Exception("Max MLC peak error > 1.2mm")
         return 'Success'
     except ValueError:
         try:
             mypf = PicketFence(path, filter=3)
             mypf.analyze()
+            if mypf.max_error > 1.2:
+                raise Exception("Max MLC peak error > 1.2mm")
             return 'Success'
-        except:
-            return 'Failure at {}'.format(path)
-    except:
-        return 'Failure at {}'.format(path)
+        except (ValueError,) as e:
+            return 'Failure: {} @ {}'.format(e, path)
+    except Exception as e:
+        return 'Failure: {} @ {}'.format(e, path)
 
 
 class PicketFenceTestBank(DataBankMixin, TestCase):

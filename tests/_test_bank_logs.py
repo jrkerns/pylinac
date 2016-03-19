@@ -10,8 +10,10 @@ def run_log(path):
     try:
         log = MachineLog(path)
         log.fluence.gamma.calc_map()
+        if log.fluence.gamma.pass_prcnt < 90:
+            raise Exception("Gamma pass % < 90")
         return 'Success'
-    except (ValueError,) as e:
+    except Exception as e:
         return 'Failure: {} @ {}'.format(e, path)
 
 

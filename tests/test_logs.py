@@ -213,7 +213,7 @@ class TestLogBase(LocationMixin):
 
     def test_treatment_type(self):
         """Test the treatment type."""
-        self.assertEqual(self.log.treatment_type, self.treatment_type)
+        self.assertEqual(self.treatment_type, self.log.treatment_type)
 
     def test_num_snapshots(self):
         """Test the number of snapshots in the log."""
@@ -233,7 +233,7 @@ class TestLogBase(LocationMixin):
 
     def test_fluence_gamma(self):
         """Test gamma results for fluences."""
-        self.assertAlmostEqual(self.log.fluence.gamma.avg_gamma, self.average_gamma, delta=0.01)
+        self.assertAlmostEqual(self.log.fluence.gamma.avg_gamma, self.average_gamma, delta=0.02)
         self.assertAlmostEqual(self.log.fluence.gamma.pass_prcnt, self.percent_pass_gamma, delta=0.1)
 
     def test_header(self):
@@ -290,8 +290,8 @@ class DynalogDemo(TestLogBase, TestCase):
     num_snapshots = 99
     average_rms = 0.037
     maximum_rms = 0.076
-    average_gamma = 0.019
-    percent_pass_gamma = 99.85
+    average_gamma = 0.47
+    percent_pass_gamma = 91
     version = 'B'
     tolerance = 102
     clinac_scale = 1
