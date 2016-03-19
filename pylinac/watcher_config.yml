@@ -27,7 +27,7 @@ logs:
   analysis:
     doseTA: 1
     distTA: 1
-    threshold: 10
+    threshold: 0.1
     resolution: 0.1
   failure:
     gamma: 95
