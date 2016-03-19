@@ -62,9 +62,7 @@ As usual, the module comes with demo files and methods:
     from pylinac import MachineLog
     MachineLog.run_dlog_demo()
 
-Which will output the following:
-
-.. code-block::
+Which will output the following::
 
     MLC log type: Dynalog
     Average RMS of all leaves: 0.074 cm
@@ -79,14 +77,9 @@ Which will output the following:
     from pylinac import MachineLog
     MachineLog.run_dlog_demo()
 
-The same can be done using the demo Trajectory log:
+The same can be done using the demo Trajectory log::
 
-.. code-block:: python
-
-    MachineLog.run_tlog_demo()
-
-.. code-block::
-
+    >>> MachineLog.run_tlog_demo()
     MLC log type: Trajectory log
     Average RMS of all leaves: 0.001 cm
     Max RMS error of all leaves: 0.002 cm
@@ -188,7 +181,7 @@ For Dynalogs the following header information is available:
 
 Let's explore the header of the demo trajectory log:
 
-.. code_block:: python
+.. code-block:: python
 
     >>> tlog = MachineLog.from_demo_trajectorylog()
     >>> tlog.header.header
@@ -262,7 +255,7 @@ Dynalogs have similar attributes, derived from the :class:`~pylinac.log_analyzer
 
 Let's access a few axis data attributes:
 
-.. code_block:: python
+.. code-block:: python
 
     >>> log = MachineLog.from_demo_dynalog()
     >>> log.axis_data.mu.actual  # a numpy array
@@ -362,7 +355,7 @@ Example of plotting the MU actual:
 
 Plot the Gantry difference:
 
-.. code_block:: python
+.. code-block:: python
 
     log.axis_data.gantry.plot_difference()
 
