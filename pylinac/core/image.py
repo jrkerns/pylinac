@@ -25,7 +25,7 @@ IMAGE = 'Image'
 MM_PER_INCH = 25.4
 
 
-def equate_log_fluence_and_epid(fluence_img, epid_img):
+def equate_images(image1, image2):
     """Crop and resize two images to make them:
       * The same pixel dimensions
       * The same DPI
@@ -36,10 +36,10 @@ def equate_log_fluence_and_epid(fluence_img, epid_img):
 
     Parameters
     ----------
-    fluence_img : {`~pylinac.core.image.ArrayImage`, `~pylinac.core.image.DicomImage`, `~pylinac.core.image.FileImage`}
-        The log fluence image. Must have DPI and SID.
-    epid_img : {`~pylinac.core.image.ArrayImage`, `~pylinac.core.image.DicomImage`, `~pylinac.core.image.FileImage`}
-        The EPID image. Must have DPI and SID.
+    image1 : {`~pylinac.core.image.ArrayImage`, `~pylinac.core.image.DicomImage`, `~pylinac.core.image.FileImage`}
+        Must have DPI and SID.
+    image2 : {`~pylinac.core.image.ArrayImage`, `~pylinac.core.image.DicomImage`, `~pylinac.core.image.FileImage`}
+        Must have DPI and SID.
 
     Returns
     -------
@@ -47,33 +47,33 @@ def equate_log_fluence_and_epid(fluence_img, epid_img):
     epid_img : `~pylinac.core.image.ArrayImage`
         The returns are new instances of Images.
     """
-    fluence_img = copy.deepcopy(fluence_img)
-    epid_img = copy.deepcopy(epid_img)
+    image1 = copy.deepcopy(image1)
+    image2 = copy.deepcopy(image2)
     # crop images to be the same physical size
     # ...crop height
-    physical_height_diff = fluence_img.physical_shape[0] - epid_img.physical_shape[0]
+    physical_height_diff = image1.physical_shape[0] - image2.physical_shape[0]
     if physical_height_diff < 0:
-        pixel_height_diff = int(round(-physical_height_diff * epid_img.dpmm / 2))
-        epid_img.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
+        pixel_height_diff = int(round(-physical_height_diff * image2.dpmm / 2))
+        image2.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
     else:
-        pixel_height_diff = int(round(-physical_height_diff * fluence_img.dpmm / 2))
-        fluence_img.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
+        pixel_height_diff = int(round(-physical_height_diff * image1.dpmm / 2))
+        image1.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
 
     # ...crop width
-    physical_width_diff = fluence_img.physical_shape[1] - epid_img.physical_shape[1]
+    physical_width_diff = image1.physical_shape[1] - image2.physical_shape[1]
     if physical_width_diff > 0:
-        pixel_width_diff = int(round(physical_width_diff * fluence_img.dpmm / 2))
-        fluence_img.remove_edges(pixel_width_diff, edges=('left', 'right'))
+        pixel_width_diff = int(round(physical_width_diff * image1.dpmm / 2))
+        image1.remove_edges(pixel_width_diff, edges=('left', 'right'))
     else:
-        pixel_width_diff = int(round(physical_width_diff * epid_img.dpmm / 2))
-        epid_img.remove_edges(pixel_width_diff, edges=('left', 'right'))
+        pixel_width_diff = int(round(physical_width_diff * image2.dpmm / 2))
+        image2.remove_edges(pixel_width_diff, edges=('left', 'right'))
 
     # resize EPID array to normalize pixel dimensions to those of the log
-    zoom_factor = fluence_img.shape[1] / epid_img.shape[1]
-    epid_array = ndimage.interpolation.zoom(epid_img, zoom_factor)
-    epid_array_img = load(epid_array, dpi=epid_img.dpi * zoom_factor)
+    zoom_factor = image1.shape[1] / image2.shape[1]
+    image2_array = ndimage.interpolation.zoom(image2, zoom_factor)
+    image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
 
-    return fluence_img, epid_array_img
+    return image1, image2
 
 
 def is_image(path):

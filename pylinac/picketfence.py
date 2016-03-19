@@ -222,7 +222,7 @@ class PicketFence:
         fli = image.load(fl, dpi=254)  # 254 pix/in => 1 pix/0.1mm (default fluence calc)
 
         # equate them such that they're the same size & DPI
-        fluence_img, self.image = image.equate_log_fluence_and_epid(fluence_img=fli, epid_img=self.image)
+        fluence_img, self.image = image.equate_images(fli, self.image)
 
         # get picket fits from the modified fluence image
         pf = PicketFence.from_demo_image()
