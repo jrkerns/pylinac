@@ -2,8 +2,8 @@
 but accesses the larger, private test data."""
 import os.path as osp
 
-from tests._test_all import run
+from tests import run_tests
 
 
 test_dir = osp.dirname(__file__)
-run(test_dir, pattern='_test_all_*.py')
+run_tests(test_dir, pattern='_test_all_*.py')
