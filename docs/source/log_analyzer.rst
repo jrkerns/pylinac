@@ -55,12 +55,16 @@ few concepts that should be grasped before diving in.
 Running the Demo
 ----------------
 
-As usual, the module comes with demo files and methods::
+As usual, the module comes with demo files and methods:
 
-    >>> from pylinac import MachineLog
-    >>> MachineLog.run_dlog_demo()
+.. code-block:: python
 
-Which will output the following::
+    from pylinac import MachineLog
+    MachineLog.run_dlog_demo()
+
+Which will output the following:
+
+.. code-block::
 
     MLC log type: Dynalog
     Average RMS of all leaves: 0.074 cm
@@ -75,9 +79,14 @@ Which will output the following::
     from pylinac import MachineLog
     MachineLog.run_dlog_demo()
 
-The same can be done using the demo Trajectory log::
+The same can be done using the demo Trajectory log:
 
-    >>> MachineLog.run_tlog_demo()
+.. code-block:: python
+
+    MachineLog.run_tlog_demo()
+
+.. code-block::
+
     MLC log type: Trajectory log
     Average RMS of all leaves: 0.001 cm
     Max RMS error of all leaves: 0.002 cm
@@ -94,25 +103,33 @@ The same can be done using the demo Trajectory log::
 Loading Data
 ------------
 
-Logs are loaded upon class initialization::
+Logs are loaded upon class initialization:
+
+.. code-block:: python
 
     from pylinac import MachineLog
 
     log_path = "C:/path/to/tlog.bin"
     log = MachineLog(log_path)
 
-Or load from a URL::
+Or load from a URL:
+
+.. code-block:: python
 
     log = MachineLog.from_url('http://myserver.com/logs/1.dlg')
 
-When dealing with multiple logs, use :class:`~pylinac.log_analyzer.MachineLogs`::
+When dealing with multiple logs, use :class:`~pylinac.log_analyzer.MachineLogs`:
+
+.. code-block:: python
 
     from pylinac import MachineLogs  # note the `s`
 
     log_folder = "path/to/folder"
     logs = MachineLogs(log_folder)
 
-Or load from a ZIP archive::
+Or load from a ZIP archive:
+
+.. code-block:: python
 
     logs = MachineLogs.from_zip('path/to/logs.zip')
 
@@ -169,7 +186,9 @@ For Dynalogs the following header information is available:
 
 .. rubric:: Example
 
-Let's explore the header of the demo trajectory log::
+Let's explore the header of the demo trajectory log:
+
+.. code_block:: python
 
     >>> tlog = MachineLog.from_demo_trajectorylog()
     >>> tlog.header.header
@@ -241,7 +260,9 @@ Dynalogs have similar attributes, derived from the :class:`~pylinac.log_analyzer
 
 .. rubric:: Example
 
-Let's access a few axis data attributes::
+Let's access a few axis data attributes:
+
+.. code_block:: python
 
     >>> log = MachineLog.from_demo_dynalog()
     >>> log.axis_data.mu.actual  # a numpy array
@@ -329,7 +350,9 @@ For each axis the "actual" array/plot is always available. Dynalogs only have ex
 Trajectory logs have the actual and expected values for all axes. Additionally, if an axis has actual and
 expected arrays, then the difference is also available.
 
-Example of plotting the MU actual::
+Example of plotting the MU actual:
+
+.. code-block:: python
 
     log = MachineLog.from_demo_trajectorylog()
     log.axis_data.mu.plot_actual()
@@ -337,7 +360,9 @@ Example of plotting the MU actual::
 .. raw:: html
     :file: images/logs/tlog_mu_actual.html
 
-Plot the Gantry difference::
+Plot the Gantry difference:
+
+.. code_block:: python
 
     log.axis_data.gantry.plot_difference()
 

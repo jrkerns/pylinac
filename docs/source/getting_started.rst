@@ -13,17 +13,23 @@ Each module also has its own demo to show off what it can do.
 Running a Demo
 --------------
 
-Let's get started by running a demo of the ``Starshot`` module. First, import the Starshot class::
+Let's get started by running a demo of the ``Starshot`` module. First, import the Starshot class:
+
+.. code-block:: python
 
     from pylinac import Starshot
 
 This class has all the capabilities of loading and analyzing a Starshot image. Let's 1) create an instance of that
-class and then 2) run its demonstration method::
+class and then 2) run its demonstration method:
+
+.. code-block:: python
 
     mystar = Starshot()
     mystar.run_demo()
 
-Running this should result in a printing of information to the console and an image showing the analyzed image, like so::
+Running this should result in a printing of information to the console and an image showing the analyzed image, like so:
+
+.. code-block::
 
     Result: PASS
 
@@ -44,19 +50,27 @@ Loading in Images/Data
 
 All modules have multiple ways of loading in your data. The best way to use a given module's main class is
 instantiating with the image/data file name. If you have something else (e.g. a URL or set of multiple images)
-you can use the class-based constructors that always start with ``from_``. Let's use the ``log_analyzer`` module to demonstrate::
+you can use the class-based constructors that always start with ``from_``. Let's use the ``log_analyzer`` module to demonstrate:
+
+.. code-block:: python
 
     from pylinac import MachineLog
 
-We can pass the path to the log, and this would be the standard way of constructing::
+We can pass the path to the log, and this would be the standard way of constructing:
+
+.. code-block:: python
 
     log = MachineLog(r"C:/John/QA/log.dlg")
 
-Perhaps the data is stored online somewhere. You can load in the data from a URL::
+Perhaps the data is stored online somewhere. You can load in the data from a URL:
+
+.. code-block:: python
 
     log = MachineLog.from_url('https://myserver.com/logs/log23.bin')
 
-If for any reason you don't have data and want to experiment, you can easily load in demo data::
+If for any reason you don't have data and want to experiment, you can easily load in demo data:
+
+.. code-block:: python
 
     tlog = MachineLog.from_demo_trajectorylog()
     dlog = MachineLog.from_demo_dynalog()

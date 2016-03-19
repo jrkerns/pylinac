@@ -226,7 +226,7 @@ The minimum needed to get going is to:
       # don't show the low contrast plot
       pp.plot_analyzed_image(low_contrast=False)
 
-    .. plot::
+  .. plot::
 
         from pylinac import PipsProQC3
         leeds = PipsProQC3.from_demo_image()

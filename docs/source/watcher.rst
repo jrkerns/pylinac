@@ -9,8 +9,8 @@ The directory watcher service allows one to "set it and forget it" and let pylin
 are moved to an appointed directory. Results can be emailed upon analysis.
 The service allows for configurable analysis settings and email settings.
 
-How to use
-----------
+Getting Started
+---------------
 
 .. note::
     To use the watcher service a few dependencies must be installed that are not required for normal pylinac usage;
@@ -42,9 +42,11 @@ Configuration
 
 The watcher service runs using default values for keywords and tolerance. These values are in a YAML
 configuration file. Pylinac comes with a default file and settings. You can make your own YAML config file
-and pass that into the service initialization call::
+and pass that into the service initialization call:
 
-    > pylinac watch "dir/to/watch" --config="my/config.yaml"
+.. code-block:: bash
+
+    $ pylinac watch "dir/to/watch" --config="my/config.yaml"
 
 The YAML configuration file is the way to change keywords, change analysis settings, and set up email service.
 You can use/copy the `pylinac default YAML <https://github.com/jrkerns/pylinac/blob/master/pylinac/watcher_config.yaml>`_

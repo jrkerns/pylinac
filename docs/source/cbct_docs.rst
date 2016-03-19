@@ -12,12 +12,16 @@ Overview
 Running the Demo
 ----------------
 
-To run the CBCT demo, create a script or start an interpreter and input::
+To run the CBCT demo, create a script or start an interpreter and input:
+
+.. code-block:: python
 
     from pylinac import CBCT
     CBCT.run_demo() # the demo is a Varian high quality head scan
 
-Results will be printed to the console and a figure showing the slices analyzed will pop up::
+Results will be printed to the console and a figure showing the slices analyzed will pop up:
+
+.. code-block::
 
     - CBCT QA Test -
     HU Regions: {'LDPE': -102.66666666666667, 'Acrylic': 117.33333333333333, 'Air': -998.66666666666663, 'Teflon': 998.66666666666663, 'Poly': -45.333333333333336, 'PMP': -200.0, 'Delrin': 342.33333333333331}
@@ -37,7 +41,9 @@ Results will be printed to the console and a figure showing the slices analyzed 
     from pylinac import CBCT
     CBCT.run_demo()
 
-As well, you can plot and save individual pieces of the analysis::
+As well, you can plot and save individual pieces of the analysis:
+
+.. code-block:: python
 
     cbct = CBCT.from_demo_images()
     cbct.analyze()
@@ -47,7 +53,9 @@ As well, you can plot and save individual pieces of the analysis::
 .. raw:: html
     :file: images/cbct_hu_lin.html
 
-Or::
+Or:
+
+.. code_block:: python
 
     cbct.plot_analyzed_subimage('rmtf')
 
@@ -58,34 +66,46 @@ Typical Use
 -----------
 
 CBCT analysis as done by this module closely follows what is specified in the CatPhan manuals, replacing the need for manual measurements.
-First, import the class::
+First, import the class:
+
+.. code-block:: python
 
     from pylinac import CBCT
 
 The minimum needed to get going is to:
 
 * **Load images** -- Loading the DICOM images into your CBCT object is done by passing the images in during construction.
-  The most direct way is to pass in the directory where the images are::
+  The most direct way is to pass in the directory where the images are:
+
+  .. code-block:: python
 
     cbct_folder = r"C:/QA Folder/CBCT/June monthly"
     mycbct = CBCT(cbct_folder)
 
-  or load a zip file of the images::
+  or load a zip file of the images:
+
+  .. code-block:: python
 
     zip_file = r"C:/QA Folder/CBCT/June monthly.zip"
     mycbct = CBCT.from_zip(zip_file)
 
-  You can also use the demo images provided::
+  You can also use the demo images provided:
+
+  .. code-block:: python
 
     mycbct = CBCT.from_demo_images()
 
 * **Analyze the images** -- Once the folder/images are loaded, tell CBCT to start analyzing the images. See the
-  Algorithm section for details and :meth:`~pylinac.cbct.CBCT.analyze`` for analysis options::
+  Algorithm section for details and :meth:`~pylinac.cbct.CBCT.analyze`` for analysis options:
+
+  .. code-block:: python
 
     mycbct.analyze()
 
 * **View the results** -- The CBCT module can print out the summary of results to the console as well as draw a matplotlib image to show where the
-  samples were taken and their values::
+  samples were taken and their values:
+
+  .. code-block:: python
 
       # print results to the console
       print(mycbct.return_results())

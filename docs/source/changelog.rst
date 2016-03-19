@@ -26,6 +26,8 @@ General Changes
 
        $ pylinac anonymize "path/to/log/dir"
 
+  This script is a simple wrapper for the log analyzer's `anonymize <http://pylinac.readthedocs.org/en/stable/log_analyzer.html#pylinac.log_analyzer.anonymize>`_ function.
+
 * Pylinac is now on `anaconda.org <https://anaconda.org/jrkerns/pylinac>`_ -- i.e. you can install via ``conda`` and forget about dependency & installation issues.
   This is the recommended way to install pylinac now. To install, add the proper channel to the conda configuration settings.
 
@@ -40,6 +42,14 @@ General Changes
         $ conda install pylinac
 
   The advantage of saving the channel is that upgrading or installing in other environments is always as easy as ``conda install pylinac``.
+* Pylinac's core modules (``image``, ``io``, etc) are now available via the root package level.
+
+  .. code-block:: python
+
+        # old way
+        from pylinac.core import image
+        # new way
+        from pylinac import image
 
 Starshot
 ^^^^^^^^
@@ -54,7 +64,9 @@ Log Analyzer
 
 * The `anonymize <http://pylinac.readthedocs.org/en/stable/log_analyzer.html#pylinac.log_analyzer.anonymize>`_ function received
   an optimization that boosted anonymization speed by ~3x for Trajectory logs and ~2x for Dynalogs. This function is *very* fast.
-* Trajectory log subbeam fluences are now available. This works the same way as for the entire log::
+* Trajectory log subbeam fluences are now available. This works the same way as for the entire log:
+
+  .. code-block:: python
 
     log = MachineLog.from_demo_dynalog()
     # calculate & view total actual fluence
@@ -63,6 +75,27 @@ Log Analyzer
     # calculate & view the fluence from the first subbeam
     log.subbeams[0].fluence.actual.calc_map()
     log.subbeams[0].fluence.actual.plot_map()
+
+* The gamma calculation has been refactored to use the `image.gamma() <http://pylinac.readthedocs.org/en/stable/core_modules.html#pylinac.core.image.BaseImage.gamma>`_ method.
+  Because of this, all ``threshold`` parameters have been changed to fractions:
+
+  .. code-block:: python
+
+    log = MachineLog.from_demo_trajectorylog()
+    # old way
+    log.fluence.gamma.calc_map(threshold=10)  # <- this indicates 10% threshold
+    # new way
+    log.fluence.gamma.calc_map(threshold=0.1)  # <- this also indicates 10% threshold
+
+  The gamma threshold parameter requires the value to be between 0 and 1, so any explicit thresholds will raise an error that should be addressed.
+* The ``.pixel_map`` attribute of the actual, expected, and gamma fluence structures have been renamed to ``array`` since they are numpy arrays. This
+  attribute is not normally directly accessed so few users should be affected.
+
+Bug Fixes
+^^^^^^^^^
+
+* Fixed a bug that would not cause certain imaging machine logs (CBCT setup, kV setups) to be of the "Imaging" treatment type.
+
 
 V 1.4.1
 -------

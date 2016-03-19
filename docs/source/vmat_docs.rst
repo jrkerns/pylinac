@@ -17,7 +17,7 @@ To run the VMAT demo, create a script or start an interpreter session and input:
     from pylinac import VMAT
     VMAT.run_demo_drgs()
     # alternatively, you can run the MLC Speed demo by:
-    VMAT.run_demo_mlcs()
+    VMAT.run_demo_drmlc()
 
 Results will be printed to the console and a figure showing both the Open field and MLC field image will pop up::
 
@@ -26,7 +26,10 @@ Results will be printed to the console and a figure showing both the Open field 
     Max Deviation: 0.437%
     Absolute Mean Deviation: 0.382%
 
-.. image:: images/vmat_analyzed.png
+.. plot::
+
+    import pylinac
+    pylinac.VMAT.run_demo_drmlc()
 
 Image Acquisition
 -----------------
@@ -110,7 +113,10 @@ The minimum needed to get going is to:
       # view analyzed images
       myvmat.plot_analyzed_image()
 
-  .. image:: images/vmat_analyzed.png
+  .. plot::
+
+    import pylinac
+    pylinac.VMAT.run_demo_drmlc()
 
   The individual plots can also be plotted and saved::
 

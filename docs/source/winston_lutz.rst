@@ -32,7 +32,10 @@ Results will be printed to the console and a figure showing the zoomed-in images
     Couch 2D isocenter radius: 1.20mm
     Couch 2D iso->BB vector: Vector(x=-0.94, y=-0.35, z=0.00)
 
-.. image:: images/winston_lutz_demo.png
+.. plot::
+
+    import pylinac
+    pylinac.Winston_Lutz.run_demo()
 
 Image Acquisition
 -----------------
