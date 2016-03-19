@@ -19,9 +19,7 @@ To run the CBCT demo, create a script or start an interpreter and input:
     from pylinac import CBCT
     CBCT.run_demo() # the demo is a Varian high quality head scan
 
-Results will be printed to the console and a figure showing the slices analyzed will pop up:
-
-.. code-block::
+Results will be printed to the console and a figure showing the slices analyzed will pop up::
 
     - CBCT QA Test -
     HU Regions: {'LDPE': -102.66666666666667, 'Acrylic': 117.33333333333333, 'Air': -998.66666666666663, 'Teflon': 998.66666666666663, 'Poly': -45.333333333333336, 'PMP': -200.0, 'Delrin': 342.33333333333331}
@@ -55,7 +53,7 @@ As well, you can plot and save individual pieces of the analysis:
 
 Or:
 
-.. code_block:: python
+.. code-block:: python
 
     cbct.plot_analyzed_subimage('rmtf')
 

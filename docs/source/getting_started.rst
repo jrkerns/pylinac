@@ -27,9 +27,7 @@ class and then 2) run its demonstration method:
     mystar = Starshot()
     mystar.run_demo()
 
-Running this should result in a printing of information to the console and an image showing the analyzed image, like so:
-
-.. code-block::
+Running this should result in a printing of information to the console and an image showing the analyzed image, like so::
 
     Result: PASS
 
