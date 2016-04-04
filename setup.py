@@ -1,22 +1,13 @@
 from setuptools import setup, find_packages
 
-__version__ = '1.5.0'
+__version__ = '1.6.0'
 
 
 setup(
     name='pylinac',
     version=__version__,
     packages=find_packages(),
-    package_data={'pylinac':
-                      ['watcher_config.yml',
-                       'demo_files/cbct/*',
-                       'demo_files/log_reader/*',
-                       'demo_files/starshot/*',
-                       'demo_files/picket_fence/*',
-                       'demo_files/vmat/*',
-                       'demo_files/flatsym/*',
-                       'demo_files/winston_lutz/*',
-                       'demo_files/planar_imaging/*']}, # http://stackoverflow.com/questions/7522250/how-to-include-package-data-with-setuptools-distribute
+    package_data={'pylinac': ['watcher_config.yml']}, # http://stackoverflow.com/questions/7522250/how-to-include-package-data-with-setuptools-distribute
     zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
     keywords='medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog trajectory log',
@@ -28,7 +19,8 @@ setup(
                       "pydicom >= 0.9.9",
                       "matplotlib >= 1.3.1",
                       "scikit-image >= 0.11",
-                      "Pillow >= 2.5"],
+                      "Pillow >= 2.5",
+                      "tqdm"],
     extras_require={
         'console': ["click", "pyyaml", "watchdog", "yagmail"],
         'interactive': ["mpld3"]
@@ -49,6 +41,7 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
         "Topic :: Scientific/Engineering :: Image Recognition",
         "Topic :: Scientific/Engineering :: Physics",

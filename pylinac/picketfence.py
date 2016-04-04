@@ -26,7 +26,7 @@ from .core import image
 from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url
 from .core.profile import MultiProfile, SingleProfile
-from .core.utilities import import_mpld3
+from .core.utilities import import_mpld3, retrieve_demo_file
 
 # possible orientations of the pickets.
 UP_DOWN = 'Up-Down'
@@ -119,13 +119,13 @@ class PicketFence:
     @classmethod
     def from_url(cls, url, filter=None):
         """Instantiate from a URL."""
-        filename = get_url(url)
+        filename = get_url(url, progress_bar=True)
         return cls(filename, filter=filter)
 
     @classmethod
     def from_demo_image(cls, filter=None):
         """Construct a PicketFence instance using the demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
+        demo_file = retrieve_demo_file(url='EPID-PF-LR.dcm')
         return cls(demo_file, filter=filter)
 
     @classmethod
