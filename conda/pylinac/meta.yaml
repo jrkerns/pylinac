@@ -10,14 +10,14 @@ source:
    # List any patch files here
    # - fix.patch
 
-# build:
+build:
   # noarch_python: True
   # preserve_egg_dir: True
-  # entry_points:
+  entry_points:
     # Put any entry points (scripts to be generated automatically) here. The
     # syntax is module:function.  For example
     #
-    # - pylinac = pylinac:main
+    - pylinac = pylinac.scripts:cli
     #
     # Would create an entry point called pylinac that calls pylinac.main()
 
@@ -46,6 +46,7 @@ requirements:
     - matplotlib >=1.3.1
     - scikit-image >=0.11
     - pillow >=2.5
+    - dask
 
 #test:
   # Python imports

@@ -28,11 +28,12 @@ setup(
                       "pydicom >= 0.9.9",
                       "matplotlib >= 1.3.1",
                       "scikit-image >= 0.11",
-                      "Pillow >= 2.5"],
-    extras_require={
-        'console': ["click", "pyyaml", "watchdog", "yagmail"],
-        'interactive': ["mpld3"]
-    },
+                      "Pillow >= 2.5",
+                      "click",
+                      "pyyaml",
+                      "watchdog",
+                      "yagmail",
+                      "mpld3"],
     entry_points={
         'console_scripts':
             ['pylinac=pylinac.scripts:cli']
