@@ -25,7 +25,8 @@ setup(
                       "pyyaml",
                       "watchdog",
                       "yagmail",
-                      "mpld3"],
+                      "mpld3",
+                      "tqdm == 3.8",],
     entry_points={
         'console_scripts':
             ['pylinac=pylinac.scripts:cli']
