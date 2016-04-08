@@ -1,11 +1,12 @@
 package:
   name: pylinac
-  version: "1.5.0"
+  version: "1.5.3"
 
 source:
-  fn: pylinac-1.5.0.zip
-  url: https://pypi.python.org/packages/source/p/pylinac/pylinac-1.5.0.zip
-  md5: bcd4255c3792cc91576e78f012f30009
+  fn: pylinac-1.5.3.zip
+  url: https://pypi.python.org/packages/source/p/pylinac/pylinac-1.5.3.zip
+  md5: 891005e7d909336a181eaeb4eb62115c
+
 #  patches:
    # List any patch files here
    # - fix.patch
@@ -37,6 +38,7 @@ requirements:
     - scikit-image >=0.11
     - pillow >=2.5
     - dask  # completely unknown why this is needed, but it fails w/o it
+    - tqdm
 
   run:
     - python
@@ -47,6 +49,7 @@ requirements:
     - scikit-image >=0.11
     - pillow >=2.5
     - dask
+    - tqdm
 
 #test:
   # Python imports

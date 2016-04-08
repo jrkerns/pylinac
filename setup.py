@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = '1.5.1'
+__version__ = '1.5.3'
 
 
 setup(
@@ -21,12 +21,11 @@ setup(
                       "matplotlib >= 1.3.1",
                       "scikit-image >= 0.11",
                       "Pillow >= 2.5",
-                      "click",
-                      "pyyaml",
-                      "watchdog",
-                      "yagmail",
-                      "mpld3",
                       "tqdm == 3.8",],
+    extras_require={
+        'console': ["click", "pyyaml", "watchdog", "yagmail"],
+        'interactive': ["mpld3"]
+    },
     entry_points={
         'console_scripts':
             ['pylinac=pylinac.scripts:cli']
