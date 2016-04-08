@@ -31,6 +31,7 @@ from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle
 from .core.io import get_url, TemporaryZipDirectory
 from .core.profile import SingleProfile, CollapsedCircleProfile
+from .core.utilities import retrieve_demo_file
 
 
 class Starshot:
@@ -91,7 +92,7 @@ class Starshot:
     @classmethod
     def from_demo_image(cls):
         """Construct a Starshot instance and load the demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'starshot', 'starshot.tif')
+        demo_file = retrieve_demo_file(url='starshot.tif')
         return cls(demo_file, sid=1000)
 
     @classmethod

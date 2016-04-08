@@ -24,7 +24,7 @@ from .core.geometry import Point, Line, Circle, Vector, tan, cos, sin
 from .core.io import TemporaryZipDirectory, get_url
 from .core.mask import filled_area_ratio, bounding_box
 from .core.profile import SingleProfile
-from .core.utilities import is_close
+from .core.utilities import is_close, retrieve_demo_file
 
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'
@@ -70,9 +70,8 @@ class WinstonLutz:
     @classmethod
     def from_demo_images(cls):
         """Instantiate using the demo images."""
-        demo_path = osp.join(osp.dirname(osp.abspath(__file__)), 'demo_files', 'winston_lutz', 'winston_lutz.zip')
-        obj = cls.from_zip(demo_path)
-        return obj
+        demo_file = retrieve_demo_file(url='winston_lutz.zip')
+        return cls.from_zip(demo_file)
 
     @classmethod
     def from_zip(cls, zfile):

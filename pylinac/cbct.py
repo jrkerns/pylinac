@@ -29,7 +29,7 @@ from .core.io import get_url
 from .core.mask import filled_area_ratio
 from .core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
-from .core.utilities import simple_round, import_mpld3
+from .core.utilities import simple_round, import_mpld3, retrieve_demo_file
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -90,8 +90,8 @@ class CBCT:
     @classmethod
     def from_demo_images(cls):
         """Construct a CBCT object from the demo images."""
-        cbct_demo_zip = osp.join(osp.dirname(osp.abspath(__file__)), 'demo_files', 'cbct', 'High quality head.zip')
-        return cls.from_zip(cbct_demo_zip)
+        demo_file = retrieve_demo_file(url='High_quality_head.zip')
+        return cls.from_zip(demo_file)
 
     @classmethod
     def from_url(cls, url):

@@ -36,7 +36,7 @@ import numpy as np
 from .core import image
 from .core.decorators import type_accept, value_accept
 from .core.io import get_url, TemporaryZipDirectory
-from .core.utilities import is_iterable, import_mpld3
+from .core.utilities import is_iterable, import_mpld3, retrieve_demo_file
 
 np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
@@ -372,14 +372,15 @@ class MachineLog:
     @classmethod
     def from_demo_dynalog(cls, exclude_beam_off=True):
         """Load and instantiate from the demo dynalog file included with the package."""
-        dyn_file = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'AQA.dlg')
-        return cls(dyn_file, exclude_beam_off)
+        demo_file = retrieve_demo_file(url='AQA.dlg')
+        retrieve_demo_file(url='BQA.dlg')  # also download "B" dynalog
+        return cls(demo_file, exclude_beam_off)
 
     @classmethod
     def from_demo_trajectorylog(cls, exclude_beam_off=True):
         """Load and instantiate from the demo trajetory log file included with the package."""
-        filename = osp.join(osp.dirname(__file__), 'demo_files', 'log_reader', 'Tlog.bin')
-        return cls(filename, exclude_beam_off)
+        demo_file = retrieve_demo_file(url='Tlog.bin')
+        return cls(demo_file, exclude_beam_off)
 
     @classmethod
     def from_url(cls, url, exclude_beam_off=True):

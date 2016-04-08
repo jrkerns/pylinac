@@ -22,7 +22,7 @@ from .core.decorators import value_accept, type_accept
 from .core.geometry import Point, Rectangle
 from .core.io import get_url, TemporaryZipDirectory
 from .core.profile import SingleProfile
-from .core.utilities import typed_property, import_mpld3
+from .core.utilities import typed_property, import_mpld3, retrieve_demo_file
 
 # test types
 DRGS = 'drgs'
@@ -120,12 +120,12 @@ class VMAT:
         type : {'drgs', 'drmlc'}
             Test type of images to load.
         """
-        demo_folder = osp.join(osp.dirname(osp.abspath(__file__)), "demo_files", 'vmat')
         if type.lower() == DRMLC:
-            zip_file = osp.join(demo_folder, 'drmlc.zip')
+            url_type = 'drmlc.zip'
         else:
-            zip_file = osp.join(demo_folder, 'drgs.zip')
-        return cls.from_zip(zip_file)
+            url_type = 'drgs.zip'
+        demo_file = retrieve_demo_file(url=url_type)
+        return cls.from_zip(demo_file)
 
     @classmethod
     def from_zip(cls, path):

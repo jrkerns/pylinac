@@ -23,10 +23,10 @@ import numpy as np
 
 from pylinac import MachineLog
 from .core import image
-from .core.geometry import Line, Rectangle
+from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url
 from .core.profile import MultiProfile, SingleProfile
-from .core.utilities import import_mpld3
+from .core.utilities import import_mpld3, retrieve_demo_file
 
 # possible orientations of the pickets.
 UP_DOWN = 'Up-Down'
@@ -73,7 +73,7 @@ class PicketFence:
     Attributes
     ----------
     pickets: :class:`~pylinac.picketfence.PicketHandler`
-    image: :class:`~pylinac.core.image.Image`
+    image: :class:`~pylinac.core.image.DicomImage`
 
     Examples
     --------
@@ -119,13 +119,13 @@ class PicketFence:
     @classmethod
     def from_url(cls, url, filter=None):
         """Instantiate from a URL."""
-        filename = get_url(url)
+        filename = get_url(url, progress_bar=True)
         return cls(filename, filter=filter)
 
     @classmethod
     def from_demo_image(cls, filter=None):
         """Construct a PicketFence instance using the demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
+        demo_file = retrieve_demo_file(url='EPID-PF-LR.dcm')
         return cls(demo_file, filter=filter)
 
     @classmethod
@@ -187,29 +187,6 @@ class PicketFence:
     def num_pickets(self):
         """Return the number of pickets determined."""
         return len(self.pickets)
-
-    def _check_for_noise(self):
-        """Check if the image has extreme noise (dead pixel, etc) by comparing
-        min/max to 1/99 percentiles and smoothing if need be."""
-        safety_stop = 5
-        while self._has_noise() and safety_stop > 0:
-            self.image.filter(size=3)
-            safety_stop -= 1
-
-    def _has_noise(self):
-        """Helper method to determine if there is spurious signal in the image."""
-        min = self.image.array.min()
-        max = self.image.array.max()
-        near_min, near_max = np.percentile(self.image.array, [0.5, 99.5])
-        max_is_extreme = max > near_max * 1.25
-        min_is_extreme = (min < near_min * 0.75) and (abs(min - near_min) > 0.1 * (near_max - near_min))
-        return max_is_extreme or min_is_extreme
-
-    def _adjust_for_sag(self, sag):
-        """Roll the image to adjust for EPID sag."""
-        sag_pixels = int(round(sag * self.settings.dpmm))
-        direction = 'y' if self.orientation == UP_DOWN else 'x'
-        self.image.roll(direction, sag_pixels)
 
     def _load_log(self, log):
         """Load a machine log that corresponds to the picket fence delivery.
@@ -280,7 +257,7 @@ class PicketFence:
             self.image.adjust_for_sag(sag_pixels, self.orientation)
 
         """Analysis"""
-        self.pickets = PicketHandler(self.image, self.settings, num_pickets)
+        self.pickets = PicketManager(self.image, self.settings, num_pickets)
 
     def plot_analyzed_image(self, guard_rails=True, mlc_peaks=True, overlay=True, leaf_error_subplot=True, interactive=False, show=True):
         """Plot the analyzed image.
@@ -327,6 +304,9 @@ class PicketFence:
         if overlay:
             o = Overlay(self.image, self.settings, self.pickets)
             o.add_to_axes(ax)
+
+        # plot CAX
+        ax.plot(self.image.center.x, self.image.center.y, 'rx', ms=12, markeredgewidth=3)
 
         # tighten up the plot view
         ax.set_xlim([0, self.image.shape[1]])
@@ -410,11 +390,14 @@ class PicketFence:
     def return_results(self):
         """Return results of analysis. Use with print()."""
         pass_pct = self.percent_passing
+        offsets = ' '.join('{:.1f}'.format(pk.dist2cax) for pk in self.pickets)
         string = "Picket Fence Results: \n{:2.1f}% " \
                  "Passed\nMedian Error: {:2.3f}mm \n" \
-                 "Max Error: {:2.3f}mm on Picket: {}, Leaf: {}".format(pass_pct, self.abs_median_error, self.max_error,
-                                                                                                   self.max_error_picket,
-                                                                                                  self.max_error_leaf)
+                 "Mean picket spacing: {:2.1f}mm \n" \
+                 "Picket offsets from CAX (mm): {}\n" \
+                 "Max Error: {:2.3f}mm on Picket: {}, Leaf: {}".format(pass_pct, self.abs_median_error,
+                                                                       self.pickets.mean_spacing, offsets,
+                                                                       self.max_error, self.max_error_picket, self.max_error_leaf)
         return string
 
     @property
@@ -554,7 +537,7 @@ class Settings:
         return np.round(leaf_centers).astype(int)
 
 
-class PicketHandler:
+class PicketManager:
     """Finds and handles the pickets of the image."""
     def __init__(self, image, settings, num_pickets):
         self.pickets = []
@@ -614,6 +597,11 @@ class PicketHandler:
         else:
             leaf_prof = np.mean(self.image, 1)
         return MultiProfile(leaf_prof)
+
+    @property
+    def mean_spacing(self):
+        """The average distance between pickets in mm."""
+        return np.mean([self.pickets[idx].dist2cax - self.pickets[idx+1].dist2cax for idx in range(len(self)-1)])
 
 
 class Picket:
@@ -716,7 +704,7 @@ class Picket:
             raise AttributeError("No action tolerance was specified")
 
     @property
-    @lru_cache(maxsize=2)
+    @lru_cache(maxsize=1)
     def fit(self):
         """The fit of a polynomial to the MLC measurements."""
         if self.settings.log_fits is not None:
@@ -728,6 +716,23 @@ class Picket:
         else:
             fit = np.polyfit(y, x, 1)
         return np.poly1d(fit)
+
+    @property
+    def dist2cax(self):
+        """The distance from the CAX to the picket, in mm."""
+        center_fit = np.poly1d(self.fit)
+        if self.settings.orientation == UP_DOWN:
+            length = self.image.shape[0]
+        else:
+            length = self.image.shape[1]
+        x_data = np.arange(length)
+        y_data = center_fit(x_data)
+        p1 = Point(x_data[int(round(len(x_data)/2))], y_data[int(round(len(y_data)/2))])
+        if self.settings.orientation == UP_DOWN:
+            axis = 'x'
+        else:
+            axis = 'y'
+        return (getattr(self.image.center, axis) - getattr(p1, axis)) * self.settings.mmpd
 
     @property
     def left_guard(self):

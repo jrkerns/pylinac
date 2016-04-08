@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import feature, measure
 
+from pylinac.core.utilities import retrieve_demo_file
 from .core import image
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
 from .core.geometry import Point
@@ -40,7 +41,7 @@ class ImagePhantomBase:
     @classmethod
     def from_demo_image(cls):
         """Instantiate and load the demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'planar_imaging', cls._demo_filename)
+        demo_file = retrieve_demo_file(url=cls._demo_filename)
         return cls(demo_file)
 
     @classmethod

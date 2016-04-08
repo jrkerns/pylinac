@@ -1,8 +1,12 @@
 """Utility functions for pylinac."""
-import decimal
 from collections import Iterable
+import decimal
+import os
+import os.path as osp
 
 import numpy as np
+
+from .io import get_url
 
 
 def is_close(val, target, delta=1):
@@ -84,10 +88,7 @@ def is_dicom(file):
     fp = open(file, 'rb')
     preamble = fp.read(0x80)
     prefix = fp.read(4)
-    if prefix == b"DICM":
-        return True
-    else:
-        return False
+    return prefix == b"DICM"
 
 
 def isnumeric(object):
@@ -97,7 +98,26 @@ def isnumeric(object):
 
 def is_iterable(object):
     """Determine if an object is iterable."""
-    if isinstance(object, Iterable):
-        return True
-    else:
-        return False
+    return isinstance(object, Iterable)
+
+
+def retrieve_demo_file(url):
+    """Retrieve the demo file either by getting it from file or from a URL.
+
+    If the file is already on disk it returns the file name. If the file isn't
+    on disk, get the file from the URL and put it at the expected demo file location
+    on disk for lazy loading next time.
+
+    Parameters
+    ----------
+    url : str
+        The suffix to the url (location within the S3 bucket) pointing to the demo file.
+    """
+    true_url = 'https://s3.amazonaws.com/pylinac/' + url
+    demo_file = osp.join(osp.dirname(osp.dirname(__file__)), 'demo_files', url)
+    if not osp.isfile(demo_file):
+        d = osp.dirname(demo_file)
+        if not osp.exists(d):
+            os.makedirs(d)
+        get_url(true_url, destination=demo_file)
+    return demo_file
