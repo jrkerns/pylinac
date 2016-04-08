@@ -2,6 +2,14 @@
 =========
 Changelog
 =========
+V 1.5.1
+-------
+
+General Changes
+^^^^^^^^^^^^^^^
+
+* Fixed conda entry points so that the user can use pylinac console scripts.
+* Moved demo images outside the package to save space. Files are downloaded when relevant methods are invoked.
 
 V 1.5.0
 -------

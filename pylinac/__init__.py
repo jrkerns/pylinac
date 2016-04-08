@@ -1,6 +1,6 @@
 
-__version__ = '1.5.0'
-__version_info__ = (1, 5, 0)
+__version__ = '1.5.1'
+__version_info__ = (1, 5, 1)
 
 import sys
 if sys.version_info[0] < 3:
