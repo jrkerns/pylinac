@@ -256,7 +256,7 @@ API Documentation
 
 Supporting Data Structures
 
-.. autoclass:: pylinac.picketfence.PicketHandler
+.. autoclass:: pylinac.picketfence.PicketManager
 
 .. autoclass:: pylinac.picketfence.Settings
 
