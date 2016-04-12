@@ -36,3 +36,4 @@ dependencies:
 - zlib=1.2.8=0
 - pip:
   - pydicom==0.9.9
+  - tqdm==3.8
