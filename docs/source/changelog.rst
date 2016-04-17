@@ -2,8 +2,15 @@
 =========
 Changelog
 =========
-V 1.5.1
+
+V 1.5.4
 -------
+
+* `(#64) <https://github.com/jrkerns/pylinac/issues/64>`_ - Fixed the Picket Fence offset from CAX value, which previously were all the same value.
+
+
+V 1.5.1-3
+---------
 
 General Changes
 ^^^^^^^^^^^^^^^
