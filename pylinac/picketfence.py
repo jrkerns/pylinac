@@ -727,7 +727,7 @@ class Picket:
             length = self.image.shape[1]
         x_data = np.arange(length)
         y_data = center_fit(x_data)
-        p1 = Point(x_data[int(round(len(x_data)/2))], y_data[int(round(len(y_data)/2))])
+        p1 = Point(y_data[int(round(len(x_data)/2))], x_data[int(round(len(y_data)/2))])
         if self.settings.orientation == UP_DOWN:
             axis = 'x'
         else:
