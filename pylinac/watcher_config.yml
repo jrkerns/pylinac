@@ -4,9 +4,11 @@
 # For each section's `analysis` group, the values correspond to the main class' `analyze()` keyword parameters.
 # The `failure` section is the criteria for sending "failure" emails
 # keywords are character sequences that must be in the file name to be considered of that analysis type
+
+
 general:
   file-suffix: _analysis  # the suffix added to the .png and .txt file created after analysis
-  avoid-keywords:  # keywords that cause a skip of analysis
+  avoid-keywords:  # keywords in a file name that cause a skip of analysis
     - .png
     - .txt
 
@@ -21,15 +23,15 @@ email:
   subject: Pylinac results  # subject line of the email
 
 logs:
-  keywords:
+  keywords:  # keywords needed in the file name to trigger analysis
     - .dlg
     - .bin
-  analysis:
+  analysis:  # analysis settings; see each module's analyze() method for parameter options
     doseTA: 1
     distTA: 1
     threshold: 0.1
     resolution: 0.1
-  failure:
+  failure:  # what constitutes a "failure" in analysis
     gamma: 95
     avg-rms: 0.05
     max-rms: 0.5
