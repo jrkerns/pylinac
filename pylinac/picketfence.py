@@ -306,7 +306,7 @@ class PicketFence:
             o.add_to_axes(ax)
 
         # plot CAX
-        ax.plot(self.image.center.x, self.image.center.y, 'rx', ms=12, markeredgewidth=3)
+        ax.plot(self.image.center.x, self.image.center.y, 'r+', ms=12, markeredgewidth=3)
 
         # tighten up the plot view
         ax.set_xlim([0, self.image.shape[1]])
@@ -727,11 +727,13 @@ class Picket:
             length = self.image.shape[1]
         x_data = np.arange(length)
         y_data = center_fit(x_data)
-        p1 = Point(y_data[int(round(len(x_data)/2))], x_data[int(round(len(y_data)/2))])
+        idx = int(round(len(x_data) / 2))
         if self.settings.orientation == UP_DOWN:
             axis = 'x'
+            p1 = Point(y_data[idx], x_data[idx])
         else:
             axis = 'y'
+            p1 = Point(x_data[idx], y_data[idx])
         return (getattr(self.image.center, axis) - getattr(p1, axis)) * self.settings.mmpd
 
     @property

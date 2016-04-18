@@ -13,7 +13,6 @@ class TestWLLoading(LoadingTestBase, TestCase):
     klass = WinstonLutz
     demo_method = 'from_demo_images'
     url = 'winston_lutz.zip'
-    zip = osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'winston_lutz', 'winston_lutz.zip')
 
 
 class GeneralTests(TestCase):

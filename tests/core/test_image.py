@@ -14,7 +14,7 @@ test_dir = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files')
 tif_path = osp.join(test_dir, 'Starshot', 'Starshot#1.tif')
 png_path = osp.join(test_dir, 'Starshot', 'Starshot#1.png')
 dcm_path = osp.join(test_dir, 'VMAT', 'DRGSdmlc-105-example.dcm')
-dcm_url = 'https://github.com/jrkerns/pylinac/blob/master/pylinac/demo_files/picket_fence/EPID-PF-LR.dcm?raw=true'
+dcm_url = 'https://s3.amazonaws.com/pylinac/EPID-PF-LR.dcm'
 
 
 class TestLoaders(TestCase):

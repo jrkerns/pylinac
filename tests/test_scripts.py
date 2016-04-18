@@ -21,7 +21,7 @@ class WatcherTest(unittest.TestCase):
         osp.join(TEST_FILES_DIR, 'VMAT', 'DRMLC.zip'),
         osp.join(TEST_FILES_DIR, 'CBCT', 'Varian', 'CBCT_4.zip'),
         osp.join(TEST_FILES_DIR, 'MLC logs', 'tlogs', 'Anonymous_4DC Treatment_JS0_TX_20140712095629.bin'),
-        osp.join(PYLINAC_DIR, 'demo_files', 'winston_lutz', 'winston_lutz.zip'),
+        osp.join(TEST_FILES_DIR, 'Winston-Lutz', 'lutz.zip'),
         osp.join(TEST_FILES_DIR, 'Planar imaging', 'Leeds_ccw.dcm'),
         osp.join(TEST_FILES_DIR, 'Planar imaging', 'PIPSpro 2.5MV.dcm'),
     ]

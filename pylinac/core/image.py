@@ -146,7 +146,7 @@ def load(path, **kwargs):
         raise TypeError("The argument `{0}` was not found to be a valid DICOM file, Image file, or array".format(path))
 
 
-def load_url(url, **kwargs):
+def load_url(url, progress_bar=True, **kwargs):
     """Load an image from a URL.
 
     Parameters
@@ -155,8 +155,11 @@ def load_url(url, **kwargs):
         A string pointing to a valid URL that points to a file.
 
         .. note:: For some images (e.g. Github), the raw binary URL must be used, not simply the basic link.
+
+    progress_bar: bool
+        Whether to display a progress bar of download status.
     """
-    filename = get_url(url)
+    filename = get_url(url, progress_bar=progress_bar)
     return load(filename, **kwargs)
 
 

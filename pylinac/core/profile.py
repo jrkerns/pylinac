@@ -140,7 +140,7 @@ class SingleProfile(ProfileMixin):
         """
         Parameters
         ----------
-        values : array
+        values : ndarray
             The profile numpy array. Must be 1D.
         normalize_sides : bool, optional
             If True (default), each side of the profile will be grounded independently.

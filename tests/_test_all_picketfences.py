@@ -91,6 +91,7 @@ class AS500error(PFBankMixin, TestCase):
     max_error = 0.55
     abs_median_error = 0.07
     passes = False
+    mean_picket_spacing = 20
 
 
 class AS1000(PFBankMixin, TestCase):
@@ -184,6 +185,7 @@ class AS1200Error(PFBankMixin, TestCase):
     max_error = 0.48
     abs_median_error = 0.05
     sag_adjustment = -1.2
+    mean_picket_spacing = 20
 
 
 class AS1200ExtendedSID(PFBankMixin, TestCase):

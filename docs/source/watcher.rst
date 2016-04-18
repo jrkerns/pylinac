@@ -56,9 +56,6 @@ file as a starting template.
     Only .zip files are accepted for CBCT, VMAT, and Winston-Lutz analyses. The ZIP archive
     filename must contain a keyword.
 
-.. note::
-    Only .bin or .dlg files are acceptable for machine logs. There are no keywords for logs.
-
 Setting up Email
 ----------------
 

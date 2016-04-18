@@ -113,8 +113,8 @@ class Demo(StarMixin, TestCase):
     num_rad_lines = 4
 
     @classmethod
-    def get_filename(cls):
-        return osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'starshot', 'starshot.tif')
+    def construct_star(cls):
+        return Starshot.from_demo_image()
 
 
 class Multiples(StarMixin, TestCase):

@@ -32,14 +32,7 @@ install:
   - source activate test-environment
 
   # install deps
-  - pip install pydicom
-  - pip install coveralls
-  - pip install watchdog
-  - pip install requests
-  - pip install jinja2
-  - pip install mpld3
-  - pip install click
-  - pip install pyyaml
+  - pip install pydicom coveralls watchdog requests jinja2 mpld3 click pyyaml tqdm==3.8
 
   # install your own package into the environment
   - python setup.py install

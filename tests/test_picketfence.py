@@ -69,6 +69,7 @@ class PFTestMixin(LocationMixin):
     sag_adjustment = 0
     passes = True
     log = None
+    mean_picket_spacing = 15
 
     @classmethod
     def get_logfile(cls):
@@ -99,6 +100,9 @@ class PFTestMixin(LocationMixin):
     def test_abs_median_error(self):
         self.assertAlmostEqual(self.pf.abs_median_error, self.abs_median_error, delta=0.05)
 
+    def test_picket_spacing(self):
+        self.assertAlmostEqual(self.pf.pickets.mean_spacing, self.mean_picket_spacing, delta=0.5)
+
 
 class PFDemo(PFTestMixin, TestCase):
     """Tests specifically for the EPID demo image."""
@@ -107,8 +111,9 @@ class PFDemo(PFTestMixin, TestCase):
     abs_median_error = 0.06
 
     @classmethod
-    def get_filename(cls):
-        return osp.join(osp.dirname(osp.dirname(__file__)), 'pylinac', 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
+    def setUpClass(cls):
+        cls.pf = PicketFence.from_demo_image()
+        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
 
     def test_demo_lower_tolerance(self):
         pf = PicketFence.from_demo_image()
@@ -123,6 +128,7 @@ class MultipleImagesPF(PFTestMixin, TestCase):
     abs_median_error = 0.019
     picket_orientation = LEFT_RIGHT
     num_pickets = 5
+    mean_picket_spacing = 30
 
     @classmethod
     def setUpClass(cls):

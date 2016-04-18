@@ -7,7 +7,7 @@ import numpy as np
 from .core.decorators import type_accept
 from .core.image import Image
 from .core.profile import SingleProfile
-from .core.utilities import is_iterable, isnumeric
+from .core.utilities import is_iterable, isnumeric, retrieve_demo_file
 
 
 class _Symmetry:
@@ -46,7 +46,7 @@ class BeamImage:
 
     def load_demo_image(self):
         """Load the demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'flatsym', 'flatsym_demo.dcm')
+        demo_file = retrieve_demo_file(url='flatsym_demo.dcm')
         self.image = Image.load(demo_file)
 
     def _plot_image(self, ax, plane, position):

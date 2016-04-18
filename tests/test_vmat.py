@@ -152,8 +152,6 @@ class VMATMixin:
 
 class TestDRGSDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRGS demo images."""
-    filepaths = osp.join(DEMO_DIR, 'drgs.zip')
-    is_zip = True
     test_type = DRGS
     segment_positions = {0: Point(161, 192), 4: Point(314, 192)}
     segment_values = {
@@ -165,6 +163,10 @@ class TestDRGSDemo(VMATMixin, TestCase):
     max_r_deviation = 0.96
     x_offset = 20
 
+    def setUp(self):
+        self.vmat = VMAT.from_demo_images('drgs')
+        self.vmat.analyze(self.test_type, x_offset=self.x_offset)
+
     def test_demo(self):
         """Run the demo; no errors should arise."""
         self.vmat.run_demo_drgs()
@@ -172,8 +174,6 @@ class TestDRGSDemo(VMATMixin, TestCase):
 
 class TestDRMLCDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRMLC demo images."""
-    filepaths = osp.join(DEMO_DIR, 'drmlc.zip')
-    is_zip = True
     test_type = DRMLC
     segment_positions = {0: Point(170, 192), 2: Point(285, 192)}
     segment_values = {
@@ -183,6 +183,10 @@ class TestDRMLCDemo(VMATMixin, TestCase):
     avg_abs_r_deviation = 0.38
     avg_r_deviation = 0
     max_r_deviation = 0.44
+
+    def setUp(self):
+        self.vmat = VMAT.from_demo_images('drmlc')
+        self.vmat.analyze(self.test_type, x_offset=self.x_offset)
 
     def test_demo(self):
         self.vmat.run_demo_drmlc()
