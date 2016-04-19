@@ -1,11 +1,11 @@
 package:
   name: pylinac
-  version: "1.5.3"
+  version: "1.5.5"
 
 source:
-  fn: pylinac-1.5.3.zip
-  url: https://pypi.python.org/packages/source/p/pylinac/pylinac-1.5.3.zip
-  md5: 891005e7d909336a181eaeb4eb62115c
+  fn: pylinac-1.5.5.zip
+  url: https://pypi.python.org/packages/source/p/pylinac/pylinac-1.5.5.zip
+  md5: c602c9b6613bf0d522f0fd2421652321
 
 #  patches:
    # List any patch files here
@@ -48,7 +48,6 @@ requirements:
     - matplotlib >=1.3.1
     - scikit-image >=0.11
     - pillow >=2.5
-    - dask
     - tqdm
 
 #test:
