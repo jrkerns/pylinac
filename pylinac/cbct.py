@@ -326,7 +326,7 @@ class CBCT:
                   'Low Contrast ROIs visible: {}\n'
                   'Low Contrast Passed? {}\n'
                   'Slice Thickness (mm): {}\n'
-                  'Slice Thickeness Passed? {}\n').format(self.hu.get_ROI_vals(), self.hu.overall_passed,
+                  'Slice Thickness Passed? {}\n').format(self.hu.get_ROI_vals(), self.hu.overall_passed,
                                                    self.uniformity.get_ROI_vals(), self.uniformity.overall_passed, self.spatialres.mtf(80),
                                                    self.geometry.avg_line_length, self.geometry.overall_passed, self.lowcontrast.rois_visible,
                                                    self.lowcontrast.overall_passed, self.thickness.avg_slice_thickness,
