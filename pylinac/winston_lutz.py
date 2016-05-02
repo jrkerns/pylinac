@@ -364,6 +364,8 @@ class WLImage(image.DicomImage):
         """
         super().__init__(file)
         self.check_inversion()
+        # Flip the image upside down... makes it more intuitive later on.
+        self.flipud()
         self.field_cax, self.bounding_box = self._find_field_centroid()
         self.bb = self._find_bb()
 
@@ -481,29 +483,50 @@ class WLImage(image.DicomImage):
         """
         p1 = Point()
         p2 = Point()
-        UPPER_QUADRANT = self.gantry_angle <= 45 or self.gantry_angle >= 315 or 225 >= self.gantry_angle > 135
-        LR_QUADRANT = 45 < self.gantry_angle <= 135 or 225 < self.gantry_angle < 315
-        if UPPER_QUADRANT:
-            p1.y = 2
-            p2.y = -2
-            p1.z = self.z_offset
-            p2.z = self.z_offset
-            p1.x = 2 * tan(self.gantry_angle) + self.x_offset * cos(self.gantry_angle)
-            p2.x = - 2 * tan(self.gantry_angle) + self.x_offset * cos(self.gantry_angle)
-        elif LR_QUADRANT:
-            p1.x = 2
-            p2.x = -2
-            p1.z = self.z_offset
-            p2.z = self.z_offset
-            p1.y = 2 / tan(self.gantry_angle) + self.y_offset * cos(self.gantry_angle - 90)
-            p2.y = - 2 / tan(self.gantry_angle) + self.y_offset * cos(self.gantry_angle - 90)
+
+
+        p1.x = self.x_offset - 20*sin(self.gantry_angle)
+        p2.x = self.x_offset + 20*sin( self.gantry_angle)
+        p1.y =  self.y_offset - 20*cos(self.gantry_angle)
+        p2.y =  self.y_offset + 20*cos(self.gantry_angle)
+        p1.z = self.z_offset
+        p2.z = self.z_offset
+
+#        if UPPER_QUADRANT:
+#            p1.y = 2
+#            p2.y = -2
+#            p1.z = self.z_offset
+#            p2.z = self.z_offset
+#            p1.x = + 2 * tan(self.gantry_angle) + self.x_offset * cos(self.gantry_angle)
+#            p2.x = - 2 * tan(self.gantry_angle) + self.x_offset * cos(self.gantry_angle)
+#        elif RIGHT_QUADRANT:
+#            p1.x = 2
+#            p2.x = -2
+#            p1.z = self.z_offset
+#            p2.z = self.z_offset
+#            p1.y = 2 / tan(self.gantry_angle) + self.y_offset * cos(self.gantry_angle - 90)
+#            p2.y = - 2 / tan(self.gantry_angle) + self.y_offset * cos(self.gantry_angle - 90)
+#        elif LEFT_QUADRANT:
+#            p1.x = 2
+#            p2.x = -2
+#            p1.z = self.z_offset
+#            p2.z = self.z_offset
+#            p1.y = 2 / tan(self.gantry_angle) - self.y_offset * cos(self.gantry_angle - 90)
+#            p2.y = - 2 / tan(self.gantry_angle) - self.y_offset * cos(self.gantry_angle - 90)
+#        elif LOWER_QUADRANT:
+#            p1.y = 2
+#            p2.y = -2
+#            p1.z = self.z_offset
+#            p2.z = self.z_offset
+#            p1.x = + 2 * tan(self.gantry_angle) - self.x_offset * cos(self.gantry_angle)
+#            p2.x = - 2 * tan(self.gantry_angle) - self.x_offset * cos(self.gantry_angle)
         l = Line(p1, p2)
         return l
 
     @property
     def cax2bb_vector(self):
         """The vector in mm from the CAX to the BB."""
-        dist = (self.field_cax - self.bb) / self.dpmm
+        dist = ( self.bb - self.field_cax) / self.dpmm
         return Vector(dist.x, dist.y, dist.z)
 
     @property

@@ -347,7 +347,11 @@ class BaseImage:
             self.array = self.array[:, pixels:]
         if 'right' in edges:
             self.array = self.array[:, :-pixels]
-
+            
+    def flipud(self):
+        """ Flip the image array upside down in-place. Wrapper for np.flipud()"""
+        self.array = np.flipud(self.array)
+        
     def invert(self):
         """Invert (imcomplement) the image."""
         orig_array = self.array
