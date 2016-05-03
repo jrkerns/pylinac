@@ -366,6 +366,10 @@ class WLImage(image.DicomImage):
         self.check_inversion()
         # Flip the image upside down... makes it more intuitive later on.
         self.flipud()
+        # The first pixel line on the left has a glitch on Elekta iview EPID
+        # The field centroid could be affected by the iview artefact :
+        if self.metadata.Manufacturer == 'ELEKTA' :
+            self.array = self.array[:,1:]
         self.field_cax, self.bounding_box = self._find_field_centroid()
         self.bb = self._find_bb()
 
