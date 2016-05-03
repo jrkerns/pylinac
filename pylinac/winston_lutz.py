@@ -137,7 +137,7 @@ class WinstonLutz:
     def gantry_iso2bb_vector(self):
         """The 3D vector from the isocenter to the BB (located at the origin)."""
         min_fun = self._minimize_axis(GANTRY)
-        return Vector(min_fun.x[0], min_fun.x[1], min_fun.x[2])
+        return Vector(-1*min_fun.x[0], -1*min_fun.x[1], -1*min_fun.x[2])
 
     @property
     def collimator_iso_size(self):
@@ -487,13 +487,13 @@ class WLImage(image.DicomImage):
         """
         p1 = Point()
         p2 = Point()
-        p1.x = self.x_offset - 20*sin(self.gantry_angle)
-        p2.x = self.x_offset + 20*sin( self.gantry_angle)
-        p1.y =  self.y_offset - 20*cos(self.gantry_angle)
-        p2.y =  self.y_offset + 20*cos(self.gantry_angle)
-        p1.z = self.z_offset
-        p2.z = self.z_offset
-        l = Line(p1, p2)
+        p1.x = -1*self.x_offset - 20*sin(self.gantry_angle)
+        p2.x = -1*self.x_offset + 20*sin( self.gantry_angle)
+        p1.y =  -1*self.y_offset - 20*cos(self.gantry_angle)
+        p2.y =  -1*self.y_offset + 20*cos(self.gantry_angle)
+        p1.z = -1*self.z_offset
+        p2.z = -1*self.z_offset
+        l = Line( p1, p2)
         return l
 
     @property
