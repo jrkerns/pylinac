@@ -458,7 +458,7 @@ class WLImage(image.DicomImage):
     @property
     def y_offset(self):
         """The offset or distance between the field CAX and BB in the y-direction (AP)."""
-        return sin(self.gantry_angle) * self.cax2bb_vector.x
+        return -sin(self.gantry_angle) * self.cax2bb_vector.x
 
     @property
     def x_offset(self):
