@@ -20,7 +20,7 @@ import numpy as np
 from scipy import ndimage, optimize
 
 from .core import image
-from .core.geometry import Point, Line, Circle, Vector, tan, cos, sin
+from .core.geometry import Point, Line, Circle, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url
 from .core.mask import filled_area_ratio, bounding_box
 from .core.profile import SingleProfile
@@ -120,11 +120,12 @@ class WinstonLutz:
         else:
             attr = 'cax2bb_vector'
 
-        bounds = [(-20, 20), (-20, 20), (-20, 20), (0, 5)]
         things = [getattr(image, attr) for image in self.images if image.variable_axis in (axis, REFERENCE)]
         if len(things) <= 1:
             raise ValueError("Not enough images of the given type to identify the axis isocenter")
-        result = optimize.minimize(distance, np.array([0, 0, 0, 0]), args=things, bounds=bounds)
+        bounds = [(-30, 30), (-30, 30), (-30, 30), (0, 28)]  # search bounds for the optimization
+        initial_guess = np.array([0, 0, 0, 0])
+        result = optimize.minimize(distance, initial_guess, args=things, bounds=bounds)
         return result
 
     @property
@@ -137,7 +138,8 @@ class WinstonLutz:
     def gantry_iso2bb_vector(self):
         """The 3D vector from the isocenter to the BB (located at the origin)."""
         min_fun = self._minimize_axis(GANTRY)
-        return Vector(-1*min_fun.x[0], -1*min_fun.x[1], -1*min_fun.x[2])
+        # optimization result goes from origin TO the iso, thus to go from iso to bb (origin), invert sign
+        return Vector(min_fun.x[0], min_fun.x[1], min_fun.x[2])
 
     @property
     def collimator_iso_size(self):
@@ -350,6 +352,8 @@ class ImageManager(list):
         for file in image_files:
             img = WLImage(file)
             self.append(img)
+        # reorder list based on increasing gantry angle
+        self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
 
 
 class WLImage(image.DicomImage):
@@ -364,17 +368,36 @@ class WLImage(image.DicomImage):
         """
         super().__init__(file)
         self.check_inversion()
-        # Flip the image upside down... makes it more intuitive later on.
         self.flipud()
-        # The first pixel line on the left has a glitch on Elekta iview EPID
-        # The field centroid could be affected by the iview artefact :
-        if self.metadata.Manufacturer == 'ELEKTA' :
-            self.array = self.array[:,1:]
+        self._clean_edges()
         self.field_cax, self.bounding_box = self._find_field_centroid()
         self.bb = self._find_bb()
 
     def __repr__(self):
         return "WLImage(G={0:.1f}, B={1:.1f}, P={2:.1f})".format(self.gantry_angle, self.collimator_angle, self.couch_angle)
+
+    def _clean_edges(self, window_size=2):
+        """Clean the edges of the image to be near the background level."""
+        def has_noise(self, window_size):
+            """Helper method to determine if there is spurious signal at any of the image edges.
+
+            Determines if the min or max of an edge is within 10% of the baseline value and trims if not.
+            """
+            near_min, near_max = np.percentile(self.array, [5, 99.5])
+            img_range = near_max - near_min
+            top = self[:window_size, :]
+            left = self[:, :window_size]
+            bottom = self[-window_size:, :]
+            right = self[:, -window_size:]
+            edge_array = np.concatenate((top.flatten(), left.flatten(), bottom.flatten(), right.flatten()))
+            edge_too_low = edge_array.min() < (near_min - img_range / 10)
+            edge_too_high = edge_array.max() > (near_max + img_range / 10)
+            return edge_too_low or edge_too_high
+
+        safety_stop = np.min(self.shape)/10
+        while has_noise(self, window_size) and safety_stop > 0:
+            self.remove_edges(window_size)
+            safety_stop -= 1
 
     def _find_field_centroid(self):
         """Find the centroid of the radiation field based on a 50% height threshold.
@@ -447,17 +470,26 @@ class WLImage(image.DicomImage):
     @property
     def gantry_angle(self):
         """Gantry angle of the irradiation."""
-        return self.metadata.GantryAngle
+        if is_close(self.metadata.GantryAngle, [0, 360], delta=1):
+            return 0
+        else:
+            return self.metadata.GantryAngle
 
     @property
     def collimator_angle(self):
         """Collimator angle of the irradiation."""
-        return self.metadata.BeamLimitingDeviceAngle
+        if is_close(self.metadata.BeamLimitingDeviceAngle, [0, 360], delta=1):
+            return 0
+        else:
+            return self.metadata.BeamLimitingDeviceAngle
 
     @property
     def couch_angle(self):
         """Couch angle of the irradiation."""
-        return self.metadata.PatientSupportAngle
+        if is_close(self.metadata.PatientSupportAngle, [0, 360], delta=1):
+            return 0
+        else:
+            return self.metadata.PatientSupportAngle
 
     @property
     def y_offset(self):
@@ -473,7 +505,7 @@ class WLImage(image.DicomImage):
     def z_offset(self):
         """The offset or distance between the field CAX and BB in z-direction (SI)."""
         if is_close(self.couch_angle, [0, 360], delta=2):
-            return self.cax2bb_vector.y
+            return -self.cax2bb_vector.y
 
     @property
     def cax_line_projection(self):
@@ -487,19 +519,21 @@ class WLImage(image.DicomImage):
         """
         p1 = Point()
         p2 = Point()
-        p1.x = -1*self.x_offset - 20*sin(self.gantry_angle)
-        p2.x = -1*self.x_offset + 20*sin( self.gantry_angle)
-        p1.y =  -1*self.y_offset - 20*cos(self.gantry_angle)
-        p2.y =  -1*self.y_offset + 20*cos(self.gantry_angle)
-        p1.z = -1*self.z_offset
-        p2.z = -1*self.z_offset
-        l = Line( p1, p2)
+        # point 1 - ray origin
+        p1.x = self.x_offset + 20 * sin(self.gantry_angle)
+        p1.y = self.y_offset + 20 * cos(self.gantry_angle)
+        p1.z = self.z_offset
+        # point 2 - ray destination
+        p2.x = self.x_offset - 20 * sin(self.gantry_angle)
+        p2.y = self.y_offset - 20 * cos(self.gantry_angle)
+        p2.z = self.z_offset
+        l = Line(p1, p2)
         return l
 
     @property
     def cax2bb_vector(self):
         """The vector in mm from the CAX to the BB."""
-        dist = ( self.bb - self.field_cax) / self.dpmm
+        dist = (self.bb - self.field_cax) / self.dpmm
         return Vector(dist.x, dist.y, dist.z)
 
     @property
