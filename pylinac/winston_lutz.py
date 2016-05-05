@@ -137,7 +137,7 @@ class WinstonLutz:
     def gantry_iso2bb_vector(self):
         """The 3D vector from the isocenter to the BB (located at the origin)."""
         min_fun = self._minimize_axis(GANTRY)
-        return Vector(min_fun.x[0], min_fun.x[1], min_fun.x[2])
+        return Vector(-1*min_fun.x[0], -1*min_fun.x[1], -1*min_fun.x[2])
 
     @property
     def collimator_iso_size(self):
@@ -364,6 +364,12 @@ class WLImage(image.DicomImage):
         """
         super().__init__(file)
         self.check_inversion()
+        # Flip the image upside down... makes it more intuitive later on.
+        self.flipud()
+        # The first pixel line on the left has a glitch on Elekta iview EPID
+        # The field centroid could be affected by the iview artefact :
+        if self.metadata.Manufacturer == 'ELEKTA' :
+            self.array = self.array[:,1:]
         self.field_cax, self.bounding_box = self._find_field_centroid()
         self.bb = self._find_bb()
 
@@ -456,7 +462,7 @@ class WLImage(image.DicomImage):
     @property
     def y_offset(self):
         """The offset or distance between the field CAX and BB in the y-direction (AP)."""
-        return sin(self.gantry_angle) * self.cax2bb_vector.x
+        return -sin(self.gantry_angle) * self.cax2bb_vector.x
 
     @property
     def x_offset(self):
@@ -481,29 +487,19 @@ class WLImage(image.DicomImage):
         """
         p1 = Point()
         p2 = Point()
-        UPPER_QUADRANT = self.gantry_angle <= 45 or self.gantry_angle >= 315 or 225 >= self.gantry_angle > 135
-        LR_QUADRANT = 45 < self.gantry_angle <= 135 or 225 < self.gantry_angle < 315
-        if UPPER_QUADRANT:
-            p1.y = 2
-            p2.y = -2
-            p1.z = self.z_offset
-            p2.z = self.z_offset
-            p1.x = 2 * tan(self.gantry_angle) + self.x_offset * cos(self.gantry_angle)
-            p2.x = - 2 * tan(self.gantry_angle) + self.x_offset * cos(self.gantry_angle)
-        elif LR_QUADRANT:
-            p1.x = 2
-            p2.x = -2
-            p1.z = self.z_offset
-            p2.z = self.z_offset
-            p1.y = 2 / tan(self.gantry_angle) + self.y_offset * cos(self.gantry_angle - 90)
-            p2.y = - 2 / tan(self.gantry_angle) + self.y_offset * cos(self.gantry_angle - 90)
-        l = Line(p1, p2)
+        p1.x = -1*self.x_offset - 20*sin(self.gantry_angle)
+        p2.x = -1*self.x_offset + 20*sin( self.gantry_angle)
+        p1.y =  -1*self.y_offset - 20*cos(self.gantry_angle)
+        p2.y =  -1*self.y_offset + 20*cos(self.gantry_angle)
+        p1.z = -1*self.z_offset
+        p2.z = -1*self.z_offset
+        l = Line( p1, p2)
         return l
 
     @property
     def cax2bb_vector(self):
         """The vector in mm from the CAX to the BB."""
-        dist = (self.field_cax - self.bb) / self.dpmm
+        dist = ( self.bb - self.field_cax) / self.dpmm
         return Vector(dist.x, dist.y, dist.z)
 
     @property
