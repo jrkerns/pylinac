@@ -59,7 +59,7 @@ class WinstonLutzMixin(LocationMixin):
     couch_iso2bb_vector = Vector
     cax2bb_max_distance = 0
     cax2bb_median_distance = 0
-    variable_axes = {0: 'Gantry'}  # fill with as many {image: axis} pairs as desired
+    variable_axes = {0: 'Reference'}  # fill with as many {image: axis} pairs as desired
 
     @classmethod
     def setUpClass(cls):
@@ -81,35 +81,39 @@ class WinstonLutzMixin(LocationMixin):
         self.assertAlmostEqual(self.wl.gantry_iso_size, self.gantry_iso_size, delta=0.2)
         # test iso vector
         self.assertTrue(vector_is_close(self.wl.gantry_iso2bb_vector, self.gantry_iso2bb_vector),
-                        msg="{} was != {}".format(self.wl.gantry_iso2bb_vector, self.gantry_iso2bb_vector))
+                        msg="{} was != {} within {}".format(self.wl.gantry_iso2bb_vector, self.gantry_iso2bb_vector, 0.2))
 
     def test_gantry_sag(self):
         self.assertAlmostEqual(self.wl.gantry_sag(), self.gantry_sag, delta=0.15)
 
     def test_collimator_iso(self):
         # test iso size
-        self.assertAlmostEqual(self.wl.collimator_iso_size, self.collimator_iso_size, delta=0.2)
+        if self.collimator_iso_size is not None:
+            self.assertAlmostEqual(self.wl.collimator_iso_size, self.collimator_iso_size, delta=0.2)
         # test iso vector
-        self.assertTrue(vector_is_close(self.wl.collimator_iso2bb_vector, self.collimator_iso2bb_vector),
-                        msg="{} was != {}".format(self.wl.collimator_iso2bb_vector, self.collimator_iso2bb_vector))
+        if self.collimator_iso2bb_vector is not None:
+            self.assertTrue(vector_is_close(self.wl.collimator_iso2bb_vector, self.collimator_iso2bb_vector),
+                            msg="{} was != {}".format(self.wl.collimator_iso2bb_vector, self.collimator_iso2bb_vector))
 
     def test_couch_iso(self):
         # test iso size
-        self.assertAlmostEqual(self.wl.couch_iso_size, self.couch_iso_size, delta=0.2)
+        if self.couch_iso_size is not None:
+            self.assertAlmostEqual(self.wl.couch_iso_size, self.couch_iso_size, delta=0.2)
         # test iso vector
-        self.assertTrue(vector_is_close(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector),
-                        msg="{} was != {}".format(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector))
+        if self.couch_iso2bb_vector is not None:
+            self.assertTrue(vector_is_close(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector),
+                            msg="{} was != {}".format(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector))
 
 
 class WLDemo(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_sag = 0.9
     gantry_iso_size = 1
-    gantry_iso2bb_vector = Vector(0.3, 0.2, 0.5)
+    gantry_iso2bb_vector = Vector(-0.4, 0.2, -0.5)
     collimator_iso_size = 1.2
-    collimator_iso2bb_vector = Vector(0.15, 0.4, 0)
-    couch_iso_size = 2.1
-    couch_iso2bb_vector = Vector(-0.5, -0.35, 0)
+    collimator_iso2bb_vector = Vector(-0.15, 0.4, 0)
+    couch_iso_size = 3.5
+    couch_iso2bb_vector = Vector(1.3, -0.7, 0)
     variable_axes = {0: 'Reference'}
 
     @classmethod
