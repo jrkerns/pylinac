@@ -3,6 +3,15 @@
 Changelog
 =========
 
+V 1.5.6
+-------
+
+* Adds the ``dtype`` keyword to ``DicomImage``'s init method.
+* `(#66) <https://github.com/jrkerns/pylinac/issues/66>`_ - Fixed an issue with Winston-Lutz
+  isocenters not calculating correctly.
+* `(#68) <https://github.com/jrkerns/pylinac/issues/68>`_ - Fixed the order of the Winston-Lutz images when plotted.
+* Fixed several small bugs and runtime errors.
+
 V 1.5.5
 -------
 

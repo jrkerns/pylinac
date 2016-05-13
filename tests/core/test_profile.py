@@ -87,7 +87,7 @@ class SingleProfileTriangle(SingleProfileMixin, TestCase):
     fwxm_center_indices = {40: 100, 60: 100, 80: 100}
     penumbra_widths_8020 = {'left': 60, 'right': 60, 'both': 60}
     penumbra_widths_9010 = {'left': 80, 'right': 80, 'both': 80}
-    field_edge_indices = (59, 140)
+    field_edge_indices = (60, 140)
     field_calculations = {'max': 0.99, 'mean': 0.60, 'min': 0.21}
     field_value_length = 80
     peak_idx = 100
@@ -102,7 +102,7 @@ class SingleProfileCutoffTriangle(SingleProfileMixin, TestCase):
     fwxm_center_indices = {40: 107, 60: 110.5, 80: 114}
     penumbra_widths_8020 = {'left': 70, 'right': 49, 'both': 59.5}
     penumbra_widths_9010 = {'left': 94, 'right': 65, 'both': 79.5}
-    field_edge_indices = (68, 149)
+    field_edge_indices = (68, 148)
     field_calculations = {'max': 0.99, 'mean': 0.64, 'min': 0.18}
     field_value_length = 80
     peak_idx = 117

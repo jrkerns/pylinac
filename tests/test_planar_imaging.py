@@ -47,9 +47,6 @@ class LeedsDemo(LeedsTORTestMixin, TestCase):
     def test_demo(self):
         LeedsTOR.run_demo()  # shouldn't raise
 
-    def test_url(self):
-        LeedsTOR.from_url('https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/leeds.dcm')
-
 
 class LeedsCCW(LeedsTORTestMixin, TestCase):
     file_path = ['Leeds_ccw.dcm']
@@ -63,9 +60,6 @@ class PipsProDemo(PipsProTestMixin, TestCase):
 
     def test_demo(self):
         PipsProQC3.run_demo()  # shouldn't raise
-
-    def test_url(self):
-        PipsProQC3.from_url('https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/pipspro.dcm')
 
 
 class PipsPro1(PipsProTestMixin, TestCase):

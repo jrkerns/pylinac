@@ -291,7 +291,7 @@ class DynalogDemo(TestLogBase, TestCase):
     average_rms = 0.037
     maximum_rms = 0.076
     average_gamma = 0.47
-    percent_pass_gamma = 91
+    percent_pass_gamma = 18.65
     version = 'B'
     tolerance = 102
     clinac_scale = 1

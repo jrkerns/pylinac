@@ -38,7 +38,7 @@ from .core.decorators import type_accept, value_accept
 from .core.io import get_url, TemporaryZipDirectory
 from .core.utilities import is_iterable, import_mpld3, retrieve_demo_file
 
-np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
+# np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
 DYNALOG = 'Dynalog'
 TRAJECTORY_LOG = 'Trajectory log'
@@ -433,7 +433,7 @@ class MachineLog:
             ax.set_yscale('log')
             ax.set_title("Gamma Histogram (Avg: {:2.3f})".format(self.fluence.gamma.avg_gamma), fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
-            plt.hist(self.fluence.gamma.array.flatten(), self.fluence.gamma.bins)
+            plt.hist(self.fluence.gamma.array.flatten(), bins=self.fluence.gamma.bins)
 
             # plot the MLC error histogram
             ax = plt.subplot(2, 3, 5)
@@ -1135,11 +1135,16 @@ class GammaFluence(Fluence):
         gamma_map = actual_img.gamma(expected_img, doseTA=doseTA, distTA=distTA, threshold=threshold)
 
         # calculate standard metrics
-        self.passfail_array = np.where(gamma_map > 1, 1, 0).astype(bool)
-        self.pass_prcnt = (np.sum(gamma_map < 1) / np.sum(gamma_map >= 0)) * 100
-        if np.isnan(self.pass_prcnt):
-            self.pass_prcnt = 100
         self.avg_gamma = np.nanmean(gamma_map)
+        gamma_map = np.nan_to_num(gamma_map)
+        self.passfail_array = gamma_map > 1
+        # self.passfail_array = np.where(gamma_map > 1, 1, 0).astype(bool)
+        s = np.sum(gamma_map > 0).astype(int)
+        if s:
+            t = np.sum(np.logical_and((gamma_map > 0), (gamma_map < 1))).astype(int) * 100.0
+            self.pass_prcnt = t / s
+        else:
+            self.pass_prcnt = 100
         if np.isnan(self.avg_gamma):
             self.avg_gamma = 0
 

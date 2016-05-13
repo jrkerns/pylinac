@@ -124,7 +124,7 @@ class Multiples(StarMixin, TestCase):
     wobble_diameter_mm = 0.8
     test_all_radii = False
     wobble_tolerance = 0.3
-    passes = False
+    passes = True
 
     @classmethod
     def setUpClass(cls):

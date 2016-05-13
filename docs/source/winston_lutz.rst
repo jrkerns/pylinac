@@ -54,7 +54,7 @@ the same coordinate space as `Winkler et al`_. All coordinates are looking from 
 
 * **X-axis** - Lateral, or left-right, with right being positive.
 * **Y-axis** - Anterior-Posterior, or up-down, with up being positive.
-* **Z-axis** - Cranio-Caudal, or in-out, with out being positive.
+* **Z-axis** - Gun-Target, or in-out, with out/Target being positive.
 
 Typical Use
 -----------
@@ -103,6 +103,7 @@ The algorithm works like such:
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The BB must be fully within the field of view.
+* The BB must be within 2.5cm of the real isocenter.
 * The images must be acquired with the EPID.
 
 **Analysis**

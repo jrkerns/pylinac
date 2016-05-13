@@ -270,6 +270,12 @@ class BaseImage:
     """
 
     def __init__(self, path):
+        """
+        Parameters
+        ----------
+        path : str
+            The path to the image.
+        """
         if not osp.isfile(path):
             raise FileExistsError("File `{0}` does not exist".format(path))
         self.path = path
@@ -292,7 +298,17 @@ class BaseImage:
         return self.shape[0] / self.dpmm, self.shape[1] / self.dpmm
 
     def plot(self, ax=None, show=True, clear_fig=False):
-        """Plot the image."""
+        """Plot the image.
+
+        Parameters
+        ----------
+        ax : matplotlib.Axes instance
+            The axis to plot the image to. If None, creates a new figure.
+        show : bool
+            Whether to actually show the image. Set to false when plotting multiple items.
+        clear_fig : bool
+            Whether to clear the prior items on the figure before plotting.
+        """
         if ax is None:
             fig, ax = plt.subplots()
         if clear_fig:
@@ -445,6 +461,11 @@ class BaseImage:
         .. note::
             This will also "ground" profiles that are negative or partially-negative.
             For such profiles, be careful that this is the behavior you desire.
+
+        Returns
+        -------
+        float
+            The amount subtracted from the image.
         """
         min_val = self.array.min()
         self.array -= min_val
@@ -465,9 +486,17 @@ class BaseImage:
             val = norm_val
         self.array = self.array / val
 
+    @type_accept(box_size=int, offset=int)
     def check_inversion(self, box_size=20, offset=10):
         """Check the image for inversion by sampling the 4 image corners.
         If the average value of the four corners is above the average pixel value, then it is very likely inverted.
+
+        Parameters
+        ----------
+        box_size : int
+            The size in pixels of the corner box to detect inversion.
+        offset : int
+            The offset from the image edge to sample the box.
         """
         outer_edge = offset
         inner_edge = offset + box_size
@@ -599,7 +628,14 @@ class DicomImage(BaseImage):
         path : str, file-object
             The path to the file or the data stream.
         dtype : dtype, None, optional
-            The data type to cast the image data as. If None, will use whatever raw image format is.
+        The data type to cast the image data as. If None, will use whatever raw image format is.
+            dpi : int, float
+        The dots-per-inch of the image, defined at isocenter.
+
+            .. note:: If a DPI tag is found in the image, that value will override the parameter, otherwise this one
+                will be used.
+        sid : int, float
+            The Source-to-Image distance in mm.
         """
         super().__init__(path)
         self._sid = sid
@@ -620,7 +656,12 @@ class DicomImage(BaseImage):
             self.array = int(self.metadata.RescaleSlope)*self.array + int(self.metadata.RescaleIntercept)
 
     def save(self, filename):
-        """Save the image instance back out to a .dcm file."""
+        """Save the image instance back out to a .dcm file.
+
+        Returns
+        -------
+        A string pointing to the new filename.
+        """
         if self.metadata.SOPClassUID.name == 'CT Image Storage':
             self.array = (self.array - int(self.metadata.RescaleIntercept)) / int(self.metadata.RescaleSlope)
         self.metadata.PixelData = self.array.astype(self._original_dtype).tostring()
@@ -682,7 +723,7 @@ class FileImage(BaseImage):
         The SID value as passed in upon construction.
     """
 
-    def __init__(self, path, *, dpi=None, sid=None):
+    def __init__(self, path, *, dpi=None, sid=None, dtype=None):
         """
         Parameters
         ----------
@@ -695,6 +736,8 @@ class FileImage(BaseImage):
                 will be used.
         sid : int, float
             The Source-to-Image distance in mm.
+        dtype : numpy.dtype
+            The data type to cast the array as.
         """
         super().__init__(path)
         pil_image = pImage.open(path)
@@ -702,7 +745,10 @@ class FileImage(BaseImage):
         if pil_image.mode not in ('F', 'L', '1'):
             pil_image = pil_image.convert('F')
         self.info = pil_image.info
-        self.array = np.array(pil_image)
+        if dtype is not None:
+            self.array = np.array(pil_image, dtype=dtype)
+        else:
+            self.array = np.array(pil_image)
         self._dpi = dpi
         self.sid = sid
 
@@ -852,8 +898,15 @@ class DicomImageStack:
         if not all(image.metadata.SeriesInstanceUID == initial_uid for image in self.images):
             raise ValueError("The images were not all from the same study")
 
+    @type_accept(slice=int)
     def plot(self, slice=0):
-        """Plot a slice of the DICOM dataset."""
+        """Plot a slice of the DICOM dataset.
+
+        Parameters
+        ----------
+        slice : int
+            The slice to plot.
+        """
         self.images[slice].plot()
 
     @property

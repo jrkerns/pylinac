@@ -315,8 +315,8 @@ class FileEventAnalyzerHandler(FileSystemEventHandler):
             time.sleep(1)
             try:
                 analysis_instance.process()
-            except BaseException as e:
-                logging.info(local_path + " encountered an error and was not processed." + e)
+            except BaseException:
+                logging.info(local_path + " encountered an error and was not processed.")
         else:
             logging.info(local_path + " was added but was not deemed a file to be analyzed.")
 

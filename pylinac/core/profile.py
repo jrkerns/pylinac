@@ -36,7 +36,10 @@ def stretch(array, min=0, max=1, fill_dtype=None):
     new_max = max
     new_min = min
     if fill_dtype is not None:
-        di = np.iinfo(fill_dtype)
+        try:
+            di = np.iinfo(fill_dtype)
+        except ValueError:
+            di = np.finfo(fill_dtype)
         new_max = di.max
         new_min = di.min
     # perfectly normalize the array (0..1)
@@ -362,6 +365,8 @@ class SingleProfile(ProfileMixin):
         fwxm = self.fwxm(x, interpolate=interpolate)
         li = self._penumbra_point(LEFT, x, interpolate)
         fwxmcen = np.abs(li + fwxm / 2)
+        if not interpolate:
+            fwxmcen = int(round(fwxmcen))
         if kind == VALUE:
             return self.values[fwxmcen] if not interpolate else self._values_interp[int(fwxmcen*self.interpolation_factor)]
         else:
@@ -443,8 +448,8 @@ class SingleProfile(ProfileMixin):
         """
         fwhmc = self.fwxm_center()
         field_width *= self.fwxm()
-        left = round(fwhmc - field_width / 2)
-        right = round(fwhmc + field_width / 2)
+        left = int(round(fwhmc - field_width / 2))
+        right = int(round(fwhmc + field_width / 2))
         return left, right
 
     @value_accept(field_width=(0, 1), calculation=('mean', 'median', 'max', 'min', 'area'))

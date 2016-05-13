@@ -1248,8 +1248,10 @@ class GeoDiskROI(DiskROI):
         masked_img = np.abs(self.circle_mask())
         # threshold image
         nanmedian = np.nanmedian(masked_img)
+        nanmin = np.nanmin(masked_img)
+        masked_img = np.nan_to_num(masked_img)
         upper_band_pass = masked_img > nanmedian * 1.4
-        lower_band_pass = masked_img < nanmedian * 0.6
+        lower_band_pass = (masked_img < nanmedian * 0.6) & (masked_img > nanmin)
         bw_node = upper_band_pass + lower_band_pass
         return bw_node
 
