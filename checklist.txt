@@ -17,7 +17,9 @@ Version Release Checklist
     - Update conda/pylinac/meta.yaml file to newest PyPI version
     - Run `conda build conda/pylinac`. This builds and uploads; file output location: D:\Python\Miniconda3\conda-bld\win-32
     - Move build to `conda/win-32` folder
-    - Convert that build for all OS platforms w/ `conda convert --platform all -f conda/win-32/pylinac... --output_dir conda`
+    - 'cd' to conda folder
+    - Convert that build for all OS platforms w/ `conda convert --platform all -f conda/win-32/pylinac...`
     - Build again for other python versions: `conda build conda/pylinac --python 3.3 --python 3.4 --python 3.5`
     - Convert those new builds to all platforms as above.
-    - Explicitly upload other platforms with `anaconda upload conda/xxxx/* -i` where xxxx is the platform (linux-32, etc). Say `n` to replacing old uploads.
+    - Explicitly upload other platforms with `anaconda upload conda/xxxx/pylinac-m.m.b*` where xxxx is the platform (linux-32, etc)
+      and 1.* is the newest version bump (so only uploads thos files, not old ones, e.g. /pylinac-1.5.6*)

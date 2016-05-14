@@ -4,7 +4,8 @@ package:
 
 source:
   fn: pylinac-1.5.6.zip
-  url: https://pypi.python.org/packages/source/p/pylinac/pylinac-1.5.6.zip
+#  url: https://pypi.python.org/packages/source/p/pylinac/pylinac-1.5.6.zip
+  url: https://pypi.python.org/packages/09/cd/2929342633b7f4a02aaf69861536c654dfb129ea3614013a16caf432009d/pylinac-1.5.6.zip
   md5: f7ceee14e4aae7e2401221ed05aa9944
 
 #  patches:
