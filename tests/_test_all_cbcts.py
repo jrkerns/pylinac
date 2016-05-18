@@ -305,12 +305,12 @@ class Katy1(CBCTBankMixin, TestCase):
 class Elekta4(CBCTBankMixin, TestCase):
     """An Elekta CBCT dataset"""
     file_path = ['Elekta_4.zip']
-    slice_locations = {'HU': 130, 'UN': 20, 'SR': 100, 'LC': 100}
-    hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 249, 'PMP': -401, 'LDPE': -352}
+    slice_locations = {'HU': 128, 'UN': 18, 'SR': 98, 'LC': 98}
+    hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 255, 'PMP': -401, 'LDPE': -352}
     hu_passed = False
     unif_values = {'Center': -273, 'Left': -267, 'Right': -266, 'Top': -267, 'Bottom': -267}
     unif_passed = False
-    mtf_values = {80: 0.52, 90: 0.45, 60: 0.69, 70: 0.59, 95: 0.41}
+    mtf_values = {80: 0.52, 90: 0.45, 60: 0.69, 70: 0.59, 95: 0.3}
     lowcon_visible = 1
 
 
@@ -348,10 +348,9 @@ class UNC100kV(CBCTBankMixin, TestCase):
 
 class UNC120kV(CBCTBankMixin, TestCase):
     file_path = ['UNC-Chapel Hill', '120kV_CBCT_Feb2016.zip']
-    slice_locations = {'HU': 124, 'UN': 51, 'SR': 104, 'LC': 104}
-    hu_values = {'Poly': -281, 'Acrylic': -212, 'Delrin': -67, 'Air': -886, 'Teflon': 335, 'PMP': -365, 'LDPE': -298}
+    slice_locations = {'HU': 131, 'UN': 58, 'SR': 111, 'LC': 111}
+    hu_values = {'Poly': -274, 'Acrylic': -150, 'Delrin': 22, 'Air': -996, 'Teflon': 486, 'PMP': -380, 'LDPE': -315}
     hu_passed = False
     unif_values = {'Center': -223, 'Left': -236, 'Right': -238, 'Top': -239, 'Bottom': -232}
     unif_passed = False
-    mtf_values = {80: 0.73, 90: 0.96, 60: 0.2, 70: 0.81, 95: 0.51}
-    thickness_passed = False
+    mtf_values = {80: 0.73, 90: 0.58, 60: 0.97, 70: 0.81, 95: 0.51}

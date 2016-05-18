@@ -15,11 +15,14 @@ Features:
 from abc import abstractmethod
 from collections import OrderedDict
 from functools import lru_cache
+import gzip
 from os import path as osp
+import pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
+from scipy.misc import imresize
 
 from .core import image
 from .core.io import TemporaryZipDirectory
@@ -30,8 +33,6 @@ from .core.mask import filled_area_ratio
 from .core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import simple_round, import_mpld3, retrieve_demo_file
-
-np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
 
 ELEKTA = 'ELEKTA'
 VARIAN = 'Varian Medical Systems'
@@ -346,7 +347,8 @@ class CBCT:
             slicenum = getattr(self.settings, slice)
             print(slice, slicenum)
 
-    def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2, low_contrast_tolerance=1, contrast_threshold=15):
+    def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2,
+                low_contrast_tolerance=1, contrast_threshold=15, use_classifier=True):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -363,6 +365,9 @@ class CBCT:
             The number of low-contrast bubbles needed to be "seen" to pass.
         contrast_threshold : float, int
             The threshold for "detecting" low-contrast image. See RTD for calculation info.
+        use_classifier : bool
+            If True, use a machine learning classifier to locate the phantom; faster than brute-force search.
+            Set to False if the algorithm has trouble finding the phantom or the HU slice.
         """
         # set various setting values
         self.settings.hu_tolerance = hu_tolerance
@@ -370,6 +375,7 @@ class CBCT:
         self.settings.thickness_tolerance = thickness_tolerance
         self.settings.low_contrast_tolerance = low_contrast_tolerance
         self.settings.contrast_threshold = contrast_threshold
+        self.settings.use_classifier = use_classifier
 
         # Analysis
         self.hu = HUSlice(self.dicom_stack, self.settings)
@@ -406,6 +412,7 @@ class Settings:
     low_contrast_tolerance = 1
     contrast_threshold = 10
     air_bubble_radius_mm = 6
+    use_classifier = False
 
     def __init__(self, dicom_stack):
         self.dicom_stack = dicom_stack
@@ -442,21 +449,33 @@ class Settings:
             The middle slice of the HU linearity module.
         """
         hu_slices = []
-        for image_number in range(0, self.num_images, 2):
-            slice = Slice(self.dicom_stack, self, image_number, combine=False)
-            try:
-                center = slice.phan_center
-            except ValueError:  # a slice without the phantom in view
-                pass
-            else:
-                circle_prof = CollapsedCircleProfile(center, radius=59/self.mm_per_pixel, image_array=slice.image, width_ratio=0.05, num_profiles=5)
-                prof = circle_prof.values
-                # determine if the profile contains both low and high values and that most values are the same
-                low_end, high_end = np.percentile(prof, [2, 98])
-                median = np.median(prof)
-                if (low_end < median - 400) and (high_end > median + 400) and (
-                        np.percentile(prof, 80) - np.percentile(prof, 20) < 100):
-                    hu_slices.append(image_number)
+        # use a machine-learning classifier
+        if self.use_classifier:
+            clf = get_classifier()
+            from sklearn.preprocessing import minmax_scale
+            arr = np.zeros((len(self.dicom_stack), 10000))
+            for idx, img in enumerate(self.dicom_stack):
+                arr[idx, :] = imresize(img.array, size=(100, 100), mode='F').flatten()
+            scaled_arr = minmax_scale(arr, axis=1)
+            y_labels = clf.predict(scaled_arr)
+            hu_slices = [idx for idx, label in enumerate(y_labels) if label > 0]
+        # use brute force search
+        else:
+            for image_number in range(0, self.num_images, 2):
+                slice = Slice(self.dicom_stack, self, image_number, combine=False)
+                try:
+                    center = slice.phan_center
+                except ValueError:  # a slice without the phantom in view
+                    pass
+                else:
+                    circle_prof = CollapsedCircleProfile(center, radius=59/self.mm_per_pixel, image_array=slice.image, width_ratio=0.05, num_profiles=5)
+                    prof = circle_prof.values
+                    # determine if the profile contains both low and high values and that most values are the same
+                    low_end, high_end = np.percentile(prof, [2, 98])
+                    median = np.median(prof)
+                    if (low_end < median - 400) and (high_end > median + 400) and (
+                                    np.percentile(prof, 80) - np.percentile(prof, 20) < 100):
+                        hu_slices.append(image_number)
 
         if not hu_slices:
             raise ValueError("No slices were found that resembled the HU linearity module")
@@ -535,7 +554,7 @@ class Settings:
     def expected_phantom_size(self):
         """The expected size of the phantom in pixels, based on a 20cm wide phantom."""
         if self.manufacturer == ELEKTA:
-            radius = 98.5
+            radius = 98
         else:
             radius = 101
         phan_area = np.pi*(radius**2)  # Area = pi*r^2; slightly larger value used based on actual values acquired
@@ -1385,7 +1404,16 @@ class GeometrySlice(Slice, ROIManagerMixin):
         return all(line.passed for line in self.lines.values())
 
 
-@value_accept(mode=('mean','median','max'))
+@lru_cache(maxsize=1)
+def get_classifier():
+    """Load the CBCT HU slice classifier model."""
+    clf_file = retrieve_demo_file('cbct_classifier.pkl.gz')
+    with gzip.open(clf_file, mode='rb') as m:
+        clf = pickle.load(m)
+    return clf
+
+
+@value_accept(mode=('mean', 'median', 'max'))
 def combine_surrounding_slices(dicomstack, nominal_slice_num, slices_plusminus=1, mode='mean'):
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
 
