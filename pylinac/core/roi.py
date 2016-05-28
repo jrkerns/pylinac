@@ -107,6 +107,7 @@ class LowContrastDiskROI(DiskROI):
 
     @property
     def passed(self):
+        """Whether the disk ROI contrast passed."""
         return self.contrast > self.contrast_threshold
 
     @property

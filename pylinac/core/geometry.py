@@ -278,10 +278,6 @@ class Line:
         point = Point(point).as_array()
         lp1 = self.point1.as_array()
         lp2 = self.point2.as_array()
-        # lp1 = self.point1
-        # lp2 = self.point2
-        # numerator = np.abs((lp2.x - lp1.x)*(lp1.y - point.y) - (lp1.x - point.x)*(lp2.y - lp1.y))
-        # denominator = np.sqrt((lp2.x - lp1.x)**2 + (lp2.y - lp1.y)**2)
         numerator = np.sqrt(np.sum(np.power(np.cross((lp2 - lp1), (lp1 - point)), 2)))
         denominator = np.sqrt(np.sum(np.power(lp2 - lp1, 2)))
         return numerator/denominator
@@ -326,18 +322,22 @@ class Rectangle:
 
     @property
     def br_corner(self):
+        """The location of the bottom right corner."""
         return Point(self.center.x + self.width / 2, self.center.y - self.height / 2, as_int=self._as_int)
 
     @property
     def bl_corner(self):
+        """The location of the bottom left corner."""
         return Point(self.center.x - self.width / 2, self.center.y - self.height / 2, as_int=self._as_int)
 
     @property
     def tl_corner(self):
+        """The location of the top left corner."""
         return Point(self.center.x - self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
 
     @property
     def tr_corner(self):
+        """The location of the top right corner."""
         return Point(self.center.x + self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
 
     def plot2axes(self, axes, edgecolor='black', angle=0.0, fill=False, alpha=1, facecolor='g'):

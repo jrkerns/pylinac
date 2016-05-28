@@ -357,9 +357,7 @@ class VMAT:
         elif self.settings.test_type == DRMLC:
             string = ('Dose Rate & MLC Speed \nTest Results (Tol. +/-{0:2.1f}%): {1!s}\n'.format(self.settings.tolerance * 100, passfail_str))
 
-        string += ('Max Deviation: %4.3f%%\n'
-                   'Absolute Mean Deviation: %4.3f%%' %
-                   (self.max_r_deviation, self.avg_abs_r_deviation))
+        string += 'Max Deviation: {:2.3f}%\nAbsolute Mean Deviation: {:2.3f}%'.format(self.max_r_deviation, self.avg_abs_r_deviation)
 
         return string
 

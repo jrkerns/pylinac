@@ -170,15 +170,12 @@ class AnalyzeWL(AnalyzeMixin):
         """Failure of WL is based on 3 criteria."""
         send = False
         for key, val in self.failure_settings:
-            if key == 'gantry-iso-size':
-                if self.instance.gantry_iso_size > val:
-                    send = True
-            if key == 'mean-cax-bb-distance':
-                if self.instance.cax2bb_distance() > val:
-                    send = True
-            if key == 'max-cax-bb-distance':
-                if self.instance.cax2bb_distance('max') > val:
-                    send = True
+            if key == 'gantry-iso-size' and (self.instance.gantry_iso_size > val):
+                send = True
+            if key == 'mean-cax-bb-distance' and (self.instance.cax2bb_distance() > val):
+                send = True
+            if key == 'max-cax-bb-distance' and (self.instance.cax2bb_distance('max') > val):
+                send = True
         return send
 
 
@@ -188,6 +185,7 @@ class AnalyzeLeeds(AnalyzeMixin):
     config_name = 'leeds'
 
     def save_text(self):
+        """save text method"""
         pass
 
 
@@ -197,6 +195,7 @@ class AnalyzePipsPro(AnalyzeMixin):
     config_name = 'pipspro'
 
     def save_text(self):
+        """save text method"""
         pass
 
 
@@ -207,10 +206,12 @@ class AnalyzeStar(AnalyzeMixin):
 
     @property
     def constructor_kwargs(self):
+        """Give the SID to the algorithm"""
         return {'sid': self.config[self.config_name]['analysis']['sid']}
 
     @property
     def analysis_settings(self):
+        """Starshot analysis settings"""
         settings = super().analysis_settings
         settings.pop('sid')
         return settings

@@ -318,10 +318,10 @@ class Starshot:
         string
             A string with a statement of the minimum circle.
         """
-        string = ('\nResult: %s \n\n'
-                  'The minimum circle that touches all the star lines has a diameter of %4.3g mm. \n\n'
-                  'The center of the minimum circle is at %4.1f, %4.1f') % (self._passfail_str, self.wobble.radius_mm*2,
-                                                                            self.wobble.center.x, self.wobble.center.y)
+        string = ('\nResult: {} \n\n' +
+                  'The minimum circle that touches all the star lines has a diameter of {:2.3f} mm. \n\n' +
+                  'The center of the minimum circle is at {:3.1f}, {:3.1f}').format(self._passfail_str, self.wobble.radius_mm*2,
+                                                                                    self.wobble.center.x, self.wobble.center.y)
         return string
 
     def plot_analyzed_image(self, show=True):
@@ -429,6 +429,7 @@ class Wobble(Circle):
 
     @property
     def diameter_mm(self):
+        """Diameter of the wobble in mm."""
         return self.radius_mm*2
 
 
