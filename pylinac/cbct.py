@@ -479,6 +479,11 @@ class Settings:
 
         if not hu_slices:
             raise ValueError("No slices were found that resembled the HU linearity module")
+        hu_slices = np.array(hu_slices)
+        c = int(round(np.median(hu_slices)))
+        ln = len(hu_slices)
+        # drop slices that are way far from median
+        hu_slices = hu_slices[((c + ln/2) > hu_slices) & (hu_slices > (c - ln/2))]
         center_hu_slice = int(round(np.median(hu_slices)))
         if self._is_within_image_extent(center_hu_slice):
             return center_hu_slice

@@ -99,7 +99,7 @@ if __name__ == '__main__':
         # osp.join(data_dir, 'Elekta_8.zip'),
         # osp.join(data_dir, 'Elekta_11.zip'),
         # osp.join(data_dir, 'Elekta_12.zip'),
-        osp.join(data_dir, 'CBCT_3.zip'),
+        osp.join(data_dir, 'CBCT_17.zip'),
         # osp.join(data_dir, 'Standard head.zip'),
     )
     for zset in zsets:
