@@ -10,7 +10,6 @@ Features:
 * **Automatic identification using file names** - If your file names are clear, the image type and test type don't even
   have to be specified; just load and analyze.
 """
-import os
 import os.path as osp
 from itertools import zip_longest
 
@@ -23,6 +22,7 @@ from .core.geometry import Point, Rectangle
 from .core.io import get_url, TemporaryZipDirectory
 from .core.profile import SingleProfile
 from .core.utilities import typed_property, import_mpld3, retrieve_demo_file
+from .settings import get_dicom_cmap
 
 # test types
 DRGS = 'drgs'
@@ -281,7 +281,7 @@ class VMAT:
                 img = self.image_dmlc
             elif subimage == OPEN:
                 img = self.image_open
-            ax.imshow(img, cmap=plt.cm.Greys)
+            ax.imshow(img, cmap=get_dicom_cmap())
             self.segments.draw(ax)
             plt.sca(ax)
             plt.axis('off')

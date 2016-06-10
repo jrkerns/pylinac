@@ -8,6 +8,7 @@ from .core.decorators import type_accept
 from .core.image import Image
 from .core.profile import SingleProfile
 from .core.utilities import is_iterable, isnumeric, retrieve_demo_file
+from .settings import get_dicom_cmap
 
 
 class _Symmetry:
@@ -52,7 +53,7 @@ class BeamImage:
     def _plot_image(self, ax, plane, position):
         """Plot the image analyzed and a line showing where the profile was taken."""
         # position = self._convert_position(position, plane)
-        ax.imshow(self.image, cmap=plt.cm.Greys)
+        ax.imshow(self.image, cmap=get_dicom_cmap())
         ax.set_title("Image")
         self._polish_plot(ax)
         if _is_crossplane(plane):

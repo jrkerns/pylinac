@@ -18,6 +18,7 @@ from .decorators import type_accept, value_accept
 from .geometry import Point
 from .io import get_url, TemporaryZipDirectory
 from .profile import stretch as stretcharray
+from ..settings import get_dicom_cmap
 
 ARRAY = 'Array'
 DICOM = 'DICOM'
@@ -313,7 +314,7 @@ class BaseImage:
             fig, ax = plt.subplots()
         if clear_fig:
             plt.clf()
-        ax.imshow(self.array, cmap=plt.cm.Greys)
+        ax.imshow(self.array, cmap=get_dicom_cmap())
         if show:
             plt.show()
         return ax

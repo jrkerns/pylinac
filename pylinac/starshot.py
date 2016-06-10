@@ -20,7 +20,6 @@ Features:
   do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
 import copy
-import os.path as osp
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,6 +31,7 @@ from .core.geometry import Point, Line, Circle
 from .core.io import get_url, TemporaryZipDirectory
 from .core.profile import SingleProfile, CollapsedCircleProfile
 from .core.utilities import retrieve_demo_file
+from .settings import get_dicom_cmap
 
 
 class Starshot:
@@ -193,7 +193,7 @@ class Starshot:
         tolerance : int, float, optional
             The tolerance in mm to test against for a pass/fail result.
         start_point : 2-element iterable, optional
-            A point where the algorithm should use for determining the circle profile.
+            The point where the algorithm should center the circle profile, given as (x-value, y-value).
             If None (default), will search for a reasonable maximum point nearest the center of the image.
         fwhm : bool
             If True (default), the center of the FWHM of the spokes will be determined.
@@ -358,7 +358,7 @@ class Starshot:
         if ax is None:
             fig, ax = plt.subplots()
         # show analyzed image
-        ax.imshow(self.image.array, cmap=plt.cm.Greys)
+        ax.imshow(self.image.array, cmap=get_dicom_cmap())
         self.lines.plot(ax)
         self.wobble.plot2axes(ax, edgecolor='green')
         self.circle_profile.plot2axes(ax, edgecolor='green')

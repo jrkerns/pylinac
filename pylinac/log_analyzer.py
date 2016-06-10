@@ -33,6 +33,7 @@ import struct
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .settings import get_array_cmap
 from .core import image
 from .core.decorators import type_accept, value_accept
 from .core.io import get_url, TemporaryZipDirectory
@@ -412,20 +413,20 @@ class MachineLog:
             ax.set_title('Actual Fluence', fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
             ax.autoscale(tight=True)
-            plt.imshow(self.fluence.actual.array, aspect='auto', interpolation='none')
+            plt.imshow(self.fluence.actual.array, aspect='auto', interpolation='none', cmap=get_array_cmap())
 
             # plot the expected fluence
             ax = plt.subplot(2, 3, 2)
             ax.set_title("Expected Fluence", fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.expected.array, aspect='auto', interpolation='none')
+            plt.imshow(self.fluence.expected.array, aspect='auto', interpolation='none', cmap=get_array_cmap())
 
             # plot the gamma map
             gmma = self.fluence.gamma
             ax = plt.subplot(2, 3, 3)
             ax.set_title("Gamma Map ({:2.2f}% passing @ {}%/{}mm)".format(gmma.pass_prcnt, gmma.doseTA, gmma.distTA), fontsize=10)
             ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.gamma.array, aspect='auto', interpolation='none', vmax=1)
+            plt.imshow(self.fluence.gamma.array, aspect='auto', interpolation='none', vmax=1, cmap=get_array_cmap())
             plt.colorbar(ax=ax)
 
             # plot the gamma histogram
@@ -1034,7 +1035,7 @@ class Fluence(metaclass=ABCMeta):
         if not self.map_calced:
             raise AttributeError("Map not yet calculated; use calc_map()")
         plt.clf()
-        plt.imshow(self.array, aspect='auto')
+        plt.imshow(self.array, aspect='auto', cmap=get_array_cmap())
         if show:
             plt.show()
 
@@ -1160,7 +1161,7 @@ class GammaFluence(Fluence):
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         if not self.map_calced:
             raise AttributeError("Map not yet calculated; use calc_map()")
-        plt.imshow(self.array, aspect='auto', vmax=1)
+        plt.imshow(self.array, aspect='auto', vmax=1, cmap=get_array_cmap())
         plt.colorbar()
         plt.show()
 
@@ -1216,7 +1217,7 @@ class GammaFluence(Fluence):
     def plot_passfail_map(self):
         """Plot the binary gamma map, only showing whether pixels passed or failed."""
         if self.map_calced:
-            plt.imshow(self.passfail_array)
+            plt.imshow(self.passfail_array, cmap=get_array_cmap())
             plt.show()
         else:
             raise AttributeError("Map not yet calculated; use calc_map()")
