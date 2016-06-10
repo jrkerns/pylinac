@@ -3,17 +3,20 @@
 Pylinac General Overview
 ========================
 
-.. image:: /images/starshot_analyzed.png
-   :height: 300px
-   :width: 500px
+.. plot::
 
-.. image:: /images/vmat_analyzed.png
-   :height: 320px
-   :width: 730px
+    import pylinac
+    pylinac.Starshot.run_demo()
 
-.. image:: /images/PF_tight_tolerance.png
-    :height: 450px
-    :width: 750px
+.. plot::
+
+    import pylinac
+    pylinac.VMAT.run_demo_drgs()
+
+.. plot::
+
+    import pylinac
+    pylinac.PicketFence.run_demo(tolerance=0.1)
 
 Intended Use
 ------------
@@ -23,7 +26,7 @@ programming.
 
 For the first group, pylinac can be used within a Python environment to automate analysis of QA images.
 
-For the second group, pylinac is also implemented as a `web app <assuranceqa.herokuapp.com>`_.
+For the second group, pylinac is also implemented as a `web app <www.assuranceqa.herokuapp.com>`_.
 
 Philosophy
 ----------

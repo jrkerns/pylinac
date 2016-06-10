@@ -1,14 +1,12 @@
-.. _getting_started:
+============
+General Tips
+============
 
-===============
-Getting Started
-===============
-
-Getting started with pylinac is easy! Once installed, you can write your own script in a matter of minutes.
+Using pylinac is easy! Once installed, you can write your own script in a matter of minutes.
 Each module of pylinac addresses the topic of its name (e.g. the :class:`~pylinac.starshot.Starshot` class, surprisingly, performs
 starshot analysis). Furthermore, each module is designed as similarly as possible
 to one another. So once you start using one module, it's easy to use another (see :ref:`module_design`).
-Each module also has its own demo to show off what it can do.
+Each module also has its own demonstration method and data to show off what it can do.
 
 Running a Demo
 --------------
@@ -76,3 +74,49 @@ If for any reason you don't have data and want to experiment, you can easily loa
 You can find out more about logs in the :ref:`log_analyzer_module`. All modules are similar however;
 the main class can be instantiated directly, through class-based constructors, from a URL,
 and all main classes have a demo dataset and demo method.
+
+.. _changing_colormaps:
+
+Changing Colormaps
+------------------
+
+The colormaps in pylinac are pretty standard. By default,
+DICOM images are shown in grayscale, while most other arrays are shown in jet. Changing these is easy though.
+All that's required is to pass a valid matplotlib colormap (see `options <http://matplotlib.org/examples/color/colormaps_reference.html>`_ here).
+Let's set the DICOM plots to be 'cool':
+
+.. code-block:: python
+
+    import pylinac
+    # change the colormap setting
+    pylinac.settings.DICOM_COLORMAP = 'cool'
+    pylinac.CBCT.run_demo()
+
+This will result in something like this:
+
+.. plot::
+
+    import matplotlib.pyplot as plt
+    import pylinac
+    # change the colormap setting
+    pylinac.settings.DICOM_COLORMAP = plt.cm.cool
+    pylinac.CBCT.run_demo()
+
+We can also change other arrays, which currently only means the ``MachineLog`` fluence maps.
+Let's change it to the newer, better matplotlib default colormap, viridis:
+
+.. code-block:: python
+
+    import matplotlib.pyplot as plt
+    import pylinac
+    # change the colormap setting
+    pylinac.settings.ARRAY_COLORMAP = plt.cm.viridis
+    pylinac.MachineLog.run_tlog_demo()
+
+.. plot::
+
+    import matplotlib.pyplot as plt
+    import pylinac
+    # change the colormap setting
+    pylinac.settings.ARRAY_COLORMAP = plt.cm.viridis
+    pylinac.MachineLog.run_tlog_demo()

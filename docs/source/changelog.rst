@@ -3,6 +3,43 @@
 Changelog
 =========
 
+V 1.6.0
+-------
+
+General Changes
+^^^^^^^^^^^^^^^
+
+* Changed the default colormap of dicom/grayscale images to be "normal" gray vs the former inverted gray.
+  Brought up in `(#70) <https://github.com/jrkerns/pylinac/issues/70>`_ .
+* Added a colormap setting that can be changed. See :ref:`changing_colormaps`
+* Added a utility function :func:`~pylinac.core.utilities.clear_data_files` to clear demo files and classifier files.
+* Added a dependency to the pylinac requirements: ``scikit-learn``. This library will allow for machine learning
+  advancements to be used with pylinac. I am aware of the increasing number of dependencies; pylinac has reached
+  a plateau I believe in terms of advancement and I hope that this is the last dependency I add.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* `(#69) <https://github.com/jrkerns/pylinac/issues/69>`_ Added EPID position tracking.
+* Certain properties of WL images have been deprecated. ``x_offset`` has been replaced by :func:`~pylinac.winston_lutz.WLImage.bb_x_offset` and respectively
+  for the other axes. Usage of the old properties will raise a deprecation warning and will be removed in v1.7.
+
+  .. note::
+
+    The deprecation warnings may not show up, depending on your python version and/or warning settings. See
+    the `python docs <https://docs.python.org/3.5/library/warnings.html#warning-categories>`_ for more info.
+
+CBCT
+^^^^
+
+* Added a Support Vector Machine classifier option for finding the HU slice. The classifier is faster (~30%) than
+  the brute force method. This option is available as a parameter in the :meth:`~pylinac.cbct.CBCT.analyze` method as ``use_classifier``.
+  In the event the classifier does not find any relevant HU slices, it will gracefully fall back to the brute force
+  method with a runtime warning. Because of the fallback feature, the classifier is now used first by default.
+  Using the classifier requires a one-time download to the demo folder, which happens automatically; just make sure
+  you're connected to the internet.
+
+
 V 1.5.6
 -------
 

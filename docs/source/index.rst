@@ -10,7 +10,7 @@
 
    overview
    installation
-   getting_started
+   general_tips
    starshot_docs
    vmat_docs
    cbct_docs

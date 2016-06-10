@@ -44,15 +44,48 @@ Most scripts can be utilized with <10 lines of code.
 The library also contains lower-level `hackable modules & tools <http://pylinac.readthedocs.org/en/latest/pylinac_core_hacking.html>`_
 for creating your own radiation therapy algorithms.
 
+Documentation
+-------------
+
+To get started, install the package, run the demos, view the API docs, and learn the module design, visit the
+`Full Documentation <http://pylinac.readthedocs.org/>`_ on Read The Docs.
+
+Installation
+------------
+
+Pylinac should be installed via ``conda`` if available. First, add the proper channel, then install the package:
+
+.. code-block:: bash
+
+    $ conda config --add channels jrkerns
+    $ conda install pylinac
+
+You may also install via ``pip``, although you must have C compilers to build the
+`dependencies <http://pylinac.readthedocs.io/en/latest/installation.html#dependencies>`_ :
+
+.. code-block:: bash
+
+    $ pip install pylinac
+
+Pylinac includes optional dependencies for some of the features. To install the optional features run:
+
+.. code-block:: bash
+
+    $ pip install pylinac[console]
+    $ pip install pylinac[interactive]
+
+See the `Installation page <http://pylinac.readthedocs.io/en/latest/installation.html>`_ for further details.
+
+Tools
+-----
+
 Below are the high-level tools currently available:
 
 * `Continuous Directory Watching <http://pylinac.readthedocs.org/en/stable/watcher.html>`_ -
    True, one-time "set it and forget it" service that analyzes any file that enters the folder. Files with
    keywords and certain file types are analyzed automatically.
-   Only three lines of code: 1) install the base package, 2) install the console requirements, 3) run::
+   Only one line of code after installation (be sure to install the optional console dependencies)::
 
-     $ conda install pylinac  # base package
-     $ pip install pylinac[console]  # directory watching dependencies
      $ pylinac watch "dir/to/watch"  # start watching!
 
    And that's it! No code to write; no fuss, no muss.
@@ -248,20 +281,13 @@ Below are the high-level tools currently available:
 * `Flatness/Symmetry Analysis <http://pylinac.readthedocs.org/en/stable/flatsym.html>`_ -
     Analysis of Flatness & Symmetry of film or EPID images. Multiple equation definitions, in/cross plane.
 
-Documentation
--------------
-To get started, install the package, run the demos, view the API docs, and learn the module design, visit the
-`Full Documentation <http://pylinac.readthedocs.org/>`_ on Read The Docs.
-
 Discussion
 ----------
-Have questions? Ask them here on the `pylinac forum <https://groups.google.com/forum/#!forum/pylinac>`_.
+Have questions? Ask them on the `pylinac discussion forum <https://groups.google.com/forum/#!forum/pylinac>`_.
 
 Contributing
 ------------
 
 Contributions to pylinac can be many. The most useful things a non-programmer can contribute are images to analyze and bug reports. If
-you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, email or share them via Dropbox, Google Drive, etc: jkerns at gmail.com
-
-
-
+you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, upload them privately
+`here <https://www.dropbox.com/request/YKRu4AmuPsXu55uQq761>`_.

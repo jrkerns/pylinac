@@ -16,7 +16,7 @@ Using ``conda``
 ^^^^^^^^^^^^^^^
 
 The first and recommended way to get ``pylinac`` is through ``conda``.
-Make sure you have ``conda`` first (:ref:`distro_stack`). Add my channel to your conda configuration, and then install:
+Make sure you have ``conda`` first (see :ref:`distro_stack`). Add my channel to your conda configuration, and then install:
 
 .. code-block:: bash
 
