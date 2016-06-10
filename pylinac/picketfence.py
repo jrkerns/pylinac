@@ -21,12 +21,13 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
-from pylinac import MachineLog
 from .core import image
 from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url
 from .core.profile import MultiProfile, SingleProfile
 from .core.utilities import import_mpld3, retrieve_demo_file
+from .log_analyzer import MachineLog
+from .settings import get_dicom_cmap
 
 # possible orientations of the pickets.
 UP_DOWN = 'Up-Down'
@@ -208,14 +209,15 @@ class PicketFence:
         self._log_fits = cycle([p.fit for p in pf.pickets])
 
     @staticmethod
-    def run_demo(tolerance=0.5, action_tolerance=0.25, interactive=False):
+    def run_demo(tolerance=0.5, action_tolerance=None, interactive=False):
         """Run the Picket Fence demo using the demo image. See analyze() for parameter info."""
         pf = PicketFence.from_demo_image()
         pf.analyze(tolerance, action_tolerance=action_tolerance)
         print(pf.return_results())
         pf.plot_analyzed_image(interactive=interactive, leaf_error_subplot=True)
 
-    def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False, num_pickets=None, sag_adjustment=0):
+    def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False, num_pickets=None, sag_adjustment=0,
+                orientation=None):
         """Analyze the picket fence image.
 
         Parameters
@@ -245,11 +247,21 @@ class PicketFence:
             The amount of shift in mm to apply to the image to correct for EPID sag.
             For Up-Down picket images, positive moves the image down, negative up.
             For Left-Right picket images, positive moves the image left, negative right.
+        orientation : None, str
+
+            .. versionadded: 1.6
+
+            If None (default), the orientation is automatically determined. If for some reason the determined
+            orientation is not correct, you can pass it directly using this parameter.
+            If passed a string with 'u' (e.g. 'up-down', 'u-d', 'up') it will set the orientation of the pickets as
+            going up-down. If passed a string with 'l' (e.g. 'left-right', 'lr', 'left') it will set it as going
+            left-right.
         """
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
 
         """Pre-analysis"""
+        self._orientation = orientation
         self.settings = Settings(self.orientation, tolerance, action_tolerance, hdmlc, self.image, self._log_fits)
         # adjust for sag
         if sag_adjustment != 0:
@@ -286,7 +298,7 @@ class PicketFence:
         """
         # plot the image
         fig, ax = plt.subplots(figsize=self.settings.figure_size)
-        ax.imshow(self.image.array, cmap=plt.cm.Greys)
+        ax.imshow(self.image.array, cmap=get_dicom_cmap())
 
         # generate a leaf error subplot if desired
         if leaf_error_subplot:
@@ -404,6 +416,13 @@ class PicketFence:
     @lru_cache(maxsize=1)
     def orientation(self):
         """The orientation of the image, either Up-Down or Left-Right."""
+        # if orientation was passed in, use it
+        if self._orientation is str:
+            if 'u' in self._orientation.lower():
+                return UP_DOWN
+            elif 'l' in self._orientation.lower():
+                return LEFT_RIGHT
+
         # replace any dead pixels with median value
         temp_image = self.image.array.copy()
         temp_image[temp_image < np.median(temp_image)] = np.median(temp_image)
