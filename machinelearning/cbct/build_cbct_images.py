@@ -1,11 +1,9 @@
-import os.path as osp
 import math
+import os.path as osp
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pylinac import image
 from pylinac.core.io import TemporaryZipDirectory
-from sklearn import preprocessing
 
 from machinelearning.tools import get_files, is_dicom, process_image
 
@@ -22,7 +20,7 @@ def identify_images(zip_file):
         for n in range(rounds):
             fig, axes = plt.subplots(5, 5)
             for axis, (idx, fp) in zip(axes.flatten(), enumerate(filepaths[split_val*n:split_val*(n+1)])):
-                img = image.load(fp)
+                img = process_image(fp)
                 plt.sca(axis)
                 plt.imshow(img.array, cmap=plt.cm.Greys)
                 plt.axis('off')
@@ -38,7 +36,8 @@ def identify_images(zip_file):
         # labels = np.array(labels)
         for idx, fp in enumerate(filepaths):
             feature_array[idx, :] = process_image(fp)
-        scaled_features = preprocessing.minmax_scale(feature_array, axis=1)
+        # scaled_features = preprocessing.minmax_scale(feature_array, axis=1)
+        scaled_features = feature_array
         dir2write = osp.dirname(zip_file)
         np.save(osp.join(dir2write, 'images_' + osp.splitext(osp.basename(zip_file))[0]), scaled_features)
         np.save(osp.join(dir2write, 'labels_' + osp.splitext(osp.basename(zip_file))[0]), labels)

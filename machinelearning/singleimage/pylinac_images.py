@@ -13,12 +13,13 @@ from machinelearning.tools import get_files, is_dicom, process_image
 def build_images():
     """Completely load, resize, and save the images for training. Main function."""
     # get image file paths for each image type
-    path_stub = r'D:\Users\James\Dropbox\Programming\Python\Projects\pylinac test files'
+    path_stub = r'C:\Users\James\Dropbox\Programming\Python\Projects\pylinac test files'
     pf_files = get_files(osp.join(path_stub, 'Picket Fences'), is_dicom)
     pipspro_files = get_files(osp.join(path_stub, '2D Image quality phantoms', 'PipsPro'), is_dicom)
     leeds_files = get_files(osp.join(path_stub, '2D Image quality phantoms', 'Leeds'), is_dicom)
-    # wl_files = get_files(osp.join(path_stub, 'Winston-Lutz'), is_dicom)
-    filepaths = pf_files + pipspro_files + leeds_files # + wl_files
+    wl_files = get_files(osp.join(path_stub, 'Winston-Lutz'), is_dicom)
+    vmat_files = get_files(osp.join(path_stub, 'VMATs'), is_dicom)
+    filepaths = pf_files + pipspro_files + leeds_files + wl_files + vmat_files
     print("{} files found".format(len(filepaths)))
 
     # preallocate
@@ -41,9 +42,9 @@ def build_images():
     print("Training array scaled")
 
     # save arrays to disk for future use
-    np.save(osp.join(osp.dirname(osp.abspath(__file__)), 'images'), scaled_array)
-    np.save(osp.join(osp.dirname(osp.abspath(__file__)), 'labels'), np.concatenate(
-        (np.repeat(0, len(pf_files)), np.repeat(1, len(pipspro_files)), np.repeat(2, len(leeds_files)))))
+    np.save(osp.join(osp.dirname(osp.abspath(__file__)), 'data', 'images'), scaled_array)
+    np.save(osp.join(osp.dirname(osp.abspath(__file__)), 'data', 'labels'), np.concatenate(
+        (np.repeat(0, len(pf_files)), np.repeat(1, len(pipspro_files)), np.repeat(2, len(leeds_files)), np.repeat(3, len(wl_files)), np.repeat(4, len(vmat_files)))))
     print("Images build")
 
 
