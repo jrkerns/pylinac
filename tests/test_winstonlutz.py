@@ -53,6 +53,7 @@ class WinstonLutzMixin(LocationMixin):
     gantry_iso_size = 0
     gantry_iso2bb_vector = Vector
     gantry_sag = 0
+    epid_sag = 0
     collimator_iso_size = 0
     collimator_iso2bb_vector = Vector
     couch_iso_size = 0
@@ -86,6 +87,9 @@ class WinstonLutzMixin(LocationMixin):
     def test_gantry_sag(self):
         self.assertAlmostEqual(self.wl.gantry_sag(), self.gantry_sag, delta=0.15)
 
+    def test_epid_sag(self):
+        self.assertAlmostEqual(self.wl.epid_sag(), self.epid_sag, delta=0.15)
+
     def test_collimator_iso(self):
         # test iso size
         if self.collimator_iso_size is not None:
@@ -108,6 +112,7 @@ class WinstonLutzMixin(LocationMixin):
 class WLDemo(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_sag = 0.9
+    epid_sag = 1.4
     gantry_iso_size = 1
     gantry_iso2bb_vector = Vector(-0.4, 0.2, -0.5)
     collimator_iso_size = 1.2

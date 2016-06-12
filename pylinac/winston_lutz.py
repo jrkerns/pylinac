@@ -14,6 +14,7 @@ Features:
 from functools import lru_cache
 from itertools import zip_longest
 import os.path as osp
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -167,7 +168,13 @@ class WinstonLutz:
 
     def gantry_sag(self, axis='z'):
         """The range of gantry sag along the given axis."""
-        attr = axis + '_offset'
+        attr = 'bb_' + axis + '_offset'
+        sag_array = [getattr(image, attr) for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
+        return max(sag_array) - min(sag_array)
+
+    def epid_sag(self, axis='z'):
+        """The range of EPID panel sag along the given axis."""
+        attr = 'epid_' + axis + '_offset'
         sag_array = [getattr(image, attr) for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
         return max(sag_array) - min(sag_array)
 
@@ -184,6 +191,71 @@ class WinstonLutz:
         elif metric == 'median':
             return np.median([image.cax2bb_distance for image in self.images])
 
+    def cax2epid_distance(self, metric='max'):
+        """The distance in mm between the CAX and EPID center pixel for all images according to the given metric.
+
+        Parameters
+        ----------
+        metric : {'max', 'median'}
+            The metric of distance to use.
+        """
+        if metric == 'max':
+            return max(image.cax2epid_distance for image in self.images)
+        elif metric == 'median':
+            return np.median([image.cax2epid_distance for image in self.images])
+
+    def _plot_sag(self, item, ax=None, show=True):
+        """Helper function: Plot the sag in Cartesian coordinates.
+
+        Parameters
+        ----------
+        item : {'gantry', 'epid'}
+            The item to plot, either gantry or EPID.
+        ax : None, matplotlib.Axes
+            The axis to plot to. If None, creates a new plot.
+        show : bool
+            Whether to show the image.
+        """
+        if item == 'gantry':
+            attr = 'bb'
+            title = 'Relative gantry displacement'
+        elif item == 'epid':
+            attr = 'epid'
+            title = 'Relative EPID displacement'
+        # get gantry images, angles, and shifts
+        gantry_imgs = [image for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
+        gantry_angles = [image.gantry_angle for image in gantry_imgs]
+        z_sag = np.array([getattr(image, attr + '_z_offset') for image in gantry_imgs])
+        y_sag = np.array([getattr(image, attr + '_y_offset') for image in gantry_imgs])
+        x_sag = np.array([getattr(image, attr + '_x_offset') for image in gantry_imgs])
+
+        # plot the gantry sag
+        if ax is None:
+            ax = plt.subplot(111)
+        ax.plot(gantry_angles, z_sag, 'bo', label='In/Out', ls='-')
+        ax.plot(gantry_angles, y_sag, 'r*', label='Up/Down', ls='-')
+        ax.plot(gantry_angles, x_sag, 'm^', label='Left/Right', ls='-')
+        ax.set_title(title)
+        ax.set_ylabel('mm')
+        ax.set_xticks(np.arange(0, 361, 45))
+        ax.set_xlim([-15, 375])
+        ax.grid('on')
+        ax.legend(numpoints=1)
+        if show:
+            plt.show()
+
+    def plot_epid_sag(self, ax=None, show=True):
+        """Plot the EPID sag in Cartesian coordinates.
+
+        Parameters
+        ----------
+        ax : None, matplotlib.Axes
+            The axis to plot to. If None, creates a new plot.
+        show : bool
+            Whether to show the image.
+        """
+        self._plot_sag('epid', ax=ax, show=show)
+
     def plot_gantry_sag(self, ax=None, show=True):
         """Plot the gantry sag in Cartesian coordinates.
 
@@ -194,30 +266,10 @@ class WinstonLutz:
         show : bool
             Whether to show the image.
         """
-        # get gantry images, angles, and shifts
-        gantry_imgs = [image for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
-        gantry_angles = [image.gantry_angle for image in gantry_imgs]
-        gantry_zsag = np.array([image.z_offset for image in gantry_imgs])
-        gantry_ysag = np.array([image.y_offset for image in gantry_imgs])
-        gantry_xsag = np.array([image.x_offset for image in gantry_imgs])
-
-        # plot the gantry sag
-        if ax is None:
-            ax = plt.subplot(111)
-        ax.plot(gantry_angles, gantry_zsag, 'bo', label='In/Out')
-        ax.plot(gantry_angles, gantry_ysag, 'r*', label='Up/Down')
-        ax.plot(gantry_angles, gantry_xsag, 'm^', label='Left/Right')
-        ax.set_title("Relative gantry displacement")
-        ax.set_ylabel('mm')
-        ax.set_xticks(np.arange(0, 361, 45))
-        ax.set_xlim([-15, 375])
-        ax.grid('on')
-        ax.legend(numpoints=1)
-        if show:
-            plt.show()
+        self._plot_sag('gantry', ax=ax, show=show)
 
     def plot_axis_images(self, axis='Gantry', show=True, ax=None):
-        """Plot all CAX/BB positions for the images of a given axis.
+        """Plot all CAX/BB/EPID positions for the images of a given axis.
 
         For example, axis='Couch' plots a reference image, and all the BB points of the other
         images where the couch was moving.
@@ -234,18 +286,26 @@ class WinstonLutz:
         images = [image for image in self.images if image.variable_axis in (axis, REFERENCE)]
         ax = images[0].plot(show=False, ax=ax)
         if axis != COUCH:
+            # plot EPID
+            epid_xs = [img.epid.x for img in images[1:]]
+            epid_ys = [img.epid.y for img in images[1:]]
+            ax.plot(epid_xs, epid_ys, 'b+', ms=8)
+            ax.hold(True)
+            # get CAX positions
             xs = [img.field_cax.x for img in images[1:]]
             ys = [img.field_cax.y for img in images[1:]]
             marker = 'gs'
         else:
+            # get BB positions
             xs = [img.bb.x for img in images[1:]]
             ys = [img.bb.y for img in images[1:]]
             marker = 'ro'
         ax.plot(xs, ys, marker, ms=8)
         # set labels
         ax.set_title(axis + ' wobble')
-        ax.set_xlabel(axis + ' axis images superimposed')
+        ax.set_xlabel(axis + ' positions superimposed')
         ax.set_ylabel(axis + " iso size: {0:3.2f}mm".format(getattr(self, axis.lower() + '_iso_size')))
+        ax.hold(False)
         if show:
             plt.show()
 
@@ -303,11 +363,18 @@ class WinstonLutz:
 
     def plot_summary(self, show=True):
         """Plot a summary figure showing the gantry sag and wobble plots of the three axes."""
-        fig, ax = plt.subplots(2, 2, figsize=(9, 7))
-        self.plot_gantry_sag(ax.flatten()[0], show=False)
-        for axis, ax in zip((GANTRY, COLLIMATOR, COUCH), ax.flatten()[1:]):
+        plt.figure(figsize=(11, 9))
+        gantry_sag_ax = plt.subplot2grid((2, 6), (0, 0), colspan=3)
+        epid_sag_ax = plt.subplot2grid((2, 6), (0, 3), colspan=3)
+        gantry_ax = plt.subplot2grid((2, 6), (1, 0), colspan=2)
+        collimator_ax = plt.subplot2grid((2, 6), (1, 2), colspan=2)
+        couch_ax = plt.subplot2grid((2, 6), (1, 4), colspan=2)
+        self.plot_gantry_sag(gantry_sag_ax, show=False)
+        self.plot_epid_sag(epid_sag_ax, show=False)
+        for axis, ax in zip((GANTRY, COLLIMATOR, COUCH), (gantry_ax, collimator_ax, couch_ax)):
             self.plot_axis_images(axis=axis, ax=ax, show=False)
         if show:
+            plt.tight_layout()
             plt.show()
 
     def save_summary(self, filename, **kwargs):
@@ -324,12 +391,13 @@ class WinstonLutz:
                  "Gantry 3D isocenter size: {:.2f}mm\n" \
                  "Gantry iso->BB vector: {}\n" \
                  "Gantry sag in the z-direction: {:.2f}mm\n" \
+                 "EPID sag in the z-direction: {:.2f}mm\n" \
                  "Collimator 2D isocenter size: {:.2f}mm\n" \
                  "Collimator 2D iso->BB vector: {}\n" \
                  "Couch 2D isocenter size: {:.2f}mm\n" \
                  "Couch 2D iso->BB vector: {}".format(
                     len(self.images), self.cax2bb_distance('max'), self.cax2bb_distance('median'),
-                    self.gantry_iso_size, self.gantry_iso2bb_vector, self.gantry_sag(),
+                    self.gantry_iso_size, self.gantry_iso2bb_vector, self.gantry_sag(), self.epid_sag(),
                     self.collimator_iso_size, self.collimator_iso2bb_vector,
                     self.couch_iso_size, self.couch_iso2bb_vector
                  )
@@ -468,6 +536,11 @@ class WLImage(image.DicomImage):
         return Point(x_com, y_com)
 
     @property
+    def epid(self):
+        """Center of the EPID panel"""
+        return self.center
+
+    @property
     def gantry_angle(self):
         """Gantry angle of the irradiation."""
         if is_close(self.metadata.GantryAngle, [0, 360], delta=1):
@@ -492,17 +565,48 @@ class WLImage(image.DicomImage):
             return self.metadata.PatientSupportAngle
 
     @property
+    def epid_y_offset(self):
+        """The offset or distance between the field CAX and EPID in the y-direction (AP)."""
+        return -sin(self.gantry_angle) * self.cax2epid_vector.x
+
+    @property
     def y_offset(self):
+        warnings.warn("The 'y_offset' property is deprecated; use 'bb_y_offset' instead", DeprecationWarning)
+        return self.bb_y_offset
+
+    @property
+    def bb_y_offset(self):
         """The offset or distance between the field CAX and BB in the y-direction (AP)."""
         return -sin(self.gantry_angle) * self.cax2bb_vector.x
 
     @property
+    def epid_x_offset(self):
+        """The offset or distance between the field CAX and EPID in the x-direction (LR)."""
+        return cos(self.gantry_angle) * self.cax2epid_vector.x
+
+    @property
     def x_offset(self):
+        warnings.warn("The 'x_offset' property is deprecated; use 'bb_x_offset' instead", DeprecationWarning)
+        return self.bb_x_offset
+
+    @property
+    def bb_x_offset(self):
         """The offset or distance between the field CAX and BB in the x-direction (LR)."""
         return cos(self.gantry_angle) * self.cax2bb_vector.x
 
     @property
+    def epid_z_offset(self):
+        """The offset or distance between the field CAX and EPID in z-direction (SI)."""
+        if is_close(self.couch_angle, [0, 360], delta=2):
+            return -self.cax2epid_vector.y
+
+    @property
     def z_offset(self):
+        warnings.warn("The 'z_offset' property is deprecated; use 'bb_z_offset' instead", DeprecationWarning)
+        return self.bb_z_offset
+
+    @property
+    def bb_z_offset(self):
         """The offset or distance between the field CAX and BB in z-direction (SI)."""
         if is_close(self.couch_angle, [0, 360], delta=2):
             return -self.cax2bb_vector.y
@@ -520,13 +624,13 @@ class WLImage(image.DicomImage):
         p1 = Point()
         p2 = Point()
         # point 1 - ray origin
-        p1.x = self.x_offset + 20 * sin(self.gantry_angle)
-        p1.y = self.y_offset + 20 * cos(self.gantry_angle)
-        p1.z = self.z_offset
+        p1.x = self.bb_x_offset + 20 * sin(self.gantry_angle)
+        p1.y = self.bb_y_offset + 20 * cos(self.gantry_angle)
+        p1.z = self.bb_z_offset
         # point 2 - ray destination
-        p2.x = self.x_offset - 20 * sin(self.gantry_angle)
-        p2.y = self.y_offset - 20 * cos(self.gantry_angle)
-        p2.z = self.z_offset
+        p2.x = self.bb_x_offset - 20 * sin(self.gantry_angle)
+        p2.y = self.bb_y_offset - 20 * cos(self.gantry_angle)
+        p2.z = self.bb_z_offset
         l = Line(p1, p2)
         return l
 
@@ -537,10 +641,21 @@ class WLImage(image.DicomImage):
         return Vector(dist.x, dist.y, dist.z)
 
     @property
+    def cax2epid_vector(self):
+        """The vector in mm from the CAX to the EPID center pixel"""
+        dist = (self.epid - self.field_cax) / self.dpmm
+        return Vector(dist.x, dist.y, dist.z)
+
+    @property
     def cax2bb_distance(self):
         """The scalar distance in mm from the CAX to the BB."""
         dist = self.field_cax.distance_to(self.bb)
         return dist / self.dpmm
+
+    @property
+    def cax2epid_distance(self):
+        """The scalar distance in mm from the CAX to the EPID center pixel"""
+        return self.field_cax.distance_to(self.epid) / self.dpmm
 
     def plot(self, ax=None, show=True, clear_fig=False):
         """Plot the image, zoomed-in on the radiation field, along with the detected
@@ -558,6 +673,7 @@ class WLImage(image.DicomImage):
         ax = super().plot(ax=ax, show=False, clear_fig=clear_fig)
         ax.plot(self.field_cax.x, self.field_cax.y, 'gs', ms=8)
         ax.plot(self.bb.x, self.bb.y, 'ro', ms=8)
+        ax.plot(self.epid.x, self.epid.y, 'b+', ms=8)
         ax.set_ylim([self.bounding_box[0], self.bounding_box[1]])
         ax.set_xlim([self.bounding_box[2], self.bounding_box[3]])
         ax.set_yticklabels([])
