@@ -9,6 +9,17 @@ import numpy as np
 from .io import get_url
 
 
+def clear_data_files():
+    """Delete all demo files, image classifiers, etc from the demo folder"""
+    demo_folder = osp.join(osp.dirname(osp.dirname(__file__)), 'demo_files')
+    if osp.isdir(demo_folder):
+        for file in os.listdir(demo_folder):
+            full_file = osp.join(demo_folder, file)
+            if osp.isfile(full_file):
+                os.remove(full_file)
+    print("Pylinac data files cleared.")
+
+
 def is_close(val, target, delta=1):
     """Return whether the value is near the target value(s).
 
