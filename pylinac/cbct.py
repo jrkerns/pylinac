@@ -18,6 +18,7 @@ from functools import lru_cache
 import gzip
 from os import path as osp
 import pickle
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,6 +34,7 @@ from .core.mask import filled_area_ratio
 from .core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import simple_round, import_mpld3, retrieve_demo_file
+from .settings import get_dicom_cmap
 
 ELEKTA = 'ELEKTA'
 VARIAN = 'Varian Medical Systems'
@@ -164,7 +166,7 @@ class CBCT:
         for show_unit, axis, title, item in zip(show_section, axes, titles, items):
             if show_unit:
                 klass = getattr(self, item)
-                axis.imshow(klass.image.array, cmap=plt.cm.Greys)
+                axis.imshow(klass.image.array, cmap=get_dicom_cmap())
                 klass.plot_rois(axis)
                 axis.autoscale(tight=True)
                 axis.set_title(title)
@@ -240,21 +242,21 @@ class CBCT:
             mpld3 = import_mpld3()
 
         if 'hu' in subimage:  # HU, GEO & thickness objects
-            plt.imshow(self.hu.image.array, cmap=plt.cm.Greys)
+            plt.imshow(self.hu.image.array, cmap=get_dicom_cmap())
             self.hu.plot_rois(plt.gca())
             self.geometry.plot_lines(plt.gca())
             self.thickness.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'un' in subimage:  # uniformity
-            plt.imshow(self.uniformity.image.array, cmap=plt.cm.Greys)
+            plt.imshow(self.uniformity.image.array, cmap=get_dicom_cmap())
             self.uniformity.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'sp' in subimage:  # SR objects
-            plt.imshow(self.spatialres.image.array, cmap=plt.cm.Greys)
+            plt.imshow(self.spatialres.image.array, cmap=get_dicom_cmap())
             self.spatialres.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'lc' in subimage:  # low contrast objects
-            plt.imshow(self.lowcontrast.image.array, cmap=plt.cm.Greys)
+            plt.imshow(self.lowcontrast.image.array, cmap=get_dicom_cmap())
             self.lowcontrast.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'mtf' in subimage:
@@ -366,8 +368,8 @@ class CBCT:
         contrast_threshold : float, int
             The threshold for "detecting" low-contrast image. See RTD for calculation info.
         use_classifier : bool
-            If True, use a machine learning classifier to locate the phantom; faster than brute-force search.
-            Set to False if the algorithm has trouble finding the phantom or the HU slice.
+            If True, use a machine learning classifier to locate the phantom; faster than brute force search.
+            If for some reason the classifier fails to find the HU slice, analysis falls back to brute force.
         """
         # set various setting values
         self.settings.hu_tolerance = hu_tolerance
@@ -459,8 +461,10 @@ class Settings:
             scaled_arr = minmax_scale(arr, axis=1)
             y_labels = clf.predict(scaled_arr)
             hu_slices = [idx for idx, label in enumerate(y_labels) if label > 0]
+            if not hu_slices:
+                warnings.warn("CBCT classifier was not able to identify the HU slice. File an issue on Github (https://github.com/jrkerns/pylinac/issues) if this is a valid dataset. Resorting to brute-force method", RuntimeWarning)
         # use brute force search
-        else:
+        if not self.use_classifier or not hu_slices:
             for image_number in range(0, self.num_images, 2):
                 slice = Slice(self.dicom_stack, self, image_number, combine=False)
                 try:
