@@ -33,7 +33,7 @@ from .core.io import get_url
 from .core.mask import filled_area_ratio
 from .core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
-from .core.utilities import simple_round, import_mpld3, retrieve_demo_file
+from .core.utilities import simple_round, import_mpld3, retrieve_demo_file, minmax_scale
 from .settings import get_dicom_cmap
 
 ELEKTA = 'ELEKTA'
@@ -454,7 +454,6 @@ class Settings:
         # use a machine-learning classifier
         if self.use_classifier:
             clf = get_cbct_classifier()
-            from sklearn.preprocessing import minmax_scale
             arr = np.zeros((len(self.dicom_stack), 10000))
             for idx, img in enumerate(self.dicom_stack):
                 arr[idx, :] = imresize(img.array, size=(100, 100), mode='F').flatten()

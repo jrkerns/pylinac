@@ -12,9 +12,8 @@ from PIL import Image as pImage
 from scipy import ndimage
 from scipy.misc import imresize
 import scipy.ndimage.filters as spf
-from sklearn import preprocessing
 
-from .utilities import is_close
+from .utilities import is_close, minmax_scale
 from .decorators import type_accept, value_accept
 from .geometry import Point
 from .io import get_url, TemporaryZipDirectory
@@ -31,7 +30,7 @@ def prepare_for_classification(path):
     """Load and resize the image and return as flattened numpy array"""
     img = load(path, dtype=np.float32)
     resized_img = imresize(img.array, size=(100, 100), mode='F').flatten()
-    rescaled_img = preprocessing.minmax_scale(resized_img)
+    rescaled_img = minmax_scale(resized_img)
     return rescaled_img
 
 

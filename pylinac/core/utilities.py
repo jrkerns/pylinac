@@ -5,6 +5,7 @@ import os
 import os.path as osp
 
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 
 from .io import get_url
 
@@ -132,3 +133,22 @@ def retrieve_demo_file(url):
             os.makedirs(d)
         get_url(true_url, destination=demo_file)
     return demo_file
+
+
+def minmax_scale(array, feature_range=(0, 1), axis=0, copy=True):
+    """Copy of scikit-learn's minmax_scale function. Reproduced here for backwards compatibility."""
+    original_ndim = array.ndim
+
+    if original_ndim == 1:
+        array = array.reshape(array.shape[0], 1)
+
+    s = MinMaxScaler(feature_range=feature_range, copy=copy)
+    if axis == 0:
+        array = s.fit_transform(array)
+    else:
+        array = s.fit_transform(array.T).T
+
+    if original_ndim == 1:
+        array = array.ravel()
+
+    return array

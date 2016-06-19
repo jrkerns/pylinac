@@ -25,6 +25,7 @@ dependencies:
 - qt=4.8.7=1
 - readline=6.2=2
 - scikit-image=0.12.3=np110py34_0
+- scikit-learn=0.17.1=np110py34_1
 - scipy=0.17.0=np110py34_2
 - setuptools=20.2.2=py34_0
 - sip=4.16.9=py34_0
