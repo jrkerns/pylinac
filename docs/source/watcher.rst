@@ -35,7 +35,10 @@ into the directory, the file is immediately checked to see if pylinac can analyz
 same format (e.g. DICOM), keywords are used to filter which type of analysis should be done. When a file is
 deemed analysis-worthy, pylinac will then run the analysis automatically and generate a .png and .txt file with
 the analysis summary image and quantitative results, respectively. If the email service is setup, an email
-can be sent either on any analysis done or only on failing analyses.
+can be sent either on any analysis done or only on failing analyses. Finally, an automatic image detection
+classifier can be use for some image types, specifically, the picket fence, starshot, leeds, and pipspro images.
+The classifier allows the user to not rename files before moving them into the monitor folder. To use the
+classifier set the ``use-classifier`` option in the ``general`` section to true; see the default config file below.
 
 Configuration
 -------------
@@ -50,27 +53,27 @@ and pass that into the service initialization call:
 
 The YAML configuration file is the way to change keywords, change analysis settings, and set up email service.
 You can use/copy the `pylinac default YAML <https://github.com/jrkerns/pylinac/blob/master/pylinac/watcher_config.yaml>`_
-file as a starting template.
+file as a starting template and edit it as desired. Also see below for the file contents.
 
 .. note::
-    Only .zip files are accepted for CBCT, VMAT, and Winston-Lutz analyses. The ZIP archive
-    filename must contain a keyword.
+    Only ``*.zip`` files are accepted for CBCT, VMAT, and Winston-Lutz analyses. The ZIP archive
+    filename must contain a corresponding keyword.
 
 Setting up Email
 ----------------
 
 The pylinac watcher service allows the user to set up an email trigger. The user must supply a
-Gmail account (...@gmail.com). The gmail account name and password must be supplied in the YAML
+gmail account (...@gmail.com). The gmail account name and password must be supplied in the YAML
 configuration file.
 
 .. warning::
-    It is strongly recommended to create an *ad hoc* account for the watcher service. To
-    use the email service requires that the account have lower-than-normal security by nature of
-    the non-Gmail origin (i.e. you didn't log in and send it yourself).
+    It is strongly recommended to create an *ad hoc* email account for the watcher service. To
+    use the pylinac email service requires that the account have lower-than-normal security by nature of
+    the non-gmail origin (i.e. you didn't log in and send it yourself).
 
 To allow gmail to send the emails, log into the gmail account and go to account settings. Go to the
 sign in & security section. At the very bottom in the section "Connected apps & sites" will be an
-option to "Allow less secure apps". Turn this ON. This account will now allow the watcher service to
+option to "Allow less secure apps". Turn this **ON**. This account will now allow the watcher service to
 send emails.
 
 .. warning::

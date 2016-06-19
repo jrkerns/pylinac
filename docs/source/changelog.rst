@@ -15,7 +15,7 @@ General Changes
 * Added a utility function :func:`~pylinac.core.utilities.clear_data_files` to clear demo files and classifier files.
   This may become useful for classifier updates. I.e. the classifier for a given algorithm can be cleared and updated as need be, without the
   need for a new package release. More information on this will follow as the use of classifiers becomes normal.
-* Added a dependency to the pylinac requirements: ``scikit-learn``. This library will allow for machine learning
+* Added a dependency to the pylinac requirements: `scikit-learn <http://scikit-learn.org/stable/>`_. This library will allow for machine learning
   advancements to be used with pylinac. I am aware of the increasing number of dependencies; pylinac has reached
   a plateau I believe in terms of advancement and I hope that this is the last major dependency to be added.
 
@@ -45,13 +45,14 @@ CBCT
   you're connected to the internet.
 
 Picket Fence
-------------
+^^^^^^^^^^^^
 
 * An ``orientation`` keyword argument was added to the :meth:`~pylinac.picketfence.PicketFence.analyze` method. This defaults to ``None``,
   which does an automatic determination (current behavior). In the event that the determined orientation was wrong, this argument can be utilized.
 
 Watcher Service
----------------
+^^^^^^^^^^^^^^^
+
 * A new option has been added to the ``general`` section: ``use-classifier``. This option tells pylinac whether
   to use an SVM image classifier to determine the type of image passed. This allows the user not to worry about the
   file names; the images can be moved to the monitored folder without regard to naming. The use of the classifier
@@ -59,6 +60,7 @@ Watcher Service
   gracefully fall back to the file name convention.
 
   The following image types currently support automatic detection:
+
   - Picket Fence
   - Starshot
   - Leeds TOR

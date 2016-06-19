@@ -367,7 +367,6 @@ def auto_classify(path, config):
     except:
         return False, None
     else:
-    # print(classification)
         if classification == 1:
             return True, AnalyzePF(path, config)
         elif classification == 2:

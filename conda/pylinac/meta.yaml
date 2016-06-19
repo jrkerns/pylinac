@@ -1,12 +1,11 @@
 package:
   name: pylinac
-  version: "1.5.6"
+  version: "1.6.0"
 
 source:
-  fn: pylinac-1.5.6.zip
-#  url: https://pypi.python.org/packages/source/p/pylinac/pylinac-1.5.6.zip
-  url: https://pypi.python.org/packages/09/cd/2929342633b7f4a02aaf69861536c654dfb129ea3614013a16caf432009d/pylinac-1.5.6.zip
-  md5: f7ceee14e4aae7e2401221ed05aa9944
+  fn: pylinac-1.6.0.zip
+  url: https://pypi.python.org/packages/54/f7/9663aa2f69090751dcdeee08170d4ee736fae249bee62ded609cbb20e1d7/pylinac-1.6.0.zip#md5=9f51d47725b903ff33573b4d22cb7ac9
+  md5: 9f51d47725b903ff33573b4d22cb7ac9
 
 #  patches:
    # List any patch files here
@@ -37,6 +36,7 @@ requirements:
     - pydicom >=0.9.9
     - matplotlib >=1.3.1
     - scikit-image >=0.11
+    - scikit-learn >=0.17
     - pillow >=2.5
     - dask  # completely unknown why this is needed, but it fails w/o it
     - tqdm
@@ -48,6 +48,7 @@ requirements:
     - pydicom >=0.9.9
     - matplotlib >=1.3.1
     - scikit-image >=0.11
+    - scikit-learn >=0.17
     - pillow >=2.5
     - tqdm
 
