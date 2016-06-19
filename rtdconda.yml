@@ -1,6 +1,5 @@
 name: rtd
 dependencies:
-- decorator=4.0.9=py34_0
 - fontconfig=2.11.1=5
 - freetype=2.5.5=0
 - jbig=2.1=0
