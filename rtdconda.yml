@@ -8,7 +8,6 @@ dependencies:
 - libtiff=4.0.6=1
 - libxml2=2.9.2=0
 - matplotlib=1.5.1=np110py34_0
-- mkl=11.3.1=0
 - networkx=1.11=py34_0
 - numpy=1.10.4=py34_1
 - openssl=1.0.2g=0
