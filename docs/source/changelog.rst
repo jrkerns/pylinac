@@ -13,14 +13,19 @@ General Changes
   Brought up in `(#70) <https://github.com/jrkerns/pylinac/issues/70>`_ .
 * Added a colormap setting that can be changed. See :ref:`changing_colormaps`
 * Added a utility function :func:`~pylinac.core.utilities.clear_data_files` to clear demo files and classifier files.
+  This may become useful for classifier updates. I.e. the classifier for a given algorithm can be cleared and updated as need be, without the
+  need for a new package release. More information on this will follow as the use of classifiers becomes normal.
 * Added a dependency to the pylinac requirements: ``scikit-learn``. This library will allow for machine learning
   advancements to be used with pylinac. I am aware of the increasing number of dependencies; pylinac has reached
-  a plateau I believe in terms of advancement and I hope that this is the last dependency I add.
+  a plateau I believe in terms of advancement and I hope that this is the last major dependency to be added.
 
 Winston-Lutz
 ^^^^^^^^^^^^
 
-* `(#69) <https://github.com/jrkerns/pylinac/issues/69>`_ Added EPID position tracking.
+* `(#69) <https://github.com/jrkerns/pylinac/issues/69>`_ Added EPID position tracking. Now the EPID location will show up in images and will
+  give an output value when printing the summary. Relevant methods like :meth:`~pylinac.winston_lutz.WinstonLutz.cax2epid_distance` and
+  :meth:`~pylinac.winston_lutz.WinstonLutz.epid_sag`, and :meth:`~pylinac.winston_lutz.WinstonLutz.plot_epid_sag` have been added.
+  The summary plot has also been changed to include two sag plots: one for the gantry and one for the EPID.
 * Certain properties of WL images have been deprecated. ``x_offset`` has been replaced by :func:`~pylinac.winston_lutz.WLImage.bb_x_offset` and respectively
   for the other axes. Usage of the old properties will raise a deprecation warning and will be removed in v1.7.
 
@@ -39,6 +44,25 @@ CBCT
   Using the classifier requires a one-time download to the demo folder, which happens automatically; just make sure
   you're connected to the internet.
 
+Picket Fence
+------------
+
+* An ``orientation`` keyword argument was added to the :meth:`~pylinac.picketfence.PicketFence.analyze` method. This defaults to ``None``,
+  which does an automatic determination (current behavior). In the event that the determined orientation was wrong, this argument can be utilized.
+
+Watcher Service
+---------------
+* A new option has been added to the ``general`` section: ``use-classifier``. This option tells pylinac whether
+  to use an SVM image classifier to determine the type of image passed. This allows the user not to worry about the
+  file names; the images can be moved to the monitored folder without regard to naming. The use of the classifier
+  does not exclude file naming conventions. If the classifier does not give a good prediction, the algorithm will
+  gracefully fall back to the file name convention.
+
+  The following image types currently support automatic detection:
+  - Picket Fence
+  - Starshot
+  - Leeds TOR
+  - PipsPro QC-3
 
 V 1.5.6
 -------

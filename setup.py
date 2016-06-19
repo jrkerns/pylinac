@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = '1.5.6'
+__version__ = '1.6.0'
 
 
 setup(
@@ -18,8 +18,9 @@ setup(
     install_requires=["numpy >= 1.9",
                       "scipy >= 0.15",
                       "pydicom >= 0.9.9",
-                      "matplotlib >= 1.3.1",
+                      "matplotlib >= 1.3",
                       "scikit-image >= 0.11",
+                      "scikit-learn >= 0.16",
                       "Pillow >= 2.5",
                       "tqdm == 3.8",],
     extras_require={
@@ -40,8 +41,7 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.3",
-        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
         "Topic :: Scientific/Engineering :: Image Recognition",
         "Topic :: Scientific/Engineering :: Physics",
