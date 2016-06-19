@@ -1,13 +1,17 @@
 name: rtd
 dependencies:
-#- freetype=2.5.5=0
-#- jbig=2.1=0
-#- jpeg=8d=0
-#- libgfortran=3.0=0
-#- libpng=1.6.17=0
-#- libtiff=4.0.6=1
-#- libxml2=2.9.2=0
+- cycler=0.10.0
+- decorator=4.0.9
+- fontconfig=2.11.1
+- freetype=2.5.5
+- jbig=2.1
+- jpeg=8d
+- libgfortran=3.0
+- libpng=1.6.17
+- libtiff=4.0.6
+- libxml2=2.9.2
 - matplotlib=1.5.1
+- mkl=11.3.1
 - networkx=1.11
 - numpy=1.10.4
 - openssl=1.0.2g
