@@ -1,9 +1,15 @@
 """The watcher file is a script meant to be run as an ongoing process to watch a given directory and analyzing files
 that may be moved there for certain keywords. Automatic processing will be started if the file contains the keywords."""
 import datetime
+from functools import lru_cache
+import gzip
 import logging
 import os.path as osp
+import pickle
 import time
+
+from pylinac.core.utilities import retrieve_demo_file
+from pylinac.core.image import prepare_for_classification
 
 try:
     from watchdog.observers import Observer
@@ -60,7 +66,7 @@ class AnalyzeMixin:
 
     def process(self):
         """Process the file; includes analysis, saving results to file, and sending emails."""
-        logging.info(self.local_path + " file found and will be analyzed...")
+        logging.info(self.local_path + " will be analyzed...")
         self.instance = self.obj(self.full_path, **self.constructor_kwargs)
         self.analyze()
         self.save_image()
@@ -287,16 +293,19 @@ class AnalyzeLog(AnalyzeMixin):
 
 def analysis_should_be_done(path, config):
     """Return boolean of whether the file should be analysed, based on if the filename has a keyword."""
+    do_analysis, clfy = False, None
     # return if not an analysis-worthy file
     if any(item in path for item in config['general']['avoid-keywords']):
         return False, None
-    else:
-        analysis_classes = (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog, AnalyzeLeeds, AnalyzePipsPro)
-        for analysis_class in analysis_classes:
-            analysis_instance = analysis_class(path, config)
-            if analysis_instance.keyword_in_here():
-                return True, analysis_instance
-        return False, None
+    if config['general']['use-classifier']:
+        do_analysis, clfy = auto_classify(path, config)
+        if clfy:
+            logging.info("{} classified using SVM".format(osp.basename(path)))
+    if not config['general']['use-classifier'] or (clfy is None):
+        do_analysis, clfy = filename_classify(path, config)
+        if clfy:
+            logging.info("{} classified using filename keywords".format(osp.basename(path)))
+    return do_analysis, clfy
 
 
 class FileEventAnalyzerHandler(FileSystemEventHandler):
@@ -347,3 +356,50 @@ def load_config(config_file=None):
     config = yaml.load(open(yaml_config_file).read())
     logging.info("Using configuration file: {}".format(yaml_config_file))
     return config
+
+
+def auto_classify(path, config):
+    """Classify an image using an SVM classifier."""
+    clf = get_image_classifier()
+    try:
+        img = prepare_for_classification(path)
+        classification = clf.predict(img.reshape(1, -1))
+    except:
+        return False, None
+    else:
+    # print(classification)
+        if classification == 1:
+            return True, AnalyzePF(path, config)
+        elif classification == 2:
+            return True, AnalyzePipsPro(path, config)
+        elif classification == 3:
+            return True, AnalyzeLeeds(path, config)
+        elif classification == 4:
+            return True, AnalyzeStar(path, config)
+        else:
+            return False, None
+
+
+@lru_cache(maxsize=1)
+def get_image_classifier():
+    """Load the CBCT HU slice classifier model."""
+    classifier_file = osp.join(osp.dirname(__file__), 'demo_files', 'singleimage_classifier.pkl.gz')
+    # get the classifier if it's not downloaded
+    if not osp.isfile(classifier_file):
+        logging.info("Downloading classifier from the internet...")
+        classifier_file = retrieve_demo_file('singleimage_classifier.pkl.gz')
+        logging.info("Done downloading")
+
+    with gzip.open(classifier_file, mode='rb') as m:
+        clf = pickle.load(m)
+    return clf
+
+
+def filename_classify(path, config):
+    """Classify an image using the filename convention."""
+    analysis_classes = (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog, AnalyzeLeeds, AnalyzePipsPro)
+    for analysis_class in analysis_classes:
+        analysis_instance = analysis_class(path, config)
+        if analysis_instance.keyword_in_here():
+            return True, analysis_instance
+    return False, None

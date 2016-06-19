@@ -71,7 +71,7 @@ class WatcherTest(unittest.TestCase):
         while not osp.isfile(new_path):
             time.sleep(0.3)
             safety_timer += 0.3
-            if safety_timer > 12:
+            if safety_timer > 30:
                 print("Process timed out after {} seconds and was not completed.".format(int(safety_timer)))
                 break
         time.sleep(1)

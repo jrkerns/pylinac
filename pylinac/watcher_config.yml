@@ -11,6 +11,9 @@ general:
   avoid-keywords:  # keywords in a file name that cause a skip of analysis
     - .png
     - .txt
+  use-classifier: false  # set to true to use an SVM classifier which can automatically
+                         # identify starshot, picket fence, pipspro, and leeds images.
+                         # Experimental; may not always identify images correctly and cause errors.
 
 email:
   enable-all: false  # set to true to send an email after every analysis
@@ -22,20 +25,23 @@ email:
     - recipient2@domain.com
   subject: Pylinac results  # subject line of the email
 
+# MACHINE LOG SETTINGS
 logs:
   keywords:  # keywords needed in the file name to trigger analysis
     - .dlg
     - .bin
-  analysis:  # analysis settings; see each module's analyze() method for parameter options
+  analysis:  # analysis settings; see each module's analyze() method for parameter options.
+             # Keywords must match the analyze() method keyword arguments exactly.
     doseTA: 1
     distTA: 1
     threshold: 0.1
     resolution: 0.1
   failure:  # what constitutes a "failure" in analysis
-    gamma: 95
-    avg-rms: 0.05
-    max-rms: 0.5
+    gamma: 95  # gamma below this value triggers a failure
+    avg-rms: 0.05  # average RMS value above this value triggers a failure
+    max-rms: 0.5  # maximum RMS value above this value triggers a failure
 
+# WINSTON-LUTZ SETTINGS
 winston-lutz:
   keywords:
     - wl
@@ -46,6 +52,7 @@ winston-lutz:
     mean-cax-bb-distance: 2
     max-cax-bb-distance: 2.5
 
+# STARSHOT SETTINGS
 starshot:
   keywords:
     - star
@@ -56,6 +63,7 @@ starshot:
   failure:
     passed: false
 
+# PICKET FENCE SETTINGS
 picketfence:
   keywords:
     - pf
@@ -67,6 +75,7 @@ picketfence:
   failure:
     passed: false
 
+# CBCT SETTINGS
 cbct:
   keywords:
     - cbct
@@ -80,6 +89,7 @@ cbct:
     geometry-passed: false
     thickness-passed: false
 
+# VMAT SETTINGS
 vmat:
   keywords:
     - vmat
@@ -91,6 +101,7 @@ vmat:
   failure:
     passed: false
 
+# LEEDS TOR SETTINGS
 leeds:
   keywords:
     - leed
@@ -99,6 +110,7 @@ leeds:
     low_contrast_threshold: 0.005
     hi_contrast_threshold: 0.4
 
+# PIPSPRO QC-3 SETTINGS
 pipspro:
   keywords:
     - pips
