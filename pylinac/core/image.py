@@ -12,6 +12,7 @@ from PIL import Image as pImage
 from scipy import ndimage
 from scipy.misc import imresize
 import scipy.ndimage.filters as spf
+from sklearn import preprocessing
 
 from .utilities import is_close
 from .decorators import type_accept, value_accept
@@ -24,6 +25,14 @@ ARRAY = 'Array'
 DICOM = 'DICOM'
 IMAGE = 'Image'
 MM_PER_INCH = 25.4
+
+
+def prepare_for_classification(path):
+    """Load and resize the image and return as flattened numpy array"""
+    img = load(path, dtype=np.float32)
+    resized_img = imresize(img.array, size=(100, 100), mode='F').flatten()
+    rescaled_img = preprocessing.minmax_scale(resized_img)
+    return rescaled_img
 
 
 def equate_images(image1, image2):
