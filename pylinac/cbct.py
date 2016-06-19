@@ -453,7 +453,7 @@ class Settings:
         hu_slices = []
         # use a machine-learning classifier
         if self.use_classifier:
-            clf = get_classifier()
+            clf = get_cbct_classifier()
             from sklearn.preprocessing import minmax_scale
             arr = np.zeros((len(self.dicom_stack), 10000))
             for idx, img in enumerate(self.dicom_stack):
@@ -1414,7 +1414,7 @@ class GeometrySlice(Slice, ROIManagerMixin):
 
 
 @lru_cache(maxsize=1)
-def get_classifier():
+def get_cbct_classifier():
     """Load the CBCT HU slice classifier model."""
     clf_file = retrieve_demo_file('cbct_classifier.pkl.gz')
     with gzip.open(clf_file, mode='rb') as m:
