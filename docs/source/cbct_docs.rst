@@ -37,7 +37,9 @@ Results will be printed to the console and a figure showing the slices analyzed 
 .. plot::
 
     from pylinac import CBCT
-    CBCT.run_demo()
+    cbct = CBCT.from_demo_images()
+    cbct.analyze(use_classifier=False)
+    cbct.plot_analyzed_image()
 
 As well, you can plot and save individual pieces of the analysis:
 
