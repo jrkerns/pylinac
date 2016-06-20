@@ -3,20 +3,17 @@
 Pylinac General Overview
 ========================
 
-.. plot::
+.. image::
 
-    import pylinac
-    pylinac.Starshot.run_demo()
+    images/starshot_analyzed.png
 
-.. plot::
+.. image::
 
-    import pylinac
-    pylinac.VMAT.run_demo_drgs()
+    images/vmat_analyzed.png
 
-.. plot::
+.. image::
 
-    import pylinac
-    pylinac.PicketFence.run_demo(tolerance=0.1)
+    images/PF_tight_tolerance.png
 
 Intended Use
 ------------
