@@ -3,17 +3,11 @@
 Pylinac General Overview
 ========================
 
-.. image::
+.. image:: images/starshot_analyzed.png
 
-    images/starshot_analyzed.png
+.. image:: images/vmat_analyzed.png
 
-.. image::
-
-    images/vmat_analyzed.png
-
-.. image::
-
-    images/PF_tight_tolerance.png
+.. image:: images/PF_tight_tolerance.png
 
 Intended Use
 ------------
