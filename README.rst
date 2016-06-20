@@ -85,17 +85,22 @@ Below are the high-level tools currently available:
    True, one-time "set it and forget it" service that analyzes any file that enters the folder. Files with
    keywords and certain file types are analyzed automatically.
 
-   **Easy: Use filenames to specify analysis types** - Just rename the file to contain a keyword (which are customizable)
-   and move it to the directory!
-   **Easier: Use a classifier to identify images** - The epitome of lazy! Certain analyses don't even need to have a keyword
-   if you choose to use the automatic classifier. E.g. a picket fence and starshot image can be differentiated and
-   analyzed according to their own modules, with no extra work!
+   * **Easy: Use filenames to specify analysis types** - Just rename the file to contain a keyword (which are customizable)
+     and move it to the directory!
+   * **Easier: Use a classifier to identify images** - The epitome of lazy! Certain analyses don't even need to have a keyword
+     if you choose to use the automatic classifier. E.g. a picket fence and starshot image can be differentiated and
+     analyzed according to their own modules, with no extra work!
 
-   After installing via conda or pip (above), install the optional dependencies, then run:
+   After installing via conda or pip (above), install the optional dependencies:
 
    .. code-block:: bash
 
       $ pip install pylinac[console]  # run once before first usage
+
+   Then run the watcher script:
+
+   .. code-block:: bash
+
       $ pylinac watch "dir/to/watch"  # start watching!
 
    And that's it! No code to write; no fuss, no muss.
