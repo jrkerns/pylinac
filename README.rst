@@ -122,13 +122,11 @@ Below are the high-level tools currently available:
 
         from pylinac import LeedsTOR, PipsProQC3
 
-        path = 'path/to/leeds.dcm`
-        leeds = LeedsTOR(path)
+        leeds = LeedsTOR("my_leeds.dcm")
         leeds.analyze()
         leeds.plot_analyzed_image()
 
-        path = 'path/to/pipspro.dcm'
-        pp = PipsProQC3(path)
+        pp = PipsProQC3("my_pipspro.dcm")
         pp.analyze()
         pp.plot_analyzed_image()
 
@@ -156,8 +154,7 @@ Below are the high-level tools currently available:
 
         from pylinac import WinstonLutz
 
-        path = 'path/to/image/directory`
-        wl = WinstonLutz(path)  # images are analyzed upon loading
+        wl = WinstonLutz("wl/image/directory")  # images are analyzed upon loading
         wl.plot_summary()
         print(wl.results())
 
@@ -188,7 +185,7 @@ Below are the high-level tools currently available:
         from pylinac import Starshot
 
         star = Starshot("mystarshot.tif")
-        star.analyze(radius=60, tolerance=0.75)
+        star.analyze(radius=0.75, tolerance=1.0, fwhm=True)
         print(star.return_results())  # prints out wobble information
         star.plot_analyzed_image()  # shows a matplotlib figure
 
@@ -209,8 +206,8 @@ Below are the high-level tools currently available:
 
         from pylinac import VMAT
 
-        vmat = VMAT.from_zip("myvmatimages.zip")
-        vmat.analyze(test='mlcs', tolerance=1.5)
+        vmat = VMAT(images=["DRGSopen.dcm", "DRGSdmlc.dcm"], delivery_types=["open", "dmlc"])
+        vmat.analyze(test='drgs', tolerance=1.5)
         print(vmat.return_results())  # prints out ROI information
         vmat.plot_analyzed_image()  # shows a matplotlib figure
 
@@ -234,7 +231,7 @@ Below are the high-level tools currently available:
         from pylinac import CBCT
 
         cbct = CBCT("my/cbct_image_folder")
-        cbct.analyze(hu_tolerance=40)
+        cbct.analyze(hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2, low_contrast_threshold=1)
         print(cbct.return_results())
         cbct.plot_analyzed_image()
 
@@ -261,11 +258,14 @@ Below are the high-level tools currently available:
 
         from pylinac import MachineLog
 
-        log = MachineLog("tlog.bin")
+        tlog = MachineLog("tlog.bin")
         # after loading, explore any Axis of the Varian structure
-        log.axis_data.gantry.plot_actual()  # plot the gantry position throughout treatment
-        log.fluence.gamma.calc_map(doseTA=1, distTA=1, threshold=10, resolution=0.1)
-        log.fluence.gamma.plot_map()  # show the gamma map as a matplotlib figure
+        tlog.axis_data.gantry.plot_actual()  # plot the gantry position throughout treatment
+        tlog.fluence.gamma.calc_map(doseTA=1, distTA=1, threshold=10, resolution=0.1)
+        tlog.fluence.gamma.plot_map()  # show the gamma map as a matplotlib figure
+
+        dlog = MachineLog("dynalog.dlg")
+        ...
 
 * `Picket Fence MLC Analysis <http://pylinac.readthedocs.org/en/stable/picketfence.html>`_ -
     The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
