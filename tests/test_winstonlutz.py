@@ -11,7 +11,7 @@ from tests.utils import save_file, LoadingTestBase, LocationMixin
 
 class TestWLLoading(LoadingTestBase, TestCase):
     klass = WinstonLutz
-    demo_method = 'from_demo_images'
+    demo_load_method = 'from_demo_images'
     url = 'winston_lutz.zip'
 
 

@@ -19,16 +19,16 @@ Features:
 * **Anonymize logs** - Both dynalogs and trajectory logs can be "anonymized" by removing the Patient ID from the filename(s)
   and file data.
 """
-from abc import ABCMeta, abstractproperty
+import collections
 import concurrent.futures
 import copy
 import csv
 from functools import lru_cache
+import itertools
 import multiprocessing
 import os
 import os.path as osp
 import shutil
-import struct
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,17 +36,17 @@ import numpy as np
 from .settings import get_array_cmap
 from .core import image
 from .core.decorators import type_accept, value_accept
-from .core.io import get_url, TemporaryZipDirectory
-from .core.utilities import is_iterable, import_mpld3, retrieve_demo_file
+from .core.io import get_url, TemporaryZipDirectory, retrieve_filenames, retrieve_demo_file, is_zipfile
+from .core.utilities import is_iterable, import_mpld3, decode_binary, Structure
 
-# np.seterr(invalid='ignore')  # ignore warnings for invalid numpy operations. Used for np.where() operations on partially-NaN arrays.
-
-DYNALOG = 'Dynalog'
-TRAJECTORY_LOG = 'Trajectory log'
 STATIC_IMRT = 'Static IMRT'
 DYNAMIC_IMRT = 'Dynamic IMRT'
 VMAT = 'VMAT'
 IMAGING = 'Imaging'
+
+MLC_FOV_WIDTH_MM = 400
+MLC_FOV_HEIGHT_MM = 400
+HDMLC_FOV_HEIGHT_MM = 220
 
 
 class MachineLogs(list):
@@ -83,6 +83,7 @@ class MachineLogs(list):
         self.load_folder(folder, recursive)
 
     @classmethod
+    @type_accept(zfile=str)
     def from_zip(cls, zfile):
         """Instantiate from a ZIP archive.
 
@@ -91,41 +92,31 @@ class MachineLogs(list):
         zfile : str
             Path to the zip archive.
         """
-        # extract files to a temporary folder
         with TemporaryZipDirectory(zfile) as tzd:
-            # walk the files looking for machine logs
-            obj = cls(tzd)
-        return obj
+            logs = cls(tzd)
+        return logs
 
     @property
     def num_logs(self):
         """The number of logs currently loaded."""
         return len(self)
 
-    def _num_log_type(self, log_type):
-        """The number of a given log type."""
-        num = 0
-        for log in self:
-            if log.log_type == log_type:
-                num += 1
-        return num
-
     @property
     def num_tlogs(self):
         """The number of Trajectory logs currently loaded."""
-        return self._num_log_type(TRAJECTORY_LOG)
+        return sum(isinstance(log, TrajectoryLog) for log in self)
 
     @property
     def num_dlogs(self):
         """The number of Trajectory logs currently loaded."""
-        return self._num_log_type(DYNALOG)
+        return sum(isinstance(log, Dynalog) for log in self)
 
-    def load_folder(self, dir, recursive=True):
+    def load_folder(self, directory, recursive=True):
         """Load log files from a directory.
 
         Parameters
         ----------
-        dir : str, None
+        directory : str, None
             The directory of interest.
             If a string, will walk through and process any logs, Trajectory or dynalog, it finds.
             Non-log files will be skipped.
@@ -134,50 +125,18 @@ class MachineLogs(list):
             If True (default), will walk through subfolders of passed directory.
             If False, will only search root directory.
         """
-        # do initial walk to get file count
-        num_logs = 0
-        num_skipped = 0
-        for root, dirs, files in os.walk(dir):
-            _, num_logs, num_skipped = self._clean_log_filenames(files, root, num_logs, num_skipped)
-            if not recursive:
-                break
-        if num_logs == 0:
+        # get log files from directory
+        log_files = _get_log_filenames(directory, recursive=recursive)
+        if len(log_files) == 0:
             print("No logs found.")
             return
 
         # actual log loading
-        load_num = 1
-        print("{} logs found. \n{} logs skipped.".format(num_logs, num_skipped))
-        for root, dirs, files in os.walk(dir):
-            cleaned_files, _, _ = self._clean_log_filenames(files, root, num_logs, num_skipped)
-            for name in cleaned_files:
-                pth = osp.join(root, name)
-                self.append(pth)
-                print("Log loaded: {} of {}".format(load_num, num_logs), end='\r')
-                load_num += 1
-            if not recursive:
-                break  # break out of for loop after top level search
+        print("{} logs found.".format(len(log_files)))
+        for idx, file in enumerate(log_files):
+            self.append(file)
+            print("Log loaded: {} of {}".format(idx+1, len(log_files)), end='\r')
         print('')
-
-    def _clean_log_filenames(self, filenames, root, num_logs, num_skipped):
-        """Extract the names of real log files from a list of files."""
-        cleaned_filenames = []
-        for idx, filename in enumerate(filenames):
-            filename = osp.join(root, filename)
-            if is_tlog(filename):
-                num_logs += 1
-                cleaned_filenames.append(filename)
-            elif is_dlog(filename):
-                opp_file = _return_other_dlg(filename, raise_find_error=False)
-                if opp_file is not None:
-                    num_logs += 1
-                    opp_file = osp.basename(opp_file)
-                    del filenames[filenames.index(opp_file)]
-                    cleaned_filenames.append(filename)
-                else:
-                    num_skipped += 1
-                    del filenames[idx]
-        return cleaned_filenames, num_logs, num_skipped
 
     def _check_empty(self):
         """Check if any logs have been loaded."""
@@ -191,7 +150,7 @@ class MachineLogs(list):
         - Average gamma value of all logs
         - Average gamma pass percent of all logs
         """
-        print("Number of logs: {}".format(self.num_logs))
+        print("Number of logs: {}".format(len(self)))
         print("Average gamma: {:3.2f}".format(self.avg_gamma()))
         print("Average gamma pass percent: {:3.1f}".format(self.avg_gamma_pct()))
 
@@ -209,14 +168,13 @@ class MachineLogs(list):
         """
         if isinstance(obj, str):
             if is_log(obj):
-                log = MachineLog(obj)
+                log = load_log(obj)
                 super().append(log)
             elif osp.isdir(obj):
-                for root, dirs, files in os.walk(obj):
-                    for name in files:
-                        pth = osp.join(root, name)
-                        self.append(pth)
-        elif isinstance(obj, MachineLog):
+                files = retrieve_filenames(obj)
+                for file in files:
+                    self.append(file)
+        elif isinstance(obj, (Dynalog, TrajectoryLog)):
             super().append(obj)
         else:
             raise TypeError("Can only append MachineLog or string pointing to a log or log directory.")
@@ -256,21 +214,21 @@ class MachineLogs(list):
         list
             A list of all the filenames of the newly created CSV files.
         """
-        num_written = 0
+        tlogs_written = False
         files = []
         for log in self:
             if is_tlog(log.filename):
                 file = log.to_csv()
-                num_written += 1
-                files += [file]
-        if num_written:
+                tlogs_written = True
+                files.append(file)
+        if tlogs_written:
             print('\nAll trajectory logs written to CSV files!')
         else:
             print('\nNo files written. Either no logs are loaded or all logs were dynalogs.')
         return files
 
     def anonymize(self, inplace=False, suffix=None):
-        """Save an anonymized version of the log.
+        """Save anonymized versions of the logs.
 
         For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
         This will rename both A* and B* logs if both are present in the same directory.
@@ -305,460 +263,6 @@ class MachineLogs(list):
             file_list += files
         print("\n\nDone anonymizing!")
         return file_list
-
-
-class MachineLog:
-    """Reads in and analyzes MLC log files, both dynalog and trajectory logs, from Varian linear accelerators.
-
-    If reading Trajectory logs, the .txt file is also loaded if it's around.
-    """
-    def __init__(self, filename, exclude_beam_off=True):
-        """
-        Parameters
-        ----------
-        filename : str
-            Path to the log file. For trajectory logs this is a single .bin file.
-            For dynalog files, load either the A*.dlg or B*.dlg file.
-
-            .. warning:: Dynalogs must have names like "A*.dlg" and "B*.dlg" and be in the same folder, otherwise errors will ensue.
-
-        exclude_beam_off : boolean
-            If True (default), snapshots where the beam was not on will be removed.
-            If False, all data will be included.
-
-            .. warning::
-                Including beam off data may affect fluence and gamma results. E.g. in a step-&-shoot IMRT
-                delivery, leaves move between segments while the beam is held. If beam-off data is included,
-                the RMS and fluence errors may not correspond to what was delivered.
-
-        Examples
-        --------
-        Load a trajectory log or dynalog file::
-
-            >>> mytlogfile = "C:/path/to/log.bin"
-            >>> tlog = MachineLog(mytlogfile)
-            >>> mydlogfile = "C:/path/to/dynalog.dlg"
-            >>> dlog = MachineLog(mydlogfile)
-
-        Run the demos::
-
-            >>> MachineLog.run_dlog_demo()
-            >>> MachineLog.run_tlog_demo()
-
-        Attributes
-        ----------
-        filename : str
-            The name of the file loaded in.
-        header : A :class:`~pylinac.log_analyzer.Tlog_Header` or :class:`~pylinac.log_analyzer.Dlog_Header`, depending on the log type.
-        axis_data : :class:`~pylinac.log_analyzer.Tlog_Axis_Data` or :class:`~pylinac.log_analyzer.Dlog_Axis_Data`, depending on the log type.
-        subbeams : :class:`~pylinac.log_analyzer.SubbeamHandler`
-            Will contain instances of :class:`~pylinac.log_analyzer.Subbeam`; will be empty if
-            autosequencing was not done on v2.1.
-        txt : dict
-            If working with trajectory logs and the associated .txt file is in the same directory, the txt file data will be loaded as a dictionary.
-        fluence : :class:`~pylinac.log_analyzer.Fluence_Struct`
-            Contains actual and expected fluence data, including gamma.
-        log_type : str
-            The log type loaded; either 'Dynalog' or 'Trajectory log'
-        """
-        self._cursor = 0
-        self.fluence = FluenceStruct()
-
-        if is_log(filename):
-            self.filename = filename
-            self._read_log(exclude_beam_off)
-        else:
-            raise IOError("{} was not a valid log file".format(filename))
-
-    @classmethod
-    def from_demo_dynalog(cls, exclude_beam_off=True):
-        """Load and instantiate from the demo dynalog file included with the package."""
-        demo_file = retrieve_demo_file(url='AQA.dlg')
-        retrieve_demo_file(url='BQA.dlg')  # also download "B" dynalog
-        return cls(demo_file, exclude_beam_off)
-
-    @classmethod
-    def from_demo_trajectorylog(cls, exclude_beam_off=True):
-        """Load and instantiate from the demo trajetory log file included with the package."""
-        demo_file = retrieve_demo_file(url='Tlog.bin')
-        return cls(demo_file, exclude_beam_off)
-
-    @classmethod
-    def from_url(cls, url, exclude_beam_off=True):
-        """Instantiate a log from a URL."""
-        filename = get_url(url)
-        return cls(filename, exclude_beam_off)
-
-    @staticmethod
-    def run_tlog_demo():
-        """Run the Trajectory log demo."""
-        tlog = MachineLog.from_demo_trajectorylog()
-        tlog.report_basic_parameters()
-        tlog.plot_summary()
-
-    @staticmethod
-    def run_dlog_demo():
-        """Run the dynalog demo."""
-        dlog = MachineLog.from_demo_dynalog()
-        dlog.report_basic_parameters()
-        dlog.plot_summary()
-
-    def plot_summary(self, show=True):
-        """Plot actual & expected fluence, gamma map, gamma histogram,
-            MLC error histogram, and MLC RMS histogram.
-        """
-        if self.fluence.gamma.map_calced:
-            # plot the actual fluence
-            ax = plt.subplot(2, 3, 1)
-            ax.set_title('Actual Fluence', fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            ax.autoscale(tight=True)
-            plt.imshow(self.fluence.actual.array, aspect='auto', interpolation='none', cmap=get_array_cmap())
-
-            # plot the expected fluence
-            ax = plt.subplot(2, 3, 2)
-            ax.set_title("Expected Fluence", fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.expected.array, aspect='auto', interpolation='none', cmap=get_array_cmap())
-
-            # plot the gamma map
-            gmma = self.fluence.gamma
-            ax = plt.subplot(2, 3, 3)
-            ax.set_title("Gamma Map ({:2.2f}% passing @ {}%/{}mm)".format(gmma.pass_prcnt, gmma.doseTA, gmma.distTA), fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.gamma.array, aspect='auto', interpolation='none', vmax=1, cmap=get_array_cmap())
-            plt.colorbar(ax=ax)
-
-            # plot the gamma histogram
-            ax = plt.subplot(2, 3, 4)
-            ax.set_yscale('log')
-            ax.set_title("Gamma Histogram (Avg: {:2.3f})".format(self.fluence.gamma.avg_gamma), fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            plt.hist(self.fluence.gamma.array.flatten(), bins=self.fluence.gamma.bins)
-
-            # plot the MLC error histogram
-            ax = plt.subplot(2, 3, 5)
-            p95error = self.axis_data.mlc.get_error_percentile()
-            ax.set_title("Leaf Error Histogram (95th Perc: {:2.3f}cm)".format(p95error), fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            plt.hist(self.axis_data.mlc._abs_error_all_leaves.flatten())
-
-            # plot the leaf RMSs
-            ax = plt.subplot(2,3,6)
-            ax.set_title("Leaf RMS Error (Max: {:2.3f}cm)".format(self.axis_data.mlc.get_RMS_max()), fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves+0.5])  # bit of padding since bar chart alignment is center
-            plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both'), align='center')
-
-            if show:
-                plt.show()
-        else:
-            raise AttributeError("Gamma map has not yet been calculated.")
-
-    def save_summary(self, filename, **kwargs):
-        """Save the summary image to file."""
-        self.plot_summary(show=False)
-        plt.savefig(filename, **kwargs)
-
-    def report_basic_parameters(self, printout=True):
-        """Print the common parameters analyzed when investigating machine logs:
-
-        - Log type
-        - Average MLC RMS
-        - Maximum MLC RMS
-        - 95th percentile MLC error
-        - Number of beam holdoffs
-        - Gamma pass percentage
-        - Average gamma value
-        """
-        log_type = "MLC log type: {}\n".format(self.log_type)
-        avg_rms = "Average RMS of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False))
-        max_rms = "Max RMS error of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_max())
-        p95 = "95th percentile error: {:3.3f} cm\n".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False))
-        num_holdoffs = "Number of beam holdoffs: {:1.0f}\n".format(self.axis_data.num_beamholds)
-        self.fluence.gamma.calc_map()
-        gamma_pass = "Gamma pass %: {:2.2f}\n".format(self.fluence.gamma.pass_prcnt)
-        gamma_avg = "Gamma average: {:2.3f}\n".format(self.fluence.gamma.avg_gamma)
-
-        string = log_type + avg_rms + max_rms + p95 + num_holdoffs + gamma_pass + gamma_avg
-        if printout:
-            print(string)
-        else:
-            return string
-
-    def anonymize(self, inplace=False, destination=None, suffix=None):
-        """Save an anonymized version of the log.
-
-        For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
-        This will rename both A* and B* logs if both are present in the same directory.
-
-        For trajectory logs, the patient ID in the filename is replaced with `Anonymous<suffix>` for the .bin file. If the
-        associated .txt file is in the same directory it will similarly replace the patient ID in the filename with
-        `Anonymous<suffix>`. Additionally, the `Patient ID` row will be replaced with `Patient ID: Anonymous<suffix>`.
-
-        .. note::
-            Anonymization is only available for logs loaded locally (i.e. not from a URL or a data stream). To
-            anonymize such a log it must be first downloaded or written to a file, then loaded in.
-
-        .. note::
-            Anonymization is done to the log *file* itself. The current instance of `MachineLog` will not be anonymized.
-
-        Parameters
-        ----------
-        inplace : bool
-            If False (default), creates an anonymized *copy* of the log(s).
-            If True, *renames and replaces* the content of the log file.
-        destination : str, optional
-            A string specifying the directory where the newly anonymized logs should be placed.
-            If None, will place the logs in the same directory as the originals.
-        suffix : str, optional
-            An optional suffix that is added after `Anonymous` to give specificity to the log.
-
-        Returns
-        -------
-        list
-            A list containing the paths to the newly written files.
-        """
-        if suffix is None:
-            suffix = ''
-        is_dlog = self.log_type == DYNALOG
-        if is_dlog:
-            both_dlogs = _return_other_dlg(self.filename, raise_find_error=False) is not None
-        else:
-            both_dlogs = False
-        is_tlog = self.log_type == TRAJECTORY_LOG
-        is_tlog_and_txt = is_tlog and is_tlog_txt_file_around(self.filename)
-
-        # get base file name
-        base_filename = osp.basename(self.filename)
-        under_index = base_filename.find('_')
-        if under_index < 0:
-            raise NameError("Filename `{}` has no underscore. "
-                            "Place an underscore between the patient ID and the rest of the filename and try again.".format(base_filename))
-
-        # determine destination directory
-        if destination is None:
-            dest_dir = osp.dirname(self.filename)
-        else:
-            if not osp.isdir(destination):
-                raise NotADirectoryError("Specified destination `{}` was not a valid directory".format(destination))
-            dest_dir = destination
-
-        # create anonymized filenames
-        if is_tlog:
-            anonymous_base_filename = 'Anonymous' + suffix + base_filename[under_index:]
-            anonymous_filename = osp.join(dest_dir, anonymous_base_filename)
-            anonymous_txtfilename = anonymous_filename.replace('.bin', '.txt')
-        else:
-            anonymous_base_filename = base_filename[:under_index] + '_Anonymous' + suffix + '.dlg'
-            anonymous_filename = osp.join(dest_dir, anonymous_base_filename)
-            other_filename = _return_other_dlg(self.filename, raise_find_error=False)
-            if other_filename is not None:
-                anonymous_base_filename = osp.basename(other_filename)[:under_index] + '_Anonymous' + suffix + '.dlg'
-                anonymous_filenameB = osp.join(dest_dir, anonymous_base_filename)
-
-        # copy or rename the files, depending on `inplace` parameter
-        method = os.rename if inplace else shutil.copy
-        method(self.filename, anonymous_filename)
-        if is_tlog_and_txt:
-            old_txt_file = self.filename.replace('.bin', '.txt')
-            method(old_txt_file, anonymous_txtfilename)
-        elif is_dlog:
-            method(other_filename, anonymous_filenameB)
-
-        # replace Patient ID line in tlog .txt file or dynalog file
-        if is_tlog_and_txt or (self.log_type == DYNALOG):
-            if is_tlog_and_txt:
-                files = [anonymous_txtfilename]
-                line = 0
-            else:
-                files = [anonymous_filename, anonymous_filenameB]
-                line = 1
-            for file in files:
-                # read in the text file, replace the patient ID line, and rewrite it back
-                with open(file) as f:
-                    txtdata = f.readlines()
-                txtdata[line] = 'Patient ID:\tAnonymous' + suffix + '\n'
-                with open(file, mode='w') as f:
-                    f.writelines(txtdata)
-                print('Anonymized file written to: ', file)
-
-        if is_tlog_and_txt:
-            return [anonymous_filename, anonymous_txtfilename]
-        elif both_dlogs:
-            return files
-        else:
-            return [anonymous_filename]
-
-    @property
-    @lru_cache(maxsize=1)
-    def log_type(self):
-        """Determine the MLC log type: Trajectory or Dynalog.
-
-        The file is opened and sampled of
-        the first few bytes. If the sample matches what is found in standard dynalog or tlog files it will be
-        assigned that log type.
-
-        Returns
-        -------
-        str : {'Dynalog', 'Trajectory Log'}
-
-        Raises
-        ------
-        ValueError : If log type cannot be determined.
-        """
-        if is_dlog(self.filename):
-            log_type = DYNALOG
-        elif is_tlog(self.filename):
-            log_type = TRAJECTORY_LOG
-        return log_type
-
-    @property
-    def treatment_type(self):
-        """The treatment type of the log. Possible options:
-
-        Returns
-        -------
-        str
-            One of the following:
-            * VMAT
-            * Dynamic IMRT
-            * Static IMRT
-            * Imaging
-        """
-        if self.log_type == TRAJECTORY_LOG:
-            try:
-                gantry_std = self.subbeams[0].gantry_angle.actual.std()
-                if np.isnan(gantry_std):
-                    raise ValueError
-            except (IndexError, ValueError):
-                # no beam-on snapshots, thus imaging log
-                return IMAGING
-        else:
-            gantry_std = self.axis_data.gantry.actual.std()
-        if gantry_std > 0.5:
-            return VMAT
-        elif self.axis_data.mlc.get_RMS_avg(only_moving_leaves=True) > 0.05:
-            return DYNAMIC_IMRT
-        else:
-            return STATIC_IMRT
-
-    def to_csv(self, filename=None):
-        """Write the log to a CSV file. Only applicable for Trajectory logs (Dynalogs are already similar to CSV).
-
-        Parameters
-        ----------
-        filename : None, str
-            If None (default), the CSV filename will be the same as the filename of the log.
-            If a string, the filename will be named so.
-
-        Returns
-        -------
-        str
-            The full filename of the newly created CSV file.
-        """
-        is_file_object = False
-        if not is_tlog(self.filename):
-            raise TypeError("Writing to CSV is only applicable to trajectory logs.")
-        if filename is None:
-            filename = self.filename.replace('bin', 'csv')
-        else:
-            try:
-                if not filename.endswith('.csv'):
-                    filename = filename + '.csv'
-            except AttributeError:
-                is_file_object = True
-
-        csv_file = open(filename, mode='w')
-        writer = csv.writer(csv_file, lineterminator='\n')
-        # write header info
-        header_titles = ('Tlog File:', 'Signature:', 'Version:', 'Header Size:', 'Sampling Inteval:',
-                         'Number of Axes:', 'Axis Enumeration:', 'Samples per Axis:', 'Axis Scale:',
-                         'Number of Subbeams:', 'Is Truncated?', 'Number of Snapshots:', 'MLC Model:')
-        h = self.header
-        header_values = (self.filename, h.header, h.version, h.header_size, h.sampling_interval,
-                         h.num_axes, h.axis_enum, h.samples_per_axis, h.axis_scale, h.num_subbeams, h.is_truncated,
-                         h.num_snapshots, h.mlc_model)
-        for title, value in zip(header_titles, header_values):
-            write_single_value(writer, title, value)
-
-        # write axis data
-        data_titles = ('Gantry', 'Collimator', 'Couch Lat', 'Couch Lng', 'Couch Rtn', 'MU',
-                       'Beam Hold', 'Control Point', 'Carriage A', 'Carriage B')
-        ad = self.axis_data
-        data_values = (ad.gantry, ad.collimator, ad.couch.latl, ad.couch.long, ad.couch.rotn,
-                       ad.mu, ad.beam_hold, ad.control_point, ad.carriage_A, ad.carriage_B)
-        data_units = ('degrees', 'degrees', 'cm', 'cm', 'degrees', 'MU', None, None, 'cm',
-                      'cm')
-        for title, value, unit in zip(data_titles, data_values, data_units):
-            write_array(writer, title, value, unit)
-
-        # write leaf data
-        for leaf_num, leaf in self.axis_data.mlc.leaf_axes.items():
-            write_array(writer, 'Leaf ' + str(leaf_num), leaf, 'cm')
-
-        if not is_file_object:
-            print("CSV file written to: " + filename)
-            return filename
-
-    def _read_log(self, exclude_beam_off):
-        """Read in log based on what type of log it is: Trajectory or Dynalog."""
-        if is_tlog(self.filename):
-            self._read_tlog(exclude_beam_off)
-        elif is_dlog(self.filename):
-            self._read_dlog(exclude_beam_off)
-
-    def _read_dlog(self, exclude_beam_off):
-        """Read in Dynalog files from .dlg files (which are renamed CSV files).
-        Formatting follows from the Dynalog File Viewer Reference Guide.
-        """
-        # if file is B*.dlg, replace with A*.dlg
-        other_dlg_file = _return_other_dlg(self.filename)
-
-        # determine which one is the A*.dlg file
-        a_file = self.filename if osp.basename(self.filename).startswith('A') else other_dlg_file
-        b_file = self.filename if osp.basename(self.filename).startswith('B') else other_dlg_file
-
-        # create iterator object to read in lines
-        with open(a_file) as csvf:
-            dlgdata = csv.reader(csvf, delimiter=',')
-            self.header, dlgdata = DlogHeader(dlgdata)._read()
-            self.axis_data = DlogAxisData(dlgdata, self.header, b_file)._read(exclude_beam_off)
-
-        self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
-
-    def _read_tlog(self, exclude_beam_off):
-        """Read in Trajectory log from binary file according to TB 1.5/2.0 (i.e. Tlog v2.1/3.0) log file specifications."""
-        # read in associated *.txt file if in the same directory.
-        if is_tlog_txt_file_around(self.filename):
-            self._read_txt_file()
-
-        # read in trajectory log binary data
-        fcontent = open(self.filename, mode='rb').read()
-
-        # Unpack the content according to respective section and data type (see log specification file).
-        self.header, self._cursor = TlogHeader(fcontent, self._cursor)._read()
-
-        self.subbeams, self._cursor = SubbeamManager(fcontent, self._cursor, self.header)._read()
-
-        self.axis_data, self._cursor = TlogAxisData(fcontent, self._cursor, self.header)._read(exclude_beam_off)
-
-        # self.crc = CRC(fcontent, self._cursor).read()
-
-        self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
-
-        self.subbeams.post_hoc_metadata(self.axis_data)
-
-    def _read_txt_file(self):
-        """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
-        self.txt = {}
-        txt_filename = self.filename.replace('.bin', '.txt')
-        with open(txt_filename) as txtfile:
-            txtdata = txtfile.readlines()
-        for line in txtdata:
-            items = line.split(':')
-            if len(items) == 2:
-                self.txt[items[0].strip()] = items[1].strip()
 
 
 class Axis:
@@ -850,15 +354,13 @@ class Axis:
 
 class AxisMovedMixin:
     """Mixin class for Axis."""
+    AXIS_MOVE_THRESHOLD = 0.003
+
     @property
     @lru_cache(maxsize=1)
     def moved(self):
         """Return whether the axis moved during treatment."""
-        threshold = 0.003
-        if np.std(self.actual) > threshold:
-            return True
-        else:
-            return False
+        return np.std(self.actual) > self.AXIS_MOVE_THRESHOLD
 
 
 class LeafAxis(Axis, AxisMovedMixin):
@@ -888,7 +390,7 @@ class BeamAxis(Axis):
     pass
 
 
-class Fluence(metaclass=ABCMeta):
+class Fluence:
     """An abstract base class to be used for the actual and expected fluences.
 
     Attributes
@@ -902,7 +404,7 @@ class Fluence(metaclass=ABCMeta):
     """
     array = object
     resolution = -1
-    _fluence_type = ''  # must be specified by subclass
+    FLUENCE_TYPE = ''  # must be specified by subclass
 
     def __init__(self, mlc_struct=None, mu_axis=None, jaw_struct=None):
         """
@@ -943,14 +445,11 @@ class Fluence(metaclass=ABCMeta):
              be the number of MLC pairs by 400 / resolution since the MLCs can move anywhere within the
              40cm-wide linac head opening.
          """
-        if self._mlc.hdmlc:
-            height = 220
-        else:
-            height = 400
+        height = MLC_FOV_HEIGHT_MM if not self._mlc.hdmlc else HDMLC_FOV_HEIGHT_MM
         if equal_aspect:
-            fluence = np.zeros((int(height/resolution), int(400/resolution)), dtype=np.float16)
+            fluence = np.zeros((int(height/resolution), int(MLC_FOV_WIDTH_MM/resolution)), dtype=np.float16)
         else:
-            fluence = np.zeros((self._mlc.num_pairs, int(400 / resolution)), dtype=np.float16)
+            fluence = np.zeros((self._mlc.num_pairs, int(MLC_FOV_WIDTH_MM / resolution)), dtype=np.float16)
 
         self.array = fluence
         self.resolution = resolution
@@ -981,8 +480,8 @@ class Fluence(metaclass=ABCMeta):
                 yield (int(cl2[idx]), int(cl[idx]))
 
         # calculate the MU delivered in each snapshot. For Tlogs this is absolute; for dynalogs it's normalized.
-        mu_matrix = getattr(self._mu, self._fluence_type)
-        # if very little MU was delivered (e.g. MV setup), return
+        mu_matrix = getattr(self._mu, self.FLUENCE_TYPE)
+        # if little to no MU was delivered (e.g. MV/kV setup), return
         if np.max(mu_matrix) < 0.5:
             return fluence
         MU_differential = np.zeros(len(mu_matrix))
@@ -999,9 +498,9 @@ class Fluence(metaclass=ABCMeta):
         for pair, width in zip(range(1, self._mlc.num_pairs + 1), yield_leaf_width()):
             if not self._mlc.leaf_under_y_jaw(pair):
                 fluence_line[:] = 0  # emtpy the line values on each new leaf pair
-                right_leaf_data = getattr(self._mlc.leaf_axes[pair], self._fluence_type)
+                right_leaf_data = getattr(self._mlc.leaf_axes[pair], self.FLUENCE_TYPE)
                 right_leaf_data = np.round(right_leaf_data * 10 / resolution) + pos_offset
-                left_leaf_data = getattr(self._mlc.leaf_axes[pair + leaf_offset], self._fluence_type)
+                left_leaf_data = getattr(self._mlc.leaf_axes[pair + leaf_offset], self.FLUENCE_TYPE)
                 left_leaf_data = -np.round(left_leaf_data * 10 / resolution) + pos_offset
                 left_jaw_data = np.round((200 / resolution) - (self._jaws.x1.actual * 10 / resolution))
                 right_jaw_data = np.round((self._jaws.x2.actual * 10 / resolution) + (200 / resolution))
@@ -1047,12 +546,12 @@ class Fluence(metaclass=ABCMeta):
 
 class ActualFluence(Fluence):
     """The actual fluence object"""
-    _fluence_type = 'actual'
+    FLUENCE_TYPE = 'actual'
 
 
 class ExpectedFluence(Fluence):
     """The expected fluence object."""
-    _fluence_type = 'expected'
+    FLUENCE_TYPE = 'expected'
 
 
 class GammaFluence(Fluence):
@@ -1243,14 +742,14 @@ class FluenceStruct:
 
 class MLC:
     """The MLC class holds MLC information and retrieves relevant data about the MLCs and positions."""
-    def __init__(self, snapshot_idx=None, jaw_struct=None, HDMLC=False):
+    def __init__(self, log_type, snapshot_idx=None, jaw_struct=None, hdmlc=False, subbeams=None):
         """
         Parameters
         ----------
         snapshot_idx : array, list
             The snapshots to be considered for RMS and error calculations (can be all snapshots or just when beam was on).
         jaw_struct : Jaw_Struct
-        HDMLC : boolean
+        hdmlc : boolean
             If False (default), indicates a regular MLC model (e.g. Millennium 120).
             If True, indicates an HD MLC model (e.g. Millennium 120 HD).
 
@@ -1264,7 +763,43 @@ class MLC:
         self.leaf_axes = {}
         self.snapshot_idx = snapshot_idx
         self._jaws = jaw_struct
-        self.hdmlc = HDMLC
+        self.hdmlc = hdmlc
+        self.log_type = log_type
+        self.subbeams = subbeams
+
+    @classmethod
+    def from_dlog(cls, dlog, jaws, snapshot_data, snapshot_idx):
+
+        mlc = MLC(Dynalog, snapshot_idx, jaws)
+        for leaf in range(1, (dlog.header.num_mlc_leaves // 2) + 1):
+            axis = LeafAxis(expected=snapshot_data[(leaf - 1) * 4 + 14], actual=snapshot_data[(leaf - 1) * 4 + 15])
+            mlc.add_leaf_axis(axis, leaf)
+
+        # read in "B"-file to get bank B MLC positions. The file must be in the same folder as the "A"-file.
+        # The header info is repeated but we already have that.
+        with open(dlog.b_logfile) as csvf:
+            dlgdata = csv.reader(csvf, delimiter=',')
+            snapshot_data = np.array([line for line in dlgdata][dlog.HEADER_LINE_LENGTH:], dtype=float).transpose()
+
+        # Add bank B MLC positions to mlc snapshot arrays
+        for leaf in range(1, (dlog.header.num_mlc_leaves // 2) + 1):
+            axis = LeafAxis(expected=snapshot_data[(leaf - 1) * 4 + 14], actual=snapshot_data[(leaf - 1) * 4 + 15])
+            mlc.add_leaf_axis(axis, leaf + dlog.header.num_mlc_leaves // 2)
+
+        # scale dynalog leaf positions from the physical plane to the isocenter plane and from 100ths of mm to cm.
+        dynalog_leaf_conversion = 1.96614  # MLC physical plane scaling factor to iso (100cm SAD) plane
+        for leaf in range(1, mlc.num_leaves + 1):
+            mlc.leaf_axes[leaf].actual *= dynalog_leaf_conversion / 1000
+            mlc.leaf_axes[leaf].expected *= dynalog_leaf_conversion / 1000
+        return mlc
+
+    @classmethod
+    def from_tlog(cls, tlog, subbeams, jaws, snapshot_data, snapshot_idx, column_iter):
+        mlc = MLC(TrajectoryLog, snapshot_idx, jaws, tlog.is_hdmlc, subbeams=subbeams)
+        for leaf_num in range(1, tlog.header.num_mlc_leaves+1):
+            leaf_axis = _get_axis(snapshot_data, next(column_iter), LeafAxis)
+            mlc.add_leaf_axis(leaf_axis, leaf_num)
+        return mlc
 
     @property
     def num_pairs(self):
@@ -1300,7 +835,10 @@ class MLC:
         threshold = 0.003
         indices = ()
         for leaf_num, leafdata in self.leaf_axes.items():
-            leaf_stdev = np.std(leafdata.actual[self.snapshot_idx])
+            if self.log_type == TrajectoryLog:
+                leaf_stdev = np.std(leafdata.actual[self.subbeams[-1]._snapshots])
+            else:
+                leaf_stdev = np.std(leafdata.actual[self.snapshot_idx])
             if leaf_stdev > threshold:
                 indices += (leaf_num,)
         return np.array(indices)
@@ -1330,10 +868,7 @@ class MLC:
 
         .. warning:: Leaf numbers are 1-index based to correspond with Varian convention.
         """
-        if leaf_num in self.moving_leaves:
-            return True
-        else:
-            return False
+        return leaf_num in self.moving_leaves
 
     def pair_moved(self, pair_num):
         """Return whether the given pair moved during treatment.
@@ -1384,7 +919,6 @@ class MLC:
             return 0
         else:
             return rms
-
 
     def get_RMS_max(self, bank='both'):
         """Return the overall maximum RMS of given leaves.
@@ -1669,7 +1203,7 @@ class JawStruct:
                 isinstance(y1, HeadAxis),
                 isinstance(x2, HeadAxis),
                 isinstance(y2, HeadAxis))):
-            raise TypeError("Head_Axis not passed into Jaw structure")
+            raise TypeError("HeadAxis not passed into Jaw structure")
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
@@ -1701,69 +1235,7 @@ class CouchStruct:
             self.roll = roll
 
 
-class LogSection(metaclass=ABCMeta):
-    @abstractproperty
-    def _read(self):
-        pass
-
-
-class DlogSection(LogSection, metaclass=ABCMeta):
-    def __init__(self, log_content):
-        self._log_content = log_content
-
-
-class TlogSection(LogSection, metaclass=ABCMeta):
-    def __init__(self, log_content, cursor):
-        self._log_content = log_content
-        self._cursor = cursor
-
-    def _decode_binary(self, filecontents, dtype, num_values=1, cursor_shift=0):
-        """This method is the main "decoder" for reading in trajectory log binary data into human data types.
-
-        Parameters
-        ----------
-        filecontents : file object
-            The complete file having been read with .read().
-        dtype : int, float, str
-            The expected data type to return. If int or float, will return numpy array.
-        num_values : int
-            The expected number of dtype to return
-
-            .. note:: This is not the same as the number of bytes.
-
-        cursor_shift : int
-            The number of bytes to move the cursor forward after decoding. This is used if there is a
-            reserved section after the read-in segment.
-        """
-        fc = filecontents
-
-        if dtype == str:  # if string
-            output = fc[self._cursor:self._cursor + num_values]
-            if type(fc) is not str:  # in py3 fc will be bytes
-                output = output.decode()
-            # Now, strip the padding ("\x00")
-            output = output.strip('\x00')
-            self._cursor += num_values
-        elif dtype == int:
-            ssize = struct.calcsize('i') * num_values
-            output = np.asarray(struct.unpack('i' * num_values, fc[self._cursor:self._cursor + ssize]))
-            if len(output) == 1:
-                output = int(output)
-            self._cursor += ssize
-        elif dtype == float:
-            ssize = struct.calcsize('f') * num_values
-            output = np.asarray(struct.unpack('f' * num_values, fc[self._cursor:self._cursor + ssize]))
-            if len(output) == 1:
-                output = float(output)
-            self._cursor += ssize
-        else:
-            raise TypeError("decode_binary datatype was not valid")
-
-        self._cursor += cursor_shift  # shift cursor if need be (e.g. if a reserved section follows)
-        return output
-
-
-class Subbeam(TlogSection):
+class Subbeam:
     """Data structure for trajectory log "subbeams". Only applicable for auto-sequenced beams.
 
     Attributes
@@ -1779,24 +1251,18 @@ class Subbeam(TlogSection):
     beam_name : str
         Name of the subbeam.
     """
-    def __init__(self, log_content, cursor, log_version):
-        super().__init__(log_content, cursor)
-        self._log_version = log_version
-
-    def _read(self):
-        """Read the tlog subbeam information."""
-        self.control_point = self._decode_binary(self._log_content, int)
-        self.mu_delivered = self._decode_binary(self._log_content, float)
-        self.rad_time = self._decode_binary(self._log_content, float)
-        self.sequence_num = self._decode_binary(self._log_content, int)
+    def __init__(self, file, log_version):
+        f = file
+        self.control_point = decode_binary(f, int)
+        self.mu_delivered = decode_binary(f, float)
+        self.rad_time = decode_binary(f, float)
+        self.sequence_num = decode_binary(f, int)
         # In Tlogs version 3.0 and up, beam names are 512 byte unicode strings, but in <3.0 they are 32 byte unicode strings
-        if self._log_version >= 3:
+        if log_version >= 3:
             chars = 512
         else:
             chars = 32
-        self.beam_name = self._decode_binary(self._log_content, str, chars, 32)
-
-        return self, self._cursor
+        self.beam_name = decode_binary(f, str, chars, 32)
 
     @property
     def gantry_angle(self):
@@ -1840,27 +1306,12 @@ class Subbeam(TlogSection):
 
 class SubbeamManager:
     """One of 4 subsections of a trajectory log. Holds a list of Subbeams; only applicable for auto-sequenced beams."""
-    def __init__(self, log_content, cursor, header):
-        self._log_content = log_content
-        self._header = header
-        self._cursor = cursor
+    def __init__(self, file, header):
         self.subbeams = []
-
-    def _read(self):
-        """Read all the subbeams of a tlog file.
-
-        Returns
-        -------
-        list
-            Contains instances of Subbeam.
-        cursor : int
-            Internal; for tracking the cursor position in the file.
-        """
-        if self._header.num_subbeams > 0:
-            for subbeam_num in range(self._header.num_subbeams):
-                subbeam, self._cursor = Subbeam(self._log_content, self._cursor, self._header.version)._read()
+        if header.num_subbeams > 0:
+            for _ in range(header.num_subbeams):
+                subbeam = Subbeam(file, header.version)
                 self.subbeams.append(subbeam)
-        return self, self._cursor
 
     def post_hoc_metadata(self, axis_data):
         """From the Axis Data, perform post-hoc analysis and set metadata to the subbeams.
@@ -1868,7 +1319,7 @@ class SubbeamManager:
         for idx, beam in enumerate(self.subbeams):
             self._set_beamon_snapshots(axis_data, idx)
             mlc_subsection = copy.copy(axis_data.mlc)
-            mlc_subsection.snapshot_idx = [idx for idx, i in enumerate(beam._snapshots) if i]
+            mlc_subsection._snapshot_idx = [idx for idx, i in enumerate(beam._snapshots) if i]
             beam.fluence = FluenceStruct(mlc_subsection, axis_data.mu, axis_data.jaws)
 
     def _set_beamon_snapshots(self, axis_data, beam_num):
@@ -1891,11 +1342,511 @@ class SubbeamManager:
         return self.subbeams[item]
 
 
-class TlogHeader(TlogSection):
-    """A header object, one of 4 sections of a trajectory log. Holds sampling interval, version, etc.
+class LogBase:
+    """Base class for the Dynalog and TrajectoryLog classes. Should not be called directly."""
+    ANON_LINE = -1
+
+    def __init__(self, filename, exclude_beam_off=True):
+        if is_log(filename):
+            self.filename = filename
+            self.exclude_beam_off = exclude_beam_off
+        else:
+            raise IOError("{} was not a valid log file".format(filename))
+
+    @classmethod
+    def from_url(cls, url, exclude_beam_off=True):
+        """Instantiate a log from a URL."""
+        filename = get_url(url)
+        return cls(filename, exclude_beam_off)
+
+    def plot_summary(self, show=True):
+        """Plot actual & expected fluence, gamma map, gamma histogram,
+            MLC error histogram, and MLC RMS histogram.
+        """
+        if self.fluence.gamma.map_calced:
+            # plot the actual fluence
+            ax = plt.subplot(2, 3, 1)
+            ax.set_title('Actual Fluence', fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            ax.autoscale(tight=True)
+            plt.imshow(self.fluence.actual.array, aspect='auto', interpolation='none', cmap=get_array_cmap())
+
+            # plot the expected fluence
+            ax = plt.subplot(2, 3, 2)
+            ax.set_title("Expected Fluence", fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            plt.imshow(self.fluence.expected.array, aspect='auto', interpolation='none', cmap=get_array_cmap())
+
+            # plot the gamma map
+            gmma = self.fluence.gamma
+            ax = plt.subplot(2, 3, 3)
+            ax.set_title("Gamma Map ({:2.2f}% passing @ {}%/{}mm)".format(gmma.pass_prcnt, gmma.doseTA, gmma.distTA), fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            plt.imshow(self.fluence.gamma.array, aspect='auto', interpolation='none', vmax=1, cmap=get_array_cmap())
+            plt.colorbar(ax=ax)
+
+            # plot the gamma histogram
+            ax = plt.subplot(2, 3, 4)
+            ax.set_yscale('log')
+            ax.set_title("Gamma Histogram (Avg: {:2.3f})".format(self.fluence.gamma.avg_gamma), fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            plt.hist(self.fluence.gamma.array.flatten(), bins=self.fluence.gamma.bins)
+
+            # plot the MLC error histogram
+            ax = plt.subplot(2, 3, 5)
+            p95error = self.axis_data.mlc.get_error_percentile()
+            ax.set_title("Leaf Error Histogram (95th Perc: {:2.3f}cm)".format(p95error), fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            plt.hist(self.axis_data.mlc._abs_error_all_leaves.flatten())
+
+            # plot the leaf RMSs
+            ax = plt.subplot(2,3,6)
+            ax.set_title("Leaf RMS Error (Max: {:2.3f}cm)".format(self.axis_data.mlc.get_RMS_max()), fontsize=10)
+            ax.tick_params(axis='both', labelsize=8)
+            ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves+0.5])  # bit of padding since bar chart alignment is center
+            plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both'), align='center')
+
+            if show:
+                plt.show()
+        else:
+            raise AttributeError("Gamma map has not yet been calculated.")
+
+    def save_summary(self, filename, **kwargs):
+        """Save the summary image to file."""
+        self.plot_summary(show=False)
+        plt.savefig(filename, **kwargs)
+
+    def report_basic_parameters(self, printout=True):
+        """Print the common parameters analyzed when investigating machine logs:
+
+        - Log type
+        - Average MLC RMS
+        - Maximum MLC RMS
+        - 95th percentile MLC error
+        - Number of beam holdoffs
+        - Gamma pass percentage
+        - Average gamma value
+        """
+        avg_rms = "Average RMS of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False))
+        max_rms = "Max RMS error of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_max())
+        p95 = "95th percentile error: {:3.3f} cm\n".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False))
+        num_holdoffs = "Number of beam holdoffs: {:1.0f}\n".format(self.num_beamholds)
+        self.fluence.gamma.calc_map()
+        gamma_pass = "Gamma pass %: {:2.2f}\n".format(self.fluence.gamma.pass_prcnt)
+        gamma_avg = "Gamma average: {:2.3f}\n".format(self.fluence.gamma.avg_gamma)
+
+        string = avg_rms + max_rms + p95 + num_holdoffs + gamma_pass + gamma_avg
+        if printout:
+            print(string)
+        else:
+            return string
+
+    @property
+    def treatment_type(self):
+        """The treatment type of the log. Possible options:
+
+        Returns
+        -------
+        str
+            One of the following:
+            * VMAT
+            * Dynamic IMRT
+            * Static IMRT
+            * Imaging
+        """
+        if isinstance(self, TrajectoryLog):  # trajectory log
+            gantry_std = max(subbeam.gantry_angle.actual.std() for subbeam in self.subbeams)
+            if np.isnan(gantry_std):
+                return IMAGING
+        else:
+            gantry_std = self.axis_data.gantry.actual.std()
+        if gantry_std > 0.5:
+            return VMAT
+        elif self.axis_data.mlc.num_moving_leaves == 0:
+            if self.axis_data.mu.actual.max() < 5 and isinstance(self, TrajectoryLog):
+                return IMAGING
+            else:
+                return STATIC_IMRT
+        else:
+            return DYNAMIC_IMRT
+
+    @property
+    def _underscore_idx(self):
+        base_filename = osp.basename(self.filename)
+        under_index = base_filename.find('_')
+        if under_index < 0:
+            raise NameError("Filename `{}` has no underscore. "
+                            "Place an underscore between the patient ID and the rest of the filename and try again.".format(base_filename))
+        return under_index
+
+    def anonymize(self, inplace=False, destination=None, suffix=None):
+        """Save an anonymized version of the log.
+
+        For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
+        This will rename both A* and B* logs if both are present in the same directory.
+
+        For trajectory logs, the patient ID in the filename is replaced with `Anonymous<suffix>` for the .bin file. If the
+        associated .txt file is in the same directory it will similarly replace the patient ID in the filename with
+        `Anonymous<suffix>`. Additionally, the `Patient ID` row will be replaced with `Patient ID: Anonymous<suffix>`.
+
+        .. note::
+            Anonymization is only available for logs loaded locally (i.e. not from a URL or a data stream). To
+            anonymize such a log it must be first downloaded or written to a file, then loaded in.
+
+        .. note::
+            Anonymization is done to the log *file* itself. The current instance of `MachineLog` will not be anonymized.
+
+        Parameters
+        ----------
+        inplace : bool
+            If False (default), creates an anonymized *copy* of the log(s).
+            If True, *renames and replaces* the content of the log file.
+        destination : str, optional
+            A string specifying the directory where the newly anonymized logs should be placed.
+            If None, will place the logs in the same directory as the originals.
+        suffix : str, optional
+            An optional suffix that is added after `Anonymous` to give specificity to the log.
+
+        Returns
+        -------
+        list
+            A list containing the paths to the newly written files.
+        """
+        if suffix is None:
+            suffix = ''
+
+        # determine destination directory
+        if destination is None:
+            dest_dir = osp.dirname(self.filename)
+        else:
+            if not osp.isdir(destination):
+                raise NotADirectoryError("Specified destination `{}` was not a valid directory".format(destination))
+            dest_dir = destination
+
+        # copy or rename the files, depending on `inplace` parameter
+        anonymous_filenames = self.anon_file_renames(dest_dir, suffix)
+        method = os.rename if inplace else shutil.copy
+        for old_file, new_file in anonymous_filenames.items():
+            method(old_file, new_file)
+
+        # now the actual anonymization
+        for file in self.anon_files(dest_dir, suffix):
+            with open(file) as f:
+                txtdata = f.readlines()
+            txtdata[self.ANON_LINE] = 'Patient ID:\tAnonymous_' + suffix + '\n'
+            with open(file, mode='w') as f:
+                f.writelines(txtdata)
+            print('Anonymized file written to: ', file)
+
+        return anonymous_filenames.values()
+
+
+class DynalogHeader(Structure):
+    """
+    Attributes
+    ----------
+    version : str
+        The Dynalog version letter.
+    patient_name : str
+        Patient information.
+    plan_filename : str
+        Filename if using standalone. If using Treat =<6.5 will produce PlanUID, Beam Number.
+        Not yet implemented for this yet.
+    tolerance : int
+        Plan tolerance.
+    num_mlc_leaves : int
+        Number of MLC leaves.
+    clinac_scale : int
+        Clinac scale; 0 -> Varian scale, 1 -> IEC 60601-2-1 scale
+    """
+    def __init__(self, dlogdata):
+        c = itertools.count()
+        super().__init__(version=str(dlogdata[next(c)]),
+                         patient_name=dlogdata[next(c)],
+                         plan_filename=dlogdata[next(c)],
+                         tolerance=int(dlogdata[next(c)][0]),
+                         num_mlc_leaves=int(dlogdata[next(c)][0])*2,
+                         clinac_scale=int(dlogdata[next(c)][0]))
+
+
+class DynalogAxisData:
+    """
+    Attributes
+    ----------
+    num_snapshots : int
+        Number of snapshots recorded.
+    mu : :class:`~pylinac.log_analyzer.Axis`
+        Current dose fraction
+
+        .. note:: This *can* be gantry rotation under certain conditions. See Dynalog file specs.
+
+    previous_segment_num : :class:`~pylinac.log_analyzer.Axis`
+        Previous segment *number*, starting with zero.
+    beam_hold : :class:`~pylinac.log_analyzer.Axis`
+        Beam hold state; 0 -> holdoff not asserted (beam on), 1 -> holdoff asserted, 2 -> carriage in transition
+    beam_on : :class:`~pylinac.log_analyzer.Axis`
+        Beam on state; 1 -> beam is on, 0 -> beam is off
+    prior_dose_index : :class:`~pylinac.log_analyzer.Axis`
+        Previous segment dose index or previous segment gantry angle.
+    next_dose_index : :class:`~pylinac.log_analyzer.Axis`
+        Next segment dose index.
+    gantry : :class:`~pylinac.log_analyzer.Axis`
+        Gantry data in degrees.
+    collimator : :class:`~pylinac.log_analyzer.Axis`
+        Collimator data in degrees.
+    jaws : :class:`~pylinac.log_analyzer.Jaw_Struct`
+        Jaw data structure. Data in cm.
+    carriage_A : :class:`~pylinac.log_analyzer.Axis`
+        Carriage A data. Data in cm.
+    carriage_B : :class:`~pylinac.log_analyzer.Axis`
+        Carriage B data. Data in cm.
+    mlc : :class:`~pylinac.log_analyzer.MLC`
+        MLC data structure. Data in cm.
+    """
+    def __init__(self, log, dlogdata):
+        """Read the dynalog axis data."""
+        snapshot_data = np.array(dlogdata[6:], dtype=np.float64).transpose()
+
+        self.num_snapshots = np.size(snapshot_data, 1)
+
+        c = itertools.count()
+        def nx():
+            return snapshot_data[next(c)]
+
+        # assignment of snapshot values
+        # There is no "expected" MU in dynalogs, but for fluence calc purposes, it is set to that of the actual
+        mu = nx()
+        self.mu = Axis(mu, mu)
+        self.previous_segment_num = Axis(nx())
+        self.beam_hold = Axis(nx())
+        self.beam_on = Axis(nx())
+        self.prior_dose_index = Axis(nx())  # currently not used for anything
+        self.next_dose_index = Axis(nx())  # ditto
+        self.gantry = GantryAxis(nx() / 10)
+        self.collimator = HeadAxis(nx() / 10)
+
+        # jaws are in mm; convert to cm by /10
+        jaw_y1 = HeadAxis(nx() / 10)
+        jaw_y2 = HeadAxis(nx() / 10)
+        jaw_x1 = HeadAxis(nx() / 10)
+        jaw_x2 = HeadAxis(nx() / 10)
+        self.jaws = JawStruct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
+
+        # carriages are in 100ths of mm; converted to cm.
+        self.carriage_A = Axis(nx() / 1000)
+        self.carriage_B = Axis(nx() / 1000)
+
+        if log.exclude_beam_off:
+            hold_idx = np.where(self.beam_hold.actual == 0)[0]
+            beamon_idx = np.where(self.beam_on.actual == 1)[0]
+            snapshot_idx = np.intersect1d(hold_idx, beamon_idx)
+        else:
+            snapshot_idx = list(range(self.num_snapshots))
+
+        self.num_snapshots = self.num_snapshots
+        self.mlc = MLC.from_dlog(log, self.jaws, snapshot_data, snapshot_idx)
+
+
+class Dynalog(LogBase):
+    """
 
     Attributes
     ----------
+    header : `~pylinac.log_analyzer.DynalogHeader`
+    axis_data : `~pylinac.log_analyzer.DynalogAxisData'
+    fluence : `~pylinac.log_analyzer.FluenceStruct'
+    """
+    ANON_LINE = 1
+    HEADER_LINE_LENGTH = 6
+
+    def __init__(self, filename, exclude_beam_off=True):
+        super().__init__(filename, exclude_beam_off)
+        if not is_dlog(self.filename):
+            raise NotADynalogError("{} was not a valid Dynalog file".format(self.filename))
+        if not self._has_other_file:
+            raise DynalogMatchError("Didn't find the matching dynalog file")  # TODO: clean up
+
+        dlgdata = [line for line in csv.reader(open(self.a_logfile), delimiter=',')]
+        self.header = DynalogHeader(dlgdata)
+        self.axis_data = DynalogAxisData(self, dlgdata)
+        self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
+
+    def anon_file_renames(self, destination, suffix):
+        base_a = osp.basename(self.a_logfile)
+        base_b = osp.basename(self.b_logfile)
+        anonymous_base_a = base_a[:self._underscore_idx] + '_Anonymous' + suffix + '.dlg'
+        anonymous_base_b = base_b[:self._underscore_idx] + '_Anonymous' + suffix + '.dlg'
+        anonymous_a = osp.join(destination, anonymous_base_a)
+        anonymous_b = osp.join(destination, anonymous_base_b)
+        filenames = collections.OrderedDict()
+        filenames[self.a_logfile] = anonymous_a
+        filenames[self.b_logfile] = anonymous_b
+        return filenames
+
+    def anon_files(self, destination, suffix):
+        return self.anon_file_renames(destination, suffix).values()
+
+    def snapshot_idx(self, axis_data):
+        if self.exclude_beam_off:
+            hold_idx = np.where(axis_data.beam_hold.actual == 0)[0]
+            beamon_idx = np.where(axis_data.beam_on.actual == 1)[0]
+            snapshot_idx = np.intersect1d(hold_idx, beamon_idx)
+        else:
+            snapshot_idx = list(range(self.num_snapshots))
+        return snapshot_idx
+
+    @property
+    def _has_other_file(self):
+        return True if self.identify_other_file(self.filename, raise_find_error=False) is not None else False
+
+    @property
+    @lru_cache(maxsize=1)
+    def a_logfile(self):
+        other_dlg_file = self.identify_other_file(self.filename)
+        return self.filename if osp.basename(self.filename).startswith('A') else other_dlg_file
+
+    @property
+    @lru_cache(maxsize=1)
+    def b_logfile(self):
+        other_dlg_file = self.identify_other_file(self.filename)
+        return self.filename if osp.basename(self.filename).startswith('B') else other_dlg_file
+
+    @property
+    @lru_cache(maxsize=1)
+    def num_beamholds(self):
+        """Return the number of times the beam was held."""
+        diffmatrix = np.diff(self.axis_data.beam_hold.actual)
+        num_holds = int(np.sum(diffmatrix > 0))
+        return num_holds
+
+    @classmethod
+    def from_demo(cls, exclude_beam_off=True):
+        """Load and instantiate from the demo dynalog file included with the package."""
+        demo_file = retrieve_demo_file(url='AQA.dlg')
+        retrieve_demo_file(url='BQA.dlg')  # also download "B" dynalog
+        return cls(demo_file, exclude_beam_off)
+
+    @staticmethod
+    def run_demo():
+        """Run the Dynalog demo."""
+        dlog = Dynalog.from_demo()
+        dlog.report_basic_parameters()
+        dlog.plot_summary()
+
+    @staticmethod
+    def identify_other_file(first_dlg_file, raise_find_error=True):
+        """Return the filename of the corresponding dynalog file.
+
+        For example, if the A*.dlg file was passed in, return the corresponding B*.dlg filename.
+        Can find both A- and B-files.
+
+        Parameters
+        ----------
+        first_dlg_file : str
+            The absolute file path of the dynalog file.
+        raise_find_error : bool
+            Whether to raise an error if the file isn't found.
+
+        Returns
+        -------
+        str
+            The absolute file path to the corresponding dynalog file.
+        """
+        dlg_dir, dlg_file = osp.split(first_dlg_file)
+        if dlg_file.startswith('A'):
+            file2get = dlg_file.replace("A", "B", 1)
+        elif dlg_file.startswith('B'):
+            file2get = dlg_file.replace("B", "A", 1)
+        else:
+            raise ValueError("Unable to decipher log names; ensure dynalogs start with 'A' and 'B'")
+        other_filename = osp.join(dlg_dir, file2get)
+
+        if osp.isfile(other_filename):
+            return other_filename
+        elif raise_find_error:
+            raise FileNotFoundError("Complementary dlg file not found; ensure A and B-file are in same directory.")
+
+
+class TrajectoryLogAxisData:
+    """
+    collimator : :class:`~pylinac.log_analyzer.Axis`
+        Collimator data in degrees.
+    gantry : :class:`~pylinac.log_analyzer.Axis`
+        Gantry data in degrees.
+    jaws : :class:`~pylinac.log_analyzer.Jaw_Struct`
+        Jaw data structure. Data in cm.
+    couch : :class:`~pylinac.log_analyzer.Couch_Struct`
+        Couch data structure. Data in cm.
+    mu : :class:`~pylinac.log_analyzer.Axis`
+        MU data in MU.
+    beam_hold : :class:`~pylinac.log_analyzer.Axis`
+        Beam hold state. Beam *pauses* (e.g. Beam Off button pressed) are not recorded in the log.
+        Data is automatic hold state.
+        0 -> Normal; beam on.
+        1 -> Freeze; beam on, dose servo is temporarily turned off.
+        2 -> Hold; servo holding beam.
+        3 -> Disabled; beam on, dose servo is disable via Service.
+    control_point : :class:`~pylinac.log_analyzer.Axis`
+        Current control point.
+    carriage_A : :class:`~pylinac.log_analyzer.Axis`
+        Carriage A data in cm.
+    carriage_B : :class:`~pylinac.log_analyzer.Axis`
+        Carriage B data in cm.
+    mlc : :class:`~pylinac.log_analyzer.MLC`
+        MLC data structure; data in cm.
+    """
+
+    def __init__(self, log, file, subbeams):
+        # step size in bytes
+        step_size = sum(log.header.samples_per_axis) * 2
+
+        # read in all snapshot data at once, then assign
+        snapshot_data = decode_binary(file, float, step_size * log.header.num_snapshots)
+
+        # reshape snapshot data to be a x-by-num_snapshots matrix
+        snapshot_data = snapshot_data.reshape(log.header.num_snapshots, -1)
+
+        clm_iter = itertools.count(step=2)
+
+        self.collimator = _get_axis(snapshot_data, next(clm_iter), HeadAxis)
+        self.gantry = _get_axis(snapshot_data, next(clm_iter), GantryAxis)
+        jaw_y1 = _get_axis(snapshot_data, next(clm_iter), HeadAxis)
+        jaw_y2 = _get_axis(snapshot_data, next(clm_iter), HeadAxis)
+        jaw_x1 = _get_axis(snapshot_data, next(clm_iter), HeadAxis)
+        jaw_x2 = _get_axis(snapshot_data, next(clm_iter), HeadAxis)
+        self.jaws = JawStruct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
+
+        vrt = _get_axis(snapshot_data, next(clm_iter), CouchAxis)
+        lng = _get_axis(snapshot_data, next(clm_iter), CouchAxis)
+        lat = _get_axis(snapshot_data, next(clm_iter), CouchAxis)
+        rtn = _get_axis(snapshot_data, next(clm_iter), CouchAxis)
+        if log.header.version >= 3:
+            pitch = _get_axis(snapshot_data, next(clm_iter), CouchAxis)
+            roll = _get_axis(snapshot_data, next(clm_iter), CouchAxis)
+        else:
+            pitch = None
+            roll = None
+        self.couch = CouchStruct(vrt, lng, lat, rtn, pitch, roll)
+
+        self.mu = _get_axis(snapshot_data, next(clm_iter), BeamAxis)
+
+        self.beam_hold = _get_axis(snapshot_data, next(clm_iter), BeamAxis)
+
+        self.control_point = _get_axis(snapshot_data, next(clm_iter), BeamAxis)
+
+        self.carriage_A = _get_axis(snapshot_data, next(clm_iter), HeadAxis)
+        self.carriage_B = _get_axis(snapshot_data, next(clm_iter), HeadAxis)
+
+        if log.exclude_beam_off:
+            snapshot_idx = np.where(self.beam_hold.actual == 0)[0]
+        else:
+            snapshot_idx = list(range(log.header.num_snapshots))
+
+        self.mlc = MLC.from_tlog(log, subbeams, self.jaws, snapshot_data, snapshot_idx, clm_iter)
+
+
+class TrajectoryLogHeader:
+    """
     header : str
         Header signature: 'VOSTL'.
     version : str
@@ -1923,304 +1874,161 @@ class TlogHeader(TlogSection):
     mlc_model : int
         The MLC model; 2 -> NDS 120 (e.g. Millennium), 3 -> NDS 120 HD (e.g. Millennium 120 HD)
     """
-    def _read(self):
-        """Read the header section of a tlog."""
-        self.header = self._decode_binary(self._log_content, str, 16)  # for version 1.5 will be "VOSTL"
-        self.version = float(self._decode_binary(self._log_content, str, 16))  # in the format of 2.x or 3.x
-        self.header_size = self._decode_binary(self._log_content, int)  # fixed at 1024 in 1.5 specs
-        self.sampling_interval = self._decode_binary(self._log_content, int)
-        self.num_axes = self._decode_binary(self._log_content, int)
-        self.axis_enum = self._decode_binary(self._log_content, int, self.num_axes)
-        self.samples_per_axis = self._decode_binary(self._log_content, int, self.num_axes)
+
+    def __init__(self, file):
+        f = file
+        self.header = decode_binary(f, str, 16)  # for version 1.5 will be "VOSTL"
+        self.version = float(decode_binary(f, str, 16))  # in the format of 2.x or 3.x
+        self.header_size = decode_binary(f, int)  # fixed at 1024 in 1.5 specs
+        self.sampling_interval = decode_binary(f, int)
+        self.num_axes = decode_binary(f, int)
+        self.axis_enum = decode_binary(f, int, self.num_axes)
+        self.samples_per_axis = decode_binary(f, int, self.num_axes)
         self.num_mlc_leaves = self.samples_per_axis[-1] - 2  # subtract 2 (each carriage counts as an "axis" and must be removed)
-        # self._cursor == self.num_axes * 4 # there is a reserved section after samples per axis. this moves it past it.
-        self.axis_scale = self._decode_binary(self._log_content, int)
-        self.num_subbeams = self._decode_binary(self._log_content, int)
-        self.is_truncated = self._decode_binary(self._log_content, int)
-        self.num_snapshots = self._decode_binary(self._log_content, int)
+        self.axis_scale = decode_binary(f, int)
+        self.num_subbeams = decode_binary(f, int)
+        self.is_truncated = decode_binary(f, int)
+        self.num_snapshots = decode_binary(f, int)
         # the section after MLC model is reserved. Cursor is moved to the end of this reserved section.
-        self.mlc_model = self._decode_binary(self._log_content, int, cursor_shift=1024 - (64 + self.num_axes * 8))
-
-        return self, self._cursor
+        self.mlc_model = decode_binary(f, int, cursor_shift=1024 - (64 + self.num_axes * 8))
 
 
-class DlogHeader(DlogSection):
-    """The Header section of a dynalog file.
+class TrajectoryLog(LogBase):
+    """asdfasdfasdf
 
     Attributes
     ----------
-    version : str
-        The Dynalog version letter.
-    patient_name : str
-        Patient information.
-    plan_filename : str
-        Filename if using standalone. If using Treat =<6.5 will produce PlanUID, Beam Number.
-        Not yet implemented for this yet.
-    tolerance : int
-        Plan tolerance.
-    num_mlc_leaves : int
-        Number of MLC leaves.
-    clinac_scale : int
-        Clinac scale; 0 -> Varian scale, 1 -> IEC 60601-2-1 scale
+    header : `~pylinac.log_analyzer.TrajectoryLogHeader`, which has the following attributes:
+    axis_data : `~pylinac.log_analyzer.TrajectoryLogAxisData`
+    fluence : `~pylinac.log_analyzer.FluenceStruct`
+    subbeams : `~pylinac.log_analyzer.SubbeamManager`
     """
-    def _read(self):
-        """Read the header section of a dynalog."""
-        self.version = str(next(self._log_content)[0])
-        self.patient_name = next(self._log_content)
-        self.plan_filename = next(self._log_content)
-        self.tolerance = int(next(self._log_content)[0])
-        self.num_mlc_leaves = int(
-            next(self._log_content)[0]) * 2  # the # of leaves in a dynalog is actually the # of *PAIRS*, hence the *2.
-        self.clinac_scale = int(next(self._log_content)[0])  # 0->Varian scale, 1->IEC scale
-        return self, self._log_content
+    ANON_LINE = 0
 
+    def __init__(self, filename, exclude_beam_off=True):
+        super().__init__(filename, exclude_beam_off)
 
-class DlogAxisData(DlogSection):
-    """Axis data for dynalogs.
+        self._read_txt_file()
 
-    Attributes
-    ----------
-    num_snapshots : int
-        Number of snapshots recorded.
-    mu : :class:`~pylinac.log_analyzer.Axis`
-        Current dose fraction
+        with open(self.filename, mode='rb') as tlogfile:
+            self.header = TrajectoryLogHeader(tlogfile)
+            self.subbeams = SubbeamManager(tlogfile, self.header)
+            self.axis_data = TrajectoryLogAxisData(self, tlogfile, self.subbeams)
 
-        .. note:: This *can* be gantry rotation under certain conditions. See Dynalog file specs.
-
-    previous_segment_num : :class:`~pylinac.log_analyzer.Axis`
-        Previous segment *number*, starting with zero.
-    beam_hold : :class:`~pylinac.log_analyzer.Axis`
-        Beam hold state; 0 -> holdoff not asserted (beam on), 1 -> holdoff asserted, 2 -> carriage in transition
-    beam_on : :class:`~pylinac.log_analyzer.Axis`
-        Beam on state; 1 -> beam is on, 0 -> beam is off
-    previous_dose_index : :class:`~pylinac.log_analyzer.Axis`
-        Previous segment dose index or previous segment gantry angle.
-    next_dose_index : :class:`~pylinac.log_analyzer.Axis`
-        Next segment dose index.
-    gantry : :class:`~pylinac.log_analyzer.Axis`
-        Gantry data in degrees.
-    collimator : :class:`~pylinac.log_analyzer.Axis`
-        Collimator data in degrees.
-    jaws : :class:`~pylinac.log_analyzer.Jaw_Struct`
-        Jaw data structure. Data in cm.
-    carriage_A : :class:`~pylinac.log_analyzer.Axis`
-        Carriage A data. Data in cm.
-    carriage_B : :class:`~pylinac.log_analyzer.Axis`
-        Carriage B data. Data in cm.
-    mlc : :class:`~pylinac.log_analyzer.MLC`
-        MLC data structure. Data in cm.
-    """
-    def __init__(self, log_content, header, bfile):
-        super().__init__(log_content)
-        self._header = header
-        self._bfile = bfile
-
-    def _read(self, exclude_beam_off):
-        """Read the dynalog axis data."""
-        matrix = np.array([line for line in self._log_content], dtype=float)
-
-        self.num_snapshots = np.size(matrix, 0)
-
-        # assignment of snapshot values
-        # There is no "expected" MU in dynalogs, but for fluence calc purposes, it is set to that of the actual
-        self.mu = Axis(matrix[:, 0], matrix[:, 0])
-        self.previous_segment_num = Axis(matrix[:, 1])
-        self.beam_hold = Axis(matrix[:, 2])
-        self.beam_on = Axis(matrix[:, 3])
-        self.prior_dose_index = Axis(matrix[:, 4])  # currently not used for anything
-        self.next_dose_index = Axis(matrix[:, 5])  # ditto
-        self.gantry = GantryAxis(matrix[:, 6] / 10)
-        self.collimator = HeadAxis(matrix[:, 7] / 10)
-
-        # jaws are in mm; convert to cm by /10
-        jaw_y1 = HeadAxis(matrix[:, 8] / 10)
-        jaw_y2 = HeadAxis(matrix[:, 9] / 10)
-        jaw_x1 = HeadAxis(matrix[:, 10] / 10)
-        jaw_x2 = HeadAxis(matrix[:, 11] / 10)
-        self.jaws = JawStruct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
-
-        # carriages are in 100ths of mm; converted to cm.
-        self.carriage_A = Axis(matrix[:, 12] / 1000)
-        self.carriage_B = Axis(matrix[:, 13] / 1000)
-
-        # remove snapshots where the beam wasn't on if flag passed
-        if exclude_beam_off:
-            hold_idx = np.where(self.beam_hold.actual == 0)[0]
-            beamon_idx = np.where(self.beam_on.actual == 1)[0]
-            snapshots = np.intersect1d(hold_idx, beamon_idx)
-        else:
-            snapshots = list(range(self.num_snapshots))
-
-        self.mlc = MLC(snapshots, self.jaws)
-        for leaf in range(1, (self._header.num_mlc_leaves // 2) + 1):
-            axis = LeafAxis(expected=matrix[:, (leaf - 1) * 4 + 14], actual=matrix[:, (leaf - 1) * 4 + 15])
-            self.mlc.add_leaf_axis(axis, leaf)
-
-        # read in "B"-file to get bank B MLC positions. The file must be in the same folder as the "A"-file.
-        # The header info is repeated but we already have that.
-        with open(self._bfile) as csvf:
-            dlgdata = csv.reader(csvf, delimiter=',')
-            matrix = np.array([line for line in dlgdata if int(dlgdata.line_num) >= 7], dtype=float)
-
-        # Add bank B MLC positions to mlc snapshot arrays
-        for leaf in range(1, (self._header.num_mlc_leaves // 2) + 1):
-            axis = LeafAxis(expected=matrix[:, (leaf - 1) * 4 + 14], actual=matrix[:, (leaf - 1) * 4 + 15])
-            self.mlc.add_leaf_axis(axis, leaf+self._header.num_mlc_leaves//2)
-
-        self._scale_dlog_mlc_pos()
-        return self
-
-    def _scale_dlog_mlc_pos(self):
-        """Convert MLC leaf plane positions to isoplane positions and from 100ths of mm to cm."""
-        dynalog_leaf_conversion = 1.96614  # MLC physical plane scaling factor to iso (100cm SAD) plane
-        for leaf in range(1, self.mlc.num_leaves + 1):
-            self.mlc.leaf_axes[leaf].actual *= dynalog_leaf_conversion / 1000
-            self.mlc.leaf_axes[leaf].expected *= dynalog_leaf_conversion / 1000
+        self.subbeams.post_hoc_metadata(self.axis_data)
+        self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
     @property
-    @lru_cache(maxsize=1)
-    def num_beamholds(self):
-        """Return the number of times the beam was held."""
-        diffmatrix = np.diff(self.beam_hold.actual)
-        num_holds = int(np.sum(diffmatrix > 0))
-        return num_holds
+    def txt_filename(self):
+        """The name of the associated .txt file for the .bin file. The file may or may not be available."""
+        if self.txt is not None:
+            return self.filename.replace('.bin', '.txt')
 
+    def anon_file_renames(self, destination, suffix):
+        base_filename = osp.basename(self.filename)
+        anonymous_base_filename = 'Anonymous' + suffix + base_filename[self._underscore_idx:]
+        anonymous_filename = osp.join(destination, anonymous_base_filename)
+        filenames = collections.OrderedDict()
+        filenames[self.filename] = anonymous_filename
+        if self.txt_filename is not None:
+            anonymous_txtfilename = anonymous_filename.replace('.bin', '.txt')
+            filenames[self.txt_filename] = anonymous_txtfilename
+        return filenames
 
-class TlogAxisData(TlogSection):
-    """One of four data structures outlined in the Trajectory log file specification.
-        Holds information on all Axes measured.
+    def anon_files(self, destination, suffix):
+        renames = self.anon_file_renames(destination, suffix)
+        if self.txt is not None:
+            return [file for file in renames.values() if '.txt' in file]
 
-    Attributes
-    ----------
-    collimator : :class:`~pylinac.log_analyzer.Axis`
-        Collimator data in degrees.
-    gantry : :class:`~pylinac.log_analyzer.Axis`
-        Gantry data in degrees.
-    jaws : :class:`~pylinac.log_analyzer.Jaw_Struct`
-        Jaw data structure. Data in cm.
-    couch : :class:`~pylinac.log_analyzer.Couch_Struct`
-        Couch data structure. Data in cm.
-    mu : :class:`~pylinac.log_analyzer.Axis`
-        MU data in MU.
-    beam_hold : :class:`~pylinac.log_analyzer.Axis`
-        Beam hold state. Beam *pauses* (e.g. Beam Off button pressed) are not recorded in the log.
-        Data is automatic hold state.
-        0 -> Normal; beam on.
-        1 -> Freeze; beam on, dose servo is temporarily turned off.
-        2 -> Hold; servo holding beam.
-        3 -> Disabled; beam on, dose servo is disable via Service.
-    control_point : :class:`~pylinac.log_analyzer.Axis`
-        Current control point.
-    carriage_A : :class:`~pylinac.log_analyzer.Axis`
-        Carriage A data in cm.
-    carriage_B : :class:`~pylinac.log_analyzer.Axis`
-        Carriage B data in cm.
-    mlc : :class:`~pylinac.log_analyzer.MLC`
-        MLC data structure; data in cm.
-    """
-    def __init__(self, log_content, cursor, header):
-        super().__init__(log_content, cursor)
-        self._header = header
+    def _read_txt_file(self):
+        """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
+        self.txt = None
+        if '.bin' in self.filename:  # files downloaded via URL may not have .bin ending
+            txt_filename = self.filename.replace('.bin', '.txt')
+            if osp.isfile(txt_filename):
+                self.txt = {}
+                with open(txt_filename) as txtfile:
+                    txtdata = txtfile.readlines()
+                for line in txtdata:
+                    items = line.split(':')
+                    if len(items) == 2:
+                        self.txt[items[0].strip()] = items[1].strip()
 
-    def _read(self, exclude_beam_off):
-        # step size in bytes
-        step_size = sum(self._header.samples_per_axis) * 2
+    @classmethod
+    def from_demo(cls, exclude_beam_off=True):
+        """Load and instantiate from the demo trajetory log file included with the package."""
+        demo_file = retrieve_demo_file(url='Tlog.bin')
+        return cls(demo_file, exclude_beam_off)
 
-        # read in all snapshot data at once, then assign
-        snapshot_data = self._decode_binary(self._log_content, float, step_size * self._header.num_snapshots)
+    @staticmethod
+    def run_demo():
+        """Run the Trajectory log demo."""
+        tlog = TrajectoryLog.from_demo()
+        tlog.report_basic_parameters()
+        tlog.plot_summary()
 
-        # reshape snapshot data to be a x-by-num_snapshots matrix
-        snapshot_data = snapshot_data.reshape(self._header.num_snapshots, -1)
-
-        column = snapshot_col_gen()
-
-        self.collimator = self._get_axis(snapshot_data, next(column), HeadAxis)
-
-        self.gantry = self._get_axis(snapshot_data, next(column), GantryAxis)
-
-        jaw_y1 = self._get_axis(snapshot_data, next(column), HeadAxis)
-        jaw_y2 = self._get_axis(snapshot_data, next(column), HeadAxis)
-        jaw_x1 = self._get_axis(snapshot_data, next(column), HeadAxis)
-        jaw_x2 = self._get_axis(snapshot_data, next(column), HeadAxis)
-        self.jaws = JawStruct(jaw_x1, jaw_y1, jaw_x2, jaw_y2)
-
-        vrt = self._get_axis(snapshot_data, next(column), CouchAxis)
-        lng = self._get_axis(snapshot_data, next(column), CouchAxis)
-        lat = self._get_axis(snapshot_data, next(column), CouchAxis)
-        rtn = self._get_axis(snapshot_data, next(column), CouchAxis)
-        if is_tlog_v3(self._header.version):
-            pitch = self._get_axis(snapshot_data, next(column), CouchAxis)
-            roll = self._get_axis(snapshot_data, next(column), CouchAxis)
-        else:
-            pitch = None
-            roll = None
-        self.couch = CouchStruct(vrt, lng, lat, rtn, pitch, roll)
-
-        self.mu = self._get_axis(snapshot_data, next(column), BeamAxis)
-
-        self.beam_hold = self._get_axis(snapshot_data, next(column), BeamAxis)
-
-        self.control_point = self._get_axis(snapshot_data, next(column), BeamAxis)
-
-        self.carriage_A = self._get_axis(snapshot_data, next(column), HeadAxis)
-        self.carriage_B = self._get_axis(snapshot_data, next(column), HeadAxis)
-
-        # remove snapshots where the beam wasn't on if flag passed
-        if exclude_beam_off:
-            snapshots = np.where(self.beam_hold.actual == 0)[0]
-        else:
-            snapshots = list(range(self._header.num_snapshots))
-
-        if self._header.mlc_model == 2:
-            hdmlc = False
-        else:
-            hdmlc = True
-
-        self.mlc = MLC(snapshots, self.jaws, hdmlc)
-        for leaf_num in range(1, self._header.num_mlc_leaves+1):
-            leaf_axis = self._get_axis(snapshot_data, next(column), LeafAxis)
-            self.mlc.add_leaf_axis(leaf_axis, leaf_num)
-
-        return self, self._cursor
-
-    @property
-    @lru_cache(maxsize=1)
-    def num_beamholds(self):
-        """Return the number of times the beam was held."""
-        diffmatrix = np.diff(self.beam_hold.actual)
-        num_holds = int(np.sum(diffmatrix > 0))
-        return num_holds
-
-    def _get_axis(self, snapshot_data, column, axis_type):
-        """Return column of data from snapshot data of the axis type passed.
+    def to_csv(self, filename=None):
+        """Write the log to a CSV file.
 
         Parameters
         ----------
-        snapshot_data : numpy.ndarray
-            The data read in holding the axis data of the log.
-        column : int
-            The column of the desired data in snapshot_data
-        axis_type : subclass of Axis
-            The type of axis the data is.
+        filename : None, str
+            If None (default), the CSV filename will be the same as the filename of the log.
+            If a string, the filename will be named so.
 
         Returns
         -------
-        axis_type
+        str
+            The full filename of the newly created CSV file.
         """
-        return axis_type(expected=snapshot_data[:, column],
-                         actual=snapshot_data[:, column + 1])
+        if filename is None:
+            filename = self.filename.replace('bin', 'csv')
+        elif not filename.endswith('.csv'):
+            filename += '.csv'
 
+        csv_file = open(filename, mode='w')
+        writer = csv.writer(csv_file, lineterminator='\n')
+        # write header info
+        header_titles = ('Tlog File:', 'Signature:', 'Version:', 'Header Size:', 'Sampling Inteval:',
+                         'Number of Axes:', 'Axis Enumeration:', 'Samples per Axis:', 'Axis Scale:',
+                         'Number of Subbeams:', 'Is Truncated?', 'Number of Snapshots:', 'MLC Model:')
+        h = self.header
+        header_values = (self.filename, h.header, h.version, h.header_size, h.sampling_interval,
+                         h.num_axes, h.axis_enum, h.samples_per_axis, h.axis_scale, h.num_subbeams, h.is_truncated,
+                         h.num_snapshots, h.mlc_model)
+        for title, value in zip(header_titles, header_values):
+            write_single_value(writer, title, value)
 
-class CRC(TlogSection):
-    """The last data section of a Trajectory log. Is a 2 byte cyclic redundancy check (CRC), specifically
-        a CRC-16-CCITT. The seed is OxFFFF."""
-    def __init__(self, log_content, cursor):
-        super().__init__(log_content, cursor)
+        # write axis data
+        data_titles = ('Gantry', 'Collimator', 'Couch Lat', 'Couch Lng', 'Couch Rtn', 'MU',
+                       'Beam Hold', 'Control Point', 'Carriage A', 'Carriage B')
+        ad = self.axis_data
+        data_values = (ad.gantry, ad.collimator, ad.couch.latl, ad.couch.long, ad.couch.rotn,
+                       ad.mu, ad.beam_hold, ad.control_point, ad.carriage_A, ad.carriage_B)
+        data_units = ('degrees', 'degrees', 'cm', 'cm', 'degrees', 'MU', None, None, 'cm',
+                      'cm')
+        for title, value, unit in zip(data_titles, data_values, data_units):
+            write_array(writer, title, value, unit)
 
-    def _read(self):
-        # crc = self._decode_binary(self.log_content, str, 2)
-        # TODO: figure this out
-        pass
+        # write leaf data
+        for leaf_num, leaf in self.axis_data.mlc.leaf_axes.items():
+            write_array(writer, 'Leaf ' + str(leaf_num), leaf, 'cm')
+
+        print("CSV file written to: " + filename)
+        return filename
+
+    @property
+    @lru_cache(maxsize=1)
+    def num_beamholds(self):
+        """Return the number of times the beam was held."""
+        diffmatrix = np.diff(self.axis_data.beam_hold.actual)
+        num_holds = int(np.sum(diffmatrix > 0))
+        return num_holds
+
+    @property
+    def is_hdmlc(self):
+        """Whether the machine has an HDMLC or not."""
+        return self.header.mlc_model == 2
 
 
 def anonymize(source, inplace=False, destination=None, recursive=True):
@@ -2246,12 +2054,12 @@ def anonymize(source, inplace=False, destination=None, recursive=True):
     def _anonymize(filepath, inplace, destination):
         """Function to anonymize logs; used in the thread executor."""
         if is_tlog(filepath) or (is_dlog(filepath) and osp.basename(filepath).startswith("A")):
-            log = MachineLog(filepath)
+            log = load_log(filepath)
             log.anonymize(inplace=inplace, destination=destination)
 
-    # if a file, just anonymize it
+    # if a single file, just anonymize it
     if osp.isfile(source):
-        log = MachineLog(source)
+        log = load_log(source)
         log.anonymize(inplace=inplace, destination=destination)
     # if a dir, start a threaded executor and walk the folder.
     elif osp.isdir(source):
@@ -2267,19 +2075,42 @@ def anonymize(source, inplace=False, destination=None, recursive=True):
             concurrent.futures.wait(futures)
         print("All logs in {} have been anonymized.".format(source))
     else:
-        raise ValueError("{} is not a log file or directory.".format(source))
+        raise NotALogError("{} is not a log file or directory.".format(source))
 
 
-def is_tlog_txt_file_around(tlog_filename):
-    """Boolean specifying if a Tlog *.txt file is available."""
-    try:
-        txt_filename = tlog_filename.replace('.bin', '.txt')
-    except:
-        return False
+# @type_accept(file_or_dir=str)
+def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
+    """Load a log file or directory of logs, either dynalogs or Trajectory logs.
+
+    Parameters
+    ----------
+    file_or_dir : str
+        String pointing to a single log file or a directory that contains log files.
+    exclude_beam_off : bool
+        Whether to include snapshots where the beam was off.
+    recursive : bool
+        Whether to recursively search a directory. Irrelevant for single log files.
+
+    Returns
+    -------
+    One of :class:`~pylinac.log_analyzer.Dynalog`, :class:`~pylinac.log_analyzer.TrajectoryLog`,
+        :class:`~pylinac.log_analyzer.MachineLogs`.
+    """
+    if osp.isfile(file_or_dir):
+        if not is_log(file_or_dir):
+            raise NotALogError("Not a valid log")
+        elif is_tlog(file_or_dir):
+            return TrajectoryLog(file_or_dir, exclude_beam_off)
+        else:
+            return Dynalog(file_or_dir, exclude_beam_off)
+    elif osp.isdir(file_or_dir):
+        MachineLogs(file_or_dir, recursive)
+    elif is_zipfile(file_or_dir):
+        MachineLogs.from_zip(file_or_dir)
     else:
-        return '.txt' in txt_filename and osp.isfile(txt_filename)
+        raise NotALogError("'{}' did not point to a valid file, directory, or ZIP archive".format(file_or_dir))
 
-
+ 
 def is_log(filename):
     """Boolean specifying if filename is a valid log file."""
     return is_tlog(filename) or is_dlog(filename)
@@ -2287,68 +2118,31 @@ def is_log(filename):
 
 def is_tlog(filename):
     """Boolean specifying if filename is a Trajectory log file."""
-    if osp.isfile(filename):
-        with open(filename, mode='rb') as f:
-            header_sample = f.read(5).decode()
-        return 'V' in header_sample
-    else:
-        return False
+    return _is_log(filename, ('V',))
 
 
 def is_dlog(filename):
-    """Boolean specifying if filename is a dynalog file."""
-    if osp.isfile(filename):
-        with open(filename, mode='rb') as f:
-            header_sample = f.read(5).decode()
-        return 'B' in header_sample or 'A' in header_sample
-    else:
-        return False
+    """Boolean specifying if filename is a Dynalog file."""
+    return _is_log(filename, ('B', 'A'))
 
 
-def is_tlog_v3(version):
-    """Return whether the Tlog version is 3 or not."""
-    return version >= 3
-
-
-def snapshot_col_gen():
-    """Generator function for iterating through the snapshot data columns."""
-    col = 0
-    while True:
-        yield col
-        col += 2
-
-
-def _return_other_dlg(dlg_filename, raise_find_error=True):
-    """Return the filename of the corresponding dynalog file.
-
-    For example, if the A*.dlg file was passed in, return the corresponding B*.dlg filename.
-    Can find both A- and B-files.
+def _is_log(filename, keys):
+    """Internal function that determines whether a file is a log.
 
     Parameters
     ----------
-    dlg_filename : str
-        The absolute file path of the dynalog file.
-
-    Returns
-    -------
-    str
-        The absolute file path to the corresponding dynalog file.
+    filename : str
+    keys : iterable of strings
+        An iterable of strings that should be in the file. If any key
+        is in the file it will return true.
     """
-    dlg_dir, dlg_file = osp.split(dlg_filename)
-    if dlg_file.startswith('A'):
-        file2get = dlg_file.replace("A", "B", 1)
-    elif dlg_file.startswith('B'):
-        file2get = dlg_file.replace("B", "A", 1)
+    if osp.isfile(filename):
+        with open(filename, mode='rb') as f:
+            header_sample = f.read(5).decode()
+            ss = [key in header_sample for key in keys]
+        return any(key in header_sample for key in keys)
     else:
-        raise ValueError("Unable to decipher log names; ensure dynalogs start with 'A' and 'B'")
-    other_filename = osp.join(dlg_dir, file2get)
-
-    if osp.isfile(other_filename):
-        return other_filename
-    elif raise_find_error:
-        raise FileNotFoundError("Complementary dlg file not found; ensure A and B-file are in same directory.")
-    else:
-        return
+        return False
 
 
 def write_single_value(writer, description, value, unit=None):
@@ -2364,3 +2158,53 @@ def write_array(writer, description, value, unit=None):
             dtype_desc = description + dtype + ' in units of ' + unit
         arr2write = np.insert(getattr(value, attr).astype(object), 0, dtype_desc)
         writer.writerow(arr2write)
+
+
+def _get_log_filenames(directory, recursive=True):
+    """Extract the names of real log files from a directory."""
+    tlogs = retrieve_filenames(directory, is_tlog, recursive=recursive)
+    dlogs = retrieve_filenames(directory, is_dlog, recursive=recursive)
+    # drop double-counted dynalogs (both A & B files; just need one of two)
+    idx = 0
+    while idx < len(dlogs):
+        opp_file = Dynalog.identify_other_file(dlogs[idx], raise_find_error=False)
+        if opp_file in dlogs:
+            del dlogs[dlogs.index(opp_file)]
+        else:
+            del dlogs[idx]
+            idx -= 1
+        idx += 1
+    return tlogs + dlogs
+
+
+def _get_axis(snapshot_data, column, axis_type):
+    """Return column of data from snapshot data of the axis type passed.
+
+    Parameters
+    ----------
+    snapshot_data : numpy.ndarray
+        The data read in holding the axis data of the log.
+    column : int
+        The column of the desired data in snapshot_data
+    axis_type : subclass of Axis
+        The type of axis the data is.
+
+    Returns
+    -------
+    axis_type
+    """
+    return axis_type(expected=snapshot_data[:, column],
+                     actual=snapshot_data[:, column + 1])
+
+
+class NotALogError(IOError):
+    """Machine log error. Indicates that the passed file is not a valid machine log file."""
+    pass
+
+
+class NotADynalogError(IOError):
+    pass
+
+
+class DynalogMatchError(IOError):
+    pass

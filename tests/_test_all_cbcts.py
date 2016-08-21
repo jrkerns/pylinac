@@ -56,7 +56,7 @@ class VarianStandardHead(CBCTBankMixin, TestCase):
     mtf_values = {60: 0.95, 70: 0.85, 80: 0.72, 90: 0.36, 95: 0.32}
     avg_line_length = 49.94
     lowcon_visible = 1
-    thickness_passed = False
+    thickness_passed = True
 
 
 class VarianLowDoseHead(CBCTBankMixin, TestCase):

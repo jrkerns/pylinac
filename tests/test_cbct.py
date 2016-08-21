@@ -15,8 +15,8 @@ plt.close('all')
 class CBCTLoading(LoadingTestBase, TestCase):
     klass = CBCT
     constructor_input = osp.join(VARIAN_DIR, 'Pelvis')
-    demo_method = 'from_demo_images'
-    url = 'CBCT_4.zip'
+    demo_load_method = 'from_demo_images'
+    url = 'High_quality_head.zip'
     zip = osp.join(VARIAN_DIR, 'CBCT_4.zip')
 
 

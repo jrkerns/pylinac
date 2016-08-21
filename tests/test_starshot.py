@@ -15,15 +15,15 @@ TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
 
 class TestStarshotLoading(LoadingTestBase, TestCase):
     klass = Starshot
-    url = '10X_collimator_dvTK5Jc.jpg'
+    url = 'starshot.tif'
     kwargs = {'dpi': 30, 'sid': 1000}
 
     def test_no_dpi(self):
         # raise error when DPI isn't in image or given
         with self.assertRaises(ValueError):
-            Starshot.from_url(self.real_url)
+            Starshot.from_url(self.full_url)
         # but is fine when DPI is given
-        Starshot.from_url(self.real_url, **self.kwargs)
+        Starshot.from_url(self.full_url, **self.kwargs)
 
 
 class TestPlottingSaving(TestCase):
@@ -46,6 +46,7 @@ class TestPlottingSaving(TestCase):
 class StarMixin(LocationMixin):
     """Mixin for testing a starshot image."""
     dir_location = TEST_DIR
+    is_dir = False  # whether the starshot is a single file (False) or directory of images to combine (True)
     wobble_diameter_mm = 0
     wobble_center = Point()
     num_rad_lines = 0
@@ -56,7 +57,6 @@ class StarMixin(LocationMixin):
     test_all_radii = True
     fwxm = True
     wobble_tolerance = 0.2
-    is_dir = False
     kwargs = {'sid': 1000}
 
     @classmethod

@@ -56,26 +56,26 @@ class LoadingTestBase:
     """This class can be used as a base for a module's loading test class."""
     klass = object
     constructor_input = None
-    demo_method = 'from_demo_image'
+    demo_load_method = 'from_demo_image'
     url = None
     zip = None
     kwargs = {}
 
     @property
-    def real_url(self):
-        return 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/' + self.url
+    def full_url(self):
+        return 'https://s3.amazonaws.com/pylinac/' + self.url
 
     def test_consructor(self):
         if self.constructor_input is not None:
             self.klass(self.constructor_input, **self.kwargs)
 
     def test_from_demo(self):
-        if self.demo_method is not None:
-            getattr(self.klass, self.demo_method)()
+        if self.demo_load_method is not None:
+            getattr(self.klass, self.demo_load_method)()
 
     def test_from_url(self):
         if self.url is not None:
-            self.klass.from_url(self.real_url, **self.kwargs)
+            self.klass.from_url(self.full_url, **self.kwargs)
 
     def test_from_zip(self):
         if self.zip is not None:

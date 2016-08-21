@@ -16,7 +16,7 @@ import scipy.ndimage.filters as spf
 from .utilities import is_close, minmax_scale
 from .decorators import type_accept, value_accept
 from .geometry import Point
-from .io import get_url, TemporaryZipDirectory
+from .io import get_url, TemporaryZipDirectory, retrieve_filenames
 from .profile import stretch as stretcharray
 from ..settings import get_dicom_cmap
 
@@ -27,7 +27,8 @@ MM_PER_INCH = 25.4
 
 
 def prepare_for_classification(path):
-    """Load and resize the image and return as flattened numpy array"""
+    """Load and resize the image and return as flattened numpy array. Used when converting an image into
+    a classification feature dataset"""
     img = load(path, dtype=np.float32)
     resized_img = imresize(img.array, size=(100, 100), mode='F').flatten()
     rescaled_img = minmax_scale(resized_img)
@@ -45,15 +46,15 @@ def equate_images(image1, image2):
 
     Parameters
     ----------
-    image1 : {`~pylinac.core.image.ArrayImage`, `~pylinac.core.image.DicomImage`, `~pylinac.core.image.FileImage`}
+    image1 : {:class:`~pylinac.core.image.ArrayImage`, :class:`~pylinac.core.image.DicomImage`, :class:`~pylinac.core.image.FileImage`}
         Must have DPI and SID.
-    image2 : {`~pylinac.core.image.ArrayImage`, `~pylinac.core.image.DicomImage`, `~pylinac.core.image.FileImage`}
+    image2 : {:class:`~pylinac.core.image.ArrayImage`, :class:`~pylinac.core.image.DicomImage`, :class:`~pylinac.core.image.FileImage`}
         Must have DPI and SID.
 
     Returns
     -------
-    fluence_img : `~pylinac.core.image.ArrayImage`
-    epid_img : `~pylinac.core.image.ArrayImage`
+    fluence_img : :class:`~pylinac.core.image.ArrayImage`
+    epid_img : :class:`~pylinac.core.image.ArrayImage`
         The returns are new instances of Images.
     """
     image1 = copy.deepcopy(image1)
@@ -103,13 +104,7 @@ def retrieve_image_files(path):
     list
         Contains strings pointing to valid image paths.
     """
-    image_file_paths = []
-    for pdir, _, files in os.walk(path):
-        for file in files:
-            file_path = osp.join(pdir, file)
-            if is_image(file_path):
-                image_file_paths.append(file_path)
-    return image_file_paths
+    return retrieve_filenames(path, is_image)
 
 
 def load(path, **kwargs):
@@ -286,7 +281,7 @@ class BaseImage:
             The path to the image.
         """
         if not osp.isfile(path):
-            raise FileExistsError("File `{0}` does not exist".format(path))
+            raise FileExistsError("File `{0}` does not exist. Verify the file path name.".format(path))
         self.path = path
 
     @classmethod
@@ -410,7 +405,7 @@ class BaseImage:
 
     @value_accept(kind=('high', 'low'))
     def threshold(self, threshold, kind='high'):
-        """Apply a threshold filter.
+        """Apply a high- or low-pass threshold filter.
 
         Parameters
         ----------
@@ -495,8 +490,8 @@ class BaseImage:
             val = norm_val
         self.array = self.array / val
 
-    @type_accept(box_size=int, offset=int)
-    def check_inversion(self, box_size=20, offset=10):
+    @type_accept(box_size=int)
+    def check_inversion(self, box_size=20, position=(0.0, 0.0)):
         """Check the image for inversion by sampling the 4 image corners.
         If the average value of the four corners is above the average pixel value, then it is very likely inverted.
 
@@ -504,17 +499,17 @@ class BaseImage:
         ----------
         box_size : int
             The size in pixels of the corner box to detect inversion.
-        offset : int
-            The offset from the image edge to sample the box.
+        position : 2-element sequence
+            The location of the sampling boxes.
         """
-        outer_edge = offset
-        inner_edge = offset + box_size
-        TL_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BL_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        TR_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BR_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        corner_avg = np.mean((TL_corner, BL_corner, TR_corner, BR_corner))
-        if corner_avg > np.mean(self.array.flatten()):
+        row_pos = max(int(position[0]*self.array.shape[0]), 1)
+        col_pos = max(int(position[1]*self.array.shape[1]), 1)
+        lt_upper = self.array[row_pos: row_pos+box_size, col_pos: col_pos+box_size]
+        rt_upper = self.array[row_pos: row_pos+box_size, -col_pos-box_size: -col_pos]
+        lt_lower = self.array[-row_pos-box_size:-row_pos, col_pos: col_pos+box_size]
+        rt_lower = self.array[-row_pos-box_size:-row_pos, -col_pos-box_size:-col_pos]
+        avg = np.mean((lt_upper, lt_lower, rt_upper, rt_lower))
+        if avg > np.mean(self.array.flatten()):
             self.invert()
 
     @value_accept(threshold=(0.0, 1.0))
@@ -845,6 +840,21 @@ class DicomImageStack:
     images : list
         Holds instances of :class:`~pylinac.core.image.DicomImage`. Can be accessed via index;
         i.e. self[0] == self.images[0].
+
+    Examples
+    --------
+    Load a folder of Dicom images
+    >>> from pylinac import image
+    >>> img_folder = r"folder/qa/cbct/june"
+    >>> dcm_stack = image.DicomImageStack(img_folder)  # loads and sorts the images
+    >>> dcm_stack.plot(3)  # plot the 3rd image
+
+    Load a zip archive
+    >>> img_folder_zip = r"archive/qa/cbct/june.zip"  # save space and zip your CBCTs
+    >>> dcm_stack = image.DicomImageStack.from_zip(img_folder_zip)
+
+    Load as a certain data type
+    >>> dcm_stack_uint32 = image.DicomImageStack(img_folder, dtype=np.uint32)
     """
 
     def __init__(self, folder, dtype=None):

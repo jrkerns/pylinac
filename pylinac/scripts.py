@@ -1,5 +1,4 @@
 """Scripts to run pylinac from the command line. Built on examples given in Click documentation."""
-import argparse
 import os.path as osp
 import sys
 

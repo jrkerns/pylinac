@@ -19,9 +19,9 @@ import numpy as np
 from .core import image
 from .core.decorators import value_accept, type_accept
 from .core.geometry import Point, Rectangle
-from .core.io import get_url, TemporaryZipDirectory
+from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core.profile import SingleProfile
-from .core.utilities import typed_property, import_mpld3, retrieve_demo_file
+from .core.utilities import typed_property, import_mpld3
 from .settings import get_dicom_cmap
 
 # test types

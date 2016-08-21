@@ -1,5 +1,5 @@
 import os.path as osp
-from unittest import TestCase
+from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
 
@@ -12,11 +12,12 @@ TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
 class TestLoading(LoadingTestBase, TestCase):
     klass = PicketFence
     constructor_input = osp.join(TEST_DIR, 'AS500_PF.dcm')
-    url = 'AS500-UD.dcm'
+    url = 'EPID-PF-LR.dcm'
 
     def test_filter_on_load(self):
         PicketFence(self.constructor_input, filter=3)  # shouldn't raise
 
+    @skip
     def test_load_with_log(self):
         log_file = osp.join(TEST_DIR, 'PF_log.bin')
         pf_file = osp.join(TEST_DIR, 'PF.dcm')
@@ -135,4 +136,4 @@ class MultipleImagesPF(PFTestMixin, TestCase):
         path1 = osp.join(TEST_DIR, 'combo-jaw.dcm')
         path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
         cls.pf = PicketFence.from_multiple_images([path1, path2])
-        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
+        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment, orientation='left', invert=True)

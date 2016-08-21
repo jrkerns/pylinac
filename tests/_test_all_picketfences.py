@@ -225,21 +225,31 @@ class AS1200HDTranslated(PFBankMixin, TestCase):
     abs_median_error = 0.02
 
 
-class ChicagoNoError(PFBankMixin, TestCase):
-    file_path = ['Chicago', 'PF no error.dcm']
-    log = ['Chicago', 'PF no error tlog.bin']
-    hdmlc = True
-    max_error = 0.9
-    abs_median_error = 0.2
-    passes = False
-    percent_passing = 87
+# class ChicagoNoError(PFBankMixin, TestCase):
+#     file_path = ['Chicago', 'PF no error.dcm']
+#     # log = ['Chicago', 'PF no error tlog.bin']
+#     hdmlc = True
+#     max_error = 0.9
+#     abs_median_error = 0.2
+#     passes = False
+#     percent_passing = 87
 
 
-class ChicagoError(PFBankMixin, TestCase):
-    file_path = ['Chicago', 'PF point2mm error.dcm']
-    log = ['Chicago', 'PF point2mm tlog.bin']
-    hdmlc = True
-    max_error = 0.8
-    abs_median_error = 0.25
-    passes = False
-    percent_passing = 95
+# class ChicagoError(PFBankMixin, TestCase):
+#     file_path = ['Chicago', 'PF point2mm error.dcm']
+#     # log = ['Chicago', 'PF point2mm tlog.bin']
+#     hdmlc = True
+#     max_error = 0.8
+#     abs_median_error = 0.25
+#     passes = False
+#     percent_passing = 95
+
+
+class CharlestonRA(PFBankMixin, TestCase):
+    file_path = ['Charleston', 'TB1', 'July2016', 'RA.dcm']
+    max_error = 0.17
+
+
+class CharlestonG0(PFBankMixin, TestCase):
+    file_path = ['Charleston', 'TB1', 'July2016', 'G0.dcm']
+    max_error = 0.1

@@ -16,14 +16,14 @@ PYLINAC_DIR = osp.abspath(osp.join(osp.dirname(__file__), '../', 'pylinac'))
 class WatcherTest(unittest.TestCase):
     """Test the watcher script by adding a file from every type of module."""
     files2analyze = [
-        osp.join(TEST_FILES_DIR, 'Starshot', 'Starshot#1.tif'),
-        osp.join(TEST_FILES_DIR, 'Picket Fence', 'AS500_PF.dcm'),
-        osp.join(TEST_FILES_DIR, 'VMAT', 'DRMLC.zip'),
-        osp.join(TEST_FILES_DIR, 'CBCT', 'Varian', 'CBCT_4.zip'),
+        # osp.join(TEST_FILES_DIR, 'Starshot', 'Starshot#1.tif'),
+        # osp.join(TEST_FILES_DIR, 'Picket Fence', 'AS500_PF.dcm'),
+        # osp.join(TEST_FILES_DIR, 'VMAT', 'DRMLC.zip'),
+        # osp.join(TEST_FILES_DIR, 'CBCT', 'Varian', 'CBCT_4.zip'),
         osp.join(TEST_FILES_DIR, 'MLC logs', 'tlogs', 'Anonymous_4DC Treatment_JS0_TX_20140712095629.bin'),
-        osp.join(TEST_FILES_DIR, 'Winston-Lutz', 'lutz.zip'),
-        osp.join(TEST_FILES_DIR, 'Planar imaging', 'Leeds_ccw.dcm'),
-        osp.join(TEST_FILES_DIR, 'Planar imaging', 'PIPSpro 2.5MV.dcm'),
+        # osp.join(TEST_FILES_DIR, 'Winston-Lutz', 'lutz.zip'),
+        # osp.join(TEST_FILES_DIR, 'Planar imaging', 'Leeds_ccw.dcm'),
+        # osp.join(TEST_FILES_DIR, 'Planar imaging', 'PIPSpro 2.5MV.dcm'),
     ]
 
     @classmethod
@@ -31,7 +31,7 @@ class WatcherTest(unittest.TestCase):
         """Setup the watcher."""
         cls.clean_dir()
         cls.watching_process = subprocess.Popen([sys.executable, WATCHER_SCRIPT, WATCHER_DIR])
-        time.sleep(5)  # process needs some time before it starts reading file changes
+        time.sleep(8)  # process needs some time before it starts reading file changes
 
     @classmethod
     def tearDownClass(cls):

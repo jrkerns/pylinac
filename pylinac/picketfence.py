@@ -23,10 +23,10 @@ import numpy as np
 
 from .core import image
 from .core.geometry import Line, Rectangle, Point
-from .core.io import get_url
+from .core.io import get_url, retrieve_demo_file
 from .core.profile import MultiProfile, SingleProfile
-from .core.utilities import import_mpld3, retrieve_demo_file
-from .log_analyzer import MachineLog
+from .core.utilities import import_mpld3
+from .log_analyzer import load_log
 from .settings import get_dicom_cmap
 
 # possible orientations of the pickets.
@@ -40,7 +40,7 @@ class PFDicomImage(image.DicomImage):
     def __init__(self, path, **kwargs):
         super().__init__(path, **kwargs)
         self._check_for_noise()
-        self.check_inversion()
+        self.check_inversion(position=(0.2, 0.05))
 
     def _check_for_noise(self):
         """Check if the image has extreme noise (dead pixel, etc) by comparing
@@ -195,7 +195,7 @@ class PicketFence:
         This log determines the location of the pickets. The MLC peaks are then compared to the expected log pickets,
         not a simple fit of the peaks."""
         # load the log fluence image
-        mlog = MachineLog(log)
+        mlog = load_log(log)
         fl = mlog.fluence.expected.calc_map(equal_aspect=True)
         fli = image.load(fl, dpi=254)  # 254 pix/in => 1 pix/0.1mm (default fluence calc)
 
@@ -217,7 +217,7 @@ class PicketFence:
         pf.plot_analyzed_image(interactive=interactive, leaf_error_subplot=True)
 
     def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False, num_pickets=None, sag_adjustment=0,
-                orientation=None):
+                orientation=None, invert=False):
         """Analyze the picket fence image.
 
         Parameters
@@ -256,6 +256,13 @@ class PicketFence:
             If passed a string with 'u' (e.g. 'up-down', 'u-d', 'up') it will set the orientation of the pickets as
             going up-down. If passed a string with 'l' (e.g. 'left-right', 'lr', 'left') it will set it as going
             left-right.
+        invert : bool
+
+            .. versionadded: 1.7
+
+            If False (default), the inversion of the image is automatically detected and used.
+            If True, the image inversion is reversed from the automatic detection. This is useful when runtime errors
+            are encountered.
         """
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
@@ -267,6 +274,8 @@ class PicketFence:
         if sag_adjustment != 0:
             sag_pixels = int(round(sag_adjustment * self.settings.dpmm))
             self.image.adjust_for_sag(sag_pixels, self.orientation)
+        if invert:
+            self.image.invert()
 
         """Analysis"""
         self.pickets = PicketManager(self.image, self.settings, num_pickets)
@@ -417,7 +426,7 @@ class PicketFence:
     def orientation(self):
         """The orientation of the image, either Up-Down or Left-Right."""
         # if orientation was passed in, use it
-        if self._orientation is str:
+        if type(self._orientation) is str:
             if 'u' in self._orientation.lower():
                 return UP_DOWN
             elif 'l' in self._orientation.lower():

@@ -29,11 +29,11 @@ from .core import image
 from .core.io import TemporaryZipDirectory
 from .core.decorators import value_accept
 from .core.geometry import Point, Line
-from .core.io import get_url
+from .core.io import get_url, retrieve_demo_file
 from .core.mask import filled_area_ratio
 from .core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
-from .core.utilities import simple_round, import_mpld3, retrieve_demo_file, minmax_scale
+from .core.utilities import simple_round, import_mpld3, minmax_scale
 from .settings import get_dicom_cmap
 
 ELEKTA = 'ELEKTA'

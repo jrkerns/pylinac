@@ -3,11 +3,10 @@ from collections import Iterable
 import decimal
 import os
 import os.path as osp
+import struct
 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
-
-from .io import get_url
 
 
 def clear_data_files():
@@ -113,28 +112,6 @@ def is_iterable(object):
     return isinstance(object, Iterable)
 
 
-def retrieve_demo_file(url):
-    """Retrieve the demo file either by getting it from file or from a URL.
-
-    If the file is already on disk it returns the file name. If the file isn't
-    on disk, get the file from the URL and put it at the expected demo file location
-    on disk for lazy loading next time.
-
-    Parameters
-    ----------
-    url : str
-        The suffix to the url (location within the S3 bucket) pointing to the demo file.
-    """
-    true_url = 'https://s3.amazonaws.com/pylinac/' + url
-    demo_file = osp.join(osp.dirname(osp.dirname(__file__)), 'demo_files', url)
-    if not osp.isfile(demo_file):
-        d = osp.dirname(demo_file)
-        if not osp.exists(d):
-            os.makedirs(d)
-        get_url(true_url, destination=demo_file)
-    return demo_file
-
-
 def minmax_scale(array, feature_range=(0, 1), axis=0, copy=True):
     """Copy of scikit-learn's minmax_scale function. Reproduced here for backwards compatibility."""
     original_ndim = array.ndim
@@ -152,3 +129,54 @@ def minmax_scale(array, feature_range=(0, 1), axis=0, copy=True):
         array = array.ravel()
 
     return array
+
+
+class Structure:
+    """A simple structure that assigns the arguments to the object."""
+    def __init__(self, **kwargs):
+        self.__dict__.update(**kwargs)
+
+
+def decode_binary(file, dtype, num_values=1, cursor_shift=0):
+    """Read in a raw binary file and convert it to given data types.
+
+    Parameters
+    ----------
+    file : file object
+        The open file object.
+    dtype : int, float, str
+        The expected data type to return. If int or float, will return numpy array.
+    num_values : int
+        The expected number of dtype to return
+
+        .. note:: This is not the same as the number of bytes.
+
+    cursor_shift : int
+        The number of bytes to move the cursor forward after decoding. This is used if there is a
+        reserved section after the read-in segment.
+    """
+    f = file
+
+    if dtype == str:  # if string
+        output = f.read(num_values)
+        if type(f) is not str:  # in py3 fc will be bytes
+            output = output.decode()
+        # strip the padding ("\x00")
+        output = output.strip('\x00')
+    elif dtype == int:
+        ssize = struct.calcsize('i') * num_values
+        output = np.asarray(struct.unpack('i' * num_values, f.read(ssize)))
+        if len(output) == 1:
+            output = int(output)
+    elif dtype == float:
+        ssize = struct.calcsize('f') * num_values
+        output = np.asarray(struct.unpack('f' * num_values, f.read(ssize)))
+        if len(output) == 1:
+            output = float(output)
+    else:
+        raise TypeError("datatype '{}' was not valid".format(dtype))
+
+    # shift cursor if need be (e.g. if a reserved section follows)
+    if cursor_shift:
+        f.seek(cursor_shift, 1)
+    return output

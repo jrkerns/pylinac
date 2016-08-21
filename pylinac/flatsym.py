@@ -6,8 +6,9 @@ import numpy as np
 
 from .core.decorators import type_accept
 from .core.image import Image
+from .core.io import retrieve_demo_file
 from .core.profile import SingleProfile
-from .core.utilities import is_iterable, isnumeric, retrieve_demo_file
+from .core.utilities import is_iterable, isnumeric
 from .settings import get_dicom_cmap
 
 

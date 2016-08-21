@@ -1,17 +1,18 @@
 import os.path as osp
 from unittest import TestCase
 
-from pylinac.log_analyzer import VMAT, IMAGING
-from tests.test_logs import TestLogBase
+from pylinac.log_analyzer import VMAT, IMAGING, STATIC_IMRT, DYNAMIC_IMRT
+from tests.test_logs import TestIndividualLogBase
 from tests import TEST_BANK_DIR
 
 
-class LogBankBase(TestLogBase):
+class LogBankBase(TestIndividualLogBase):
     dir_location = osp.join(TEST_BANK_DIR, 'Machine logs')
 
 
 class One(LogBankBase, TestCase):
     file_path = ['Anonymous_4DC Treatment_A_TX_20120928131920.bin']
+    treatment_type = STATIC_IMRT
     num_subbeams = 1
     mu_delivered = 209
     num_snapshots = 1098
@@ -20,6 +21,7 @@ class One(LogBankBase, TestCase):
 
 class Two(LogBankBase, TestCase):
     file_path = ['Anonymous_4DC Treatment_A1_TX_20120928132942.bin']
+    treatment_type = DYNAMIC_IMRT
     num_subbeams = 10
     mu_delivered = 681
     num_beamholds = 142
@@ -43,6 +45,7 @@ class Four(LogBankBase, TestCase):
     file_path = ['Chicago', 'T-Log HDMLC', 'anonymized_4DC Treatment_1.1_TX_20151015093202.bin']
     num_snapshots = 6356
     version = 3
+    treatment_type = DYNAMIC_IMRT
     num_subbeams = 2
     num_axes = 16
     mu_delivered = 535
@@ -81,8 +84,9 @@ class DoubleExposure(LogBankBase, TestCase):
     file_path = ['Chicago', 'T-Log HDMLC', 'anonymized_4DC Treatment_Planned_Double_Exposure_ADHOC_20151015140943.bin']
     num_snapshots = 750
     version = 3
+    treatment_type = IMAGING
     mlc_model = 3
-    average_gamma = 0.2
+    average_gamma = 0
     num_subbeams = 2
     num_axes = 16
     mu_delivered = 2
@@ -95,6 +99,7 @@ class Five(LogBankBase, TestCase):
     num_snapshots = 10728
     version = 3
     num_subbeams = 3
+    treatment_type = DYNAMIC_IMRT
     num_axes = 16
     mu_delivered = 428
     num_beamholds = 3
@@ -105,6 +110,7 @@ class OpenPort(LogBankBase, TestCase):
     file_path = ['Chicago', 'T-Log Mil120', 'anonymized_4DC Treatment_Planned_Open_Port_Image_ADHOC_20151015131101.bin']
     num_snapshots = 72
     version = 3
+    treatment_type = IMAGING
     num_subbeams = 1
     num_axes = 16
     mu_delivered = 1

@@ -50,9 +50,9 @@ class Starshot6(StarBankMixin, TestCase):
 class Starshot7(StarBankMixin, TestCase):
     file_path = ['Starshot#7.tif']
     wobble_center = Point(469, 646)
-    wobble_diameter_mm = 0.2
+    wobble_diameter_mm = 0.4
     num_rad_lines = 4
-    wobble_tolerance = 0.3
+    wobble_tolerance = 0.4
 
 
 class Starshot8(StarBankMixin, TestCase):
@@ -202,6 +202,7 @@ class Starshot26(StarBankMixin, TestCase):
     wobble_center = Point(1511, 1452)
     wobble_diameter_mm = 0.5
     num_rad_lines = 4
+    wobble_tolerance = 0.3
 
 
 class Starshot27(StarBankMixin, TestCase):

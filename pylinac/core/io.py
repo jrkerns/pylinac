@@ -1,10 +1,17 @@
 """I/O helper functions for pylinac."""
+import os
+import os.path as osp
 from tempfile import TemporaryDirectory
 from urllib.error import HTTPError, URLError
 from urllib.request import urlretrieve
 import zipfile
 
 from tqdm import tqdm
+
+
+def is_zipfile(file):
+    """Wrapper function for detecting if file is a true ZIP archive"""
+    return zipfile.is_zipfile(file)
 
 
 class TemporaryZipDirectory(TemporaryDirectory):
@@ -19,6 +26,54 @@ class TemporaryZipDirectory(TemporaryDirectory):
         super().__init__()
         zfiles = zipfile.ZipFile(zfile)
         zfiles.extractall(path=self.name)
+
+
+def retrieve_filenames(directory, func=None, recursive=True):
+    """Retrieve file names in a directory.
+
+    Parameters
+    ----------
+    directory : str
+        The directory to walk over recursively.
+    func : function
+        The function that validates if the file name should be kept.
+        If None, no validation will be performed and all file names will be returned.
+    recursive : bool
+        Whether to search only the root directory.
+    """
+    filenames = []
+    if func is None:
+        func = lambda x: True
+    for pdir, _, files in os.walk(directory):
+        for file in files:
+            filename = osp.join(pdir, file)
+            if func(filename):
+                filenames.append(filename)
+        if not recursive:
+            break
+    return filenames
+
+
+def retrieve_demo_file(url):
+    """Retrieve the demo file either by getting it from file or from a URL.
+
+    If the file is already on disk it returns the file name. If the file isn't
+    on disk, get the file from the URL and put it at the expected demo file location
+    on disk for lazy loading next time.
+
+    Parameters
+    ----------
+    url : str
+        The suffix to the url (location within the S3 bucket) pointing to the demo file.
+    """
+    true_url = 'https://s3.amazonaws.com/pylinac/' + url
+    demo_file = osp.join(osp.dirname(osp.dirname(__file__)), 'demo_files', url)
+    if not osp.isfile(demo_file):
+        d = osp.dirname(demo_file)
+        if not osp.exists(d):
+            os.makedirs(d)
+        get_url(true_url, destination=demo_file)
+    return demo_file
 
 
 def get_url(url, destination=None, progress_bar=True):

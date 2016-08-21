@@ -248,6 +248,9 @@ analysis, there are a few things you can do.
 
 * **Set the number of pickets** - If pylinac is catching too many pickets you can set
   the number of pickets to find with :meth:`~pylinac.picketfence.PicketFence.analyze`.
+* **Set the image inversion** - If you get an error like this: ``ValueError: max() arg is an empty sequence``,
+  one issue may be that the image has the wrong inversion (negative values are positive, etc). Set the analyze flag ``invert``
+  to ``True`` to invert the image from the automatic detection.
 
 API Documentation
 -----------------

@@ -1,8 +1,8 @@
 
 import sys
 
-__version__ = '1.6.0'
-__version_info__ = (1, 6, 0)
+__version__ = '1.7.0a'
+__version_info__ = (1, 7, 0, 'alpha')
 
 # check for python 2
 if sys.version_info[0] < 3:
@@ -14,7 +14,7 @@ from pylinac.core import decorators, geometry, image, io, mask, profile, roi, ut
 from pylinac.core.utilities import clear_data_files
 from pylinac.flatsym import BeamImage
 from pylinac.planar_imaging import LeedsTOR, PipsProQC3
-from pylinac.log_analyzer import MachineLog, MachineLogs
+from pylinac.log_analyzer import load_log, Dynalog, TrajectoryLog
 from pylinac.picketfence import PicketFence
 from pylinac.starshot import Starshot
 from pylinac.vmat import VMAT

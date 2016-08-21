@@ -28,9 +28,8 @@ from scipy import optimize
 from .core import image
 from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle
-from .core.io import get_url, TemporaryZipDirectory
+from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core.profile import SingleProfile, CollapsedCircleProfile
-from .core.utilities import retrieve_demo_file
 from .settings import get_dicom_cmap
 
 

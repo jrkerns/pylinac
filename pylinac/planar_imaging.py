@@ -10,17 +10,15 @@ Features:
 """
 import copy
 from functools import lru_cache
-import os.path as osp
 
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage import feature, measure
 
-from pylinac.core.utilities import retrieve_demo_file
 from .core import image
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
 from .core.geometry import Point
-from .core.io import get_url
+from .core.io import get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile
 
 
@@ -146,7 +144,7 @@ class PipsProQC3(ImagePhantomBase):
             backgrounds can cause this analysis to fail. If the contrasts/MTF ROIs appear correctly located but the
             plots are wonky, try setting this to True.
         """
-        self.image.check_inversion(box_size=30, offset=int(0.05 * max(self.image.shape)))
+        self.image.check_inversion(box_size=30, position=(0.1, 0.1))
         if invert:
             self.image.invert()
         self.low_contrast_threshold = low_contrast_threshold
@@ -508,7 +506,7 @@ class LeedsTOR(ImagePhantomBase):
             backgrounds can cause this analysis to fail. If the contrasts/MTF ROIs appear correctly located but the
             plots are wonky, try setting this to True.
         """
-        self.image.check_inversion(box_size=30, offset=int(0.05*max(self.image.shape)))
+        self.image.check_inversion(box_size=30, position=(0.1, 0.1))
         if invert:
             self.image.invert()
         self.low_contrast_threshold = low_contrast_threshold

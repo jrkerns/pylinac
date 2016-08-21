@@ -8,7 +8,7 @@ import os.path as osp
 import pickle
 import time
 
-from pylinac.core.utilities import retrieve_demo_file
+from pylinac.core.io import retrieve_demo_file
 from pylinac.core.image import prepare_for_classification
 
 try:
@@ -21,7 +21,8 @@ try:
 except ImportError:
     raise ImportError("PyYaml must be installed to perform file watching. Run ``pip install pyyaml`` and try again.")
 
-from pylinac import CBCT, VMAT, Starshot, PicketFence, MachineLog, WinstonLutz, LeedsTOR, PipsProQC3
+from pylinac import CBCT, VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, PipsProQC3, load_log
+from pylinac.log_analyzer import IMAGING
 
 logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',
@@ -259,7 +260,7 @@ class AnalyzeVMAT(AnalyzeMixin):
 
 class AnalyzeLog(AnalyzeMixin):
     """Analysis runner for dynalogs or trajectory logs."""
-    obj = MachineLog
+    obj = load_log
     save_image_method = 'save_summary'
     config_name = 'logs'
 
@@ -290,6 +291,22 @@ class AnalyzeLog(AnalyzeMixin):
                     send = True
         return send
 
+    def process(self):
+        """Process the file; includes analysis, saving results to file, and sending emails."""
+        logging.info(self.local_path + " will be analyzed...")
+        self.instance = load_log(self.full_path, **self.constructor_kwargs)
+        if self.instance.treatment_type == IMAGING:
+            logging.info(self.local_path + " is an imaging log...")
+        else:
+            self.analyze()
+            self.save_image()
+            self.save_text()
+            if self.config['email']['enable-all']:
+                self.send_email()
+            elif self.config['email']['enable-failure'] and self.should_send_failure_email():
+                self.send_email()
+        logging.info("Finished analysis on " + self.local_path)
+
 
 def analysis_should_be_done(path, config):
     """Return boolean of whether the file should be analysed, based on if the filename has a keyword."""
@@ -314,9 +331,18 @@ class FileEventAnalyzerHandler(FileSystemEventHandler):
     def __init__(self, config):
         self.config = config
 
-    def on_created(self, event):
+    # def on_modified(self, event):
+    #     self.on_created(event)
+
+    def on_moved(self, event):
+        self.on_created(event, path=event.dest_path)
+
+    def on_created(self, event, path=None):
         """Called when a file is moved into the watched directory."""
-        full_file_path = osp.abspath(event.src_path)
+        if path is None:
+            full_file_path = osp.abspath(event.src_path)
+        else:
+            full_file_path = path
         local_path = osp.basename(full_file_path)
         # determine if file has keyword in it
         do_analysis, analysis_instance = analysis_should_be_done(full_file_path, self.config)
@@ -325,8 +351,8 @@ class FileEventAnalyzerHandler(FileSystemEventHandler):
             time.sleep(1)
             try:
                 analysis_instance.process()
-            except BaseException:
-                logging.info(local_path + " encountered an error and was not processed.")
+            except BaseException as e:
+                logging.info(local_path + " encountered an error and was not processed: {}".format(e))
         else:
             logging.info(local_path + " was added but was not deemed a file to be analyzed.")
 
@@ -401,4 +427,9 @@ def filename_classify(path, config):
         analysis_instance = analysis_class(path, config)
         if analysis_instance.keyword_in_here():
             return True, analysis_instance
-    return False, None
+    return False,
+
+
+if __name__ == '__main__':
+    path = r'C:\Users\James\Dropbox\Programming\Python\Projects\pylinac test files\TB1 July 2016\pylinac'
+    start_watching(path)
