@@ -35,8 +35,8 @@ import numpy as np
 
 from .settings import get_array_cmap
 from .core import image
+from .core import io
 from .core.decorators import type_accept, value_accept
-from .core.io import get_url, TemporaryZipDirectory, retrieve_filenames, retrieve_demo_file, is_zipfile
 from .core.utilities import is_iterable, import_mpld3, decode_binary, Structure
 
 STATIC_IMRT = 'Static IMRT'
@@ -92,7 +92,7 @@ class MachineLogs(list):
         zfile : str
             Path to the zip archive.
         """
-        with TemporaryZipDirectory(zfile) as tzd:
+        with io.TemporaryZipDirectory(zfile) as tzd:
             logs = cls(tzd)
         return logs
 
@@ -112,7 +112,7 @@ class MachineLogs(list):
         return sum(isinstance(log, Dynalog) for log in self)
 
     def load_folder(self, directory, recursive=True):
-        """Load log files from a directory.
+        """Load log files from a directory and append to existing list.
 
         Parameters
         ----------
@@ -171,7 +171,7 @@ class MachineLogs(list):
                 log = load_log(obj)
                 super().append(log)
             elif osp.isdir(obj):
-                files = retrieve_filenames(obj)
+                files = io.retrieve_filenames(obj)
                 for file in files:
                     self.append(file)
         elif isinstance(obj, (Dynalog, TrajectoryLog)):
@@ -390,7 +390,7 @@ class BeamAxis(Axis):
     pass
 
 
-class Fluence:
+class FluenceBase:
     """An abstract base class to be used for the actual and expected fluences.
 
     Attributes
@@ -544,24 +544,24 @@ class Fluence:
         plt.savefig(filename, **kwargs)
 
 
-class ActualFluence(Fluence):
+class ActualFluence(FluenceBase):
     """The actual fluence object"""
     FLUENCE_TYPE = 'actual'
 
 
-class ExpectedFluence(Fluence):
+class ExpectedFluence(FluenceBase):
     """The expected fluence object."""
     FLUENCE_TYPE = 'expected'
 
 
-class GammaFluence(Fluence):
+class GammaFluence(FluenceBase):
     """Gamma object, including pixel maps of gamma, binary pass/fail pixel map, and others.
 
     Attributes
     ----------
     array : numpy.ndarray
         The gamma map. Only available after calling calc_map()
-    passfail_map : numpy.ndarray
+    passfail_array : numpy.ndarray
         The gamma pass/fail map; pixels that pass (<1.0) are set to 0, while failing pixels (>=1.0) are set to 1.
     distTA : int, float
         The distance to agreement value used in gamma calculation.
@@ -636,17 +636,13 @@ class GammaFluence(Fluence):
 
         # calculate standard metrics
         self.avg_gamma = np.nanmean(gamma_map)
-        gamma_map = np.nan_to_num(gamma_map)
-        self.passfail_array = gamma_map > 1
-        # self.passfail_array = np.where(gamma_map > 1, 1, 0).astype(bool)
-        s = np.sum(gamma_map > 0).astype(int)
-        if s:
-            t = np.sum(np.logical_and((gamma_map > 0), (gamma_map < 1))).astype(int) * 100.0
-            self.pass_prcnt = t / s
-        else:
-            self.pass_prcnt = 100
         if np.isnan(self.avg_gamma):
             self.avg_gamma = 0
+        pixels_passing = np.sum(gamma_map[~np.isnan(gamma_map)] < 1)
+        all_calcd_pixels = np.sum(gamma_map[~np.isnan(gamma_map)] >= 0)
+        self.pass_prcnt = pixels_passing / all_calcd_pixels * 100
+        gamma_map = np.nan_to_num(gamma_map)
+        self.passfail_array = gamma_map >= 1
 
         self.distTA = distTA
         self.doseTA = doseTA
@@ -727,9 +723,9 @@ class FluenceStruct:
 
     Attributes
     ----------
-    actual : :class:`~pylinac.log_analyzer.Fluence`
+    actual : :class:`~pylinac.log_analyzer.FluenceBase`
         The actual fluence delivered.
-    expected : :class:`~pylinac.log_analyzer.Fluence`
+    expected : :class:`~pylinac.log_analyzer.FluenceBase`
         The expected, or planned, fluence.
     gamma : :class:`~pylinac.log_analyzer.GammaFluence`
         The gamma structure regarding the actual and expected fluences.
@@ -1356,7 +1352,7 @@ class LogBase:
     @classmethod
     def from_url(cls, url, exclude_beam_off=True):
         """Instantiate a log from a URL."""
-        filename = get_url(url)
+        filename = io.get_url(url)
         return cls(filename, exclude_beam_off)
 
     def plot_summary(self, show=True):
@@ -1427,6 +1423,7 @@ class LogBase:
         - Gamma pass percentage
         - Average gamma value
         """
+        title = "Results of file: {}\n".format(self.filename)
         avg_rms = "Average RMS of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False))
         max_rms = "Max RMS error of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_max())
         p95 = "95th percentile error: {:3.3f} cm\n".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False))
@@ -1435,7 +1432,7 @@ class LogBase:
         gamma_pass = "Gamma pass %: {:2.2f}\n".format(self.fluence.gamma.pass_prcnt)
         gamma_avg = "Gamma average: {:2.3f}\n".format(self.fluence.gamma.avg_gamma)
 
-        string = avg_rms + max_rms + p95 + num_holdoffs + gamma_pass + gamma_avg
+        string = title + avg_rms + max_rms + p95 + num_holdoffs + gamma_pass + gamma_avg
         if printout:
             print(string)
         else:
@@ -1722,8 +1719,8 @@ class Dynalog(LogBase):
     @classmethod
     def from_demo(cls, exclude_beam_off=True):
         """Load and instantiate from the demo dynalog file included with the package."""
-        demo_file = retrieve_demo_file(url='AQA.dlg')
-        retrieve_demo_file(url='BQA.dlg')  # also download "B" dynalog
+        demo_file = io.retrieve_demo_file(url='AQA.dlg')
+        io.retrieve_demo_file(url='BQA.dlg')  # also download "B" dynalog
         return cls(demo_file, exclude_beam_off)
 
     @staticmethod
@@ -1894,7 +1891,7 @@ class TrajectoryLogHeader:
 
 
 class TrajectoryLog(LogBase):
-    """asdfasdfasdf
+    """A class for loading and analyzing the data of a Trajectory log.
 
     Attributes
     ----------
@@ -1957,7 +1954,7 @@ class TrajectoryLog(LogBase):
     @classmethod
     def from_demo(cls, exclude_beam_off=True):
         """Load and instantiate from the demo trajetory log file included with the package."""
-        demo_file = retrieve_demo_file(url='Tlog.bin')
+        demo_file = io.retrieve_demo_file(url='Tlog.bin')
         return cls(demo_file, exclude_beam_off)
 
     @staticmethod
@@ -2033,7 +2030,7 @@ class TrajectoryLog(LogBase):
 
 def anonymize(source, inplace=False, destination=None, recursive=True):
     """Quickly anonymize an individual log or directory of logs.
-    For directories, threaded execution makes this much faster (10-20x) than loading a ``MachineLogs``
+    For directories, threaded execution is performed, making this much faster (10-20x) than loading a ``MachineLogs``
     instance of the folder and using the ``.anonymize()`` method.
 
     .. note::
@@ -2096,6 +2093,8 @@ def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
     One of :class:`~pylinac.log_analyzer.Dynalog`, :class:`~pylinac.log_analyzer.TrajectoryLog`,
         :class:`~pylinac.log_analyzer.MachineLogs`.
     """
+    if io.is_url(file_or_dir):
+        file_or_dir = io.get_url(file_or_dir)
     if osp.isfile(file_or_dir):
         if not is_log(file_or_dir):
             raise NotALogError("Not a valid log")
@@ -2105,7 +2104,7 @@ def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
             return Dynalog(file_or_dir, exclude_beam_off)
     elif osp.isdir(file_or_dir):
         MachineLogs(file_or_dir, recursive)
-    elif is_zipfile(file_or_dir):
+    elif io.is_zipfile(file_or_dir):
         MachineLogs.from_zip(file_or_dir)
     else:
         raise NotALogError("'{}' did not point to a valid file, directory, or ZIP archive".format(file_or_dir))
@@ -2118,7 +2117,7 @@ def is_log(filename):
 
 def is_tlog(filename):
     """Boolean specifying if filename is a Trajectory log file."""
-    return _is_log(filename, ('V',))
+    return _is_log(filename, ('VOSTL',))
 
 
 def is_dlog(filename):
@@ -2139,7 +2138,6 @@ def _is_log(filename, keys):
     if osp.isfile(filename):
         with open(filename, mode='rb') as f:
             header_sample = f.read(5).decode()
-            ss = [key in header_sample for key in keys]
         return any(key in header_sample for key in keys)
     else:
         return False
@@ -2162,8 +2160,8 @@ def write_array(writer, description, value, unit=None):
 
 def _get_log_filenames(directory, recursive=True):
     """Extract the names of real log files from a directory."""
-    tlogs = retrieve_filenames(directory, is_tlog, recursive=recursive)
-    dlogs = retrieve_filenames(directory, is_dlog, recursive=recursive)
+    tlogs = io.retrieve_filenames(directory, is_tlog, recursive=recursive)
+    dlogs = io.retrieve_filenames(directory, is_dlog, recursive=recursive)
     # drop double-counted dynalogs (both A & B files; just need one of two)
     idx = 0
     while idx < len(dlogs):
@@ -2203,8 +2201,12 @@ class NotALogError(IOError):
 
 
 class NotADynalogError(IOError):
+    """Dynalog error. Indicates that the passed file is not a valid dynalog file."""
     pass
 
 
 class DynalogMatchError(IOError):
+    """Dynalog error. Indicates that the associated file of the dynalog passed in
+    (A file if B passed in & vic versa) cannot be found. Ensure associated file is in the same folder
+    and has the same name as the passed file, except the first letter."""
     pass
