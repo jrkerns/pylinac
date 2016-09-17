@@ -28,7 +28,7 @@ class TemporaryZipDirectory(TemporaryDirectory):
         zfiles.extractall(path=self.name)
 
 
-def retrieve_filenames(directory, func=None, recursive=True):
+def retrieve_filenames(directory, func=None, recursive=True, **kwargs):
     """Retrieve file names in a directory.
 
     Parameters
@@ -47,7 +47,7 @@ def retrieve_filenames(directory, func=None, recursive=True):
     for pdir, _, files in os.walk(directory):
         for file in files:
             filename = osp.join(pdir, file)
-            if func(filename):
+            if func(filename, **kwargs):
                 filenames.append(filename)
         if not recursive:
             break

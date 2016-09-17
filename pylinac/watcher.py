@@ -1,28 +1,30 @@
 """The watcher file is a script meant to be run as an ongoing process to watch a given directory and analyzing files
 that may be moved there for certain keywords. Automatic processing will be started if the file contains the keywords."""
 import datetime
+import os
 from functools import lru_cache
 import gzip
 import logging
 import os.path as osp
 import pickle
+import shutil
 import time
+import zipfile
 
-from pylinac.core.io import retrieve_demo_file
+from pylinac.core.io import retrieve_demo_file, retrieve_filenames
 from pylinac.core.image import prepare_for_classification
+from pylinac.core import schedule
 
-try:
-    from watchdog.observers import Observer
-    from watchdog.events import FileSystemEventHandler
-except ImportError:
-    raise ImportError("Watchdog must be installed to perform file watching. Run ``pip install watchdog`` and try again.")
 try:
     import yaml
 except ImportError:
     raise ImportError("PyYaml must be installed to perform file watching. Run ``pip install pyyaml`` and try again.")
+# import schedule
 
 from pylinac import CBCT, VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, PipsProQC3, load_log
 from pylinac.log_analyzer import IMAGING
+
+logger = logging.getLogger("pylinac")
 
 logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',
@@ -67,21 +69,44 @@ class AnalyzeMixin:
 
     def process(self):
         """Process the file; includes analysis, saving results to file, and sending emails."""
-        logging.info(self.local_path + " will be analyzed...")
+        logger.info(self.local_path + " will be analyzed...")
         self.instance = self.obj(self.full_path, **self.constructor_kwargs)
         self.analyze()
-        self.save_image()
-        self.save_text()
         if self.config['email']['enable-all']:
             self.send_email()
         elif self.config['email']['enable-failure'] and self.should_send_failure_email():
             self.send_email()
-        logging.info("Finished analysis on " + self.local_path)
+        self.save_zip()
+        logger.info("Finished analysis on " + self.local_path)
+
+    def save_zip(self):
+        # save the image and/or text to file
+        self.save_image()
+        self.save_text()
+        # save results and original file to a compressed ZIP archive
+        with zipfile.ZipFile(self.zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
+            zfile.write(self.img_filename, arcname=osp.basename(self.img_filename))
+            try:
+                zfile.write(self.txt_filename, arcname=osp.basename(self.txt_filename))
+            except:
+                pass
+            zfile.write(self.full_path, arcname=osp.basename(self.full_path))
+        # remove the original files
+        for file in (self.img_filename, self.txt_filename, self.full_path):
+            try:
+                os.remove(file)
+            except:
+                pass
 
     @property
     def constructor_kwargs(self):
         """Any keyword arguments meant to be given to the constructor call."""
         return {}
+
+    @property
+    def zip_filename(self):
+        """The name of the file for the analyzed image."""
+        return self.base_name + self.config['general']['file-suffix'] + '.zip'
 
     @property
     def img_filename(self):
@@ -139,7 +164,7 @@ class AnalyzeMixin:
         yagserver.send(to=recipients,
                        subject=self.config['email']['subject'],
                        contents=contents)
-        logging.info("An email was sent to the recipients with the results")
+        logger.info("An email was sent to the recipients with the results")
 
     def save_image(self):
         """Save the analyzed image to file."""
@@ -264,6 +289,10 @@ class AnalyzeLog(AnalyzeMixin):
     save_image_method = 'save_summary'
     config_name = 'logs'
 
+    @property
+    def log_txt_filename(self):
+        return self.instance.txt_filename
+
     def analyze(self):
         """Log analysis is done via calculating gamma."""
         self.instance.fluence.gamma.calc_map(**self.analysis_settings)
@@ -293,84 +322,92 @@ class AnalyzeLog(AnalyzeMixin):
 
     def process(self):
         """Process the file; includes analysis, saving results to file, and sending emails."""
-        logging.info(self.local_path + " will be analyzed...")
+        logger.info(self.local_path + " will be analyzed...")
         self.instance = load_log(self.full_path, **self.constructor_kwargs)
         if self.instance.treatment_type == IMAGING:
-            logging.info(self.local_path + " is an imaging log...")
+            logger.info(self.local_path + " is an imaging log...")
         else:
             self.analyze()
-            self.save_image()
-            self.save_text()
+            self.save_zip()
             if self.config['email']['enable-all']:
                 self.send_email()
             elif self.config['email']['enable-failure'] and self.should_send_failure_email():
                 self.send_email()
-        logging.info("Finished analysis on " + self.local_path)
+        logger.info("Finished analysis on " + self.local_path)
+
+    def save_zip(self):
+        # save the image and/or text to file
+        self.save_image()
+        self.save_text()
+        # save results and original file to a compressed ZIP archive
+        with zipfile.ZipFile(self.zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
+            for file in (self.img_filename, self.txt_filename, self.full_path, self.log_txt_filename):
+                zfile.write(file, arcname=osp.basename(file))
+        # remove the original files
+        for file in (self.img_filename, self.txt_filename, self.full_path, self.log_txt_filename):
+            os.remove(file)
 
 
 def analysis_should_be_done(path, config):
     """Return boolean of whether the file should be analysed, based on if the filename has a keyword."""
     do_analysis, clfy = False, None
     # return if not an analysis-worthy file
-    if any(item in path for item in config['general']['avoid-keywords']):
+    has_avoid_keyword = any(item in path for item in config['general']['avoid-keywords'])
+    has_suffix = config['general']['file-suffix'] in path
+    if has_avoid_keyword or has_suffix:
         return False, None
     if config['general']['use-classifier']:
         do_analysis, clfy = auto_classify(path, config)
         if clfy:
-            logging.info("{} classified using SVM".format(osp.basename(path)))
+            logger.info("{} classified using SVM".format(osp.basename(path)))
     if not config['general']['use-classifier'] or (clfy is None):
         do_analysis, clfy = filename_classify(path, config)
         if clfy:
-            logging.info("{} classified using filename keywords".format(osp.basename(path)))
+            logger.info("{} classified using filename keywords".format(osp.basename(path)))
     return do_analysis, clfy
 
 
-class FileEventAnalyzerHandler(FileSystemEventHandler):
-    """Handler for file events."""
+def move_logs(directory, config):
+    """Move any new files from the TrueBeam log folders into the destination folder"""
+    if not all(osp.isdir(source) for source in config['logs']['sources']):
+        return
+    dest_files = os.listdir(directory)
+    for source_dir in config['logs']['sources']:
+        source_files = os.listdir(source_dir)
+        time.sleep(0.5)
+        for sfile in source_files:
+            sbase = osp.splitext(osp.split(sfile)[1])[0]
+            already_here = any(sbase in dfile for dfile in dest_files)
+            if not already_here and (sfile.endswith('.bin') or sfile.endswith('.txt')):
+                shutil.copy(osp.join(source_dir, sfile), directory)
+                logger.info("Moved {} into pylinac directory".format(sfile))
 
-    def __init__(self, config):
-        self.config = config
 
-    # def on_modified(self, event):
-    #     self.on_created(event)
-
-    def on_moved(self, event):
-        self.on_created(event, path=event.dest_path)
-
-    def on_created(self, event, path=None):
-        """Called when a file is moved into the watched directory."""
-        if path is None:
-            full_file_path = osp.abspath(event.src_path)
-        else:
-            full_file_path = path
-        local_path = osp.basename(full_file_path)
+def analyze_new_files(directory, config):
+    # get files that should be analyzed
+    all_files = retrieve_filenames(directory)
+    for file in all_files:
         # determine if file has keyword in it
-        do_analysis, analysis_instance = analysis_should_be_done(full_file_path, self.config)
+        do_analysis, analysis_instance = analysis_should_be_done(file, config)
         # process it if so
         if do_analysis:
-            time.sleep(1)
+            time.sleep(0.1)
             try:
                 analysis_instance.process()
             except BaseException as e:
-                logging.info(local_path + " encountered an error and was not processed: {}".format(e))
-        else:
-            logging.info(local_path + " was added but was not deemed a file to be analyzed.")
+                logger.info(file + " encountered an error and was not processed: {}".format(e))
 
 
 def start_watching(directory, config_file=None):
     """Start watching the directory and analyze any applicable files that may be moved there."""
-    logging.info("Starting watcher...")
+    logger.info("Starting watcher...")
     # set up configuration
     config = load_config(config_file)
-    # set up file watcher
-    event_handler = FileEventAnalyzerHandler(config)
-    observer = Observer()
-    observer.schedule(event_handler, directory, recursive=True)
-    logging.info("Pylinac now watching at " + osp.abspath(directory))
-    observer.start()
+    schedule.every(3).seconds.do(move_logs, directory, config)
+    schedule.every(3).seconds.do(analyze_new_files, directory, config)
     while True:
+        schedule.run_pending()
         time.sleep(1)
-    observer.join()
 
 
 def load_config(config_file=None):
@@ -380,7 +417,7 @@ def load_config(config_file=None):
     else:
         yaml_config_file = config_file
     config = yaml.load(open(yaml_config_file).read())
-    logging.info("Using configuration file: {}".format(yaml_config_file))
+    logger.info("Using configuration file: {}".format(yaml_config_file))
     return config
 
 
@@ -411,9 +448,9 @@ def get_image_classifier():
     classifier_file = osp.join(osp.dirname(__file__), 'demo_files', 'singleimage_classifier.pkl.gz')
     # get the classifier if it's not downloaded
     if not osp.isfile(classifier_file):
-        logging.info("Downloading classifier from the internet...")
+        logger.info("Downloading classifier from the internet...")
         classifier_file = retrieve_demo_file('singleimage_classifier.pkl.gz')
-        logging.info("Done downloading")
+        logger.info("Done downloading")
 
     with gzip.open(classifier_file, mode='rb') as m:
         clf = pickle.load(m)

@@ -27,6 +27,7 @@ email:
 
 # MACHINE LOG SETTINGS
 logs:
+  sources:  # Varian folder where trajectory logs get sent automatically (usually the I: drive)
   keywords:  # keywords needed in the file name to trigger analysis
     - .dlg
     - .bin

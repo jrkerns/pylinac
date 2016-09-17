@@ -19,3 +19,4 @@ from pylinac.picketfence import PicketFence
 from pylinac.starshot import Starshot
 from pylinac.vmat import VMAT
 from pylinac.winston_lutz import WinstonLutz
+from pylinac import tg51
