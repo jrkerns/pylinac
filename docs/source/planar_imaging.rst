@@ -155,20 +155,20 @@ flipped 180 degrees. To correct this problem, pass ``invert=True`` to :meth:`~py
 This will force pylinac to invert the image the opposite way and correctly identify the lead square.
 
 
-PipsPro QC-3 Phantom
---------------------
+Standard Imaging QC-3 Phantom
+-----------------------------
 
-The PipsPro phantom is an MV imaging quality assurance phantom and has high and low contrast regions,
+The Standard Imaging phantom is an MV imaging quality assurance phantom and has high and low contrast regions,
 just as the Leeds phantom, but with different geometric configurations.
 
-Running the PipsPro Demo
-^^^^^^^^^^^^^^^^^^^^^^^^
+Running the StandardImagingQC3 Demo
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To run the PipsPro demo, create a script or start an interpreter session and input::
+To run the Standard Imaging demo, create a script or start an interpreter session and input::
 
-    from pylinac import PipsProQC3
+    from pylinac import StandardImagingQC3
 
-    PipsProQC3.run_demo()
+    StandardImagingQC3.run_demo()
 
 A figure showing the phantom, low contrast plot, and RMTF will be generated:
 
@@ -179,7 +179,7 @@ A figure showing the phantom, low contrast plot, and RMTF will be generated:
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
 
-The PipsPro phantom has a specific setup as recommended by the manufacturer. The phantom should be angled 45
+The Standard Imaging phantom has a specific setup as recommended by the manufacturer. The phantom should be angled 45
 degrees, with the "1" pointed toward the gantry stand and centered along the CAX. For best results when using pylinac,
 open the jaws to fully cover the EPID.
 
@@ -188,38 +188,38 @@ Typical Use
 
 Import the class::
 
-    from pylinac import PipsPro
+    from pylinac import StandardImagingQC3
 
 The minimum needed to get going is to:
 
 * **Load image** -- Load the planar image as you would any other class: by passing the path directly to the constructor::
 
-      pp = PipsPro('path/to/pipspro.dcm')
+      qc3 = StandardImagingQC3('path/to/pipspro.dcm')
 
   Alternatively, a URL can be passed::
 
-      pp = PipsPro.from_url('http://myserver.com/pipspro')
+      qc3 = StandardImagingQC3.from_url('http://myserver.com/myQC3image.dcm')
 
   You may also use the demo image::
 
-      pp = PipsPro.from_demo_image()
+      qc3 = StandardImagingQC3.from_demo_image()
 
-* **Analyze the images** -- Analyze the image using the :meth:`~pylinac.planar_imaging.PipsPro.analyze` method. The
+* **Analyze the images** -- Analyze the image using the :meth:`~pylinac.planar_imaging.StandardImagingQC3.analyze` method. The
   low and high contrast thresholds can be specified::
 
-      pp.analyze(low_contrast_threshold=0.01, hi_contrast_threshold=0.5)
+      qc3.analyze(low_contrast_threshold=0.01, hi_contrast_threshold=0.5)
 
-* **View the results** -- The results of analysis can be viewed with the :meth:`~pylinac.planar_imaging.PipsPro.plot_analyzed_image`
+* **View the results** -- The results of analysis can be viewed with the :meth:`~pylinac.planar_imaging.StandardImagingQC3.plot_analyzed_image`
   method. Note that each subimage can be turned on or off.::
 
       # don't show the low contrast plot
-      pp.plot_analyzed_image(low_contrast=False)
+      qc3.plot_analyzed_image(low_contrast=False)
 
   .. image:: images/pipspro_no_lc.png
 
   The figure can also be saved::
 
-      pp.save_analyzed_image('myprofile.png')
+      qc3.save_analyzed_image('myprofile.png')
 
 Algorithm
 ^^^^^^^^^
@@ -265,11 +265,11 @@ The algorithm works like such:
 Troubleshooting
 ^^^^^^^^^^^^^^^
 
-If you're having issues with the PipsPro class, make sure you have correctly positioned the phantom as per
+If you're having issues with the StandardImaging class, make sure you have correctly positioned the phantom as per
 the manufacturer's instructions (also see :ref:`pipspro_image_acquisition`). One issue that may arise is incorrect
 inversion. If the jaws are closed tightly around the phantom, the automatic inversion correction may falsely
 invert the image, just as for the Leeds phantom. If you have an image that looks inverted or just plain weird, add ``invert=True``
-to :meth:`~pylinac.planar_imaging.PipsProQC3.analyze`.
+to :meth:`~pylinac.planar_imaging.StandardImagingQC3.analyze`.
 
 API Documentation
 -----------------
@@ -277,5 +277,5 @@ API Documentation
 .. autoclass:: pylinac.planar_imaging.LeedsTOR
   :inherited-members:
 
-.. autoclass:: pylinac.planar_imaging.PipsProQC3
+.. autoclass:: pylinac.planar_imaging.StandardImagingQC3
   :inherited-members:

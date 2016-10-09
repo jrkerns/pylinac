@@ -50,26 +50,25 @@ you can use the class-based constructors that always start with ``from_``. Let's
 
 .. code-block:: python
 
-    from pylinac import MachineLog
+    from pylinac import TrajectoryLog
 
 We can pass the path to the log, and this would be the standard way of constructing:
 
 .. code-block:: python
 
-    log = MachineLog(r"C:/John/QA/log.dlg")
+    log = TrajectoryLog(r"C:/John/QA/log.dlg")
 
 Perhaps the data is stored online somewhere. You can load in the data from a URL:
 
 .. code-block:: python
 
-    log = MachineLog.from_url('https://myserver.com/logs/log23.bin')
+    log = TrajectoryLog.from_url('https://myserver.com/logs/log23.bin')
 
 If for any reason you don't have data and want to experiment, you can easily load in demo data:
 
 .. code-block:: python
 
-    tlog = MachineLog.from_demo_trajectorylog()
-    dlog = MachineLog.from_demo_dynalog()
+    tlog = TrajectoryLog.from_demo()
 
 You can find out more about logs in the :ref:`log_analyzer_module`. All modules are similar however;
 the main class can be instantiated directly, through class-based constructors, from a URL,
@@ -102,7 +101,7 @@ This will result in something like this:
     pylinac.settings.DICOM_COLORMAP = plt.cm.cool
     pylinac.CBCT.run_demo()
 
-We can also change other arrays, which currently only means the ``MachineLog`` fluence maps.
+We can also change other arrays, for example the arrays in the `log_analyzer` module.
 Let's change it to the newer, better matplotlib default colormap, viridis:
 
 .. code-block:: python
@@ -111,7 +110,7 @@ Let's change it to the newer, better matplotlib default colormap, viridis:
     import pylinac
     # change the colormap setting
     pylinac.settings.ARRAY_COLORMAP = plt.cm.viridis
-    pylinac.MachineLog.run_tlog_demo()
+    pylinac.TrajectoryLog.run_demo()
 
 .. plot::
 
@@ -119,4 +118,4 @@ Let's change it to the newer, better matplotlib default colormap, viridis:
     import pylinac
     # change the colormap setting
     pylinac.settings.ARRAY_COLORMAP = plt.cm.viridis
-    pylinac.MachineLog.run_tlog_demo()
+    pylinac.TrajectoryLog.run_demo()

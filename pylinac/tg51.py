@@ -1,5 +1,12 @@
-"""A small module that calculates kq values for various ion chambers based on the fitting parameters of Muir & Rodgers 2010"""
-import numpy
+"""
+The TG-51 module contains a number of helper functions and classes that can calculate parameters for performing the
+TG-51 absolute linac dose calibration. Functions include all relevant calculations for TG-51 including PDDx, kQ,
+Dref, and chamber reading corrections.
+
+Classes include photon and electron calibrations using cylindrical chambers. Pass all the relevant raw measurements
+and the class will compute the corrected values and dose at 10cm and dmax/dref.
+"""
+import numpy as np
 
 from pylinac.core.utilities import Structure
 
@@ -46,11 +53,6 @@ CHAMBERS = {
     'PR06C/G': {"a": 0.9519, "b": 2.432e-3, "c": -2.704e-5, "a'": 2.9110, "b'": -8.4916, "c'": 12.6817, "d'": -6.3874, 'kecal': 0.900},
 }
 
-PDD_LOW = 62.7
-PDD_HIGH = 80.5
-TPR_LOW = 62.3
-TPR_HIGH = 80.5
-
 
 def p_tp(temp=22, press=760):
     """Calculate the temperature & pressure correction.
@@ -74,9 +76,15 @@ def p_pol(m_reference=(1, 2), m_opposite=(-3, -4)):
         The readings of the ion chamber at the reference polarity and voltage.
     m_opposite : iterable
         The readings of the ion chamber at the polarity opposite the reference.
+        This value should be of the opposite sign of the M reference value.
+        If it's not, its sign will automatically be flipped.
     """
-    mref_avg = numpy.mean(m_reference)
-    mopp_avg = numpy.mean(m_opposite)
+    mref_avg = np.mean(m_reference)
+    mopp_avg = np.mean(m_opposite)
+    # if same sign given, flip one.
+    # Technically, they're opposite charges, but most physicists pass positive values for both
+    if np.sign(mref_avg) == np.sign(mopp_avg):
+        mopp_avg = -mopp_avg
     return (mref_avg - mopp_avg)/(2*mref_avg)
 
 
@@ -94,7 +102,7 @@ def p_ion(volt_high=300, volt_low=150, m_high=(1, 2), m_low=(3, 4)):
     m_low : iterable
         The readings of the ion chamber at the "low" voltage.
     """
-    return (1 - volt_high/volt_low)/(numpy.mean(m_high)/numpy.mean(m_low) - volt_high/volt_low)
+    return (1 - volt_high/volt_low)/(np.mean(m_high)/np.mean(m_low) - volt_high/volt_low)
 
 
 def d_ref(i_50):
@@ -124,7 +132,7 @@ def r_50(i_50):
     return r50
 
 
-def k_r50(r_50):
+def kp_r50(r_50):
     """Calculate k'R50 for Farmer-like chambers.
 
     Parameters
@@ -132,7 +140,9 @@ def k_r50(r_50):
     r_50 : float
         The R50 value in cm.
     """
-    return 0.9905+0.071*numpy.exp(-r_50/3.67)
+    if r_50 >= 9 or r_50 <= 2:
+        raise ValueError("Cannot calculate k prime R50 with an R50 value of <=2 or >=9cm")
+    return 0.9905+0.071*np.exp(-r_50/3.67)
 
 
 def pq_gr(m_dref_plus=(1, 2), m_dref=(3, 4)):
@@ -145,7 +155,7 @@ def pq_gr(m_dref_plus=(1, 2), m_dref=(3, 4)):
     m_dref : iterable
         The readings of the ion chamber at dref.
     """
-    return m_dref_plus / m_dref
+    return np.mean(m_dref_plus) / np.mean(m_dref)
 
 
 def m_corrected(p_ion=1.0, p_tp=1.0, p_elec=1.0, p_pol=1.0, m_raw=(1.1, 2.2)):
@@ -168,23 +178,40 @@ def m_corrected(p_ion=1.0, p_tp=1.0, p_elec=1.0, p_pol=1.0, m_raw=(1.1, 2.2)):
     -------
     float
     """
-    return p_ion*p_tp*p_elec*p_pol*numpy.mean(m_raw)
+    return p_ion*p_tp*p_elec*p_pol*np.mean(m_raw)
 
 
-def pddx(pdd=0.664, energy=6):
-    """Calculate PDDx based on the PDD. Uses the 'interim' equation of TG-51 for energies >10 MV to calculate PDDx without lead foil.
+def pddx(pdd=66.4, energy=6, lead_foil=None):
+    """Calculate PDDx based on the PDD.
 
     Parameters
     ----------
     pdd : {>0.627, <0.890}
-        The measured PDD. This always assumes the measurement was taken WITHOUT foil.
+        The measured PDD. If lead foil was used, this assumes the pdd as measured with the lead in place.
     energy : int
         The nominal energy in MV.
+    lead_foil : {None, '30cm', '50cm'}
+        Applicable only for energies >10MV.
+        Whether a lead foil was used to acquire the pdd.
+        Use ``None`` if no lead foil was used and the interim equation should be used.
+        Use ``50cm`` if the lead foil was set to 50cm from the phantom surface.
+        Use ``30cm`` if the lead foil was set to 30cm from the phantom surface.
     """
-    if energy <= 10:
+    if energy < 10:
         return pdd
-    elif energy > 10:
-        return 1.267*pdd-20
+    elif energy >= 10:
+        if lead_foil is None:
+            return 1.267*pdd-20
+        elif lead_foil == '50cm':
+            if pdd < 73:
+                return pdd
+            else:
+                return (0.8905+0.0015*pdd)*pdd
+        elif lead_foil == '30cm':
+            if pdd < 71:
+                return pdd
+            else:
+                return (0.8116+0.00264*pdd)*pdd
 
 
 def kq(model='30010', pddx=None, tpr=None):
@@ -204,6 +231,11 @@ def kq(model='30010', pddx=None, tpr=None):
     .. warning::
         Only ``pddx`` or ``tpr`` can be defined, not both.
     """
+    PDD_LOW = 62.7
+    PDD_HIGH = 86.1
+    TPR_LOW = 0.623
+    TPR_HIGH = 0.805
+
     if pddx is not None and tpr is not None:
         raise ValueError("Only the PDD or TPR parameter can be defined, not both.")
     if pddx is None and tpr is None:
@@ -225,101 +257,164 @@ def kq(model='30010', pddx=None, tpr=None):
 
 
 class TG51Base(Structure):
-    def __init__(self, temp=22, press=760, model='30010', n_dw=5.9, p_elec=1.0,
-                 clinical_pdd=66.4, volt_high=300, volt_low=150, m_raw=(1, 2),
-                 m_opp=(1, 2), m_low=(1, 2), mu=200):
-        super().__init__(temp=temp, press=press, model=model, n_dw=n_dw, p_elec=p_elec,
-                         volt_high=volt_high, volt_low=volt_low, m_raw=m_raw,
-                         m_opp=m_opp, m_low=m_low, clinical_pdd=clinical_pdd, mu=mu)
-
-
-class TG51Photon(Structure):
-
-    def __init__(self, temp=22, press=760, model='30010', n_dw=5.9, p_elec=1.0, measured_pdd=66.4,
-                 clinical_pdd=66.4, energy=6, volt_high=300, volt_low=150, m_raw=(1, 2),
-                 m_opp=(1, 2), m_low=(1, 2), mu=200):
-        super().__init__(temp=temp, press=press, model=model, n_dw=n_dw, p_elec=p_elec, measured_pdd=measured_pdd,
-                         energy=energy, volt_high=volt_high, volt_low=volt_low, m_raw=m_raw,
-                         m_opp=m_opp, m_low=m_low, clinical_pdd=clinical_pdd, mu=mu)
 
     @property
     def p_tp(self):
+        """Temperature/Pressure correction."""
         return p_tp(self.temp, self.press)
 
     @property
     def p_ion(self):
+        """Ionization collection correction."""
         return p_ion(self.volt_high, self.volt_low, self.m_raw, self.m_low)
 
     @property
     def p_pol(self):
+        """Polarity correction."""
         return p_pol(self.m_raw, self.m_opp)
-
-    @property
-    def pddx(self):
-        return pddx(self.measured_pdd, self.energy)
-
-    @property
-    def kq(self):
-        return kq(self.model, self.pddx)
 
     @property
     def m_corrected(self):
+        """Corrected chamber reading."""
         return m_corrected(self.p_ion, self.p_tp, self.p_elec, self.p_pol, self.m_raw)
+
+
+class TG51Photon(TG51Base):
+    """Class for calculating absolute dose to water using a cylindrical chamber in a photon beam.
+
+    Attributes
+    ----------
+    temp : float
+    press : float
+    energy : float
+        Nominal energy of the beam in MV.
+    model : str
+        Chamber model
+    n_dw : float
+        NDW value in Gy/nC
+    p_elec : float
+    measured_pdd : float
+        The measured value of PDD(10); used for calculating kq.
+    lead_foil : {None, '50cm', '30cm'}
+        Whether a lead foil was used to acquire PDD(10)x and where its position was. Used to calculate kq.
+    clinical_pdd : float
+        The PDD used to correct the dose at 10cm back to dmax. Usually the TPS PDD(10) value.
+    volt_high : float
+    volt_low : float
+    m_raw : float, tuple
+    m_opp : float, tuple
+    m_low : float, tuple
+    mu : float
+    tissue_correction : float
+        Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
+    """
+
+    def __init__(self, temp=22,
+                 press=760,
+                 model='30010',
+                 n_dw=5.9,
+                 p_elec=1.0,
+                 measured_pdd=66.4,
+                 lead_foil=None,
+                 clinical_pdd=66.4,
+                 energy=6,
+                 volt_high=300,
+                 volt_low=150,
+                 m_raw=(1, 2),
+                 m_opp=(1, 2),
+                 m_low=(1, 2),
+                 mu=200,
+                 tissue_correction=1.0):
+        super().__init__(temp=temp, press=press, model=model, n_dw=n_dw, p_elec=p_elec, measured_pdd=measured_pdd,
+                         energy=energy, volt_high=volt_high, volt_low=volt_low, m_raw=m_raw,
+                         m_opp=m_opp, m_low=m_low, clinical_pdd=clinical_pdd, mu=mu,
+                         tissue_correction=tissue_correction, lead_foil=lead_foil)
+
+    @property
+    def pddx(self):
+        """The photon-only PDD(10) value."""
+        return pddx(self.measured_pdd, self.energy, self.lead_foil)
+
+    @property
+    def kq(self):
+        """The chamber-specific beam quality correction factor."""
+        return kq(self.model, self.pddx)
 
     @property
     def dose_mu_10(self):
-        return self.m_corrected*self.kq*self.n_dw/self.mu
+        """cGy/MU at a depth of 10cm."""
+        return self.tissue_correction * self.m_corrected * self.kq * self.n_dw / self.mu
 
     @property
     def dose_mu_dmax(self):
-        return self.dose_mu_10/(self.clinical_pdd/100)
+        """cGy/MU at a depth of dmax."""
+        return self.dose_mu_10 / (self.clinical_pdd / 100)
 
 
-class TG51Electron(Structure):
+class TG51Electron(TG51Base):
+    """Class for calculating absolute dose to water using a cylindrical chamber in an electron beam.
+
+    Attributes
+    ----------
+    temp : float
+    press : float
+    model : str
+        Chamber model
+    n_dw : float
+        NDW value in Gy/nC
+    p_elec : float
+    clinical_pdd : float
+        The PDD used to correct the dose at 10cm back to dmax. Usually the TPS PDD(10) value.
+    volt_high : float
+    volt_low : float
+    m_raw : float, tuple
+    m_opp : float, tuple
+    m_low : float, tuple
+    mu : float
+    i_50 : float
+        Depth of 50% ionization
+    k_ecal : float
+    m_plus : float, tuple
+        The measurement at 0.5rcav+dref to calculate P gradient
+    tissue_correction : float
+        Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
+    """
 
     def __init__(self, temp=22, press=760, model='30010', n_dw=5.9, p_elec=1.0,
                  clinical_pdd=66.4, volt_high=300, volt_low=150, m_raw=(1, 2),
-                 m_opp=(1, 2), m_low=(1, 2), mu=200, i_50=4):
+                 m_opp=(1, 2), m_low=(1, 2), mu=200, i_50=4, k_ecal=None, m_plus=None,
+                 tissue_correction=1.0):
         super().__init__(temp=temp, press=press, model=model, n_dw=n_dw, p_elec=p_elec,
                          volt_high=volt_high, volt_low=volt_low, m_raw=m_raw,
-                         m_opp=m_opp, m_low=m_low, clinical_pdd=clinical_pdd, mu=mu, i_50=i_50)
-
-    @property
-    def p_tp(self):
-        return p_tp(self.temp, self.press)
-
-    @property
-    def p_ion(self):
-        return p_ion(self.volt_high, self.volt_low, self.m_raw, self.m_low)
-
-    @property
-    def p_pol(self):
-        return p_pol(self.m_raw, self.m_opp)
+                         m_opp=m_opp, m_low=m_low, clinical_pdd=clinical_pdd, mu=mu,
+                         i_50=i_50, k_ecal=k_ecal, m_plus=m_plus, tissue_correction=tissue_correction)
 
     @property
     def r_50(self):
+        """Depth of the 50% dose value."""
         return r_50(self.i_50)
 
     @property
     def dref(self):
+        """Depth of the reference point."""
         return d_ref(self.i_50)
 
     @property
-    def k_ecal(self):
-        pass
+    def pq_gr(self):
+        """The gradient correction of the electron beam."""
+        return pq_gr(self.m_plus, self.m_raw)
 
     @property
-    def k_prime_r50(self):
-        return k_r50(self.r_50)
-
-    @property
-    def m_corrected(self):
-        return m_corrected(self.p_ion, self.p_tp, self.p_elec, self.p_pol, self.m_raw)
+    def kp_r50(self):
+        """K'R50 value for cylindrical chambers."""
+        return kp_r50(self.r_50)
 
     @property
     def dose_mu_dref(self):
-        return self.m_corrected * self.kq * self.n_dw / self.mu
+        """cGy/MU at the depth of Dref."""
+        return self.tissue_correction * self.m_corrected * self.pq_gr * self.kp_r50 * self.k_ecal * self.n_dw / self.mu
 
     @property
     def dose_mu_dmax(self):
+        """cGy/MU at the depth of dmax."""
         return self.dose_mu_dref / (self.clinical_pdd / 100)

@@ -5,7 +5,7 @@ import shutil
 
 
 from pylinac.log_analyzer import MachineLogs, STATIC_IMRT, DYNAMIC_IMRT, \
-    VMAT, anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError
+    VMAT, anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError, IMAGING
 from tests.utils import save_file, LoadingTestBase, LocationMixin
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
@@ -213,7 +213,8 @@ class TestIndividualLogBase(LocationMixin):
     @classmethod
     def setUpClass(cls):
         cls.log = load_log(cls.get_filename())
-        cls.log.fluence.gamma.calc_map()
+        if cls.log.treatment_type != IMAGING:
+            cls.log.fluence.gamma.calc_map()
 
     def test_num_leaves(self):
         """Test the number of MLC leaves and pairs."""
@@ -230,8 +231,9 @@ class TestIndividualLogBase(LocationMixin):
 
     def test_fluence_gamma(self):
         """Test gamma results for fluences."""
-        self.assertAlmostEqual(self.log.fluence.gamma.avg_gamma, self.average_gamma, delta=0.02)
-        self.assertAlmostEqual(self.log.fluence.gamma.pass_prcnt, self.percent_pass_gamma, delta=0.1)
+        if self.log.treatment_type != IMAGING:
+            self.assertAlmostEqual(self.log.fluence.gamma.avg_gamma, self.average_gamma, delta=0.02)
+            self.assertAlmostEqual(self.log.fluence.gamma.pass_prcnt, self.percent_pass_gamma, delta=0.1)
 
     def test_mu_delivered(self):
         """Test the number of MU delivered during the log."""
@@ -318,7 +320,7 @@ class TestDynalogDemo(TestIndividualDynalog, TestCase):
     average_rms = 0.037
     maximum_rms = 0.076
     average_gamma = 0.47
-    percent_pass_gamma = 18.65
+    percent_pass_gamma = 91
     leaf_move_status = {'moving': (9, 3), 'static': (8, )}
 
     @classmethod

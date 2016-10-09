@@ -70,7 +70,6 @@ Optional dependencies:
 
 To use the pylinac console script a few additional dependencies are needed:
 
- * watchdog
  * click
  * pyyaml
  * yagmail (only if email settings are configured)

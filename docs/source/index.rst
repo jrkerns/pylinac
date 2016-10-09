@@ -11,6 +11,7 @@
    overview
    installation
    general_tips
+   tg51_docs
    starshot_docs
    vmat_docs
    cbct_docs

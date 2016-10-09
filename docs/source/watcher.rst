@@ -12,17 +12,43 @@ The service allows for configurable analysis settings and email settings.
 Getting Started
 ---------------
 
-.. note::
-    To use the watcher service a few dependencies must be installed that are not required for normal pylinac usage;
-    see :ref:`dependencies` for more.
+There are two ways to use the directory watching service: through normal Python functions & directly from the
+command line. In addition there are two modes of watching: continual watching and one-time run-through.
+Continual watching is appropriate for watching machine logs coming from a Clinac or TrueBeam. This
+watcher would continually query for new logs, copy them to the analysis folder, and then analyze them.
+The one-time analysis is best suited for processing ad-hoc data, e.g. monthly CBCT datasets.
 
-To use the watcher service, make sure you have v1.5+, then open up a terminal and run the console command:
+To use the watcher via Python, make a script that uses the :func:`~pylinac.watcher.watch` or
+:func:`~pylinac.watcher.process` function, depending on your need.
+
+.. code-block:: python
+
+    from pylinac import watch
+
+    analysis_dir = "C:/path/to/analysis/directory"
+    watch(analysis_dir)  # will monitor forever!
+
+For one-time analysis:
+
+.. code-block:: python
+
+    from pylinac import process
+
+    analysis_dir = "C:/path/to/analysis/directory"
+    process(analysis_dir)  # will process and then return
+
+Analysis is also available via the command line and is similar in behavior.
 
 .. code-block:: bash
 
-    $ pylinac watch "dir/to/watch"
+    $ pylinac watch "dir/to/watch"  # watch forever
 
-The ``watch`` argument initiates a thread that runs in the terminal. The directory to start watching is also
+
+.. code-block:: bash
+
+    $ pylinac process "dir/to/process"  # analyze and return
+
+The ``watch`` and ``process`` arguments initiate a thread that runs in the terminal. The directory to start watching is also
 required. A logger will notify when the script has started, when a file gets added, and what the analysis status is. If a file
 gets analyzed successfully, a .png and .txt file with the same name as the originals plus a suffix (default is ``_analysis``) will be generated in the directory.
 You can also set up an email service when analysis runs, described below.
@@ -30,20 +56,20 @@ You can also set up an email service when analysis runs, described below.
 How it works
 ------------
 
-The watcher service keeps an eye on a directory and watches for any files being added. If a file is moved
-into the directory, the file is immediately checked to see if pylinac can analyze it. Because many files use the
+The watcher service constantly queries files in the analysis directory. Existing files as well as files that are moved
+into the directory are processed immediately to see if pylinac can analyze it. Because many files use the
 same format (e.g. DICOM), keywords are used to filter which type of analysis should be done. When a file is
 deemed analysis-worthy, pylinac will then run the analysis automatically and generate a .png and .txt file with
 the analysis summary image and quantitative results, respectively. If the email service is setup, an email
 can be sent either on any analysis done or only on failing analyses. Finally, an automatic image detection
-classifier can be use for some image types, specifically, the picket fence, starshot, leeds, and pipspro images.
+classifier can be use for some image types, specifically, the picket fence, starshot, leeds, and QC3 images.
 The classifier allows the user to not rename files before moving them into the monitor folder. To use the
 classifier set the ``use-classifier`` option in the ``general`` section to true; see the default config file below.
 
 Configuration
 -------------
 
-The watcher service runs using default values for keywords and tolerance. These values are in a YAML
+The watcher and processing service runs using default values for keywords and tolerance. These values are in a YAML
 configuration file. Pylinac comes with a default file and settings. You can make your own YAML config file
 and pass that into the service initialization call:
 
@@ -51,8 +77,17 @@ and pass that into the service initialization call:
 
     $ pylinac watch "dir/to/watch" --config="my/config.yaml"
 
-The YAML configuration file is the way to change keywords, change analysis settings, and set up email service.
-You can use/copy the `pylinac default YAML <https://github.com/jrkerns/pylinac/blob/master/pylinac/watcher_config.yaml>`_
+Or
+
+.. code-block:: python
+
+    import pylinac
+
+    pylinac.watcher.watch("dir/to/watch", config_file="my/config.yaml")
+
+The YAML configuration file is the way to change keywords, set up a default analysis directory,
+change analysis settings, and set up email service.
+You can use/copy the `pylinac default YAML <https://github.com/jrkerns/pylinac/blob/master/pylinac/watcher_config.yml>`_
 file as a starting template and edit it as desired. Also see below for the file contents.
 
 .. note::

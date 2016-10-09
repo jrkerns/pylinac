@@ -1,11 +1,11 @@
 package:
   name: pylinac
-  version: "1.6.0"
+  version: "1.7.0"
 
 source:
-  fn: pylinac-1.6.0.zip
-  url: https://pypi.python.org/packages/54/f7/9663aa2f69090751dcdeee08170d4ee736fae249bee62ded609cbb20e1d7/pylinac-1.6.0.zip#md5=9f51d47725b903ff33573b4d22cb7ac9
-  md5: 9f51d47725b903ff33573b4d22cb7ac9
+  fn: pylinac-1.7.0.zip
+  url: https://pypi.python.org/packages/ed/e4/440c05f664794c83982bd591c5e5b3b723b19be734a804e683cec7b8bab4/pylinac-1.7.0.zip#md5=3742a9baa0a3abdc2d6f8604b984a4c8
+  md5: 3742a9baa0a3abdc2d6f8604b984a4c8
 
 #  patches:
    # List any patch files here
@@ -39,7 +39,11 @@ requirements:
     - scikit-learn >=0.17
     - pillow >=2.5
     - dask  # completely unknown why this is needed, but it fails w/o it
-    - tqdm
+    - tqdm ==3.8.0
+    - mpld3
+    - click
+    - yagmail >=0.5.147
+    - pyyaml
 
   run:
     - python
@@ -51,6 +55,10 @@ requirements:
     - scikit-learn >=0.17
     - pillow >=2.5
     - tqdm
+    - mpld3
+    - click
+    - yagmail
+    - pyyaml
 
 #test:
   # Python imports

@@ -3,7 +3,7 @@ import os
 import os.path as osp
 from tempfile import TemporaryDirectory
 from urllib.error import HTTPError, URLError
-from urllib.request import urlretrieve
+from urllib.request import urlretrieve, urlopen
 import zipfile
 
 from tqdm import tqdm
@@ -74,6 +74,24 @@ def retrieve_demo_file(url):
             os.makedirs(d)
         get_url(true_url, destination=demo_file)
     return demo_file
+
+
+def is_url(url):
+    """Determine whether a given string is a valid URL.
+
+    Parameters
+    ----------
+    url : str
+
+    Returns
+    -------
+    bool
+    """
+    try:
+        with urlopen(url) as r:
+            return r.status == 200
+    except:
+        return False
 
 
 def get_url(url, destination=None, progress_bar=True):

@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = '1.7.0a'
+__version__ = '1.7.0'
 
 
 setup(
@@ -11,7 +11,8 @@ setup(
                       ['watcher_config.yml',]}, # http://stackoverflow.com/questions/7522250/how-to-include-package-data-with-setuptools-distribute
     zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
-    keywords='medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog trajectory log',
+    keywords="""medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog
+             trajectory log kv MV planar Standard Imaging PipsPro Mobius TG51""",
     author='James Kerns',
     author_email='jkerns100@gmail.com',
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
@@ -22,11 +23,11 @@ setup(
                       "scikit-image >= 0.11",
                       "scikit-learn >= 0.16",
                       "Pillow >= 2.5",
-                      "tqdm == 3.8",],
-    extras_require={
-        'console': ["click", "pyyaml", "watchdog", "yagmail"],
-        'interactive': ["mpld3"]
-    },
+                      "tqdm == 3.8",
+                      "click",
+                      "pyyaml",
+                      "yagmail",
+                      "mpld3"],
     entry_points={
         'console_scripts':
             ['pylinac=pylinac.scripts:cli']

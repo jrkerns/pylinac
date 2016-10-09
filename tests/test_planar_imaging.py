@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
-from pylinac import LeedsTOR, PipsProQC3
+from pylinac import LeedsTOR, StandardImagingQC3
 from tests.utils import save_file, LocationMixin
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Planar imaging')
@@ -52,15 +52,15 @@ class LeedsCCW(LeedsTORTestMixin, TestCase):
     file_path = ['Leeds_ccw.dcm']
 
 
-class PipsProTestMixin(PlanarPhantomMixin):
-    klass = PipsProQC3
+class SIQC3TestMixin(PlanarPhantomMixin):
+    klass = StandardImagingQC3
 
 
-class PipsProDemo(PipsProTestMixin, TestCase):
+class SIQC3Demo(SIQC3TestMixin, TestCase):
 
     def test_demo(self):
-        PipsProQC3.run_demo()  # shouldn't raise
+        StandardImagingQC3.run_demo()  # shouldn't raise
 
 
-class PipsPro1(PipsProTestMixin, TestCase):
+class SIQC3_1(SIQC3TestMixin, TestCase):
     file_path = ['PIPSpro 2.5MV.dcm']

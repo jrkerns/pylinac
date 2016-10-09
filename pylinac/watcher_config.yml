@@ -7,10 +7,13 @@
 
 
 general:
+  directory: path/to/analysis/directory  # path to the folder where analysis is performed;
+                                         # can also be specified as keyword arg in the `start_watching` and `process` functions
   file-suffix: _analysis  # the suffix added to the .png and .txt file created after analysis
   avoid-keywords:  # keywords in a file name that cause a skip of analysis
     - .png
     - .txt
+  query-frequency: 60  # the frequency at which pylinac queries new files; units are in seconds; N/A if using the `process` function
   use-classifier: false  # set to true to use an SVM classifier which can automatically
                          # identify starshot, picket fence, pipspro, and leeds images.
                          # Experimental; may not always identify images correctly and cause errors.
@@ -27,7 +30,9 @@ email:
 
 # MACHINE LOG SETTINGS
 logs:
-  sources:  # Varian folder where trajectory logs get sent automatically (usually the I: drive)
+  sources:  # Varian folder(s) where trajectory logs get sent automatically (usually the I: drive)
+    - path/to/machine1/tlogs  # if you have multiple linacs just add each source diretory as an item
+    - path/to/machine2/tlogs
   keywords:  # keywords needed in the file name to trigger analysis
     - .dlg
     - .bin

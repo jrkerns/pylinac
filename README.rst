@@ -67,13 +67,6 @@ You may also install via ``pip``, although you must have C compilers to build th
 
     $ pip install pylinac
 
-Pylinac includes optional dependencies for some of the features. To install the optional features run:
-
-.. code-block:: bash
-
-    $ pip install pylinac[console]
-    $ pip install pylinac[interactive]
-
 See the `Installation page <http://pylinac.readthedocs.io/en/latest/installation.html>`_ for further details.
 
 Tools
@@ -81,7 +74,7 @@ Tools
 
 Below are the high-level tools currently available:
 
-* `Continuous Directory Watching <http://pylinac.readthedocs.org/en/stable/watcher.html>`_ -
+* `Continuous & One-Time Directory Analysis <http://pylinac.readthedocs.org/en/stable/watcher.html>`_ -
    True, one-time "set it and forget it" service that analyzes any file that enters the folder. Files with
    keywords and certain file types are analyzed automatically.
 
@@ -91,23 +84,61 @@ Below are the high-level tools currently available:
      if you choose to use the automatic classifier. E.g. a picket fence and starshot image can be differentiated and
      analyzed according to their own modules, with no extra work!
 
-   After installing via conda or pip (above), install the optional dependencies:
-
-   .. code-block:: bash
-
-      $ pip install pylinac[console]  # run once before first usage
-
-   Then run the watcher script:
+   After installation, run the watcher script via the command line:
 
    .. code-block:: bash
 
       $ pylinac watch "dir/to/watch"  # start watching!
 
-   And that's it! No code to write; no fuss, no muss.
-   Analysis settings are `customizable <http://pylinac.readthedocs.org/en/latest/watcher.html#configuration>`_ and includes optional email service upon analysis.
+   or via Python
 
-* `Planar Phantom Analysis (Leeds TOR, PipsPro QC-3) <http://pylinac.readthedocs.org/en/stable/planar_imaging.html>`_ -
-   The planar imaging module analyzes 2D phantoms. Currently only the LeedsTOR kV phantom and PipsPro QC-3 MV phantom.
+   .. code-block:: python
+
+        from pylinac import watch, process
+
+        watch("dir/to/watch")  # will run forever
+        process("dir/to/watch")  # will run once and then return
+
+   And that's it! No code to write; no fuss, no muss.
+   Analysis settings are `customizable <http://pylinac.readthedocs.org/en/latest/watcher.html#configuration>`_
+   and includes optional email service upon analysis.
+
+* TG-51 Absolute Dose Calibration -
+
+  Input the raw data and pylinac can calculate either individual values (kQ, PDDx, Pion, etc) or use the
+  provided classes to input all measurement data and have it calculate all factors and dose values automatically.
+
+  Example script:
+
+  .. code-block:: python
+
+            from pylinac import tg51
+
+            tg51_6x = tg51.TG51Photon(temp=TEMP, press=PRESS, model=CHAMBER,
+                                      n_dw=ND_w, p_elec=P_ELEC,
+                                      measured_pdd=66.4, lead_foil=None,
+                                      clinical_pdd=66.5, energy=ENERGY,
+                                      volt_high=-300, volt_low=-150,
+                                      m_raw=(25.65, 25.66, 25.65),
+                                      m_opp=(25.64, 25.65, 25.65),
+                                      m_low=(25.64, 25.63, 25.63),
+                                      mu=MU, tissue_correction=1.0)
+
+            # Done!
+            print(tg51_6x.dose_mu_dmax)
+
+            # examine other parameters
+            tg51_6x.pddx
+            tg51_6x.kq
+            tg51_6x.p_ion
+
+            # change readings if you adjust output
+            tg51_6x.m_raw = (25.44, 25.44, 25.43)
+            # print new dose value
+            print(tg51_6x.dose_mu_dmax)
+
+* `Planar Phantom Analysis (Leeds TOR, StandardImaging QC-3) <http://pylinac.readthedocs.org/en/stable/planar_imaging.html>`_ -
+   The planar imaging module analyzes 2D phantoms. Currently only the LeedsTOR kV phantom and Standard Imaging QC-3 MV phantom are supported, but more phantoms are in the works!
 
    Features:
 
@@ -120,15 +151,15 @@ Below are the high-level tools currently available:
 
    .. code-block:: python
 
-        from pylinac import LeedsTOR, PipsProQC3
+        from pylinac import LeedsTOR, StandardImagingQC3
 
         leeds = LeedsTOR("my_leeds.dcm")
         leeds.analyze()
         leeds.plot_analyzed_image()
 
-        pp = PipsProQC3("my_pipspro.dcm")
-        pp.analyze()
-        pp.plot_analyzed_image()
+        qc3 = StandardImagingQC3("my_pipspro.dcm")
+        qc3.analyze()
+        qc3.plot_analyzed_image()
 
 * `Winston-Lutz Analysis <http://pylinac.readthedocs.org/en/stable/winston_lutz.html>`_ -
     The Winston-Lutz module analyzes EPID images taken of a small radiation field and BB to determine the 2D
@@ -256,15 +287,15 @@ Below are the high-level tools currently available:
 
     .. code-block:: python
 
-        from pylinac import MachineLog
+        from pylinac import load_log
 
-        tlog = MachineLog("tlog.bin")
+        tlog = load_log("tlog.bin")
         # after loading, explore any Axis of the Varian structure
         tlog.axis_data.gantry.plot_actual()  # plot the gantry position throughout treatment
         tlog.fluence.gamma.calc_map(doseTA=1, distTA=1, threshold=10, resolution=0.1)
         tlog.fluence.gamma.plot_map()  # show the gamma map as a matplotlib figure
 
-        dlog = MachineLog("dynalog.dlg")
+        dlog = load_log("dynalog.dlg")
         ...
 
 * `Picket Fence MLC Analysis <http://pylinac.readthedocs.org/en/stable/picketfence.html>`_ -
@@ -298,6 +329,7 @@ Below are the high-level tools currently available:
 
 Discussion
 ----------
+
 Have questions? Ask them on the `pylinac discussion forum <https://groups.google.com/forum/#!forum/pylinac>`_.
 
 Contributing

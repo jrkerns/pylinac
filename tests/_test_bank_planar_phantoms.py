@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
-from pylinac import LeedsTOR, PipsProQC3
+from pylinac import LeedsTOR, StandardImagingQC3
 from tests.utils import DataBankMixin
 
 
@@ -26,7 +26,7 @@ def run_leeds(path):
 
 def run_pipspro(path):
     """Function to pass to the process pool executor to process PipsPro-QC3 images."""
-    pp = PipsProQC3(path)
+    pp = StandardImagingQC3(path)
     return process_phantom(pp, path)
 
 

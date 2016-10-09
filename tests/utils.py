@@ -3,12 +3,11 @@ from io import BytesIO, StringIO
 import multiprocessing
 import os
 import os.path as osp
+import pprint
 import time
 from tempfile import TemporaryDirectory
 
 from pylinac.core import image
-
-DATA_BANK_DIR = osp.abspath(osp.join('..', '..', 'pylinac test files'))
 
 
 def save_file(method, *args, as_file_object=None, **kwargs):
@@ -97,6 +96,7 @@ class DataBankMixin:
     Some test runs, seemingly due to the executor, bog down when running a very large number of files. By opening a new executor at
     every directory, memory leaks are minimized.
     """
+    DATA_BANK_DIR = osp.abspath(osp.join('..', '..', 'pylinac test files'))
     DATA_DIR = []
     executor = 'ProcessPoolExecutor'
     workers = multiprocessing.cpu_count() - 1
@@ -104,7 +104,7 @@ class DataBankMixin:
 
     @classmethod
     def setUpClass(cls):
-        cls.DATA_DIR = osp.join(DATA_BANK_DIR, *cls.DATA_DIR)
+        cls.DATA_DIR = osp.join(cls.DATA_BANK_DIR, *cls.DATA_DIR)
         if not osp.isdir(cls.DATA_DIR):
             raise NotADirectoryError("Directory {} is not valid".format(cls.DATA_DIR))
 
@@ -124,7 +124,7 @@ class DataBankMixin:
         func : A function that processes the filepath and determines if it passes. Must return ``Success`` if passed.
         """
         passes = 0
-        fails = 0
+        fails = []
         start = time.time()
         futures = {}
         # open an executor
@@ -146,8 +146,9 @@ class DataBankMixin:
                     if self.print_success_path:
                         stuff_to_print.append(futures[future])
                 else:
-                    fails += 1
+                    fails += futures[future]
                 print(*stuff_to_print)
 
         end = time.time() - start
-        print('Processing of {} files took {:3.1f}s. {} passed; {} failed.'.format(test_num, end, passes, fails))
+        print('Processing of {} files took {:3.1f}s. {} passed; {} failed.'.format(test_num, end, passes, len(fails)))
+        pprint.pprint("Failures: {}".format(fails))

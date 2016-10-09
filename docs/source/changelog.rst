@@ -3,6 +3,57 @@
 Changelog
 =========
 
+V 1.7.0
+-------
+
+General Changes
+^^^^^^^^^^^^^^^
+
+* The underlying structure of the watcher script has been changed to use a different framework. This change allows
+  for analysis of existing files within the directory of interest.
+* A new module has been introduced: ``tg51``, handling several common equations and data processing for things
+  relating to TG-51 absolute dose calibration such as Kq, PDDx, Dref, pion, ptp, etc. It also comes with classes for
+  doing a full TG-51 calculation for photons and electrons with cylindrical chambers.
+
+Log Analyzer
+^^^^^^^^^^^^
+
+* The log analyzer has changed from having a main class of ``MachineLog``, to the two distinct log types:
+  ``Dynalog`` and ``TrajectoryLog``. These classes are used the same way as machinelog, but obviously is meant for
+  one specific type of log. This allows for cleaner source code as the ``MachineLog`` class had large swaths of
+  if/else clauses for the two log types. But don't worry! If you're unsure of the log type or need to handle both
+  types then a helper function has been made: ``load_log``. This function will load a log just like the ``MachineLog``
+  did and as the new classes. The difference is it will do automatic log type detection, returning either a Dynalog
+  instance or TrajectoryLog instance. The ``MachineLogs`` class remains unchanged.
+* More specific errors have been introduced; specifically ``NogALogError``, ``NotADynalogError``, and ``DynalogMatchError``
+  which are self-explanatory and more specific than ``IOError``.
+* Fixed `(#74) <https://github.com/jrkerns/pylinac/issues/74>`_ which was causing Dynalogs with patient names containing
+  a "V" to be classified as Trajectory logs.
+* Fixed `(#75) <https://github.com/jrkerns/pylinac/issues/75>`_ which was skewing gamma pass percent values.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The ``PipsProQC3`` class/phantom has been refactored to correctly reflect its manufacturer to Standard Imaging,
+  thus the class has been renamed to ``StandardImagingQC3``.
+
+Directory Watching
+^^^^^^^^^^^^^^^^^^
+
+* The ``watch`` command line argument now has a sister function, available in a regular Python program:
+  :func:`~pylinac.watcher.watch`.
+  With this command you can run the directory watcher programmatically, perfect for continuous log monitoring.
+* A new command line argument is available: ``process``. This command is also available in Python as
+  :func:`~pylinac.watcher.process`
+  which can be called on a directory either through the command line or programmatically and will analyze a
+  folder once and then exit, perfect for analyzing a new monthly dataset.
+* The structure of querying for files has been changed significantly. Instead of triggering on file changes (e.g. adding a
+  new file to the directory), the watcher now constantly queries for new files at a specified interval. This means that
+  when started, the watcher will analyze existing files in the folder, not just new ones.
+* Information given in the email has been modified for logs, which may potentially contain PHI. Instead of the
+  entire log file name given, only the timestamp is given. Additionally, the logs are no longer attached to the email.
+
+
 V 1.6.0
 -------
 

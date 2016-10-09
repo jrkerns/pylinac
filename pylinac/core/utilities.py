@@ -136,6 +136,9 @@ class Structure:
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
 
+    def update(self, **kwargs):
+        self.__dict__.update(**kwargs)
+
 
 def decode_binary(file, dtype, num_values=1, cursor_shift=0):
     """Read in a raw binary file and convert it to given data types.

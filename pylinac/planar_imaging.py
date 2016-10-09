@@ -106,8 +106,8 @@ class ImagePhantomBase:
         axes.set_ylabel('relative MTF')
 
 
-class PipsProQC3(ImagePhantomBase):
-    """Class for analyzing high and low contrast of the PipsPro QC-3 MV phantom.
+class StandardImagingQC3(ImagePhantomBase):
+    """Class for analyzing high and low contrast of the Standard Imaging QC-3 MV phantom.
 
     Attributes
     ----------
@@ -126,12 +126,12 @@ class PipsProQC3(ImagePhantomBase):
     @staticmethod
     def run_demo():
         """Run the PipsPro QC-3 phantom analysis demonstration."""
-        pp = PipsProQC3.from_demo_image()
+        pp = StandardImagingQC3.from_demo_image()
         pp.analyze()
         pp.plot_analyzed_image()
 
     def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.5, invert=False):
-        """Analyze the PipsPro phantom.
+        """Analyze the QC-3 phantom.
 
         Parameters
         ----------

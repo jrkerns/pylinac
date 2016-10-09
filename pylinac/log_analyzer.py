@@ -24,6 +24,7 @@ import concurrent.futures
 import copy
 import csv
 from functools import lru_cache
+import gc
 import itertools
 import multiprocessing
 import os
@@ -50,10 +51,7 @@ HDMLC_FOV_HEIGHT_MM = 220
 
 
 class MachineLogs(list):
-    """
-    .. versionadded:: 0.4.1
-
-    Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
+    """Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
     @type_accept(folder=str)
     def __init__(self, folder, recursive=True):
         """
@@ -159,10 +157,10 @@ class MachineLogs(list):
 
         Parameters
         ----------
-        obj : str, MachineLog
+        obj : str, Dynalog, TrajectoryLog
             If a string, must point to a log file.
             If a directory, must contain log files.
-            If a MachineLog, then simply appends.
+            If a Dynalog or Trajectory log instance, then simply appends.
         recursive : bool
             Whether to walk through subfolders of passed directory. Only applicable if obj was a directory.
         """
@@ -292,7 +290,6 @@ class Axis:
             self.expected = expected
 
     @property
-    @lru_cache(maxsize=1)
     def difference(self):
         """Return an array of the difference between actual and expected positions.
 
@@ -402,7 +399,6 @@ class FluenceBase:
     resolution : int, float
         The resolution of the fluence calculation; -1 means calculation has not been done yet.
     """
-    array = object
     resolution = -1
     FLUENCE_TYPE = ''  # must be specified by subclass
 
@@ -414,6 +410,7 @@ class FluenceBase:
         mu_axis : BeamAxis
         jaw_struct : Jaw_Struct
         """
+        self.array = object
         self._mlc = mlc_struct
         self._mu = mu_axis
         self._jaws = jaw_struct
@@ -579,7 +576,6 @@ class GammaFluence(FluenceBase):
     threshold = -1
     pass_prcnt = -1
     avg_gamma = -1
-    passfail_array = object
     bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1]
 
     def __init__(self, actual_fluence, expected_fluence, mlc_struct):
@@ -593,6 +589,7 @@ class GammaFluence(FluenceBase):
         mlc_struct : MLC_Struct
             The MLC structure, so fluence can be calculated from leaf positions.
         """
+        self.passfail_array = object
         self._actual_fluence = actual_fluence
         self._expected_fluence = expected_fluence
         self._mlc = mlc_struct
@@ -765,7 +762,7 @@ class MLC:
 
     @classmethod
     def from_dlog(cls, dlog, jaws, snapshot_data, snapshot_idx):
-
+        """Construct an MLC structure from a Dynalog"""
         mlc = MLC(Dynalog, snapshot_idx, jaws)
         for leaf in range(1, (dlog.header.num_mlc_leaves // 2) + 1):
             axis = LeafAxis(expected=snapshot_data[(leaf - 1) * 4 + 14], actual=snapshot_data[(leaf - 1) * 4 + 15])
@@ -791,6 +788,7 @@ class MLC:
 
     @classmethod
     def from_tlog(cls, tlog, subbeams, jaws, snapshot_data, snapshot_idx, column_iter):
+        """Construct an MLC instance from a Trajectory log."""
         mlc = MLC(TrajectoryLog, snapshot_idx, jaws, tlog.is_hdmlc, subbeams=subbeams)
         for leaf_num in range(1, tlog.header.num_mlc_leaves+1):
             leaf_axis = _get_axis(snapshot_data, next(column_iter), LeafAxis)
@@ -808,7 +806,6 @@ class MLC:
         return len(self.leaf_axes)
 
     @property
-    @lru_cache(maxsize=1)
     def num_snapshots(self):
         """Return the number of snapshots used for MLC RMS & Fluence calculations.
 
@@ -819,7 +816,6 @@ class MLC:
         return len(self.snapshot_idx)
 
     @property
-    @lru_cache(maxsize=1)
     def num_moving_leaves(self):
         """Return the number of leaves that moved."""
         return len(self.moving_leaves)
@@ -831,7 +827,7 @@ class MLC:
         threshold = 0.003
         indices = ()
         for leaf_num, leafdata in self.leaf_axes.items():
-            if self.log_type == TrajectoryLog:
+            if type(self) == TrajectoryLog:
                 leaf_stdev = np.std(leafdata.actual[self.subbeams[-1]._snapshots])
             else:
                 leaf_stdev = np.std(leafdata.actual[self.snapshot_idx])
@@ -883,7 +879,6 @@ class MLC:
         return self.leaf_moved(a_leaf) or self.leaf_moved(b_leaf)
 
     @property
-    @lru_cache(maxsize=1)
     def _all_leaf_indices(self):
         """Return an array enumerated over all the leaves."""
         return np.array(range(1, len(self.leaf_axes) + 1))
@@ -1071,7 +1066,6 @@ class MLC:
         return rms_array[leaves]
 
     @property
-    @lru_cache(maxsize=1)
     def _abs_error_all_leaves(self):
         """Absolute error of all leaves."""
         return np.abs(self._error_array_all_leaves)
@@ -1317,6 +1311,7 @@ class SubbeamManager:
             mlc_subsection = copy.copy(axis_data.mlc)
             mlc_subsection._snapshot_idx = [idx for idx, i in enumerate(beam._snapshots) if i]
             beam.fluence = FluenceStruct(mlc_subsection, axis_data.mu, axis_data.jaws)
+        gc.collect()  # don't know why gc is needed; maybe something to do w/ copy?
 
     def _set_beamon_snapshots(self, axis_data, beam_num):
         """Get the snapshot indices 1) where the beam was on and 2) between the subbeam control point values."""
@@ -1411,6 +1406,7 @@ class LogBase:
         """Save the summary image to file."""
         self.plot_summary(show=False)
         plt.savefig(filename, **kwargs)
+        plt.close()
 
     def report_basic_parameters(self, printout=True):
         """Print the common parameters analyzed when investigating machine logs:
@@ -1424,19 +1420,21 @@ class LogBase:
         - Average gamma value
         """
         title = "Results of file: {}\n".format(self.filename)
-        avg_rms = "Average RMS of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False))
-        max_rms = "Max RMS error of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_max())
-        p95 = "95th percentile error: {:3.3f} cm\n".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False))
-        num_holdoffs = "Number of beam holdoffs: {:1.0f}\n".format(self.num_beamholds)
-        self.fluence.gamma.calc_map()
-        gamma_pass = "Gamma pass %: {:2.2f}\n".format(self.fluence.gamma.pass_prcnt)
-        gamma_avg = "Gamma average: {:2.3f}\n".format(self.fluence.gamma.avg_gamma)
+        if self.treatment_type == IMAGING:
+            string = title + "Log is an Imaging field; no statistics can be calculated"
+        else:
+            avg_rms = "Average RMS of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False))
+            max_rms = "Max RMS error of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_max())
+            p95 = "95th percentile error: {:3.3f} cm\n".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False))
+            num_holdoffs = "Number of beam holdoffs: {:1.0f}\n".format(self.num_beamholds)
+            self.fluence.gamma.calc_map()
+            gamma_pass = "Gamma pass %: {:2.2f}\n".format(self.fluence.gamma.pass_prcnt)
+            gamma_avg = "Gamma average: {:2.3f}\n".format(self.fluence.gamma.avg_gamma)
 
-        string = title + avg_rms + max_rms + p95 + num_holdoffs + gamma_pass + gamma_avg
+            string = title + avg_rms + max_rms + p95 + num_holdoffs + gamma_pass + gamma_avg
         if printout:
             print(string)
-        else:
-            return string
+        return string
 
     @property
     def treatment_type(self):
@@ -1459,11 +1457,10 @@ class LogBase:
             gantry_std = self.axis_data.gantry.actual.std()
         if gantry_std > 0.5:
             return VMAT
-        elif self.axis_data.mlc.num_moving_leaves == 0:
-            if self.axis_data.mu.actual.max() < 5 and isinstance(self, TrajectoryLog):
-                return IMAGING
-            else:
-                return STATIC_IMRT
+        elif self.axis_data.mu.actual.max() <= 2.1:
+            return IMAGING
+        elif self.axis_data.mlc.num_moving_leaves == 0 and isinstance(self, TrajectoryLog):
+            return STATIC_IMRT
         else:
             return DYNAMIC_IMRT
 
@@ -1645,13 +1642,13 @@ class DynalogAxisData:
 
 
 class Dynalog(LogBase):
-    """
+    """Class for loading, analyzing, and plotting data within a Dynalog file.
 
     Attributes
     ----------
-    header : `~pylinac.log_analyzer.DynalogHeader`
-    axis_data : `~pylinac.log_analyzer.DynalogAxisData'
-    fluence : `~pylinac.log_analyzer.FluenceStruct'
+    header : :class:`~pylinac.log_analyzer.DynalogHeader`
+    axis_data : :class:`~pylinac.log_analyzer.DynalogAxisData`
+    fluence : :class:`~pylinac.log_analyzer.FluenceStruct`
     """
     ANON_LINE = 1
     HEADER_LINE_LENGTH = 6
@@ -1694,22 +1691,24 @@ class Dynalog(LogBase):
 
     @property
     def _has_other_file(self):
+        """Whether the companion file (A* for B-file or vic versa)."""
         return True if self.identify_other_file(self.filename, raise_find_error=False) is not None else False
 
     @property
     @lru_cache(maxsize=1)
     def a_logfile(self):
+        """Path of the A* dynalog file."""
         other_dlg_file = self.identify_other_file(self.filename)
         return self.filename if osp.basename(self.filename).startswith('A') else other_dlg_file
 
     @property
     @lru_cache(maxsize=1)
     def b_logfile(self):
+        """Path of the B* dynalog file."""
         other_dlg_file = self.identify_other_file(self.filename)
         return self.filename if osp.basename(self.filename).startswith('B') else other_dlg_file
 
     @property
-    @lru_cache(maxsize=1)
     def num_beamholds(self):
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.axis_data.beam_hold.actual)
@@ -1913,7 +1912,8 @@ class TrajectoryLog(LogBase):
             self.axis_data = TrajectoryLogAxisData(self, tlogfile, self.subbeams)
 
         self.subbeams.post_hoc_metadata(self.axis_data)
-        self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
+        if not self.treatment_type == IMAGING:
+            self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
     @property
     def txt_filename(self):
@@ -2015,7 +2015,6 @@ class TrajectoryLog(LogBase):
         return filename
 
     @property
-    @lru_cache(maxsize=1)
     def num_beamholds(self):
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.axis_data.beam_hold.actual)

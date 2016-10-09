@@ -8,7 +8,7 @@ class KatyiX0(WinstonLutzMixin, TestCase):
     file_path = ['Katy iX', '0.zip']
     num_images = 17
     gantry_iso_size = 1
-    gantry_iso2bb_vector = Vector(0.45, 0.6, 0.2)
+    gantry_iso2bb_vector = Vector(0.45, 0.7, 0.2)
     gantry_sag = 0.8
     epid_sag = 1.1
     collimator_iso_size = 1.1
@@ -146,7 +146,7 @@ class TrueBeam3120213(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.35
     gantry_sag = 0.95
     epid_sag = 0.6
-    gantry_iso_size = 1.3
+    gantry_iso_size = 1.1
     gantry_iso2bb_vector = Vector(0.3, -0.1, -0.2)
     collimator_iso_size = 0.7
     collimator_iso2bb_vector = Vector(0.1, 0.1)

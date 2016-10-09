@@ -1,8 +1,5 @@
 """Scripts to run pylinac from the command line. Built on examples given in Click documentation."""
-import os.path as osp
-import sys
-
-from pylinac.watcher import start_watching
+from pylinac.watcher import watch, process
 from pylinac import log_analyzer
 try:
     import click
@@ -19,11 +16,19 @@ def cli():
 
 
 @cli.command()
-@click.argument('directory', type=click.Path(exists=True))
+@click.option('--directory', type=click.Path(exists=True))
 @click.option('--config', type=click.Path(exists=True))
-def watch(directory, config=None):
+def watch(directory=None, config=None):
     """Start watching a directory and analyze any applicable files"""
-    start_watching(directory, config)
+    watch(directory, config)
+
+
+@cli.command()
+@click.option('--directory', type=click.Path(exists=True))
+@click.option('--config', type=click.Path(exists=True))
+def process(directory=None, config=None):
+    """Process any applicable files in the directory once through."""
+    process(directory, config)
 
 
 @cli.command()
@@ -33,10 +38,3 @@ def watch(directory, config=None):
 def anonymize(directory, destination=None, in_place=None):
     """Anonymize machine logs in a given file directory."""
     log_analyzer.anonymize(directory, inplace=in_place, destination=destination)
-
-
-if __name__ == '__main__':
-    try:
-        watch((sys.argv[1],))
-    except IndexError:
-        watch((osp.dirname(__file__),))
