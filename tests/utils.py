@@ -146,9 +146,10 @@ class DataBankMixin:
                     if self.print_success_path:
                         stuff_to_print.append(futures[future])
                 else:
-                    fails += futures[future]
+                    fails += [osp.basename(futures[future])]
                 print(*stuff_to_print)
 
         end = time.time() - start
-        print('Processing of {} files took {:3.1f}s. {} passed; {} failed.'.format(test_num, end, passes, len(fails)))
-        pprint.pprint("Failures: {}".format(fails))
+        print('Processing of {} files took {:3.1f}s ({:3.2f}s/item). {} passed; {} failed.'.format(test_num, end, end/test_num, passes, len(fails)))
+        if len(fails) > 0:
+            pprint.pprint("Failures: {}".format(fails))
