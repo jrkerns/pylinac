@@ -38,3 +38,6 @@ dependencies:
 - pip:
   - pydicom==0.9.9
   - tqdm==3.8
+  - click
+  - yagmail
+  - pyyaml
