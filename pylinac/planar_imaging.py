@@ -121,14 +121,14 @@ class StandardImagingQC3(ImagePhantomBase):
         :class:`~pylinac.core.roi.HighContrastDiskROI` instances of the
         high contrast line pair regions.
     """
-    _demo_filename = 'pipspro.dcm'
+    _demo_filename = 'qc3.dcm'
 
     @staticmethod
     def run_demo():
         """Run the PipsPro QC-3 phantom analysis demonstration."""
-        pp = StandardImagingQC3.from_demo_image()
-        pp.analyze()
-        pp.plot_analyzed_image()
+        qc3 = StandardImagingQC3.from_demo_image()
+        qc3.analyze()
+        qc3.plot_analyzed_image()
 
     def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.5, invert=False):
         """Analyze the QC-3 phantom.

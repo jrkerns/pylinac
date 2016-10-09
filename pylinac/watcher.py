@@ -13,14 +13,12 @@ import shutil
 import time
 import zipfile
 
+import yagmail
+import yaml
+
 from pylinac.core.io import retrieve_demo_file, retrieve_filenames
 from pylinac.core.image import prepare_for_classification
 from pylinac.core import schedule
-
-try:
-    import yaml
-except ImportError:
-    raise ImportError("PyYaml must be installed to perform file watching. Run ``pip install pyyaml`` and try again.")
 
 from pylinac import CBCT, VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log
 from pylinac.log_analyzer import IMAGING
@@ -147,11 +145,6 @@ class AnalyzeMixin:
 
     def send_email(self, name=None, attachments=None):
         """Send an email with the analysis results."""
-        try:
-            import yagmail
-        except ImportError:
-            raise ImportError("Yagmail must be installed to perform file watching. Run ``pip install yagmail`` and try again.")
-
         if name is None:
             name = self.local_path
         if attachments is None:

@@ -63,4 +63,4 @@ class SIQC3Demo(SIQC3TestMixin, TestCase):
 
 
 class SIQC3_1(SIQC3TestMixin, TestCase):
-    file_path = ['PIPSpro 2.5MV.dcm']
+    file_path = ['QC3 2.5MV.dcm']

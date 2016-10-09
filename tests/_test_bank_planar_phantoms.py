@@ -24,7 +24,7 @@ def run_leeds(path):
     return process_phantom(leeds, path)
 
 
-def run_pipspro(path):
+def run_qc3(path):
     """Function to pass to the process pool executor to process PipsPro-QC3 images."""
     pp = StandardImagingQC3(path)
     return process_phantom(pp, path)
@@ -38,7 +38,7 @@ class TestLeedsImageBank(DataBankMixin, TestCase):
 
 
 class TestPipsProImageBank(DataBankMixin, TestCase):
-    DATA_DIR = ['2D Image quality phantoms', 'PipsPro']
+    DATA_DIR = ['2D Image quality phantoms', 'QC-3']
 
     def test_all(self):
-        super().test_all(run_pipspro)
+        super().test_all(run_qc3)
