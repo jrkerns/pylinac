@@ -1,5 +1,5 @@
 """The planar imaging module analyzes phantom images taken with the kV or MV imager in 2D;
-for example, the Leeds and PipsPro phantoms.
+for example, the Leeds and QC-3 phantoms.
 
 Features:
 
@@ -125,7 +125,7 @@ class StandardImagingQC3(ImagePhantomBase):
 
     @staticmethod
     def run_demo():
-        """Run the PipsPro QC-3 phantom analysis demonstration."""
+        """Run the Standard Imaging QC-3 phantom analysis demonstration."""
         qc3 = StandardImagingQC3.from_demo_image()
         qc3.analyze()
         qc3.plot_analyzed_image()
@@ -182,7 +182,7 @@ class StandardImagingQC3(ImagePhantomBase):
             img_ax = next(axes)
             self.image.plot(ax=img_ax, show=False)
             img_ax.axis('off')
-            img_ax.set_title('PipsPro Phantom Analysis')
+            img_ax.set_title('QC-3 Phantom Analysis')
 
             # plot the low contrast ROIs
             self.lc_ref_rois.plot2axes(img_ax, edgecolor='b')
@@ -223,7 +223,7 @@ class StandardImagingQC3(ImagePhantomBase):
                 blobs.append(phantom_idx)
 
         if not blobs:
-            raise ValueError("Unable to find the PipsPro phantom in the image.")
+            raise ValueError("Unable to find the QC-3 phantom in the image.")
 
         # find the biggest ROI and call that the phantom outline
         big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
