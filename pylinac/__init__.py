@@ -1,8 +1,8 @@
 
 import sys
 
-__version__ = '1.7.0'
-__version_info__ = (1, 7, 0)
+__version__ = '1.7.1'
+__version_info__ = (1, 7, 1)
 
 # check for python 2
 if sys.version_info[0] < 3:

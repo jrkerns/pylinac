@@ -1,12 +1,7 @@
 """Scripts to run pylinac from the command line. Built on examples given in Click documentation."""
-from pylinac.watcher import watch, process
+from pylinac import watcher
 from pylinac import log_analyzer
-try:
-    import click
-    from click.testing import CliRunner
-except ImportError as e:
-    e.msg = "To run pylinac scripts you must have `click` installed. Run `pip install click`, then try again."
-    raise e
+import click
 
 
 @click.group()
@@ -20,7 +15,7 @@ def cli():
 @click.option('--config', type=click.Path(exists=True))
 def watch(directory=None, config=None):
     """Start watching a directory and analyze any applicable files"""
-    watch(directory, config)
+    watcher.watch(directory, config)
 
 
 @cli.command()
@@ -28,7 +23,7 @@ def watch(directory=None, config=None):
 @click.option('--config', type=click.Path(exists=True))
 def process(directory=None, config=None):
     """Process any applicable files in the directory once through."""
-    process(directory, config)
+    watcher.process(directory, config)
 
 
 @cli.command()
