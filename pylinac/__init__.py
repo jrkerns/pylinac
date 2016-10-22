@@ -13,7 +13,7 @@ from pylinac.cbct import CBCT
 from pylinac.core import decorators, geometry, image, io, mask, profile, roi, utilities
 from pylinac.core.utilities import clear_data_files
 from pylinac.flatsym import BeamImage
-from pylinac.planar_imaging import LeedsTOR, StandardImagingQC3
+from pylinac.planar_imaging import LeedsTOR, StandardImagingQC3, LasVegas
 from pylinac.log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
 from pylinac.picketfence import PicketFence
 from pylinac.starshot import Starshot

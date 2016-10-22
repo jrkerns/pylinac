@@ -8,6 +8,7 @@ Features:
 * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
   as you see fit.
 """
+from abc import abstractproperty
 import copy
 from functools import lru_cache
 
@@ -85,12 +86,13 @@ class ImagePhantomBase:
     @staticmethod
     def _plot_lowcontrast(axes, rois, threshold):
         """Plot the low contrast ROIs to an axes."""
-        line1, = axes.plot([roi.contrast for roi in rois], marker='o', color='m', label='Contrast')
+        rois.sort(key=lambda x: x.contrast_constant, reverse=True)
+        line1, = axes.plot([roi.contrast_constant for roi in rois], marker='o', color='m', label='Contrast Constant')
         axes.axhline(threshold, color='k')
         axes.grid('on')
         axes.set_title('Low-frequency Contrast')
         axes.set_xlabel('ROI #')
-        axes.set_ylabel('Contrast')
+        axes.set_ylabel('Contrast Constant')
         axes2 = axes.twinx()
         line2, = axes2.plot([roi.contrast_to_noise for roi in rois], marker='^', label='CNR')
         axes.legend(handles=[line1, line2])
@@ -104,6 +106,158 @@ class ImagePhantomBase:
         axes.set_title('High-frequency rMTF')
         axes.set_xlabel('Line pair region #')
         axes.set_ylabel('relative MTF')
+
+    @abstractproperty
+    def phantom_center(self):
+        pass
+
+    @abstractproperty
+    def phantom_angle(self):
+        pass
+
+    @abstractproperty
+    def phantom_ski_region(self):
+        pass
+
+    @abstractproperty
+    def phantom_radius(self):
+        pass
+
+
+class LasVegas(ImagePhantomBase):
+    """Class for analyzing low contrast of the Las Vegas MV phantom.
+
+    Attributes
+    ----------
+    lc_rois : list
+        :class:`~pylinac.core.roi.LowContrastDiskROI` instances of the low
+        contrast ROIs, other than the reference ROI (below).
+    bg_rois : list
+        :class:`~pylinac.core.roi.LowContrastDiskROI` instance of the low
+        contrast reference ROI (15mm PVC).
+    """
+    _demo_filename = 'lasvegas.dcm'
+
+    def __init__(self, filepath):
+        super().__init__(filepath)
+        # self.image.check_inversion()
+
+    @staticmethod
+    def run_demo():
+        """Run the Las Vegas phantom analysis demonstration."""
+        lv = LasVegas.from_demo_image()
+        lv.analyze()
+        lv.plot_analyzed_image()
+
+    def analyze(self, low_contrast_threshold=0.1, invert=False):
+        """Analyze the Las Vegas phantom.
+
+        Parameters
+        ----------
+        low_contrast_threshold : float
+            The threshold for the low-contrast bubbles to be "seen".
+        invert : bool
+            Whether to force an inversion of the image. Pylinac tries to infer the correct inversion but uneven
+            backgrounds can cause this analysis to fail. If the contrasts/MTF ROIs appear correctly located but the
+            plots are wonky, try setting this to True.
+        """
+        self.threshold = low_contrast_threshold
+        if invert:
+            self.image.invert()
+        self._determine_low_contrast()
+
+    def _determine_low_contrast(self):
+        """Sample the detail contrast regions."""
+        # create 4 ROIs on each side of the phantom to determine the average background
+        angles = np.array([-10, 80, 170, 260]) + self.phantom_angle - 4
+        dists = np.array([0.24, 0.24, 0.24, 0.24]) * self.phantom_radius
+        bg_rois = []
+        for dist, angle in zip(dists, angles):
+            roi = LowContrastDiskROI(self.image, angle, self.phantom_radius*0.03, dist, self.phantom_center,
+                                     0.05)
+            bg_rois.append(roi)
+        avg_bg = np.mean([roi.pixel_value for roi in bg_rois])
+
+        # create X ROIs to sample the low contrast holes
+        angles = np.array([77, 116, 0, 13, 77, 142, -21, -29, -107, 182, -37, -55, -105]) + self.phantom_angle
+        dists = np.array([0.107, 0.141, 0.179, 0.095, 0.042, 0.097, 0.174, 0.088, 0.024, 0.091, 0.189, 0.113, 0.0745]) * self.phantom_radius
+        roi_radii = np.array([0.028, 0.028, 0.016, 0.016, 0.016, 0.016, 0.012, 0.012, 0.012, 0.012, 0.007, 0.007, 0.007])
+        rois = []
+        for dist, angle, radius in zip(dists, angles, roi_radii):
+            roi = LowContrastDiskROI(self.image, angle, self.phantom_radius*radius, dist, self.phantom_center,
+                                     self.threshold, avg_bg)
+            rois.append(roi)
+        self.threshold *= max(roi.contrast_constant for roi in rois)
+        for roi in rois:
+            roi.contrast_threshold = self.threshold
+        self.bg_rois = bg_rois
+        self.lc_rois = rois
+        # self.image.check_inversion()
+
+    def plot_analyzed_image(self, show=True):
+        fig, axes = plt.subplots(ncols=2)
+        self._plot_lowcontrast(axes[1], self.lc_rois, self.threshold)
+        self.image.plot(ax=axes[0], show=False)
+        for bg_roi in self.bg_rois:
+            bg_roi.plot2axes(axes[0])
+        for roi in self.lc_rois:
+            roi.plot2axes(axes[0], edgecolor=roi.plot_color_constant)
+        if show:
+            plt.show()
+
+    @property
+    def phantom_center(self):
+        return bbox_center(self.phantom_ski_region)
+
+    @property
+    def phantom_radius(self):
+        return self.phantom_ski_region.major_axis_length
+
+    @property
+    @lru_cache(maxsize=1)
+    def phantom_angle(self):
+        """
+        Sample all sides of the phantom, searching for the low contrast circle
+
+        Returns
+        -------
+
+        """
+        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius*0.18, self.image, ccw=False,
+                                        width_ratio=0.05, num_profiles=5)
+        circle.filter(size=0.015, kind='median')
+        angle = circle.find_valleys(max_number=1)[0]
+        return angle/len(circle.values) * 360
+
+    @property
+    @lru_cache(maxsize=1)
+    def phantom_ski_region(self):
+        """The skimage region of the phantom outline."""
+
+        def near_center(region):
+            x_near = np.isclose(region.centroid[0], self.image.shape[0]/2, atol=self.image.shape[0]*0.05)
+            y_near = np.isclose(region.centroid[1], self.image.shape[1]/2, atol=self.image.shape[1]*0.05)
+            return x_near and y_near
+
+        regions = self._get_canny_regions()
+        blobs = []
+        for phantom_idx, region in enumerate(regions):
+            if region.area < 50:
+                continue
+            near_cent = near_center(region)
+            hollow = region.extent < 0.02
+            angled = region.orientation > 0.2 or region.orientation < -0.2
+            if near_cent and hollow and angled:
+                blobs.append(phantom_idx)
+
+        if not blobs:
+            raise ValueError("Unable to find the Las Vegas phantom in the image.")
+
+        # find the biggest ROI and call that the phantom outline
+        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
+        phantom_idx = blobs[big_roi_idx]
+
+        return regions[phantom_idx]
 
 
 class StandardImagingQC3(ImagePhantomBase):
@@ -208,8 +362,7 @@ class StandardImagingQC3(ImagePhantomBase):
             plt.show()
 
     @property
-    @lru_cache()
-    def _phan_region(self):
+    def phantom_ski_region(self):
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions()
         blobs = []
@@ -232,7 +385,7 @@ class StandardImagingQC3(ImagePhantomBase):
         return regions[phantom_idx]
 
     @property
-    def _phan_radius(self):
+    def phantom_radius(self):
         """The radius of the phantom in pixels; the value itself doesn't matter, it's just
         used for relative distances to ROIs.
 
@@ -240,10 +393,10 @@ class StandardImagingQC3(ImagePhantomBase):
         -------
         radius : float
         """
-        return self._phan_region.major_axis_length / 14
+        return self.phantom_ski_region.major_axis_length / 14
 
     @property
-    def _phan_angle(self):
+    def phantom_angle(self):
         """The angle of the phantom.
 
         Returns
@@ -251,39 +404,39 @@ class StandardImagingQC3(ImagePhantomBase):
         angle : float
             The angle in degrees.
         """
-        return -np.rad2deg(self._phan_region.orientation)
+        return -np.rad2deg(self.phantom_ski_region.orientation)
 
     @property
-    def _phan_center(self):
+    def phantom_center(self):
         """The center point of the phantom.
 
         Returns
         -------
         center : Point
         """
-        return bbox_center(self._phan_region)
+        return bbox_center(self.phantom_ski_region)
 
     def _low_contrast(self):
         """Sample the detail contrast regions."""
-        angles = np.array([90, -90, 55, -55, 128, -128]) + self._phan_angle
-        dists = np.array([2, 2, 2.4, 2.4, 2.4, 2.4]) * self._phan_radius
+        angles = np.array([90, -90, 55, -55, 128, -128]) + self.phantom_angle
+        dists = np.array([2, 2, 2.4, 2.4, 2.4, 2.4]) * self.phantom_radius
         rrois = []
 
         # background ROI
-        bg_roi = LowContrastDiskROI(self.image, angles[0], 0.5 * self._phan_radius, dists[0], self._phan_center, 0.05)
+        bg_roi = LowContrastDiskROI(self.image, angles[0], 0.5 * self.phantom_radius, dists[0], self.phantom_center, 0.05)
 
         for dist, angle in zip(dists[1:], angles[1:]):
-            roi = LowContrastDiskROI(self.image, angle, 0.5 * self._phan_radius, dist, self._phan_center,
-                                      0.05, background=bg_roi.pixel_value)
+            roi = LowContrastDiskROI(self.image, angle, 0.5 * self.phantom_radius, dist, self.phantom_center,
+                                     0.05, background=bg_roi.pixel_value)
             rrois.append(roi)
         return bg_roi, rrois
 
     def _high_contrast(self):
         """Sample the high-contrast line pair regions."""
-        dists = np.array([2.8, -2.8, 1.45, -1.45, 0]) * self._phan_radius
+        dists = np.array([2.8, -2.8, 1.45, -1.45, 0]) * self.phantom_radius
         rrois = []
         for dist in dists:
-            roi = HighContrastDiskROI(self.image, self._phan_angle, 0.5*self._phan_radius, dist, self._phan_center,
+            roi = HighContrastDiskROI(self.image, self.phantom_angle, 0.5 * self.phantom_radius, dist, self.phantom_center,
                                       0.05)
             rrois.append(roi)
         return rrois
@@ -311,7 +464,6 @@ class LeedsTOR(ImagePhantomBase):
     _demo_filename = 'leeds.dcm'
 
     @property
-    @lru_cache()
     def _blobs(self):
         """The indices of the regions that were significant; i.e. a phantom circle outline or lead/copper square."""
         blobs = []
@@ -326,13 +478,12 @@ class LeedsTOR(ImagePhantomBase):
         return blobs
 
     @property
-    @lru_cache()
     def _regions(self):
         """All the regions of the canny image that were labeled."""
-        regions = self._get_canny_regions()
-        return regions
+        return self._get_canny_regions()
 
-    def _determine_phantom_center(self):
+    @property
+    def phantom_center(self):
         """Determine the phantom center.
 
         This is done by searching for circular ROIs of the canny image. Those that are circular and roughly the
@@ -344,7 +495,7 @@ class LeedsTOR(ImagePhantomBase):
         center : Point
         """
         circles = [roi for roi in self._blobs if
-                   np.isclose(self._regions[roi].major_axis_length, self._determine_radius() * 3.35, rtol=0.3)]
+                   np.isclose(self._regions[roi].major_axis_length, self.phantom_radius * 3.35, rtol=0.3)]
 
         # get average center of all circles
         circle_rois = [self._regions[roi] for roi in circles]
@@ -352,24 +503,20 @@ class LeedsTOR(ImagePhantomBase):
         x = np.mean([bbox_center(roi).x for roi in circle_rois])
         return Point(x, y)
 
-    def _determine_phantom_angle(self, center):
+    @property
+    def phantom_angle(self):
         """Determine the angle of the phantom.
 
         This is done by searching for square-like boxes of the canny image. There are usually two: one lead and
         one copper. The box with the highest intensity (lead) is identified. The angle from the center of the lead
         square bounding box and the phantom center determines the phantom angle.
 
-        Parameters
-        ----------
-        center : Point
-            The center point of the phantom
-
         Returns
         -------
         angle : float
             The angle in radians.
         """
-        expected_length = self._determine_radius() * 0.52
+        expected_length = self.phantom_radius * 0.52
         square_rois = [roi for roi in self._blobs if np.isclose(self._regions[roi].major_axis_length, expected_length, rtol=0.2)]
         if not square_rois:
             raise ValueError("Could not find the angle of the image.")
@@ -378,13 +525,13 @@ class LeedsTOR(ImagePhantomBase):
         lead_roi = regions[square_rois[lead_idx]]
         lead_center = bbox_center(lead_roi)
 
-        adjacent = lead_center.x - center.x
-        opposite = lead_center.y - center.y
+        adjacent = lead_center.x - self.phantom_center.x
+        opposite = lead_center.y - self.phantom_center.y
         angle = np.arctan2(opposite, adjacent)
         return angle
 
-    @lru_cache()
-    def _determine_radius(self):
+    @property
+    def phantom_radius(self):
         """Determine the radius of the phantom.
 
         The radius is determined by finding the largest of the detected blobs of the canny image and taking
@@ -401,19 +548,19 @@ class LeedsTOR(ImagePhantomBase):
         radius = circle_roi.major_axis_length / 3.35
         return radius
 
-    def _is_clockwise(self, center, radius, angle):
+    def _is_clockwise(self):
         """Determine if the low-contrast bubbles go from high to low clockwise or counter-clockwise.
 
         Returns
         -------
         boolean
         """
-        circle = CollapsedCircleProfile(center, radius * 0.8, self.image, angle, width_ratio=0.05)
+        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius * 0.8, self.image, self.phantom_angle, width_ratio=0.05)
         first_set = circle.find_peaks(search_region=(0, 0.5), threshold=0.1)
         second_set = circle.find_peaks(search_region=(0.5, 1.0), threshold=0.1)
         return len(first_set) > len(second_set)
 
-    def _low_contrast(self, radius, center, angle):
+    def _low_contrast(self):
         """Perform the low-contrast analysis. This samples the bubbles and a background bubble just beneath it to
         determine contrast and contrast-to-noise.
 
@@ -425,30 +572,30 @@ class LeedsTOR(ImagePhantomBase):
             :class:`~pylinac.core.roi.LowContrastDistROI` instances of the reference ROIs;
             pixel values of the reference ROIs determines the background for the contrast ROIs.
         """
-        angle = np.degrees(angle)
+        angle = np.degrees(self.phantom_angle)
         bubble_angles1 = np.linspace(30, 149, num=9)
         bubble_angles2 = np.linspace(209, 331, num=9)
         bubble_angles = np.concatenate((bubble_angles1, bubble_angles2))
-        bubble_radius = 0.025 * radius
+        bubble_radius = 0.025 * self.phantom_radius
 
         # sample the contrast ROIs
-        bubble_dist = 0.785 * radius
+        bubble_dist = 0.785 * self.phantom_radius
         crois = []
         for angle_delta in bubble_angles:
-            roi = LowContrastDiskROI(self.image, angle - angle_delta, bubble_radius, bubble_dist, center, self.low_contrast_threshold)
+            roi = LowContrastDiskROI(self.image, angle - angle_delta, bubble_radius, bubble_dist, self.phantom_center, self.low_contrast_threshold)
             crois.append(roi)
 
         # sample the reference ROIs
-        bubble_dist = 0.65 * radius
+        bubble_dist = 0.65 * self.phantom_radius
         rrois = []
         for idx, angle_delta in enumerate(bubble_angles):
-            roi = DiskROI(self.image, angle - angle_delta, bubble_radius, bubble_dist, center)
+            roi = DiskROI(self.image, angle - angle_delta, bubble_radius, bubble_dist, self.phantom_center)
             crois[idx].background = roi.pixel_value
             rrois.append(roi)
 
         return crois, rrois
 
-    def _high_contrast(self, radius, angle, center):
+    def _high_contrast(self):
         """Perform high-contrast analysis. This samples disks within the line-pair region and calculates
         relative MTF from the min and max values.
 
@@ -460,15 +607,15 @@ class LeedsTOR(ImagePhantomBase):
             :class:`~pylinac.core.roi.HighContrastDiskROI` instances of the solid ROIs that
             determine the normalization value for MTF.
         """
-        angle = np.degrees(angle)
+        angle = np.degrees(self.phantom_angle)
 
         # sample ROIs of the reference areas
         ref_angles = [303, 271]
-        ref_dists = [0.3 * radius, 0.25 * radius]
-        ref_radius = 0.04 * radius
+        ref_dists = [0.3 * self.phantom_radius, 0.25 * self.phantom_radius]
+        ref_radius = 0.04 * self.phantom_radius
         rrois = []
         for nominal_angle, dist in zip(ref_angles, ref_dists):
-            roi = HighContrastDiskROI(self.image, angle - nominal_angle, ref_radius, dist, center,
+            roi = HighContrastDiskROI(self.image, angle - nominal_angle, ref_radius, dist, self.phantom_center,
                                       self.hi_contrast_threshold)
             rrois.append(roi)
         mtf_norm_val = (rrois[0].pixel_value - rrois[1].pixel_value) / (rrois[0].pixel_value + rrois[1].pixel_value)
@@ -476,11 +623,11 @@ class LeedsTOR(ImagePhantomBase):
         # sample ROIs of each line pair region
         # ordering goes from the "biggest" line pair region downward
         contrast_angles = [-144.8, -115.1, -62.5, -169.7, -153.4, -25, 169.7, 151.6, 27]
-        contrast_dists = np.array([0.3, 0.187, 0.187, 0.252, 0.092, 0.094, 0.252, 0.094, 0.0958]) * radius
-        contrast_radii = np.array([0.04, 0.04, 0.04, 0.03, 0.03, 0.02, 0.02, 0.018, 0.018, 0.015, 0.015, 0.012]) * radius
+        contrast_dists = np.array([0.3, 0.187, 0.187, 0.252, 0.092, 0.094, 0.252, 0.094, 0.0958]) * self.phantom_radius
+        contrast_radii = np.array([0.04, 0.04, 0.04, 0.03, 0.03, 0.02, 0.02, 0.018, 0.018, 0.015, 0.015, 0.012]) * self.phantom_radius
         crois = []
         for nominal_angle, dist, cradius in zip(contrast_angles, contrast_dists, contrast_radii):
-            roi = HighContrastDiskROI(self.image, angle + nominal_angle + 90, cradius, dist, center, self.hi_contrast_threshold, mtf_norm=mtf_norm_val)
+            roi = HighContrastDiskROI(self.image, angle + nominal_angle + 90, cradius, dist, self.phantom_center, self.hi_contrast_threshold, mtf_norm=mtf_norm_val)
             crois.append(roi)
 
         return crois, rrois
@@ -512,15 +659,12 @@ class LeedsTOR(ImagePhantomBase):
         self.low_contrast_threshold = low_contrast_threshold
         self.hi_contrast_threshold = hi_contrast_threshold
 
-        radius = self._determine_radius()
-        center = self._determine_phantom_center()
-        angle = self._determine_phantom_angle(center)
-        if not self._is_clockwise(center, radius, angle):
-            center, angle = self._flip_image_data(center, angle)
-        self.lc_rois, self.lc_ref_rois = self._low_contrast(radius, center, angle)
-        self.hc_rois, self.hc_ref_rois = self._high_contrast(radius, angle, center)
+        if not self._is_clockwise():
+            center, angle = self._flip_image_data()
+        self.lc_rois, self.lc_ref_rois = self._low_contrast()
+        self.hc_rois, self.hc_ref_rois = self._high_contrast()
 
-    def _flip_image_data(self, center, angle):
+    def _flip_image_data(self):
         """Flip the image left->right and invert the center, and angle as appropriate.
 
         Sometimes the Leeds phantom is set upside down on the imaging panel. Pylinac's
@@ -528,9 +672,9 @@ class LeedsTOR(ImagePhantomBase):
         make the image ccw. Quicker than flipping the image and reanalyzing.
         """
         self.image.array = np.fliplr(self.image.array)
-        new_x = self.image.shape[1] - center.x
-        new_center = Point(new_x, center.y)
-        new_angle = np.pi - angle
+        new_x = self.image.shape[1] - self.phantom_center.x
+        new_center = Point(new_x, self.phantom_center.y)
+        new_angle = np.pi - self.phantom_angle
         return new_center, new_angle
 
     def plot_analyzed_image(self, image=True, low_contrast=True, high_contrast=True, show=True):

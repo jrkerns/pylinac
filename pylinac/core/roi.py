@@ -93,17 +93,22 @@ class LowContrastDiskROI(DiskROI):
     @property
     def contrast_to_noise(self):
         """The contrast to noise ratio of the bubble: (Signal - Background)/Stdev."""
-        return (self.pixel_value - self.background) / self.std
+        return abs(self.pixel_value - self.background) / self.std
 
     @property
     def contrast(self):
         """The contrast of the bubble compared to background: (ROI - backg) / (ROI + backg)."""
-        return (self.pixel_value - self.background) / (self.pixel_value + self.background)
+        return abs((self.pixel_value - self.background) / (self.pixel_value + self.background))
+
+    @property
+    def cnr_constant(self):
+        """The contrast-to-noise value times the bubble diameter."""
+        return self.contrast_to_noise * self.diameter
 
     @property
     def contrast_constant(self):
         """The contrast value times the bubble diameter."""
-        return self.contrast_to_noise * self.diameter
+        return self.contrast * self.diameter
 
     @property
     def passed(self):

@@ -301,7 +301,7 @@ class BaseImage:
         """The physical size of the image in mm."""
         return self.shape[0] / self.dpmm, self.shape[1] / self.dpmm
 
-    def plot(self, ax=None, show=True, clear_fig=False):
+    def plot(self, ax=None, show=True, clear_fig=False, **kwargs):
         """Plot the image.
 
         Parameters
@@ -317,7 +317,7 @@ class BaseImage:
             fig, ax = plt.subplots()
         if clear_fig:
             plt.clf()
-        ax.imshow(self.array, cmap=get_dicom_cmap())
+        ax.imshow(self.array, cmap=get_dicom_cmap(), **kwargs)
         if show:
             plt.show()
         return ax
@@ -542,7 +542,7 @@ class BaseImage:
 
         See Also
         --------
-        :func:`~pylinac.core.image.equate_log_fluence_and_epid`
+        :func:`~pylinac.core.image.equate_images`
         """
         # error checking
         if not is_close(self.dpi, comparison_image.dpi, delta=0.1):

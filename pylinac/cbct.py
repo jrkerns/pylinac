@@ -986,7 +986,7 @@ class LowContrastSlice(Slice, ROIManagerMixin):
         else:
             axis = axis.twinx().twiny()
         sizes = np.array(list(self.rois.keys()), dtype=int)
-        contrasts = [roi.contrast_constant for roi in self.rois.values()]
+        contrasts = [roi.cnr_constant for roi in self.rois.values()]
         points = axis.plot(sizes, contrasts)
         axis.margins(0.05)
         axis.grid('on')
