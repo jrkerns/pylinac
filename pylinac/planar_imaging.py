@@ -17,10 +17,10 @@ import numpy as np
 from skimage import feature, measure
 
 from .core import image
-from .core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
 from .core.geometry import Point
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile
+from .core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
 
 
 class ImagePhantomBase:
@@ -140,7 +140,7 @@ class LasVegas(ImagePhantomBase):
 
     def __init__(self, filepath):
         super().__init__(filepath)
-        # self.image.check_inversion()
+        self.image.check_inversion()
 
     @staticmethod
     def run_demo():
@@ -187,21 +187,54 @@ class LasVegas(ImagePhantomBase):
             roi = LowContrastDiskROI(self.image, angle, self.phantom_radius*radius, dist, self.phantom_center,
                                      self.threshold, avg_bg)
             rois.append(roi)
+
+        # normalize the threshold
         self.threshold *= max(roi.contrast_constant for roi in rois)
         for roi in rois:
             roi.contrast_threshold = self.threshold
         self.bg_rois = bg_rois
         self.lc_rois = rois
-        # self.image.check_inversion()
 
-    def plot_analyzed_image(self, show=True):
-        fig, axes = plt.subplots(ncols=2)
-        self._plot_lowcontrast(axes[1], self.lc_rois, self.threshold)
-        self.image.plot(ax=axes[0], show=False)
-        for bg_roi in self.bg_rois:
-            bg_roi.plot2axes(axes[0])
-        for roi in self.lc_rois:
-            roi.plot2axes(axes[0], edgecolor=roi.plot_color_constant)
+    def plot_analyzed_image(self, image=True, low_contrast=True, show=True):
+        """Plot the analyzed image, which includes the original image with ROIs marked and low-contrast plots.
+
+        Parameters
+        ----------
+        image : bool
+            Show the image.
+        low_contrast : bool
+            Show the low contrast values plot.
+        high_contrast : bool
+            Show the high contrast values plot.
+        show : bool
+            Whether to actually show the image when called.
+        """
+        num_plots = sum((image, low_contrast))
+        if num_plots < 1:
+            return
+        fig, axes = plt.subplots(1, num_plots)
+        fig.subplots_adjust(wspace=0.4)
+        if num_plots < 2:
+            axes = (axes,)
+        axes = iter(axes)
+
+        if image:
+            img_ax = next(axes)
+            self.image.plot(ax=img_ax, show=False)
+            img_ax.axis('off')
+            img_ax.set_title('Las Vegas Phantom Analysis')
+
+            # plot the low contrast ROIs
+            for roi in self.lc_rois:
+                roi.plot2axes(img_ax, edgecolor=roi.plot_color_constant)
+            for roi in self.bg_rois:
+                roi.plot2axes(img_ax, edgecolor='g')
+
+        # plot the low contrast values
+        if low_contrast:
+            lowcon_ax = next(axes)
+            self._plot_lowcontrast(lowcon_ax, self.lc_rois, self.threshold)
+
         if show:
             plt.show()
 
@@ -223,10 +256,10 @@ class LasVegas(ImagePhantomBase):
         -------
 
         """
-        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius*0.18, self.image, ccw=False,
-                                        width_ratio=0.05, num_profiles=5)
+        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius*0.165, self.image, ccw=False,
+                                        width_ratio=0.15, num_profiles=5)
         circle.filter(size=0.015, kind='median')
-        angle = circle.find_valleys(max_number=1)[0]
+        angle = circle.find_peaks(max_number=1)[0]
         return angle/len(circle.values) * 360
 
     @property
@@ -244,10 +277,10 @@ class LasVegas(ImagePhantomBase):
         for phantom_idx, region in enumerate(regions):
             if region.area < 50:
                 continue
-            near_cent = near_center(region)
+            # near_cent = near_center(region)
             hollow = region.extent < 0.02
-            angled = region.orientation > 0.2 or region.orientation < -0.2
-            if near_cent and hollow and angled:
+            # angled = region.orientation > 0.2 or region.orientation < -0.2
+            if hollow:
                 blobs.append(phantom_idx)
 
         if not blobs:
