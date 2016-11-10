@@ -29,10 +29,6 @@ logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S')
 
-SKIP_LIST = []  # this is a running list of files that should be skipped from analysis.
-                # Initially, it starts out empty, but fills up with items that would continually
-                # be analyzed, over and over again, namely Imaging trajectory logs.
-
 
 class AnalyzeMixin:
     """Mixin for processing files caught by the pylinac watcher.
@@ -341,7 +337,6 @@ class AnalyzeLog(AnalyzeMixin):
         self.instance = load_log(self.full_path, **self.constructor_kwargs)
         if self.instance.treatment_type == IMAGING:
             logger.info(self.local_path + " is an imaging log...")
-            SKIP_LIST.append(self.full_path)
         else:
             self.analyze()
             self.save_zip()
@@ -350,6 +345,7 @@ class AnalyzeLog(AnalyzeMixin):
             elif self.config['email']['enable-failure'] and self.should_send_failure_email():
                 self.send_email()
         logger.info("Finished analysis on " + self.local_path)
+        return True
 
     def save_zip(self):
         """Save the log and resulting PNG & text file to a ZIP archive."""
@@ -369,11 +365,11 @@ class AnalyzeLog(AnalyzeMixin):
             os.remove(self.log_txt_filename)
 
 
-def analysis_should_be_done(path, config):
+def analysis_should_be_done(path, config, skip_list):
     """Return boolean of whether the file should be analysed, based on if the filename has a keyword."""
     do_analysis, clfy = False, None
     # return if not an analysis-worthy file
-    if path in SKIP_LIST:
+    if osp.basename(path) in skip_list:
         return False, None
     has_avoid_keyword = any(item in path for item in config['general']['avoid-keywords'])
     has_suffix = config['general']['file-suffix'] in path
@@ -419,6 +415,22 @@ def move_logs(directory, config):
                 exec.submit(move, file, source_dir, directory)
 
 
+def get_skip_list(directory):
+    skip_list_file = osp.join(directory, 'pylinac.pkl')
+    if osp.isfile(skip_list_file):
+        with open(skip_list_file, 'rb') as sl:
+            skip_list = pickle.load(sl)
+    else:
+        skip_list = []
+    return skip_list
+
+
+def set_skip_list(directory, skip_list):
+    skip_list_file = osp.join(directory, 'pylinac.pkl')
+    with open(skip_list_file, 'wb') as sl:
+        pickle.dump(skip_list, sl)
+
+
 def analyze_new_files(directory, config):
     """Analyze any new files that have been moved into the directory pylinac is watching.
 
@@ -431,24 +443,31 @@ def analyze_new_files(directory, config):
     """
     # get files that should be analyzed
     all_files = retrieve_filenames(directory)
+    skip_list = get_skip_list(directory)
 
-    def analyze(file, config):
+    def analyze(file, config, skip_list):
         """The actual analysis and processing function"""
+        add2skip = False
         # determine if file has keyword in it
-        do_analysis, analysis_instance = analysis_should_be_done(file, config)
+        do_analysis, analysis_instance = analysis_should_be_done(file, config, skip_list)
         # process it if so
         if do_analysis:
             time.sleep(0.005)
             try:
-                analysis_instance.process()
+                add2skip = analysis_instance.process()
             except BaseException as e:
                 logger.info(file + " encountered an error and was not processed: {}".format(e))
             gc.collect()
+        return add2skip
 
     # start a thread pool and execute the analysis; thread pool set to 1 due to strange errors w/ >1
-    with concurrent.futures.ThreadPoolExecutor(1) as exec:
-        for file in all_files:
-            exec.submit(analyze, file, config)
+    for file in all_files:
+        add2skip = analyze(file, config, skip_list)
+        if add2skip:
+            skip_list.append(osp.basename(file))
+
+    # update skip list
+    set_skip_list(directory, skip_list)
 
 
 def watch(directory=None, config_file=None):
@@ -578,4 +597,4 @@ def filename_classify(path, config):
         analysis_instance = analysis_class(path, config)
         if analysis_instance.keyword_in_here():
             return True, analysis_instance
-    return False,
+    return False, None
