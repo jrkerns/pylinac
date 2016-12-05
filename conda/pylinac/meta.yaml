@@ -1,11 +1,11 @@
 package:
   name: pylinac
-  version: "1.7.0"
+  version: "1.7.2"
 
 source:
-  fn: pylinac-1.7.0.zip
-  url: https://pypi.python.org/packages/ed/e4/440c05f664794c83982bd591c5e5b3b723b19be734a804e683cec7b8bab4/pylinac-1.7.0.zip#md5=3742a9baa0a3abdc2d6f8604b984a4c8
-  md5: 3742a9baa0a3abdc2d6f8604b984a4c8
+  fn: pylinac-1.7.2.zip
+  url: https://pypi.python.org/packages/db/0d/d2792369ab6f4f6c6ad9b459cafd9b63a407ac173a9ccc47f403ee368636/pylinac-1.7.2.zip#md5=a5bb90019bbffe3f47bb691c77b3e693
+  md5: a5bb90019bbffe3f47bb691c77b3e693
 
 #  patches:
    # List any patch files here

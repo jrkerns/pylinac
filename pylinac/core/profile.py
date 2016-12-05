@@ -947,14 +947,21 @@ def peak_detect(values, threshold=None, min_distance=10, max_number=None, search
     left_end = search_region[0]
     if isinstance(left_end, float):
         left_index = int(left_end*len(values))
-    elif isinstance(left_end, int):
+    elif isinstance(left_end, (int, np.int32)):
         left_index = left_end
 
     right_end = search_region[1]
     if isinstance(right_end, float):
         right_index = int(right_end * len(values))
-    elif isinstance(right_end, int):
+    elif isinstance(right_end, (int, np.int32)):
         right_index = right_end
+
+    # minimum peak spacing calc
+    if isinstance(min_distance, float):
+        if 0 > min_distance >= 1:
+            raise ValueError("When min_peak_width is passed a float, value must be between 0 and 1")
+        else:
+            min_distance = int(min_distance * len(values))
 
     values = values[left_index:right_index]
 
@@ -1017,12 +1024,6 @@ def peak_detect(values, threshold=None, min_distance=10, max_number=None, search
 
     """Enforce the min_peak_distance by removing smaller peaks."""
     # For each peak, determine if the next peak is within the min peak width range.
-    if isinstance(min_distance, float):
-        if 0 > min_distance >= 1:
-            raise ValueError("When min_peak_width is passed a float, value must be between 0 and 1")
-        else:
-            min_distance = int(min_distance * len(values))
-
     index = 0
     while index < len(peak_idxs) - 1:
 

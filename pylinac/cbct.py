@@ -323,14 +323,14 @@ class CBCT:
                   'HU Passed?: {}\n'
                   'Uniformity: {}\n'
                   'Uniformity Passed?: {}\n'
-                  'MTF 80% (lp/mm): {}\n'
+                  'MTF 50% (lp/mm): {}\n'
                   'Geometric Line Average (mm): {}\n'
                   'Geometry Passed?: {}\n'
                   'Low Contrast ROIs visible: {}\n'
                   'Low Contrast Passed? {}\n'
                   'Slice Thickness (mm): {}\n'
                   'Slice Thickness Passed? {}\n').format(self.hu.get_ROI_vals(), self.hu.overall_passed,
-                                                   self.uniformity.get_ROI_vals(), self.uniformity.overall_passed, self.spatialres.mtf(80),
+                                                   self.uniformity.get_ROI_vals(), self.uniformity.overall_passed, self.spatialres.mtf(50),
                                                    self.geometry.avg_line_length, self.geometry.overall_passed, self.lowcontrast.rois_visible,
                                                    self.lowcontrast.overall_passed, self.thickness.avg_slice_thickness,
                                                           self.thickness.passed)
@@ -403,11 +403,10 @@ class Settings:
     Attributes
     ----------
     threshold : int
-        The threshold for converting the image to binary (for things like phantom position locating). Default is -800.
+        The threshold for converting the image to binary (for things like phantom position locating). Default is -600.
     air_bubble_radius_mm : int, float
         The size of the "Air" HU ROIs in mm; for finding the phantom roll.
     """
-    threshold = -600
     hu_tolerance = 40
     scaling_tolerance = 1
     thickness_tolerance = 0.2
@@ -418,6 +417,17 @@ class Settings:
 
     def __init__(self, dicom_stack):
         self.dicom_stack = dicom_stack
+
+    @property
+    @lru_cache(maxsize=1)
+    def threshold(self):
+        """The threshold between air and phantom"""
+        middle_img = self.dicom_stack[int(len(self.dicom_stack)/2)]
+        top_baseline = np.percentile(middle_img[:2, :], 97)
+        left_baseline = np.percentile(middle_img[:, :2], 97)
+        right_baseline = np.percentile(middle_img[:, -2:], 97)
+        avg_baseline = np.mean([top_baseline, left_baseline, right_baseline]) + 200
+        return avg_baseline
 
     @property
     def air_bubble_size(self):
@@ -533,6 +543,7 @@ class Settings:
         """
         slice = self.dicom_stack[self.hu_slice_num]
         slice = slice.as_binary(self.threshold)
+        slice.check_inversion()
         slice.invert()
         labels, no_roi = ndimage.measurements.label(slice)
         # calculate ROI sizes of each label TODO: simplify the air bubble-finding
@@ -540,7 +551,7 @@ class Settings:
         # extract air bubble ROIs (based on size threshold)
         bubble_thresh = self.air_bubble_size
         air_bubbles = [idx + 1 for idx, item in enumerate(roi_sizes) if
-                       bubble_thresh / 1.5 < item < bubble_thresh * 1.5]
+                       (bubble_thresh-20) / 1.5 < item < (bubble_thresh+30) * 1.5]
         # if the algo has worked correctly, it has found 2 and only 2 ROIs (the air bubbles)
         if len(air_bubbles) == 2:
             com1, com2 = ndimage.measurements.center_of_mass(slice, labels, air_bubbles)
@@ -554,7 +565,7 @@ class Settings:
             x_dist = upper_com[1] - lower_com[1]
             phan_roll = np.arctan2(y_dist, x_dist)
         else:
-            phan_roll = 0
+            phan_roll = np.pi/2  # 90 degrees
             print("Warning: CBCT phantom roll unable to be determined; assuming 0")
         return np.rad2deg(phan_roll) - 90
 
@@ -562,7 +573,7 @@ class Settings:
     def expected_phantom_size(self):
         """The expected size of the phantom in pixels, based on a 20cm wide phantom."""
         if self.manufacturer == ELEKTA:
-            radius = 98
+            radius = 97
         else:
             radius = 101
         phan_area = np.pi*(radius**2)  # Area = pi*r^2; slightly larger value used based on actual values acquired
@@ -586,7 +597,8 @@ class HUDiskROI(DiskROI):
     """An HU ROI object. Represents a circular area measuring either HU sample (Air, Poly, ...)
     or HU uniformity (bottom, left, ...).
     """
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, nominal_value=None, tolerance=None):
+    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, nominal_value=None, tolerance=None,
+                 background_median=None, background_std=None):
         """
         Parameters
         ----------
@@ -598,6 +610,13 @@ class HUDiskROI(DiskROI):
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.nominal_val = nominal_value
         self.tolerance = tolerance
+        self.background_median = background_median
+        self.background_std = background_std
+
+    @property
+    def cnr(self):
+        """The contrast-to-noise value of the HU disk"""
+        return 2*abs(self.pixel_value - self.background_median) / (self.std + self.background_std)
 
     @property
     def value_diff(self):
@@ -745,7 +764,7 @@ class Slice:
             raise ValueError("Unable to locate the CatPhan")
         # determine if one of the ROIs is the size of the CatPhan and drop all others
         roi_sizes, _ = np.histogram(labeled_arr, bins=num_roi+1)
-        rois_in_size_criteria = [self.settings.expected_phantom_size * 0.93 < roi_size < self.settings.expected_phantom_size * 1.04 for roi_size in roi_sizes]
+        rois_in_size_criteria = [self.settings.expected_phantom_size * 0.8 < roi_size < self.settings.expected_phantom_size * 1.1 for roi_size in roi_sizes]
         if not any(rois_in_size_criteria):
             raise ValueError("Unable to locate the CatPhan")
         else:
@@ -776,16 +795,28 @@ class HUSlice(Slice, ROIManagerMixin):
     roi_names = ['Air', 'PMP', 'LDPE', 'Poly', 'Acrylic', 'Delrin', 'Teflon']
     roi_nominal_values = [-1000, -200, -100, -35, 120, 340, 990]
     roi_nominal_angles = [-90, -120, 180, 120, 60, 0, -60]
+    bg_roi_angles = [-30, -150, -210, 30]
 
     def __init__(self, dicom_stack, settings):
         super().__init__(dicom_stack, settings)
         self._setup_rois()
 
     def _setup_rois(self):
+        # background ROIs
+        self.bg_rois = OrderedDict()
+        for idx, angle in enumerate(self.bg_roi_angles):
+            self.bg_rois[idx] = HUDiskROI(self.image, angle, self.roi_radius, self.dist2rois,
+                                          self.phan_center)
+        # center background ROI
+        self.bg_rois[idx+1] = HUDiskROI(self.image, 0, self.roi_radius, 0, self.phan_center)
+        bg_median = np.mean([roi.pixel_value for roi in self.bg_rois.values()])
+        bg_std = np.std([roi.pixel_value for roi in self.bg_rois.values()])
+        # actual HU linearity ROIs
         self.rois = OrderedDict()
         for name, angle, nominal_value in zip(self.roi_names, self.roi_angles, self.roi_nominal_values):
             self.rois[name] = HUDiskROI(self.image, angle, self.roi_radius, self.dist2rois,
-                                        self.phan_center, nominal_value, self.tolerance)
+                                        self.phan_center, nominal_value, self.tolerance, background_median=bg_median,
+                                        background_std=bg_std)
 
     @property
     def slice_num(self):
@@ -796,6 +827,11 @@ class HUSlice(Slice, ROIManagerMixin):
     def tolerance(self):
         """The tolerance of the HU linearity ROIs."""
         return self.settings.hu_tolerance
+
+    @property
+    def lcv(self):
+        """The low-contrast visibility"""
+        return 2 * abs(self.rois['LDPE'].pixel_value - self.rois['Poly'].pixel_value) / (self.rois['LDPE'].std + self.rois['Poly'].std)
 
     def plot_linearity(self, axis=None, plot_delta=True):
         """Plot the HU linearity values to an axis.
@@ -831,6 +867,12 @@ class HUSlice(Slice, ROIManagerMixin):
     def overall_passed(self):
         """Boolean specifying whether all the ROIs passed within tolerance."""
         return all(roi.passed for roi in self.rois.values())
+
+    def plot_rois(self, axis, threshold=None):
+        """Plot the ROIs onto the image, as well as the background ROIs"""
+        super().plot_rois(axis, threshold)
+        for roi in self.bg_rois.values():
+            roi.plot2axes(axis, edgecolor='blue')
 
 
 class UniformitySlice(Slice, ROIManagerMixin):
@@ -891,6 +933,21 @@ class UniformitySlice(Slice, ROIManagerMixin):
     def overall_passed(self):
         """Boolean specifying whether all the ROIs passed within tolerance."""
         return all(roi.passed for roi in self.rois.values())
+
+    @property
+    def uniformity_index(self):
+        """The Uniformity Index"""
+        center = self.rois['Center']
+        uis = [100*((roi.pixel_value-center.pixel_value)/(center.pixel_value+1000)) for roi in self.rois.values()]
+        abs_uis = np.abs(uis)
+        return uis[np.argmax(abs_uis)]
+
+    @property
+    def integral_non_uniformity(self):
+        """The Integral Non-Uniformity"""
+        maxhu = max(roi.pixel_value for roi in self.rois.values())
+        minhu = min(roi.pixel_value for roi in self.rois.values())
+        return (maxhu - minhu)/(maxhu + minhu + 2000)
 
 
 class LowContrastSlice(Slice, ROIManagerMixin):
@@ -1003,38 +1060,78 @@ class SpatialResolutionSlice(Slice):
 
     Attributes
     ----------
-    line_pair_frequency : tuple
-        The frequency of line pairs for the first 6 regions.
-    num_peaks : array
-        The index of the peaks for the various regions.
-    num_valleys : array
-        The index of the valleys for the various regions.
     radius2linepairs_mm : float
         The radius in mm to the line pairs.
-    line_pair_cutoff : int
-        The approximate index to stop analyzing the line profile (higher indices are too hard to analyze).
     """
-    line_pair_frequency = (0.2, 0.4, 0.6, 0.8, 1, 1.2)
-    # num_peaks = np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
-    # num_valleys = np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
     radius2linepairs_mm = 47
-    line_pair_cutoff = 0.34
 
     def __init__(self, *args, **kwargs):
         super().__init__(combine_method='max', *args, **kwargs)
 
     @property
+    def sr_rois(self):
+        """Spatial resolution ROI characteristics.
+
+        Returns
+        -------
+        dict
+        """
+        rois = OrderedDict()
+        rois['region 1'] = {'start': 0, 'end': 0.12, 'num peaks': 2, 'num valleys': 1, 'peak spacing': 0.021, 'gap size (cm)': 0.5, 'lp/mm': 0.2}
+        rois['region 2'] = {'start': 0.12, 'end': 0.183, 'num peaks': 3, 'num valleys': 2, 'peak spacing': 0.01, 'gap size (cm)': 0.25, 'lp/mm': 0.4}
+        rois['region 3'] = {'start': 0.183, 'end': 0.245, 'num peaks': 4, 'num valleys': 3, 'peak spacing': 0.006, 'gap size (cm)': 0.167, 'lp/mm': 0.6}
+        rois['region 4'] = {'start': 0.245, 'end': 0.288, 'num peaks': 4, 'num valleys': 3, 'peak spacing': 0.00557, 'gap size (cm)': 0.125, 'lp/mm': 0.8}
+        rois['region 5'] = {'start': 0.288, 'end': 0.3367, 'num peaks': 4, 'num valleys': 3, 'peak spacing': 0.004777, 'gap size (cm)': 0.1, 'lp/mm': 1.0}
+        rois['region 6'] = {'start': 0.3367, 'end': 0.3885, 'num peaks': 5, 'num valleys': 4, 'peak spacing': 0.00398, 'gap size (cm)': 0.083, 'lp/mm': 1.2}
+        rois['region 7'] = {'start': 0.3885, 'end': 0.4355, 'num peaks': 5, 'num valleys': 4, 'peak spacing': 0.00358, 'gap size (cm)': 0.071, 'lp/mm': 1.4}
+        rois['region 8'] = {'start': 0.4355, 'end': 0.4801, 'num peaks': 5, 'num valleys': 4, 'peak spacing': 0.0027866, 'gap size (cm)': 0.063, 'lp/mm': 1.6}
+        return rois
+
+    @property
+    def lp_freq(self):
+        """Line pair frequencies in line pair/mm.
+
+        Returns
+        -------
+        list
+        """
+        return [v['lp/mm'] for v in self.sr_rois.values()]
+
+    @property
+    @lru_cache(maxsize=1)
+    def mtfs(self):
+        """The Relative MTF of the line pairs, normalized to the first region.
+
+        Returns
+        -------
+        dict
+        """
+        mtfs = OrderedDict()
+        for key, value in self.sr_rois.items():
+            max_values = self.circle_profile.find_peaks(min_distance=value['peak spacing'], max_number=value['num peaks'],
+                                                        search_region=(value['start'], value['end']), kind='value')
+            # check that the right number of peaks were found before continuing, otherwise stop searching for regions
+            if len(max_values) != value['num peaks']:
+                break
+            upper_mean = max_values.mean()
+            max_indices = self.circle_profile.find_peaks(min_distance=value['peak spacing'], max_number=value['num peaks'],
+                                                         search_region=(value['start'], value['end']), kind='index')
+            lower_mean = self.circle_profile.find_valleys(min_distance=value['peak spacing'], max_number=value['num valleys'],
+                                                          search_region=(min(max_indices), max(max_indices)), kind='value').mean()
+            mtfs[key] = (upper_mean - lower_mean) / (upper_mean + lower_mean)
+        if not mtfs:
+            raise ValueError("Did not find any spatial resolution pairs to analyze. File an issue on github if this is a valid dataset.")
+
+        # normalize mtf
+        norm = mtfs['region 1']
+        for key, value in mtfs.items():
+            mtfs[key] = value/norm
+        return mtfs
+
+    @property
     def slice_num(self):
         """The slice number of the spatial resolution module."""
         return self.settings.sr_slice_num
-
-    @property
-    def num_peaks(self):
-        return np.array((0, 2, 3, 3, 4, 4, 4)).cumsum()
-
-    @property
-    def num_valleys(self):
-        return np.array((0, 1, 2, 2, 3, 3, 3)).cumsum()
 
     @property
     def radius2linepairs(self):
@@ -1043,7 +1140,7 @@ class SpatialResolutionSlice(Slice):
 
     def plot_rois(self, axis):
         """Plot the circles where the profile was taken within."""
-        self.circle_profile.plot2axes(axis, edgecolor='blue')
+        self.circle_profile.plot2axes(axis, edgecolor='blue', plot_peaks=False)
 
     @property
     @lru_cache(maxsize=1)
@@ -1066,74 +1163,6 @@ class SpatialResolutionSlice(Slice):
         circle_profile.filter(0.001, kind='gaussian')
         return circle_profile
 
-    @property
-    @lru_cache(maxsize=1)
-    def spaced_circle_profile(self):
-        """The median profile of the line pair region with equalized spacing applied.
-
-        The line pairs change in spacing, and this function stretches out the later sections to be similar
-        in peak spacing as those of the larger areas.
-        """
-        line_cutoff = int(self.line_pair_cutoff * len(self.circle_profile.values))
-        spacing_array = np.linspace(1, 12, num=line_cutoff, dtype=int)
-        spaced_array = np.repeat(self.circle_profile.values[:line_cutoff], spacing_array)
-        profile = MultiProfile(spaced_array)
-        profile.ground()
-        return profile
-
-    @property
-    @lru_cache(maxsize=1)
-    def profile_peaks_idxs(self):
-        """Return the peak values and indices of the spaced-out profile."""
-        max_idxs = self.spaced_circle_profile.find_peaks(min_distance=0.025, max_number=17, threshold=0.05)
-        if len(max_idxs) != 17:
-            # TODO: add some robustness here
-            raise ArithmeticError("Did not find the correct number of line pairs")
-        return max_idxs
-
-    @property
-    @lru_cache(maxsize=1)
-    def profile_peaks_vals(self):
-        """Return the peak values and indices of the spaced-out profile."""
-        max_vals = self.spaced_circle_profile.find_peaks(min_distance=0.025, max_number=17, threshold=0.05, kind='value')
-        if len(max_vals) != 17:
-            raise ArithmeticError("Did not find the correct number of line pairs")
-        return max_vals
-
-    @property
-    @lru_cache(maxsize=1)
-    def profile_valleys_idxs(self):
-        """Return the valley values and indices of the spaced-out profile,
-            with valleys in-between line-pair regions removed."""
-        idx2del = np.array((1, 4, 8, 12))
-        min_idxs = np.zeros(16)
-        max_idxs = sorted(self.profile_peaks_idxs)
-        for idx in range(len(max_idxs) - 1):
-            min_idx = self.spaced_circle_profile.find_valleys(search_region=(int(max_idxs[idx]),
-                                                                             int(max_idxs[idx + 1])),
-                                                              max_number=1)
-            if min_idx:
-                min_idxs[idx] = min_idx[0]
-        min_idxs = np.delete(min_idxs, idx2del)
-        return min_idxs
-
-    @property
-    @lru_cache(maxsize=1)
-    def profile_valleys_vals(self):
-        """Return the valley values and indices of the spaced-out profile,
-            with valleys in-between line-pair regions removed."""
-        idx2del = np.array((1, 4, 8, 12))
-        min_vals = np.zeros(16)
-        max_idxs = sorted(self.profile_peaks_idxs)
-        for idx in range(len(max_idxs) - 1):
-            min_idx = self.spaced_circle_profile.find_valleys(search_region=(int(max_idxs[idx]),
-                                                                             int(max_idxs[idx + 1])),
-                                                              max_number=1, kind='value')
-            if min_idx:
-                min_vals[idx] = min_idx[0]
-        min_vals = np.delete(min_vals, idx2del)
-        return min_vals
-
     def mtf(self, percent=None, region=None):
         """Return the MTF value of the spatial resolution. Only one of the two parameters may be used.
 
@@ -1151,30 +1180,14 @@ class SpatialResolutionSlice(Slice):
         if (region is None and percent is None) or (region is not None and percent is not None):
             raise ValueError("Must pass in either region or percent")
         if percent is not None:
-            x_vals_intrp = np.arange(self.line_pair_frequency[0], self.line_pair_frequency[-1], 0.01)
-            x_vals = np.array(self.line_pair_frequency)
-            y_vals = self.line_pair_mtfs
+            y_vals = list(self.mtfs.values())
+            x_vals_intrp = np.arange(self.lp_freq[0], self.lp_freq[len(y_vals)-1], 0.01)
+            x_vals = self.lp_freq[:len(y_vals)]
             y_vals_intrp = np.interp(x_vals_intrp, x_vals, y_vals)
-            # TODO: warn user if value at MTF edge; may not be true MTF
             mtf_percent = x_vals_intrp[np.argmin(np.abs(y_vals_intrp - (percent / 100)))]
             return simple_round(mtf_percent, 2)
         elif region is not None:
             return self.line_pair_mtfs[region]
-
-    @property
-    @lru_cache(maxsize=1)
-    def line_pair_mtfs(self):
-        """The discrete MTF values at the line-pair regions."""
-        num_peaks = self.num_peaks
-        num_valleys = self.num_valleys
-        mtfs = []
-        for frequency, region in zip(self.line_pair_frequency, range(len(num_peaks) - 1)):
-            region_max = self.profile_peaks_vals[num_peaks[region]:num_peaks[region + 1]].mean()
-            region_min = self.profile_valleys_vals[num_valleys[region]:num_valleys[region + 1]].mean()
-            mtfs.append((region_max - region_min) / (region_max + region_min))
-        # normalize the values by the first LP
-        mtfs = np.array(mtfs) / max(mtfs)
-        return mtfs
 
     def plot_mtf(self, axis=None):
         """Plot the Relative MTF.
@@ -1186,9 +1199,8 @@ class SpatialResolutionSlice(Slice):
         """
         if axis is None:
             fig, axis = plt.subplots()
-        line_pairs = self.line_pair_frequency
-        mtf_vals = self.line_pair_mtfs
-        points = axis.plot(line_pairs, mtf_vals, marker='o')
+        mtf_vals = list(self.mtfs.values())
+        points = axis.plot(self.lp_freq[:len(mtf_vals)], mtf_vals, marker='o')
         axis.margins(0.05)
         axis.grid('on')
         axis.set_xlabel('Line pairs / mm')
@@ -1273,12 +1285,12 @@ class GeoDiskROI(DiskROI):
             A masked 2D array the size of the Slice image, where only the node pixels have a value.
         """
         masked_img = np.abs(self.circle_mask())
+        # normalize image
+        norm_masked = masked_img / np.nanmedian(masked_img)
         # threshold image
-        nanmedian = np.nanmedian(masked_img)
-        nanmin = np.nanmin(masked_img)
-        masked_img = np.nan_to_num(masked_img)
-        upper_band_pass = masked_img > nanmedian * 1.4
-        lower_band_pass = (masked_img < nanmedian * 0.6) & (masked_img > nanmin)
+        masked_img = np.nan_to_num(norm_masked)
+        upper_band_pass = masked_img > 1.3
+        lower_band_pass = (masked_img < 0.7) & (masked_img > 0)
         bw_node = upper_band_pass + lower_band_pass
         return bw_node
 

@@ -21,6 +21,7 @@ def watch(directory=None, config=None):
 @cli.command()
 @click.option('--directory', type=click.Path(exists=True))
 @click.option('--config', type=click.Path(exists=True))
+@click.option('--move-new-logs', type=click.BOOL)
 def process(directory=None, config=None):
     """Process any applicable files in the directory once through."""
     watcher.process(directory, config)

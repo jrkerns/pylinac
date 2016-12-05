@@ -53,7 +53,7 @@ class VarianStandardHead(CBCTBankMixin, TestCase):
     slice_locations = {'HU': 31, 'UN': 6, 'SR': 43, 'LC': 19}
     hu_values = {'Poly': -43, 'Acrylic': 124, 'Delrin': 345, 'Air': -991, 'Teflon': 997, 'PMP': -199, 'LDPE': -101}
     unif_values = {'Center': 17, 'Left': 15, 'Right': 4, 'Top': 9, 'Bottom': 9}
-    mtf_values = {60: 0.95, 70: 0.85, 80: 0.72, 90: 0.36, 95: 0.32}
+    mtf_values = {60: 0.95, 70: 0.85, 80: 0.72, 90: 0.55, 95: 0.32}
     avg_line_length = 49.94
     lowcon_visible = 1
     thickness_passed = True
@@ -66,7 +66,7 @@ class VarianLowDoseHead(CBCTBankMixin, TestCase):
     slice_locations = {'HU': 32, 'UN': 6, 'SR': 44, 'LC': 20}
     hu_values = {'Poly': -41, 'Acrylic': 123, 'Delrin': 350, 'Air': -990, 'Teflon': 998, 'PMP': -200, 'LDPE': -103}
     unif_values = {'Center': 16, 'Left': 11, 'Right': 3, 'Top': 7, 'Bottom': 6}
-    mtf_values = {60: 0.87, 70: 0.84, 80: 0.66, 90: 0.49, 95: 0.41}
+    mtf_values = {60: 0.87, 70: 0.72, 80: 0.66, 90: 0.49, 95: 0.41}
     lowcon_visible = 1
     avg_line_length = 49.93
 
@@ -302,6 +302,35 @@ class Katy1(CBCTBankMixin, TestCase):
     lowcon_visible = 3
 
 
+class AGElekta1(CBCTBankMixin, TestCase):
+    """An Elekta CBCT dataset"""
+    file_path = ['AG Elekta', 'F0-M20-mA25.zip']
+    expected_roll = -1.23
+    slice_locations = {'HU': 189, 'UN': 79, 'SR': 159, 'LC': 159}
+    hu_values = {'Poly': 341, 'Acrylic': 447, 'Delrin': 590, 'Air': -339, 'Teflon': 1039, 'PMP': 241, 'LDPE': 308}
+    hu_passed = False
+    unif_values = {'Center': 397, 'Left': 355, 'Right': 346, 'Top': 348, 'Bottom': 350}
+    unif_passed = False
+    mtf_values = {80: 0.25, 90: 0.23, 60: 0.31, 70: 0.28, 95: 0.21}
+    lowcon_visible = 1
+    avg_line_length = 50.3
+    thickness_passed = False
+
+
+class AGElekta2(CBCTBankMixin, TestCase):
+    """An Elekta CBCT dataset"""
+    file_path = ['AG Elekta', 'F1-S10-mA10.zip']
+    expected_roll = -0.44
+    slice_locations = {'HU': 189, 'UN': 79, 'SR': 159, 'LC': 159}
+    hu_values = {'Poly': 746, 'Acrylic': 834, 'Delrin': 969, 'Air': 176, 'Teflon': 1324, 'PMP': 663, 'LDPE': 717}
+    hu_passed = False
+    unif_values = {'Center': 701, 'Left': 758, 'Right': 748, 'Top': 758, 'Bottom': 752}
+    unif_passed = False
+    mtf_values = {80: 0.25, 90: 0.23, 60: 0.42, 70: 0.28, 95: 0.21}
+    lowcon_visible = 1
+    thickness_passed = False
+
+
 class Elekta4(CBCTBankMixin, TestCase):
     """An Elekta CBCT dataset"""
     file_path = ['Elekta_4.zip']
@@ -343,7 +372,7 @@ class UNC100kV(CBCTBankMixin, TestCase):
     hu_passed = False
     unif_values = {'Center': -45, 'Left': -72, 'Right': -73, 'Top': -71, 'Bottom': -61}
     unif_passed = False
-    mtf_values = {80: 0.81, 90: 0.66, 60: 1.1, 70: 0.91, 95: 0.56}
+    mtf_values = {80: 0.81, 90: 0.66, 60: 0.96, 70: 0.91, 95: 0.56}
 
 
 class UNC120kV(CBCTBankMixin, TestCase):

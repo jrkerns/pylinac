@@ -937,5 +937,8 @@ class DicomImageStack:
     def __getitem__(self, item):
         return self.images[item]
 
+    def __setitem__(self, key, value):
+        self.images[key] = value
+
     def __len__(self):
         return len(self.images)

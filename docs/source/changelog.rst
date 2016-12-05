@@ -3,6 +3,14 @@
 Changelog
 =========
 
+v 1.7.2
+-------
+
+* Fixed `(#78) <https://github.com/jrkerns/pylinac/issues/78>`_ - Certain CBCT datasets have irregular background
+  values. Additionally, the dead space in the square CT dataset outside the field of view can also be very different
+  from the air background. This fix analyzes the dataset for the air background value and uses that as a baseline value
+  to use as a CatPhan detection threshold.
+
 V 1.7.0
 -------
 

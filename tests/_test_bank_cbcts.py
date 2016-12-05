@@ -18,7 +18,7 @@ def run_cbct(path):
 
 class CBCTTestBank(DataBankMixin, TestCase):
     DATA_DIR = ['CBCTs']
-    print_success_path = True
+    print_success_path = False
 
     def file_should_be_processed(self, filepath):
         return filepath.endswith('.zip')
