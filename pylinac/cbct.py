@@ -31,7 +31,7 @@ from .core.decorators import value_accept
 from .core.geometry import Point, Line
 from .core.io import get_url, retrieve_demo_file
 from .core.mask import filled_area_ratio
-from .core.profile import MultiProfile, CollapsedCircleProfile, SingleProfile
+from .core.profile import CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import simple_round, import_mpld3, minmax_scale
 from .settings import get_dicom_cmap
@@ -1120,7 +1120,7 @@ class SpatialResolutionSlice(Slice):
                                                           search_region=(min(max_indices), max(max_indices)), kind='value').mean()
             mtfs[key] = (upper_mean - lower_mean) / (upper_mean + lower_mean)
         if not mtfs:
-            raise ValueError("Did not find any spatial resolution pairs to analyze. File an issue on github if this is a valid dataset.")
+            raise ValueError("Did not find any spatial resolution pairs to analyze. File an issue on github (https://github.com/jrkerns/pylinac/issues) if this is a valid dataset.")
 
         # normalize mtf
         norm = mtfs['region 1']
@@ -1161,6 +1161,7 @@ class SpatialResolutionSlice(Slice):
                                                 start_angle=start_angle + np.deg2rad(self.settings.phantom_roll),
                                                 width_ratio=0.04, sampling_ratio=2, ccw=ccw)
         circle_profile.filter(0.001, kind='gaussian')
+        circle_profile.ground()
         return circle_profile
 
     def mtf(self, percent=None, region=None):
