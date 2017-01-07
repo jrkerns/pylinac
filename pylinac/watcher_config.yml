@@ -81,8 +81,9 @@ picketfence:
   failure:
     passed: false
 
-# CBCT SETTINGS
-cbct:
+# CATPHAN SETTINGS
+catphan:
+  model: CatPhan504
   keywords:
     - cbct
     - ct
@@ -116,11 +117,10 @@ leeds:
     low_contrast_threshold: 0.005
     hi_contrast_threshold: 0.4
 
-# PIPSPRO QC-3 SETTINGS
-pipspro:
+# Standard Imaging QC-3 SETTINGS
+qc3:
   keywords:
     - pips
-    - pro
     - qc
   analysis:
     low_contrast_threshold: 0.005

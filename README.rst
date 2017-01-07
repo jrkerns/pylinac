@@ -1,6 +1,10 @@
 Pylinac
 =======
 
+.. image:: https://s3.amazonaws.com/pylinac/Pylinac+Full.png
+    :width: 100%
+    :target: https://github.com/jrkerns/pylinac
+
 .. image:: https://badges.gitter.im/Join%20Chat.svg
    :alt: Join the chat at https://gitter.im/jrkerns/pylinac
    :target: https://gitter.im/jrkerns/pylinac?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
@@ -243,15 +247,15 @@ Below are the high-level tools currently available:
         vmat.plot_analyzed_image()  # shows a matplotlib figure
 
 * `CT & CBCT QA <http://pylinac.readthedocs.org/en/stable/cbct_docs.html>`_ -
-    The CBCT module automatically analyzes DICOM images of a CatPhan 504 or 503 acquired when doing CBCT or regular CT quality assurance. It can load a folder or zip file that
-    the images are in and automatically correct for phantom setup in 6 degrees.
+    The CBCT module automatically analyzes DICOM images of a CatPhan 504, 503, or 600 acquired when doing CT or CBCT quality assurance. It can load a folder or zip file that
+    the images are in and automatically correct for phantom setup in 6 axes.
     It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
     uniformity (CTP486) on the corresponding slice.
 
     Features:
 
     * **Automatic phantom registration** - Your phantom can be tilted, rotated, or translated--pylinac will register the phantom.
-    * **Automatic testing of 4 major modules** - Major modules are automatically registered and analyzed.
+    * **Automatic testing of all major modules** - Major modules are automatically registered and analyzed.
     * **Any scan protocol** - Scan your CatPhan with any protocol; or even scan it in a regular CT scanner.
       Any field size or field extent is allowed.
 
@@ -259,9 +263,10 @@ Below are the high-level tools currently available:
 
     .. code-block:: python
 
-        from pylinac import CBCT
+        from pylinac import CatPhan504, CatPhan503, CatPhan600
 
-        cbct = CBCT("my/cbct_image_folder")
+        # for this example, we'll use the CatPhan504
+        cbct = CatPhan504("my/cbct_image_folder")
         cbct.analyze(hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2, low_contrast_threshold=1)
         print(cbct.return_results())
         cbct.plot_analyzed_image()

@@ -89,7 +89,7 @@ Let's set the DICOM plots to be 'cool':
     import pylinac
     # change the colormap setting
     pylinac.settings.DICOM_COLORMAP = 'cool'
-    pylinac.CBCT.run_demo()
+    pylinac.CatPhan504.run_demo()
 
 This will result in something like this:
 
@@ -99,7 +99,7 @@ This will result in something like this:
     import pylinac
     # change the colormap setting
     pylinac.settings.DICOM_COLORMAP = plt.cm.cool
-    pylinac.CBCT.run_demo()
+    pylinac.CatPhan504.run_demo()
 
 We can also change other arrays, for example the arrays in the `log_analyzer` module.
 Let's change it to the newer, better matplotlib default colormap, viridis:

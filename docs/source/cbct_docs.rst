@@ -1,51 +1,53 @@
 
-=========================
-CBCT module documentation
-=========================
+============================
+CatPhan module documentation
+============================
 
 Overview
 --------
 
-.. automodule:: pylinac.cbct
+.. automodule:: pylinac.ct
     :no-members:
 
 Running the Demo
 ----------------
 
-To run the CBCT demo, create a script or start an interpreter and input:
+To run one of the CatPhan demos, create a script or start an interpreter and input:
 
 .. code-block:: python
 
-    from pylinac import CBCT
-    CBCT.run_demo() # the demo is a Varian high quality head scan
+    from pylinac import CatPhan504
+    CatPhan504.run_demo() # the demo is a Varian high quality head scan
 
 Results will be printed to the console and a figure showing the slices analyzed will pop up::
 
-    - CBCT QA Test -
-    HU Regions: {'LDPE': -102.66666666666667, 'Acrylic': 117.33333333333333, 'Air': -998.66666666666663, 'Teflon': 998.66666666666663, 'Poly': -45.333333333333336, 'PMP': -200.0, 'Delrin': 342.33333333333331}
+     - CatPhan 504 QA Test -
+    HU Linearity ROIs: {'Poly': -45.0, 'PMP': -200.0, 'Acrylic': 115.0, 'Teflon': 997.0, 'Delrin': 340.0, 'Air': -998.0, 'LDPE': -102.0}
     HU Passed?: True
-    Uniformity: {'Right': 0.0, 'Top': 4.666666666666667, 'Left': 10.666666666666666, 'Center': 16.333333333333332, 'Bottom': 5.333333333333333}
+    Uniformity ROIs: {'Center': 14.0, 'Top': 6.0, 'Left': 10.0, 'Bottom': 5.0, 'Right': 0.0}
+    Uniformity index: -1.3806706114398422
+    Integral non-uniformity: 0.006951340615690168
     Uniformity Passed?: True
-    MTF 80% (lp/mm): 0.76
-    Geometric Line Average (mm): 49.93901922841176
+    MTF 50% (lp/mm): 0.95
+    Low contrast ROIs "seen": 3
+    Low contrast visibility: 3.4654015681608437
+    Geometric Line Average (mm): 49.93054775087732
     Geometry Passed?: True
-    Low Contrast ROIs visible: 4
-    Low Contrast Passed? True
-    Slice Thickness (mm): 2.4705078124999997
-    Slice Thickeness Passed? True
+    Slice Thickness (mm): 2.5007568359375
+    Slice Thickness Passed? True
 
 .. plot::
 
-    from pylinac import CBCT
-    cbct = CBCT.from_demo_images()
-    cbct.analyze(use_classifier=False)
+    from pylinac import CatPhan504
+    cbct = CatPhan504.from_demo_images()
+    cbct.analyze()
     cbct.plot_analyzed_image()
 
 As well, you can plot and save individual pieces of the analysis:
 
 .. code-block:: python
 
-    cbct = CBCT.from_demo_images()
+    cbct = CatPhan504.from_demo_images()
     cbct.analyze()
     cbct.plot_analyzed_subimage('linearity')
     cbct.save_analyzed_subimage('linearity.png', subimage='linearity')
@@ -65,44 +67,47 @@ Or:
 Typical Use
 -----------
 
-CBCT analysis as done by this module closely follows what is specified in the CatPhan manuals, replacing the need for manual measurements.
-First, import the class:
+CatPhan analysis as done by this module closely follows what is specified in the CatPhan manuals, replacing the need for manual measurements.
+There are 3 CatPhan models that pylinac can analyze: :class:`~pylinac.ct.CatPhan504`, :class:`~pylinac.ct.CatPhan503`, & :class:`~pylinac.ct.CatPhan600`
+, each with their own class in
+pylinac. Let's assume you have the CatPhan504 for this example. Using the other models/classes is exactly
+the same except the class name.
 
 .. code-block:: python
 
-    from pylinac import CBCT
+    from pylinac import CatPhan504  # or import the CatPhan503 or CatPhan600
 
 The minimum needed to get going is to:
 
-* **Load images** -- Loading the DICOM images into your CBCT object is done by passing the images in during construction.
+* **Load images** -- Loading the DICOM images into your CatPhan object is done by passing the images in during construction.
   The most direct way is to pass in the directory where the images are:
 
   .. code-block:: python
 
     cbct_folder = r"C:/QA Folder/CBCT/June monthly"
-    mycbct = CBCT(cbct_folder)
+    mycbct = CatPhan504(cbct_folder)
 
   or load a zip file of the images:
 
   .. code-block:: python
 
     zip_file = r"C:/QA Folder/CBCT/June monthly.zip"
-    mycbct = CBCT.from_zip(zip_file)
+    mycbct = CatPhan504.from_zip(zip_file)
 
   You can also use the demo images provided:
 
   .. code-block:: python
 
-    mycbct = CBCT.from_demo_images()
+    mycbct = CatPhan504.from_demo_images()
 
-* **Analyze the images** -- Once the folder/images are loaded, tell CBCT to start analyzing the images. See the
-  Algorithm section for details and :meth:`~pylinac.cbct.CBCT.analyze`` for analysis options:
+* **Analyze the images** -- Once the folder/images are loaded, tell pylinac to start analyzing the images. See the
+  Algorithm section for details and :meth:`~pylinac.cbct.CatPhan504.analyze`` for analysis options:
 
   .. code-block:: python
 
     mycbct.analyze()
 
-* **View the results** -- The CBCT module can print out the summary of results to the console as well as draw a matplotlib image to show where the
+* **View the results** -- The CatPhan module can print out the summary of results to the console as well as draw a matplotlib image to show where the
   samples were taken and their values:
 
   .. code-block:: python
@@ -112,12 +117,12 @@ The minimum needed to get going is to:
       # view analyzed images
       mycbct.plot_analyzed_image()
       # save the image
-      mycbct.save_analyzed_image('mycbct.png')
+      mycbct.save_analyzed_image('mycatphan504.png')
 
 Algorithm
 ---------
 
-The CBCT module is based on the tests and values given in the CatPhan 504 Manual. The algorithm works like such:
+The CatPhan module is based on the tests and values given in the respective CatPhan manual. The algorithm works like such:
 
 **Allowances**
 
@@ -129,8 +134,8 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
-* The phantom used must be an unmodified CatPhan 504.
-* All 4 of the relevant modules must be within the scan extent; i.e. one can't scan only part of the phantom.
+* The phantom used must be an unmodified CatPhan 504, 503, or 600.
+* All of the relevant modules must be within the scan extent; i.e. one can't scan only part of the phantom.
 
 
 **Pre-Analysis**
@@ -205,49 +210,61 @@ Most problems in this module revolve around getting the data loaded.
   Also make sure you've scanned the whole phantom.
 * Make sure there are no external markers on the CatPhan (e.g. BBs), otherwise the localization
   algorithm will not be able to properly locate the phantom within the image.
+* Set the ``classifier`` parameter to ``False`` when loading images. This will use a slower, brute-force
+  method to find the CTP404 module, but may give more reliable results:
 
+  .. code-block:: python
+
+      from pylinac import CatPhan503
+      cp = CatPhan503('my/folder', use_classifier=False)
+
+* Make sure you're loading the right CatPhan class. I.e. using a CatPhan600 class on a CatPhan504
+  scan may result in errors or erroneous results.
 
 API Documentation
 -----------------
 
-The CBCT class uses several other classes. There are several Slices of Interest (SOI), most of which contain Regions of Interest (ROI).
+The CatPhan classes uses several other classes. There are several Slices of Interest (SOI), most of which contain Regions of Interest (ROI).
 
-.. autoclass:: pylinac.cbct.CBCT
+.. autoclass:: pylinac.ct.CatPhan504
 
-Supporting Data Structure
+.. autoclass:: pylinac.ct.CatPhan503
 
-.. autoclass:: pylinac.cbct.Settings
+.. autoclass:: pylinac.ct.CatPhan600
 
-Slice Objects
+.. autoclass:: pylinac.ct.CatPhanBase
 
-.. autoclass:: pylinac.cbct.Slice
+Module classes (CTP404, etc)
 
-.. autoclass:: pylinac.cbct.HUSlice
+.. autoclass:: pylinac.ct.Slice
 
-.. autoclass:: pylinac.cbct.UniformitySlice
+.. autoclass:: pylinac.ct.CatPhanModule
 
-.. autoclass:: pylinac.cbct.GeometrySlice
+.. autoclass:: pylinac.ct.CTP404
 
-.. autoclass:: pylinac.cbct.SpatialResolutionSlice
+.. autoclass:: pylinac.ct.CTP528
 
-.. autoclass:: pylinac.cbct.LowContrastSlice
+.. autoclass:: pylinac.ct.CTP515
 
-.. autoclass:: pylinac.cbct.ThicknessSlice
+.. autoclass:: pylinac.ct.CTP486
+
 
 ROI Objects
 
-.. autoclass:: pylinac.cbct.ROIManagerMixin
+.. autoclass:: pylinac.ct.ROIManagerMixin
 
-.. autoclass:: pylinac.cbct.DiskROI
+.. autoclass:: pylinac.ct.HUDiskROI
 
-.. autoclass:: pylinac.cbct.HUDiskROI
+.. autoclass:: pylinac.ct.GeoDiskROI
 
-.. autoclass:: pylinac.cbct.GeoDiskROI
+.. autoclass:: pylinac.ct.RectangleROI
 
-.. autoclass:: pylinac.cbct.LowContrastDiskROI
+.. autoclass:: pylinac.ct.ThicknessROI
 
-.. autoclass:: pylinac.cbct.RectangleROI
+.. autoclass:: pylinac.ct.GeometricLine
 
-.. autoclass:: pylinac.cbct.ThicknessROI
+Helper Functions
 
-.. autoclass:: pylinac.cbct.GeometricLine
+.. autofunction:: combine_surrounding_slices
+
+.. autofunction:: get_catphan_classifier

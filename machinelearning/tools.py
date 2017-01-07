@@ -145,7 +145,7 @@ def train(path, train_size, parameters, clf_name):
     print("With a training score of:")
     print(classifier.best_score_)
     print()
-    print("Classification report:")
+    print("Test data classification report:")
     print(metrics.classification_report(y_test, classifier.predict(data_test)))
     with gzip.open(clf_name + '_classifier.pkl.gz', mode='wb') as m:
         pickle.dump(classifier, m)

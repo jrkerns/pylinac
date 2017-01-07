@@ -6,6 +6,7 @@ import os
 from functools import lru_cache
 import gc
 import gzip
+import importlib
 import logging
 import os.path as osp
 import pickle
@@ -20,7 +21,7 @@ from pylinac.core.io import retrieve_demo_file, retrieve_filenames
 from pylinac.core.image import prepare_for_classification
 from pylinac.core import schedule
 
-from pylinac import CBCT, VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log
+from pylinac import VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log
 from pylinac.log_analyzer import IMAGING
 
 logger = logging.getLogger("pylinac")
@@ -221,10 +222,10 @@ class AnalyzeLeeds(AnalyzeMixin):
         pass
 
 
-class AnalyzePipsPro(AnalyzeMixin):
+class AnalyzeQC3(AnalyzeMixin):
     """Analysis runner for PipsPro QC-3."""
     obj = StandardImagingQC3
-    config_name = 'pipspro'
+    config_name = 'qc3'
 
     def save_text(self):
         """Pipspro analysis does not have a text file result"""
@@ -255,23 +256,27 @@ class AnalyzePF(AnalyzeMixin):
     config_name = 'picketfence'
 
 
-class AnalyzeCBCT(AnalyzeMixin):
+class AnalyzeCatPhan(AnalyzeMixin):
     """Analysis runner for CBCTs."""
-    obj = CBCT.from_zip
-    config_name = 'cbct'
+    config_name = 'catphan'
     expecting_zip = True
+
+    def __init__(self, path, config):
+        super().__init__(path=path, config=config)
+        p = importlib.import_module('pylinac')
+        self.obj = getattr(p, config[self.config_name]['model']).from_zip
 
     def should_send_failure_email(self):
         """Failure of CBCT depends on individual module performance."""
         send = False
         for key, val in self.failure_settings:
-            if key == 'hu-passed' and not self.instance.hu.overall_passed:
+            if key == 'hu-passed' and not self.instance.ctp404.passed_hu:
                 send = True
-            if key == 'uniformity-passed' and not self.instance.uniformity.overall_passed:
+            if key == 'uniformity-passed' and not self.instance.ctp486.overall_passed:
                 send = True
-            if key == 'geometry-passed' and not self.instance.geometry.overall_passed:
+            if key == 'geometry-passed' and not self.instance.ctp404.passed_geometry:
                 send = True
-            if key == 'thickness-passed' and not self.instance.thickness.passed:
+            if key == 'thickness-passed' and not self.instance.ctp404.passed_thickness:
                 send = True
         return send
 
@@ -566,7 +571,7 @@ def auto_classify(path, config):
         if classification == 1:
             return True, AnalyzePF(path, config)
         elif classification == 2:
-            return True, AnalyzePipsPro(path, config)
+            return True, AnalyzeQC3(path, config)
         elif classification == 3:
             return True, AnalyzeLeeds(path, config)
         elif classification == 4:
@@ -592,7 +597,7 @@ def get_image_classifier():
 
 def filename_classify(path, config):
     """Classify an image using the filename convention."""
-    analysis_classes = (AnalyzeStar, AnalyzeCBCT, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog, AnalyzeLeeds, AnalyzePipsPro)
+    analysis_classes = (AnalyzeStar, AnalyzeCatPhan, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog, AnalyzeLeeds, AnalyzeQC3)
     for analysis_class in analysis_classes:
         analysis_instance = analysis_class(path, config)
         if analysis_instance.keyword_in_here():

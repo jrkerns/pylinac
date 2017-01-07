@@ -3,6 +3,71 @@
 Changelog
 =========
 
+v 1.8.0
+-------
+
+Watcher/Processer
+^^^^^^^^^^^^^^^^^
+
+* The cbct analysis section has been renamed to ``catphan``. Thus, the YAML config file needs to look like the
+  following::
+
+    # other sections
+    ...
+
+    catphan:  # not cbct:
+        ...
+
+    ...
+
+
+CBCT
+^^^^
+
+* The Python file/module has been renamed ``ct`` from ``cbct``. E.g.::
+
+    from pylinac.ct import ...
+
+  Most users import directly from pylinac, so this should affect very few people.
+* The CBCT module can now support analysis of the CatPhan 600.
+* Automatic detection of the phantom is no longer be performed. Previously, it depended on the
+  manufacturer to determine the phantom (Varian->504, Elekta->503), but that did not consider users scanning the
+  CatPhan in their CT scanners, which would give inconsistent results.
+* Due to the above, separate classes have been made for the CatPhan models. I.e. flow looks like this now::
+
+    from pylinac import CatPhan504, CatPhan600
+    cat504 = CatPhan504('my/folder')
+    cat600 = CatPhan600.from_zip('my/zip.zip')
+
+* Users using the watcher/processer functions must now specify the model to analyze. E.g. in the YAML configuration
+  file. The model name must match the class name exactly::
+
+    catphan:
+        model: CatPhan504
+
+* A classifier has been generated for each CatPhan. Thus, if loading a 503, a 503 classifier will be used, rather
+  than a general classifier for all phantoms.
+* The ``use_classifier`` parameter has been moved from the ``analyze()`` method to the class instantiation
+  methods like so::
+
+    from pylinac import CatPhan504
+    cat504 = CatPhan504('my/folder', use_classifier=True)
+    cat504.analyze()  # no classifier argument
+
+* MTF is now more consistently calculated. Previously, it would simply look at the first 6 line pair regions.
+  In cases of low mA or very noisy images, finding the last few regions would error out or give inconsistent results.
+  Contrarily, high dose/image quality scans would only give MTF down to ~50% since the resolution was so good.
+  Now, MTF is searched for region-by-region until it cannot find the correct amount of peaks and valleys, meaning it
+  is now lost in the noise. This means high-quality scans will find and calculate MTF over more regions and fewer for
+  low-quality scans. In general, this makes the MTF plot much more consistent and usually always gives the RMTF down to
+  0-20%.
+* Individual modules are now only composed of 1 slice rather than averaging the nearby slices. Previously, for consistency,
+  a given module (e.g. CTP404) would find the correct slice and then average the pixel values of the slices on either side
+  of it to reduce noise and give more consistent results. The drawback of this method is that results that depend on the
+  noise of the image are not accurate, and signal/noise calculations were always higher than reality if only looking at
+  one slice.
+
+
 v 1.7.2
 -------
 

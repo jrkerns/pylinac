@@ -3,28 +3,27 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
-from pylinac import CBCT
+from pylinac import CatPhan503, CatPhan504, CatPhan600
 from pylinac.core.geometry import Point
 from tests.utils import save_file, LoadingTestBase, LocationMixin
 
-VARIAN_DIR = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Varian')
-ELEKTA_DIR = osp.join(osp.dirname(__file__), 'test_files', 'CBCT', 'Elekta')
+TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'CBCT')
 plt.close('all')
 
 
 class CBCTLoading(LoadingTestBase, TestCase):
-    klass = CBCT
-    constructor_input = osp.join(VARIAN_DIR, 'Pelvis')
+    klass = CatPhan504
+    constructor_input = osp.join(TEST_DIR, 'Pelvis')
     demo_load_method = 'from_demo_images'
-    url = 'High_quality_head.zip'
-    zip = osp.join(VARIAN_DIR, 'CBCT_4.zip')
+    url = 'CatPhan504.zip'
+    zip = osp.join(TEST_DIR, 'CBCT_4.zip')
 
 
 class GeneralTests(TestCase):
     """Test general things when using cbct module."""
 
     def setUp(self):
-        self.cbct = CBCT.from_demo_images()
+        self.cbct = CatPhan504.from_demo_images()
 
     def test_demo(self):
         """Run the demo to make sure it works."""
@@ -39,15 +38,15 @@ class GeneralTests(TestCase):
         """Test locations of the phantom center."""
         known_phan_center = Point(257, 255)
         self.cbct.analyze()
-        self.assertAlmostEqual(self.cbct.hu.phan_center.x, known_phan_center.x, delta=0.7)
-        self.assertAlmostEqual(self.cbct.hu.phan_center.y, known_phan_center.y, delta=0.7)
+        self.assertAlmostEqual(self.cbct.ctp404.phan_center.x, known_phan_center.x, delta=0.7)
+        self.assertAlmostEqual(self.cbct.ctp404.phan_center.y, known_phan_center.y, delta=0.7)
 
 
 class PlottingSaving(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.cbct = CBCT.from_demo_images()
+        cls.cbct = CatPhan504.from_demo_images()
         cls.cbct.analyze()
 
     @classmethod
@@ -75,30 +74,29 @@ class PlottingSaving(TestCase):
 class CBCTMixin(LocationMixin):
     """A mixin to use for testing Varian CBCT scans; does not inherit from TestCase as it would be run
         otherwise."""
+    catphan = CatPhan504
+    use_classifier = True
+    origin_slice = 0
     file_path = []
-    dir_location = VARIAN_DIR
+    dir_location = TEST_DIR
     hu_tolerance = 40
     scaling_tolerance = 1
     zip = True
     expected_roll = 0
-    slice_locations = {}
     hu_values = {}
-    hu_passed = True
     unif_values = {}
-    unif_passed = True
     mtf_values = {}
     avg_line_length = 50
-    length_passed = True
-    thickness_passed = True
+    slice_thickness = 2
     lowcon_visible = 0
 
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
         if cls.zip:
-            cls.cbct = CBCT.from_zip(filename)
+            cls.cbct = cls.catphan.from_zip(filename, use_classifier=cls.use_classifier)
         else:
-            cls.cbct = CBCT(filename)
+            cls.cbct = cls.catphan(filename, use_classifier=cls.use_classifier)
         cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
 
     @classmethod
@@ -108,65 +106,58 @@ class CBCTMixin(LocationMixin):
 
     def test_slice_thickness(self):
         """Test the slice thickness."""
-        self.assertEqual(self.cbct.thickness.passed, self.thickness_passed)
+        self.assertAlmostEqual(self.cbct.ctp404.meas_slice_thickness, float(self.cbct.dicom_stack.metadata.SliceThickness), delta=0.3)
 
     def test_lowcontrast_bubbles(self):
         """Test the number of low contrast bubbles visible."""
-        self.assertAlmostEqual(self.cbct.lowcontrast.rois_visible, self.lowcon_visible, delta=1)
-
-    def test_all_passed(self):
-        """Test the pass flags for all tests."""
-        self.assertEqual(self.cbct.hu.overall_passed, self.hu_passed)
-        self.assertEqual(self.cbct.uniformity.overall_passed, self.unif_passed)
-        self.assertEqual(self.cbct.geometry.overall_passed, self.length_passed)
+        if not isinstance(self.cbct, CatPhan503):
+            self.assertAlmostEqual(self.cbct.ctp515.rois_visible, self.lowcon_visible, delta=1)
 
     def test_slice_locations(self):
         """Test the locations of the slices of interest."""
-        for attr, slice_name in zip(('hu_slice_num', 'un_slice_num', 'sr_slice_num', 'lc_slice_num'), ('HU', 'UN', 'SR', 'LC')):
-            self.assertAlmostEqual(getattr(self.cbct.settings, attr), self.slice_locations[slice_name], delta=1)
+        self.assertAlmostEqual(self.cbct.origin_slice, self.origin_slice, delta=1)
 
     def test_phantom_roll(self):
         """Test the roll of the phantom."""
-        self.assertAlmostEqual(self.cbct.settings.phantom_roll, self.expected_roll, delta=0.3)
+        self.assertAlmostEqual(self.cbct.catphan_roll, self.expected_roll, delta=0.3)
 
     def test_HU_values(self):
         """Test HU values."""
-        for key, roi in self.cbct.hu.rois.items():
+        for key, roi in self.cbct.ctp404.hu_rois.items():
             exp_val = self.hu_values[key]
             meas_val = roi.pixel_value
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
     def test_uniformity_values(self):
         """Test Uniformity HU values."""
-        for key, roi in self.cbct.uniformity.rois.items():
-            exp_val = self.unif_values[key]
-            meas_val = roi.pixel_value
+        for key, exp_val in self.unif_values.items():
+            meas_val = self.cbct.ctp486.rois[key].pixel_value
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
     def test_geometry_line_length(self):
         """Test the geometry distances."""
-        self.assertAlmostEqual(self.avg_line_length, self.cbct.geometry.avg_line_length, delta=0.1)
+        self.assertAlmostEqual(self.avg_line_length, self.cbct.ctp404.avg_line_length, delta=0.1)
 
     def test_MTF_values(self):
         """Test MTF values."""
         for key, exp_mtf in self.mtf_values.items():
-            meas_mtf = self.cbct.spatialres.mtf(key)
+            meas_mtf = self.cbct.ctp528.mtf(key)
             self.assertAlmostEqual(exp_mtf, meas_mtf, delta=0.1)
 
 
 class CBCTDemo(CBCTMixin, TestCase):
     """Test the CBCT demo (Varian high quality head protocol)."""
     expected_roll = -0.3
-    slice_locations = {'HU': 32, 'UN': 6, 'SR': 44, 'LC': 20}
+    origin_slice = 32
     hu_values = {'Poly': -45, 'Acrylic': 117, 'Delrin': 341, 'Air': -998, 'Teflon': 997, 'PMP': -200, 'LDPE': -103}
     unif_values = {'Center': 17, 'Left': 10, 'Right': 0, 'Top': 6, 'Bottom': 6}
-    mtf_values = {80: 0.76, 90: 0.61, 60: 0.99, 70: 0.88, 95: 0.45}
+    mtf_values = {80: 0.64, 90: 0.61, 60: 0.85, 70: 0.74, 95: 0.45}
     avg_line_length = 49.92
     lowcon_visible = 3
 
     @classmethod
     def setUpClass(cls):
-        cls.cbct = CBCT.from_demo_images()
+        cls.cbct = CatPhan504.from_demo_images()
         cls.cbct.analyze()
 
 
@@ -174,23 +165,31 @@ class CBCT4(CBCTMixin, TestCase):
     """A Varian CBCT dataset"""
     file_path = ['CBCT_4.zip']
     expected_roll = -2.57
-    slice_locations = {'HU': 31, 'UN': 6, 'SR': 43, 'LC': 19}
+    origin_slice = 31
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
     unif_values = {'Center': 17, 'Left': 10, 'Right': 22, 'Top': 18, 'Bottom': 13}
     mtf_values = {80: 0.47, 90: 0.39, 60: 0.63, 70: 0.55, 95: 0.3}
-    avg_line_length = 49.94
-    # thickness_passed = False
     lowcon_visible = 3
 
 
 class Elekta2(CBCTMixin, TestCase):
     """An Elekta CBCT dataset"""
+    catphan = CatPhan503
     file_path = ['Elekta_2.zip']
-    dir_location = ELEKTA_DIR
-    slice_locations = {'HU': 162, 'UN': 52, 'SR': 132, 'LC': 132}
+    origin_slice = 162
     hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 253, 'PMP': -399, 'LDPE': -350}
-    hu_passed = False
     unif_values = {'Center': -285, 'Left': -279, 'Right': -278, 'Top': -279, 'Bottom': -279}
-    unif_passed = False
     mtf_values = {80: 0.53, 90: 0.44, 60: 0.74, 70: 0.63, 95: 0.36}
-    lowcon_visible = 2
+
+
+class CatPhan600_2(CBCTMixin, TestCase):
+    """An Elekta CBCT dataset"""
+    catphan = CatPhan600
+    file_path = ['zzCAT201602.zip']
+    expected_roll = -0.64
+    origin_slice = 34
+    hu_values = {'Poly': -29, 'Acrylic': 123, 'Delrin': 336, 'Air': -932, 'Teflon': 897, 'PMP': -164, 'LDPE': -80}
+    hu_passed = False
+    unif_values = {'Center': 14, 'Left': 15, 'Right': 15, 'Top': 16, 'Bottom': 13}
+    mtf_values = {80: 0.55, 90: 0.45, 60: 0.7, 70: 0.63, 95: 0.46}
+    avg_line_length = 50.02

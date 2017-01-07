@@ -240,7 +240,7 @@ class TestArrayImage(TestCase):
 
 
 class TestDicomStack(TestCase):
-    stack_location = osp.join(test_dir, 'CBCT', 'Varian', 'CBCT_4.zip')
+    stack_location = osp.join(test_dir, 'CBCT', 'CBCT_4.zip')
 
     def test_loading(self):
         # test normal construction
@@ -251,6 +251,6 @@ class TestDicomStack(TestCase):
         dstack = DicomImageStack.from_zip(self.stack_location)
 
     def test_mixed_studies(self):
-        mixed_study_zip = osp.join(test_dir, 'CBCT', 'Varian', 'mixed_studies.zip')
+        mixed_study_zip = osp.join(test_dir, 'CBCT', 'mixed_studies.zip')
         with self.assertRaises(ValueError):
             DicomImageStack.from_zip(mixed_study_zip)
