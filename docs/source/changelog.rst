@@ -6,6 +6,12 @@ Changelog
 v 1.8.0
 -------
 
+General Changes
+^^^^^^^^^^^^^^^
+
+* This release focuses solely on the CBCT/CatPhan module.
+* Pylinac now has a logo! Check out the readme on github or landing page on ReadTheDocs.
+
 Watcher/Processer
 ^^^^^^^^^^^^^^^^^
 
@@ -21,29 +27,29 @@ Watcher/Processer
     ...
 
 
-CBCT
-^^^^
+CBCT/CatPhan
+^^^^^^^^^^^^
 
-* The Python file/module has been renamed ``ct`` from ``cbct``. E.g.::
+* The Python file/module has been renamed to ``ct`` from ``cbct``. E.g.::
 
     from pylinac.ct import ...
 
-  Most users import directly from pylinac, so this should affect very few people.
+  Most users import directly from pylinac, so this should affect very few people. This was done to generalize
+  the module to make way for other CT/CBCT phantoms that pylinac may support in the future.
 * The CBCT module can now support analysis of the CatPhan 600.
 * Automatic detection of the phantom is no longer be performed. Previously, it depended on the
   manufacturer to determine the phantom (Varian->504, Elekta->503), but that did not consider users scanning the
   CatPhan in their CT scanners, which would give inconsistent results.
 * Due to the above, separate classes have been made for the CatPhan models. I.e. flow looks like this now::
 
+    # old way
+    from pylinac import CBCT
+    ...
+
+    # new way
     from pylinac import CatPhan504, CatPhan600
     cat504 = CatPhan504('my/folder')
     cat600 = CatPhan600.from_zip('my/zip.zip')
-
-* Users using the watcher/processer functions must now specify the model to analyze. E.g. in the YAML configuration
-  file. The model name must match the class name exactly::
-
-    catphan:
-        model: CatPhan504
 
 * A classifier has been generated for each CatPhan. Thus, if loading a 503, a 503 classifier will be used, rather
   than a general classifier for all phantoms.
