@@ -107,6 +107,14 @@ def isnumeric(object):
     return isinstance(object, (int, float, decimal.Decimal, np.number))
 
 
+def is_float_like(number):
+    return isinstance(number, (float, np.float, np.float16, np.float32, np.float64))
+
+
+def is_int_like(number):
+    return isinstance(number, (int, np.int, np.int16, np.int32, np.int64, np.int8))
+
+
 def is_iterable(object):
     """Determine if an object is iterable."""
     return isinstance(object, Iterable)

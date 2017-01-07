@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 from scipy.interpolate import interp1d
 
+from .utilities import is_float_like, is_int_like
 from .decorators import value_accept
 from .geometry import Point, Circle
 
@@ -945,16 +946,20 @@ def peak_detect(values, threshold=None, min_distance=10, max_number=None, search
 
     """Limit search to search region"""
     left_end = search_region[0]
-    if isinstance(left_end, float):
+    if is_float_like(left_end):
         left_index = int(left_end*len(values))
-    elif isinstance(left_end, (int, np.int32)):
+    elif is_int_like(left_end):
         left_index = left_end
+    else:
+        raise ValueError("{} must be a float or int".format(left_end))
 
     right_end = search_region[1]
-    if isinstance(right_end, float):
+    if is_float_like(right_end):
         right_index = int(right_end * len(values))
-    elif isinstance(right_end, (int, np.int32)):
+    elif is_int_like(right_end):
         right_index = right_end
+    else:
+        raise ValueError("{} must be a float or int".format(right_end))
 
     # minimum peak spacing calc
     if isinstance(min_distance, float):
