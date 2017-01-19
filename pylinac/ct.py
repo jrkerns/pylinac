@@ -15,6 +15,7 @@ from collections import OrderedDict
 import copy
 from functools import lru_cache
 import gzip
+import io
 from os import path as osp
 import pickle
 import warnings
@@ -30,6 +31,7 @@ from .core.decorators import value_accept
 from .core.geometry import Point, Line
 from .core.io import get_url, retrieve_demo_file
 from .core.mask import filled_area_ratio
+from .core import pdf
 from .core.profile import CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI
 from .core.utilities import simple_round, import_mpld3, minmax_scale
@@ -586,6 +588,49 @@ class CatPhan504(CatPhanBase):
                              offset=self.offsets['Spatial Resolution'])
         self.ctp515 = CTP515(self, tolerance=low_contrast_tolerance, contrast_threshold=contrast_threshold,
                              offset=self.offsets['Low contrast'])
+
+    def publish_pdf(self, filename, author='', unit='N/A', notes=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        from reportlab.lib.units import cm
+        data = io.BytesIO()
+        self.save_analyzed_image(data)
+        canvas = pdf.create_pylinac_page_template(filename,
+                                                  analysis_title='CatPhan 504 Analysis')
+        img = pdf.create_stream_image(data)
+        canvas.drawImage(img, 2 * cm, 2 * cm, width=18 * cm, height=18*cm, preserveAspectRatio=True)
+        pdf.draw_text(canvas, x=6 * cm, y=25.5 * cm,
+                      text=[' - CTP404 Results - ',
+                            'HU Linearity tolerance: {}'.format(self.ctp404.hu_tolerance),
+                            'HU Linearity ROIs: {}'.format(self.ctp404.hu_roi_vals),
+                            'Geometric node spacing (mm): {:2.2f}'.format(self.ctp404.avg_line_length),
+                            'Slice thickness (mm): {:2.2f}'.format(self.ctp404.slice_thickness),
+                            'Low contrast visibility: {:2.2f}'.format(self.ctp404.lcv),
+                            '',
+                            ' - CTP528 Results - ',
+                            'MTF 80% (lp/mm): {:2.3f}'.format(self.ctp528.mtf(80)),
+                            'MTF 50% (lp/mm): {:2.3f}'.format(self.ctp528.mtf(50)),
+                            'MTF 30% (lp/mm): {:2.3f}'.format(self.ctp528.mtf(30)),
+                            '',
+                            ' - CTP486 Results - ',
+                            'Uniformity tolerance: {}'.format(self.ctp486.tolerance),
+                            'Uniformity ROIs: {}'.format(self.ctp486.get_ROI_vals()),
+                            'Uniformity Index: {:2.2f}'.format(self.ctp486.uniformity_index),
+                            'Integral non-uniformity: {:2.4f}'.format(self.ctp486.integral_non_uniformity),
+                            '',
+                            ' - CTP515 Results - ',
+                            'Low contrast ROIs seen: {}'.format(self.ctp515.rois_visible)
+                            ])
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=3.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=3 * cm, text=notes)
+        canvas.showPage()
+        canvas.save()
 
 
 class CatPhan600(CatPhanBase):

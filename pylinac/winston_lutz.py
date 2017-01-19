@@ -13,6 +13,8 @@ Features:
 """
 from functools import lru_cache
 from itertools import zip_longest
+import io
+import math
 import os.path as osp
 import warnings
 
@@ -21,9 +23,11 @@ import numpy as np
 from scipy import ndimage, optimize
 
 from .core import image
+from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import filled_area_ratio, bounding_box
+from .core import pdf
 from .core.profile import SingleProfile
 from .core.utilities import is_close
 
@@ -32,6 +36,7 @@ COLLIMATOR = 'Collimator'
 COUCH = 'Couch'
 COMBO = 'Combo'
 REFERENCE = 'Reference'
+ALL = 'All'
 
 
 class WinstonLutz:
@@ -237,6 +242,7 @@ class WinstonLutz:
         ax.plot(gantry_angles, x_sag, 'm^', label='Left/Right', ls='-')
         ax.set_title(title)
         ax.set_ylabel('mm')
+        ax.set_xlabel("Gantry angle")
         ax.set_xticks(np.arange(0, 361, 45))
         ax.set_xlim([-15, 375])
         ax.grid('on')
@@ -268,7 +274,8 @@ class WinstonLutz:
         """
         self._plot_sag('gantry', ax=ax, show=show)
 
-    def plot_axis_images(self, axis='Gantry', show=True, ax=None):
+    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO))
+    def plot_axis_images(self, axis=GANTRY, show=True, ax=None):
         """Plot all CAX/BB/EPID positions for the images of a given axis.
 
         For example, axis='Couch' plots a reference image, and all the BB points of the other
@@ -309,13 +316,15 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    def plot_images(self, show=True):
+    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
+    def plot_images(self, axis=ALL, show=True):
         """Plot a grid of all the images acquired.
 
         Four columns are plotted with the titles showing which axis that column represents.
 
         Parameters
         ----------
+        axis : {'Gantry', 'Collimator', 'Couch', 'Combo', 'All'}
         show : bool
             Whether to show the image.
         """
@@ -329,28 +338,31 @@ class WinstonLutz:
                 image.plot(ax=axis, show=False)
 
         # get axis images
-        gantry_images = [image for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
-        bld_images = [image for image in self.images if image.variable_axis in (COLLIMATOR, REFERENCE)]
-        psd_images = [image for image in self.images if image.variable_axis in (COUCH, REFERENCE)]
-        combo_images = [image for image in self.images if image.variable_axis in (COMBO,)]
+        if axis == GANTRY:
+            images = [image for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
+        elif axis == COLLIMATOR:
+            images = [image for image in self.images if image.variable_axis in (COLLIMATOR, REFERENCE)]
+        elif axis == COUCH:
+            images = [image for image in self.images if image.variable_axis in (COUCH, REFERENCE)]
+        elif axis == COMBO:
+            images = [image for image in self.images if image.variable_axis in (COMBO,)]
+        elif axis == ALL:
+            images = self.images
 
         # create plots
-        max_num_images = max([len(bld_images), len(gantry_images), len(psd_images), len(combo_images)])
+        max_num_images = math.ceil(len(images)/4)
         fig, axes = plt.subplots(nrows=max_num_images, ncols=4)
-        for axis, column in zip([gantry_images, bld_images, psd_images, combo_images], range(4)):
-            for image, axis in zip_longest(axis, axes[:, column]):
-                plot_image(image, axis)
+        for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
+            plot_image(wl_image, mpl_axis)
 
         # set titles
-        axes[0, 0].set_title("Gantry shots")
-        axes[0, 1].set_title("Collimator shots")
-        axes[0, 2].set_title("Couch shots")
-        axes[0, 3].set_title("Combination shots")
-        # plt.tight_layout()
+        fig.suptitle("{} images".format(axis), fontsize=14, y=1)
+        plt.tight_layout()
         if show:
             plt.show()
 
-    def save_images(self, filename, **kwargs):
+    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
+    def save_images(self, filename, axis=ALL, **kwargs):
         """Save the figure of `plot_images()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
         Parameters
@@ -358,7 +370,7 @@ class WinstonLutz:
         filename : str
             The name of the file to save to.
         """
-        self.plot_images(show=False)
+        self.plot_images(axis=axis, show=False)
         plt.savefig(filename, **kwargs)
 
     def plot_summary(self, show=True):
@@ -380,6 +392,7 @@ class WinstonLutz:
     def save_summary(self, filename, **kwargs):
         """Save the summary image."""
         self.plot_summary(show=False)
+        plt.tight_layout()
         plt.savefig(filename, **kwargs)
 
     def results(self):
@@ -388,13 +401,13 @@ class WinstonLutz:
                  "Number of images: {}\n" \
                  "Maximum 2D CAX->BB distance: {:.2f}mm\n" \
                  "Median 2D CAX->BB distance: {:.2f}mm\n" \
-                 "Gantry 3D isocenter size: {:.2f}mm\n" \
+                 "Gantry 3D isocenter diameter: {:.2f}mm\n" \
                  "Gantry iso->BB vector: {}\n" \
                  "Gantry sag in the z-direction: {:.2f}mm\n" \
                  "EPID sag in the z-direction: {:.2f}mm\n" \
-                 "Collimator 2D isocenter size: {:.2f}mm\n" \
+                 "Collimator 2D isocenter diameter: {:.2f}mm\n" \
                  "Collimator 2D iso->BB vector: {}\n" \
-                 "Couch 2D isocenter size: {:.2f}mm\n" \
+                 "Couch 2D isocenter diameter: {:.2f}mm\n" \
                  "Couch 2D iso->BB vector: {}".format(
                     len(self.images), self.cax2bb_distance('max'), self.cax2bb_distance('median'),
                     self.gantry_iso_size, self.gantry_iso2bb_vector, self.gantry_sag(), self.epid_sag(),
@@ -402,6 +415,59 @@ class WinstonLutz:
                     self.couch_iso_size, self.couch_iso2bb_vector
                  )
         return result
+
+    def publish_pdf(self, filename, notes=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        from reportlab.lib.units import cm
+        title = "Winston-Lutz Analysis"
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title=title)
+        avg_sid = np.mean([image.metadata.RTImageSID for image in self.images])
+        text = ['Winston-Lutz results:',
+                'Key, looking from foot of table:',
+                '+x: right, +y: up, +z:out',
+                'Average SID (mm): {:2.2f}'.format(avg_sid),
+                'Number of images: {}'.format(len(self.images)),
+                'Maximum 2D CAX->BB distance (mm): {:2.2f}'.format(self.cax2bb_distance('max')),
+                'Median 2D CAX->BB distance (mm): {:2.2f}'.format(self.cax2bb_distance('median')),
+                'Gantry iso->BB vector: x={:2.2f}, y={:2.2f}, z={:2.2f}'.format(self.gantry_iso2bb_vector.x,
+                                                                 self.gantry_iso2bb_vector.y,
+                                                                 self.gantry_iso2bb_vector.z),
+                'Gantry 3D isocenter diameter (mm): {:2.2f}'.format(self.gantry_iso_size),
+                ]
+        if self._contains_axis_images(COLLIMATOR):
+            text.append('Collimator 2D isocenter diameter (mm): {:2.2f}'.format(self.collimator_iso_size),)
+        if self._contains_axis_images(COUCH):
+            text.append('Couch 2D isocenter diameter (mm): {:2.2f}'.format(self.couch_iso_size), )
+        pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text)
+        # draw summary image on 1st page
+        data = io.BytesIO()
+        self.save_summary(data, figsize=(10, 10))
+        img = pdf.create_stream_image(data)
+        canvas.drawImage(img, 2 * cm, 3 * cm, width=18 * cm, height=18 * cm, preserveAspectRatio=True)
+        if notes is not None:
+            pdf.draw_text(canvas, x=1*cm, y=4.5*cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1*cm, y=4*cm, text=notes)
+        canvas.showPage()
+        # add more pages showing individual axis images
+        for ax in (GANTRY, COLLIMATOR, COUCH, COMBO):
+            if self._contains_axis_images(ax):
+                pdf.add_pylinac_page_template(canvas, analysis_title=title)
+                data = io.BytesIO()
+                self.save_images(data, axis=ax, figsize=(10, 10))
+                img = pdf.create_stream_image(data)
+                canvas.drawImage(img, 2*cm, 7*cm, width=18*cm, height=18*cm, preserveAspectRatio=True)
+                canvas.showPage()
+        canvas.save()
+
+    def _contains_axis_images(self, axis=GANTRY):
+        """Return whether or not the set of WL images contains images pertaining to a given axis"""
+        return any(True for image in self.images if image.variable_axis in (axis,))
 
 
 class ImageManager(list):

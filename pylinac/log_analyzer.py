@@ -26,6 +26,7 @@ import csv
 from functools import lru_cache
 import gc
 import itertools
+from io import BytesIO
 import multiprocessing
 import os
 import os.path as osp
@@ -38,6 +39,7 @@ from .settings import get_array_cmap
 from .core import image
 from .core import io
 from .core.decorators import type_accept, value_accept
+from .core import pdf
 from .core.utilities import is_iterable, import_mpld3, decode_binary, Structure
 
 STATIC_IMRT = 'Static IMRT'
@@ -2013,6 +2015,44 @@ class TrajectoryLog(LogBase):
 
         print("CSV file written to: " + filename)
         return filename
+
+    def publish_pdf(self, filename, unit='N/A', notes=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        from reportlab.lib.units import cm
+        from datetime import datetime
+        self.fluence.gamma.calc_map()
+
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory log Analysis")
+        pdf.draw_text(canvas, x=2 * cm, y=25.5 * cm,
+                  text=['Metadata:',
+                        'File: {}'.format(osp.basename(self.filename)),
+                        'Date of analysis: {}'.format(datetime.now().strftime("%A, %B %d, %Y")),
+                        'Unit: {}'.format(unit),
+                        ])
+        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
+                      text=['Trajectory Log results:',
+                            'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg()*10),
+                            'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max()*10),
+                            '95th Percentile error (mm): {:2.0f}'.format(self.axis_data.mlc.get_error_percentile(95)),
+                            'Number of beam holdoffs: {}'.format(self.num_beamholds),
+                            'Gamma pass (%): {:2.1f}'.format(self.fluence.gamma.pass_prcnt),
+                            'Gamma average: {:2.2f}'.format(self.fluence.gamma.avg_gamma),
+                            ])
+        data = BytesIO()
+        self.save_summary(data)
+        img = pdf.create_stream_image(data)
+        canvas.drawImage(img, 2 * cm, 5 * cm, width=18 * cm, height=18 * cm, preserveAspectRatio=True)
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
+        canvas.showPage()
+        canvas.save()
 
     @property
     def num_beamholds(self):

@@ -11,6 +11,7 @@ Features:
   have to be specified; just load and analyze.
 """
 import os.path as osp
+import io
 from itertools import zip_longest
 
 import matplotlib.pyplot as plt
@@ -20,6 +21,7 @@ from .core import image
 from .core.decorators import value_accept, type_accept
 from .core.geometry import Point, Rectangle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
+from .core import pdf
 from .core.profile import SingleProfile
 from .core.utilities import typed_property, import_mpld3
 from .settings import get_dicom_cmap
@@ -360,6 +362,33 @@ class VMAT:
         string += 'Max Deviation: {:2.3f}%\nAbsolute Mean Deviation: {:2.3f}%'.format(self.max_r_deviation, self.avg_abs_r_deviation)
 
         return string
+
+    def publish_pdf(self, filename, author='', unit='N/A', notes=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        from reportlab.lib.units import cm
+        data = io.BytesIO()
+        self.save_analyzed_image(data)
+        canvas = pdf.create_single_image_template(filename, image_obj=self.image_open,
+                                                  analysis_title='{} VMAT Analysis'.format(self.settings.test_type.upper()), analyzer=author, unit=unit)
+        img = pdf.create_stream_image(data)
+        canvas.drawImage(img, 2 * cm, 5 * cm, width=18 * cm, height=18 * cm, preserveAspectRatio=True)
+        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
+                      text=['{} VMAT results:'.format(self.settings.test_type.upper()),
+                            'Source-to-Image Distance (mm): {:2.0f}'.format(self.image_open.sid),
+                            'Tolerance (mm): {:2.1f}'.format(self.settings.tolerance),
+                            'X-offset applied (pixels): {:2.0f}'.format(self.settings.x_offset),
+                            ])
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
+        canvas.showPage()
+        canvas.save()
 
 
 class SegmentManager:

@@ -14,6 +14,7 @@ Features:
 """
 from functools import lru_cache
 import os.path as osp
+import io
 from itertools import cycle
 from tempfile import TemporaryDirectory
 
@@ -24,6 +25,7 @@ import numpy as np
 from .core import image
 from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url, retrieve_demo_file
+from .core import pdf
 from .core.profile import MultiProfile, SingleProfile
 from .core.utilities import import_mpld3
 from .log_analyzer import load_log
@@ -420,6 +422,35 @@ class PicketFence:
                                                                        self.pickets.mean_spacing, offsets,
                                                                        self.max_error, self.max_error_picket, self.max_error_leaf)
         return string
+
+    def publish_pdf(self, filename, author='', unit='N/A', gantry=None, collimator=None, notes=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        from reportlab.lib.units import cm
+        data = io.BytesIO()
+        self.save_analyzed_image(data, leaf_error_subplot=True)
+        canvas = pdf.create_single_image_template(filename, image_obj=self.image, analysis_title='Picket Fence Analysis', analyzer=author, unit=unit)
+        img = pdf.create_stream_image(data)
+        canvas.drawImage(img, 3*cm, 8*cm, width=12*cm, height=12*cm, preserveAspectRatio=True)
+        pdf.draw_text(canvas, x=10*cm, y=25.5*cm,
+                  text=['Picket Fence results:',
+                        'Magnification factor (SID/SAD): {:2.2f}'.format(self.image.metadata.RTImageSID/self.image.metadata.RadiationMachineSAD),
+                        'Tolerance (mm): {}'.format(self.settings.tolerance),
+                        'Leaves passing (%): {:2.1f}'.format(self.percent_passing),
+                        'Absolute median error (mm): {:2.3f}'.format(self.abs_median_error),
+                        'Mean picket spacing (mm): {:2.1f}'.format(self.pickets.mean_spacing),
+                        'Maximum error (mm): {:2.3f} on Picket {}, Leaf {}'.format(self.max_error, self.max_error_picket, self.max_error_leaf),
+                        ])
+        if notes is not None:
+            pdf.draw_text(canvas, x=1*cm, y=5.5*cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1*cm, y=5*cm, text=notes)
+        canvas.showPage()
+        canvas.save()
 
     @property
     @lru_cache(maxsize=1)

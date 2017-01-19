@@ -20,6 +20,7 @@ Features:
   do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
 import copy
+import io
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,6 +30,7 @@ from .core import image
 from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
+from .core import pdf
 from .core.profile import SingleProfile, CollapsedCircleProfile
 from .settings import get_dicom_cmap
 
@@ -405,6 +407,33 @@ class Starshot:
         """
         self.plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
+
+    def publish_pdf(self, filename, author='', unit='N/A', axis_measured='N/A', notes=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        from reportlab.lib.units import cm
+        data = io.BytesIO()
+        self.save_analyzed_image(data)
+        canvas = pdf.create_single_image_template(filename, image_obj=self.image,
+                                                  analysis_title='Starshot Analysis', analyzer=author, unit=unit)
+        img = pdf.create_stream_image(data)
+        canvas.drawImage(img, 2 * cm, 7 * cm, width=18 * cm, height=18*cm, preserveAspectRatio=True)
+        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
+                      text=['Starshot results:',
+                            'Source-to-Image Distance (mm): {:2.0f}'.format(self.image.sid),
+                            'Tolerance (mm): {:2.1f}'.format(self.tolerance),
+                            "Minimum circle diameter (mm): {:2.2f}".format(self.wobble.radius_mm*2),
+                            ])
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
+        canvas.showPage()
+        canvas.save()
 
     @staticmethod
     def run_demo():
