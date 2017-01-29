@@ -12,25 +12,26 @@ Features:
 """
 from abc import abstractmethod
 from collections import OrderedDict
-import copy
+from datetime import datetime
 from functools import lru_cache
 import gzip
 import io
 from os import path as osp
 import pickle
 import warnings
+import zipfile
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
 from scipy.misc import imresize
+from skimage import filters, measure, segmentation
 
 from .core import image
 from .core.io import TemporaryZipDirectory
 from .core.decorators import value_accept
 from .core.geometry import Point, Line
 from .core.io import get_url, retrieve_demo_file
-from .core.mask import filled_area_ratio
 from .core import pdf
 from .core.profile import CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI
@@ -44,7 +45,7 @@ class CatPhanBase:
     """
     _demo_url = ''
     _classifier_model = ''
-    air_bubble_radius_mm = 6
+    air_bubble_radius_mm = 7
     localization_radius = 59
 
     def __init__(self, folderpath, use_classifier=True):
@@ -139,7 +140,7 @@ class CatPhanBase:
         for show_unit, axis, title, module in zip(show_section, axes, titles, modules):
             if show_unit:
                 klass = getattr(self, module)
-                axis.imshow(klass.image.array, cmap=get_dicom_cmap(), vmin=klass.threshold)
+                axis.imshow(klass.image.array, cmap=get_dicom_cmap())
                 klass.plot_rois(axis)
                 axis.autoscale(tight=True)
                 axis.set_title(title)
@@ -293,19 +294,6 @@ class CatPhanBase:
         self.catphan_roll = self.find_phantom_roll()
 
     @property
-    @lru_cache(maxsize=1)
-    def threshold(self):
-        """The threshold between air and phantom. Air is sampled from the edges of the
-        middle slice of the phantom."""
-        num_pixels = 10
-        middle_img = self.dicom_stack[int(len(self.dicom_stack)/2)]
-        top_baseline = np.percentile(middle_img[:num_pixels, :], 97)
-        left_baseline = np.percentile(middle_img[:, :num_pixels], 97)
-        right_baseline = np.percentile(middle_img[:, -num_pixels:], 97)
-        avg_baseline = np.mean([top_baseline, left_baseline, right_baseline]) + 200
-        return avg_baseline
-
-    @property
     def mm_per_pixel(self):
         """The millimeters per pixel of the DICOM images."""
         return self.dicom_stack.metadata.PixelSpacing[0]
@@ -376,34 +364,25 @@ class CatPhanBase:
         -------
         float : the angle of the phantom in **degrees**.
         """
-        slice = self.dicom_stack[self.origin_slice]
-        slice = slice.as_binary(self.threshold)
-        slice.check_inversion()
-        slice.invert()
-        labels, no_roi = ndimage.measurements.label(slice)
-        # calculate ROI sizes of each label TODO: simplify the air bubble-finding
-        roi_sizes = [ndimage.measurements.sum(slice, labels, index=item) for item in range(1, no_roi + 1)]
-        # extract air bubble ROIs (based on size threshold)
-        bubble_thresh = (np.pi*self.air_bubble_radius_mm**2)/self.mm_per_pixel**2
-        # bubble_thresh = self.air_bubble_size
-        air_bubbles = [idx + 1 for idx, item in enumerate(roi_sizes) if
-                       (bubble_thresh-20) / 1.5 < item < (bubble_thresh+30) * 1.5]
-        # if the algo has worked correctly, it has found 2 and only 2 ROIs (the air bubbles)
-        if len(air_bubbles) == 2:
-            com1, com2 = ndimage.measurements.center_of_mass(slice, labels, air_bubbles)
-            if com1[0] < com2[0]:
-                lower_com = com1
-                upper_com = com2
-            else:
-                lower_com = com2
-                upper_com = com1
-            y_dist = upper_com[0] - lower_com[0]
-            x_dist = upper_com[1] - lower_com[1]
-            phan_roll = np.arctan2(y_dist, x_dist)
-        else:
-            phan_roll = np.pi/2  # 90 degrees
-            print("Warning: CBCT phantom roll unable to be determined; assuming 0")
-        return np.rad2deg(phan_roll) - 90
+        def is_right_area(region):
+            thresh = np.pi * ((self.air_bubble_radius_mm / self.mm_per_pixel) ** 2)
+            return thresh * 1.5 > region.filled_area > thresh / 1.5
+
+        def is_right_eccentricity(region):
+            return region.eccentricity < 0.5
+
+        # get edges and make ROIs from it
+        slice = Slice(self, self.origin_slice)
+        larr, regions, _ = get_regions(slice)
+        # find appropriate ROIs and grab the two most centrally positioned ones
+        hu_bubbles = [r for r in regions if (is_right_area(r) and is_right_eccentricity(r))]
+        central_bubbles = sorted(hu_bubbles, key=lambda x: abs(x.centroid[1] - slice.phan_center.x))[:2]
+        sorted_bubbles = sorted(central_bubbles, key=lambda x: x.centroid[0])  # top, bottom
+        y_dist = sorted_bubbles[1].centroid[0] - sorted_bubbles[0].centroid[0]
+        x_dist = sorted_bubbles[1].centroid[1] - sorted_bubbles[0].centroid[1]
+        phan_roll = np.arctan2(y_dist, x_dist)
+        anglroll = np.rad2deg(phan_roll) - 90
+        return anglroll
 
     @property
     def num_images(self):
@@ -433,6 +412,37 @@ class CatPhanBase:
         """
         phan_area = np.pi*(self.catphan_radius_mm**2)
         return phan_area/(self.mm_per_pixel**2)
+
+    def _publish_pdf(self, filename, unit, author, notes, analysis_title, texts, imgs):
+        date = datetime.strptime(self.dicom_stack[0].metadata.InstanceCreationDate, "%Y%m%d")
+        from reportlab.lib.units import cm
+        canvas = pdf.create_pylinac_page_template(filename,
+                                                  analysis_title=analysis_title,
+                                                  unit=unit, author=author,
+                                                  file_created=date.strftime("%A, %B %d, %Y"))
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=4.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=4 * cm, text=notes)
+
+        for page, ((img1, img2), text) in enumerate(zip(imgs, texts)):
+            for img, offset in zip((img1, img2), (12, 2)):
+                if img is not None:
+                    data = io.BytesIO()
+                    self.save_analyzed_subimage(data, img)
+                    img = pdf.create_stream_image(data)
+                    canvas.drawImage(img, 4 * cm, offset * cm, width=15 * cm, height=10*cm, preserveAspectRatio=True)
+            pdf.draw_text(canvas, 1.5*cm, 23*cm, text=text)
+            canvas.showPage()
+            # don't add last page
+            if page != len(texts)-1:
+                pdf.add_pylinac_page_template(canvas, analysis_title=analysis_title)
+        canvas.save()
+
+    def _zip_images(self):
+        zip_name = osp.dirname(self.dicom_stack[0].path)
+        with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
+            for image in self.dicom_stack:
+                zfile.write(image.path, arcname=osp.basename(image.path))
 
 
 class CatPhan503(CatPhanBase):
@@ -495,7 +505,7 @@ class CatPhan503(CatPhanBase):
                                                          self.ctp404.passed_thickness)
         return string
 
-    def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2):
+    def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2, zip_after_analysis=False):
         """Single-method full analysis of CatPhan503 DICOM files.
 
         Parameters
@@ -513,6 +523,38 @@ class CatPhan503(CatPhanBase):
                              scaling_tolerance=scaling_tolerance)
         self.ctp486 = CTP486(self, offset=self.offsets['Uniformity'], tolerance=hu_tolerance)
         self.ctp528 = CTP528(self, offset=self.offsets['Spatial Resolution'], tolerance=None)
+
+    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        analysis_title = 'CatPhan 503 Analysis'
+        module_texts = [
+            [' - CTP404 Results - ',
+             'HU Linearity tolerance: {}'.format(self.ctp404.hu_tolerance),
+             'HU Linearity ROIs: {}'.format(self.ctp404.hu_roi_vals),
+             'Geometric node spacing (mm): {:2.2f}'.format(self.ctp404.avg_line_length),
+             'Slice thickness (mm): {:2.2f}'.format(self.ctp404.meas_slice_thickness),
+             'Low contrast visibility: {:2.2f}'.format(self.ctp404.lcv),
+            ],
+            [' - CTP528 Results - ',
+             'MTF 80% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(80)),
+             'MTF 50% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(50)),
+             'MTF 30% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(30)),
+            ],
+            [' - CTP486 Results - ',
+             'Uniformity tolerance: {}'.format(self.ctp486.tolerance),
+             'Uniformity ROIs: {}'.format(self.ctp486.get_ROI_vals()),
+             'Uniformity Index: {:2.2f}'.format(self.ctp486.uniformity_index),
+             'Integral non-uniformity: {:2.4f}'.format(self.ctp486.integral_non_uniformity),
+            ]
+        ]
+        self._publish_pdf(filename, unit, author, notes, analysis_title,
+                          module_texts, (('hu', 'lin'), ('sp', 'mtf'), ('un', 'prof')))
 
 
 class CatPhan504(CatPhanBase):
@@ -589,7 +631,7 @@ class CatPhan504(CatPhanBase):
         self.ctp515 = CTP515(self, tolerance=low_contrast_tolerance, contrast_threshold=contrast_threshold,
                              offset=self.offsets['Low contrast'])
 
-    def publish_pdf(self, filename, author='', unit='N/A', notes=None):
+    def publish_pdf(self, filename, author=None, unit=None, notes=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -597,40 +639,33 @@ class CatPhan504(CatPhanBase):
         filename : (str, file-like object}
             The file to write the results to.
         """
-        from reportlab.lib.units import cm
-        data = io.BytesIO()
-        self.save_analyzed_image(data)
-        canvas = pdf.create_pylinac_page_template(filename,
-                                                  analysis_title='CatPhan 504 Analysis')
-        img = pdf.create_stream_image(data)
-        canvas.drawImage(img, 2 * cm, 2 * cm, width=18 * cm, height=18*cm, preserveAspectRatio=True)
-        pdf.draw_text(canvas, x=6 * cm, y=25.5 * cm,
-                      text=[' - CTP404 Results - ',
-                            'HU Linearity tolerance: {}'.format(self.ctp404.hu_tolerance),
-                            'HU Linearity ROIs: {}'.format(self.ctp404.hu_roi_vals),
-                            'Geometric node spacing (mm): {:2.2f}'.format(self.ctp404.avg_line_length),
-                            'Slice thickness (mm): {:2.2f}'.format(self.ctp404.slice_thickness),
-                            'Low contrast visibility: {:2.2f}'.format(self.ctp404.lcv),
-                            '',
-                            ' - CTP528 Results - ',
-                            'MTF 80% (lp/mm): {:2.3f}'.format(self.ctp528.mtf(80)),
-                            'MTF 50% (lp/mm): {:2.3f}'.format(self.ctp528.mtf(50)),
-                            'MTF 30% (lp/mm): {:2.3f}'.format(self.ctp528.mtf(30)),
-                            '',
-                            ' - CTP486 Results - ',
-                            'Uniformity tolerance: {}'.format(self.ctp486.tolerance),
-                            'Uniformity ROIs: {}'.format(self.ctp486.get_ROI_vals()),
-                            'Uniformity Index: {:2.2f}'.format(self.ctp486.uniformity_index),
-                            'Integral non-uniformity: {:2.4f}'.format(self.ctp486.integral_non_uniformity),
-                            '',
-                            ' - CTP515 Results - ',
-                            'Low contrast ROIs seen: {}'.format(self.ctp515.rois_visible)
-                            ])
-        if notes is not None:
-            pdf.draw_text(canvas, x=1 * cm, y=3.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1 * cm, y=3 * cm, text=notes)
-        canvas.showPage()
-        canvas.save()
+        analysis_title = 'CatPhan 504 Analysis'
+        module_texts = [
+            [' - CTP404 Results - ',
+             'HU Linearity tolerance: {}'.format(self.ctp404.hu_tolerance),
+             'HU Linearity ROIs: {}'.format(self.ctp404.hu_roi_vals),
+             'Geometric node spacing (mm): {:2.2f}'.format(self.ctp404.avg_line_length),
+             'Slice thickness (mm): {:2.2f}'.format(self.ctp404.slice_thickness),
+             'Low contrast visibility: {:2.2f}'.format(self.ctp404.lcv),
+            ],
+            [' - CTP528 Results - ',
+             'MTF 80% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(80)),
+             'MTF 50% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(50)),
+             'MTF 30% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(30)),
+            ],
+            [' - CTP486 Results - ',
+             'Uniformity tolerance: {}'.format(self.ctp486.tolerance),
+             'Uniformity ROIs: {}'.format(self.ctp486.get_ROI_vals()),
+             'Uniformity Index: {:2.2f}'.format(self.ctp486.uniformity_index),
+             'Integral non-uniformity: {:2.4f}'.format(self.ctp486.integral_non_uniformity),
+             '',
+             ' - CTP515 Results - ',
+             'Contrast threshold: {}'.format(self.ctp515.contrast_threshold),
+             'Low contrast ROIs "seen": {}'.format(self.ctp515.rois_visible)
+            ]
+        ]
+        self._publish_pdf(filename, unit, author, notes, analysis_title,
+                          module_texts, (('hu', 'lin'), ('sp', 'mtf'), ('un', 'lc')))
 
 
 class CatPhan600(CatPhanBase):
@@ -706,6 +741,42 @@ class CatPhan600(CatPhanBase):
                              offset=self.offsets['Spatial Resolution'])
         self.ctp515 = CTP515(self, tolerance=low_contrast_tolerance, contrast_threshold=contrast_threshold,
                              offset=self.offsets['Low contrast'])
+
+    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        analysis_title = 'CatPhan 600 Analysis'
+        module_texts = [
+            [' - CTP404 Results - ',
+             'HU Linearity tolerance: {}'.format(self.ctp404.hu_tolerance),
+             'HU Linearity ROIs: {}'.format(self.ctp404.hu_roi_vals),
+             'Geometric node spacing (mm): {:2.2f}'.format(self.ctp404.avg_line_length),
+             'Slice thickness (mm): {:2.2f}'.format(self.ctp404.slice_thickness),
+             'Low contrast visibility: {:2.2f}'.format(self.ctp404.lcv),
+            ],
+            [' - CTP528 Results - ',
+             'MTF 80% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(80)),
+             'MTF 50% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(50)),
+             'MTF 30% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(30)),
+            ],
+            [' - CTP486 Results - ',
+             'Uniformity tolerance: {}'.format(self.ctp486.tolerance),
+             'Uniformity ROIs: {}'.format(self.ctp486.get_ROI_vals()),
+             'Uniformity Index: {:2.2f}'.format(self.ctp486.uniformity_index),
+             'Integral non-uniformity: {:2.4f}'.format(self.ctp486.integral_non_uniformity),
+             '',
+             ' - CTP515 Results - ',
+             'Contrast threshold: {}'.format(self.ctp515.contrast_threshold),
+             'Low contrast ROIs "seen": {}'.format(self.ctp515.rois_visible)
+            ]
+        ]
+        self._publish_pdf(filename, unit, author, notes, analysis_title,
+                          module_texts, (('hu', 'lin'), ('sp', 'mtf'), ('un', 'lc')))
 
 
 class HUDiskROI(DiskROI):
@@ -844,8 +915,8 @@ class Slice:
         else:
             array = catphan.dicom_stack[self.slice_num].array
         self.image = image.load(array)
-        self.threshold = catphan.threshold
         self.catphan_size = catphan.catphan_size
+        self.mm_per_pixel = catphan.mm_per_pixel
 
     @property
     def __getitem__(self, item):
@@ -867,27 +938,18 @@ class Slice:
             If any of the above conditions are not met.
         """
         # convert the slice to binary and label ROIs
-        slice_img = self.image.as_binary(self.threshold)
-        labeled_arr, num_roi = ndimage.label(slice_img)
+        edges = filters.scharr(self.image.as_type(np.float))
+        if np.max(edges) < 0.1:
+            raise ValueError("Unable to locate Catphan")
+        larr, regionprops, num_roi = get_regions(self, fill_holes=True, threshold='mean')
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
-        # determine if one of the ROIs is the size of the CatPhan and drop all others
-        roi_sizes, _ = np.histogram(labeled_arr, bins=num_roi+1)
-        rois_in_size_criteria = [self.catphan_size*0.8<roi_size<self.catphan_size*1.1 for roi_size in roi_sizes]
-        if not any(rois_in_size_criteria):
-            raise ValueError("Unable to locate the CatPhan")
-        else:
-            catphan_label_id = np.abs(roi_sizes-self.catphan_size).argmin()
-        catphan_arr = np.where(labeled_arr == catphan_label_id, 1, 0)
-        # Check that the ROI is circular
-        expected_fill_ratio = np.pi / 4
-        actual_fill_ratio = filled_area_ratio(catphan_arr)
-        if not expected_fill_ratio * 1.02 > actual_fill_ratio > expected_fill_ratio * 0.9:
-            raise ValueError("Unable to locate the CatPhan")
-        # get center pixel based on ROI location
-        center_pixel = ndimage.center_of_mass(catphan_arr)
-        return Point(center_pixel[1], center_pixel[0])  # scipy returns coordinates as (y,x), thus the flip
+        catphan_region = sorted(regionprops, key=lambda x: np.abs(x.filled_area - self.catphan_size))[0]
+        if (self.catphan_size * 1.2 < catphan_region.filled_area) or (catphan_region.filled_area < self.catphan_size / 1.2):
+            raise ValueError("Unable to locate Catphan")
+        center_pixel = catphan_region.centroid
+        return Point(center_pixel[1], center_pixel[0])
 
 
 class CatPhanModule(Slice, ROIManagerMixin):
@@ -1005,18 +1067,11 @@ class CTP404(CatPhanModule):
 
         # geometry
         self.geometry = {
-            'line_assignments': {'Top-Horizontal': ('Top-Left', 'Top-Right'),
-                                 'Bottom-Horizontal': ('Bottom-Left', 'Bottom-Right'),
-                                 'Left-Vertical': ('Top-Left', 'Bottom-Left'),
-                                 'Right-Vertical': ('Top-Right', 'Bottom-Right')},
-            'distance to ROIs': 35/self.mm_per_pixel,
-            'ROI radius': 6/self.mm_per_pixel,
-            'ROIs': {
-                'Top-Left': {'angle': -135},
-                'Top-Right': {'angle': -45},
-                'Bottom-Right': {'angle': 45},
-                'Bottom-Left': {'angle': 135}
-            }
+            'line_assignments': {'Top-Horizontal': (0, 1),
+                                 'Bottom-Horizontal': (2, 3),
+                                 'Left-Vertical': (0, 2),
+                                 'Right-Vertical': (1, 3)},
+            'Image size': 35/self.mm_per_pixel,
         }
         self.lines = OrderedDict()
         super().__init__(catphan, tolerance=None, offset=offset)
@@ -1058,16 +1113,21 @@ class CTP404(CatPhanModule):
                                                      self.thickness['distance to ROIs'], self.phan_center)
 
     def _setup_geometry_rois(self):
-        geo_rois = OrderedDict()
-        geo_img = copy.copy(self.image)
-        geo_img.filter(size=3)
-        for name, value in self.geometry['ROIs'].items():
-            geo_rois[name] = GeoDiskROI(geo_img, value['angle']+self.catphan_roll, self.geometry['ROI radius'],
-                                        self.geometry['distance to ROIs'], self.phan_center)
-        # setup the geometric lines
-        for name, (node1, node2) in self.geometry['line_assignments'].items():
-            self.lines[name] = GeometricLine(geo_rois[node1], geo_rois[node2], self.mm_per_pixel,
-                                             self.scaling_tolerance)
+        boxsize = self.geometry['Image size']
+        xbounds = (int(self.phan_center.x-boxsize), int(self.phan_center.x+boxsize))
+        ybounds = (int(self.phan_center.y-boxsize), int(self.phan_center.y+boxsize))
+        geo_img = self.image[ybounds[0]:ybounds[1], xbounds[0]:xbounds[1]]
+        larr, regionprops, num_roi = get_regions(geo_img, fill_holes=True, clear_borders=False)
+        # check that there is at least 1 ROI
+        if num_roi < 4:
+            raise ValueError("Unable to locate the Geometric nodes")
+        elif num_roi > 4:
+            regionprops = sorted(regionprops, key=lambda x: x.filled_area, reverse=True)[:4]
+        sorted_regions = sorted(regionprops, key=lambda x: (2*x.centroid[0]+x.centroid[1]))
+        centers = [Point(r.weighted_centroid[1]+xbounds[0], r.weighted_centroid[0]+ybounds[0]) for r in sorted_regions]
+        # # setup the geometric lines
+        for name, order in self.geometry['line_assignments'].items():
+            self.lines[name] = GeometricLine(centers[order[0]], centers[order[1]], self.mm_per_pixel, self.scaling_tolerance)
 
     @property
     def lcv(self):
@@ -1372,53 +1432,6 @@ class CTP528(CatPhanModule):
         return points
 
 
-class GeoDiskROI(DiskROI):
-    """A circular ROI, much like the HU ROI, but with methods to find the center of the geometric "node"."""
-
-    def _threshold_node(self):
-        """Threshold the ROI to find node.
-
-        Three of the four nodes have a positive value, while one node is air and
-        thus has a low value. The algorithm thus thresholds for extreme values relative
-        to the median value (which is the node).
-
-        Returns
-        -------
-        bw_node : numpy.array
-            A masked 2D array the size of the Slice image, where only the node pixels have a value.
-        """
-        masked_img = np.abs(self.circle_mask())
-        # normalize image
-        norm_masked = masked_img / np.nanmedian(masked_img)
-        # threshold image
-        masked_img = np.nan_to_num(norm_masked)
-        upper_band_pass = masked_img > 1.3
-        lower_band_pass = (masked_img < 0.7) & (masked_img > 0)
-        bw_node = upper_band_pass + lower_band_pass
-        return bw_node
-
-    @property
-    @lru_cache(maxsize=1)
-    def node_center(self):
-        """Find the center of the geometric node within the ROI."""
-        bw_node = self._threshold_node()
-        # label ROIs found
-        bw_node_filled = ndimage.morphology.binary_fill_holes(bw_node)
-        labeled_arr, num_roi = ndimage.measurements.label(bw_node_filled)
-        roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi+1)  # hist will give the size of each label
-        bw_node_cleaned = np.where(labeled_arr == np.argsort(roi_sizes)[-2], 1, 0)  # remove all ROIs except the second largest one (largest one is the air itself)
-        labeled_arr, num_roi = ndimage.measurements.label(bw_node_cleaned)
-        if num_roi != 1:
-            raise ValueError("Did not find the geometric node.")
-        # determine the center of mass of the geometric node
-        weights = np.abs(self._array)
-        x_arr = np.abs(np.average(bw_node_cleaned, weights=weights, axis=0))
-        x_com = SingleProfile(x_arr).fwxm_center(interpolate=True)
-        y_arr = np.abs(np.average(bw_node_cleaned, weights=weights, axis=1))
-        y_com = SingleProfile(y_arr).fwxm_center(interpolate=True)
-        return Point(x_com, y_com)
-
-
 class GeometricLine(Line):
     """Represents a line connecting two nodes/ROIs on the Geometry Slice.
 
@@ -1442,7 +1455,7 @@ class GeometricLine(Line):
         tolerance : int, float
             The tolerance of the geometric line, in mm.
         """
-        super().__init__(geo_roi1.node_center, geo_roi2.node_center)
+        super().__init__(geo_roi1, geo_roi2)
         self.mm_per_pixel = mm_per_pixel
         self.tolerance = tolerance
 
@@ -1553,6 +1566,35 @@ class CTP515(CatPhanModule):
         axis.set_xlabel('ROI size (mm)')
         axis.set_ylabel("Contrast * Diameter")
         return points
+
+
+def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='otsu'):
+    if threshold == 'otsu':
+        thresmeth = filters.threshold_otsu
+    elif threshold == 'mean':
+        thresmeth = np.mean
+    if isinstance(slice_or_arr, Slice):
+        edges = filters.scharr(slice_or_arr.image.array.astype(np.float))
+        center = slice_or_arr.image.center
+    elif isinstance(slice_or_arr, np.ndarray):
+        edges = filters.scharr(slice_or_arr)
+        center = (int(edges.shape[1]/2), int(edges.shape[0]/2))
+    edges = filters.gaussian(edges, sigma=1)
+    if isinstance(slice_or_arr, Slice):
+        box_size = 110/slice_or_arr.mm_per_pixel
+        thres_img = edges[int(center.y-box_size):int(center.y+box_size),
+                          int(center.x-box_size):int(center.x+box_size)]
+        thres = thresmeth(thres_img)
+    else:
+        thres = thresmeth(edges)
+    bw = edges > thres
+    if clear_borders:
+        segmentation.clear_border(bw, buffer_size=int(0.05*bw.shape[0]), in_place=True)
+    if fill_holes:
+        bw = ndimage.binary_fill_holes(bw)
+    labeled_arr, num_roi = measure.label(bw, return_num=True)
+    regionprops = measure.regionprops(labeled_arr, edges)
+    return labeled_arr, regionprops, num_roi
 
 
 @lru_cache(maxsize=1)

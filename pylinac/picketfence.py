@@ -423,7 +423,7 @@ class PicketFence:
                                                                        self.max_error, self.max_error_picket, self.max_error_leaf)
         return string
 
-    def publish_pdf(self, filename, author='', unit='N/A', gantry=None, collimator=None, notes=None):
+    def publish_pdf(self, filename, author='', unit='N/A', notes=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -432,20 +432,25 @@ class PicketFence:
             The file to write the results to.
         """
         from reportlab.lib.units import cm
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title='Picket Fence Analysis',
+                                                  author=author, unit=unit, file_name=osp.basename(self.image.path),
+                                                  file_created=self.image.date_created())
         data = io.BytesIO()
         self.save_analyzed_image(data, leaf_error_subplot=True)
-        canvas = pdf.create_single_image_template(filename, image_obj=self.image, analysis_title='Picket Fence Analysis', analyzer=author, unit=unit)
         img = pdf.create_stream_image(data)
         canvas.drawImage(img, 3*cm, 8*cm, width=12*cm, height=12*cm, preserveAspectRatio=True)
+        text = ['Picket Fence results:',
+                'Magnification factor (SID/SAD): {:2.2f}'.format(self.image.metadata.RTImageSID/self.image.metadata.RadiationMachineSAD),
+                'Tolerance (mm): {}'.format(self.settings.tolerance),
+                'Leaves passing (%): {:2.1f}'.format(self.percent_passing),
+                'Absolute median error (mm): {:2.3f}'.format(self.abs_median_error),
+                'Mean picket spacing (mm): {:2.1f}'.format(self.pickets.mean_spacing),
+                'Maximum error (mm): {:2.3f} on Picket {}, Leaf {}'.format(self.max_error, self.max_error_picket, self.max_error_leaf),
+                'Gantry Angle: {:2.2f}'.format(self.gantry_angle),
+                'Collimator Angle: {:2.2f}'.format(self.collimator_angle),
+                ]
         pdf.draw_text(canvas, x=10*cm, y=25.5*cm,
-                  text=['Picket Fence results:',
-                        'Magnification factor (SID/SAD): {:2.2f}'.format(self.image.metadata.RTImageSID/self.image.metadata.RadiationMachineSAD),
-                        'Tolerance (mm): {}'.format(self.settings.tolerance),
-                        'Leaves passing (%): {:2.1f}'.format(self.percent_passing),
-                        'Absolute median error (mm): {:2.3f}'.format(self.abs_median_error),
-                        'Mean picket spacing (mm): {:2.1f}'.format(self.pickets.mean_spacing),
-                        'Maximum error (mm): {:2.3f} on Picket {}, Leaf {}'.format(self.max_error, self.max_error_picket, self.max_error_leaf),
-                        ])
+                  text=text)
         if notes is not None:
             pdf.draw_text(canvas, x=1*cm, y=5.5*cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1*cm, y=5*cm, text=notes)
@@ -482,6 +487,20 @@ class PicketFence:
         else:
             orientation = UP_DOWN
         return orientation
+
+    @property
+    def gantry_angle(self):
+        try:
+            return round(float(self.image.metadata.GantryAngle))
+        except AttributeError:
+            return 'N/A'
+
+    @property
+    def collimator_angle(self):
+        try:
+            return round(float(self.image.metadata.BeamLimitingDeviceAngle))
+        except AttributeError:
+            return 'N/A'
 
 
 class Overlay:

@@ -278,7 +278,7 @@ class CBCT16(CatPhan504Mixin, TestCase):
     hu_values = {'Poly': -37, 'Acrylic': 128, 'Delrin': 342, 'Air': -995, 'Teflon': 1000, 'PMP': -181, 'LDPE': -87}
     unif_values = {'Center': 17, 'Left': 20, 'Right': 18, 'Top': 19, 'Bottom': 19}
     mtf_values = {80: 0.43, 50: 0.62, 30: 0.78}
-    avg_line_length = 49.6
+    avg_line_length = 49.7
     lowcon_visible = 3
 
 
@@ -294,7 +294,18 @@ class CBCT17(CatPhan504Mixin, TestCase):
     lowcon_visible = 1
 
 
-# TODO: can't find roll properly
+class Catphan504Ring(CatPhan504Mixin, TestCase):
+    """A Varian CBCT dataset with ring artifact"""
+    file_path = ['ringartifact.zip']
+    expected_roll = 0.1
+    origin_slice = 32
+    hu_values = {'Poly': -52, 'Acrylic': 103, 'Delrin': 321, 'Air': -995, 'Teflon': 950, 'PMP': -201, 'LDPE': -105}
+    unif_values = {'Center': -2, 'Left': -4, 'Right': -16, 'Top': -12, 'Bottom': -8}
+    mtf_values = {30: 1.08, 50: 0.87, 80: 0.63}
+    avg_line_length = 50.1
+    lowcon_visible = 3
+
+
 class Katy1(CatPhan504Mixin, TestCase):
     """CBCT with very high HU values."""
     file_path = ['Katy iX', 'Monday, March 10, 2014 1-05-47 PM (super high HU).zip']
@@ -303,7 +314,6 @@ class Katy1(CatPhan504Mixin, TestCase):
     unif_values = {'Center': 612, 'Left': 628, 'Right': 645, 'Top': 642, 'Bottom': 631}
     mtf_values = {80: 0.59, 30: 0.59, 50: 0.59}
     lowcon_visible = 3
-    avg_line_length = 49.86
 
 
 class AGElekta1(CatPhan503Mixin, TestCase):
@@ -325,6 +335,7 @@ class AGElekta2(CatPhan503Mixin, TestCase):
     hu_values = {'Poly': 746, 'Acrylic': 834, 'Delrin': 969, 'Air': 181, 'Teflon': 1324, 'PMP': 670, 'LDPE': 722}
     unif_values = {'Center': 707, 'Left': 758, 'Right': 748, 'Top': 758, 'Bottom': 750}
     mtf_values = {80: 0.29, 50: 0.43, 30: 0.53}
+    avg_line_length = 50.2
 
 
 class Elekta4(CatPhan503Mixin, TestCase):

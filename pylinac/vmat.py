@@ -287,6 +287,7 @@ class VMAT:
             self.segments.draw(ax)
             plt.sca(ax)
             plt.axis('off')
+            plt.tight_layout()
 
         # plot profile
         elif subimage == PROFILE:
@@ -372,18 +373,21 @@ class VMAT:
             The file to write the results to.
         """
         from reportlab.lib.units import cm
-        data = io.BytesIO()
-        self.save_analyzed_image(data)
-        canvas = pdf.create_single_image_template(filename, image_obj=self.image_open,
-                                                  analysis_title='{} VMAT Analysis'.format(self.settings.test_type.upper()), analyzer=author, unit=unit)
-        img = pdf.create_stream_image(data)
-        canvas.drawImage(img, 2 * cm, 5 * cm, width=18 * cm, height=18 * cm, preserveAspectRatio=True)
-        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
-                      text=['{} VMAT results:'.format(self.settings.test_type.upper()),
-                            'Source-to-Image Distance (mm): {:2.0f}'.format(self.image_open.sid),
-                            'Tolerance (mm): {:2.1f}'.format(self.settings.tolerance),
-                            'X-offset applied (pixels): {:2.0f}'.format(self.settings.x_offset),
-                            ])
+        canvas = pdf.create_pylinac_page_template(filename, file_name=osp.basename(self.image_open.path) + ", " + osp.basename(self.image_dmlc.path),
+                                                  analysis_title='{} VMAT Analysis'.format(self.settings.test_type.upper()), author=author, unit=unit)
+        for y, x, width, img in zip((10, 10, 1), (1, 11, 4), (9, 9, 16), (OPEN, DMLC, PROFILE)):
+            data = io.BytesIO()
+            self.save_analyzed_subimage(data, subimage=img)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, x * cm, y * cm, width=width * cm, height=18 * cm, preserveAspectRatio=True)
+        text = ['{} VMAT results:'.format(self.settings.test_type.upper()),
+                'Source-to-Image Distance (mm): {:2.0f}'.format(self.image_open.sid),
+                'Tolerance (mm): {:2.1f}'.format(self.settings.tolerance),
+                'X-offset applied (pixels): {:2.0f}'.format(self.settings.x_offset),
+                'Absolute mean deviation (%): {:2.2f}'.format(self.avg_abs_r_deviation),
+                'Maximum deviation (%): {:2.2f}'.format(self.max_r_deviation),
+                ]
+        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm, text=text)
         if notes is not None:
             pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)

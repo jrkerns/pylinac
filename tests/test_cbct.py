@@ -98,6 +98,7 @@ class CBCTMixin(LocationMixin):
         else:
             cls.cbct = cls.catphan(filename, use_classifier=cls.use_classifier)
         cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
+        print(len(cls.cbct.dicom_stack))
 
     @classmethod
     def tearDownClass(cls):

@@ -1,5 +1,7 @@
 """This module holds classes for image loading and manipulation."""
 import copy
+from collections import Counter
+from datetime import datetime
 from io import BytesIO
 import os.path as osp
 import os
@@ -300,6 +302,23 @@ class BaseImage:
     def physical_shape(self):
         """The physical size of the image in mm."""
         return self.shape[0] / self.dpmm, self.shape[1] / self.dpmm
+
+    def date_created(self, format="%A, %B %d, %Y"):
+        date = None
+        for attr in ('InstanceCreationDate', 'StudyDate'):
+            try:
+                date = datetime.strptime(getattr(self.metadata, attr), "%Y%m%d")
+                date = date.strftime(format)
+            except AttributeError:
+                pass
+            else:
+                break
+        if date is None:
+            try:
+                date = datetime.fromtimestamp(osp.getctime(self.path)).strftime(format)
+            except AttributeError:
+                date = 'Unknown'
+        return date
 
     def plot(self, ax=None, show=True, clear_fig=False):
         """Plot the image.
@@ -857,7 +876,7 @@ class DicomImageStack:
     >>> dcm_stack_uint32 = image.DicomImageStack(img_folder, dtype=np.uint32)
     """
 
-    def __init__(self, folder, dtype=None):
+    def __init__(self, folder, dtype=None, min_number=60):
         """Load a folder with DICOM CT images.
 
         Parameters
@@ -881,11 +900,9 @@ class DicomImageStack:
             raise FileNotFoundError("No files were found in the specified location: {0}".format(folder))
 
         # error checking
-        self._check_all_from_same_study()
-        # get the original image order
-        original_img_order = [int(round(image.metadata.ImagePositionPatient[-1])) for image in self.images]
-        # correctly reorder the images
-        self.images = [self.images[i] for i in np.argsort(original_img_order)]
+        self.images = self._check_number_and_get_common_uid_imgs(min_number)
+        # sort according to physical order
+        self.images.sort(key=lambda x: x.metadata.ImagePositionPatient[-1])
 
     @classmethod
     def from_zip(cls, zip_path, dtype=None):
@@ -911,11 +928,12 @@ class DicomImageStack:
         except (InvalidDicomError, AttributeError, MemoryError):
             return False
 
-    def _check_all_from_same_study(self):
+    def _check_number_and_get_common_uid_imgs(self, min_number):
         """Check that all the images are from the same study."""
-        initial_uid = self.images[0].metadata.SeriesInstanceUID
-        if not all(image.metadata.SeriesInstanceUID == initial_uid for image in self.images):
-            raise ValueError("The images were not all from the same study")
+        most_common_uid = Counter(i.metadata.SeriesInstanceUID for i in self.images).most_common(1)[0]
+        if most_common_uid[1] < min_number:
+            raise ValueError("The minimum number images from the same study were not found")
+        return [i for i in self.images if i.metadata.SeriesInstanceUID == most_common_uid[0]]
 
     @type_accept(slice=int)
     def plot(self, slice=0):

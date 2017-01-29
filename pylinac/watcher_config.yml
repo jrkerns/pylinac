@@ -13,10 +13,12 @@ general:
   avoid-keywords:  # keywords in a file name that cause a skip of analysis
     - .png
     - .txt
+    - .pdf
   query-frequency: 60  # the frequency at which pylinac queries new files; units are in seconds; N/A if using the `process` function
   use-classifier: false  # set to true to use an SVM classifier which can automatically
                          # identify starshot, picket fence, pipspro, and leeds images.
                          # Experimental; may not always identify images correctly and cause errors.
+  unit: TrueBeam 1234
 
 email:
   enable-all: false  # set to true to send an email after every analysis

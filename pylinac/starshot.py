@@ -21,6 +21,7 @@ Features:
 """
 import copy
 import io
+import os.path as osp
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -417,18 +418,22 @@ class Starshot:
             The file to write the results to.
         """
         from reportlab.lib.units import cm
-        data = io.BytesIO()
-        self.save_analyzed_image(data)
-        canvas = pdf.create_single_image_template(filename, image_obj=self.image,
-                                                  analysis_title='Starshot Analysis', analyzer=author, unit=unit)
-        img = pdf.create_stream_image(data)
-        canvas.drawImage(img, 2 * cm, 7 * cm, width=18 * cm, height=18*cm, preserveAspectRatio=True)
-        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
-                      text=['Starshot results:',
-                            'Source-to-Image Distance (mm): {:2.0f}'.format(self.image.sid),
-                            'Tolerance (mm): {:2.1f}'.format(self.tolerance),
-                            "Minimum circle diameter (mm): {:2.2f}".format(self.wobble.radius_mm*2),
-                            ])
+        canvas = pdf.create_pylinac_page_template(filename, file_name=osp.basename(self.image.path),
+                                                  file_created=self.image.date_created(),
+                                                  analysis_title='Starshot Analysis', author=author, unit=unit)
+        for img, height in zip(('wobble', 'asdf'), (2, 11.5)):
+            data = io.BytesIO()
+            self.save_analyzed_subimage(data, img)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, 4 * cm, height * cm, width=13*cm, height=13*cm, preserveAspectRatio=True)
+        text = ['Starshot results:',
+                'Source-to-Image Distance (mm): {:2.0f}'.format(self.image.sid),
+                'Tolerance (mm): {:2.1f}'.format(self.tolerance),
+                "Minimum circle diameter (mm): {:2.2f}".format(self.wobble.radius_mm*2),
+                ]
+        if axis_measured != 'N/A':
+            text.append("Axis measured: " + axis_measured)
+        pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text, fontsize=12)
         if notes is not None:
             pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)

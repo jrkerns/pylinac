@@ -12,7 +12,6 @@ import os.path as osp
 import pickle
 import shutil
 import time
-import zipfile
 
 import yagmail
 import yaml
@@ -49,8 +48,6 @@ class AnalyzeMixin:
     """
     obj = object
     config_name = ''
-    save_image_method = 'save_analyzed_image'
-    save_text_method = 'return_results'
     expecting_zip = False
 
     def __init__(self, path, config):
@@ -76,27 +73,22 @@ class AnalyzeMixin:
             self.send_email()
         elif self.config['email']['enable-failure'] and self.should_send_failure_email():
             self.send_email()
-        self.save_zip()
+        self.publish_pdf()
         logger.info("Finished analysis on " + self.local_path)
 
-    def save_zip(self):
-        # save the image and/or text to file
-        self.save_image()
-        self.save_text()
-        # save results and original file to a compressed ZIP archive
-        with zipfile.ZipFile(self.zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
-            zfile.write(self.img_filename, arcname=osp.basename(self.img_filename))
-            try:
-                zfile.write(self.txt_filename, arcname=osp.basename(self.txt_filename))
-            except:
-                pass
-            zfile.write(self.full_path, arcname=osp.basename(self.full_path))
-        # remove the original files
-        for file in (self.img_filename, self.txt_filename, self.full_path):
-            try:
-                os.remove(file)
-            except:
-                pass
+    # def save_zip(self):
+    #     # save the image and/or text to file
+    #     self.save_image()
+    #     self.save_text()
+    #     # save results and original file to a compressed ZIP archive
+    #     with zipfile.ZipFile(self.zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
+    #         zfile.write(self.full_path, arcname=osp.basename(self.full_path))
+    #     # remove the original files
+    #     for file in (self.img_filename, self.txt_filename, self.full_path):
+    #         try:
+    #             os.remove(file)
+    #         except:
+    #             pass
 
     @property
     def constructor_kwargs(self):
@@ -104,19 +96,9 @@ class AnalyzeMixin:
         return {}
 
     @property
-    def zip_filename(self):
-        """The name of the file for the ZIP archive."""
-        return self.base_name + self.config['general']['file-suffix'] + '.zip'
-
-    @property
-    def img_filename(self):
-        """The name of the file for the analyzed image."""
-        return self.base_name + self.config['general']['file-suffix'] + '.png'
-
-    @property
-    def txt_filename(self):
-        """The name of the file for the text results."""
-        return self.base_name + self.config['general']['file-suffix'] + '.txt'
+    def pdf_filename(self):
+        """The name of the file for the PDF results."""
+        return self.base_name + '.pdf'
 
     @property
     def keywords(self):
@@ -145,7 +127,7 @@ class AnalyzeMixin:
         if name is None:
             name = self.local_path
         if attachments is None:
-            attachments = [self.img_filename, self.txt_filename]
+            attachments = [self.pdf_filename]
         elif attachments == '':
             attachments = []
         # compose message
@@ -167,16 +149,8 @@ class AnalyzeMixin:
                        contents=contents)
         logger.info("An email was sent to the recipients with the results")
 
-    def save_image(self):
-        """Save the analyzed image to file."""
-        method = getattr(self.instance, self.save_image_method)
-        method(self.img_filename)
-
-    def save_text(self):
-        """Save the analysis results to a text file."""
-        method = getattr(self.instance, self.save_text_method)
-        with open(self.txt_filename, 'w') as txtfile:
-            txtfile.write(method())
+    def publish_pdf(self):
+        self.instance.publish_pdf(self.pdf_filename, unit=self.config['general']['unit'])
 
     def should_send_failure_email(self):
         """Check whether analysis results were poor and an email should be triggered."""
@@ -190,8 +164,6 @@ class AnalyzeMixin:
 class AnalyzeWL(AnalyzeMixin):
     """Analysis runner for Winston-Lutz images."""
     obj = WinstonLutz.from_zip
-    save_text_method = 'results'
-    save_image_method = 'save_summary'
     config_name = 'winston-lutz'
     expecting_zip = True
 
@@ -217,19 +189,11 @@ class AnalyzeLeeds(AnalyzeMixin):
     obj = LeedsTOR
     config_name = 'leeds'
 
-    def save_text(self):
-        """LeedsTOR analysis does not have a text file result"""
-        pass
-
 
 class AnalyzeQC3(AnalyzeMixin):
     """Analysis runner for PipsPro QC-3."""
     obj = StandardImagingQC3
     config_name = 'qc3'
-
-    def save_text(self):
-        """Pipspro analysis does not have a text file result"""
-        pass
 
 
 class AnalyzeStar(AnalyzeMixin):
@@ -291,7 +255,6 @@ class AnalyzeVMAT(AnalyzeMixin):
 class AnalyzeLog(AnalyzeMixin):
     """Analysis runner for dynalogs or trajectory logs."""
     obj = load_log
-    save_image_method = 'save_summary'
     config_name = 'logs'
 
     @property
@@ -301,10 +264,6 @@ class AnalyzeLog(AnalyzeMixin):
         log_time = osp.splitext(rev_path[:u_idx][::-1])[0]
         return log_time
 
-    @property
-    def log_txt_filename(self):
-        return self.instance.txt_filename
-
     def send_email(self):
         """Send an email with the analysis results."""
         super().send_email(name=self.log_time, attachments='')
@@ -312,11 +271,6 @@ class AnalyzeLog(AnalyzeMixin):
     def analyze(self):
         """Log analysis is done via calculating gamma."""
         self.instance.fluence.gamma.calc_map(**self.analysis_settings)
-
-    def save_text(self):
-        """Special text save method."""
-        with open(self.txt_filename, 'w') as txtfile:
-            txtfile.write(self.instance.report_basic_parameters(printout=False))
 
     def should_send_failure_email(self):
         """Failure is based on several varying criteria."""
@@ -344,30 +298,13 @@ class AnalyzeLog(AnalyzeMixin):
             logger.info(self.local_path + " is an imaging log...")
         else:
             self.analyze()
-            self.save_zip()
+            self.publish_pdf()
             if self.config['email']['enable-all']:
                 self.send_email()
             elif self.config['email']['enable-failure'] and self.should_send_failure_email():
                 self.send_email()
         logger.info("Finished analysis on " + self.local_path)
         return True
-
-    def save_zip(self):
-        """Save the log and resulting PNG & text file to a ZIP archive."""
-        # save the image and/or text to file
-        self.save_image()
-        self.save_text()
-        # save results and original file to a compressed ZIP archive
-        with zipfile.ZipFile(self.zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
-            for file in (self.img_filename, self.txt_filename, self.full_path):
-                zfile.write(file, arcname=osp.basename(file))
-            if self.log_txt_filename is not None:
-                zfile.write(self.log_txt_filename, osp.basename(self.log_txt_filename))
-        # remove the original files
-        for file in (self.img_filename, self.txt_filename, self.full_path):
-            os.remove(file)
-        if self.log_txt_filename is not None:
-            os.remove(self.log_txt_filename)
 
 
 def analysis_should_be_done(path, config, skip_list):

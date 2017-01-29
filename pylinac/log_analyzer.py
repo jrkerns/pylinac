@@ -23,6 +23,7 @@ import collections
 import concurrent.futures
 import copy
 import csv
+from datetime import datetime
 from functools import lru_cache
 import gc
 import itertools
@@ -1359,45 +1360,27 @@ class LogBase:
         if self.fluence.gamma.map_calced:
             # plot the actual fluence
             ax = plt.subplot(2, 3, 1)
-            ax.set_title('Actual Fluence', fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            ax.autoscale(tight=True)
-            plt.imshow(self.fluence.actual.array, aspect='auto', interpolation='none', cmap=get_array_cmap())
+            self.plot_subimage('actual', ax)
 
             # plot the expected fluence
             ax = plt.subplot(2, 3, 2)
-            ax.set_title("Expected Fluence", fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.expected.array, aspect='auto', interpolation='none', cmap=get_array_cmap())
+            self.plot_subimage('expected', ax)
 
             # plot the gamma map
-            gmma = self.fluence.gamma
             ax = plt.subplot(2, 3, 3)
-            ax.set_title("Gamma Map ({:2.2f}% passing @ {}%/{}mm)".format(gmma.pass_prcnt, gmma.doseTA, gmma.distTA), fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            plt.imshow(self.fluence.gamma.array, aspect='auto', interpolation='none', vmax=1, cmap=get_array_cmap())
-            plt.colorbar(ax=ax)
+            self.plot_subimage('gamma', ax)
 
             # plot the gamma histogram
             ax = plt.subplot(2, 3, 4)
-            ax.set_yscale('log')
-            ax.set_title("Gamma Histogram (Avg: {:2.3f})".format(self.fluence.gamma.avg_gamma), fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            plt.hist(self.fluence.gamma.array.flatten(), bins=self.fluence.gamma.bins)
+            self.plot_subgraph('gamma', ax)
 
             # plot the MLC error histogram
             ax = plt.subplot(2, 3, 5)
-            p95error = self.axis_data.mlc.get_error_percentile()
-            ax.set_title("Leaf Error Histogram (95th Perc: {:2.3f}cm)".format(p95error), fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            plt.hist(self.axis_data.mlc._abs_error_all_leaves.flatten())
+            self.plot_subgraph('leaf hist', ax)
 
             # plot the leaf RMSs
             ax = plt.subplot(2,3,6)
-            ax.set_title("Leaf RMS Error (Max: {:2.3f}cm)".format(self.axis_data.mlc.get_RMS_max()), fontsize=10)
-            ax.tick_params(axis='both', labelsize=8)
-            ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves+0.5])  # bit of padding since bar chart alignment is center
-            plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both'), align='center')
+            self.plot_subgraph('rms', ax)
 
             if show:
                 plt.show()
@@ -1407,6 +1390,57 @@ class LogBase:
     def save_summary(self, filename, **kwargs):
         """Save the summary image to file."""
         self.plot_summary(show=False)
+        plt.savefig(filename, **kwargs)
+        plt.close()
+
+    def plot_subimage(self, img, ax=None, show=True, fontsize=10):
+        # img: {'actual', 'expected', 'gamma'}
+        if ax is None:
+            ax = plt.subplot()
+        ax.tick_params(axis='both', labelsize=8)
+        if img in ('actual', 'expected'):
+            title = img.capitalize() + ' Fluence'
+            plt.imshow(getattr(self.fluence, img).array, aspect='auto', interpolation='none',
+                       cmap=get_array_cmap())
+        elif img == 'gamma':
+            plt.imshow(getattr(self.fluence, img).array, aspect='auto', interpolation='none', vmax=1,
+                       cmap=get_array_cmap())
+            plt.colorbar(ax=ax)
+            title = 'Gamma Map'
+        ax.autoscale(tight=True)
+        ax.set_title(title, fontsize=fontsize)
+        if show:
+            plt.show()
+
+    def save_subimage(self, filename, img, fontsize, **kwargs):
+        self.plot_subimage(img, show=False, fontsize=fontsize)
+        plt.savefig(filename, **kwargs)
+        plt.close()
+
+    def plot_subgraph(self, graph, ax=None, show=True, fontsize=10, labelsize=8):
+        # graph: {'gamma hist', 'leaf hist', 'leaf rms'}
+        if ax is None:
+            ax = plt.subplot()
+        if graph.find('gam') >= 0:
+            title = 'Gamma Histogram'
+            plt.hist(self.fluence.gamma.array.flatten(), bins=self.fluence.gamma.bins)
+            ax.set_yscale('log')
+        elif graph.find('hist') >= 0:
+            title = 'Leaf Histogram'
+            plt.hist(self.axis_data.mlc._abs_error_all_leaves.flatten())
+        elif graph.find('rms') >= 0:
+            title = 'Leaf RMS (mm)'
+            ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves + 0.5])  # bit of padding since bar chart alignment is center
+            plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both'),
+                    align='center')
+        ax.set_title(title, fontsize=fontsize)
+        ax.tick_params(axis='both', labelsize=labelsize)
+        ax.grid('on')
+        if show:
+            plt.show()
+
+    def save_subgraph(self, filename, img, fontsize=10, labelsize=8, **kwargs):
+        self.plot_subgraph(img, show=False, fontsize=fontsize, labelsize=labelsize)
         plt.savefig(filename, **kwargs)
         plt.close()
 
@@ -1731,6 +1765,49 @@ class Dynalog(LogBase):
         dlog.report_basic_parameters()
         dlog.plot_summary()
 
+    def publish_pdf(self, filename, unit='N/A', notes=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        from reportlab.lib.units import cm
+        self.fluence.gamma.calc_map()
+
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory Log Analysis", unit=unit,
+                                                  file_name=osp.basename(self.a_logfile) + ", " + osp.basename(self.b_logfile))
+        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
+                      text=['DynaLog results:',
+                            'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg() * 10),
+                            'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max() * 10),
+                            '95th Percentile error (mm): {:2.2f}'.format(self.axis_data.mlc.get_error_percentile(95)),
+                            'Number of beam holdoffs: {}'.format(self.num_beamholds),
+                            'Gamma pass (%): {:2.1f}'.format(self.fluence.gamma.pass_prcnt),
+                            'Gamma average: {:2.2f}'.format(self.fluence.gamma.avg_gamma),
+                            ])
+        for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), ('actual', 'expected', 'gamma', ''))):
+            data = BytesIO()
+            if idx != 3:
+                self.save_subimage(data, graph, fontsize=20)
+            else:
+                self.save_subgraph(data, 'gamma', fontsize=20, labelsize=12)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, x * cm, y * cm, width=9 * cm, height=9 * cm, preserveAspectRatio=True)
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
+        canvas.showPage()
+        pdf.add_pylinac_page_template(canvas, analysis_title='DynaLog Analysis')
+        for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), ('leaf hist', 'leaf rms'))):
+            data = BytesIO()
+            self.save_subgraph(data, graph, fontsize=20, labelsize=12)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, x * cm, y * cm, width=13 * cm, height=13 * cm, preserveAspectRatio=True)
+        canvas.showPage()
+        canvas.save()
+
     @staticmethod
     def identify_other_file(first_dlg_file, raise_find_error=True):
         """Return the filename of the corresponding dynalog file.
@@ -2024,33 +2101,40 @@ class TrajectoryLog(LogBase):
         filename : (str, file-like object}
             The file to write the results to.
         """
+        if self.treatment_type == IMAGING:
+            raise ValueError("Log is of imaging type (e.g. kV setup) and does not contain relevant gamma/leaf data")
         from reportlab.lib.units import cm
-        from datetime import datetime
         self.fluence.gamma.calc_map()
 
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory log Analysis")
-        pdf.draw_text(canvas, x=2 * cm, y=25.5 * cm,
-                  text=['Metadata:',
-                        'File: {}'.format(osp.basename(self.filename)),
-                        'Date of analysis: {}'.format(datetime.now().strftime("%A, %B %d, %Y")),
-                        'Unit: {}'.format(unit),
-                        ])
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory Log Analysis", unit=unit,
+                                                  file_name=osp.basename(self.filename))
         pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
                       text=['Trajectory Log results:',
                             'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg()*10),
                             'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max()*10),
-                            '95th Percentile error (mm): {:2.0f}'.format(self.axis_data.mlc.get_error_percentile(95)),
+                            '95th Percentile error (mm): {:2.2f}'.format(self.axis_data.mlc.get_error_percentile(95)),
                             'Number of beam holdoffs: {}'.format(self.num_beamholds),
                             'Gamma pass (%): {:2.1f}'.format(self.fluence.gamma.pass_prcnt),
                             'Gamma average: {:2.2f}'.format(self.fluence.gamma.avg_gamma),
                             ])
-        data = BytesIO()
-        self.save_summary(data)
-        img = pdf.create_stream_image(data)
-        canvas.drawImage(img, 2 * cm, 5 * cm, width=18 * cm, height=18 * cm, preserveAspectRatio=True)
+        for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), ('actual', 'expected', 'gamma', ''))):
+            data = BytesIO()
+            if idx != 3:
+                self.save_subimage(data, graph, fontsize=20)
+            else:
+                self.save_subgraph(data, 'gamma', fontsize=20, labelsize=12)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, x * cm, y * cm, width=9 * cm, height=9 * cm, preserveAspectRatio=True)
         if notes is not None:
             pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
+        canvas.showPage()
+        pdf.add_pylinac_page_template(canvas, analysis_title='Trajectory Log Analysis')
+        for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), ('leaf hist', 'leaf rms'))):
+            data = BytesIO()
+            self.save_subgraph(data, graph, fontsize=20, labelsize=12)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, x * cm, y * cm, width=13 * cm, height=13 * cm, preserveAspectRatio=True)
         canvas.showPage()
         canvas.save()
 
@@ -2114,7 +2198,6 @@ def anonymize(source, inplace=False, destination=None, recursive=True):
         raise NotALogError("{} is not a log file or directory.".format(source))
 
 
-# @type_accept(file_or_dir=str)
 def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
     """Load a log file or directory of logs, either dynalogs or Trajectory logs.
 
