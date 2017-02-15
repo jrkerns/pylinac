@@ -11,7 +11,8 @@ General Changes
 
 * This release introduces PDF reports for most major modules. All classes with this functionality
   have been given a ``publish_pdf`` method. This method takes an output filename and other optional
-  data like the author, machine/unit, and any custom notes.
+  data like the author, machine/unit, and any custom notes. See e.g. :meth:`pylinac.starshot.Starshot.publish_pdf`
+  or :meth:`pylinac.picketfence.PicketFence.publish_pdf`.
 * The watch/process functions have been tweaked to best work on one unit per run. Multiple units/machines should
   have their own config files. A new article :ref:`task_scheduler` describes how to use the process function with Windows Task
   Scheduler to regularly pull and analyze files.

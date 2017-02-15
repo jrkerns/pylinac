@@ -430,6 +430,13 @@ class PicketFence:
         ----------
         filename : (str, file-like object}
             The file to write the results to.
+        unit : str, optional
+            Name of the unit that made the image/data.
+        author : str, optional
+            The author of the analysis; for tracking who did what.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
         """
         from reportlab.lib.units import cm
         canvas = pdf.create_pylinac_page_template(filename, analysis_title='Picket Fence Analysis',

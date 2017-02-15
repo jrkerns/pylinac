@@ -409,13 +409,22 @@ class Starshot:
         self.plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
-    def publish_pdf(self, filename, author='', unit='N/A', axis_measured='N/A', notes=None):
+    def publish_pdf(self, filename, author=None, unit=None, axis_measured='N/A', notes=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
         ----------
         filename : (str, file-like object}
             The file to write the results to.
+        unit : str, optional
+            Name of the unit that made the image/data.
+        author : str, optional
+            The author of the analysis; for tracking who did what.
+        axis_measured : str
+            The axis measured; e.g. collimator.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
         """
         from reportlab.lib.units import cm
         canvas = pdf.create_pylinac_page_template(filename, file_name=osp.basename(self.image.path),
