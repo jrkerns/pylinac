@@ -13,7 +13,7 @@ General Changes
   have been given a ``publish_pdf`` method. This method takes an output filename and other optional
   data like the author, machine/unit, and any custom notes.
 * The watch/process functions have been tweaked to best work on one unit per run. Multiple units/machines should
-  have their own config files. A new article :ref:``task_scheduler`` describes how to use the process function with Windows Task
+  have their own config files. A new article :ref:`task_scheduler` describes how to use the process function with Windows Task
   Scheduler to regularly pull and analyze files.
 
 CatPhan
@@ -30,6 +30,8 @@ Watcher/Processer
 ^^^^^^^^^^^^^^^^^
 
 * The ``watcher``/``process`` functions have been reworked to produce PDF files rather than PNG/txt files.
+* If upgrading the watch/process function from a previous pylinac version be sure to copy/amend the new default YAML config file
+  as new keywords have been added and using old YAML files will error out.
 * Several new configuration keywords have been changed/added. In the general section, ``use-classifier``
   has been deprecated in favor of individual module keywords of the same name. This allows a user to use a
   classifier for, say, picket fence images but not for winston lutz images. A ``unit`` keyword has been added
@@ -37,10 +39,10 @@ Watcher/Processer
   reports that are generated. If you have multiple units, make individual YAML configuration files, one for each
   unit.
 * CatPhan, VMAT, and Winston-Lutz can now be raw, unzipped images as well as the usual ZIP archive. ZIP archives
-  are detected only be keywords. For uncompressed CatPhan images, the analyzer will look for any CatPhan DICOM
-  file groups, analyze them, and then ZIP the images until no further sets can be found. For VMAT and Winston-Lutz
-  if the ``use-classifier`` setting is true in the YAML configuration then an image classifier is used to group
-  images of the given type and then analyze them.
+  are detected only by keywords as usual. For uncompressed CatPhan images, the analyzer will look for any CatPhan DICOM
+  file groups via UID (see above CatPhan section), analyze them, and then ZIP the images until no further sets can be found.
+  For VMAT and Winston-Lutz if the ``use-classifier`` setting is true their respective sections in the YAML configuration
+  then an image classifier is used to group images of the given type and then analyze them.
 
 v 1.8.0
 -------

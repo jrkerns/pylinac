@@ -255,8 +255,6 @@ ROI Objects
 
 .. autoclass:: pylinac.ct.HUDiskROI
 
-.. autoclass:: pylinac.ct.GeoDiskROI
-
 .. autoclass:: pylinac.ct.RectangleROI
 
 .. autoclass:: pylinac.ct.ThicknessROI
