@@ -1,14 +1,13 @@
 from setuptools import setup, find_packages
 
-__version__ = '1.8.0'
+__version__ = '1.9.0'
 
 
 setup(
     name='pylinac',
     version=__version__,
     packages=find_packages(),
-    package_data={'pylinac':
-                      ['watcher_config.yml',]}, # http://stackoverflow.com/questions/7522250/how-to-include-package-data-with-setuptools-distribute
+    package_data={'pylinac': ['watcher_config.yml']},
     zip_safe=False,  # allows users to view files in egg/distribution
     url='https://github.com/jrkerns/pylinac',
     keywords="""medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog starshot linac Varian Elekta
@@ -27,7 +26,8 @@ setup(
                       "click",
                       "pyyaml",
                       "yagmail",
-                      "mpld3"],
+                      "mpld3",
+                      "reportlab >= 3.3"],
     entry_points={
         'console_scripts':
             ['pylinac=pylinac.scripts:cli']

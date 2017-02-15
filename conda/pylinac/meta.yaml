@@ -1,6 +1,6 @@
 package:
   name: pylinac
-  version: "1.8.0"
+  version: "1.9.0"
 
 source:
   fn: pylinac-1.8.0.tar.gz
@@ -45,6 +45,7 @@ requirements:
     - yagmail >=0.5.147
     - pyyaml
     - pywin32-ctypes
+    - reportlab
 
   run:
     - python
@@ -60,6 +61,7 @@ requirements:
     - click
     - yagmail
     - pyyaml
+    - reportlab
 
 #test:
   # Python imports
