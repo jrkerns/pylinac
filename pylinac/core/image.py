@@ -876,7 +876,7 @@ class DicomImageStack:
     >>> dcm_stack_uint32 = image.DicomImageStack(img_folder, dtype=np.uint32)
     """
 
-    def __init__(self, folder, dtype=None, min_number=60):
+    def __init__(self, folder, dtype=None, min_number=39):
         """Load a folder with DICOM CT images.
 
         Parameters
@@ -891,7 +891,7 @@ class DicomImageStack:
         for pdir, sdir, files in os.walk(folder):
             for file in files:
                 path = osp.join(pdir, file)
-                if self._is_CT_slice(path):
+                if self.is_CT_slice(path):
                     img = DicomImage(path, dtype=dtype)
                     self.images.append(img)
 
@@ -920,7 +920,7 @@ class DicomImageStack:
         return obj
 
     @staticmethod
-    def _is_CT_slice(file):
+    def is_CT_slice(file):
         """Test if the file is a CT Image storage DICOM file."""
         try:
             ds = dicom.read_file(file, force=True, stop_before_pixels=True)

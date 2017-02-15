@@ -1,10 +1,10 @@
 """The watcher file is a script meant to be run as an ongoing process to watch a given directory and analyzing files
 that may be moved there for certain keywords. Automatic processing will be started if the file contains the keywords."""
+import collections
 import concurrent.futures
 import datetime
 import os
 from functools import lru_cache
-import gc
 import gzip
 import importlib
 import logging
@@ -16,8 +16,10 @@ import time
 import yagmail
 import yaml
 
-from pylinac.core.io import retrieve_demo_file, retrieve_filenames
-from pylinac.core.image import prepare_for_classification
+from pylinac.core.decorators import value_accept
+from pylinac.core.io import retrieve_demo_file
+from pylinac.core.image import prepare_for_classification, DicomImage
+from pylinac.core.utilities import is_dicom_image
 from pylinac.core import schedule
 
 from pylinac import VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log
@@ -39,16 +41,10 @@ class AnalyzeMixin:
         The class that analyzes the file; e.g. Starshot, PicketFence, etc.
     config_name : str
         The string that references the class in the YAML config file.
-    save_image_method : str
-        String-ified method name for saving the image to file.
-    save_text_method : str
-        String-ified method name for saving the text results to file.
-    expecting_zip : bool
-        Whether the class expects to find a ZIP archive, or normal file.
     """
     obj = object
     config_name = ''
-    expecting_zip = False
+    has_classification = False
 
     def __init__(self, path, config):
         """
@@ -64,9 +60,23 @@ class AnalyzeMixin:
         self.base_name = osp.splitext(self.full_path)[0]
         self.config = config
 
+    @classmethod
+    def run(cls, files, config, skip_list):
+        files = drop_skips(files, skip_list)
+        for file in files:
+            cond1 = contains_keywords(file, config, cls.config_name)
+            if config[cls.config_name]['use-classifier']:
+                cond2 = matches_classifier(file, cls)
+            else:
+                cond2 = False
+            if cond1 or cond2:
+                obj = cls(file, config)
+                obj.process()
+                skip_list.append(osp.basename(file))
+
     def process(self):
         """Process the file; includes analysis, saving results to file, and sending emails."""
-        logger.info(self.local_path + " will be analyzed...")
+        logger.info(self.full_path + " will be analyzed...")
         self.instance = self.obj(self.full_path, **self.constructor_kwargs)
         self.analyze()
         if self.config['email']['enable-all']:
@@ -75,20 +85,6 @@ class AnalyzeMixin:
             self.send_email()
         self.publish_pdf()
         logger.info("Finished analysis on " + self.local_path)
-
-    # def save_zip(self):
-    #     # save the image and/or text to file
-    #     self.save_image()
-    #     self.save_text()
-    #     # save results and original file to a compressed ZIP archive
-    #     with zipfile.ZipFile(self.zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
-    #         zfile.write(self.full_path, arcname=osp.basename(self.full_path))
-    #     # remove the original files
-    #     for file in (self.img_filename, self.txt_filename, self.full_path):
-    #         try:
-    #             os.remove(file)
-    #         except:
-    #             pass
 
     @property
     def constructor_kwargs(self):
@@ -161,29 +157,6 @@ class AnalyzeMixin:
         self.instance.analyze(**self.analysis_settings)
 
 
-class AnalyzeWL(AnalyzeMixin):
-    """Analysis runner for Winston-Lutz images."""
-    obj = WinstonLutz.from_zip
-    config_name = 'winston-lutz'
-    expecting_zip = True
-
-    def analyze(self):
-        """Winson-Lutz doesn't explicitly analyze files."""
-        pass
-
-    def should_send_failure_email(self):
-        """Failure of WL is based on 3 criteria."""
-        send = False
-        for key, val in self.failure_settings:
-            if key == 'gantry-iso-size' and (self.instance.gantry_iso_size > val):
-                send = True
-            if key == 'mean-cax-bb-distance' and (self.instance.cax2bb_distance() > val):
-                send = True
-            if key == 'max-cax-bb-distance' and (self.instance.cax2bb_distance('max') > val):
-                send = True
-        return send
-
-
 class AnalyzeLeeds(AnalyzeMixin):
     """Analysis runner for Leeds TOR phantom."""
     obj = LeedsTOR
@@ -218,38 +191,6 @@ class AnalyzePF(AnalyzeMixin):
     """Analysis runner for picket fences."""
     obj = PicketFence
     config_name = 'picketfence'
-
-
-class AnalyzeCatPhan(AnalyzeMixin):
-    """Analysis runner for CBCTs."""
-    config_name = 'catphan'
-    expecting_zip = True
-
-    def __init__(self, path, config):
-        super().__init__(path=path, config=config)
-        p = importlib.import_module('pylinac')
-        self.obj = getattr(p, config[self.config_name]['model']).from_zip
-
-    def should_send_failure_email(self):
-        """Failure of CBCT depends on individual module performance."""
-        send = False
-        for key, val in self.failure_settings:
-            if key == 'hu-passed' and not self.instance.ctp404.passed_hu:
-                send = True
-            if key == 'uniformity-passed' and not self.instance.ctp486.overall_passed:
-                send = True
-            if key == 'geometry-passed' and not self.instance.ctp404.passed_geometry:
-                send = True
-            if key == 'thickness-passed' and not self.instance.ctp404.passed_thickness:
-                send = True
-        return send
-
-
-class AnalyzeVMAT(AnalyzeMixin):
-    """Analysis runner for VMATs."""
-    obj = VMAT.from_zip
-    config_name = 'vmat'
-    expecting_zip = True
 
 
 class AnalyzeLog(AnalyzeMixin):
@@ -306,30 +247,288 @@ class AnalyzeLog(AnalyzeMixin):
         logger.info("Finished analysis on " + self.local_path)
         return True
 
-
-def analysis_should_be_done(path, config, skip_list):
-    """Return boolean of whether the file should be analysed, based on if the filename has a keyword."""
-    do_analysis, clfy = False, None
-    # return if not an analysis-worthy file
-    if osp.basename(path) in skip_list:
-        return False, None
-    has_avoid_keyword = any(item in path for item in config['general']['avoid-keywords'])
-    has_suffix = config['general']['file-suffix'] in path
-    if has_avoid_keyword or has_suffix:
-        return False, None
-    if config['general']['use-classifier']:
-        do_analysis, clfy = auto_classify(path, config)
-        if clfy:
-            logger.info("{} classified using SVM".format(osp.basename(path)))
-    if not config['general']['use-classifier'] or (clfy is None):
-        do_analysis, clfy = filename_classify(path, config)
-        if clfy:
-            logger.info("{} classified using filename keywords".format(osp.basename(path)))
-    return do_analysis, clfy
+    @classmethod
+    def run(cls, files, config, skip_list):
+        files = drop_skips(files, skip_list)
+        for file in files:
+            if contains_keywords(file, config, cls.config_name):
+                obj = cls(file, config)
+                obj.process()
+                skip_list.append(osp.basename(file))
 
 
-def move_logs(directory, config):
-    """Move any new files from the TrueBeam log folders into the destination folder"""
+class AnalyzeCatPhan(AnalyzeMixin):
+    """Analysis runner for CBCTs."""
+    config_name = 'catphan'
+
+    def __init__(self, path, config, zip_format=True):
+        self.zip_format = zip_format
+        super().__init__(path=path, config=config)
+        p = importlib.import_module('pylinac')
+        if zip_format:
+            self.obj = getattr(p, config[self.config_name]['model']).from_zip
+        else:
+            self.obj = getattr(p, config[self.config_name]['model'])
+
+    @property
+    def pdf_filename(self):
+        """The name of the file for the PDF results."""
+        if self.zip_format:
+            return self.full_path.replace('.zip', '.pdf')
+        else:
+            return "{}\CBCT - {}.pdf".format(osp.dirname(self.instance.dicom_stack[0].path), self.instance.dicom_stack[0].date_created(format="%A, %I-%M, %B %d, %Y"))
+
+    def analyze(self):
+        self.instance.analyze(**self.analysis_settings)
+
+    def should_send_failure_email(self):
+        """Failure of CBCT depends on individual module performance."""
+        send = False
+        for key, val in self.failure_settings:
+            if key == 'hu-passed' and not self.instance.ctp404.passed_hu:
+                send = True
+            if key == 'uniformity-passed' and not self.instance.ctp486.overall_passed:
+                send = True
+            if key == 'geometry-passed' and not self.instance.ctp404.passed_geometry:
+                send = True
+            if key == 'thickness-passed' and not self.instance.ctp404.passed_thickness:
+                send = True
+        return send
+
+    @classmethod
+    def run(cls, files, config, skip_list):
+        files = drop_skips(files, skip_list)
+        # analyze ZIP archives
+        for file in files:
+            cond1 = contains_keywords(file, config, cls.config_name)
+            cond2 = file.endswith('.zip')
+            if cond1 and cond2:
+                obj = cls(file, config)
+                obj.process()
+                skip_list.append(osp.basename(file))
+        # analyze directory groups
+        done = False
+        while not done:
+            files = drop_skips(files, skip_list)
+            if len(files) > 50:
+                try:
+                    obj = cls(osp.dirname(files[0]), config, zip_format=False)
+                    obj.process()
+                    if config[cls.config_name]['analysis']['zip_after']:
+                        skip_list.append(osp.basename(obj.pdf_filename).replace('.pdf', '.zip'))
+                    else:
+                        for file in obj.instance.dicom_stack:
+                            skip_list.append(osp.basename(file.path))
+                except:
+                    done = True
+            else:
+                done = True
+
+
+class AnalyzeWL(AnalyzeMixin):
+    """Analysis runner for Winston-Lutz images."""
+    obj = WinstonLutz.from_zip
+    config_name = 'winston-lutz'
+
+    def __init__(self, path, config, zip_format=True):
+        self.zip_format = zip_format
+        self.config = config
+        if zip_format:
+            super().__init__(path, config)
+            self.obj = WinstonLutz.from_zip
+        else:
+            self.full_path = path
+            self.obj = WinstonLutz
+
+    def analyze(self):
+        """Winson-Lutz doesn't explicitly analyze files."""
+        pass
+
+    def should_send_failure_email(self):
+        """Failure of WL is based on 3 criteria."""
+        send = False
+        for key, val in self.failure_settings:
+            if key == 'gantry-iso-size' and (self.instance.gantry_iso_size > val):
+                send = True
+            if key == 'mean-cax-bb-distance' and (self.instance.cax2bb_distance() > val):
+                send = True
+            if key == 'max-cax-bb-distance' and (self.instance.cax2bb_distance('max') > val):
+                send = True
+        return send
+
+    def process(self):
+        """Process the file; includes analysis, saving results to file, and sending emails."""
+        if self.zip_format:
+            logger.info(self.full_path + " will be analyzed...")
+        else:
+            logger.info("Winston Lutz batch will be analyzed...")
+        self.instance = self.obj(self.full_path, **self.constructor_kwargs)
+        self.analyze()
+        if self.config['email']['enable-all']:
+            self.send_email()
+        elif self.config['email']['enable-failure'] and self.should_send_failure_email():
+            self.send_email()
+        self.publish_pdf()
+        logger.info("Finished Winston-Lutz analysis")
+
+    @property
+    def pdf_filename(self):
+        """The name of the file for the PDF results."""
+        if self.zip_format:
+            return self.base_name + '.pdf'
+        else:
+            dirname = osp.dirname(self.full_path[0])
+            dcm = DicomImage(self.full_path[0])
+            name = 'Winston-Lutz - {}.pdf'.format(dcm.date_created())
+            return osp.join(dirname, name)
+
+    @classmethod
+    def run(cls, files, config, skip_list):
+        files = drop_skips(files, skip_list)
+        # analyze ZIP archives
+        for file in files:
+            cond1 = contains_keywords(file, config, cls.config_name)
+            cond2 = file.endswith('.zip')
+            if cond1 and cond2:
+                obj = cls(file, config)
+                obj.process()
+                skip_list.append(osp.basename(file))
+        # analyze directory groups
+        if config[cls.config_name]['use-classifier']:
+            wlfiles = [f for f in files if matches_classifier(f, cls)]
+            if len(wlfiles) > 3:
+                obj = cls(wlfiles, config, zip_format=False)
+                obj.process()
+                for file in wlfiles:
+                    skip_list.append(osp.basename(file))
+
+
+class AnalyzeVMAT(AnalyzeMixin):
+    """Analysis runner for VMATs."""
+    config_name = 'vmat'
+
+    def __init__(self, path, config, zip_format=True):
+        self.zip_format = zip_format
+        self.config = config
+        if isinstance(path, str):
+            super().__init__(path=path, config=config)
+        else:
+            self.path = path
+        if zip_format:
+            self.obj = VMAT.from_zip
+        else:
+            self.obj = VMAT
+
+    def process(self):
+        """Process the file; includes analysis, saving results to file, and sending emails."""
+        if self.zip_format:
+            logger.info(self.local_path + " found and will be analyzed...")
+            self.instance = self.obj(self.full_path, **self.constructor_kwargs)
+        else:
+            logger.info("VMAT pair found and will be analyzed...")
+            self.instance = self.obj(self.path, delivery_types=('open', 'dmlc'), **self.constructor_kwargs)
+        self.analyze()
+        if self.config['email']['enable-all']:
+            self.send_email()
+        elif self.config['email']['enable-failure'] and self.should_send_failure_email():
+            self.send_email()
+        self.publish_pdf()
+        if self.zip_format:
+            logger.info("Finished analysis on " + self.local_path)
+        else:
+            logger.info("Finished analysis on VMAT pair")
+
+    def analyze(self):
+        """Analyze the file."""
+        if self.zip_format:
+            self.instance.analyze(**self.analysis_settings)
+        else:
+            # determine test type
+            classifcations = [matches_classifier(p, self) for p in self.path]
+            if 'drgs' in classifcations:
+                self.test_type = 'drgs'
+            elif 'mlcs' in classifcations:
+                self.test_type = 'drmlc'
+            else:
+                raise TypeError("Cannot determine the test type of the VMAT pair")
+            self.instance.analyze(test=self.test_type, **self.analysis_settings)
+
+    @property
+    def pdf_filename(self):
+        """The name of the file for the PDF results."""
+        if self.zip_format:
+            return self.base_name + '.pdf'
+        else:
+            dirname = osp.dirname(self.path[0])
+            dcm = DicomImage(self.path[0])
+            name = 'VMAT {} - {}.pdf'.format(self.test_type.upper(), dcm.date_created())
+            return osp.join(dirname, name)
+
+    @classmethod
+    def run(cls, files, config, skip_list):
+        files = drop_skips(files, skip_list)
+        # analyze ZIP archives
+        for file in files:
+            cond1 = contains_keywords(file, config, cls.config_name)
+            cond2 = file.endswith('.zip')
+            if cond1 and cond2:
+                obj = cls(file, config)
+                obj.process()
+                skip_list.append(osp.basename(file))
+        # analyze directory groups
+        if config[cls.config_name]['use-classifier']:
+            imgs = [DicomImage(f) for f in files if is_dicom_image(f)]
+            uids = [i.metadata.SeriesInstanceUID for i in imgs]
+            c = collections.Counter(uids)
+            for uid, num in c.items():
+                if num == 2:
+                    img_uids = [i.path for i in imgs if i.metadata.SeriesInstanceUID == uid]
+                    obj = cls(img_uids, config, zip_format=False)
+                    obj.process()
+                    for img in img_uids:
+                        skip_list.append(osp.basename(img))
+
+
+def drop_skips(files, skip_list):
+    return [f for f in files if (osp.basename(f) not in skip_list)]
+
+
+def matches_classifier(file, obj):
+    if obj in (AnalyzePF, AnalyzeQC3, AnalyzeLeeds, AnalyzeStar, AnalyzeWL):
+        img_type = 'single'
+        match = {
+            AnalyzePF: 1,
+            AnalyzeQC3: 2,
+            AnalyzeLeeds: 3,
+            AnalyzeStar: 4,
+            AnalyzeWL: 5,
+        }
+    elif isinstance(obj, AnalyzeVMAT):
+        img_type = 'vmat'
+        match = {
+            1: 'open',
+            2: 'drgs',
+            3: 'mlcs',
+        }
+    clf = get_image_classifier(img_type)
+    try:
+        img = prepare_for_classification(file)
+        classification = clf.predict(img.reshape(1, -1))
+    except:
+        return False
+    else:
+        if img_type == 'single':
+            return classification[0] == match[obj]
+        if img_type == 'vmat':
+            return match[classification[0]]
+
+
+def contains_keywords(file, config, obj):
+    return any(keyword in osp.basename(file.lower()) for keyword in config[obj]['keywords'])
+
+
+def _copy_new_files(directory, config):
+    """Move any new files from the source folder(s) into the destination folder"""
     def move(sfile, source_dir, directory):
         """The function to move files from the source to the destination"""
         sbase = osp.splitext(osp.split(sfile)[1])[0]
@@ -339,18 +538,18 @@ def move_logs(directory, config):
             logger.info("Copied {} into pylinac directory".format(sfile))
 
     # return if no sources are configured or are not real directories
-    log_source_undefined = config['logs']['sources'] is None
-    if log_source_undefined:
+    source_undefined = config['general']['sources'] is None
+    if source_undefined:
         return
-    log_sources_are_dirs = all(osp.isdir(source) for source in config['logs']['sources'])
-    if not log_sources_are_dirs:
+    sources_are_dirs = all(osp.isdir(source) for source in config['general']['sources'])
+    if not sources_are_dirs:
         return
 
     # move new files into destination directory
     dest_files = os.listdir(directory)
     with concurrent.futures.ThreadPoolExecutor(4) as exec:
-        for source_dir in config['logs']['sources']:
-            logger.info("Querying new logs from {}".format(source_dir))
+        for source_dir in config['general']['sources']:
+            logger.info("Querying new files from {}".format(source_dir))
             source_files = os.listdir(source_dir)
             time.sleep(0.5)
             for file in source_files:
@@ -373,7 +572,7 @@ def set_skip_list(directory, skip_list):
         pickle.dump(skip_list, sl)
 
 
-def analyze_new_files(directory, config):
+def analyze_new_files(directory, config, force):
     """Analyze any new files that have been moved into the directory pylinac is watching.
 
     Parameters
@@ -383,31 +582,14 @@ def analyze_new_files(directory, config):
     config : str
         The YAML configuration file; see :func:`~pylinac.watcher.load_config`.
     """
-    # get files that should be analyzed
-    all_files = retrieve_filenames(directory)
-    skip_list = get_skip_list(directory)
-
-    def analyze(file, config, skip_list):
-        """The actual analysis and processing function"""
-        add2skip = False
-        # determine if file has keyword in it
-        do_analysis, analysis_instance = analysis_should_be_done(file, config, skip_list)
-        # process it if so
-        if do_analysis:
-            time.sleep(0.005)
-            try:
-                add2skip = analysis_instance.process()
-            except BaseException as e:
-                logger.info(file + " encountered an error and was not processed: {}".format(e))
-            gc.collect()
-        return add2skip
-
-    # start a thread pool and execute the analysis; thread pool set to 1 due to strange errors w/ >1
-    for file in all_files:
-        add2skip = analyze(file, config, skip_list)
-        if add2skip:
-            skip_list.append(osp.basename(file))
-
+    if force:
+        skip_list = []
+    else:
+        skip_list = get_skip_list(directory)
+    for pdir, _, files in os.walk(directory):
+        files = [osp.join(pdir, f) for f in files if not any((k in f) for k in config['general']['avoid-keywords'])]
+        for analysis in (AnalyzeLog, AnalyzeCatPhan, AnalyzeVMAT, AnalyzeWL, AnalyzePF, AnalyzeLeeds, AnalyzeStar, AnalyzeQC3):
+            analysis.run(files, config, skip_list)
     # update skip list
     set_skip_list(directory, skip_list)
 
@@ -436,7 +618,7 @@ def watch(directory=None, config_file=None):
         time.sleep(1)
 
 
-def process(directory=None, config_file=None, move_new_logs=False, verbose=True):
+def process(directory=None, config_file=None, copy_new_files=False, verbose=True, force=False):
     """Process the contents of the directory once through. This is contrasted to
     :func:`~pylinac.watcher.watch` which continually watches the directory.
 
@@ -449,7 +631,7 @@ def process(directory=None, config_file=None, move_new_logs=False, verbose=True)
     config_file : str, None
         The path to the YAML configuration file.
         If None (default), will load the default config file.
-    move_new_logs : bool
+    copy_new_files : bool
         Whether to move new logs from the sources in the config file.
     verbose : bool
         Whether to include certain logging statements.
@@ -462,9 +644,9 @@ def process(directory=None, config_file=None, move_new_logs=False, verbose=True)
             directory = config['general']['directory']
             if verbose:
                 logger.info("Performing analysis on directory: {}".format(directory))
-    if move_new_logs:
-        move_logs(directory, config)
-    analyze_new_files(directory, config)
+    if copy_new_files:
+        _copy_new_files(directory, config)
+    analyze_new_files(directory, config, force=force)
 
 
 def load_config(config_file=None, verbose=False):
@@ -488,55 +670,21 @@ def load_config(config_file=None, verbose=False):
     return config
 
 
-def auto_classify(path, config):
-    """Classify an image using an SVM classifier.
-
-    Parameters
-    ----------
-    path : str
-        The path to the file to be classified.
-    config : str
-        The configuration settings.
-    """
-    clf = get_image_classifier()
-    try:
-        img = prepare_for_classification(path)
-        classification = clf.predict(img.reshape(1, -1))
-    except:
-        return False, None
-    else:
-        if classification == 1:
-            return True, AnalyzePF(path, config)
-        elif classification == 2:
-            return True, AnalyzeQC3(path, config)
-        elif classification == 3:
-            return True, AnalyzeLeeds(path, config)
-        elif classification == 4:
-            return True, AnalyzeStar(path, config)
-        else:
-            return False, None
-
-
 @lru_cache(maxsize=1)
-def get_image_classifier():
+@value_accept(img_type=('single', 'vmat'))
+def get_image_classifier(img_type):
     """Load the CBCT HU slice classifier model. If the classifier is not locally available it will be downloaded."""
-    classifier_file = osp.join(osp.dirname(__file__), 'demo_files', 'singleimage_classifier.pkl.gz')
+    if img_type == 'single':
+        classifier = 'singleimage_classifier.pkl.gz'
+    elif img_type == 'vmat':
+        classifier = 'vmat_classifier.pkl.gz'
+    classifier_file = osp.join(osp.dirname(__file__), 'demo_files', classifier)
     # get the classifier if it's not downloaded
     if not osp.isfile(classifier_file):
         logger.info("Downloading classifier from the internet...")
-        classifier_file = retrieve_demo_file('singleimage_classifier.pkl.gz')
+        classifier_file = retrieve_demo_file(classifier)
         logger.info("Done downloading")
 
     with gzip.open(classifier_file, mode='rb') as m:
         clf = pickle.load(m)
     return clf
-
-
-def filename_classify(path, config):
-    """Classify an image using the filename convention."""
-    analysis_classes = (AnalyzeStar, AnalyzeCatPhan, AnalyzeVMAT, AnalyzePF, AnalyzeWL, AnalyzeLog, AnalyzeLeeds, AnalyzeQC3)
-    for analysis_class in analysis_classes:
-        analysis_instance = analysis_class(path, config)
-        if analysis_instance.keyword_in_here():
-            return True, analysis_instance
-    return False, None

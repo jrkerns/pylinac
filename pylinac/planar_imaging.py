@@ -10,9 +10,13 @@ Features:
 """
 import copy
 from functools import lru_cache
+import io
+import os.path as osp
 
 import matplotlib.pyplot as plt
 import numpy as np
+from reportlab.lib.units import cm
+from scipy.interpolate import interp1d
 from skimage import feature, measure
 
 from .core import image
@@ -20,6 +24,7 @@ from .core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_cen
 from .core.geometry import Point
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile
+from .core import pdf
 
 
 class ImagePhantomBase:
@@ -63,7 +68,7 @@ class ImagePhantomBase:
         kwargs
             Keyword arguments are passed to plt.savefig().
         """
-        self.plot_analyzed_image(show=False)
+        self.plot_analyzed_image(show=False, **kwargs)
         plt.savefig(filename, **kwargs)
 
     def _get_canny_regions(self, sigma=2, percentiles=(0.001, 0.01)):
@@ -93,6 +98,7 @@ class ImagePhantomBase:
         axes.set_ylabel('Contrast')
         axes2 = axes.twinx()
         line2, = axes2.plot([roi.contrast_to_noise for roi in rois], marker='^', label='CNR')
+        axes2.set_ylabel('CNR')
         axes.legend(handles=[line1, line2])
 
     @staticmethod
@@ -104,6 +110,17 @@ class ImagePhantomBase:
         axes.set_title('High-frequency rMTF')
         axes.set_xlabel('Line pair region #')
         axes.set_ylabel('relative MTF')
+
+    def _mtf(self, x=50):
+        norm = max(roi.mtf for roi in self.hc_rois)
+        ys = [roi.mtf / norm for roi in self.hc_rois]
+        xs = np.arange(len(ys))
+        f = interp1d(ys, xs)
+        try:
+            mtf = f(x / 100)
+        except ValueError:
+            mtf = min(ys)
+        return float(mtf)
 
 
 class StandardImagingQC3(ImagePhantomBase):
@@ -153,6 +170,44 @@ class StandardImagingQC3(ImagePhantomBase):
         self.lc_ref_rois, self.lc_rois = self._low_contrast()
         self.hc_rois = self._high_contrast()
 
+    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+        """Publish a PDF report of the analyzed phantom. The report includes basic
+        file information, the image and determined ROIs, and contrast and MTF plots.
+
+        Parameters
+        ----------
+        filename : str
+            The path and/or filename to save the PDF report as; must end in ".pdf".
+        author : str, optional
+            The person who analyzed the image.
+        unit : str, optional
+            The machine unit name or other identifier (e.g. serial number).
+        notes : str, list of strings, optional
+            If a string, adds it as a line of text in the PDf report.
+            If a list of strings, each string item is printed on its own line. Useful for writing multiple sentences.
+        """
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title='QC-3 Analysis',
+                                                  author=author, unit=unit, file_name=osp.basename(self.image.path),
+                                                  file_created=self.image.date_created())
+        for (img, lo, hi), (w, l) in zip(((True, False, False), (False, True, False), (False, False, True)),
+                                         ((5, 12), (1, 4), (11, 4))):
+            data = io.BytesIO()
+            self.save_analyzed_image(data, image=img, low_contrast=lo, high_contrast=hi)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, w * cm, l * cm, width=10 * cm, height=10 * cm, preserveAspectRatio=True)
+        text = ['QC-3 results:',
+                'MTF 80% (lp/mm): {:2.2f}'.format(self._mtf(80)),
+                'MTF 50% (lp/mm): {:2.2f}'.format(self._mtf(50)),
+                'Median Contrast: {:2.2f}'.format(np.median([roi.contrast for roi in self.lc_rois])),
+                'Median CNR: {:2.1f}'.format(np.median([roi.contrast_to_noise for roi in self.lc_rois])),
+                ]
+        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm, text=text)
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
+        canvas.showPage()
+        canvas.save()
+
     def plot_analyzed_image(self, image=True, low_contrast=True, high_contrast=True, show=True):
         """Plot the analyzed image.
 
@@ -201,7 +256,7 @@ class StandardImagingQC3(ImagePhantomBase):
         if high_contrast:
             hicon_ax = next(axes)
             mtfs = [roi.mtf for roi in self.hc_rois]
-            mtfs /= mtfs[0]
+            mtfs /= max(mtfs)
             self._plot_highcontrast(hicon_ax, mtfs, self.hi_contrast_threshold)
 
         if show:
@@ -588,3 +643,40 @@ class LeedsTOR(ImagePhantomBase):
 
         if show:
             plt.show()
+
+    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+        """Publish a PDF report of the analyzed phantom. The report includes basic
+        file information, the image and determined ROIs, and contrast and MTF plots.
+
+        Parameters
+        ----------
+        filename : str
+            The path and/or filename to save the PDF report as; must end in ".pdf".
+        author : str, optional
+            The person who analyzed the image.
+        unit : str, optional
+            The machine unit name or other identifier (e.g. serial number).
+        notes : str, list of strings, optional
+            If a string, adds it as a line of text in the PDf report.
+            If a list of strings, each string item is printed on its own line. Useful for writing multiple sentences.
+        """
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title='Leeds TOR18 Analysis',
+                                                  author=author, unit=unit, file_name=osp.basename(self.image.path),
+                                                  file_created=self.image.date_created())
+        for (img, lo, hi), (w, l) in zip(((True, False, False), (False, True, False), (False, False, True)),
+                                         ((5, 12), (1, 4), (11, 4))):
+            data = io.BytesIO()
+            self.save_analyzed_image(data, image=img, low_contrast=lo, high_contrast=hi)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, w * cm, l * cm, width=10 * cm, height=10 * cm, preserveAspectRatio=True)
+        text = ['Leeds TOR18 results:',
+                'MTF 80% (lp/mm): {:2.2f}'.format(self._mtf(80)),
+                'Median Contrast: {:2.2f}'.format(np.median([roi.contrast for roi in self.lc_rois])),
+                'Median CNR: {:2.1f}'.format(np.median([roi.contrast_to_noise for roi in self.lc_rois])),
+                ]
+        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm, text=text)
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
+        canvas.showPage()
+        canvas.save()

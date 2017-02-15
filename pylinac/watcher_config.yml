@@ -9,15 +9,16 @@
 general:
   directory: path/to/analysis/directory  # path to the folder where analysis is performed;
                                          # can also be specified as keyword arg in the `start_watching` and `process` functions
-  file-suffix: _analysis  # the suffix added to the .png and .txt file created after analysis
+  source-directories:
+    - path/to/folder1  # e.g. the trajectory log folder: I:\Transfer\TDS\<TB SN>\TrajectoryLog\Treatment
+    - path/to/folder2  # e.g. the exported images folder: I:\Transfer\TDS\<TB SN>\Imaging\ExportedImages
+  file-suffix: Report  # the suffix added to the .png and .txt file created after analysis
   avoid-keywords:  # keywords in a file name that cause a skip of analysis
     - .png
     - .txt
     - .pdf
+    - .pkl
   query-frequency: 60  # the frequency at which pylinac queries new files; units are in seconds; N/A if using the `process` function
-  use-classifier: false  # set to true to use an SVM classifier which can automatically
-                         # identify starshot, picket fence, pipspro, and leeds images.
-                         # Experimental; may not always identify images correctly and cause errors.
   unit: TrueBeam 1234
 
 email:
@@ -32,9 +33,6 @@ email:
 
 # MACHINE LOG SETTINGS
 logs:
-  sources:  # Varian folder(s) where trajectory logs get sent automatically (usually the I: drive)
-    - path/to/machine1/tlogs  # if you have multiple linacs just add each source diretory as an item
-    - path/to/machine2/tlogs
   keywords:  # keywords needed in the file name to trigger analysis
     - .dlg
     - .bin
@@ -51,6 +49,7 @@ logs:
 
 # WINSTON-LUTZ SETTINGS
 winston-lutz:
+  use-classifier: true
   keywords:
     - wl
     - winston
@@ -62,6 +61,7 @@ winston-lutz:
 
 # STARSHOT SETTINGS
 starshot:
+  use-classifier: true
   keywords:
     - star
   analysis:
@@ -73,6 +73,7 @@ starshot:
 
 # PICKET FENCE SETTINGS
 picketfence:
+  use-classifier: true
   keywords:
     - pf
     - picket
@@ -92,6 +93,7 @@ catphan:
   analysis:
     hu_tolerance: 40
     scaling_tolerance: 1
+    zip_after: true
   failure:
     hu-passed: false
     uniformity-passed: false
@@ -100,6 +102,7 @@ catphan:
 
 # VMAT SETTINGS
 vmat:
+  use-classifier: true
   keywords:
     - vmat
     - drgs
@@ -112,6 +115,7 @@ vmat:
 
 # LEEDS TOR SETTINGS
 leeds:
+  use-classifier: true
   keywords:
     - leed
     - tor
@@ -121,6 +125,7 @@ leeds:
 
 # Standard Imaging QC-3 SETTINGS
 qc3:
+  use-classifier: true
   keywords:
     - pips
     - qc

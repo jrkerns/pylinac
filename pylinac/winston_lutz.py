@@ -29,7 +29,7 @@ from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import filled_area_ratio, bounding_box
 from .core import pdf
 from .core.profile import SingleProfile
-from .core.utilities import is_close
+from .core.utilities import is_close, is_dicom_image
 
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'
@@ -297,7 +297,6 @@ class WinstonLutz:
             epid_xs = [img.epid.x for img in images[1:]]
             epid_ys = [img.epid.y for img in images[1:]]
             ax.plot(epid_xs, epid_ys, 'b+', ms=8)
-            ax.hold(True)
             # get CAX positions
             xs = [img.field_cax.x for img in images[1:]]
             ys = [img.field_cax.y for img in images[1:]]
@@ -312,7 +311,6 @@ class WinstonLutz:
         ax.set_title(axis + ' wobble')
         ax.set_xlabel(axis + ' positions superimposed')
         ax.set_ylabel(axis + " iso size: {0:3.2f}mm".format(getattr(self, axis.lower() + '_iso_size')))
-        ax.hold(False)
         if show:
             plt.show()
 
@@ -416,7 +414,7 @@ class WinstonLutz:
                  )
         return result
 
-    def publish_pdf(self, filename, notes=None):
+    def publish_pdf(self, filename, unit=None, notes=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -426,7 +424,7 @@ class WinstonLutz:
         """
         from reportlab.lib.units import cm
         title = "Winston-Lutz Analysis"
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title=title)
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title=title, unit=unit)
         avg_sid = np.mean([image.metadata.RTImageSID for image in self.images])
         text = ['Winston-Lutz results:',
                 'Key, looking from foot of table:',
@@ -480,12 +478,18 @@ class ImageManager(list):
             The path to the images.
         """
         super().__init__()
-        if not osp.isdir(directory):
+        if isinstance(directory, list):
+            for file in directory:
+                if is_dicom_image(file):
+                    img = WLImage(file)
+                    self.append(img)
+        elif not osp.isdir(directory):
             raise ValueError("Invalid directory passed. Check the correct method and file was used.")
-        image_files = image.retrieve_image_files(directory)
-        for file in image_files:
-            img = WLImage(file)
-            self.append(img)
+        else:
+            image_files = image.retrieve_image_files(directory)
+            for file in image_files:
+                img = WLImage(file)
+                self.append(img)
         # reorder list based on increasing gantry angle
         self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
 

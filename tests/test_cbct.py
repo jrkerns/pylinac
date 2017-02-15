@@ -98,7 +98,7 @@ class CBCTMixin(LocationMixin):
         else:
             cls.cbct = cls.catphan(filename, use_classifier=cls.use_classifier)
         cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
-        print(len(cls.cbct.dicom_stack))
+        print("Num of CBCT images: {}".format(len(cls.cbct.dicom_stack)))
 
     @classmethod
     def tearDownClass(cls):
@@ -144,6 +144,9 @@ class CBCTMixin(LocationMixin):
         for key, exp_mtf in self.mtf_values.items():
             meas_mtf = self.cbct.ctp528.mtf(key)
             self.assertAlmostEqual(exp_mtf, meas_mtf, delta=0.1)
+
+    def test_pdf(self):
+        save_file(self.cbct.publish_pdf, 'temp')
 
 
 class CBCTDemo(CBCTMixin, TestCase):

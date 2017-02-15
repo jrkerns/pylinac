@@ -5,6 +5,7 @@ import os
 import os.path as osp
 import struct
 
+import dicom
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
@@ -100,6 +101,29 @@ def is_dicom(file):
     preamble = fp.read(0x80)
     prefix = fp.read(4)
     return prefix == b"DICM"
+
+
+def is_dicom_image(file):
+    """Boolean specifying if file is a proper DICOM file with a image
+
+    Parameters
+    ----------
+    file : str
+        The path to the file.
+
+    See Also
+    --------
+    pydicom.filereader.read_preamble
+    pydicom.filereader.read_partial
+    """
+    result = False
+    try:
+        img = dicom.read_file(file, force=True)
+        img.pixel_array
+        result = True
+    except:
+        pass
+    return result
 
 
 def isnumeric(object):

@@ -10,7 +10,7 @@ import dicom
 import numpy as np
 from pylinac import image
 from scipy.misc import imresize
-from sklearn import svm, metrics, cross_validation, grid_search, preprocessing
+from sklearn import svm, metrics, preprocessing, model_selection
 
 
 def is_dicom(path):
@@ -128,9 +128,9 @@ def train(path, train_size, parameters, clf_name):
     """
     data, labels = load_images(path)
 
-    data_train, data_test, y_train, y_test = cross_validation.train_test_split(data, labels, train_size=train_size)
+    data_train, data_test, y_train, y_test = model_selection.train_test_split(data, labels, train_size=train_size)
     start = time.time()
-    classifier = grid_search.GridSearchCV(svm.SVC(verbose=True), parameters)
+    classifier = model_selection.GridSearchCV(svm.SVC(verbose=True), parameters)
     classifier.fit(data_train, y_train)
     print()
     print("Training took: {:.2f}s".format(time.time() - start))

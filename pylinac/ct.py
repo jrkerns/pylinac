@@ -17,6 +17,7 @@ from functools import lru_cache
 import gzip
 import io
 from os import path as osp
+import os
 import pickle
 import warnings
 import zipfile
@@ -47,6 +48,7 @@ class CatPhanBase:
     _classifier_model = ''
     air_bubble_radius_mm = 7
     localization_radius = 59
+    was_from_zip = False
 
     def __init__(self, folderpath, use_classifier=True):
         """
@@ -104,6 +106,7 @@ class CatPhanBase:
         """
         with TemporaryZipDirectory(zip_file) as temp_zip:
             obj = cls(temp_zip, use_classifier=use_classifier)
+        obj.was_from_zip = True
         return obj
 
     def plot_analyzed_image(self, hu=True, uniformity=True, spatial_res=True, low_contrast=True, show=True):
@@ -358,7 +361,7 @@ class CatPhanBase:
     def find_phantom_roll(self):
         """Determine the "roll" of the phantom.
 
-         This algorithm uses the two air bubbles in the HU slice and the resulting angle between them.
+        This algorithm uses the two air bubbles in the HU slice and the resulting angle between them.
 
         Returns
         -------
@@ -414,12 +417,15 @@ class CatPhanBase:
         return phan_area/(self.mm_per_pixel**2)
 
     def _publish_pdf(self, filename, unit, author, notes, analysis_title, texts, imgs):
-        date = datetime.strptime(self.dicom_stack[0].metadata.InstanceCreationDate, "%Y%m%d")
+        try:
+            date = datetime.strptime(self.dicom_stack[0].metadata.InstanceCreationDate, "%Y%m%d").strftime("%A, %B %d, %Y")
+        except:
+            date = "Unknown"
         from reportlab.lib.units import cm
         canvas = pdf.create_pylinac_page_template(filename,
                                                   analysis_title=analysis_title,
                                                   unit=unit, author=author,
-                                                  file_created=date.strftime("%A, %B %d, %Y"))
+                                                  file_created=date)
         if notes is not None:
             pdf.draw_text(canvas, x=1 * cm, y=4.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1 * cm, y=4 * cm, text=notes)
@@ -439,10 +445,16 @@ class CatPhanBase:
         canvas.save()
 
     def _zip_images(self):
-        zip_name = osp.dirname(self.dicom_stack[0].path)
+        """Compress the raw images into a ZIP archive and remove the uncompressed images."""
+        zip_name = "{}\CBCT - {}.zip".format(osp.dirname(self.dicom_stack[0].path), self.dicom_stack[0].date_created(format="%A, %I-%M, %B %d, %Y"))
         with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
             for image in self.dicom_stack:
                 zfile.write(image.path, arcname=osp.basename(image.path))
+        for image in self.dicom_stack:
+            try:
+                os.remove(image.path)
+            except:
+                pass
 
 
 class CatPhan503(CatPhanBase):
@@ -505,7 +517,7 @@ class CatPhan503(CatPhanBase):
                                                          self.ctp404.passed_thickness)
         return string
 
-    def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2, zip_after_analysis=False):
+    def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2, zip_after=False):
         """Single-method full analysis of CatPhan503 DICOM files.
 
         Parameters
@@ -518,11 +530,17 @@ class CatPhan503(CatPhanBase):
             The tolerance of the thickness calculation in mm, based on the wire ramps in the CTP404 module.
 
             .. warning:: Thickness accuracy degrades with image noise; i.e. low mAs images are less accurate.
+
+        zip_after : bool
+            If the CT images were not compressed before analysis and this is set to true, pylinac will compress
+            the analyzed images into a ZIP archive.
         """
         self.ctp404 = CTP404(self, offset=0, hu_tolerance=hu_tolerance, thickness_tolerance=thickness_tolerance,
                              scaling_tolerance=scaling_tolerance)
         self.ctp486 = CTP486(self, offset=self.offsets['Uniformity'], tolerance=hu_tolerance)
         self.ctp528 = CTP528(self, offset=self.offsets['Spatial Resolution'], tolerance=None)
+        if zip_after and not self.was_from_zip:
+            self._zip_images()
 
     def publish_pdf(self, filename, author=None, unit=None, notes=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
@@ -605,7 +623,7 @@ class CatPhan504(CatPhanBase):
         return string
 
     def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2,
-                low_contrast_tolerance=1, contrast_threshold=15):
+                low_contrast_tolerance=1, contrast_threshold=15, zip_after=False):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -618,10 +636,14 @@ class CatPhan504(CatPhanBase):
             The tolerance of the thickness calculation in mm, based on the wire ramps in the CTP404 module.
 
             .. warning:: Thickness accuracy degrades with image noise; i.e. low mAs images are less accurate.
+
         low_contrast_tolerance : int
             The number of low-contrast bubbles needed to be "seen" to pass.
         contrast_threshold : float, int
             The threshold for "detecting" low-contrast image. See RTD for calculation info.
+        zip_after : bool
+            If the CT images were not compressed before analysis and this is set to true, pylinac will compress
+            the analyzed images into a ZIP archive.
         """
         self.ctp404 = CTP404(self, offset=0, hu_tolerance=hu_tolerance, thickness_tolerance=thickness_tolerance,
                              scaling_tolerance=scaling_tolerance)
@@ -630,6 +652,8 @@ class CatPhan504(CatPhanBase):
                              offset=self.offsets['Spatial Resolution'])
         self.ctp515 = CTP515(self, tolerance=low_contrast_tolerance, contrast_threshold=contrast_threshold,
                              offset=self.offsets['Low contrast'])
+        if zip_after and not self.was_from_zip:
+            self._zip_images()
 
     def publish_pdf(self, filename, author=None, unit=None, notes=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
@@ -716,7 +740,7 @@ class CatPhan600(CatPhanBase):
         return string
 
     def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2,
-                low_contrast_tolerance=1, contrast_threshold=15):
+                low_contrast_tolerance=1, contrast_threshold=15, zip_after=False):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -729,10 +753,14 @@ class CatPhan600(CatPhanBase):
             The tolerance of the thickness calculation in mm, based on the wire ramps in the CTP404 module.
 
             .. warning:: Thickness accuracy degrades with image noise; i.e. low mAs images are less accurate.
+
         low_contrast_tolerance : int
             The number of low-contrast bubbles needed to be "seen" to pass.
         contrast_threshold : float, int
             The threshold for "detecting" low-contrast image. See RTD for calculation info.
+        zip_after : bool
+            If the CT images were not compressed before analysis and this is set to true, pylinac will compress
+            the analyzed images into a ZIP archive.
         """
         self.ctp404 = CTP404(self, offset=0, hu_tolerance=hu_tolerance, thickness_tolerance=thickness_tolerance,
                              scaling_tolerance=scaling_tolerance)
@@ -741,6 +769,8 @@ class CatPhan600(CatPhanBase):
                              offset=self.offsets['Spatial Resolution'])
         self.ctp515 = CTP515(self, tolerance=low_contrast_tolerance, contrast_threshold=contrast_threshold,
                              offset=self.offsets['Low contrast'])
+        if zip_after and not self.was_from_zip:
+            self._zip_images()
 
     def publish_pdf(self, filename, author=None, unit=None, notes=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
@@ -1480,10 +1510,6 @@ class CTP515(CatPhanModule):
     the average pixel value of the contrast ROIs and comparing that value to the average background value. To obtain
     a more "human" detection level, the contrast (which is largely the same across different-sized ROIs) is multiplied
     by the diameter. This value is compared to the contrast threshold to decide if it can be "seen".
-    Attributes
-    ----------
-    roi_background_names : list
-        A list identifying which of the ``roi_names`` are the background ROIs.
     """
     num_slices = 3
     dist2rois_mm = 50
@@ -1569,6 +1595,7 @@ class CTP515(CatPhanModule):
 
 
 def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='otsu'):
+    """Get the skimage regions of a black & white image."""
     if threshold == 'otsu':
         thresmeth = filters.threshold_otsu
     elif threshold == 'mean':

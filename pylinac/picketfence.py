@@ -423,8 +423,8 @@ class PicketFence:
                                                                        self.max_error, self.max_error_picket, self.max_error_leaf)
         return string
 
-    def publish_pdf(self, filename, author='', unit='N/A', notes=None):
-        """Publish (print) a PDF containing the analysis and quantitative results.
+    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
         ----------
@@ -446,11 +446,12 @@ class PicketFence:
                 'Absolute median error (mm): {:2.3f}'.format(self.abs_median_error),
                 'Mean picket spacing (mm): {:2.1f}'.format(self.pickets.mean_spacing),
                 'Maximum error (mm): {:2.3f} on Picket {}, Leaf {}'.format(self.max_error, self.max_error_picket, self.max_error_leaf),
-                'Gantry Angle: {:2.2f}'.format(self.gantry_angle),
-                'Collimator Angle: {:2.2f}'.format(self.collimator_angle),
                 ]
-        pdf.draw_text(canvas, x=10*cm, y=25.5*cm,
-                  text=text)
+        if self.gantry_angle is not None:
+            text.append('Gantry Angle: {:2.2f}'.format(self.gantry_angle))
+        if self.collimator_angle is not None:
+            text.append('Collimator Angle: {:2.2f}'.format(self.collimator_angle))
+        pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text)
         if notes is not None:
             pdf.draw_text(canvas, x=1*cm, y=5.5*cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1*cm, y=5*cm, text=notes)
@@ -493,14 +494,14 @@ class PicketFence:
         try:
             return round(float(self.image.metadata.GantryAngle))
         except AttributeError:
-            return 'N/A'
+            return None
 
     @property
     def collimator_angle(self):
         try:
             return round(float(self.image.metadata.BeamLimitingDeviceAngle))
         except AttributeError:
-            return 'N/A'
+            return None
 
 
 class Overlay:
@@ -513,7 +514,7 @@ class Overlay:
     def add_to_axes(self, axes):
         """Add the overlay to the axes."""
         rect_width = self.pickets[0].sample_width*2
-        for mlc_num, mlc in enumerate(self.pickets[0].mlc_meas):
+        for mlc_num, mlc in enumerate(sorted(self.pickets, key=lambda x: len(x.mlc_meas))[0].mlc_meas):
             # get pass/fail status of all measurements across pickets for that MLC
             if self.settings.action_tolerance is not None:
                 if all(picket.mlc_passed_action(mlc_num) for picket in self.pickets):
@@ -631,7 +632,7 @@ class PicketManager:
         error_stds = []
         error_plot_positions = []
         mlc_leaves = []
-        for mlc_num, mlc_meas in enumerate(self.pickets[0].mlc_meas):
+        for mlc_num, mlc_meas in enumerate(sorted(self.pickets, key=lambda x: len(x.mlc_meas))[0].mlc_meas):
             errors = []
             for picket in self.pickets:
                 errors.append(picket.mlc_meas[mlc_num].error)

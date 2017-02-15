@@ -35,6 +35,7 @@ import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
+from reportlab.lib.units import cm
 
 from .settings import get_array_cmap
 from .core import image
@@ -1360,27 +1361,27 @@ class LogBase:
         if self.fluence.gamma.map_calced:
             # plot the actual fluence
             ax = plt.subplot(2, 3, 1)
-            self.plot_subimage('actual', ax)
+            self.plot_subimage('actual', ax, show=False)
 
             # plot the expected fluence
             ax = plt.subplot(2, 3, 2)
-            self.plot_subimage('expected', ax)
+            self.plot_subimage('expected', ax, show=False)
 
             # plot the gamma map
             ax = plt.subplot(2, 3, 3)
-            self.plot_subimage('gamma', ax)
+            self.plot_subimage('gamma', ax, show=False)
 
             # plot the gamma histogram
             ax = plt.subplot(2, 3, 4)
-            self.plot_subgraph('gamma', ax)
+            self.plot_subgraph('gamma', ax, show=False)
 
             # plot the MLC error histogram
             ax = plt.subplot(2, 3, 5)
-            self.plot_subgraph('leaf hist', ax)
+            self.plot_subgraph('leaf hist', ax, show=False)
 
             # plot the leaf RMSs
             ax = plt.subplot(2,3,6)
-            self.plot_subgraph('rms', ax)
+            self.plot_subgraph('rms', ax, show=False)
 
             if show:
                 plt.show()
@@ -1400,10 +1401,10 @@ class LogBase:
         ax.tick_params(axis='both', labelsize=8)
         if img in ('actual', 'expected'):
             title = img.capitalize() + ' Fluence'
-            plt.imshow(getattr(self.fluence, img).array, aspect='auto', interpolation='none',
+            plt.imshow(getattr(self.fluence, img).array.astype(np.float32), aspect='auto', interpolation='none',
                        cmap=get_array_cmap())
         elif img == 'gamma':
-            plt.imshow(getattr(self.fluence, img).array, aspect='auto', interpolation='none', vmax=1,
+            plt.imshow(getattr(self.fluence, img).array.astype(np.float32), aspect='auto', interpolation='none', vmax=1,
                        cmap=get_array_cmap())
             plt.colorbar(ax=ax)
             title = 'Gamma Map'
@@ -1765,15 +1766,19 @@ class Dynalog(LogBase):
         dlog.report_basic_parameters()
         dlog.plot_summary()
 
-    def publish_pdf(self, filename, unit='N/A', notes=None):
+    def publish_pdf(self, filename, unit=None, notes=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
         ----------
         filename : (str, file-like object}
             The file to write the results to.
+        unit : str
+            The name of the unit.
+        notes : str, list of strings
+            Any additional notes to be included. A string will print a single line,
+            while a list of strings will print each item on a new line.
         """
-        from reportlab.lib.units import cm
         self.fluence.gamma.calc_map()
 
         canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory Log Analysis", unit=unit,
@@ -2093,17 +2098,21 @@ class TrajectoryLog(LogBase):
         print("CSV file written to: " + filename)
         return filename
 
-    def publish_pdf(self, filename, unit='N/A', notes=None):
+    def publish_pdf(self, filename, unit=None, notes=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
         ----------
         filename : (str, file-like object}
             The file to write the results to.
+        unit : str
+            The name of the unit.
+        notes : str, list of strings
+            Any additional notes to be included. A string will print a single line,
+            while a list of strings will print each item on a new line.
         """
         if self.treatment_type == IMAGING:
             raise ValueError("Log is of imaging type (e.g. kV setup) and does not contain relevant gamma/leaf data")
-        from reportlab.lib.units import cm
         self.fluence.gamma.calc_map()
 
         canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory Log Analysis", unit=unit,

@@ -1,3 +1,4 @@
+"""Module for constructing and interacting with PDF reports for Pylinac."""
 from datetime import datetime
 
 from PIL import Image
@@ -14,7 +15,20 @@ PDF_FONT = "Helvetica"
 
 
 def draw_text(canvas, x, y, text, fontsize=10):
-    """Generic text drawing function"""
+    """Generic text drawing function.
+
+    Parameters
+    ----------
+    x : float
+        Distance from left edge.
+    y : float
+        Distance from bottom edge.
+    text : str, list of strings
+        Text data; if str, prints single line.
+        If list of strings, each list item is printed on its own line.
+    fontsize : int
+        Text fontsize.
+    """
     textobj = canvas.beginText()
     textobj.setTextOrigin(x, y)
     textobj.setFont(PDF_FONT, int(fontsize))
@@ -27,6 +41,27 @@ def draw_text(canvas, x, y, text, fontsize=10):
 
 
 def create_pylinac_page_template(filename, analysis_title, file_name=None, file_created=None, unit=None, author=None):
+    """Create a new pylinac PDF template report.
+
+    Parameters
+    ----------
+    filename : str
+        PDF report file name.
+    analysis_title : str
+        Text to be displayed in the header of the report.
+    file_name : str, optional
+        Name of the file that was analyzed.
+    file_created : str, optional
+        When the file being analyzed was created.
+    unit : str, optional
+        Name of the unit that made the image/data.
+    author : str, optional
+        The author of the analysis; for tracking who did what.
+
+    Returns
+    -------
+    Reportlab canvas
+    """
     pdf_canvas = Canvas(filename, pagesize=A4)
     add_pylinac_page_template(pdf_canvas, analysis_title, unit=unit, author=author, file_name=file_name,
                               file_created=file_created)
@@ -34,6 +69,15 @@ def create_pylinac_page_template(filename, analysis_title, file_name=None, file_
 
 
 def add_pylinac_page_template(canvas, analysis_title, file_name=None, file_created=None, unit=None, author=None):
+    """Add a new pylinac template page to an existing report; for constructing multipage reports.
+
+    Parameters
+    ----------
+    canvas : reportlab.canvas
+        The canvas that has already been constructed.
+    analysis_title : str
+        Title to be displayed in the page header.
+    """
     # draw logo and header separation line
     canvas.drawImage(retrieve_demo_file(url='Pylinac_Full_cropped.png'),
                          1 * cm, 26.5 * cm, width=5 * cm, height=3 * cm, preserveAspectRatio=True)
@@ -58,5 +102,11 @@ def add_pylinac_page_template(canvas, analysis_title, file_name=None, file_creat
 
 
 def create_stream_image(data_io):
+    """Take in a buffered image and make it compatible with reportlab's image functionality.
+
+    Parameters
+    ----------
+    data_io : BytesIO instance
+    """
     data_io.seek(0)
     return ImageReader(Image.open(data_io))

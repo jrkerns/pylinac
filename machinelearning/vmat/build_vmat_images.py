@@ -25,10 +25,10 @@ def identify_images(folder, name=None, drop_non_dicoms=True):
         elif 'open' in basepath:
             label_str = 1
             print(path, "Labeled", label_str)
-        elif 'mlcs' in basepath:
+        elif 'mlc' in basepath:
             label_str = 3
             print(path, "Labeled", label_str)
-        elif ('drgs' in basepath) or (('dr' in basepath) and ('gs' in basepath)):
+        elif ('drgs' in basepath) or (('dr' in basepath) and ('gs' in basepath)) or ('gantry' in basepath):
             label_str = 2
             print(path, "Labeled", label_str)
         else:
@@ -62,6 +62,6 @@ def identify_images(folder, name=None, drop_non_dicoms=True):
 
 
 if __name__ == '__main__':
-    base_dir = r'C:\Users\James\Dropbox\Programming\Python\Projects\pylinac test files\VMATs'
-    img_dir = osp.join(base_dir, 'TrueBeam 3')
+    base_dir = r'C:\Users\jkerns\Dropbox\Programming\Python\Projects\pylinac test files\VMATs'
+    img_dir = osp.join(base_dir, 'CAMC TB2')
     identify_images(img_dir, drop_non_dicoms=False)
