@@ -3,6 +3,45 @@
 Changelog
 =========
 
+v 1.9.0
+-------
+
+General Changes
+^^^^^^^^^^^^^^^
+
+* This release introduces PDF reports for most major modules. All classes with this functionality
+  have been given a ``publish_pdf`` method. This method takes an output filename and other optional
+  data like the author, machine/unit, and any custom notes.
+* The watch/process functions have been tweaked to best work on one unit per run. Multiple units/machines should
+  have their own config files. A new article :ref:``task_scheduler`` describes how to use the process function with Windows Task
+  Scheduler to regularly pull and analyze files.
+
+CatPhan
+^^^^^^^
+
+* The CatPhan classes, when passed a directory during instantiation, will search through the DICOM files
+  for Series UIDs and analyze the files of the most numerous UID. E.g. if a folder has 80 DICOM images including
+  one set of 60 CBCT images and a total of 20 VMAT and picket fence images, it will find the CBCT files via UID and analyze
+  those, leaving the other images/files alone. This is useful for when all QA images are simply dumped into one folder.
+* Raw, uncompressed CatPhan DICOM files can optionally be compressed to a ZIP file after analysis using the ``zip_after``
+  argument in the ``analyze`` method.
+
+Watcher/Processer
+^^^^^^^^^^^^^^^^^
+
+* The ``watcher``/``process`` functions have been reworked to produce PDF files rather than PNG/txt files.
+* Several new configuration keywords have been changed/added. In the general section, ``use-classifier``
+  has been deprecated in favor of individual module keywords of the same name. This allows a user to use a
+  classifier for, say, picket fence images but not for winston lutz images. A ``unit`` keyword has been added
+  that specifies which unit the files should be considered to be from. This unit name is passed to the PDF
+  reports that are generated. If you have multiple units, make individual YAML configuration files, one for each
+  unit.
+* CatPhan, VMAT, and Winston-Lutz can now be raw, unzipped images as well as the usual ZIP archive. ZIP archives
+  are detected only be keywords. For uncompressed CatPhan images, the analyzer will look for any CatPhan DICOM
+  file groups, analyze them, and then ZIP the images until no further sets can be found. For VMAT and Winston-Lutz
+  if the ``use-classifier`` setting is true in the YAML configuration then an image classifier is used to group
+  images of the given type and then analyze them.
+
 v 1.8.0
 -------
 

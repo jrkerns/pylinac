@@ -80,7 +80,8 @@ Below are the high-level tools currently available:
 
 * `Continuous & One-Time Directory Analysis <http://pylinac.readthedocs.org/en/stable/watcher.html>`_ -
    True, one-time "set it and forget it" service that analyzes any file that enters the folder. Files with
-   keywords and certain file types are analyzed automatically.
+   keywords and certain file types are analyzed automatically. You can also specify "source" folders to pull new files from (e.g.
+   a Varian shared drive holding Trajectory logs or QA images).
 
    * **Easy: Use filenames to specify analysis types** - Just rename the file to contain a keyword (which are customizable)
      and move it to the directory!

@@ -129,6 +129,8 @@ The analysis options must match the parameter names exaclty (e.g. ``hu_tolerance
 
 .. literalinclude:: ../../pylinac/watcher_config.yml
 
+.. _task_scheduler:
+
 Using the watcher with Windows Task Scheduler
 ---------------------------------------------
 
