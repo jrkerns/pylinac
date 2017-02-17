@@ -24,7 +24,7 @@ CatPhan
   for Series UIDs and analyze the files of the most numerous UID. E.g. if a folder has 80 DICOM images including
   one set of 60 CBCT images and a total of 20 VMAT and picket fence images, it will find the CBCT files via UID and analyze
   those, leaving the other images/files alone. This is useful for when all QA images are simply dumped into one folder.
-* Raw, uncompressed CatPhan DICOM files can optionally be compressed to a ZIP file after analysis using the ``zip_after``
+* Raw, uncompressed CatPhan DICOM files can optionally be compressed to a ZIP file after analysis using the new ``zip_after``
   argument in the ``analyze`` method.
 
 Watcher/Processer
@@ -39,7 +39,7 @@ Watcher/Processer
   that specifies which unit the files should be considered to be from. This unit name is passed to the PDF
   reports that are generated. If you have multiple units, make individual YAML configuration files, one for each
   unit.
-* CatPhan, VMAT, and Winston-Lutz can now be raw, unzipped images as well as the usual ZIP archive. ZIP archives
+* CatPhan, VMAT, and Winston-Lutz can now take raw, unzipped images as well as the usual ZIP archive. ZIP archives
   are detected only by keywords as usual. For uncompressed CatPhan images, the analyzer will look for any CatPhan DICOM
   file groups via UID (see above CatPhan section), analyze them, and then ZIP the images until no further sets can be found.
   For VMAT and Winston-Lutz if the ``use-classifier`` setting is true their respective sections in the YAML configuration

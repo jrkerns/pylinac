@@ -3,9 +3,9 @@ package:
   version: "1.9.0"
 
 source:
-  fn: pylinac-1.8.0.tar.gz
-  url: https://pypi.python.org/packages/6f/a2/18811f64cfc202103bbcb509c11befd57f2fcc2c834ebad7bb3173228736/pylinac-1.8.0.tar.gz#md5=1f47d42c3267df7ce5f46c73903337ae
-  md5: 1f47d42c3267df7ce5f46c73903337ae
+  fn: pylinac-1.9.0.zip
+  url: https://pypi.python.org/packages/e9/a5/6dc8141a2defc02879df1a802404ea200a0faa3aa559e70d0a2814fb786d/pylinac-1.9.0.zip#md5=7101cf5fb568888d494bcade39094995
+  md5: 7101cf5fb568888d494bcade39094995
 
 #  patches:
    # List any patch files here
@@ -46,6 +46,7 @@ requirements:
     - pyyaml
     - pywin32-ctypes
     - reportlab
+    - olefile
 
   run:
     - python
