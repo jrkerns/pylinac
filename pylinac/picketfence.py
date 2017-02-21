@@ -657,7 +657,7 @@ class PicketManager:
         """Find the pickets of the image."""
         leaf_prof = self.image_mlc_inplane_mean_profile
         peak_idxs = leaf_prof.find_peaks(min_distance=0.02, threshold=0.5, max_number=self.num_pickets)
-        peak_spacing = np.median(np.diff(peak_idxs))
+        peak_spacing = np.median(np.diff(np.sort(peak_idxs)))
         if np.isnan(peak_spacing):
             peak_spacing = 20
 
