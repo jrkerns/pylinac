@@ -483,8 +483,8 @@ class PicketFence:
         # find "range" of 80 to 90th percentiles
         row_sum = np.sum(temp_image, 0)
         col_sum = np.sum(temp_image, 1)
-        row80, row90 = np.percentile(row_sum, [80, 90])
-        col80, col90 = np.percentile(col_sum, [80, 90])
+        row80, row90 = np.percentile(row_sum, [85, 95])
+        col80, col90 = np.percentile(col_sum, [85, 95])
         row_range = row90 - row80
         col_range = col90 - col80
 

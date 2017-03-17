@@ -109,12 +109,12 @@ Below are the high-level tools currently available:
    and includes optional email service upon analysis.
 
 * `TG-51 Absolute Dose Calibration <http://pylinac.readthedocs.org/en/latest/tg51.html>`_ -
-  Input the raw data and pylinac can calculate either individual values (kQ, PDDx, Pion, etc) or use the
-  provided classes to input all measurement data and have it calculate all factors and dose values automatically.
+   Input the raw data and pylinac can calculate either individual values (kQ, PDDx, Pion, etc) or use the
+   provided classes to input all measurement data and have it calculate all factors and dose values automatically.
 
-  Example script:
+   Example script:
 
-  .. code-block:: python
+   .. code-block:: python
 
             from pylinac import tg51
 

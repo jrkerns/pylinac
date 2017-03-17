@@ -28,6 +28,7 @@ def run_pf(path):
 
 class PicketFenceTestBank(DataBankMixin, TestCase):
     DATA_DIR = ['Picket Fences']
+    write_failures_to_file = True
 
     def file_should_be_processed(self, filepath):
         return filepath.endswith('.dcm')
