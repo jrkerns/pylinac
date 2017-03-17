@@ -21,6 +21,26 @@ def clear_data_files():
     print("Pylinac data files cleared.")
 
 
+def assign2machine(source_file, machine_file):
+    """Assign a DICOM RT Plan file to a specific machine. The source file is overwritten to contain
+    the machine of the machine file.
+
+    Parameters
+    ----------
+    source_file : str
+        Path to the DICOM RTPlan file that contains the fields/plan desired
+        (e.g. a Winston Lutz set of fields or Varian's default PF files).
+    machine_file : str
+        Path to a DICOM RTPlan file that has the desired machine. This is easily obtained from pushing a plan from the TPS
+        for that specific machine. The file must contain at least one valid field.
+    """
+    dcm_source = dicom.read_file(source_file)
+    dcm_machine = dicom.read_file(machine_file)
+    for beam in dcm_source.BeamSequence:
+        beam.TreatmentMachineName = dcm_machine.BeamSequence[0].TreatmentMachineName
+    dcm_source.save_as(source_file)
+
+
 def is_close(val, target, delta=1):
     """Return whether the value is near the target value(s).
 
