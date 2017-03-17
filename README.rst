@@ -108,7 +108,7 @@ Below are the high-level tools currently available:
    Analysis settings are `customizable <http://pylinac.readthedocs.org/en/latest/watcher.html#configuration>`_
    and includes optional email service upon analysis.
 
-* `TG-51 Absolute Dose Calibration <http://pylinac.readthedocs.org/en/latest/tg51.html>`_ -
+* `TG-51 Absolute Dose Calibration <http://pylinac.readthedocs.org/en/latest/tg51_docs.html>`_ -
    Input the raw data and pylinac can calculate either individual values (kQ, PDDx, Pion, etc) or use the
    provided classes to input all measurement data and have it calculate all factors and dose values automatically.
 
