@@ -439,7 +439,7 @@ class CatPhanBase:
                     canvas.drawImage(img, 4 * cm, offset * cm, width=15 * cm, height=10*cm, preserveAspectRatio=True)
             pdf.draw_text(canvas, 1.5*cm, 23*cm, text=text)
             canvas.showPage()
-            # don't add last page
+            # add another page until last page is reached
             if page != len(texts)-1:
                 pdf.add_pylinac_page_template(canvas, analysis_title=analysis_title)
         canvas.save()
@@ -669,7 +669,7 @@ class CatPhan504(CatPhanBase):
              'HU Linearity tolerance: {}'.format(self.ctp404.hu_tolerance),
              'HU Linearity ROIs: {}'.format(self.ctp404.hu_roi_vals),
              'Geometric node spacing (mm): {:2.2f}'.format(self.ctp404.avg_line_length),
-             'Slice thickness (mm): {:2.2f}'.format(self.ctp404.slice_thickness),
+             'Slice thickness (mm): {:2.2f}'.format(self.ctp404.meas_slice_thickness),
              'Low contrast visibility: {:2.2f}'.format(self.ctp404.lcv),
             ],
             [' - CTP528 Results - ',
