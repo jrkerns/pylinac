@@ -276,7 +276,7 @@ class AnalyzeCatPhan(AnalyzeMixin):
         if self.zip_format:
             return self.full_path.replace('.zip', '.pdf')
         else:
-            return "{}\CBCT - {}.pdf".format(osp.dirname(self.instance.dicom_stack[0].path), self.instance.dicom_stack[0].date_created(format="%A, %I-%M, %B %d, %Y"))
+            return "{}\CBCT - {}.pdf".format(osp.dirname(self.instance.dicom_stack[0].path), self.instance.dicom_stack[0].date_created(format="%A, %I-%M-%S, %B %d, %Y"))
 
     def analyze(self):
         self.instance.analyze(**self.analysis_settings)

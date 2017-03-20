@@ -305,14 +305,15 @@ class BaseImage:
 
     def date_created(self, format="%A, %B %d, %Y"):
         date = None
-        for attr in ('InstanceCreationDate', 'StudyDate'):
+        try:
+            date = datetime.strptime(self.metadata.InstanceCreationDate+self.metadata.InstanceCreationTime, "%Y%m%d%H%M%S")
+            date = date.strftime(format)
+        except AttributeError:
             try:
-                date = datetime.strptime(getattr(self.metadata, attr), "%Y%m%d")
+                date = datetime.strptime(self.metadata.StudyDate, "%Y%m%d")
                 date = date.strftime(format)
-            except AttributeError:
+            except:
                 pass
-            else:
-                break
         if date is None:
             try:
                 date = datetime.fromtimestamp(osp.getctime(self.path)).strftime(format)
