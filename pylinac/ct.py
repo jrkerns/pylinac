@@ -786,7 +786,7 @@ class CatPhan600(CatPhanBase):
              'HU Linearity tolerance: {}'.format(self.ctp404.hu_tolerance),
              'HU Linearity ROIs: {}'.format(self.ctp404.hu_roi_vals),
              'Geometric node spacing (mm): {:2.2f}'.format(self.ctp404.avg_line_length),
-             'Slice thickness (mm): {:2.2f}'.format(self.ctp404.slice_thickness),
+             'Slice thickness (mm): {:2.2f}'.format(self.ctp404.meas_slice_thickness),
              'Low contrast visibility: {:2.2f}'.format(self.ctp404.lcv),
             ],
             [' - CTP528 Results - ',
