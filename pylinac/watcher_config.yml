@@ -9,7 +9,7 @@
 general:
   directory: path/to/analysis/directory  # path to the folder where analysis is performed;
                                          # can also be specified as keyword arg in the `start_watching` and `process` functions
-  source-directories:
+  sources:
     - path/to/folder1  # e.g. the trajectory log folder: I:\Transfer\TDS\<TB SN>\TrajectoryLog\Treatment
     - path/to/folder2  # e.g. the exported images folder: I:\Transfer\TDS\<TB SN>\Imaging\ExportedImages
   file-suffix: Report  # the suffix added to the .png and .txt file created after analysis
