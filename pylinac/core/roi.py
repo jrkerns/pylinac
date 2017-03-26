@@ -79,7 +79,8 @@ class DiskROI(Circle):
 class LowContrastDiskROI(DiskROI):
     """A class for analyzing the low-contrast disks."""
 
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold, background=None):
+    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold=None, background=None,
+                 cnr_threshold=None):
         """
         Parameters
         ----------
@@ -88,22 +89,28 @@ class LowContrastDiskROI(DiskROI):
         """
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.contrast_threshold = contrast_threshold
+        self.cnr_threshold = cnr_threshold
         self.background = background
 
     @property
     def contrast_to_noise(self):
         """The contrast to noise ratio of the bubble: (Signal - Background)/Stdev."""
-        return (self.pixel_value - self.background) / self.std
+        return abs(self.pixel_value - self.background) / self.std
 
     @property
     def contrast(self):
         """The contrast of the bubble compared to background: (ROI - backg) / (ROI + backg)."""
-        return (self.pixel_value - self.background) / (self.pixel_value + self.background)
+        return abs((self.pixel_value - self.background) / (self.pixel_value + self.background))
+
+    @property
+    def cnr_constant(self):
+        """The contrast-to-noise value times the bubble diameter."""
+        return self.contrast_to_noise * self.diameter
 
     @property
     def contrast_constant(self):
         """The contrast value times the bubble diameter."""
-        return self.contrast_to_noise * self.diameter
+        return self.contrast * self.diameter
 
     @property
     def passed(self):
@@ -111,9 +118,14 @@ class LowContrastDiskROI(DiskROI):
         return self.contrast > self.contrast_threshold
 
     @property
-    def passed_constant(self):
+    def passed_contrast_constant(self):
         """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
         return self.contrast_constant > self.contrast_threshold
+
+    @property
+    def passed_cnr_constant(self):
+        """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
+        return self.cnr_constant > self.cnr_threshold
 
     @property
     def plot_color(self):
@@ -123,7 +135,12 @@ class LowContrastDiskROI(DiskROI):
     @property
     def plot_color_constant(self):
         """Return one of two colors depending on if ROI passed."""
-        return 'blue' if self.passed_constant else 'red'
+        return 'blue' if self.passed_contrast_constant else 'red'
+
+    @property
+    def plot_color_cnr(self):
+        """Return one of two colors depending on if ROI passed."""
+        return 'blue' if self.passed_cnr_constant else 'red'
 
 
 class HighContrastDiskROI(DiskROI):

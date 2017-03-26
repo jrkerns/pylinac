@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
-from pylinac import LeedsTOR, StandardImagingQC3
+from pylinac import LeedsTOR, StandardImagingQC3, LasVegas
 from tests.utils import save_file, LocationMixin
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Planar imaging')
@@ -64,3 +64,17 @@ class SIQC3Demo(SIQC3TestMixin, TestCase):
 
 class SIQC3_1(SIQC3TestMixin, TestCase):
     file_path = ['QC3 2.5MV.dcm']
+
+
+# class LasVegasTestMixin(PlanarPhantomMixin):
+#     klass = LasVegas
+
+
+# class LasVegasDemo(LasVegasTestMixin, TestCase):
+#
+#     def test_demo(self):
+#         pass
+#         # LasVegas.run_demo()  # shouldn't raise
+#
+#     def test_plotting(self):
+#         pass
