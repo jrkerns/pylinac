@@ -16,6 +16,7 @@ from itertools import zip_longest
 import io
 import math
 import os.path as osp
+import re
 import warnings
 
 import matplotlib.pyplot as plt
@@ -35,6 +36,7 @@ GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'
 COUCH = 'Couch'
 COMBO = 'Combo'
+EPID = 'Epid'
 REFERENCE = 'Reference'
 ALL = 'All'
 
@@ -112,7 +114,7 @@ class WinstonLutz:
         wl.plot_summary()
 
     @lru_cache()
-    def _minimize_axis(self, axis='Gantry'):
+    def _minimize_axis(self, axis=GANTRY):
         """Return the minimization result of the given axis."""
         def distance(p, things):
             """Calculate the maximum distance to any line from the given point."""
@@ -151,37 +153,58 @@ class WinstonLutz:
     def collimator_iso_size(self):
         """The 2D collimator isocenter size (diameter) in mm. The iso size is in the plane
         normal to the gantry."""
-        return self._minimize_axis(COLLIMATOR).fun * 2
+        if self._get_images((COLLIMATOR, REFERENCE))[0] > 1:
+            return self._minimize_axis(COLLIMATOR).fun * 2
+        else:
+            return 0
 
     @property
     def collimator_iso2bb_vector(self):
         """The 2D vector from the collimator isocenter to the BB (located at the origin)."""
-        min_col = self._minimize_axis(COLLIMATOR)
-        return Vector(min_col.x[0], min_col.x[1])
+        if self._get_images((COLLIMATOR, REFERENCE))[0] > 1:
+            min_col = self._minimize_axis(COLLIMATOR)
+            return Vector(min_col.x[0], min_col.x[1])
+        else:
+            return Vector()
 
     @property
     def couch_iso_size(self):
         """The diameter of the 2D couch isocenter size in mm. Only images where
         the gantry and collimator were at zero are used to determine this value."""
-        return self._minimize_axis(COUCH).x[3] * 2
+        if self._get_images((COUCH, REFERENCE))[0] > 1:
+            return self._minimize_axis(COUCH).x[3] * 2
+        else:
+            return 0
 
     @property
     def couch_iso2bb_vector(self):
         """The 2D vector from the couch isocenter to the BB (located at the origin)."""
-        min_col = self._minimize_axis(COUCH)
-        return Vector(min_col.x[0], min_col.x[1])
+        if self._get_images((COUCH, REFERENCE))[0] > 1:
+            min_col = self._minimize_axis(COUCH)
+            return Vector(min_col.x[0], min_col.x[1])
+        else:
+            return Vector()
 
-    def gantry_sag(self, axis='z'):
-        """The range of gantry sag along the given axis."""
-        attr = 'bb_' + axis + '_offset'
-        sag_array = [getattr(image, attr) for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
-        return max(sag_array) - min(sag_array)
-
-    def epid_sag(self, axis='z'):
-        """The range of EPID panel sag along the given axis."""
-        attr = 'epid_' + axis + '_offset'
-        sag_array = [getattr(image, attr) for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
-        return max(sag_array) - min(sag_array)
+    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO))
+    def axis_rms_deviations(self, axis=GANTRY):
+        """The RMS deviations of a given axis/axes.
+        
+        Parameters
+        ----------
+        axis : ('Gantry', 'Collimator', 'Couch', 'Epid', 'Combo'}
+            The axis desired.
+        """
+        if axis != EPID:
+            attr = 'bb_'
+        else:
+            attr = 'epid_'
+        imgs = self._get_images(axis=axis)[1]
+        if len(imgs) <= 1:
+            return (0, )
+        rms = []
+        for img in imgs:
+            rms.append(np.sqrt(sum(getattr(img, attr + ax + '_offset') ** 2 for ax in ('x', 'y', 'z'))))
+        return rms
 
     def cax2bb_distance(self, metric='max'):
         """The distance in mm between the CAX and BB for all images according to the given metric.
@@ -209,40 +232,44 @@ class WinstonLutz:
         elif metric == 'median':
             return np.median([image.cax2epid_distance for image in self.images])
 
-    def _plot_sag(self, item, ax=None, show=True):
+    @value_accept(item=(GANTRY, EPID, COLLIMATOR, COUCH))
+    def _plot_deviation(self, item, ax=None, show=True):
         """Helper function: Plot the sag in Cartesian coordinates.
 
         Parameters
         ----------
-        item : {'gantry', 'epid'}
-            The item to plot, either gantry or EPID.
+        item : {'gantry', 'epid', 'collimator', 'couch'}
+            The axis to plot.
         ax : None, matplotlib.Axes
             The axis to plot to. If None, creates a new plot.
         show : bool
             Whether to show the image.
         """
-        if item == 'gantry':
-            attr = 'bb'
-            title = 'Relative gantry displacement'
-        elif item == 'epid':
+        title = 'Relative {} displacement'.format(item)
+        if item == EPID:
             attr = 'epid'
-            title = 'Relative EPID displacement'
-        # get gantry images, angles, and shifts
-        gantry_imgs = [image for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
-        gantry_angles = [image.gantry_angle for image in gantry_imgs]
-        z_sag = np.array([getattr(image, attr + '_z_offset') for image in gantry_imgs])
-        y_sag = np.array([getattr(image, attr + '_y_offset') for image in gantry_imgs])
-        x_sag = np.array([getattr(image, attr + '_x_offset') for image in gantry_imgs])
+            item = GANTRY
+        else:
+            attr = 'bb'
+        # get axis images, angles, and shifts
+        imgs = [image for image in self.images if image.variable_axis in (item, REFERENCE)]
+        angles = [getattr(image, '{}_angle'.format(item.lower())) for image in imgs]
+        z_sag = np.array([getattr(image, attr + '_z_offset') for image in imgs])
+        y_sag = np.array([getattr(image, attr + '_y_offset') for image in imgs])
+        x_sag = np.array([getattr(image, attr + '_x_offset') for image in imgs])
+        rms = np.sqrt(x_sag**2+y_sag**2+z_sag**2)
 
-        # plot the gantry sag
+        # plot the axis deviation
         if ax is None:
             ax = plt.subplot(111)
-        ax.plot(gantry_angles, z_sag, 'bo', label='In/Out', ls='-')
-        ax.plot(gantry_angles, y_sag, 'r*', label='Up/Down', ls='-')
-        ax.plot(gantry_angles, x_sag, 'm^', label='Left/Right', ls='-')
+        ax.plot(angles, z_sag, 'bo', label='In/Out', ls='-.')
+        ax.plot(angles, x_sag, 'm^', label='Left/Right', ls='-.')
+        if item not in (COUCH, COLLIMATOR):
+            ax.plot(angles, y_sag, 'r*', label='Up/Down', ls='-.')
+        ax.plot(angles, rms, 'g+', label='RMS', ls='-')
         ax.set_title(title)
         ax.set_ylabel('mm')
-        ax.set_xlabel("Gantry angle")
+        ax.set_xlabel("{} angle".format(item))
         ax.set_xticks(np.arange(0, 361, 45))
         ax.set_xlim([-15, 375])
         ax.grid('on')
@@ -250,29 +277,11 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    def plot_epid_sag(self, ax=None, show=True):
-        """Plot the EPID sag in Cartesian coordinates.
-
-        Parameters
-        ----------
-        ax : None, matplotlib.Axes
-            The axis to plot to. If None, creates a new plot.
-        show : bool
-            Whether to show the image.
-        """
-        self._plot_sag('epid', ax=ax, show=show)
-
-    def plot_gantry_sag(self, ax=None, show=True):
-        """Plot the gantry sag in Cartesian coordinates.
-
-        Parameters
-        ----------
-        ax : None, matplotlib.Axes
-            The axis to plot to. If None, creates a new plot.
-        show : bool
-            Whether to show the image.
-        """
-        self._plot_sag('gantry', ax=ax, show=show)
+    def _get_images(self, axis=(GANTRY,)):
+        if isinstance(axis, str):
+            axis = (axis,)
+        images = [image for image in self.images if image.variable_axis in axis]
+        return len(images), images
 
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO))
     def plot_axis_images(self, axis=GANTRY, show=True, ax=None):
@@ -283,7 +292,7 @@ class WinstonLutz:
 
         Parameters
         ----------
-        axis : {'Gantry', 'Collimator', 'Couch'}
+        axis : {'Gantry', 'Collimator', 'Couch', 'Combo'}
             The images/markers from which accelerator axis to plot.
         show : bool
             Whether to actually show the images.
@@ -291,7 +300,7 @@ class WinstonLutz:
             The axis to plot to. If None, creates a new plot.
         """
         images = [image for image in self.images if image.variable_axis in (axis, REFERENCE)]
-        ax = images[0].plot(show=False, ax=ax)
+        ax = images[0].plot(show=False, ax=ax)  # plots the first marker; plot the rest of the markers below
         if axis != COUCH:
             # plot EPID
             epid_xs = [img.epid.x for img in images[1:]]
@@ -374,15 +383,22 @@ class WinstonLutz:
     def plot_summary(self, show=True):
         """Plot a summary figure showing the gantry sag and wobble plots of the three axes."""
         plt.figure(figsize=(11, 9))
-        gantry_sag_ax = plt.subplot2grid((2, 6), (0, 0), colspan=3)
-        epid_sag_ax = plt.subplot2grid((2, 6), (0, 3), colspan=3)
-        gantry_ax = plt.subplot2grid((2, 6), (1, 0), colspan=2)
-        collimator_ax = plt.subplot2grid((2, 6), (1, 2), colspan=2)
-        couch_ax = plt.subplot2grid((2, 6), (1, 4), colspan=2)
-        self.plot_gantry_sag(gantry_sag_ax, show=False)
-        self.plot_epid_sag(epid_sag_ax, show=False)
-        for axis, ax in zip((GANTRY, COLLIMATOR, COUCH), (gantry_ax, collimator_ax, couch_ax)):
-            self.plot_axis_images(axis=axis, ax=ax, show=False)
+        grid = (3, 6)
+        gantry_sag_ax = plt.subplot2grid(grid, (0, 0), colspan=3)
+        self._plot_deviation(GANTRY, gantry_sag_ax, show=False)
+        epid_sag_ax = plt.subplot2grid(grid, (0, 3), colspan=3)
+        self._plot_deviation(EPID, epid_sag_ax, show=False)
+        if self._get_images((COLLIMATOR, REFERENCE))[0] > 1:
+            coll_sag_ax = plt.subplot2grid(grid, (1, 0), colspan=3)
+            self._plot_deviation(COLLIMATOR, coll_sag_ax, show=False)
+        if self._get_images((COUCH, REFERENCE))[0] > 1:
+            couch_sag_ax = plt.subplot2grid(grid, (1, 3), colspan=3)
+            self._plot_deviation(COUCH, couch_sag_ax, show=False)
+
+        for axis, axnum in zip((GANTRY, COLLIMATOR, COUCH), (0, 2, 4)):
+            if self._get_images((axis, REFERENCE))[0] > 1:
+                ax = plt.subplot2grid(grid, (2, axnum), colspan=2)
+                self.plot_axis_images(axis=axis, ax=ax, show=False)
         if show:
             plt.tight_layout()
             plt.show()
@@ -401,17 +417,22 @@ class WinstonLutz:
                  "Median 2D CAX->BB distance: {:.2f}mm\n" \
                  "Gantry 3D isocenter diameter: {:.2f}mm\n" \
                  "Gantry iso->BB vector: {}\n" \
-                 "Gantry sag in the z-direction: {:.2f}mm\n" \
-                 "EPID sag in the z-direction: {:.2f}mm\n" \
+                 "Maximum Gantry RMS deviation (mm): {:.2f}mm\n" \
+                 "Maximum EPID RMS deviation (mm): {:.2f}mm\n" \
                  "Collimator 2D isocenter diameter: {:.2f}mm\n" \
                  "Collimator 2D iso->BB vector: {}\n" \
+                 "Maximum Collimator RMS deviation (mm): {:.2f}\n" \
                  "Couch 2D isocenter diameter: {:.2f}mm\n" \
-                 "Couch 2D iso->BB vector: {}".format(
+                 "Couch 2D iso->BB vector: {}\n" \
+                 "Maximum Couch RMS deviation (mm): {:.2f}".format(
                     len(self.images), self.cax2bb_distance('max'), self.cax2bb_distance('median'),
-                    self.gantry_iso_size, self.gantry_iso2bb_vector, self.gantry_sag(), self.epid_sag(),
-                    self.collimator_iso_size, self.collimator_iso2bb_vector,
-                    self.couch_iso_size, self.couch_iso2bb_vector
+                    self.gantry_iso_size, self.gantry_iso2bb_vector, max(self.axis_rms_deviations(GANTRY)),
+                    max(self.axis_rms_deviations(EPID)),
+                    self.collimator_iso_size, self.collimator_iso2bb_vector, max(self.axis_rms_deviations(COLLIMATOR)),
+                    self.couch_iso_size, self.couch_iso2bb_vector,
+                    max(self.axis_rms_deviations(COUCH)),
                  )
+
         return result
 
     def publish_pdf(self, filename, unit=None, notes=None):
@@ -429,11 +450,11 @@ class WinstonLutz:
         text = ['Winston-Lutz results:',
                 'Key, looking from foot of table:',
                 '+x: right, +y: up, +z:out',
-                'Average SID (mm): {:2.2f}'.format(avg_sid),
+                'Average SID (mm): {:2.0f}'.format(avg_sid),
                 'Number of images: {}'.format(len(self.images)),
                 'Maximum 2D CAX->BB distance (mm): {:2.2f}'.format(self.cax2bb_distance('max')),
                 'Median 2D CAX->BB distance (mm): {:2.2f}'.format(self.cax2bb_distance('median')),
-                'Gantry iso->BB vector: x={:2.2f}, y={:2.2f}, z={:2.2f}'.format(self.gantry_iso2bb_vector.x,
+                'Gantry iso->BB vector (mm): x={:2.2f}, y={:2.2f}, z={:2.2f}'.format(self.gantry_iso2bb_vector.x,
                                                                  self.gantry_iso2bb_vector.y,
                                                                  self.gantry_iso2bb_vector.z),
                 'Gantry 3D isocenter diameter (mm): {:2.2f}'.format(self.gantry_iso_size),
@@ -611,28 +632,57 @@ class WLImage(image.DicomImage):
         return self.center
 
     @property
+    @lru_cache(1)
     def gantry_angle(self):
         """Gantry angle of the irradiation."""
-        if is_close(self.metadata.GantryAngle, [0, 360], delta=1):
-            return 0
-        else:
-            return self.metadata.GantryAngle
+        return self.get_axis(GANTRY.lower(), 'GantryAngle')
 
     @property
+    @lru_cache(1)
     def collimator_angle(self):
         """Collimator angle of the irradiation."""
-        if is_close(self.metadata.BeamLimitingDeviceAngle, [0, 360], delta=1):
-            return 0
-        else:
-            return self.metadata.BeamLimitingDeviceAngle
+        return self.get_axis('coll', 'BeamLimitingDeviceAngle')
 
     @property
+    @lru_cache(1)
     def couch_angle(self):
         """Couch angle of the irradiation."""
-        if is_close(self.metadata.PatientSupportAngle, [0, 360], delta=1):
+        return self.get_axis(COUCH.lower(), 'PatientSupportAngle')
+
+    def get_axis(self, axis_str, axis_dcm_attr):
+        """Retrieve the value of the axis. This will first look in the file name for the value. 
+        If not in the filename then it will look in the DICOM metadata. If the value can be found in neither 
+        then a value of 0 is assumed.
+
+        Parameters
+        ----------
+        axis_str : str
+            The string to look for in the filename.
+        axis_dcm_attr : str
+            The DICOM attribute that should contain the axis value.
+
+        Returns
+        -------
+        float
+        """
+        filename = osp.basename(self.path)
+        if axis_str in filename:
+            try:
+                match = re.search('(?<={})\d+'.format(axis_str), filename)
+                axis = float(match.group())
+            except:
+                raise ValueError(
+                    "The filename contains '{}' but could not read a number following it. Use the format '{}45' e.g.".format(
+                        axis_str, axis_str))
+        else:
+            try:
+                axis = float(getattr(self.metadata, axis_dcm_attr))
+            except AttributeError:
+                axis = 0
+        if is_close(axis, [0, 360], delta=1):
             return 0
         else:
-            return self.metadata.PatientSupportAngle
+            return axis
 
     @property
     def epid_y_offset(self):
