@@ -101,6 +101,7 @@ class DataBankMixin:
     executor = 'ProcessPoolExecutor'
     workers = multiprocessing.cpu_count() - 1
     print_success_path = False
+    write_failures_to_file = False
 
     @classmethod
     def setUpClass(cls):
@@ -146,10 +147,15 @@ class DataBankMixin:
                     if self.print_success_path:
                         stuff_to_print.append(futures[future])
                 else:
-                    fails += [osp.basename(futures[future])]
+                    fails += [futures[future]]
                 print(*stuff_to_print)
 
         end = time.time() - start
         print('Processing of {} files took {:3.1f}s ({:3.2f}s/item). {} passed; {} failed.'.format(test_num, end, end/test_num, passes, len(fails)))
         if len(fails) > 0:
             pprint.pprint("Failures: {}".format(fails))
+            if self.write_failures_to_file:
+                with open('failures_{}.txt'.format(osp.basename(self.DATA_DIR)), mode='w') as f:
+                    for file in fails:
+                        f.write(file + '\n')
+                print("Failures written to file")
