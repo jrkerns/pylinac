@@ -244,12 +244,13 @@ class AS1200HDTranslated(PFBankMixin, TestCase):
 #     passes = False
 #     percent_passing = 95
 
-
+@skip
 class CharlestonRA(PFBankMixin, TestCase):
     file_path = ['Charleston', 'TB1', 'July2016', 'RA.dcm']
     max_error = 0.17
 
 
+@skip
 class CharlestonG0(PFBankMixin, TestCase):
     file_path = ['Charleston', 'TB1', 'July2016', 'G0.dcm']
     max_error = 0.1

@@ -245,3 +245,19 @@ class DAmoursElektaCentered(WinstonLutzMixin, TestCase):
     couch_iso2bb_vector = None
     cax2bb_max_distance = 1.25
     cax2bb_median_distance = 0.6
+
+
+class DeBr6XElekta(WinstonLutzMixin, TestCase):
+    """An Elekta dataset, with the BB centered."""
+    file_path = ['DeBr', '6X_Elekta_Ball_Bearing.zip']
+    num_images = 8
+    gantry_iso_size = 1.6
+    gantry_iso2bb_vector = Vector(-0.3, 0, 0)
+    gantry_sag = 1.2
+    epid_sag = 2.6
+    collimator_iso_size = 0.5
+    collimator_iso2bb_vector = Vector(-0.7, -0.4, 0)
+    couch_iso_size = None
+    couch_iso2bb_vector = None
+    cax2bb_max_distance = 1.0
+    cax2bb_median_distance = 0.7

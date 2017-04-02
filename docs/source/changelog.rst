@@ -3,7 +3,38 @@
 Changelog
 =========
 
-v 1.9.0
+V 2.0.0
+-------
+
+Watcher
+^^^^^^^
+
+* Closes `#84 <https://github.com/jrkerns/pylinac/issues/84>`_ Which would overwrite the resulting zip and PDF of
+  initially unzipped CBCTs performed on the same day. I.e. multiple CBCTs would result in only 1 zip/PDF. The image
+  timestamp has been edited so that it will include the hour-minute-second of the CBCT to avoid conflict.
+
+CatPhan
+^^^^^^^
+
+* Closes `#85 <https://github.com/jrkerns/pylinac/issues/85>`_ Which displayed the nominal CBCT slice width on PDF reports,
+  not the detected width for the CatPhan504 & CatPhan600.
+
+Planar Phantoms
+^^^^^^^^^^^^^^^
+
+* The Las Vegas phantom has been added to the planar imaging module. It's use case is very similar to the existing planar
+  phantoms.
+* The `LeedsTOR.analyze` method has an additional parameter: `angle_offset`. From analyzing multiple Leeds images, it has become
+  apparent that the low contrast ROIs are not always perfectly set relative to the phantom. This parameter will allow the user
+  to fine-tune the analysis to perfectly overlay the low contrast ROIs.
+
+Core Modules
+^^^^^^^^^^^^
+
+* The `Image` class has been fully depricated and is no longer available. Use the functions available in the `image` module instead.
+  See the version 1.4.0 release notes for further details.
+
+V 1.9.0
 -------
 
 General Changes

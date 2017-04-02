@@ -55,7 +55,7 @@ class TestProcess(unittest.TestCase):
         self.clean_dir()
 
     def test_process_files(self):
-        process(WATCHER_DIR)
+        process(WATCHER_DIR, copy_new_files=True)
 
     # def test_process_files_with_classifier(self):
     #     config = osp.join(osp.dirname(__file__), 'test_config.yaml')
