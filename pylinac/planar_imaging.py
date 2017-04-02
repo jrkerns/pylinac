@@ -8,7 +8,6 @@ Features:
 * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
   as you see fit.
 """
-from abc import abstractproperty
 import copy
 from functools import lru_cache
 import io
@@ -79,7 +78,7 @@ class ImagePhantomBase:
         img_copy.filter(kind='gaussian', size=sigma)
         img_copy.ground()
 
-        # computer the canny edges with very low thresholds (detects nearly everything)
+        # compute the canny edges with very low thresholds (detects nearly everything)
         lo_th, hi_th = np.percentile(img_copy, percentiles)
         c = feature.canny(img_copy, low_threshold=lo_th, high_threshold=hi_th)
 
@@ -113,19 +112,15 @@ class ImagePhantomBase:
         axes.set_xlabel('Line pair region #')
         axes.set_ylabel('relative MTF')
 
-    @abstractproperty
     def phantom_center(self):
         pass
 
-    @abstractproperty
     def phantom_angle(self):
         pass
 
-    @abstractproperty
     def phantom_ski_region(self):
         pass
 
-    @abstractproperty
     def phantom_radius(self):
         pass
 
@@ -550,8 +545,11 @@ class LeedsTOR(ImagePhantomBase):
         the normalized MTF value.
     """
     _demo_filename = 'leeds.dcm'
+    _phantom_angle = None
+    _phantom_center = None
 
     @property
+    @lru_cache(1)
     def _blobs(self):
         """The indices of the regions that were significant; i.e. a phantom circle outline or lead/copper square."""
         blobs = []
@@ -566,6 +564,7 @@ class LeedsTOR(ImagePhantomBase):
         return blobs
 
     @property
+    @lru_cache(1)
     def _regions(self):
         """All the regions of the canny image that were labeled."""
         return self._get_canny_regions()
@@ -582,6 +581,8 @@ class LeedsTOR(ImagePhantomBase):
         -------
         center : Point
         """
+        if self._phantom_center is not None:
+            return self._phantom_center
         circles = [roi for roi in self._blobs if
                    np.isclose(self._regions[roi].major_axis_length, self.phantom_radius * 3.35, rtol=0.3)]
 
@@ -604,6 +605,8 @@ class LeedsTOR(ImagePhantomBase):
         angle : float
             The angle in radians.
         """
+        if self._phantom_angle is not None:
+            return self._phantom_angle
         expected_length = self.phantom_radius * 0.52
         square_rois = [roi for roi in self._blobs if np.isclose(self._regions[roi].major_axis_length, expected_length, rtol=0.2)]
         if not square_rois:
@@ -619,6 +622,7 @@ class LeedsTOR(ImagePhantomBase):
         return angle
 
     @property
+    @lru_cache(1)
     def phantom_radius(self):
         """Determine the radius of the phantom.
 
@@ -644,11 +648,12 @@ class LeedsTOR(ImagePhantomBase):
         boolean
         """
         circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius * 0.8, self.image, self.phantom_angle, width_ratio=0.05)
-        first_set = circle.find_peaks(search_region=(0, 0.5), threshold=0.1)
-        second_set = circle.find_peaks(search_region=(0.5, 1.0), threshold=0.1)
-        return len(first_set) > len(second_set)
+        circle.ground()
+        first_set = circle.find_peaks(search_region=(0.05, 0.45), threshold=0.2, min_distance=0.025, kind='value')
+        second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0.2, min_distance=0.025, kind='value')
+        return sum(first_set) > sum(second_set)
 
-    def _low_contrast(self):
+    def _low_contrast(self, angle_offset):
         """Perform the low-contrast analysis. This samples the bubbles and a background bubble just beneath it to
         determine contrast and contrast-to-noise.
 
@@ -660,9 +665,10 @@ class LeedsTOR(ImagePhantomBase):
             :class:`~pylinac.core.roi.LowContrastDistROI` instances of the reference ROIs;
             pixel values of the reference ROIs determines the background for the contrast ROIs.
         """
+        ao = angle_offset
         angle = np.degrees(self.phantom_angle)
-        bubble_angles1 = np.linspace(30, 149, num=9)
-        bubble_angles2 = np.linspace(209, 331, num=9)
+        bubble_angles1 = np.linspace(30+ao, 150+ao, num=9)  # 32, 153
+        bubble_angles2 = np.linspace(210+ao, 330+ao, num=9)  # 212, 333
         bubble_angles = np.concatenate((bubble_angles1, bubble_angles2))
         bubble_radius = 0.025 * self.phantom_radius
 
@@ -724,10 +730,11 @@ class LeedsTOR(ImagePhantomBase):
     def run_demo():
         """Run the Leeds TOR phantom analysis demonstration."""
         leeds = LeedsTOR.from_demo_image()
-        leeds.analyze()
+        leeds.analyze(angle_offset=2)
         leeds.plot_analyzed_image()
 
-    def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.4, invert=False):
+    def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.4, invert=False,
+                angle_offset=0):
         """Analyze the image.
 
         Parameters
@@ -740,16 +747,21 @@ class LeedsTOR(ImagePhantomBase):
             Whether to force an inversion of the image. Pylinac tries to infer the correct inversion but uneven
             backgrounds can cause this analysis to fail. If the contrasts/MTF ROIs appear correctly located but the
             plots are wonky, try setting this to True.
+        angle_offset : int, float
+            Some LeedsTOR phantoms have the low contrast regions slightly offset from phantom to phantom. 
+            This parameter lets the user correct for any consistent angle effects of the phantom. The offset 
+            is in degrees and moves counter-clockwise. Use this if the low contrast ROIs are offset from the real 
+            ROIs.
         """
-        self.image.check_inversion(box_size=30, position=(0.1, 0.1))
+        self.image.check_inversion(box_size=30, position=(0.1, 0.25))
         if invert:
             self.image.invert()
         self.low_contrast_threshold = low_contrast_threshold
         self.hi_contrast_threshold = hi_contrast_threshold
 
         if not self._is_clockwise():
-            center, angle = self._flip_image_data()
-        self.lc_rois, self.lc_ref_rois = self._low_contrast()
+            self._flip_image_data()
+        self.lc_rois, self.lc_ref_rois = self._low_contrast(angle_offset)
         self.hc_rois, self.hc_ref_rois = self._high_contrast()
 
     def _flip_image_data(self):
@@ -761,9 +773,8 @@ class LeedsTOR(ImagePhantomBase):
         """
         self.image.array = np.fliplr(self.image.array)
         new_x = self.image.shape[1] - self.phantom_center.x
-        new_center = Point(new_x, self.phantom_center.y)
-        new_angle = np.pi - self.phantom_angle
-        return new_center, new_angle
+        self._phantom_center = Point(new_x, self.phantom_center.y)
+        self._phantom_angle = np.pi - self.phantom_angle
 
     def plot_analyzed_image(self, image=True, low_contrast=True, high_contrast=True, show=True):
         """Plot the analyzed image, which includes the original image with ROIs marked, low-contrast plots

@@ -524,7 +524,7 @@ def matches_classifier(file, obj):
 
 
 def contains_keywords(file, config, obj):
-    return any(keyword in osp.basename(file.lower()) for keyword in config[obj]['keywords'])
+    return any(keyword.lower() in osp.basename(file.lower()) for keyword in config[obj]['keywords'])
 
 
 def _copy_new_files(directory, config):
@@ -533,7 +533,7 @@ def _copy_new_files(directory, config):
         """The function to move files from the source to the destination"""
         sbase = osp.splitext(osp.split(sfile)[1])[0]
         already_here = any(sbase in dfile for dfile in dest_files)
-        if not already_here and (sfile.endswith('.bin') or sfile.endswith('.txt')):
+        if not already_here:
             shutil.copy(osp.join(source_dir, sfile), directory)
             logger.info("Copied {} into pylinac directory".format(sfile))
 
@@ -635,6 +635,10 @@ def process(directory=None, config_file=None, copy_new_files=False, verbose=True
         Whether to move new logs from the sources in the config file.
     verbose : bool
         Whether to include certain logging statements.
+    force : bool
+        If True, will reanalyze all files within the analysis folder regardless of the pylinac skip list.
+        If False, the skip list will be respected. 
+        This flag may be useful if you've changed your analysis settings and want to reanalyze everything for example.
     """
     config = load_config(config_file, verbose)
     if directory is None:
