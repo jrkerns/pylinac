@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from .core.decorators import type_accept
-from .core.image import Image
+from .core import image
 from .core.io import retrieve_demo_file
 from .core.profile import SingleProfile
 from .core.utilities import is_iterable, isnumeric
@@ -42,14 +42,14 @@ class BeamImage:
             If a str, path to the image file.
         """
         if filepath is not None and osp.isfile(filepath):
-            self.image = Image.load(filepath)
+            self.image = image.load(filepath)
         else:
             self.image = np.zeros((1,1))
 
     def load_demo_image(self):
         """Load the demo image."""
         demo_file = retrieve_demo_file(url='flatsym_demo.dcm')
-        self.image = Image.load(demo_file)
+        self.image = image.load(demo_file)
 
     def _plot_image(self, ax, plane, position):
         """Plot the image analyzed and a line showing where the profile was taken."""
