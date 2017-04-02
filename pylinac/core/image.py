@@ -242,28 +242,6 @@ def _is_array(obj):
     return isinstance(obj, np.ndarray)
 
 
-class Image:
-    """A swiss-army knife, delegate class for loading in images and image-like things.
-
-    Deprecated since v1.4 in favor of the module functions: ``load``, ``load_url``, and ``load_multiples``.
-    """
-
-    @classmethod
-    def load(cls, path, **kwargs):
-        """See :func:`~pylinac.core.image.load`"""
-        return load(path, **kwargs)
-
-    @classmethod
-    def load_url(cls, url, **kwargs):
-        """See :func:`~pylinac.core.image.load_url`"""
-        return load_url(url, **kwargs)
-
-    @classmethod
-    def load_multiples(cls, image_file_list, method='mean', stretch=True, **kwargs):
-        """See :func:`~pylinac.core.image.load_multiples`"""
-        return load_multiples(image_file_list, method, stretch, **kwargs)
-
-
 class BaseImage:
     """Base class for the Image classes.
 
