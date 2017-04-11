@@ -17,7 +17,6 @@ import io
 import math
 import os.path as osp
 import re
-import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -690,11 +689,6 @@ class WLImage(image.DicomImage):
         return -sin(self.gantry_angle) * self.cax2epid_vector.x
 
     @property
-    def y_offset(self):
-        warnings.warn("The 'y_offset' property is deprecated; use 'bb_y_offset' instead", DeprecationWarning)
-        return self.bb_y_offset
-
-    @property
     def bb_y_offset(self):
         """The offset or distance between the field CAX and BB in the y-direction (AP)."""
         return -sin(self.gantry_angle) * self.cax2bb_vector.x
@@ -703,11 +697,6 @@ class WLImage(image.DicomImage):
     def epid_x_offset(self):
         """The offset or distance between the field CAX and EPID in the x-direction (LR)."""
         return cos(self.gantry_angle) * self.cax2epid_vector.x
-
-    @property
-    def x_offset(self):
-        warnings.warn("The 'x_offset' property is deprecated; use 'bb_x_offset' instead", DeprecationWarning)
-        return self.bb_x_offset
 
     @property
     def bb_x_offset(self):
@@ -721,15 +710,10 @@ class WLImage(image.DicomImage):
             return -self.cax2epid_vector.y
 
     @property
-    def z_offset(self):
-        warnings.warn("The 'z_offset' property is deprecated; use 'bb_z_offset' instead", DeprecationWarning)
-        return self.bb_z_offset
-
-    @property
     def bb_z_offset(self):
         """The offset or distance between the field CAX and BB in z-direction (SI)."""
-        if is_close(self.couch_angle, [0, 360], delta=2):
-            return -self.cax2bb_vector.y
+        # if is_close(self.couch_angle, [0, 360], delta=2):
+        return -self.cax2bb_vector.y
 
     @property
     def cax_line_projection(self):
