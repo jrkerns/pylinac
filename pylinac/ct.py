@@ -1558,7 +1558,7 @@ class CTP515(CatPhanModule):
     @property
     def rois_visible(self):
         """The number of ROIs "visible"."""
-        return sum(roi.passed_constant for roi in self.rois.values())
+        return sum(roi.passed_contrast_constant for roi in self.rois.values())
 
     def plot_rois(self, axis):
         """Plot the ROIs to an axis."""
