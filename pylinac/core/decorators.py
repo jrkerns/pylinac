@@ -20,6 +20,7 @@ def timethis(func):
         return result
     return wrapper
 
+
 def type_accept(*type_args, **type_kwargs):
     """Decorator to check function/method input types. Based on Python Cookbook 3rd ed. #9.7."""
     def decorate(func):
@@ -44,6 +45,7 @@ def type_accept(*type_args, **type_kwargs):
             return func(*args, **kwargs)
         return wrapper
     return decorate
+
 
 def value_accept(*value_args, **value_kwargs):
     """Decorator to check function/method input types. Based on Python Cookbook 3rd ed. #9.7."""
@@ -73,6 +75,7 @@ def value_accept(*value_args, **value_kwargs):
             return func(*args, **kwargs)
         return wrapper
     return decorate
+
 
 def convert_dictvals2tuple(args):
     """Convert from dictionary to tuple of dictionary values."""
