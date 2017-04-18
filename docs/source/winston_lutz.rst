@@ -83,6 +83,30 @@ And that's it! Once loaded you can view images, gantry sag, or print the results
     # return the gantry isocenter relative to the BB
     wl.gantry_iso2bb_vector
 
+.. _using_file_names_wl:
+
+Using File Names
+----------------
+
+If your linac EPID images do not include axis information (such as Elekta) you can specify it in the file name.
+Any and all of the three axes can be defined. If one is not defined and is not in the DICOM tags, it will default to 0.
+The syntax to define the axes: "*gantry0*coll0*couch0*". There can be any text before, after, or in between each axis definition.
+However, the axes numerical value *must* immediately follow the axis name. Axis names are also fixed. The following examples
+are valid:
+
+* MyWL-gantry0-coll90-couch315.dcm
+* gantry90_stuff_coll45-couch0.dcm
+* abc-couch45-gantry315-coll0.dcm
+* 01-gantry0-abcd-coll30couch10abc.dcm
+* abc-gantry30.dcm
+* coll45abc.dcm
+
+The following are invalid:
+
+* mywl-gantry=0-coll=90-couch=315.dcm
+* gan45_collimator30-table270.dcm
+
+
 Algorithm
 ---------
 
