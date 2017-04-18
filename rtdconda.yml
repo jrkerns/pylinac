@@ -17,6 +17,7 @@ dependencies:
 - openssl=1.0.2g
 - pillow=3.1.1
 - pip=8.1.0
+- pygments=2.1
 - pyparsing=2.0.3
 - pyqt=4.11.4
 - python=3.4.4
