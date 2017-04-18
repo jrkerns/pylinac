@@ -55,8 +55,8 @@ def equate_images(image1, image2):
 
     Returns
     -------
-    fluence_img : :class:`~pylinac.core.image.ArrayImage`
-    epid_img : :class:`~pylinac.core.image.ArrayImage`
+    image1 : :class:`~pylinac.core.image.ArrayImage`
+    image2 : :class:`~pylinac.core.image.ArrayImage`
         The returns are new instances of Images.
     """
     image1 = copy.deepcopy(image1)
@@ -64,23 +64,23 @@ def equate_images(image1, image2):
     # crop images to be the same physical size
     # ...crop height
     physical_height_diff = image1.physical_shape[0] - image2.physical_shape[0]
-    if physical_height_diff < 0:
-        pixel_height_diff = int(round(-physical_height_diff * image2.dpmm / 2))
-        image2.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
+    if physical_height_diff < 0:  # image2 is bigger
+        img = image2
     else:
-        pixel_height_diff = int(round(-physical_height_diff * image1.dpmm / 2))
-        image1.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
+        img = image1
+    pixel_height_diff = abs(int(round(-physical_height_diff * img.dpmm / 2)))
+    img.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
 
     # ...crop width
     physical_width_diff = image1.physical_shape[1] - image2.physical_shape[1]
     if physical_width_diff > 0:
-        pixel_width_diff = int(round(physical_width_diff * image1.dpmm / 2))
-        image1.remove_edges(pixel_width_diff, edges=('left', 'right'))
+        img = image1
     else:
-        pixel_width_diff = int(round(physical_width_diff * image2.dpmm / 2))
-        image2.remove_edges(pixel_width_diff, edges=('left', 'right'))
+        img = image2
+    pixel_width_diff = abs(int(round(physical_width_diff*img.dpmm/2)))
+    img.remove_edges(pixel_width_diff, edges=('left', 'right'))
 
-    # resize EPID array to normalize pixel dimensions to those of the log
+    # resize images to be of the same shape
     zoom_factor = image1.shape[1] / image2.shape[1]
     image2_array = ndimage.interpolation.zoom(image2, zoom_factor)
     image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
@@ -357,6 +357,8 @@ class BaseImage:
         edges : tuple
             Which edges to remove from. Can be any combination of the four edges.
         """
+        if pixels < 0:
+            raise ValueError("Pixels to remove must be a positive number")
         if 'top' in edges:
             self.array = self.array[pixels:, :]
         if 'bottom' in edges:
