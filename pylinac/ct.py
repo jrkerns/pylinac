@@ -50,7 +50,7 @@ class CatPhanBase:
     localization_radius = 59
     was_from_zip = False
 
-    def __init__(self, folderpath, use_classifier=True):
+    def __init__(self, folderpath, use_classifier=False):
         """
         Parameters
         ----------
@@ -79,7 +79,7 @@ class CatPhanBase:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_url(cls, url, use_classifier=True):
+    def from_url(cls, url, use_classifier=False):
         """Instantiate a CBCT object from a URL pointing to a .zip object.
 
         Parameters
@@ -91,7 +91,7 @@ class CatPhanBase:
         return cls.from_zip(filename, use_classifier=use_classifier)
 
     @classmethod
-    def from_zip(cls, zip_file, use_classifier=True):
+    def from_zip(cls, zip_file, use_classifier=False):
         """Construct a CBCT object and pass the zip file.
 
         Parameters
@@ -511,7 +511,7 @@ class CatPhan503(CatPhanBase):
                   'Slice Thickness Passed? {}\n').format(self.ctp404.hu_roi_vals, self.ctp404.passed_hu,
                                                          self.ctp486.get_ROI_vals(), self.ctp486.uniformity_index,
                                                          self.ctp486.integral_non_uniformity, self.ctp486.overall_passed,
-                                                         self.ctp528.mtf(50), self.ctp404.lcv,
+                                                         self.ctp404.lcv, self.ctp528.mtf(50),
                                                          self.ctp404.avg_line_length, self.ctp404.passed_geometry,
                                                          self.ctp404.meas_slice_thickness,
                                                          self.ctp404.passed_thickness)
@@ -623,7 +623,7 @@ class CatPhan504(CatPhanBase):
         return string
 
     def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2,
-                low_contrast_tolerance=1, contrast_threshold=15, zip_after=False):
+                low_contrast_tolerance=1, cnr_threshold=15, zip_after=False):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -639,7 +639,7 @@ class CatPhan504(CatPhanBase):
 
         low_contrast_tolerance : int
             The number of low-contrast bubbles needed to be "seen" to pass.
-        contrast_threshold : float, int
+        cnr_threshold : float, int
             The threshold for "detecting" low-contrast image. See RTD for calculation info.
         zip_after : bool
             If the CT images were not compressed before analysis and this is set to true, pylinac will compress
@@ -650,7 +650,7 @@ class CatPhan504(CatPhanBase):
         self.ctp486 = CTP486(self, offset=self.offsets['Uniformity'], tolerance=hu_tolerance)
         self.ctp528 = CTP528(self, tolerance=None,
                              offset=self.offsets['Spatial Resolution'])
-        self.ctp515 = CTP515(self, tolerance=low_contrast_tolerance, contrast_threshold=contrast_threshold,
+        self.ctp515 = CTP515(self, tolerance=low_contrast_tolerance, cnr_threshold=cnr_threshold,
                              offset=self.offsets['Low contrast'])
         if zip_after and not self.was_from_zip:
             self._zip_images()
@@ -684,7 +684,7 @@ class CatPhan504(CatPhanBase):
              'Integral non-uniformity: {:2.4f}'.format(self.ctp486.integral_non_uniformity),
              '',
              ' - CTP515 Results - ',
-             'Contrast threshold: {}'.format(self.ctp515.contrast_threshold),
+             'CNR threshold: {}'.format(self.ctp515.cnr_threshold),
              'Low contrast ROIs "seen": {}'.format(self.ctp515.rois_visible)
             ]
         ]
@@ -740,7 +740,7 @@ class CatPhan600(CatPhanBase):
         return string
 
     def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2,
-                low_contrast_tolerance=1, contrast_threshold=15, zip_after=False):
+                low_contrast_tolerance=1, cnr_threshold=15, zip_after=False):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -756,7 +756,7 @@ class CatPhan600(CatPhanBase):
 
         low_contrast_tolerance : int
             The number of low-contrast bubbles needed to be "seen" to pass.
-        contrast_threshold : float, int
+        cnr_threshold : float, int
             The threshold for "detecting" low-contrast image. See RTD for calculation info.
         zip_after : bool
             If the CT images were not compressed before analysis and this is set to true, pylinac will compress
@@ -767,7 +767,7 @@ class CatPhan600(CatPhanBase):
         self.ctp486 = CTP486(self, offset=self.offsets['Uniformity'], tolerance=hu_tolerance)
         self.ctp528 = CTP528(self, tolerance=None,
                              offset=self.offsets['Spatial Resolution'])
-        self.ctp515 = CTP515(self, tolerance=low_contrast_tolerance, contrast_threshold=contrast_threshold,
+        self.ctp515 = CTP515(self, tolerance=low_contrast_tolerance, cnr_threshold=cnr_threshold,
                              offset=self.offsets['Low contrast'])
         if zip_after and not self.was_from_zip:
             self._zip_images()
@@ -801,7 +801,7 @@ class CatPhan600(CatPhanBase):
              'Integral non-uniformity: {:2.4f}'.format(self.ctp486.integral_non_uniformity),
              '',
              ' - CTP515 Results - ',
-             'Contrast threshold: {}'.format(self.ctp515.contrast_threshold),
+             'CNR threshold: {}'.format(self.ctp515.cnr_threshold),
              'Low contrast ROIs "seen": {}'.format(self.ctp515.rois_visible)
             ]
         ]
@@ -918,7 +918,7 @@ class ROIManagerMixin:
             if not threshold:
                 roi.plot2axes(axis, edgecolor=roi.plot_color)
             else:
-                roi.plot2axes(axis, edgecolor=roi.plot_color_constant)
+                roi.plot2axes(axis, edgecolor=roi.plot_color_cnr)
 
 
 class Slice:
@@ -1107,7 +1107,7 @@ class CTP404(CatPhanModule):
         super().__init__(catphan, tolerance=None, offset=offset)
 
     def preprocess(self, catphan):
-        # combine thin slices, or just use one slice if slices are thick
+        # for the thickness analysis image, combine thin slices or just use one slice if slices are thick
         if float(catphan.dicom_stack.metadata.SliceThickness) < 3.5:
             self.pad = 1
         else:
@@ -1520,8 +1520,8 @@ class CTP515(CatPhanModule):
     roi_names = ['15', '9', '8', '7', '6', '5']
     roi_nominal_angles = [-87.4, -69.1, -52.7, -38.5, -25.1, -12.9]
 
-    def __init__(self, catphan, tolerance, contrast_threshold, offset=0):
-        self.contrast_threshold = contrast_threshold
+    def __init__(self, catphan, tolerance, cnr_threshold, offset=0):
+        self.cnr_threshold = cnr_threshold
         super().__init__(catphan, tolerance=tolerance, offset=offset)
 
     def _setup_rois(self):
@@ -1530,12 +1530,12 @@ class CTP515(CatPhanModule):
         self.outer_bg_rois = OrderedDict()
         for idx, (name, angle, radius) in enumerate(zip(self.roi_names, self.roi_angles, self.roi_radius)):
             self.inner_bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.inner_bg_dist[idx],
-                                                          self.phan_center, self.contrast_threshold)
+                                                          self.phan_center, cnr_threshold=self.cnr_threshold)
             self.outer_bg_rois[name] = LowContrastDiskROI(self.image, angle, self.bg_roi_radius, self.outer_bg_dist[idx],
-                                                          self.phan_center, self.contrast_threshold)
+                                                          self.phan_center, cnr_threshold=self.cnr_threshold)
             background_val = np.mean([self.inner_bg_rois[name].pixel_value, self.outer_bg_rois[name].pixel_value])
             self.rois[name] = LowContrastDiskROI(self.image, angle, radius, self.dist2rois,
-                                                 self.phan_center, self.contrast_threshold, background_val)
+                                                 self.phan_center, background=background_val, cnr_threshold=self.cnr_threshold)
 
     @property
     def inner_bg_dist(self):
@@ -1558,7 +1558,7 @@ class CTP515(CatPhanModule):
     @property
     def rois_visible(self):
         """The number of ROIs "visible"."""
-        return sum(roi.passed_contrast_constant for roi in self.rois.values())
+        return sum(roi.passed_cnr_constant for roi in self.rois.values())
 
     def plot_rois(self, axis):
         """Plot the ROIs to an axis."""
@@ -1616,7 +1616,7 @@ def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='o
         thres = thresmeth(edges)
     bw = edges > thres
     if clear_borders:
-        segmentation.clear_border(bw, buffer_size=int(0.05*bw.shape[0]), in_place=True)
+        segmentation.clear_border(bw, buffer_size=int(0.01*bw.shape[0]), in_place=True)
     if fill_holes:
         bw = ndimage.binary_fill_holes(bw)
     labeled_arr, num_roi = measure.label(bw, return_num=True)
