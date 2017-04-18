@@ -1,6 +1,7 @@
 """Scripts to run pylinac from the command line. Built on examples given in Click documentation."""
 from pylinac import watcher
 from pylinac import log_analyzer
+from pylinac import gui as pgui
 import click
 
 
@@ -34,3 +35,9 @@ def process(directory=None, config=None):
 def anonymize(directory, destination=None, in_place=None):
     """Anonymize machine logs in a given file directory."""
     log_analyzer.anonymize(directory, inplace=in_place, destination=destination)
+
+
+@cli.command()
+def gui():
+    """Start the Pylinac GUI."""
+    pgui()

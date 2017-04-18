@@ -114,7 +114,7 @@ class VMAT:
 
     @classmethod
     @value_accept(type=(DRGS, DRMLC))
-    def from_demo_images(cls, type='drgs'):
+    def from_demo_images(cls, type=DRGS):
         """Construct a VMAT instance using the demo images.
 
         Parameters
@@ -262,7 +262,7 @@ class VMAT:
         plt.savefig(filename, **kwargs)
 
     @value_accept(subimage=(DMLC, OPEN, PROFILE))
-    def plot_analyzed_subimage(self, subimage='dmlc', show=True, ax=None):
+    def plot_analyzed_subimage(self, subimage=DMLC, show=True, ax=None):
         """Plot an individual piece of the VMAT analysis.
 
         Parameters
@@ -300,7 +300,8 @@ class VMAT:
         if show:
             plt.show()
 
-    def save_analyzed_subimage(self, filename, subimage='dmlc', interactive=False, **kwargs):
+    @value_accept(subimage=(DMLC, OPEN, PROFILE))
+    def save_analyzed_subimage(self, filename, subimage=DMLC, interactive=False, **kwargs):
         """Save a subplot to file.
 
         Parameters
