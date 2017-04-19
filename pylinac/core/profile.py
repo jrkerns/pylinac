@@ -104,13 +104,13 @@ class ProfileMixin:
 
         Parameters
         ----------
-        size : int, float
+        size : float, int
             Size of the median filter to apply.
             If a float, the size is the ratio of the length. Must be in the range 0-1.
             E.g. if size=0.1 for a 1000-element array, the filter will be 100 elements.
             If an int, the filter is the size passed.
         kind : {'median', 'gaussian'}
-            The kind of filter to apply. If gaussian, *size* is the sigma value.
+            The kind of filter to apply. If gaussian, `size` is the sigma value.
         """
         if isinstance(size, float):
             if 0 < size < 1:
