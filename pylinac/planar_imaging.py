@@ -16,11 +16,10 @@ import os.path as osp
 import matplotlib.pyplot as plt
 import numpy as np
 from reportlab.lib.units import cm
-from scipy.interpolate import interp1d
 from skimage import feature, measure
 
 from .core import image
-from .core.geometry import Point
+from .core.geometry import Point, Circle
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
@@ -141,7 +140,8 @@ class LasVegas(ImagePhantomBase):
 
     def __init__(self, filepath):
         super().__init__(filepath)
-        self.image.check_inversion()
+        self._phantom_ski_region = None
+        self.image.check_inversion(position=(0.1, 0.1))
 
     @staticmethod
     def run_demo():
@@ -165,7 +165,18 @@ class LasVegas(ImagePhantomBase):
         self.threshold = low_contrast_threshold
         if invert:
             self.image.invert()
+        self._check_direction()
         self._determine_low_contrast()
+
+    def _check_direction(self):
+        """Check that the phantom is facing the right direction and if not perform a left-right flip of the array."""
+        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius * 0.175, self.image, ccw=False,
+                                        width_ratio=0.16, num_profiles=5)
+        circle.filter(size=0.015, kind='median')
+        valleys = circle.find_valleys(max_number=2, kind='value')
+        if valleys[1] > valleys[0]:
+            self.image.array = np.fliplr(self.image.array)
+            self._phantom_ski_region = None
 
     def _determine_low_contrast(self):
         """Sample the detail contrast regions."""
@@ -180,9 +191,9 @@ class LasVegas(ImagePhantomBase):
         avg_bg = np.mean([roi.pixel_value for roi in bg_rois])
 
         # create X ROIs to sample the low contrast holes
-        angles = np.array([77, 116, 0, 13, 77, 142, -21, -29, -107, 182, -37, -55, -105]) + self.phantom_angle
-        dists = np.array([0.107, 0.141, 0.179, 0.095, 0.042, 0.097, 0.174, 0.088, 0.024, 0.091, 0.189, 0.113, 0.0745]) * self.phantom_radius
-        roi_radii = np.array([0.028, 0.028, 0.016, 0.016, 0.016, 0.016, 0.012, 0.012, 0.012, 0.012, 0.007, 0.007, 0.007])
+        angles = np.array([77, 116, 134.5, 0, 13, 77, 142, 153, -21, -29, -107, 182, 174, -37, -55, -105, 206.5, 189.5, -48.1, -67.8]) + self.phantom_angle
+        dists = np.array([0.107, 0.141, 0.205, 0.179, 0.095, 0.042, 0.097, 0.178, 0.174, 0.088, 0.024, 0.091, 0.179, 0.189, 0.113, 0.0745, 0.115, 0.191, 0.2085, 0.146]) * self.phantom_radius
+        roi_radii = np.array([0.028, 0.028, 0.028, 0.016, 0.016, 0.016, 0.016, 0.016, 0.012, 0.012, 0.012, 0.012, 0.012, 0.007, 0.007, 0.007, 0.007, 0.007, 0.003, 0.003])
         rois = []
         for dist, angle, radius in zip(dists, angles, roi_radii):
             roi = LowContrastDiskROI(self.image, angle, self.phantom_radius*radius, dist, self.phantom_center,
@@ -205,8 +216,6 @@ class LasVegas(ImagePhantomBase):
             Show the image.
         low_contrast : bool
             Show the low contrast values plot.
-        high_contrast : bool
-            Show the high contrast values plot.
         show : bool
             Whether to actually show the image when called.
         """
@@ -221,6 +230,7 @@ class LasVegas(ImagePhantomBase):
 
         if image:
             img_ax = next(axes)
+            # self.image.plot(ax=img_ax, show=False, vmin=self.bg_rois[0].pixel_value*0.92, vmax=self.bg_rois[0].pixel_value*1.08)
             self.image.plot(ax=img_ax, show=False)
             img_ax.axis('off')
             img_ax.set_title('Las Vegas Phantom Analysis')
@@ -230,6 +240,8 @@ class LasVegas(ImagePhantomBase):
                 roi.plot2axes(img_ax, edgecolor=roi.plot_color_constant)
             for roi in self.bg_rois:
                 roi.plot2axes(img_ax, edgecolor='g')
+            # c = Circle(self.phantom_center, radius=5)
+            # c.plot2axes(img_ax, edgecolor='r')
 
         # plot the low contrast values
         if low_contrast:
@@ -257,52 +269,74 @@ class LasVegas(ImagePhantomBase):
         -------
 
         """
-        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius*0.165, self.image, ccw=False,
-                                        width_ratio=0.15, num_profiles=5)
-        circle.filter(size=0.015, kind='median')
-        angle = circle.find_peaks(max_number=1)[0]
+        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius*0.17, self.image, ccw=False,
+                                        width_ratio=0.2, num_profiles=5)
+        circle.filter(size=0.01, kind='gaussian')
+        angle = circle.find_valleys(max_number=1)[0]
         return angle/len(circle.values) * 360
 
     @property
-    @lru_cache(maxsize=1)
     def phantom_ski_region(self):
         """The skimage region of the phantom outline."""
+        if self._phantom_ski_region is not None:
+            return self._phantom_ski_region
+        else:
+            regions = self._get_canny_regions()
+            blobs = []
+            for phantom_idx, region in enumerate(regions):
+                if region.area < 50:
+                    continue
+                hollow = region.extent < 0.02
+                sized = (130 * self.image.dpmm) < region.major_axis_length < (270 * self.image.dpmm)
+                if hollow and sized:
+                    blobs.append(phantom_idx)
 
-        def near_center(region):
-            x_near = np.isclose(region.centroid[0], self.image.shape[0]/2, atol=self.image.shape[0]*0.05)
-            y_near = np.isclose(region.centroid[1], self.image.shape[1]/2, atol=self.image.shape[1]*0.05)
-            return x_near and y_near
+            if not blobs:
+                raise ValueError("Unable to find the Las Vegas phantom in the image.")
 
-        regions = self._get_canny_regions()
-        blobs = []
-        for phantom_idx, region in enumerate(regions):
-            if region.area < 50:
-                continue
-            # near_cent = near_center(region)
-            hollow = region.extent < 0.02
-            # angled = region.orientation > 0.2 or region.orientation < -0.2
-            if hollow:
-                blobs.append(phantom_idx)
+            # find the biggest ROI and call that the phantom outline
+            big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
+            phantom_idx = blobs[big_roi_idx]
 
-        if not blobs:
-            raise ValueError("Unable to find the Las Vegas phantom in the image.")
+            self._phantom_ski_region = regions[phantom_idx]
+            return regions[phantom_idx]
 
-        # find the biggest ROI and call that the phantom outline
-        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
-        phantom_idx = blobs[big_roi_idx]
+    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+        """Publish a PDF report of the analyzed phantom. The report includes basic
+        file information, the image and determined ROIs, and contrast and MTF plots.
 
-        return regions[phantom_idx]
-
-    def _mtf(self, x=50):
-        norm = max(roi.mtf for roi in self.hc_rois)
-        ys = [roi.mtf / norm for roi in self.hc_rois]
-        xs = np.arange(len(ys))
-        f = interp1d(ys, xs)
-        try:
-            mtf = f(x / 100)
-        except ValueError:
-            mtf = min(ys)
-        return float(mtf)
+        Parameters
+        ----------
+        filename : str
+            The path and/or filename to save the PDF report as; must end in ".pdf".
+        author : str, optional
+            The person who analyzed the image.
+        unit : str, optional
+            The machine unit name or other identifier (e.g. serial number).
+        notes : str, list of strings, optional
+            If a string, adds it as a line of text in the PDf report.
+            If a list of strings, each string item is printed on its own line. Useful for writing multiple sentences.
+        """
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title='Las Vegas Analysis',
+                                                  author=author, unit=unit, file_name=osp.basename(self.image.path),
+                                                  file_created=self.image.date_created())
+        for (img, lo), (w, l) in zip(((True, False), (False, True)),
+                                         ((5, 12), (5, 2))):
+            data = io.BytesIO()
+            self.save_analyzed_image(data, image=img, low_contrast=lo)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, w * cm, l * cm, width=13 * cm, height=13 * cm, preserveAspectRatio=True)
+        text = ['Las Vegas results:',
+                'Median Contrast: {:2.2f}'.format(np.median([roi.contrast for roi in self.lc_rois])),
+                'Median CNR: {:2.1f}'.format(np.median([roi.contrast_to_noise for roi in self.lc_rois])),
+                'ROIs "seen": {:2.0f}'.format(sum(roi.passed_contrast_constant for roi in self.lc_rois)),
+                ]
+        pdf.draw_text(canvas, x=10 * cm, y=24.5 * cm, text=text)
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
+        canvas.showPage()
+        canvas.save()
 
 
 class StandardImagingQC3(ImagePhantomBase):
