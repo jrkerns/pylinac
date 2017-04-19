@@ -114,7 +114,7 @@ class ProfileMixin:
         """
         if isinstance(size, float):
             if 0 < size < 1:
-                size *= len(self.values)
+                size = int(round(len(self.values)*size))
                 size = max(size, 1)
             else:
                 raise TypeError("Float was passed but was not between 0 and 1")
