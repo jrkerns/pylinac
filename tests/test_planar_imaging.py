@@ -66,15 +66,21 @@ class SIQC3_1(SIQC3TestMixin, TestCase):
     file_path = ['QC3 2.5MV.dcm']
 
 
-# class LasVegasTestMixin(PlanarPhantomMixin):
-#     klass = LasVegas
+class LasVegasTestMixin(PlanarPhantomMixin):
+    klass = LasVegas
+    phantom_angle = 0
+
+    def test_plotting(self):
+        self.instance.plot_analyzed_image()
+        self.instance.plot_analyzed_image(low_contrast=False)
+        self.instance.plot_analyzed_image(image=False, low_contrast=False)
+
+    def test_angle(self):
+        self.assertAlmostEqual(self.instance.phantom_angle, self.phantom_angle, delta=1)
 
 
-# class LasVegasDemo(LasVegasTestMixin, TestCase):
-#
-#     def test_demo(self):
-#         pass
-#         # LasVegas.run_demo()  # shouldn't raise
-#
-#     def test_plotting(self):
-#         pass
+class LasVegasDemo(LasVegasTestMixin, TestCase):
+    phantom_angle = 284
+
+    def test_demo(self):
+        LasVegas.run_demo()  # shouldn't raise

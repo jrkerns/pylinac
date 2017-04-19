@@ -96,7 +96,7 @@ class DataBankMixin:
     Some test runs, seemingly due to the executor, bog down when running a very large number of files. By opening a new executor at
     every directory, memory leaks are minimized.
     """
-    DATA_BANK_DIR = osp.abspath(osp.join('..', '..', 'pylinac test files'))
+    DATA_BANK_DIR = osp.abspath(osp.join(osp.abspath(__file__), '..', '..', '..', 'pylinac test files'))
     DATA_DIR = []
     executor = 'ProcessPoolExecutor'
     workers = multiprocessing.cpu_count() - 1

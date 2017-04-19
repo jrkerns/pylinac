@@ -1,9 +1,10 @@
 """Run through the 2D planar phantom image bank."""
 from unittest import TestCase
 
+from tests import prep_mpl_testing
 import matplotlib.pyplot as plt
 
-from pylinac import LeedsTOR, StandardImagingQC3
+from pylinac import LeedsTOR, StandardImagingQC3, LasVegas
 from tests.utils import DataBankMixin
 
 
@@ -30,6 +31,11 @@ def run_qc3(path):
     return process_phantom(pp, path)
 
 
+def run_lasvegas(path):
+    lv = LasVegas(path)
+    return process_phantom(lv, path)
+
+
 class TestLeedsImageBank(DataBankMixin, TestCase):
     DATA_DIR = ['2D Image quality phantoms', 'Leeds']
 
@@ -42,3 +48,10 @@ class TestPipsProImageBank(DataBankMixin, TestCase):
 
     def test_all(self):
         super().test_all(run_qc3)
+
+
+class TestLasVegasImageBank(DataBankMixin, TestCase):
+    DATA_DIR = ['2D Image quality phantoms', 'Las Vegas']
+
+    def test_all(self):
+        super().test_all(run_lasvegas)

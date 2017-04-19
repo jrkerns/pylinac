@@ -38,24 +38,6 @@ class TestFunctions(TestCase):
         for i50, r50 in zip(i50s, r50s):
             self.assertAlmostEqual(tg51.r_50(i50), r50, delta=0.01)
 
-    def test_kp_r50(self):
-        r50s = (3.5, 5, 8)
-        kpr50s = (1.017, 1, 1)
-        for r50, kpr50 in zip(r50s, kpr50s):
-            self.assertAlmostEqual(tg51.kp_r50(r50), kpr50, delta=0.01)
-
-        with self.assertRaises(ValueError):
-            tg51.kp_r50(9.1)
-        with self.assertRaises(ValueError):
-            tg51.kp_r50(1.8)
-
-    def test_pq_gr(self):
-        m_refs = (20, 25, 30)
-        m_ref_pluss = (19.9, 23, 30)
-        pq_grs = (0.995, 0.92, 1.0)
-        for m_ref, m_ref_plus, pq_gr in zip(m_refs, m_ref_pluss, pq_grs):
-            self.assertAlmostEqual(tg51.pq_gr(m_ref_plus, m_ref), pq_gr, delta=0.01)
-
     def test_m_corr(self):
         exp = 20.225
         res = tg51.m_corrected(1.01, 0.995, 1, 1.005, (20, 20.05))
@@ -142,17 +124,16 @@ class TestTG51Photon(TestTG51Base):
 class TestTG51Electron(TestTG51Base):
     k_ecal = 1.000
     i_50 = 7.5
-    m_plus = 1.000
     dose_mu_dref = 1.000
 
     def setUp(self):
         self.tg51 = tg51.TG51Electron(temp=self.temperature, press=self.pressure,
                                       model=self.model, n_dw=self.nd_w, p_elec=self.p_elec,
-                                      clinical_pdd=self.clinical_pdd, k_ecal=self.k_ecal,
+                                      clinical_pdd=self.clinical_pdd,
                                       volt_high=self.volt_high, volt_low=self.volt_low,
                                       m_raw=self.m_raw, m_opp=self.m_opp, m_low=self.m_low,
                                       mu=self.mu, tissue_correction=self.tissue_correction,
-                                      i_50=self.i_50, m_plus=self.m_plus)
+                                      i_50=self.i_50)
 
     def test_dose_dref(self):
         self.assertAlmostEqual(self.dose_mu_dref, self.tg51.dose_mu_dref, delta=0.0005)
@@ -256,9 +237,7 @@ class ACB5_2011_9E(TestTG51Electron, TestCase):
     m_opp = -39.71
     m_low = 39.33
     i_50 = 3.87
-    m_plus = 39.79
     clinical_pdd = 100
-    k_ecal = 0.897
     tissue_correction = 0.99
     dose_mu_dref = 0.997
     dose_mu_dmax = 0.997
@@ -278,3 +257,19 @@ class ACB5_2012_16E(TestTG51Electron, TestCase):
     tissue_correction = 0.99
     dose_mu_dref = 1.000
     dose_mu_dmax = 1.005
+
+
+class IMMC_TB_9E(TestTG51Electron, TestCase):
+    mu = 100
+    temperature = 22
+    pressure = 748.2
+    p_elec = 0.999
+    nd_w = 5.394
+    m_raw = 19.877
+    m_opp = 19.933
+    m_low = 19.643
+    i_50 = 3.55
+    clinical_pdd = 100
+    tissue_correction = 1.0
+    dose_mu_dref = 1.006
+    dose_mu_dmax = 1.006

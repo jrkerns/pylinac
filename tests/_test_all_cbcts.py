@@ -389,3 +389,14 @@ class CatPhan600_1(CatPhan600Mixin, TestCase):
     unif_values = {'Center': 14, 'Left': 14, 'Right': 13, 'Top': 14, 'Bottom': 12}
     mtf_values = {30: 0.55, 50: 0.45, 80: 0.3}
     avg_line_length = 50.1
+
+
+class TOHPhilips2mm(CatPhan504Mixin, TestCase):
+    file_path = ['H TOH - Philips120kV2mm.zip']
+    expected_roll = -0.2
+    origin_slice = 61
+    hu_values = {'Poly': -30, 'Acrylic': 130, 'Delrin': 292, 'Air': -1000, 'Teflon': 874, 'PMP': -178, 'LDPE': -87}
+    unif_values = {'Center': 22, 'Left': 20, 'Right': 20, 'Top': 20, 'Bottom': 20}
+    mtf_values = {30: 0.87, 50: 0.7, 80: 0.5}
+    avg_line_length = 49.9
+    lowcon_visible = 6
