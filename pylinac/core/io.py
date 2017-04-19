@@ -40,6 +40,8 @@ def retrieve_filenames(directory, func=None, recursive=True, **kwargs):
         If None, no validation will be performed and all file names will be returned.
     recursive : bool
         Whether to search only the root directory.
+    kwargs
+        Additional arguments passed to the function.
     """
     filenames = []
     if func is None:
@@ -69,9 +71,9 @@ def retrieve_demo_file(url):
     true_url = 'https://s3.amazonaws.com/pylinac/' + url
     demo_file = osp.join(osp.dirname(osp.dirname(__file__)), 'demo_files', url)
     if not osp.isfile(demo_file):
-        d = osp.dirname(demo_file)
-        if not osp.exists(d):
-            os.makedirs(d)
+        demo_dir = osp.dirname(demo_file)
+        if not osp.exists(demo_dir):
+            os.makedirs(demo_dir)
         get_url(true_url, destination=demo_file)
     return demo_file
 
