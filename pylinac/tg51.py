@@ -1,10 +1,12 @@
 """
 The TG-51 module contains a number of helper functions and classes that can calculate parameters for performing the
-TG-51 absolute linac dose calibration. Functions include all relevant calculations for TG-51 including PDDx, kQ,
-Dref, and chamber reading corrections.
+TG-51 absolute linac dose calibration although there are some modifications from the original TG-51. The modifications 
+include updated kQ and kecal values from Muir and Rodgers' set of papers.
+Functions include all relevant calculations for TG-51 including PDDx, kQ,
+Dref, and chamber reading corrections. Where Muir & Rodgers' values/equations are used they are specified in the documentation.
 
 Classes include photon and electron calibrations using cylindrical chambers. Pass all the relevant raw measurements
-and the class will compute the corrected values and dose at 10cm and dmax/dref.
+and the class will compute all corrections and corrected readings and dose at 10cm and dmax/dref.
 """
 from datetime import datetime
 
@@ -15,16 +17,15 @@ from .core.utilities import Structure
 from .core import pdf
 
 
-
-CHAMBERS = {
+CHAMBERS_PHOTONS = {
     # Exradin
-    'A12': {"a": 1.0146, "b": 0.777e-3, "c": -1.666e-5, "a'": 2.6402, "b'": -7.2304, "c'": 10.7573, "d'": -5.4294, 'kecal': 0.906},
+    'A12': {"a": 1.0146, "b": 0.777e-3, "c": -1.666e-5, "a'": 2.6402, "b'": -7.2304, "c'": 10.7573, "d'": -5.4294},
     'A19': {"a": 0.9934, "b": 1.384e-3, "c": -2.125e-5, "a'": 3.0907, "b'": -9.1930, "c'": 13.5957, "d'": -6.7969},
     'A2': {"a": 0.9819, "b": 1.609e-3, "c": -2.184e-5, "a'": 2.8458, "b'": -8.1619, "c'": 12.1411, "d'": -6.1041},
     'T2': {"a": 1.0173, "b": 0.854e-3, "c": -1.941e-5, "a'": 3.3433, "b'": -10.2649, "c'": 15.1247, "d'": -7.5415},
     'A12S': {"a": 0.9692, "b": 1.974e-3, "c": -2.448e-5, "a'": 2.9597, "b'": -8.6777, "c'": 12.9155, "d'": -6.4903},
     'A18': {"a": 0.9944, "b": 1.286e-3, "c": -1.980e-5, "a'": 2.5167, "b'": -6.7567, "c'": 10.1519, "d'": -5.1709},
-    'A1': {"a": 1.0029, "b": 1.023e-3, "c": -1.803e-5, "a'": 2.0848, "b'": -4.9174, "c'": 7.5446, "d'": -3.9441, 'kecal': 0.915},
+    'A1': {"a": 1.0029, "b": 1.023e-3, "c": -1.803e-5, "a'": 2.0848, "b'": -4.9174, "c'": 7.5446, "d'": -3.9441},
     'T1': {"a": 1.0552, "b": -0.196e-3, "c": -1.275e-5, "a'": 2.8060, "b'": -7.9273, "c'": 11.7541, "d'": -5.9263},
     'A1SL': {"a": 0.9896, "b": 1.410e-3, "c": -2.049e-5, "a'": 2.8029, "b'": -7.9648, "c'": 11.8445, "d'": -5.9568},
     'A14': {"a": 0.9285, "b": 2.706e-3, "c": -2.599e-5, "a'": 5.4677, "b'": -19.1795, "c'": 27.4542, "d'": -13.1336},
@@ -52,10 +53,38 @@ CHAMBERS = {
     'FC23-C': {"a": 0.9820, "b": 1.579e-3, "c": -2.166e-5, "a'": 3.0511, "b'": -9.0243, "c'": 13.3378, "d'": -6.6559},
 
     # Other
-    'NE2581': {"a": 1.0318, "b": 0.488e-3, "c": -1.731e-5, "a'": 2.9190, "b'": -8.4561, "c'": 12.5690, "d'": -6.3468, 'kecal': 0.885},
-    'NE2571': {"a": 0.9882, "b": 1.486e-3, "c": -2.140e-5, "a'": 2.2328, "b'": -5.5779, "c'": 8.5325, "d'": -4.4352, 'kecal': 0.903},
-    'NE2561': {"a": 1.0200, "b": 0.596e-3, "c": -1.551e-5, "a'": 2.4235, "b'": -6.3179, "c'": 9.4737, "d'": -4.8307, 'kecal': 0.904},
-    'PR06C/G': {"a": 0.9519, "b": 2.432e-3, "c": -2.704e-5, "a'": 2.9110, "b'": -8.4916, "c'": 12.6817, "d'": -6.3874, 'kecal': 0.900},
+    'NE2581': {"a": 1.0318, "b": 0.488e-3, "c": -1.731e-5, "a'": 2.9190, "b'": -8.4561, "c'": 12.5690, "d'": -6.3468},
+    'NE2571': {"a": 0.9882, "b": 1.486e-3, "c": -2.140e-5, "a'": 2.2328, "b'": -5.5779, "c'": 8.5325, "d'": -4.4352},
+    'NE2561': {"a": 1.0200, "b": 0.596e-3, "c": -1.551e-5, "a'": 2.4235, "b'": -6.3179, "c'": 9.4737, "d'": -4.8307},
+    'PR06C/G': {"a": 0.9519, "b": 2.432e-3, "c": -2.704e-5, "a'": 2.9110, "b'": -8.4916, "c'": 12.6817, "d'": -6.3874},
+}
+
+CHAMBERS_ELECTRONS = {
+    # Exradin
+    'A12': {'kQ,ecal': 0.907, 'a': 0.965, 'b': 0.119, 'c': 0.607},
+    'A19': {'kQ,ecal': 0.904, 'a': 0.957, 'b': 0.119, 'c': 0.505},
+    'A12S': {'kQ,ecal': 0.907, 'a': 0.937, 'b': 0.136, 'c': 0.378},
+    'A18': {'kQ,ecal': 0.914, 'a': 0.352, 'b': 0.711, 'c': 0.046},
+    'A1SL': {'kQ,ecal': 0.914, 'a': 0.205, 'b': 0.854, 'c': 0.036},
+
+    # PTW
+    '30010': {'kQ,ecal': 0.904, 'a': 0.980, 'b': 0.119, 'c': 0.891},
+    '30011': {'kQ,ecal': 0.901, 'a': 0.976, 'b': 0.120, 'c': 0.793},
+    '30012': {'kQ,ecal': 0.908, 'a': 0.972, 'b': 0.121, 'c': 0.728},
+    '30013': {'kQ,ecal': 0.901, 'a': 0.978, 'b': 0.112, 'c': 0.816},
+    '31013': {'kQ,ecal': 0.902, 'a': 0.945, 'b': 0.133, 'c': 0.441},
+
+    # IBA
+    'FC65G': {'kQ,ecal': 0.904, 'a': 0.971, 'b': 0.113, 'c': 0.680},
+    'FC65P': {'kQ,ecal': 0.902, 'a': 0.973, 'b': 0.110, 'c': 0.692},
+    'FC23C': {'kQ,ecal': 0.904, 'a': 0.971, 'b': 0.097, 'c': 0.591},
+    'CC25': {'kQ,ecal': 0.904, 'a': 0.964, 'b': 0.105, 'c': 0.539},
+    'CC13': {'kQ,ecal': 0.904, 'a': 0.926, 'b': 0.129, 'c': 0.279},
+
+    # Other
+    'PR06C/G': {'kQ,ecal': 0.906, 'a': 0.972, 'b': 0.122, 'c': 0.729},
+    '2571': {'kQ,ecal': 0.903, 'a': 0.977, 'b': 0.117, 'c': 0.817},
+    '2611': {'kQ,ecal': 0.896, 'a': 0.979, 'b': 0.120, 'c': 0.875},
 }
 
 
@@ -102,9 +131,9 @@ def p_ion(volt_high=300, volt_low=150, m_high=(1, 2), m_low=(3, 4)):
         The "high" voltage; same as the TG51 measurement voltage.
     volt_low : int
         The "low" voltage; usually half of the high voltage.
-    m_high : iterable
+    m_high : float, iterable
         The readings of the ion chamber at the "high" voltage.
-    m_low : iterable
+    m_low : float, iterable
         The readings of the ion chamber at the "low" voltage.
     """
     return (1 - volt_high/volt_low)/(np.mean(m_high)/np.mean(m_low) - volt_high/volt_low)
@@ -155,9 +184,9 @@ def pq_gr(m_dref_plus=(1, 2), m_dref=(3, 4)):
 
     Parameters
     ----------
-    m_dref_plus : iterable
+    m_dref_plus : float, iterable
         The readings of the ion chamber at dref + 0.5rcav.
-    m_dref : iterable
+    m_dref : float, iterable
         The readings of the ion chamber at dref.
     """
     return np.mean(m_dref_plus) / np.mean(m_dref)
@@ -176,7 +205,7 @@ def m_corrected(p_ion=1.0, p_tp=1.0, p_elec=1.0, p_pol=1.0, m_raw=(1.1, 2.2)):
         The electrometer correction.
     p_pol : float
         The polarity correction.
-    m_raw : iterable
+    m_raw : float, iterable
         The raw ion chamber readings.
 
     Returns
@@ -219,8 +248,9 @@ def pddx(pdd=66.4, energy=6, lead_foil=None):
                 return (0.8116+0.00264*pdd)*pdd
 
 
-def kq(model='30010', pddx=None, tpr=None):
-    """Calculate kq based on the model and clinical measurements.
+def kq(model='30010', pddx=None, tpr=None, r_50=None):
+    """Calculate kQ based on the model and clinical measurements. This will calculate kQ for both photons and electrons 
+    for *CYLINDRICAL* chambers only.
 
     Parameters
     ----------
@@ -228,37 +258,45 @@ def kq(model='30010', pddx=None, tpr=None):
         The model of the chamber. Valid values are those listed in
         Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
     pddx : {>=0.627, <=0.861}
-        The PHOTON-ONLY PDD measurement at 10cm depth for a 10x10cm2 field.
+        The *PHOTON-ONLY* PDD measurement at 10cm depth for a 10x10cm2 field.
     tpr : {>=0.623, <=0.805}
         The TPR ratio of the 20cm measurement divided by the 10cm measurement.
-
+    r_50 : float
+        The R50 value in cm of an electron beam.
 
     .. warning::
-        Only ``pddx`` or ``tpr`` can be defined, not both.
+        Only 1 of ``pddx``, ``tpr`` or ``r_50`` can be defined.
     """
     PDD_LOW = 62.7
     PDD_HIGH = 86.1
     TPR_LOW = 0.623
     TPR_HIGH = 0.805
 
+    # error checking
+    if not any((pddx, tpr, r_50)):
+        raise ValueError("At least one of the parameters pddx, tpr, or r_50 must be defined.")
     if pddx is not None and tpr is not None:
         raise ValueError("Only the PDD or TPR parameter can be defined, not both.")
-    if pddx is None and tpr is None:
-        raise ValueError("Either the TPR or PDD must be defined.")
+    if any((pddx, tpr)) and r_50 is not None:
+        raise ValueError("Cannot define both a photon component (PDDx, TPR) and an electron component (R50)")
 
     if pddx is not None:
         if pddx > PDD_HIGH or pddx < PDD_LOW:
             raise ValueError("Measured PDD is out of range; must be between {:2.2} and {:2.2}.".format(PDD_LOW, PDD_HIGH))
         else:
-            ch = CHAMBERS[model]
+            ch = CHAMBERS_PHOTONS[model]
             return ch["a"] + ch["b"]*pddx + ch["c"]*(pddx**2)
 
     if tpr is not None:
         if tpr > TPR_HIGH or tpr < TPR_LOW:
             raise ValueError("Measured TPR is out of range; must be between {:2.2} and {:2.2}.".format(TPR_LOW, TPR_HIGH))
         else:
-            ch = CHAMBERS[model]
+            ch = CHAMBERS_PHOTONS[model]
             return ch["a'"] + ch["b'"]*tpr + ch["c'"]*(tpr**2) + ch["d'"]*(tpr**3)
+
+    if r_50 is not None:
+        ch = CHAMBERS_ELECTRONS[model]
+        return (ch['a'] + ch['b'] * r_50**-ch['c']) * ch['kQ,ecal']
 
 
 class TG51Base(Structure):
@@ -385,7 +423,7 @@ class TG51Photon(TG51Base):
         """The dose/mu at dmax depth after adjustment."""
         return self.adjusted_dose_mu_10/(self.clinical_pdd/100)
 
-    def publish_pdf(self, filename, notes=None):
+    def publish_pdf(self, filename, notes=None, open_file=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -455,8 +493,7 @@ class TG51Photon(TG51Base):
         if notes is not None:
             pdf.draw_text(canvas, x=12 * cm, y=6.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=12 * cm, y=6 * cm, text=notes)
-        canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
 
 class TG51Electron(TG51Base):
@@ -472,7 +509,7 @@ class TG51Electron(TG51Base):
         NDW value in Gy/nC
     p_elec : float
     clinical_pdd : float
-        The PDD used to correct the dose at 10cm back to dmax. Usually the TPS PDD(10) value.
+        The PDD used to correct the dose back to dref.
     volt_high : float
     volt_low : float
     m_raw : float, tuple
@@ -481,9 +518,6 @@ class TG51Electron(TG51Base):
     mu : float
     i_50 : float
         Depth of 50% ionization
-    k_ecal : float
-    m_plus : float, tuple
-        The measurement at 0.5rcav+dref to calculate P gradient
     tissue_correction : float
         Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
     """
@@ -500,7 +534,7 @@ class TG51Electron(TG51Base):
                  n_dw=5.9,
                  electrometer='',
                  p_elec=1.0,
-                 clinical_pdd=66.4,
+                 clinical_pdd=99.0,
                  volt_high=300,
                  volt_low=150,
                  m_raw=(1, 2),
@@ -509,14 +543,12 @@ class TG51Electron(TG51Base):
                  cone='15x15',
                  mu=200,
                  i_50=4,
-                 k_ecal=None,
-                 m_plus=None,
                  tissue_correction=1.0,
                  adjusted_m_raw=None):
         super().__init__(temp=temp, press=press, model=model, n_dw=n_dw, p_elec=p_elec,
                          volt_high=volt_high, volt_low=volt_low, m_raw=m_raw,
                          m_opp=m_opp, m_low=m_low, clinical_pdd=clinical_pdd, mu=mu,
-                         i_50=i_50, k_ecal=k_ecal, m_plus=m_plus, tissue_correction=tissue_correction,
+                         i_50=i_50, tissue_correction=tissue_correction,
                          institution=institution, physicist=physicist, unit=unit,
                          measurement_date=measurement_date, electrometer=electrometer,
                          adjusted_m_raw=adjusted_m_raw, cone=cone, energy=energy)
@@ -532,19 +564,14 @@ class TG51Electron(TG51Base):
         return d_ref(self.i_50)
 
     @property
-    def pq_gr(self):
-        """The gradient correction of the electron beam."""
-        return pq_gr(self.m_plus, self.m_raw)
-
-    @property
-    def kp_r50(self):
-        """K'R50 value for cylindrical chambers."""
-        return kp_r50(self.r_50)
+    def kq(self):
+        """The kQ value using the updated Muir & Rodgers values from their 2014 paper, equation 11."""
+        return kq(self.model, r_50=self.r_50)
 
     @property
     def dose_mu_dref(self):
         """cGy/MU at the depth of Dref."""
-        return self.tissue_correction * self.m_corrected * self.pq_gr * self.kp_r50 * self.k_ecal * self.n_dw / self.mu
+        return self.tissue_correction * self.m_corrected * self.kq * self.n_dw / self.mu
 
     @property
     def dose_mu_dmax(self):
@@ -554,7 +581,7 @@ class TG51Electron(TG51Base):
     @property
     def adjusted_dose_mu_dref(self):
         """cGy/MU at the depth of Dref."""
-        return self.tissue_correction * self.adjusted_m_corrected * self.pq_gr * self.kp_r50 * self.k_ecal * self.n_dw / self.mu
+        return self.tissue_correction * self.adjusted_m_corrected * self.kq * self.n_dw / self.mu
 
     @property
     def adjusted_dose_mu_dmax(self):
@@ -596,8 +623,7 @@ class TG51Electron(TG51Base):
                 'I50 (cm): {:2.2f}'.format(self.i_50),
                 'R50 (cm): {:2.2f}'.format(self.r_50),
                 'Dref (cm): {:2.2f}'.format(self.dref),
-                'kecal: {:2.3f}'.format(self.k_ecal),
-                "k'R50: {:2.3f}".format(self.kp_r50),
+                "kQ: {:2.3f}".format(self.kq),
                 '',
                 'Chamber Corrections/Measurements:',
                 'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
@@ -612,7 +638,6 @@ class TG51Electron(TG51Base):
                 'Pion: {:2.3f}'.format(self.p_ion),
                 'Ppol: {:2.3f}'.format(self.p_pol),
                 'Mraw @ Dref + 0.5rcav (nC): {}'.format(self.m_plus),
-                'PQgr: {:2.3f}'.format(self.pq_gr),
                 '',
                 'Dose Determination:',
                 'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
