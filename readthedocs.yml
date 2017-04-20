@@ -1,5 +1,5 @@
 python:
-  version: 3
+  version: 3.4
 
 conda:
   file: rtdconda.yml
