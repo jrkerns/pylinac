@@ -17,7 +17,7 @@ programming.
 
 For the first group, pylinac can be used within a Python environment to automate analysis of QA images.
 
-For the second group, pylinac is also implemented as a `web app <www.assuranceqa.herokuapp.com>`_.
+For the second group, pylinac is also implemented as a `web app <www.assuranceqa.herokuapp.com>`_ and a desktop GUI.
 
 Philosophy
 ----------

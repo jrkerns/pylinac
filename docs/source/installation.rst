@@ -61,21 +61,15 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 * pydicom >= 0.9.9
 * Pillow >= 2.5
 * scikit-image >= 0.11
+* scikit-learn >= 0.16
+* tqdm == 3.8
+* click
+* pyyaml
+* yagmail
+* mpld3
+* reportlab >= 3.3
 
 See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/user/install.html>`_ if you don't yet have them.
-
-Optional dependencies:
-
- * mpld3 >= 0.2 -- For making interactive HTML plots.
-
-To use the pylinac console script a few additional dependencies are needed:
-
- * click
- * pyyaml
- * yagmail (only if email settings are configured)
-
-To install these console dependencies in one go, run ``pip install pylinac[console]``. Otherwise, install
-them individually.
 
 I'm new to Python
 -----------------

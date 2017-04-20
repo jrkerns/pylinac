@@ -82,6 +82,10 @@ A typical analysis sequence looks like so:
 
       mystar.save_analyzed_image('mystar.png')
 
+  You may also save to PDF::
+
+      mystar.publish_pdf('mystar.pdf')
+
 
 Algorithm
 ---------

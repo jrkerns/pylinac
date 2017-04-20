@@ -64,6 +64,14 @@ Or:
 .. raw:: html
     :file: images/cbct_rmtf.html
 
+Or generate a PDF report:
+
+.. code-block:: python
+
+    cbct.publish_pdf('mycbct.pdf')
+
+
+
 Typical Use
 -----------
 
@@ -118,6 +126,8 @@ The minimum needed to get going is to:
       mycbct.plot_analyzed_image()
       # save the image
       mycbct.save_analyzed_image('mycatphan504.png')
+      # generate PDF
+      mycbct.publish_pdf('mycatphan.pdf', open_file=True)  # open the PDF after saving as well.
 
 Algorithm
 ---------
@@ -210,6 +220,9 @@ Most problems in this module revolve around getting the data loaded.
   Also make sure you've scanned the whole phantom.
 * Make sure there are no external markers on the CatPhan (e.g. BBs), otherwise the localization
   algorithm will not be able to properly locate the phantom within the image.
+* Ensure that the FOV is large enough to encompass the entire phantom. If the scan is cutting off the phantom
+  in any way it will not identify it.
+* The phantom should never touch the edge of an image, see above point.
 * Set the ``classifier`` parameter to ``False`` when loading images. This will use a slower, brute-force
   method to find the CTP404 module, but may give more reliable results:
 

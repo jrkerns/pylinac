@@ -126,6 +126,12 @@ The minimum needed to get going is to:
   .. raw:: html
       :file: images/vmat_profiles.html
 
+  PDF reports can also be generated:
+
+  .. code-block:: python
+
+    myvmat.publish_pdf('drmlc.pdf')
+
 Tips & Tricks
 -------------
 

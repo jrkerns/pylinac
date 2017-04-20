@@ -6,33 +6,94 @@ Changelog
 V 2.0.0
 -------
 
+General
+^^^^^^^
+
+* Version 2.0 is here! It may or may not be a real major version update worthy of '2.0', but '1.10' just didn't sound as good =)
+* A GUI has been added! Most major modules have been added to the GUI. The GUI is a very simple
+  interface that will load files and publish a PDF/process files. To start the gui run the `gui()` function like
+  so:
+
+  .. code-block:: python
+
+    import pylinac
+    pylinac.gui()
+
+  You may also start the GUI from the command line:
+
+  .. code-block:: bash
+
+    pylinac gui
+
+  The GUI is a result of a few causes. Many physicists don't know how to code; this should remove that barrier
+  and allow Pylinac to get even more exposure. I have always felt the web was the future, and it likely is, but
+  pylinac should be able to run on it's own, and because a rudimentary GUI is relatively easy, I've finally made it.
+  The GUI is also free to use and has no hosting costs (unlike assuranceQA.com). Also, due to other ventures, a new job, and a
+  newborn, I couldn't devote further time to the assuranceQA site--A native GUI is much easier
+  albeit much more primitive.
+* Some module PDF methods now don't require filenames. If one is not passed it will default to the name of the file analyzed.
+  E.g. "abc123.dcm" would become "abc123.pdf". Modules where multiple images may be passed (e.g. a CBCT directory) still requires a filename.
+* PDF methods now have a boolean parameter to open the file after publishing: ``open_file``.
+
 Watcher
 ^^^^^^^
 
 * Closes `#84 <https://github.com/jrkerns/pylinac/issues/84>`_ Which would overwrite the resulting zip and PDF of
   initially unzipped CBCTs performed on the same day. I.e. multiple CBCTs would result in only 1 zip/PDF. The image
   timestamp has been edited so that it will include the hour-minute-second of the CBCT to avoid conflict.
+* Closes `#86 <https://github.com/jrkerns/pylinac/issues/86>`_ - Which had a discrepancy between the YAML config setting of the file source directories
+  and what the watcher was looking for.
 
 CatPhan
 ^^^^^^^
 
 * Closes `#85 <https://github.com/jrkerns/pylinac/issues/85>`_ Which displayed the nominal CBCT slice width on PDF reports,
   not the detected width for the CatPhan504 & CatPhan600.
+* Closes `#89 <https://github.com/jrkerns/pylinac/issues/89>`_ which had variables swapped in the CatPhan503 PDF.
+* The ``contrast_threshold`` parameter has been renamed to ``cnr_threshold``. The meaning and values are the same, but has been
+  renamed to be consistent with other changes to the ``roi`` module.
+* Due to various problems with the SVM classifier, the default setting of the classifier has been set to ``False``.
 
 Planar Phantoms
 ^^^^^^^^^^^^^^^
 
 * The Las Vegas phantom has been added to the planar imaging module. It's use case is very similar to the existing planar
-  phantoms.
-* The `LeedsTOR.analyze` method has an additional parameter: `angle_offset`. From analyzing multiple Leeds images, it has become
+  phantoms:
+
+  .. code-block:: python
+
+    from pylinac import LasVegas
+
+    lv = LasVegas('myfile.dcm')
+    lv.analyze()
+    lv.publish_pdf()
+    ...
+
+* The :meth:`pylinac.planar_imaging.LeedsTOR.analyze` method has an additional parameter: `angle_offset`. From analyzing multiple Leeds images, it has become
   apparent that the low contrast ROIs are not always perfectly set relative to the phantom. This parameter will allow the user
-  to fine-tune the analysis to perfectly overlay the low contrast ROIs.
+  to fine-tune the analysis to perfectly overlay the low contrast ROIs by adding an additional angle offset to the analysis.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Closes enhancement `#63 <https://github.com/jrkerns/pylinac/issues/63>`_ Files can now have the axis settings interpreted via the file name.
+  E.g: "myWL_gantry90_coll0_couch340.dcm". See :ref:`using_file_names_wl` for further info.
+* The `x/y/z_offset` properties of the WLImages which were deprecated many versions ago have finally been removed.
+
+TG-51
+^^^^^
+
+* The Electron class has been adjusted to reflect the `Muir & Rodgers 2014`_ kecal data which allows the user to calculate kQ from just R50 data.
+* The `kq` function now accepts an `r_50` parameter to calculate kQ based on the above data.
+
+.. _Muir & Rodgers 2014: http://onlinelibrary.wiley.com/doi/10.1118/1.4893915/abstract
 
 Core Modules
 ^^^^^^^^^^^^
 
-* The `Image` class has been fully depricated and is no longer available. Use the functions available in the `image` module instead.
+* The `Image` class has been fully depricated and is no longer available. Use the functions available in the :module:`pylinac.core.image` module instead.
   See the version 1.4.0 release notes for further details.
+* The `remove_edges` method has been deprecated and is now an alias for `crop`. The `crop` method should be used instead. Parameters are exactly the same.
 
 V 1.9.0
 -------

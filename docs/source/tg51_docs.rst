@@ -29,6 +29,7 @@ Equation definitions are as follows:
 * Dref (Reference electron depth; cm) - TG-51 Eqn. 18:
 
   .. math:: 0.6*R_{50} - 0.1
+
 * R50 (Beam quality specifier; 50% dose depth; cm) - TG-51 Eqn. 16 & 17:
 
   .. math::
@@ -64,7 +65,7 @@ Equation definitions are as follows:
   .. math::
        P_{ion}*P_{TP}*P_{elec}*P_{pol}*M_{raw}
 
-* kQ (Chamber-specific quality conversion factor) - TG-51 Addendum Eqn 1 & Table I:
+* kQ for Photons (cylindrical chamber-specific quality conversion factor) - TG-51 Addendum Eqn 1 & Table I:
 
   .. math::
         \begin{cases}
@@ -73,6 +74,25 @@ Equation definitions are as follows:
 
   Where A, B, and C are chamber-specific fitting values as given in Table I.
   Pylinac automatically retrieves values based on the chamber model passed to the function.
+
+* kQ for Electrons (cylindrical chamber-specific quality conversion factor) - `Muir & Rodgers 2014`_
+
+  The study of Muir & Rodgers was to find kecal values that could be determined soley from R50. Through
+  Monte Carlo experiments, the optimal Pgradient was determined as well as fitting parameters for numerous
+  common ion chambers. That study eliminates the need for Pgradient measurements. These kecal values will
+  very likely be incorporated into the next TG-51 addendum (as has their kQ values for photons in the first
+  addendum). From the paper, we can start with the known relationship given in Eqn. 9:
+
+  .. math::
+        k_{Q} = k_{Q,ecal} * k'_{Q}
+
+  where Eqn. 11 states:
+
+  .. math::
+        k'_{Q} = a + b * R_{50}^{-c}
+
+  Where a, b, and c are chamber-specific fitting values as given in Table VII.
+  and where :math:`k_{Q,ecal}` is given in Table VI.
 
 * :math:`D^Q_{w}` photon (Dose to water at 10cm from a photon beam of quality Q - TG-51 Eqn. 3:
 
@@ -84,6 +104,9 @@ Equation definitions are as follows:
   .. math::
        M*P^Q_{gr}*k'_{R_{50}}*k_{ecal}*N^{60Co}_{D,w}  (Gy)
 
+.. _Muir & Rodgers 2014: http://onlinelibrary.wiley.com/doi/10.1118/1.4893915/abstract
+
+
 Typical Use
 -----------
 
@@ -92,6 +115,10 @@ you could use the kQ function to calculate kQ and then calculate the other corre
 If you want something a little more complete, you can use the :class:`~pylinac.tg51.TG51Photon` and
 :class:`~pylinac.tg51.TG51Electron` classes which will completely calculate all necessary corrections and
 values.
+
+.. note::
+    The Photon class uses kQ values from the TG-51 addendum and the Electron class uses kQ values from Muir & Rodgers
+    2014.
 
 Function-based Use
 ^^^^^^^^^^^^^^^^^^

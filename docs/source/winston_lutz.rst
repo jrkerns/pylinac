@@ -82,6 +82,8 @@ And that's it! Once loaded you can view images, gantry sag, or print the results
     wl.save_plots('wltest.png')
     # return the gantry isocenter relative to the BB
     wl.gantry_iso2bb_vector
+    # print to PDF
+    wl.publish_pdf('mywl.pdf')
 
 .. _using_file_names_wl:
 
@@ -145,7 +147,7 @@ The algorithm works like such:
 
 * **Backproject the CAX for gantry images** -- Based on the vector of the BB to the field CAX and the gantry angle,
   a 3D line projection of the CAX is constructed. The BB is considered at the origin. Only images where the
-  collimator and couch were at 0 are used for CAX projection lines.
+  couch was at 0 are used for CAX projection lines.
 
 * **Determine gantry isocenter size and location** - Using the backprojection lines, an optimization function is run
   to minimize the maximum distance to any line. The optimized distance is the isocenter radius, and the point

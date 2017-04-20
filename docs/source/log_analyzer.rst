@@ -92,6 +92,13 @@ Which will give::
 
 .. image:: images/logs/tlog_analyzed.png
 
+Note that you can also save data in a PDF report:
+
+.. code-block:: python
+
+    tlog = ...
+    tlog.publish_pdf('mytlog.pdf')
+
 Loading Data
 ------------
 

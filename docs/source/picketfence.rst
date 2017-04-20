@@ -65,6 +65,15 @@ Note the Home/Pan/Zoom tools in the corner when hovering. Additionally, hovering
 
   MPLD3 currently does not show images/arrays well, so you may not be able to see the underlying EPID image.
 
+Finally, you can save the results to a PDF report:
+
+.. code-block::
+
+    pf = PicketFence.from_demo()
+    pf.analyze()
+    pf.publish_pdf()
+
+
 Acquiring the Image
 -------------------
 
@@ -123,9 +132,13 @@ The minimum needed to get going is to:
     pf.analyze(tolerance=0.15, action_tolerance=0.03)
     pf.plot_analyzed_image()
 
-  The plot is also able to be saved::
+  The plot is also able to be saved to PNG::
 
       pf.save_analyzed_image('mypf.png')
+
+  Or you may save to PDF::
+
+      pf.publish_pdf('mypf.pdf')
 
 Using a Machine Log
 -------------------
