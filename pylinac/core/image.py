@@ -270,6 +270,11 @@ class BaseImage:
         return load_multiples(filelist, method, stretch, **kwargs)
 
     @property
+    def pdf_path(self):
+        base, _ = osp.splitext(self.path)
+        return osp.join(base + '.pdf')
+
+    @property
     def center(self):
         """Return the center position of the image array as a Point."""
         x_center = self.shape[1] / 2
@@ -347,7 +352,7 @@ class BaseImage:
             self.array = ndimage.gaussian_filter(self.array, sigma=size)
 
     @type_accept(pixels=int)
-    def remove_edges(self, pixels=15, edges=('top', 'bottom', 'left', 'right')):
+    def crop(self, pixels=15, edges=('top', 'bottom', 'left', 'right')):
         """Removes pixels on all edges of the image in-place.
 
         Parameters
@@ -367,6 +372,20 @@ class BaseImage:
             self.array = self.array[:, pixels:]
         if 'right' in edges:
             self.array = self.array[:, :-pixels]
+
+    @type_accept(pixels=int)
+    def remove_edges(self, pixels=15, edges=('top', 'bottom', 'left', 'right')):
+        """Removes pixels on all edges of the image in-place.
+
+        Parameters
+        ----------
+        pixels : int
+            Number of pixels to cut off all sides of the image.
+        edges : tuple
+            Which edges to remove from. Can be any combination of the four edges.
+        """
+        DeprecationWarning("`remove_edges` is deprecated and will be removed in a future version. Use `crop` instead")
+        self.crop(pixels=pixels, edges=edges)
             
     def flipud(self):
         """ Flip the image array upside down in-place. Wrapper for np.flipud()"""
