@@ -1,5 +1,6 @@
 """Module for constructing and interacting with PDF reports for Pylinac."""
 from datetime import datetime
+import os
 
 from PIL import Image
 from reportlab.pdfgen.canvas import Canvas
@@ -110,3 +111,10 @@ def create_stream_image(data_io):
     """
     data_io.seek(0)
     return ImageReader(Image.open(data_io))
+
+
+def finish(canvas, open_file, filename):
+    canvas.showPage()
+    canvas.save()
+    if open_file:
+        os.startfile(filename)

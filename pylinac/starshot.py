@@ -409,7 +409,7 @@ class Starshot:
         self.plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
-    def publish_pdf(self, filename, author=None, unit=None, axis_measured='N/A', notes=None):
+    def publish_pdf(self, filename=None, author=None, unit=None, axis_measured='N/A', notes=None, open_file=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -426,6 +426,8 @@ class Starshot:
             Text; if str, prints single line.
             If list of strings, each list item is printed on its own line.
         """
+        if filename is None:
+            filename = self.image.pdf_path
         from reportlab.lib.units import cm
         canvas = pdf.create_pylinac_page_template(filename, file_name=osp.basename(self.image.path),
                                                   file_created=self.image.date_created(),
@@ -446,8 +448,7 @@ class Starshot:
         if notes is not None:
             pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
     @staticmethod
     def run_demo():

@@ -1766,7 +1766,7 @@ class Dynalog(LogBase):
         dlog.report_basic_parameters()
         dlog.plot_summary()
 
-    def publish_pdf(self, filename, unit=None, notes=None):
+    def publish_pdf(self, filename=None, unit=None, notes=None, open_file=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -1780,7 +1780,9 @@ class Dynalog(LogBase):
             while a list of strings will print each item on a new line.
         """
         self.fluence.gamma.calc_map()
-
+        if filename is None:
+            base, _ = osp.splitext(self.filename)
+            filename = osp.join(base, '.pdf')
         canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory Log Analysis", unit=unit,
                                                   file_name=osp.basename(self.a_logfile) + ", " + osp.basename(self.b_logfile))
         pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
@@ -1810,8 +1812,7 @@ class Dynalog(LogBase):
             self.save_subgraph(data, graph, fontsize=20, labelsize=12)
             img = pdf.create_stream_image(data)
             canvas.drawImage(img, x * cm, y * cm, width=13 * cm, height=13 * cm, preserveAspectRatio=True)
-        canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
     @staticmethod
     def identify_other_file(first_dlg_file, raise_find_error=True):
@@ -2098,7 +2099,7 @@ class TrajectoryLog(LogBase):
         print("CSV file written to: " + filename)
         return filename
 
-    def publish_pdf(self, filename, unit=None, notes=None):
+    def publish_pdf(self, filename=None, unit=None, notes=None, open_file=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -2114,7 +2115,9 @@ class TrajectoryLog(LogBase):
         if self.treatment_type == IMAGING:
             raise ValueError("Log is of imaging type (e.g. kV setup) and does not contain relevant gamma/leaf data")
         self.fluence.gamma.calc_map()
-
+        if filename is None:
+            base, _ = osp.splitext(self.filename)
+            filename = osp.join(base, '.pdf')
         canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory Log Analysis", unit=unit,
                                                   file_name=osp.basename(self.filename))
         pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
@@ -2144,8 +2147,7 @@ class TrajectoryLog(LogBase):
             self.save_subgraph(data, graph, fontsize=20, labelsize=12)
             img = pdf.create_stream_image(data)
             canvas.drawImage(img, x * cm, y * cm, width=13 * cm, height=13 * cm, preserveAspectRatio=True)
-        canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
     @property
     def num_beamholds(self):

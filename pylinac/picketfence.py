@@ -423,7 +423,7 @@ class PicketFence:
                                                                        self.max_error, self.max_error_picket, self.max_error_leaf)
         return string
 
-    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+    def publish_pdf(self, filename=None, author=None, unit=None, notes=None, open_file=False):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -438,6 +438,8 @@ class PicketFence:
             Text; if str, prints single line.
             If list of strings, each list item is printed on its own line.
         """
+        if filename is None:
+            filename = self.image.pdf_path
         from reportlab.lib.units import cm
         canvas = pdf.create_pylinac_page_template(filename, analysis_title='Picket Fence Analysis',
                                                   author=author, unit=unit, file_name=osp.basename(self.image.path),
@@ -462,8 +464,7 @@ class PicketFence:
         if notes is not None:
             pdf.draw_text(canvas, x=1*cm, y=5.5*cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1*cm, y=5*cm, text=notes)
-        canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
     @property
     @lru_cache(maxsize=1)

@@ -365,7 +365,7 @@ class VMAT:
 
         return string
 
-    def publish_pdf(self, filename, author='', unit='N/A', notes=None):
+    def publish_pdf(self, filename, author=None, unit=None, notes=None, open_file=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -392,8 +392,7 @@ class VMAT:
         if notes is not None:
             pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
 
 class SegmentManager:

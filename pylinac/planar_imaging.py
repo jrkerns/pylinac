@@ -1,5 +1,5 @@
 """The planar imaging module analyzes phantom images taken with the kV or MV imager in 2D;
-for example, the Leeds and QC-3 phantoms.
+specifically, the Leeds, QC-3, and Las Vegas phantoms.
 
 Features:
 
@@ -301,7 +301,7 @@ class LasVegas(ImagePhantomBase):
             self._phantom_ski_region = regions[phantom_idx]
             return regions[phantom_idx]
 
-    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+    def publish_pdf(self, filename=None, author=None, unit=None, notes=None, open_file=False):
         """Publish a PDF report of the analyzed phantom. The report includes basic
         file information, the image and determined ROIs, and contrast and MTF plots.
 
@@ -317,6 +317,8 @@ class LasVegas(ImagePhantomBase):
             If a string, adds it as a line of text in the PDf report.
             If a list of strings, each string item is printed on its own line. Useful for writing multiple sentences.
         """
+        if filename is None:
+            filename = self.image.pdf_path
         canvas = pdf.create_pylinac_page_template(filename, analysis_title='Las Vegas Analysis',
                                                   author=author, unit=unit, file_name=osp.basename(self.image.path),
                                                   file_created=self.image.date_created())
@@ -335,8 +337,7 @@ class LasVegas(ImagePhantomBase):
         if notes is not None:
             pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
 
 class StandardImagingQC3(ImagePhantomBase):
@@ -386,7 +387,7 @@ class StandardImagingQC3(ImagePhantomBase):
         self.lc_ref_rois, self.lc_rois = self._low_contrast()
         self.hc_rois = self._high_contrast()
 
-    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+    def publish_pdf(self, filename=None, author=None, unit=None, notes=None, open_file=False):
         """Publish a PDF report of the analyzed phantom. The report includes basic
         file information, the image and determined ROIs, and contrast and MTF plots.
 
@@ -402,6 +403,8 @@ class StandardImagingQC3(ImagePhantomBase):
             If a string, adds it as a line of text in the PDf report.
             If a list of strings, each string item is printed on its own line. Useful for writing multiple sentences.
         """
+        if filename is None:
+            filename = self.image.pdf_path
         canvas = pdf.create_pylinac_page_template(filename, analysis_title='QC-3 Analysis',
                                                   author=author, unit=unit, file_name=osp.basename(self.image.path),
                                                   file_created=self.image.date_created())
@@ -421,8 +424,7 @@ class StandardImagingQC3(ImagePhantomBase):
         if notes is not None:
             pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
     def plot_analyzed_image(self, image=True, low_contrast=True, high_contrast=True, show=True):
         """Plot the analyzed image.
@@ -866,7 +868,7 @@ class LeedsTOR(ImagePhantomBase):
         if show:
             plt.show()
 
-    def publish_pdf(self, filename, author=None, unit=None, notes=None):
+    def publish_pdf(self, filename=None, author=None, unit=None, notes=None, open_file=False):
         """Publish a PDF report of the analyzed phantom. The report includes basic
         file information, the image and determined ROIs, and contrast and MTF plots.
 
@@ -882,6 +884,8 @@ class LeedsTOR(ImagePhantomBase):
             If a string, adds it as a line of text in the PDf report.
             If a list of strings, each string item is printed on its own line. Useful for writing multiple sentences.
         """
+        if filename is None:
+            filename = self.image.pdf_path
         canvas = pdf.create_pylinac_page_template(filename, analysis_title='Leeds TOR18 Analysis',
                                                   author=author, unit=unit, file_name=osp.basename(self.image.path),
                                                   file_created=self.image.date_created())
@@ -900,5 +904,4 @@ class LeedsTOR(ImagePhantomBase):
         if notes is not None:
             pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
             pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)

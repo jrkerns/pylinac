@@ -435,7 +435,7 @@ class WinstonLutz:
 
         return result
 
-    def publish_pdf(self, filename, unit=None, notes=None):
+    def publish_pdf(self, filename, unit=None, notes=None, open_file=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -482,7 +482,7 @@ class WinstonLutz:
                 img = pdf.create_stream_image(data)
                 canvas.drawImage(img, 2*cm, 7*cm, width=18*cm, height=18*cm, preserveAspectRatio=True)
                 canvas.showPage()
-        canvas.save()
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
     def _contains_axis_images(self, axis=GANTRY):
         """Return whether or not the set of WL images contains images pertaining to a given axis"""
