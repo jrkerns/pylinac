@@ -4,7 +4,7 @@ import os.path as osp
 import numpy as np
 import scipy.signal as sps
 
-from pylinac.core.image import Image
+from pylinac.core import image
 from pylinac.core.profile import SingleProfile, MultiProfile, CircleProfile, CollapsedCircleProfile
 
 
@@ -174,8 +174,8 @@ class CircleProfileTestMixin:
 
     @classmethod
     def setUpClass(cls):
-        image = Image.load(cls.image_file_location)
-        cls.profile = cls.klass(cls.center_point, cls.radius, image.array)
+        img = image.load(cls.image_file_location)
+        cls.profile = cls.klass(cls.center_point, cls.radius, img.array)
 
     def test_locations(self):
         first_x_location = self.profile.radius + self.profile.center.x
