@@ -34,6 +34,7 @@ General
 * Some module PDF methods now don't require filenames. If one is not passed it will default to the name of the file analyzed.
   E.g. "abc123.dcm" would become "abc123.pdf". Modules where multiple images may be passed (e.g. a CBCT directory) still requires a filename.
 * PDF methods now have a boolean parameter to open the file after publishing: ``open_file``.
+* A number of dependencies have been bumped. Some were for specific reasons and others were just out of good practice.
 
 Watcher
 ^^^^^^^

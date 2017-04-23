@@ -55,16 +55,16 @@ Dependencies
 
 Pylinac, as a scientific package, has fairly standard scientific dependencies (>= means at least that version or newer):
 
-* numpy >= 1.9
-* scipy >= 0.15
-* matplotlib >= 1.3.1
+* numpy >= 1.11
+* scipy >= 0.17
+* matplotlib >= 1.4
 * pydicom >= 0.9.9
-* Pillow >= 2.5
-* scikit-image >= 0.11
-* scikit-learn >= 0.16
+* Pillow >= 4.0
+* scikit-image >= 0.12
+* scikit-learn >= 0.18
 * tqdm == 3.8
 * click
-* pyyaml
+* pyyaml >= 3.10
 * yagmail
 * mpld3
 * reportlab >= 3.3
