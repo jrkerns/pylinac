@@ -79,6 +79,8 @@ Winston-Lutz
 * Closes enhancement `#63 <https://github.com/jrkerns/pylinac/issues/63>`_ Files can now have the axis settings interpreted via the file name.
   E.g: "myWL_gantry90_coll0_couch340.dcm". See :ref:`using_file_names_wl` for further info.
 * The `x/y/z_offset` properties of the WLImages which were deprecated many versions ago have finally been removed.
+* The `collimator/gantry_sag` and associated `plot_gantry_sag` methods have been deprecated. A similar method has been implemented that utilizes the RMS deviation.
+  To achieve the "gantry sag" using RMS errors use the method `axis_rms_deviation` with parameter `value='range'`.
 
 TG-51
 ^^^^^

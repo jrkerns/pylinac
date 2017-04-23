@@ -67,7 +67,7 @@ Note the Home/Pan/Zoom tools in the corner when hovering. Additionally, hovering
 
 Finally, you can save the results to a PDF report:
 
-.. code-block::
+.. code-block:: python
 
     pf = PicketFence.from_demo()
     pf.analyze()
