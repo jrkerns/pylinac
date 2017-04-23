@@ -12,6 +12,7 @@ import os.path as osp
 import pickle
 import shutil
 import time
+import zipfile
 
 import yagmail
 import yaml
@@ -22,7 +23,7 @@ from pylinac.core.image import prepare_for_classification, DicomImage
 from pylinac.core.utilities import is_dicom_image
 from pylinac.core import schedule
 
-from pylinac import VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log
+from pylinac import VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log, LasVegas
 from pylinac.log_analyzer import IMAGING
 
 logger = logging.getLogger("pylinac")
@@ -84,12 +85,25 @@ class AnalyzeMixin:
         elif self.config['email']['enable-failure'] and self.should_send_failure_email():
             self.send_email()
         self.publish_pdf()
+        self.save_zip()
         logger.info("Finished analysis on " + self.local_path)
+
+    def save_zip(self):
+        # save results and original file to a compressed ZIP archive
+        with zipfile.ZipFile(self.zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
+            zfile.write(self.full_path, arcname=osp.basename(self.full_path))
+        # remove the original files
+        os.remove(self.full_path)
 
     @property
     def constructor_kwargs(self):
         """Any keyword arguments meant to be given to the constructor call."""
         return {}
+
+    @property
+    def zip_filename(self):
+        """The name of the file for the ZIP archive."""
+        return self.base_name + self.config['general']['file-suffix'] + '.zip'
 
     @property
     def pdf_filename(self):
@@ -103,10 +117,7 @@ class AnalyzeMixin:
 
     def keyword_in_here(self):
         """Determine whether a keyword exists in the filename."""
-        if not self.expecting_zip:
-            return any(keyword in self.local_path.lower() for keyword in self.keywords)
-        else:
-            return any(keyword in self.local_path.lower() for keyword in self.keywords) and self.local_path.endswith('.zip')
+        return any(keyword in self.local_path.lower() for keyword in self.keywords)
 
     @property
     def failure_settings(self):
@@ -164,9 +175,15 @@ class AnalyzeLeeds(AnalyzeMixin):
 
 
 class AnalyzeQC3(AnalyzeMixin):
-    """Analysis runner for PipsPro QC-3."""
+    """Analysis runner for Standard Imaging QC-3."""
     obj = StandardImagingQC3
     config_name = 'qc3'
+
+
+class AnalyzeLasVegas(AnalyzeMixin):
+    """Analysis runner for Las Vegas phantom."""
+    obj = LasVegas
+    config_name = 'las-vegas'
 
 
 class AnalyzeStar(AnalyzeMixin):
@@ -240,6 +257,7 @@ class AnalyzeLog(AnalyzeMixin):
         else:
             self.analyze()
             self.publish_pdf()
+            self.save_zip()
             if self.config['email']['enable-all']:
                 self.send_email()
             elif self.config['email']['enable-failure'] and self.should_send_failure_email():
@@ -369,6 +387,8 @@ class AnalyzeWL(AnalyzeMixin):
         elif self.config['email']['enable-failure'] and self.should_send_failure_email():
             self.send_email()
         self.publish_pdf()
+        if not self.zip_format:
+            self.save_zip()
         logger.info("Finished Winston-Lutz analysis")
 
     @property
@@ -433,6 +453,8 @@ class AnalyzeVMAT(AnalyzeMixin):
         elif self.config['email']['enable-failure'] and self.should_send_failure_email():
             self.send_email()
         self.publish_pdf()
+        if not self.zip_format:
+            self.save_zip()
         if self.zip_format:
             logger.info("Finished analysis on " + self.local_path)
         else:

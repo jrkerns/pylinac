@@ -16,6 +16,7 @@ import os.path as osp
 import matplotlib.pyplot as plt
 import numpy as np
 from reportlab.lib.units import cm
+from scipy.interpolate.interpolate import interp1d
 from skimage import feature, measure
 
 from .core import image
@@ -559,6 +560,17 @@ class StandardImagingQC3(ImagePhantomBase):
                                       0.05)
             rrois.append(roi)
         return rrois
+
+    def _mtf(self, x=50):
+        norm = max(roi.mtf for roi in self.hc_rois)
+        ys = [roi.mtf / norm for roi in self.hc_rois]
+        xs = np.arange(len(ys))
+        f = interp1d(ys, xs)
+        try:
+            mtf = f(x / 100)
+        except ValueError:
+            mtf = min(ys)
+        return float(mtf)
 
 
 class LeedsTOR(ImagePhantomBase):
