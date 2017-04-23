@@ -185,14 +185,17 @@ class WinstonLutz:
         else:
             return Vector()
 
-    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO))
-    def axis_rms_deviations(self, axis=GANTRY):
+    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
+    def axis_rms_deviation(self, axis=GANTRY, value='all'):
         """The RMS deviations of a given axis/axes.
         
         Parameters
         ----------
         axis : ('Gantry', 'Collimator', 'Couch', 'Epid', 'Combo'}
             The axis desired.
+        value : {'all', 'range'}
+            Whether to return all the RMS values from all images for that axis, or only return the maximum range of 
+            values, i.e. the 'sag'. 
         """
         if axis != EPID:
             attr = 'bb_'
@@ -204,6 +207,8 @@ class WinstonLutz:
         rms = []
         for img in imgs:
             rms.append(np.sqrt(sum(getattr(img, attr + ax + '_offset') ** 2 for ax in ('x', 'y', 'z'))))
+        if value == 'range':
+            rms = max(rms) - min(rms)
         return rms
 
     def cax2bb_distance(self, metric='max'):
@@ -426,11 +431,11 @@ class WinstonLutz:
                  "Couch 2D iso->BB vector: {}\n" \
                  "Maximum Couch RMS deviation (mm): {:.2f}".format(
                     len(self.images), self.cax2bb_distance('max'), self.cax2bb_distance('median'),
-                    self.gantry_iso_size, self.gantry_iso2bb_vector, max(self.axis_rms_deviations(GANTRY)),
-                    max(self.axis_rms_deviations(EPID)),
-                    self.collimator_iso_size, self.collimator_iso2bb_vector, max(self.axis_rms_deviations(COLLIMATOR)),
+                    self.gantry_iso_size, self.gantry_iso2bb_vector, max(self.axis_rms_deviation(GANTRY)),
+                    max(self.axis_rms_deviation(EPID)),
+                    self.collimator_iso_size, self.collimator_iso2bb_vector, max(self.axis_rms_deviation(COLLIMATOR)),
                     self.couch_iso_size, self.couch_iso2bb_vector,
-                    max(self.axis_rms_deviations(COUCH)),
+                    max(self.axis_rms_deviation(COUCH)),
                  )
 
         return result
