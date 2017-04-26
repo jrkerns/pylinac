@@ -1,8 +1,8 @@
 language: python
 python:
-  - "3.3"
   - "3.4"
   - "3.5"
+  - "3.6"
 
 sudo:
   false
@@ -28,7 +28,7 @@ install:
   - conda info -a
 
   # Set up conda
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pip setuptools pillow pyqt scikit-image
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy=1.11 scipy matplotlib pip setuptools pillow pyqt scikit-image=0.12
   - source activate test-environment
 
   # install deps
