@@ -19,6 +19,9 @@ general:
     - .pdf
     - .pkl
   query-frequency: 60  # the frequency at which pylinac queries new files; units are in seconds; N/A if using the `process` function
+  rolling-window-days: 15  # when analyzing files, only examine files newer than the specified days.
+                           # I.e. if the file is older than the value in days it won't be evaluated.
+                           # If the value is 0 no window is applied and all files are considered.
   unit: TrueBeam 1234
 
 email:

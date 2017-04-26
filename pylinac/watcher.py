@@ -85,7 +85,7 @@ class AnalyzeMixin:
         elif self.config['email']['enable-failure'] and self.should_send_failure_email():
             self.send_email()
         self.publish_pdf()
-        self.save_zip()
+        # self.save_zip()
         logger.info("Finished analysis on " + self.local_path)
 
     def save_zip(self):
@@ -302,7 +302,7 @@ class AnalyzeCatPhan(AnalyzeMixin):
     def should_send_failure_email(self):
         """Failure of CBCT depends on individual module performance."""
         send = False
-        for key, val in self.failure_settings:
+        for key, val in self.failure_settings.items():
             if key == 'hu-passed' and not self.instance.ctp404.passed_hu:
                 send = True
             if key == 'uniformity-passed' and not self.instance.ctp486.overall_passed:
@@ -337,7 +337,8 @@ class AnalyzeCatPhan(AnalyzeMixin):
                     else:
                         for file in obj.instance.dicom_stack:
                             skip_list.append(osp.basename(file.path))
-                except:
+                except Exception as e:
+                    print(e)
                     done = True
             else:
                 done = True
@@ -574,6 +575,9 @@ def _copy_new_files(directory, config):
             logger.info("Querying new files from {}".format(source_dir))
             source_files = os.listdir(source_dir)
             time.sleep(0.5)
+            if config['general']['rolling-window-days'] > 0:
+                window_cutoff = datetime.datetime.timestamp(datetime.datetime.now() - datetime.timedelta(days=config['general']['rolling-window-days']))
+                source_files = [f for f in source_files if osp.getmtime(osp.join(source_dir, f)) > window_cutoff]
             for file in source_files:
                 exec.submit(move, file, source_dir, directory)
 
@@ -609,7 +613,13 @@ def analyze_new_files(directory, config, force):
     else:
         skip_list = get_skip_list(directory)
     for pdir, _, files in os.walk(directory):
+        # drop files with avoidance keywords
         files = [osp.join(pdir, f) for f in files if not any((k in f) for k in config['general']['avoid-keywords'])]
+        # drop files outside of time window
+        if config['general']['rolling-window-days'] > 0:
+            window_cutoff = datetime.datetime.timestamp(datetime.datetime.now() - datetime.timedelta(days=config['general']['rolling-window-days']))
+            files = [f for f in files if osp.getmtime(f) > window_cutoff]
+        # analyze
         for analysis in (AnalyzeLog, AnalyzeCatPhan, AnalyzeVMAT, AnalyzeWL, AnalyzePF, AnalyzeLeeds, AnalyzeStar, AnalyzeQC3):
             analysis.run(files, config, skip_list)
     # update skip list
