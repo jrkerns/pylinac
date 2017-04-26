@@ -1,0 +1,33 @@
+before_script:
+
+  # Install conda
+  - mkdir -p miniconda
+  - cd miniconda
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - cd ..
+  - export PATH="$HOME/miniconda3/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+
+  # Set up conda
+  - conda create -q -n test-environment python=3.5 numpy=1.11 scipy matplotlib pip setuptools pillow pyqt scikit-image scikit-learn
+  - source activate test-environment
+
+  # install deps
+  - pip install pydicom coveralls requests jinja2 mpld3 click pyyaml tqdm==3.8
+
+  # install your own package into the environment
+  - python setup.py install
+  # attempt to fix DISPLAY variable errors of matplotlib's. See: https://github.com/mwaskom/seaborn/pull/97
+  - cp tests/matplotlibrc .
+
+# test script
+test:
+  script:
+    - python setup.py test
+#    - coverage run --source=pylinac setup.py test
+
