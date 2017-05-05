@@ -20,7 +20,7 @@ from scipy.interpolate.interpolate import interp1d
 from skimage import feature, measure
 
 from .core import image
-from .core.geometry import Point, Circle
+from .core.geometry import Point
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import CollapsedCircleProfile
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, DiskROI, bbox_center
@@ -123,6 +123,17 @@ class ImagePhantomBase:
 
     def phantom_radius(self):
         pass
+
+    def _mtf(self, x=50):
+        norm = max(roi.mtf for roi in self.hc_rois)
+        ys = [roi.mtf / norm for roi in self.hc_rois]
+        xs = np.arange(len(ys))
+        f = interp1d(ys, xs)
+        try:
+            mtf = f(x / 100)
+        except ValueError:
+            mtf = min(ys)
+        return float(mtf)
 
 
 class LasVegas(ImagePhantomBase):
@@ -560,17 +571,6 @@ class StandardImagingQC3(ImagePhantomBase):
                                       0.05)
             rrois.append(roi)
         return rrois
-
-    def _mtf(self, x=50):
-        norm = max(roi.mtf for roi in self.hc_rois)
-        ys = [roi.mtf / norm for roi in self.hc_rois]
-        xs = np.arange(len(ys))
-        f = interp1d(ys, xs)
-        try:
-            mtf = f(x / 100)
-        except ValueError:
-            mtf = min(ys)
-        return float(mtf)
 
 
 class LeedsTOR(ImagePhantomBase):
