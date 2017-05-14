@@ -289,7 +289,7 @@ class BaseImage:
     def date_created(self, format="%A, %B %d, %Y"):
         date = None
         try:
-            date = datetime.strptime(self.metadata.InstanceCreationDate+self.metadata.InstanceCreationTime, "%Y%m%d%H%M%S")
+            date = datetime.strptime(self.metadata.InstanceCreationDate+str(round(float(self.metadata.InstanceCreationTime))), "%Y%m%d%H%M%S")
             date = date.strftime(format)
         except AttributeError:
             try:
