@@ -317,10 +317,10 @@ class PylinacGUI(Frame):
         def analyze_phan():
             phantom = getattr(planar_imaging, self.phan_type.get())(self.phan_file.get())
             phantom.analyze()
-            name, _ = osp.splitext(self.star_file.get())
+            name, _ = osp.splitext(self.phan_file.get())
             fname = name + '.pdf'
             phantom.publish_pdf(fname)
-            self.star_pdf.set(fname)
+            self.phan_pdf.set(fname)
             os.startfile(fname)
 
         self.phan_tab = Frame(self.notebook)
