@@ -43,8 +43,10 @@ class TestLeedsImageBank(DataBankMixin, TestCase):
         super().test_all(run_leeds)
 
 
-class TestPipsProImageBank(DataBankMixin, TestCase):
+class TestQC3ImageBank(DataBankMixin, TestCase):
     DATA_DIR = ['2D Image quality phantoms', 'QC-3']
+    print_success_path = True
+    write_failures_to_file = True
 
     def test_all(self):
         super().test_all(run_qc3)
@@ -52,6 +54,7 @@ class TestPipsProImageBank(DataBankMixin, TestCase):
 
 class TestLasVegasImageBank(DataBankMixin, TestCase):
     DATA_DIR = ['2D Image quality phantoms', 'Las Vegas']
+    write_failures_to_file = True
 
     def test_all(self):
         super().test_all(run_lasvegas)

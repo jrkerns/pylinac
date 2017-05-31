@@ -37,6 +37,9 @@ class PlanarPhantomMixin(LocationMixin):
         self.instance.plot_analyzed_image()
         save_file(self.instance.save_analyzed_image)
 
+    def test_pdf(self):
+        save_file(self.instance.publish_pdf)
+
 
 class LeedsTORTestMixin(PlanarPhantomMixin):
     klass = LeedsTOR

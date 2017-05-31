@@ -110,7 +110,7 @@ class CBCT1(CatPhan504Mixin, TestCase):
     origin_slice = 32
     hu_values = {'Poly': -35, 'Acrylic': 130, 'Delrin': 347, 'Air': -996, 'Teflon': 1004, 'PMP': -186, 'LDPE': -94}
     unif_values = {'Center': 13, 'Left': 17, 'Right': 5, 'Top': 10, 'Bottom': 9}
-    mtf_values = {30: 1.18, 50: 0.96, 80: 0.64}
+    mtf_values = {30: 1.3, 50: 0.96, 80: 0.64}
     avg_line_length = 49.9
     lowcon_visible = 1
 
@@ -159,7 +159,7 @@ class CBCT6(CatPhan504Mixin, TestCase):
     origin_slice = 38
     hu_values = {'Poly': -44, 'Acrylic': 107, 'Delrin': 327, 'Air': -994, 'Teflon': 972, 'PMP': -192, 'LDPE': -100}
     unif_values = {'Center': -3, 'Left': -3, 'Right': -13, 'Top': -7, 'Bottom': -6}
-    mtf_values = {30: 1.22, 50: 0.93, 80: 0.61}
+    mtf_values = {30: 1.32, 50: 0.93, 80: 0.61}
     avg_line_length = 49.94
     lowcon_visible = 5
 
@@ -185,7 +185,7 @@ class CBCT8(CatPhan504Mixin, TestCase):
     origin_slice = 40
     hu_values = {'Poly': -37, 'Acrylic': 114, 'Delrin': 334, 'Air': -994, 'Teflon': 982, 'PMP': -186, 'LDPE': -97}
     unif_values = {'Center': -4, 'Left': 2, 'Right': -5, 'Top': 0, 'Bottom': -1}
-    mtf_values = {80: 0.39, 50: 0.94, 30: 1.22}
+    mtf_values = {80: 0.39, 50: 0.94, 30: 1.32}
     avg_line_length = 49.95
     lowcon_visible = 5
 
@@ -384,7 +384,7 @@ class UNC120kV(CatPhan503Mixin, TestCase):
 class CatPhan600_1(CatPhan600Mixin, TestCase):
     file_path = ['zzCAT201601.zip']
     expected_roll = -0.66
-    origin_slice = 158
+    origin_slice = 160
     hu_values = {'Poly': -31, 'Acrylic': 124, 'Delrin': 344, 'Air': -958, 'Teflon': 921, 'PMP': -173, 'LDPE': -87}
     unif_values = {'Center': 14, 'Left': 14, 'Right': 13, 'Top': 14, 'Bottom': 12}
     mtf_values = {30: 0.55, 50: 0.45, 80: 0.3}
@@ -399,4 +399,15 @@ class TOHPhilips2mm(CatPhan504Mixin, TestCase):
     unif_values = {'Center': 22, 'Left': 20, 'Right': 20, 'Top': 20, 'Bottom': 20}
     mtf_values = {30: 0.87, 50: 0.7, 80: 0.5}
     avg_line_length = 49.9
+    lowcon_visible = 6
+
+
+class DBCatPhan503Roll(CatPhan503Mixin, TestCase):
+    file_path = ['DB', 'Catphan503 MFOV_resolution problem.zip']
+    expected_roll = -0.12
+    origin_slice = 79
+    hu_values = {'Poly': -95, 'Acrylic': 12, 'Delrin': 166, 'Air': -740, 'Teflon': 564, 'PMP': -189, 'LDPE': -130}
+    unif_values = {'Center': -75, 'Left': -60, 'Right': -57, 'Top': -56, 'Bottom': -56}
+    mtf_values = {30: 0.59, 50: 0.51, 80: 0.36}
+    avg_line_length = 48.9
     lowcon_visible = 6

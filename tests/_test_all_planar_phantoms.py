@@ -5,18 +5,20 @@ from tests import TEST_BANK_DIR
 from tests.test_planar_imaging import LeedsTORTestMixin, SIQC3TestMixin, LasVegasTestMixin
 
 
+# mixins
 class LeedsBankBase(LeedsTORTestMixin):
     dir_location = osp.join(TEST_BANK_DIR, '2D Image quality phantoms', 'Leeds')
 
 
-class PipsProBankBase(SIQC3TestMixin):
-    dir_location = osp.join(TEST_BANK_DIR, '2D Image quality phantoms', 'PipsPro')
+class QC3BankBase(SIQC3TestMixin):
+    dir_location = osp.join(TEST_BANK_DIR, '2D Image quality phantoms', 'QC-3')
 
 
 class LasVegasBankBase(LasVegasTestMixin):
     dir_location = osp.join(TEST_BANK_DIR, '2D Image quality phantoms', 'Las Vegas')
 
 
+# actual test cases
 class LeedsACB1(LeedsBankBase, TestCase):
     file_path = ['ACB 1', '1.dcm']
 
