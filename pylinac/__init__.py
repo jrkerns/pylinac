@@ -11,7 +11,7 @@ if sys.version_info[0] < 3:
 # import shortcuts
 from pylinac.ct import CatPhan504, CatPhan600, CatPhan503
 from pylinac.core import decorators, geometry, image, io, mask, profile, roi, utilities
-from pylinac.core.utilities import clear_data_files
+from pylinac.core.utilities import clear_data_files, assign2machine
 from pylinac.flatsym import BeamImage
 from pylinac.planar_imaging import LeedsTOR, StandardImagingQC3, LasVegas
 from pylinac.log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
