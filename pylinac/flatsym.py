@@ -1,14 +1,15 @@
 """Module for analyzing images, either film or EPID, for flatness and symmetry."""
 import os.path as osp
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
-from pylinac.core.image import Image
-from pylinac.core.decorators import type_accept
-from pylinac.core.io import is_valid_file
-from pylinac.core.profile import SingleProfile
-from pylinac.core.utilities import is_iterable, isnumeric
+from .core.decorators import type_accept
+from .core import image
+from .core.io import retrieve_demo_file
+from .core.profile import SingleProfile
+from .core.utilities import is_iterable, isnumeric
+from .settings import get_dicom_cmap
 
 
 class _Symmetry:
@@ -29,7 +30,7 @@ class _Flatness:
     IEC = 'iec'
 
 
-class BeamImage(Image):
+class BeamImage:
     """Class for analyzing flatness & symmetry of a 2D beam image (perpendicular to the beam)."""
     @type_accept(filepath=str)
     def __init__(self, filepath=None):
@@ -40,20 +41,20 @@ class BeamImage(Image):
             If None, image must be loaded later.
             If a str, path to the image file.
         """
-        if filepath is not None and is_valid_file(filepath):
-            self._load_file(filepath, True)
+        if filepath is not None and osp.isfile(filepath):
+            self.image = image.load(filepath)
         else:
-            self.array = np.zeros((1,1))
+            self.image = np.zeros((1,1))
 
     def load_demo_image(self):
         """Load the demo image."""
-        demo_file = osp.join(osp.dirname(__file__), 'demo_files', 'flatsym', 'flatsym_demo.dcm')
-        self._load_file(demo_file, to_gray=True)
+        demo_file = retrieve_demo_file(url='flatsym_demo.dcm')
+        self.image = image.load(demo_file)
 
     def _plot_image(self, ax, plane, position):
         """Plot the image analyzed and a line showing where the profile was taken."""
         # position = self._convert_position(position, plane)
-        ax.imshow(self.array, cmap=plt.cm.Greys)
+        ax.imshow(self.image, cmap=get_dicom_cmap())
         ax.set_title("Image")
         self._polish_plot(ax)
         if _is_crossplane(plane):
@@ -194,27 +195,27 @@ class BeamImage(Image):
             profile = self._get_profile(plane, position)
             symmetry, lt_edge, rt_edge, max_idx = self._get_symmetry(profile, method)
             # plot
-            axis.plot(profile.x_values, profile.y_values)
+            axis.plot(profile.values)
 
             self._plot_annotation(axis, symmetry, method, profile, 'sym')
 
             self._plot_title(axis, plane, 'sym')
 
             # Add CAX and field edge lines
-            cax_idx = profile.get_FWXM_center()
+            cax_idx = profile.fwxm_center()
             axis.axvline(cax_idx, color='m', linestyle='-.')
             axis.axvline(lt_edge, color='g', linestyle='-.')
             axis.axvline(rt_edge, color='g', linestyle='-.')
 
             # Show max variation points
-            axis.plot(profile.x_values[max_idx], profile.y_values[max_idx], 'rx')
-            axis.plot(profile.x_values[rt_edge - (max_idx - lt_edge)], profile.y_values[rt_edge - (max_idx - lt_edge)], 'rx')
+            axis.plot(profile._indices[max_idx], profile.values[max_idx], 'rx')
+            axis.plot(profile._indices[rt_edge - (max_idx - lt_edge)], profile.values[rt_edge - (max_idx - lt_edge)], 'rx')
 
             if plot_mirror:
-                central_idx = int(round(profile.y_values.size/2))
+                central_idx = int(round(profile.values.size/2))
                 offset = cax_idx - central_idx
-                mirror_vals = profile.y_values[::-1]
-                axis.plot(profile.x_values + 2*offset, mirror_vals)
+                mirror_vals = profile.values[::-1]
+                axis.plot(profile._indices + 2*offset, mirror_vals)
 
             self._polish_plot(axis)
 
@@ -233,7 +234,7 @@ class BeamImage(Image):
                 y = self._parse_position(position[0], 'x')
                 x = self._parse_position(position[1], 'y')
             else:
-                raise ValueError("Position argument '{}' must be 'auto' or 2-element sequence to do both planes".format(position))
+                raise ValueError("Position argument '{0}' must be 'auto' or 2-element sequence to do both planes".format(position))
             return [y, x]
         elif _is_crossplane(plane) or _is_inplane(plane):
             if position == 'auto':
@@ -241,33 +242,33 @@ class BeamImage(Image):
             elif isnumeric(position):
                 loc = self._parse_position(position, plane)
             else:
-                raise ValueError("Position argument '{}' must be 'auto' or a number to do single planes".format(position))
+                raise ValueError("Position argument '{0}' must be 'auto' or a number to do single planes".format(position))
             return [loc,]
         else:
-            raise ValueError("Plane argument '{}' not understood".format(plane))
+            raise ValueError("Plane argument '{0}' not understood".format(plane))
 
     def _check_position_inbounds(self, position, plane):
         """Check that the position is within the image index bounds."""
         if _is_crossplane(plane):
-            if position >= self.array.shape[1]:
-                raise IndexError("Y-position {} is out of bounds of image array".format(position))
+            if position >= self.image.shape[1]:
+                raise IndexError("Y-position {0} is out of bounds of image array".format(position))
         elif _is_inplane(plane):
-            if position >= self.array.shape[0]:
-                raise IndexError("X-position {} is out of bounds of image array".format(position))
+            if position >= self.image.shape[0]:
+                raise IndexError("X-position {0} is out of bounds of image array".format(position))
 
     def _parse_position(self, position, plane):
         if not _is_crossplane(plane) and not _is_inplane(plane):
-            raise ValueError("Plane argument '{}' must be either inplane or crossplane".format(plane))
-        if isinstance(position, float) and 0 < position < 1:
+            raise ValueError("Plane argument '{0}' must be either inplane or crossplane".format(plane))
+        if isinstance(position, (float, np.float64)) and 0 < position < 1:
             if _is_crossplane(plane):
-                arr_side = self.array.shape[0]
+                arr_side = self.image.shape[0]
             elif _is_inplane(plane):
-                arr_side = self.array.shape[1]
+                arr_side = self.image.shape[1]
             pos = int(round(position * arr_side))
-        elif isinstance(position, int):
-            pos = position
+        elif isinstance(position, (int, float, np.float64)):
+            pos = int(position)
         else:
-            raise ValueError("Position argument '{}' not understood.".format(position))
+            raise ValueError("Position argument '{0}' not understood.".format(position))
 
         self._check_position_inbounds(pos, plane)
         return pos
@@ -275,24 +276,27 @@ class BeamImage(Image):
     def _get_symmetry(self, profile, method):
         """Get the actual symmetry of a profile using a given method"""
         if method.lower() in (_Symmetry.VARIAN, _Symmetry.POINT_DIFFERENCE):
-            values, x_values = profile.get_field_values(field_width=0.8)
-            cax = profile.get_FWXM_center()
-            dcax = profile.y_values[cax]
+            values = profile.field_values(field_width=0.8)
+            lt, rt = profile.field_edges()
+            indices = np.arange(lt, rt + 1)
+            cax = profile.fwxm_center()
+            dcax = profile.values[cax]
             max_val = 0
-            for lt_pt, rt_pt, x_val in zip(values, values[::-1], x_values):
+            for lt_pt, rt_pt, idx in zip(values, values[::-1], indices):
                 val = abs(lt_pt - rt_pt)
                 if val > max_val:
                     max_val = val
-                    max_idx = x_val
+                    max_idx = idx
             symmetry = 100 * max_val / dcax
         elif method.lower() in (_Symmetry.ELEKTA, _Symmetry.PDQ_IEC):
-            values, x_values = profile.get_field_values(field_width=0.8)
+            values = profile.field_values(field_width=0.8)
+            indices = np.arange(profile.field_edges()[0], profile.field_edges()[1] + 1)
             max_val = 0
-            for lt_pt, rt_pt, x_val in zip(values, values[::-1], x_values):
+            for lt_pt, rt_pt, idx in zip(values, values[::-1], indices):
                 val = max(abs(lt_pt / rt_pt), abs(rt_pt / lt_pt))
                 if val > max_val:
                     max_val = val
-                    max_idx = x_val
+                    max_idx = idx
             symmetry = 100 * max_val
         # elif method in (_Symmetry.SIEMENS, _Symmetry.AREA_2):
         #     lt_edge, rt_edge = profile.get_field_edges(field_width=1)
@@ -300,9 +304,9 @@ class BeamImage(Image):
         #     symmetry = (100 * abs(lt_area - rt_area) / (lt_area + rt_area)) / 2
         #     max_idx = 0
         else:
-            raise ValueError("Method parameter '{}' invalid".format(method))
+            raise ValueError("Method parameter '{0}' invalid".format(method))
 
-        lt_edge, rt_edge = profile.get_field_edges(field_width=0.8)
+        lt_edge, rt_edge = profile.field_edges(field_width=0.8)
 
         return symmetry, lt_edge, rt_edge, max_idx
 
@@ -324,9 +328,9 @@ class BeamImage(Image):
         #         x = position
 
         if _is_crossplane(plane):
-            prof = SingleProfile(self.array[position[0], :])
+            prof = SingleProfile(self.image[position[0], :])
         elif _is_inplane(plane):
-            prof = SingleProfile(self.array[:, position[0]])
+            prof = SingleProfile(self.image[:, position[0]])
         return prof
 
     def flatness(self, plane='crossplane', position='auto', method='varian'):
@@ -349,19 +353,19 @@ class BeamImage(Image):
         """Get the flatness of the profile according to the specified method."""
         if method.lower() in (_Flatness.VOM80, _Flatness.VARIAN, _Flatness.SIEMENS):
             # Variation over Mean within 80% Field Width
-            dmax = profile.get_field_calculation(field_width=0.8, calculation='max')
-            dmin = profile.get_field_calculation(field_width=0.8, calculation='min')
+            dmax = profile.field_calculation(field_width=0.8, calculation='max')
+            dmin = profile.field_calculation(field_width=0.8, calculation='min')
             flatness = 100 * abs(dmax - dmin) / (dmax + dmin)
         elif method.lower() in (_Flatness.ELEKTA, _Flatness.IEC):
             # IEC convention:
             # TODO: add conditionals for small/large fields
-            dmax = profile.get_field_calculation(field_width=0.8, calculation='max')
-            dmin = profile.get_field_calculation(field_width=0.8, calculation='min')
+            dmax = profile.field_calculation(field_width=0.8, calculation='max')
+            dmin = profile.field_calculation(field_width=0.8, calculation='min')
             flatness = 100 * (dmax / dmin)
         else:
-            raise ValueError("Method parameter '{}' invalid".format(method))
+            raise ValueError("Method parameter '{0}' invalid".format(method))
 
-        lt_edge, rt_edge = profile.get_field_edges(field_width=0.8)
+        lt_edge, rt_edge = profile.field_edges(field_width=0.8)
 
         return flatness, dmax, dmin, lt_edge, rt_edge
 
@@ -400,7 +404,7 @@ class BeamImage(Image):
             profile = self._get_profile(plane, pos)
             flatness, dmax, dmin, lt_edge, rt_edge = self._get_flatness(profile, method)
 
-            ax.plot(profile.x_values, profile.y_values)
+            ax.plot(profile.values)
 
             ax.axhline(dmax, color='r')
             ax.axhline(dmin, color='r')
@@ -429,14 +433,14 @@ class BeamImage(Image):
 
     def _plot_annotation(self, ax, value, method, profile, flat_or_sym='sym'):
         """Plot the flat/sym text annotation to the axes."""
-        near_top = profile.y_values.max() * 0.85
-        near_left_edge = profile.x_values.min() + (profile.x_values.min() + profile.x_values.max()) * 0.04
+        near_top = profile.values.max() * 0.85
+        near_left_edge = profile._indices.min() + (profile._indices.min() + profile._indices.max()) * 0.04
         if flat_or_sym is 'sym':
             t = 'Symmetry'
         else:
             t = 'Flatness'
         ax.text(near_left_edge, near_top,
-                '{}: {:2.2f}%'.format(t, value) + '\nUsing ' + method.capitalize() + ' convention',
+                '{0}: {1:2.2f}%'.format(t, value) + '\nUsing ' + method.capitalize() + ' convention',
                 rotation=-90)
 
         return ax
@@ -460,16 +464,16 @@ class BeamImage(Image):
         if not self._img_is_loaded:
             raise AttributeError("An image has not yet been loaded")
 
-        self._check_inversion()
-        self.ground()
+        self.image.check_inversion()
+        self.image.ground()
 
-        col_prof = np.median(self.array, 0)
+        col_prof = np.median(self.image, 0)
         col_prof = SingleProfile(col_prof)
-        row_prof = np.median(self.array, 1)
+        row_prof = np.median(self.image, 1)
         row_prof = SingleProfile(row_prof)
 
-        x_cen = col_prof.get_FWXM_center(round=True)
-        y_cen = row_prof.get_FWXM_center(round=True)
+        x_cen = col_prof.fwxm_center()
+        y_cen = row_prof.fwxm_center()
 
         if _is_crossplane(plane):
             return y_cen
@@ -478,24 +482,10 @@ class BeamImage(Image):
         elif _is_both_planes(plane):
             return y_cen, x_cen
 
-    def _check_inversion(self):
-        """Check the image for inversion (pickets are valleys, not peaks) by sampling the 4 image corners.
-        If the average value of the four corners is above the average pixel value, then it is very likely inverted.
-        """
-        outer_edge = 10
-        inner_edge = 30
-        TL_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BL_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        TR_corner = self.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BR_corner = self.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        corner_avg = np.mean((TL_corner, BL_corner, TR_corner, BR_corner))
-        if corner_avg > np.mean(self.array.flatten()):
-            self.invert()
-
     @property
     def _img_is_loaded(self):
         """Boolean specifying if an image has been loaded."""
-        if self.array.size == 1:
+        if self.image.size == 1:
             return False
         else:
             return True
@@ -518,16 +508,3 @@ def _is_both_planes(plane):
         return True
     else:
         return False
-
-
-# if __name__ == '__main__':
-#     img = BeamImage()
-#     img.load_demo_image()
-    # img.flatness()
-    # print(img.symmetry(plane='x'))
-    # print(img.flatness(plane='i'))
-    # img.plot_flatsym(plane='both')
-    # img.plot_symmetry(plane='both')
-    # axx = img.plot_symmetry()
-    # ttt = 1
-    # img.run_demo(plane='x')

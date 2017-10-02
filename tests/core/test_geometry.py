@@ -1,18 +1,15 @@
-
-
 """Test the various geometric patterns in the pylinac.core.geometry module."""
-
 import unittest
-import math
 
 from pylinac.core.geometry import *
+from tests.utils import test_point_equality
 
 
-class Test_Point(unittest.TestCase):
+class TestPoint(unittest.TestCase):
 
     x = 5
     y = -14
-    z = 3.4
+    z = 0
     idx = 14
     value = 13.28
     coord_iter = (x, y, z)
@@ -20,10 +17,10 @@ class Test_Point(unittest.TestCase):
 
     def test_inputs(self):
         # create an empty point
-        p = Point()
+        p = Point()  # shouldn't raise
 
         # assert properties are set
-        p = Point(x=self.x, y=self.y, z=self.z, idx=self.idx, value=self.value)
+        p = Point(x=self.x, y=self.y, idx=self.idx, value=self.value)
         self.assertEqual(p.x, self.x)
         self.assertEqual(p.y, self.y)
         self.assertEqual(p.idx, self.idx)
@@ -37,13 +34,11 @@ class Test_Point(unittest.TestCase):
         self.assertEqual(p.idx, self.idx)
         self.assertEqual(p.value, self.value)
 
-
     def test_iterable_input(self):
         """Test when an interable (list, tuple, etc) is passed in it is parsed out."""
         p = Point(self.coord_iter)
         self.assertEqual(p.x, self.x)
         self.assertEqual(p.y, self.y)
-        self.assertEqual(p.z, self.z)
 
         p = Point(self.all_vals_iter)
         self.assertEqual(p.idx, self.idx)
@@ -51,8 +46,8 @@ class Test_Point(unittest.TestCase):
 
     def test_as_int(self):
         """Test that when as_int is passed, the coords are converted to ints."""
-        p = Point(self.x, self.y, self.z, as_int=True)
-        self.assertIsInstance(p.z, int)
+        p = Point(self.x, self.y, as_int=True)
+        self.assertIsInstance(p.x, int)
 
     def test_nonnumeric_value(self):
         p = Point()
@@ -61,11 +56,15 @@ class Test_Point(unittest.TestCase):
     def test_dist_to(self):
         p = Point(1,1)
         correct_dist = math.sqrt(8)
-        meas_dist = p.dist_to(Point(3,3))
+        meas_dist = p.distance_to(Point(3,3))
         self.assertAlmostEqual(correct_dist, meas_dist)
 
+        p = Point(3, 0)
+        c = Circle((0, 0), radius=2)
+        self.assertEqual(p.distance_to(c), 1)
 
-class Test_Circle(unittest.TestCase):
+
+class TestCircle(unittest.TestCase):
 
     radius = 5.6
     center_point_Point = Point()
@@ -89,7 +88,8 @@ class Test_Circle(unittest.TestCase):
 
         self.assertRaises(TypeError, Circle, 20)
 
-class Test_Line(unittest.TestCase):
+
+class TestLine(unittest.TestCase):
 
     point_1 = Point(1,1)
     point_2 = Point(2,3)
@@ -119,39 +119,53 @@ class Test_Line(unittest.TestCase):
         self.assertEqual(l.y(4), self.y_at_4)
         self.assertEqual(l.x(4), self.x_at_4)
 
-        # create from m*x+b
-        l = Line(m=self.m, b=self.b)
-        self.assertEqual(l.m, self.m)
-        self.assertEqual(l.y(1), self.y_at_1)
-        self.assertEqual(l.x(5), self.x_at_5)
-
     def test_dist2point(self):
 
-        point = Point(0,3)
-        line = Line((0,0), (1,1))
-        exp_dist = 2.12
-
+        point = Point(1,0)
+        line = Line((0,0), (0,1))
+        exp_dist = 1
         self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
 
-class Test_Rectangle(unittest.TestCase):
+        point = Point(1, 1)
+        line = Line((0, 0), (1, 1))
+        exp_dist = 0
+        self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
+
+        point = Point(1, 1, 1)
+        line = Line((0,0,0), (0, 0, 1))
+        exp_dist = math.sqrt(2)
+        self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
+
+        point = Point(3, 0, 0)
+        line = Line((0, 0, 0), (3, 3, 0))
+        exp_dist = math.sqrt(18) / 2
+        self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
+
+
+class TestRectangle(unittest.TestCase):
+    width = 6.9
+    height = 4.1
+    center = Point(10, 10)
+    bl_corner = Point(10-6.9/2, 10-4.1/2)
+    br_corner = Point(10 + 6.9 / 2, 10 - 4.1 / 2)
+    tr_corner = Point(10 + 6.9 / 2, 10 + 4.1 / 2)
+    tl_corner = Point(10 - 6.9 / 2, 10 + 4.1 / 2)
 
     def test_init(self):
-        rect = Rectangle(5.2, 2.2, (10,10))
-        self.assertEqual(rect.width, 5.2)
-        self.assertEqual(rect.height, 2.2)
-        self.assertIsInstance(rect.center, Point)
+        rect = Rectangle(width=self.width, height=self.height, center=self.center)
+        self.assertEqual(rect.width, self.width)
+        self.assertEqual(rect.height, self.height)
+        test_point_equality(rect.center, self.center)
 
-        rect_as_int = Rectangle(5.2, 2.2, (0,0), as_int=True)
-        self.assertEqual(rect_as_int.width, 5)
-        self.assertEqual(rect_as_int.height, 2)
+        rect_as_int = Rectangle(width=self.width, height=self.height, center=self.center, as_int=True)
+        self.assertEqual(rect_as_int.width, 7)
+        self.assertEqual(rect_as_int.height, 4)
 
-        rect = Rectangle(2,2, tl_corner=(3,3))
-        self.assertEqual(rect.center.x, 4)
-        self.assertEqual(rect.center.y, 2)
+    def test_corners(self):
+        rect = Rectangle(width=self.width, height=self.height, center=self.center)
+        test_point_equality(rect.bl_corner, self.bl_corner)
+        test_point_equality(rect.br_corner, self.br_corner)
+        test_point_equality(rect.tr_corner, self.tr_corner)
+        test_point_equality(rect.tl_corner, self.tl_corner)
 
-        rect = Rectangle(2,2, bl_corner=(4,4))
-        self.assertEqual(rect.tl_corner.x, 4)
-        self.assertEqual(rect.center.y, 5)
-
-        self.assertRaises(ValueError, Rectangle, 5, 2)
 

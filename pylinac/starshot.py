@@ -1,150 +1,157 @@
 # -*- coding: utf-8 -*-
 """
-The Starshot module analyses a starshot film or multiple superimposed EPID images that measures the wobble of the
-radiation spokes, whether gantry, collimator, or couch. It is based on ideas from
-`Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
-and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_ and evolutionary optimization.
+The Starshot module analyses a starshot image made of radiation spokes, whether gantry, collimator, MLC or couch.
+It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
+and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_.
+
+Features:
+
+* **Analyze scanned film images, single EPID images, or a set of EPID images** -
+  Any image that you can load in can be analyzed, including 1 or a set of EPID DICOM images and
+  films that have been digitally scanned.
+* **Any image size** - Have machines with different EPIDs? Scanned your film at different resolutions? No problem.
+* **Dose/OD can be inverted** - Whether your device/image views dose as an increase in value or a decrease, pylinac
+  will detect it and invert if necessary.
+* **Automatic noise detection & correction** - Sometimes there's dirt on the scanned film; sometimes there's a dead pixel on the EPID.
+  Pylinac will detect these spurious noise signals and can avoid or account for them.
+* **Accurate, FWHM star line detection** - Pylinac uses not simply the maximum value to find the center of a star line,
+  but analyzes the entire star profile to determine the center of the FWHM, ensuring small noise or maximum value bias is avoided.
+* **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
+  do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
-
-import os.path as osp
 import copy
+import io
+import os.path as osp
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy import optimize
 
-from pylinac.core.decorators import value_accept
-from pylinac.core.geometry import Point, Line, Circle
-from pylinac.core.image import Image
-from pylinac.core.io import get_filepath_UI, get_filenames_UI
-from pylinac.core.profile import CircleProfile, SingleProfile
+from .core import image
+from .core.decorators import value_accept
+from .core.geometry import Point, Line, Circle
+from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
+from .core import pdf
+from .core.profile import SingleProfile, CollapsedCircleProfile
+from .settings import get_dicom_cmap
 
 
 class Starshot:
     """Class that can determine the wobble in a "starshot" image, be it gantry, collimator,
-        couch or MLC. The image can be DICOM or a scanned film (TIF, JPG, etc).
+    couch or MLC. The image can be a scanned film (TIF, JPG, etc) or a sequence of EPID DICOM images.
 
     Attributes
     ----------
-    image : core.image.Image
-    circle_profile : StarProfile
-    lines : list of Line instances
-    wobble : Wobble
+    image : :class:`~pylinac.core.image.Image`
+    circle_profile : :class:`~pylinac.starshot.StarProfile`
+    lines : :class:`~pylinac.starshot.LineManager`
+    wobble : :class:`~pylinac.starshot.Wobble`
+    tolerance : :class:`~pylinac.starshot.Tolerance`
 
     Examples
     --------
     Run the demo:
-        >>> Starshot().run_demo()
+        >>> Starshot.run_demo()
 
     Typical session:
-        >>> img_path = r"C:/QA/Starshots/Coll"
-        >>> mystar = Starshot()
-        >>> mystar.load_image(img_path)
+        >>> img_path = r"C:/QA/Starshots/Coll.jpeg"
+        >>> mystar = Starshot(img_path, dpi=105, sid=1000)
         >>> mystar.analyze()
         >>> print(mystar.return_results())
         >>> mystar.plot_analyzed_image()
     """
-    def __init__(self):
-        # self.image = Image  # The image array and image property structure
-        self.circle_profile = StarProfile()  # a circular profile which will detect radiation line locations
-        self.lines = []  # a list which will hold Line instances representing radiation lines.
-        self.wobble = Wobble()  # A Circle representing the radiation wobble
-        self._tolerance = 1  # tolerance limit of the radiation wobble
-        self._tolerance_unit = 'pixels'  # tolerance units are initially pixels. Will be converted to 'mm' if conversion
-        # information available in image properties
+    def __init__(self, filepath, **kwargs):
+        """
+        Parameters
+        ----------
+        filepath : str, optional
+            The path to the image file. If None, the image must be loaded later.
+        kwargs
+            Passed to :func:`~pylinac.core.image.load`.
+        """
+        self.image = image.load(filepath, **kwargs)
+        self.wobble = Wobble()
+        self.tolerance = 1
+        if self.image.dpmm is None:
+            raise ValueError("DPI was not a tag in the image nor was it passed in. Please pass a DPI value")
+        if self.image.sid is None:
+            raise ValueError("Source-to-Image distance was not an image tag and was not passed in. Please pass an SID value.")
 
-    def load_demo_image(self):
-        """Load the starshot demo image.
-
-        The Pylinac package comes with compressed demo images.
-        When called, the function unpacks the demo image and loads it.
+    @classmethod
+    def from_url(cls, url, **kwargs):
+        """Instantiate from a URL.
 
         Parameters
         ----------
-        cleanup : boolean
-            If True (default), the extracted demo file is deleted (but not the compressed version).
-            If False, leaves the extracted file alone after loading. Useful when using the demo image a lot,
-            or you don't mind using the extra space.
+        url : str
+            URL of the raw file.
+        kwargs
+            Passed to :func:`~pylinac.core.image.load`.
         """
-        demo_folder = osp.join(osp.dirname(__file__), 'demo_files', 'starshot')
-        demo_file = osp.join(demo_folder, '10X_collimator.tif')
-        # demo_file = osp.join(demo_folder, 'DHMC_starshot.dcm')
-        self.load_image(demo_file)
+        filename = get_url(url)
+        return cls(filename, **kwargs)
 
-    def load_image(self, filepath):
-        """Load the image via the file path.
+    @classmethod
+    def from_demo_image(cls):
+        """Construct a Starshot instance and load the demo image."""
+        demo_file = retrieve_demo_file(url='starshot.tif')
+        return cls(demo_file, sid=1000)
+
+    @classmethod
+    def from_multiple_images(cls, filepath_list, **kwargs):
+        """Construct a Starshot instance and load in and combine multiple images.
 
         Parameters
         ----------
-        filepath : str
-            Path to the file to be loaded.
+        filepath_list : iterable
+            An iterable of file paths to starshot images that are to be superimposed.
+        kwargs
+            Passed to :func:`~pylinac.core.image.load_multiples`.
         """
-        self.image = Image(filepath)
-        # apply filter if it's a large image to reduce noise
-        if self.image.shape[0] > 1100:
-            self.image.median_filter(0.002)
+        obj = cls.from_demo_image()
+        obj.image = image.load_multiples(filepath_list, **kwargs)
+        return obj
 
-    def load_multiple_images(self, filepath_list):
-        """Load multiple images via the file path.
-
-        .. versionadded:: 0.5.1
+    @classmethod
+    def from_zip(cls, zip_file, **kwargs):
+        """Construct a Starshot instance from a ZIP archive.
 
         Parameters
         ----------
-        filepath_list : sequence
-            An iterable sequence of filepath locations.
+        zip_file : str
+            Points to the ZIP archive. Can contain a single or multiple images. If multiple images
+            the images are combined and thus should be from the same test sequence.
+        kwargs
+            Passed to :func:`~pylinac.core.image.load_multiples`.
         """
-        self.image = Image.combine_multiples(filepath_list)
-
-    def load_multiple_images_UI(self):
-        """Load multiple images via a dialog box.
-
-        .. versionadded:: 0.5.1
-        """
-        path_list = get_filenames_UI()
-        if path_list:
-            self.load_multiple_images(path_list)
-
-    def load_image_UI(self):
-        """Load the image by using a UI dialog box."""
-        path = get_filepath_UI()
-        if path:
-            self.load_image(path)
-
-    @property
-    def start_point(self):
-        """The start point of the wobble search algorithm.
-
-        After analysis this point is the wobble center.
-        """
-        return self.circle_profile.center
+        with TemporaryZipDirectory(zip_file) as tmpdir:
+            image_files = image.retrieve_image_files(tmpdir)
+            if not image_files:
+                raise IndexError("No valid starshot images were found in {}".format(zip_file))
+            if len(image_files) > 1:
+                return cls.from_multiple_images(image_files, **kwargs)
+            else:
+                return cls(image_files[0], **kwargs)
 
     def _check_image_inversion(self):
-        """Check the image for proper inversion, i.e. that pixel value increases with dose.
+        """Check the image for proper inversion, i.e. that pixel value increases with dose."""
+        # sum the image along each axis in the middle 80% to avoid pin pricks, artifacts, etc.
+        x_lt_edge, x_rt_edge = int(self.image.shape[1] * 0.1), int(self.image.shape[1] * 0.9)
+        x_sum = np.sum(self.image.array[:, x_lt_edge:x_rt_edge], 0)
 
-        Notes
-        -----
-        Inversion is checked by the following:
-        - Summing the image along both horizontal and vertical directions.
-        - If the maximum point of both horizontal and vertical is in the middle 1/3, the image is assumed to be correct.
-        - Otherwise, invert the image.
-        """
-
-        # sum the image along each axis
-        x_sum = np.sum(self.image.array, 0)
-        y_sum = np.sum(self.image.array, 1)
+        y_lt_edge, y_rt_edge = int(self.image.shape[0] * 0.1), int(self.image.shape[0] * 0.9)
+        y_sum = np.sum(self.image.array[y_lt_edge:y_rt_edge, :], 1)
 
         # determine the point of max value for each sum profile
         xmaxind = np.argmax(x_sum)
         ymaxind = np.argmax(y_sum)
 
         # If that maximum point isn't near the center (central 1/3), invert image.
-        center_in_central_third = ((xmaxind > len(x_sum) / 3 and xmaxind < len(x_sum) * 2 / 3) and
-                               (ymaxind > len(y_sum) / 3 and ymaxind < len(y_sum) * 2 / 3))
-
+        center_in_central_third = (len(x_sum) * 2 / 3 > xmaxind > len(x_sum) / 3) and (len(y_sum) * 2 / 3 > ymaxind > len(y_sum) / 3)
         if not center_in_central_third:
             self.image.invert()
 
-    def _auto_set_start_point(self):
+    def _get_reasonable_start_point(self):
         """Set the algorithm starting point automatically.
 
         Notes
@@ -163,27 +170,14 @@ class Starshot:
         x_sum = np.sum(central_array, 0)
         y_sum = np.sum(central_array, 1)
 
-        # Calculate Full-Width, 80% Maximum
-        fwxm_x_point = SingleProfile(x_sum).get_FWXM_center(80) + left_third
-        fwxm_y_point = SingleProfile(y_sum).get_FWXM_center(80) + top_third
+        # Calculate Full-Width, 80% Maximum center
+        fwxm_x_point = SingleProfile(x_sum).fwxm_center(80) + left_third
+        fwxm_y_point = SingleProfile(y_sum).fwxm_center(80) + top_third
+        center_point = Point(fwxm_x_point, fwxm_y_point)
+        return center_point
 
-        # find maximum points
-        x_max = np.unravel_index(np.argmax(central_array), central_array.shape)[1]  + left_third
-        y_max = np.unravel_index(np.argmax(central_array), central_array.shape)[0] + top_third
-
-        # which one is closer to the center
-        fwxm_dist = Point(fwxm_x_point, fwxm_y_point).dist_to(self.image.center)
-        max_dist = Point(x_max, y_max).dist_to(self.image.center)
-
-        if fwxm_dist < max_dist:
-            center_point = Point(fwxm_x_point, fwxm_y_point)
-        else:
-            center_point = Point(x_max, y_max)
-
-        self.circle_profile.center = center_point
-
-    @value_accept(radius=(0.2, 0.95), min_peak_height=(0.1, 0.9), SID=(40, 400))
-    def analyze(self, radius=0.95, min_peak_height=0.25, SID=100, fwhm=True, recursive=True):
+    @value_accept(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
+    def analyze(self, radius=0.85, min_peak_height=0.25, tolerance=1.0, start_point=None, fwhm=True, recursive=True):
         """Analyze the starshot image.
 
         Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -196,187 +190,127 @@ class Starshot:
             the radiation lines. Must be between 0.05 and 0.95.
         min_peak_height : float, optional
             The percentage minimum height a peak must be to be considered a valid peak. A lower value catches
-            radiation peaks that vary in magnitude (e.g. different MU delivered), but could also pick up noise.
-            Increase value for noisy images.
-        SID : int, float, optional
-            The source-to-image distance in cm. If a value != 100 is passed in, results will be scaled to 100cm. E.g. a wobble of
-            3.0 pixels at an SID of 150cm will calculate to 2.0 pixels [3 / (150/100)].
-
-            .. note::
-                For EPID images (e.g. superimposed collimator shots), the SID is in the DICOM file, and this
-                value will always be used if it can be found, otherwise the passed value will be used.
-
+            radiation peaks that vary in magnitude (e.g. different MU delivered or gantry shot), but could also pick up noise.
+            If necessary, lower value for gantry shots and increase for noisy images.
+        tolerance : int, float, optional
+            The tolerance in mm to test against for a pass/fail result.
+        start_point : 2-element iterable, optional
+            The point where the algorithm should center the circle profile, given as (x-value, y-value).
+            If None (default), will search for a reasonable maximum point nearest the center of the image.
         fwhm : bool
-            If True (defualt), the center of the FWHM of the spokes will be determined.
+            If True (default), the center of the FWHM of the spokes will be determined.
             If False, the peak value location is used as the spoke center.
-            .. note:: In practice, this ends up being a very small difference. Set to false if behavior is unexpected.
+
+            .. note:: In practice, this ends up being a very small difference. Set to false if peak locations are offset or unexpected.
         recursive : bool
             If True (default), will recursively search for a "reasonable" wobble, meaning the wobble radius is
-            <5mm, and the wobble location is somewhere near the starting point. If the wobble found was unreasonable,
-            the minimum peak height is lowered incrementally. If at that point the wobble is still unreasonable, the
-            radius is lowered (closer to center) and the search (including minimum peak height)
-            If False, will not
+            <3mm. If the wobble found was unreasonable,
+            the minimum peak height is iteratively adjusted from low to high at the passed radius.
+            If for all peak heights at the given radius the wobble is still unreasonable, the
+            radius is then iterated over from most distant inward, iterating over minimum peak heights at each radius.
+            If False, will simply return the first determined value or raise error if a reasonable wobble could not be determined.
+
+            .. warning:: It is strongly recommended to leave this setting at True.
 
         Raises
         ------
-        AttributeError
-            If an image has not yet been loaded.
+        RuntimeError
+            If a reasonable wobble value was not found.
         """
-        # error checking
-        if not self.image_is_loaded:
-            raise AttributeError("Starshot image not yet loaded")
-
-        # check inversion
+        self.tolerance = tolerance
         self._check_image_inversion()
 
-        # set starting point automatically if not yet set
-        if not self.start_point_is_set:
-            self._auto_set_start_point()
+        if start_point is None:
+            start_point = self._get_reasonable_start_point()
 
+        self._get_reasonable_wobble(start_point, fwhm, min_peak_height, radius, recursive)
+
+    def _get_reasonable_wobble(self, start_point, fwhm, min_peak_height, radius, recursive):
+        """Determine a wobble that is "reasonable". If recursive is false, the first iteration will be passed,
+        otherwise the parameters will be tweaked to search for a reasonable wobble."""
         wobble_unreasonable = True
-        orig_peak_height = copy.copy(min_peak_height)
+        focus_point = copy.copy(start_point)
+        peak_gen = get_peak_height()
+        radius_gen = get_radius()
         while wobble_unreasonable:
-            # set profile extraction radius
-            self.circle_profile.radius = self._convert_radius_perc2pix(radius)
-            # extract the circle profile
-            self.circle_profile.get_median_profile(self.image.array)
-            # find the radiation lines using the peaks of the profile
-            self.lines = self.circle_profile.find_rad_lines(min_peak_height, fwhm=fwhm)
-            # find the wobble
-            self._find_wobble_2step(SID)
-            if not recursive:
-                wobble_unreasonable = False
-            else:
-                if self.wobble.radius_mm < 5 and self.wobble.center.dist_to(self.start_point) < 30:
-                    wobble_unreasonable = False
+            try:
+                self.circle_profile = StarProfile(self.image, focus_point, radius, min_peak_height, fwhm)
+                if (len(self.circle_profile.peaks) < 6) or (len(self.circle_profile.peaks) % 2 != 0):
+                    raise ValueError
+                self.lines = LineManager(self.circle_profile.peaks)
+                self._find_wobble_minimize()
+            except ValueError:
+                if not recursive:
+                    raise RuntimeError("The algorithm was unable to properly detect the radiation lines. Try setting "
+                                       "recursive to True or lower the minimum peak height")
                 else:
-                    if min_peak_height > 0.15:
-                        min_peak_height -= 0.07
-                    elif radius > 0.3:
-                        min_peak_height = orig_peak_height
-                        radius -= 0.05
+                    try:
+                        min_peak_height = next(peak_gen)
+                    except StopIteration:
+                    # if no height setting works, change the radius and reset the height
+                        try:
+                            radius = next(radius_gen)
+                            peak_gen = get_peak_height()
+                        except StopIteration:
+                            raise RuntimeError("The algorithm was unable to determine a reasonable wobble. Try setting "
+                                               "recursive to False and manually adjusting algorithm parameters")
+
+            else:  # if no errors are raised
+                # set the focus point to the wobble minimum
+                # focus_point = self.wobble.center
+            # finally:
+                # stop after first iteration if not recursive
+                if not recursive:
+                    wobble_unreasonable = False
+                # otherwise, check if the wobble is reasonable
+                else:
+                    # if so, stop
+                    if self.wobble.diameter_mm < 2:
+                        focus_near_center = self.wobble.center.distance_to(focus_point) < 5
+                        if focus_near_center:
+                            wobble_unreasonable = False
+                        else:
+                            focus_point = self.wobble.center
+                    # otherwise, iterate through peak height
                     else:
-                        raise RuntimeError("The algorithm was unable to determine a reasonable wobble. Try setting"
-                                           "recursive to False")
+                        try:
+                            min_peak_height = next(peak_gen)
+                        except StopIteration:
+                            # if no height setting works, change the radius and reset the height
+                            try:
+                                radius = next(radius_gen)
+                                peak_gen = get_peak_height()
+                            except StopIteration:
+                                raise RuntimeError("The algorithm was unable to determine a reasonable wobble. Try setting "
+                                                   "recursive to False and manually adjusting algorithm parameters")
 
-    def _convert_radius_perc2pix(self, radius):
-        """Convert a percent radius to distance in pixels, based on the distance from center point to image
-            edge.
+    def _find_wobble_minimize(self):
+        """Find the minimum distance wobble location and radius to all radiation lines.
 
-        Parameters
-        ----------
-        radius : float
-            The radius ratio (e.g. 0.5).
+        The minimum is found using a scipy minimization function.
         """
-        dist = self.image.dist2edge_min(self.circle_profile.center)
-        return dist*radius
-
-    @property
-    def image_is_loaded(self):
-        """Boolean property specifying if an image has been loaded."""
-        try:
-            self.image.size
-            return True
-        except AttributeError:
-            return False
-
-    @property
-    def start_point_is_set(self):
-        """Boolean specifying if a start point has been set."""
-        if self.circle_profile.center.x == 0:
-            return False
-        else:
-            return True
-
-    def _scale_wobble(self, SID):
-        """Scale the determined wobble by the SID.
-
-        Parameters
-        ----------
-        SID : int, float
-            Source to image distance in cm.
-        """
-        # convert wobble to mm if possible
-        if self.image.dpmm != 0:
-            self._tolerance_unit = 'mm'
-            self.wobble.radius_mm = self.wobble.radius / self.image.dpmm
-        else:
-            self._tolerance_unit = 'pixels'
-            self.wobble.radius_mm = self.wobble.radius
-
-        if self.image.SID is not None:
-            self.wobble.radius /= self.image.SID / 100
-            self.wobble.radius_mm /= self.image.SID / 100
-        else:
-            self.wobble.radius /= SID / 100
-            self.wobble.radius_mm /= SID / 100
-
-    def _find_wobble_2step(self, SID):
-        """Find the smallest radius ("wobble") and center of a circle that touches all the star lines.
-
-        Notes
-        -----
-        Wobble determination is accomplished by two rounds of searching. The first round finds the radius and center down to
-        the nearest pixel. The second round finds the center and radius down to sub-pixel precision using parameter scale.
-        This methodology is faster than one round of searching at sub-pixel precision.
-
-        See Also
-        --------
-        analyze : Further parameter info.
-        """
+        # starting point
         sp = copy.copy(self.circle_profile.center)
 
-        # first round of searching; this finds the circle to the nearest pixel
-        normal_tolerance, normal_scale = 0.05, 1.0
-        self._find_wobble(normal_tolerance, sp, normal_scale)
+        def distance(p, lines):
+            """Calculate the maximum distance to any line from the given point."""
+            return max(line.distance_to(Point(p[0], p[1])) for line in lines)
 
-        # second round of searching; this finds the circle down to sub-pixel precision
-        small_tolerance, small_scale = 0.0001, 100.0
-        self._find_wobble(small_tolerance, self.wobble.center, small_scale)
+        res = optimize.minimize(distance, sp.as_array(), args=(self.lines,), method='Nelder-Mead', options={'ftol': 0.001})
 
-        # scale the wobble based on the SID
-        self._scale_wobble(SID)
-
-    def _find_wobble(self, tolerance, start_point, scale):
-        """An iterative method that moves element by element to the point of minimum distance to all radiation lines.
-
-        Parameters
-        ----------
-        tolerance : float
-            The value differential between the outside elements and center element to stop the algorithm.
-        start_point : geometry.Point
-            The starting point for the algorithm.
-        scale : int, float
-            The scale of the search in pixels. E.g. 0.1 searches at 0.1 pixel precision.
-        """
-        # TODO: use an optimization function instead of evolutionary search
-        sp = start_point
-        # init conditions; initialize a 3x3 "ones" matrix and make corner value 0 to start minimum distance search.
-        distmax = np.ones((3, 3))
-        distmax[0, 0] = 0
-
-        # find min point within the given tolerance
-        while np.any(distmax < distmax[1, 1] - tolerance):  # while any edge pixel value + tolerance is less than the center one...
-            # find which pixel that is lower than center pixel
-            min_idx = np.unravel_index(distmax.argmin(),distmax.shape)
-            # set new starting point to min dist index point
-            sp.y += (min_idx[0] - 1)/scale
-            sp.x += (min_idx[1] - 1)/scale
-            for x in np.arange(-1,2):
-                for y in np.arange(-1,2):
-                    point = Point(y=sp.y+(y/scale), x=sp.x+(x/scale))
-                    distmax[y+1, x+1] = np.max([line.distance_to(point) for line in self.lines])
-
-        self.wobble.radius = distmax[1,1]
-        self.wobble.center = sp
+        self.wobble.radius = res.fun
+        self.wobble.radius_mm = res.fun / self.image.dpmm
+        self.wobble.center = Point(res.x[0], res.x[1])
 
     @property
     def passed(self):
         """Boolean specifying whether the determined wobble was within tolerance."""
-        if self.wobble.radius_mm * 2 < self._tolerance:
-            return True
-        else:
-            return False
+        return self.wobble.radius_mm * 2 < self.tolerance
+
+    @property
+    def _passfail_str(self):
+        """Return a pass/fail string."""
+        return 'PASS' if self.passed else 'FAIL'
 
     def return_results(self):
         """Return the results of the analysis.
@@ -386,59 +320,143 @@ class Starshot:
         string
             A string with a statement of the minimum circle.
         """
-        if self.passed:
-            passfailstr = 'PASS'
-        else:
-            passfailstr = 'FAIL'
-
-        string = ('\nResult: %s \n\n'
-                  'The minimum circle that touches all the star lines has a diameter of %4.3g %s. \n\n'
-                  'The center of the minimum circle is at %4.1f, %4.1f') % (passfailstr, self.wobble.radius_mm*2, self._tolerance_unit,
-                                                                            self.wobble.center.x, self.wobble.center.y)
+        string = ('\nResult: {} \n\n' +
+                  'The minimum circle that touches all the star lines has a diameter of {:2.3f} mm. \n\n' +
+                  'The center of the minimum circle is at {:3.1f}, {:3.1f}').format(self._passfail_str, self.wobble.radius_mm*2,
+                                                                                    self.wobble.center.x, self.wobble.center.y)
         return string
 
-    def plot_analyzed_image(self, plot=None):
+    def plot_analyzed_image(self, show=True):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.
 
         Parameters
         ----------
-        plot : matplotlib.image.AxesImage, optional
-            The plot to draw on. If None, will create a new one.
+        show : bool
+            Whether to actually show the image.
         """
-        # plot image
-        # if plot is None:
-        imgplot = plt.imshow(self.image.array)
-        # else:
-        #     plot.axes.imshow(self.image.array)
-        #     plot.axes.hold(True)
-        #     imgplot = plot
+        fig, axes = plt.subplots(ncols=2)
+        subimages = ('whole', 'wobble')
+        titles = ('Analyzed Image', 'Wobble Circle')
 
-        # plot radiation lines
-        for line in self.lines:
-            line.add_to_axes(imgplot.axes)
+        # show images
+        for ax, subimage, title in zip(axes, subimages, titles):
+            self.plot_analyzed_subimage(ax=ax, show=False, subimage=subimage)
+            ax.set_title(title)
 
-        # plot wobble circle
-        self.wobble.add_to_axes(imgplot.axes)
+        if show:
+            plt.show()
 
-        # plot profile circle
-        self.circle_profile.add_to_axes(imgplot.axes, edgecolor='green')
+    def plot_analyzed_subimage(self, subimage='wobble', ax=None, show=True):
+        """Plot a subimage of the starshot analysis. Current options are the zoomed out image and the zoomed in image.
 
-        # tighten plot around image
-        imgplot.axes.autoscale(tight=True)
+        Parameters
+        ----------
+        subimage : str
+            If 'wobble', will show a zoomed in plot of the wobble circle.
+            Any other string will show the zoomed out plot.
+        ax : None, matplotlib Axes
+            If None (default), will create a new figure to plot on, otherwise plot to the passed axes.
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+        # show analyzed image
+        ax.imshow(self.image.array, cmap=get_dicom_cmap())
+        self.lines.plot(ax)
+        self.wobble.plot2axes(ax, edgecolor='green')
+        self.circle_profile.plot2axes(ax, edgecolor='green')
+        ax.autoscale(tight=True)
+        ax.axis('off')
 
-        # Finally, show it all
-        # if plot is None:
-        plt.show()
-        # else:
-        #     plot.draw()
-        #     plot.axes.hold(False)
+        # zoom in if wobble plot
+        if subimage == 'wobble':
+            xlims = [self.wobble.center.x + self.wobble.diameter, self.wobble.center.x - self.wobble.diameter]
+            ylims = [self.wobble.center.y + self.wobble.diameter, self.wobble.center.y - self.wobble.diameter]
+            ax.set_xlim(xlims)
+            ax.set_ylim(ylims)
+            ax.axis('on')
 
-    def run_demo(self):
+        if show:
+            plt.show()
+
+    def save_analyzed_image(self, filename, **kwargs):
+        """Save the analyzed image plot to a file.
+
+        Parameters
+        ----------
+        filename : str, IO stream
+            The filename to save as. Format is deduced from string extention, if there is one. E.g. 'mystar.png' will
+            produce a PNG image.
+
+        kwargs
+            All other kwargs are passed to plt.savefig().
+        """
+        self.plot_analyzed_image(show=False)
+        plt.savefig(filename, **kwargs)
+
+    def save_analyzed_subimage(self, filename, subimage='wobble', **kwargs):
+        """Save the analyzed subimage to a file.
+
+        Parameters
+        ----------
+        filename : str, file-object
+            Where to save the file to.
+        subimage : str
+            If 'wobble', will show a zoomed in plot of the wobble circle.
+            Any other string will show the zoomed out plot.
+        kwargs
+            Passed to matplotlib.
+        """
+        self.plot_analyzed_subimage(subimage=subimage, show=False)
+        plt.savefig(filename, **kwargs)
+
+    def publish_pdf(self, filename=None, author=None, unit=None, axis_measured='N/A', notes=None, open_file=False):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        unit : str, optional
+            Name of the unit that made the image/data.
+        author : str, optional
+            The author of the analysis; for tracking who did what.
+        axis_measured : str
+            The axis measured; e.g. collimator.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        """
+        if filename is None:
+            filename = self.image.pdf_path
+        from reportlab.lib.units import cm
+        canvas = pdf.create_pylinac_page_template(filename, file_name=osp.basename(self.image.path),
+                                                  file_created=self.image.date_created(),
+                                                  analysis_title='Starshot Analysis', author=author, unit=unit)
+        for img, height in zip(('wobble', 'asdf'), (2, 11.5)):
+            data = io.BytesIO()
+            self.save_analyzed_subimage(data, img)
+            img = pdf.create_stream_image(data)
+            canvas.drawImage(img, 4 * cm, height * cm, width=13*cm, height=13*cm, preserveAspectRatio=True)
+        text = ['Starshot results:',
+                'Source-to-Image Distance (mm): {:2.0f}'.format(self.image.sid),
+                'Tolerance (mm): {:2.1f}'.format(self.tolerance),
+                "Minimum circle diameter (mm): {:2.2f}".format(self.wobble.radius_mm*2),
+                ]
+        if axis_measured != 'N/A':
+            text.append("Axis measured: " + axis_measured)
+        pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text, fontsize=12)
+        if notes is not None:
+            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
+        pdf.finish(canvas, open_file=open_file, filename=filename)
+
+    @staticmethod
+    def run_demo():
         """Demonstrate the Starshot module using the demo image."""
-        self.load_demo_image()
-        self.analyze()
-        print(self.return_results())
-        self.plot_analyzed_image()
+        star = Starshot.from_demo_image()
+        star.analyze()
+        print(star.return_results())
+        star.plot_analyzed_image()
 
 
 class Wobble(Circle):
@@ -454,52 +472,29 @@ class Wobble(Circle):
 
     @property
     def diameter_mm(self):
+        """Diameter of the wobble in mm."""
         return self.radius_mm*2
 
 
-class StarProfile(CircleProfile):
-    """Class that holds and analyzes the circular profile which finds the radiation lines."""
-    def __init__(self, center=None, radius=None):
-        super().__init__(center=center, radius=radius)
-
-    def get_median_profile(self, image_array):
-        """Take the profile over the image array. Overloads to also correct for profile positioning.
-
-        See Also
-        --------
-        core.profile.CircleProfile.get_profile : Further parameter info
+class LineManager:
+    """Manages the radiation lines found."""
+    def __init__(self, points):
         """
-        prof_size = 4*self.radius*np.pi
-        super().get_profile(image_array, prof_size)
-
-        mean_prof = np.zeros(prof_size)
-        rrange = np.linspace(start=0.9, stop=1, num=int(self.radius*0.1))
-        for rad in rrange[::-1]:
-            prof = CircleProfile(self.center, self.radius*rad)
-            prof.get_profile(image_array, prof_size)
-            mean_prof += prof.y_values
-        mean_prof /= len(rrange)
-
-        self.y_values = mean_prof
-        self._roll_prof_to_midvalley()
-        self.ground()
-
-    def _roll_prof_to_midvalley(self):
-        """Roll the circle profile so that its edges are not near a radiation line.
-            This is a prerequisite for properly finding star lines.
+        Parameters
+        ----------
+        points :
+            The peak points found by the StarProfile
         """
-        # vals, indx = self.find_peaks(return_it=True)
-        # dindx = np.diff(indx)
-        # roll_amount = int(indx[0] - np.median(dindx)/2)
-        # Find index of the min value(s)
-        roll_amount = np.where(self.y_values == self.y_values.min())[0][0]
-        # Roll the profile and x and y coordinates
-        self.y_values = np.roll(self.y_values, -roll_amount)
-        self.x_locs = np.roll(self.x_locs, -roll_amount)
-        self.y_locs = np.roll(self.y_locs, -roll_amount)
-        return roll_amount
+        self.lines = []
+        self.construct_rad_lines(points)
 
-    def find_rad_lines(self, min_peak_height, min_peak_distance=0.02, fwhm=True):
+    def __getitem__(self, item):
+        return self.lines[item]
+
+    def __len__(self):
+        return len(self.lines)
+
+    def construct_rad_lines(self, points):
         """Find and match the positions of peaks in the circle profile (radiation lines)
             and map their positions to the starshot image.
 
@@ -517,17 +512,9 @@ class StarProfile(CircleProfile):
         core.profile.CircleProfile.find_FWXM_peaks : min_peak_distance parameter info.
         geometry.Line : returning object
         """
-        if fwhm:
-            # find the FWHM-C
-            self.find_FWXM_peaks(fwxm=70, min_peak_height=min_peak_height, min_peak_distance=min_peak_distance)
-        else:
-            self.find_peaks(min_peak_height, min_peak_distance)
+        self.match_points(points)
 
-        # Match the peaks to form lines
-        lines = self.match_peaks()
-        return lines
-
-    def match_peaks(self):
+    def match_points(self, points):
         """Match the peaks found to the same radiation lines.
 
         Peaks are matched by connecting the existing peaks based on an offset of peaks. E.g. if there are
@@ -535,21 +522,59 @@ class StarProfile(CircleProfile):
         the 7th peak will be the opposite peak of the 1st peak, forming a line. This method is robust to
         starting points far away from the real center.
         """
-        num_rad_lines = int(len(self.peaks) / 2)
+        num_rad_lines = int(len(points) / 2)
         offset = num_rad_lines
-        line_list = [Line(self.peaks[line], self.peaks[line+offset]) for line in range(num_rad_lines)]
-        return line_list
+        self.lines = [Line(points[line], points[line + offset]) for line in range(num_rad_lines)]
 
-# ----------------------------
-# Starshot demo
-# ----------------------------
-if __name__ == '__main__':
-    pass
-    # Starshot().run_demo()
-    # star = Starshot()
-    # star.load_image_UI()
-    # star.load_demo_image()
-    # star.analyze(radius=0.95, min_peak_height=0.25, fwhm=True)
-    # star.analyze(recursive=True)
-    # print(star.return_results())
-    # star.plot_analyzed_image()
+    def plot(self, axis):
+        """Plot the lines to the axis."""
+        for line in self.lines:
+            line.plot2axes(axis, color='blue')
+
+
+class StarProfile(CollapsedCircleProfile):
+    """Class that holds and analyzes the circular profile which finds the radiation lines."""
+    def __init__(self, image, start_point, radius, min_peak_height, fwhm):
+        radius = self._convert_radius_perc2pix(image, start_point, radius)
+        super().__init__(center=start_point, radius=radius, image_array=image.array, width_ratio=0.1)
+        self.get_peaks(min_peak_height, fwhm=fwhm)
+
+    @staticmethod
+    def _convert_radius_perc2pix(image, start_point, radius):
+        """Convert a percent radius to distance in pixels, based on the distance from center point to image
+            edge.
+
+        Parameters
+        ----------
+        radius : float
+            The radius ratio (e.g. 0.5).
+        """
+        return image.dist2edge_min(start_point) * radius
+
+    def _roll_prof_to_midvalley(self):
+        """Roll the circle profile so that its edges are not near a radiation line.
+            This is a prerequisite for properly finding star lines.
+        """
+        roll_amount = np.where(self.values == self.values.min())[0][0]
+        self.roll(roll_amount)
+        return roll_amount
+
+    def get_peaks(self, min_peak_height, min_peak_distance=0.02, fwhm=True):
+        """Determine the peaks of the profile."""
+        self._roll_prof_to_midvalley()
+        # self.filter(size=0.002, kind='gaussian')
+        self.ground()
+        if fwhm:
+            self.find_fwxm_peaks(x=80, threshold=min_peak_height, min_distance=min_peak_distance, interpolate=True)
+        else:
+            self.find_peaks(min_peak_height, min_peak_distance)
+
+
+def get_peak_height():
+    for height in np.linspace(0.05, 0.95, 10):
+        yield height
+
+
+def get_radius():
+    for radius in np.linspace(0.95, 0.1, 10):
+        yield radius

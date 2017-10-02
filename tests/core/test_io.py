@@ -1,25 +1,34 @@
 """Test suite for the pylinac.io module."""
-
 import unittest
+import os
 import os.path as osp
 
-from pylinac.core.io import is_valid_dir, is_valid_file
+from pylinac.core.io import TemporaryZipDirectory, get_url, URLError
 
-class Test_IO(unittest.TestCase):
 
-    def test_is_valid_file(self):
-        not_a_file = "file"
-        self.assertFalse(is_valid_file(not_a_file, raise_error=False))
+class TestIO(unittest.TestCase):
 
-        self.assertRaises(FileExistsError, is_valid_file, not_a_file)
+    def test_temp_zip_dir(self):
+        """Test the TemporaryZipDirectory."""
+        zfile = osp.join(osp.dirname(__file__), '..', 'test_files', 'VMAT', 'DRMLC.zip')
 
-        real_file = __file__
-        self.assertTrue(is_valid_file(real_file))
+        # test context manager use; shouldn't raise
+        with TemporaryZipDirectory(zfile) as tmpzip:
+            files = [osp.join(tmpzip, file) for file in os.listdir(tmpzip)]
+            # test that they are real files
+            self.assertTrue(osp.isfile(files[0]))
+            # test that both images were unpacked
+            self.assertEqual(len(files), 2, msg="There were not 2 files found")
 
-    def test_is_valid_dir(self):
-        not_a_dir = "dir"
-        self.assertRaises(NotADirectoryError, is_valid_dir, not_a_dir)
-        self.assertFalse(is_valid_dir(not_a_dir, False))
-
-        is_a_dir = osp.dirname(__file__)
-        self.assertTrue(is_valid_dir(is_a_dir))
+    def test_get_url(self):
+        """Test the URL retreiver."""
+        # test webpage
+        webpage_url = 'http://google.com'
+        get_url(webpage_url)  # shouldn't raise
+        # test file
+        file_url = 'https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/winston_lutz.zip'
+        local_file = get_url(file_url)
+        osp.isfile(local_file)
+        # bad URL
+        with self.assertRaises(URLError):
+            get_url('http://asdfasdfasdfasdfasdfasdfasdfasdf.org')

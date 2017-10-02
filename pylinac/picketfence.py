@@ -1,21 +1,70 @@
+"""The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
+Physicists regularly check MLC positioning through this test. This test can be done using film and one can
+"eyeball" it, but this is the 21st century and we have numerous ways of quantifying such data. This module
+attains to be one of them. It can load in an EPID dicom image (or superimpose multiple images) and determine the MLC peaks, error of each MLC
+pair to the picket, and give a few visual indicators for passing/warning/failing.
 
-"""The picketfence module is used for loading and analyzing EPID images of a "picket fence", a common MLC
-pattern produced when performing linac QA."""
+Features:
+
+* **Analyze either HD or regular MLCs** - Just pass a flag and tell pylinac whether it's HD or not.
+* **Easy-to-read pass/warn/fail overlay** - Analysis gives you easy-to-read tools for determining the status of an MLC pair.
+* **Any Source-to-Image distance** - Whatever your clinic uses as the SID for picket fence, pylinac can account for it.
+* **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
+* **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
+"""
+from functools import lru_cache
 import os.path as osp
+import io
+from itertools import cycle
+from tempfile import TemporaryDirectory
 
-import numpy as np
-import scipy.ndimage.filters as spfilt
-from scipy import signal
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import numpy as np
 
-from pylinac.core.decorators import lazyproperty
-from pylinac.core.geometry import Line, Rectangle
-from pylinac.core.io import get_filepath_UI
-from pylinac.core.profile import Profile
-from pylinac.core.image import Image
+from .core import image
+from .core.geometry import Line, Rectangle, Point
+from .core.io import get_url, retrieve_demo_file
+from .core import pdf
+from .core.profile import MultiProfile, SingleProfile
+from .core.utilities import import_mpld3
+from .log_analyzer import load_log
+from .settings import get_dicom_cmap
 
-orientations = {'UD': 'Up-Down', 'LR': 'Left-Right'}  # possible orientations of the pickets. UD is up-down, LR is left-right.
+# possible orientations of the pickets.
+UP_DOWN = 'Up-Down'
+LEFT_RIGHT = 'Left-Right'
+
+
+class PFDicomImage(image.DicomImage):
+    """A subclass of a DICOM image that checks for noise and inversion when instantiated. Can also adjust for EPID sag."""
+
+    def __init__(self, path, **kwargs):
+        super().__init__(path, **kwargs)
+        self._check_for_noise()
+        self.check_inversion(position=(0.2, 0.05))
+
+    def _check_for_noise(self):
+        """Check if the image has extreme noise (dead pixel, etc) by comparing
+        min/max to 1/99 percentiles and smoothing if need be."""
+        safety_stop = 5
+        while self._has_noise() and safety_stop > 0:
+            self.filter(size=3)
+            safety_stop -= 1
+
+    def _has_noise(self):
+        """Helper method to determine if there is spurious signal in the image."""
+        min = self.array.min()
+        max = self.array.max()
+        near_min, near_max = np.percentile(self.array, [0.5, 99.5])
+        max_is_extreme = max > near_max * 1.25
+        min_is_extreme = (min < near_min * 0.75) and (abs(min - near_min) > 0.1 * (near_max - near_min))
+        return max_is_extreme or min_is_extreme
+
+    def adjust_for_sag(self, sag, orientation):
+        """Roll the image to adjust for EPID sag."""
+        direction = 'y' if orientation == UP_DOWN else 'x'
+        self.roll(direction, sag)
 
 
 class PicketFence:
@@ -26,40 +75,83 @@ class PicketFence:
 
     Attributes
     ----------
-    pickets: list
-        Holds :class:`~pylinac.picketfence.Picket` objects.
-    image: :class:`~pylinac.core.image.Image` object.
+    pickets: :class:`~pylinac.picketfence.PicketHandler`
+    image: :class:`~pylinac.core.image.DicomImage`
 
     Examples
     --------
     Run the demo::
-        >>> PicketFence().run_demo()
+        >>> PicketFence.run_demo()
+
+    Load the demo image:
+        >>> pf = PicketFence.from_demo_image()
+
+    Load an image along with its machine log:
+        >>> pf_w_log = PicketFence('my/pf.dcm', log='my/log.bin')
 
     Typical session:
         >>> img_path = r"C:/QA/June/PF.dcm"  # the EPID image
-        >>> mypf = PicketFence()
-        >>> mypf.load_image(img_path)
+        >>> mypf = PicketFence(img_path)
         >>> mypf.analyze(tolerance=0.5, action_tolerance=0.3)
         >>> print(mypf.return_results())
         >>> mypf.plot_analyzed_image()
     """
-    def __init__(self):
-        self.pickets = []
-        self._action_lvl = None
+    def __init__(self, filename, filter=None, log=None):
+        """
+        Parameters
+        ----------
+        filename : str, None
+            Name of the file as a string. If None, image must be loaded later.
+        filter : int, None
+            If None (default), no filtering will be done to the image.
+            If an int, will perform median filtering over image of size ``filter``.
+        log : str
+            Path to a log file corresponding to the delivery. The expected fluence of the log file is
+            used to construct the pickets. MLC peaks are then compared to an absolute reference instead of
+            a fitted picket.
+        """
+        if filename is not None:
+            self.image = PFDicomImage(filename)
+            if isinstance(filter, int):
+                self.image.filter(size=filter)
+        if log is not None:
+            self._load_log(log)
+        else:
+            self._log_fits = None
 
-    def _clear_attrs(self):
-        """Clear attributes; necessary when new image loaded or analysis done on same image."""
-        self.pickets = []
-        self._action_lvl = None
+    @classmethod
+    def from_url(cls, url, filter=None):
+        """Instantiate from a URL."""
+        filename = get_url(url, progress_bar=True)
+        return cls(filename, filter=filter)
+
+    @classmethod
+    def from_demo_image(cls, filter=None):
+        """Construct a PicketFence instance using the demo image."""
+        demo_file = retrieve_demo_file(url='EPID-PF-LR.dcm')
+        return cls(demo_file, filter=filter)
+
+    @classmethod
+    def from_multiple_images(cls, path_list):
+        """Load and superimpose multiple images and instantiate a Starshot object.
+
+        Parameters
+        ----------
+        path_list : iterable
+            An iterable of path locations to the files to be loaded/combined.
+        """
+        obj = cls.from_demo_image()
+        # save a combined image to a temporary dir, then load it back in as a PFDicomImage
+        with TemporaryDirectory() as tmp:
+            filename = osp.join(tmp, 'mydcm.dcm')
+            image.load_multiples(path_list, method='mean').save(filename)
+            obj.image = PFDicomImage(filename)
+        return obj
 
     @property
     def passed(self):
         """Boolean specifying if all MLC positions were within tolerance."""
-        for picket in self.pickets:
-            for meas in picket.mlc_meas:
-                if not meas.passed:
-                    return False
-        return True
+        return self.pickets.passed
 
     @property
     def percent_passing(self):
@@ -67,91 +159,67 @@ class PicketFence:
         num = 0
         num_pass = 0
         for picket in self.pickets:
-            num += len(picket._error_array)
-            num_pass += sum(picket._error_array < picket._tolerance)
+            num += len(picket.error_array)
+            num_pass += sum(picket.error_array < self.settings.tolerance)
         pct_pass = 100 * num_pass / num
         return pct_pass
 
     @property
     def max_error(self):
         """Return the maximum error found."""
-        max_error = 0
-        for idx, picket in enumerate(self.pickets):
-            if picket.max_error > max_error:
-                max_error = picket.max_error
-        return max_error
+        return max(picket.max_error for picket in self.pickets)
 
     @property
     def max_error_picket(self):
-        """Return the picket number where the maximum error occured."""
-        max_error = 0
-        where_at = 0
-        for idx, picket in enumerate(self.pickets):
-            if picket.max_error > max_error:
-                max_error = picket.max_error
-                where_at = idx
-        return where_at
+        """Return the picket number where the maximum error occurred."""
+        return np.argmax([picket.max_error for picket in self.pickets])
 
     @property
     def max_error_leaf(self):
         """Return the leaf that had the maximum error."""
         picket = self.pickets[self.max_error_picket]
-        return np.argmax(picket._error_array)
+        return np.argmax(picket.error_array)
 
     @property
+    @lru_cache()
     def abs_median_error(self):
         """Return the median error found."""
-        median_error = []
-        for picket in self.pickets:
-            median_error.append(picket.abs_median_error)
-        return max(median_error)
-
-    @property
-    def _action_lvl_set(self):
-        if self._action_lvl is not None:
-            return True
-        else:
-            return False
+        return np.median(np.hstack([picket.error_array for picket in self.pickets]))
 
     @property
     def num_pickets(self):
         """Return the number of pickets determined."""
         return len(self.pickets)
 
-    def load_demo_image(self):
-        """Load the demo image that is included with pylinac."""
-        im_open_path = osp.join(osp.dirname(__file__), 'demo_files', 'picket_fence', 'EPID-PF-LR.dcm')
-        self.load_image(im_open_path)
+    def _load_log(self, log):
+        """Load a machine log that corresponds to the picket fence delivery.
 
-    def load_image(self, file_path, filter=None):
-        """Load the image
+        This log determines the location of the pickets. The MLC peaks are then compared to the expected log pickets,
+        not a simple fit of the peaks."""
+        # load the log fluence image
+        mlog = load_log(log)
+        fl = mlog.fluence.expected.calc_map(equal_aspect=True)
+        fli = image.load(fl, dpi=254)  # 254 pix/in => 1 pix/0.1mm (default fluence calc)
 
-        Parameters
-        ----------
-        file_path : str
-            Path to the image file.
-        filter : int, None
-            If None (default), no filtering will be done to the image.
-            If an int, will perform median filtering over image of size *filter*.
-        """
-        self.image = Image(file_path)
-        if isinstance(filter, int):
-            self.image.array = spfilt.median_filter(self.image.array, size=filter)
-        self._clear_attrs()
+        # equate them such that they're the same size & DPI
+        fluence_img, self.image = image.equate_images(fli, self.image)
 
-    def load_image_UI(self):
-        """Load the image using a UI dialog box."""
-        path = get_filepath_UI()
-        self.load_image(path)
+        # get picket fits from the modified fluence image
+        pf = PicketFence.from_demo_image()
+        pf.image = fluence_img
+        pf.analyze()
+        self._log_fits = cycle([p.fit for p in pf.pickets])
 
-    def run_demo(self, tolerance=0.5):
+    @staticmethod
+    def run_demo(tolerance=0.5, action_tolerance=None, interactive=False):
         """Run the Picket Fence demo using the demo image. See analyze() for parameter info."""
-        self.load_demo_image()
-        self.analyze(tolerance)
-        print(self.return_results())
-        self.plot_analyzed_image()
+        pf = PicketFence.from_demo_image()
+        pf.analyze(tolerance, action_tolerance=action_tolerance)
+        print(pf.return_results())
+        pf.plot_analyzed_image(interactive=interactive, leaf_error_subplot=True)
 
-    def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False):
+    def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False, num_pickets=None, sag_adjustment=0,
+                orientation=None, invert=False):
         """Analyze the picket fence image.
 
         Parameters
@@ -163,144 +231,89 @@ class PicketFence:
             If None (default), no action tolerance is set or compared to.
             If an int or float, the MLC pair measurement is also compared to this
             tolerance. Must be lower than tolerance. This value is usually meant
-            to indicate an "action" is necessary on the part of the physicist to
-            resolve the issue.
+            to indicate that a physicist should take an "action" to reduce the error,
+            but should not stop treatment.
         hdmlc : bool
             If False (default), a standard (5/10mm leaves) Millennium MLC model is assumed.
             If True, an HD (2.5/5mm leaves) Millennium is assumed.
+        num_pickets : int, None
+
+            .. versionadded:: 0.8
+
+            The number of pickets in the image. A helper parameter to limit the total number of pickets,
+            only needed if analysis is catching more pickets than there really are.
+        sag_adjustment : float, int
+
+            .. versionadded:: 0.8
+
+            The amount of shift in mm to apply to the image to correct for EPID sag.
+            For Up-Down picket images, positive moves the image down, negative up.
+            For Left-Right picket images, positive moves the image left, negative right.
+        orientation : None, str
+
+            .. versionadded: 1.6
+
+            If None (default), the orientation is automatically determined. If for some reason the determined
+            orientation is not correct, you can pass it directly using this parameter.
+            If passed a string with 'u' (e.g. 'up-down', 'u-d', 'up') it will set the orientation of the pickets as
+            going up-down. If passed a string with 'l' (e.g. 'left-right', 'lr', 'left') it will set it as going
+            left-right.
+        invert : bool
+
+            .. versionadded: 1.7
+
+            If False (default), the inversion of the image is automatically detected and used.
+            If True, the image inversion is reversed from the automatic detection. This is useful when runtime errors
+            are encountered.
         """
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
 
         """Pre-analysis"""
-        self._clear_attrs()
-        self._action_lvl = action_tolerance
-        self._check_inversion()
-        self._threshold()
-        self._find_orientation()
+        self._orientation = orientation
+        self.settings = Settings(self.orientation, tolerance, action_tolerance, hdmlc, self.image, self._log_fits)
+        # adjust for sag
+        if sag_adjustment != 0:
+            sag_pixels = int(round(sag_adjustment * self.settings.dpmm))
+            self.image.adjust_for_sag(sag_pixels, self.orientation)
+        if invert:
+            self.image.invert()
 
         """Analysis"""
-        self._construct_pickets(tolerance, action_tolerance)
-        leaf_centers = self._find_leaf_centers(hdmlc)
-        self.calc_mlc_positions(leaf_centers)
-        self.calc_mlc_error()
+        self.pickets = PicketManager(self.image, self.settings, num_pickets)
 
-    def _construct_pickets(self, tolerance, action_tolerance):
-        """Construct the Picket instances."""
-        if self.orientation == orientations['UD']:
-            leaf_prof = np.median(self._analysis_array, 0)
-        else:
-            leaf_prof = np.median(self._analysis_array, 1)
-        leaf_prof = Profile(leaf_prof)
-        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=0.01, min_peak_height=0.5)
-        for peak in range(len(peak_idxs)):
-            self.pickets.append(Picket(self.image, tolerance, self.orientation, action_tolerance))
-
-    def _find_leaf_centers(self, hdmlc):
-        """Return the leaf centers perpendicular to the leaf motion."""
-        # generate some settings
-        sm_lf_wdth = 5 * self.image.dpmm
-        bg_lf_wdth = sm_lf_wdth * 2
-        if hdmlc:
-            sm_lf_wdth /= 2
-            bg_lf_wdth /= 2
-        self._sm_lf_meas_wdth = slmw = int(round(sm_lf_wdth*3/4))
-        self._bg_lf_meas_wdth = blmw = int(round(bg_lf_wdth*3/4))
-        bl_ex = int(bg_lf_wdth/4)
-        sm_ex = int(sm_lf_wdth/4)
-
-        # generate leaf profile
-        if self.orientation == orientations['UD']:
-            leaf_prof = np.mean(self._analysis_array, 1)
-            center = self.image.center.y
-        else:
-            leaf_prof = np.mean(self._analysis_array, 0)
-            center = self.image.center.x
-        leaf_prof = Profile(leaf_prof)
-
-        # ground profile to reasonable level
-        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=self._sm_lf_meas_wdth, exclude_lt_edge=sm_ex,
-                                            exclude_rt_edge=sm_ex)
-        min_val = leaf_prof.y_values[peak_idxs[0]:peak_idxs[-1]].min()
-        leaf_prof.y_values[leaf_prof.y_values < min_val] = min_val
-
-        # remove unevenness in signal
-        leaf_prof.y_values = signal.detrend(leaf_prof.y_values, bp=[int(len(leaf_prof.y_values)/3), int(len(leaf_prof.y_values)*2/3)])
-        _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=self._sm_lf_meas_wdth, exclude_lt_edge=sm_ex, exclude_rt_edge=sm_ex)
-        leaf_range = (peak_idxs[-1] - peak_idxs[0]) / self.image.dpmm  # mm
-        sm_lf_range = 220  # mm
-
-        # find leaf peaks
-        if leaf_range > sm_lf_range:
-            lt_biglittle_lf_bndry = int(round(center - 100 * self.image.dpmm))
-            rt_biglittle_lf_bndry = int(round(center + 100 * self.image.dpmm))
-            pp = leaf_prof.subdivide([lt_biglittle_lf_bndry, rt_biglittle_lf_bndry], slmw)
-            if len(pp) != 3:
-                raise ValueError("3 Profiles weren't found but should have been")
-            # Left Big MLC region
-            _, peak_idxs = pp[0].find_peaks(min_peak_distance=blmw, exclude_lt_edge=bl_ex)
-            peak_diff = np.diff(peak_idxs).mean()
-            lt_v_idx = np.array(peak_idxs[:-1]) + peak_diff/2
-
-            # Middle, small MLC region
-            _, peak_idxs = pp[1].find_peaks(min_peak_distance=slmw)
-            peak_diff = np.diff(peak_idxs).mean()
-            mid_v_idx = np.array(peak_idxs[:-1]) + peak_diff / 2
-
-            # Right Big MLC region
-            _, peak_idxs = pp[2].find_peaks(min_peak_distance=blmw,
-                                            exclude_rt_edge=bl_ex)
-            peak_diff = np.diff(peak_idxs).mean()
-            rt_v_idx = np.array(peak_idxs[:-1]) + peak_diff / 2
-            leaf_center_idxs = np.concatenate((lt_v_idx, mid_v_idx, rt_v_idx))
-        else:
-            _, peak_idxs = leaf_prof.find_peaks(min_peak_distance=slmw, exclude_lt_edge=sm_ex,
-                                                exclude_rt_edge=sm_ex)
-            _, peak_idxs = leaf_prof.find_FWXM_peaks(min_peak_distance=slmw, interpolate=True)
-            peak_diff = np.diff(peak_idxs).mean()
-            leaf_center_idxs = np.array(peak_idxs[:-1]) + peak_diff / 2
-        return leaf_center_idxs
-
-    def calc_mlc_positions(self, leaf_centers):
-        """Calculate the positions of all the MLC pairs."""
-        diff = np.diff(leaf_centers)
-        sample_width = np.round(np.median(diff*2/5)/2).astype(int)
-
-        for mlc_num, mlc_peak_loc in enumerate(np.round(leaf_centers).astype(int)):
-            mlc_rows = np.arange(mlc_peak_loc-sample_width, mlc_peak_loc+sample_width+1)
-            if self.orientation == orientations['UD']:
-                pix_vals = np.median(self._analysis_array[mlc_rows, :], axis=0)
-            else:
-                pix_vals = np.median(self._analysis_array[:, mlc_rows], axis=1)
-            prof = Profile(pix_vals)
-            prof.find_FWXM_peaks(fwxm=80, min_peak_distance=0.01, min_peak_height=0.5, interpolate=True)
-            for idx, peak in enumerate(prof.peaks):
-                if self.orientation == orientations['UD']:
-                    meas = MLC_Meas((peak.idx, mlc_rows[0]), (peak.idx, mlc_rows[-1]))
-                else:
-                    meas = MLC_Meas((mlc_rows[0], peak.idx), (mlc_rows[-1], peak.idx))
-                self.pickets[idx].mlc_meas.append(meas)
-
-    def calc_mlc_error(self):
-        """Calculate the error of the MLC positions relative to the picket fit."""
-        for picket in self.pickets:
-            picket.fit_poly()
-            picket.calc_mlc_errors()
-
-    def plot_analyzed_image(self, guard_rails=True, mlc_peaks=True, overlay=True):
+    def plot_analyzed_image(self, guard_rails=True, mlc_peaks=True, overlay=True, leaf_error_subplot=True, interactive=False, show=True):
         """Plot the analyzed image.
 
         Parameters
         ----------
         guard_rails : bool
-            Do/don't plot the picket "guard rails".
+            Do/don't plot the picket "guard rails" around the ideal picket
         mlc_peaks : bool
             Do/don't plot the MLC positions.
         overlay : bool
             Do/don't plot the alpha overlay of the leaf status.
+        leaf_error_subplot : bool
+
+            .. versionadded:: 1.0
+
+            If True, plots a linked leaf error subplot adjacent to the PF image plotting the average and standard
+            deviation of leaf error.
+        interactive : bool
+
+            .. versionadded:: 1.0
+            .. note:: mpld3 must be installed to use this feature.
+
+            If False (default), plots a matplotlib figure.
+            If True, plots a MPLD3 local server image, which adds some tooltips.
         """
         # plot the image
-        ax = plt.imshow(self.image.array, cmap=cm.Greys_r)
+        fig, ax = plt.subplots(figsize=self.settings.figure_size)
+        ax.imshow(self.image.array, cmap=get_dicom_cmap())
+
+        # generate a leaf error subplot if desired
+        if leaf_error_subplot:
+            self._add_leaf_error_subplot(ax, fig, interactive)
 
         # plot guard rails and mlc peaks as desired
         for p_num, picket in enumerate(self.pickets):
@@ -308,213 +321,532 @@ class PicketFence:
                 picket.add_guards_to_axes(ax.axes)
             if mlc_peaks:
                 for idx, mlc_meas in enumerate(picket.mlc_meas):
+                    mlc_meas.plot2axes(ax.axes, width=1.5)
 
-                    if not mlc_meas.passed:
-                        color = 'r'
-                    elif self._action_lvl_set and not mlc_meas.passed_action:
-                        color = 'm'
-                    else:
-                        color = 'b'
-                    mlc_meas.add_to_axes(ax.axes, color=color, width=1.5)
         # plot the overlay if desired.
         if overlay:
-            for mlc_num, mlc in enumerate(self.pickets[0].mlc_meas):
+            o = Overlay(self.image, self.settings, self.pickets)
+            o.add_to_axes(ax)
 
-                below_tol = True
-                if self._action_lvl_set:
-                    below_action = True
-                for picket in self.pickets:
-                    if not picket.mlc_passed(mlc_num):
-                        below_tol = False
-                    if self._action_lvl_set and not picket.mlc_passed_action(mlc_num):
-                        below_action = False
-                if below_tol:
-                    if self._action_lvl_set and not below_action:
-                        color = 'm'
-                    else:
-                        color = 'g'
-                else:
-                    color = 'r'
-                if self.orientation == orientations['UD']:
-                    r = Rectangle(max(self.image.shape)*2, self._sm_lf_meas_wdth, (mlc.center.x, mlc.center.y))
-                else:
-                    r = Rectangle(self._sm_lf_meas_wdth, max(self.image.shape) * 2, (mlc.center.x, mlc.center.y))
-                r.add_to_axes(ax.axes, edgecolor='none', fill=True, alpha=0.1, facecolor=color)
+        # plot CAX
+        ax.plot(self.image.center.x, self.image.center.y, 'r+', ms=12, markeredgewidth=3)
 
-        plt.xlim([0, self.image.shape[1]])
-        plt.ylim([0, self.image.shape[0]])
-        plt.show()
+        # tighten up the plot view
+        ax.set_xlim([0, self.image.shape[1]])
+        ax.set_ylim([0, self.image.shape[0]])
+        ax.axis('off')
+
+        if show:
+            if interactive:
+                mpld3 = import_mpld3()
+                mpld3.show()
+            else:
+                plt.show()
+
+    def _add_leaf_error_subplot(self, ax, fig, interactive):
+        """Add a bar subplot showing the leaf error."""
+        tol_line_height = [self.settings.tolerance, self.settings.tolerance]
+        tol_line_width = [0, max(self.image.shape)]
+
+        # make the new axis
+        divider = make_axes_locatable(ax)
+        if self.settings.orientation == UP_DOWN:
+            axtop = divider.append_axes('right', 2, pad=1, sharey=ax)
+        else:
+            axtop = divider.append_axes('bottom', 2, pad=1, sharex=ax)
+
+        # get leaf positions, errors, standard deviation, and leaf numbers
+        pos, vals, err, leaf_nums = self.pickets.error_hist()
+
+        # plot the leaf errors as a bar plot
+        if self.settings.orientation == UP_DOWN:
+            axtop.barh(pos, vals, xerr=err, height=self.pickets[0].sample_width * 2, alpha=0.4, align='center')
+            # plot the tolerance line(s)
+            # TODO: replace .plot() calls with .axhline when mpld3 fixes funtionality
+            axtop.plot(tol_line_height, tol_line_width, 'r-', linewidth=3)
+            if self.settings.action_tolerance is not None:
+                axtop.plot(tol_line_height, tol_line_width, 'y-', linewidth=3)
+
+            # reset xlims to comfortably include the max error or tolerance value
+            axtop.set_xlim([0, max(max(vals), self.settings.tolerance) + 0.1])
+        else:
+            axtop.bar(pos, vals, yerr=err, width=self.pickets[0].sample_width * 2, alpha=0.4, align='center')
+            axtop.plot(tol_line_width, tol_line_height,
+                       'r-', linewidth=3)
+            if self.settings.action_tolerance is not None:
+                axtop.plot(tol_line_width, tol_line_height, 'y-', linewidth=3)
+            axtop.set_ylim([0, max(max(vals), self.settings.tolerance) + 0.1])
+
+        # add formatting to axis
+        axtop.grid('on')
+        axtop.set_title("Average Error (mm)")
+
+        # add tooltips if interactive
+        if interactive:
+            labels = [['Leaf pair {0}/{1}, Avg Error: {2:3.3f}mm, Stdev: {3:3.3f}mm'.format(leaf_num[0], leaf_num[1], err, std)]
+                      for leaf_num, err, std in zip(leaf_nums, vals, err)]
+            mpld3 = import_mpld3()
+            for num, patch in enumerate(axtop.axes.patches):
+                ttip = mpld3.plugins.PointLabelTooltip(patch, labels[num], location='top left')
+                mpld3.plugins.connect(fig, ttip)
+
+    def save_analyzed_image(self, filename, guard_rails=True, mlc_peaks=True, overlay=True, leaf_error_subplot=False, interactive=False, **kwargs):
+        """Save the analyzed figure to a file. See :meth:`~pylinac.picketfence.PicketFence.plot_analyzed_image()` for
+        further parameter info.
+
+        interactive : bool
+            If False (default), saves the figure as a .png image.
+            If True, saves an html file, which can be opened in a browser, etc.
+
+            .. note:: mpld3 must be installed to use this feature.
+        """
+        self.plot_analyzed_image(guard_rails, mlc_peaks, overlay, leaf_error_subplot=leaf_error_subplot,
+                                 interactive=interactive, show=False)
+        if interactive:
+            mpld3 = import_mpld3()
+            mpld3.save_html(plt.gcf(), filename)
+        else:
+            plt.savefig(filename, **kwargs)
+        if isinstance(filename, str):
+            print("Picket fence image saved to: {0}".format(osp.abspath(filename)))
 
     def return_results(self):
-        """Print results of analysis."""
+        """Return results of analysis. Use with print()."""
         pass_pct = self.percent_passing
-        string = "Picket Fence Results: \n{:2.1f}% Passed\nMedian Error: {:2.3f}mm \nMax Error: {:2.3f}mm on Picket: {}, Leaf: {}".format(pass_pct,
-                                                                                                  self.abs_median_error,
-                                                                                                  self.max_error,
-                                                                                                   self.max_error_picket,
-                                                                                                  self.max_error_leaf)
+        offsets = ' '.join('{:.1f}'.format(pk.dist2cax) for pk in self.pickets)
+        string = "Picket Fence Results: \n{:2.1f}% " \
+                 "Passed\nMedian Error: {:2.3f}mm \n" \
+                 "Mean picket spacing: {:2.1f}mm \n" \
+                 "Picket offsets from CAX (mm): {}\n" \
+                 "Max Error: {:2.3f}mm on Picket: {}, Leaf: {}".format(pass_pct, self.abs_median_error,
+                                                                       self.pickets.mean_spacing, offsets,
+                                                                       self.max_error, self.max_error_picket, self.max_error_leaf)
         return string
 
+    def publish_pdf(self, filename=None, author=None, unit=None, notes=None, open_file=False):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
-
-    def _check_inversion(self):
-        """Check the image for inversion (pickets are valleys, not peaks) by sampling the 4 image corners.
-        If the average value of the four corners is above the average pixel value, then it is very likely inverted.
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        unit : str, optional
+            Name of the unit that made the image/data.
+        author : str, optional
+            The author of the analysis; for tracking who did what.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
         """
-        outer_edge = 10
-        inner_edge = 30
-        TL_corner = self.image.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BL_corner = self.image.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        TR_corner = self.image.array[outer_edge:inner_edge, outer_edge:inner_edge]
-        BR_corner = self.image.array[-inner_edge:-outer_edge, -inner_edge:-outer_edge]
-        corner_avg = np.mean((TL_corner, BL_corner, TR_corner, BR_corner))
-        if corner_avg > np.mean(self.image.array.flatten()):
-            self.image.invert()
+        if filename is None:
+            filename = self.image.pdf_path
+        from reportlab.lib.units import cm
+        canvas = pdf.create_pylinac_page_template(filename, analysis_title='Picket Fence Analysis',
+                                                  author=author, unit=unit, file_name=osp.basename(self.image.path),
+                                                  file_created=self.image.date_created())
+        data = io.BytesIO()
+        self.save_analyzed_image(data, leaf_error_subplot=True)
+        img = pdf.create_stream_image(data)
+        canvas.drawImage(img, 3*cm, 8*cm, width=12*cm, height=12*cm, preserveAspectRatio=True)
+        text = ['Picket Fence results:',
+                'Magnification factor (SID/SAD): {:2.2f}'.format(self.image.metadata.RTImageSID/self.image.metadata.RadiationMachineSAD),
+                'Tolerance (mm): {}'.format(self.settings.tolerance),
+                'Leaves passing (%): {:2.1f}'.format(self.percent_passing),
+                'Absolute median error (mm): {:2.3f}'.format(self.abs_median_error),
+                'Mean picket spacing (mm): {:2.1f}'.format(self.pickets.mean_spacing),
+                'Maximum error (mm): {:2.3f} on Picket {}, Leaf {}'.format(self.max_error, self.max_error_picket, self.max_error_leaf),
+                ]
+        if self.gantry_angle is not None:
+            text.append('Gantry Angle: {:2.2f}'.format(self.gantry_angle))
+        if self.collimator_angle is not None:
+            text.append('Collimator Angle: {:2.2f}'.format(self.collimator_angle))
+        pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text)
+        if notes is not None:
+            pdf.draw_text(canvas, x=1*cm, y=5.5*cm, fontsize=14, text="Notes:")
+            pdf.draw_text(canvas, x=1*cm, y=5*cm, text=notes)
+        pdf.finish(canvas, open_file=open_file, filename=filename)
 
-    def _threshold(self):
-        """Threshold the image by subtracting the minimum value. Allows for more accurate image orientation determination.
-        """
-        col_prof = np.median(self.image.array, 0)
-        col_prof = Profile(col_prof)
-        row_prof = np.median(self.image.array, 1)
-        row_prof = Profile(row_prof)
-        _, r_peak_idx = row_prof.find_peaks(min_peak_distance=0.01, exclude_lt_edge=0.05, exclude_rt_edge=0.05)
-        _, c_peak_idx = col_prof.find_peaks(min_peak_distance=0.01, exclude_lt_edge=0.05, exclude_rt_edge=0.05)
-        min_val = self.image.array[r_peak_idx[0]:r_peak_idx[-1], c_peak_idx[0]:c_peak_idx[-1]].min()
-        self._analysis_array = self.image.array.copy()
-        self._analysis_array[self._analysis_array < min_val] = min_val
-        self._analysis_array -= min_val
+    @property
+    @lru_cache(maxsize=1)
+    def orientation(self):
+        """The orientation of the image, either Up-Down or Left-Right."""
+        # if orientation was passed in, use it
+        if type(self._orientation) is str:
+            if 'u' in self._orientation.lower():
+                return UP_DOWN
+            elif 'l' in self._orientation.lower():
+                return LEFT_RIGHT
 
-    # @property
-    # def _analysis_array(self):
-    #     return getattr(self, '_aa', self.image.array.copy())
-    #
-    # @_analysis_array.setter
-    # def _analysis_array(self, array):
-    #     if array.shape != self.image.shape:
-    #         raise ValueError("Array size is not the same as the original image")
-    #     self._aa = array
+        # replace any dead pixels with median value
+        temp_image = self.image.array.copy()
+        temp_image[temp_image < np.median(temp_image)] = np.median(temp_image)
 
-    def _find_orientation(self):
-        """Determine the orientation of the radiation strips by examining percentiles of the sum of each axes of the image.
-        A high standard deviation is a surrogate for the axis the pickets are along.
-        """
-        row_sum = np.sum(self._analysis_array, 0)
-        col_sum = np.sum(self._analysis_array, 1)
-        row80, row90 = np.percentile(row_sum, [80, 90])
-        col80, col90 = np.percentile(col_sum, [80, 90])
+        # find "range" of 80 to 90th percentiles
+        row_sum = np.sum(temp_image, 0)
+        col_sum = np.sum(temp_image, 1)
+        row80, row90 = np.percentile(row_sum, [85, 95])
+        col80, col90 = np.percentile(col_sum, [85, 95])
         row_range = row90 - row80
         col_range = col90 - col80
+
         # The true picket side will have a greater difference in
         # percentiles than will the non-picket size.
         if row_range < col_range:
-            self.orientation = orientations['LR']
+            orientation = LEFT_RIGHT
         else:
-            self.orientation = orientations['UD']
+            orientation = UP_DOWN
+        return orientation
+
+    @property
+    def gantry_angle(self):
+        try:
+            return round(float(self.image.metadata.GantryAngle))
+        except AttributeError:
+            return None
+
+    @property
+    def collimator_angle(self):
+        try:
+            return round(float(self.image.metadata.BeamLimitingDeviceAngle))
+        except AttributeError:
+            return None
+
+
+class Overlay:
+    """Class for handling the "overlay" feature of the plot."""
+    def __init__(self, image, settings, pickets):
+        self.image = image
+        self.settings = settings
+        self.pickets = pickets
+
+    def add_to_axes(self, axes):
+        """Add the overlay to the axes."""
+        rect_width = self.pickets[0].sample_width*2
+        for mlc_num, mlc in enumerate(sorted(self.pickets, key=lambda x: len(x.mlc_meas))[0].mlc_meas):
+            # get pass/fail status of all measurements across pickets for that MLC
+            if self.settings.action_tolerance is not None:
+                if all(picket.mlc_passed_action(mlc_num) for picket in self.pickets):
+                    color = 'b'
+                elif all(picket.mlc_passed(mlc_num) for picket in self.pickets):
+                    color = 'm'
+                else:
+                    color = 'r'
+            elif all(picket.mlc_passed(mlc_num) for picket in self.pickets):
+                color = 'b'
+            else:
+                color = 'r'
+
+            # create a rectangle overlay
+            if self.settings.orientation == UP_DOWN:
+                r = Rectangle(self.image.shape[1], rect_width, center=(self.image.center.x, mlc.center.y))
+            else:
+                r = Rectangle(rect_width, self.image.shape[0], center=(mlc.center.x, self.image.center.y))
+            r.plot2axes(axes.axes, edgecolor='none', fill=True, alpha=0.1, facecolor=color)
+
+
+class Settings:
+    """Simple class to hold various settings and info for PF analysis/plotting."""
+    def __init__(self, orientation, tolerance, action_tolerance, hdmlc, image, log_fits):
+        self.orientation = orientation
+        self.tolerance = tolerance
+        self.action_tolerance = action_tolerance
+        self.hdmlc = hdmlc
+        self.image = image
+        self.dpmm = image.dpmm
+        self.mmpd = 1/image.dpmm
+        try:
+            self.image_center = image.cax
+        except AttributeError:
+            self.image_center = image.center
+        self.log_fits = log_fits
+
+    @property
+    def figure_size(self):
+        """The size of the figure to draw; depends on the picket orientation."""
+        if self.orientation == UP_DOWN:
+            return (12, 8)
+        else:
+            return (9, 9)
+
+    @property
+    @lru_cache()
+    def small_leaf_width(self):
+        """The width of a "small" leaf in pixels."""
+        leaf_width_mm = 5
+        leaf_width_pixels = leaf_width_mm * self.dpmm
+        if self.hdmlc:
+            leaf_width_pixels /= 2
+        return leaf_width_pixels
+
+    @property
+    def large_leaf_width(self):
+        """The width of a "large" leaf in pixels."""
+        return self.small_leaf_width * 2
+
+    @property
+    def number_small_leaves(self):
+        """The number of small leaves; depends on HDMLC status."""
+        return 40 if not self.hdmlc else 32
+
+    @property
+    def number_large_leaves(self):
+        """The number of large leaves; depends on HDMLC status."""
+        return 20 if not self.hdmlc else 28
+
+    @property
+    @lru_cache()
+    def leaf_centers(self):
+        """Return a set of leaf centers perpendicular to the leaf motion based on the position of the CAX."""
+        # generate a set of leaf center points based on physical widths of large and small leaves
+        first_shift = self.large_leaf_width * (self.number_large_leaves / 2 - 1) + self.large_leaf_width * 0.75
+        second_shift = self.small_leaf_width * (self.number_small_leaves - 1) + self.large_leaf_width * 0.75
+
+        large_leaf_section = np.arange(self.number_large_leaves / 2) * self.large_leaf_width
+        small_leaf_section = (np.arange(self.number_small_leaves) * self.small_leaf_width) + first_shift
+        large_leaf_section2 = (np.arange(
+            self.number_large_leaves / 2) * self.large_leaf_width) + first_shift + second_shift
+        leaf_centers = np.concatenate((large_leaf_section, small_leaf_section, large_leaf_section2))
+
+        # now adjust them to align with the iso
+        if self.orientation == UP_DOWN:
+            leaf30_center = self.image_center.y - self.small_leaf_width / 2
+            edge = self.image.shape[0]
+        else:
+            leaf30_center = self.image_center.x - self.small_leaf_width / 2
+            edge = self.image.shape[1]
+        adjustment = leaf30_center - leaf_centers[29]
+        leaf_centers += adjustment
+
+        # only include values that are reasonable as values might extend past image (e.g. with small SID)
+        values_in_image = (leaf_centers > 0 + self.large_leaf_width / 2) & (
+        leaf_centers < edge - self.large_leaf_width / 2)
+        leaf_centers = leaf_centers[values_in_image]
+        return np.round(leaf_centers).astype(int)
+
+
+class PicketManager:
+    """Finds and handles the pickets of the image."""
+    def __init__(self, image, settings, num_pickets):
+        self.pickets = []
+        self.image = image
+        self.settings = settings
+        self.num_pickets = num_pickets
+        self.find_pickets()
+
+    def error_hist(self):
+        """Returns several lists of information about the MLC measurements. For use with plotting."""
+        # for each MLC, get the average and standard deviation of the error across all the pickets
+        error_means = []
+        error_stds = []
+        error_plot_positions = []
+        mlc_leaves = []
+        for mlc_num, mlc_meas in enumerate(sorted(self.pickets, key=lambda x: len(x.mlc_meas))[0].mlc_meas):
+            errors = []
+            for picket in self.pickets:
+                errors.append(picket.mlc_meas[mlc_num].error)
+            error_means.append(np.mean(errors))
+            error_stds.append(np.std(errors))
+            mlc_leaves.append(mlc_meas.leaf_pair)
+            if self.settings.orientation == UP_DOWN:
+                error_plot_positions.append(mlc_meas.center.y)
+            else:
+                error_plot_positions.append(mlc_meas.center.x)
+
+        return error_plot_positions, error_means, error_stds, mlc_leaves
+
+    def find_pickets(self):
+        """Find the pickets of the image."""
+        leaf_prof = self.image_mlc_inplane_mean_profile
+        peak_idxs = leaf_prof.find_peaks(min_distance=0.02, threshold=0.5, max_number=self.num_pickets)
+        peak_spacing = np.median(np.diff(np.sort(peak_idxs)))
+        if np.isnan(peak_spacing):
+            peak_spacing = 20
+
+        for peak_idx in peak_idxs:
+            self.pickets.append(Picket(self.image, self.settings, peak_idx, peak_spacing/2))
+
+    @property
+    def passed(self):
+        """Whether all the pickets passed tolerance."""
+        return all(picket.passed for picket in self)
+
+    def __getitem__(self, item):
+        return self.pickets[item]
+
+    def __len__(self):
+        return len(self.pickets)
+
+    @property
+    def image_mlc_inplane_mean_profile(self):
+        """A profile of the image along the MLC travel direction."""
+        if self.settings.orientation == UP_DOWN:
+            leaf_prof = np.mean(self.image, 0)
+        else:
+            leaf_prof = np.mean(self.image, 1)
+        return MultiProfile(leaf_prof)
+
+    @property
+    def mean_spacing(self):
+        """The average distance between pickets in mm."""
+        return np.mean([self.pickets[idx].dist2cax - self.pickets[idx+1].dist2cax for idx in range(len(self)-1)])
 
 
 class Picket:
-    """Holds *Picket* information in a Picket Fence test."""
-    def __init__(self, image, tolerance, orientation, action_tolerance):
-        """
-        Attributes
-        ----------
-        mlc_meas : list
-            Holds :class:`~pylinac.picketfence.MLC_Meas` objects.
-        fit : numpy.poly1d
-            The fit equation of the picket.
-        """
+    """Holds picket information in a Picket Fence test.
+
+    Attributes
+    ----------
+    mlc_meas : list
+        Holds :class:`~pylinac.picketfence.MLCMeas` objects.
+    """
+    def __init__(self, image, settings, approximate_idx, spacing):
         self.mlc_meas = []
-        self._img = image
-        self._tolerance = tolerance
-        self._orientation = orientation
-        self._action_tol = action_tolerance
+        self.image = image
+        self.settings = settings
+        self.approximate_idx = approximate_idx
+        self.spacing = spacing
+        self._get_mlc_positions()
+
+    def _get_mlc_positions(self):
+        """Calculate the positions of all the MLC pairs."""
+        # for each MLC...
+        for mlc_num, mlc_center in enumerate(self.settings.leaf_centers):
+            # find the MLC peak
+            mlc_position = self.find_mlc_peak(mlc_center)
+            # add MLC measurement object
+            if mlc_position is not None:
+                self.add_mlc_meas(mlc_center, mlc_position)
+        # now add the picket fit to the measurement so it can calculate error, etc.
+        for idx, meas in enumerate(self.mlc_meas):
+            meas.fit = self.fit
+
+    def find_mlc_peak(self, mlc_center):
+        """Determine the center of the picket."""
+        mlc_rows = np.arange(mlc_center - self.sample_width, mlc_center + self.sample_width + 1)
+        if self.settings.orientation == UP_DOWN:
+            pix_vals = np.median(self.picket_array[mlc_rows, :], axis=0)
+        else:
+            pix_vals = np.median(self.picket_array[:, mlc_rows], axis=1)
+        if max(pix_vals) > np.percentile(self.picket_array, 80):
+            prof = SingleProfile(pix_vals)
+            fw80mc = prof.fwxm_center(70, interpolate=True)
+            return fw80mc + self.approximate_idx - self.spacing
+
+    def add_mlc_meas(self, mlc_center, mlc_position):
+        """Add an MLC measurement point."""
+        upper_point = mlc_center - self.sample_width / 2
+        lower_point = mlc_center + self.sample_width / 2
+
+        if self.settings.orientation == UP_DOWN:
+            meas = MLCMeas((mlc_position, upper_point), (mlc_position, lower_point), self.settings)
+        else:
+            meas = MLCMeas((upper_point, mlc_position), (lower_point, mlc_position), self.settings)
+        self.mlc_meas.append(meas)
 
     @property
-    def mm_per_pixel(self):
-        """The mm per pixel of the image."""
-        return 1/self._img.dpmm
+    def sample_width(self):
+        """The width to sample the MLC leaf (~40% of the leaf width)."""
+        return np.round(np.median(np.diff(self.settings.leaf_centers) * 2 / 5) / 2).astype(int)
+
+    @property
+    @lru_cache()
+    def picket_array(self):
+        """A slice of the whole image that contains the area around the picket."""
+        if self.settings.orientation == UP_DOWN:
+            array = self.image[:, int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing)]
+        else:
+            array = self.image[int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing), :]
+        return array
 
     @property
     def abs_median_error(self):
         """The absolute median error of the MLC measurements."""
-        return np.median(np.abs(self._error_array))
+        return np.median(np.abs(self.error_array))
 
     @property
     def max_error(self):
         """The max error of the MLC measurements."""
-        return self._error_array.max()
+        return self.error_array.max()
 
-    @lazyproperty
-    def _error_array(self):
-        err = []
-        for meas in self.mlc_meas:
-            err.append(meas.error)
-        return np.array(err)
+    @property
+    @lru_cache()
+    def error_array(self):
+        """An array containing the error values of all the measurements."""
+        return np.array([meas.error for meas in self.mlc_meas])
+
+    @property
+    def passed(self):
+        """Whether or not all the measurements passed."""
+        return all(meas.passed for meas in self.mlc_meas)
 
     def mlc_passed(self, mlc):
-        """Return whether the MLC has passed tolerance."""
-        if self.mlc_meas[mlc].passed:
-            return True
-        else:
-            return False
+        """Return whether a specific MLC has passed tolerance."""
+        return self.mlc_meas[mlc].passed
 
     def mlc_passed_action(self, mlc):
-        """Return whether the MLC has passed the action tolerance."""
-        if self._action_tol is not None:
-            if self.mlc_meas[mlc].passed_action:
-                return True
-            else:
-                return False
+        """Return whether a specific MLC has passed the action tolerance."""
+        if self.settings.action_tolerance is not None:
+            return self.mlc_meas[mlc].passed_action
         else:
             raise AttributeError("No action tolerance was specified")
 
-    def fit_poly(self):
-        """Fit a polynomial to the MLC measurements; also constructs the guard rails."""
+    @property
+    @lru_cache(maxsize=1)
+    def fit(self):
+        """The fit of a polynomial to the MLC measurements."""
+        if self.settings.log_fits is not None:
+            return next(self.settings.log_fits)
         x = np.array([mlc.point1.y for mlc in self.mlc_meas])
         y = np.array([mlc.point1.x for mlc in self.mlc_meas])
-        if self._orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             fit = np.polyfit(x, y, 1)
         else:
             fit = np.polyfit(y, x, 1)
-        self.fit = np.poly1d(fit)
-        self._fit_guard_rails(fit)
+        return np.poly1d(fit)
 
-    def _fit_guard_rails(self, fit):
-        l_fit = np.copy(fit)
-        l_fit[-1] += self._tolerance/self.mm_per_pixel
-        self.left_guard = np.poly1d(l_fit)
-        r_fit = np.copy(fit)
-        r_fit[-1] -= self._tolerance/self.mm_per_pixel
-        self.right_guard = np.poly1d(r_fit)
+    @property
+    def dist2cax(self):
+        """The distance from the CAX to the picket, in mm."""
+        center_fit = np.poly1d(self.fit)
+        if self.settings.orientation == UP_DOWN:
+            length = self.image.shape[0]
+        else:
+            length = self.image.shape[1]
+        x_data = np.arange(length)
+        y_data = center_fit(x_data)
+        idx = int(round(len(x_data) / 2))
+        if self.settings.orientation == UP_DOWN:
+            axis = 'x'
+            p1 = Point(y_data[idx], x_data[idx])
+        else:
+            axis = 'y'
+            p1 = Point(x_data[idx], y_data[idx])
+        return (getattr(self.image.center, axis) - getattr(p1, axis)) * self.settings.mmpd
 
-    def calc_mlc_errors(self):
-        """Calculate the MLC error from the picket."""
-        for idx, meas in enumerate(self.mlc_meas):
-            if self._orientation == orientations['UD']:
-                picket_pos = self.fit(meas.point1.y)
-                mlc_pos = meas.point1.x
-            else:
-                picket_pos = self.fit(meas.point1.x)
-                mlc_pos = meas.point1.y
-            physical_error = (mlc_pos - picket_pos) * self.mm_per_pixel
-            meas.error = physical_error
-            if physical_error < self._tolerance:
-                meas.passed = True
-            if self._action_tol is not None:
-                if physical_error < self._action_tol:
-                    meas.passed_action = True
+    @property
+    def left_guard(self):
+        """The line representing the left side guard rail."""
+        l_fit = np.copy(self.fit)
+        l_fit[-1] += self.settings.tolerance / self.settings.mmpd
+        return np.poly1d(l_fit)
+
+    @property
+    def right_guard(self):
+        """The line representing the right side guard rail."""
+        r_fit = np.copy(self.fit)
+        r_fit[-1] -= self.settings.tolerance / self.settings.mmpd
+        return np.poly1d(r_fit)
 
     def add_guards_to_axes(self, axis, color='g'):
         """Plot guard rails to the axis."""
-        if self._orientation == orientations['UD']:
-            length = self._img.shape[0]
+        if self.settings.orientation == UP_DOWN:
+            length = self.image.shape[0]
         else:
-            length = self._img.shape[1]
+            length = self.image.shape[1]
         x_data = np.arange(length)
         left_y_data = self.left_guard(x_data)
         right_y_data = self.right_guard(x_data)
-        if self._orientation == orientations['UD']:
+        if self.settings.orientation == UP_DOWN:
             axis.plot(left_y_data, x_data, color=color)
             axis.plot(right_y_data, x_data, color=color)
         else:
@@ -522,38 +854,102 @@ class Picket:
             axis.plot(x_data, right_y_data, color=color)
 
 
-class MLC_Meas(Line):
+class MLCMeas(Line):
     """Represents an MLC measurement."""
-    def __init__(self, point1=None, point2=None, m=None, b=None):
-        """
-        Attributes
-        ----------
-        error : float
-            The error of the MLC measurement and the picket fit.
-        passed : bool
-            Whether the MLC measurement was under tolerance.
-        passed_action : bool
-            Whether the MLC measurement was under the action level tolerance.
-        """
-        super().__init__(point1, point2, m, b)
-        self.error = 0
-        self.passed = False
-        self.passed_action = False
+    def __init__(self, point1, point2, settings):
+        super().__init__(point1, point2)
+        self.settings = settings
+        self.fit = None
 
+    def plot2axes(self, axes, width=1):
+        """Plot the measurement to the axes."""
+        super().plot2axes(axes, width, color=self.bg_color)
 
-# -----------------------------------
-# Picket Fence Demo
-# -----------------------------------
-if __name__ == '__main__':
-    # from scipy.ndimage.interpolation import rotate
-    # import cProfile
-    # cProfile.run('PicketFence().run_demo()', sort=1)
-    # PicketFence().run_demo()
-    pf = PicketFence()
-    # pf.open_UI()
-    pf.load_demo_image()
-    # pf.image.rot90()
-    # pf.image.array = rotate(pf.image.array, 0.5, reshape=False, mode='nearest')
-    pf.analyze(tolerance=0.15, action_tolerance=0.03)
-    print(pf.return_results())
-    pf.plot_analyzed_image()
+    @property
+    def bg_color(self):
+        """The color of the measurement when the PF image is plotted, based on pass/fail status."""
+        if not self.passed:
+            return 'r'
+        elif self.settings.action_tolerance is not None:
+            if self.passed_action:
+                return 'b'
+            else:
+                return 'm'
+        else:
+            return 'b'
+
+    @property
+    def error(self):
+        """The error (difference) of the MLC measurement and the picket fit."""
+        if self.settings.orientation == UP_DOWN:
+            picket_pos = self.fit(self.center.y)
+            mlc_pos = self.center.x
+        else:
+            picket_pos = self.fit(self.center.x)
+            mlc_pos = self.center.y
+        return abs(mlc_pos - picket_pos) * self.settings.mmpd
+
+    @property
+    def passed(self):
+        """Whether the MLC measurement was under tolerance."""
+        return self.error < self.settings.tolerance
+
+    @property
+    def passed_action(self):
+        """Whether the MLC measurement was under the action level tolerance."""
+        if self.settings.action_tolerance is not None:
+            return self.error < self.settings.action_tolerance
+
+    @property
+    @lru_cache()
+    def leaf_pair(self):
+        """The leaf pair that formed the MLC measurement.
+
+        Returns
+        -------
+        tuple : 2 elements which are the two leaf numbers
+        """
+        leaves = [0, 0]
+
+        # get distance between MLC point and EPID center in *pixels*
+        if self.settings.orientation == UP_DOWN:
+            mlc_loc = self.center.y
+            epid_center = self.settings.image_center.y
+        else:
+            mlc_loc = self.center.x
+            epid_center = self.settings.image_center.x
+        mlc_dist = mlc_loc - epid_center
+
+        # determine leaf number based on if it's in/not in the "small leaf" region
+        small_region_extent = self.settings.small_leaf_width * self.settings.number_small_leaves / 2
+
+        # large leaf region
+        if not small_region_extent > mlc_dist > -small_region_extent:
+            if np.sign(mlc_dist) > 0:  # positive, meaning
+                # offset MLC distance to the edge of the small leaf region
+                mlc_dist -= small_region_extent
+                # divide the MLC distance by the leaf width and convert to leaf number
+                leaf = int(round((abs(mlc_dist) + self.settings.large_leaf_width / 2) / self.settings.large_leaf_width))
+                starting_leaf = 14 if self.settings.hdmlc else 10 + 1
+                leaves[0] = starting_leaf - leaf
+            else:
+                # offset MLC distance to the edge of the small leaf region
+                mlc_dist += small_region_extent
+                # divide the MLC distance by the leaf width and convert to leaf number
+                leaf = int(round((abs(mlc_dist) + self.settings.large_leaf_width / 2) / self.settings.large_leaf_width))
+                starting_leaf = 46 if self.settings.hdmlc else 50
+                leaves[0] = starting_leaf + leaf
+
+        # small leaf region
+        else:
+            # divide the MLC distance by the leaf width and convert to leaf number
+            leaf = int(round((abs(mlc_dist) + self.settings.small_leaf_width / 2) / self.settings.small_leaf_width))
+            if np.sign(mlc_dist) > 0:
+                leaves[0] = 31 - leaf
+            else:
+                leaves[0] = 30 + leaf
+
+        # set opposite leaf using an offset
+        leaves[1] = 121 - leaves[0]
+
+        return leaves

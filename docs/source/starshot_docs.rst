@@ -18,61 +18,74 @@ Running the Demo
 
 To run the Starshot demo, create a script or start an interpreter and input::
 
-    from pylinac.starshot import Starshot
-    Starshot().run_demo()
+    from pylinac import Starshot
+
+    Starshot.run_demo()
 
 Results will be printed to the console and a matplotlib figure showing the analyzed starshot image will pop up::
 
     Result: PASS
 
-    The minimum circle that touches all the star lines has a diameter of 0.385 mm.
+    The minimum circle that touches all the star lines has a diameter of 0.434 mm.
 
-    The center of the minimum circle is at 1269.3, 1437.8
+    The center of the minimum circle is at 1270.1, 1437.1
 
 .. image:: images/starshot_analyzed.png
 
 Image Acquisition
 -----------------
 
-To capture starshot images, film is often used, but superimposed EPID images can also work for collimator measurements.
-See the literature mentioned in the :ref:`star_overview` for more info.
+To capture starshot images, film is often used, but a sequence of EPID images can also work for collimator measurements. Pylinac can automatically superimpose the images.
+See the literature mentioned in the :ref:`star_overview` for more info on acquisition.
 
 Typical Use
 -----------
 
 The Starshot analysis can be run first by importing the Starshot class::
 
-    from pylinac.starshot import Starshot
-    mystar = Starshot()
+    from pylinac import Starshot
 
 A typical analysis sequence looks like so:
 
-* **Load images** -- Loading film or superimposed EPID DICOM images into your Starshot class object can be done by
-  passing the file path or by using a UI to find and get the file. The code might look like either of the following::
+* **Load image(s)** -- Loading film or superimposed EPID DICOM images can be done by
+  passing the file path or by using a UI to find and get the file. The code might look like any of the following::
 
-    # set the file path
     star_img = "C:/QA Folder/gantry_starshot.tif"
-    # load the images from the file path
-    mystar.load_image(star_img)
+    mystar = Starshot(star_img)
 
-    # *OR*
+  Multiple images can be easily superimposed and used; e.g. collimator shots at various angles::
 
-    # Load the image using a UI file dialog box
-    mystar.load_image_UI()
+    star_imgs = ['path/star0.tif', 'path/star45.tif', 'path/star90.tif']
+    mystar = Starshot.from_multiple_images(star_imgs)
 
-* **Analyze the images** -- After loading the image, all that needs to be done is analyze the image with a few
-  settings passed in::
+* **Analyze the image** -- After loading the image, all that needs to be done is analyze the image. You may optionally
+  pass in some settings::
 
-    # analyze
-    mystar.analyze(radius=50) # see API docs for more parameter info
+    mystar.analyze(radius=50, tolerance=0.8) # see API docs for more parameter info
 
 * **View the results** -- Starshot can print out the summary of results to the console as well as draw a matplotlib image to show the
-  detected radiation lines and wobble circle (zoom in to see the wobble circle)::
+  detected radiation lines and wobble circle::
 
       # print results to the console
       print(mystar.return_results())
       # view analyzed image
       mystar.plot_analyzed_image()
+
+  Each subplot can be plotted independently as well::
+
+      # just the wobble plot
+      mystar.plot_analyzed_subimage('wobble')
+      # just the zoomed-out plot
+      mystar.plot_analyzed_subimage('whole')
+
+  Saving the images is also just as easy::
+
+      mystar.save_analyzed_image('mystar.png')
+
+  You may also save to PDF::
+
+      mystar.publish_pdf('mystar.pdf')
+
 
 Algorithm
 ---------
@@ -82,41 +95,59 @@ Algorithm
 * The image can be either inversion (radiation is darker or brighter).
 * The image can be any size.
 * The image can be DICOM (from an EPID) or most image formats (scanned film).
+* If multiple images are used, they must all be the same size.
 
 **Restrictions**
 
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
+* The image must have at least 6 spokes (3 angles).
 * The center of the "star" must be in the central 1/3 of the image.
 * The radiation spokes must extend to both sides of the center. I.e. the spokes must not end at the center of the circle.
 
 **Pre-Analysis**
 
+
+* **Check for image noise** -- The image is checked for unreasonable noise by comparing the min and max
+  to the 1/99th percentile pixel values respectively. If there is a large difference then there is likely an artifact
+  and a median filter is applied until the min/max and 1/99th percentiles are similar.
 * **Check image inversion** -- The image is checked for proper inversion by summing the image along each axis and then
   effectively finding the point of maximum value. If the point is not in the central 1/3 of the image, it is thought to be inverted.
   This check can be skipped but is enabled by default.
 * **Set algorithm starting point** -- Unless the user has manually set the pixel location of the start point,
   it is automatically found by summing the image along each axis and finding the
-  center of the full-width, 80%-max of each sum.
+  center of the full-width, 80%-max of each sum. The maximum value point is also located. Of the two points, the
+  one closest to the center of the image is chosen as the starting point.
 
 **Analysis**
 
 * **Extract circle profile** -- A circular profile is extracted from the image centered around the starting point
   and at the radius given.
-* **Find spokes** -- The circle profile is analyzed for peaks. Once the peaks are found, the pixels around the peak
-  are reanalyzed to find the center of the full-width, half-max. An even number of spokes must be found (1 for each
-  side. E.g. 3 collimator angles should produce 6 spokes, one for each side of the CAX).
-* **Match peaks** -- Peaks are matched to their counterparts opposite the CAX to compose a line using a simple peak offset.
-* **Find wobble** -- Starting at the initial starting point, an evolutionary gradient method is utilized like this:
-  for a 3x3 matrix around a starting point, the sum of distances to each line is calculated. If the center matrix value
-  is not the lowest value (within a tolerance), the calculation is performed again, starting at the point of lowest value of the previous
-  calculation. Thusly, the algorithm moves 1 pixel at a time toward a point of minimum distance to all lines. Once the
-  nearest pixel is found, the algorithm switches to sub-pixel precision and repeats.
+* **Find spokes** -- The circle profile is analyzed for peaks. Optionally, the profile is reanalyzed to find the center
+  of the FWHM. An even number of spokes must be found (1 for each side; e.g. 3 collimator angles should produce 6
+  spokes, one for each side of the CAX).
+* **Match peaks** -- Peaks are matched to their counterparts opposite the CAX to compose a line using a simple peak number offset.
+* **Find wobble** -- Starting at the initial starting point, an evolutionary gradient method is utilized to find the
+  point of minimum distance to all lines. If recursive is set to True and a "reasonable" wobble (<2mm) is not found
+  using the passes settings, the peak height and radius are iterated until a reasonable wobble is found.
 
 **Post-Analysis**
 
 * **Check if passed** -- Once the wobble is calculated, it is tested against the tolerance given, and passes if below the
-  tolerance.
+  tolerance. If the image carried a pixel/mm conversion ratio, the tolerance and result are in mm, otherwise they
+  will be in pixels.
+
+Troubleshooting
+---------------
+
+First, check the general :ref:`general_troubleshooting` section, especially if an image won't load. Specific to the starshot
+analysis, there are a few things you can do.
+
+* **Set recursive to True** - This easy step in :meth:`~pylinac.starshot.Starshot.analyze` allows pylinac to search for a reasonable
+  wobble even if the conditions you passed don't for some reason give one.
+* **Make sure the center of the star is in the central 1/3 of the image** - Otherwise, pylinac won't find it.
+* **Make sure there aren't egregious artifacts** - Pin pricks can cause wild pixel values; crop them out if possible.
+
 
 .. _star_apidoc:
 
@@ -129,4 +160,4 @@ API Documentation
 
 .. autoclass:: pylinac.starshot.Wobble
 
-
+.. autoclass:: pylinac.starshot.LineManager

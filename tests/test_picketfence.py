@@ -1,81 +1,139 @@
-import unittest
+import os.path as osp
+from unittest import TestCase, skip
 
-from pylinac.picketfence import *
+import matplotlib.pyplot as plt
+
+from pylinac.picketfence import PicketFence, UP_DOWN, LEFT_RIGHT
+from tests.utils import save_file, LoadingTestBase, LocationMixin
+
+TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
 
 
-class PF_EPID_demo(unittest.TestCase):
-    """Tests specifically for the EPID demo image."""
-    test_im_path = osp.abspath(osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence'))
-
-    def setUp(self):
-        self.pf = PicketFence()
-        self.pf.load_demo_image()
-        self.pf.analyze()
-
-    def test_demo(self):
-        self.pf.run_demo()
-
-    def test_rotated_demo(self):
-        self.pf = PicketFence()
-        self.pf.load_demo_image()
-        self.pf.image.rot90()
-        self.pf.analyze()
-        self.pf.return_results()
-        self.pf.plot_analyzed_image()
-
-    def test_demo_lower_tolerance(self):
-        self.pf = PicketFence()
-        self.pf.load_demo_image()
-        self.pf.analyze(0.15, action_tolerance=0.05)
-        self.pf.plot_analyzed_image()
-        self.assertAlmostEqual(self.pf.percent_passing, 95, delta=0.5)
-
-    def test_image_orientation(self):
-        """Test image orientation."""
-        # check original orientation
-        self.assertEqual(self.pf.orientation, orientations['LR'])
-        # check that 90 degree orientation is other way
-        self.pf.image.rot90()
-        self.pf._threshold()
-        self.pf._find_orientation()
-        self.assertEqual(self.pf.orientation, orientations['UD'])
-
-    def test_number_pickets_found(self):
-        # check number of strips found
-        self.assertEqual(self.pf.num_pickets, 10, msg="MLC strips found not expected value")
-
-    def test_error_values(self):
-        # check error values
-        self.assertAlmostEqual(self.pf.abs_median_error, 0.067, delta=0.02)
-        self.assertAlmostEqual(self.pf.max_error, 0.213, delta=0.08)
+class TestLoading(LoadingTestBase, TestCase):
+    klass = PicketFence
+    constructor_input = osp.join(TEST_DIR, 'AS500_PF.dcm')
+    url = 'EPID-PF-LR.dcm'
 
     def test_filter_on_load(self):
-        pf = PicketFence()
-        pf.load_image(osp.join(self.test_im_path, 'EPID-PF.dcm'), filter=3)
+        PicketFence(self.constructor_input, filter=3)  # shouldn't raise
 
-    def test_passed(self):
-        self.assertTrue(self.pf.passed)
+    @skip
+    def test_load_with_log(self):
+        log_file = osp.join(TEST_DIR, 'PF_log.bin')
+        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        pf = PicketFence(pf_file, log=log_file)
+        pf.analyze(hdmlc=True)
 
-    def test_analyze_tol_values(self):
+
+class GeneralTests(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pf = PicketFence.from_demo_image()
+        cls.pf.analyze()
+
+    def test_bad_tolerance_values(self):
         self.assertRaises(ValueError, self.pf.analyze, 0.2, 0.3)
 
+    def test_demo(self):
+        PicketFence.run_demo()
+
+
+class TestPlottingSaving(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pf = PicketFence.from_demo_image()
+        cls.pf.analyze()
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close('all')
+
+    def test_plotting(self):
+        self.pf.plot_analyzed_image()
+
+    def test_saving_image(self):
+        save_file(self.pf.save_analyzed_image)
+        save_file(self.pf.save_analyzed_image, interactive=True)
+
+
+class PFTestMixin(LocationMixin):
+    """Base Mixin for testing a picketfence image."""
+    dir_location = TEST_DIR
+    picket_orientation = UP_DOWN
+    hdmlc = False
+    num_pickets = 10
+    percent_passing = 100
+    max_error = 0
+    abs_median_error = 0
+    sag_adjustment = 0
+    passes = True
+    log = None
+    mean_picket_spacing = 15
+
+    @classmethod
+    def get_logfile(cls):
+        """Return the canonical path to the log file."""
+        if cls.log is not None:
+            return osp.join(cls.dir_location, *cls.log)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pf = PicketFence(cls.get_filename(), log=cls.get_logfile())
+        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
+
+    def test_passed(self):
+        self.assertEqual(self.pf.passed, self.passes)
+
+    def test_picket_orientation(self):
+        self.assertEqual(self.pf.orientation, self.picket_orientation)
+
+    def test_num_pickets(self):
+        self.assertEqual(self.pf.num_pickets, self.num_pickets)
+
     def test_percent_passing(self):
-        self.assertEqual(self.pf.percent_passing, 100)
+        self.assertAlmostEqual(self.pf.percent_passing, self.percent_passing, delta=1)
 
-    def test_all_orientations_give_same_error(self):
-        """Test that all orientations (0, 90, 180, 270) result in close agreement of error."""
-        medians = np.zeros(4)
-        maxs = np.zeros(4)
+    def test_max_error(self):
+        self.assertAlmostEqual(self.pf.max_error, self.max_error, delta=0.1)
 
-        medians[0] = self.pf.abs_median_error
-        maxs[0] = self.pf.max_error
+    def test_abs_median_error(self):
+        self.assertAlmostEqual(self.pf.abs_median_error, self.abs_median_error, delta=0.05)
 
-        for idx in range(1,4):
-            new_pf = PicketFence()
-            new_pf.load_demo_image()
-            new_pf.image.rot90(idx)
-            new_pf.analyze()
-            medians[idx] = new_pf.abs_median_error
-            maxs[idx] = new_pf.max_error
-            self.assertAlmostEqual(medians[idx], medians[idx - 1], delta=0.05)
-            self.assertAlmostEqual(maxs[idx], maxs[idx - 1], delta=0.1)
+    def test_picket_spacing(self):
+        self.assertAlmostEqual(self.pf.pickets.mean_spacing, self.mean_picket_spacing, delta=0.5)
+
+
+class PFDemo(PFTestMixin, TestCase):
+    """Tests specifically for the EPID demo image."""
+    picket_orientation = LEFT_RIGHT
+    max_error = 0.217
+    abs_median_error = 0.06
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pf = PicketFence.from_demo_image()
+        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
+
+    def test_demo_lower_tolerance(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze(0.15, action_tolerance=0.05)
+        pf.plot_analyzed_image()
+        self.assertAlmostEqual(pf.percent_passing, 94, delta=1)
+
+
+class MultipleImagesPF(PFTestMixin, TestCase):
+    """Test of a multiple image picket fence; e.g. EPID images."""
+    max_error = 0.112
+    abs_median_error = 0.019
+    picket_orientation = LEFT_RIGHT
+    num_pickets = 5
+    mean_picket_spacing = 30
+
+    @classmethod
+    def setUpClass(cls):
+        path1 = osp.join(TEST_DIR, 'combo-jaw.dcm')
+        path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
+        cls.pf = PicketFence.from_multiple_images([path1, path2])
+        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment, orientation='left', invert=True)

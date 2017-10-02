@@ -1,0 +1,92 @@
+package:
+  name: pylinac
+  version: "2.0.0"
+
+source:
+  fn: pylinac-2.0.0.tar.gz
+  url: https://pypi.python.org/packages/7a/c3/8b6f7ac52621065e7a1562f5b6a024057d5b7ab6c9947470831de31dd9e8/pylinac-2.0.0.tar.gz#md5=4d6ad309cc5d1bc682cc727061259003
+  md5: 4d6ad309cc5d1bc682cc727061259003
+
+#  patches:
+   # List any patch files here
+   # - fix.patch
+
+build:
+  # noarch_python: True
+  # preserve_egg_dir: True
+  entry_points:
+    # Put any entry points (scripts to be generated automatically) here. The
+    # syntax is module:function.  For example
+    #
+    - pylinac = pylinac.scripts:cli
+    #
+    # Would create an entry point called pylinac that calls pylinac.main()
+
+
+  # If this is a new build for the same version, increment the build
+  # number. If you do not include this key, it defaults to 0.
+  # number: 1
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - numpy >=1.9
+    - scipy >=0.15
+    - pydicom >=0.9.9
+    - matplotlib >=1.3.1
+    - scikit-image >=0.11
+    - scikit-learn >=0.18
+    - pillow >=2.5
+    - dask  # completely unknown why this is needed, but it fails w/o it
+    - tqdm ==3.8.0
+    - mpld3
+    - click
+    - yagmail >=0.5.147
+    - pyyaml
+    - pywin32-ctypes
+    - reportlab
+    - olefile
+
+  run:
+    - python
+    - numpy >=1.9
+    - scipy >=0.15
+    - pydicom >=0.9.9
+    - matplotlib >=1.3.1
+    - scikit-image >=0.11
+    - scikit-learn >=0.17
+    - pillow >=2.5
+    - tqdm
+    - mpld3
+    - click
+    - yagmail
+    - pyyaml
+    - reportlab
+
+#test:
+  # Python imports
+#  imports:
+#    - pylinac
+#    - pylinac.core
+
+  # commands:
+    # You can put test commands to be run here.  Use this to test that the
+    # entry points work.
+
+
+  # You can also put a file called run_test.py in the recipe that will be run
+  # at test time.
+
+  # requires:
+    # Put any additional test requirements here.  For example
+    # - nose
+
+about:
+  home: https://github.com/jrkerns/pylinac
+  license: MIT License
+  summary: 'A toolkit for performing TG-142 QA-related tasks on a linear accelerator'
+
+# See
+# http://docs.continuum.io/conda/build.html for
+# more information about meta.yaml

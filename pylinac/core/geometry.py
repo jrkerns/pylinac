@@ -1,103 +1,163 @@
-
 """Module for classes that represent common geometric objects or patterns."""
-from math import sqrt
+from itertools import zip_longest
+import math
 
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 
-from pylinac.core.decorators import lazyproperty
-from pylinac.core.utilities import is_iterable, typed_property
+from .utilities import is_iterable
+
+
+def tan(degrees):
+    """Calculate the tangent of the given degrees."""
+    return math.tan(math.radians(degrees))
+
+
+def cos(degrees):
+    """Calculate the cosine of the given degrees."""
+    return math.cos(math.radians(degrees))
+
+
+def sin(degrees):
+    """Calculate the sine of the given degrees."""
+    return math.sin(math.radians(degrees))
+
+
+class Vector:
+    """A vector with x, y, and z coordinates."""
+    def __init__(self, x=0, y=0, z=0):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def __repr__(self):
+        return "Vector(x={0:.2f}, y={1:.2f}, z={2:.2f})".format(self.x, self.y, self.z)
+
+    def as_scalar(self):
+        """Return the scalar equivalent of the vector."""
+        return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def distance_to(self, thing):
+        """Calculate the distance to the given point.
+
+        Parameters
+        ----------
+        thing : Circle, Point, 2 element iterable
+            The other point to calculate distance to.
+        """
+        if isinstance(thing, Circle):
+            return abs(np.sqrt((self.x - thing.center.x)**2 + (self.y - thing.center.y)**2) - thing.radius)
+        else:
+            p = Point(thing)
+            return math.sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
+
+
+def vector_is_close(vector1, vector2, delta=0.1):
+    """Determine if two vectors are with delta of each other; this is a simple coordinate comparison check."""
+    for attr in ('x', 'y', 'z'):
+        if not getattr(vector2, attr) + delta >= getattr(vector1, attr) >= getattr(vector2, attr) - delta:
+            return False
+    return True
 
 
 class Point:
     """A geometric point with x, y, and z coordinates/attributes."""
-    value = typed_property('value', (int, float, np.number, type(None)))
+    _attr_list = ['x', 'y', 'z', 'idx', 'value']
+    _coord_list = ['x', 'y', 'z']
 
     def __init__(self, x=0, y=0, z=0, idx=None, value=None, as_int=False):
         """
         Parameters
         ----------
-        x : int, float, Point, iterable (list, tuple, etc)
+        x : number-like, Point, iterable
             x-coordinate or iterable type containing all coordinates. If iterable, values are assumed to be in order: (x,y,z).
         y : number-like, optional
             y-coordinate
-        z : number-like, optional
-            z-coordinate
         idx : int, optional
             Index of point. Useful for sequential coordinates; e.g. a point on a circle profile is sometimes easier to describe
             in terms of its index rather than x,y coords.
         value : number-like, optional
             value at point location (e.g. pixel value of an image)
         as_int : boolean
-            If True, passed coordinates are converted to integers.
+            If True, coordinates are converted to integers.
         """
-        # Point object passed in
         if isinstance(x, Point):
-            # self = x?
-            point = x
-            x = point.x
-            y = point.y
-            z = point.z
-            idx = point.idx
-            value = point.value
-
-        # if passed an iterable, separate out
+            for attr in self._attr_list:
+                item = getattr(x, attr, None)
+                setattr(self, attr, item)
         elif is_iterable(x):
-            input_coords = x
-            try:
-                x = input_coords[0]
-                y = input_coords[1]
-                z = input_coords[2]
-                idx = input_coords[3]
-                value = input_coords[4]
-            except IndexError:
-                pass
-        # else:
-        #     raise TypeError("Point inputs not understood")
+            for attr, item in zip_longest(self._attr_list, x, fillvalue=0):
+                setattr(self, attr, item)
+        else:
+            self.x = x
+            self.y = y
+            self.z = z
+            self.idx = idx
+            self.value = value
 
         if as_int:
-            x = int(round(x))
-            y = int(round(y))
-            z = int(round(z))
+            self.x = int(round(self.x))
+            self.y = int(round(self.y))
+            self.z = int(round(self.z))
 
-        self.x = x
-        self.y = y
-        self.z = z
-        self.idx = idx
-        self.value = value
-
-    # @property
-    # def value(self):
-    #     """Return the value property."""
-    #     return self._value
-    #
-    # @value.setter
-    # def value(self, val):
-    #     """Set the value property. val must be number-like."""
-    #     if val is not None and not isnumeric(val):
-    #         raise TypeError("Point value was not a valid type. Must be number-like.")
-    #     self._value = val
-
-    def dist_to(self, point):
+    def distance_to(self, thing):
         """Calculate the distance to the given point.
 
         Parameters
         ----------
-        point : Point
-            The other point to calculate distance to.
+        thing : Circle, Point, 2 element iterable
+            The other thing to calculate distance to.
         """
-        return sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
+        if isinstance(thing, Circle):
+            return abs(np.sqrt((self.x - thing.center.x)**2 + (self.y - thing.center.y)**2) - thing.radius)
+        p = Point(thing)
+        return math.sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
 
-class Scale:
-    """A 'scale' object with x and y attrs. Used in conjunction with scaling images up or down."""
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+    def as_array(self, only_coords=True):
+        """Return the point as a numpy array."""
+        if only_coords:
+            return np.array([getattr(self, item) for item in self._coord_list])
+        else:
+            return np.array([getattr(self, item) for item in self._attr_list if (getattr(self, item) is not None)])
+
+    def __repr__(self):
+        return "Point(x={0:3.2f}, y={1:3.2f}, z={2:3.2f})".format(self.x, self.y, self.z)
+
+    def __eq__(self, other):
+        # if all attrs equal, points considered equal
+        return all(getattr(self, attr) == getattr(other, attr) for attr in self._attr_list)
+
+    def __sub__(self, other):
+        p = Point()
+        for attr in self._attr_list:
+            try:
+                diff = getattr(self, attr) - getattr(other, attr)
+            except TypeError:
+                diff = None
+            setattr(p, attr, diff)
+        return p
+
+    def __mul__(self, other):
+        for attr in self._attr_list:
+            try:
+                self.__dict__[attr] *= other
+            except TypeError:
+                pass
+
+    def __truediv__(self, other):
+        for attr in self._attr_list:
+            val = getattr(self, attr)
+            try:
+                setattr(self, attr, val/other)
+            except TypeError:
+                pass
+        return self
 
 
 class Circle:
     """A geometric circle with center Point, radius, and diameter."""
+
     def __init__(self, center_point=None, radius=None):
         """
         Parameters
@@ -122,7 +182,7 @@ class Circle:
         """Get the diameter of the circle."""
         return self.radius*2
 
-    def add_to_axes(self, axes, edgecolor='black', fill=False):
+    def plot2axes(self, axes, edgecolor='black', fill=False):
         """Plot the Circle on the axes.
 
         Parameters
@@ -147,7 +207,7 @@ class Line:
     and here:
     http://www.mathsisfun.com/algebra/line-equation-2points.html
     """
-    def __init__(self, point1=None, point2=None, m=None, b=None):
+    def __init__(self, point1, point2):
         """
         Parameters
         ----------
@@ -155,21 +215,19 @@ class Line:
             One point of the line
         point2 : Point, optional
             Second point along the line.
-        m : int, float, optional
-            slope of the line (rise/run)
-        b : int, float, optional
-            y-intercept of the line
         """
-        # if created by passing two points...
-        if point1 is not None and point2 is not None:
-            self.point1 = Point(point1)
-            self.point2 = Point(point2)
-        # otherwise by passing m and b...
-        elif m is not None and b is not None:
-            self.m = m
-            self.b = b
+        self.point1 = Point(point1)
+        self.point2 = Point(point2)
 
-    @lazyproperty
+    def __repr__(self):
+        return 'Line: p1:(x={:.1f}, y={:.1f}, z={:.1f}), p2:(x={:.1f}, y={:.1f}, z={:.1f})'.format(self.point1.x,
+                                                                                 self.point1.y,
+                                                                                 self.point1.z,
+                                                                                 self.point2.x,
+                                                                                 self.point2.y,
+                                                                                 self.point2.z)
+
+    @property
     def m(self):
         """Return the slope of the line.
 
@@ -179,7 +237,7 @@ class Line:
         """
         return (self.point1.y - self.point2.y) / (self.point1.x - self.point2.x)
 
-    @lazyproperty
+    @property
     def b(self):
         """Return the y-intercept of the line.
 
@@ -197,25 +255,15 @@ class Line:
 
     @property
     def center(self):
+        """Return the center of the line as a Point."""
         mid_x = np.abs((self.point2.x - self.point1.x)/2 + self.point1.x)
         mid_y = (self.point2.y - self.point1.y) / 2 + self.point1.y
         return Point(mid_x, mid_y)
 
     @property
-    def is_finite(self):
-        """Boolean property specifying if the line is finite."""
-        if self.point1 is not None and self.point2 is not None:
-            return True
-        else:
-            return False
-
-    @property
     def length(self):
         """Return length of the line, if finite."""
-        if self.is_finite:
-            return self.point1.dist_to(self.point2)
-        else:
-            raise ValueError("Line is not finite")
+        return self.point1.distance_to(self.point2)
 
     def distance_to(self, point):
         """Calculate the minimum distance from the line to a point.
@@ -227,20 +275,14 @@ class Line:
         point : Point, iterable
             The point to calculate distance to.
         """
-        point = Point(point)
-        # calculate from m*x+b definition
-        if self.point2 is None:
-            #TODO: work on this
-            raise NotImplementedError
-        # calculate from 2 points definition
-        else:
-            lp1 = self.point1
-            lp2 = self.point2
-            numerator = np.abs((lp2.x - lp1.x)*(lp1.y - point.y) - (lp1.x - point.x)*(lp2.y - lp1.y))
-            denominator = np.sqrt((lp2.x - lp1.x)**2 + (lp2.y - lp1.y)**2)
-            return numerator/denominator
+        point = Point(point).as_array()
+        lp1 = self.point1.as_array()
+        lp2 = self.point2.as_array()
+        numerator = np.sqrt(np.sum(np.power(np.cross((lp2 - lp1), (lp1 - point)), 2)))
+        denominator = np.sqrt(np.sum(np.power(lp2 - lp1, 2)))
+        return numerator/denominator
 
-    def add_to_axes(self, axes, width=1, color='w'):
+    def plot2axes(self, axes, width=1, color='w'):
         """Plot the line to an axes.
 
         Parameters
@@ -255,8 +297,8 @@ class Line:
 
 class Rectangle:
     """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point."""
-    # @type_accept(center=Point, tl_corner=Point, bl_corner=Point)
-    def __init__(self, width, height, center=None, tl_corner=None, bl_corner=None, as_int=False):
+
+    def __init__(self, width, height, center, as_int=False):
         """
         Parameters
         ----------
@@ -266,10 +308,6 @@ class Rectangle:
             Height of the rectangle.
         center : Point, iterable, optional
             Center point of rectangle.
-        tl_corner : Point, iterable, optional
-            Top-Left corner of the rectangle.
-        bl_corner : Point, iterable, optional
-            Bottom-Left corner of the rectangle.
         as_int : bool
             If False (default), inputs are left as-is. If True, all inputs are converted to integers.
         """
@@ -279,25 +317,30 @@ class Rectangle:
         else:
             self.width = width
             self.height = height
+        self._as_int = as_int
+        self.center = Point(center, as_int=as_int)
 
-        if not any((center, tl_corner, bl_corner)):
-            raise ValueError("Must specify at least one anchor point for the box.")
-        elif center is not None:
-            c = self.center = Point(center, as_int=as_int)
-            self.tl_corner = Point(c.x - width/2, c.y + height/2, as_int=as_int)
-            self.bl_corner = Point(c.x - width/2, c.y - height/2, as_int=as_int)
-        elif tl_corner is not None:
-            tl = self.tl_corner = Point(tl_corner, as_int=as_int)
-            self.center = Point(tl.x + width/2, tl.y - height/2, as_int=as_int)
-            self.bl_corner = Point(tl.x, tl.y - height, as_int=as_int)
-        elif bl_corner is not None:
-            bl = self.bl_corner = Point(bl_corner, as_int=as_int)
-            self.center = Point(bl.x + width / 2, bl.y + height / 2, as_int=as_int)
-            self.tl_corner = Point(bl.x, bl.y + height, as_int=as_int)
+    @property
+    def br_corner(self):
+        """The location of the bottom right corner."""
+        return Point(self.center.x + self.width / 2, self.center.y - self.height / 2, as_int=self._as_int)
 
+    @property
+    def bl_corner(self):
+        """The location of the bottom left corner."""
+        return Point(self.center.x - self.width / 2, self.center.y - self.height / 2, as_int=self._as_int)
 
+    @property
+    def tl_corner(self):
+        """The location of the top left corner."""
+        return Point(self.center.x - self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
 
-    def add_to_axes(self, axes, edgecolor='black', angle=0.0, fill=False, alpha=1, facecolor='g'):
+    @property
+    def tr_corner(self):
+        """The location of the top right corner."""
+        return Point(self.center.x + self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
+
+    def plot2axes(self, axes, edgecolor='black', angle=0.0, fill=False, alpha=1, facecolor='g'):
         """Plot the Rectangle to the axes.
 
         Parameters
@@ -320,47 +363,3 @@ class Rectangle:
                                      facecolor=facecolor,
                                      fill=fill))
 
-
-def sector_mask(shape, center, radius, angle_range=(0, 360)):
-    """Return a circular arc-shaped boolean mask.
-
-    Parameters
-    ----------
-    shape : tuple
-        Shape of the image matrix. Usually easiest to pass something like array.shape
-    center : Point, iterable
-        The center point of the desired mask.
-    radius : int, float
-        Radius of the mask.
-    angle_range : iterable
-        The angle range of the mask. E.g. the default (0, 360) creates an entire circle.
-        The start/stop angles should be given in clockwise order. 0 is right (0 on unit circle).
-
-    References
-    ----------
-    https://stackoverflow.com/questions/18352973/mask-a-circular-sector-in-a-numpy-array/18354475#18354475
-    """
-
-    x, y = np.ogrid[:shape[0], :shape[1]]
-    cy, cx = center.x, center.y
-    # tmin, tmax = np.deg2rad(angle_range)
-    tmin, tmax = angle_range
-
-    # ensure stop angle > start angle
-    if tmax < tmin:
-        tmax += 2 * np.pi
-
-    # convert cartesian --> polar coordinates
-    r2 = (x - cx) * (x - cx) + (y - cy) * (y - cy)
-    theta = np.arctan2(x - cx, y - cy) - tmin
-
-    # wrap angles between 0 and 2*pi
-    theta %= (2 * np.pi)
-
-    # circular mask
-    circmask = r2 <= radius * radius
-
-    # angular mask
-    anglemask = theta <= (tmax - tmin)
-
-    return circmask * anglemask

@@ -1,114 +1,175 @@
 
-=========================
-CBCT module documentation
-=========================
+============================
+CatPhan module documentation
+============================
 
 Overview
 --------
 
-.. automodule:: pylinac.cbct
+.. automodule:: pylinac.ct
     :no-members:
 
 Running the Demo
 ----------------
 
-To run the CBCT demo, create a script or start in interpreter and input::
+To run one of the CatPhan demos, create a script or start an interpreter and input:
 
-    from pylinac.cbct import CBCT
-    CBCT().run_demo() # the demo is a Varian high quality head scan
+.. code-block:: python
+
+    from pylinac import CatPhan504
+    CatPhan504.run_demo() # the demo is a Varian high quality head scan
 
 Results will be printed to the console and a figure showing the slices analyzed will pop up::
 
-    - CBCT QA Test -
-    HU Regions:  {'PMP': -200.34063745019921, 'Acrylic': 116.68700787401575, 'Poly': -45.015748031496067, 'Teflon': 997.26494023904388, 'Air': -997.61220472440948, 'LDPE': -103.43503937007874, 'Delrin': 341.14763779527561}
-    HU Passed?:  True
-    Uniformity:  {'Top': 2.9074662430500395, 'Bottom': 5.9872915011914216, 'Right': -0.35345512311358218, 'Left': 10.128673550436854, 'Center': 21.321286735504369}
-    Uniformity Passed?:  True
-    MTF 80% (lp/mm):  1.09
-    Geometric distances:  {'Top-Horiz': 49.92540443205539, 'Bottom-Horiz': 49.965520922765805, 'Right-Vert': 49.91174913443049, 'Left-Vert': 50.078027293396}
-    Geometry Passed?:  True
+     - CatPhan 504 QA Test -
+    HU Linearity ROIs: {'Poly': -45.0, 'PMP': -200.0, 'Acrylic': 115.0, 'Teflon': 997.0, 'Delrin': 340.0, 'Air': -998.0, 'LDPE': -102.0}
+    HU Passed?: True
+    Uniformity ROIs: {'Center': 14.0, 'Top': 6.0, 'Left': 10.0, 'Bottom': 5.0, 'Right': 0.0}
+    Uniformity index: -1.3806706114398422
+    Integral non-uniformity: 0.006951340615690168
+    Uniformity Passed?: True
+    MTF 50% (lp/mm): 0.95
+    Low contrast ROIs "seen": 3
+    Low contrast visibility: 3.4654015681608437
+    Geometric Line Average (mm): 49.93054775087732
+    Geometry Passed?: True
+    Slice Thickness (mm): 2.5007568359375
+    Slice Thickness Passed? True
 
-.. image:: images/cbct_analyzed.png
+.. plot::
+
+    from pylinac import CatPhan504
+    cbct = CatPhan504.from_demo_images()
+    cbct.analyze()
+    cbct.plot_analyzed_image()
+
+As well, you can plot and save individual pieces of the analysis:
+
+.. code-block:: python
+
+    cbct = CatPhan504.from_demo_images()
+    cbct.analyze()
+    cbct.plot_analyzed_subimage('linearity')
+    cbct.save_analyzed_subimage('linearity.png', subimage='linearity')
+
+.. raw:: html
+    :file: images/cbct_hu_lin.html
+
+Or:
+
+.. code-block:: python
+
+    cbct.plot_analyzed_subimage('rmtf')
+
+.. raw:: html
+    :file: images/cbct_rmtf.html
+
+Or generate a PDF report:
+
+.. code-block:: python
+
+    cbct.publish_pdf('mycbct.pdf')
+
+
 
 Typical Use
 -----------
 
-CBCT analysis as done by this module closely follows what is specified in the CatPhan manuals, replacing the need for hand measurements.
-Assuming you've made a CBCT object as follows::
+CatPhan analysis as done by this module closely follows what is specified in the CatPhan manuals, replacing the need for manual measurements.
+There are 3 CatPhan models that pylinac can analyze: :class:`~pylinac.ct.CatPhan504`, :class:`~pylinac.ct.CatPhan503`, & :class:`~pylinac.ct.CatPhan600`
+, each with their own class in
+pylinac. Let's assume you have the CatPhan504 for this example. Using the other models/classes is exactly
+the same except the class name.
 
-    from pylinac.cbct import CBCT
-    mycbct = CBCT()
+.. code-block:: python
+
+    from pylinac import CatPhan504  # or import the CatPhan503 or CatPhan600
 
 The minimum needed to get going is to:
 
-* **Load images** -- Loading the DICOM images into your CBCT object can be done by passing the folder the images are located in.
-  This can be done directly, or by using a UI. The code might look like either of the following::
+* **Load images** -- Loading the DICOM images into your CatPhan object is done by passing the images in during construction.
+  The most direct way is to pass in the directory where the images are:
 
-    # set the folder path
-    cbct_folder = r"C:/QA Folder/CBCT/June monthly"  # use of 'r' is for raw string; otherwise spaces and backslashes aren't interpreted properly
-    # load the images from the file path
-    mycbct.load_folder(cbct_folder)
+  .. code-block:: python
 
-    # *OR*
+    cbct_folder = r"C:/QA Folder/CBCT/June monthly"
+    mycbct = CatPhan504(cbct_folder)
+
+  or load a zip file of the images:
+
+  .. code-block:: python
 
     zip_file = r"C:/QA Folder/CBCT/June monthly.zip"
-    mycbct.load_zip_file(zip_file)
+    mycbct = CatPhan504.from_zip(zip_file)
 
-    # *OR*
+  You can also use the demo images provided:
 
-    # Identify the folder using a UI
-    mycbct.load_folder_UI()
+  .. code-block:: python
 
+    mycbct = CatPhan504.from_demo_images()
 
-* **Analyze the images** -- Once the folder/images are loaded, tell CBCT to start analyzing the images. See the
-  Algorithm section for details on how this is done::
+* **Analyze the images** -- Once the folder/images are loaded, tell pylinac to start analyzing the images. See the
+  Algorithm section for details and :meth:`~pylinac.cbct.CatPhan504.analyze`` for analysis options:
+
+  .. code-block:: python
 
     mycbct.analyze()
 
-* **View the results** -- The CBCT module can print out the summary of results to the console as well as draw a matplotlib image to show where the
-  samples were taken and their values::
+* **View the results** -- The CatPhan module can print out the summary of results to the console as well as draw a matplotlib image to show where the
+  samples were taken and their values:
+
+  .. code-block:: python
 
       # print results to the console
-      mycbct.return_results()
+      print(mycbct.return_results())
       # view analyzed images
       mycbct.plot_analyzed_image()
+      # save the image
+      mycbct.save_analyzed_image('mycatphan504.png')
+      # generate PDF
+      mycbct.publish_pdf('mycatphan.pdf', open_file=True)  # open the PDF after saving as well.
 
 Algorithm
 ---------
 
-The CBCT module is based on the tests and values given in the CatPhan 504 Manual. The algorithm works like such:
+The CatPhan module is based on the tests and values given in the respective CatPhan manual. The algorithm works like such:
 
 **Allowances**
 
 * The images can be any size.
-* For Varian machines, the images can be acquired with any protocol (Pelvis, Head, etc).
-* The phantom can have significant translation in the Left-Right, Up-Down direction; i.e. the setup does not have
-  to be precise.
+* The phantom can have significant translation in all 3 directions.
 * The phantom can have significant roll and moderate yaw and pitch.
 
 **Restrictions**
 
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
-* The phantom used must be an unmodified CatPhan 504, as endorsed and supplied by Varian.
-* The phantom must have <0.5cm offset in the z (In-Out) direction (work to remove this is in the plans).
+* The phantom used must be an unmodified CatPhan 504, 503, or 600.
+* All of the relevant modules must be within the scan extent; i.e. one can't scan only part of the phantom.
 
 
 **Pre-Analysis**
 
 * **Determine image properties** -- Upon load, the image set is analyzed for its DICOM properties to determine mm/pixel
-  spacing, rescale intercept and slope, manufacturer, etc. All the images are resized to 512x512 pixels for streamlined
-  analysis; this is accounted for in the physical spacing measurements.
+  spacing, rescale intercept and slope, manufacturer, etc.
 * **Convert to HU** -- The entire image set is converted from its raw values to HU by applying the rescale intercept
   and slope which is contained in the DICOM properties.
+* **Find the phantom z-location** -- Upon loading, all the images are scanned to determine where the HU linearity
+  module (CTP404) is located. This is accomplished by examining each image slice and looking for 2 things:
+
+    * *If the CatPhan is in the image.* At the edges of the scan this may not be true.
+    * *If a circular profile has characteristics like the CTP404 module*. If the CatPhan is in the image, a circular profile is taken
+      at the location where the HU linearity regions of interest are located. If the profile contains low, high, and lots of medium
+      values then it is very likely the HU linearity module. All such slices are found and the median slice is set as the
+      HU linearity module location. All other modules are located relative to this position.
 
 **Analysis**
 
 * **Determine phantom roll** -- Precise knowledge of the ROIs to analyze is important, and small changes in rotation
   could invalidate automatic results. The roll of the phantom is determined by examining the HU module and converting to
-  binary. The air holes are then located and the angle of the two holes determines the phantom roll.
+  a binary image. The air holes are then located and the angle of the two holes determines the phantom roll.
 
-    .. note::
+  .. note::
         For each step below, the "module" analyzed is actually the mean, median, or maximum of 3 slices (+/-1 slice around and
         including the nominal slice) to ensure robust measurements. Also, for each step/phantom module, the phantom center is
         determined, which corrects for the phantom pitch and yaw.
@@ -118,73 +179,103 @@ The CBCT module is based on the tests and values given in the CatPhan 504 Manual
 
 * **Determine HU linearity** -- The HU module (CTP404) contains several materials with different HU values. Using
   hardcoded angles (corrected for roll) and radius from the center of the phantom, circular ROIs are sampled which
-  correspond to the HU material regions. The mean pixel values of these ROIs are the HU values.
-* **Determine HU uniformity** -- HU uniformity (CTP486) is calculated in a very similar manner to HU linearity, but
+  correspond to the HU material regions. The mean pixel value of the ROI is the stated HU value.
+* **Determine HU uniformity** -- HU uniformity (CTP486) is calculated in a similar manner to HU linearity, but
   within the CTP486 module/slice.
 * **Calculate Geometry/Scaling** -- The HU module (CTP404), besides HU materials, also contains several "nodes" which
-  have an accurate spacing (5cm apart). Again, using hardcoded but corrected angles, the area around the 4 nodes are
-  sampled and then a threshold is applied which identifies the node within the ROI sample. The center of this node is
+  have an accurate spacing (50 mm apart). Again, using hardcoded but corrected angles, the area around the 4 nodes are
+  sampled and then a threshold is applied which identifies the node within the ROI sample. The center of mass of the node is
   determined and then the space between nodes is calculated.
 * **Calculate Spatial Resolution/MTF** -- The Spatial Resolution module (CTP528) contains 21 pairs of aluminum bars
   having varying thickness, which also corresponds to the thickness between the bars. One unique advantage of these
-  bars is that they are all focused on and equally distant to the phantom center. Thus, several circular profiles are
-  taken that go along all the line pairs. Starting on the proximal side of the line pairs, five profiles, each 1 pixel
-  apart, sample an entire circle that cuts through the line pairs. The five profiles are concatenated and the median
-  value extracted to effectively form one median profile. The peaks and valleys of the profile are located; peaks and
-  valleys of the same line pair are averages. The relative MTF (i.e. normalized to the first line pair) is then
+  bars is that they are all focused on and equally distant to the phantom center. This is taken advantage of by extracting
+  a :class:`~pylinac.core.profile.CollapsedCircleProfile` about the line pairs. The peaks and valleys of the profile are located;
+  peaks and valleys of each line pair are used to calculated the MTF. The relative MTF (i.e. normalized to the first line pair) is then
   calculated from these values.
-* **Calculate Low Contrast Resolution** -- Not yet implemented, but it's being examined.
+* **Calculate Low Contrast Resolution** -- Low contrast is inherently difficult to determine since detectability of humans
+  is not simply contrast based. Pylinac's analysis uses both the contrast value of the ROI as well as the ROI size to compute
+  a "detectability" score. ROIs above the score are said to be "seen", while those below are not seen. Only the 1.0% supra-slice ROIs
+  are examined. Two background ROIs are sampled on either side of the ROI contrast set. The score for a given ROI is
+  calculated like so :math:`\frac{ROI_{pixel} - background}{ROI_{stdev}} * ROI_{diameter}`, where :math:`ROI_{pixel}` is the
+  mean pixel value of the ROI, :math:`background` is the mean pixel value of the two background ROIs, and :math:`ROI_{diameter}`
+  is the diamter of the ROI in mm. The default detectability score is 10.
+* **Calculate Slice Thickness** -- Slice thickness is measured by determining the FWHM of the wire ramps in the CTP404 module.
+  A profile of the area around each wire ramp is taken, and the FWHM is determined from the profile. Based on testing, the FWHM
+  is not always perfectly detected and may not "catch" the profile, giving an undervalued representation. Thus, the
+  two longest profiles are averaged and the value is converted from pixels to mm and multiplied by 0.42.
+
 
 **Post-Analysis**
 
 * **Test if values are within tolerance** -- For each module, the determined values are compared with the nominal values.
   If the difference between the two is below the specified tolerance then the module passes.
 
+Troubleshooting
+---------------
+
+First, check the general :ref:`general_troubleshooting` section.
+Most problems in this module revolve around getting the data loaded.
+
+* If you're having trouble getting your dataset in, make sure you're loading the whole dataset.
+  Also make sure you've scanned the whole phantom.
+* Make sure there are no external markers on the CatPhan (e.g. BBs), otherwise the localization
+  algorithm will not be able to properly locate the phantom within the image.
+* Ensure that the FOV is large enough to encompass the entire phantom. If the scan is cutting off the phantom
+  in any way it will not identify it.
+* The phantom should never touch the edge of an image, see above point.
+* Set the ``classifier`` parameter to ``False`` when loading images. This will use a slower, brute-force
+  method to find the CTP404 module, but may give more reliable results:
+
+  .. code-block:: python
+
+      from pylinac import CatPhan503
+      cp = CatPhan503('my/folder', use_classifier=False)
+
+* Make sure you're loading the right CatPhan class. I.e. using a CatPhan600 class on a CatPhan504
+  scan may result in errors or erroneous results.
 
 API Documentation
 -----------------
 
-The CBCT class uses several other classes. There are several Slices of Interest (SoI), most of which contain Regions of Interest (RoI).
-SoIs have a base class as well as specialized classes for each specific slice.
+The CatPhan classes uses several other classes. There are several Slices of Interest (SOI), most of which contain Regions of Interest (ROI).
 
-.. autoclass:: pylinac.cbct.CBCT
-    :no-show-inheritance:
+.. autoclass:: pylinac.ct.CatPhan504
 
-Supporting Data Structure
+.. autoclass:: pylinac.ct.CatPhan503
 
-.. autoclass:: pylinac.cbct.Algo_Data
-    :no-show-inheritance:
+.. autoclass:: pylinac.ct.CatPhan600
 
-Slice Objects
+.. autoclass:: pylinac.ct.CatPhanBase
 
-.. autoclass:: pylinac.cbct.HU_Slice
+Module classes (CTP404, etc)
 
-.. autoclass:: pylinac.cbct.Base_HU_Slice
+.. autoclass:: pylinac.ct.Slice
 
-.. autoclass:: pylinac.cbct.UNIF_Slice
+.. autoclass:: pylinac.ct.CatPhanModule
 
-.. autoclass:: pylinac.cbct.GEO_Slice
+.. autoclass:: pylinac.ct.CTP404
 
-.. autoclass:: pylinac.cbct.SR_Slice
+.. autoclass:: pylinac.ct.CTP528
 
-.. autoclass:: pylinac.cbct.Locon_Slice
+.. autoclass:: pylinac.ct.CTP515
 
-.. autoclass:: pylinac.cbct.Slice
-    :no-show-inheritance:
+.. autoclass:: pylinac.ct.CTP486
+
 
 ROI Objects
 
-.. autoclass:: pylinac.cbct.HU_ROI
+.. autoclass:: pylinac.ct.ROIManagerMixin
 
-.. autoclass:: pylinac.cbct.GEO_ROI
+.. autoclass:: pylinac.ct.HUDiskROI
 
-.. autoclass:: pylinac.cbct.SR_Circle_ROI
+.. autoclass:: pylinac.ct.RectangleROI
 
-.. autoclass:: pylinac.cbct.ROI_Disk
+.. autoclass:: pylinac.ct.ThicknessROI
 
-.. autoclass:: pylinac.cbct.ROI
-    :no-show-inheritance:
+.. autoclass:: pylinac.ct.GeometricLine
 
-.. autoclass:: pylinac.cbct.GEO_Line
+Helper Functions
 
+.. autofunction:: combine_surrounding_slices
 
+.. autofunction:: get_catphan_classifier

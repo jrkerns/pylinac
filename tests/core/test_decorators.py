@@ -3,7 +3,7 @@ import unittest
 from pylinac.core.decorators import *
 
 
-class Test_Decorators(unittest.TestCase):
+class TestDecorators(unittest.TestCase):
 
     def test_timethis(self):
         @timethis
@@ -58,40 +58,3 @@ class Test_Decorators(unittest.TestCase):
         # invalid use
         self.assertRaises(ValueError, dumb_function, 6)  # correct type, wrong value
         self.assertRaises(TypeError, dumb_function, '3')  # incorrect type
-
-    def test_lazyproperty(self):
-
-        class ExpensiveClass:
-            @lazyproperty
-            def expensive_property(self):
-                time.sleep(0.2)
-                return
-        ec = ExpensiveClass()
-
-        # run the expensive property for the first time
-        start = time.time()
-        _ = ec.expensive_property
-        end = time.time()
-        first_access_time = end - start
-
-        # run it for the second time; should access cached property
-        start = time.time()
-        _ = ec.expensive_property
-        end = time.time()
-        cached_access_time = end - start
-
-        self.assertLess(cached_access_time, first_access_time)
-
-    def test_unwrap_func(self):
-        #TODO: can't figure this one out
-        class DumbClass:
-            # a wrapped function (due to decorator that doesn't use @wraps)
-            @lazyproperty
-            @type_accept()
-            def dumb_property(self):
-                return 'result'
-
-        d = DumbClass()
-        # do something like assert dumb_property name isn't same as unwrapped name,
-        # but dumb_property doesn't have __name__ attr.
-

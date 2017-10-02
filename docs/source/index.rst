@@ -3,41 +3,28 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Pylinac Documentation
-=====================
-
-.. image:: https://pypip.in/version/pylinac/badge.svg?text=version
-    :target: https://pypi.python.org/pypi/pylinac/
-    :alt: Latest Version
-
-.. image:: https://pypip.in/py_versions/pylinac/badge.svg
-    :target: https://pypi.python.org/pypi/pylinac/
-    :alt: Supported Python versions
-
-.. image:: https://pypip.in/license/pylinac/badge.svg
-    :target: https://pypi.python.org/pypi/pylinac/
-    :alt: License
-
-
-Welcome to Pylinac! This package is designed to help medical physicists perform linear accelerator quality assurance (QA),
-mostly from TG-142, easily and automatically. Pylinac contains a number of modules, each one addressing a common QA need. Code is
-compliant with Python 3, but not Python 2. You can read a bit about pylinac below,
-or jump right in by doing :ref:`installation` and then :ref:`getting_started`! If you have questions, head on over to the `forum
-<https://groups.google.com/forum/#!forum/pylinac>`_.
+.. include:: ../../README.rst
 
 .. toctree::
    :maxdepth: 2
 
    overview
    installation
-   getting_started
+   general_tips
+   tg51_docs
    starshot_docs
    vmat_docs
    cbct_docs
    log_analyzer
    picketfence
+   winston_lutz
+   planar_imaging
    flatsym
+   watcher
    core_modules
+   pylinac_core_hacking
+   troubleshooting
+   changelog
 
 
 Indices and tables

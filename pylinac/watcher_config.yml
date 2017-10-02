@@ -1,0 +1,144 @@
+# Pylinac Watcher Service Configuration File
+# See documentation here: http://pylinac.readthedocs.org/en/latest/watcher.html#configuration
+# Copy and edit this file to customize analysis
+# For each section's `analysis` group, the values correspond to the main class' `analyze()` keyword parameters.
+# The `failure` section is the criteria for sending "failure" emails
+# keywords are character sequences that must be in the file name to be considered of that analysis type
+
+
+general:
+  directory: path/to/analysis/directory  # path to the folder where analysis is performed;
+                                         # can also be specified as keyword arg in the `start_watching` and `process` functions
+  sources:
+    - path/to/folder1  # e.g. the trajectory log folder: I:\Transfer\TDS\<TB SN>\TrajectoryLog\Treatment
+    - path/to/folder2  # e.g. the exported images folder: I:\Transfer\TDS\<TB SN>\Imaging\ExportedImages
+  file-suffix: Report  # the suffix added to the .pdf file created after analysis
+  avoid-keywords:  # keywords in a file name that cause a skip of analysis
+    - .png
+    - .txt
+    - .pdf
+    - .pkl
+  query-frequency: 60  # the frequency at which pylinac queries new files; units are in seconds; N/A if using the `process` function
+  rolling-window-days: 15  # when analyzing files, only examine files newer than the specified days.
+                           # I.e. if the file is older than the value in days it won't be evaluated.
+                           # If the value is 0 no window is applied and all files are considered.
+  unit: TrueBeam 1234
+
+email:
+  enable-all: false  # set to true to send an email after every analysis
+  enable-failure: false  # set to true to only send an email after an analysis fails
+  sender: sender@gmail.com  # sender MUST be a Gmail account
+  sender-password: senderpassword
+  recipients:  # add as many recipients as desired
+    - recipient1@domain.com
+    - recipient2@domain.com
+  subject: Pylinac results  # subject line of the email
+
+# MACHINE LOG SETTINGS
+logs:
+  keywords:  # keywords needed in the file name to trigger analysis
+    - .dlg
+    - .bin
+  analysis:  # analysis settings; see each module's analyze() method for parameter options.
+             # Keywords must match the analyze() method keyword arguments exactly.
+    doseTA: 1
+    distTA: 1
+    threshold: 0.1
+    resolution: 0.1
+  failure:  # what constitutes a "failure" in analysis
+    gamma: 95  # gamma below this value triggers a failure
+    avg-rms: 0.05  # average RMS value above this value triggers a failure
+    max-rms: 0.5  # maximum RMS value above this value triggers a failure
+
+# WINSTON-LUTZ SETTINGS
+winston-lutz:
+  use-classifier: true
+  keywords:
+    - wl
+    - winston
+    - lutz
+  failure:
+    gantry-iso-size: 2
+    mean-cax-bb-distance: 2
+    max-cax-bb-distance: 2.5
+
+# STARSHOT SETTINGS
+starshot:
+  use-classifier: true
+  keywords:
+    - star
+  analysis:
+    tolerance: 1
+    radius: 0.8
+    sid: 1000  # ignored for EPID images since SID is embedded; If using CR or film, set to the value your clinic does starshots at.
+  failure:
+    passed: false
+
+# PICKET FENCE SETTINGS
+picketfence:
+  use-classifier: true
+  keywords:
+    - pf
+    - picket
+  analysis:
+    tolerance: 0.5
+    action_tolerance: 0.3
+    hdmlc: false
+  failure:
+    passed: false
+
+# CATPHAN SETTINGS
+catphan:
+  model: CatPhan504
+  keywords:
+    - cbct
+    - ct
+  analysis:
+    hu_tolerance: 40
+    scaling_tolerance: 1
+    zip_after: true
+  failure:
+    hu-passed: false
+    uniformity-passed: false
+    geometry-passed: false
+    thickness-passed: false
+
+# VMAT SETTINGS
+vmat:
+  use-classifier: true
+  keywords:
+    - vmat
+    - drgs
+    - drmlc
+    - mlcs
+  analysis:
+    tolerance: 1.5
+  failure:
+    passed: false
+
+# LEEDS TOR SETTINGS
+leeds:
+  use-classifier: true
+  keywords:
+    - leed
+    - tor
+  analysis:
+    low_contrast_threshold: 0.005
+    hi_contrast_threshold: 0.4
+
+# Standard Imaging QC-3 SETTINGS
+qc3:
+  use-classifier: true
+  keywords:
+    - pips
+    - qc
+  analysis:
+    low_contrast_threshold: 0.005
+    hi_contrast_threshold: 0.4
+
+# Las Vegas SETTINGS
+las-vegas:
+  keywords:
+    - vegas
+  analysis:
+    low_contrast_threshold: 0.005

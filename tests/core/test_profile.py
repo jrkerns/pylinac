@@ -1,186 +1,213 @@
-import unittest
+from unittest import TestCase
+import os.path as osp
 
+import numpy as np
 import scipy.signal as sps
 
-from pylinac.core.profile import *
+from pylinac.core import image
+from pylinac.core.profile import SingleProfile, MultiProfile, CircleProfile, CollapsedCircleProfile
 
 
-class Test_Profile(unittest.TestCase):
-    # create reference profiles
-    # ...create periodic xdata to calculate over; periodic because of sawtooth func
-    xdata = np.arange(8 * np.pi, step=0.05 * np.pi)
-    # ...create periodic sawtooth profile
-    values = sps.sawtooth(xdata, width=0.7)
+class SingleProfileMixin:
 
-    def test_inputs(self):
-        p = Profile()
-        self.assertIsNone(p.y_values)
+    ydata = np.ndarray
+    normalize_sides = True
+    fwxm_indices = {30: 0, 50: 0, 80: 0}
+    fwxm_center_values = {40: 0, 60: 0, 80: 0}
+    fwxm_center_indices = {40: 0, 60: 0, 80: 0}
+    field_value_length = 0
+    penumbra_widths_8020 = {'left': 0, 'right': 0, 'both': 0}
+    penumbra_widths_9010 = {'left': 0, 'right': 0, 'both': 0}
+    field_edge_indices = (0, 0)
+    field_calculations = {'max': 0, 'mean': 0, 'min': 0}
+    peak_idx = 0
 
-        # test that xdata is generated if not passed in
-        p = Profile(self.values)
-        xvals = np.arange(len(p.y_values))
-        self.assertCountEqual(p.x_values, xvals)
+    @classmethod
+    def setUpClass(cls):
+        cls.profile = SingleProfile(cls.ydata, normalize_sides=cls.normalize_sides)
 
-        # test that x and y values are numpy arrays
-        self.assertIsInstance(p.y_values, np.ndarray)
-        self.assertIsInstance(p.x_values, np.ndarray)
+    def test_fwxms(self):
+        for fwxm, fwhm_idx in self.fwxm_indices.items():
+            self.assertAlmostEqual(self.profile.fwxm(fwxm), fwhm_idx, delta=1)
+        for fwxm, fwhm_idx in self.fwxm_indices.items():
+            self.assertAlmostEqual(self.profile.fwxm(fwxm, interpolate=True), fwhm_idx, delta=1)
+
+    def test_fwxm_centers(self):
+        # test indices, interpolated and not interpolated
+        for fwxm, fwhm_val in self.fwxm_center_values.items():
+            self.assertAlmostEqual(self.profile.fwxm_center(fwxm, kind='value'), fwhm_val, delta=0.1)
+        for fwxm, fwhm_val in self.fwxm_center_values.items():
+            self.assertAlmostEqual(self.profile.fwxm_center(fwxm, kind='value', interpolate=True), fwhm_val, delta=0.1)
+
+        # test indices, interpolated and not interpolated
+        for fwxm, fwhm_idx in self.fwxm_center_indices.items():
+            self.assertAlmostEqual(self.profile.fwxm_center(fwxm), fwhm_idx, delta=1)
+        for fwxm, fwhm_idx in self.fwxm_center_indices.items():
+            self.assertAlmostEqual(self.profile.fwxm_center(fwxm, interpolate=True), fwhm_idx, delta=1)
+
+    def test_penum_widths(self):
+        # test 80/20, interp and non-interp
+        for side, val in self.penumbra_widths_8020.items():
+            self.assertAlmostEqual(self.profile.penumbra_width(side, lower=20, upper=80), val, delta=0.1)
+        for side, val in self.penumbra_widths_8020.items():
+            self.assertAlmostEqual(self.profile.penumbra_width(side, lower=20, upper=80, interpolate=True), val, delta=1)
+
+        # test 90/10
+        for side, val in self.penumbra_widths_9010.items():
+            self.assertAlmostEqual(self.profile.penumbra_width(side, lower=10, upper=90), val, delta=0.1)
+        for side, val in self.penumbra_widths_9010.items():
+            self.assertAlmostEqual(self.profile.penumbra_width(side, lower=10, upper=90, interpolate=True), val, delta=1)
+
+    def test_field_value_length(self):
+        field_values = self.profile.field_values()
+        self.assertAlmostEqual(len(field_values), self.field_value_length, delta=2)
+
+    def test_field_edges(self):
+        for meas, known in zip(self.field_edge_indices, self.profile.field_edges()):
+            self.assertAlmostEqual(meas, known, delta=0.1)
+
+    def test_field_calculations(self):
+        for calc, val in self.field_calculations.items():
+            self.assertAlmostEqual(self.profile.field_calculation(calculation=calc), val, delta=0.1)
+
+    def test_initial_peak(self):
+        detected_initial_peak_idx = self.profile._initial_peak_idx
+        self.assertAlmostEqual(detected_initial_peak_idx, self.peak_idx, delta=1)
+
+    def test_unnormalized_peaks(self):
+        pass
+
+
+class SingleProfileTriangle(SingleProfileMixin, TestCase):
+
+    xdata = np.linspace(0, 2*np.pi, num=200)
+    ydata = sps.sawtooth(xdata, width=0.5)
+    fwxm_indices = {30: 140, 50: 101, 80: 41}
+    fwxm_center_values = {40: 1, 60: 1, 80: 1}
+    fwxm_center_indices = {40: 100, 60: 100, 80: 100}
+    penumbra_widths_8020 = {'left': 60, 'right': 60, 'both': 60}
+    penumbra_widths_9010 = {'left': 80, 'right': 80, 'both': 80}
+    field_edge_indices = (60, 140)
+    field_calculations = {'max': 0.99, 'mean': 0.60, 'min': 0.21}
+    field_value_length = 80
+    peak_idx = 100
+
+
+class SingleProfileCutoffTriangle(SingleProfileMixin, TestCase):
+    """A triangle cut short on the right side. Can effectively test the normalization of each side."""
+    xdata = np.linspace(0, 1.7 * np.pi, num=200)
+    ydata = sps.sawtooth(xdata, width=0.5)
+    fwxm_indices = {30: 139, 50: 100, 80: 40}
+    fwxm_center_values = {40: 0.83, 60: 0.88, 80: 0.95}
+    fwxm_center_indices = {40: 107, 60: 110.5, 80: 114}
+    penumbra_widths_8020 = {'left': 70, 'right': 49, 'both': 59.5}
+    penumbra_widths_9010 = {'left': 94, 'right': 65, 'both': 79.5}
+    field_edge_indices = (68, 148)
+    field_calculations = {'max': 0.99, 'mean': 0.64, 'min': 0.18}
+    field_value_length = 80
+    peak_idx = 117
+
+
+class MultiProfileTestMixin:
+
+    values = np.ndarray
+    peak_max_idxs = (0,)
+    valley_max_idxs = (0,)
+    peak_fwxm_idxs = (0,)
+    subdivide_fwxm_centers = (0,)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.profile = MultiProfile(cls.values)
+
+    def test_find_peaks(self):
+        peaks = self.profile.find_peaks()
+        for peak, known_peak in zip(peaks, self.peak_max_idxs):
+            self.assertAlmostEqual(peak, known_peak, delta=1)
+
+    def test_find_fwxm_peaks(self):
+        peakidxs = self.profile.find_fwxm_peaks()
+        for peak, known_peak in zip(peakidxs, self.peak_fwxm_idxs):
+            self.assertAlmostEqual(peak, known_peak, delta=1)
+
+    def test_find_valleys(self):
+        valleys = self.profile.find_valleys()
+        for valley, known_valley in zip(valleys, self.valley_max_idxs):
+            self.assertAlmostEqual(valley, known_valley, delta=1)
+
+    def test_subdivide(self):
+        self.profile.find_peaks()
+        profiles = self.profile.subdivide()
+        for profile, known_fwxm_center in zip(profiles, self.subdivide_fwxm_centers):
+            fwxm_center = profile.fwxm_center()
+            self.assertAlmostEqual(fwxm_center, known_fwxm_center, delta=1)
+
+
+class MultiProfileTriangle(MultiProfileTestMixin, TestCase):
+
+    x_values = np.linspace(0, 8*np.pi, num=200)
+    values = sps.sawtooth(x_values, width=0.5)
+    valley_max_idxs = (50, 100, 150)
+    peak_max_idxs = (25, 75, 125, 175)
+    peak_fwxm_idxs = (25, 75, 125, 175)
+    subdivide_fwxm_centers = (25, 50, 50, 50)
 
     def test_ground_profile(self):
         """Test that the profile is properly grounded to 0."""
-        p = Profile(self.values)
+        p = MultiProfile(self.values)
         # the minimum shouldn't be zero to start with
-        self.assertFalse(p.y_values.min() == 0)
+        self.assertFalse(p.values.min() == 0)
         # but it should be after grounding
         p.ground()
-        self.assertTrue(p.y_values.min() == 0)
-
-    def test_find_peaks(self):
-        p = Profile(self.values)
-        p.find_peaks()
-        known_peak_locs = (28, 68, 108, 148)
-        for found_peak, known_peak in zip(p.peaks, known_peak_locs):
-            self.assertEqual(found_peak.idx, known_peak)
-
-    def test_find_valleys(self):
-        p = Profile(self.values)
-        p.find_valleys()
-        known_valley_locs = (40, 80, 120)
-        for found_valley, known_valley in zip(p.valleys, known_valley_locs):
-            self.assertEqual(found_valley.idx, known_valley)
-
-    def test_find_FWHM_peaks(self):
-        p = Profile(self.values)
-        p.find_FWXM_peaks()
-        known_peak_locs = (24, 64, 103, 143)
-        for found_peak, known_peak in zip(p.peaks, known_peak_locs):
-            self.assertAlmostEqual(found_peak.idx, known_peak, delta=1)
-
-    def test_subdivide_profiles(self):
-        p = Profile(self.values)
-        p.find_peaks()
-        subprofiles = p._subdivide_profiles()
-
-        # test subprofile is a singleprofile instance
-        self.assertIsInstance(subprofiles[0], SingleProfile)
-
-        # test that x-values got propagated
-        # I.e. profile1.x_values = [0,1,2] profile2.x_values = [3,4,5], ...
-        known_end_points = (0, 28, 68, 108)
-        found_left_ends = [subprofile.x_values[0] for subprofile in subprofiles]
-        for found_left_end, known_left_end in zip(found_left_ends, known_end_points):
-            self.assertEqual(found_left_end, known_left_end)
+        self.assertTrue(p.values.min() == 0)
 
 
-class Test_CircleProfile(unittest.TestCase):
+class CircleProfileTestMixin:
+    klass = CircleProfile
+    image_file_location = osp.join(osp.dirname(osp.dirname(osp.abspath(__file__))), 'test_files', 'Starshot',
+                                   'Starshot#1.tif')
+    radius = 300
+    peak_idxs = (0,)
+    valley_idxs = (0,)
+    fwxm_peak_idxs = (0,)
+    center_point = (507, 650)
 
-    def test_inputs(self):
-        cp = CircleProfile()
-        self.assertEqual(cp.center.y, 0)
-        self.assertIsNone(cp.y_values)
+    @classmethod
+    def setUpClass(cls):
+        img = image.load(cls.image_file_location)
+        cls.profile = cls.klass(cls.center_point, cls.radius, img.array)
 
-        center = Point(50, 50)
-        radius = 30
-        cp = CircleProfile(center, radius)
-        self.assertEqual(cp.center.x, center.x)
+    def test_locations(self):
+        first_x_location = self.profile.radius + self.profile.center.x
+        self.assertAlmostEqual(first_x_location, self.profile.x_locations[0], delta=1)
 
-    def test_get_profile(self):
-        img_array = np.ones((101, 101))
-        center = Point(50, 50)
-        radius = 30
+    def test_peak_idxs(self):
+        for known, meas in zip(self.peak_idxs, self.profile.find_peaks()):
+            self.assertAlmostEqual(known, meas, delta=1)
 
-        cp = CircleProfile(center, radius)
-        cp.get_profile(img_array)
-        # test random sample is 1 (the whole matrix is 1's)
-        self.assertEqual(cp.y_values[500], 1)
-        # test x_locs set properly
-        self.assertAlmostEqual(cp.x_locs[0], center.x+radius, delta=0.01)
+    def test_valley_idxs(self):
+        for known, meas in zip(self.valley_idxs, self.profile.find_valleys()):
+            self.assertAlmostEqual(known, meas, delta=1)
 
-        small_img_array = np.ones((20,20))
-        cp = CircleProfile(center, radius)
-        self.assertRaises(ValueError, cp.get_profile, small_img_array)
+    def test_fwxm_peak_idxs(self):
+        for known, meas in zip(self.fwxm_peak_idxs, self.profile.find_fwxm_peaks()):
+            self.assertAlmostEqual(known, meas, delta=1)
+
+    def test_add_to_axes(self):
+        # shouldn't raise
+        self.profile.plot2axes()
 
 
-class Test_SingleProfile(unittest.TestCase):
-    # create reference profiles
-    # ...create periodic xdata to calculate over; periodic because of sawtooth func
-    xdata = np.arange(1.9 * np.pi, step=0.02 * np.pi)
-    # ...create periodic sawtooth profile
-    values = sps.sawtooth(xdata, width=0.7)
-    initial_peak = np.pi
+class CircleProfileStarshot(CircleProfileTestMixin, TestCase):
 
-    penums = (20, 40, 50, 70, 80, 90)
+    peak_idxs = [218., 480., 738., 985., 1209., 1420., 1633., 1857.]
+    valley_idxs = [118., 338., 606., 911., 1138., 1364., 1529., 1799.]
+    fwxm_peak_idxs = [219.5, 479.5, 738.0, 984.5, 1209.0, 1421.0, 1633.5, 1857.5]
 
-    def test_inputs(self):
-        p = SingleProfile(self.values)
-        # test that xdata is generated if not passed in
-        xvals = np.arange(len(p.y_values))
-        self.assertCountEqual(p.x_values, xvals)
-        self.assertEqual(p.x_values[-1], len(xvals)-1)
 
-        # test that the initial peak found is reasonable
-        p = SingleProfile(self.values, self.xdata)
-        known_peak = 4
-        self.assertAlmostEqual(p.initial_peak, known_peak, delta=2)
+class CollapsedCircleProfileStarshot(CircleProfileTestMixin, TestCase):
 
-        # test that a bad peak passed raises an error
-        bad_peak_idx = 20
-        self.assertRaises(IndexError, SingleProfile, self.values, self.xdata, initial_peak=bad_peak_idx)
-
-        # test that bad profile raises error
-        # xdata = np.arange(1.5 * np.pi, step=0.02 * np.pi)
-        # bad_profile = sps.sawtooth(xdata, width=0.7)
-        # self.assertRaises(ValueError, SingleProfile, bad_profile)
-
-    def test_get_X_penum_idx(self):
-        p = SingleProfile(self.values)
-        # test various penumbra points
-
-        left_known_idxs = (13, 27, 34, 48, 55, 62)
-        for penum, known_idx in zip(self.penums, left_known_idxs):
-            self.assertEqual(p.get_X_penum_idx('left', penum), known_idx)
-
-        right_known_idxs = (89, 84, 82, 77, 75, 73)
-        for penum, known_idx in zip(self.penums, right_known_idxs):
-            self.assertEqual(p.get_X_penum_idx('right', penum), known_idx)
-
-    def test_getFWXM(self):
-        p = SingleProfile(self.values)
-        known_widths = (76, 57, 48, 29, 20, 11)
-        for penum, known_width in zip(self.penums, known_widths):
-            self.assertEqual(p.get_FWXM(penum), known_width)
-
-    def test_get_FWXM_center(self):
-        p = SingleProfile(self.values)
-        known_idxs = (51, 55.5, 58, 62.5, 65, 67.5)
-        for penum, known_width in zip(self.penums, known_idxs):
-            self.assertAlmostEqual(p.get_FWXM_center(penum), known_width, delta=0.1)
-
-            # test that values are rounded when asked for
-        known_idxs = (51, 56, 58, 62, 65, 68)
-        for penum, known_width in zip(self.penums, known_idxs):
-            self.assertEqual(p.get_FWXM_center(penum, True), known_width)
-
-    def test_get_penum_width(self):
-        p = SingleProfile(self.values)
-        # test that error raised when lower > upper
-        self.assertRaises(ValueError, p.get_penum_width, upper=20, lower=80)
-
-        sides = ('left', 'right', 'left')
-        lower_penums = (10, 20, 30)
-        known_lower_penums = (49, 14, 35)
-        for side, penum, known_penum in zip(sides, lower_penums, known_lower_penums):
-            self.assertEqual(p.get_penum_width(side, lower=penum), known_penum)
-
-        upper_penums = (70, 80, 90)
-        known_upper_penums = (35, 14, 49)
-        for side, penum, known_penum in zip(sides, upper_penums, known_upper_penums):
-            self.assertEqual(p.get_penum_width(side, upper=penum), known_penum)
-
-    def test_get_field_value(self):
-        p = SingleProfile(self.values)
-
-        field_widths = (0.3, 0.6, 0.8, 0.9)
-        values = ('mean', 'median', 'max', 'min')
-        known_values = (0.63, 0.63, 1.0, 0.03)
-        for width, value, known_value in zip(field_widths, values, known_values):
-            self.assertAlmostEqual(p.get_field_calculation(width, value), known_value, delta=0.03)
+    klass = CollapsedCircleProfile
+    peak_idxs = [241., 529., 812., 1083., 1330., 1563., 1796., 2044.]
+    valley_idxs = [100., 405., 673., 960., 1241., 1481., 1714., 1916.]
+    fwxm_peak_idxs = [241.0, 529.5, 812.5, 1084.0, 1330.5, 1563.0, 1797.0, 2043.5]

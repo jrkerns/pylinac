@@ -1,37 +1,87 @@
-import unittest
+import os
 import os.path as osp
+from unittest import TestCase
 
-from pylinac.starshot import Starshot
+import matplotlib.pyplot as plt
+import numpy as np
+
 from pylinac.core.geometry import Point
+from pylinac import Starshot
+from tests.utils import save_file, LoadingTestBase, LocationMixin
+
+plt.close('all')
+TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
 
 
-test_file_dir = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
+class TestStarshotLoading(LoadingTestBase, TestCase):
+    klass = Starshot
+    url = 'starshot.tif'
+    kwargs = {'dpi': 30, 'sid': 1000}
+
+    def test_no_dpi(self):
+        # raise error when DPI isn't in image or given
+        with self.assertRaises(ValueError):
+            Starshot.from_url(self.full_url)
+        # but is fine when DPI is given
+        Starshot.from_url(self.full_url, **self.kwargs)
 
 
-class Star_general_tests(unittest.TestCase):
-    """Performs general tests (not demo specific)."""
+class TestPlottingSaving(TestCase):
+
     def setUp(self):
-        self.star = Starshot()
-        self.star.load_demo_image()
+        self.star = Starshot.from_demo_image()
+        self.star.analyze()
 
-    def test_analyze_without_images(self):
-        star = Starshot()
-        self.assertRaises(AttributeError, star.analyze)
+    def test_save_analyzed_image(self):
+        """Test that saving an image does something."""
+        save_file(self.star.save_analyzed_image)
+
+    def test_save_analyzed_subimage(self):
+        # save as normal file
+        save_file(self.star.save_analyzed_subimage)
+        # save into buffer
+        save_file(self.star.save_analyzed_subimage, as_file_object='b')
 
 
-class Star_Test:
-    star_file = ''
+class StarMixin(LocationMixin):
+    """Mixin for testing a starshot image."""
+    dir_location = TEST_DIR
+    is_dir = False  # whether the starshot is a single file (False) or directory of images to combine (True)
     wobble_diameter_mm = 0
     wobble_center = Point()
     num_rad_lines = 0
+    recursive = True
+    passes = True
+    min_peak_height = 0.25
+    radius = 0.85
+    test_all_radii = True
+    fwxm = True
+    wobble_tolerance = 0.2
+    kwargs = {'sid': 1000}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.star = cls.construct_star()
+        cls.star.analyze(recursive=cls.recursive, min_peak_height=cls.min_peak_height, fwhm=cls.fwxm, radius=cls.radius)
+
+    @classmethod
+    def construct_star(cls):
+        filename = cls.get_filename()
+        if cls.is_dir:
+            files = [osp.join(filename, file) for file in os.listdir(filename)]
+            star = Starshot.from_multiple_images(files, **cls.kwargs)
+        else:
+            star = Starshot(filename, **cls.kwargs)
+        return star
 
     def test_passed(self):
         """Test that the demo image passed"""
-        self.assertTrue(self.star.passed, msg="Wobble was not within tolerance")
+        self.star.analyze(recursive=self.recursive, min_peak_height=self.min_peak_height, fwhm=self.fwxm, radius=self.radius)
+        self.assertEqual(self.star.passed, self.passes, msg="Wobble was not within tolerance")
 
     def test_wobble_diameter(self):
         """Test than the wobble radius is similar to what it has been shown to be)."""
-        self.assertAlmostEqual(self.star.wobble.diameter_mm, self.wobble_diameter_mm, delta=0.25)
+        self.assertAlmostEqual(self.star.wobble.diameter_mm, self.wobble_diameter_mm, delta=self.wobble_tolerance)
 
     def test_wobble_center(self):
         """Test that the center of the wobble circle is close to what it's shown to be."""
@@ -47,110 +97,88 @@ class Star_Test:
         self.assertEqual(len(self.star.lines), self.num_rad_lines,
                          msg="The number of radiation lines found was not the number expected")
 
+    def test_all_radii_give_same_wobble(self):
+        """Test that the wobble stays roughly the same for all radii."""
+        if self.test_all_radii:
+            star = self.construct_star()
+            for radius in np.linspace(0.9, 0.25, 8):
+                star.analyze(radius=float(radius), min_peak_height=self.min_peak_height, recursive=self.recursive, fwhm=self.fwxm)
+                self.assertAlmostEqual(star.wobble.diameter_mm, self.wobble_diameter_mm, delta=self.wobble_tolerance)
 
-class Test_Star_Demo(unittest.TestCase, Star_Test):
+
+class Demo(StarMixin, TestCase):
     """Specific tests for the demo image"""
-    wobble_diameter_mm = 0.35
-    wobble_center = Point(1270, 1438)
+    wobble_diameter_mm = 0.30
+    wobble_center = Point(1270, 1437)
     num_rad_lines = 4
 
-    def setUp(self):
-        self.star = Starshot()
-        self.star.load_demo_image()
+    @classmethod
+    def construct_star(cls):
+        return Starshot.from_demo_image()
 
-    def test_passed(self):
-        self.star.analyze()
-        super().test_passed()
 
-    def test_failed_with_tight_tol(self):
-        self.star._tolerance = 0.1
-        self.star.analyze()
-        self.assertFalse(self.star.passed)
+class Multiples(StarMixin, TestCase):
+    """Test a starshot composed of multiple individual EPID images."""
+    num_rad_lines = 9
+    wobble_center = Point(254, 192)
+    wobble_diameter_mm = 0.8
+    test_all_radii = False
+    wobble_tolerance = 0.3
+    passes = True
 
-    def test_wobble_center(self):
-        self.star.analyze()
-        super().test_wobble_center()
+    @classmethod
+    def setUpClass(cls):
+        img_dir = osp.join(TEST_DIR, 'set')
+        img_files = [osp.join(img_dir, filename) for filename in os.listdir(img_dir)]
+        cls.star = Starshot.from_multiple_images(img_files)
+        cls.star.analyze(radius=0.8)
 
-    def test_num_rad_lines(self):
-        self.star.analyze()
-        super().test_num_rad_lines()
 
-    def test_wobble_diameter(self):
-        self.star.analyze()
-        super().test_wobble_diameter()
+class Starshot1(StarMixin, TestCase):
+    file_path = ['Starshot#1.tif']
+    wobble_center = Point(508, 683)
+    wobble_diameter_mm = 0.23
+    num_rad_lines = 4
 
-    def test_bad_inputs(self):
+
+class Starshot1FWHM(Starshot1):
+    fwhm = False
+
+
+class CRStarshot(StarMixin, TestCase):
+    file_path = ['CR-Starshot.dcm']
+    wobble_center = Point(1030.5, 1253.6)
+    wobble_diameter_mm = 0.3
+    num_rad_lines = 6
+
+
+class GeneralTests(Demo, TestCase):
+
+    def test_demo_runs(self):
+        """Test that the demo runs without error."""
+        self.star.run_demo()
+
+    def test_fails_with_tight_tol(self):
+        star = Starshot.from_demo_image()
+        star.analyze(tolerance=0.1)
+        self.assertFalse(star.passed)
+
+    def test_bad_inputs_still_recovers(self):
         self.star.analyze(radius=0.3, min_peak_height=0.1)
         self.test_wobble_center()
         self.test_wobble_diameter()
 
-    def test_demo_runs(self):
-        """Test that the demo runs without error."""
-        # TODO: come up with decorator that adds show parameter
-        self.star.run_demo()
-
     def test_image_inverted(self):
         """Check that the demo image was actually inverted, as it needs to be."""
-        top_left_corner_val_before = self.star.image.array[0,0]
-        self.star._check_image_inversion()
-        top_left_corner_val_after = self.star.image.array[0,0]
+        star = Starshot.from_demo_image()
+        top_left_corner_val_before = star.image.array[0, 0]
+        star._check_image_inversion()
+        top_left_corner_val_after = star.image.array[0, 0]
         self.assertNotEqual(top_left_corner_val_before, top_left_corner_val_after)
 
-    def test_SID_can_be_overridden_for_nonEPID(self):
-        self.star.analyze(SID=400)
-        self.assertNotEqual(self.star.wobble.diameter, self.wobble_diameter_mm*2)
-
-
-class Test_Coll(unittest.TestCase, Star_Test):
-    star_file = osp.join(test_file_dir, '6XCollStar.tif')
-    wobble_center = Point(1297, 1699)
-    wobble_diameter_mm = 0.37
-    num_rad_lines = 9
-
-    @classmethod
-    def setUpClass(cls):
-        cls.star = Starshot()
-        cls.star.load_image(cls.star_file)
-        cls.star.analyze(recursive=True)
-
-    def test_not_fwhm_passes(self):
-        self.star.analyze(fwhm=False)
+    def test_bad_start_point_recovers(self):
+        """Test that even at a distance start point, the search algorithm recovers."""
+        self.star.analyze(start_point=(1000, 1000))
         self.test_passed()
-
-
-class Test_Coll2(unittest.TestCase, Star_Test):
-    star_file = osp.join(test_file_dir, '10XCollStar.bmp')
-    wobble_center = Point(1370, 1454)
-    wobble_diameter_mm = 0.41
-    num_rad_lines = 4
-
-    @classmethod
-    def setUpClass(cls):
-        cls.star = Starshot()
-        cls.star.load_image(cls.star_file)
-        cls.star.analyze(recursive=True)
-
-
-class Test_Gantry(unittest.TestCase, Star_Test):
-    star_file = osp.join(test_file_dir, 'starshot_gantry.tif')
-    wobble_center = Point(1302, 1513)
-    wobble_diameter_mm = 1.15
-    num_rad_lines = 9
-
-    @classmethod
-    def setUpClass(cls):
-        cls.star = Starshot()
-        cls.star.load_image(cls.star_file)
-        cls.star.analyze(recursive=True)
-
-    # def test_passed(self):
-    #     # this image does *not* pass
-    #     self.assertFalse(self.star.passed)
-
-    # def test_print_fail(self):
-    #     self.star.analyze(0.3, recursive=False)
-    #     self.assertTrue('FAIL' in self.star.return_results())
-
-    def test_bad_input(self):
-        self.star.analyze(radius=0.3, min_peak_height=0.1)
+        self.test_wobble_center()
         self.test_wobble_diameter()
