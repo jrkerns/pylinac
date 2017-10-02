@@ -117,4 +117,4 @@ def finish(canvas, open_file, filename):
     canvas.showPage()
     canvas.save()
     if open_file:
-        os.startfile(filename)
+        utilities.open_path(filename)

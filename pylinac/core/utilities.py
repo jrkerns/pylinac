@@ -3,6 +3,7 @@ from collections import Iterable
 import decimal
 import os
 import os.path as osp
+import subprocess
 import struct
 
 import dicom
@@ -235,3 +236,15 @@ def decode_binary(file, dtype, num_values=1, cursor_shift=0):
     if cursor_shift:
         f.seek(cursor_shift, 1)
     return output
+
+
+def open_path(path):
+    """Open the specified path in the system default viewer."""
+
+    if os.uname()[0] == 'darwin':
+        launcher = "open"
+    elif os.name == 'posix':
+        launcher = "xdg-open"
+    elif os.name == 'nt':
+        launcher = "explorer"
+    subprocess.call([launcher, path])
