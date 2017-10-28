@@ -185,6 +185,23 @@ class WinstonLutz:
         else:
             return Vector()
 
+    @property
+    def bb_shift_vector(self):
+        """The shift necessary to place the BB at the radiation isocenter"""
+        tv = Vector()
+        vs = [img.cax2bb_vector3d for img in self.images]
+        for v in vs:
+            tv += v
+        return Vector(-tv.x / len(vs), -tv.y / len(vs), -tv.z / len(vs))
+
+    def bb_shift_instructions(self):
+        """A string describing how to shift the BB to the radiation isocenter"""
+        sv = self.bb_shift_vector
+        x_dir = 'LEFT' if sv.x < 0 else 'RIGHT'
+        y_dir = 'UP' if sv.y > 0 else 'DOWN'
+        z_dir = 'IN' if sv.z < 0 else 'OUT'
+        return "{} {:2.2f}mm; {} {:2.2f}mm; {} {:2.2f}mm".format(x_dir, abs(sv.x), y_dir, abs(sv.y), z_dir, abs(sv.z))
+
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
     def axis_rms_deviation(self, axis=GANTRY, value='all'):
         """The RMS deviations of a given axis/axes.
@@ -416,25 +433,24 @@ class WinstonLutz:
 
     def results(self):
         """Return the analysis results summary."""
-        result = "\nWinston-Lutz Analysis\n\n" \
+        result = "\nWinston-Lutz Analysis\n" \
+                 "=================================\n" \
                  "Number of images: {}\n" \
                  "Maximum 2D CAX->BB distance: {:.2f}mm\n" \
                  "Median 2D CAX->BB distance: {:.2f}mm\n" \
+                 "Shift BB to iso (IEC 61217; facing gantry, gantry 0 points to floor): {}\n" \
                  "Gantry 3D isocenter diameter: {:.2f}mm\n" \
-                 "Gantry iso->BB vector: {}\n" \
                  "Maximum Gantry RMS deviation (mm): {:.2f}mm\n" \
                  "Maximum EPID RMS deviation (mm): {:.2f}mm\n" \
                  "Collimator 2D isocenter diameter: {:.2f}mm\n" \
-                 "Collimator 2D iso->BB vector: {}\n" \
                  "Maximum Collimator RMS deviation (mm): {:.2f}\n" \
                  "Couch 2D isocenter diameter: {:.2f}mm\n" \
-                 "Couch 2D iso->BB vector: {}\n" \
                  "Maximum Couch RMS deviation (mm): {:.2f}".format(
                     len(self.images), self.cax2bb_distance('max'), self.cax2bb_distance('median'),
-                    self.gantry_iso_size, self.gantry_iso2bb_vector, max(self.axis_rms_deviation(GANTRY)),
+                    self.bb_shift_instructions(), self.gantry_iso_size, max(self.axis_rms_deviation(GANTRY)),
                     max(self.axis_rms_deviation(EPID)),
-                    self.collimator_iso_size, self.collimator_iso2bb_vector, max(self.axis_rms_deviation(COLLIMATOR)),
-                    self.couch_iso_size, self.couch_iso2bb_vector,
+                    self.collimator_iso_size, max(self.axis_rms_deviation(COLLIMATOR)),
+                    self.couch_iso_size,
                     max(self.axis_rms_deviation(COUCH)),
                  )
 
@@ -747,7 +763,16 @@ class WLImage(image.DicomImage):
     def cax2bb_vector(self):
         """The vector in mm from the CAX to the BB."""
         dist = (self.bb - self.field_cax) / self.dpmm
-        return Vector(dist.x, dist.y, dist.z)
+        # translate vector by couch angle
+        c_ang = self.couch_angle
+        new_x = dist.x * cos(c_ang) - dist.y * sin(c_ang)
+        new_y = dist.x * sin(c_ang) + dist.y * cos(c_ang)
+        return Vector(new_x, new_y, dist.z)
+
+    @property
+    def cax2bb_vector3d(self):
+        """The vector in mm from the CAX to the BB."""
+        return Vector(self.bb_x_offset, self.bb_y_offset, self.bb_z_offset)
 
     @property
     def cax2epid_vector(self):

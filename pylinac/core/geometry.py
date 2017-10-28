@@ -52,6 +52,18 @@ class Vector:
             p = Point(thing)
             return math.sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
 
+    def __sub__(self, other):
+        new_x = self.x - other.x
+        new_y = self.y - other.y
+        new_z = self.z - other.z
+        return Vector(x=new_x, y=new_y, z=new_z)
+
+    def __add__(self, other):
+        new_x = self.x + other.x
+        new_y = self.y + other.y
+        new_z = self.z + other.z
+        return Vector(x=new_x, y=new_y, z=new_z)
+
 
 def vector_is_close(vector1, vector2, delta=0.1):
     """Determine if two vectors are with delta of each other; this is a simple coordinate comparison check."""
