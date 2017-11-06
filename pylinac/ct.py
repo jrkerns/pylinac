@@ -50,7 +50,7 @@ class CatPhanBase:
     localization_radius = 59
     was_from_zip = False
 
-    def __init__(self, folderpath, use_classifier=False):
+    def __init__(self, folderpath, use_classifier=False, check_uid=True):
         """
         Parameters
         ----------
@@ -69,7 +69,7 @@ class CatPhanBase:
         self.catphan_roll = 0
         if not osp.isdir(folderpath):
             raise NotADirectoryError("Path given was not a Directory/Folder")
-        self.dicom_stack = image.DicomImageStack(folderpath)
+        self.dicom_stack = image.DicomImageStack(folderpath, check_uid=check_uid)
         self.localize(use_classifier=use_classifier)
 
     @classmethod
@@ -79,7 +79,7 @@ class CatPhanBase:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_url(cls, url, use_classifier=False):
+    def from_url(cls, url, use_classifier=False, check_uid=True):
         """Instantiate a CBCT object from a URL pointing to a .zip object.
 
         Parameters
@@ -88,10 +88,10 @@ class CatPhanBase:
             URL pointing to a zip archive of CBCT images.
         """
         filename = get_url(url)
-        return cls.from_zip(filename, use_classifier=use_classifier)
+        return cls.from_zip(filename, use_classifier=use_classifier, check_uid=check_uid)
 
     @classmethod
-    def from_zip(cls, zip_file, use_classifier=False):
+    def from_zip(cls, zip_file, use_classifier=False, check_uid=True):
         """Construct a CBCT object and pass the zip file.
 
         Parameters
@@ -105,7 +105,7 @@ class CatPhanBase:
         FileNotFoundError : If no CT images are found in the folder
         """
         with TemporaryZipDirectory(zip_file) as temp_zip:
-            obj = cls(temp_zip, use_classifier=use_classifier)
+            obj = cls(temp_zip, use_classifier=use_classifier, check_uid=check_uid)
         obj.was_from_zip = True
         return obj
 
@@ -332,6 +332,8 @@ class CatPhanBase:
         if not use_classifier or not hu_slices:
             for image_number in range(0, self.num_images, 2):
                 slice = Slice(self, image_number, combine=False)
+                # print(image_number)
+                # slice.image.plot()
                 try:
                     center = slice.phan_center
                 except ValueError:  # a slice without the phantom in view
@@ -352,7 +354,7 @@ class CatPhanBase:
         c = int(round(np.median(hu_slices)))
         ln = len(hu_slices)
         # drop slices that are way far from median
-        hu_slices = hu_slices[((c + ln/2) > hu_slices) & (hu_slices > (c - ln/2))]
+        hu_slices = hu_slices[((c + ln/2) >= hu_slices) & (hu_slices >= (c - ln/2))]
         center_hu_slice = int(round(np.median(hu_slices)))
         if self._is_within_image_extent(center_hu_slice):
             return center_hu_slice
@@ -1608,7 +1610,7 @@ def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='o
         center = (int(edges.shape[1]/2), int(edges.shape[0]/2))
     edges = filters.gaussian(edges, sigma=1)
     if isinstance(slice_or_arr, Slice):
-        box_size = 110/slice_or_arr.mm_per_pixel
+        box_size = 100/slice_or_arr.mm_per_pixel
         thres_img = edges[int(center.y-box_size):int(center.y+box_size),
                           int(center.x-box_size):int(center.x+box_size)]
         thres = thresmeth(thres_img)
@@ -1616,7 +1618,7 @@ def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='o
         thres = thresmeth(edges)
     bw = edges > thres
     if clear_borders:
-        segmentation.clear_border(bw, buffer_size=int(0.01*bw.shape[0]), in_place=True)
+        segmentation.clear_border(bw, buffer_size=1, in_place=True)
     if fill_holes:
         bw = ndimage.binary_fill_holes(bw)
     labeled_arr, num_roi = measure.label(bw, return_num=True)

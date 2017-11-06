@@ -876,7 +876,7 @@ class DicomImageStack:
     >>> dcm_stack_uint32 = image.DicomImageStack(img_folder, dtype=np.uint32)
     """
 
-    def __init__(self, folder, dtype=None, min_number=39):
+    def __init__(self, folder, dtype=None, min_number=39, check_uid=True):
         """Load a folder with DICOM CT images.
 
         Parameters
@@ -900,7 +900,8 @@ class DicomImageStack:
             raise FileNotFoundError("No files were found in the specified location: {0}".format(folder))
 
         # error checking
-        self.images = self._check_number_and_get_common_uid_imgs(min_number)
+        if check_uid:
+            self.images = self._check_number_and_get_common_uid_imgs(min_number)
         # sort according to physical order
         self.images.sort(key=lambda x: x.metadata.ImagePositionPatient[-1])
 

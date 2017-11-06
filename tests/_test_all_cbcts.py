@@ -411,3 +411,29 @@ class DBCatPhan503Roll(CatPhan503Mixin, TestCase):
     mtf_values = {30: 0.59, 50: 0.51, 80: 0.36}
     avg_line_length = 48.9
     lowcon_visible = 6
+
+
+# Is not a 504; figure out what it is
+class Philips1MM(CatPhan504Mixin, TestCase):
+    use_classifier = False
+    file_path = ['Philips 1mm.zip']
+    expected_roll = -0.49
+    origin_slice = 284
+    hu_values = {'Poly': -32, 'Acrylic': 125, 'Delrin': 343, 'Air': -967, 'Teflon': 914, 'PMP': -175, 'LDPE': -85}
+    unif_values = {'Center': 95, 'Left': 96, 'Right': 96, 'Top': 94, 'Bottom': 99}
+    mtf_values = {30: 0.8, 50: 0.86, 80: 0.99}
+    avg_line_length = 49.8
+    lowcon_visible = 0
+
+
+# Is not a 504; figure out what it is
+class Siemens5MM(CatPhan504Mixin, TestCase):
+    use_classifier = False
+    check_uid = False
+    file_path = ['Siemens 5mm.zip']
+    expected_roll = 1.26
+    origin_slice = 41
+    hu_values = {'Poly': -40, 'Acrylic': 120, 'Delrin': 347, 'Air': -1003, 'Teflon': 953, 'PMP': -187, 'LDPE': -95}
+    unif_values = {'Center': 47, 'Left': 50, 'Right': 49, 'Top': 49, 'Bottom': 53}
+    mtf_values = {30: 0.8, 50: 1.29, 80: 0.59}
+    lowcon_visible = 0

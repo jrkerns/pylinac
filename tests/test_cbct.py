@@ -76,6 +76,7 @@ class CBCTMixin(LocationMixin):
         otherwise."""
     catphan = CatPhan504
     use_classifier = True
+    check_uid = True
     origin_slice = 0
     file_path = []
     dir_location = TEST_DIR
