@@ -27,7 +27,8 @@ setup(
                       "pyyaml >= 3.10",
                       "yagmail",
                       "mpld3",
-                      "reportlab >= 3.3"],
+                      "reportlab >= 3.3",
+                      "trf2csv"],
     entry_points={
         'console_scripts':
             ['pylinac=pylinac.scripts:cli']
