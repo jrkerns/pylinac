@@ -6,7 +6,7 @@ import os.path as osp
 import os
 import webbrowser
 
-from . import picketfence, vmat, ct, log_analyzer, starshot, planar_imaging, __version__, winston_lutz, watcher
+from . import picketfence, vmat, ct, log_analyzer, starshot, planar_imaging, __version__, winston_lutz, utilities, watcher
 
 
 class PylinacGUI(Frame):
@@ -103,7 +103,7 @@ class PylinacGUI(Frame):
             fname = osp.join(self.vmat_dmlcimg.get().replace('.dcm', '.pdf'))
             v.publish_pdf(fname)
             self.vmat_pdf.set(fname)
-            os.startfile(fname)
+            utilities.open_path(fname)
 
         self.vmat_tab = Frame(self.notebook)
         self.vmat_openimg = StringVar()
@@ -154,7 +154,7 @@ class PylinacGUI(Frame):
             fname = osp.join(self.pf_file.get().replace('.dcm', '.pdf'))
             pf.publish_pdf(fname)
             self.pf_pdf.set(fname)
-            os.startfile(fname)
+            utilities.open_path(fname)
 
         self.pf_tab = Frame(self.notebook)
         self.pf_filter = BooleanVar(value=False)
@@ -202,7 +202,7 @@ class PylinacGUI(Frame):
                         scaling_tolerance=self.ct_scaling.get())
             cat.publish_pdf(fname)
             self.ct_pdf.set(fname)
-            os.startfile(fname)
+            utilities.open_path(fname)
 
         self.ct_tab = Frame(self.notebook)
         self.ct_file = StringVar()
@@ -245,7 +245,7 @@ class PylinacGUI(Frame):
             fname = name + '.pdf'
             log.publish_pdf(fname)
             self.log_pdf.set(fname)
-            os.startfile(fname)
+            utilities.open_path(fname)
 
         self.log_tab = Frame(self.notebook)
         self.log_file = StringVar()
@@ -277,7 +277,7 @@ class PylinacGUI(Frame):
             fname = name + '.pdf'
             star.publish_pdf(fname)
             self.star_pdf.set(fname)
-            os.startfile(fname)
+            utilities.open_path(fname)
 
         self.star_tab = Frame(self.notebook)
         self.star_file = StringVar()
@@ -321,7 +321,7 @@ class PylinacGUI(Frame):
             fname = name + '.pdf'
             phantom.publish_pdf(fname)
             self.phan_pdf.set(fname)
-            os.startfile(fname)
+            utilities.open_path(fname)
 
         self.phan_tab = Frame(self.notebook)
         self.phan_file = StringVar()
@@ -368,7 +368,7 @@ class PylinacGUI(Frame):
                 fname = self.wl_file.get().replace('.zip', '.pdf')
             wl.publish_pdf(fname)
             self.wl_pdf.set(fname)
-            os.startfile(fname)
+            utilities.open_path(fname)
 
         self.wl_tab = Frame(self.notebook)
         self.wl_file = StringVar()
