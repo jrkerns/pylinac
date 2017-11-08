@@ -74,7 +74,7 @@ class VMAT:
             >>> dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
             >>> myvmat = VMAT(images=(open_img, dmlc_img))
             >>> myvmat.analyze(test='drmlc', tolerance=1.5)
-            >>> print(myvmat.return_results())
+            >>> print(myvmat.results())
             >>> myvmat.plot_analyzed_image()
     """
     def __init__(self, images, delivery_types=None):
@@ -159,7 +159,7 @@ class VMAT:
         """Run the VMAT demo for the Dose Rate & Gantry Speed test."""
         vmat = VMAT.from_demo_images(DRGS)
         vmat.analyze(test=DRGS, tolerance=tolerance, x_offset=20)  # old images (rev1, not new rev2's), which are offset
-        print(vmat.return_results())
+        print(vmat.results())
         vmat.plot_analyzed_image()
 
     @staticmethod
@@ -167,7 +167,7 @@ class VMAT:
         """Run the VMAT demo for the MLC leaf speed test."""
         vmat = VMAT.from_demo_images(DRMLC)
         vmat.analyze(test=DRMLC, tolerance=tolerance)
-        print(vmat.return_results())
+        print(vmat.results())
         vmat.plot_analyzed_image()
 
     @type_accept(test=str, x_offset=int)
@@ -343,7 +343,7 @@ class VMAT:
 
         return dmlc_prof, open_prof
 
-    def return_results(self):
+    def results(self):
         """A string of the summary of the analysis results.
 
         Returns

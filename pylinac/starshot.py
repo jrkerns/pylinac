@@ -57,7 +57,7 @@ class Starshot:
         >>> img_path = r"C:/QA/Starshots/Coll.jpeg"
         >>> mystar = Starshot(img_path, dpi=105, sid=1000)
         >>> mystar.analyze()
-        >>> print(mystar.return_results())
+        >>> print(mystar.results())
         >>> mystar.plot_analyzed_image()
     """
     def __init__(self, filepath, **kwargs):
@@ -312,7 +312,7 @@ class Starshot:
         """Return a pass/fail string."""
         return 'PASS' if self.passed else 'FAIL'
 
-    def return_results(self):
+    def results(self):
         """Return the results of the analysis.
 
         Returns
@@ -455,7 +455,7 @@ class Starshot:
         """Demonstrate the Starshot module using the demo image."""
         star = Starshot.from_demo_image()
         star.analyze()
-        print(star.return_results())
+        print(star.results())
         star.plot_analyzed_image()
 
 

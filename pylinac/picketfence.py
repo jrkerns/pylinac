@@ -93,7 +93,7 @@ class PicketFence:
         >>> img_path = r"C:/QA/June/PF.dcm"  # the EPID image
         >>> mypf = PicketFence(img_path)
         >>> mypf.analyze(tolerance=0.5, action_tolerance=0.3)
-        >>> print(mypf.return_results())
+        >>> print(mypf.results())
         >>> mypf.plot_analyzed_image()
     """
     def __init__(self, filename, filter=None, log=None):
@@ -215,7 +215,7 @@ class PicketFence:
         """Run the Picket Fence demo using the demo image. See analyze() for parameter info."""
         pf = PicketFence.from_demo_image()
         pf.analyze(tolerance, action_tolerance=action_tolerance)
-        print(pf.return_results())
+        print(pf.results())
         pf.plot_analyzed_image(interactive=interactive, leaf_error_subplot=True)
 
     def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False, num_pickets=None, sag_adjustment=0,
@@ -410,7 +410,7 @@ class PicketFence:
         if isinstance(filename, str):
             print("Picket fence image saved to: {0}".format(osp.abspath(filename)))
 
-    def return_results(self):
+    def results(self):
         """Return results of analysis. Use with print()."""
         pass_pct = self.percent_passing
         offsets = ' '.join('{:.1f}'.format(pk.dist2cax) for pk in self.pickets)

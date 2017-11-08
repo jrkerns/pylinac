@@ -1077,9 +1077,9 @@ class CatPhanBase:
         if isinstance(filename, str):
             print("CatPhan subimage figure saved to {0}".format(osp.abspath(filename)))
 
-    def _return_results(self):
+    def _results(self):
         """Helper function to spit out values that will be tested."""
-        print(self.return_results())
+        print(self.results())
         print("Phantom roll: {0}".format(self.find_phantom_roll()))
         print("Origin slice: {}".format(self.find_origin_slice()))
         mtfs = {}
@@ -1339,7 +1339,7 @@ class CatPhanBase:
         if zip_after and not self.was_from_zip:
             self._zip_images()
 
-    def return_results(self):
+    def results(self):
         """Return the results of the analysis as a string. Use with print()."""
         string = ('\n - CatPhan {} QA Test - \n'
                   'HU Linearity ROIs: {}\n'
@@ -1388,7 +1388,7 @@ class CatPhan503(CatPhanBase):
         """Run the CBCT demo using high-quality head protocol images."""
         cbct = CatPhan503.from_demo_images()
         cbct.analyze()
-        print(cbct.return_results())
+        print(cbct.results())
         cbct.plot_analyzed_image(show)
 
     def plot_analyzed_image(self, hu=True, uniformity=True, spatial_res=True, show=True):
@@ -1428,7 +1428,7 @@ class CatPhan504(CatPhanBase):
         """Run the CBCT demo using high-quality head protocol images."""
         cbct = CatPhan504.from_demo_images()
         cbct.analyze()
-        print(cbct.return_results())
+        print(cbct.results())
         cbct.plot_analyzed_image(show)
 
 
@@ -1451,7 +1451,7 @@ class CatPhan600(CatPhanBase):
         """Run the CatPhan 600 demo."""
         cbct = CatPhan600.from_demo_images()
         cbct.analyze()
-        print(cbct.return_results())
+        print(cbct.results())
         cbct.plot_analyzed_image(show)
 
 
