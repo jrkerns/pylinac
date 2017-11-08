@@ -143,13 +143,6 @@ class WinstonLutz:
         return self._minimize_axis(GANTRY).fun * 2
 
     @property
-    def gantry_iso2bb_vector(self):
-        """The 3D vector from the isocenter to the BB (located at the origin)."""
-        min_fun = self._minimize_axis(GANTRY)
-        # optimization result goes from origin TO the iso, thus to go from iso to bb (origin), invert sign
-        return Vector(min_fun.x[0], min_fun.x[1], min_fun.x[2])
-
-    @property
     def collimator_iso_size(self):
         """The 2D collimator isocenter size (diameter) in mm. The iso size is in the plane
         normal to the gantry."""
@@ -159,15 +152,6 @@ class WinstonLutz:
             return 0
 
     @property
-    def collimator_iso2bb_vector(self):
-        """The 2D vector from the collimator isocenter to the BB (located at the origin)."""
-        if self._get_images((COLLIMATOR, REFERENCE))[0] > 1:
-            min_col = self._minimize_axis(COLLIMATOR)
-            return Vector(min_col.x[0], min_col.x[1])
-        else:
-            return Vector()
-
-    @property
     def couch_iso_size(self):
         """The diameter of the 2D couch isocenter size in mm. Only images where
         the gantry and collimator were at zero are used to determine this value."""
@@ -175,15 +159,6 @@ class WinstonLutz:
             return self._minimize_axis(COUCH).x[3] * 2
         else:
             return 0
-
-    @property
-    def couch_iso2bb_vector(self):
-        """The 2D vector from the couch isocenter to the BB (located at the origin)."""
-        if self._get_images((COUCH, REFERENCE))[0] > 1:
-            min_col = self._minimize_axis(COUCH)
-            return Vector(min_col.x[0], min_col.x[1])
-        else:
-            return Vector()
 
     @property
     def bb_shift_vector(self):
@@ -438,7 +413,7 @@ class WinstonLutz:
                  "Number of images: {}\n" \
                  "Maximum 2D CAX->BB distance: {:.2f}mm\n" \
                  "Median 2D CAX->BB distance: {:.2f}mm\n" \
-                 "Shift BB to iso (IEC 61217; facing gantry, gantry 0 points to floor): {}\n" \
+                 "Shift BB to iso, facing gantry: {}\n" \
                  "Gantry 3D isocenter diameter: {:.2f}mm\n" \
                  "Maximum Gantry RMS deviation (mm): {:.2f}mm\n" \
                  "Maximum EPID RMS deviation (mm): {:.2f}mm\n" \
