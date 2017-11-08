@@ -79,27 +79,16 @@ class WinstonLutzMixin(LocationMixin):
     def test_gantry_iso(self):
         # test iso size
         self.assertAlmostEqual(self.wl.gantry_iso_size, self.gantry_iso_size, delta=0.2)
-        # test iso vector
-        self.assertTrue(vector_is_close(self.wl.gantry_iso2bb_vector, self.gantry_iso2bb_vector),
-                        msg="{} was != {} within {}".format(self.wl.gantry_iso2bb_vector, self.gantry_iso2bb_vector, 0.2))
 
     def test_collimator_iso(self):
         # test iso size
         if self.collimator_iso_size is not None:
             self.assertAlmostEqual(self.wl.collimator_iso_size, self.collimator_iso_size, delta=0.2)
-        # test iso vector
-        if self.collimator_iso2bb_vector is not None:
-            self.assertTrue(vector_is_close(self.wl.collimator_iso2bb_vector, self.collimator_iso2bb_vector),
-                            msg="{} was != {}".format(self.wl.collimator_iso2bb_vector, self.collimator_iso2bb_vector))
 
     def test_couch_iso(self):
         # test iso size
         if self.couch_iso_size is not None:
             self.assertAlmostEqual(self.wl.couch_iso_size, self.couch_iso_size, delta=0.2)
-        # test iso vector
-        if self.couch_iso2bb_vector is not None:
-            self.assertTrue(vector_is_close(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector),
-                            msg="{} was != {}".format(self.wl.couch_iso2bb_vector, self.couch_iso2bb_vector))
 
     def test_axis_deviation(self):
         if self.gantry_deviation is not None:
