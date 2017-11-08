@@ -1,6 +1,5 @@
 """Module for constructing and interacting with PDF reports for Pylinac."""
 from datetime import datetime
-import os
 
 from PIL import Image
 from reportlab.pdfgen.canvas import Canvas
@@ -10,6 +9,7 @@ from reportlab.lib.utils import ImageReader
 
 from pylinac import __version__
 from .io import retrieve_demo_file
+from . import utilities
 
 
 PDF_FONT = "Helvetica"

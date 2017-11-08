@@ -448,11 +448,8 @@ class WinstonLutz:
                 '+x: right, +y: up, +z:out',
                 'Average SID (mm): {:2.0f}'.format(avg_sid),
                 'Number of images: {}'.format(len(self.images)),
-                'Maximum 2D CAX->BB distance (mm): {:2.2f}'.format(self.cax2bb_distance('max')),
-                'Median 2D CAX->BB distance (mm): {:2.2f}'.format(self.cax2bb_distance('median')),
-                'Gantry iso->BB vector (mm): x={:2.2f}, y={:2.2f}, z={:2.2f}'.format(self.gantry_iso2bb_vector.x,
-                                                                 self.gantry_iso2bb_vector.y,
-                                                                 self.gantry_iso2bb_vector.z),
+                'Maximum distance to BB (mm): {:2.2f}'.format(self.cax2bb_distance('max')),
+                'Median distances to BB (mm): {:2.2f}'.format(self.cax2bb_distance('median')),
                 'Gantry 3D isocenter diameter (mm): {:2.2f}'.format(self.gantry_iso_size),
                 ]
         if self._contains_axis_images(COLLIMATOR):
