@@ -23,7 +23,6 @@ setup(
                       "scikit-learn >= 0.18",
                       "Pillow >= 4.0",
                       "tqdm == 3.8",
-                      "click",
                       "pyyaml >= 3.10",
                       "yagmail",
                       "mpld3",

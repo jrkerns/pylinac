@@ -94,12 +94,6 @@ Below are the high-level tools currently available:
     import pylinac
     pylinac.gui()  # that simple
 
-   Or start from the command line:
-
-   .. code-block:: bash
-
-    $ pylinac gui
-
 * `Continuous & One-Time Directory Analysis <http://pylinac.readthedocs.org/en/latest/watcher.html>`_ -
    True, one-time "set it and forget it" service that analyzes any file that enters the folder. Files with
    keywords and certain file types are analyzed automatically. You can also specify "source" folders to pull new files from (e.g.
@@ -111,13 +105,7 @@ Below are the high-level tools currently available:
      if you choose to use the automatic classifier. E.g. a picket fence and starshot image can be differentiated and
      analyzed according to their own modules, with no extra work!
 
-   After installation, run the watcher script via the command line:
-
-   .. code-block:: bash
-
-      $ pylinac watch "dir/to/watch"  # start watching!
-
-   or via Python
+   After installation, run the watcher script:
 
    .. code-block:: python
 
