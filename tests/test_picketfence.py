@@ -55,7 +55,6 @@ class TestPlottingSaving(TestCase):
 
     def test_saving_image(self):
         save_file(self.pf.save_analyzed_image)
-        save_file(self.pf.save_analyzed_image, interactive=True)
 
 
 class PFTestMixin(LocationMixin):

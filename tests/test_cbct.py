@@ -75,7 +75,6 @@ class CBCTMixin(LocationMixin):
     """A mixin to use for testing Varian CBCT scans; does not inherit from TestCase as it would be run
         otherwise."""
     catphan = CatPhan504
-    use_classifier = True
     check_uid = True
     origin_slice = 0
     file_path = []
@@ -95,9 +94,9 @@ class CBCTMixin(LocationMixin):
     def setUpClass(cls):
         filename = cls.get_filename()
         if cls.zip:
-            cls.cbct = cls.catphan.from_zip(filename, use_classifier=cls.use_classifier)
+            cls.cbct = cls.catphan.from_zip(filename)
         else:
-            cls.cbct = cls.catphan(filename, use_classifier=cls.use_classifier)
+            cls.cbct = cls.catphan(filename)
         cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
         print("Num of CBCT images: {}".format(len(cls.cbct.dicom_stack)))
 
