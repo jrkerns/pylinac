@@ -18,7 +18,7 @@ import scipy.ndimage.filters as spf
 from .utilities import is_close, minmax_scale
 from .decorators import type_accept, value_accept
 from .geometry import Point
-from .io import get_url, TemporaryZipDirectory, retrieve_filenames
+from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image
 from .profile import stretch as stretcharray
 from ..settings import get_dicom_cmap
 
@@ -220,12 +220,7 @@ def load_multiples(image_file_list, method='mean', stretch=True, **kwargs):
 
 def _is_dicom(path):
     """Whether the file is a readable DICOM file via pydicom."""
-    try:
-        ds = dicom.read_file(path, stop_before_pixels=True, force=True)
-        ds.SOPClassUID
-        return True
-    except:
-        return False
+    return is_dicom_image(path)
 
 
 def _is_image_file(path):
