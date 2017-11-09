@@ -600,7 +600,7 @@ class TG51Electron(TG51Base):
             If a list, must be a list of strings; each string item will be a new line.
         """
         was_adjusted = 'Yes' if self.output_was_adjusted else 'No'
-        title = 'TG-51 Photon Report - {} MeV'.format(self.energy)
+        title = 'TG-51 Electron Report - {} MeV'.format(self.energy)
 
         canvas = pdf.create_pylinac_page_template(filename, analysis_title=title)
         text = ['Site Data:',
