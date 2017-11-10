@@ -16,7 +16,9 @@ Equation definitions are as follows:
 
 * Ptp (Temp/Pressure correction) - TG-51 Eqn. 10:
 
-  .. math:: \frac{273.2+T}{273.2+22} * \frac{101.33}{P}
+  .. warning:: Pressure values in pylinac are in mmHg, not kPa as in TG-51.
+
+  .. math:: \frac{273.2+T}{273.2+22} * \frac{760}{P}
 
 * Ppol (Polarity correction) - TG-51 Eqn. 9:
 
