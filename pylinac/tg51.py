@@ -16,6 +16,7 @@ from reportlab.lib.units import cm
 from .core.utilities import Structure
 from .core import pdf
 
+from . import Q_
 
 CHAMBERS_PHOTONS = {
     # Exradin
@@ -93,12 +94,22 @@ def p_tp(temp=22, press=760):
 
     Parameters
     ----------
-    temp : float
-        The temperature in degrees Celsius.
-    press : float
-        The pressure in mmHg.
+    temp : pint.Quantity (or float to be backwards compatible)
+        The temperature as pint.Quantity or as float.
+    press : pint.Quantity (or float to be backwards compatible)
+        The pressure as pint.Quantity or as float.
     """
-    return (760/press)*((273.2+temp)/295.2)
+    if type(temp) != Q_:
+        t = Q_(temp, 'celsius')
+    else:
+        t = temp
+
+    if type(press) != Q_:
+        p = Q_(press, 'mmHg')
+    else:
+        p = press
+
+    return (Q_(760, 'mmHg').to_base_units()/p.to_base_units()) * (t.to_base_units()/Q_(22, 'celsius').to_base_units())
 
 
 def p_pol(m_reference=(1, 2), m_opposite=(-3, -4)):
@@ -341,8 +352,8 @@ class TG51Photon(TG51Base):
 
     Attributes
     ----------
-    temp : float
-    press : float
+    temp : pint.Quantity (or float to be backwards compatible)
+    press : pint.Quantity (or float to be backwards compatible)
     energy : float
         Nominal energy of the beam in MV.
     model : str
@@ -505,8 +516,8 @@ class TG51Electron(TG51Base):
 
     Attributes
     ----------
-    temp : float
-    press : float
+    temp : pint.Quantity (or float to be backwards compatible)
+    press : pint.Quantity (or float to be backwards compatible)
     model : str
         Chamber model
     n_dw : float
