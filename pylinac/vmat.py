@@ -23,7 +23,7 @@ from .core.geometry import Point, Rectangle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core import pdf
 from .core.profile import SingleProfile
-from .core.utilities import typed_property, import_mpld3
+from .core.utilities import typed_property
 from .settings import get_dicom_cmap
 
 # test types
@@ -301,7 +301,7 @@ class VMAT:
             plt.show()
 
     @value_accept(subimage=(DMLC, OPEN, PROFILE))
-    def save_analyzed_subimage(self, filename, subimage=DMLC, interactive=False, **kwargs):
+    def save_analyzed_subimage(self, filename, subimage=DMLC, **kwargs):
         """Save a subplot to file.
 
         Parameters
@@ -310,18 +310,11 @@ class VMAT:
             Where to save the file to.
         subimage : str
             Which subplot to save.
-        interactive : bool
-            Only applicable for the profile subplot. If False, saves as a .png image, else saves as an interactive
-            HTML file.
         kwargs
             Passed to matplotlib.
         """
         self.plot_analyzed_subimage(subimage, show=False)
-        if interactive and (subimage == PROFILE):
-            mpld3 = import_mpld3()
-            mpld3.save_html(plt.gcf(), filename)
-        else:
-            plt.savefig(filename, **kwargs)
+        plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
             print("VMAT subimage figure saved to {0}".format(osp.abspath(filename)))
 

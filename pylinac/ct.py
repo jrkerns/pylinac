@@ -14,19 +14,15 @@ from abc import abstractmethod
 from collections import OrderedDict
 from datetime import datetime
 from functools import lru_cache
-import gzip
 import io
 from os import path as osp
 import os
-import pickle
-import warnings
 import webbrowser
 import zipfile
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
-from scipy.misc import imresize
 from skimage import filters, measure, segmentation
 
 from .core import image
@@ -37,7 +33,7 @@ from .core.io import get_url, retrieve_demo_file
 from .core import pdf
 from .core.profile import CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI
-from .core.utilities import simple_round, import_mpld3, minmax_scale
+from .core.utilities import simple_round
 from .settings import get_dicom_cmap
 
 
@@ -551,7 +547,7 @@ class CTP528(CatPhanModule):
     radius2linepairs_mm : float
         The radius in mm to the line pairs.
     """
-    attr_name = 'ctp4528'
+    attr_name = 'ctp528'
     common_name = 'Spatial Resolution'
     radius2linepairs_mm = 47
 
@@ -839,7 +835,7 @@ class CatPhanBase:
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
     """
     _demo_url = ''
-    _classifier_model = ''
+    _model = ''
     air_bubble_radius_mm = 7
     localization_radius = 59
     was_from_zip = False
@@ -847,15 +843,14 @@ class CatPhanBase:
         CTP404: {'offset': 0},
     }
 
-    def __init__(self, folderpath, use_classifier=False, check_uid=True):
+    def __init__(self, folderpath, check_uid=True):
         """
         Parameters
         ----------
         folderpath : str
             String that points to the CBCT image folder location.
-        use_classifier : bool
-            If True, use a machine learning classifier to locate the phantom; faster than brute force search.
-            If for some reason the classifier fails to find the HU slice, analysis falls back to brute force.
+        check_uid : bool
+            Whether to enforce raising an error if more than one UID is found in the dataset.
 
         Raises
         ------
@@ -867,7 +862,7 @@ class CatPhanBase:
         if not osp.isdir(folderpath):
             raise NotADirectoryError("Path given was not a Directory/Folder")
         self.dicom_stack = image.DicomImageStack(folderpath, check_uid=check_uid)
-        self.localize(use_classifier=use_classifier)
+        self.localize()
 
     @classmethod
     def from_demo_images(cls):
@@ -876,25 +871,29 @@ class CatPhanBase:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_url(cls, url, use_classifier=False, check_uid=True):
+    def from_url(cls, url, check_uid=True):
         """Instantiate a CBCT object from a URL pointing to a .zip object.
 
         Parameters
         ----------
         url : str
             URL pointing to a zip archive of CBCT images.
+        check_uid : bool
+            Whether to enforce raising an error if more than one UID is found in the dataset.
         """
         filename = get_url(url)
-        return cls.from_zip(filename, use_classifier=use_classifier, check_uid=check_uid)
+        return cls.from_zip(filename, check_uid=check_uid)
 
     @classmethod
-    def from_zip(cls, zip_file, use_classifier=False, check_uid=True):
+    def from_zip(cls, zip_file, check_uid=True):
         """Construct a CBCT object and pass the zip file.
 
         Parameters
         ----------
         zip_file : str, ZipFile
             Path to the zip file or a ZipFile object.
+        check_uid : bool
+            Whether to enforce raising an error if more than one UID is found in the dataset.
 
         Raises
         ------
@@ -902,56 +901,44 @@ class CatPhanBase:
         FileNotFoundError : If no CT images are found in the folder
         """
         with TemporaryZipDirectory(zip_file) as temp_zip:
-            obj = cls(temp_zip, use_classifier=use_classifier, check_uid=check_uid)
+            obj = cls(temp_zip, check_uid=check_uid)
         obj.was_from_zip = True
         return obj
 
-    def plot_analyzed_image(self, hu=True, uniformity=True, spatial_res=True, low_contrast=True, show=True):
+    def plot_analyzed_image(self, show=True):
         """Plot the images used in the calculate and summary data.
 
         Parameters
         ----------
-        hu : bool
-            Whether to show the HU linearity circles.
-        uniformity : bool
-            Whether to show the uniformity ROIs.
-        spatial_res : bool
-            Whether to show the spatial resolution circle outline.
-        low_contrast: bool
-            Whether to show the low contrast ROIs.
         show : bool
             Whether to plot the image or not.
         """
-        # set up grid and axes
-        grid_size = (2, 4)
-        unif_ax = plt.subplot2grid(grid_size, (0, 0))
-        hu_ax = plt.subplot2grid(grid_size, (0, 1))
-        sr_ax = plt.subplot2grid(grid_size, (1, 0))
-        locon_ax = plt.subplot2grid(grid_size, (1, 1))
-        hu_lin_ax = plt.subplot2grid(grid_size, (0, 2))
-        mtf_ax = plt.subplot2grid(grid_size, (0, 3))
-        unif_prof_ax = plt.subplot2grid(grid_size, (1, 2), colspan=2)
-
-        # plot the images
-        show_section = [uniformity, hu, spatial_res, low_contrast]
-        axes = (unif_ax, hu_ax, sr_ax, locon_ax)
-        modules = ['ctp486', 'ctp404', 'ctp528', 'ctp515']
-        titles = ('Uniformity', 'HU & Geometry', 'Spatial Resolution', 'Low Contrast')
-        for show_unit, axis, title, module in zip(show_section, axes, titles, modules):
-            if show_unit:
-                klass = getattr(self, module)
-                axis.imshow(klass.image.array, cmap=get_dicom_cmap())
-                klass.plot_rois(axis)
-                axis.autoscale(tight=True)
-                axis.set_title(title)
-            else:
-                axis.set_frame_on(False)
+        def plot(ctp_module, axis):
+            axis.imshow(ctp_module.image.array, cmap=get_dicom_cmap())
+            ctp_module.plot_rois(axis)
+            axis.autoscale(tight=True)
+            axis.set_title(ctp_module.common_name)
             axis.axis('off')
 
-        # plot the other sections
+        # set up grid and axes
+        grid_size = (2, 4)
+        hu_ax = plt.subplot2grid(grid_size, (0, 1))
+        plot(self.ctp404, hu_ax)
+        hu_lin_ax = plt.subplot2grid(grid_size, (0, 2))
         self.ctp404.plot_linearity(hu_lin_ax)
-        self.ctp486.plot_profiles(unif_prof_ax)
-        self.ctp528.plot_mtf(mtf_ax)
+        if CTP486 in self.modules:
+            unif_ax = plt.subplot2grid(grid_size, (0, 0))
+            plot(self.ctp486, unif_ax)
+            unif_prof_ax = plt.subplot2grid(grid_size, (1, 2), colspan=2)
+            self.ctp486.plot_profiles(unif_prof_ax)
+        if CTP528 in self.modules:
+            sr_ax = plt.subplot2grid(grid_size, (1, 0))
+            plot(self.ctp528, sr_ax)
+            mtf_ax = plt.subplot2grid(grid_size, (0, 3))
+            self.ctp528.plot_mtf(mtf_ax)
+        if CTP515 in self.modules:
+            locon_ax = plt.subplot2grid(grid_size, (1, 1))
+            plot(self.ctp515, locon_ax)
 
         # finish up
         plt.tight_layout()
@@ -971,7 +958,7 @@ class CatPhanBase:
         self.plot_analyzed_image(show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_analyzed_subimage(self, subimage='hu', delta=True, interactive=False, show=True):
+    def plot_analyzed_subimage(self, subimage='hu', delta=True, show=True):
         """Plot a specific component of the CBCT analysis.
 
         Parameters
@@ -988,22 +975,12 @@ class CatPhanBase:
             * ``prof`` draws the HU uniformity profiles.
         delta : bool
             Only for use with ``lin``. Whether to plot the HU delta or actual values.
-        interactive : bool
-            If False (default), the figure is plotted statically as a matplotlib figure.
-            If True, the figure is plotted as an HTML page in the default browser that can have tooltips.
-            This setting is only applicable for ``mtf``, ``lin``, and ``prof``, i.e. the "regular" plots. Image
-            plotting does not work with mpld3.
-
-            .. note:: mpld3 must be installed to use this feature.
-
         show : bool
             Whether to actually show the plot.
         """
         subimage = subimage.lower()
         plt.clf()
         plt.axis('off')
-        if interactive:
-            mpld3 = import_mpld3()
 
         if 'hu' in subimage:  # HU, GEO & thickness objects
             plt.imshow(self.ctp404.image.array, cmap=get_dicom_cmap())
@@ -1018,42 +995,25 @@ class CatPhanBase:
             self.ctp528.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'mtf' in subimage:
-            subimage = 'mtf'
             plt.axis('on')
-            points = self.ctp528.plot_mtf(plt.gca())
-            if interactive:
-                labels = ['MTF: {0:3.3f}'.format(i) for i in self.ctp528.line_pair_mtfs]
-                tooltip = mpld3.plugins.PointLabelTooltip(points[0], labels, location='top right')
-                mpld3.plugins.connect(plt.gcf(), tooltip)
+            self.ctp528.plot_mtf(plt.gca())
         elif 'lc' in subimage:
             plt.imshow(self.ctp515.image.array, cmap=get_dicom_cmap())
             self.ctp515.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'lin' in subimage:
-            subimage = 'lin'
             plt.axis('on')
-            points = self.ctp404.plot_linearity(plt.gca(), delta)
-            if interactive:
-                delta_values = [roi.value_diff for roi in self.ctp404.rois.values()]
-                actual_values = [roi.pixel_value for roi in self.ctp404.rois.values()]
-                names = [roi for roi in self.ctp404.rois.keys()]
-                labels = ['{0} -- Actual: {1:3.1f}; Difference: {2:3.1f}'.format(name, actual, delta) for name, actual, delta in zip(names, actual_values, delta_values)]
-                tooltip = mpld3.plugins.PointLabelTooltip(points[0], labels, location='top right')
-                mpld3.plugins.connect(plt.gcf(), tooltip)
+            self.ctp404.plot_linearity(plt.gca(), delta)
         elif 'prof' in subimage:
-            subimage = 'prof'
             plt.axis('on')
             self.ctp486.plot_profiles(plt.gca())
         else:
             raise ValueError("Subimage parameter {0} not understood".format(subimage))
 
         if show:
-            if interactive and (subimage in ('mtf', 'lin', 'prof')):
-                mpld3.show()
-            else:
-                plt.show()
+            plt.show()
 
-    def save_analyzed_subimage(self, filename, subimage='hu', interactive=False, **kwargs):
+    def save_analyzed_subimage(self, filename, subimage='hu', **kwargs):
         """Save a component image to file.
 
         Parameters
@@ -1062,18 +1022,9 @@ class CatPhanBase:
             The file to write the image to.
         subimage : str
             See :meth:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
-        interactive : bool
-            If False (default), saves a matplotlib figure as a .png image.
-            If True, saves an html file, which can be opened in a browser, etc.
-
-            .. note:: mpld3 must be installed to use this feature.
         """
-        self.plot_analyzed_subimage(subimage, interactive=interactive, show=False)
-        if interactive and (subimage in ('mtf', 'lin', 'prof')):
-            mpld3 = import_mpld3()
-            mpld3.save_html(plt.gcf(), filename)
-        else:
-            plt.savefig(filename, **kwargs)
+        self.plot_analyzed_subimage(subimage, show=False)
+        plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
             print("CatPhan subimage figure saved to {0}".format(osp.abspath(filename)))
 
@@ -1088,9 +1039,9 @@ class CatPhanBase:
             mtfs[mtf] = mtfval
         print('MTFs: {}'.format(mtfs))
 
-    def localize(self, use_classifier=False):
+    def localize(self):
         """Find the slice number of the catphan's HU linearity module and roll angle"""
-        self.origin_slice = self.find_origin_slice(use_classifier=use_classifier)
+        self.origin_slice = self.find_origin_slice()
         self.catphan_roll = self.find_phantom_roll()
 
     @property
@@ -1099,7 +1050,7 @@ class CatPhanBase:
         return self.dicom_stack.metadata.PixelSpacing[0]
 
     @lru_cache(maxsize=1)
-    def find_origin_slice(self, use_classifier=False):
+    def find_origin_slice(self):
         """Using a brute force search of the images, find the median HU linearity slice.
 
         This method walks through all the images and takes a collapsed circle profile where the HU
@@ -1114,36 +1065,23 @@ class CatPhanBase:
             The middle slice of the HU linearity module.
         """
         hu_slices = []
-        # use a machine-learning classifier
-        if use_classifier:
-            clf = get_catphan_classifier(self._classifier_model)
-            arr = np.zeros((len(self.dicom_stack), 10000))
-            for idx, img in enumerate(self.dicom_stack):
-                arr[idx, :] = imresize(img.array, size=(100, 100), mode='F').flatten()
-            scaled_arr = minmax_scale(arr, axis=1)
-            y_labels = clf.predict(scaled_arr)
-            hu_slices = [idx for idx, label in enumerate(y_labels) if label > 0]
-            if not hu_slices:
-                warnings.warn("CatPhan classifier was not able to identify the HU slice. File an issue on Github (https://github.com/jrkerns/pylinac/issues) if this is a valid dataset. Resorting to brute-force method", RuntimeWarning)
-        # use brute force search
-        if not use_classifier or not hu_slices:
-            for image_number in range(0, self.num_images, 2):
-                slice = Slice(self, image_number, combine=False)
-                # print(image_number)
-                # slice.image.plot()
-                try:
-                    center = slice.phan_center
-                except ValueError:  # a slice without the phantom in view
-                    pass
-                else:
-                    circle_prof = CollapsedCircleProfile(center, radius=self.localization_radius/self.mm_per_pixel, image_array=slice.image, width_ratio=0.05, num_profiles=5)
-                    prof = circle_prof.values
-                    # determine if the profile contains both low and high values and that most values are the same
-                    low_end, high_end = np.percentile(prof, [2, 98])
-                    median = np.median(prof)
-                    if (low_end < median - 400) and (high_end > median + 400) and (
-                                    np.percentile(prof, 80) - np.percentile(prof, 20) < 100):
-                        hu_slices.append(image_number)
+        for image_number in range(0, self.num_images, 2):
+            slice = Slice(self, image_number, combine=False)
+            # print(image_number)
+            # slice.image.plot()
+            try:
+                center = slice.phan_center
+            except ValueError:  # a slice without the phantom in view
+                pass
+            else:
+                circle_prof = CollapsedCircleProfile(center, radius=self.localization_radius/self.mm_per_pixel, image_array=slice.image, width_ratio=0.05, num_profiles=5)
+                prof = circle_prof.values
+                # determine if the profile contains both low and high values and that most values are the same
+                low_end, high_end = np.percentile(prof, [2, 98])
+                median = np.median(prof)
+                if (low_end < median - 400) and (high_end > median + 400) and (
+                                np.percentile(prof, 80) - np.percentile(prof, 20) < 100):
+                    hu_slices.append(image_number)
 
         if not hu_slices:
             raise ValueError("No slices were found that resembled the HU linearity module")
@@ -1223,7 +1161,7 @@ class CatPhanBase:
         filename : (str, file-like object}
             The file to write the results to.
         """
-        analysis_title = 'CatPhan {} Analysis'.format(self._classifier_model)
+        analysis_title = 'CatPhan {} Analysis'.format(self._model)
         module_texts = [
             [' - CTP404 Results - ',
              'HU Linearity tolerance: {}'.format(self.ctp404.hu_tolerance),
@@ -1348,12 +1286,12 @@ class CatPhanBase:
                   'Geometric Line Average (mm): {:2.2f}\n'
                   'Geometry Passed?: {}\n'
                   'Measured Slice Thickness (mm): {:2.3f}\n'
-                  'Slice Thickness Passed? {}\n').format(self._classifier_model,
-                                                           self.ctp404.hu_roi_vals, self.ctp404.passed_hu,
-                                                           self.ctp404.lcv,
-                                                           self.ctp404.avg_line_length, self.ctp404.passed_geometry,
-                                                           self.ctp404.meas_slice_thickness,
-                                                           self.ctp404.passed_thickness)
+                  'Slice Thickness Passed? {}\n').format(self._model,
+                                                         self.ctp404.hu_roi_vals, self.ctp404.passed_hu,
+                                                         self.ctp404.lcv,
+                                                         self.ctp404.avg_line_length, self.ctp404.passed_geometry,
+                                                         self.ctp404.meas_slice_thickness,
+                                                         self.ctp404.passed_thickness)
         if CTP486 in self.modules:
             add = ('Uniformity ROIs: {}\n'
                   'Uniformity index: {:2.3f}\n'
@@ -1376,37 +1314,24 @@ class CatPhan503(CatPhanBase):
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
     """
     _demo_url = 'CatPhan503.zip'
-    _classifier_model = '503'
+    _model = '503'
     catphan_radius_mm = 97
     modules = {
         CTP486: {'offset': -110},
         CTP528: {'offset': -30},
     }
 
-    @staticmethod
-    def run_demo(show=True):
+    @classmethod
+    def run_demo(cls, show=True):
         """Run the CBCT demo using high-quality head protocol images."""
-        cbct = CatPhan503.from_demo_images()
-        cbct.analyze()
-        print(cbct.results())
-        cbct.plot_analyzed_image(show)
-
-    def plot_analyzed_image(self, hu=True, uniformity=True, spatial_res=True, show=True):
-        """Plot the images used in the calculate and summary data.
-
-        Parameters
-        ----------
-        hu : bool
-            Whether to show the HU linearity circles.
-        uniformity : bool
-            Whether to show the uniformity ROIs.
-        spatial_res : bool
-            Whether to show the spatial resolution circle outline.
-        show : bool
-            Whether to plot the image or not.
-        """
-        super().plot_analyzed_image(hu=hu, uniformity=uniformity, spatial_res=spatial_res, low_contrast=False,
-                                    show=show)
+        obj = cls.from_demo_images()
+        obj.analyze()
+        print(obj.results())
+        obj.plot_analyzed_image(show)
+        # cbct = CatPhan503.from_demo_images()
+        # cbct.analyze()
+        # print(cbct.results())
+        # cbct.plot_analyzed_image(show)
 
 
 class CatPhan504(CatPhanBase):
@@ -1415,7 +1340,7 @@ class CatPhan504(CatPhanBase):
     Image Scaling & HU Linearity (CTP404), and Low contrast (CTP515).
     """
     _demo_url = 'CatPhan504.zip'
-    _classifier_model = '504'
+    _model = '504'
     catphan_radius_mm = 101
     modules = {
         CTP486: {'offset': -65},
@@ -1438,7 +1363,7 @@ class CatPhan600(CatPhanBase):
     Image Scaling & HU Linearity (CTP404), and Low contrast (CTP515).
     """
     _demo_url = 'CatPhan600.zip'
-    _classifier_model = '600'
+    _model = '600'
     catphan_radius_mm = 101
     modules = {
         CTP486: {'offset': -160},
@@ -1483,24 +1408,6 @@ def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='o
     labeled_arr, num_roi = measure.label(bw, return_num=True)
     regionprops = measure.regionprops(labeled_arr, edges)
     return labeled_arr, regionprops, num_roi
-
-
-@lru_cache(maxsize=1)
-def get_catphan_classifier(model='504'):
-    """Load the CBCT HU slice classifier model.
-
-    Parameters
-    ----------
-    model : {'504', '503', '600'}
-    """
-    clf_file = retrieve_demo_file('catphan{}_classifier.pkl.gz'.format(model))
-    with gzip.open(clf_file, mode='rb') as m:
-        clf = pickle.load(m)
-    return clf
-
-
-
-
 
 
 @value_accept(mode=('mean', 'median', 'max'))

@@ -27,7 +27,6 @@ from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url, retrieve_demo_file
 from .core import pdf
 from .core.profile import MultiProfile, SingleProfile
-from .core.utilities import import_mpld3
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
 
@@ -211,12 +210,12 @@ class PicketFence:
         self._log_fits = cycle([p.fit for p in pf.pickets])
 
     @staticmethod
-    def run_demo(tolerance=0.5, action_tolerance=None, interactive=False):
+    def run_demo(tolerance=0.5, action_tolerance=None):
         """Run the Picket Fence demo using the demo image. See analyze() for parameter info."""
         pf = PicketFence.from_demo_image()
         pf.analyze(tolerance, action_tolerance=action_tolerance)
         print(pf.results())
-        pf.plot_analyzed_image(interactive=interactive, leaf_error_subplot=True)
+        pf.plot_analyzed_image(leaf_error_subplot=True)
 
     def analyze(self, tolerance=0.5, action_tolerance=None, hdmlc=False, num_pickets=None, sag_adjustment=0,
                 orientation=None, invert=False):
@@ -282,7 +281,7 @@ class PicketFence:
         """Analysis"""
         self.pickets = PicketManager(self.image, self.settings, num_pickets)
 
-    def plot_analyzed_image(self, guard_rails=True, mlc_peaks=True, overlay=True, leaf_error_subplot=True, interactive=False, show=True):
+    def plot_analyzed_image(self, guard_rails=True, mlc_peaks=True, overlay=True, leaf_error_subplot=True, show=True):
         """Plot the analyzed image.
 
         Parameters
@@ -299,13 +298,6 @@ class PicketFence:
 
             If True, plots a linked leaf error subplot adjacent to the PF image plotting the average and standard
             deviation of leaf error.
-        interactive : bool
-
-            .. versionadded:: 1.0
-            .. note:: mpld3 must be installed to use this feature.
-
-            If False (default), plots a matplotlib figure.
-            If True, plots a MPLD3 local server image, which adds some tooltips.
         """
         # plot the image
         fig, ax = plt.subplots(figsize=self.settings.figure_size)
@@ -313,7 +305,7 @@ class PicketFence:
 
         # generate a leaf error subplot if desired
         if leaf_error_subplot:
-            self._add_leaf_error_subplot(ax, fig, interactive)
+            self._add_leaf_error_subplot(ax, fig)
 
         # plot guard rails and mlc peaks as desired
         for p_num, picket in enumerate(self.pickets):
@@ -337,13 +329,9 @@ class PicketFence:
         ax.axis('off')
 
         if show:
-            if interactive:
-                mpld3 = import_mpld3()
-                mpld3.show()
-            else:
-                plt.show()
+            plt.show()
 
-    def _add_leaf_error_subplot(self, ax, fig, interactive):
+    def _add_leaf_error_subplot(self, ax, fig):
         """Add a bar subplot showing the leaf error."""
         tol_line_height = [self.settings.tolerance, self.settings.tolerance]
         tol_line_width = [0, max(self.image.shape)]
@@ -381,32 +369,12 @@ class PicketFence:
         axtop.grid('on')
         axtop.set_title("Average Error (mm)")
 
-        # add tooltips if interactive
-        if interactive:
-            labels = [['Leaf pair {0}/{1}, Avg Error: {2:3.3f}mm, Stdev: {3:3.3f}mm'.format(leaf_num[0], leaf_num[1], err, std)]
-                      for leaf_num, err, std in zip(leaf_nums, vals, err)]
-            mpld3 = import_mpld3()
-            for num, patch in enumerate(axtop.axes.patches):
-                ttip = mpld3.plugins.PointLabelTooltip(patch, labels[num], location='top left')
-                mpld3.plugins.connect(fig, ttip)
-
-    def save_analyzed_image(self, filename, guard_rails=True, mlc_peaks=True, overlay=True, leaf_error_subplot=False, interactive=False, **kwargs):
+    def save_analyzed_image(self, filename, guard_rails=True, mlc_peaks=True, overlay=True, leaf_error_subplot=False, **kwargs):
         """Save the analyzed figure to a file. See :meth:`~pylinac.picketfence.PicketFence.plot_analyzed_image()` for
         further parameter info.
-
-        interactive : bool
-            If False (default), saves the figure as a .png image.
-            If True, saves an html file, which can be opened in a browser, etc.
-
-            .. note:: mpld3 must be installed to use this feature.
         """
-        self.plot_analyzed_image(guard_rails, mlc_peaks, overlay, leaf_error_subplot=leaf_error_subplot,
-                                 interactive=interactive, show=False)
-        if interactive:
-            mpld3 = import_mpld3()
-            mpld3.save_html(plt.gcf(), filename)
-        else:
-            plt.savefig(filename, **kwargs)
+        self.plot_analyzed_image(guard_rails, mlc_peaks, overlay, leaf_error_subplot=leaf_error_subplot, show=False)
+        plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
             print("Picket fence image saved to: {0}".format(osp.abspath(filename)))
 
