@@ -3,7 +3,6 @@ from tkinter import *
 from tkinter.ttk import *
 from tkinter import filedialog
 import os.path as osp
-import os
 import webbrowser
 
 from . import picketfence, vmat, ct, log_analyzer, starshot, planar_imaging, __version__, winston_lutz, utilities, watcher

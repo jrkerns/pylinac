@@ -26,11 +26,11 @@ from scipy import ndimage, optimize
 from .core import image
 from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle, Vector, cos, sin
-from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import filled_area_ratio, bounding_box
 from .core import pdf
 from .core.profile import SingleProfile
-from .core.utilities import is_close, is_dicom_image
+from .core.utilities import is_close
 
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'

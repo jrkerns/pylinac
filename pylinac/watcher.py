@@ -18,9 +18,8 @@ import yagmail
 import yaml
 
 from pylinac.core.decorators import value_accept
-from pylinac.core.io import retrieve_demo_file
+from pylinac.core.io import retrieve_demo_file, is_dicom_image
 from pylinac.core.image import prepare_for_classification, DicomImage
-from pylinac.core.utilities import is_dicom_image
 from pylinac.core import schedule
 
 from pylinac import VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log, LasVegas
