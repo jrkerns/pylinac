@@ -257,18 +257,22 @@ def kq(model='30010', pddx=None, tpr=None, r_50=None):
     model : str
         The model of the chamber. Valid values are those listed in
         Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
-    pddx : {>=0.627, <=0.861}
-        The *PHOTON-ONLY* PDD measurement at 10cm depth for a 10x10cm2 field.
-    tpr : {>=0.623, <=0.805}
+    pddx : {>0.630, <0.860}
+        The **PHOTON-ONLY** PDD measurement at 10cm depth for a 10x10cm2 field.
+
+        .. note:: Muir and Rogers state limits of 0.627 - 0.861. The TG-51 addendum states them as 0.63 and 0.86.
+                  The TG-51 addendum limits are used here.
+    tpr : {>0.623, <0.805}
         The TPR ratio of the 20cm measurement divided by the 10cm measurement.
     r_50 : float
         The R50 value in cm of an electron beam.
 
+
     .. warning::
         Only 1 of ``pddx``, ``tpr`` or ``r_50`` can be defined.
     """
-    PDD_LOW = 62.7
-    PDD_HIGH = 86.1
+    PDD_LOW = 63
+    PDD_HIGH = 86
     TPR_LOW = 0.623
     TPR_HIGH = 0.805
 
