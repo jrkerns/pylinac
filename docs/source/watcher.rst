@@ -89,7 +89,7 @@ Or
 
     import pylinac
 
-    pylinac.watcher.watch("dir/to/watch", config_file="my/config.yaml")
+    pylinac.watch("dir/to/watch", config_file="my/config.yaml")
 
 The YAML configuration file is the way to change keywords, set up a default analysis directory,
 change analysis settings, and set up email service.

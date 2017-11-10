@@ -224,6 +224,7 @@ The minimum needed to get going is to:
   The figure can also be saved::
 
       qc3.save_analyzed_image('myqc3.png')
+
  A PDF report can also be generated::
 
       qc3.publish_pdf('myqc3-june.pdf')

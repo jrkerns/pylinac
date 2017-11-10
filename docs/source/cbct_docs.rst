@@ -248,6 +248,7 @@ The CatPhan classes uses several other classes. There are several Slices of Inte
 .. autoclass:: pylinac.ct.CatPhanBase
 
 Module classes (CTP404, etc)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: pylinac.ct.Slice
 
@@ -263,6 +264,7 @@ Module classes (CTP404, etc)
 
 
 ROI Objects
+^^^^^^^^^^^
 
 .. autoclass:: pylinac.ct.ROIManagerMixin
 
@@ -275,7 +277,6 @@ ROI Objects
 .. autoclass:: pylinac.ct.GeometricLine
 
 Helper Functions
+^^^^^^^^^^^^^^^^
 
 .. autofunction:: combine_surrounding_slices
-
-.. autofunction:: get_catphan_classifier
