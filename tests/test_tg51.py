@@ -1,14 +1,15 @@
 from unittest import TestCase
 
 from pylinac import tg51
+from pylinac import Q_
 
 
 class TestFunctions(TestCase):
 
     def test_p_tp(self):
-        temps = (22, 25, 19)
-        presss = (760, 770, 740)
-        expected_ptp = (1.0, 0.997, 1.0165)
+        temps = (22, 25, 19, Q_(22, 'celsius'), Q_(22, 'celsius').to('fahrenheit'))
+        presss = (760, 770, 740, Q_(760, 'mmHg'), Q_(760, 'mmHg').to('mbar'))
+        expected_ptp = (1.0, 0.997, 1.0165, 1.0, 1.0)
         for temp, press, exp in zip(temps, presss, expected_ptp):
             self.assertAlmostEqual(tg51.p_tp(temp, press), exp, delta=0.001)
 
