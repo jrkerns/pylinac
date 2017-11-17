@@ -8,6 +8,11 @@ __version_info__ = (2, 0, 2)
 if sys.version_info[0] < 3:
     raise ValueError("Pylinac is only supported on Python 3.x. It seems you are using Python 2; please use a different interpreter.")
 
+# Overwriting MacOSX matplotlib backend for gui initialization
+import matplotlib
+if matplotlib.get_backend() == 'MacOSX':
+    matplotlib.use('TkAgg')
+    
 # import shortcuts
 from pylinac.ct import CatPhan504, CatPhan600, CatPhan503
 from pylinac.core import decorators, geometry, image, io, mask, profile, roi, utilities
