@@ -3,6 +3,51 @@
 Changelog
 =========
 
+V 2.1.0
+-------
+
+General
+^^^^^^^
+
+* After reflection, the package seems to have bloated in some respects.
+  Certain behaviors are only helpful in very few circumstances and are hard to maintain w/ proper testing.
+* The command line commands have been deprecated. All commands were simply shortcuts that are just as easy to place in
+  a 1-2 line Python script. There is little advantage other than to show off.
+* The CatPhan HU module classifier has been deprecated. Its accuracy is not as high as the original brute force method.
+  Thus, the ``use_classifier`` keyword argument is no longer valid.
+* The interactive plotting using MPLD3 has been deprecated. Matplotlib figures and PDF reports should be sufficient.
+  This was a testing nightmare and no use cases have been presented.
+* The transition of the method ``return_results()`` to ``results()`` is complete. This was baked-in from the very
+  beginning of the package. It is expected that results would return something, nor is there any other corresponding
+  method prefixed with ``return_``.
+
+CatPhan
+^^^^^^^
+
+* The module was refactored to easily alter existing catphan models.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Certain properties have been deprecated such as gantry/coll/couch vector to iso.
+  These are dropped in favor of a cumulative vector.
+* BB shift instructions have been added for iterative WL testing.
+  I.e. you can get a BB shift to get to the BB to iso easily.
+  Images taken at nonzero couch angles are also correctly accounted for in the BB shift.
+
+  .. code-block:: python
+
+    import pylinac
+    wl = pylinac.WinstonLutz.from_demo_images()
+    print(wl.bb_shift_instructions())
+    # output: RIGHT 0.29mm; DOWN 0.04mm; OUT 0.41mm
+    # shift BB and run it again...
+
+Core Modules
+^^^^^^^^^^^^
+
+* ``is_dicom`` and ``is_dicom_image`` were moved from the ``utilites`` module to the ``io`` module.
+
 V 2.0.0
 -------
 
