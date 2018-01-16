@@ -169,13 +169,19 @@ class WinstonLutz:
             tv += v
         return Vector(-tv.x / len(vs), -tv.y / len(vs), -tv.z / len(vs))
 
-    def bb_shift_instructions(self):
+    def bb_shift_instructions(self, couch_vrt=None, couch_lng=None, couch_lat=None):
         """A string describing how to shift the BB to the radiation isocenter"""
         sv = self.bb_shift_vector
         x_dir = 'LEFT' if sv.x < 0 else 'RIGHT'
         y_dir = 'UP' if sv.y > 0 else 'DOWN'
         z_dir = 'IN' if sv.z < 0 else 'OUT'
-        return "{} {:2.2f}mm; {} {:2.2f}mm; {} {:2.2f}mm".format(x_dir, abs(sv.x), y_dir, abs(sv.y), z_dir, abs(sv.z))
+        move = "{} {:2.2f}mm; {} {:2.2f}mm; {} {:2.2f}mm".format(x_dir, abs(sv.x), y_dir, abs(sv.y), z_dir, abs(sv.z))
+        if all(val is not None for val in [couch_vrt, couch_lat, couch_lng]):
+            new_lat = round(couch_lat + sv.x/10, 2)
+            new_vrt = round(couch_vrt + sv.y/10, 2)
+            new_lng = round(couch_lng - sv.z/10, 2)
+            move += "\nNew couch coordinates (mm): VRT: {:3.2f}; LNG: {:3.2f}; LAT: {:3.2f}".format(new_vrt, new_lng, new_lat)
+        return move
 
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
     def axis_rms_deviation(self, axis=GANTRY, value='all'):
