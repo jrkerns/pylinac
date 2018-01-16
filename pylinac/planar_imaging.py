@@ -284,7 +284,7 @@ class LasVegas(ImagePhantomBase):
         circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius*0.17, self.image, ccw=False,
                                         width_ratio=0.2, num_profiles=5)
         circle.filter(size=0.01, kind='gaussian')
-        angle = circle.find_valleys(max_number=1)[0]
+        angle = circle.find_valleys(max_number=2).max()
         return angle/len(circle.values) * 360
 
     @property
