@@ -456,7 +456,7 @@ class TG51Photon(TG51Base):
                 'Chamber model: {}'.format(self.model),
                 'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
                 'Electrometer: {}'.format(self.electrometer),
-                'Pelec: {}'.format(self.p_elec),
+                'Pelec: {:2.2f}'.format(self.p_elec),
                 'MU: {}'.format(self.mu),
                 '',
                 'Beam Quality:',
@@ -621,7 +621,7 @@ class TG51Electron(TG51Base):
                 'Chamber model: {}'.format(self.model),
                 'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
                 'Electrometer: {}'.format(self.electrometer),
-                'Pelec: {}'.format(self.p_elec),
+                'Pelec: {:2.2f}'.format(self.p_elec),
                 '',
                 'Beam Quality:',
                 'I50 (cm): {:2.2f}'.format(self.i_50),
@@ -646,14 +646,14 @@ class TG51Electron(TG51Base):
                 'Dose Determination:',
                 'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
                 'Tissue correction (e.g. muscle): {:2.3f}'.format(self.tissue_correction),
-                'Dose/MU @ 10cm depth (cGy): {:2.3f}'.format(self.dose_mu_dref),
+                'Dose/MU @ Dref depth (cGy): {:2.3f}'.format(self.dose_mu_dref),
                 'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd),
                 'Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax),
                 '',
                 'Output Adjustment?: {}'.format(was_adjusted),
                 ]
         if was_adjusted == 'Yes':
-            text.append('Adjusted Mraw @ reference voltage (nC): {}'.format(self.adjusted_m_raw))
+            text.append('Adjusted corrected M @ reference voltage (nC): {}'.format(self.adjusted_m_corrected))
             text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.adjusted_m_corrected))
             text.append('Adjusted Dose/MU @ dref depth (cGy): {:2.3f}'.format(self.adjusted_dose_mu_dref))
             text.append('Adjusted Dose/MU @ dmax (cGy): {:2.3f}'.format(self.adjusted_dose_mu_dmax))
