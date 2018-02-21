@@ -2,6 +2,7 @@ import itertools
 from tkinter import *
 from tkinter.ttk import *
 from tkinter import filedialog
+from tkinter import messagebox
 import os.path as osp
 import webbrowser
 
@@ -403,7 +404,15 @@ class PylinacGUI(Frame):
 
 
 def gui():
+
+    def on_exit():
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            root.quit()
+
     root = Tk()
     root.title('Pylinac GUI ' + __version__)
+    root.protocol("WM_DELETE_WINDOW", on_exit)
     app = PylinacGUI(master=root)
     app.mainloop()
+    root.destroy()
+    del root

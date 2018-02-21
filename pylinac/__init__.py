@@ -9,7 +9,7 @@ if sys.version_info[0] < 3:
     raise ValueError("Pylinac is only supported on Python 3.x. It seems you are using Python 2; please use a different interpreter.")
 
 # import shortcuts
-from pylinac.ct import CatPhan504, CatPhan600, CatPhan503
+from pylinac.ct import CatPhan504, CatPhan600, CatPhan503, CatPhan604
 from pylinac.core import decorators, geometry, image, io, mask, profile, roi, utilities
 from pylinac.core.utilities import clear_data_files, assign2machine
 from pylinac.flatsym import BeamImage
