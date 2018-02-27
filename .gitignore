@@ -2,7 +2,7 @@
 env/*
 tests/*
 **/pylinac.egg-info
-**/demo_files
+#**/demo_files
 **/__pycache__
 
 #Files to ignore
