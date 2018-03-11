@@ -6,8 +6,8 @@ from io import BytesIO
 import os.path as osp
 import os
 
-import dicom
-from dicom.errors import InvalidDicomError
+import pydicom
+from pydicom.errors import InvalidDicomError
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image as pImage
@@ -659,12 +659,12 @@ class DicomImage(BaseImage):
         self._sid = sid
         self._dpi = dpi
         # read the file once to get just the DICOM metadata
-        self.metadata = dicom.read_file(path, force=True)
+        self.metadata = pydicom.dcmread(path, force=True)
         self._original_dtype = self.metadata.pixel_array.dtype
         # read a second time to get pixel data
         if isinstance(path, BytesIO):
             path.seek(0)
-        ds = dicom.read_file(path, force=True)
+        ds = pydicom.dcmread(path, force=True)
         if dtype is not None:
             self.array = ds.pixel_array.astype(dtype)
         else:
@@ -919,7 +919,7 @@ class DicomImageStack:
     def is_CT_slice(file):
         """Test if the file is a CT Image storage DICOM file."""
         try:
-            ds = dicom.read_file(file, force=True, stop_before_pixels=True)
+            ds = pydicom.dcmread(file, force=True, stop_before_pixels=True)
             return ds.SOPClassUID.name == 'CT Image Storage'
         except (InvalidDicomError, AttributeError, MemoryError):
             return False

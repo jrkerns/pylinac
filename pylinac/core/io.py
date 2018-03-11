@@ -6,7 +6,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlretrieve, urlopen
 import zipfile
 
-import dicom
+import pydicom
 from tqdm import tqdm
 
 
@@ -48,7 +48,7 @@ def is_dicom_image(file):
     """
     result = False
     try:
-        img = dicom.read_file(file, force=True)
+        img = pydicom.dcmread(file, force=True)
         img.pixel_array
         result = True
     except:

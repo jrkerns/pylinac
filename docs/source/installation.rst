@@ -58,7 +58,7 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 * numpy >= 1.11
 * scipy >= 0.17
 * matplotlib >= 1.4
-* pydicom >= 0.9.9
+* pydicom >= 1.0
 * Pillow >= 4.0
 * scikit-image >= 0.12
 * scikit-learn >= 0.18

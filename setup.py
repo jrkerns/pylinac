@@ -17,7 +17,7 @@ setup(
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
     install_requires=["numpy >= 1.11",
                       "scipy >= 0.17",
-                      "pydicom >= 0.9.9",
+                      "pydicom >= 1.0",
                       "matplotlib >= 1.4",
                       "scikit-image >= 0.12",
                       "scikit-learn >= 0.18",
