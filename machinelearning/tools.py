@@ -6,7 +6,7 @@ import os.path as osp
 import random
 import time
 
-import dicom
+import pydicom
 import numpy as np
 from pylinac import image
 from scipy.misc import imresize
@@ -16,7 +16,7 @@ from sklearn import svm, metrics, preprocessing, model_selection
 def is_dicom(path):
     """Whether the file is a readable DICOM file via pydicom."""
     try:
-        ds = dicom.read_file(path, force=True)
+        ds = pydicom.dcmread(path, force=True)
         ds.pixel_array
         return True
     except:
