@@ -6,7 +6,7 @@ import os.path as osp
 import subprocess
 import struct
 
-import dicom
+import pydicom
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
@@ -35,8 +35,8 @@ def assign2machine(source_file, machine_file):
         Path to a DICOM RTPlan file that has the desired machine. This is easily obtained from pushing a plan from the TPS
         for that specific machine. The file must contain at least one valid field.
     """
-    dcm_source = dicom.read_file(source_file)
-    dcm_machine = dicom.read_file(machine_file)
+    dcm_source = pydicom.dcmread(source_file)
+    dcm_machine = pydicom.dcmread(machine_file)
     for beam in dcm_source.BeamSequence:
         beam.TreatmentMachineName = dcm_machine.BeamSequence[0].TreatmentMachineName
     dcm_source.save_as(source_file)
