@@ -82,7 +82,7 @@ def equate_images(image1, image2):
 
     # resize images to be of the same shape
     zoom_factor = image1.shape[1] / image2.shape[1]
-    image2_array = ndimage.interpolation.zoom(image2, zoom_factor)
+    image2_array = ndimage.interpolation.zoom(image2.as_type(np.float), zoom_factor)
     image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
 
     return image1, image2
@@ -527,7 +527,7 @@ class BaseImage:
             self.invert()
 
     @value_accept(threshold=(0.0, 1.0))
-    def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=0.1):
+    def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=0.1, ground=True, normalize=True):
         """Calculate the gamma between the current image (reference) and a comparison image.
 
         .. versionadded:: 1.2
@@ -548,6 +548,11 @@ class BaseImage:
         threshold : float
             The dose threshold percentage of the maximum dose, below which is not analyzed.
             Must be between 0 and 1.
+        ground : bool
+            Whether to "ground" the image values. If true, this sets both datasets to have the minimum value at 0.
+            This can fix offset errors in the data.
+        normalize : bool
+            Whether to normalize the images. This sets the max value of each image to the same value.
 
         Returns
         -------
@@ -569,12 +574,16 @@ class BaseImage:
         # set up reference and comparison images
         ref_img = ArrayImage(copy.copy(self.array))
         ref_img.check_inversion()
-        ref_img.ground()
-        ref_img.normalize()
+        if ground:
+            ref_img.ground()
+        if normalize:
+            ref_img.normalize()
         comp_img = ArrayImage(copy.copy(comparison_image.array))
         comp_img.check_inversion()
-        comp_img.ground()
-        comp_img.normalize()
+        if ground:
+            comp_img.ground()
+        if normalize:
+            comp_img.normalize()
 
         # invalidate dose values below threshold so gamma doesn't calculate over it
         ref_img.array[ref_img < threshold * np.max(ref_img)] = np.NaN
