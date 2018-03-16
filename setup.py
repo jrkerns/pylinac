@@ -25,7 +25,8 @@ setup(
                       "tqdm == 3.8",
                       "pyyaml >= 3.10",
                       "yagmail",
-                      "reportlab >= 3.3"],
+                      "reportlab >= 3.3",
+                      "pint"],
     entry_points={
         'console_scripts':
             ['pylinac=pylinac.scripts:cli']

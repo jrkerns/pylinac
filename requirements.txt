@@ -10,3 +10,4 @@ click
 yagmail
 mpld3
 pyyaml
+pint
