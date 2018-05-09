@@ -44,12 +44,15 @@ ALL = 'All'
 class WinstonLutz:
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
-    def __init__(self, directory):
+    def __init__(self, directory, use_filenames=False):
         """
         Parameters
         ----------
         directory : str
             Path to the directory of the Winston-Lutz EPID images.
+        use_filenames: bool
+            Whether to try to use the file name to determine axis values.
+            Useful for Elekta machines that do not include that info in the DICOM data.
 
         Examples
         --------
@@ -73,7 +76,7 @@ class WinstonLutz:
         ----------
         images : :class:`~pylinac.winston_lutz.ImageManager` instance
         """
-        self.images = ImageManager(directory)
+        self.images = ImageManager(directory, use_filenames)
 
     @classmethod
     def from_demo_images(cls):
@@ -163,11 +166,11 @@ class WinstonLutz:
     @property
     def bb_shift_vector(self):
         """The shift necessary to place the BB at the radiation isocenter"""
-        tv = Vector()
         vs = [img.cax2bb_vector3d for img in self.images]
-        for v in vs:
-            tv += v
-        return Vector(-tv.x / len(vs), -tv.y / len(vs), -tv.z / len(vs))
+        xs = np.mean([v.x for v in vs if (0.02 < v.x or v.x < -0.02)])
+        ys = np.mean([v.y for v in vs if (0.02 < v.y or v.y < -0.02)])
+        zs = np.mean([v.z for v in vs if (0.02 < v.z or v.z < -0.02)])
+        return Vector(-xs, -ys, -zs)
 
     def bb_shift_instructions(self, couch_vrt=None, couch_lng=None, couch_lat=None):
         """A string describing how to shift the BB to the radiation isocenter"""
@@ -490,25 +493,28 @@ class WinstonLutz:
 
 class ImageManager(list):
     """Manages the images of a Winston-Lutz test."""
-    def __init__(self, directory):
+    def __init__(self, directory, use_filenames):
         """
         Parameters
         ----------
         directory : str
             The path to the images.
+        use_filenames: bool
+            Whether to try to use the file name to determine axis values.
+            Useful for Elekta machines that do not include that info in the DICOM data.
         """
         super().__init__()
         if isinstance(directory, list):
             for file in directory:
                 if is_dicom_image(file):
-                    img = WLImage(file)
+                    img = WLImage(file, use_filenames)
                     self.append(img)
         elif not osp.isdir(directory):
             raise ValueError("Invalid directory passed. Check the correct method and file was used.")
         else:
             image_files = image.retrieve_image_files(directory)
             for file in image_files:
-                img = WLImage(file)
+                img = WLImage(file, use_filenames)
                 self.append(img)
         # reorder list based on increasing gantry angle
         self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
@@ -517,19 +523,24 @@ class ImageManager(list):
 class WLImage(image.DicomImage):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
-    def __init__(self, file):
+    def __init__(self, file, use_filenames):
         """
         Parameters
         ----------
         file : str
             Path to the image file.
+        use_filenames: bool
+            Whether to try to use the file name to determine axis values.
+            Useful for Elekta machines that do not include that info in the DICOM data.
         """
         super().__init__(file)
+        self.file = osp.basename(file)
         self.check_inversion()
         self.flipud()
         self._clean_edges()
         self.field_cax, self.bounding_box = self._find_field_centroid()
         self.bb = self._find_bb()
+        self.use_filenames = use_filenames
 
     def __repr__(self):
         return "WLImage(G={0:.1f}, B={1:.1f}, P={2:.1f})".format(self.gantry_angle, self.collimator_angle, self.couch_angle)
@@ -664,16 +675,18 @@ class WLImage(image.DicomImage):
         -------
         float
         """
-        filename = osp.basename(self.path)
-        if axis_str in filename:
+        axis_found = False
+        if self.use_filenames:
+            filename = osp.basename(self.path)
             try:
                 match = re.search('(?<={})\d+'.format(axis_str), filename)
                 axis = float(match.group())
+                axis_found = True
             except:
                 raise ValueError(
-                    "The filename contains '{}' but could not read a number following it. Use the format '{}45' e.g.".format(
+                    "The filename contains '{}' but could not read a number following it. Use the format '...{}<#>...'".format(
                         axis_str, axis_str))
-        else:
+        if not axis_found:
             try:
                 axis = float(getattr(self.metadata, axis_dcm_attr))
             except AttributeError:
@@ -790,6 +803,7 @@ class WLImage(image.DicomImage):
         ax.set_xlim([self.bounding_box[2], self.bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
+        ax.set_title(self.file)
         ax.set_xlabel("G={0:.0f}, B={1:.0f}, P={2:.0f}".format(self.gantry_angle, self.collimator_angle, self.couch_angle))
         ax.set_ylabel("CAX to BB: {0:3.2f}mm".format(self.cax2bb_distance))
         if show:
