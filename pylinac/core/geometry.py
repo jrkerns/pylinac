@@ -68,6 +68,8 @@ class Vector:
 def vector_is_close(vector1, vector2, delta=0.1):
     """Determine if two vectors are with delta of each other; this is a simple coordinate comparison check."""
     for attr in ('x', 'y', 'z'):
+        if np.isnan(getattr(vector1, attr)) and np.isnan(getattr(vector2, attr)):
+            continue
         if not getattr(vector2, attr) + delta >= getattr(vector1, attr) >= getattr(vector2, attr) - delta:
             return False
     return True
