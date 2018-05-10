@@ -7,6 +7,8 @@ Features:
 * **Isocenter size determination** - Using backprojections of the EPID images, the 3D gantry isocenter size
   and position can be determined *independent of the BB position*. Additionally, the 2D planar isocenter size
   of the collimator and couch can also be determined.
+* **BB shift instructions** - Direct shift instructions can be printed for iterative BB placement.
+  The current couch position can even be input to get the new couch values.
 * **Axis deviation plots** - Plot the variation of the gantry, collimator, couch, and EPID in each plane
   as well as RMS variation.
 * **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
@@ -85,29 +87,35 @@ class WinstonLutz:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_zip(cls, zfile):
+    def from_zip(cls, zfile, use_filenames=False):
         """Instantiate from a zip file rather than a directory.
 
         Parameters
         ----------
         zfile : str
             Path to the archive file.
+        use_filenames : bool
+            Whether to interpret axis angles using the filenames.
+            Set to true for Elekta machines where the gantry/coll/couch data is not in the DICOM metadata.
         """
         with TemporaryZipDirectory(zfile) as tmpz:
-            obj = cls(tmpz)
+            obj = cls(tmpz, use_filenames=use_filenames)
         return obj
 
     @classmethod
-    def from_url(cls, url):
+    def from_url(cls, url, use_filenames=False):
         """Instantiate from a URL.
 
         Parameters
         ----------
         url : str
             URL that points to a zip archive of the DICOM images.
+        use_filenames : bool
+            Whether to interpret axis angles using the filenames.
+            Set to true for Elekta machines where the gantry/coll/couch data is not in the DICOM metadata.
         """
         zfile = get_url(url)
-        return cls.from_zip(zfile)
+        return cls.from_zip(zfile, use_filenames=use_filenames)
 
     @staticmethod
     def run_demo():
@@ -143,13 +151,18 @@ class WinstonLutz:
     def gantry_iso_size(self):
         """The diameter of the 3D gantry isocenter size in mm. Only images where the collimator
         and couch were at 0 are used to determine this value."""
-        return self._minimize_axis(GANTRY).fun * 2
+        num_gantry_like_images = self._get_images((GANTRY, REFERENCE))[0]
+        if num_gantry_like_images > 1:
+            return self._minimize_axis(GANTRY).fun * 2
+        else:
+            return 0
 
     @property
     def collimator_iso_size(self):
         """The 2D collimator isocenter size (diameter) in mm. The iso size is in the plane
         normal to the gantry."""
-        if self._get_images((COLLIMATOR, REFERENCE))[0] > 1:
+        num_collimator_like_images = self._get_images((COLLIMATOR, REFERENCE))[0]
+        if num_collimator_like_images > 1:
             return self._minimize_axis(COLLIMATOR).fun * 2
         else:
             return 0
@@ -158,7 +171,8 @@ class WinstonLutz:
     def couch_iso_size(self):
         """The diameter of the 2D couch isocenter size in mm. Only images where
         the gantry and collimator were at zero are used to determine this value."""
-        if self._get_images((COUCH, REFERENCE))[0] > 1:
+        num_couch_like_images = self._get_images((COUCH, REFERENCE))[0]
+        if num_couch_like_images > 1:
             return self._minimize_axis(COUCH).x[3] * 2
         else:
             return 0
@@ -167,6 +181,7 @@ class WinstonLutz:
     def bb_shift_vector(self):
         """The shift necessary to place the BB at the radiation isocenter"""
         vs = [img.cax2bb_vector3d for img in self.images]
+        # only include the values that are clinically significant; rules out values that are along the beam axis
         xs = np.mean([v.x for v in vs if (0.02 < v.x or v.x < -0.02)])
         ys = np.mean([v.y for v in vs if (0.02 < v.y or v.y < -0.02)])
         zs = np.mean([v.z for v in vs if (0.02 < v.z or v.z < -0.02)])
@@ -447,6 +462,12 @@ class WinstonLutz:
         ----------
         filename : (str, file-like object}
             The file to write the results to.
+        unit : str
+            The name of the unit the data was acquired on; e.g. "TrueBeam 1".
+        notes : (None, str)
+            An arbitrary string of information that may be useful to include in the PDF report.
+        open_file : bool
+            Whether to open the PDF file after publishing.
         """
         from reportlab.lib.units import cm
         title = "Winston-Lutz Analysis"
@@ -678,19 +699,29 @@ class WLImage(image.DicomImage):
         axis_found = False
         if self.use_filenames:
             filename = osp.basename(self.path)
-            try:
-                match = re.search('(?<={})\d+'.format(axis_str), filename)
-                axis = float(match.group())
+            # see if the keyword is in the filename
+            keyword_in_filename = axis_str.lower() in filename.lower()
+            # if it's not there, then assume it's zero
+            if not keyword_in_filename:
+                axis = 0
                 axis_found = True
-            except:
-                raise ValueError(
-                    "The filename contains '{}' but could not read a number following it. Use the format '...{}<#>...'".format(
-                        axis_str, axis_str))
+            # if it is, then make sure it follows the naming convention of <axis###>
+            else:
+                match = re.search('(?<={})\d+'.format(axis_str.lower()), filename.lower())
+                if match is None:
+                    raise ValueError(
+                            "The filename contains '{}' but could not read a number following it. Use the format '...{}<#>...'".format(
+                                axis_str, axis_str))
+                else:
+                    axis = float(match.group())
+                    axis_found = True
+        # try to interpret from DICOM data
         if not axis_found:
             try:
                 axis = float(getattr(self.metadata, axis_dcm_attr))
             except AttributeError:
                 axis = 0
+        # if the value is close to 0 or 360 then peg at 0
         if is_close(axis, [0, 360], delta=1):
             return 0
         else:
