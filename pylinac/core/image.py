@@ -18,7 +18,7 @@ import scipy.ndimage.filters as spf
 from .utilities import is_close, minmax_scale
 from .decorators import type_accept, value_accept
 from .geometry import Point
-from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image, retrieve_dicom_image
+from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image, retrieve_dicom_file
 from .profile import stretch as stretcharray
 from ..settings import get_dicom_cmap
 
@@ -668,12 +668,12 @@ class DicomImage(BaseImage):
         self._sid = sid
         self._dpi = dpi
         # read the file once to get just the DICOM metadata
-        self.metadata = retrieve_dicom_image(path)
+        self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
         # read a second time to get pixel data
         if isinstance(path, BytesIO):
             path.seek(0)
-        ds = retrieve_dicom_image(path)
+        ds = retrieve_dicom_file(path)
         if dtype is not None:
             self.array = ds.pixel_array.astype(dtype)
         else:

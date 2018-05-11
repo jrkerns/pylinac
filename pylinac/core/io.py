@@ -58,7 +58,7 @@ def is_dicom_image(file):
     return result
 
 
-def retrieve_dicom_image(file):
+def retrieve_dicom_file(file):
     """Read and return the DICOM dataset.
 
     Parameters
