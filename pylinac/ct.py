@@ -1321,17 +1321,13 @@ class CatPhan503(CatPhanBase):
         CTP528: {'offset': -30},
     }
 
-    @classmethod
-    def run_demo(cls, show=True):
+    @staticmethod
+    def run_demo(show=True):
         """Run the CBCT demo using high-quality head protocol images."""
-        obj = cls.from_demo_images()
-        obj.analyze()
-        print(obj.results())
-        obj.plot_analyzed_image(show)
-        # cbct = CatPhan503.from_demo_images()
-        # cbct.analyze()
-        # print(cbct.results())
-        # cbct.plot_analyzed_image(show)
+        cbct = CatPhan503.from_demo_images()
+        cbct.analyze()
+        print(cbct.results())
+        cbct.plot_analyzed_image(show)
 
 
 class CatPhan504(CatPhanBase):
@@ -1402,7 +1398,7 @@ def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='o
         thres = thresmeth(edges)
     bw = edges > thres
     if clear_borders:
-        segmentation.clear_border(bw, buffer_size=1, in_place=True)
+        segmentation.clear_border(bw, buffer_size=int(max(bw.shape)/50), in_place=True)
     if fill_holes:
         bw = ndimage.binary_fill_holes(bw)
     labeled_arr, num_roi = measure.label(bw, return_num=True)
