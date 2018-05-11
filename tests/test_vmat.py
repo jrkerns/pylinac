@@ -34,7 +34,7 @@ class TestGeneral(TestCase):
 
     def test_failure_with_tight_tolerance(self):
         self.vmat.analyze(tolerance=0.1)
-        self.vmat.return_results()
+        self.vmat.results()
 
 
 class TestLoading(TestCase):

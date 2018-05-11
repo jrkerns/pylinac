@@ -32,7 +32,7 @@ class GeneralTests(TestCase):
     def test_helpers(self):
         """Test the various helper methods."""
         self.cbct.analyze()
-        self.cbct._return_results()
+        self.cbct._results()
 
     def test_phan_center(self):
         """Test locations of the phantom center."""
