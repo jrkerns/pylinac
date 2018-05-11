@@ -537,6 +537,8 @@ class ImageManager(list):
             for file in image_files:
                 img = WLImage(file, use_filenames)
                 self.append(img)
+        if len(self) < 2:
+            raise ValueError("<2 valid WL images were found in the folder/file. Ensure you chose the correct folder/file for analysis")
         # reorder list based on increasing gantry angle
         self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
 

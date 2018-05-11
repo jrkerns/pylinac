@@ -46,6 +46,12 @@ class TestPlottingSaving(TestCase):
         save_file(self.wl.save_summary)
         save_file(self.wl.save_images)
 
+    def test_plot_wo_all_axes(self):
+        # test that analyzing images w/o gantry images doesn't fail
+        wl_zip = osp.join(TEST_FILES_DIR, 'Winston-Lutz', 'Naming.zip')
+        wl = WinstonLutz.from_zip(wl_zip, use_filenames=True)
+        wl.plot_summary()  # shouldn't raise
+
 
 class WinstonLutzMixin(LocationMixin):
     dir_location = osp.join(TEST_BANK_DIR, 'Winston-Lutz')
@@ -96,7 +102,7 @@ class WinstonLutzMixin(LocationMixin):
         self.assertAlmostEqual(self.wl.cax2bb_distance(metric='median'), self.cax2bb_median_distance, delta=0.2)
 
     def test_bb_shift_vector(self):
-        self.assertTrue(vector_is_close(self.wl.bb_shift_vector, self.bb_shift_vector, delta=0.2))
+        self.assertTrue(vector_is_close(self.wl.bb_shift_vector, self.bb_shift_vector, delta=0.2), msg="The vector {} is not sufficiently close to vector {}".format(self.wl.bb_shift_vector, self.bb_shift_vector))
 
     def test_known_axis_of_rotation(self):
         for idx, axis in self.axis_of_rotation.items():
@@ -107,10 +113,11 @@ class WLDemo(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_iso_size = 1
     collimator_iso_size = 1.2
-    couch_iso_size = 3.5
+    couch_iso_size = 1.1
     cax2bb_max_distance = 1
     cax2bb_median_distance = 0.7
     axis_of_rotation = {0: 'Reference'}
+    bb_shift_vector = Vector(y=-0.1, z=0.3)
 
     @classmethod
     def setUpClass(cls):
@@ -118,6 +125,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
 
 
 class WLLateral3mm(WinstonLutzMixin, TestCase):
+    # verified independently
     dir_location = TEST_FILES_DIR
     file_path = ['Winston-Lutz', 'lat3mm.zip']
     num_images = 4
@@ -128,6 +136,7 @@ class WLLateral3mm(WinstonLutzMixin, TestCase):
 
 
 class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
+    # verified independently
     dir_location = TEST_FILES_DIR
     file_path = ['Winston-Lutz', 'lng3mm.zip']
     num_images = 4
