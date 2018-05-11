@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = '2.0.2'
+__version__ = '2.1.0'
 
 
 setup(
@@ -22,14 +22,10 @@ setup(
                       "scikit-image >= 0.12",
                       "scikit-learn >= 0.18",
                       "Pillow >= 4.0",
-                      "tqdm == 3.8",
+                      "tqdm >= 3.8",
                       "pyyaml >= 3.10",
                       "yagmail",
                       "reportlab >= 3.3"],
-    entry_points={
-        'console_scripts':
-            ['pylinac=pylinac.scripts:cli']
-    },
     license='MIT',
     test_suite='tests._test_all',
     classifiers=[
