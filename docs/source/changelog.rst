@@ -45,16 +45,24 @@ Winston-Lutz
     # shift BB and run it again...
 
 * Images taken at nonzero couch angles are now correctly accounted for in the BB shift.
-* Images now do not take into account shifts along the axis of the beam (`#116 <https://github.com/jrkerns/pylinac/issues/116>`_)
+* Images now do not take into account shifts along the axis of the beam (`#116 <https://github.com/jrkerns/pylinac/issues/116>`_).
 * The name of the file will now not automatically be intepreted if it can. This could cause issues for valid DICOM files that had sufficient metadata.
   If the image was taken at Gantry of 45 and the file name contained "gantry001" due to, e.g., TrueBeam's default naming convention it would override the DICOM data.
   (`#124 <https://github.com/jrkerns/pylinac/issues/124>`_)
+
+Picket Fence
+^^^^^^^^^^^^
+
+* Files can now allow for interpretation by the file name, similar to the WL module. This is helpful for Elekta linacs that may be doing this test (`#126 <https://github.com/jrkerns/pylinac/issues/126>`_).
 
 Core Modules
 ^^^^^^^^^^^^
 
 * ``is_dicom`` and ``is_dicom_image`` were moved from the ``utilites`` module to the ``io`` module.
 * ``field_edges()`` had the parameter ``interpolation`` added so that field edges could be computed more accurately (`#123 <https://github.com/jrkerns/pylinac/issues/123>`_)
+* A new class was created called ``LinacDicomImage``. This is a subclass of ``DicomImage`` and currently adds smart gantry/coll/couch angle interpretation but may be extended further.
+
+
 
 V 2.0.0
 -------
