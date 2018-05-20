@@ -6,7 +6,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlretrieve, urlopen
 import zipfile
 
-import dicom
+import pydicom
 from tqdm import tqdm
 
 
@@ -48,12 +48,28 @@ def is_dicom_image(file):
     """
     result = False
     try:
-        img = dicom.read_file(file, force=True)
+        img = pydicom.dcmread(file, force=True)
+        if 'TransferSyntaxUID' not in img.file_meta:
+            img.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
         img.pixel_array
         result = True
-    except:
+    except (AttributeError, TypeError):
         pass
     return result
+
+
+def retrieve_dicom_file(file):
+    """Read and return the DICOM dataset.
+
+    Parameters
+    ----------
+    file : str
+        The path to the file.
+    """
+    img = pydicom.dcmread(file, force=True)
+    if 'TransferSyntaxUID' not in img.file_meta:
+        img.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+    return img
 
 
 def is_zipfile(file):

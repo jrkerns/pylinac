@@ -1,6 +1,6 @@
 numpy >= 1.9
 scipy >= 0.15
-pydicom >= 0.9.9
+pydicom >= 1.0
 matplotlib >= 1.3
 Pillow >= 2.5
 scikit-image >= 0.11

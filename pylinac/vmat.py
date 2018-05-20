@@ -244,8 +244,11 @@ class VMAT:
         for subimage, axis, title in zip(subimages, axes, titles):
             self.plot_analyzed_subimage(subimage=subimage, ax=axis, show=False)
             axis.set_title(title)
+        axis.set_ylabel('Normalized Response')
+        axis.legend(loc='lower center')
 
         if show:
+            plt.tight_layout(h_pad=1.5)
             plt.show()
 
     def save_analyzed_image(self, filename, **kwargs):
@@ -292,8 +295,8 @@ class VMAT:
         # plot profile
         elif subimage == PROFILE:
             dmlc_prof, open_prof = self.median_profiles
-            ax.plot(dmlc_prof.values)
-            ax.plot(open_prof.values)
+            ax.plot(dmlc_prof.values, label='DMLC')
+            ax.plot(open_prof.values, label='Open')
             ax.autoscale(axis='x', tight=True)
             ax.grid()
 

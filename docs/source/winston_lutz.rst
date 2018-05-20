@@ -72,16 +72,14 @@ You can also load a ZIP archive with the images in it::
 
     wl = WinstonLutz.from_zip('path/to/wl.zip')
 
-And that's it! Once loaded you can view images, gantry sag, or print the results::
+And that's it! Once loaded you can view images, print the results, or publish a PDF report::
 
+    # plot all the images
     wl.plot_images()
-    wl.plot_gantry_sag()
     # plot an individual image
     wl.images[3].plot()
     # save a figure of the image plots
     wl.save_plots('wltest.png')
-    # return the gantry isocenter relative to the BB
-    wl.gantry_iso2bb_vector
     # print to PDF
     wl.publish_pdf('mywl.pdf')
 
@@ -107,6 +105,10 @@ The following are invalid:
 
 * mywl-gantry=0-coll=90-couch=315.dcm
 * gan45_collimator30-table270.dcm
+
+.. note:: If using filenames all relevant axes must be defined, otherwise they will default to zero. For example,
+          if the acquisition was at gantry=45, coll=15, couch=0 then the filename must include both the gantry and collimator
+          in the name (<...gantry45...coll15....dcm>). For this example, the couch need not be defined since it is 0.
 
 
 Algorithm

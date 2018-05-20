@@ -7,6 +7,8 @@ Features:
 * **Isocenter size determination** - Using backprojections of the EPID images, the 3D gantry isocenter size
   and position can be determined *independent of the BB position*. Additionally, the 2D planar isocenter size
   of the collimator and couch can also be determined.
+* **BB shift instructions** - Direct shift instructions can be printed for iterative BB placement.
+  The current couch position can even be input to get the new couch values.
 * **Axis deviation plots** - Plot the variation of the gantry, collimator, couch, and EPID in each plane
   as well as RMS variation.
 * **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
@@ -44,12 +46,15 @@ ALL = 'All'
 class WinstonLutz:
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
-    def __init__(self, directory):
+    def __init__(self, directory, use_filenames=False):
         """
         Parameters
         ----------
         directory : str
             Path to the directory of the Winston-Lutz EPID images.
+        use_filenames: bool
+            Whether to try to use the file name to determine axis values.
+            Useful for Elekta machines that do not include that info in the DICOM data.
 
         Examples
         --------
@@ -73,7 +78,7 @@ class WinstonLutz:
         ----------
         images : :class:`~pylinac.winston_lutz.ImageManager` instance
         """
-        self.images = ImageManager(directory)
+        self.images = ImageManager(directory, use_filenames)
 
     @classmethod
     def from_demo_images(cls):
@@ -82,29 +87,35 @@ class WinstonLutz:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_zip(cls, zfile):
+    def from_zip(cls, zfile, use_filenames=False):
         """Instantiate from a zip file rather than a directory.
 
         Parameters
         ----------
         zfile : str
             Path to the archive file.
+        use_filenames : bool
+            Whether to interpret axis angles using the filenames.
+            Set to true for Elekta machines where the gantry/coll/couch data is not in the DICOM metadata.
         """
         with TemporaryZipDirectory(zfile) as tmpz:
-            obj = cls(tmpz)
+            obj = cls(tmpz, use_filenames=use_filenames)
         return obj
 
     @classmethod
-    def from_url(cls, url):
+    def from_url(cls, url, use_filenames=False):
         """Instantiate from a URL.
 
         Parameters
         ----------
         url : str
             URL that points to a zip archive of the DICOM images.
+        use_filenames : bool
+            Whether to interpret axis angles using the filenames.
+            Set to true for Elekta machines where the gantry/coll/couch data is not in the DICOM metadata.
         """
         zfile = get_url(url)
-        return cls.from_zip(zfile)
+        return cls.from_zip(zfile, use_filenames=use_filenames)
 
     @staticmethod
     def run_demo():
@@ -140,13 +151,18 @@ class WinstonLutz:
     def gantry_iso_size(self):
         """The diameter of the 3D gantry isocenter size in mm. Only images where the collimator
         and couch were at 0 are used to determine this value."""
-        return self._minimize_axis(GANTRY).fun * 2
+        num_gantry_like_images = self._get_images((GANTRY, REFERENCE))[0]
+        if num_gantry_like_images > 1:
+            return self._minimize_axis(GANTRY).fun * 2
+        else:
+            return 0
 
     @property
     def collimator_iso_size(self):
         """The 2D collimator isocenter size (diameter) in mm. The iso size is in the plane
         normal to the gantry."""
-        if self._get_images((COLLIMATOR, REFERENCE))[0] > 1:
+        num_collimator_like_images = self._get_images((COLLIMATOR, REFERENCE))[0]
+        if num_collimator_like_images > 1:
             return self._minimize_axis(COLLIMATOR).fun * 2
         else:
             return 0
@@ -155,7 +171,8 @@ class WinstonLutz:
     def couch_iso_size(self):
         """The diameter of the 2D couch isocenter size in mm. Only images where
         the gantry and collimator were at zero are used to determine this value."""
-        if self._get_images((COUCH, REFERENCE))[0] > 1:
+        num_couch_like_images = self._get_images((COUCH, REFERENCE))[0]
+        if num_couch_like_images > 1:
             return self._minimize_axis(COUCH).x[3] * 2
         else:
             return 0
@@ -163,19 +180,26 @@ class WinstonLutz:
     @property
     def bb_shift_vector(self):
         """The shift necessary to place the BB at the radiation isocenter"""
-        tv = Vector()
         vs = [img.cax2bb_vector3d for img in self.images]
-        for v in vs:
-            tv += v
-        return Vector(-tv.x / len(vs), -tv.y / len(vs), -tv.z / len(vs))
+        # only include the values that are clinically significant; rules out values that are along the beam axis
+        xs = np.mean([v.x for v in vs if (0.02 < v.x or v.x < -0.02)])
+        ys = np.mean([v.y for v in vs if (0.02 < v.y or v.y < -0.02)])
+        zs = np.mean([v.z for v in vs if (0.02 < v.z or v.z < -0.02)])
+        return Vector(-xs, -ys, -zs)
 
-    def bb_shift_instructions(self):
+    def bb_shift_instructions(self, couch_vrt=None, couch_lng=None, couch_lat=None):
         """A string describing how to shift the BB to the radiation isocenter"""
         sv = self.bb_shift_vector
         x_dir = 'LEFT' if sv.x < 0 else 'RIGHT'
         y_dir = 'UP' if sv.y > 0 else 'DOWN'
         z_dir = 'IN' if sv.z < 0 else 'OUT'
-        return "{} {:2.2f}mm; {} {:2.2f}mm; {} {:2.2f}mm".format(x_dir, abs(sv.x), y_dir, abs(sv.y), z_dir, abs(sv.z))
+        move = "{} {:2.2f}mm; {} {:2.2f}mm; {} {:2.2f}mm".format(x_dir, abs(sv.x), y_dir, abs(sv.y), z_dir, abs(sv.z))
+        if all(val is not None for val in [couch_vrt, couch_lat, couch_lng]):
+            new_lat = round(couch_lat + sv.x/10, 2)
+            new_vrt = round(couch_vrt + sv.y/10, 2)
+            new_lng = round(couch_lng - sv.z/10, 2)
+            move += "\nNew couch coordinates (mm): VRT: {:3.2f}; LNG: {:3.2f}; LAT: {:3.2f}".format(new_vrt, new_lng, new_lat)
+        return move
 
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
     def axis_rms_deviation(self, axis=GANTRY, value='all'):
@@ -438,6 +462,12 @@ class WinstonLutz:
         ----------
         filename : (str, file-like object}
             The file to write the results to.
+        unit : str
+            The name of the unit the data was acquired on; e.g. "TrueBeam 1".
+        notes : (None, str)
+            An arbitrary string of information that may be useful to include in the PDF report.
+        open_file : bool
+            Whether to open the PDF file after publishing.
         """
         from reportlab.lib.units import cm
         title = "Winston-Lutz Analysis"
@@ -484,41 +514,50 @@ class WinstonLutz:
 
 class ImageManager(list):
     """Manages the images of a Winston-Lutz test."""
-    def __init__(self, directory):
+    def __init__(self, directory, use_filenames):
         """
         Parameters
         ----------
         directory : str
             The path to the images.
+        use_filenames: bool
+            Whether to try to use the file name to determine axis values.
+            Useful for Elekta machines that do not include that info in the DICOM data.
         """
         super().__init__()
         if isinstance(directory, list):
             for file in directory:
                 if is_dicom_image(file):
-                    img = WLImage(file)
+                    img = WLImage(file, use_filenames)
                     self.append(img)
         elif not osp.isdir(directory):
             raise ValueError("Invalid directory passed. Check the correct method and file was used.")
         else:
             image_files = image.retrieve_image_files(directory)
             for file in image_files:
-                img = WLImage(file)
+                img = WLImage(file, use_filenames)
                 self.append(img)
+        if len(self) < 2:
+            raise ValueError("<2 valid WL images were found in the folder/file. Ensure you chose the correct folder/file for analysis")
         # reorder list based on increasing gantry angle
         self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
 
 
-class WLImage(image.DicomImage):
+class WLImage(image.LinacDicomImage):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
-    def __init__(self, file):
+    def __init__(self, file, use_filenames):
         """
         Parameters
         ----------
         file : str
             Path to the image file.
+        use_filenames: bool
+            Whether to try to use the file name to determine axis values.
+            Useful for Elekta machines that do not include that info in the DICOM data.
         """
-        super().__init__(file)
+        super().__init__(file, use_filenames=use_filenames)
+        self.file = osp.basename(file)
         self.check_inversion()
         self.flipud()
         self._clean_edges()
@@ -623,59 +662,6 @@ class WLImage(image.DicomImage):
     def epid(self):
         """Center of the EPID panel"""
         return self.center
-
-    @property
-    @lru_cache(1)
-    def gantry_angle(self):
-        """Gantry angle of the irradiation."""
-        return self.get_axis(GANTRY.lower(), 'GantryAngle')
-
-    @property
-    @lru_cache(1)
-    def collimator_angle(self):
-        """Collimator angle of the irradiation."""
-        return self.get_axis('coll', 'BeamLimitingDeviceAngle')
-
-    @property
-    @lru_cache(1)
-    def couch_angle(self):
-        """Couch angle of the irradiation."""
-        return self.get_axis(COUCH.lower(), 'PatientSupportAngle')
-
-    def get_axis(self, axis_str, axis_dcm_attr):
-        """Retrieve the value of the axis. This will first look in the file name for the value. 
-        If not in the filename then it will look in the DICOM metadata. If the value can be found in neither 
-        then a value of 0 is assumed.
-
-        Parameters
-        ----------
-        axis_str : str
-            The string to look for in the filename.
-        axis_dcm_attr : str
-            The DICOM attribute that should contain the axis value.
-
-        Returns
-        -------
-        float
-        """
-        filename = osp.basename(self.path)
-        if axis_str in filename:
-            try:
-                match = re.search('(?<={})\d+'.format(axis_str), filename)
-                axis = float(match.group())
-            except:
-                raise ValueError(
-                    "The filename contains '{}' but could not read a number following it. Use the format '{}45' e.g.".format(
-                        axis_str, axis_str))
-        else:
-            try:
-                axis = float(getattr(self.metadata, axis_dcm_attr))
-            except AttributeError:
-                axis = 0
-        if is_close(axis, [0, 360], delta=1):
-            return 0
-        else:
-            return axis
 
     @property
     def epid_y_offset(self):
@@ -784,6 +770,7 @@ class WLImage(image.DicomImage):
         ax.set_xlim([self.bounding_box[2], self.bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
+        ax.set_title(self.file)
         ax.set_xlabel("G={0:.0f}, B={1:.0f}, P={2:.0f}".format(self.gantry_angle, self.collimator_angle, self.couch_angle))
         ax.set_ylabel("CAX to BB: {0:3.2f}mm".format(self.cax2bb_distance))
         if show:

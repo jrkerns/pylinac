@@ -436,7 +436,7 @@ class SingleProfile(ProfileMixin):
         return field_values
 
     @value_accept(field_width=(0, 1))
-    def field_edges(self, field_width=0.8):
+    def field_edges(self, field_width=0.8, interpolate=False):
         """Return the indices of the field width edges, based on the FWHM.
 
         See Also
@@ -447,10 +447,14 @@ class SingleProfile(ProfileMixin):
         -------
         left_index, right_index
         """
-        fwhmc = self.fwxm_center()
-        field_width *= self.fwxm()
-        left = int(round(fwhmc - field_width / 2))
-        right = int(round(fwhmc + field_width / 2))
+        fwhmc = self.fwxm_center(interpolate=interpolate)
+        field_width *= self.fwxm(interpolate=interpolate)
+        if interpolate:
+            left = fwhmc - (field_width / 2)
+            right = fwhmc + (field_width / 2)
+        else:
+            left = int(round(fwhmc - field_width / 2))
+            right = int(round(fwhmc + field_width / 2))
         return left, right
 
     @value_accept(field_width=(0, 1), calculation=('mean', 'median', 'max', 'min', 'area'))

@@ -1688,7 +1688,8 @@ class Dynalog(LogBase):
         if not self._has_other_file:
             raise DynalogMatchError("Didn't find the matching dynalog file")  # TODO: clean up
 
-        dlgdata = [line for line in csv.reader(open(self.a_logfile), delimiter=',')]
+        with open(self.a_logfile) as a_log:
+            dlgdata = [line for line in csv.reader(a_log, delimiter=',')]
         self.header = DynalogHeader(dlgdata)
         self.axis_data = DynalogAxisData(self, dlgdata)
         self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)

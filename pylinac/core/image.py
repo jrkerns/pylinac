@@ -2,12 +2,14 @@
 import copy
 from collections import Counter
 from datetime import datetime
+from functools import lru_cache
 from io import BytesIO
+import re
 import os.path as osp
 import os
 
-import dicom
-from dicom.errors import InvalidDicomError
+import pydicom
+from pydicom.errors import InvalidDicomError
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image as pImage
@@ -18,7 +20,7 @@ import scipy.ndimage.filters as spf
 from .utilities import is_close, minmax_scale
 from .decorators import type_accept, value_accept
 from .geometry import Point
-from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image
+from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image, retrieve_dicom_file
 from .profile import stretch as stretcharray
 from ..settings import get_dicom_cmap
 
@@ -82,7 +84,7 @@ def equate_images(image1, image2):
 
     # resize images to be of the same shape
     zoom_factor = image1.shape[1] / image2.shape[1]
-    image2_array = ndimage.interpolation.zoom(image2, zoom_factor)
+    image2_array = ndimage.interpolation.zoom(image2.as_type(np.float), zoom_factor)
     image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
 
     return image1, image2
@@ -286,7 +288,7 @@ class BaseImage:
         try:
             date = datetime.strptime(self.metadata.InstanceCreationDate+str(round(float(self.metadata.InstanceCreationTime))), "%Y%m%d%H%M%S")
             date = date.strftime(format)
-        except AttributeError:
+        except (AttributeError, ValueError):
             try:
                 date = datetime.strptime(self.metadata.StudyDate, "%Y%m%d")
                 date = date.strftime(format)
@@ -381,11 +383,11 @@ class BaseImage:
         """
         DeprecationWarning("`remove_edges` is deprecated and will be removed in a future version. Use `crop` instead")
         self.crop(pixels=pixels, edges=edges)
-            
+
     def flipud(self):
         """ Flip the image array upside down in-place. Wrapper for np.flipud()"""
         self.array = np.flipud(self.array)
-        
+
     def invert(self):
         """Invert (imcomplement) the image."""
         orig_array = self.array
@@ -527,7 +529,7 @@ class BaseImage:
             self.invert()
 
     @value_accept(threshold=(0.0, 1.0))
-    def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=0.1):
+    def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=0.1, ground=True, normalize=True):
         """Calculate the gamma between the current image (reference) and a comparison image.
 
         .. versionadded:: 1.2
@@ -548,6 +550,11 @@ class BaseImage:
         threshold : float
             The dose threshold percentage of the maximum dose, below which is not analyzed.
             Must be between 0 and 1.
+        ground : bool
+            Whether to "ground" the image values. If true, this sets both datasets to have the minimum value at 0.
+            This can fix offset errors in the data.
+        normalize : bool
+            Whether to normalize the images. This sets the max value of each image to the same value.
 
         Returns
         -------
@@ -569,12 +576,16 @@ class BaseImage:
         # set up reference and comparison images
         ref_img = ArrayImage(copy.copy(self.array))
         ref_img.check_inversion()
-        ref_img.ground()
-        ref_img.normalize()
+        if ground:
+            ref_img.ground()
+        if normalize:
+            ref_img.normalize()
         comp_img = ArrayImage(copy.copy(comparison_image.array))
         comp_img.check_inversion()
-        comp_img.ground()
-        comp_img.normalize()
+        if ground:
+            comp_img.ground()
+        if normalize:
+            comp_img.normalize()
 
         # invalidate dose values below threshold so gamma doesn't calculate over it
         ref_img.array[ref_img < threshold * np.max(ref_img)] = np.NaN
@@ -659,12 +670,12 @@ class DicomImage(BaseImage):
         self._sid = sid
         self._dpi = dpi
         # read the file once to get just the DICOM metadata
-        self.metadata = dicom.read_file(path, force=True)
+        self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
         # read a second time to get pixel data
         if isinstance(path, BytesIO):
             path.seek(0)
-        ds = dicom.read_file(path, force=True)
+        ds = retrieve_dicom_file(path)
         if dtype is not None:
             self.array = ds.pixel_array.astype(dtype)
         else:
@@ -728,6 +739,79 @@ class DicomImage(BaseImage):
             return self.center
         else:
             return Point(x, y)
+
+
+class LinacDicomImage(DicomImage):
+    """DICOM image taken on a linac. Also allows passing of gantry/coll/couch values via the filename."""
+    gantry_keyword = 'Gantry'
+    collimator_keyword = 'Coll'
+    couch_keyword = 'Couch'
+
+    def __init__(self, path, use_filenames=False):
+        super().__init__(path)
+        self._use_filenames = use_filenames
+
+    @property
+    def gantry_angle(self):
+        """Gantry angle of the irradiation."""
+        return self._get_axis(self.gantry_keyword.lower(), 'GantryAngle')
+
+    @property
+    def collimator_angle(self):
+        """Collimator angle of the irradiation."""
+        return self._get_axis(self.collimator_keyword.lower(), 'BeamLimitingDeviceAngle')
+
+    @property
+    def couch_angle(self):
+        """Couch angle of the irradiation."""
+        return self._get_axis(self.couch_keyword.lower(), 'PatientSupportAngle')
+
+    def _get_axis(self, axis_str, axis_dcm_attr):
+        """Retrieve the value of the axis. This will first look in the file name for the value.
+        If not in the filename then it will look in the DICOM metadata. If the value can be found in neither
+        then a value of 0 is assumed.
+
+        Parameters
+        ----------
+        axis_str : str
+            The string to look for in the filename.
+        axis_dcm_attr : str
+            The DICOM attribute that should contain the axis value.
+
+        Returns
+        -------
+        float
+        """
+        axis_found = False
+        if self._use_filenames:
+            filename = osp.basename(self.path)
+            # see if the keyword is in the filename
+            keyword_in_filename = axis_str.lower() in filename.lower()
+            # if it's not there, then assume it's zero
+            if not keyword_in_filename:
+                axis = 0
+                axis_found = True
+            # if it is, then make sure it follows the naming convention of <axis###>
+            else:
+                match = re.search('(?<={})\d+'.format(axis_str.lower()), filename.lower())
+                if match is None:
+                    raise ValueError(
+                            "The filename contains '{}' but could not read a number following it. Use the format '...{}<#>...'".format(
+                                axis_str, axis_str))
+                else:
+                    axis = float(match.group())
+                    axis_found = True
+        # try to interpret from DICOM data
+        if not axis_found:
+            try:
+                axis = float(getattr(self.metadata, axis_dcm_attr))
+            except AttributeError:
+                axis = 0
+        # if the value is close to 0 or 360 then peg at 0
+        if is_close(axis, [0, 360], delta=1):
+            return 0
+        else:
+            return axis
 
 
 class FileImage(BaseImage):
@@ -919,7 +1003,7 @@ class DicomImageStack:
     def is_CT_slice(file):
         """Test if the file is a CT Image storage DICOM file."""
         try:
-            ds = dicom.read_file(file, force=True, stop_before_pixels=True)
+            ds = pydicom.dcmread(file, force=True, stop_before_pixels=True)
             return ds.SOPClassUID.name == 'CT Image Storage'
         except (InvalidDicomError, AttributeError, MemoryError):
             return False
