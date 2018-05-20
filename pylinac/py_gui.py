@@ -2,6 +2,7 @@ import itertools
 from tkinter import *
 from tkinter.ttk import *
 from tkinter import filedialog
+from tkinter import messagebox
 import os.path as osp
 import webbrowser
 
@@ -215,7 +216,7 @@ class PylinacGUI(Frame):
         Button(self.ct_tab, text='Load ZIP file...', command=load_zip).grid(column=2, row=3)
         Label(self.ct_tab, textvariable=self.ct_file).grid(column=2, row=4)
         Label(self.ct_tab, text='CatPhan type:').grid(column=2, row=5)
-        Combobox(self.ct_tab, values=('CatPhan504', 'CatPhan503', 'CatPhan600'), textvariable=self.ct_catphantype).grid(column=2, row=6)
+        Combobox(self.ct_tab, values=('CatPhan504', 'CatPhan503', 'CatPhan600', 'CatPhan604'), textvariable=self.ct_catphantype).grid(column=2, row=6)
         Label(self.ct_tab, text='HU Tolerance (HU):').grid(column=1, row=7)
         Entry(self.ct_tab, width=7, textvariable=self.ct_hu).grid(column=1, row=8)
         Label(self.ct_tab, text='Scaling tolerance (mm):').grid(column=2, row=7)
@@ -403,7 +404,15 @@ class PylinacGUI(Frame):
 
 
 def gui():
+
+    def on_exit():
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            root.quit()
+
     root = Tk()
     root.title('Pylinac GUI ' + __version__)
+    root.protocol("WM_DELETE_WINDOW", on_exit)
     app = PylinacGUI(master=root)
     app.mainloop()
+    root.destroy()
+    del root

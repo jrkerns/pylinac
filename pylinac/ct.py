@@ -213,8 +213,8 @@ class Slice:
 class CatPhanModule(Slice, ROIManagerMixin):
     """Base class for a CTP module.
     """
-    combine_method = 'mean'
-    num_slices = 0
+    combine_method = 'max'
+    num_slices = 1
 
     def __init__(self, catphan, tolerance, offset=0):
         """
@@ -307,6 +307,23 @@ class CTP404(CatPhanModule):
                     'Teflon': {'value': 990, 'angle': 120},
                 },
                 'background ROI angles': [-30, -150, -210, 30]
+            }
+        elif isinstance(catphan, CatPhan604):
+            self.hu = {
+                'distance to ROIs': 58.7/self.mm_per_pixel,
+                'ROI radius': 5/self.mm_per_pixel,
+                'ROIs': {
+                    'Air': {'value': -1000, 'angle': -90},
+                    'PMP': {'value': -200, 'angle': -120},
+                    '50Bone': {'value': 725, 'angle': -150},
+                    'LDPE': {'value': -100, 'angle': 180},
+                    'Poly': {'value': -35, 'angle': 120},
+                    'Acrylic': {'value': 120, 'angle': 60},
+                    '20Bone': {'value': 240, 'angle': 30},
+                    'Delrin': {'value': 340, 'angle': 0},
+                    'Teflon': {'value': 990, 'angle': -60},
+                },
+                'background ROI angles': [-30, -210]
             }
         self.bg_hu_rois = OrderedDict()
         self.hu_rois = OrderedDict()
@@ -633,6 +650,9 @@ class CTP528(CatPhanModule):
         elif isinstance(catphan, CatPhan600):
             self.start_angle = np.pi - 0.1
             self.ccw = False
+        elif isinstance(catphan, CatPhan604):
+            self.start_angle = np.pi
+            self.ccw = True
 
     @property
     @lru_cache(maxsize=1)
@@ -1065,9 +1085,9 @@ class CatPhanBase:
             The middle slice of the HU linearity module.
         """
         hu_slices = []
-        for image_number in range(0, self.num_images, 2):
+        for image_number in range(0, self.num_images):
             slice = Slice(self, image_number, combine=False)
-            # print(image_number)
+            #print(image_number)
             # slice.image.plot()
             try:
                 center = slice.phan_center
@@ -1079,9 +1099,10 @@ class CatPhanBase:
                 # determine if the profile contains both low and high values and that most values are the same
                 low_end, high_end = np.percentile(prof, [2, 98])
                 median = np.median(prof)
-                if (low_end < median - 400) and (high_end > median + 400) and (
+                if (low_end < median - 800) and (high_end > median + 800) and (
                                 np.percentile(prof, 80) - np.percentile(prof, 20) < 100):
                     hu_slices.append(image_number)
+                    #print(image_number)
 
         if not hu_slices:
             raise ValueError("No slices were found that resembled the HU linearity module")
@@ -1092,6 +1113,7 @@ class CatPhanBase:
         hu_slices = hu_slices[((c + ln/2) >= hu_slices) & (hu_slices >= (c - ln/2))]
         center_hu_slice = int(round(np.median(hu_slices)))
         if self._is_within_image_extent(center_hu_slice):
+            #print(center_hu_slice)
             return center_hu_slice
 
     @lru_cache(maxsize=1)
@@ -1348,6 +1370,29 @@ class CatPhan504(CatPhanBase):
     def run_demo(show=True):
         """Run the CBCT demo using high-quality head protocol images."""
         cbct = CatPhan504.from_demo_images()
+        cbct.analyze()
+        print(cbct.results())
+        cbct.plot_analyzed_image(show)
+
+
+class CatPhan604(CatPhanBase):
+    """A class for loading and analyzing CT DICOM files of a CatPhan 604. Can be from a CBCT or CT scanner
+    Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528),
+    Image Scaling & HU Linearity (CTP404), and Low contrast (CTP515).
+    """
+    _demo_url = 'CatPhan604.zip'
+    _model = '604'
+    catphan_radius_mm = 101
+    modules = {
+        CTP486: {'offset': -80},
+        CTP528: {'offset': 40},
+        CTP515: {'offset': -40}
+    }
+
+    @staticmethod
+    def run_demo(show=True):
+        """Run the CBCT demo using high-quality head protocol images."""
+        cbct = CatPhan604.from_demo_images()
         cbct.analyze()
         print(cbct.results())
         cbct.plot_analyzed_image(show)
