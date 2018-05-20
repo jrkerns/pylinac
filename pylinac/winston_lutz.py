@@ -543,7 +543,7 @@ class ImageManager(list):
         self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
 
 
-class WLImage(image.DicomImage):
+class WLImage(image.LinacDicomImage):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
     def __init__(self, file, use_filenames):
@@ -556,14 +556,13 @@ class WLImage(image.DicomImage):
             Whether to try to use the file name to determine axis values.
             Useful for Elekta machines that do not include that info in the DICOM data.
         """
-        super().__init__(file)
+        super().__init__(file, use_filenames=use_filenames)
         self.file = osp.basename(file)
         self.check_inversion()
         self.flipud()
         self._clean_edges()
         self.field_cax, self.bounding_box = self._find_field_centroid()
         self.bb = self._find_bb()
-        self.use_filenames = use_filenames
 
     def __repr__(self):
         return "WLImage(G={0:.1f}, B={1:.1f}, P={2:.1f})".format(self.gantry_angle, self.collimator_angle, self.couch_angle)
@@ -663,71 +662,6 @@ class WLImage(image.DicomImage):
     def epid(self):
         """Center of the EPID panel"""
         return self.center
-
-    @property
-    @lru_cache(1)
-    def gantry_angle(self):
-        """Gantry angle of the irradiation."""
-        return self.get_axis(GANTRY.lower(), 'GantryAngle')
-
-    @property
-    @lru_cache(1)
-    def collimator_angle(self):
-        """Collimator angle of the irradiation."""
-        return self.get_axis('coll', 'BeamLimitingDeviceAngle')
-
-    @property
-    @lru_cache(1)
-    def couch_angle(self):
-        """Couch angle of the irradiation."""
-        return self.get_axis(COUCH.lower(), 'PatientSupportAngle')
-
-    def get_axis(self, axis_str, axis_dcm_attr):
-        """Retrieve the value of the axis. This will first look in the file name for the value. 
-        If not in the filename then it will look in the DICOM metadata. If the value can be found in neither 
-        then a value of 0 is assumed.
-
-        Parameters
-        ----------
-        axis_str : str
-            The string to look for in the filename.
-        axis_dcm_attr : str
-            The DICOM attribute that should contain the axis value.
-
-        Returns
-        -------
-        float
-        """
-        axis_found = False
-        if self.use_filenames:
-            filename = osp.basename(self.path)
-            # see if the keyword is in the filename
-            keyword_in_filename = axis_str.lower() in filename.lower()
-            # if it's not there, then assume it's zero
-            if not keyword_in_filename:
-                axis = 0
-                axis_found = True
-            # if it is, then make sure it follows the naming convention of <axis###>
-            else:
-                match = re.search('(?<={})\d+'.format(axis_str.lower()), filename.lower())
-                if match is None:
-                    raise ValueError(
-                            "The filename contains '{}' but could not read a number following it. Use the format '...{}<#>...'".format(
-                                axis_str, axis_str))
-                else:
-                    axis = float(match.group())
-                    axis_found = True
-        # try to interpret from DICOM data
-        if not axis_found:
-            try:
-                axis = float(getattr(self.metadata, axis_dcm_attr))
-            except AttributeError:
-                axis = 0
-        # if the value is close to 0 or 360 then peg at 0
-        if is_close(axis, [0, 360], delta=1):
-            return 0
-        else:
-            return axis
 
     @property
     def epid_y_offset(self):

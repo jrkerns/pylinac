@@ -2,7 +2,9 @@
 import copy
 from collections import Counter
 from datetime import datetime
+from functools import lru_cache
 from io import BytesIO
+import re
 import os.path as osp
 import os
 
@@ -286,7 +288,7 @@ class BaseImage:
         try:
             date = datetime.strptime(self.metadata.InstanceCreationDate+str(round(float(self.metadata.InstanceCreationTime))), "%Y%m%d%H%M%S")
             date = date.strftime(format)
-        except AttributeError:
+        except (AttributeError, ValueError):
             try:
                 date = datetime.strptime(self.metadata.StudyDate, "%Y%m%d")
                 date = date.strftime(format)
@@ -381,11 +383,11 @@ class BaseImage:
         """
         DeprecationWarning("`remove_edges` is deprecated and will be removed in a future version. Use `crop` instead")
         self.crop(pixels=pixels, edges=edges)
-            
+
     def flipud(self):
         """ Flip the image array upside down in-place. Wrapper for np.flipud()"""
         self.array = np.flipud(self.array)
-        
+
     def invert(self):
         """Invert (imcomplement) the image."""
         orig_array = self.array
@@ -737,6 +739,79 @@ class DicomImage(BaseImage):
             return self.center
         else:
             return Point(x, y)
+
+
+class LinacDicomImage(DicomImage):
+    """DICOM image taken on a linac. Also allows passing of gantry/coll/couch values via the filename."""
+    gantry_keyword = 'Gantry'
+    collimator_keyword = 'Coll'
+    couch_keyword = 'Couch'
+
+    def __init__(self, path, use_filenames=False):
+        super().__init__(path)
+        self._use_filenames = use_filenames
+
+    @property
+    def gantry_angle(self):
+        """Gantry angle of the irradiation."""
+        return self._get_axis(self.gantry_keyword.lower(), 'GantryAngle')
+
+    @property
+    def collimator_angle(self):
+        """Collimator angle of the irradiation."""
+        return self._get_axis(self.collimator_keyword.lower(), 'BeamLimitingDeviceAngle')
+
+    @property
+    def couch_angle(self):
+        """Couch angle of the irradiation."""
+        return self._get_axis(self.couch_keyword.lower(), 'PatientSupportAngle')
+
+    def _get_axis(self, axis_str, axis_dcm_attr):
+        """Retrieve the value of the axis. This will first look in the file name for the value.
+        If not in the filename then it will look in the DICOM metadata. If the value can be found in neither
+        then a value of 0 is assumed.
+
+        Parameters
+        ----------
+        axis_str : str
+            The string to look for in the filename.
+        axis_dcm_attr : str
+            The DICOM attribute that should contain the axis value.
+
+        Returns
+        -------
+        float
+        """
+        axis_found = False
+        if self._use_filenames:
+            filename = osp.basename(self.path)
+            # see if the keyword is in the filename
+            keyword_in_filename = axis_str.lower() in filename.lower()
+            # if it's not there, then assume it's zero
+            if not keyword_in_filename:
+                axis = 0
+                axis_found = True
+            # if it is, then make sure it follows the naming convention of <axis###>
+            else:
+                match = re.search('(?<={})\d+'.format(axis_str.lower()), filename.lower())
+                if match is None:
+                    raise ValueError(
+                            "The filename contains '{}' but could not read a number following it. Use the format '...{}<#>...'".format(
+                                axis_str, axis_str))
+                else:
+                    axis = float(match.group())
+                    axis_found = True
+        # try to interpret from DICOM data
+        if not axis_found:
+            try:
+                axis = float(getattr(self.metadata, axis_dcm_attr))
+            except AttributeError:
+                axis = 0
+        # if the value is close to 0 or 360 then peg at 0
+        if is_close(axis, [0, 360], delta=1):
+            return 0
+        else:
+            return axis
 
 
 class FileImage(BaseImage):

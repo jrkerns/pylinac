@@ -35,7 +35,7 @@ UP_DOWN = 'Up-Down'
 LEFT_RIGHT = 'Left-Right'
 
 
-class PFDicomImage(image.DicomImage):
+class PFDicomImage(image.LinacDicomImage):
     """A subclass of a DICOM image that checks for noise and inversion when instantiated. Can also adjust for EPID sag."""
 
     def __init__(self, path, **kwargs):
@@ -95,7 +95,7 @@ class PicketFence:
         >>> print(mypf.results())
         >>> mypf.plot_analyzed_image()
     """
-    def __init__(self, filename, filter=None, log=None):
+    def __init__(self, filename, filter=None, log=None, use_filename=False):
         """
         Parameters
         ----------
@@ -108,9 +108,13 @@ class PicketFence:
             Path to a log file corresponding to the delivery. The expected fluence of the log file is
             used to construct the pickets. MLC peaks are then compared to an absolute reference instead of
             a fitted picket.
+        use_filename : bool
+            If False (default), no action will be performed.
+            If True, the filename will be searched for keywords that describe the gantry and/or collimator angle.
+            For example, if set to True and the file name was "PF_gantry45.dcm" the gantry would be interpreted as being at 45 degrees.
         """
         if filename is not None:
-            self.image = PFDicomImage(filename)
+            self.image = PFDicomImage(filename, use_filenames=use_filename)
             if isinstance(filter, int):
                 self.image.filter(size=filter)
         if log is not None:
@@ -424,10 +428,8 @@ class PicketFence:
                 'Mean picket spacing (mm): {:2.1f}'.format(self.pickets.mean_spacing),
                 'Maximum error (mm): {:2.3f} on Picket {}, Leaf {}'.format(self.max_error, self.max_error_picket, self.max_error_leaf),
                 ]
-        if self.gantry_angle is not None:
-            text.append('Gantry Angle: {:2.2f}'.format(self.gantry_angle))
-        if self.collimator_angle is not None:
-            text.append('Collimator Angle: {:2.2f}'.format(self.collimator_angle))
+        text.append('Gantry Angle: {:2.2f}'.format(self.image.gantry_angle))
+        text.append('Collimator Angle: {:2.2f}'.format(self.image.collimator_angle))
         pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text)
         if notes is not None:
             pdf.draw_text(canvas, x=1*cm, y=5.5*cm, fontsize=14, text="Notes:")
@@ -464,20 +466,6 @@ class PicketFence:
         else:
             orientation = UP_DOWN
         return orientation
-
-    @property
-    def gantry_angle(self):
-        try:
-            return round(float(self.image.metadata.GantryAngle))
-        except AttributeError:
-            return None
-
-    @property
-    def collimator_angle(self):
-        try:
-            return round(float(self.image.metadata.BeamLimitingDeviceAngle))
-        except AttributeError:
-            return None
 
 
 class Overlay:
