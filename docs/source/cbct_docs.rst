@@ -76,8 +76,8 @@ Typical Use
 -----------
 
 CatPhan analysis as done by this module closely follows what is specified in the CatPhan manuals, replacing the need for manual measurements.
-There are 3 CatPhan models that pylinac can analyze: :class:`~pylinac.ct.CatPhan504`, :class:`~pylinac.ct.CatPhan503`, & :class:`~pylinac.ct.CatPhan600`
-, each with their own class in
+There are 4 CatPhan models that pylinac can analyze: :class:`~pylinac.ct.CatPhan504`, :class:`~pylinac.ct.CatPhan503`, & :class:`~pylinac.ct.CatPhan600`, &
+:class:`~pylinac.ct.CatPhan604`, each with their own class in
 pylinac. Let's assume you have the CatPhan504 for this example. Using the other models/classes is exactly
 the same except the class name.
 
@@ -223,14 +223,6 @@ Most problems in this module revolve around getting the data loaded.
 * Ensure that the FOV is large enough to encompass the entire phantom. If the scan is cutting off the phantom
   in any way it will not identify it.
 * The phantom should never touch the edge of an image, see above point.
-* Set the ``classifier`` parameter to ``False`` when loading images. This will use a slower, brute-force
-  method to find the CTP404 module, but may give more reliable results:
-
-  .. code-block:: python
-
-      from pylinac import CatPhan503
-      cp = CatPhan503('my/folder', use_classifier=False)
-
 * Make sure you're loading the right CatPhan class. I.e. using a CatPhan600 class on a CatPhan504
   scan may result in errors or erroneous results.
 
@@ -244,6 +236,8 @@ The CatPhan classes uses several other classes. There are several Slices of Inte
 .. autoclass:: pylinac.ct.CatPhan503
 
 .. autoclass:: pylinac.ct.CatPhan600
+
+.. autoclass:: pylinac.ct.CatPhan604
 
 .. autoclass:: pylinac.ct.CatPhanBase
 

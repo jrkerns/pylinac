@@ -5,16 +5,9 @@ Pylinac
     :width: 100%
     :target: https://github.com/jrkerns/pylinac
 
-.. image:: https://badges.gitter.im/Join%20Chat.svg
-   :alt: Join the chat at https://gitter.im/jrkerns/pylinac
-   :target: https://gitter.im/jrkerns/pylinac?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
-
 .. image:: https://img.shields.io/pypi/v/pylinac.svg
     :target: https://pypi.python.org/pypi/pylinac
     :alt: Latest Version
-
-.. image:: https://anaconda.org/jrkerns/pylinac/badges/installer/conda.svg
-    :target: https://anaconda.org/jrkerns/pylinac
 
 .. image:: https://img.shields.io/pypi/l/pylinac.svg
     :target: https://pypi.python.org/pypi/pylinac/
@@ -27,10 +20,6 @@ Pylinac
 .. image:: https://coveralls.io/repos/jrkerns/pylinac/badge.svg?branch=master
     :target: https://coveralls.io/r/jrkerns/pylinac
     :alt: Code Coverage
-
-.. image:: https://www.quantifiedcode.com/api/v1/project/25e3cefc2cc84052bbd127c3386adf69/badge.svg
-    :target: https://www.quantifiedcode.com/app/project/25e3cefc2cc84052bbd127c3386adf69
-    :alt: Code issues
 
 .. image:: https://readthedocs.org/projects/pylinac/badge/?version=stable
     :target: http://pylinac.readthedocs.org/en/stable/?badge=stable

@@ -20,17 +20,19 @@ To run the Winston-Lutz demo, create a script or start an interpreter session an
 Results will be printed to the console and a figure showing the zoomed-in images will be generated::
 
     Winston-Lutz Analysis
-
+    =================================
     Number of images: 17
-    Maximum 2D CAX->BB distance: 1.25mm
-    Median 2D CAX->BB distance: 0.62mm
-    Gantry 3D isocenter radius: 0.67mm
-    Gantry iso->BB vector: Vector(x=0.22, y=0.10, z=0.38)
-    Gantry sag in the z-direction: 1.01mm
-    Collimator 2D isocenter radius: 0.51mm
-    Collimator 2D iso->BB vector: Vector(x=0.17, y=0.38, z=0.00)
-    Couch 2D isocenter radius: 1.20mm
-    Couch 2D iso->BB vector: Vector(x=-0.94, y=-0.35, z=0.00)
+    Maximum 2D CAX->BB distance: 1.14mm
+    Median 2D CAX->BB distance: 0.64mm
+    Shift BB to iso, facing gantry: LEFT 0.02mm; DOWN 0.11mm; OUT 0.29mm
+    Gantry 3D isocenter diameter: 0.97mm
+    Maximum Gantry RMS deviation (mm): 0.99mm
+    Maximum EPID RMS deviation (mm): 0.00mm
+    Collimator 2D isocenter diameter: 1.12mm
+    Maximum Collimator RMS deviation (mm): 0.87
+    Couch 2D isocenter diameter: 1.13mm
+    Maximum Couch RMS deviation (mm): 1.14
+
 
 .. image:: images/winston_lutz_demo.png
 
@@ -83,6 +85,16 @@ And that's it! Once loaded you can view images, print the results, or publish a 
     # print to PDF
     wl.publish_pdf('mywl.pdf')
 
+If you want to shift the BB based on the results and perform the test again there is a method for that::
+
+    print(wl.bb_shift_instructions())
+    # LEFT: 0.1mm, DOWN: 0.22mm, ...
+
+You can also pass in your couch coordinates and the new values will be generated::
+
+    print(wl.bb_shift_instructions(couch_vrt=0.41, couch_lng=96.23, couch_lat=0.12))
+    New couch coordinates (mm): VRT: 0.32; LNG: 96.11; LAT: 0.11
+
 .. _using_file_names_wl:
 
 Using File Names
@@ -106,7 +118,7 @@ The following are invalid:
 * mywl-gantry=0-coll=90-couch=315.dcm
 * gan45_collimator30-table270.dcm
 
-.. note:: If using filenames all relevant axes must be defined, otherwise they will default to zero. For example,
+.. note:: If using filenames any relevant axes must be defined, otherwise they will default to zero. For example,
           if the acquisition was at gantry=45, coll=15, couch=0 then the filename must include both the gantry and collimator
           in the name (<...gantry45...coll15....dcm>). For this example, the couch need not be defined since it is 0.
 
