@@ -213,8 +213,8 @@ class Slice:
 class CatPhanModule(Slice, ROIManagerMixin):
     """Base class for a CTP module.
     """
-    combine_method = 'max'
-    num_slices = 1
+    combine_method = 'mean'
+    num_slices = 0
 
     def __init__(self, catphan, tolerance, offset=0):
         """
@@ -315,11 +315,11 @@ class CTP404(CatPhanModule):
                 'ROIs': {
                     'Air': {'value': -1000, 'angle': -90},
                     'PMP': {'value': -200, 'angle': -120},
-                    '50Bone': {'value': 725, 'angle': -150},
+                    '50% Bone': {'value': 725, 'angle': -150},
                     'LDPE': {'value': -100, 'angle': 180},
                     'Poly': {'value': -35, 'angle': 120},
                     'Acrylic': {'value': 120, 'angle': 60},
-                    '20Bone': {'value': 240, 'angle': 30},
+                    '20% Bone': {'value': 240, 'angle': 30},
                     'Delrin': {'value': 340, 'angle': 0},
                     'Teflon': {'value': 990, 'angle': -60},
                 },
@@ -567,6 +567,8 @@ class CTP528(CatPhanModule):
     attr_name = 'ctp528'
     common_name = 'Spatial Resolution'
     radius2linepairs_mm = 47
+    combine_method = 'max'
+    num_slices = 3
 
     def _setup_rois(self):
         pass
@@ -1054,7 +1056,7 @@ class CatPhanBase:
         print("Phantom roll: {0}".format(self.find_phantom_roll()))
         print("Origin slice: {}".format(self.find_origin_slice()))
         mtfs = {}
-        for mtf in (30, 50, 80):
+        for mtf in (95, 90, 80, 70, 60):
             mtfval = self.ctp528.mtf(mtf)
             mtfs[mtf] = mtfval
         print('MTFs: {}'.format(mtfs))
@@ -1085,7 +1087,7 @@ class CatPhanBase:
             The middle slice of the HU linearity module.
         """
         hu_slices = []
-        for image_number in range(0, self.num_images):
+        for image_number in range(0, self.num_images, 2):
             slice = Slice(self, image_number, combine=False)
             #print(image_number)
             # slice.image.plot()
@@ -1099,7 +1101,7 @@ class CatPhanBase:
                 # determine if the profile contains both low and high values and that most values are the same
                 low_end, high_end = np.percentile(prof, [2, 98])
                 median = np.median(prof)
-                if (low_end < median - 800) and (high_end > median + 800) and (
+                if (low_end < median - 400) and (high_end > median + 400) and (
                                 np.percentile(prof, 80) - np.percentile(prof, 20) < 100):
                     hu_slices.append(image_number)
                     #print(image_number)
@@ -1385,7 +1387,7 @@ class CatPhan604(CatPhanBase):
     catphan_radius_mm = 101
     modules = {
         CTP486: {'offset': -80},
-        CTP528: {'offset': 40},
+        CTP528: {'offset': 42},
         CTP515: {'offset': -40}
     }
 
@@ -1431,7 +1433,7 @@ def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='o
         edges = filters.scharr(slice_or_arr.image.array.astype(np.float))
         center = slice_or_arr.image.center
     elif isinstance(slice_or_arr, np.ndarray):
-        edges = filters.scharr(slice_or_arr)
+        edges = filters.scharr(slice_or_arr.astype(np.float))
         center = (int(edges.shape[1]/2), int(edges.shape[0]/2))
     edges = filters.gaussian(edges, sigma=1)
     if isinstance(slice_or_arr, Slice):

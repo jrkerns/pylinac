@@ -3,22 +3,27 @@ import os.path as osp
 from unittest import TestCase, skip
 
 from tests import TEST_BANK_DIR
-from tests.test_cbct import CBCTMixin, CatPhan503, CatPhan504, CatPhan600
+from tests.test_cbct import CatPhanMixin, CatPhan503, CatPhan504, CatPhan600, CatPhan604
 
 
-class CatPhan504Mixin(CBCTMixin):
+class CatPhan504Mixin(CatPhanMixin):
     catphan = CatPhan504
     dir_location = osp.join(TEST_BANK_DIR, 'CBCTs', 'CatPhan 504')
 
 
-class CatPhan503Mixin(CBCTMixin):
+class CatPhan503Mixin(CatPhanMixin):
     catphan = CatPhan503
     dir_location = osp.join(TEST_BANK_DIR, 'CBCTs', 'CatPhan 503')
 
 
-class CatPhan600Mixin(CBCTMixin):
+class CatPhan600Mixin(CatPhanMixin):
     catphan = CatPhan600
     dir_location = osp.join(TEST_BANK_DIR, 'CBCTs', 'CatPhan 600')
+
+
+class CatPhan604Mixin(CatPhanMixin):
+    catphan = CatPhan604
+    dir_location = osp.join(TEST_BANK_DIR, 'CBCTs', 'CatPhan 604')
 
 
 class VarianPelvis(CatPhan504Mixin, TestCase):
@@ -31,6 +36,7 @@ class VarianPelvis(CatPhan504Mixin, TestCase):
     mtf_values = {30: 0.83, 50: 0.68, 80: 0.48}
     avg_line_length = 49.8
     lowcon_visible = 3
+    slice_thickness = 2.5
 
 
 class VarianPelvisSpotlight(CatPhan504Mixin, TestCase):
@@ -40,9 +46,10 @@ class VarianPelvisSpotlight(CatPhan504Mixin, TestCase):
     origin_slice = 32
     hu_values = {'Poly': -43, 'Acrylic': 118, 'Delrin': 341, 'Air': -998, 'Teflon': 967, 'PMP': -198, 'LDPE': -100}
     unif_values = {'Center': 19, 'Left': 3, 'Right': -1, 'Top': -1, 'Bottom': 0}
-    mtf_values = {30: 1.19, 50: 0.95, 80: 0.63}
+    mtf_values = {50: 1.11}
     avg_line_length = 49.94
     lowcon_visible = 5
+    slice_thickness = 2.4
 
 
 class VarianLowDoseThorax(CatPhan504Mixin, TestCase):
@@ -55,6 +62,7 @@ class VarianLowDoseThorax(CatPhan504Mixin, TestCase):
     mtf_values = {30: 0.74, 50: 0.61, 80: 0.42}
     avg_line_length = 49.7
     lowcon_visible = 2
+    slice_thickness = 2.4
 
 
 class VarianStandardHead(CatPhan504Mixin, TestCase):
@@ -64,9 +72,10 @@ class VarianStandardHead(CatPhan504Mixin, TestCase):
     origin_slice = 32
     hu_values = {'Poly': -40, 'Acrylic': 127, 'Delrin': 350, 'Air': -997, 'Teflon': 997, 'PMP': -191, 'LDPE': -101}
     unif_values = {'Center': 17, 'Left': 15, 'Right': 4, 'Top': 9, 'Bottom': 9}
-    mtf_values = {30: 1.08, 50: 0.86, 80: 0.33}
+    mtf_values = {50: 1.08}
     avg_line_length = 49.94
     lowcon_visible = 1
+    slice_thickness = 2.4
 
 
 class VarianLowDoseHead(CatPhan504Mixin, TestCase):
@@ -76,9 +85,10 @@ class VarianLowDoseHead(CatPhan504Mixin, TestCase):
     origin_slice = 32
     hu_values = {'Poly': -41, 'Acrylic': 121, 'Delrin': 350, 'Air': -997, 'Teflon': 1003, 'PMP': -197, 'LDPE': -103}
     unif_values = {'Center': 13, 'Left': 11, 'Right': 3, 'Top': 7, 'Bottom': 6}
-    mtf_values = {30: 1.06, 50: 0.85, 80: 0.54}
+    mtf_values = {50: 1.1}
     lowcon_visible = 1
     avg_line_length = 49.93
+    slice_thickness = 1.3
 
 
 @skip  # SR slice fails; TODO: make slices modular, so if 1 fails, the others still run
@@ -101,6 +111,7 @@ class ToshibaMonthlyCT(CatPhan504Mixin, TestCase):
     unif_values = {'Center': 8, 'Left': 7, 'Right': 7, 'Top': 7, 'Bottom': 6}
     mtf_values = {30: 0.74, 50: 0.56, 80: 0.33}
     lowcon_visible = 4
+    slice_thickness = 2.8
 
 
 class CBCT1(CatPhan504Mixin, TestCase):
@@ -113,6 +124,7 @@ class CBCT1(CatPhan504Mixin, TestCase):
     mtf_values = {30: 1.3, 50: 0.96, 80: 0.64}
     avg_line_length = 49.9
     lowcon_visible = 1
+    slice_thickness = 1.77
 
 
 class CBCT2(CatPhan504Mixin, TestCase):
@@ -123,8 +135,9 @@ class CBCT2(CatPhan504Mixin, TestCase):
     hu_values = {'Poly': -16, 'Acrylic': 135, 'Delrin': 367, 'Air': -965, 'Teflon': 1017, 'PMP': -163, 'LDPE': -71}
     unif_values = {'Center': 47, 'Left': 35, 'Right': 37, 'Top': 36, 'Bottom': 37}
     mtf_values = {30: 0.82, 50: 0.68, 80: 0.48}
-    lowcon_visible = 4
+    lowcon_visible = 2
     avg_line_length = 49.9
+    slice_thickness = 2.4
 
 
 class CBCT3(CatPhan504Mixin, TestCase):
@@ -136,7 +149,8 @@ class CBCT3(CatPhan504Mixin, TestCase):
     unif_values = {'Center': -2, 'Left': -3, 'Right': 6, 'Top': 6, 'Bottom': -2}
     mtf_values = {30: 0.8, 50: 0.66, 80: 0.45}
     avg_line_length = 49.9
-    lowcon_visible = 4
+    lowcon_visible = 1
+    slice_thickness = 0.3
 
 # CBCT4 is in the regular test_cbct.py file
 
@@ -147,9 +161,10 @@ class CBCT5(CatPhan504Mixin, TestCase):
     origin_slice = 34
     hu_values = {'Poly': -56, 'Acrylic': 101, 'Delrin': 328, 'Air': -999, 'Teflon': 977, 'PMP': -201, 'LDPE': -110}
     unif_values = {'Center': 19, 'Left': -10, 'Right': -5, 'Top': -7, 'Bottom': -8}
-    mtf_values = {30: 0.81, 50: 0.67, 80: 0.47}
+    mtf_values = {30: 0.59, 50: 0.67, 80: 0.47}
     avg_line_length = 49.55
-    lowcon_visible = 5
+    lowcon_visible = 2
+    slice_thickness = 2.35
 
 
 class CBCT6(CatPhan504Mixin, TestCase):
@@ -159,9 +174,10 @@ class CBCT6(CatPhan504Mixin, TestCase):
     origin_slice = 38
     hu_values = {'Poly': -44, 'Acrylic': 107, 'Delrin': 327, 'Air': -994, 'Teflon': 972, 'PMP': -192, 'LDPE': -100}
     unif_values = {'Center': -3, 'Left': -3, 'Right': -13, 'Top': -7, 'Bottom': -6}
-    mtf_values = {30: 1.32, 50: 0.93, 80: 0.61}
+    mtf_values = {30: 1.32, 50: 1.08, 80: 0.61}
     avg_line_length = 49.94
-    lowcon_visible = 5
+    lowcon_visible = 2
+    slice_thickness = 2.35
 
 
 class CBCT7(CatPhan504Mixin, TestCase):
@@ -173,7 +189,8 @@ class CBCT7(CatPhan504Mixin, TestCase):
     unif_values = {'Center': 12, 'Left': -7, 'Right': -7, 'Top': -8, 'Bottom': -7}
     mtf_values = {30: 0.81, 50: 0.67, 80: 0.48}
     avg_line_length = 49.6
-    lowcon_visible = 3
+    lowcon_visible = 1
+    slice_thickness = 2.3
 
 
 # classifier not working for this case
@@ -185,9 +202,10 @@ class CBCT8(CatPhan504Mixin, TestCase):
     origin_slice = 40
     hu_values = {'Poly': -37, 'Acrylic': 114, 'Delrin': 334, 'Air': -994, 'Teflon': 982, 'PMP': -186, 'LDPE': -97}
     unif_values = {'Center': -4, 'Left': 2, 'Right': -5, 'Top': 0, 'Bottom': -1}
-    mtf_values = {80: 0.39, 50: 0.94, 30: 1.32}
+    mtf_values = {50: 1.06}
     avg_line_length = 49.95
-    lowcon_visible = 5
+    lowcon_visible = 3
+    slice_thickness = 2.3
 
 
 class CBCT9(CatPhan504Mixin, TestCase):
@@ -200,6 +218,7 @@ class CBCT9(CatPhan504Mixin, TestCase):
     mtf_values = {30: 0.82, 50: 0.68, 80: 0.48}
     avg_line_length = 49.6
     lowcon_visible = 3
+    slice_thickness = 2.4
 
 
 class CBCT10(CatPhan504Mixin, TestCase):
@@ -209,8 +228,9 @@ class CBCT10(CatPhan504Mixin, TestCase):
     origin_slice = 38
     hu_values = {'Poly': -37, 'Acrylic': 109, 'Delrin': 334, 'Air': -992, 'Teflon': 985, 'PMP': -186, 'LDPE': -93}
     unif_values = {'Center': -1, 'Left': 4, 'Right': -5, 'Top': 0, 'Bottom': -1}
-    mtf_values = {30: 1.14, 50: 0.93, 80: 0.63}
+    mtf_values = {50: 1.06}
     lowcon_visible = 4
+    slice_thickness = 2.3
 
 
 class CBCT11(CatPhan504Mixin, TestCase):
@@ -220,9 +240,10 @@ class CBCT11(CatPhan504Mixin, TestCase):
     origin_slice = 38
     hu_values = {'Poly': -37, 'Acrylic': 108, 'Delrin': 332, 'Air': -994, 'Teflon': 982, 'PMP': -187, 'LDPE': -95}
     unif_values = {'Center': -3, 'Left': 2, 'Right': -7, 'Top': -2, 'Bottom': -3}
-    mtf_values = {30: 1.09, 50: 0.87, 80: 0.6}
+    mtf_values = {50: 1.07}
     avg_line_length = 49.94
     lowcon_visible = 4
+    slice_thickness = 2.35
 
 
 class CBCT12(CatPhan504Mixin, TestCase):
@@ -234,6 +255,7 @@ class CBCT12(CatPhan504Mixin, TestCase):
     mtf_values = {30: 0.71, 50: 0.57, 80: 0.39}
     avg_line_length = 49.59
     lowcon_visible = 2
+    slice_thickness = 2.35
 
 
 class CBCT13(CatPhan504Mixin, TestCase):
@@ -246,6 +268,7 @@ class CBCT13(CatPhan504Mixin, TestCase):
     mtf_values = {80: 0.46, 30: 0.59, 50: 0.59}
     avg_line_length = 49.66
     lowcon_visible = 3
+    slice_thickness = 2.5
 
 
 class CBCT14(CatPhan504Mixin, TestCase):
@@ -257,7 +280,8 @@ class CBCT14(CatPhan504Mixin, TestCase):
     unif_values = {'Center': 18, 'Left': 13, 'Right': 15, 'Top': 14, 'Bottom': 14}
     mtf_values = {80: 0.42, 30: 0.74, 50: 0.61}
     avg_line_length = 49.4
-    lowcon_visible = 4
+    lowcon_visible = 1
+    slice_thickness = 2.4
 
 
 class CBCT15(CatPhan504Mixin, TestCase):
@@ -279,7 +303,8 @@ class CBCT16(CatPhan504Mixin, TestCase):
     unif_values = {'Center': 17, 'Left': 20, 'Right': 18, 'Top': 19, 'Bottom': 19}
     mtf_values = {80: 0.43, 50: 0.62, 30: 0.78}
     avg_line_length = 49.7
-    lowcon_visible = 3
+    lowcon_visible = 1
+    slice_thickness = 2.4
 
 
 class CBCT17(CatPhan504Mixin, TestCase):
@@ -289,7 +314,7 @@ class CBCT17(CatPhan504Mixin, TestCase):
     origin_slice = 34
     hu_values = {'Poly': -43, 'Acrylic': 114, 'Delrin': 336, 'Air': -995, 'Teflon': 989, 'PMP': -192, 'LDPE': -101}
     unif_values = {'Center': 11, 'Left': 0, 'Right': -7, 'Top': -6, 'Bottom': -2}
-    mtf_values = {30: 0.97, 50: 0.77, 80: 0.55}
+    mtf_values = {50: 1.14}
     avg_line_length = 49.9
     lowcon_visible = 1
 
@@ -303,7 +328,8 @@ class Catphan504Ring(CatPhan504Mixin, TestCase):
     unif_values = {'Center': -2, 'Left': -4, 'Right': -16, 'Top': -12, 'Bottom': -8}
     mtf_values = {30: 1.08, 50: 0.87, 80: 0.63}
     avg_line_length = 50.1
-    lowcon_visible = 3
+    lowcon_visible = 1
+    slice_thickness = 2.5
 
 
 class Katy1(CatPhan504Mixin, TestCase):
@@ -314,6 +340,7 @@ class Katy1(CatPhan504Mixin, TestCase):
     unif_values = {'Center': 612, 'Left': 628, 'Right': 645, 'Top': 642, 'Bottom': 631}
     mtf_values = {80: 0.59, 30: 0.59, 50: 0.59}
     lowcon_visible = 3
+    slice_thickness = 2.4
 
 
 class AGElekta1(CatPhan503Mixin, TestCase):
@@ -325,6 +352,7 @@ class AGElekta1(CatPhan503Mixin, TestCase):
     unif_values = {'Center': 397, 'Left': 355, 'Right': 346, 'Top': 348, 'Bottom': 350}
     mtf_values = {80: 0.27, 30: 0.47, 50: 0.38}
     avg_line_length = 50.2
+    slice_thickness = 1.15
 
 
 class AGElekta2(CatPhan503Mixin, TestCase):
@@ -336,6 +364,7 @@ class AGElekta2(CatPhan503Mixin, TestCase):
     unif_values = {'Center': 707, 'Left': 758, 'Right': 748, 'Top': 758, 'Bottom': 750}
     mtf_values = {80: 0.29, 50: 0.43, 30: 0.53}
     avg_line_length = 50.2
+    slice_thickness = 0.5
 
 
 class Elekta4(CatPhan503Mixin, TestCase):
@@ -345,6 +374,7 @@ class Elekta4(CatPhan503Mixin, TestCase):
     hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 255, 'PMP': -401, 'LDPE': -352}
     unif_values = {'Center': -273, 'Left': -267, 'Right': -266, 'Top': -267, 'Bottom': -267}
     mtf_values = {80: 0.49, 50: 0.71, 30: 0.9}
+    slice_thickness = 1
 
 
 class Elekta7(CatPhan503Mixin, TestCase):
@@ -354,6 +384,7 @@ class Elekta7(CatPhan503Mixin, TestCase):
     hu_values = {'Poly': -128, 'Acrylic': -16, 'Delrin': 141, 'Air': -782, 'Teflon': 541, 'PMP': -226, 'LDPE': -164}
     unif_values = {'Center': -81, 'Left': -73, 'Right': -72, 'Top': -73, 'Bottom': -73}
     mtf_values = {80: 0.61, 50: 0.81, 30: 0.92}
+    slice_thickness = 1
 
 
 class Elekta8(CatPhan503Mixin, TestCase):
@@ -362,15 +393,17 @@ class Elekta8(CatPhan503Mixin, TestCase):
     origin_slice = 161
     hu_values = {'Poly': -324, 'Acrylic': -229, 'Delrin': -97, 'Air': -868, 'Teflon': 245, 'PMP': -406, 'LDPE': -356}
     unif_values = {'Center': -293, 'Left': -286, 'Right': -285, 'Top': -286, 'Bottom': -286}
-    mtf_values = {80: 0.43, 50: 0.69, 30: 0.88}
+    mtf_values = {50: 0.69}
+    slice_thickness = 1
 
 
 class UNC100kV(CatPhan503Mixin, TestCase):
     file_path = ['UNC-Chapel Hill', '100kV_CBCT_Feb2016.zip']
     origin_slice = 131
-    hu_values = {'Poly': -112, 'Acrylic': 35, 'Delrin': 245, 'Air': -973, 'Teflon': 848, 'PMP': -239, 'LDPE': -168}
+    hu_values = {'Poly': -112, 'Acrylic': 35, 'Delrin': 245, 'Air': -973, 'Teflon': 856, 'PMP': -239, 'LDPE': -168}
     unif_values = {'Center': -45, 'Left': -72, 'Right': -73, 'Top': -71, 'Bottom': -61}
-    mtf_values = {80: 0.85, 50: 1.05, 30: 1.22}
+    mtf_values = {50: 1.1}
+    slice_thickness = 1.4
 
 
 class UNC120kV(CatPhan503Mixin, TestCase):
@@ -378,17 +411,19 @@ class UNC120kV(CatPhan503Mixin, TestCase):
     origin_slice = 131
     hu_values = {'Poly': -274, 'Acrylic': -150, 'Delrin': 22, 'Air': -996, 'Teflon': 486, 'PMP': -380, 'LDPE': -315}
     unif_values = {'Center': -223, 'Left': -236, 'Right': -238, 'Top': -239, 'Bottom': -232}
-    mtf_values = {80: 0.64, 50: 0.96, 30: 1.25}
+    mtf_values = {50: 0.96}
+    slice_thickness = 1.5
 
 
 class CatPhan600_1(CatPhan600Mixin, TestCase):
     file_path = ['zzCAT201601.zip']
     expected_roll = -0.66
-    origin_slice = 160
+    origin_slice = 158
     hu_values = {'Poly': -31, 'Acrylic': 124, 'Delrin': 344, 'Air': -958, 'Teflon': 921, 'PMP': -173, 'LDPE': -87}
     unif_values = {'Center': 14, 'Left': 14, 'Right': 13, 'Top': 14, 'Bottom': 12}
     mtf_values = {30: 0.55, 50: 0.45, 80: 0.3}
     avg_line_length = 50.1
+    slice_thickness = 1.25
 
 
 class TOHPhilips2mm(CatPhan504Mixin, TestCase):
@@ -437,3 +472,33 @@ class Siemens5MM(CatPhan504Mixin, TestCase):
     unif_values = {'Center': 47, 'Left': 50, 'Right': 49, 'Top': 49, 'Bottom': 53}
     mtf_values = {30: 0.8, 50: 1.29, 80: 0.59}
     lowcon_visible = 0
+
+
+class CatPhan604Test(CatPhan604Mixin, TestCase):
+    print_debug = True
+    file_path = ['CBCTCatPhan604.zip']
+    origin_slice = 45
+    hu_values = {'Poly': -47, 'Acrylic': 105, 'Delrin': 338, 'Air': -981, 'Teflon': 942, 'PMP': -194, 'LDPE': -105, '50% Bone': 771, '20% Bone': 263}
+    unif_values = {'Center': -3, 'Left': 0, 'Right': 0, 'Top': 0, 'Bottom': 0}
+    mtf_values = {50: 0.87}
+
+
+class CatPhan604Sen(CatPhan604Mixin, TestCase):
+    expected_roll = -0.5
+    file_path = ['SiemensSenCatPhan604.zip']
+    origin_slice = 191
+    hu_values = {'Poly': -44, 'Acrylic': 122, 'Delrin': 392, 'Air': -1000, 'Teflon': 1061, 'PMP': -220, 'LDPE': -113, '50% Bone': 700, '20% Bone': 230}
+    unif_values = {'Center': 10, 'Left': 10, 'Right': 10, 'Top': 10, 'Bottom': 10}
+    mtf_values = {50: 0.54}
+    slice_thickness = 0.25
+    lowcon_visible = 2
+
+
+class CatPhan604Som(CatPhan604Mixin, TestCase):
+    file_path = ['SiemensSomCatPhan604.zip']
+    origin_slice = 175
+    hu_values = {'Poly': -34, 'Acrylic': 120, 'Delrin': 343, 'Air': -1000, 'Teflon': 928, 'PMP': -183, 'LDPE': -92, '50% Bone': 633, '20% Bone': 216}
+    unif_values = {'Center': 10, 'Left': 10, 'Right': 10, 'Top': 10, 'Bottom': 10}
+    mtf_values = {50: 0.7}
+    lowcon_visible = 5
+    slice_thickness = 1

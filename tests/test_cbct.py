@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
-from pylinac import CatPhan503, CatPhan504, CatPhan600
+from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
 from tests.utils import save_file, LoadingTestBase, LocationMixin
 
@@ -71,7 +71,7 @@ class PlottingSaving(TestCase):
             self.cbct.plot_analyzed_subimage('sr')
 
 
-class CBCTMixin(LocationMixin):
+class CatPhanMixin(LocationMixin):
     """A mixin to use for testing Varian CBCT scans; does not inherit from TestCase as it would be run
         otherwise."""
     catphan = CatPhan504
@@ -89,6 +89,7 @@ class CBCTMixin(LocationMixin):
     avg_line_length = 50
     slice_thickness = 2
     lowcon_visible = 0
+    print_debug = False
 
     @classmethod
     def setUpClass(cls):
@@ -98,7 +99,8 @@ class CBCTMixin(LocationMixin):
         else:
             cls.cbct = cls.catphan(filename)
         cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
-        print("Num of CBCT images: {}".format(len(cls.cbct.dicom_stack)))
+        if cls.print_debug:
+            print(cls.cbct._results())
 
     @classmethod
     def tearDownClass(cls):
@@ -107,7 +109,7 @@ class CBCTMixin(LocationMixin):
 
     def test_slice_thickness(self):
         """Test the slice thickness."""
-        self.assertAlmostEqual(self.cbct.ctp404.meas_slice_thickness, float(self.cbct.dicom_stack.metadata.SliceThickness), delta=0.3)
+        self.assertAlmostEqual(self.cbct.ctp404.meas_slice_thickness, self.slice_thickness, delta=0.3)
 
     def test_lowcontrast_bubbles(self):
         """Test the number of low contrast bubbles visible."""
@@ -149,15 +151,16 @@ class CBCTMixin(LocationMixin):
         save_file(self.cbct.publish_pdf, 'temp')
 
 
-class CBCTDemo(CBCTMixin, TestCase):
+class CatPhanDemo(CatPhanMixin, TestCase):
     """Test the CBCT demo (Varian high quality head protocol)."""
     expected_roll = -0.3
     origin_slice = 32
     hu_values = {'Poly': -45, 'Acrylic': 117, 'Delrin': 341, 'Air': -998, 'Teflon': 997, 'PMP': -200, 'LDPE': -103}
     unif_values = {'Center': 17, 'Left': 10, 'Right': 0, 'Top': 6, 'Bottom': 6}
-    mtf_values = {80: 0.64, 90: 0.61, 60: 0.85, 70: 0.74, 95: 0.45}
+    mtf_values = {50: 1.12}
     avg_line_length = 49.92
     lowcon_visible = 3
+    slice_thickness = 2.5
 
     @classmethod
     def setUpClass(cls):
@@ -165,7 +168,7 @@ class CBCTDemo(CBCTMixin, TestCase):
         cls.cbct.analyze()
 
 
-class CBCT4(CBCTMixin, TestCase):
+class CatPhan4(CatPhanMixin, TestCase):
     """A Varian CBCT dataset"""
     file_path = ['CBCT_4.zip']
     expected_roll = -2.57
@@ -173,10 +176,11 @@ class CBCT4(CBCTMixin, TestCase):
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
     unif_values = {'Center': 17, 'Left': 10, 'Right': 22, 'Top': 18, 'Bottom': 13}
     mtf_values = {80: 0.47, 90: 0.39, 60: 0.63, 70: 0.55, 95: 0.3}
-    lowcon_visible = 3
+    lowcon_visible = 1
+    slice_thickness = 2.4
 
 
-class Elekta2(CBCTMixin, TestCase):
+class Elekta2(CatPhanMixin, TestCase):
     """An Elekta CBCT dataset"""
     catphan = CatPhan503
     file_path = ['Elekta_2.zip']
@@ -184,9 +188,10 @@ class Elekta2(CBCTMixin, TestCase):
     hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 253, 'PMP': -399, 'LDPE': -350}
     unif_values = {'Center': -285, 'Left': -279, 'Right': -278, 'Top': -279, 'Bottom': -279}
     mtf_values = {80: 0.53, 90: 0.44, 60: 0.74, 70: 0.63, 95: 0.36}
+    slice_thickness = 1
 
 
-class CatPhan600_2(CBCTMixin, TestCase):
+class CatPhan600_2(CatPhanMixin, TestCase):
     """An Elekta CBCT dataset"""
     catphan = CatPhan600
     file_path = ['zzCAT201602.zip']
@@ -195,5 +200,15 @@ class CatPhan600_2(CBCTMixin, TestCase):
     hu_values = {'Poly': -29, 'Acrylic': 123, 'Delrin': 336, 'Air': -932, 'Teflon': 897, 'PMP': -164, 'LDPE': -80}
     hu_passed = False
     unif_values = {'Center': 14, 'Left': 15, 'Right': 15, 'Top': 16, 'Bottom': 13}
-    mtf_values = {80: 0.55, 90: 0.45, 60: 0.7, 70: 0.63, 95: 0.46}
+    mtf_values = {50: 0.87}
     avg_line_length = 50.02
+    slice_thickness = 4.5
+
+
+class CatPhan604Test(CatPhanMixin, TestCase):
+    catphan = CatPhan604
+    file_path = ['CBCTCatPhan604.zip']
+    origin_slice = 45
+    hu_values = {'Poly': -47, 'Acrylic': 105, 'Delrin': 338, 'Air': -981, 'Teflon': 942, 'PMP': -194, 'LDPE': -105, '50% Bone': 771, '20% Bone': 263}
+    unif_values = {'Center': -3, 'Left': 0, 'Right': 0, 'Top': 0, 'Bottom': 0}
+    mtf_values = {50: 0.87}
