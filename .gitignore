@@ -1,6 +1,5 @@
 # Folders to ignore
 env/*
-tests/*
 **/pylinac.egg-info
 #**/demo_files
 **/__pycache__
