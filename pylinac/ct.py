@@ -1017,17 +1017,17 @@ class CatPhanBase:
             self.ctp528.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'mtf' in subimage:
-            plt.axis(True)
+            plt.axis('on')
             self.ctp528.plot_mtf(plt.gca())
         elif 'lc' in subimage:
             plt.imshow(self.ctp515.image.array, cmap=get_dicom_cmap())
             self.ctp515.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'lin' in subimage:
-            plt.axis(True)
+            plt.axis('on')
             self.ctp404.plot_linearity(plt.gca(), delta)
         elif 'prof' in subimage:
-            plt.axis(True)
+            plt.axis('on')
             self.ctp486.plot_profiles(plt.gca())
         else:
             raise ValueError("Subimage parameter {0} not understood".format(subimage))

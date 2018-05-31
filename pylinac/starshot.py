@@ -373,7 +373,7 @@ class Starshot:
             ylims = [self.wobble.center.y + self.wobble.diameter, self.wobble.center.y - self.wobble.diameter]
             ax.set_xlim(xlims)
             ax.set_ylim(ylims)
-            ax.axis(True)
+            ax.axis('on')
 
         if show:
             plt.show()

@@ -3,6 +3,12 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
+env:
+  - NUMPY=0.12
+  - NUMPY=0.13
+  - NUMPY=0.14
+  - MATPLOTLIB=2.0
+  - MATPLOTLIB=2.1
 
 sudo:
   false
@@ -15,25 +21,26 @@ cache:
 install:
 
   # Install conda
-  - mkdir -p miniconda
-  - cd miniconda
-  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b
-  - cd ..
-  - export PATH="$HOME/miniconda3/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  - conda info -a
+#  - mkdir -p miniconda
+#  - cd miniconda
+#  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+#  - chmod +x miniconda.sh
+#  - ./miniconda.sh -b
+#  - cd ..
+#  - export PATH="$HOME/miniconda3/bin:$PATH"
+#  - hash -r
+#  - conda config --set always_yes yes --set changeps1 no
+#  - conda update -q conda
+#  - conda info -a
+#
+#  # Set up conda
+#  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy=1.12 scipy=0.19 matplotlib pip setuptools pillow pyqt scikit-image=0.12 scikit-learn=0.18
+#  - source activate test-environment
+#
+#  # install deps
+#  - pip install pydicom coveralls watchdog requests jinja2 mpld3 click pyyaml tqdm==3.8
 
-  # Set up conda
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy=1.11 scipy matplotlib pip setuptools pillow pyqt scikit-image=0.12
-  - source activate test-environment
-
-  # install deps
-  - pip install pydicom coveralls watchdog requests jinja2 mpld3 click pyyaml tqdm==3.8
-
+  - pip install numpy==$NUMPY matplotlib=$MATPLOTLIB
   # install your own package into the environment
   - python setup.py install
   # attempt to fix DISPLAY variable errors of matplotlib's. See: https://github.com/mwaskom/seaborn/pull/97
