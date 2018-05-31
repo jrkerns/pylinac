@@ -27,22 +27,6 @@ class TestUtilities(unittest.TestCase):
         for iter in noniters:
             self.assertFalse(is_iterable(iter))
 
-    def test_is_dicom(self):
-        """Test the is_dicom function."""
-    
-        test_file = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files', 'VMAT', 'DRGSdmlc-105-example.dcm')
-        invalid_file = test_file.replace('DR', 'DR_')
-        notdicom_file = osp.abspath(__file__)
-
-        # valid file returns True
-        self.assertTrue(is_dicom(test_file))
-
-        # return false for real file but not dicom
-        self.assertFalse(is_dicom(notdicom_file))
-
-        # test invalid path
-        self.assertRaises(IOError, is_dicom, invalid_file)
-
     def test_typed_property(self):
 
         class DumbClass:

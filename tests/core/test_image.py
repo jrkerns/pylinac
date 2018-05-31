@@ -48,7 +48,7 @@ class TestLoaders(TestCase):
             image.load_multiples(paths)
 
     def test_nonsense(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(FileNotFoundError):
             image.load('blahblah')
 
     def test_is_image(self):

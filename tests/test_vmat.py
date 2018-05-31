@@ -41,7 +41,7 @@ class TestLoading(TestCase):
     """Tests of the various loading schemas."""
 
     def test_from_urls(self):
-        VMAT.from_url('https://s3.amazonaws.com/assuranceqa-staging/uploads/imgs/DRMLC.zip')  # shouldn't raise
+        VMAT.from_url('https://s3.amazonaws.com/pylinac/drmlc.zip')  # shouldn't raise
 
     def test_passing_3_images(self):
         """Test passing the wrong number of images."""
