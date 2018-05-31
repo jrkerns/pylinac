@@ -38,7 +38,7 @@ install:
 #  # install deps
 #  - pip install pydicom coveralls watchdog requests jinja2 mpld3 click pyyaml tqdm==3.8
 
-  - pip install numpy==$NUMPY
+  - pip install numpy==$NUMPY scipy matplotlib pillow scikit-image scikit-learn pydicom coveralls pyyaml yagmail tqdm reportlab
   # install your own package into the environment
   - python setup.py install
   # attempt to fix DISPLAY variable errors of matplotlib's. See: https://github.com/mwaskom/seaborn/pull/97
