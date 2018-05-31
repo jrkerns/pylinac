@@ -334,7 +334,7 @@ class Axis:
     def _plot(self, param='', show=True):
         """Plot the parameter: actual, expected, or difference."""
         plt.plot(getattr(self, param))
-        plt.grid('on')
+        plt.grid(True)
         plt.autoscale(axis='x', tight=True)
         if show:
             plt.show()
@@ -1427,7 +1427,7 @@ class LogBase:
                     align='center')
         ax.set_title(title, fontsize=fontsize)
         ax.tick_params(axis='both', labelsize=labelsize)
-        ax.grid('on')
+        ax.grid(True)
         if show:
             plt.show()
 

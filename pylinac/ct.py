@@ -437,7 +437,7 @@ class CTP404(CatPhanModule):
         axis.plot(nominal_x_values, np.array(nominal_measurements) + self.hu_tolerance, 'r--')
         axis.plot(nominal_x_values, np.array(nominal_measurements) - self.hu_tolerance, 'r--')
         axis.margins(0.05)
-        axis.grid('on')
+        axis.grid(True)
         axis.set_xlabel("Nominal Values")
         axis.set_ylabel(ylabel)
         axis.set_title("HU linearity")
@@ -527,7 +527,7 @@ class CTP486(CatPhanModule):
         # TODO: replace .plot() calls with .axhline() calls when mpld3 fixes functionality
         axis.plot([i for i in range(len(horiz_data))], [self.tolerance] * len(horiz_data), 'r-', linewidth=3)
         axis.plot([i for i in range(len(horiz_data))], [-self.tolerance] * len(horiz_data), 'r-', linewidth=3)
-        axis.grid('on')
+        axis.grid(True)
         axis.set_ylabel("HU")
         axis.legend(loc=8, fontsize='small', title="")
         axis.set_title("Uniformity Profiles")
@@ -711,7 +711,7 @@ class CTP528(CatPhanModule):
         mtf_vals = list(self.mtfs.values())
         points = axis.plot(self.lp_freq[:len(mtf_vals)], mtf_vals, marker='o')
         axis.margins(0.05)
-        axis.grid('on')
+        axis.grid(True)
         axis.set_xlabel('Line pairs / mm')
         axis.set_ylabel("Relative MTF")
         axis.set_title('RMTF')
@@ -846,7 +846,7 @@ class CTP515(CatPhanModule):
         contrasts = [roi.contrast_constant for roi in self.rois.values()]
         points = axis.plot(sizes, contrasts)
         axis.margins(0.05)
-        axis.grid('on')
+        axis.grid(True)
         axis.set_xlabel('ROI size (mm)')
         axis.set_ylabel("Contrast * Diameter")
         return points
@@ -1017,17 +1017,17 @@ class CatPhanBase:
             self.ctp528.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'mtf' in subimage:
-            plt.axis('on')
+            plt.axis(True)
             self.ctp528.plot_mtf(plt.gca())
         elif 'lc' in subimage:
             plt.imshow(self.ctp515.image.array, cmap=get_dicom_cmap())
             self.ctp515.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'lin' in subimage:
-            plt.axis('on')
+            plt.axis(True)
             self.ctp404.plot_linearity(plt.gca(), delta)
         elif 'prof' in subimage:
-            plt.axis('on')
+            plt.axis(True)
             self.ctp486.plot_profiles(plt.gca())
         else:
             raise ValueError("Subimage parameter {0} not understood".format(subimage))

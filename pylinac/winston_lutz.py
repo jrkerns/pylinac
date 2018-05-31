@@ -293,7 +293,7 @@ class WinstonLutz:
         ax.set_xlabel("{} angle".format(item))
         ax.set_xticks(np.arange(0, 361, 45))
         ax.set_xlim([-15, 375])
-        ax.grid('on')
+        ax.grid(True)
         ax.legend(numpoints=1)
         if show:
             plt.show()

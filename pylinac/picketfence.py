@@ -370,7 +370,7 @@ class PicketFence:
             axtop.set_ylim([0, max(max(vals), self.settings.tolerance) + 0.1])
 
         # add formatting to axis
-        axtop.grid('on')
+        axtop.grid(True)
         axtop.set_title("Average Error (mm)")
 
     def save_analyzed_image(self, filename, guard_rails=True, mlc_peaks=True, overlay=True, leaf_error_subplot=False, **kwargs):

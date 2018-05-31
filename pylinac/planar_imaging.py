@@ -93,7 +93,7 @@ class ImagePhantomBase:
         rois.sort(key=lambda x: x.contrast_constant, reverse=True)
         line1, = axes.plot([roi.contrast_constant for roi in rois], marker='o', color='m', label='Contrast Constant')
         axes.axhline(threshold, color='k')
-        axes.grid('on')
+        axes.grid(True)
         axes.set_title('Low-frequency Contrast')
         axes.set_xlabel('ROI #')
         axes.set_ylabel('Contrast Constant')
@@ -107,7 +107,7 @@ class ImagePhantomBase:
         """Plot the high contrast ROIs to an axes."""
         axes.plot(rois, marker='*')
         axes.axhline(threshold, color='k')
-        axes.grid('on')
+        axes.grid(True)
         axes.set_title('High-frequency rMTF')
         axes.set_xlabel('Line pair region #')
         axes.set_ylabel('relative MTF')
