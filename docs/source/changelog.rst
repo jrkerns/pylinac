@@ -22,6 +22,7 @@ General
 * Pip is now the recommended way to install pylinac. Packaging for conda was somewhat cumbersome. Pylinac itself is just
   Python and was always installable via pip; it is the dependencies that are complicated.
   The wheels format seems to be changing that.
+* Some dependency minimum versions have been bumped.
 
 CatPhan
 ^^^^^^^

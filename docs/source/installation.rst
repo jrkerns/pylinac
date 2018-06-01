@@ -10,43 +10,20 @@ Determine where you're at and then read the relevant section:
 I know Python already
 ---------------------
 
-Great! To get started, there are two direct ways to get ``pylinac``.
-
-Using ``conda``
-^^^^^^^^^^^^^^^
-
-The first and recommended way to get ``pylinac`` is through ``conda``.
-Make sure you have ``conda`` first (see :ref:`distro_stack`). Add my channel to your conda configuration, and then install:
-
-.. code-block:: bash
-
-    $ conda config --add channels jrkerns
-    $ conda install pylinac
-
-Adding a channel allows ``conda`` to search those additional channels when using ``install`` or ``search``. This also makes upgrading easier.
-
-
-Using ``pip``
-^^^^^^^^^^^^^
-
-Pylinac can also install via ``pip``/PyPI:
+Great! To get started install via pip:
 
 .. code-block:: bash
 
     $ pip install pylinac
 
-.. warning::
-
-    By hook or crook, you must have ``scikit-image`` installed to install ``pylinac`` as ``pip``-installing ``scikit-image`` fails.
-    Usually that means you already have ``conda`` and should just use that instead.
-
-.. note::
-
-    Installation via ``conda`` is almost always faster than ``pip``.
-
 .. note::
 
     Installing from source (``setup.py install``) is possible but not recommended as downloading the source includes numerous sizable test files.
+
+.. note::
+
+    Although ``pip`` should work, the dependencies can sometimes give problems. A workaround is to install the dependencies via
+    ``conda``, then install pylinac via pip since pylinac itself is pure python.
 
 .. _dependencies:
 
@@ -55,18 +32,16 @@ Dependencies
 
 Pylinac, as a scientific package, has fairly standard scientific dependencies (>= means at least that version or newer):
 
-* numpy >= 1.11
-* scipy >= 0.17
-* matplotlib >= 1.4
+* numpy >= 1.12
+* scipy >= 0.19
+* matplotlib >= 2.0
 * pydicom >= 1.0
 * Pillow >= 4.0
 * scikit-image >= 0.12
 * scikit-learn >= 0.18
 * tqdm == 3.8
-* click
 * pyyaml >= 3.10
 * yagmail
-* mpld3
 * reportlab >= 3.3
 
 See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/user/install.html>`_ if you don't yet have them.
