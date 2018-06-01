@@ -1,4 +1,4 @@
-image: continuumio/miniconda3:latest
+image: registry.gitlab.com/jrkerns/pylinac:latest
 
 variables:
   PY34: '3.4'
@@ -9,11 +9,11 @@ variables:
 test-py36:
   before_script:
     # Set up conda
-    - conda create -q -n test-environment python=3.6 numpy scipy matplotlib pip setuptools pillow pyqt scikit-image scikit-learn
-    - source activate test-environment
-
-    # install deps
-    - pip install pydicom coveralls requests jinja2 pyyaml tqdm==3.8
+#    - conda create -q -n test-environment python=3.6 numpy scipy matplotlib pip setuptools pillow pyqt scikit-image scikit-learn
+#    - source activate test-environment
+#
+#    # install deps
+#    - pip install pydicom coveralls requests jinja2 pyyaml tqdm==3.8
 
     # install your own package into the environment
     - python setup.py install
@@ -27,11 +27,11 @@ test-py36:
 test-py35:
   before_script:
     # Set up conda
-    - conda create -q -n test-environment python=3.5 numpy scipy matplotlib pip setuptools pillow pyqt scikit-image scikit-learn
-    - source activate test-environment
-
-    # install deps
-    - pip install pydicom coveralls requests jinja2 pyyaml tqdm==3.8
+#    - conda create -q -n test-environment python=3.5 numpy scipy matplotlib pip setuptools pillow pyqt scikit-image scikit-learn
+#    - source activate test-environment
+#
+#    # install deps
+#    - pip install pydicom coveralls requests jinja2 pyyaml tqdm==3.8
 
     # install your own package into the environment
     - python setup.py install
