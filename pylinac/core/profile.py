@@ -1,6 +1,7 @@
 """Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
 import copy
 from functools import lru_cache
+from typing import Union, Tuple, Sequence, List, Optional
 
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
@@ -11,6 +12,7 @@ from scipy.interpolate import interp1d
 from .utilities import is_float_like, is_int_like
 from .decorators import value_accept
 from .geometry import Point, Circle
+from .typing import NumberLike
 
 LEFT = 'left'
 RIGHT = 'right'
@@ -19,14 +21,16 @@ INDEX = 'index'
 BOTH = 'both'
 
 
-def stretch(array, min=0, max=1, fill_dtype=None):
+def stretch(array: np.ndarray, min: int=0, max: int=1, fill_dtype=None) -> np.array:
     """'Stretch' the profile to the fit a new min and max value and interpolate in between.
     From: http://www.labri.fr/perso/nrougier/teaching/numpy.100/  exercise #17
 
     Parameters
     ----------
+    array: numpy.ndarray
+        The numpy array to stretch.
     min : number
-        The new minimum of the values
+        The new minimum of the values.
     max : number
         The new maximum value.
     fill_dtype : numpy data type
@@ -53,13 +57,14 @@ def stretch(array, min=0, max=1, fill_dtype=None):
 
 class ProfileMixin:
     """A mixin to provide various manipulations of 1D profile data."""
+    values: np.ndarray
 
     def invert(self):
         """Invert (imcomplement) the profile."""
         orig_array = self.values
         self.values = -orig_array + orig_array.max() + orig_array.min()
 
-    def normalize(self, norm_val='max'):
+    def normalize(self, norm_val: Union[str, NumberLike]='max'):
         """Normalize the profile to the given value.
 
         Parameters
@@ -74,7 +79,7 @@ class ProfileMixin:
             val = norm_val
         self.values /= val
 
-    def stretch(self, min=0, max=1):
+    def stretch(self, min: NumberLike=0, max: NumberLike=1):
         """'Stretch' the profile to the min and max parameter values.
 
         Parameters
@@ -86,7 +91,7 @@ class ProfileMixin:
         """
         self.values = stretch(self.values, min=min, max=max)
 
-    def ground(self):
+    def ground(self) -> float:
         """Ground the profile such that the lowest value is 0.
 
         Returns
@@ -99,7 +104,7 @@ class ProfileMixin:
         return min_val
 
     @value_accept(kind=('median', 'gaussian'))
-    def filter(self, size=0.05, kind='median'):
+    def filter(self, size: NumberLike=0.05, kind: str='median'):
         """Filter the profile.
 
         Parameters
@@ -136,11 +141,11 @@ class SingleProfile(ProfileMixin):
     Signal analysis methods are given, mostly based on FWXM calculations.
     Profiles with multiple peaks are better suited by the MultiProfile class.
     """
-    interpolation_factor = 100
-    interpolation_type = 'linear'
-    _values = object  # ndarray, but Sphinx/napoleon won't compile as `np.ndarray`
+    interpolation_factor: int = 100
+    interpolation_type: str = 'linear'
+    _values: np.ndarray  # ndarray, but Sphinx/napoleon won't compile as `np.ndarray`
 
-    def __init__(self, values, normalize_sides=True, initial_peak=None):
+    def __init__(self, values: np.ndarray, normalize_sides: bool=True, initial_peak: int=None):
         """
         Parameters
         ----------
@@ -158,7 +163,7 @@ class SingleProfile(ProfileMixin):
         self._normalize_sides = normalize_sides
 
     @property
-    def values(self):
+    def values(self) -> np.ndarray:
         """The profile array."""
         return self._values
 
@@ -169,17 +174,17 @@ class SingleProfile(ProfileMixin):
         self._values = value.astype(float)
 
     @property
-    def _right_side_min(self):
+    def _right_side_min(self) -> float:
         """The minimum on the right side of the peak."""
         return self.values[self._initial_peak_idx:].min()
 
     @property
-    def _left_side_min(self):
+    def _left_side_min(self) -> float:
         """The minimum on the left side of the peak."""
         return self.values[:self._initial_peak_idx].min()
 
     @property
-    def _values_right(self):
+    def _values_right(self) -> np.ndarray:
         """The "right side" y data."""
         if self._normalize_sides:
             return self.values - self._right_side_min
@@ -187,7 +192,7 @@ class SingleProfile(ProfileMixin):
             return self._grounded_values
 
     @property
-    def _values_left(self):
+    def _values_left(self) -> np.ndarray:
         """The "left side" y data."""
         if self._normalize_sides:
             return self.values - self._left_side_min
@@ -195,7 +200,7 @@ class SingleProfile(ProfileMixin):
             return self._grounded_values
 
     @property
-    def _grounded_values(self):
+    def _grounded_values(self) -> np.ndarray:
         """Ground the profile such that the lowest value is 0.
         """
         min_val = self.values.min()
@@ -204,7 +209,7 @@ class SingleProfile(ProfileMixin):
 
     @property
     @lru_cache()
-    def _initial_peak_idx(self):
+    def _initial_peak_idx(self) -> int:
         """The initial peak index."""
         x_idx = self._get_initial_peak(self._passed_initial_peak)
         return int(x_idx)
@@ -213,7 +218,7 @@ class SingleProfile(ProfileMixin):
     def _initial_peak_idx(self, value):
         self._passed_initial_peak = value
 
-    def _get_initial_peak(self, initial_peak):
+    def _get_initial_peak(self, initial_peak: int=None) -> int:
         """Determine an initial peak to use as a rough guideline.
 
         Parameters
@@ -244,7 +249,7 @@ class SingleProfile(ProfileMixin):
 
     @value_accept(side=(LEFT, RIGHT), kind=(VALUE, INDEX))
     @lru_cache()
-    def _penumbra_point(self, side='left', x=50, interpolate=False, kind='index'):
+    def _penumbra_point(self, side: str='left', x: int=50, interpolate: bool=False, kind: str='index'):
         """Return the index of the given penumbra. Search starts at the peak and moves index-by-index
         outward until the penumbra value is hit.
 
@@ -303,7 +308,7 @@ class SingleProfile(ProfileMixin):
 
     @property
     @lru_cache()
-    def _values_left_interp(self):
+    def _values_left_interp(self) -> np.ndarray:
         """Interpolated values of the "left side" profile data."""
         ydata_f = interp1d(self._indices, self._values_left, kind=self.interpolation_type)
         y_data = ydata_f(self._indices_interp)
@@ -311,7 +316,7 @@ class SingleProfile(ProfileMixin):
 
     @property
     @lru_cache()
-    def _values_right_interp(self):
+    def _values_right_interp(self) -> np.ndarray:
         """Interpolated values of the "right side" profile data."""
         ydata_f = interp1d(self._indices, self._values_right, kind=self.interpolation_type)
         y_data = ydata_f(self._indices_interp)
@@ -319,23 +324,23 @@ class SingleProfile(ProfileMixin):
 
     @property
     @lru_cache()
-    def _values_interp(self):
+    def _values_interp(self) -> np.ndarray:
         """Interpolated values of the entire profile array."""
         ydata_f = interp1d(self._indices, self.values, kind=self.interpolation_type)
         y_data = ydata_f(self._indices_interp)
         return y_data
 
     @property
-    def _indices_interp(self):
+    def _indices_interp(self) -> np.ndarray:
         """Interpolated values of the profile index data."""
         return np.linspace(start=0, stop=len(self.values)-1, num=(len(self.values)-1) * self.interpolation_factor)
 
     @property
-    def _indices(self):
+    def _indices(self) -> np.ndarray:
         """Values of the profile index data."""
         return np.linspace(start=0, stop=len(self.values)-1, num=len(self.values))
 
-    def fwxm(self, x=50, interpolate=False):
+    def fwxm(self, x: int=50, interpolate: bool=False) -> float:
         """Return the width at X-Max, where X is the percentage height.
 
         Parameters
@@ -356,7 +361,7 @@ class SingleProfile(ProfileMixin):
         fwxm = np.abs(ri - li)
         return fwxm
 
-    def fwxm_center(self, x=50, interpolate=False, kind='index'):
+    def fwxm_center(self, x: int=50, interpolate: bool=False, kind: str='index') -> float:
         """Return the center index of the FWXM.
 
         See Also
@@ -374,7 +379,7 @@ class SingleProfile(ProfileMixin):
             return fwxmcen
 
     @value_accept(side=(LEFT, RIGHT, BOTH), lower=(0, 100), upper=(0, 100))
-    def penumbra_width(self, side='left', lower=20, upper=80, interpolate=False):
+    def penumbra_width(self, side: str='left', lower: int=20, upper: int=80, interpolate: bool=False) -> float:
         """Return the penumbra width of the profile.
 
         This is the standard "penumbra width" calculation that medical physics talks about in
@@ -417,7 +422,7 @@ class SingleProfile(ProfileMixin):
         return pen
 
     @value_accept(field_width=(0, 1))
-    def field_values(self, field_width=0.8):
+    def field_values(self, field_width: float=0.8) -> np.ndarray:
         """Return a subarray of the values of the profile for the given field width.
         This is helpful for doing, e.g., flatness or symmetry calculations, where you
         want to calculate something over the field, not the whole profile.
@@ -436,7 +441,7 @@ class SingleProfile(ProfileMixin):
         return field_values
 
     @value_accept(field_width=(0, 1))
-    def field_edges(self, field_width=0.8, interpolate=False):
+    def field_edges(self, field_width: float=0.8, interpolate: bool=False) -> Tuple[NumberLike, NumberLike]:
         """Return the indices of the field width edges, based on the FWHM.
 
         See Also
@@ -458,7 +463,7 @@ class SingleProfile(ProfileMixin):
         return left, right
 
     @value_accept(field_width=(0, 1), calculation=('mean', 'median', 'max', 'min', 'area'))
-    def field_calculation(self, field_width=0.8, calculation='mean'):
+    def field_calculation(self, field_width: float=0.8, calculation: str='mean') -> Union[float, Tuple[float, float]]:
         """Perform an operation on the field values of the profile.
         This function is useful for determining field symmetry and flatness.
 
@@ -511,7 +516,11 @@ class MultiProfile(ProfileMixin):
         Same as peaks, but for valleys.
 
     """
-    def __init__(self, values):
+    values: Union[np.ndarray, Sequence]
+    peaks: List
+    valleys: List
+
+    def __init__(self, values: Union[np.ndarray, Sequence]):
         """
         Parameters
         ----------
@@ -522,7 +531,7 @@ class MultiProfile(ProfileMixin):
         self.peaks = []
         self.valleys = []
 
-    def plot(self, show_peaks=True):
+    def plot(self, show_peaks: bool=True):
         """Plot the profile.
 
         Parameters
@@ -539,7 +548,8 @@ class MultiProfile(ProfileMixin):
             ax.plot(peaks_x, peaks_y, 'go')
 
     @value_accept(kind=(INDEX, VALUE))
-    def find_peaks(self, threshold=0.3, min_distance=0.05, max_number=None, search_region=(0.0, 1.0), kind='index'):
+    def find_peaks(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05, max_number: int=None,
+                   search_region: Tuple=(0.0, 1.0), kind: str='index') -> np.ndarray:
         """Find the peaks of the profile using a simple maximum value search. This also sets the `peaks` attribute.
 
         Parameters
@@ -577,7 +587,8 @@ class MultiProfile(ProfileMixin):
 
         return peak_idxs if kind == INDEX else peak_vals
 
-    def find_valleys(self, threshold=0.3, min_distance=0.05, max_number=None, search_region=(0.0, 1.0), kind='index'):
+    def find_valleys(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
+                     max_number: int=None, search_region: Tuple=(0.0, 1.0), kind: str='index'):
         """Find the valleys (minimums) of the profile using a simple minimum value search.
 
         Returns
@@ -596,8 +607,9 @@ class MultiProfile(ProfileMixin):
         return valley_idxs if kind == INDEX else valley_vals
 
     @value_accept(x=(0, 100))
-    def find_fwxm_peaks(self, x=50, threshold=0.3, min_distance=0.05, max_number=None, search_region=(0.0, 1.0),
-                        kind='index', interpolate=False, interpolation_factor=100, interpolation_type='linear'):
+    def find_fwxm_peaks(self, x:int =50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
+                        max_number: int=None, search_region: Tuple=(0.0, 1.0), kind: str='index',
+                        interpolate: bool=False, interpolation_factor: int=100, interpolation_type: str='linear') -> List:
         """Find peaks using the center of the FWXM (rather than by max value).
 
         Parameters
@@ -637,7 +649,7 @@ class MultiProfile(ProfileMixin):
         else:
             return [peak.value for peak in self.peaks]
 
-    def subdivide(self, interpolation_factor=100, interpolation_type='linear'):
+    def subdivide(self, interpolation_factor: int=100, interpolation_type: str='linear') -> List[SingleProfile]:
         """Subdivide the profile data into SingleProfiles.
 
         Returns
@@ -680,7 +692,15 @@ class CircleProfile(MultiProfile, Circle):
     ccw : bool
         How the profile is/was taken; clockwise or counter-clockwise.
     """
-    def __init__(self, center, radius, image_array, start_angle=0, ccw=True, sampling_ratio=1.0):
+    image_array: np.ndarray
+    start_angle: Union[float, int]
+    ccw: bool
+    sampling_ratio: float
+    _x_locations: Optional[np.ndarray]
+    _y_locations: Optional[np.ndarray]
+
+    def __init__(self, center: Point, radius: NumberLike, image_array: np.ndarray,
+                 start_angle: Union[float, int]=0, ccw: bool=True, sampling_ratio: float=1.0):
         """
         Parameters
         ----------
@@ -711,12 +731,12 @@ class CircleProfile(MultiProfile, Circle):
         MultiProfile.__init__(self, self._profile)
 
     @property
-    def size(self):
+    def size(self) -> float:
         """The elemental size of the profile."""
         return np.pi * self.radius * 2 * self.sampling_ratio
 
     @property
-    def _radians(self):
+    def _radians(self) -> np.ndarray:
         interval = (2 * np.pi) / self.size
         rads = np.arange(0 + self.start_angle, (2 * np.pi) + self.start_angle - interval, interval)
         if self.ccw:
@@ -724,7 +744,7 @@ class CircleProfile(MultiProfile, Circle):
         return rads
 
     @property
-    def x_locations(self):
+    def x_locations(self) -> np.ndarray:
         """The x-locations of the profile values."""
         if self._x_locations is None:
             return np.cos(self._radians) * self.radius + self.center.x
@@ -732,11 +752,11 @@ class CircleProfile(MultiProfile, Circle):
             return self._x_locations
 
     @x_locations.setter
-    def x_locations(self, array):
+    def x_locations(self, array: np.ndarray):
         self._x_locations = array
 
     @property
-    def y_locations(self):
+    def y_locations(self) -> np.ndarray:
         """The x-locations of the profile values."""
         if self._y_locations is None:
             return np.sin(self._radians) * self.radius + self.center.y
@@ -744,28 +764,31 @@ class CircleProfile(MultiProfile, Circle):
             return self._y_locations
 
     @y_locations.setter
-    def y_locations(self, array):
+    def y_locations(self, array: np.ndarray):
         self._y_locations = array
 
     @property
-    def _profile(self):
+    def _profile(self) -> np.ndarray:
         """The actual profile array; private attr that is passed to MultiProfile."""
         return ndimage.map_coordinates(self.image_array, [self.y_locations, self.x_locations], order=0)
 
-    def find_peaks(self, threshold=0.3, min_distance=0.05, max_number=None, search_region=(0.0, 1.0), kind='index'):
+    def find_peaks(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
+                   max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0), kind: str='index') -> np.ndarray:
         """Overloads Profile to also map peak locations to the image."""
         array = super().find_peaks(threshold, min_distance, max_number, search_region, kind)
         self._map_peaks()
         return array
 
-    def find_valleys(self, threshold=0.3, min_distance=0.05, max_number=None, search_region=(0.0, 1.0), kind='index'):
+    def find_valleys(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
+                     max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0), kind: str='index') -> np.ndarray:
         """Overload Profile to also map valley locations to the image."""
         array = super().find_valleys(threshold, min_distance, max_number, search_region, kind)
         self._map_peaks()
         return array
 
-    def find_fwxm_peaks(self, x=50, threshold=0.3, min_distance=0.05, max_number=None, search_region=(0.0, 1.0), kind='index',
-                        interpolate=False, interpolation_factor=100, interpolation_type='linear'):
+    def find_fwxm_peaks(self, x: int=50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
+                        max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0), kind: str='index',
+                        interpolate: bool=False, interpolation_factor: int=100, interpolation_type: str='linear') -> np.ndarray:
         """Overloads Profile to also map the peak locations to the image."""
         array = super().find_fwxm_peaks(x, threshold, min_distance, max_number, interpolate=interpolate,
                                         search_region=search_region, kind=kind, interpolation_type=interpolation_type,
@@ -779,13 +802,13 @@ class CircleProfile(MultiProfile, Circle):
             peak.x = self.x_locations[int(peak.idx)]
             peak.y = self.y_locations[int(peak.idx)]
 
-    def roll(self, amount):
+    def roll(self, amount: int):
         """Roll the profile and x and y coordinates."""
         self.values = np.roll(self.values, -amount)
         self.x_locations = np.roll(self.x_locations, -amount)
         self.y_locations = np.roll(self.y_locations, -amount)
 
-    def plot2axes(self, axes=None, edgecolor='black', fill=False, plot_peaks=True):
+    def plot2axes(self, axes: plt.Axes=None, edgecolor: str='black', fill: bool=False, plot_peaks: bool=True):
         """Plot the circle to an axes.
 
         Parameters
@@ -811,7 +834,7 @@ class CircleProfile(MultiProfile, Circle):
             axes.scatter(x_locs, y_locs, s=40, marker='x', c=edgecolor)
 
     @staticmethod
-    def _ensure_array_size(array, min_width, min_height):
+    def _ensure_array_size(array: np.ndarray, min_width: int, min_height: int):
             """Ensure the array size of inputs are greater than the minimums."""
             height = array.shape[0]
             width = array.shape[1]
@@ -823,8 +846,12 @@ class CollapsedCircleProfile(CircleProfile):
     """A circular profile that samples a thick band around the nominal circle, rather than just a 1-pixel-wide profile
     to give a mean value.
     """
+    width_ratio: float
+    num_profiles: int
+
     @value_accept(width_ratio=(0, 1))
-    def __init__(self, center, radius, image_array, start_angle=0, ccw=True, sampling_ratio=1.0, width_ratio=0.1, num_profiles=20):
+    def __init__(self, center: Point, radius: NumberLike, image_array: np.ndarray, start_angle: int=0,
+                 ccw: bool=True, sampling_ratio: float=1.0, width_ratio: float=0.1, num_profiles: int=20):
         """
         Parameters
         ----------
@@ -843,16 +870,16 @@ class CollapsedCircleProfile(CircleProfile):
         super().__init__(center, radius, image_array, start_angle, ccw, sampling_ratio)
 
     @property
-    def _radii(self):
+    def _radii(self) -> np.ndarray:
         return np.linspace(start=self.radius * (1 - self.width_ratio), stop=self.radius * (1 + self.width_ratio),
                   num=self.num_profiles)
 
     @property
-    def size(self):
+    def size(self) -> float:
         return np.pi * max(self._radii) * 2 * self.sampling_ratio
 
     @property
-    def _multi_x_locations(self):
+    def _multi_x_locations(self) -> List:
         """List of x-locations of the sampling profiles"""
         x = []
         cos = np.cos(self._radians)
@@ -862,7 +889,7 @@ class CollapsedCircleProfile(CircleProfile):
         return x
 
     @property
-    def _multi_y_locations(self):
+    def _multi_y_locations(self) -> List:
         """List of x-locations of the sampling profiles"""
         y = []
         sin = np.sin(self._radians)
@@ -872,7 +899,7 @@ class CollapsedCircleProfile(CircleProfile):
         return y
 
     @property
-    def _profile(self):
+    def _profile(self) -> np.ndarray:
         """The actual profile array; private attr that is passed to MultiProfile."""
         profile = np.zeros(len(self._multi_x_locations[0]))
         for radius, x, y in zip(self._radii, self._multi_x_locations, self._multi_y_locations):
@@ -880,7 +907,7 @@ class CollapsedCircleProfile(CircleProfile):
         profile /= self.num_profiles
         return profile
 
-    def plot2axes(self, axes=None, edgecolor='black', fill=False, plot_peaks=True):
+    def plot2axes(self, axes: plt.Axes=None, edgecolor: str='black', fill: bool=False, plot_peaks: bool=True):
         """Add 2 circles to the axes: one at the maximum and minimum radius of the ROI.
 
         See Also
@@ -901,7 +928,9 @@ class CollapsedCircleProfile(CircleProfile):
             axes.scatter(x_locs, y_locs, s=20, marker='x', c=edgecolor)
 
 
-def peak_detect(values, threshold=None, min_distance=10, max_number=None, search_region=(0.0, 1.0), find_min_instead=False):
+def peak_detect(values: np.ndarray, threshold: Union[float, int]=None, min_distance: Union[float, int]=10,
+                max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0),
+                find_min_instead: bool=False) -> Tuple[np.ndarray, np.ndarray]:
     """Find the peaks or valleys of a 1D signal.
 
     Uses the difference (np.diff) in signal to find peaks. Current limitations include:

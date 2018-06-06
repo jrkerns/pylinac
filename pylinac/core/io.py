@@ -2,6 +2,7 @@
 import os
 import os.path as osp
 from tempfile import TemporaryDirectory
+from typing import Callable, List
 from urllib.error import HTTPError, URLError
 from urllib.request import urlretrieve, urlopen
 import zipfile
@@ -10,7 +11,7 @@ import pydicom
 from tqdm import tqdm
 
 
-def is_dicom(file):
+def is_dicom(file: str) -> bool:
     """Boolean specifying if file is a proper DICOM file.
 
     This function is a pared down version of read_preamble meant for a fast return.
@@ -33,7 +34,7 @@ def is_dicom(file):
         return prefix == b"DICM"
 
 
-def is_dicom_image(file):
+def is_dicom_image(file: str) -> bool:
     """Boolean specifying if file is a proper DICOM file with a image
 
     Parameters
@@ -58,7 +59,7 @@ def is_dicom_image(file):
     return result
 
 
-def retrieve_dicom_file(file):
+def retrieve_dicom_file(file: str) -> pydicom.FileDataset:
     """Read and return the DICOM dataset.
 
     Parameters
@@ -72,7 +73,7 @@ def retrieve_dicom_file(file):
     return img
 
 
-def is_zipfile(file):
+def is_zipfile(file: str) -> bool:
     """Wrapper function for detecting if file is a true ZIP archive"""
     return zipfile.is_zipfile(file)
 
@@ -91,20 +92,20 @@ class TemporaryZipDirectory(TemporaryDirectory):
         zfiles.extractall(path=self.name)
 
 
-def retrieve_filenames(directory, func=None, recursive=True, **kwargs):
+def retrieve_filenames(directory: str, func: Callable=None, recursive: bool=True, **kwargs) -> List:
     """Retrieve file names in a directory.
 
     Parameters
     ----------
     directory : str
         The directory to walk over recursively.
-    func : function
+    func : function, None
         The function that validates if the file name should be kept.
         If None, no validation will be performed and all file names will be returned.
     recursive : bool
         Whether to search only the root directory.
     kwargs
-        Additional arguments passed to the function.
+        Additional arguments passed to the func parameter.
     """
     filenames = []
     if func is None:
@@ -119,7 +120,7 @@ def retrieve_filenames(directory, func=None, recursive=True, **kwargs):
     return filenames
 
 
-def retrieve_demo_file(url):
+def retrieve_demo_file(url: str) -> str:
     """Retrieve the demo file either by getting it from file or from a URL.
 
     If the file is already on disk it returns the file name. If the file isn't
@@ -141,7 +142,7 @@ def retrieve_demo_file(url):
     return demo_file
 
 
-def is_url(url):
+def is_url(url: str) -> bool:
     """Determine whether a given string is a valid URL.
 
     Parameters
@@ -159,7 +160,7 @@ def is_url(url):
         return False
 
 
-def get_url(url, destination=None, progress_bar=True):
+def get_url(url: str, destination: str=None, progress_bar: bool=True):
     """Download a URL to a local file.
 
     Parameters

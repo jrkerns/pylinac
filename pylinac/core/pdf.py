@@ -1,5 +1,7 @@
 """Module for constructing and interacting with PDF reports for Pylinac."""
 from datetime import datetime
+from io import BytesIO
+from typing import List, Union
 
 from PIL import Image
 from reportlab.pdfgen.canvas import Canvas
@@ -15,7 +17,7 @@ from . import utilities
 PDF_FONT = "Helvetica"
 
 
-def draw_text(canvas, x, y, text, fontsize=10):
+def draw_text(canvas: Canvas, x: float, y: float, text: Union[str, List[str]], fontsize: int=10):
     """Generic text drawing function.
 
     Parameters
@@ -41,7 +43,8 @@ def draw_text(canvas, x, y, text, fontsize=10):
     canvas.drawText(textobj)
 
 
-def create_pylinac_page_template(filename, analysis_title, file_name=None, file_created=None, unit=None, author=None):
+def create_pylinac_page_template(filename: str, analysis_title: str, file_name: str=None, file_created: str=None,
+                                 unit: str=None, author: str=None) -> Canvas:
     """Create a new pylinac PDF template report.
 
     Parameters
@@ -69,7 +72,8 @@ def create_pylinac_page_template(filename, analysis_title, file_name=None, file_
     return pdf_canvas
 
 
-def add_pylinac_page_template(canvas, analysis_title, file_name=None, file_created=None, unit=None, author=None):
+def add_pylinac_page_template(canvas: Canvas, analysis_title: str, file_name: str=None, file_created: str=None,
+                              unit: str=None, author: str=None):
     """Add a new pylinac template page to an existing report; for constructing multipage reports.
 
     Parameters
@@ -102,7 +106,7 @@ def add_pylinac_page_template(canvas, analysis_title, file_name=None, file_creat
     draw_text(canvas, 0.5 * cm, 0.5 * cm, "Generated with Pylinac version {}".format(__version__), fontsize=8)
 
 
-def create_stream_image(data_io):
+def create_stream_image(data_io: BytesIO) -> ImageReader:
     """Take in a buffered image and make it compatible with reportlab's image functionality.
 
     Parameters
@@ -113,7 +117,7 @@ def create_stream_image(data_io):
     return ImageReader(Image.open(data_io))
 
 
-def finish(canvas, open_file, filename):
+def finish(canvas: Canvas, open_file: bool, filename: str):
     canvas.showPage()
     canvas.save()
     if open_file:

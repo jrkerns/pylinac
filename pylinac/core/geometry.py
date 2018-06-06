@@ -1,86 +1,42 @@
 """Module for classes that represent common geometric objects or patterns."""
 from itertools import zip_longest
 import math
+from typing import Union, Optional, List, Iterable
 
 import numpy as np
+import matplotlib.pyplot as plt
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
 
 from .utilities import is_iterable
+from .typing import NumberLike
 
 
-def tan(degrees):
+def tan(degrees: NumberLike) -> float:
     """Calculate the tangent of the given degrees."""
     return math.tan(math.radians(degrees))
 
 
-def cos(degrees):
+def cos(degrees: NumberLike) -> float:
     """Calculate the cosine of the given degrees."""
     return math.cos(math.radians(degrees))
 
 
-def sin(degrees):
+def sin(degrees: NumberLike) -> float:
     """Calculate the sine of the given degrees."""
     return math.sin(math.radians(degrees))
 
 
-class Vector:
-    """A vector with x, y, and z coordinates."""
-    def __init__(self, x=0, y=0, z=0):
-        self.x = x
-        self.y = y
-        self.z = z
-
-    def __repr__(self):
-        return "Vector(x={0:.2f}, y={1:.2f}, z={2:.2f})".format(self.x, self.y, self.z)
-
-    def as_scalar(self):
-        """Return the scalar equivalent of the vector."""
-        return math.sqrt(self.x**2 + self.y**2 + self.z**2)
-
-    def distance_to(self, thing):
-        """Calculate the distance to the given point.
-
-        Parameters
-        ----------
-        thing : Circle, Point, 2 element iterable
-            The other point to calculate distance to.
-        """
-        if isinstance(thing, Circle):
-            return abs(np.sqrt((self.x - thing.center.x)**2 + (self.y - thing.center.y)**2) - thing.radius)
-        else:
-            p = Point(thing)
-            return math.sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
-
-    def __sub__(self, other):
-        new_x = self.x - other.x
-        new_y = self.y - other.y
-        new_z = self.z - other.z
-        return Vector(x=new_x, y=new_y, z=new_z)
-
-    def __add__(self, other):
-        new_x = self.x + other.x
-        new_y = self.y + other.y
-        new_z = self.z + other.z
-        return Vector(x=new_x, y=new_y, z=new_z)
-
-
-def vector_is_close(vector1, vector2, delta=0.1):
-    """Determine if two vectors are with delta of each other; this is a simple coordinate comparison check."""
-    for attr in ('x', 'y', 'z'):
-        if np.isnan(getattr(vector1, attr)) and np.isnan(getattr(vector2, attr)):
-            continue
-        if not getattr(vector2, attr) + delta >= getattr(vector1, attr) >= getattr(vector2, attr) - delta:
-            return False
-    return True
-
-
 class Point:
     """A geometric point with x, y, and z coordinates/attributes."""
-    _attr_list = ['x', 'y', 'z', 'idx', 'value']
-    _coord_list = ['x', 'y', 'z']
+    z: Union[int, float]
+    y: Union[int, float]
+    x: Union[int, float]
+    _attr_list: List[str] = ['x', 'y', 'z', 'idx', 'value']
+    _coord_list: List[str] = ['x', 'y', 'z']
 
-    def __init__(self, x=0, y=0, z=0, idx=None, value=None, as_int=False):
+    def __init__(self, x: NumberLike=0, y: NumberLike=0, z: NumberLike=0, idx: Optional[int]=None,
+                 value: Optional[NumberLike]=None, as_int: bool=False):
         """
         Parameters
         ----------
@@ -115,7 +71,7 @@ class Point:
             self.y = int(round(self.y))
             self.z = int(round(self.z))
 
-    def distance_to(self, thing):
+    def distance_to(self, thing: Union['Point', 'Circle']) -> float:
         """Calculate the distance to the given point.
 
         Parameters
@@ -128,7 +84,7 @@ class Point:
         p = Point(thing)
         return math.sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
 
-    def as_array(self, only_coords=True):
+    def as_array(self, only_coords: bool=True) -> np.array:
         """Return the point as a numpy array."""
         if only_coords:
             return np.array([getattr(self, item) for item in self._coord_list])
@@ -171,8 +127,10 @@ class Point:
 
 class Circle:
     """A geometric circle with center Point, radius, and diameter."""
+    center: Point
+    radius: float
 
-    def __init__(self, center_point=None, radius=None):
+    def __init__(self, center_point: Union[Point, Iterable]=(0, 0), radius: float = 0):
         """
         Parameters
         ----------
@@ -192,11 +150,11 @@ class Circle:
         self.radius = radius
 
     @property
-    def diameter(self):
+    def diameter(self) -> float:
         """Get the diameter of the circle."""
         return self.radius*2
 
-    def plot2axes(self, axes, edgecolor='black', fill=False):
+    def plot2axes(self, axes, edgecolor: str='black', fill: bool=False):
         """Plot the Circle on the axes.
 
         Parameters
@@ -211,6 +169,61 @@ class Circle:
         axes.add_patch(mpl_Circle((self.center.x, self.center.y), edgecolor=edgecolor, radius=self.radius, fill=fill))
 
 
+class Vector:
+    """A vector with x, y, and z coordinates."""
+    x: NumberLike
+    y: NumberLike
+    z: NumberLike
+
+    def __init__(self, x: NumberLike=0, y: NumberLike=0, z: NumberLike=0):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def __repr__(self):
+        return "Vector(x={0:.2f}, y={1:.2f}, z={2:.2f})".format(self.x, self.y, self.z)
+
+    def as_scalar(self) -> float:
+        """Return the scalar equivalent of the vector."""
+        return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+
+    def distance_to(self, thing: Union[Circle, Point]) -> float:
+        """Calculate the distance to the given point.
+
+        Parameters
+        ----------
+        thing : Circle, Point, 2 element iterable
+            The other point to calculate distance to.
+        """
+        if isinstance(thing, Circle):
+            return abs(np.sqrt((self.x - thing.center.x)**2 + (self.y - thing.center.y)**2) - thing.radius)
+        else:
+            p = Point(thing)
+            return math.sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
+
+    def __sub__(self, other):
+        new_x = self.x - other.x
+        new_y = self.y - other.y
+        new_z = self.z - other.z
+        return Vector(x=new_x, y=new_y, z=new_z)
+
+    def __add__(self, other):
+        new_x = self.x + other.x
+        new_y = self.y + other.y
+        new_z = self.z + other.z
+        return Vector(x=new_x, y=new_y, z=new_z)
+
+
+def vector_is_close(vector1: Vector, vector2: Vector, delta: float=0.1) -> bool:
+    """Determine if two vectors are with delta of each other; this is a simple coordinate comparison check."""
+    for attr in ('x', 'y', 'z'):
+        if np.isnan(getattr(vector1, attr)) and np.isnan(getattr(vector2, attr)):
+            continue
+        if not getattr(vector2, attr) + delta >= getattr(vector1, attr) >= getattr(vector2, attr) - delta:
+            return False
+    return True
+
+
 class Line:
     """A line that is represented by two points or by m*x+b.
 
@@ -221,13 +234,16 @@ class Line:
     and here:
     http://www.mathsisfun.com/algebra/line-equation-2points.html
     """
-    def __init__(self, point1, point2):
+    point1: Point
+    point2: Point
+
+    def __init__(self, point1: Point, point2: Point):
         """
         Parameters
         ----------
-        point1 : Point, optional
+        point1 : Point
             One point of the line
-        point2 : Point, optional
+        point2 : Point
             Second point along the line.
         """
         self.point1 = Point(point1)
@@ -242,7 +258,7 @@ class Line:
                                                                                  self.point2.z)
 
     @property
-    def m(self):
+    def m(self) -> float:
         """Return the slope of the line.
 
         m = (y1 - y2)/(x1 - x2)
@@ -252,34 +268,34 @@ class Line:
         return (self.point1.y - self.point2.y) / (self.point1.x - self.point2.x)
 
     @property
-    def b(self):
+    def b(self) -> float:
         """Return the y-intercept of the line.
 
         b = y - m*x
         """
         return self.point1.y - (self.m * self.point1.x)
 
-    def y(self, x):
+    def y(self, x) -> float:
         """Return y-value along line at position x."""
         return self.m * x + self.b
 
-    def x(self, y):
+    def x(self, y) -> float:
         """Return x-value along line at position y."""
         return (y - self.b)/self.m
 
     @property
-    def center(self):
+    def center(self) -> Point:
         """Return the center of the line as a Point."""
         mid_x = np.abs((self.point2.x - self.point1.x)/2 + self.point1.x)
         mid_y = (self.point2.y - self.point1.y) / 2 + self.point1.y
         return Point(mid_x, mid_y)
 
     @property
-    def length(self):
+    def length(self) -> float:
         """Return length of the line, if finite."""
         return self.point1.distance_to(self.point2)
 
-    def distance_to(self, point):
+    def distance_to(self, point) -> float:
         """Calculate the minimum distance from the line to a point.
 
         Equations are from here: http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html #14
@@ -296,7 +312,7 @@ class Line:
         denominator = np.sqrt(np.sum(np.power(lp2 - lp1, 2)))
         return numerator/denominator
 
-    def plot2axes(self, axes, width=1, color='w'):
+    def plot2axes(self, axes: plt.Axes, width: NumberLike=1, color: str='w'):
         """Plot the line to an axes.
 
         Parameters
@@ -311,8 +327,12 @@ class Line:
 
 class Rectangle:
     """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point."""
+    width: Union[int, float]
+    height: Union[int, float]
+    _as_int: bool
+    center: Point
 
-    def __init__(self, width, height, center, as_int=False):
+    def __init__(self, width: float, height: float, center: Point, as_int: bool=False):
         """
         Parameters
         ----------
@@ -335,26 +355,27 @@ class Rectangle:
         self.center = Point(center, as_int=as_int)
 
     @property
-    def br_corner(self):
+    def br_corner(self) -> Point:
         """The location of the bottom right corner."""
         return Point(self.center.x + self.width / 2, self.center.y - self.height / 2, as_int=self._as_int)
 
     @property
-    def bl_corner(self):
+    def bl_corner(self) -> Point:
         """The location of the bottom left corner."""
         return Point(self.center.x - self.width / 2, self.center.y - self.height / 2, as_int=self._as_int)
 
     @property
-    def tl_corner(self):
+    def tl_corner(self) -> Point:
         """The location of the top left corner."""
         return Point(self.center.x - self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
 
     @property
-    def tr_corner(self):
+    def tr_corner(self) -> Point:
         """The location of the top right corner."""
         return Point(self.center.x + self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
 
-    def plot2axes(self, axes, edgecolor='black', angle=0.0, fill=False, alpha=1, facecolor='g'):
+    def plot2axes(self, axes: plt.Axes, edgecolor: str='black', angle: float=0.0, fill: bool=False,
+                  alpha: float=1, facecolor: str='g'):
         """Plot the Rectangle to the axes.
 
         Parameters

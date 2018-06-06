@@ -1,12 +1,15 @@
 
 from functools import lru_cache
+from typing import Union, Tuple, Optional
 
 import numpy as np
+
+from skimage.measure._regionprops import _RegionProperties
 
 from .geometry import Circle, Point, Rectangle
 
 
-def bbox_center(region):
+def bbox_center(region: _RegionProperties) -> Point:
     """Return the center of the bounding box of an scikit-image region.
 
     Parameters
@@ -26,7 +29,8 @@ def bbox_center(region):
 
 class DiskROI(Circle):
     """An class representing a disk-shaped Region of Interest."""
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center):
+    def __init__(self, array: np.ndarray, angle: Union[float, int], roi_radius: Union[float, int],
+                 dist_from_center: Union[float, int], phantom_center: Union[Tuple, Point]):
         """
         Parameters
         ----------
@@ -46,26 +50,26 @@ class DiskROI(Circle):
         self._array = array
 
     @staticmethod
-    def _get_shifted_center(angle, dist_from_center, phantom_center):
+    def _get_shifted_center(angle: Union[float, int], dist_from_center: Union[float, int], phantom_center: Point):
         """The center of the ROI; corrects for phantom dislocation and roll."""
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
     @property
-    def pixel_value(self):
+    def pixel_value(self) -> np.ndarray:
         """The median pixel value of the ROI."""
         masked_img = self.circle_mask()
         return np.nanmedian(masked_img)
 
     @property
-    def std(self):
+    def std(self) -> np.ndarray:
         """The standard deviation of the pixel values."""
         masked_img = self.circle_mask()
         return np.nanstd(masked_img)
 
     @lru_cache(maxsize=1)
-    def circle_mask(self):
+    def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
         # http://scikit-image.org/docs/dev/auto_examples/plot_camera_numpy.html
         masked_array = np.copy(self._array).astype(np.float)
@@ -78,6 +82,9 @@ class DiskROI(Circle):
 
 class LowContrastDiskROI(DiskROI):
     """A class for analyzing the low-contrast disks."""
+    contrast_threshold: Optional[float]
+    cnr_threshold: Optional[float]
+    background: Optional[float]
 
     def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold=None, background=None,
                  cnr_threshold=None):
@@ -93,58 +100,60 @@ class LowContrastDiskROI(DiskROI):
         self.background = background
 
     @property
-    def contrast_to_noise(self):
+    def contrast_to_noise(self) -> float:
         """The contrast to noise ratio of the bubble: (Signal - Background)/Stdev."""
         return abs(self.pixel_value - self.background) / self.std
 
     @property
-    def contrast(self):
+    def contrast(self) -> float:
         """The contrast of the bubble compared to background: (ROI - backg) / (ROI + backg)."""
         return abs((self.pixel_value - self.background) / (self.pixel_value + self.background))
 
     @property
-    def cnr_constant(self):
+    def cnr_constant(self) -> float:
         """The contrast-to-noise value times the bubble diameter."""
         return self.contrast_to_noise * self.diameter
 
     @property
-    def contrast_constant(self):
+    def contrast_constant(self) -> float:
         """The contrast value times the bubble diameter."""
         return self.contrast * self.diameter
 
     @property
-    def passed(self):
+    def passed(self) -> bool:
         """Whether the disk ROI contrast passed."""
         return self.contrast > self.contrast_threshold
 
     @property
-    def passed_contrast_constant(self):
+    def passed_contrast_constant(self) -> bool:
         """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
         return self.contrast_constant > self.contrast_threshold
 
     @property
-    def passed_cnr_constant(self):
+    def passed_cnr_constant(self) -> bool:
         """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
         return self.cnr_constant > self.cnr_threshold
 
     @property
-    def plot_color(self):
+    def plot_color(self) -> str:
         """Return one of two colors depending on if ROI passed."""
         return 'blue' if self.passed else 'red'
 
     @property
-    def plot_color_constant(self):
+    def plot_color_constant(self) -> str:
         """Return one of two colors depending on if ROI passed."""
         return 'blue' if self.passed_contrast_constant else 'red'
 
     @property
-    def plot_color_cnr(self):
+    def plot_color_cnr(self) -> str:
         """Return one of two colors depending on if ROI passed."""
         return 'blue' if self.passed_cnr_constant else 'red'
 
 
 class HighContrastDiskROI(DiskROI):
     """A class for analyzing the high-contrast disks."""
+    contrast_threshold: Optional[float]
+    mtf_norm: Optional[float]
 
     def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold, mtf_norm=None):
         """
@@ -158,7 +167,7 @@ class HighContrastDiskROI(DiskROI):
         self.mtf_norm = mtf_norm
 
     @property
-    def mtf(self):
+    def mtf(self) -> np.ndarray:
         """The contrast of the bubble compared to background: (ROI - backg) / (ROI + backg)."""
         mtf = (self.max - self.min) / (self.max + self.min)
         if self.mtf_norm is not None:
@@ -166,23 +175,23 @@ class HighContrastDiskROI(DiskROI):
         return mtf
 
     @property
-    def passed(self):
+    def passed(self) -> np.ndarray:
         """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
         return self.mtf > self.contrast_threshold
 
     @property
-    def plot_color(self):
+    def plot_color(self) -> str:
         """Return one of two colors depending on if ROI passed."""
         return 'blue' if self.passed else 'red'
 
     @property
-    def max(self):
+    def max(self) -> np.ndarray:
         """The max pixel value of the ROI."""
         masked_img = self.circle_mask()
         return np.nanmax(masked_img)
 
     @property
-    def min(self):
+    def min(self) -> np.ndarray:
         """The min pixel value of the ROI."""
         masked_img = self.circle_mask()
         return np.nanmin(masked_img)
@@ -199,6 +208,6 @@ class RectangleROI(Rectangle):
         self._array = array
 
     @property
-    def pixel_array(self):
+    def pixel_array(self) -> np.ndarray:
         """The pixel array within the ROI."""
         return self._array[self.bl_corner.x:self.tr_corner.x, self.bl_corner.y:self.tr_corner.y]

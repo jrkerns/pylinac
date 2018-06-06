@@ -7,6 +7,7 @@ from io import BytesIO
 import re
 import os.path as osp
 import os
+from typing import Union, Sequence, List, Any, Tuple, Optional
 
 import pydicom
 from pydicom.errors import InvalidDicomError
@@ -22,6 +23,7 @@ from .decorators import type_accept, value_accept
 from .geometry import Point
 from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image, retrieve_dicom_file
 from .profile import stretch as stretcharray
+from .typing import NumberLike
 from ..settings import get_dicom_cmap
 
 ARRAY = 'Array'
@@ -29,8 +31,10 @@ DICOM = 'DICOM'
 IMAGE = 'Image'
 MM_PER_INCH = 25.4
 
+ImageLike = Union['DicomImage', 'ArrayImage', 'FileImage', 'LinacDicomImage']
 
-def prepare_for_classification(path):
+
+def prepare_for_classification(path: str):
     """Load and resize the image and return as flattened numpy array. Used when converting an image into
     a classification feature dataset"""
     img = load(path, dtype=np.float32)
@@ -39,7 +43,7 @@ def prepare_for_classification(path):
     return rescaled_img
 
 
-def equate_images(image1, image2):
+def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, ImageLike]:
     """Crop and resize two images to make them:
       * The same pixel dimensions
       * The same DPI
@@ -90,7 +94,7 @@ def equate_images(image1, image2):
     return image1, image2
 
 
-def is_image(path):
+def is_image(path: str) -> bool:
     """Determine whether the path is a valid image file.
 
     Returns
@@ -100,7 +104,7 @@ def is_image(path):
     return any((_is_array(path), _is_dicom(path), _is_image_file(path)))
 
 
-def retrieve_image_files(path):
+def retrieve_image_files(path: str) -> List:
     """Retrieve the file names of all the valid image files in the path.
 
     Returns
@@ -108,10 +112,10 @@ def retrieve_image_files(path):
     list
         Contains strings pointing to valid image paths.
     """
-    return retrieve_filenames(path, is_image)
+    return retrieve_filenames(directory=path, func=is_image)
 
 
-def load(path, **kwargs):
+def load(path: str, **kwargs) -> ImageLike:
     """Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
     Parameters
@@ -154,7 +158,7 @@ def load(path, **kwargs):
         raise TypeError("The argument `{0}` was not found to be a valid DICOM file, Image file, or array".format(path))
 
 
-def load_url(url, progress_bar=True, **kwargs):
+def load_url(url: str, progress_bar: bool=True, **kwargs):
     """Load an image from a URL.
 
     Parameters
@@ -172,7 +176,7 @@ def load_url(url, progress_bar=True, **kwargs):
 
 
 @value_accept(method=('mean', 'max', 'sum'))
-def load_multiples(image_file_list, method='mean', stretch=True, **kwargs):
+def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True, **kwargs) -> ImageLike:
     """Combine multiple image files into one superimposed image.
 
     Parameters
@@ -220,12 +224,12 @@ def load_multiples(image_file_list, method='mean', stretch=True, **kwargs):
     return first_img
 
 
-def _is_dicom(path):
+def _is_dicom(path: str) -> bool:
     """Whether the file is a readable DICOM file via pydicom."""
-    return is_dicom_image(path)
+    return is_dicom_image(file=path)
 
 
-def _is_image_file(path):
+def _is_image_file(path: str) -> bool:
     """Whether the file is a readable image file via Pillow."""
     try:
         pImage.open(path)
@@ -234,7 +238,7 @@ def _is_image_file(path):
         return False
 
 
-def _is_array(obj):
+def _is_array(obj: Any) -> bool:
     """Whether the object is a numpy array."""
     return isinstance(obj, np.ndarray)
 
@@ -249,8 +253,9 @@ class BaseImage:
     array : numpy.ndarray
         The actual image pixel array.
     """
+    path: str
 
-    def __init__(self, path):
+    def __init__(self, path: str):
         """
         Parameters
         ----------
@@ -262,28 +267,28 @@ class BaseImage:
         self.path = path
 
     @classmethod
-    def from_multiples(cls, filelist, method='mean', stretch=True, **kwargs):
+    def from_multiples(cls, filelist: List[str], method: str='mean', stretch: bool=True, **kwargs):
         """Load an instance from multiple image items. See :func:`~pylinac.core.image.load_multiples`."""
         return load_multiples(filelist, method, stretch, **kwargs)
 
     @property
-    def pdf_path(self):
+    def pdf_path(self) -> str:
         base, _ = osp.splitext(self.path)
         return osp.join(base + '.pdf')
 
     @property
-    def center(self):
+    def center(self) -> Point:
         """Return the center position of the image array as a Point."""
         x_center = self.shape[1] / 2
         y_center = self.shape[0] / 2
         return Point(x_center, y_center)
 
     @property
-    def physical_shape(self):
+    def physical_shape(self) -> Tuple[float, float]:
         """The physical size of the image in mm."""
         return self.shape[0] / self.dpmm, self.shape[1] / self.dpmm
 
-    def date_created(self, format="%A, %B %d, %Y"):
+    def date_created(self, format: str="%A, %B %d, %Y") -> str:
         date = None
         try:
             date = datetime.strptime(self.metadata.InstanceCreationDate+str(round(float(self.metadata.InstanceCreationTime))), "%Y%m%d%H%M%S")
@@ -301,7 +306,7 @@ class BaseImage:
                 date = 'Unknown'
         return date
 
-    def plot(self, ax=None, show=True, clear_fig=False, **kwargs):
+    def plot(self, ax: plt.Axes=None, show: bool=True, clear_fig: bool=False, **kwargs):
         """Plot the image.
 
         Parameters
@@ -323,7 +328,7 @@ class BaseImage:
         return ax
 
     @value_accept(kind=('median', 'gaussian'))
-    def filter(self, size=0.05, kind='median'):
+    def filter(self, size: Union[float, int]=0.05, kind: str='median'):
         """Filter the profile.
 
         Parameters
@@ -349,7 +354,7 @@ class BaseImage:
             self.array = ndimage.gaussian_filter(self.array, sigma=size)
 
     @type_accept(pixels=int)
-    def crop(self, pixels=15, edges=('top', 'bottom', 'left', 'right')):
+    def crop(self, pixels: int=15, edges: Tuple[str, ...]=('top', 'bottom', 'left', 'right')):
         """Removes pixels on all edges of the image in-place.
 
         Parameters
@@ -371,7 +376,7 @@ class BaseImage:
             self.array = self.array[:, :-pixels]
 
     @type_accept(pixels=int)
-    def remove_edges(self, pixels=15, edges=('top', 'bottom', 'left', 'right')):
+    def remove_edges(self, pixels: int=15, edges: Tuple[str, ...]=('top', 'bottom', 'left', 'right')):
         """Removes pixels on all edges of the image in-place.
 
         Parameters
@@ -394,7 +399,7 @@ class BaseImage:
         self.array = -orig_array + orig_array.max() + orig_array.min()
 
     @type_accept(direction=str, amount=int)
-    def roll(self, direction='x', amount=1):
+    def roll(self, direction: str='x', amount: int=1):
         """Roll the image array around in-place. Wrapper for np.roll().
 
         Parameters
@@ -408,11 +413,11 @@ class BaseImage:
         self.array = np.roll(self.array, amount, axis=axis)
 
     @type_accept(n=int)
-    def rot90(self, n=1):
+    def rot90(self, n: int=1):
         """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW."""
         self.array = np.rot90(self.array, n)
 
-    def resize(self, size, interp='bilinear'):
+    def resize(self, size: Union[int, float, Tuple[int, int]], interp: str='bilinear'):
         """Resize/scale the image.
 
         Wrapper for scipy's `imresize <http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.misc.imresize.html>`_:
@@ -420,7 +425,7 @@ class BaseImage:
         self.array = imresize(self.array, size=size, interp=interp, mode='F')
 
     @value_accept(kind=('high', 'low'))
-    def threshold(self, threshold, kind='high'):
+    def threshold(self, threshold: int, kind: str='high'):
         """Apply a high- or low-pass threshold filter.
 
         Parameters
@@ -437,7 +442,7 @@ class BaseImage:
         else:
             self.array = np.where(self.array <= threshold, self, 0)
 
-    def as_binary(self, threshold):
+    def as_binary(self, threshold: int):
         """Return a binary (black & white) image based on the given threshold.
 
         Parameters
@@ -453,7 +458,7 @@ class BaseImage:
         return ArrayImage(array)
 
     @type_accept(point=(Point, tuple))
-    def dist2edge_min(self, point):
+    def dist2edge_min(self, point: Union[Point, Tuple]):
         """Calculates minimum distance from given point to image edges.
 
         Parameters
@@ -475,7 +480,7 @@ class BaseImage:
         disttoedge[3] = point.x
         return min(disttoedge)
 
-    def ground(self):
+    def ground(self) -> float:
         """Ground the profile such that the lowest value is 0.
 
         .. note::
@@ -491,7 +496,7 @@ class BaseImage:
         self.array -= min_val
         return min_val
 
-    def normalize(self, norm_val='max'):
+    def normalize(self, norm_val: Union[str, NumberLike]='max'):
         """Normalize the image values to the given value.
 
         Parameters
@@ -507,7 +512,7 @@ class BaseImage:
         self.array = self.array / val
 
     @type_accept(box_size=int)
-    def check_inversion(self, box_size=20, position=(0.0, 0.0)):
+    def check_inversion(self, box_size: int=20, position: Sequence=(0.0, 0.0)):
         """Check the image for inversion by sampling the 4 image corners.
         If the average value of the four corners is above the average pixel value, then it is very likely inverted.
 
@@ -529,7 +534,8 @@ class BaseImage:
             self.invert()
 
     @value_accept(threshold=(0.0, 1.0))
-    def gamma(self, comparison_image, doseTA=1, distTA=1, threshold=0.1, ground=True, normalize=True):
+    def gamma(self, comparison_image: ImageLike, doseTA: NumberLike=1, distTA: NumberLike=1,
+              threshold: NumberLike=0.1, ground: bool=True, normalize: bool=True):
         """Calculate the gamma between the current image (reference) and a comparison image.
 
         .. versionadded:: 1.2
@@ -605,33 +611,33 @@ class BaseImage:
 
         return gamma_map
 
-    def as_type(self, dtype):
+    def as_type(self, dtype) -> np.array:
         return self.array.astype(dtype)
 
     @property
-    def shape(self):
+    def shape(self) -> Tuple:
         return self.array.shape
 
     @property
-    def size(self):
+    def size(self) -> int:
         return self.array.size
 
     @property
-    def ndim(self):
+    def ndim(self) -> int:
         return self.array.ndim
 
     @property
     def dtype(self):
         return self.array.dtype
 
-    def sum(self):
+    def sum(self) -> float:
         return self.array.sum()
 
-    def ravel(self):
+    def ravel(self) -> np.array:
         return self.array.ravel()
 
     @property
-    def flat(self):
+    def flat(self) -> np.array:
         return self.array.flat
 
     def __len__(self):
@@ -649,8 +655,11 @@ class DicomImage(BaseImage):
     metadata : pydicom Dataset
         The dataset of the file as returned by pydicom without pixel data.
     """
+    metadata: pydicom.FileDataset
+    _sid = NumberLike
+    _dpi = NumberLike
 
-    def __init__(self, path, *, dtype=None, dpi=None, sid=None):
+    def __init__(self, path: str, *, dtype=None, dpi: NumberLike=None, sid: NumberLike=None):
         """
         Parameters
         ----------
@@ -684,7 +693,7 @@ class DicomImage(BaseImage):
         if self.metadata.SOPClassUID.name == 'CT Image Storage':
             self.array = int(self.metadata.RescaleSlope)*self.array + int(self.metadata.RescaleIntercept)
 
-    def save(self, filename):
+    def save(self, filename: str) -> str:
         """Save the image instance back out to a .dcm file.
 
         Returns
@@ -698,7 +707,7 @@ class DicomImage(BaseImage):
         return filename
 
     @property
-    def sid(self):
+    def sid(self) -> NumberLike:
         """The Source-to-Image in mm."""
         try:
             return float(self.metadata.RTImageSID)
@@ -706,7 +715,7 @@ class DicomImage(BaseImage):
             return self._sid
 
     @property
-    def dpi(self):
+    def dpi(self) -> NumberLike:
         """The dots-per-inch of the image, defined at isocenter."""
         try:
             return self.dpmm * MM_PER_INCH
@@ -714,7 +723,7 @@ class DicomImage(BaseImage):
             return self._dpi
 
     @property
-    def dpmm(self):
+    def dpmm(self) -> NumberLike:
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
         dpmm = None
@@ -730,7 +739,7 @@ class DicomImage(BaseImage):
         return dpmm
 
     @property
-    def cax(self):
+    def cax(self) -> Point:
         """The position of the beam central axis. If no DICOM translation tags are found then the center is returned."""
         try:
             x = self.center.x - self.metadata.XRayImageReceptorTranslation[0]
@@ -747,26 +756,28 @@ class LinacDicomImage(DicomImage):
     collimator_keyword = 'Coll'
     couch_keyword = 'Couch'
 
-    def __init__(self, path, use_filenames=False):
+    _use_filenames: bool
+
+    def __init__(self, path: str, use_filenames: bool=False):
         super().__init__(path)
         self._use_filenames = use_filenames
 
     @property
-    def gantry_angle(self):
+    def gantry_angle(self) -> NumberLike:
         """Gantry angle of the irradiation."""
         return self._get_axis(self.gantry_keyword.lower(), 'GantryAngle')
 
     @property
-    def collimator_angle(self):
+    def collimator_angle(self) -> NumberLike:
         """Collimator angle of the irradiation."""
         return self._get_axis(self.collimator_keyword.lower(), 'BeamLimitingDeviceAngle')
 
     @property
-    def couch_angle(self):
+    def couch_angle(self) -> NumberLike:
         """Couch angle of the irradiation."""
         return self._get_axis(self.couch_keyword.lower(), 'PatientSupportAngle')
 
-    def _get_axis(self, axis_str, axis_dcm_attr):
+    def _get_axis(self, axis_str: str, axis_dcm_attr: str) -> NumberLike:
         """Retrieve the value of the axis. This will first look in the file name for the value.
         If not in the filename then it will look in the DICOM metadata. If the value can be found in neither
         then a value of 0 is assumed.
@@ -825,7 +836,7 @@ class FileImage(BaseImage):
         The SID value as passed in upon construction.
     """
 
-    def __init__(self, path, *, dpi=None, sid=None, dtype=None):
+    def __init__(self, path: str, *, dpi: NumberLike=None, sid: NumberLike=None, dtype=None):
         """
         Parameters
         ----------
@@ -855,7 +866,7 @@ class FileImage(BaseImage):
         self.sid = sid
 
     @property
-    def dpi(self):
+    def dpi(self) -> NumberLike:
         """The dots-per-inch of the image, defined at isocenter."""
         dpi = None
         for key in ('dpi', 'resolution'):
@@ -870,7 +881,7 @@ class FileImage(BaseImage):
         return dpi
 
     @property
-    def dpmm(self):
+    def dpmm(self) -> NumberLike:
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
         try:
@@ -882,7 +893,7 @@ class FileImage(BaseImage):
 class ArrayImage(BaseImage):
     """An image constructed solely from a numpy array."""
 
-    def __init__(self, array, *, dpi=None, sid=None, dtype=None):
+    def __init__(self, array: np.array, *, dpi: NumberLike=None, sid: NumberLike=None, dtype=None):
         """
         Parameters
         ----------
@@ -906,7 +917,7 @@ class ArrayImage(BaseImage):
         self.sid = sid
 
     @property
-    def dpmm(self):
+    def dpmm(self) -> Optional[NumberLike]:
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
         try:
@@ -915,7 +926,7 @@ class ArrayImage(BaseImage):
             return
 
     @property
-    def dpi(self):
+    def dpi(self) -> Optional[NumberLike]:
         """The dots-per-inch of the image, defined at isocenter."""
         dpi = None
         if self._dpi is not None:
@@ -954,8 +965,9 @@ class DicomImageStack:
     Load as a certain data type
     >>> dcm_stack_uint32 = image.DicomImageStack(img_folder, dtype=np.uint32)
     """
+    images: List
 
-    def __init__(self, folder, dtype=None, min_number=39, check_uid=True):
+    def __init__(self, folder: str, dtype=None, min_number: int=39, check_uid: bool=True):
         """Load a folder with DICOM CT images.
 
         Parameters
@@ -985,7 +997,7 @@ class DicomImageStack:
         self.images.sort(key=lambda x: x.metadata.ImagePositionPatient[-1])
 
     @classmethod
-    def from_zip(cls, zip_path, dtype=None):
+    def from_zip(cls, zip_path: str, dtype=None):
         """Load a DICOM ZIP archive.
 
         Parameters
@@ -1000,7 +1012,7 @@ class DicomImageStack:
         return obj
 
     @staticmethod
-    def is_CT_slice(file):
+    def is_CT_slice(file: str) -> bool:
         """Test if the file is a CT Image storage DICOM file."""
         try:
             ds = pydicom.dcmread(file, force=True, stop_before_pixels=True)
@@ -1008,7 +1020,7 @@ class DicomImageStack:
         except (InvalidDicomError, AttributeError, MemoryError):
             return False
 
-    def _check_number_and_get_common_uid_imgs(self, min_number):
+    def _check_number_and_get_common_uid_imgs(self, min_number: int) -> List:
         """Check that all the images are from the same study."""
         most_common_uid = Counter(i.metadata.SeriesInstanceUID for i in self.images).most_common(1)[0]
         if most_common_uid[1] < min_number:
@@ -1016,7 +1028,7 @@ class DicomImageStack:
         return [i for i in self.images if i.metadata.SeriesInstanceUID == most_common_uid[0]]
 
     @type_accept(slice=int)
-    def plot(self, slice=0):
+    def plot(self, slice: int=0):
         """Plot a slice of the DICOM dataset.
 
         Parameters
@@ -1027,7 +1039,7 @@ class DicomImageStack:
         self.images[slice].plot()
 
     @property
-    def metadata(self):
+    def metadata(self) -> pydicom.FileDataset:
         """The metadata of the first image; shortcut attribute. Only attributes that are common throughout the stack should be used,
         otherwise the individual image metadata should be used."""
         return self.images[0].metadata

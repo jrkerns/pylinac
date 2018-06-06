@@ -5,10 +5,13 @@ import os
 import os.path as osp
 import subprocess
 import struct
+from typing import Union, Sequence
 
 import pydicom
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+
+from .typing import NumberLike
 
 
 def clear_data_files():
@@ -22,7 +25,7 @@ def clear_data_files():
     print("Pylinac data files cleared.")
 
 
-def assign2machine(source_file, machine_file):
+def assign2machine(source_file: str, machine_file: str):
     """Assign a DICOM RT Plan file to a specific machine. The source file is overwritten to contain
     the machine of the machine file.
 
@@ -42,7 +45,7 @@ def assign2machine(source_file, machine_file):
     dcm_source.save_as(source_file)
 
 
-def is_close(val, target, delta=1):
+def is_close(val: NumberLike, target: Union[NumberLike, Sequence], delta: NumberLike=1):
     """Return whether the value is near the target value(s).
 
     Parameters
@@ -85,7 +88,7 @@ def typed_property(name, expected_type_or_tuple_of_types):
     return prop
 
 
-def simple_round(number, decimals=0):
+def simple_round(number: NumberLike, decimals: int=0):
     """Round a number to the given number of decimals. Fixes small floating number errors."""
     num = int(round(number * 10 ** decimals))
     num /= 10 ** decimals
@@ -183,10 +186,10 @@ def decode_binary(file, dtype, num_values=1, cursor_shift=0):
     return output
 
 
-def open_path(path):
+def open_path(path: str):
     """Open the specified path in the system default viewer."""
 
-    if os.uname()[0] == 'darwin':
+    if os.name == 'darwin':
         launcher = "open"
     elif os.name == 'posix':
         launcher = "xdg-open"
