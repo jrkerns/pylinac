@@ -6,21 +6,33 @@ Flatness/Symmetry module documentation
 Overview
 --------
 
-The Flatness & Symmetry module (``flatsym``) allows a physicist to check their linac's beam profile
+The Flatness & Symmetry module (``pylinac.flatsym``) allows a physicist to check their linac's beam profile
 against well-known flatness/symmetry calculation standards, reporting absolute values. Film or EPID images
-can be loaded in and analyzed.
+can be loaded in and analyzed. There is one main class :class:`~pylinac.flatsym.FlatSym`. If you will be using
+custom algorithms there are two module dictionaries you will need: ``FLATNESS_EQUATIONS`` and ``SYMMETRY_EQUATIONS``.
 
 Running the Demo
 ----------------
 
-To run the demo of the ``flatsym`` module, import the main class from it and run the demo method::
+To run the demo, import the main class and run the demo method:
 
-    from pylinac.flatsym import BeamImage
+.. code-block:: python
 
-    my_img = BeamImage()
-    my_img.run_demo()
+    from pylinac import FlatSym
 
-Which will result in the following plot:
+    FlatSym.run_demo()
+
+Which will result in the following output and plot::
+
+    Flatness & Symmetry
+    ===================
+    File: ...\pylinac\demo_files\flatsym_demo.dcm
+    Flatness method: Varian
+    Vertical flatness: 1.93%
+    Horizontal flatness: 1.86%
+    Symmetry method: Varian
+    Vertical symmetry: 2.46%
+    Horizontal symmetry: 2.99%
 
 .. image:: images/flatsym_demo.png
 
@@ -31,40 +43,63 @@ In most instances, a physicist is interested in quickly calculating the flatness
 image in question. The ``flatsym`` module allows you to do this easily, using any of multiple definitions of flatness
 or symmetry.
 
-To get started, import the ``BeamImage`` class from the ``flatsym`` module::
+To get started, import the :class:`~pylinac.flatsym.FlatSym` class:
 
-    from pylinac.flatsym import BeamImage
+.. code-block:: python
 
-Loading images is easy and just like any other module::
+    from pylinac import FlatSym
+
+Loading images is easy and just like any other module:
+
+.. code-block:: python
 
     # from a file
     my_file = r"C:/my/QA/folder/img.dcm"
-    my_img = BeamImage(my_file)
+    my_img = FlatSym(path=my_file)
 
-    # or using a UI
-    my_img = BeamImage.open_UI()
+If you don't have an image you can load the demo image:
 
-You can calculate the flatness or symmetry directly, e.g.::
+.. code-block:: python
 
-    my_img.flatness()
-    [1.91, 2.6]  # or whatever the values are. Returns: [crossplane, inplane]
-    my_img.symmetry()
-    [3.08, 2.3]
+    my_img = FlatSym.from_demo_image()
 
-Any physicist worth their salt will want to check that the right profile has been taken however.
-This is easily done with similar methods::
+You can then calculate the flatness and symmetry with the :method:`~pylinac.flatsym.FlatSym.analyze` method:
 
-    my_img.plot_flatness()
+.. code-block:: python
 
-.. image:: images/flat_demo.png
+    my_img.analyze(flatness_method='varian', symmetry_method='varian', vert_position=0.5, horiz_position=0.5)
 
-Default behavior is to analyze both planes at the calculated center of the field, but other options exist:
+After analysis, the results can be printed, plotted, or saved to a PDF:
 
-* Individual planes can be analyzed instead of both.
-* The position of the profile can be directly passed.
-* Multiple :ref:`analysis_definitions` exist.
+.. code-block:: python
 
-.. seealso:: :meth:`~pylinac.flatsym.BeamImage.plot_flatsym()` parameters for more details.
+    print(my_img.results())  # print results
+    my_img.plot()  # matplotlib image
+    my_img.publish_pdf(filename="flatsym.pdf")  # create PDF and save to file
+
+Raw Data
+--------
+
+The raw data values of analysis are also available within the public attributes of the class:
+
+.. code-block:: python
+
+    my_img = FlatSym.from_demo_image()
+    my_img.analyze(flatness_method='varian', symmetry_method='varian')
+    my_img.symmetry['horizontal']['value']  # the actual symmetry value
+    my_img.flatness['vertical']['']
+
+Analysis Options
+----------------
+
+The flatness/symmetry algorithms can be specified as well as the position of the analysis within the image.
+See :ref:`analysis_definitions` for the common algorithms.
+
+.. code-block:: python
+
+    my_img.analyze(flatness_method='elekta', symmetry_method='point difference', vert_position=0.4, horiz_position=0.6)
+
+You can also create your own algorithms.
 
 .. _analysis_definitions:
 
@@ -78,16 +113,16 @@ or your clinic may use a specific definition. Pylinac has a number of built-in d
 
 Symmetry:
 
-* -- Name, Vendors that use it -- Equation
-* -- **Point Difference, Varian** -- :math:`100 * max(|L_{pt} - R_{pt}|)/ D_{CAX}` over 80%FW, where :math:`L_{pt}` and :math:`R_{pt}` are
+* -- **Parameter value(s), Name, Vendors that use it -- Equation**
+* -- ``varian``, ``point difference``, **Point Difference, Varian** -- :math:`100 * max(|L_{pt} - R_{pt}|)/ D_{CAX}` over 80%FW, where :math:`L_{pt}` and :math:`R_{pt}` are
   equidistant from the CAX.
-* -- **Point Difference Quotient (IEC), Elekta** -- :math:`100 * max(|L_{pt}/R_{pt}|, |R_{pt}/L_{pt}|)` over 80%FW if 10<FW<30cm [#elekta]_.
+* -- ``elekta``, ``pdq iec``, **Point Difference Quotient (IEC), Elekta** -- :math:`100 * max(|L_{pt}/R_{pt}|, |R_{pt}/L_{pt}|)` over 80%FW if 10<FW<30cm [#elekta]_.
 
 Flatness:
 
-* -- Name, Vendors that use it -- Equation
-* -- **Variation over mean (80%), Varian** -- :math:`100 * |D_{max} - D_{min}| / (D_{max} + D_{min})` within 80%FW.
-* -- **Dmax/Dmin (IEC), Elekta** -- :math:`100 * D_{max}/D_{min}` within 80%FW for 10<FW<30cm [#elekta]_.
+* -- **Parameter value(s), Name, Vendors that use it -- Equation**
+* -- ``varian``, ``vom80``, ``siemens``, **Variation over mean (80%), Varian** -- :math:`100 * |D_{max} - D_{min}| / (D_{max} + D_{min})` within 80%FW.
+* -- ``elekta``, ``iec``, **Dmax/Dmin (IEC), Elekta** -- :math:`100 * D_{max}/D_{min}` within 80%FW for 10<FW<30cm [#elekta]_.
 
 .. note:: Siemens and other definitions (e.g. Area, Area/2) will be added if the community `asks <https://github.com/jrkerns/pylinac/issues>`_ for it.
 
@@ -96,10 +131,69 @@ Flatness:
     for 30cm<FW, FW - 2*6cm. Pylinac currently only uses the 80%FW no matter the FW, but accounting for the FW will come in a future
     version.
 
+Creating & Using Custom Algorithms
+----------------------------------
+
+Custom Algorithm Structure
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The flatness/symmetry algorithms can easily be extended. All algorithms are in a module dictionary, so the required
+steps are to 1) create the custom analysis function and 2) add it to the equation dictionary.
+
+The custom algorithms must be functions and follow the below structure. All names can be changed, but the structure of
+one input and correct number and order of outputs is fixed:
+
+.. code-block:: python
+
+    def custom_flatness(profile):
+        ...
+        return flatness_value, max_value, min_value, left_edge_index, right_edge_index
+
+    def custom_symmetry(profile):
+        ...
+        return symmetry_value, symmetry_array, left_edge, right_edge
+
+While most values are easily understood the ``symmetry_array`` should be a numpy array of the symmetry value at each point,
+assuming to start at the CAX and move outward.
+
+.. note:: When creating custom algorithms, use the above for guidance. It 1) must be a function and
+          2) must have one input argument, which will be a :class:`~pylinac.core.profile.SingleProfile`.
+          Depending on whether it is a flatness or symmetry calculation the return values must follow the above
+          structure. For further examples, see the source code for the built-in equations;
+          e.g. :func:`~pylinac.flatsym.flatness_varian`.
+
+.. note:: The :class:`~pylinac.core.profile.SingleProfile`_ given to the function is very powerful and can calculate
+          numerous helpful data for you such as the field edges, minimum/maximum value within the field, and much more.
+          Read the documentation before creating a custom algorithm.
+
+.. note:: For flatness equations, if there is no ``max_value`` or ``min_value`` (e.g. area calculations) then just set
+          those values to ``0``. Additionally, if you do not want or have a ``symmetry_array`` to plot, then pass ``0`` and
+          it will not be plotted.
+
+Using Custom Algorithms
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To use the custom algorithm we must now add it to the equation dictionary using a custom name.
+The name can be anything you like that is a valid dictionary key:
+
+.. code-block:: python
+
+    from pylinac import FlatSym
+    from pylinac.flatsym import SYMMETRY_EQUATIONS, FLATNESS_EQUATIONS
+
+    def custom_flatness(profile):
+        ...
+
+    FLATNESS_EQUATIONS['my custom flatness'] = custom_flatness  # no parentheses; we don't want to call it, just assign it
+
+    my_img = FlatSym.from_demo_image()
+    my_img.analyze(flatness_method='my custom flatness', ...)  # use whatever key you defined in the equation dict
+    ...
+
 Algorithm
 ---------
 
-There is little of a true "algorithm" in ``flatsym`` other than automatic field determination. Thus, this section is more terminology and
+There is little of a true "algorithm" in ``flatsym`` other analyzing profiles. Thus, this section is more terminology and
 notekeeping.
 
 **Allowances**
@@ -112,23 +206,25 @@ notekeeping.
 
 * The module is only meant for photon analysis at the moment (there are sometimes different equations for electrons for the same
   definition name).
-* The image should be near perpendicular/normal to the image edge; this actually won't cause the module to fail, but may invalidate the
-  results' accuracy. Accounting for angle may come in a future version if the community asks for it.
+* Analysis is limited to normal/parallel directions. Thus if the image is rotated there is no way to account for it other than
+  rotating the image before analysis.
 
 **Analysis**
 
-* *Determine the profile position* - If the profile position determination is left to the automatic analysis, the row and column image sums
-  are analyzed
-  for the center of the FWHM. These then determine the location, either crossplane, inplane, or both. If the values are explicitly passed
-  in, these values are used directly (or converted from a fraction).
-* *Extract profiles* - With the positions known, profile(s) are extracted and analyzed according to the method specified (see
+* *Extract profiles* - With the positions given, profiles are extracted and analyzed according to the method specified (see
   :ref:`analysis_definitions`). For symmetry calculations that operate around the CAX, the CAX must first be determined, which is
   the center of the FWHM of the profile.
 
 API Documentation
 -----------------
 
-.. autoclass:: pylinac.flatsym.BeamImage
+.. autoclass:: pylinac.flatsym.FlatSym
     :no-show-inheritance:
 
+.. autofunction:: pylinac.flatsym.flatness_varian
 
+.. autofunction:: pylinac.flatsym.flatness_elekta
+
+.. autofunction:: pylinac.flatsym.symmetry_point_difference
+
+.. autofunction:: pylinac.flatsym.symmetry_pdq_iec

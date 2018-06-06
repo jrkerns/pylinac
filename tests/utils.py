@@ -6,8 +6,17 @@ import os.path as osp
 import pprint
 import time
 from tempfile import TemporaryDirectory
+from urllib.request import urlopen
 
 from pylinac.core import image
+
+
+def has_www_connection():
+    try:
+        with urlopen('google.com') as r:
+            return r.status == 200
+    except:
+        return False
 
 
 def save_file(method, *args, as_file_object=None, **kwargs):
