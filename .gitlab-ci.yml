@@ -27,5 +27,6 @@ coverage:
   script:
 #    - python setup.py test
     - coverage run --source=pylinac setup.py test
+    - coverage report
 
 
