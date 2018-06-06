@@ -1,20 +1,14 @@
 image: registry.gitlab.com/jrkerns/pylinac:latest
 
-variables:
-  PY34: '3.4'
-  PY35: '3.5'
-  PY36: '3.6'
+stages:
+  - test
+  - coverage
+
 
 # test script
-test-py36:
+test:
+  stage: test
   before_script:
-    # Set up conda
-#    - conda create -q -n test-environment python=3.6 numpy scipy matplotlib pip setuptools pillow pyqt scikit-image scikit-learn
-#    - source activate test-environment
-#
-#    # install deps
-#    - pip install pydicom coveralls requests jinja2 pyyaml tqdm==3.8
-
     # install your own package into the environment
     - python setup.py install
     # attempt to fix DISPLAY variable errors of matplotlib's. See: https://github.com/mwaskom/seaborn/pull/97
@@ -23,20 +17,15 @@ test-py36:
     - python setup.py test
 #    - coverage run --source=pylinac setup.py test
 
-# test script
-test-py35:
-  before_script:
-    # Set up conda
-#    - conda create -q -n test-environment python=3.5 numpy scipy matplotlib pip setuptools pillow pyqt scikit-image scikit-learn
-#    - source activate test-environment
-#
-#    # install deps
-#    - pip install pydicom coveralls requests jinja2 pyyaml tqdm==3.8
-
+coverage:
+  stage: coverage
+    before_script:
     # install your own package into the environment
     - python setup.py install
     # attempt to fix DISPLAY variable errors of matplotlib's. See: https://github.com/mwaskom/seaborn/pull/97
     - cp tests/matplotlibrc .
   script:
-    - python setup.py test
-#    - coverage run --source=pylinac setup.py test
+#    - python setup.py test
+    - coverage run --source=pylinac setup.py test
+
+
