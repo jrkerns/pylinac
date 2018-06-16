@@ -19,7 +19,6 @@ from itertools import zip_longest
 import io
 import math
 import os.path as osp
-import re
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -43,10 +42,42 @@ REFERENCE = 'Reference'
 ALL = 'All'
 
 
+class ImageManager(list):
+    """Manages the images of a Winston-Lutz test."""
+    def __init__(self, directory: str, use_filenames: bool):
+        """
+        Parameters
+        ----------
+        directory : str
+            The path to the images.
+        use_filenames: bool
+            Whether to try to use the file name to determine axis values.
+            Useful for Elekta machines that do not include that info in the DICOM data.
+        """
+        super().__init__()
+        if isinstance(directory, list):
+            for file in directory:
+                if is_dicom_image(file):
+                    img = WLImage(file, use_filenames)
+                    self.append(img)
+        elif not osp.isdir(directory):
+            raise ValueError("Invalid directory passed. Check the correct method and file was used.")
+        else:
+            image_files = image.retrieve_image_files(directory)
+            for file in image_files:
+                img = WLImage(file, use_filenames)
+                self.append(img)
+        if len(self) < 2:
+            raise ValueError("<2 valid WL images were found in the folder/file. Ensure you chose the correct folder/file for analysis")
+        # reorder list based on increasing gantry angle
+        self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
+
+
 class WinstonLutz:
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
+    images: ImageManager
 
-    def __init__(self, directory, use_filenames=False):
+    def __init__(self, directory: str, use_filenames: bool = False):
         """
         Parameters
         ----------
@@ -87,7 +118,7 @@ class WinstonLutz:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_zip(cls, zfile, use_filenames=False):
+    def from_zip(cls, zfile: str, use_filenames: bool=False):
         """Instantiate from a zip file rather than a directory.
 
         Parameters
@@ -103,7 +134,7 @@ class WinstonLutz:
         return obj
 
     @classmethod
-    def from_url(cls, url, use_filenames=False):
+    def from_url(cls, url: str, use_filenames: bool = False):
         """Instantiate from a URL.
 
         Parameters
@@ -204,14 +235,14 @@ class WinstonLutz:
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
     def axis_rms_deviation(self, axis=GANTRY, value='all'):
         """The RMS deviations of a given axis/axes.
-        
+
         Parameters
         ----------
         axis : ('Gantry', 'Collimator', 'Couch', 'Epid', 'Combo'}
             The axis desired.
         value : {'all', 'range'}
-            Whether to return all the RMS values from all images for that axis, or only return the maximum range of 
-            values, i.e. the 'sag'. 
+            Whether to return all the RMS values from all images for that axis, or only return the maximum range of
+            values, i.e. the 'sag'.
         """
         if axis != EPID:
             attr = 'bb_'
@@ -430,7 +461,7 @@ class WinstonLutz:
         plt.tight_layout()
         plt.savefig(filename, **kwargs)
 
-    def results(self):
+    def results(self) -> str:
         """Return the analysis results summary."""
         result = "\nWinston-Lutz Analysis\n" \
                  "=================================\n" \
@@ -512,41 +543,10 @@ class WinstonLutz:
         return any(True for image in self.images if image.variable_axis in (axis,))
 
 
-class ImageManager(list):
-    """Manages the images of a Winston-Lutz test."""
-    def __init__(self, directory, use_filenames):
-        """
-        Parameters
-        ----------
-        directory : str
-            The path to the images.
-        use_filenames: bool
-            Whether to try to use the file name to determine axis values.
-            Useful for Elekta machines that do not include that info in the DICOM data.
-        """
-        super().__init__()
-        if isinstance(directory, list):
-            for file in directory:
-                if is_dicom_image(file):
-                    img = WLImage(file, use_filenames)
-                    self.append(img)
-        elif not osp.isdir(directory):
-            raise ValueError("Invalid directory passed. Check the correct method and file was used.")
-        else:
-            image_files = image.retrieve_image_files(directory)
-            for file in image_files:
-                img = WLImage(file, use_filenames)
-                self.append(img)
-        if len(self) < 2:
-            raise ValueError("<2 valid WL images were found in the folder/file. Ensure you chose the correct folder/file for analysis")
-        # reorder list based on increasing gantry angle
-        self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
-
-
 class WLImage(image.LinacDicomImage):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
-    def __init__(self, file, use_filenames):
+    def __init__(self, file: str, use_filenames: bool):
         """
         Parameters
         ----------
@@ -567,7 +567,7 @@ class WLImage(image.LinacDicomImage):
     def __repr__(self):
         return "WLImage(G={0:.1f}, B={1:.1f}, P={2:.1f})".format(self.gantry_angle, self.collimator_angle, self.couch_angle)
 
-    def _clean_edges(self, window_size=2):
+    def _clean_edges(self, window_size: int=2):
         """Clean the edges of the image to be near the background level."""
         def has_noise(self, window_size):
             """Helper method to determine if there is spurious signal at any of the image edges.
@@ -613,7 +613,7 @@ class WLImage(image.LinacDicomImage):
         p = Point(x=coords[-1], y=coords[0])
         return p, edges
 
-    def _find_bb(self):
+    def _find_bb(self) -> Point:
         """Find the BB within the radiation field. Iteratively searches for a circle-like object
         by lowering a low-pass threshold value until found.
 
@@ -659,43 +659,43 @@ class WLImage(image.LinacDicomImage):
         return Point(x_com, y_com)
 
     @property
-    def epid(self):
+    def epid(self) -> Point:
         """Center of the EPID panel"""
         return self.center
 
     @property
-    def epid_y_offset(self):
+    def epid_y_offset(self) -> float:
         """The offset or distance between the field CAX and EPID in the y-direction (AP)."""
         return -sin(self.gantry_angle) * self.cax2epid_vector.x
 
     @property
-    def bb_y_offset(self):
+    def bb_y_offset(self) -> float:
         """The offset or distance between the field CAX and BB in the y-direction (AP)."""
         return -sin(self.gantry_angle) * self.cax2bb_vector.x
 
     @property
-    def epid_x_offset(self):
+    def epid_x_offset(self) -> float:
         """The offset or distance between the field CAX and EPID in the x-direction (LR)."""
         return cos(self.gantry_angle) * self.cax2epid_vector.x
 
     @property
-    def bb_x_offset(self):
+    def bb_x_offset(self) -> float:
         """The offset or distance between the field CAX and BB in the x-direction (LR)."""
         return cos(self.gantry_angle) * self.cax2bb_vector.x
 
     @property
-    def epid_z_offset(self):
+    def epid_z_offset(self) -> float:
         """The offset or distance between the field CAX and EPID in z-direction (SI)."""
         if is_close(self.couch_angle, [0, 360], delta=2):
             return -self.cax2epid_vector.y
 
     @property
-    def bb_z_offset(self):
+    def bb_z_offset(self) -> float:
         """The offset or distance between the field CAX and BB in z-direction (SI)."""
         return -self.cax2bb_vector.y
 
     @property
-    def cax_line_projection(self):
+    def cax_line_projection(self) -> Line:
         """The projection of the field CAX through space around the area of the BB.
         Used for determining gantry isocenter size.
 
@@ -718,7 +718,7 @@ class WLImage(image.LinacDicomImage):
         return l
 
     @property
-    def cax2bb_vector(self):
+    def cax2bb_vector(self) -> Vector:
         """The vector in mm from the CAX to the BB."""
         dist = (self.bb - self.field_cax) / self.dpmm
         # translate vector by couch angle
@@ -728,24 +728,24 @@ class WLImage(image.LinacDicomImage):
         return Vector(new_x, new_y, dist.z)
 
     @property
-    def cax2bb_vector3d(self):
+    def cax2bb_vector3d(self) -> Vector:
         """The vector in mm from the CAX to the BB."""
         return Vector(self.bb_x_offset, self.bb_y_offset, self.bb_z_offset)
 
     @property
-    def cax2epid_vector(self):
+    def cax2epid_vector(self) -> Vector:
         """The vector in mm from the CAX to the EPID center pixel"""
         dist = (self.epid - self.field_cax) / self.dpmm
         return Vector(dist.x, dist.y, dist.z)
 
     @property
-    def cax2bb_distance(self):
+    def cax2bb_distance(self) -> float:
         """The scalar distance in mm from the CAX to the BB."""
         dist = self.field_cax.distance_to(self.bb)
         return dist / self.dpmm
 
     @property
-    def cax2epid_distance(self):
+    def cax2epid_distance(self) -> float:
         """The scalar distance in mm from the CAX to the EPID center pixel"""
         return self.field_cax.distance_to(self.epid) / self.dpmm
 
@@ -777,7 +777,7 @@ class WLImage(image.LinacDicomImage):
             plt.show()
         return ax
 
-    def save_plot(self, filename, **kwargs):
+    def save_plot(self, filename: str, **kwargs):
         """Save the image plot to file."""
         self.plot(show=False)
         plt.savefig(filename, **kwargs)
@@ -809,7 +809,7 @@ class WLImage(image.LinacDicomImage):
             return COMBO
 
 
-def is_symmetric(logical_array):
+def is_symmetric(logical_array: np.array) -> bool:
     """Whether the binary object's dimensions are symmetric, i.e. a perfect circle. Used to find the BB."""
     ymin, ymax, xmin, xmax = bounding_box(logical_array)
     y = abs(ymax - ymin)
@@ -819,14 +819,14 @@ def is_symmetric(logical_array):
     return True
 
 
-def is_modest_size(logical_array, field_bounding_box):
+def is_modest_size(logical_array: np.array, field_bounding_box) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
     bbox = field_bounding_box
     rad_field_area = (bbox[1] - bbox[0]) * (bbox[3] - bbox[2])
     return rad_field_area * 0.003 < np.sum(logical_array) < rad_field_area * 0.3
 
 
-def is_round(logical_array):
+def is_round(logical_array: np.array) -> bool:
     """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
     expected_fill_ratio = np.pi / 4
     actual_fill_ratio = filled_area_ratio(logical_array)

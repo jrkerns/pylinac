@@ -3,6 +3,25 @@
 Changelog
 =========
 
+V 2.2.0
+-------
+
+VMAT
+^^^^
+
+* The overall simplicity of use has been increased by automating & removing several parameters.
+* The ``VMAT`` class has been split into two classes: ``DRGS`` and ``DRMLC``. Although there are now two classes
+  instead of one, the overall simplicity has been increased, like the following:
+  * The ``test`` parameter in ``analyze()`` is no longer required and has been removed.
+  * The ``type`` is no longer required in ``.from_demo_images()``.
+  * The demo method matches the other modules: ``.run_demo()``
+  * All naming conventions have been deprecated.
+* The ``x_offset`` parameter has been removed. The x-position is now based on the FWHM of the DMLC field itself.
+  This means the x-position is dynamic and automatic.
+* The ``delivery_types`` parameter has been removed. The delivery types of the images are now automatically determined.
+* The methods for plotting and saving subimages (each image & the profiles) has been converted to a private method
+  (``_plot_subimage()``, ...). There is little need for a public method to plot individually.
+
 V 2.1.0
 -------
 
