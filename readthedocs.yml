@@ -1,5 +1,4 @@
 python:
   version: 3.6
 
-conda:
-  file: rtdconda.yml
+requirements_file: requirements.txt
