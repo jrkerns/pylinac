@@ -137,26 +137,26 @@ Class-based Use
 API Documentation
 -----------------
 
-.. autofunction:: pylinac.tg51.p_tp
+.. autofunction:: pylinac.calibration.tg51.p_tp
 
-.. autofunction:: pylinac.tg51.p_pol
+.. autofunction:: pylinac.calibration.tg51.p_pol
 
-.. autofunction:: pylinac.tg51.p_ion
+.. autofunction:: pylinac.calibration.tg51.p_ion
 
-.. autofunction:: pylinac.tg51.d_ref
+.. autofunction:: pylinac.calibration.tg51.d_ref
 
-.. autofunction:: pylinac.tg51.r_50
+.. autofunction:: pylinac.calibration.tg51.r_50
 
-.. autofunction:: pylinac.tg51.kp_r50
+.. autofunction:: pylinac.calibration.tg51.kp_r50
 
-.. autofunction:: pylinac.tg51.pq_gr
+.. autofunction:: pylinac.calibration.tg51.pq_gr
 
-.. autofunction:: pylinac.tg51.m_corrected
+.. autofunction:: pylinac.calibration.tg51.m_corrected
 
-.. autofunction:: pylinac.tg51.pddx
+.. autofunction:: pylinac.calibration.tg51.pddx
 
-.. autofunction:: pylinac.tg51.kq
+.. autofunction:: pylinac.calibration.tg51.kq
 
-.. autoclass:: pylinac.tg51.TG51Photon
+.. autoclass:: pylinac.calibration.tg51.TG51Photon
 
-.. autoclass:: pylinac.tg51.TG51Electron
+.. autoclass:: pylinac.calibration.tg51.TG51Electron

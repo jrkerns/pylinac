@@ -11,10 +11,9 @@ and the class will compute all corrections and corrected readings and dose at 10
 from datetime import datetime
 
 import numpy as np
-from reportlab.lib.units import cm
 
-from .core.utilities import Structure
-from .core import pdf
+from ..core.utilities import Structure, open_path
+from ..core.pdf import PylinacCanvas
 
 
 CHAMBERS_PHOTONS = {
@@ -88,7 +87,7 @@ CHAMBERS_ELECTRONS = {
 }
 
 
-def p_tp(temp=22, press=760):
+def p_tp(*, temp=22, press=760):
     """Calculate the temperature & pressure correction.
 
     Parameters
@@ -101,7 +100,7 @@ def p_tp(temp=22, press=760):
     return (760/press)*((273.2+temp)/295.2)
 
 
-def p_pol(m_reference=(1, 2), m_opposite=(-3, -4)):
+def p_pol(*, m_reference=(1, 2), m_opposite=(-3, -4)):
     """Calculate the polarity correction.
 
     Parameters
@@ -122,7 +121,7 @@ def p_pol(m_reference=(1, 2), m_opposite=(-3, -4)):
     return (mref_avg - mopp_avg)/(2*mref_avg)
 
 
-def p_ion(volt_high=300, volt_low=150, m_high=(1, 2), m_low=(3, 4)):
+def p_ion(*, volt_high=300, volt_low=150, m_high=(1, 2), m_low=(3, 4)):
     """Calculate the ion chamber collection correction.
 
     Parameters
@@ -139,7 +138,7 @@ def p_ion(volt_high=300, volt_low=150, m_high=(1, 2), m_low=(3, 4)):
     return (1 - volt_high/volt_low)/(np.mean(m_high)/np.mean(m_low) - volt_high/volt_low)
 
 
-def d_ref(i_50):
+def d_ref(*, i_50):
     """Calculate the dref of an electron beam based on the I50 depth.
 
     Parameters
@@ -151,7 +150,7 @@ def d_ref(i_50):
     return 0.6*r50-0.1
 
 
-def r_50(i_50):
+def r_50(*, i_50):
     """Calculate the R50 depth of an electron beam based on the I50 depth.
 
     Parameters
@@ -166,7 +165,7 @@ def r_50(i_50):
     return r50
 
 
-def kp_r50(r_50):
+def kp_r50(*, r_50):
     """Calculate k'R50 for Farmer-like chambers.
 
     Parameters
@@ -179,7 +178,7 @@ def kp_r50(r_50):
     return 0.9905+0.071*np.exp(-r_50/3.67)
 
 
-def pq_gr(m_dref_plus=(1, 2), m_dref=(3, 4)):
+def pq_gr(*, m_dref_plus=(1, 2), m_dref=(3, 4)):
     """Calculate PQ_gradient for a cylindrical chamber.
 
     Parameters
@@ -192,7 +191,7 @@ def pq_gr(m_dref_plus=(1, 2), m_dref=(3, 4)):
     return np.mean(m_dref_plus) / np.mean(m_dref)
 
 
-def m_corrected(p_ion=1.0, p_tp=1.0, p_elec=1.0, p_pol=1.0, m_raw=(1.1, 2.2)):
+def m_corrected(*, p_ion=1.0, p_tp=1.0, p_elec=1.0, p_pol=1.0, m_raw=(1.1, 2.2)):
     """Calculate M_corrected, the ion chamber reading with all corrections applied.
 
     Parameters
@@ -215,7 +214,7 @@ def m_corrected(p_ion=1.0, p_tp=1.0, p_elec=1.0, p_pol=1.0, m_raw=(1.1, 2.2)):
     return p_ion*p_tp*p_elec*p_pol*np.mean(m_raw)
 
 
-def pddx(pdd=66.4, energy=6, lead_foil=None):
+def pddx(*, pdd=66.4, energy=6, lead_foil=None):
     """Calculate PDDx based on the PDD.
 
     Parameters
@@ -248,7 +247,7 @@ def pddx(pdd=66.4, energy=6, lead_foil=None):
                 return (0.8116+0.00264*pdd)*pdd
 
 
-def kq(model='30010', pddx=None, tpr=None, r_50=None):
+def kq(*, model='30010', pddx=None, tpr=None, r_50=None):
     """Calculate kQ based on the model and clinical measurements. This will calculate kQ for both photons and electrons 
     for *CYLINDRICAL* chambers only.
 
@@ -366,7 +365,7 @@ class TG51Photon(TG51Base):
         Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
     """
 
-    def __init__(self,
+    def __init__(self, *,
                  institution='',
                  physicist='',
                  unit='',
@@ -427,7 +426,7 @@ class TG51Photon(TG51Base):
         """The dose/mu at dmax depth after adjustment."""
         return self.adjusted_dose_mu_10/(self.clinical_pdd/100)
 
-    def publish_pdf(self, filename, notes=None, open_file=False):
+    def publish_pdf(self, filename, notes=None, open_file=False, metadata=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -443,61 +442,65 @@ class TG51Photon(TG51Base):
         if self.fff:
             title += ' FFF'
 
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title=title)
-        text = ['Site Data:',
-                'Institution: {}'.format(self.institution),
-                'Performed by: {}'.format(self.physicist),
-                'Measurement Date: {}'.format(self.measurement_date),
-                'Date of Report: {}'.format(datetime.now().strftime("%A, %B %d, %Y")),
-                'Unit: {}'.format(self.unit),
-                'Energy: {} MV {}'.format(self.energy, 'FFF' if self.fff else ''),
-                '',
-                'Instrumentation:',
-                'Chamber model: {}'.format(self.model),
-                'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
-                'Electrometer: {}'.format(self.electrometer),
-                'Pelec: {:2.2f}'.format(self.p_elec),
-                'MU: {}'.format(self.mu),
-                '',
-                'Beam Quality:',
-                'Lead foil used?: {}'.format('No' if self.lead_foil is None else self.lead_foil),
-                'Measured %dd(10) (this is %dd(10)Pb if lead was used): {:2.2f}'.format(self.measured_pdd),
-                'Calculated %dd(10)x: {:2.2f}'.format(self.pddx),
-                'Determined kQ: {:2.3f}'.format(self.kq),
-                '',
-                'Chamber Corrections/Measurements:',
-                'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
-                'Pressure (mmHg): {:2.1f}'.format(self.press),
-                'Ptp: {:2.3f}'.format(self.p_tp),
-                'Reference voltage (V): {}'.format(self.volt_high),
-                'Mraw @ reference voltage (nC): {}'.format(self.m_raw),
-                '"Lower" voltage (V): {}'.format(self.volt_low),
-                'Mraw @ "lower" voltage (nC): {}'.format(self.m_low),
-                'Opposite voltage (V): {}'.format(-self.volt_high),
-                'Mraw @ opposite voltage (nC): {}'.format(self.m_opp),
-                'Pion: {:2.3f}'.format(self.p_ion),
-                'Ppol: {:2.3f}'.format(self.p_pol),
-                '',
-                'Dose Determination:',
-                'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
-                'Tissue correction (e.g. muscle): {:2.3f}'.format(self.tissue_correction),
-                'Dose/MU @ 10cm depth (cGy): {:2.3f}'.format(self.dose_mu_10),
-                'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd),
-                'Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax),
-                '',
-                'Output Adjustment?: {}'.format(was_adjusted),
-                ]
+        canvas = PylinacCanvas(filename, page_title=title, metadata=metadata)
+        text = [
+            'Site Data:',
+            'Institution: {}'.format(self.institution),
+            'Performed by: {}'.format(self.physicist),
+            'Measurement Date: {}'.format(self.measurement_date),
+            'Date of Report: {}'.format(datetime.now().strftime("%A, %B %d, %Y")),
+            'Unit: {}'.format(self.unit),
+            'Energy: {} MV {}'.format(self.energy, 'FFF' if self.fff else ''),
+            '',
+            'Instrumentation:',
+            'Chamber model: {}'.format(self.model),
+            'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
+            'Electrometer: {}'.format(self.electrometer),
+            'Pelec: {:2.2f}'.format(self.p_elec),
+            'MU: {}'.format(self.mu),
+            '',
+            'Beam Quality:',
+            'Lead foil used?: {}'.format('No' if self.lead_foil is None else self.lead_foil),
+            'Measured %dd(10) (this is %dd(10)Pb if lead was used): {:2.2f}'.format(self.measured_pdd),
+            'Calculated %dd(10)x: {:2.2f}'.format(self.pddx),
+            'Determined kQ: {:2.3f}'.format(self.kq),
+            '',
+            'Chamber Corrections/Measurements:',
+            'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
+            'Pressure (mmHg): {:2.1f}'.format(self.press),
+            'Ptp: {:2.3f}'.format(self.p_tp),
+            'Reference voltage (V): {}'.format(self.volt_high),
+            'Mraw @ reference voltage (nC): {}'.format(self.m_raw),
+            '"Lower" voltage (V): {}'.format(self.volt_low),
+            'Mraw @ "lower" voltage (nC): {}'.format(self.m_low),
+            'Opposite voltage (V): {}'.format(-self.volt_high),
+            'Mraw @ opposite voltage (nC): {}'.format(self.m_opp),
+            'Pion: {:2.3f}'.format(self.p_ion),
+            'Ppol: {:2.3f}'.format(self.p_pol),
+            '',
+            'Dose Determination:',
+            'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
+            'Tissue correction (e.g. muscle): {:2.3f}'.format(self.tissue_correction),
+            'Dose/MU @ 10cm depth (cGy): {:2.3f}'.format(self.dose_mu_10),
+            'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd),
+            'Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax),
+            '',
+            'Output Adjustment?: {}'.format(was_adjusted),
+        ]
         if was_adjusted == 'Yes':
             text.append('Adjusted Mraw @ reference voltage (nC): {}'.format(self.adjusted_m_raw))
             text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.adjusted_m_corrected))
             text.append('Adjusted Dose/MU @ 10cm depth (cGy): {:2.3f}'.format(self.adjusted_dose_mu_10))
             text.append('Adjusted Dose/MU @ dmax (cGy): {:2.3f}'.format(self.adjusted_dose_mu_dmax))
-        pdf.draw_text(canvas, x=2 * cm, y=25.5 * cm, fontsize=12,
-                      text=text)
+        canvas.add_text(text=text, location=(2, 25.5), font_size=12)
         if notes is not None:
-            pdf.draw_text(canvas, x=12 * cm, y=6.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=12 * cm, y=6 * cm, text=notes)
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+            canvas.add_text(text="Notes:", location=(12, 6.5), font_size=14)
+            canvas.add_text(text=notes, location=(12, 6))
+
+        canvas.finish()
+
+        if open_file:
+            open_path(filename)
 
 
 class TG51Electron(TG51Base):
@@ -526,7 +529,7 @@ class TG51Electron(TG51Base):
         Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
     """
 
-    def __init__(self,
+    def __init__(self, *,
                  institution='',
                  physicist='',
                  unit='',
@@ -592,7 +595,7 @@ class TG51Electron(TG51Base):
         """cGy/MU at the depth of dmax."""
         return self.adjusted_dose_mu_dref / (self.clinical_pdd / 100)
 
-    def publish_pdf(self, filename, notes=None):
+    def publish_pdf(self, filename, notes=None, open_file=False, metadata=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -606,61 +609,64 @@ class TG51Electron(TG51Base):
         was_adjusted = 'Yes' if self.output_was_adjusted else 'No'
         title = 'TG-51 Electron Report - {} MeV'.format(self.energy)
 
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title=title)
-        text = ['Site Data:',
-                'Institution: {}'.format(self.institution),
-                'Performed by: {}'.format(self.physicist),
-                'Measurement Date: {}'.format(self.measurement_date),
-                'Date of Report: {}'.format(datetime.now().strftime("%A, %B %d, %Y")),
-                'Unit: {}'.format(self.unit),
-                'Energy: {} MeV'.format(self.energy),
-                'Cone: {}'.format(self.cone),
-                'MU: {}'.format(self.mu),
-                '',
-                'Instrumentation:',
-                'Chamber model: {}'.format(self.model),
-                'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
-                'Electrometer: {}'.format(self.electrometer),
-                'Pelec: {:2.2f}'.format(self.p_elec),
-                '',
-                'Beam Quality:',
-                'I50 (cm): {:2.2f}'.format(self.i_50),
-                'R50 (cm): {:2.2f}'.format(self.r_50),
-                'Dref (cm): {:2.2f}'.format(self.dref),
-                "kQ: {:2.3f}".format(self.kq),
-                '',
-                'Chamber Corrections/Measurements:',
-                'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
-                'Pressure (mmHg): {:2.1f}'.format(self.press),
-                'Ptp: {:2.3f}'.format(self.p_tp),
-                'Reference voltage (V): {}'.format(self.volt_high),
-                'Mraw @ reference voltage (nC): {}'.format(self.m_raw),
-                '"Lower" voltage (V): {}'.format(self.volt_low),
-                'Mraw @ "lower" voltage (nC): {}'.format(self.m_low),
-                'Opposite voltage (V): {}'.format(-self.volt_high),
-                'Mraw @ opposite voltage (nC): {}'.format(self.m_opp),
-                'Pion: {:2.3f}'.format(self.p_ion),
-                'Ppol: {:2.3f}'.format(self.p_pol),
-                'Mraw @ Dref + 0.5rcav (nC): {}'.format(self.m_plus),
-                '',
-                'Dose Determination:',
-                'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
-                'Tissue correction (e.g. muscle): {:2.3f}'.format(self.tissue_correction),
-                'Dose/MU @ Dref depth (cGy): {:2.3f}'.format(self.dose_mu_dref),
-                'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd),
-                'Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax),
-                '',
-                'Output Adjustment?: {}'.format(was_adjusted),
-                ]
+        canvas = PylinacCanvas(filename, page_title=title, metadata=metadata)
+        text = [
+            'Site Data:',
+            'Institution: {}'.format(self.institution),
+            'Performed by: {}'.format(self.physicist),
+            'Measurement Date: {}'.format(self.measurement_date),
+            'Date of Report: {}'.format(datetime.now().strftime("%A, %B %d, %Y")),
+            'Unit: {}'.format(self.unit),
+            'Energy: {} MeV'.format(self.energy),
+            'Cone: {}'.format(self.cone),
+            'MU: {}'.format(self.mu),
+            '',
+            'Instrumentation:',
+            'Chamber model: {}'.format(self.model),
+            'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
+            'Electrometer: {}'.format(self.electrometer),
+            'Pelec: {:2.2f}'.format(self.p_elec),
+            '',
+            'Beam Quality:',
+            'I50 (cm): {:2.2f}'.format(self.i_50),
+            'R50 (cm): {:2.2f}'.format(self.r_50),
+            'Dref (cm): {:2.2f}'.format(self.dref),
+            "kQ: {:2.3f}".format(self.kq),
+            '',
+            'Chamber Corrections/Measurements:',
+            'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
+            'Pressure (mmHg): {:2.1f}'.format(self.press),
+            'Ptp: {:2.3f}'.format(self.p_tp),
+            'Reference voltage (V): {}'.format(self.volt_high),
+            'Mraw @ reference voltage (nC): {}'.format(self.m_raw),
+            '"Lower" voltage (V): {}'.format(self.volt_low),
+            'Mraw @ "lower" voltage (nC): {}'.format(self.m_low),
+            'Opposite voltage (V): {}'.format(-self.volt_high),
+            'Mraw @ opposite voltage (nC): {}'.format(self.m_opp),
+            'Pion: {:2.3f}'.format(self.p_ion),
+            'Ppol: {:2.3f}'.format(self.p_pol),
+            'Mraw @ Dref + 0.5rcav (nC): {}'.format(self.m_plus),
+            '',
+            'Dose Determination:',
+            'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
+            'Tissue correction (e.g. muscle): {:2.3f}'.format(self.tissue_correction),
+            'Dose/MU @ Dref depth (cGy): {:2.3f}'.format(self.dose_mu_dref),
+            'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd),
+            'Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax),
+            '',
+            'Output Adjustment?: {}'.format(was_adjusted),
+        ]
         if was_adjusted == 'Yes':
             text.append('Adjusted corrected M @ reference voltage (nC): {}'.format(self.adjusted_m_corrected))
             text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.adjusted_m_corrected))
             text.append('Adjusted Dose/MU @ dref depth (cGy): {:2.3f}'.format(self.adjusted_dose_mu_dref))
             text.append('Adjusted Dose/MU @ dmax (cGy): {:2.3f}'.format(self.adjusted_dose_mu_dmax))
-        pdf.draw_text(canvas, x=2 * cm, y=25.5 * cm, fontsize=11,
-                      text=text)
+        canvas.add_text(text=text, location=(2, 25.5), font_size=11)
         if notes is not None:
-            pdf.draw_text(canvas, x=12 * cm, y=6.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=12 * cm, y=6 * cm, text=notes)
-        canvas.showPage()
-        canvas.save()
+            canvas.add_text(text="Notes:", location=(12, 6.5), font_size=14)
+            canvas.add_text(text=notes, location=(12, 6))
+
+        canvas.finish()
+
+        if open_file:
+            open_path(filename)
