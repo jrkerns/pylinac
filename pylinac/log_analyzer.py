@@ -439,9 +439,9 @@ class FluenceBase:
          """
         height = MLC_FOV_HEIGHT_MM if not self._mlc.hdmlc else HDMLC_FOV_HEIGHT_MM
         if equal_aspect:
-            fluence = np.zeros((int(height/resolution), int(MLC_FOV_WIDTH_MM/resolution)), dtype=np.float16)
+            fluence = np.zeros((int(height/resolution), int(MLC_FOV_WIDTH_MM/resolution)), dtype=np.float)
         else:
-            fluence = np.zeros((self._mlc.num_pairs, int(MLC_FOV_WIDTH_MM / resolution)), dtype=np.float16)
+            fluence = np.zeros((self._mlc.num_pairs, int(MLC_FOV_WIDTH_MM / resolution)), dtype=np.float)
 
         self.array = fluence
         self.resolution = resolution
@@ -518,6 +518,9 @@ class FluenceBase:
                     fluence[width[0]:width[1], :] = np.tile(fluence_line, [width[1] - width[0], 1])
                 else:
                     fluence[pair - 1, :] = fluence_line
+
+        # extend to the max MU; for dynalogs this is 1 since it's relative. For Tlogs, it's the absolute MU.
+        fluence *= np.max(mu_matrix)
 
         return fluence
 
