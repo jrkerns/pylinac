@@ -22,7 +22,7 @@ from pylinac.core.io import retrieve_demo_file, is_dicom_image
 from pylinac.core.image import prepare_for_classification, DicomImage
 from pylinac.core import schedule
 
-from pylinac import VMAT, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log, LasVegas
+from pylinac import DRMLC, DRGS, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log, LasVegas
 from pylinac.log_analyzer import IMAGING
 
 logger = logging.getLogger("pylinac")
