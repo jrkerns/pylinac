@@ -314,7 +314,7 @@ class PicketFence:
 
         # generate a leaf error subplot if desired
         if leaf_error_subplot:
-            self._add_leaf_error_subplot(ax, fig)
+            self._add_leaf_error_subplot(ax)
 
         # plot guard rails and mlc peaks as desired
         for p_num, picket in enumerate(self.pickets):
