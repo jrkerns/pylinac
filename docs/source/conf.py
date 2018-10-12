@@ -40,7 +40,7 @@ extensions = [
 ]
 
 # put mock objects here
-autodoc_mock_imports = ['_tkinter']
+autodoc_mock_imports = ['_tkinter', 'tkinter']
 
 autoclass_content = 'both'
 autodoc_default_flags = ['show-inheritance', 'members'

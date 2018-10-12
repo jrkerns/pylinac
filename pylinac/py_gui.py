@@ -1,6 +1,6 @@
 import itertools
-from tkinter import *
-from tkinter.ttk import *
+from tkinter import Label, Button, StringVar, BooleanVar, DoubleVar, IntVar, Checkbutton, Tk
+from tkinter.ttk import Frame, Notebook, Combobox, Entry
 from tkinter import filedialog
 from tkinter import messagebox
 import os.path as osp
