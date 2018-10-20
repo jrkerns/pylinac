@@ -1,6 +1,7 @@
 Version Release Checklist
 
 - Run tests: tests/_test_all.py
+- See if anything needs amending in the GUI or in the watcher since those are hard to test.
 - Increment version number in:
     - setup.py,
     - pylinac/__init__.py
