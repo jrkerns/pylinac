@@ -11,14 +11,13 @@ Features:
 import copy
 from functools import lru_cache
 import io
-import os.path as osp
 
 import matplotlib.pyplot as plt
 import numpy as np
-from reportlab.lib.units import cm
 from scipy.interpolate.interpolate import interp1d
 from skimage import feature, measure
 
+from .core.utilities import open_path
 from .core import image
 from .core.geometry import Point
 from .core.io import get_url, retrieve_demo_file
@@ -313,43 +312,44 @@ class LasVegas(ImagePhantomBase):
             self._phantom_ski_region = regions[phantom_idx]
             return regions[phantom_idx]
 
-    def publish_pdf(self, filename=None, author=None, unit=None, notes=None, open_file=False):
-        """Publish a PDF report of the analyzed phantom. The report includes basic
-        file information, the image and determined ROIs, and contrast and MTF plots.
+    def publish_pdf(self, filename, notes=None, open_file=False, metadata=None):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
         ----------
-        filename : str
-            The path and/or filename to save the PDF report as; must end in ".pdf".
-        author : str, optional
-            The person who analyzed the image.
-        unit : str, optional
-            The machine unit name or other identifier (e.g. serial number).
-        notes : str, list of strings, optional
-            If a string, adds it as a line of text in the PDf report.
-            If a list of strings, each string item is printed on its own line. Useful for writing multiple sentences.
+        filename : (str, file-like object}
+            The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
-        if filename is None:
-            filename = self.image.pdf_path
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title='Las Vegas Analysis',
-                                                  author=author, unit=unit, file_name=osp.basename(self.image.path),
-                                                  file_created=self.image.date_created())
-        for (img, lo), (w, l) in zip(((True, False), (False, True)),
-                                         ((5, 12), (5, 2))):
+        canvas = pdf.PylinacCanvas(filename, page_title='Las Vegas Analysis', metadata=metadata)
+        for (img, lo), (w, l) in zip(((True, False), (False, True)), ((5, 12), (5, 2))):
             data = io.BytesIO()
             self.save_analyzed_image(data, image=img, low_contrast=lo)
-            img = pdf.create_stream_image(data)
-            canvas.drawImage(img, w * cm, l * cm, width=13 * cm, height=13 * cm, preserveAspectRatio=True)
+            canvas.add_image(data, location=(w, l), dimensions=(13, 13))
         text = ['Las Vegas results:',
                 'Median Contrast: {:2.2f}'.format(np.median([roi.contrast for roi in self.lc_rois])),
                 'Median CNR: {:2.1f}'.format(np.median([roi.contrast_to_noise for roi in self.lc_rois])),
                 'ROIs "seen": {:2.0f}'.format(sum(roi.passed_contrast_constant for roi in self.lc_rois)),
                 ]
-        pdf.draw_text(canvas, x=10 * cm, y=24.5 * cm, text=text)
+        canvas.add_text(text=text, location=(10, 24.5))
         if notes is not None:
-            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 5))
+
+        canvas.finish()
+        if open_file:
+            open_path(filename)
 
 
 class StandardImagingQC3(ImagePhantomBase):
@@ -399,44 +399,46 @@ class StandardImagingQC3(ImagePhantomBase):
         self.lc_ref_rois, self.lc_rois = self._low_contrast()
         self.hc_rois = self._high_contrast()
 
-    def publish_pdf(self, filename=None, author=None, unit=None, notes=None, open_file=False):
-        """Publish a PDF report of the analyzed phantom. The report includes basic
-        file information, the image and determined ROIs, and contrast and MTF plots.
+    def publish_pdf(self, filename=None, notes=None, open_file=False, metadata=None):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
         ----------
-        filename : str
-            The path and/or filename to save the PDF report as; must end in ".pdf".
-        author : str, optional
-            The person who analyzed the image.
-        unit : str, optional
-            The machine unit name or other identifier (e.g. serial number).
-        notes : str, list of strings, optional
-            If a string, adds it as a line of text in the PDf report.
-            If a list of strings, each string item is printed on its own line. Useful for writing multiple sentences.
+        filename : (str, file-like object}
+            The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
-        if filename is None:
-            filename = self.image.pdf_path
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title='QC-3 Analysis',
-                                                  author=author, unit=unit, file_name=osp.basename(self.image.path),
-                                                  file_created=self.image.date_created())
+        canvas = pdf.PylinacCanvas(filename, page_title='QC-3 Analysis', metadata=metadata)
         for (img, lo, hi), (w, l) in zip(((True, False, False), (False, True, False), (False, False, True)),
                                          ((5, 12), (1, 4), (11, 4))):
             data = io.BytesIO()
-            self.save_analyzed_image(data, image=img, low_contrast=lo, high_contrast=hi)
-            img = pdf.create_stream_image(data)
-            canvas.drawImage(img, w * cm, l * cm, width=10 * cm, height=10 * cm, preserveAspectRatio=True)
+            self.save_analyzed_image(data, image=img, low_contrast=lo)
+            canvas.add_image(data, location=(w, l), dimensions=(13, 13))
         text = ['QC-3 results:',
                 'MTF 80% (lp/mm): {:2.2f}'.format(self._mtf(80)),
                 'MTF 50% (lp/mm): {:2.2f}'.format(self._mtf(50)),
                 'Median Contrast: {:2.2f}'.format(np.median([roi.contrast for roi in self.lc_rois])),
                 'Median CNR: {:2.1f}'.format(np.median([roi.contrast_to_noise for roi in self.lc_rois])),
                 ]
-        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm, text=text)
+        canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:
-            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 5))
+
+        canvas.finish()
+        if open_file:
+            open_path(filename)
 
     def plot_analyzed_image(self, image=True, low_contrast=True, high_contrast=True, show=True):
         """Plot the analyzed image.
@@ -880,40 +882,42 @@ class LeedsTOR(ImagePhantomBase):
         if show:
             plt.show()
 
-    def publish_pdf(self, filename=None, author=None, unit=None, notes=None, open_file=False):
-        """Publish a PDF report of the analyzed phantom. The report includes basic
-        file information, the image and determined ROIs, and contrast and MTF plots.
+    def publish_pdf(self, filename=None, notes=None, open_file=False, metadata=None):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
         ----------
-        filename : str
-            The path and/or filename to save the PDF report as; must end in ".pdf".
-        author : str, optional
-            The person who analyzed the image.
-        unit : str, optional
-            The machine unit name or other identifier (e.g. serial number).
-        notes : str, list of strings, optional
-            If a string, adds it as a line of text in the PDf report.
-            If a list of strings, each string item is printed on its own line. Useful for writing multiple sentences.
+        filename : (str, file-like object}
+            The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
-        if filename is None:
-            filename = self.image.pdf_path
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title='Leeds TOR18 Analysis',
-                                                  author=author, unit=unit, file_name=osp.basename(self.image.path),
-                                                  file_created=self.image.date_created())
+        canvas = pdf.PylinacCanvas(filename, page_title='Leeds TOR-18 Analysis', metadata=metadata)
         for (img, lo, hi), (w, l) in zip(((True, False, False), (False, True, False), (False, False, True)),
                                          ((5, 12), (1, 4), (11, 4))):
             data = io.BytesIO()
-            self.save_analyzed_image(data, image=img, low_contrast=lo, high_contrast=hi)
-            img = pdf.create_stream_image(data)
-            canvas.drawImage(img, w * cm, l * cm, width=10 * cm, height=10 * cm, preserveAspectRatio=True)
+            self.save_analyzed_image(data, image=img, low_contrast=lo)
+            canvas.add_image(data, location=(w, l), dimensions=(10, 10))
         text = ['Leeds TOR18 results:',
                 'MTF 80% (lp/mm): {:2.2f}'.format(self._mtf(80)),
                 'Median Contrast: {:2.2f}'.format(np.median([roi.contrast for roi in self.lc_rois])),
                 'Median CNR: {:2.1f}'.format(np.median([roi.contrast_to_noise for roi in self.lc_rois])),
                 ]
-        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm, text=text)
+        canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:
-            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 5))
+
+        canvas.finish()
+        if open_file:
+            open_path(filename)

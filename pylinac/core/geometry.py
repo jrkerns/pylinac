@@ -1,7 +1,7 @@
 """Module for classes that represent common geometric objects or patterns."""
 from itertools import zip_longest
 import math
-from typing import Union, Optional, List, Iterable
+from typing import Union, Optional, List, Iterable, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -332,7 +332,7 @@ class Rectangle:
     _as_int: bool
     center: Point
 
-    def __init__(self, width: float, height: float, center: Point, as_int: bool=False):
+    def __init__(self, width: float, height: float, center: Union[Point, Tuple], as_int: bool=False):
         """
         Parameters
         ----------

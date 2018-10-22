@@ -5,6 +5,7 @@ from typing import Tuple
 
 import matplotlib.pyplot as plt
 
+from pylinac.core.utilities import open_path
 from .core.exceptions import NotAnalyzed
 from .core.io import retrieve_demo_file
 from .core.image import LinacDicomImage
@@ -194,26 +195,29 @@ class FlatSym(LinacDicomImage):
             },
         }
 
-    def publish_pdf(self, filename: str, author: str=None, unit: str=None, open_file: bool=False):
-        """Publish a PDF file with the results and plots of the data.
+    def publish_pdf(self, filename: str, open_file: bool=False, metadata: dict=None):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
         ----------
-        filename : str
-            The path to save the PDF to. E.g. "path/to/flatsym.pdf".
-        author : str, optional
-            If passed, will list the author; e.g. "James Kerns, Ph.D."
-        unit : str, optional
-            If passed, wil list the unit; e.g. "TrueBeam1"
+        filename : (str, file-like object}
+            The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
         open_file : bool
-            Whether to open the PDF when finished.
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
-        from reportlab.lib.units import cm
-        canvas = pdf.create_pylinac_page_template(filename, file_name=osp.basename(self.path),
-                                                  file_created=self.date_created(),
-                                                  analysis_title='Flatness & Symmetry Analysis', author=author, unit=unit)
+        canvas = pdf.PylinacCanvas(filename, page_title="Flatness & Symmetry Analysis")
         # draw result text
         text = ['Flatness & Symmetry results:',
                 f"Flatness Algorithm: {self.flatness['method'].capitalize()}",
@@ -223,23 +227,22 @@ class FlatSym(LinacDicomImage):
                 f"Vertical Symmetry: {self.symmetry['vertical']['value']:2.3}%",
                 f"Horizontal Symmetry: {self.symmetry['horizontal']['value']:2.3}%",
                 ]
-        pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text, fontsize=12)
+        canvas.add_text(text=text, location=(10, 25.5), font_size=12)
         # draw flatness & symmetry on two pages
         for method in (self._plot_symmetry, self._plot_flatness):
             for height, direction in zip((1, 11.5), ('vertical', 'horizontal')):
                 data = io.BytesIO()
                 self._save_plot(method, data, direction=direction)
-                img = pdf.create_stream_image(data)
-                canvas.drawImage(img, 1 * cm, height * cm, width=19*cm, height=10*cm, preserveAspectRatio=True)
-            canvas.showPage()
-            pdf.add_pylinac_page_template(canvas, 'Flatness & Symmetry')
+                canvas.add_image(data, location=(1, height), dimensions=(19, 10))
+            canvas.add_new_page()
         # draw image on last page
         data = io.BytesIO()
         self._save_plot(self._plot_image, data, title="Image")
-        img = pdf.create_stream_image(data)
-        canvas.drawImage(img, 1 * cm, 2 * cm, width=18 * cm, height=20 * cm, preserveAspectRatio=True)
+        canvas.add_image(data, location=(1, 2), dimensions=(18, 20))
+        canvas.finish()
 
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+        if open_file:
+            open_path(filename)
 
     def plot(self, show: bool=True):
         """Plot the analyzed image. Shows both flatness & symmetry.

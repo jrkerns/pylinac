@@ -13,7 +13,7 @@ from pylinac.core import image
 
 def has_www_connection():
     try:
-        with urlopen('google.com') as r:
+        with urlopen('http://www.google.com') as r:
             return r.status == 200
     except:
         return False

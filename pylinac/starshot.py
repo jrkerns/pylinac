@@ -21,7 +21,7 @@ Features:
 """
 import copy
 import io
-import os.path as osp
+from typing import Union, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,6 +33,7 @@ from .core.geometry import Point, Line, Circle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core import pdf
 from .core.profile import SingleProfile, CollapsedCircleProfile
+from .core.utilities import open_path
 from .settings import get_dicom_cmap
 
 
@@ -60,12 +61,12 @@ class Starshot:
         >>> print(mystar.results())
         >>> mystar.plot_analyzed_image()
     """
-    def __init__(self, filepath, **kwargs):
+    def __init__(self, filepath: str, **kwargs):
         """
         Parameters
         ----------
-        filepath : str, optional
-            The path to the image file. If None, the image must be loaded later.
+        filepath : str
+            The path to the image file.
         kwargs
             Passed to :func:`~pylinac.core.image.load`.
         """
@@ -78,7 +79,7 @@ class Starshot:
             raise ValueError("Source-to-Image distance was not an image tag and was not passed in. Please pass an SID value.")
 
     @classmethod
-    def from_url(cls, url, **kwargs):
+    def from_url(cls, url: str, **kwargs):
         """Instantiate from a URL.
 
         Parameters
@@ -98,7 +99,7 @@ class Starshot:
         return cls(demo_file, sid=1000)
 
     @classmethod
-    def from_multiple_images(cls, filepath_list, **kwargs):
+    def from_multiple_images(cls, filepath_list: list, **kwargs):
         """Construct a Starshot instance and load in and combine multiple images.
 
         Parameters
@@ -113,7 +114,7 @@ class Starshot:
         return obj
 
     @classmethod
-    def from_zip(cls, zip_file, **kwargs):
+    def from_zip(cls, zip_file: str, **kwargs):
         """Construct a Starshot instance from a ZIP archive.
 
         Parameters
@@ -151,7 +152,7 @@ class Starshot:
         if not center_in_central_third:
             self.image.invert()
 
-    def _get_reasonable_start_point(self):
+    def _get_reasonable_start_point(self) -> Point:
         """Set the algorithm starting point automatically.
 
         Notes
@@ -177,7 +178,8 @@ class Starshot:
         return center_point
 
     @value_accept(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
-    def analyze(self, radius=0.85, min_peak_height=0.25, tolerance=1.0, start_point=None, fwhm=True, recursive=True):
+    def analyze(self, radius: float=0.85, min_peak_height: float=0.25, tolerance: float=1.0,
+                start_point: Point=None, fwhm: bool=True, recursive: bool=True):
         """Analyze the starshot image.
 
         Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -303,16 +305,16 @@ class Starshot:
         self.wobble.center = Point(res.x[0], res.x[1])
 
     @property
-    def passed(self):
+    def passed(self) -> bool:
         """Boolean specifying whether the determined wobble was within tolerance."""
         return self.wobble.radius_mm * 2 < self.tolerance
 
     @property
-    def _passfail_str(self):
+    def _passfail_str(self) -> str:
         """Return a pass/fail string."""
         return 'PASS' if self.passed else 'FAIL'
 
-    def results(self):
+    def results(self) -> str:
         """Return the results of the analysis.
 
         Returns
@@ -326,7 +328,7 @@ class Starshot:
                                                                                     self.wobble.center.x, self.wobble.center.y)
         return string
 
-    def plot_analyzed_image(self, show=True):
+    def plot_analyzed_image(self, show: bool=True):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.
 
         Parameters
@@ -346,7 +348,7 @@ class Starshot:
         if show:
             plt.show()
 
-    def plot_analyzed_subimage(self, subimage='wobble', ax=None, show=True):
+    def plot_analyzed_subimage(self, subimage: str='wobble', ax: plt.Axes=None, show: bool=True):
         """Plot a subimage of the starshot analysis. Current options are the zoomed out image and the zoomed in image.
 
         Parameters
@@ -378,7 +380,7 @@ class Starshot:
         if show:
             plt.show()
 
-    def save_analyzed_image(self, filename, **kwargs):
+    def save_analyzed_image(self, filename: str, **kwargs):
         """Save the analyzed image plot to a file.
 
         Parameters
@@ -393,7 +395,7 @@ class Starshot:
         self.plot_analyzed_image(show=False)
         plt.savefig(filename, **kwargs)
 
-    def save_analyzed_subimage(self, filename, subimage='wobble', **kwargs):
+    def save_analyzed_subimage(self, filename: str, subimage: str='wobble', **kwargs):
         """Save the analyzed subimage to a file.
 
         Parameters
@@ -409,46 +411,44 @@ class Starshot:
         self.plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
-    def publish_pdf(self, filename=None, author=None, unit=None, axis_measured='N/A', notes=None, open_file=False):
-        """Publish (print) a PDF containing the analysis and quantitative results.
+    def publish_pdf(self, filename: str, notes: Union[str, List[str]]=None, open_file: bool=False, metadata: dict=None):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
         ----------
         filename : (str, file-like object}
             The file to write the results to.
-        unit : str, optional
-            Name of the unit that made the image/data.
-        author : str, optional
-            The author of the analysis; for tracking who did what.
-        axis_measured : str
-            The axis measured; e.g. collimator.
         notes : str, list of strings
             Text; if str, prints single line.
             If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
-        if filename is None:
-            filename = self.image.pdf_path
-        from reportlab.lib.units import cm
-        canvas = pdf.create_pylinac_page_template(filename, file_name=osp.basename(self.image.path),
-                                                  file_created=self.image.date_created(),
-                                                  analysis_title='Starshot Analysis', author=author, unit=unit)
+        canvas = pdf.PylinacCanvas(filename, page_title="Starshot Analysis", metadata=metadata)
         for img, height in zip(('wobble', 'asdf'), (2, 11.5)):
             data = io.BytesIO()
             self.save_analyzed_subimage(data, img)
-            img = pdf.create_stream_image(data)
-            canvas.drawImage(img, 4 * cm, height * cm, width=13*cm, height=13*cm, preserveAspectRatio=True)
+            canvas.add_image(data, location=(4, height), dimensions=(13, 13))
         text = ['Starshot results:',
                 'Source-to-Image Distance (mm): {:2.0f}'.format(self.image.sid),
                 'Tolerance (mm): {:2.1f}'.format(self.tolerance),
                 "Minimum circle diameter (mm): {:2.2f}".format(self.wobble.radius_mm*2),
                 ]
-        if axis_measured != 'N/A':
-            text.append("Axis measured: " + axis_measured)
-        pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text, fontsize=12)
+        canvas.add_text(text=text, location=(10, 25.5), font_size=12)
         if notes is not None:
-            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 5))
+        canvas.finish()
+
+        if open_file:
+            open_path(filename)
 
     @staticmethod
     def run_demo():
@@ -471,14 +471,14 @@ class Wobble(Circle):
         self.radius_mm = 0  # The radius of the wobble in mm; as opposed to pixels.
 
     @property
-    def diameter_mm(self):
+    def diameter_mm(self) -> float:
         """Diameter of the wobble in mm."""
         return self.radius_mm*2
 
 
 class LineManager:
     """Manages the radiation lines found."""
-    def __init__(self, points):
+    def __init__(self, points: List[Point]):
         """
         Parameters
         ----------
@@ -494,7 +494,7 @@ class LineManager:
     def __len__(self):
         return len(self.lines)
 
-    def construct_rad_lines(self, points):
+    def construct_rad_lines(self, points: List[Point]):
         """Find and match the positions of peaks in the circle profile (radiation lines)
             and map their positions to the starshot image.
 
@@ -514,7 +514,7 @@ class LineManager:
         """
         self.match_points(points)
 
-    def match_points(self, points):
+    def match_points(self, points: List[Point]):
         """Match the peaks found to the same radiation lines.
 
         Peaks are matched by connecting the existing peaks based on an offset of peaks. E.g. if there are
@@ -526,7 +526,7 @@ class LineManager:
         offset = num_rad_lines
         self.lines = [Line(points[line], points[line + offset]) for line in range(num_rad_lines)]
 
-    def plot(self, axis):
+    def plot(self, axis: plt.Axes):
         """Plot the lines to the axis."""
         for line in self.lines:
             line.plot2axes(axis, color='blue')
@@ -551,7 +551,7 @@ class StarProfile(CollapsedCircleProfile):
         """
         return image.dist2edge_min(start_point) * radius
 
-    def _roll_prof_to_midvalley(self):
+    def _roll_prof_to_midvalley(self) -> int:
         """Roll the circle profile so that its edges are not near a radiation line.
             This is a prerequisite for properly finding star lines.
         """

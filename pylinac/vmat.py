@@ -11,7 +11,6 @@ Features:
   have to be specified; just load and analyze.
 """
 from io import BytesIO
-from os import path as osp
 from typing import Union, List, Tuple, Sequence
 
 import matplotlib.pyplot as plt
@@ -21,8 +20,9 @@ from .core import image
 from .core.decorators import value_accept
 from .core.geometry import Point, Rectangle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
-from .core import pdf
+from .core.pdf import PylinacCanvas
 from .core.profile import SingleProfile
+from .core.utilities import open_path
 from .settings import get_dicom_cmap
 
 DMLC = 'dmlc'
@@ -47,7 +47,6 @@ class VMATBase:
         image_paths : iterable (list, tuple, etc)
             A sequence of paths to the image files.
         """
-
         if len(image_paths) != 2:
             raise ValueError("Exactly 2 images (open, DMLC) must be passed")
         image1, image2 = self._load_images(image_paths)
@@ -96,9 +95,6 @@ class VMATBase:
         tolerance : float, int, optional
             The tolerance of the sample deviations in percent. Default is 1.5.
             Must be between 0 and 8.
-        x_offset : int
-            If the VMAT segments aren't aligned to the CAX (older VMAT images), the segments need a shift.
-            Positive moves the segments right, negative to the left.
         """
         self._tolerance = tolerance/100
 
@@ -182,11 +178,6 @@ class VMATBase:
     def r_devs(self) -> np.ndarray:
         """Return the deviations of all segments as an array."""
         return np.array([segment.r_dev for segment in self.segments])
-
-    # @property
-    # def _avg_r_corr(self) -> np.ndarray:
-    #     """Return the average R_corr of the segments."""
-    #     return np.array([segment.r_corr for segment in self.segments]).mean()
 
     @property
     def avg_abs_r_deviation(self) -> float:
@@ -274,6 +265,7 @@ class VMATBase:
             ax.plot(dmlc_prof.values, label='DMLC')
             ax.plot(open_prof.values, label='Open')
             ax.autoscale(axis='x', tight=True)
+            ax.legend(loc=8, fontsize='large')
             ax.grid()
 
         if show:
@@ -307,37 +299,52 @@ class VMATBase:
 
         return profile1, profile2
 
-    def publish_pdf(self, filename: str, author: str=None, unit: str=None, notes: str=None, open_file: bool=False):
-        """Publish (print) a PDF containing the analysis and quantitative results.
+    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: dict=None):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
         ----------
         filename : (str, file-like object}
             The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
-        from reportlab.lib.units import cm
-
-        canvas = pdf.create_pylinac_page_template(filename,
-                                                  file_name=osp.basename(self.open_image.path) + ", " + osp.basename(
-                                                      self.dmlc_image.path),
-                                                  analysis_title='{} VMAT Analysis'.format(
-                                                      self._result_short_header), author=author, unit=unit)
-        for y, x, width, img in zip((10, 10, 1), (1, 11, 4), (9, 9, 16), (OPEN, DMLC, PROFILE)):
+        canvas = PylinacCanvas(filename=filename, page_title=f"{self._result_short_header} VMAT Analysis", metadata=metadata)
+        for y, x, width, img in zip((9, 9, -2), (1, 11, 3), (9, 9, 14), (OPEN, DMLC, PROFILE)):
             data = BytesIO()
             self._save_analyzed_subimage(data, subimage=img)
-            img = pdf.create_stream_image(data)
-            canvas.drawImage(img, x * cm, y * cm, width=width * cm, height=18 * cm, preserveAspectRatio=True)
+            canvas.add_image(data, location=(x, y), dimensions=(width, 18))
+            # canvas.add_text(text=f"{img} Image", location=(x + 2, y + 10), font_size=18)
+        canvas.add_text(text='Open Image', location=(4, 22), font_size=18)
+        canvas.add_text(text=f'{self.open_image.base_path}', location=(4, 21.5))
+        canvas.add_text(text='DMLC Image', location=(14, 22), font_size=18)
+        canvas.add_text(text=f'{self.dmlc_image.base_path}', location=(14, 21.5))
+        canvas.add_text(text='Median profiles', location=(8, 12), font_size=18)
         text = ['{} VMAT results:'.format(self._result_header),
                 'Source-to-Image Distance (mm): {:2.0f}'.format(self.open_image.sid),
                 'Tolerance (%): {:2.1f}'.format(self._tolerance),
                 'Absolute mean deviation (%): {:2.2f}'.format(self.avg_abs_r_deviation),
                 'Maximum deviation (%): {:2.2f}'.format(self.max_r_deviation),
                 ]
-        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm, text=text)
+        canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:
-            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 5))
+
+        canvas.finish()
+
+        if open_file:
+            open_path(filename)
 
 
 class DRGS(VMATBase):
