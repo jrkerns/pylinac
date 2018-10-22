@@ -278,6 +278,14 @@ class TRS398Photon(TRS398Base):
     ----------
     setup : {'SSD', 'SAD'}
         The physical setup of the calibration.
+    institution : str
+        Institution name.
+    physicist : str
+        Physicist performing calibration.
+    unit : str
+        Unit name; e.g. TrueBeam1.
+    measurement_date : str
+        Date of measurement. E.g. 10/22/2018.
     chamber : str
         Farmer-type chamber model from Table 6.III.
     n_dw : float
@@ -461,6 +469,14 @@ class TRS398Electron(TRS398Base):
 
     Parameters
     ----------
+    institution : str
+        Institution name.
+    physicist : str
+        Physicist performing calibration.
+    unit : str
+        Unit name; e.g. TrueBeam1.
+    measurement_date : str
+        Date of measurement. E.g. 10/22/2018.
     chamber : str
         Farmer-type chamber model from Table 6.III.
     n_dw : float

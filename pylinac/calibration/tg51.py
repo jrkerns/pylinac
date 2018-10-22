@@ -96,17 +96,17 @@ LEAD_OPTIONS = {
 }
 
 
-def mmHg2kPa(mmHg: float):
+def mmHg2kPa(mmHg: float) -> float:
     """Utility function to convert from mmHg to kPa."""
     return mmHg*101.33/760
 
 
-def mbar2kPa(mbar: float):
+def mbar2kPa(mbar: float) -> float:
     """Utility function to convert from millibars to kPa."""
     return mbar/10
 
 
-def fahrenheit2celsius(f: float):
+def fahrenheit2celsius(f: float) -> float:
     """Utility function to convert from Fahrenheit to Celsius."""
     return (f - 32) * 5/9
 
@@ -291,8 +291,8 @@ def pddx(*, pdd: float, energy: int, lead_foil: Optional[str]=None) -> float:
 
 @argue.bounds(pddx=(63.0, 86.0))
 @argue.options(chamber=KQ_PHOTONS.keys())
-def kq_photon_pdd(*, chamber: str, pddx: float) -> float:
-    """Calculate kQ based on the chamber and clinical measurements of PDD(10)x. This will calculate kQ for both photons and electrons
+def kq_photon_pddx(*, chamber: str, pddx: float) -> float:
+    """Calculate kQ based on the chamber and clinical measurements of PDD(10)x. This will calculate kQ for photons
     for *CYLINDRICAL* chambers only.
 
     Parameters
@@ -315,7 +315,7 @@ def kq_photon_pdd(*, chamber: str, pddx: float) -> float:
 @argue.bounds(tpr=(0.623, 0.805))
 @argue.options(chamber=KQ_PHOTONS.keys())
 def kq_photon_tpr(*, chamber: str, tpr: float) -> float:
-    """Calculate kQ based on the chamber and clinical measurements of TPR20,10. This will calculate kQ for both photons and electrons
+    """Calculate kQ based on the chamber and clinical measurements of TPR20,10. This will calculate kQ for photons
     for *CYLINDRICAL* chambers only.
 
     Parameters
@@ -335,14 +335,14 @@ def kq_photon_tpr(*, chamber: str, tpr: float) -> float:
 
 @argue.options(chamber=KQ_ELECTRONS.keys())
 def kq_electron(*, chamber: str, r_50: float) -> float:
-    """Calculate kQ based on the chamber and clinical measurements. This will calculate kQ for both photons and electrons
-    for *CYLINDRICAL* chambers only according to Muir & Rodgers
+    """Calculate kQ based on the chamber and clinical measurements. This will calculate kQ for electrons
+    for *CYLINDRICAL* chambers only according to Muir & Rodgers.
 
     Parameters
     ----------
     chamber : str
         The chamber of the chamber. Valid values are those listed in
-        Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
+        Tables VI and VII of Muir and Rodgers 2014.
     r_50 : float
         The R50 value in cm of an electron beam.
     """
@@ -391,8 +391,16 @@ class TG51Base(Structure):
 class TG51Photon(TG51Base):
     """Class for calculating absolute dose to water using a cylindrical chamber in a photon beam.
 
-    Attributes
+    Parameters
     ----------
+    institution : str
+        Institution name.
+    physicist : str
+        Physicist performing calibration.
+    unit : str
+        Unit name; e.g. TrueBeam1.
+    measurement_date : str
+        Date of measurement. E.g. 10/22/2018.
     temp : float
         The temperature in Celsius. Use :func:`~pylinac.calibration.tg51.fahrenheit2celsius` to convert if necessary.
     press : float
@@ -411,9 +419,9 @@ class TG51Photon(TG51Base):
         Whether a lead foil was used to acquire PDD(10)x and where its position was. Used to calculate kq.
     clinical_pdd10 : float
         The PDD used to correct the dose at 10cm back to dmax. Usually the TPS PDD(10) value.
-    voltage_reference : float
+    voltage_reference : int
         Reference voltage; i.e. voltage when taking the calibration measurement.
-    voltage_reduced : float
+    voltage_reduced : int
         Reduced voltage; usually half of the reference voltage.
     m_reference : float, tuple
         Ion chamber reading(s) at the reference voltage.
@@ -470,7 +478,7 @@ class TG51Photon(TG51Base):
     @property
     def kq(self) -> float:
         """The chamber-specific beam quality correction factor."""
-        return kq_photon_pdd(chamber=self.chamber, pddx=self.pddx)
+        return kq_photon_pddx(chamber=self.chamber, pddx=self.pddx)
 
     @property
     def dose_mu_10(self) -> float:
@@ -576,9 +584,17 @@ class TG51Photon(TG51Base):
 class TG51ElectronLegacy(TG51Base):
     """Class for calculating absolute dose to water using a cylindrical chamber in an electron beam.
 
-    Attributes
+    Parameters
     ----------
-   temp : float (17-27)
+    institution : str
+        Institution name.
+    physicist : str
+        Physicist performing calibration.
+    unit : str
+        Unit name; e.g. TrueBeam1.
+    measurement_date : str
+        Date of measurement. E.g. 10/22/2018.
+    temp : float (17-27)
         The temperature in degrees Celsius.
     press : float (91-111)
         The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
@@ -772,14 +788,21 @@ class TG51ElectronModern(TG51Base):
     """Class for calculating absolute dose to water using a cylindrical chamber in an electron beam.
 
     .. warning::
+        This class uses the values of Muir & Rodgers. These values are likely to be included in the new TG-51
+        addendum, but are not official. The results can be up to 1% different. Physicists should use their own
+        judgement when deciding which class to use. To use a manual kecal value, Pgradient and the classic TG-51 equations use
+        the :class:`~pylinac.calibration.tg51.TG51ElectronLegacy` class.
 
-    This class uses the values of Muir & Rodgers. These values are likely to be included in the new TG-51
-    addendum, but are not official. The results can be up to 1% different. Physicists should use their own
-    judgement when deciding which class to use. To use a manual kecal value and the classic TG-51 equations use
-    the :class:`~pylinac.calibration.tg51.TG51ElectronLegacy` class.
-
-    Attributes
+    Parameters
     ----------
+    institution : str
+        Institution name.
+    physicist : str
+        Physicist performing calibration.
+    unit : str
+        Unit name; e.g. TrueBeam1.
+    measurement_date : str
+        Date of measurement. E.g. 10/22/2018.
     press : float
         The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
     temp : float
@@ -801,14 +824,11 @@ class TG51ElectronModern(TG51Base):
     n_dw : float
         NDW value in Gy/nC
     p_elec : float
+        Electrometer correction given by the calibration laboratory.
     clinical_pdd : float
         The PDD used to correct the dose back to dref.
-    voltage_reference : float
-    voltage_reduced : float
-    m_reference : float, tuple
-    m_opposite : float, tuple
-    m_reduced : float, tuple
-    mu : float
+    mu : int
+        MU delivered.
     i_50 : float
         Depth of 50% ionization
     tissue_correction : float
