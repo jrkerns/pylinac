@@ -9,14 +9,17 @@ Classes include photon and electron calibrations using cylindrical chambers. Pas
 and the class will compute all corrections and corrected readings and dose at 10cm and dmax/dref.
 """
 from datetime import datetime
+from typing import Optional
 
+import argue
 import numpy as np
 
+from ..core.typing import NumberLike, NumberOrArray
 from ..core.utilities import Structure, open_path
 from ..core.pdf import PylinacCanvas
 
 
-CHAMBERS_PHOTONS = {
+KQ_PHOTONS = {
     # Exradin
     'A12': {"a": 1.0146, "b": 0.777e-3, "c": -1.666e-5, "a'": 2.6402, "b'": -7.2304, "c'": 10.7573, "d'": -5.4294},
     'A19': {"a": 0.9934, "b": 1.384e-3, "c": -2.125e-5, "a'": 3.0907, "b'": -9.1930, "c'": 13.5957, "d'": -6.7969},
@@ -58,7 +61,7 @@ CHAMBERS_PHOTONS = {
     'PR06C/G': {"a": 0.9519, "b": 2.432e-3, "c": -2.704e-5, "a'": 2.9110, "b'": -8.4916, "c'": 12.6817, "d'": -6.3874},
 }
 
-CHAMBERS_ELECTRONS = {
+KQ_ELECTRONS = {
     # Exradin
     'A12': {'kQ,ecal': 0.907, 'a': 0.965, 'b': 0.119, 'c': 0.607},
     'A19': {'kQ,ecal': 0.904, 'a': 0.957, 'b': 0.119, 'c': 0.505},
@@ -74,71 +77,107 @@ CHAMBERS_ELECTRONS = {
     '31013': {'kQ,ecal': 0.902, 'a': 0.945, 'b': 0.133, 'c': 0.441},
 
     # IBA
-    'FC65G': {'kQ,ecal': 0.904, 'a': 0.971, 'b': 0.113, 'c': 0.680},
-    'FC65P': {'kQ,ecal': 0.902, 'a': 0.973, 'b': 0.110, 'c': 0.692},
-    'FC23C': {'kQ,ecal': 0.904, 'a': 0.971, 'b': 0.097, 'c': 0.591},
+    'FC65-G': {'kQ,ecal': 0.904, 'a': 0.971, 'b': 0.113, 'c': 0.680},
+    'FC65-P': {'kQ,ecal': 0.902, 'a': 0.973, 'b': 0.110, 'c': 0.692},
+    'FC23-C': {'kQ,ecal': 0.904, 'a': 0.971, 'b': 0.097, 'c': 0.591},
     'CC25': {'kQ,ecal': 0.904, 'a': 0.964, 'b': 0.105, 'c': 0.539},
     'CC13': {'kQ,ecal': 0.904, 'a': 0.926, 'b': 0.129, 'c': 0.279},
 
     # Other
     'PR06C/G': {'kQ,ecal': 0.906, 'a': 0.972, 'b': 0.122, 'c': 0.729},
-    '2571': {'kQ,ecal': 0.903, 'a': 0.977, 'b': 0.117, 'c': 0.817},
-    '2611': {'kQ,ecal': 0.896, 'a': 0.979, 'b': 0.120, 'c': 0.875},
+    'NE2571': {'kQ,ecal': 0.903, 'a': 0.977, 'b': 0.117, 'c': 0.817},
+    'NE2611': {'kQ,ecal': 0.896, 'a': 0.979, 'b': 0.120, 'c': 0.875},
+}
+
+LEAD_OPTIONS = {
+    'None': None,
+    '30cm': '30cm',
+    '50cm': '50cm'
 }
 
 
-def p_tp(*, temp=22, press=760):
+def mmHg2kPa(mmHg: float):
+    """Utility function to convert from mmHg to kPa."""
+    return mmHg*101.33/760
+
+
+def mbar2kPa(mbar: float):
+    """Utility function to convert from millibars to kPa."""
+    return mbar/10
+
+
+def fahrenheit2celsius(f: float):
+    """Utility function to convert from Fahrenheit to Celsius."""
+    return (f - 32) * 5/9
+
+
+@argue.bounds(pdd2010=(0.5, 1))
+def tpr2010_from_pdd2010(*, pdd2010: float) -> float:
+    """Calculate TPR20,10 from PDD20,10. From TRS-398 pg 62 and Followill et al 1998 eqn 1."""
+    return 1.2661*pdd2010 - 0.0595
+
+
+@argue.bounds(temp=(17, 27), message="Temperature {:2.2f} out of range. Did you use Fahrenheit? Consider using the utility function fahrenheit2celsius()")
+@argue.bounds(press=(91,  111), message="Pressure {:2.2f} out of range. Did you use kPa? Consider using the utility functions mmHg2kPa() or mbar2kPa()")
+def p_tp(*, temp: NumberLike, press: NumberLike) -> float:
     """Calculate the temperature & pressure correction.
 
     Parameters
     ----------
-    temp : float
+    temp : float (17-27)
         The temperature in degrees Celsius.
-    press : float
-        The pressure in mmHg.
+    press : float (91-111)
+        The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
     """
-    return (760/press)*((273.2+temp)/295.2)
+    return ((273.2+temp)/295.2)*(101.33/press)
 
 
-def p_pol(*, m_reference=(1, 2), m_opposite=(-3, -4)):
+def p_pol(*, m_reference: NumberOrArray, m_opposite: NumberOrArray) -> float:
     """Calculate the polarity correction.
 
     Parameters
     ----------
-    m_reference : iterable
+    m_reference : number, array
         The readings of the ion chamber at the reference polarity and voltage.
-    m_opposite : iterable
-        The readings of the ion chamber at the polarity opposite the reference.
-        This value should be of the opposite sign of the M reference value.
-        If it's not, its sign will automatically be flipped.
+    m_opposite : number, array
+        The readings of the ion chamber at the polarity opposite the reference. The sign does not make a difference.
+
+    Raises
+    ------
+    BoundsError if calculated Ppol is >1% from 1.0.
     """
     mref_avg = np.mean(m_reference)
     mopp_avg = np.mean(m_opposite)
-    # if same sign given, flip one.
-    # Technically, they're opposite charges, but most physicists pass positive values for both
-    if np.sign(mref_avg) == np.sign(mopp_avg):
-        mopp_avg = -mopp_avg
-    return (mref_avg - mopp_avg)/(2*mref_avg)
+    polarity = (abs(mref_avg) + abs(mopp_avg))/abs(2*mref_avg)
+    argue.verify_bounds(polarity, bounds=(0.99, 1.01), message="Polarity correction {:2.2f} out of range (+/-2%). Verify inputs")
+    return float(polarity)
 
 
-def p_ion(*, volt_high=300, volt_low=150, m_high=(1, 2), m_low=(3, 4)):
+def p_ion(*, voltage_reference: int, voltage_reduced: int, m_reference: NumberOrArray, m_reduced: NumberOrArray) -> float:
     """Calculate the ion chamber collection correction.
 
     Parameters
     ----------
-    volt_high : int
+    voltage_reference : int
         The "high" voltage; same as the TG51 measurement voltage.
-    volt_low : int
+    voltage_reduced : int
         The "low" voltage; usually half of the high voltage.
-    m_high : float, iterable
+    m_reference : float, iterable
         The readings of the ion chamber at the "high" voltage.
-    m_low : float, iterable
+    m_reduced : float, iterable
         The readings of the ion chamber at the "low" voltage.
+
+    Raises
+    ------
+    BoundsError if calculated Pion is outside the range 1.00-1.05.
     """
-    return (1 - volt_high/volt_low)/(np.mean(m_high)/np.mean(m_low) - volt_high/volt_low)
+    ion = (1 - voltage_reference / voltage_reduced) / (np.mean(m_reference) / np.mean(m_reduced) - voltage_reference / voltage_reduced)
+    argue.verify_bounds(ion, bounds=(1, 1.05), message="Pion out of range (1.00-1.05). Check inputs or chamber")
+    return float(ion)
 
 
-def d_ref(*, i_50):
+@argue.bounds(i_50=argue.POSITIVE, message="i50 should be positive")
+def d_ref(*, i_50: float) -> float:
     """Calculate the dref of an electron beam based on the I50 depth.
 
     Parameters
@@ -146,11 +185,12 @@ def d_ref(*, i_50):
     i_50 : float
         The value of I50 in cm.
     """
-    r50 = r_50(i_50)
+    r50 = r_50(i_50=i_50)
     return 0.6*r50-0.1
 
 
-def r_50(*, i_50):
+@argue.bounds(i_50=argue.POSITIVE, message="i50 should be positive")
+def r_50(*, i_50: float) -> float:
     """Calculate the R50 depth of an electron beam based on the I50 depth.
 
     Parameters
@@ -165,20 +205,19 @@ def r_50(*, i_50):
     return r50
 
 
-def kp_r50(*, r_50):
+@argue.bounds(r_50=(2, 9))
+def kp_r50(*, r_50: float) -> float:
     """Calculate k'R50 for Farmer-like chambers.
 
     Parameters
     ----------
-    r_50 : float
+    r_50 : float (2-9)
         The R50 value in cm.
     """
-    if r_50 >= 9 or r_50 <= 2:
-        raise ValueError("Cannot calculate k prime R50 with an R50 value of <=2 or >=9cm")
     return 0.9905+0.071*np.exp(-r_50/3.67)
 
 
-def pq_gr(*, m_dref_plus=(1, 2), m_dref=(3, 4)):
+def pq_gr(*, m_dref_plus: NumberOrArray, m_dref: NumberOrArray) -> float:
     """Calculate PQ_gradient for a cylindrical chamber.
 
     Parameters
@@ -188,45 +227,48 @@ def pq_gr(*, m_dref_plus=(1, 2), m_dref=(3, 4)):
     m_dref : float, iterable
         The readings of the ion chamber at dref.
     """
-    return np.mean(m_dref_plus) / np.mean(m_dref)
+    return float(np.mean(m_dref_plus) / np.mean(m_dref))
 
 
-def m_corrected(*, p_ion=1.0, p_tp=1.0, p_elec=1.0, p_pol=1.0, m_raw=(1.1, 2.2)):
+@argue.bounds(p_ion=(1, 1.05), p_tp=(0.92, 1.08), p_elec=(0.98, 1.02), p_pol=(0.98, 1.02))
+def m_corrected(*, p_ion: float, p_tp: float, p_elec: float, p_pol: float, m_reference: NumberOrArray) -> float:
     """Calculate M_corrected, the ion chamber reading with all corrections applied.
 
     Parameters
     ----------
-    p_ion : float
+    p_ion : float (1.00-1.05)
         The ion collection correction.
-    p_tp : float
+    p_tp : float (0.92-1.08)
         The temperature & pressure correction.
-    p_elec : float
+    p_elec : float (0.98-1.02)
         The electrometer correction.
-    p_pol : float
+    p_pol : float (0.98-1.02)
         The polarity correction.
-    m_raw : float, iterable
-        The raw ion chamber readings.
+    m_reference : float, iterable
+        The raw ion chamber reading(s).
 
     Returns
     -------
     float
     """
-    return p_ion*p_tp*p_elec*p_pol*np.mean(m_raw)
+    return float(p_ion*p_tp*p_elec*p_pol*np.mean(m_reference))
 
 
-def pddx(*, pdd=66.4, energy=6, lead_foil=None):
+@argue.bounds(pdd=(62.7, 89.0))
+@argue.options(lead_foil=LEAD_OPTIONS.values())
+def pddx(*, pdd: float, energy: int, lead_foil: Optional[str]=None) -> float:
     """Calculate PDDx based on the PDD.
 
     Parameters
     ----------
-    pdd : {>0.627, <0.890}
+    pdd : {>62.7, <89.0}
         The measured PDD. If lead foil was used, this assumes the pdd as measured with the lead in place.
     energy : int
         The nominal energy in MV.
     lead_foil : {None, '30cm', '50cm'}
         Applicable only for energies >10MV.
         Whether a lead foil was used to acquire the pdd.
-        Use ``None`` if no lead foil was used and the interim equation should be used.
+        Use ``None`` if no lead foil was used and the interim equation should be used. This is the default
         Use ``50cm`` if the lead foil was set to 50cm from the phantom surface.
         Use ``30cm`` if the lead foil was set to 30cm from the phantom surface.
     """
@@ -235,104 +277,115 @@ def pddx(*, pdd=66.4, energy=6, lead_foil=None):
     elif energy >= 10:
         if lead_foil is None:
             return 1.267*pdd-20
-        elif lead_foil == '50cm':
+        elif lead_foil == LEAD_OPTIONS['50cm']:
             if pdd < 73:
                 return pdd
             else:
                 return (0.8905+0.0015*pdd)*pdd
-        elif lead_foil == '30cm':
+        elif lead_foil == LEAD_OPTIONS['30cm']:
             if pdd < 71:
                 return pdd
             else:
                 return (0.8116+0.00264*pdd)*pdd
 
 
-def kq(*, model='30010', pddx=None, tpr=None, r_50=None):
-    """Calculate kQ based on the model and clinical measurements. This will calculate kQ for both photons and electrons 
+@argue.bounds(pddx=(63.0, 86.0))
+@argue.options(chamber=KQ_PHOTONS.keys())
+def kq_photon_pdd(*, chamber: str, pddx: float) -> float:
+    """Calculate kQ based on the chamber and clinical measurements of PDD(10)x. This will calculate kQ for both photons and electrons
     for *CYLINDRICAL* chambers only.
 
     Parameters
     ----------
-    model : str
-        The model of the chamber. Valid values are those listed in
+    chamber : str
+        The chamber of the chamber. Valid values are those listed in
         Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
-    pddx : {>0.630, <0.860}
+    pddx : {>63.0, <86.0}
         The **PHOTON-ONLY** PDD measurement at 10cm depth for a 10x10cm2 field.
+
+        .. note:: Use the :func:`~pylinac.calibration.tg51.pddx` function to convert PDD to PDDx as needed.
 
         .. note:: Muir and Rogers state limits of 0.627 - 0.861. The TG-51 addendum states them as 0.63 and 0.86.
                   The TG-51 addendum limits are used here.
-    tpr : {>0.623, <0.805}
-        The TPR ratio of the 20cm measurement divided by the 10cm measurement.
+    """
+    ch = KQ_PHOTONS[chamber]
+    return ch["a"] + ch["b"] * pddx + ch["c"] * (pddx ** 2)
+
+
+@argue.bounds(tpr=(0.623, 0.805))
+@argue.options(chamber=KQ_PHOTONS.keys())
+def kq_photon_tpr(*, chamber: str, tpr: float) -> float:
+    """Calculate kQ based on the chamber and clinical measurements of TPR20,10. This will calculate kQ for both photons and electrons
+    for *CYLINDRICAL* chambers only.
+
+    Parameters
+    ----------
+    chamber : str
+        The chamber of the chamber. Valid values are those listed in
+        Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
+    tpr : {>0.630, <0.860}
+        The TPR(20,10) value.
+
+        .. note::
+         Use the :func:`~pylinac.calibration.tg51.tpr2010_from_pdd2010` function to convert from PDD without needing to take TPR measurements.
+    """
+    ch = KQ_PHOTONS[chamber]
+    return ch["a'"] + ch["b'"] * tpr + ch["c'"] * (tpr ** 2) + ch["d'"] * (tpr ** 3)
+
+
+@argue.options(chamber=KQ_ELECTRONS.keys())
+def kq_electron(*, chamber: str, r_50: float) -> float:
+    """Calculate kQ based on the chamber and clinical measurements. This will calculate kQ for both photons and electrons
+    for *CYLINDRICAL* chambers only according to Muir & Rodgers
+
+    Parameters
+    ----------
+    chamber : str
+        The chamber of the chamber. Valid values are those listed in
+        Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
     r_50 : float
         The R50 value in cm of an electron beam.
-
-
-    .. warning::
-        Only 1 of ``pddx``, ``tpr`` or ``r_50`` can be defined.
     """
-    PDD_LOW = 63
-    PDD_HIGH = 86
-    TPR_LOW = 0.623
-    TPR_HIGH = 0.805
-
-    # error checking
-    if not any((pddx, tpr, r_50)):
-        raise ValueError("At least one of the parameters pddx, tpr, or r_50 must be defined.")
-    if pddx is not None and tpr is not None:
-        raise ValueError("Only the PDD or TPR parameter can be defined, not both.")
-    if any((pddx, tpr)) and r_50 is not None:
-        raise ValueError("Cannot define both a photon component (PDDx, TPR) and an electron component (R50)")
-
-    if pddx is not None:
-        if pddx > PDD_HIGH or pddx < PDD_LOW:
-            raise ValueError("Measured PDD is out of range; must be between {:2.2} and {:2.2}.".format(PDD_LOW, PDD_HIGH))
-        else:
-            ch = CHAMBERS_PHOTONS[model]
-            return ch["a"] + ch["b"]*pddx + ch["c"]*(pddx**2)
-
-    if tpr is not None:
-        if tpr > TPR_HIGH or tpr < TPR_LOW:
-            raise ValueError("Measured TPR is out of range; must be between {:2.2} and {:2.2}.".format(TPR_LOW, TPR_HIGH))
-        else:
-            ch = CHAMBERS_PHOTONS[model]
-            return ch["a'"] + ch["b'"]*tpr + ch["c'"]*(tpr**2) + ch["d'"]*(tpr**3)
-
-    if r_50 is not None:
-        ch = CHAMBERS_ELECTRONS[model]
-        return (ch['a'] + ch['b'] * r_50**-ch['c']) * ch['kQ,ecal']
+    ch = KQ_ELECTRONS[chamber]
+    return (ch['a'] + ch['b'] * r_50 ** -ch['c']) * ch['kQ,ecal']
 
 
 class TG51Base(Structure):
 
     @property
-    def p_tp(self):
+    def p_tp(self) -> float:
         """Temperature/Pressure correction."""
-        return p_tp(self.temp, self.press)
+        return p_tp(temp=self.temp, press=self.press)
 
     @property
-    def p_ion(self):
+    def p_ion(self) -> float:
         """Ionization collection correction."""
-        return p_ion(self.volt_high, self.volt_low, self.m_raw, self.m_low)
+        return p_ion(voltage_reference=self.voltage_reference, voltage_reduced=self.voltage_reduced,
+                     m_reference=self.m_reference,
+                     m_reduced=self.m_reduced)
 
     @property
-    def p_pol(self):
+    def p_pol(self) -> float:
         """Polarity correction."""
-        return p_pol(self.m_raw, self.m_opp)
+        return p_pol(m_reference=self.m_reference, m_opposite=self.m_opposite)
 
     @property
-    def m_corrected(self):
+    def m_corrected(self) -> float:
         """Corrected chamber reading."""
-        return m_corrected(self.p_ion, self.p_tp, self.p_elec, self.p_pol, self.m_raw)
+        return m_corrected(p_ion=self.p_ion, p_tp=self.p_tp, p_elec=self.p_elec, p_pol=self.p_pol,
+                           m_reference=self.m_reference)
 
     @property
-    def adjusted_m_corrected(self):
+    def m_corrected_adjustment(self) -> float:
         """Corrected chamber reading after adjusting the output."""
-        return m_corrected(self.p_ion, self.p_tp, self.p_elec, self.p_pol, self.adjusted_m_raw)
+        if self.m_reference_adjusted is not None:
+            return m_corrected(p_ion=self.p_ion, p_tp=self.p_tp, p_elec=self.p_elec, p_pol=self.p_pol,
+                               m_reference=self.m_reference_adjusted)
 
     @property
-    def output_was_adjusted(self):
+    def output_was_adjusted(self) -> float:
         """Boolean specifiying if output was adjusted."""
-        return self.adjusted_m_raw is not None
+        return self.m_reference_adjusted is not None
 
 
 class TG51Photon(TG51Base):
@@ -341,92 +394,106 @@ class TG51Photon(TG51Base):
     Attributes
     ----------
     temp : float
+        The temperature in Celsius. Use :func:`~pylinac.calibration.tg51.fahrenheit2celsius` to convert if necessary.
     press : float
+        The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
     energy : float
         Nominal energy of the beam in MV.
-    model : str
-        Chamber model
+    chamber : str
+        Chamber model. Must be one of the listed chambers in TG-51 Addendum.
     n_dw : float
-        NDW value in Gy/nC
+        NDW value in Gy/nC.
     p_elec : float
-    measured_pdd : float
-        The measured value of PDD(10); used for calculating kq.
+        Electrometer correction factor; given by the calibration laboratory.
+    measured_pdd10 : float
+        The measured value of PDD(10); will be converted to PDDx(10) and used for calculating kq.
     lead_foil : {None, '50cm', '30cm'}
         Whether a lead foil was used to acquire PDD(10)x and where its position was. Used to calculate kq.
-    clinical_pdd : float
+    clinical_pdd10 : float
         The PDD used to correct the dose at 10cm back to dmax. Usually the TPS PDD(10) value.
-    volt_high : float
-    volt_low : float
-    m_raw : float, tuple
-    m_opp : float, tuple
-    m_low : float, tuple
-    mu : float
+    voltage_reference : float
+        Reference voltage; i.e. voltage when taking the calibration measurement.
+    voltage_reduced : float
+        Reduced voltage; usually half of the reference voltage.
+    m_reference : float, tuple
+        Ion chamber reading(s) at the reference voltage.
+    m_opposite : float, tuple
+        Ion chamber reading(s) at the opposite voltage of reference.
+    m_reduced : float, tuple
+        Ion chamber reading(s) at the reduced voltage.
+    mu : int
+        The MU delivered to measure the reference reading. E.g. 200.
+    fff : bool
+        Whether the beam is FFF or flat.
     tissue_correction : float
         Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
     """
 
+    @argue.options(chamber=KQ_PHOTONS.keys(), lead_foil=LEAD_OPTIONS.values())
     def __init__(self, *,
-                 institution='',
-                 physicist='',
-                 unit='',
-                 measurement_date='',
-                 temp=22,
-                 press=760,
-                 model='30010',
-                 n_dw=5.9,
-                 p_elec=1.0,
-                 electrometer='',
-                 measured_pdd=66.4,
-                 lead_foil=None,
-                 clinical_pdd=66.4,
-                 energy=6,
-                 fff=False,
-                 volt_high=300,
-                 volt_low=150,
-                 m_raw=(1, 2),
-                 m_opp=(1, 2),
-                 m_low=(1, 2),
-                 mu=200,
-                 tissue_correction=1.0,
-                 adjusted_m_raw=None):
-        super().__init__(temp=temp, press=press, model=model, n_dw=n_dw, p_elec=p_elec, measured_pdd=measured_pdd,
-                         energy=energy, volt_high=volt_high, volt_low=volt_low, m_raw=m_raw,
-                         m_opp=m_opp, m_low=m_low, clinical_pdd=clinical_pdd, mu=mu,
+                 institution: str='',
+                 physicist: str='',
+                 unit: str,
+                 measurement_date: str='',
+                 temp: NumberLike,
+                 press: NumberLike,
+                 chamber: str,
+                 n_dw: float,
+                 p_elec: float,
+                 electrometer: str='',
+                 measured_pdd10: Optional[float]=None,
+                 lead_foil: Optional[str]=None,
+                 clinical_pdd10: float,
+                 energy: int,
+                 fff: bool=False,
+                 voltage_reference: int,
+                 voltage_reduced: int,
+                 m_reference: NumberOrArray,
+                 m_opposite: NumberOrArray,
+                 m_reduced: NumberOrArray,
+                 mu: int,
+                 tissue_correction: float=1.0,
+                 m_reference_adjusted: Optional[NumberOrArray]=None):
+        super().__init__(temp=temp, press=press, chamber=chamber, n_dw=n_dw, p_elec=p_elec, measured_pdd10=measured_pdd10,
+                         energy=energy, voltage_reference=voltage_reference, voltage_reduced=voltage_reduced,
+                         m_reference=m_reference, m_opposite=m_opposite, m_reduced=m_reduced, clinical_pdd10=clinical_pdd10, mu=mu,
                          tissue_correction=tissue_correction, lead_foil=lead_foil, electrometer=electrometer,
-                         adjusted_m_raw=adjusted_m_raw, institution=institution, physicist=physicist, unit=unit,
+                         m_reference_adjusted=m_reference_adjusted, institution=institution, physicist=physicist, unit=unit,
                          measurement_date=measurement_date, fff=fff)
+            # add check for tpr vs pdd
 
     @property
-    def pddx(self):
+    def pddx(self) -> float:
         """The photon-only PDD(10) value."""
-        return pddx(self.measured_pdd, self.energy, self.lead_foil)
+        return pddx(pdd=self.measured_pdd10, energy=self.energy, lead_foil=self.lead_foil)
 
     @property
-    def kq(self):
+    def kq(self) -> float:
         """The chamber-specific beam quality correction factor."""
-        return kq(self.model, self.pddx)
+        return kq_photon_pdd(chamber=self.chamber, pddx=self.pddx)
 
     @property
-    def dose_mu_10(self):
+    def dose_mu_10(self) -> float:
         """cGy/MU at a depth of 10cm."""
         return self.tissue_correction * self.m_corrected * self.kq * self.n_dw / self.mu
 
     @property
-    def dose_mu_dmax(self):
+    def dose_mu_dmax(self) -> float:
         """cGy/MU at a depth of dmax."""
-        return self.dose_mu_10 / (self.clinical_pdd / 100)
+        return self.dose_mu_10 / (self.clinical_pdd10 / 100)
 
     @property
-    def adjusted_dose_mu_10(self):
+    def adjusted_dose_mu_10(self) -> float:
         """The dose/mu at 10cm depth after adjustment."""
-        return self.tissue_correction*self.adjusted_m_corrected*self.kq*self.n_dw/self.mu
+        return self.tissue_correction*self.m_corrected_adjustment*self.kq*self.n_dw/self.mu
 
     @property
-    def adjusted_dose_mu_dmax(self):
+    def dose_mu_dmax_adjusted(self) -> float:
         """The dose/mu at dmax depth after adjustment."""
-        return self.adjusted_dose_mu_10/(self.clinical_pdd/100)
+        return self.adjusted_dose_mu_10/(self.clinical_pdd10/100)
 
-    def publish_pdf(self, filename, notes=None, open_file=False, metadata=None):
+    def publish_pdf(self, filename: str, notes: Optional[list]=None, open_file: bool=False,
+                    metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -436,11 +503,17 @@ class TG51Photon(TG51Base):
         notes : str, list
             Any notes to be added to the report. If a string, adds everything as one line.
             If a list, must be a list of strings; each string item will be a new line.
+        open_file : bool
+            Whether to open the file after creation. Will use the default PDF program.
+        metadata : dict
+            Any data that should be appended to every page of the report. This differs from notes in that
+            metadata is at the top of every page while notes is at the bottom of the report.
         """
         was_adjusted = 'Yes' if self.output_was_adjusted else 'No'
-        title = 'TG-51 Photon Report - {} MV'.format(self.energy)
-        if self.fff:
-            title += ' FFF'
+        title = [
+            'TG-51 Photon Report',
+            '{} - {} MV{}'.format(self.unit, self.energy, ' FFF' if self.fff else '')
+        ]
 
         canvas = PylinacCanvas(filename, page_title=title, metadata=metadata)
         text = [
@@ -453,28 +526,25 @@ class TG51Photon(TG51Base):
             'Energy: {} MV {}'.format(self.energy, 'FFF' if self.fff else ''),
             '',
             'Instrumentation:',
-            'Chamber model: {}'.format(self.model),
+            'Chamber: {}'.format(self.chamber),
             'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
             'Electrometer: {}'.format(self.electrometer),
-            'Pelec: {:2.2f}'.format(self.p_elec),
+            'Pelec: {:2.3f}'.format(self.p_elec),
             'MU: {}'.format(self.mu),
             '',
             'Beam Quality:',
-            'Lead foil used?: {}'.format('No' if self.lead_foil is None else self.lead_foil),
-            'Measured %dd(10) (this is %dd(10)Pb if lead was used): {:2.2f}'.format(self.measured_pdd),
-            'Calculated %dd(10)x: {:2.2f}'.format(self.pddx),
+            'Lead foil: {}'.format('No' if self.lead_foil is None else self.lead_foil),
+            'Measured PDD(10){} {:2.2f}'.format('' if self.lead_foil is None else 'Pb', self.measured_pdd10),
+            'Calculated PDD(10)x: {:2.2f}'.format(self.pddx),
             'Determined kQ: {:2.3f}'.format(self.kq),
             '',
             'Chamber Corrections/Measurements:',
             'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
-            'Pressure (mmHg): {:2.1f}'.format(self.press),
+            'Pressure (kPa): {:2.1f}'.format(self.press),
+            'Mraw @ ({}V, Reference) (nC): {}'.format(self.voltage_reference, self.m_reference),
+            'Mraw @ ({}V, Reduced) (nC): {}'.format(self.voltage_reduced, self.m_reduced),
+            'Mraw @ ({}V, Opposite) (nC): {}'.format(-self.voltage_reference, self.m_opposite),
             'Ptp: {:2.3f}'.format(self.p_tp),
-            'Reference voltage (V): {}'.format(self.volt_high),
-            'Mraw @ reference voltage (nC): {}'.format(self.m_raw),
-            '"Lower" voltage (V): {}'.format(self.volt_low),
-            'Mraw @ "lower" voltage (nC): {}'.format(self.m_low),
-            'Opposite voltage (V): {}'.format(-self.volt_high),
-            'Mraw @ opposite voltage (nC): {}'.format(self.m_opp),
             'Pion: {:2.3f}'.format(self.p_ion),
             'Ppol: {:2.3f}'.format(self.p_pol),
             '',
@@ -482,16 +552,16 @@ class TG51Photon(TG51Base):
             'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
             'Tissue correction (e.g. muscle): {:2.3f}'.format(self.tissue_correction),
             'Dose/MU @ 10cm depth (cGy): {:2.3f}'.format(self.dose_mu_10),
-            'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd),
+            'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd10),
             'Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax),
             '',
             'Output Adjustment?: {}'.format(was_adjusted),
         ]
         if was_adjusted == 'Yes':
-            text.append('Adjusted Mraw @ reference voltage (nC): {}'.format(self.adjusted_m_raw))
-            text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.adjusted_m_corrected))
+            text.append('Adjusted Mraw @ reference voltage (nC): {}'.format(self.m_reference_adjusted))
+            text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.m_corrected_adjustment))
             text.append('Adjusted Dose/MU @ 10cm depth (cGy): {:2.3f}'.format(self.adjusted_dose_mu_10))
-            text.append('Adjusted Dose/MU @ dmax (cGy): {:2.3f}'.format(self.adjusted_dose_mu_dmax))
+            text.append('Adjusted Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax_adjusted))
         canvas.add_text(text=text, location=(2, 25.5), font_size=12)
         if notes is not None:
             canvas.add_text(text="Notes:", location=(12, 6.5), font_size=14)
@@ -503,99 +573,119 @@ class TG51Photon(TG51Base):
             open_path(filename)
 
 
-class TG51Electron(TG51Base):
+class TG51ElectronLegacy(TG51Base):
     """Class for calculating absolute dose to water using a cylindrical chamber in an electron beam.
 
     Attributes
     ----------
-    temp : float
-    press : float
-    model : str
-        Chamber model
+   temp : float (17-27)
+        The temperature in degrees Celsius.
+    press : float (91-111)
+        The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
+    chamber : str
+        Chamber model; only for bookkeeping.
     n_dw : float
-        NDW value in Gy/nC
+        NDW value in Gy/nC. Given by the calibration laboratory.
+    k_ecal : float
+        Kecal value which is chamber specific. This value is the major difference between the legacy class and modern class where no kecal is needed.
     p_elec : float
+        Electrometer correction factor; given by the calibration laboratory.
     clinical_pdd : float
         The PDD used to correct the dose back to dref.
-    volt_high : float
-    volt_low : float
-    m_raw : float, tuple
-    m_opp : float, tuple
-    m_low : float, tuple
-    mu : float
+    voltage_reference : float
+        Reference voltage; i.e. voltage when taking the calibration measurement.
+    voltage_reduced : float
+        Reduced voltage; usually half of the reference voltage.
+    m_reference : float, tuple
+        Ion chamber reading(s) at the reference voltage.
+    m_opposite : float, tuple
+        Ion chamber reading(s) at the opposite voltage of reference.
+    m_reduced : float, tuple
+        Ion chamber reading(s) at the reduced voltage.
+    mu : int
+        The MU delivered to measure the reference reading. E.g. 200.
     i_50 : float
-        Depth of 50% ionization
+        Depth of 50% ionization.
     tissue_correction : float
         Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
     """
 
     def __init__(self, *,
-                 institution='',
-                 physicist='',
-                 unit='',
-                 measurement_date='',
-                 energy=9,
-                 temp=22,
-                 press=760,
-                 model='30010',
-                 n_dw=5.9,
-                 electrometer='',
-                 p_elec=1.0,
-                 clinical_pdd=99.0,
-                 volt_high=300,
-                 volt_low=150,
-                 m_raw=(1, 2),
-                 m_opp=(1, 2),
-                 m_low=(1, 2),
-                 cone='15x15',
-                 mu=200,
-                 i_50=4,
-                 tissue_correction=1.0,
-                 adjusted_m_raw=None):
-        super().__init__(temp=temp, press=press, model=model, n_dw=n_dw, p_elec=p_elec,
-                         volt_high=volt_high, volt_low=volt_low, m_raw=m_raw,
-                         m_opp=m_opp, m_low=m_low, clinical_pdd=clinical_pdd, mu=mu,
+                 institution: str='',
+                 physicist: str='',
+                 unit: str='',
+                 measurement_date: str='',
+                 energy: int,
+                 temp: NumberLike,
+                 press: NumberLike,
+                 chamber: str,
+                 k_ecal: float,
+                 n_dw: float,
+                 electrometer: str='',
+                 p_elec: float,
+                 clinical_pdd: float,
+                 voltage_reference: int,
+                 voltage_reduced: int,
+                 m_reference: NumberOrArray,
+                 m_opposite: NumberOrArray,
+                 m_reduced: NumberOrArray,
+                 m_gradient: NumberOrArray,
+                 cone: str,
+                 mu: int,
+                 i_50: float,
+                 tissue_correction: float=1.0,
+                 m_reference_adjusted=None):
+        super().__init__(temp=temp, press=press, chamber=chamber, n_dw=n_dw, p_elec=p_elec,
+                         voltage_reference=voltage_reference, voltage_reduced=voltage_reduced, m_reference=m_reference,
+                         m_opposite=m_opposite, m_reduced=m_reduced, clinical_pdd=clinical_pdd, mu=mu,
                          i_50=i_50, tissue_correction=tissue_correction,
                          institution=institution, physicist=physicist, unit=unit,
                          measurement_date=measurement_date, electrometer=electrometer,
-                         adjusted_m_raw=adjusted_m_raw, cone=cone, energy=energy)
+                         m_reference_adjusted=m_reference_adjusted, cone=cone, energy=energy, k_ecal=k_ecal,
+                         m_gradient=m_gradient)
 
     @property
-    def r_50(self):
+    def r_50(self) -> float:
         """Depth of the 50% dose value."""
-        return r_50(self.i_50)
+        return r_50(i_50=self.i_50)
 
     @property
-    def dref(self):
+    def dref(self) -> float:
         """Depth of the reference point."""
-        return d_ref(self.i_50)
+        return d_ref(i_50=self.i_50)
 
     @property
-    def kq(self):
-        """The kQ value using the updated Muir & Rodgers values from their 2014 paper, equation 11."""
-        return kq(self.model, r_50=self.r_50)
+    def pq_gr(self):
+        """Gradient factor"""
+        return pq_gr(m_dref_plus=self.m_gradient, m_dref=self.m_reference)
 
     @property
-    def dose_mu_dref(self):
+    def kq(self) -> float:
+        """The kQ value using classic TG-51"""
+        return self.k_ecal * kp_r50(r_50=self.r_50)
+
+    @property
+    def dose_mu_dref(self) -> float:
         """cGy/MU at the depth of Dref."""
-        return self.tissue_correction * self.m_corrected * self.kq * self.n_dw / self.mu
+        return self.tissue_correction * self.m_corrected * self.kq * self.n_dw * self.pq_gr / self.mu
 
     @property
-    def dose_mu_dmax(self):
+    def dose_mu_dmax(self) -> float:
         """cGy/MU at the depth of dmax."""
         return self.dose_mu_dref / (self.clinical_pdd / 100)
 
     @property
-    def adjusted_dose_mu_dref(self):
+    def dose_mu_dref_adjusted(self) -> float:
         """cGy/MU at the depth of Dref."""
-        return self.tissue_correction * self.adjusted_m_corrected * self.kq * self.n_dw / self.mu
+        return self.tissue_correction * self.m_corrected_adjustment * self.kq * self.n_dw * self.pq_gr / self.mu
 
     @property
-    def adjusted_dose_mu_dmax(self):
+    def dose_mu_dmax_adjusted(self) -> float:
         """cGy/MU at the depth of dmax."""
-        return self.adjusted_dose_mu_dref / (self.clinical_pdd / 100)
+        return self.dose_mu_dref_adjusted / (self.clinical_pdd / 100)
 
-    def publish_pdf(self, filename, notes=None, open_file=False, metadata=None):
+    def publish_pdf(self, filename: str, notes: Optional[list]=None, open_file: bool=False,
+                    metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -605,9 +695,17 @@ class TG51Electron(TG51Base):
         notes : str, list
             Any notes to be added to the report. If a string, adds everything as one line.
             If a list, must be a list of strings; each string item will be a new line.
+        open_file : bool
+            Whether to open the file after creation. Will use the default PDF program.
+        metadata : dict
+            Any data that should be appended to every page of the report. This differs from notes in that
+            metadata is at the top of every page while notes is at the bottom of the report.
         """
         was_adjusted = 'Yes' if self.output_was_adjusted else 'No'
-        title = 'TG-51 Electron Report - {} MeV'.format(self.energy)
+        title = [
+            'TG-51 Electron Report (Legacy)',
+            '{} - {} MeV'.format(self.unit, self.energy)
+        ]
 
         canvas = PylinacCanvas(filename, page_title=title, metadata=metadata)
         text = [
@@ -622,7 +720,7 @@ class TG51Electron(TG51Base):
             'MU: {}'.format(self.mu),
             '',
             'Instrumentation:',
-            'Chamber model: {}'.format(self.model),
+            'Chamber chamber: {}'.format(self.chamber),
             'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
             'Electrometer: {}'.format(self.electrometer),
             'Pelec: {:2.2f}'.format(self.p_elec),
@@ -631,21 +729,19 @@ class TG51Electron(TG51Base):
             'I50 (cm): {:2.2f}'.format(self.i_50),
             'R50 (cm): {:2.2f}'.format(self.r_50),
             'Dref (cm): {:2.2f}'.format(self.dref),
+            'Kecal: {:2.3f}'.format(self.k_ecal),
             "kQ: {:2.3f}".format(self.kq),
             '',
             'Chamber Corrections/Measurements:',
             'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
-            'Pressure (mmHg): {:2.1f}'.format(self.press),
+            'Pressure (kPa): {:2.1f}'.format(self.press),
+            'Mraw @ ({}V, Reference) (nC): {}'.format(self.voltage_reference, self.m_reference),
+            'Mraw @ ({}V, Reduced) (nC): {}'.format(self.voltage_reduced, self.m_reduced),
+            'Mraw @ ({}V, Opposite) (nC): {}'.format(-self.voltage_reference, self.m_opposite),
             'Ptp: {:2.3f}'.format(self.p_tp),
-            'Reference voltage (V): {}'.format(self.volt_high),
-            'Mraw @ reference voltage (nC): {}'.format(self.m_raw),
-            '"Lower" voltage (V): {}'.format(self.volt_low),
-            'Mraw @ "lower" voltage (nC): {}'.format(self.m_low),
-            'Opposite voltage (V): {}'.format(-self.volt_high),
-            'Mraw @ opposite voltage (nC): {}'.format(self.m_opp),
             'Pion: {:2.3f}'.format(self.p_ion),
             'Ppol: {:2.3f}'.format(self.p_pol),
-            'Mraw @ Dref + 0.5rcav (nC): {}'.format(self.m_plus),
+            'Mraw @ Dref + 0.5rcav (nC): {}'.format(self.m_gradient),
             '',
             'Dose Determination:',
             'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
@@ -657,10 +753,207 @@ class TG51Electron(TG51Base):
             'Output Adjustment?: {}'.format(was_adjusted),
         ]
         if was_adjusted == 'Yes':
-            text.append('Adjusted corrected M @ reference voltage (nC): {}'.format(self.adjusted_m_corrected))
-            text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.adjusted_m_corrected))
-            text.append('Adjusted Dose/MU @ dref depth (cGy): {:2.3f}'.format(self.adjusted_dose_mu_dref))
-            text.append('Adjusted Dose/MU @ dmax (cGy): {:2.3f}'.format(self.adjusted_dose_mu_dmax))
+            text.append('Adjusted Mraw @ reference voltage (nC): {}'.format(self.m_reference_adjustment))
+            text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.m_corrected_adjustment))
+            text.append('Adjusted Dose/MU @ dref depth (cGy): {:2.3f}'.format(self.dose_mu_dref_adjusted))
+            text.append('Adjusted Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax_adjusted))
+        canvas.add_text(text=text, location=(2, 25.5), font_size=11)
+        if notes is not None:
+            canvas.add_text(text="Notes:", location=(12, 6.5), font_size=14)
+            canvas.add_text(text=notes, location=(12, 6))
+
+        canvas.finish()
+
+        if open_file:
+            open_path(filename)
+
+
+class TG51ElectronModern(TG51Base):
+    """Class for calculating absolute dose to water using a cylindrical chamber in an electron beam.
+
+    .. warning::
+
+    This class uses the values of Muir & Rodgers. These values are likely to be included in the new TG-51
+    addendum, but are not official. The results can be up to 1% different. Physicists should use their own
+    judgement when deciding which class to use. To use a manual kecal value and the classic TG-51 equations use
+    the :class:`~pylinac.calibration.tg51.TG51ElectronLegacy` class.
+
+    Attributes
+    ----------
+    press : float
+        The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
+    temp : float
+        The temperature in Celsius.
+    voltage_reference : int
+        The reference voltage; i.e. the voltage for the calibration reading (e.g. 300V).
+    voltage_reduced : int
+        The reduced voltage, usually a fraction of the reference voltage (e.g. 150V).
+    m_reference : array, float
+        The reading(s) of the chamber at reference voltage.
+    m_reduced : array, float
+        The reading(s) of the chamber at the reduced voltage.
+    m_opposite : array, float
+        The reading(s) of the chamber at the opposite voltage from reference. Sign of the reading does not matter.
+    k_elec : float
+        The electrometer correction value given by the calibration laboratory. jyh,lykllp;ljljuhyk nmdrzj
+    chamber : str
+        Ion chamber model.
+    n_dw : float
+        NDW value in Gy/nC
+    p_elec : float
+    clinical_pdd : float
+        The PDD used to correct the dose back to dref.
+    voltage_reference : float
+    voltage_reduced : float
+    m_reference : float, tuple
+    m_opposite : float, tuple
+    m_reduced : float, tuple
+    mu : float
+    i_50 : float
+        Depth of 50% ionization
+    tissue_correction : float
+        Correction value to calibration to, e.g., muscle. A value of 1.0 means no correction (i.e. water).
+    """
+
+    def __init__(self, *,
+                 institution: str='',
+                 physicist: str='',
+                 unit: str='',
+                 measurement_date: str='',
+                 energy: int,
+                 temp: NumberLike,
+                 press: NumberLike,
+                 chamber: str,
+                 n_dw: float,
+                 electrometer: str='',
+                 p_elec: float,
+                 clinical_pdd: float,
+                 voltage_reference: int,
+                 voltage_reduced: int,
+                 m_reference: NumberOrArray,
+                 m_opposite: NumberOrArray,
+                 m_reduced: NumberOrArray,
+                 cone: str,
+                 mu: int,
+                 i_50: float,
+                 tissue_correction: float,
+                 m_reference_adjusted=None):
+        super().__init__(temp=temp, press=press, chamber=chamber, n_dw=n_dw, p_elec=p_elec,
+                         voltage_reference=voltage_reference, voltage_reduced=voltage_reduced, m_reference=m_reference,
+                         m_opposite=m_opposite, m_reduced=m_reduced, clinical_pdd=clinical_pdd, mu=mu,
+                         i_50=i_50, tissue_correction=tissue_correction,
+                         institution=institution, physicist=physicist, unit=unit,
+                         measurement_date=measurement_date, electrometer=electrometer,
+                         m_reference_adjusted=m_reference_adjusted, cone=cone, energy=energy,
+                         )
+
+    @property
+    def r_50(self) -> float:
+        """Depth of the 50% dose value."""
+        return r_50(i_50=self.i_50)
+
+    @property
+    def dref(self) -> float:
+        """Depth of the reference point."""
+        return d_ref(i_50=self.i_50)
+
+    @property
+    def kq(self) -> float:
+        """The kQ value using the updated Muir & Rodgers values from their 2014 paper, equation 11, or classically
+        if kecal is passed."""
+        return kq_electron(chamber=self.chamber, r_50=self.r_50)
+
+    @property
+    def dose_mu_dref(self) -> float:
+        """cGy/MU at the depth of Dref."""
+        return self.tissue_correction * self.m_corrected * self.kq * self.n_dw / self.mu
+
+    @property
+    def dose_mu_dmax(self) -> float:
+        """cGy/MU at the depth of dmax."""
+        return self.dose_mu_dref / (self.clinical_pdd / 100)
+
+    @property
+    def dose_mu_dref_adjusted(self) -> float:
+        """cGy/MU at the depth of Dref."""
+        return self.tissue_correction * self.m_corrected_adjusted * self.kq * self.n_dw / self.mu
+
+    @property
+    def dose_mu_dmax_adjusted(self) -> float:
+        """cGy/MU at the depth of dmax."""
+        return self.dose_mu_dref_adjusted / (self.clinical_pdd / 100)
+
+    def publish_pdf(self, filename: str, notes: Optional[list]=None, open_file: bool=False,
+                    metadata: Optional[dict]=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : str, file-like object
+            The file to write the results to.
+        notes : str, list
+            Any notes to be added to the report. If a string, adds everything as one line.
+            If a list, must be a list of strings; each string item will be a new line.
+        open_file : bool
+            Whether to open the file after creation. Will use the default PDF program.
+        metadata : dict
+            Any data that should be appended to every page of the report. This differs from notes in that
+            metadata is at the top of every page while notes is at the bottom of the report.
+        """
+        was_adjusted = 'Yes' if self.output_was_adjusted else 'No'
+        title = [
+            'TG-51 Electron Report (Modern)',
+            '{} - {} MeV'.format(self.unit, self.energy)
+        ]
+
+        canvas = PylinacCanvas(filename, page_title=title, metadata=metadata)
+        text = [
+            'Site Data:',
+            'Institution: {}'.format(self.institution),
+            'Performed by: {}'.format(self.physicist),
+            'Measurement Date: {}'.format(self.measurement_date),
+            'Date of Report: {}'.format(datetime.now().strftime("%A, %B %d, %Y")),
+            'Unit: {}'.format(self.unit),
+            'Energy: {} MeV'.format(self.energy),
+            'Cone: {}'.format(self.cone),
+            'MU: {}'.format(self.mu),
+            '',
+            'Instrumentation:',
+            'Chamber: {}'.format(self.chamber),
+            'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
+            'Electrometer: {}'.format(self.electrometer),
+            'Pelec: {:2.2f}'.format(self.p_elec),
+            '',
+            'Beam Quality:',
+            'I50 (cm): {:2.2f}'.format(self.i_50),
+            'R50 (cm): {:2.2f}'.format(self.r_50),
+            'Dref (cm): {:2.2f}'.format(self.dref),
+            "Calculated kQ: {:2.3f}".format(self.kq),
+            '',
+            'Chamber Corrections/Measurements:',
+            'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
+            'Pressure (kPa): {:2.1f}'.format(self.press),
+            'Mraw @ ({}V, Reference) (nC): {}'.format(self.voltage_reference, self.m_reference),
+            'Mraw @ ({}V, Reduced) (nC): {}'.format(self.voltage_reduced, self.m_reduced),
+            'Mraw @ ({}V, Opposite) (nC): {}'.format(-self.voltage_reference, self.m_opposite),
+            'Ptp: {:2.3f}'.format(self.p_tp),
+            'Pion: {:2.3f}'.format(self.p_ion),
+            'Ppol: {:2.3f}'.format(self.p_pol),
+            '',
+            'Dose Determination:',
+            'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
+            'Tissue correction (e.g. muscle): {:2.3f}'.format(self.tissue_correction),
+            'Dose/MU @ Dref depth (cGy): {:2.3f}'.format(self.dose_mu_dref),
+            'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd),
+            'Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax),
+            '',
+            'Output Adjustment?: {}'.format(was_adjusted),
+        ]
+        if was_adjusted == 'Yes':
+            text.append('Adjusted corrected M @ reference voltage (nC): {}'.format(self.m_corrected_adjustment))
+            text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.m_corrected_adjustment))
+            text.append('Adjusted Dose/MU @ dref depth (cGy): {:2.3f}'.format(self.dose_mu_dref_adjusted))
+            text.append('Adjusted Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax_adjusted))
         canvas.add_text(text=text, location=(2, 25.5), font_size=11)
         if notes is not None:
             canvas.add_text(text="Notes:", location=(12, 6.5), font_size=14)
