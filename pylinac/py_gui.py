@@ -97,9 +97,12 @@ class PylinacGUI(Frame):
             self.vmat_dmlcimg.set(f)
 
         def analyze_vmat():
-            v = vmat.VMAT(images=(self.vmat_openimg.get(), self.vmat_dmlcimg.get()),
-                          delivery_types=(vmat.OPEN, vmat.DMLC))
-            v.analyze(test=self.vmat_test.get(), tolerance=self.vmat_tol.get(), x_offset=self.vmat_xoff.get())
+            images = (self.vmat_openimg.get(), self.vmat_dmlcimg.get())
+            if self.vmat_test.get() == 'DRGS':
+                v = vmat.DRGS(image_paths=images)
+            else:
+                v = vmat.DRMLC(image_paths=images)
+            v.analyze(tolerance=self.vmat_tol.get())
             fname = osp.join(self.vmat_dmlcimg.get().replace('.dcm', '.pdf'))
             v.publish_pdf(fname)
             self.vmat_pdf.set(fname)
@@ -108,20 +111,17 @@ class PylinacGUI(Frame):
         self.vmat_tab = Frame(self.notebook)
         self.vmat_openimg = StringVar()
         self.vmat_dmlcimg = StringVar()
-        self.vmat_test = StringVar(value=vmat.DRGS)
+        self.vmat_test = StringVar(value='DRGS')
         self.vmat_tol = DoubleVar(value=1.5)
-        self.vmat_xoff = IntVar(value=0)
         self.vmat_pdf = StringVar()
         Button(self.vmat_tab, text='Load Open Image...', command=load_open).grid(column=1, row=1)
         Button(self.vmat_tab, text='Load DMLC Image...', command=load_dmlc).grid(column=1, row=3)
         Label(self.vmat_tab, textvariable=self.vmat_openimg).grid(column=1, row=2)
         Label(self.vmat_tab, textvariable=self.vmat_dmlcimg).grid(column=1, row=4)
         Label(self.vmat_tab, text='Test type:').grid(column=1, row=5)
-        Combobox(self.vmat_tab, values=(vmat.DRGS, vmat.DRMLC), textvariable=self.vmat_test).grid(column=2, row=5)
+        Combobox(self.vmat_tab, values=('DRGS', 'DRMLC'), textvariable=self.vmat_test).grid(column=2, row=5)
         Label(self.vmat_tab, text='Tolerance (%):').grid(column=1, row=6)
         Entry(self.vmat_tab, width=7, textvariable=self.vmat_tol).grid(column=2, row=6)
-        Label(self.vmat_tab, text='X-offset (px):').grid(column=1, row=7)
-        Entry(self.vmat_tab, width=7, textvariable=self.vmat_xoff).grid(column=2, row=7)
         Button(self.vmat_tab, text='Analyze', command=analyze_vmat).grid(column=1, row=8)
         Label(self.vmat_tab,
               text='Analysis will analyze the file(s) according to the settings, \nsave a PDF in the same directory as the original file location and then open it.').grid(
