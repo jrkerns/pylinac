@@ -1,3 +1,4 @@
+.. _calibration_module:
 
 ================================
 Calibration module documentation
@@ -158,6 +159,7 @@ Class-based Use
 
 .. literalinclude:: code_snippets/tg51_class.py
 
+.. _trs398:
 
 TRS-398
 -------

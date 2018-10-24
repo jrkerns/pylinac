@@ -1,3 +1,4 @@
+.. _contributer_guide:
 
 ============
 Contributing

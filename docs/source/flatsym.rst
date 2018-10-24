@@ -1,3 +1,4 @@
+.. _flatsym_module:
 
 ======================================
 Flatness/Symmetry module documentation
@@ -63,7 +64,7 @@ If you don't have an image you can load the demo image:
 
     my_img = FlatSym.from_demo_image()
 
-You can then calculate the flatness and symmetry with the :method:`~pylinac.flatsym.FlatSym.analyze` method:
+You can then calculate the flatness and symmetry with the :classmethod:`~pylinac.flatsym.FlatSym.analyze` method:
 
 .. code-block:: python
 
@@ -87,7 +88,7 @@ The raw data values of analysis are also available within the public attributes 
     my_img = FlatSym.from_demo_image()
     my_img.analyze(flatness_method='varian', symmetry_method='varian')
     my_img.symmetry['horizontal']['value']  # the actual symmetry value
-    my_img.flatness['vertical']['']
+    my_img.flatness['vertical']['value']
 
 Analysis Options
 ----------------
@@ -162,7 +163,7 @@ assuming to start at the CAX and move outward.
           structure. For further examples, see the source code for the built-in equations;
           e.g. :func:`~pylinac.flatsym.flatness_varian`.
 
-.. note:: The :class:`~pylinac.core.profile.SingleProfile`_ given to the function is very powerful and can calculate
+.. note:: The :class:`~pylinac.core.profile.SingleProfile` given to the function is very powerful and can calculate
           numerous helpful data for you such as the field edges, minimum/maximum value within the field, and much more.
           Read the documentation before creating a custom algorithm.
 
