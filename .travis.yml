@@ -42,7 +42,7 @@ install:
   # install your own package into the environment
   - python setup.py install
   # attempt to fix DISPLAY variable errors of matplotlib's. See: https://github.com/mwaskom/seaborn/pull/97
-  - cp tests/matplotlibrc .
+  - cp tests_basic/matplotlibrc .
 
 # test script
 script:
