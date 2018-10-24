@@ -27,7 +27,7 @@ setup(
                       "argue",
                       "reportlab >= 3.3"],
     license='MIT',
-    test_suite='tests._test_all',
+    test_suite='test_basic',
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

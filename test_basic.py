@@ -9,7 +9,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 
-def run_tests(directory, pattern='test*.py'):
+def run_tests(directory, pattern='test_*.py'):
     # import a runner to run tests_basic
     runner = unittest.TextTestRunner()
     # run test discovery
@@ -18,5 +18,6 @@ def run_tests(directory, pattern='test*.py'):
     runner.run(test_suite)
 
 
-test_dir = osp.join(osp.dirname(__file__), 'tests_basic')
-run_tests(test_dir)
+if __name__ == '__main__':
+    test_dir = osp.join(osp.dirname(__file__), 'tests_basic')
+    run_tests(test_dir)
