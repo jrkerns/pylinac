@@ -400,5 +400,5 @@ class IMMC_TB_20E_Modern(TestTG51ElectronModern, TestCase):
     m_reduced = 19.437
     i_50 = 8.22
     clinical_pdd = 96.8
-    dose_mu_dref = 0.980
-    dose_mu_dmax = 1.013
+    dose_mu_dref = 0.974
+    dose_mu_dmax = 1.006

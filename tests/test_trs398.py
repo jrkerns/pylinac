@@ -134,10 +134,10 @@ class MDA_TB1_2015_10x(TestTRS398Photon, TestCase):
     m_reduced = 27.635
     clinical_pdd_zref = 73.5
     dose_mu_zref = 0.734
-    dose_mu_zmax = 1.000
+    dose_mu_zmax = 0.998
     tpr2010 = (73.42/73.7) * trs398.tpr2010_from_pdd2010(pdd2010=46.3/73.7)
-    open_pdf = True
-    print_data = True
+    # open_pdf = True
+    # print_data = True
 
 
 class ACB5_2011_6x(TestTRS398Photon, TestCase):

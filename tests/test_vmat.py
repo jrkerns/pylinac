@@ -74,7 +74,6 @@ class VMATMixin:
     klass = object
     filepaths = Union[str, List]
     is_zip = False
-    x_offset = 0
     segment_positions = {1: Point(100, 200)}
     segment_values = {
         0: {'r_dev': 0, 'r_corr': 100},
@@ -133,11 +132,10 @@ class TestDRGSDemo(VMATMixin, TestCase):
     avg_abs_r_deviation = 0.46
     avg_r_deviation = 0
     max_r_deviation = 0.96
-    x_offset = 20
 
     def setUp(self):
         self.vmat = DRGS.from_demo_images()
-        self.vmat.analyze(x_offset=self.x_offset)
+        self.vmat.analyze()
 
     def test_demo(self):
         """Run the demo; no errors should arise."""
@@ -157,7 +155,7 @@ class TestDRMLCDemo(VMATMixin, TestCase):
 
     def setUp(self):
         self.vmat = DRMLC.from_demo_images()
-        self.vmat.analyze(x_offset=self.x_offset)
+        self.vmat.analyze()
 
     def test_demo(self):
         self.vmat.run_demo()
