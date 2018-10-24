@@ -7,7 +7,7 @@ from pylinac.core.exceptions import NotAnalyzed
 from pylinac.core.io import retrieve_demo_file
 from pylinac.flatsym import FlatSym
 
-from .utils import has_www_connection, LocationMixin, save_file
+from tests_basic.utils import has_www_connection, LocationMixin, save_file
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Flatness & Symmetry')
 
