@@ -491,14 +491,14 @@ class TG51Photon(TG51Base):
         return self.dose_mu_10 / (self.clinical_pdd10 / 100)
 
     @property
-    def adjusted_dose_mu_10(self) -> float:
+    def dose_mu_10_adjusted(self) -> float:
         """The dose/mu at 10cm depth after adjustment."""
         return self.tissue_correction*self.m_corrected_adjustment*self.kq*self.n_dw/self.mu
 
     @property
     def dose_mu_dmax_adjusted(self) -> float:
         """The dose/mu at dmax depth after adjustment."""
-        return self.adjusted_dose_mu_10/(self.clinical_pdd10/100)
+        return self.dose_mu_10_adjusted / (self.clinical_pdd10 / 100)
 
     def publish_pdf(self, filename: str, notes: Optional[list]=None, open_file: bool=False,
                     metadata: Optional[dict]=None):
@@ -568,7 +568,7 @@ class TG51Photon(TG51Base):
         if was_adjusted == 'Yes':
             text.append('Adjusted Mraw @ reference voltage (nC): {}'.format(self.m_reference_adjusted))
             text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.m_corrected_adjustment))
-            text.append('Adjusted Dose/MU @ 10cm depth (cGy): {:2.3f}'.format(self.adjusted_dose_mu_10))
+            text.append('Adjusted Dose/MU @ 10cm depth (cGy): {:2.3f}'.format(self.dose_mu_10_adjusted))
             text.append('Adjusted Dose/MU @ dmax (cGy): {:2.3f}'.format(self.dose_mu_dmax_adjusted))
         canvas.add_text(text=text, location=(2, 25.5), font_size=12)
         if notes is not None:
