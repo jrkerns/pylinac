@@ -64,7 +64,7 @@ class TestFunctions(TestCase):
         pddxs = (66.4, 76.7)
         kqs = (0.9927, 0.976)
         for chamber, pddx, kq in zip(chambers, pddxs, kqs):
-            self.assertAlmostEqual(tg51.kq_photon_pdd(chamber=chamber, pddx=pddx), kq, delta=0.001)
+            self.assertAlmostEqual(tg51.kq_photon_pddx(chamber=chamber, pddx=pddx), kq, delta=0.001)
 
     def test_kq_photon_tpr(self):
         chambers = ('30010',)
