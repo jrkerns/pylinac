@@ -217,7 +217,7 @@ class FlatSym(LinacDicomImage):
         """
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
-        canvas = pdf.PylinacCanvas(filename, page_title="Flatness & Symmetry Analysis")
+        canvas = pdf.PylinacCanvas(filename, page_title="Flatness & Symmetry Analysis", metadata=metadata)
         # draw result text
         text = ['Flatness & Symmetry results:',
                 f"Flatness Algorithm: {self.flatness['method'].capitalize()}",

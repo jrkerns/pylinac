@@ -19,6 +19,7 @@ from os import path as osp
 import os
 import webbrowser
 import zipfile
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1177,7 +1178,7 @@ class CatPhanBase:
         phan_area = np.pi*(self.catphan_radius_mm**2)
         return phan_area/(self.mm_per_pixel**2)
 
-    def publish_pdf(self, filename, notes=None, open_file=False, metadata=None):
+    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -1221,17 +1222,17 @@ class CatPhanBase:
             module_texts.append(add)
             module_images.append(('lc', None))
 
-        self._publish_pdf(filename, unit, author, notes, analysis_title,
+        self._publish_pdf(filename, metadata, notes, analysis_title,
                           module_texts, module_images)
-        if open:
+        if open_file:
             webbrowser.open(filename)
 
-    def _publish_pdf(self, filename, unit, author, notes, analysis_title, texts, imgs):
+    def _publish_pdf(self, filename, metadata, notes, analysis_title, texts, imgs):
         try:
             date = datetime.strptime(self.dicom_stack[0].metadata.InstanceCreationDate, "%Y%m%d").strftime("%A, %B %d, %Y")
         except:
             date = "Unknown"
-        canvas = pdf.PylinacCanvas(filename, page_title=analysis_title)
+        canvas = pdf.PylinacCanvas(filename, page_title=analysis_title, metadata=metadata)
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 4))

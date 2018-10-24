@@ -4,9 +4,9 @@ import sys
 __version__ = '2.2.0'
 __version_info__ = (2, 2, 0)
 
-# check for python 2
-if sys.version_info[0] < 3:
-    raise ValueError("Pylinac is only supported on Python 3.x. It seems you are using Python 2; please use a different interpreter.")
+# check python version
+if sys.version_info[0] < 3 or sys.version_info[1] < 6:
+    raise ValueError("Pylinac is only supported on Python 3.6+. Please update your environment.")
 
 # import shortcuts
 from pylinac.ct import CatPhan504, CatPhan600, CatPhan503, CatPhan604
