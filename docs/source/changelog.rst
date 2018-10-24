@@ -6,12 +6,21 @@ Changelog
 V 2.2.0
 -------
 
+General
+^^^^^^^
+
+* The ``publish_pdf`` method of every module has had its signature changed. Before, not all the signatures matched
+  and only included a few parameters like author and unit name. This has been changed to XXXXX
+* The TG-51 module has been placed under a new module: ``calibration``. This is because:
+* A TRS-398 calibration module has been created and is also under the ``calibration`` module.
+* The default colormap for arrays is now Viridis, the matplotlib default.
+
 VMAT
 ^^^^
 
 * The overall simplicity of use has been increased by automating & removing several parameters.
-* The ``VMAT`` class has been split into two classes: ``DRGS`` and ``DRMLC``. Although there are now two classes
-  instead of one, the overall simplicity has been increased, like the following:
+* The ``VMAT`` class has been split into two classes: :class:`~pylinac.vmat.DRGS` and :class:`~pylinac.vmat.DRMLC`. Although there are now two classes
+  instead of one, the overall simplicity has been increased, such as the following:
   * The ``test`` parameter in ``analyze()`` is no longer required and has been removed.
   * The ``type`` is no longer required in ``.from_demo_images()``.
   * The demo method matches the other modules: ``.run_demo()``
@@ -21,6 +30,24 @@ VMAT
 * The ``delivery_types`` parameter has been removed. The delivery types of the images are now automatically determined.
 * The methods for plotting and saving subimages (each image & the profiles) has been converted to a private method
   (``_plot_subimage()``, ...). There is little need for a public method to plot individually.
+
+TG-51/Calibration
+^^^^^^^^^^^^^^^^^
+
+* The TG-51 module has been refactored to add a ``TG51ElectronLegacy`` and ``TG51ElectronModern`` calibration class.
+  The Legacy class uses the classic TG-51 values that require a kecal value and a Pgradient measurement. The Modern
+  class uses the equations from Muir & Rogers 2014 to calculate kQ that updates and incorporates the Pgradient and
+  kecal values. While not strictly TG-51, these values are very likely to be incorporated into the next TG-51 addendum
+  as the kQ values for photons already has.
+* Certain parameters have been refactored: ``volt_high`` and ``volt_low`` have been refactored to ``voltage_reference``
+  and ``voltage_reduced``, ``m_raw``, ``m_low``, and ``m_opp`` have been refactored to ``m_reference``, ``m_reduced``,
+  and ``m_opposite``. These parameters are also the same for the TRS-398 classes
+* The ``kq`` function has been separated into three functions: ``kq_photon_pdd10x``, ``kq_photon_tpr2010``, and
+  ``kq_electron``.
+* Defaults were removed from many utility functions.
+* Most parameters were changed to be keyword only. This will prevent accidental miscalculations from simple positional arguments.
+* A TRS-398 module has been added. There are two main classes: ``TRS398Photon`` and ``TRS398Electron``.
+
 
 V 2.1.0
 -------

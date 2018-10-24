@@ -11,7 +11,7 @@
    overview
    installation
    general_tips
-   tg51_docs
+   calibration_docs
    starshot_docs
    vmat_docs
    cbct_docs
@@ -24,6 +24,7 @@
    core_modules
    pylinac_core_hacking
    troubleshooting
+   contributing
    changelog
 
 
