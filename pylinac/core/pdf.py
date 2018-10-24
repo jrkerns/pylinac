@@ -2,6 +2,7 @@
 from datetime import datetime
 from typing import List, Union, Sequence
 import io
+import os.path as osp
 
 from PIL import Image
 from reportlab.pdfgen.canvas import Canvas
@@ -40,7 +41,7 @@ class PylinacCanvas:
 
     def _generate_pylinac_template_theme(self):
         # draw logo and header separation line
-        self.canvas.drawImage(retrieve_demo_file(url='Pylinac_Full_cropped.png'),
+        self.canvas.drawImage(osp.join(osp.dirname(osp.dirname(osp.abspath(__file__))), 'files', 'Pylinac Full cropped.png'),
                          1 * cm, 26.5 * cm, width=5 * cm, height=3 * cm, preserveAspectRatio=True)
         self.canvas.line(1 * cm, 26.5 * cm, 20 * cm, 26.5 * cm)
         # draw title
