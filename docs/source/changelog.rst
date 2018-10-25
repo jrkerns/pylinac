@@ -9,7 +9,7 @@ V 2.2.0
 General
 ^^^^^^^
 
-* Typing has been added to almost every function and class in pylinac.
+* `#131 <https://github.com/jrkerns/pylinac/issues/131>`_ Typing has been added to almost every function and class in pylinac.
 * F-strings have been incorporated. This bumps the minimum version for Python to 3.6.
 * The ``publish_pdf`` method of every module has had its signature changed. Before, not all the signatures matched
   and only included a few parameters like author and unit name. This has been changed to
@@ -20,6 +20,8 @@ General
 * A TRS-398 calibration module has been created :ref:`trs398`.
 * The default colormap for arrays is now Viridis, the matplotlib default.
 * A contributer's guide has been added: :ref:`contributer_guide`.
+* `#141 <https://github.com/jrkerns/pylinac/issues/141>`_ The Pylinac logo has been included in the package so that PDFs can be generated without needing www access.
+* A new dependency has been added: `argue <https://pypi.org/project/argue/>` which handles input parameters.
 
 
 Flatness & Symmetry
@@ -32,7 +34,7 @@ VMAT
 ^^^^
 
 * The overall simplicity of use has been increased by automating & removing several parameters.
-* The ``VMAT`` class has been split into two classes: :class:`~pylinac.vmat.DRGS` and :class:`~pylinac.vmat.DRMLC`. Although there are now two classes
+* `#128 <https://github.com/jrkerns/pylinac/issues/128>`_ The ``VMAT`` class has been split into two classes: :class:`~pylinac.vmat.DRGS` and :class:`~pylinac.vmat.DRMLC`. Although there are now two classes
   instead of one, the overall simplicity has been increased, such as the following:
 
   * The ``test`` parameter in ``analyze()`` is no longer required and has been removed.
@@ -48,7 +50,7 @@ VMAT
 TG-51/Calibration
 ^^^^^^^^^^^^^^^^^
 
-* The TG-51 module has been refactored to add a ``TG51ElectronLegacy`` and ``TG51ElectronModern`` calibration class.
+* `#129 <https://github.com/jrkerns/pylinac/issues/129>`_ The TG-51 module has been refactored to add a ``TG51ElectronLegacy`` and ``TG51ElectronModern`` calibration class.
   The Legacy class uses the classic TG-51 values that require a kecal value and a Pgradient measurement. The Modern
   class uses the equations from Muir & Rogers 2014 to calculate kQ that updates and incorporates the Pgradient and
   kecal values. While not strictly TG-51, these values are very likely to be incorporated into the next TG-51 addendum
@@ -62,7 +64,7 @@ TG-51/Calibration
   This can be used in either TG-51 or TRS-398 to get TPR without actually needing to measure it.
 * Defaults were removed from most functions to avoid possible miscalibration/miscalculation.
 * Most parameters were changed to be keyword only. This will prevent accidental miscalculations from simple positional arguments.
-* A TRS-398 module has been added. There are two main classes: ``TRS398Photon`` and ``TRS398Electron``.
+* `#127 <https://github.com/jrkerns/pylinac/issues/127>`_ A TRS-398 module has been added. There are two main classes: ``TRS398Photon`` and ``TRS398Electron``.
 
 Bug Fixes
 ^^^^^^^^^
