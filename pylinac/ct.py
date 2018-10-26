@@ -19,6 +19,7 @@ from os import path as osp
 import os
 import webbrowser
 import zipfile
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1177,7 +1178,7 @@ class CatPhanBase:
         phan_area = np.pi*(self.catphan_radius_mm**2)
         return phan_area/(self.mm_per_pixel**2)
 
-    def publish_pdf(self, filename, author=None, unit=None, notes=None, open=False):
+    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -1221,38 +1222,30 @@ class CatPhanBase:
             module_texts.append(add)
             module_images.append(('lc', None))
 
-        self._publish_pdf(filename, unit, author, notes, analysis_title,
+        self._publish_pdf(filename, metadata, notes, analysis_title,
                           module_texts, module_images)
-        if open:
+        if open_file:
             webbrowser.open(filename)
 
-    def _publish_pdf(self, filename, unit, author, notes, analysis_title, texts, imgs):
+    def _publish_pdf(self, filename, metadata, notes, analysis_title, texts, imgs):
         try:
             date = datetime.strptime(self.dicom_stack[0].metadata.InstanceCreationDate, "%Y%m%d").strftime("%A, %B %d, %Y")
         except:
             date = "Unknown"
-        from reportlab.lib.units import cm
-        canvas = pdf.create_pylinac_page_template(filename,
-                                                  analysis_title=analysis_title,
-                                                  unit=unit, author=author,
-                                                  file_created=date)
+        canvas = pdf.PylinacCanvas(filename, page_title=analysis_title, metadata=metadata)
         if notes is not None:
-            pdf.draw_text(canvas, x=1 * cm, y=4.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1 * cm, y=4 * cm, text=notes)
+            canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 4))
 
         for page, ((img1, img2), text) in enumerate(zip(imgs, texts)):
             for img, offset in zip((img1, img2), (12, 2)):
                 if img is not None:
                     data = io.BytesIO()
                     self.save_analyzed_subimage(data, img)
-                    img = pdf.create_stream_image(data)
-                    canvas.drawImage(img, 4 * cm, offset * cm, width=15 * cm, height=10*cm, preserveAspectRatio=True)
-            pdf.draw_text(canvas, 1.5*cm, 23*cm, text=text)
-            canvas.showPage()
-            # add another page until last page is reached
-            if page != len(texts)-1:
-                pdf.add_pylinac_page_template(canvas, analysis_title=analysis_title)
-        canvas.save()
+                    canvas.add_image(data, location=(4, offset), dimensions=(15, 10))
+            canvas.add_text(text=text, location=(1.5, 23))
+            canvas.add_new_page()
+        canvas.finish()
 
     def _zip_images(self):
         """Compress the raw images into a ZIP archive and remove the uncompressed images."""

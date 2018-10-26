@@ -1,14 +1,13 @@
 from setuptools import setup, find_packages
 
-__version__ = '2.1.0.1'
+__version__ = '2.2.0'
 
 
 setup(
     name='pylinac',
     version=__version__,
     packages=find_packages(),
-    package_data={'pylinac': ['watcher_config.yml']},
-    zip_safe=False,  # allows users to view files in egg/distribution
+    package_data={'pylinac': ['watcher_config.yml', 'files/*.png']},
     url='https://github.com/jrkerns/pylinac',
     keywords="""medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog starshot linac Varian Elekta
              trajectory log kv MV planar Leeds Las Vegas Standard Imaging PipsPro TG51""",
@@ -25,9 +24,10 @@ setup(
                       "tqdm >= 3.8",
                       "pyyaml >= 3.10",
                       "yagmail",
+                      "argue",
                       "reportlab >= 3.3"],
     license='MIT',
-    test_suite='tests._test_all',
+    test_suite='test_basic',
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

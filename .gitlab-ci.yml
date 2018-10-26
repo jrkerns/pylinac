@@ -12,7 +12,7 @@ test:
     # install your own package into the environment
     - python setup.py install
     # attempt to fix DISPLAY variable errors of matplotlib's. See: https://github.com/mwaskom/seaborn/pull/97
-    - cp tests/matplotlibrc .
+    - cp tests_basic/matplotlibrc .
   script:
     - python setup.py test
 #    - coverage run --source=pylinac setup.py test
@@ -23,7 +23,7 @@ coverage:
     # install your own package into the environment
     - python setup.py install
     # attempt to fix DISPLAY variable errors of matplotlib's. See: https://github.com/mwaskom/seaborn/pull/97
-    - cp tests/matplotlibrc .
+    - cp tests_basic/matplotlibrc .
   script:
 #    - python setup.py test
     - coverage run --source=pylinac setup.py test

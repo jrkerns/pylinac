@@ -20,6 +20,7 @@ Running the Demos
 For this example we will use the DRGS class:
 
 .. code-block:: python
+
     from pylinac import DRGS
     DRGS.run_demo()
 
@@ -109,6 +110,7 @@ As with most other modules, the raw data can be examined and use as part of a la
 Perusing the documentation will show what is available, but a quick list is shown here by example:
 
 .. code-block:: python
+
     mydrgs.avg_abs_r_deviation  # float
     mydrgs.avg_r_deviation  # float; usually artificially low due to positive and negative R values
     mydrgs.max_r_deviation  # float; regardless of sign

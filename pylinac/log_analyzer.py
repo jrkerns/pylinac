@@ -2154,7 +2154,7 @@ class TrajectoryLog(LogBase):
     @property
     def is_hdmlc(self):
         """Whether the machine has an HDMLC or not."""
-        return self.header.mlc_model == 2
+        return self.header.mlc_model == 3
 
 
 def anonymize(source, inplace=False, destination=None, recursive=True):

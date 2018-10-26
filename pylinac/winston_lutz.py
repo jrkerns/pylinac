@@ -19,6 +19,7 @@ from itertools import zip_longest
 import io
 import math
 import os.path as osp
+from typing import Union, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,7 +32,7 @@ from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dico
 from .core.mask import filled_area_ratio, bounding_box
 from .core import pdf
 from .core.profile import SingleProfile
-from .core.utilities import is_close
+from .core.utilities import is_close, open_path
 
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'
@@ -179,7 +180,7 @@ class WinstonLutz:
         return result
 
     @property
-    def gantry_iso_size(self):
+    def gantry_iso_size(self) -> float:
         """The diameter of the 3D gantry isocenter size in mm. Only images where the collimator
         and couch were at 0 are used to determine this value."""
         num_gantry_like_images = self._get_images((GANTRY, REFERENCE))[0]
@@ -189,7 +190,7 @@ class WinstonLutz:
             return 0
 
     @property
-    def collimator_iso_size(self):
+    def collimator_iso_size(self) -> float:
         """The 2D collimator isocenter size (diameter) in mm. The iso size is in the plane
         normal to the gantry."""
         num_collimator_like_images = self._get_images((COLLIMATOR, REFERENCE))[0]
@@ -199,7 +200,7 @@ class WinstonLutz:
             return 0
 
     @property
-    def couch_iso_size(self):
+    def couch_iso_size(self) -> float:
         """The diameter of the 2D couch isocenter size in mm. Only images where
         the gantry and collimator were at zero are used to determine this value."""
         num_couch_like_images = self._get_images((COUCH, REFERENCE))[0]
@@ -209,7 +210,7 @@ class WinstonLutz:
             return 0
 
     @property
-    def bb_shift_vector(self):
+    def bb_shift_vector(self) -> Vector:
         """The shift necessary to place the BB at the radiation isocenter"""
         vs = [img.cax2bb_vector3d for img in self.images]
         # only include the values that are clinically significant; rules out values that are along the beam axis
@@ -218,7 +219,7 @@ class WinstonLutz:
         zs = np.mean([v.z for v in vs if (0.02 < v.z or v.z < -0.02)])
         return Vector(-xs, -ys, -zs)
 
-    def bb_shift_instructions(self, couch_vrt=None, couch_lng=None, couch_lat=None):
+    def bb_shift_instructions(self, couch_vrt: float=None, couch_lng: float=None, couch_lat: float=None) -> str:
         """A string describing how to shift the BB to the radiation isocenter"""
         sv = self.bb_shift_vector
         x_dir = 'LEFT' if sv.x < 0 else 'RIGHT'
@@ -233,7 +234,7 @@ class WinstonLutz:
         return move
 
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
-    def axis_rms_deviation(self, axis=GANTRY, value='all'):
+    def axis_rms_deviation(self, axis: str=GANTRY, value: str='all'):
         """The RMS deviations of a given axis/axes.
 
         Parameters
@@ -258,7 +259,7 @@ class WinstonLutz:
             rms = max(rms) - min(rms)
         return rms
 
-    def cax2bb_distance(self, metric='max'):
+    def cax2bb_distance(self, metric: str='max'):
         """The distance in mm between the CAX and BB for all images according to the given metric.
 
         Parameters
@@ -271,7 +272,7 @@ class WinstonLutz:
         elif metric == 'median':
             return np.median([image.cax2bb_distance for image in self.images])
 
-    def cax2epid_distance(self, metric='max'):
+    def cax2epid_distance(self, metric: str='max'):
         """The distance in mm between the CAX and EPID center pixel for all images according to the given metric.
 
         Parameters
@@ -285,7 +286,7 @@ class WinstonLutz:
             return np.median([image.cax2epid_distance for image in self.images])
 
     @value_accept(item=(GANTRY, EPID, COLLIMATOR, COUCH))
-    def _plot_deviation(self, item, ax=None, show=True):
+    def _plot_deviation(self, item: str, ax: plt.Axes=None, show: bool=True):
         """Helper function: Plot the sag in Cartesian coordinates.
 
         Parameters
@@ -329,14 +330,14 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    def _get_images(self, axis=(GANTRY,)):
+    def _get_images(self, axis: tuple=(GANTRY,)) -> Tuple[float, list]:
         if isinstance(axis, str):
             axis = (axis,)
         images = [image for image in self.images if image.variable_axis in axis]
         return len(images), images
 
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO))
-    def plot_axis_images(self, axis=GANTRY, show=True, ax=None):
+    def plot_axis_images(self, axis: str=GANTRY, show: bool=True, ax: plt.Axes=None):
         """Plot all CAX/BB/EPID positions for the images of a given axis.
 
         For example, axis='Couch' plots a reference image, and all the BB points of the other
@@ -376,7 +377,7 @@ class WinstonLutz:
             plt.show()
 
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
-    def plot_images(self, axis=ALL, show=True):
+    def plot_images(self, axis: str=ALL, show: bool=True):
         """Plot a grid of all the images acquired.
 
         Four columns are plotted with the titles showing which axis that column represents.
@@ -421,7 +422,7 @@ class WinstonLutz:
             plt.show()
 
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
-    def save_images(self, filename, axis=ALL, **kwargs):
+    def save_images(self, filename: str, axis: str=ALL, **kwargs):
         """Save the figure of `plot_images()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
         Parameters
@@ -432,7 +433,7 @@ class WinstonLutz:
         self.plot_images(axis=axis, show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_summary(self, show=True):
+    def plot_summary(self, show: bool=True):
         """Plot a summary figure showing the gantry sag and wobble plots of the three axes."""
         plt.figure(figsize=(11, 9))
         grid = (3, 6)
@@ -455,7 +456,7 @@ class WinstonLutz:
             plt.tight_layout()
             plt.show()
 
-    def save_summary(self, filename, **kwargs):
+    def save_summary(self, filename: str, **kwargs):
         """Save the summary image."""
         self.plot_summary(show=False)
         plt.tight_layout()
@@ -486,27 +487,31 @@ class WinstonLutz:
 
         return result
 
-    def publish_pdf(self, filename, unit=None, notes=None, open_file=False):
-        """Publish (print) a PDF containing the analysis and quantitative results.
+    def publish_pdf(self, filename: str, notes: Union[str, List[str]]=None, open_file: bool=False, metadata: dict=None):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
         ----------
         filename : (str, file-like object}
             The file to write the results to.
-        unit : str
-            The name of the unit the data was acquired on; e.g. "TrueBeam 1".
-        notes : (None, str)
-            An arbitrary string of information that may be useful to include in the PDF report.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
         open_file : bool
-            Whether to open the PDF file after publishing.
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
-        from reportlab.lib.units import cm
+        plt.ioff()
         title = "Winston-Lutz Analysis"
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title=title, unit=unit)
+        canvas = pdf.PylinacCanvas(filename, page_title=title, metadata=metadata)
         avg_sid = np.mean([image.metadata.RTImageSID for image in self.images])
         text = ['Winston-Lutz results:',
-                'Key, looking from foot of table:',
-                '+x: right, +y: up, +z:out',
                 'Average SID (mm): {:2.0f}'.format(avg_sid),
                 'Number of images: {}'.format(len(self.images)),
                 'Maximum distance to BB (mm): {:2.2f}'.format(self.cax2bb_distance('max')),
@@ -517,28 +522,28 @@ class WinstonLutz:
             text.append('Collimator 2D isocenter diameter (mm): {:2.2f}'.format(self.collimator_iso_size),)
         if self._contains_axis_images(COUCH):
             text.append('Couch 2D isocenter diameter (mm): {:2.2f}'.format(self.couch_iso_size), )
-        pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text)
+        canvas.add_text(text=text, location=(10, 25.5))
         # draw summary image on 1st page
         data = io.BytesIO()
         self.save_summary(data, figsize=(10, 10))
-        img = pdf.create_stream_image(data)
-        canvas.drawImage(img, 2 * cm, 3 * cm, width=18 * cm, height=18 * cm, preserveAspectRatio=True)
+        canvas.add_image(image_data=data, location=(2, 3), dimensions=(18, 18))
         if notes is not None:
-            pdf.draw_text(canvas, x=1*cm, y=4.5*cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1*cm, y=4*cm, text=notes)
-        canvas.showPage()
+            canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 4))
         # add more pages showing individual axis images
         for ax in (GANTRY, COLLIMATOR, COUCH, COMBO):
             if self._contains_axis_images(ax):
-                pdf.add_pylinac_page_template(canvas, analysis_title=title)
+                canvas.add_new_page(metadata=metadata)
                 data = io.BytesIO()
                 self.save_images(data, axis=ax, figsize=(10, 10))
-                img = pdf.create_stream_image(data)
-                canvas.drawImage(img, 2*cm, 7*cm, width=18*cm, height=18*cm, preserveAspectRatio=True)
-                canvas.showPage()
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+                canvas.add_image(data, location=(2, 7), dimensions=(18, 18))
 
-    def _contains_axis_images(self, axis=GANTRY):
+        canvas.finish()
+
+        if open_file:
+            open_path(filename)
+
+    def _contains_axis_images(self, axis: str=GANTRY) -> bool:
         """Return whether or not the set of WL images contains images pertaining to a given axis"""
         return any(True for image in self.images if image.variable_axis in (axis,))
 
@@ -590,7 +595,7 @@ class WLImage(image.LinacDicomImage):
             self.remove_edges(window_size)
             safety_stop -= 1
 
-    def _find_field_centroid(self):
+    def _find_field_centroid(self) -> Tuple[Point, List]:
         """Find the centroid of the radiation field based on a 50% height threshold.
 
         Returns
@@ -783,7 +788,7 @@ class WLImage(image.LinacDicomImage):
         plt.savefig(filename, **kwargs)
 
     @property
-    def variable_axis(self):
+    def variable_axis(self) -> str:
         """The axis that is varying.
 
         There are five types of images:
@@ -809,7 +814,7 @@ class WLImage(image.LinacDicomImage):
             return COMBO
 
 
-def is_symmetric(logical_array: np.array) -> bool:
+def is_symmetric(logical_array: np.ndarray) -> bool:
     """Whether the binary object's dimensions are symmetric, i.e. a perfect circle. Used to find the BB."""
     ymin, ymax, xmin, xmax = bounding_box(logical_array)
     y = abs(ymax - ymin)
@@ -819,14 +824,14 @@ def is_symmetric(logical_array: np.array) -> bool:
     return True
 
 
-def is_modest_size(logical_array: np.array, field_bounding_box) -> bool:
+def is_modest_size(logical_array: np.ndarray, field_bounding_box) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
     bbox = field_bounding_box
     rad_field_area = (bbox[1] - bbox[0]) * (bbox[3] - bbox[2])
     return rad_field_area * 0.003 < np.sum(logical_array) < rad_field_area * 0.3
 
 
-def is_round(logical_array: np.array) -> bool:
+def is_round(logical_array: np.ndarray) -> bool:
     """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
     expected_fill_ratio = np.pi / 4
     actual_fill_ratio = filled_area_ratio(logical_array)

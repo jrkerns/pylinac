@@ -9,3 +9,4 @@ tqdm >= 3.8
 pyyaml >= 3.10
 yagmail
 reportlab >= 3.3
+argue

@@ -20,11 +20,13 @@ from itertools import cycle
 from tempfile import TemporaryDirectory
 from typing import Union, Tuple, List
 
+import argue
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
 from pylinac.core.typing import NumberLike
+from pylinac.core.utilities import open_path
 from .core import image
 from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url, retrieve_demo_file
@@ -124,6 +126,7 @@ class PicketFence:
             self._load_log(log)
         else:
             self._log_fits = None
+        self._is_analyzed = False
 
     @classmethod
     def from_url(cls, url: str, filter: int=None):
@@ -288,6 +291,7 @@ class PicketFence:
 
         """Analysis"""
         self.pickets = PicketManager(self.image, self.settings, num_pickets)
+        self._is_analyzed = True
 
     def plot_analyzed_image(self, guard_rails: bool=True, mlc_peaks: bool=True, overlay: bool=True,
                             leaf_error_subplot: bool=True, show: bool=True):
@@ -314,7 +318,7 @@ class PicketFence:
 
         # generate a leaf error subplot if desired
         if leaf_error_subplot:
-            self._add_leaf_error_subplot(ax, fig)
+            self._add_leaf_error_subplot(ax)
 
         # plot guard rails and mlc peaks as desired
         for p_num, picket in enumerate(self.pickets):
@@ -401,46 +405,53 @@ class PicketFence:
                                                                        self.max_error, self.max_error_picket, self.max_error_leaf)
         return string
 
-    def publish_pdf(self, filename: str=None, author: str=None, unit: str=None, notes: str=None, open_file: bool=False):
+    def publish_pdf(self, filename: str=None, notes: str=None, open_file: bool=False, metadata: dict=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
         ----------
         filename : (str, file-like object}
             The file to write the results to.
-        unit : str, optional
-            Name of the unit that made the image/data.
-        author : str, optional
-            The author of the analysis; for tracking who did what.
         notes : str, list of strings
             Text; if str, prints single line.
             If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
+        plt.ioff()
         if filename is None:
             filename = self.image.pdf_path
-        from reportlab.lib.units import cm
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title='Picket Fence Analysis',
-                                                  author=author, unit=unit, file_name=osp.basename(self.image.path),
-                                                  file_created=self.image.date_created())
+        canvas = pdf.PylinacCanvas(filename, page_title="Picket Fence Analysis", metadata=metadata)
         data = io.BytesIO()
         self.save_analyzed_image(data, leaf_error_subplot=True)
-        img = pdf.create_stream_image(data)
-        canvas.drawImage(img, 3*cm, 8*cm, width=12*cm, height=12*cm, preserveAspectRatio=True)
-        text = ['Picket Fence results:',
-                'Magnification factor (SID/SAD): {:2.2f}'.format(self.image.metadata.RTImageSID/self.image.metadata.RadiationMachineSAD),
-                'Tolerance (mm): {}'.format(self.settings.tolerance),
-                'Leaves passing (%): {:2.1f}'.format(self.percent_passing),
-                'Absolute median error (mm): {:2.3f}'.format(self.abs_median_error),
-                'Mean picket spacing (mm): {:2.1f}'.format(self.pickets.mean_spacing),
-                'Maximum error (mm): {:2.3f} on Picket {}, Leaf {}'.format(self.max_error, self.max_error_picket, self.max_error_leaf),
-                ]
+        canvas.add_image(data, location=(3, 8), dimensions=(12, 12))
+        text = [
+            'Picket Fence results:',
+            'Magnification factor (SID/SAD): {:2.2f}'.format(self.image.metadata.RTImageSID/self.image.metadata.RadiationMachineSAD),
+            'Tolerance (mm): {}'.format(self.settings.tolerance),
+            'Leaves passing (%): {:2.1f}'.format(self.percent_passing),
+            'Absolute median error (mm): {:2.3f}'.format(self.abs_median_error),
+            'Mean picket spacing (mm): {:2.1f}'.format(self.pickets.mean_spacing),
+            'Maximum error (mm): {:2.3f} on Picket {}, Leaf {}'.format(self.max_error, self.max_error_picket, self.max_error_leaf),
+        ]
         text.append('Gantry Angle: {:2.2f}'.format(self.image.gantry_angle))
         text.append('Collimator Angle: {:2.2f}'.format(self.image.collimator_angle))
-        pdf.draw_text(canvas, x=10*cm, y=25.5*cm, text=text)
+        canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:
-            pdf.draw_text(canvas, x=1*cm, y=5.5*cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1*cm, y=5*cm, text=notes)
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 5))
+
+        canvas.finish()
+
+        if open_file:
+            open_path(filename)
 
     @property
     @lru_cache(maxsize=1)

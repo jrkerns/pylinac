@@ -6,12 +6,37 @@ Changelog
 V 2.2.0
 -------
 
+General
+^^^^^^^
+
+* `#131 <https://github.com/jrkerns/pylinac/issues/131>`_ Typing has been added to almost every function and class in pylinac.
+* F-strings have been incorporated. This bumps the minimum version for Python to 3.6.
+* The ``publish_pdf`` method of every module has had its signature changed. Before, not all the signatures matched
+  and only included a few parameters like author and unit name. This has been changed to
+  ``filename: str, notes: str, list of str, open_file: bool, metadata: dict``. Filename and open file are straightforward.
+  notes is a string or list of strings that are placed at the bottom of the report (e.g. 'April monthly redo'). Metadata is a dictionary that will print
+  both the key and value at the top of each page of the report (e.g. physicist and date of measurement)
+* The TG-51 module has been placed under a new module: :ref:`calibration_module`. This is because:
+* A TRS-398 calibration module has been created :ref:`trs398`.
+* The default colormap for arrays is now Viridis, the matplotlib default.
+* A contributer's guide has been added: :ref:`contributer_guide`.
+* `#141 <https://github.com/jrkerns/pylinac/issues/141>`_ The Pylinac logo has been included in the package so that PDFs can be generated without needing www access.
+* A new dependency has been added: `argue <https://pypi.org/project/argue/>` which handles input parameters.
+
+
+Flatness & Symmetry
+^^^^^^^^^^^^^^^^^^^
+
+* `#130 <https://github.com/jrkerns/pylinac/issues/130>`_ The flatsym module has been completely rewritten.
+  Documentation has also been updated and should be consulted given the number of changes: :ref:`flatsym_module`.
+
 VMAT
 ^^^^
 
 * The overall simplicity of use has been increased by automating & removing several parameters.
-* The ``VMAT`` class has been split into two classes: ``DRGS`` and ``DRMLC``. Although there are now two classes
-  instead of one, the overall simplicity has been increased, like the following:
+* `#128 <https://github.com/jrkerns/pylinac/issues/128>`_ The ``VMAT`` class has been split into two classes: :class:`~pylinac.vmat.DRGS` and :class:`~pylinac.vmat.DRMLC`. Although there are now two classes
+  instead of one, the overall simplicity has been increased, such as the following:
+
   * The ``test`` parameter in ``analyze()`` is no longer required and has been removed.
   * The ``type`` is no longer required in ``.from_demo_images()``.
   * The demo method matches the other modules: ``.run_demo()``
@@ -21,6 +46,34 @@ VMAT
 * The ``delivery_types`` parameter has been removed. The delivery types of the images are now automatically determined.
 * The methods for plotting and saving subimages (each image & the profiles) has been converted to a private method
   (``_plot_subimage()``, ...). There is little need for a public method to plot individually.
+
+TG-51/Calibration
+^^^^^^^^^^^^^^^^^
+
+* `#129 <https://github.com/jrkerns/pylinac/issues/129>`_ The TG-51 module has been refactored to add a ``TG51ElectronLegacy`` and ``TG51ElectronModern`` calibration class.
+  The Legacy class uses the classic TG-51 values that require a kecal value and a Pgradient measurement. The Modern
+  class uses the equations from Muir & Rogers 2014 to calculate kQ that updates and incorporates the Pgradient and
+  kecal values. While not strictly TG-51, these values are very likely to be incorporated into the next TG-51 addendum
+  as the kQ values for photons already have.
+* Certain parameters have been refactored: ``volt_high`` and ``volt_low`` have been refactored to ``voltage_reference``
+  and ``voltage_reduced``, ``m_raw``, ``m_low``, and ``m_opp`` have been refactored to ``m_reference``, ``m_reduced``,
+  and ``m_opposite``. These parameters are also the same for the TRS-398 classes
+* The ``kq`` function has been separated into three functions: ``kq_photon_pdd10x``, ``kq_photon_tpr2010``, and
+  ``kq_electron``.
+* A PDD(20,10) to TPR(20,10) converter function has been added.
+  This can be used in either TG-51 or TRS-398 to get TPR without actually needing to measure it.
+* Defaults were removed from most functions to avoid possible miscalibration/miscalculation.
+* Most parameters were changed to be keyword only. This will prevent accidental miscalculations from simple positional arguments.
+* `#127 <https://github.com/jrkerns/pylinac/issues/127>`_ A TRS-398 module has been added. There are two main classes: ``TRS398Photon`` and ``TRS398Electron``.
+
+Bug Fixes
+^^^^^^^^^
+* `#138 <https://github.com/jrkerns/pylinac/issues/138>`_/`#139 <https://github.com/jrkerns/pylinac/issues/139>`_: Too
+  many arguments when plotting the leaf error subplot for picketfence.
+* `#133 <https://github.com/jrkerns/pylinac/issues/133>`_: Trajectory log HDMLC status was reversed. This only affected
+  fluence calculations using the ``equal_aspect`` arguement.
+* `#134 <https://github.com/jrkerns/pylinac/issues/134>`_: Trajectory log fluence array values were not in absolute MU.
+
 
 V 2.1.0
 -------

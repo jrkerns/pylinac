@@ -265,6 +265,7 @@ class BaseImage:
         if not osp.isfile(path):
             raise FileExistsError("File `{0}` does not exist. Verify the file path name.".format(path))
         self.path = path
+        self.base_path = osp.basename(path)
 
     @classmethod
     def from_multiples(cls, filelist: List[str], method: str='mean', stretch: bool=True, **kwargs):
