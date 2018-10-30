@@ -1120,6 +1120,7 @@ class MLC:
                     mlc_pos += params['inner_leaf_thickness']
                 else:
                     mlc_pos += params['outer_leaf_thickness']
+            return mlc_pos
                     
         mlc_position = calc_mlc_pos(leaf_num, mlc_params)
         y2_position = self._jaws.y2.actual.max() * 10 + 200
