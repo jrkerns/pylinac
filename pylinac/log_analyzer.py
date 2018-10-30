@@ -1114,7 +1114,7 @@ class MLC:
         def calc_mlc_pos(leaf_num, params):
             mlc_pos = params[min_leaf_pos]
             for leaf in range(1, leaf_num+1):
-                if leaf <= params[outer_leaf_hnum] or leaf = 120 - params[outer_leaf_hnum]:
+                if leaf <= params[outer_leaf_hnum] or leaf == 120 - params[outer_leaf_hnum]:
                     mlc_pos += params[outer_leaf_thickness]
                 elif leaf <= 60 - params[outer_leaf_hnum] or leaf >= 60 + params[outer_leaf_hnum]:
                     mlc_pos += params[inner_leaf_thickness]
