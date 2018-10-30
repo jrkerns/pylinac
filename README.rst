@@ -3,7 +3,7 @@ Pylinac
 
 .. image:: https://s3.amazonaws.com/pylinac/Pylinac+Full.png
     :width: 100%
-    :target: https://github.com/inamoto85/pylinac
+    :target: https://github.com/jrkerns/pylinac
 
 .. image:: https://img.shields.io/pypi/v/pylinac.svg
     :target: https://pypi.python.org/pypi/pylinac
@@ -13,8 +13,8 @@ Pylinac
     :target: https://pypi.python.org/pypi/pylinac/
     :alt: MIT
 
-.. image:: https://travis-ci.org/inamoto85/pylinac.svg?branch=master
-    :target: https://travis-ci.org/inamoto85/pylinac
+.. image:: https://travis-ci.org/jrkerns/pylinac.svg?branch=master
+    :target: https://travis-ci.org/jrkerns/pylinac
     :alt: Travis CI
 
 .. image:: https://coveralls.io/repos/jrkerns/pylinac/badge.svg?branch=master
