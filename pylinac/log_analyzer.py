@@ -1101,32 +1101,32 @@ class MLC:
         leaf_num : int
         """
         if self.hdmlc:
-            mlc_params = {outer_leaf_thickness: 5, 
-                          inner_leaf_thickness: 2.5, 
-                          min_leaf_pos: 90, 
-                          outer_leaf_hnum: 14}   # Varian Millennium HDMLC
+            mlc_params = {'outer_leaf_thickness': 5, 
+                          'inner_leaf_thickness': 2.5, 
+                          'min_leaf_pos': 90, 
+                          'outer_leaf_hnum': 14}   # Varian Millennium HDMLC
         else:
-            mlc_params = {outer_leaf_thickness: 10, 
-                          inner_leaf_thickness: 5, 
-                          min_leaf_pos: 0, 
-                          outer_leaf_hnum: 10}   # normal Varian Mllennium MLC
+            mlc_params = {'outer_leaf_thickness': 10, 
+                          'inner_leaf_thickness': 5, 
+                          'min_leaf_pos': 0, 
+                          'outer_leaf_hnum': 10}   # normal Varian Mllennium MLC
                           
         def calc_mlc_pos(leaf_num, params):
-            mlc_pos = params[min_leaf_pos]
+            mlc_pos = params['min_leaf_pos']
             for leaf in range(1, leaf_num+1):
-                if leaf <= params[outer_leaf_hnum] or leaf == 120 - params[outer_leaf_hnum]:
-                    mlc_pos += params[outer_leaf_thickness]
-                elif leaf <= 60 - params[outer_leaf_hnum] or leaf >= 60 + params[outer_leaf_hnum]:
-                    mlc_pos += params[inner_leaf_thickness]
+                if leaf <= params['outer_leaf_hnum'] or leaf == 120 - params['outer_leaf_hnum']:
+                    mlc_pos += params['outer_leaf_thickness']
+                elif leaf <= 60 - params['outer_leaf_hnum'] or leaf >= 60 + params['outer_leaf_hnum']:
+                    mlc_pos += params['inner_leaf_thickness']
                 else:
-                    mlc_pos += params[outer_leaf_thickness]
+                    mlc_pos += params['outer_leaf_thickness']
                     
         mlc_position = calc_mlc_pos(leaf_num, mlc_params)
-        y2_position = self._jaws.y2.actual.max()*10 + 200
-        y1_position = 200 - self._jaws.y1.actual.max()*10
-        if leaf <= mlc_params[outer_leaf_hnum] or leaf >= 120 - mlc_params[outer_leaf_hnum]:
+        y2_position = self._jaws.y2.actual.max() * 10 + 200
+        y1_position = 200 - self._jaws.y1.actual.max() * 10
+        if leaf <= mlc_params['outer_leaf_hnum'] or leaf >= 120 - mlc_params['outer_leaf_hnum']:
             thickness = outer_leaf_thickness
-        elif leaf <= 60 - mlc_params[outer_leaf_hnum] or leaf >= 60 + mlc_params[outer_leaf_hnum]:
+        elif leaf <= 60 - mlc_params['outer_leaf_hnum'] or leaf >= 60 + mlc_params['outer_leaf_hnum']:
             thickness= inner_leaf_thickness
         else: 
             thickness = outer_leaf_thickness
