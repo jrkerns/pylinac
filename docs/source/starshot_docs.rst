@@ -61,13 +61,13 @@ A typical analysis sequence looks like so:
 * **Analyze the image** -- After loading the image, all that needs to be done is analyze the image. You may optionally
   pass in some settings::
 
-    mystar.analyze(radius=50, tolerance=0.8) # see API docs for more parameter info
+    mystar.analyze(radius=0.5, tolerance=0.8) # see API docs for more parameter info
 
 * **View the results** -- Starshot can print out the summary of results to the console as well as draw a matplotlib image to show the
   detected radiation lines and wobble circle::
 
       # print results to the console
-      print(mystar.return_results())
+      print(mystar.results())
       # view analyzed image
       mystar.plot_analyzed_image()
 
