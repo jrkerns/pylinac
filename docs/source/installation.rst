@@ -43,6 +43,7 @@ Pylinac, as a scientific package, has fairly standard scientific dependencies (>
 * pyyaml >= 3.10
 * yagmail
 * reportlab >= 3.3
+* argue
 
 See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/user/install.html>`_ if you don't yet have them.
 

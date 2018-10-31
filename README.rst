@@ -242,7 +242,7 @@ Below are the high-level tools currently available:
 
         star = Starshot("mystarshot.tif")
         star.analyze(radius=0.75, tolerance=1.0, fwhm=True)
-        print(star.return_results())  # prints out wobble information
+        print(star.results())  # prints out wobble information
         star.plot_analyzed_image()  # shows a matplotlib figure
         star.publish_pdf()  # publish a PDF report
 
@@ -263,7 +263,7 @@ Below are the high-level tools currently available:
 
         drgs = DRGS(image_paths=["path/to/DRGSopen.dcm", "path/to/DRGSdmlc.dcm"])
         drgs.analyze(tolerance=1.5)
-        print(drgs.return_results())  # prints out ROI information
+        print(drgs.results())  # prints out ROI information
         drgs.plot_analyzed_image()  # shows a matplotlib figure
         drgs.publish_pdf('mydrgs.pdf')  # generate a PDF report
 
@@ -289,7 +289,7 @@ Below are the high-level tools currently available:
         # for this example, we'll use the CatPhan504
         cbct = CatPhan504("my/cbct_image_folder")
         cbct.analyze(hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2, low_contrast_threshold=1)
-        print(cbct.return_results())
+        print(cbct.results())
         cbct.plot_analyzed_image()
         cbct.publish_pdf('mycbct.pdf')
 
@@ -349,7 +349,7 @@ Below are the high-level tools currently available:
 
         pf = PicketFence("mypf.dcm")
         pf.analyze(tolerance=0.5, action_tolerance=0.25)
-        print(pf.return_results())
+        print(pf.results())
         pf.plot_analyzed_image()
         pf.publish_pdf()
 

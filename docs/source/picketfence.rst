@@ -119,7 +119,7 @@ The minimum needed to get going is to:
   draw a matplotlib image to show the image, MLC peaks, guard rails, and a color overlay for quick assessment::
 
       # print results to the console
-      print(pf.return_results())
+      print(pf.results())
       # view analyzed image
       pf.plot_analyzed_image()
 

@@ -121,7 +121,7 @@ The minimum needed to get going is to:
   .. code-block:: python
 
       # print results to the console
-      print(mycbct.return_results())
+      print(mycbct.results())
       # view analyzed images
       mycbct.plot_analyzed_image()
       # save the image

@@ -21,7 +21,7 @@ General
 * The default colormap for arrays is now Viridis, the matplotlib default.
 * A contributer's guide has been added: :ref:`contributer_guide`.
 * `#141 <https://github.com/jrkerns/pylinac/issues/141>`_ The Pylinac logo has been included in the package so that PDFs can be generated without needing www access.
-* A new dependency has been added: `argue <https://pypi.org/project/argue/>` which handles input parameters.
+* A new dependency has been added: `argue <https://pypi.org/project/argue/>`_ which handles input parameters.
 
 
 Flatness & Symmetry
@@ -71,7 +71,7 @@ Bug Fixes
 * `#138 <https://github.com/jrkerns/pylinac/issues/138>`_/`#139 <https://github.com/jrkerns/pylinac/issues/139>`_: Too
   many arguments when plotting the leaf error subplot for picketfence.
 * `#133 <https://github.com/jrkerns/pylinac/issues/133>`_: Trajectory log HDMLC status was reversed. This only affected
-  fluence calculations using the ``equal_aspect`` arguement.
+  fluence calculations using the ``equal_aspect`` argument.
 * `#134 <https://github.com/jrkerns/pylinac/issues/134>`_: Trajectory log fluence array values were not in absolute MU.
 
 
