@@ -67,7 +67,7 @@ A typical analysis sequence looks like so:
   detected radiation lines and wobble circle::
 
       # print results to the console
-      print(mystar.return_results())
+      print(mystar.results())
       # view analyzed image
       mystar.plot_analyzed_image()
 
