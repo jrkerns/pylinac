@@ -416,3 +416,7 @@ def gui():
     app.mainloop()
     root.destroy()
     del root
+
+
+if __name__ == "__main__":
+    gui()
