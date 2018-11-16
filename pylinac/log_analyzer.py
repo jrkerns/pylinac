@@ -41,7 +41,7 @@ from .core import image
 from .core import io
 from .core.decorators import type_accept, value_accept
 from .core import pdf
-from .core.utilities import is_iterable, decode_binary, Structure
+from .core.utilities import is_iterable, decode_binary, Structure, open_path
 
 STATIC_IMRT = 'Static IMRT'
 DYNAMIC_IMRT = 'Dynamic IMRT'
@@ -1761,53 +1761,60 @@ class Dynalog(LogBase):
         dlog.report_basic_parameters()
         dlog.plot_summary()
 
-    def publish_pdf(self, filename=None, unit=None, notes=None, open_file=False):
+    def publish_pdf(self, filename: str=None, notes: str=None, metadata: dict=None, open_file: bool=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
         ----------
         filename : (str, file-like object}
             The file to write the results to.
-        unit : str
-            The name of the unit.
         notes : str, list of strings
-            Any additional notes to be included. A string will print a single line,
-            while a list of strings will print each item on a new line.
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
         self.fluence.gamma.calc_map()
         if filename is None:
             base, _ = osp.splitext(self.filename)
             filename = osp.join(base, '.pdf')
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory Log Analysis", unit=unit,
-                                                  file_name=osp.basename(self.a_logfile) + ", " + osp.basename(self.b_logfile))
-        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
-                      text=['DynaLog results:',
-                            'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg() * 10),
-                            'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max() * 10),
+        canvas = pdf.PylinacCanvas(filename, page_title="Dynalog Analysis", metadata=metadata)
+        canvas.add_text(
+                      text=['Dynalog results:',
+                            'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg()*10),
+                            'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max()*10),
                             '95th Percentile error (mm): {:2.2f}'.format(self.axis_data.mlc.get_error_percentile(95)),
                             'Number of beam holdoffs: {}'.format(self.num_beamholds),
                             'Gamma pass (%): {:2.1f}'.format(self.fluence.gamma.pass_prcnt),
                             'Gamma average: {:2.2f}'.format(self.fluence.gamma.avg_gamma),
-                            ])
+                            ],
+                        location=(10, 25.5))
         for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), ('actual', 'expected', 'gamma', ''))):
             data = BytesIO()
             if idx != 3:
                 self.save_subimage(data, graph, fontsize=20)
             else:
                 self.save_subgraph(data, 'gamma', fontsize=20, labelsize=12)
-            img = pdf.create_stream_image(data)
-            canvas.drawImage(img, x * cm, y * cm, width=9 * cm, height=9 * cm, preserveAspectRatio=True)
+            canvas.add_image(data, location=(x, y), dimensions=(9, 9))
         if notes is not None:
-            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        canvas.showPage()
-        pdf.add_pylinac_page_template(canvas, analysis_title='DynaLog Analysis')
+            canvas.add_text(location=(1, 5.5), font_size=14, text="Notes:")
+            canvas.add_text(location=(1, 5), text=notes)
+        canvas.add_new_page(metadata=metadata)
         for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), ('leaf hist', 'leaf rms'))):
             data = BytesIO()
             self.save_subgraph(data, graph, fontsize=20, labelsize=12)
-            img = pdf.create_stream_image(data)
-            canvas.drawImage(img, x * cm, y * cm, width=13 * cm, height=13 * cm, preserveAspectRatio=True)
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+            canvas.add_image(location=(x, y), dimensions=(13, 13), image_data=data)
+        canvas.finish()
+
+        if open_file:
+            open_path(filename)
 
     @staticmethod
     def identify_other_file(first_dlg_file, raise_find_error=True):
@@ -2094,18 +2101,25 @@ class TrajectoryLog(LogBase):
         print("CSV file written to: " + filename)
         return filename
 
-    def publish_pdf(self, filename=None, unit=None, notes=None, open_file=False):
+    def publish_pdf(self, filename: str=None, metadata: dict=None, notes: str=None, open_file: bool=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
         ----------
         filename : (str, file-like object}
             The file to write the results to.
-        unit : str
-            The name of the unit.
         notes : str, list of strings
-            Any additional notes to be included. A string will print a single line,
-            while a list of strings will print each item on a new line.
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
         if self.treatment_type == IMAGING:
             raise ValueError("Log is of imaging type (e.g. kV setup) and does not contain relevant gamma/leaf data")
@@ -2113,9 +2127,8 @@ class TrajectoryLog(LogBase):
         if filename is None:
             base, _ = osp.splitext(self.filename)
             filename = osp.join(base, '.pdf')
-        canvas = pdf.create_pylinac_page_template(filename, analysis_title="Trajectory Log Analysis", unit=unit,
-                                                  file_name=osp.basename(self.filename))
-        pdf.draw_text(canvas, x=10 * cm, y=25.5 * cm,
+        canvas = pdf.PylinacCanvas(filename, page_title="Trajectory Log Analysis", metadata=metadata)
+        canvas.add_text(
                       text=['Trajectory Log results:',
                             'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg()*10),
                             'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max()*10),
@@ -2123,26 +2136,27 @@ class TrajectoryLog(LogBase):
                             'Number of beam holdoffs: {}'.format(self.num_beamholds),
                             'Gamma pass (%): {:2.1f}'.format(self.fluence.gamma.pass_prcnt),
                             'Gamma average: {:2.2f}'.format(self.fluence.gamma.avg_gamma),
-                            ])
+                            ],
+                        location=(10, 25.5))
         for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), ('actual', 'expected', 'gamma', ''))):
             data = BytesIO()
             if idx != 3:
                 self.save_subimage(data, graph, fontsize=20)
             else:
                 self.save_subgraph(data, 'gamma', fontsize=20, labelsize=12)
-            img = pdf.create_stream_image(data)
-            canvas.drawImage(img, x * cm, y * cm, width=9 * cm, height=9 * cm, preserveAspectRatio=True)
+            canvas.add_image(data, location=(x, y), dimensions=(9, 9))
         if notes is not None:
-            pdf.draw_text(canvas, x=1 * cm, y=5.5 * cm, fontsize=14, text="Notes:")
-            pdf.draw_text(canvas, x=1 * cm, y=5 * cm, text=notes)
-        canvas.showPage()
-        pdf.add_pylinac_page_template(canvas, analysis_title='Trajectory Log Analysis')
+            canvas.add_text(location=(1, 5.5), font_size=14, text="Notes:")
+            canvas.add_text(location=(1, 5), text=notes)
+        canvas.add_new_page(metadata=metadata)
         for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), ('leaf hist', 'leaf rms'))):
             data = BytesIO()
             self.save_subgraph(data, graph, fontsize=20, labelsize=12)
-            img = pdf.create_stream_image(data)
-            canvas.drawImage(img, x * cm, y * cm, width=13 * cm, height=13 * cm, preserveAspectRatio=True)
-        pdf.finish(canvas, open_file=open_file, filename=filename)
+            canvas.add_image(location=(x, y), dimensions=(13, 13), image_data=data)
+        canvas.finish()
+
+        if open_file:
+            open_path(filename)
 
     @property
     def num_beamholds(self):
