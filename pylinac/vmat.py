@@ -332,7 +332,7 @@ class VMATBase:
         canvas.add_text(text='Median profiles', location=(8, 12), font_size=18)
         text = ['{} VMAT results:'.format(self._result_header),
                 'Source-to-Image Distance (mm): {:2.0f}'.format(self.open_image.sid),
-                'Tolerance (%): {:2.1f}'.format(self._tolerance),
+                'Tolerance (%): {:2.1f}'.format(self._tolerance*100),
                 'Absolute mean deviation (%): {:2.2f}'.format(self.avg_abs_r_deviation),
                 'Maximum deviation (%): {:2.2f}'.format(self.max_r_deviation),
                 ]
