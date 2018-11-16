@@ -3,6 +3,15 @@
 Changelog
 =========
 
+V 2.2.1
+-------
+
+Bug Fixes
+^^^^^^^^^
+
+* `#153 <https://github.com/jrkerns/pylinac/issues/153>`_ Log analyser PDF publishing fix.
+* `#155 <https://github.com/jrkerns/pylinac/issues/155>`_ VMAT PDF report had tolerance listed incorrectly (absolute vs percentage) causing most tolerances to appear as zero.
+
 V 2.2.0
 -------
 
