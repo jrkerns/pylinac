@@ -317,9 +317,9 @@ class TestDynalogDemo(TestIndividualDynalog, TestCase):
     treatment_type = DYNAMIC_IMRT
     num_beamholds = 20
     num_snapshots = 99
-    average_rms = 0.037
-    maximum_rms = 0.076
-    average_gamma = 0.47
+    average_rms = 0
+    maximum_rms = 0
+    average_gamma = 0
     percent_pass_gamma = 91
     leaf_move_status = {'moving': (9, 3), 'static': (8, )}
 
