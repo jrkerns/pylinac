@@ -1131,7 +1131,7 @@ class CatPhanBase:
         """
         def is_right_area(region):
             thresh = np.pi * ((self.air_bubble_radius_mm / self.mm_per_pixel) ** 2)
-            return thresh * 1.5 > region.filled_area > thresh / 1.5
+            return thresh * 2 > region.filled_area > thresh / 2
 
         def is_right_eccentricity(region):
             return region.eccentricity < 0.5
