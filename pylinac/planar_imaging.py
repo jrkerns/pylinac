@@ -14,6 +14,7 @@ import io
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pylinac.core.geometry import Circle
 from scipy.interpolate.interpolate import interp1d
 from skimage import feature, measure
 
@@ -89,7 +90,7 @@ class ImagePhantomBase:
     @staticmethod
     def _plot_lowcontrast(axes, rois, threshold):
         """Plot the low contrast ROIs to an axes."""
-        rois.sort(key=lambda x: x.contrast_constant, reverse=True)
+        # rois.sort(key=lambda x: x.contrast_constant, reverse=True)
         line1, = axes.plot([roi.contrast_constant for roi in rois], marker='o', color='m', label='Contrast Constant')
         axes.axhline(threshold, color='k')
         axes.grid(True)
@@ -644,6 +645,7 @@ class LeedsTOR(ImagePhantomBase):
         return Point(x, y)
 
     @property
+    @lru_cache()
     def phantom_angle(self):
         """Determine the angle of the phantom.
 
@@ -656,21 +658,16 @@ class LeedsTOR(ImagePhantomBase):
         angle : float
             The angle in radians.
         """
-        if self._phantom_angle is not None:
-            return self._phantom_angle
-        expected_length = self.phantom_radius * 0.52
-        square_rois = [roi for roi in self._blobs if np.isclose(self._regions[roi].major_axis_length, expected_length, rtol=0.2)]
-        if not square_rois:
-            raise ValueError("Could not find the angle of the image.")
-        regions = self._regions
-        lead_idx = np.argsort([regions[roi].mean_intensity for roi in square_rois])[-1]
-        lead_roi = regions[square_rois[lead_idx]]
-        lead_center = bbox_center(lead_roi)
-
-        adjacent = lead_center.x - self.phantom_center.x
-        opposite = lead_center.y - self.phantom_center.y
-        angle = np.arctan2(opposite, adjacent)
-        return angle
+        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius * 0.79, self.image,
+                                        width_ratio=0.04, ccw=True)
+        circle.ground()
+        circle.filter(size=0.01)
+        peak_idx = circle.find_fwxm_peaks(threshold=0.6, max_number=1)[0]
+        shift_percent = peak_idx / len(circle.values)
+        shift_radians = shift_percent * 2 * np.pi
+        shift_radians_corrected = 2*np.pi - shift_radians
+        print(f"angle: {shift_radians_corrected:.2f} radians; {np.rad2deg(shift_radians_corrected)} degrees")
+        return shift_radians_corrected
 
     @property
     @lru_cache(1)
@@ -691,18 +688,20 @@ class LeedsTOR(ImagePhantomBase):
         radius = circle_roi.major_axis_length / 3.35
         return radius
 
-    def _is_clockwise(self):
+    def _is_counter_clockwise(self):
         """Determine if the low-contrast bubbles go from high to low clockwise or counter-clockwise.
 
         Returns
         -------
         boolean
         """
-        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius * 0.8, self.image, self.phantom_angle, width_ratio=0.05)
+        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius * 0.79, self.image, width_ratio=0.04, ccw=True)
         circle.ground()
-        first_set = circle.find_peaks(search_region=(0.05, 0.45), threshold=0.2, min_distance=0.025, kind='value')
-        second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0.2, min_distance=0.025, kind='value')
-        return sum(first_set) > sum(second_set)
+        circle.filter(size=0.01)
+        circle.values = np.roll(circle.values, -circle.values.argmax())
+        first_set = circle.find_peaks(search_region=(0.05, 0.45), threshold=0, min_distance=0.025, kind='value', max_number=9)
+        second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0, min_distance=0.025, kind='value', max_number=9)
+        return max(first_set) > max(second_set)
 
     def _low_contrast(self, angle_offset):
         """Perform the low-contrast analysis. This samples the bubbles and a background bubble just beneath it to
@@ -716,25 +715,26 @@ class LeedsTOR(ImagePhantomBase):
             :class:`~pylinac.core.roi.LowContrastDistROI` instances of the reference ROIs;
             pixel values of the reference ROIs determines the background for the contrast ROIs.
         """
-        ao = angle_offset
-        angle = np.degrees(self.phantom_angle)
-        bubble_angles1 = np.linspace(30+ao, 150+ao, num=9)  # 32, 153
-        bubble_angles2 = np.linspace(210+ao, 330+ao, num=9)  # 212, 333
-        bubble_angles = np.concatenate((bubble_angles1, bubble_angles2))
-        bubble_radius = 0.025 * self.phantom_radius
+        phantom_angle = np.degrees(self.phantom_angle) - angle_offset
+        roi_set1_angles = np.linspace(30, 150, num=9)
+        roi_set2_angles = np.linspace(210, 330, num=9)
+        roi_nominal_angles = np.concatenate((roi_set1_angles, roi_set2_angles))
+        roi_determined_angles = phantom_angle + roi_nominal_angles
 
-        # sample the contrast ROIs
+        bubble_radius = 0.025 * self.phantom_radius
         bubble_dist = 0.785 * self.phantom_radius
+
+        # sample the Contrast ROIs
         crois = []
-        for angle_delta in bubble_angles:
-            roi = LowContrastDiskROI(self.image, angle - angle_delta, bubble_radius, bubble_dist, self.phantom_center, self.low_contrast_threshold)
+        for angle in roi_determined_angles:
+            roi = LowContrastDiskROI(self.image, angle, bubble_radius, bubble_dist, self.phantom_center, self.low_contrast_threshold)
             crois.append(roi)
 
-        # sample the reference ROIs
+        # sample the reference ROIs (closer to the center of phantom)
         bubble_dist = 0.65 * self.phantom_radius
         rrois = []
-        for idx, angle_delta in enumerate(bubble_angles):
-            roi = DiskROI(self.image, angle - angle_delta, bubble_radius, bubble_dist, self.phantom_center)
+        for idx, angle in enumerate(roi_determined_angles):
+            roi = DiskROI(self.image, angle, bubble_radius, bubble_dist, self.phantom_center)
             crois[idx].background = roi.pixel_value
             rrois.append(roi)
 
@@ -752,27 +752,28 @@ class LeedsTOR(ImagePhantomBase):
             :class:`~pylinac.core.roi.HighContrastDiskROI` instances of the solid ROIs that
             determine the normalization value for MTF.
         """
-        angle = np.degrees(self.phantom_angle) - angle_offset
+        phantom_angle = np.degrees(self.phantom_angle) - angle_offset
 
         # sample ROIs of the reference areas
-        ref_angles = [303, 271]
+        # sampling these will give a reference min and max to normalize the line pairs to
+        ref_angles = [57, 89]
         ref_dists = [0.3 * self.phantom_radius, 0.25 * self.phantom_radius]
         ref_radius = 0.04 * self.phantom_radius
         rrois = []
         for nominal_angle, dist in zip(ref_angles, ref_dists):
-            roi = HighContrastDiskROI(self.image, angle - nominal_angle, ref_radius, dist, self.phantom_center,
+            roi = HighContrastDiskROI(self.image, phantom_angle - nominal_angle, ref_radius, dist, self.phantom_center,
                                       self.hi_contrast_threshold)
             rrois.append(roi)
-        mtf_norm_val = (rrois[0].pixel_value - rrois[1].pixel_value) / (rrois[0].pixel_value + rrois[1].pixel_value)
+        mtf_norm_val = (rrois[0].max - rrois[1].min) / (rrois[0].max + rrois[1].min)
 
         # sample ROIs of each line pair region
-        # ordering goes from the "biggest" line pair region downward
-        contrast_angles = [-144.8, -115.1, -62.5, -169.7, -153.4, -25, 169.7, 151.6, 27]
+        # ordering goes from the thickest line pair region downward
+        contrast_angles = np.array([-144.8, -115.1, -62.5, -169.7, -153.4, -25, 173, 156, 27]) + 90
         contrast_dists = np.array([0.3, 0.187, 0.187, 0.252, 0.092, 0.094, 0.252, 0.094, 0.0958]) * self.phantom_radius
         contrast_radii = np.array([0.04, 0.04, 0.04, 0.03, 0.03, 0.02, 0.02, 0.018, 0.018, 0.015, 0.015, 0.012]) * self.phantom_radius
         crois = []
         for nominal_angle, dist, cradius in zip(contrast_angles, contrast_dists, contrast_radii):
-            roi = HighContrastDiskROI(self.image, angle + nominal_angle + 90, cradius, dist, self.phantom_center, self.hi_contrast_threshold, mtf_norm=mtf_norm_val)
+            roi = HighContrastDiskROI(self.image, phantom_angle - nominal_angle, cradius, dist, self.phantom_center, self.hi_contrast_threshold, mtf_norm=mtf_norm_val)
             crois.append(roi)
 
         return crois, rrois
@@ -781,7 +782,7 @@ class LeedsTOR(ImagePhantomBase):
     def run_demo():
         """Run the Leeds TOR phantom analysis demonstration."""
         leeds = LeedsTOR.from_demo_image()
-        leeds.analyze(angle_offset=2)
+        leeds.analyze()
         leeds.plot_analyzed_image()
 
     def analyze(self, low_contrast_threshold=0.005, hi_contrast_threshold=0.4, invert=False,
@@ -801,7 +802,7 @@ class LeedsTOR(ImagePhantomBase):
         angle_offset : int, float
             Some LeedsTOR phantoms have the low contrast regions slightly offset from phantom to phantom. 
             This parameter lets the user correct for any consistent angle effects of the phantom. The offset 
-            is in degrees and moves counter-clockwise. Use this if the low contrast ROIs are offset from the real 
+            is in degrees and moves counter-clockwise. Use this if the low contrast ROI samples are offset from the real
             ROIs.
         """
         self.image.check_inversion(box_size=30, position=(0.1, 0.25))
@@ -810,8 +811,9 @@ class LeedsTOR(ImagePhantomBase):
         self.low_contrast_threshold = low_contrast_threshold
         self.hi_contrast_threshold = hi_contrast_threshold
 
-        if not self._is_clockwise():
+        if self._is_counter_clockwise():
             self._flip_image_data()
+            print("image was flipped")
         self.lc_rois, self.lc_ref_rois = self._low_contrast(angle_offset)
         self.hc_rois, self.hc_ref_rois = self._high_contrast(angle_offset)
 
@@ -825,7 +827,6 @@ class LeedsTOR(ImagePhantomBase):
         self.image.array = np.fliplr(self.image.array)
         new_x = self.image.shape[1] - self.phantom_center.x
         self._phantom_center = Point(new_x, self.phantom_center.y)
-        self._phantom_angle = np.pi - self.phantom_angle
 
     def plot_analyzed_image(self, image=True, low_contrast=True, high_contrast=True, show=True):
         """Plot the analyzed image, which includes the original image with ROIs marked, low-contrast plots
@@ -879,6 +880,8 @@ class LeedsTOR(ImagePhantomBase):
             hc_rois = [roi.mtf for roi in self.hc_rois]
             hc_rois.insert(0, 1)
             self._plot_highcontrast(hicon_ax, hc_rois, self.hi_contrast_threshold)
+
+        Circle(center_point=self.phantom_center, radius=self.phantom_radius).plot2axes(img_ax, edgecolor='blue')
 
         if show:
             plt.show()
