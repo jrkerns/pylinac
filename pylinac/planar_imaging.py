@@ -495,6 +495,7 @@ class StandardImagingQC3(ImagePhantomBase):
             plt.show()
 
     @property
+    @lru_cache()
     def phantom_ski_region(self):
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions()
@@ -739,7 +740,7 @@ class LeedsTOR(ImagePhantomBase):
 
         return crois, rrois
 
-    def _high_contrast(self):
+    def _high_contrast(self, angle_offset):
         """Perform high-contrast analysis. This samples disks within the line-pair region and calculates
         relative MTF from the min and max values.
 
@@ -751,7 +752,7 @@ class LeedsTOR(ImagePhantomBase):
             :class:`~pylinac.core.roi.HighContrastDiskROI` instances of the solid ROIs that
             determine the normalization value for MTF.
         """
-        angle = np.degrees(self.phantom_angle)
+        angle = np.degrees(self.phantom_angle) - angle_offset
 
         # sample ROIs of the reference areas
         ref_angles = [303, 271]
@@ -812,7 +813,7 @@ class LeedsTOR(ImagePhantomBase):
         if not self._is_clockwise():
             self._flip_image_data()
         self.lc_rois, self.lc_ref_rois = self._low_contrast(angle_offset)
-        self.hc_rois, self.hc_ref_rois = self._high_contrast()
+        self.hc_rois, self.hc_ref_rois = self._high_contrast(angle_offset)
 
     def _flip_image_data(self):
         """Flip the image left->right and invert the center, and angle as appropriate.
