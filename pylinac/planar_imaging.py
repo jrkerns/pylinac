@@ -812,7 +812,6 @@ class LeedsTOR(ImagePhantomBase):
 
         if self._is_counter_clockwise():
             self._flip_image_data()
-            print("image was flipped")
         self.lc_rois, self.lc_ref_rois = self._low_contrast(angle_offset)
         self.hc_rois, self.hc_ref_rois = self._high_contrast(angle_offset)
 
@@ -857,6 +856,9 @@ class LeedsTOR(ImagePhantomBase):
             img_ax.axis('off')
             img_ax.set_title('Leeds TOR Phantom Analysis')
 
+            # plot the phantom location circle; helps users identify if the phantom location was identified correctly
+            Circle(center_point=self.phantom_center, radius=self.phantom_radius).plot2axes(img_ax, edgecolor='blue')
+
             # plot the low contrast ROIs
             for roi in self.lc_rois:
                 roi.plot2axes(img_ax, edgecolor=roi.plot_color)
@@ -879,8 +881,6 @@ class LeedsTOR(ImagePhantomBase):
             hc_rois = [roi.mtf for roi in self.hc_rois]
             hc_rois.insert(0, 1)
             self._plot_highcontrast(hicon_ax, hc_rois, self.hi_contrast_threshold)
-
-        Circle(center_point=self.phantom_center, radius=self.phantom_radius).plot2axes(img_ax, edgecolor='blue')
 
         if show:
             plt.show()

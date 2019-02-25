@@ -3,6 +3,14 @@
 Changelog
 =========
 
+V 2.2.3
+
+Bug Fixes
+^^^^^^^^^
+
+* `#158 <https://github.com/jrkerns/pylinac/issues/158>`_ Catphan roll determination algorithm has slightly widened the air bubble-finding criterion.
+
+
 V 2.2.2
 -------
 
