@@ -69,6 +69,10 @@ class SIQC3_1(SIQC3TestMixin, TestCase):
     file_path = ['QC3 2.5MV.dcm']
 
 
+class SIQC3_2(SIQC3TestMixin, TestCase):
+    file_path = ['QC3 2.5MV 2.dcm']
+
+
 class LasVegasTestMixin(PlanarPhantomMixin):
     klass = LasVegas
     phantom_angle = 0
