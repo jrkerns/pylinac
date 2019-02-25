@@ -666,7 +666,6 @@ class LeedsTOR(ImagePhantomBase):
         shift_percent = peak_idx / len(circle.values)
         shift_radians = shift_percent * 2 * np.pi
         shift_radians_corrected = 2*np.pi - shift_radians
-        print(f"angle: {shift_radians_corrected:.2f} radians; {np.rad2deg(shift_radians_corrected)} degrees")
         return shift_radians_corrected
 
     @property

@@ -277,7 +277,7 @@ If you're having issues with the StandardImaging class, make sure you have corre
 the manufacturer's instructions (also see :ref:`pipspro_image_acquisition`). One issue that may arise is incorrect
 inversion. If the jaws are closed tightly around the phantom, the automatic inversion correction may falsely
 invert the image, just as for the Leeds phantom. If you have an image that looks inverted or just plain weird, add ``invert=True``
-to :meth:`~pylinac.planar_imaging.StandardImagingQC3.analyze`.
+to :meth:`~pylinac.planar_imaging.StandardImagingQC3.analyze`. If this doesn't help, reshoot the phantom with the jaws open.
 
 
 Las Vegas Phantom

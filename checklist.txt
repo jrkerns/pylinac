@@ -10,7 +10,7 @@ Version Release Checklist
 - List changes in docs/source/changelog.rst
 - If a new module:
     - Add snippet to README.rst
-- Build: run setup.py task..., `sdist` with option `bdist_wheel` to make a wheel
+- Build: run setup.py task..., `bdist_wheel` to make a wheel
 - Upload to PyPI: `twine upload dist/pylinac-...*` where ... is the version; e.g. `1.4.0`
   to upload both the .zip and .whl files.
 - Create conda distributions:

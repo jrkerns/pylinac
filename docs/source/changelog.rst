@@ -3,13 +3,17 @@
 Changelog
 =========
 
-V 2.2.1
+V 2.2.2
 -------
 
 Bug Fixes
 ^^^^^^^^^
 
 * `#157 <https://github.com/jrkerns/pylinac/issues/157>`_ Dynalog MLC leaf error was calculated incorrectly. Expected positions were off by a row. Error results should be lower on average.
+* `#160 <https://github.com/jrkerns/pylinac/issues/160>`_ Dynalog MLC leaf internal pair mapping (1-61 vs 1-120) was different than documentation. Fluence calculations should not change.
+* `#162 <https://github.com/jrkerns/pylinac/issues/162>`_ The LeedsTOR `angle_offset` in the `.analyze()` method was not being followed by the high-contrast bubbles.
+* `#144 <https://github.com/jrkerns/pylinac/issues/144>`_ The LeedsTOR angle determination is much more robust. Previously, only certain orientations of the phantom would correctly identify.
+
 
 V 2.2.1
 -------
@@ -18,7 +22,7 @@ Bug Fixes
 ^^^^^^^^^
 
 * `#153 <https://github.com/jrkerns/pylinac/issues/153>`_ Log analyser PDF publishing fix.
-* `#155 <https://github.com/jrkerns/pylinac/issues/155>`_ VMAT PDF report had tolerance listed incorrectly (absolute vs percentage) causing most tolerances to appear as zero.
+* `#155 <https://github.com/jrkerns/pylinac/issues/155>`_ VMAT PDF report had tolerance listed incorrectly (absolute vs percentage) causing most tolerances to appear as zero due to rounding.
 
 V 2.2.0
 -------

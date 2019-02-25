@@ -3,6 +3,8 @@ from functools import lru_cache
 from typing import Union, Tuple, Optional
 
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.patches import Circle as mpl_Circle
 
 from skimage.measure._regionprops import _RegionProperties
 
@@ -57,6 +59,7 @@ class DiskROI(Circle):
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
     @property
+    @lru_cache()
     def pixel_value(self) -> np.ndarray:
         """The median pixel value of the ROI."""
         masked_img = self.circle_mask()
@@ -68,7 +71,7 @@ class DiskROI(Circle):
         masked_img = self.circle_mask()
         return np.nanstd(masked_img)
 
-    @lru_cache(maxsize=1)
+    @lru_cache()
     def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
         # http://scikit-image.org/docs/dev/auto_examples/plot_camera_numpy.html
@@ -78,6 +81,23 @@ class DiskROI(Circle):
         outer_disk_mask = (X - self.center.y) ** 2 + (Y - self.center.x) ** 2 > self.radius ** 2
         masked_array[outer_disk_mask] = np.NaN
         return masked_array
+
+    def plot2axes(self, axes=None, edgecolor: str='black', fill: bool=False):
+        """Plot the Circle on the axes.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            An MPL axes to plot to.
+        edgecolor : str
+            The color of the circle.
+        fill : bool
+            Whether to fill the circle with color or leave hollow.
+        """
+        if axes is None:
+            fig, axes = plt.subplots()
+            axes.imshow(self._array)
+        axes.add_patch(mpl_Circle((self.center.x, self.center.y), edgecolor=edgecolor, radius=self.radius, fill=fill))
 
 
 class LowContrastDiskROI(DiskROI):
