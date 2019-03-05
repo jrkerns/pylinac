@@ -3,7 +3,13 @@
 Changelog
 =========
 
+V 2.2.4
+-------
+
+* `#165 <https://github.com/jrkerns/pylinac/issues/165>`_ Log plots and PDFs showing the Leaf RMS were shown in cm, not in mm, as the axis title indicated.
+
 V 2.2.3
+-------
 
 Bug Fixes
 ^^^^^^^^^

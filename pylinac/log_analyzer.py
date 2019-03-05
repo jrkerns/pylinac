@@ -34,7 +34,6 @@ import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
-from reportlab.lib.units import cm
 
 from .settings import get_array_cmap
 from .core import image
@@ -1438,7 +1437,7 @@ class LogBase:
         elif graph.find('rms') >= 0:
             title = 'Leaf RMS (mm)'
             ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves + 0.5])  # bit of padding since bar chart alignment is center
-            plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both'),
+            plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both')*10,
                     align='center')
         ax.set_title(title, fontsize=fontsize)
         ax.tick_params(axis='both', labelsize=labelsize)
@@ -1466,9 +1465,9 @@ class LogBase:
         if self.treatment_type == IMAGING:
             string = title + "Log is an Imaging field; no statistics can be calculated"
         else:
-            avg_rms = "Average RMS of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False))
-            max_rms = "Max RMS error of all leaves: {:3.3f} cm\n".format(self.axis_data.mlc.get_RMS_max())
-            p95 = "95th percentile error: {:3.3f} cm\n".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False))
+            avg_rms = "Average RMS of all leaves: {:3.3f} mm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False)*10)
+            max_rms = "Max RMS error of all leaves: {:3.3f} mm\n".format(self.axis_data.mlc.get_RMS_max()*10)
+            p95 = "95th percentile error: {:3.3f} mm\n".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False)*10)
             num_holdoffs = "Number of beam holdoffs: {:1.0f}\n".format(self.num_beamholds)
             self.fluence.gamma.calc_map()
             gamma_pass = "Gamma pass %: {:2.2f}\n".format(self.fluence.gamma.pass_prcnt)
@@ -1802,7 +1801,7 @@ class Dynalog(LogBase):
                       text=['Dynalog results:',
                             'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg()*10),
                             'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max()*10),
-                            '95th Percentile error (mm): {:2.2f}'.format(self.axis_data.mlc.get_error_percentile(95)),
+                            '95th Percentile error (mm): {:2.2f}'.format(self.axis_data.mlc.get_error_percentile(95)*10),
                             'Number of beam holdoffs: {}'.format(self.num_beamholds),
                             'Gamma pass (%): {:2.1f}'.format(self.fluence.gamma.pass_prcnt),
                             'Gamma average: {:2.2f}'.format(self.fluence.gamma.avg_gamma),
@@ -2144,7 +2143,7 @@ class TrajectoryLog(LogBase):
                       text=['Trajectory Log results:',
                             'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg()*10),
                             'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max()*10),
-                            '95th Percentile error (mm): {:2.2f}'.format(self.axis_data.mlc.get_error_percentile(95)),
+                            '95th Percentile error (mm): {:2.2f}'.format(self.axis_data.mlc.get_error_percentile(95)*10),
                             'Number of beam holdoffs: {}'.format(self.num_beamholds),
                             'Gamma pass (%): {:2.1f}'.format(self.fluence.gamma.pass_prcnt),
                             'Gamma average: {:2.2f}'.format(self.fluence.gamma.avg_gamma),
