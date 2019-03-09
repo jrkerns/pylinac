@@ -279,6 +279,10 @@ class PicketFence:
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
 
+        # crop the images so that Elekta images don't fail. See #168
+        if not self._is_analyzed:
+            self.image.crop(pixels=2)
+
         """Pre-analysis"""
         self._orientation = orientation
         self.settings = Settings(self.orientation, tolerance, action_tolerance, hdmlc, self.image, self._log_fits)
