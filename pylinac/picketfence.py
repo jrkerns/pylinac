@@ -726,9 +726,17 @@ class Picket:
     def picket_array(self) -> np.ndarray:
         """A slice of the whole image that contains the area around the picket."""
         if self.settings.orientation == UP_DOWN:
-            array = self.image[:, int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing)]
+            left_edge = int(self.approximate_idx - self.spacing)
+            right_edge = int(self.approximate_idx + self.spacing)
+            if left_edge < 0:
+                raise ValueError("The detected pickets are too close to the edge. Future versions will add a `padding` parameter to `analyze()`. Padding the array is suggested. See this for a workaround: https://gist.github.com/jrkerns/6c96780e1919901d2d91e88fa375090c#file-workaround-py-L6")
+            array = self.image[:, left_edge:right_edge]
         else:
-            array = self.image[int(self.approximate_idx - self.spacing):int(self.approximate_idx + self.spacing), :]
+            top_edge = int(self.approximate_idx - self.spacing)
+            bottom_edge = int(self.approximate_idx + self.spacing)
+            if top_edge < 0:
+                raise ValueError("The detected pickets are too close to the edge. Future versions will add a `padding` parameter to `analyze()`.Padding the array is suggested. See this for a workaround: https://gist.github.com/jrkerns/6c96780e1919901d2d91e88fa375090c#file-workaround-py-L6")
+            array = self.image[top_edge:bottom_edge, :]
         return array
 
     @property
