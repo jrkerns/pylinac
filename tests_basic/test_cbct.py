@@ -63,12 +63,12 @@ class PlottingSaving(TestCase):
         """Test the various plotting functions."""
         self.cbct.plot_analyzed_image()
         for item in ['hu', 'un', 'mtf', 'sp', 'prof', 'lin', 'lc']:
-            self.cbct._plot_analyzed_subimage(item)
+            self.cbct.plot_analyzed_subimage(item)
 
-        self.cbct._plot_analyzed_subimage('lin', delta=False)
+        self.cbct.plot_analyzed_subimage('lin', delta=False)
 
         with self.assertRaises(ValueError):
-            self.cbct._plot_analyzed_subimage('sr')
+            self.cbct.plot_analyzed_subimage('sr')
 
 
 class CatPhanMixin(LocationMixin):
