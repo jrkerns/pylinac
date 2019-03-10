@@ -6,7 +6,12 @@ Changelog
 V 2.2.4
 -------
 
-* `#165 <https://github.com/jrkerns/pylinac/issues/165>`_ Log plots and PDFs showing the Leaf RMS were shown in cm, not in mm, as the axis title indicated.
+Bug Fixes
+^^^^^^^^^
+
+* `#165 <https://github.com/jrkerns/pylinac/issues/165>`_ Machine log plots and PDFs showing the Leaf RMS were shown in cm, not in mm, as the axis title indicated.
+* `#167 <https://github.com/jrkerns/pylinac/issues/167>`_ Picket fence images where the pickets are too close to the edge perpendicular to the pickets will fail. This adds an explicit error and mentions a workaround. The next major version will include a `padding` parameter to apply this workaround.
+* `#168 <https://github.com/jrkerns/pylinac/issues/168>`_ Picket fence analyses now crop 2 pixels from every edge. This will allow Elekta images to be analyzed since they inexplicably have a column of dead pixels in EPID images. Should not affect Varian images.
 
 V 2.2.3
 -------
@@ -85,6 +90,7 @@ VMAT
 TG-51/Calibration
 ^^^^^^^^^^^^^^^^^
 
+* `#127 <https://github.com/jrkerns/pylinac/issues/127>`_ A TRS-398 module has been added. There are two main classes: ``TRS398Photon`` and ``TRS398Electron``.
 * `#129 <https://github.com/jrkerns/pylinac/issues/129>`_ The TG-51 module has been refactored to add a ``TG51ElectronLegacy`` and ``TG51ElectronModern`` calibration class.
   The Legacy class uses the classic TG-51 values that require a kecal value and a Pgradient measurement. The Modern
   class uses the equations from Muir & Rogers 2014 to calculate kQ that updates and incorporates the Pgradient and
@@ -92,14 +98,14 @@ TG-51/Calibration
   as the kQ values for photons already have.
 * Certain parameters have been refactored: ``volt_high`` and ``volt_low`` have been refactored to ``voltage_reference``
   and ``voltage_reduced``, ``m_raw``, ``m_low``, and ``m_opp`` have been refactored to ``m_reference``, ``m_reduced``,
-  and ``m_opposite``. These parameters are also the same for the TRS-398 classes
+  and ``m_opposite``. These parameters are also the same for the TRS-398 classes (see #127).
 * The ``kq`` function has been separated into three functions: ``kq_photon_pdd10x``, ``kq_photon_tpr2010``, and
   ``kq_electron``.
-* A PDD(20,10) to TPR(20,10) converter function has been added.
+* A PDD(20,10) to TPR(20,10) converter function has been added: `tpr2010_from_pdd2010`.
+* Pressure and temperature conversion helper functions have been added: `mmHg2kPa`, `mbar2kPa`, `fahrenheit2celsius`.
   This can be used in either TG-51 or TRS-398 to get TPR without actually needing to measure it.
 * Defaults were removed from most functions to avoid possible miscalibration/miscalculation.
-* Most parameters were changed to be keyword only. This will prevent accidental miscalculations from simple positional arguments.
-* `#127 <https://github.com/jrkerns/pylinac/issues/127>`_ A TRS-398 module has been added. There are two main classes: ``TRS398Photon`` and ``TRS398Electron``.
+* Most parameters of both TG-51 and TRS-398 were changed to be keyword only. This will prevent accidental miscalculations from simple positional argument mismatches.
 
 Bug Fixes
 ^^^^^^^^^
