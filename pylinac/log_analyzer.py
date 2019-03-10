@@ -1315,31 +1315,40 @@ class SubbeamManager:
     def post_hoc_metadata(self, axis_data):
         """From the Axis Data, perform post-hoc analysis and set metadata to the subbeams.
             Gives the subbeams more information, as not much is given directly in the logs."""
-        for idx, beam in enumerate(self.subbeams):
-            self._set_beamon_snapshots(axis_data, idx)
+        for subbeam_num, subbeam in enumerate(self.subbeams):
+            self._set_subbeam_snapshots(axis_data, subbeam_num)
             mlc_subsection = copy.copy(axis_data.mlc)
-            mlc_subsection._snapshot_idx = [idx for idx, i in enumerate(beam._snapshots) if i]
-            beam.fluence = FluenceStruct(mlc_subsection, axis_data.mu, axis_data.jaws)
+            mlc_subsection.snapshot_idx = subbeam._snapshots
+            subbeam.fluence = FluenceStruct(mlc_subsection, axis_data.mu, axis_data.jaws)
         gc.collect()  # don't know why gc is needed; maybe something to do w/ copy?
 
-    def _set_beamon_snapshots(self, axis_data, beam_num):
+    def _set_subbeam_snapshots(self, axis_data, beam_num):
         """Get the snapshot indices 1) where the beam was on and 2) between the subbeam control point values."""
-        beam = self.subbeams[beam_num]
-        all_snapshots = axis_data.control_point.actual
-        lower_bound = beam.control_point
-        try:
-            upper_bound = self.subbeams[beam_num+1].control_point
-        except IndexError:
-            upper_bound = axis_data.control_point.actual.max()
-        section_snapshots = np.logical_and(all_snapshots>=lower_bound, all_snapshots<upper_bound)
-        beam_on_snapshots = axis_data.beam_hold.actual == 0
-        combined_snapshot = np.logical_and(beam_on_snapshots, section_snapshots)
+        subbeam = self.subbeams[beam_num]
+        cp_by_snapshot = axis_data.control_point.actual
 
-        beam._snapshots = combined_snapshot
-        beam._axis_data = axis_data
+        # find upper and lower bounds of the subbeam control points
+        cp_lower_bound = subbeam.control_point
+        try:
+            cp_upper_bound = self.subbeams[beam_num+1].control_point
+        except IndexError:
+            cp_upper_bound = cp_by_snapshot[-1]
+
+        # extract the snapshots within those control points and drop the beam holds as booleans
+        snapshots_within_subbeam = np.logical_and(cp_by_snapshot>=cp_lower_bound, cp_by_snapshot<cp_upper_bound)
+        beam_on_snapshots = axis_data.beam_hold.actual == 0
+        combined_snaps_as_bool = np.logical_and(beam_on_snapshots, snapshots_within_subbeam)
+        # convert boolean array back to snapshot indices
+        combined_snapshots = [snapshot_idx for (snapshot_idx, boolean_snapshot) in enumerate(combined_snaps_as_bool) if boolean_snapshot]
+
+        subbeam._snapshots = combined_snapshots
+        subbeam._axis_data = axis_data
 
     def __getitem__(self, item):
         return self.subbeams[item]
+
+    def __len__(self):
+        return len(self.subbeams)
 
 
 class LogBase:

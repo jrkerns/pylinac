@@ -3,6 +3,7 @@ import os
 from unittest import TestCase
 import shutil
 
+import numpy as np
 
 from pylinac.log_analyzer import MachineLogs, STATIC_IMRT, DYNAMIC_IMRT, \
     VMAT, anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError, IMAGING
@@ -274,6 +275,14 @@ class TestIndividualTrajectoryLog(TestIndividualLogBase):
         for key, known_value in self.first_subbeam_data.items():
             axis = getattr(first_subbeam, key)
             self.assertAlmostEqual(known_value, axis.actual, delta=0.1)
+
+    def test_subbeam_fluences_unequal_to_cumulative(self):
+        # as raised in #154
+        cumulative_fluence = self.log.fluence.actual.calc_map()
+        subbeam_fluences = [subbeam.fluence.actual.calc_map() for subbeam in self.log.subbeams]
+        if len(self.log.subbeams) > 0:
+            for subbeam_fluence in subbeam_fluences:
+                self.assertFalse(np.array_equal(subbeam_fluence, cumulative_fluence))
 
     def test_header(self):
         """Test a few header values; depends on log type."""
