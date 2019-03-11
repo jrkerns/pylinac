@@ -482,11 +482,11 @@ class FluenceBase:
 
         # calculate each "line" of fluence (the fluence of an MLC leaf pair, e.g. 1 & 61, 2 & 62, etc),
         # and add each "line" to the total fluence matrix
+        leaf_offset = self._mlc.num_pairs
         fluence_line = np.zeros(int(400 / resolution), dtype=np.float32)
         pos_offset = int(np.round(200 / resolution))
         for pair, width in zip(range(1, self._mlc.num_pairs + 1), yield_leaf_width()):
             if not self._mlc.leaf_under_y_jaw(pair):
-                leaf_offset = self._mlc.num_leaves - (2 * pair) + 1
                 fluence_line[:] = 0  # emtpy the line values on each new leaf pair
                 right_leaf_data = getattr(self._mlc.leaf_axes[pair], self.FLUENCE_TYPE)
                 right_leaf_data = np.round(right_leaf_data * 10 / resolution) + pos_offset
@@ -777,7 +777,7 @@ class MLC:
             # shift expected position per issue #157
             shifted_expected = cls._shift_expected_mlc_for_dlog(snapshot_data[(leaf - 1) * 4 + 14])
             axis = LeafAxis(expected=shifted_expected, actual=snapshot_data[(leaf - 1) * 4 + 15])
-            mlc.add_leaf_axis(axis, leaf_num=dlog.header.num_mlc_leaves + 1 - leaf)
+            mlc.add_leaf_axis(axis, leaf_num=leaf+dlog.header.num_mlc_leaves // 2)
 
         # scale dynalog leaf positions from the physical plane to the isocenter plane and from 100ths of mm to cm.
         dynalog_leaf_conversion = 1.96614  # MLC physical plane scaling factor to iso (100cm SAD) plane
@@ -832,7 +832,7 @@ class MLC:
     @lru_cache(maxsize=1)
     def moving_leaves(self):
         """Return an array of the leaves that moved during treatment."""
-        threshold = 0.003
+        threshold = 0.01
         indices = ()
         for leaf_num, leafdata in self.leaf_axes.items():
             if type(self) == TrajectoryLog:

@@ -33,10 +33,10 @@ few concepts that should be grasped before diving in.
     .. warning:: When slicing or analyzing leaf data, keep the Varian 1-index base in mind.
 
   Leaf data is stored in a dictionary, with the leaf number as the key, from 1 up to the number of MLC leaves. E.g. if the machine has a
-  Millennium 120 standard MLC model, leaf data will have 120 dictionary items from 1 to 120. Leaf numbers have an offset of half the
-  number of leaves. I.e. leaves 1 and 120 are a pair, as are 2 and 119, on up to leaves 60 and 61. In such a case, leaves 61-120 correspond
+  Millennium 120 standard MLC model, leaf data will have 120 dictionary items from 1 to 120. Leaves from each bank have an offset of half the
+  number of leaves. I.e. leaves A1 and B1 = 1 and 61. Thus, leaves 61-120 correspond
   to the B-bank, while leaves 1-60 correspond to the A-bank. This can be described by a function
-  :math:`(A_{leaf}, B_{leaf}) = (n, N_{leaves} + 1 - n)`, where :math:`n` is the leaf number and :math:`N_{leaves}` is the number of leaves.
+  :math:`(A_{n}, B_{n}) = (n, n + N_{leaves}/2)`, where :math:`n` is the leaf number and :math:`N_{leaves}` is the number of leaves.
 
 * **Units** - Units follow the Trajectory log specification: linear axes are in cm, rotational axes in degrees, and MU for dose.
 
