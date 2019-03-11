@@ -103,6 +103,39 @@ class TestLogPlottingSavingMixin:
         save_file(self.log.save_summary)
 
 
+class TestTrajectoryTreatmentTypes(TestCase):
+
+    def test_imaging_log(self):
+        tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'imaging.bin'))
+        self.assertTrue(tlog.treatment_type, IMAGING)
+
+    def test_vmat_log(self):
+        tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'vmat.bin'))
+        self.assertTrue(tlog.treatment_type, VMAT)
+
+    def test_static_imrt_log(self):
+        tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'static_imrt.bin'))
+        self.assertTrue(tlog.treatment_type, STATIC_IMRT)
+
+    def test_dynamic_imrt_log(self):
+        tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'dynamic_imrt.bin'))
+        self.assertTrue(tlog.treatment_type, DYNAMIC_IMRT)
+
+
+class TestDynalogTreatmentTypes(TestCase):
+
+    def test_vmat_log(self):
+        dlog = Dynalog(osp.join(TEST_DIR, 'dlogs', 'A_vmat.dlg'))
+        self.assertTrue(dlog.treatment_type, VMAT)
+
+    def test_static_imrt_log(self):
+        tlog = TrajectoryLog(osp.join(TEST_DIR, 'dlogs', 'A_static_imrt.dlg'))
+        self.assertTrue(tlog.treatment_type, STATIC_IMRT)
+
+    def test_dynamic_imrt_log(self):
+        pass  # need to find one
+
+
 class TestLogBase:
     klass = object
 
@@ -337,6 +370,12 @@ class TestDynalogDemo(TestIndividualDynalog, TestCase):
         cls.log = Dynalog.from_demo()
         cls.log.fluence.gamma.calc_map()
 
+    def test_fluences(self):
+        reference_fluence = np.load(osp.join(TEST_DIR, 'Dynalog demo actual fluence.npy'))
+        self.log.fluence.actual.calc_map()
+        demo_fluence = self.log.fluence.actual.array
+        self.assertTrue(np.array_equal(demo_fluence, reference_fluence))
+
 
 class TestTrajectoryLogDemo(TestIndividualTrajectoryLog, TestCase):
     """Tests for the demo trajectory log."""
@@ -358,6 +397,19 @@ class TestTrajectoryLogDemo(TestIndividualTrajectoryLog, TestCase):
     def setUpClass(cls):
         cls.log = TrajectoryLog.from_demo()
         cls.log.fluence.gamma.calc_map()
+
+    def test_subbeam_fluences(self):
+        # subbeam 0
+        reference_fluence_0 = np.load(osp.join(TEST_DIR, 'Demo subbeam 0 actual fluence.npy'))
+        self.log.subbeams[0].fluence.actual.calc_map()
+        demo_fluence_0 = self.log.subbeams[0].fluence.actual.array
+        self.assertTrue(np.array_equal(demo_fluence_0, reference_fluence_0))
+
+        # subbeam 1
+        reference_fluence_1 = np.load(osp.join(TEST_DIR, 'Demo subbeam 1 actual fluence.npy'))
+        self.log.subbeams[1].fluence.actual.calc_map()
+        demo_fluence_1 = self.log.subbeams[1].fluence.actual.array
+        self.assertTrue(np.array_equal(demo_fluence_1, reference_fluence_1))
 
 
 class TestMachineLogs(TestCase):
