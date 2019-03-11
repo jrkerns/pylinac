@@ -474,11 +474,8 @@ class FluenceBase:
         # if little to no MU was delivered (e.g. MV/kV setup), return
         if np.max(mu_matrix) < 0.5:
             return fluence
-        MU_differential = np.zeros(len(mu_matrix))
-        MU_differential[0] = mu_matrix[0]
-        MU_differential[1:] = np.diff(mu_matrix)
-        MU_differential = MU_differential / mu_matrix[-1]
-        MU_cumulative = 1
+        MU_differential = np.array([mu_matrix[0]] + list(np.diff(mu_matrix)))
+        MU_total = mu_matrix[-1]
 
         # calculate each "line" of fluence (the fluence of an MLC leaf pair, e.g. 1 & 61, 2 & 62, etc),
         # and add each "line" to the total fluence matrix
@@ -511,14 +508,11 @@ class FluenceBase:
                     rt_jaw_pos = right_jaw_data.max()
                     left_edge = max(lt_mlc_pos, lt_jaw_pos)
                     right_edge = min(rt_mlc_pos, rt_jaw_pos)
-                    fluence_line[int(left_edge):int(right_edge)] = MU_cumulative
+                    fluence_line[int(left_edge):int(right_edge)] = MU_total
                 if equal_aspect:
                     fluence[width[0]:width[1], :] = np.tile(fluence_line, [width[1] - width[0], 1])
                 else:
                     fluence[pair - 1, :] = fluence_line
-
-        # extend to the max MU; for dynalogs this is 1 since it's relative. For Tlogs, it's the absolute MU.
-        fluence *= np.max(mu_matrix)
 
         return fluence
 
