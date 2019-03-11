@@ -449,26 +449,25 @@ class FluenceBase:
         if len(self._mlc.snapshot_idx) < 1:
             return fluence
 
-        if self._mlc.hdmlc:
-            num_sm = 32
-            sm_sz = 2.5 / resolution
-            num_lg = 14
-            lg_sz = 5 / resolution
-        else:
-            num_sm = 40
-            sm_sz = 5 / resolution
-            num_lg = 10
-            lg_sz = 10 / resolution
+        def create_mlc_y_positions(is_hdmlc):
+            if not is_hdmlc:
+                num_large_leaves = 10
+                size_large_leaves = 10 / resolution
+                num_small_leaves = 40
+                size_small_leaves = 5 / resolution
+            else:
+                num_large_leaves = 14
+                size_large_leaves = 5 / resolution
+                num_small_leaves = 32
+                size_small_leaves = 2.5 / resolution
+            sizes = [size_large_leaves]*num_large_leaves + [size_small_leaves]*num_small_leaves + [size_large_leaves]*num_large_leaves
+            return np.cumsum([0,] + sizes).astype(int)
 
-        lg = np.repeat(lg_sz, num_lg)
-        sm = np.repeat(sm_sz, num_sm)
-        leaves = np.concatenate((lg, sm, lg))
-        cl = np.cumsum(leaves)
-        cl2 = np.insert(cl, 0, 0)
+        positions = create_mlc_y_positions(is_hdmlc=self._mlc.hdmlc)
 
         def yield_leaf_width():
-            for idx in range(60):
-                yield (int(cl2[idx]), int(cl[idx]))
+            for idx in range(self._mlc.num_pairs):
+                yield (positions[idx], positions[idx+1])
 
         # calculate the MU delivered in each snapshot. For Tlogs this is absolute; for dynalogs it's normalized.
         mu_matrix = getattr(self._mu, self.FLUENCE_TYPE)
@@ -1661,7 +1660,19 @@ class DynalogAxisData:
         # assignment of snapshot values
         # There is no "expected" MU in dynalogs, but for fluence calc purposes, it is set to that of the actual
         mu = nx()
-        self.mu = Axis(mu, mu)
+
+        # if treatment was vmat then MU is replaced by gantry angle (so stupid). If so, convert to normalized MU by looking at gantry movement.
+        def corrected_mu(mu_array):
+            if mu_array[-1] == 25000:
+                return mu_array/25000
+            else:
+                abs_diff = list(np.abs(np.diff(mu_array)))
+                corrected_array = np.array([0,] + list(np.cumsum(abs_diff)/np.sum(abs_diff)))
+                return corrected_array
+
+        rel_mu = corrected_mu(mu)
+
+        self.mu = Axis(rel_mu, rel_mu)
         self.previous_segment_num = Axis(nx())
         self.beam_hold = Axis(nx())
         self.beam_on = Axis(nx())
