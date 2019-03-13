@@ -104,6 +104,7 @@ class PylinacGUI(Frame):
                 v = vmat.DRMLC(image_paths=images)
             v.analyze(tolerance=self.vmat_tol.get())
             fname = osp.join(self.vmat_dmlcimg.get().replace('.dcm', '.pdf'))
+            fname = utilities.file_exists(fname)
             v.publish_pdf(fname)
             self.vmat_pdf.set(fname)
             utilities.open_path(fname)
@@ -152,6 +153,7 @@ class PylinacGUI(Frame):
                        num_pickets=pickets,
                        )
             fname = osp.join(self.pf_file.get().replace('.dcm', '.pdf'))
+            fname = utilities.file_exists(fname)
             pf.publish_pdf(fname)
             self.pf_pdf.set(fname)
             utilities.open_path(fname)
@@ -200,6 +202,7 @@ class PylinacGUI(Frame):
                 fname = self.ct_file.get().replace('.zip', '.pdf')
             cat.analyze(hu_tolerance=self.ct_hu.get(), thickness_tolerance=self.ct_thickness.get(),
                         scaling_tolerance=self.ct_scaling.get())
+            fname = utilities.file_exists(fname)
             cat.publish_pdf(fname)
             self.ct_pdf.set(fname)
             utilities.open_path(fname)
@@ -243,6 +246,7 @@ class PylinacGUI(Frame):
             log = log_analyzer.load_log(self.log_file.get())
             name, _ = osp.splitext(self.log_file.get())
             fname = name + '.pdf'
+            fname = utilities.file_exists(fname)
             log.publish_pdf(fname)
             self.log_pdf.set(fname)
             utilities.open_path(fname)
@@ -275,6 +279,7 @@ class PylinacGUI(Frame):
                          recursive=self.star_recursive.get())
             name, _ = osp.splitext(self.star_file.get())
             fname = name + '.pdf'
+            fname = utilities.file_exists(fname)
             star.publish_pdf(fname)
             self.star_pdf.set(fname)
             utilities.open_path(fname)
@@ -319,7 +324,8 @@ class PylinacGUI(Frame):
             phantom.analyze()
             name, _ = osp.splitext(self.phan_file.get())
             fname = name + '.pdf'
-            phantom.publish_pdf(fname)
+            fname = utilities.file_exists(fname)
+            phantom.publish_pdf(utilities.file_exists(fname))
             self.phan_pdf.set(fname)
             utilities.open_path(fname)
 
@@ -366,6 +372,7 @@ class PylinacGUI(Frame):
             else:
                 wl = winston_lutz.WinstonLutz.from_zip(self.wl_file.get())
                 fname = self.wl_file.get().replace('.zip', '.pdf')
+            fname = utilities.file_exists(fname)
             wl.publish_pdf(fname)
             self.wl_pdf.set(fname)
             utilities.open_path(fname)

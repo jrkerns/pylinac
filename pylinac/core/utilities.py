@@ -6,6 +6,7 @@ import os.path as osp
 import subprocess
 import struct
 from typing import Union, Sequence
+from datetime import datetime
 
 import pydicom
 import numpy as np
@@ -196,3 +197,12 @@ def open_path(path: str):
     elif os.name == 'nt':
         launcher = "explorer"
     subprocess.call([launcher, path])
+
+
+def file_exists(filename: str):
+    """Check if the file exists and if it does add a timestamp"""
+    if osp.exists(filename):
+        filename, ext = osp.splitext(filename)
+        mytime = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = filename + mytime + ext
+    return filename
