@@ -514,6 +514,10 @@ class FluenceBase:
                 else:
                     fluence[pair - 1, :] = fluence_line
 
+        # if it's a dynalog, then normalize it because 25000 is such an arbitrary value
+        if MU_total == 25000:
+            fluence /= MU_total
+
         return fluence
 
     def plot_map(self, show=True):
@@ -1656,17 +1660,18 @@ class DynalogAxisData:
         mu = nx()
 
         # if treatment was vmat then MU is replaced by gantry angle (so stupid). If so, convert to normalized MU by looking at gantry movement.
-        def corrected_mu(mu_array):
+        def correct_vmat_mu(mu_array):
             if mu_array[-1] == 25000:
-                return mu_array/25000
+                return mu_array
             else:
                 abs_diff = list(np.abs(np.diff(mu_array)))
-                corrected_array = np.array([0,] + list(np.cumsum(abs_diff)/np.sum(abs_diff)))
-                return corrected_array
+                # this is the cumulative gantry diff, a surrogate for MU. Normalize to 25000 to look like a "normal" dynalog
+                cum_gantry_diff = np.array([0,] + list(np.cumsum(abs_diff)/np.sum(abs_diff))) * 25000
+                return cum_gantry_diff
 
-        rel_mu = corrected_mu(mu)
+        corrected_mu = correct_vmat_mu(mu)
 
-        self.mu = Axis(rel_mu, rel_mu)
+        self.mu = Axis(corrected_mu, corrected_mu)
         self.previous_segment_num = Axis(nx())
         self.beam_hold = Axis(nx())
         self.beam_on = Axis(nx())

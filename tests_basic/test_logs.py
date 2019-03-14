@@ -129,8 +129,8 @@ class TestDynalogTreatmentTypes(TestCase):
         self.assertTrue(dlog.treatment_type, VMAT)
 
     def test_static_imrt_log(self):
-        tlog = TrajectoryLog(osp.join(TEST_DIR, 'dlogs', 'A_static_imrt.dlg'))
-        self.assertTrue(tlog.treatment_type, STATIC_IMRT)
+        dlog = Dynalog(osp.join(TEST_DIR, 'dlogs', 'A_static_imrt.dlg'))
+        self.assertTrue(dlog.treatment_type, STATIC_IMRT)
 
     def test_dynamic_imrt_log(self):
         pass  # need to find one
@@ -362,7 +362,7 @@ class TestDynalogDemo(TestIndividualDynalog, TestCase):
     average_rms = 0
     maximum_rms = 0
     average_gamma = 0
-    percent_pass_gamma = 91
+    percent_pass_gamma = 100
     leaf_move_status = {'moving': (9, 3), 'static': (8, )}
 
     @classmethod
