@@ -1031,7 +1031,7 @@ class CatPhanBase:
             plt.axis('on')
             self.ctp486.plot_profiles(plt.gca())
         else:
-            raise ValueError("Subimage parameter {0} not understood".format(subimage))
+            raise ValueError(f"Subimage parameter {subimage} not understood")
 
         if show:
             plt.show()
@@ -1049,18 +1049,18 @@ class CatPhanBase:
         self.plot_analyzed_subimage(subimage, show=False)
         plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
-            print("CatPhan subimage figure saved to {0}".format(osp.abspath(filename)))
+            print(f"CatPhan subimage figure saved to {osp.abspath(filename)}")
 
     def _results(self):
         """Helper function to spit out values that will be tested."""
         print(self.results())
-        print("Phantom roll: {0}".format(self.find_phantom_roll()))
-        print("Origin slice: {}".format(self.find_origin_slice()))
+        print(f"Phantom roll: {self.find_phantom_roll()}")
+        print(f"Origin slice: {self.find_origin_slice()}")
         mtfs = {}
         for mtf in (95, 90, 80, 70, 60):
             mtfval = self.ctp528.mtf(mtf)
             mtfs[mtf] = mtfval
-        print('MTFs: {}'.format(mtfs))
+        print(f'MTFs: {mtfs}')
 
     def localize(self):
         """Find the slice number of the catphan's HU linearity module and roll angle"""
@@ -1186,38 +1186,38 @@ class CatPhanBase:
         filename : (str, file-like object}
             The file to write the results to.
         """
-        analysis_title = 'CatPhan {} Analysis'.format(self._model)
+        analysis_title = f'CatPhan {self._model} Analysis'
         module_texts = [
             [' - CTP404 Results - ',
-             'HU Linearity tolerance: {}'.format(self.ctp404.hu_tolerance),
-             'HU Linearity ROIs: {}'.format(self.ctp404.hu_roi_vals),
-             'Geometric node spacing (mm): {:2.2f}'.format(self.ctp404.avg_line_length),
-             'Slice thickness (mm): {:2.2f}'.format(self.ctp404.meas_slice_thickness),
-             'Low contrast visibility: {:2.2f}'.format(self.ctp404.lcv),
+             f'HU Linearity tolerance: {self.ctp404.hu_tolerance}',
+             f'HU Linearity ROIs: {self.ctp404.hu_roi_vals}',
+             f'Geometric node spacing (mm): {self.ctp404.avg_line_length:2.2f}',
+             f'Slice thickness (mm): {self.ctp404.meas_slice_thickness:2.2f}',
+             f'Low contrast visibility: {self.ctp404.lcv:2.2f}',
             ],
         ]
         module_images = [('hu', 'lin')]
         if CTP528 in self.modules:
             add = [' - CTP528 Results - ',
-             'MTF 80% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(80)),
-             'MTF 50% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(50)),
-             'MTF 30% (lp/mm): {:2.2f}'.format(self.ctp528.mtf(30)),
+             f'MTF 80% (lp/mm): {self.ctp528.mtf(80):2.2f}',
+             f'MTF 50% (lp/mm): {self.ctp528.mtf(50):2.2f}',
+             f'MTF 30% (lp/mm): {self.ctp528.mtf(30):2.2f}',
             ]
             module_texts.append(add)
             module_images.append(('sp', 'mtf'))
         if CTP486 in self.modules:
             add = [' - CTP486 Results - ',
-             'Uniformity tolerance: {}'.format(self.ctp486.tolerance),
-             'Uniformity ROIs: {}'.format(self.ctp486.get_ROI_vals()),
-             'Uniformity Index: {:2.2f}'.format(self.ctp486.uniformity_index),
-             'Integral non-uniformity: {:2.4f}'.format(self.ctp486.integral_non_uniformity),
+             f'Uniformity tolerance: {self.ctp486.tolerance}',
+             f'Uniformity ROIs: {self.ctp486.get_ROI_vals()}',
+             f'Uniformity Index: {self.ctp486.uniformity_index:2.2f}',
+             f'Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}',
             ]
             module_texts.append(add)
             module_images.append(('un', 'prof'))
         if CTP515 in self.modules:
             add = [' - CTP515 Results - ',
-             'CNR threshold: {}'.format(self.ctp515.cnr_threshold),
-             'Low contrast ROIs "seen": {}'.format(self.ctp515.rois_visible)
+             f'CNR threshold: {self.ctp515.cnr_threshold}',
+             f'Low contrast ROIs "seen": {self.ctp515.rois_visible}'
             ]
             module_texts.append(add)
             module_images.append(('lc', None))
@@ -1249,7 +1249,7 @@ class CatPhanBase:
 
     def _zip_images(self):
         """Compress the raw images into a ZIP archive and remove the uncompressed images."""
-        zip_name = "{}\CBCT - {}.zip".format(osp.dirname(self.dicom_stack[0].path), self.dicom_stack[0].date_created(format="%A, %I-%M-%S, %B %d, %Y"))
+        zip_name = f'{osp.dirname(self.dicom_stack[0].path)}\CBCT - {self.dicom_stack[0].date_created(format="%A, %I-%M-%S, %B %d, %Y")}.zip'
         with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
             for image in self.dicom_stack:
                 zfile.write(image.path, arcname=osp.basename(image.path))
@@ -1296,32 +1296,25 @@ class CatPhanBase:
 
     def results(self):
         """Return the results of the analysis as a string. Use with print()."""
-        string = ('\n - CatPhan {} QA Test - \n'
-                  'HU Linearity ROIs: {}\n'
-                  'HU Passed?: {}\n'
-                  'Low contrast visibility: {:2.2f}\n'
-                  'Geometric Line Average (mm): {:2.2f}\n'
-                  'Geometry Passed?: {}\n'
-                  'Measured Slice Thickness (mm): {:2.3f}\n'
-                  'Slice Thickness Passed? {}\n').format(self._model,
-                                                         self.ctp404.hu_roi_vals, self.ctp404.passed_hu,
-                                                         self.ctp404.lcv,
-                                                         self.ctp404.avg_line_length, self.ctp404.passed_geometry,
-                                                         self.ctp404.meas_slice_thickness,
-                                                         self.ctp404.passed_thickness)
+        string = (f'\n - CatPhan {self._model} QA Test - \n'
+                  f'HU Linearity ROIs: {self.ctp404.hu_roi_vals}\n'
+                  f'HU Passed?: {self.ctp404.passed_hu}\n'
+                  f'Low contrast visibility: {self.ctp404.lcv:2.2f}\n'
+                  f'Geometric Line Average (mm): {self.ctp404.avg_line_length:2.2f}\n'
+                  f'Geometry Passed?: {self.ctp404.passed_geometry}\n'
+                  f'Measured Slice Thickness (mm): {self.ctp404.meas_slice_thickness:2.3f}\n'
+                  f'Slice Thickness Passed? {self.ctp404.passed_thickness}\n')
         if CTP486 in self.modules:
-            add = ('Uniformity ROIs: {}\n'
-                  'Uniformity index: {:2.3f}\n'
-                  'Integral non-uniformity: {:2.4f}\n'
-                  'Uniformity Passed?: {}\n').format(self.ctp486.get_ROI_vals(), self.ctp486.uniformity_index,
-                                                         self.ctp486.integral_non_uniformity,
-                                                         self.ctp486.overall_passed)
+            add = (f'Uniformity ROIs: {self.ctp486.get_ROI_vals()}\n'
+                  f'Uniformity index: {self.ctp486.uniformity_index:2.3f}\n'
+                  f'Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}\n'
+                  f'Uniformity Passed?: {self.ctp486.overall_passed}\n')
             string += add
         if CTP528 in self.modules:
-            add = ('MTF 50% (lp/mm): {:2.2f}\n').format(self.ctp528.mtf(50))
+            add = (f'MTF 50% (lp/mm): {self.ctp528.mtf(50):2.2f}\n')
             string += add
         if CTP515 in self.modules:
-            add = ('Low contrast ROIs "seen": {}\n').format(self.ctp515.rois_visible)
+            add = (f'Low contrast ROIs "seen": {self.ctp515.rois_visible}\n')
             string += add
         return string
 

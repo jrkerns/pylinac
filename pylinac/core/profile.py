@@ -984,7 +984,7 @@ def peak_detect(values: np.ndarray, threshold: Union[float, int]=None, min_dista
     elif is_int_like(left_end):
         left_index = left_end
     else:
-        raise ValueError("{} must be a float or int".format(left_end))
+        raise ValueError(f"{left_end} must be a float or int")
 
     right_end = search_region[1]
     if is_float_like(right_end):
@@ -992,7 +992,7 @@ def peak_detect(values: np.ndarray, threshold: Union[float, int]=None, min_dista
     elif is_int_like(right_end):
         right_index = right_end
     else:
-        raise ValueError("{} must be a float or int".format(right_end))
+        raise ValueError(f"{right_end} must be a float or int")
 
     # minimum peak spacing calc
     if isinstance(min_distance, float):

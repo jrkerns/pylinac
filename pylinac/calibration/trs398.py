@@ -397,62 +397,62 @@ class TRS398Photon(TRS398Base):
             metadata is at the top of every page while notes is at the bottom of the report.
         """
         was_adjusted = 'Yes' if self.output_was_adjusted else 'No'
-        title = 'TRS-398 Photon Report - {} MV'.format(self.energy)
+        title = f'TRS-398 Photon Report - {self.energy} MV'
         if self.fff:
             title += ' FFF'
 
         canvas = PylinacCanvas(filename, page_title=title, metadata=metadata)
         text = [
             'Site Data:',
-            'Institution: {}'.format(self.institution),
-            'Performed by: {}'.format(self.physicist),
-            'Measurement Date: {}'.format(self.measurement_date),
-            'Date of Report: {}'.format(datetime.now().strftime("%A, %B %d, %Y")),
-            'Unit: {}'.format(self.unit),
-            'Energy: {} MV {}'.format(self.energy, 'FFF' if self.fff else ''),
+            f'Institution: {self.institution}',
+            f'Performed by: {self.physicist}',
+            f'Measurement Date: {self.measurement_date}',
+            f'Date of Report: {datetime.now().strftime("%A, %B %d, %Y")}',
+            f'Unit: {self.unit}',
+            f"Energy: {self.energy} MV {'FFF' if self.fff else ''}",
             '',
             'Instrumentation:',
-            'Chamber: {}'.format(self.chamber),
-            'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
-            'Electrometer: {}'.format(self.electrometer),
-            'Kelec: {:2.3f}'.format(self.k_elec),
-            'MU: {}'.format(self.mu),
+            f'Chamber: {self.chamber}',
+            f'Chamber Calibration Factor Ndw (cGy/nC): {self.n_dw:2.3f}',
+            f'Electrometer: {self.electrometer}',
+            f'Kelec: {self.k_elec:2.3f}',
+            f'MU: {self.mu}',
             '',
             'Beam Quality:',
-            'TPR(20)/TPR(10): {:2.3f}'.format(self.tpr2010),
-            'Determined kQ: {:2.3f}'.format(self.kq),
+            f'TPR(20)/TPR(10): {self.tpr2010:2.3f}',
+            f'Determined kQ: {self.kq:2.3f}',
             '',
             'Chamber Corrections/Measurements:',
-            'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
-            'Pressure (kPa): {:2.1f}'.format(self.press),
-            'Mraw @ ({}V, Reference) (nC): {}'.format(self.voltage_reference, self.m_reference),
-            'Mraw @ ({}V, Reduced) (nC): {}'.format(self.voltage_reduced, self.m_reduced),
-            'Mraw @ ({}V, Opposite) (nC): {}'.format(-self.voltage_reference, self.m_opposite),
-            'Ktp: {:2.3f}'.format(self.k_tp),
-            'Ks: {:2.3f}'.format(self.k_s),
-            'Kpol: {:2.3f}'.format(self.k_pol),
+            f'Temperature (\N{DEGREE SIGN}C): {self.temp:2.1f}',
+            f'Pressure (kPa): {self.press:2.1f}',
+            f'Mraw @ ({self.voltage_reference}V, Reference) (nC): {self.m_reference}',
+            f'Mraw @ ({self.voltage_reduced}V, Reduced) (nC): {self.m_reduced}',
+            f'Mraw @ ({-self.voltage_reference}V, Opposite) (nC): {self.m_opposite}',
+            f'Ktp: {self.k_tp:2.3f}',
+            f'Ks: {self.k_s:2.3f}',
+            f'Kpol: {self.k_pol:2.3f}',
             '',
             'Dose Determination:',
-            'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
-            'Tissue correction (e.g. muscle): {:2.3f}'.format(self.tissue_correction),
-            'Dose/MU @ zref depth (cGy): {:2.3f}'.format(self.dose_mu_zref),
+            f'Fully corrected M (nC): {self.m_corrected:2.3f}',
+            f'Tissue correction (e.g. muscle): {self.tissue_correction:2.3f}',
+            f'Dose/MU @ zref depth (cGy): {self.dose_mu_zref:2.3f}',
         ]
         if self.setup == 'SSD':
             text.append(
-                'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd_zref),
+                f'Clinical PDD (%): {self.clinical_pdd_zref:2.2f}',
             )
         else:
             text.append(
-                'Clinical TMR (%): {:2.2f}'.format(self.clinical_tmr_zref),
+                f'Clinical TMR (%): {self.clinical_tmr_zref:2.2f}',
             )
-        text.append('Dose/MU @ zmax (cGy): {:2.3f}'.format(self.dose_mu_zmax))
+        text.append(f'Dose/MU @ zmax (cGy): {self.dose_mu_zmax:2.3f}')
         text.append("")
-        text.append('Output Adjustment?: {}'.format(was_adjusted))
+        text.append(f'Output Adjustment?: {was_adjusted}')
         if was_adjusted == 'Yes':
-            text.append('Adjusted Mraw @ reference voltage (nC): {}'.format(self.m_reference_adjusted))
-            text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.m_corrected_adjusted))
-            text.append('Adjusted Dose/MU @ zref depth (cGy): {:2.3f}'.format(self.dose_mu_zref_adjusted))
-            text.append('Adjusted Dose/MU @ zmax (cGy): {:2.3f}'.format(self.dose_mu_zmax_adjusted))
+            text.append(f'Adjusted Mraw @ reference voltage (nC): {self.m_reference_adjusted}')
+            text.append(f'Adjusted fully corrected M (nC): {self.m_corrected_adjusted:2.3f}')
+            text.append(f'Adjusted Dose/MU @ zref depth (cGy): {self.dose_mu_zref_adjusted:2.3f}')
+            text.append(f'Adjusted Dose/MU @ zmax (cGy): {self.dose_mu_zmax_adjusted:2.3f}')
         canvas.add_text(text=text, location=(2, 25.5), font_size=12)
         if notes is not None:
             canvas.add_text(text="Notes:", location=(12, 6.5), font_size=14)
@@ -585,51 +585,51 @@ class TRS398Electron(TRS398Base):
         canvas = PylinacCanvas(filename, page_title=title, metadata=metadata)
         text = [
             'Site Data:',
-            'Institution: {}'.format(self.institution),
-            'Performed by: {}'.format(self.physicist),
-            'Measurement Date: {}'.format(self.measurement_date),
-            'Date of Report: {}'.format(datetime.now().strftime("%A, %B %d, %Y")),
-            'Unit: {}'.format(self.unit),
-            'Energy: {} MeV'.format(self.energy),
-            'Cone: {}'.format(self.cone),
-            'MU: {}'.format(self.mu),
+            f'Institution: {self.institution}',
+            f'Performed by: {self.physicist}',
+            f'Measurement Date: {self.measurement_date}',
+            f'Date of Report: {datetime.now().strftime("%A, %B %d, %Y")}',
+            f'Unit: {self.unit}',
+            f'Energy: {self.energy} MeV',
+            f'Cone: {self.cone}',
+            f'MU: {self.mu}',
             '',
             'Instrumentation:',
-            'Chamber: {}'.format(self.chamber),
-            'Chamber Calibration Factor Ndw (cGy/nC): {:2.3f}'.format(self.n_dw),
-            'Electrometer: {}'.format(self.electrometer),
-            'Kelec: {:2.3f}'.format(self.k_elec),
+            f'Chamber: {self.chamber}',
+            f'Chamber Calibration Factor Ndw (cGy/nC): {self.n_dw:2.3f}',
+            f'Electrometer: {self.electrometer}',
+            f'Kelec: {self.k_elec:2.3f}',
             '',
             'Beam Quality:',
-            'I50 (cm): {:2.2f}'.format(self.i_50),
-            'R50 (cm): {:2.2f}'.format(self.r_50),
-            'Zref (cm): {:2.2f}'.format(self.zref),
-            "Calculated kQ: {:2.3f}".format(self.kq),
+            f'I50 (cm): {self.i_50:2.2f}',
+            f'R50 (cm): {self.r_50:2.2f}',
+            f'Zref (cm): {self.zref:2.2f}',
+            f"Calculated kQ: {self.kq:2.3f}",
             '',
             'Chamber Corrections/Measurements:',
-            'Temperature (\N{DEGREE SIGN}C): {:2.1f}'.format(self.temp),
-            'Pressure (kPa): {:2.1f}'.format(self.press),
-            'Mraw @ ({}V, Reference) (nC): {}'.format(self.voltage_reference, self.m_reference),
-            'Mraw @ ({}V, Reduced) (nC): {}'.format(self.voltage_reduced, self.m_reduced),
-            'Mraw @ ({}V, Opposite) (nC): {}'.format(-self.voltage_reference, self.m_opposite),
-            'Ktp: {:2.3f}'.format(self.k_tp),
-            'Ks: {:2.3f}'.format(self.k_s),
-            'Kpol: {:2.3f}'.format(self.k_pol),
+            f'Temperature (\N{DEGREE SIGN}C): {self.temp:2.1f}',
+            f'Pressure (kPa): {self.press:2.1f}',
+            f'Mraw @ ({self.voltage_reference}V, Reference) (nC): {self.m_reference}',
+            f'Mraw @ ({self.voltage_reduced}V, Reduced) (nC): {self.m_reduced}',
+            f'Mraw @ ({-self.voltage_reference}V, Opposite) (nC): {self.m_opposite}',
+            f'Ktp: {self.k_tp:2.3f}',
+            f'Ks: {self.k_s:2.3f}',
+            f'Kpol: {self.k_pol:2.3f}',
             '',
             'Dose Determination:',
-            'Fully corrected M (nC): {:2.3f}'.format(self.m_corrected),
-            'Tissue correction (e.g. muscle): {:2.3f}'.format(self.tissue_correction),
-            'Dose/MU @ zref (cGy): {:2.3f}'.format(self.dose_mu_zref),
-            'Clinical PDD (%): {:2.2f}'.format(self.clinical_pdd_zref),
-            'Dose/MU @ zmax (cGy): {:2.3f}'.format(self.dose_mu_zmax),
+            f'Fully corrected M (nC): {self.m_corrected:2.3f}',
+            f'Tissue correction (e.g. muscle): {self.tissue_correction:2.3f}',
+            f'Dose/MU @ zref (cGy): {self.dose_mu_zref:2.3f}',
+            f'Clinical PDD (%): {self.clinical_pdd_zref:2.2f}',
+            f'Dose/MU @ zmax (cGy): {self.dose_mu_zmax:2.3f}',
             "",
-            'Output Adjustment?: {}'.format(was_adjusted),
+            f'Output Adjustment?: {was_adjusted}',
         ]
         if was_adjusted == 'Yes':
-            text.append('Adjusted Mraw @ reference voltage (nC): {}'.format(self.m_reference_adjusted))
-            text.append('Adjusted fully corrected M (nC): {:2.3f}'.format(self.m_corrected_adjusted))
-            text.append('Adjusted Dose/MU @ zref depth (cGy): {:2.3f}'.format(self.dose_mu_zref_adjusted))
-            text.append('Adjusted Dose/MU @ zmax (cGy): {:2.3f}'.format(self.dose_mu_zmax_adjusted))
+            text.append(f'Adjusted Mraw @ reference voltage (nC): {self.m_reference_adjusted}')
+            text.append(f'Adjusted fully corrected M (nC): {self.m_corrected_adjusted:2.3f}')
+            text.append(f'Adjusted Dose/MU @ zref depth (cGy): {self.dose_mu_zref_adjusted:2.3f}')
+            text.append(f'Adjusted Dose/MU @ zmax (cGy): {self.dose_mu_zmax_adjusted:2.3f}')
         canvas.add_text(text=text, location=(2, 25.5), font_size=12)
         if notes is not None:
             canvas.add_text(text="Notes:", location=(12, 6.5), font_size=14)

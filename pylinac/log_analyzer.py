@@ -132,10 +132,10 @@ class MachineLogs(list):
             return
 
         # actual log loading
-        print("{} logs found.".format(len(log_files)))
+        print(f"{len(log_files)} logs found.")
         for idx, file in enumerate(log_files):
             self.append(file)
-            print("Log loaded: {} of {}".format(idx+1, len(log_files)), end='\r')
+            print(f"Log loaded: {idx+1} of {len(log_files)}", end='\r')
         print('')
 
     def _check_empty(self):
@@ -150,9 +150,9 @@ class MachineLogs(list):
         - Average gamma value of all logs
         - Average gamma pass percent of all logs
         """
-        print("Number of logs: {}".format(len(self)))
-        print("Average gamma: {:3.2f}".format(self.avg_gamma()))
-        print("Average gamma pass percent: {:3.1f}".format(self.avg_gamma_pct()))
+        print(f"Number of logs: {len(self)}")
+        print(f"Average gamma: {self.avg_gamma():3.2f}")
+        print(f"Average gamma pass percent: {self.avg_gamma_pct():3.1f}")
 
     def append(self, obj, recursive=True):
         """Append a log. Overloads list method.
@@ -188,7 +188,7 @@ class MachineLogs(list):
         for num, log in enumerate(self):
             log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
             gamma_list[num] = log.fluence.gamma.avg_gamma
-            print('Calculating gammas: {} of {}'.format(num+1, self.num_logs), end='\r')
+            print(f'Calculating gammas: {num+1} of {self.num_logs}', end='\r')
         print('')
         return gamma_list.mean()
 
@@ -201,7 +201,7 @@ class MachineLogs(list):
         for num, log in enumerate(self):
             log.fluence.gamma.calc_map(doseTA, distTA, threshold, resolution)
             gamma_list[num] = log.fluence.gamma.pass_prcnt
-            print("Calculating gamma pass percent: {} of {}".format(num+1, self.num_logs), end='\r')
+            print(f"Calculating gamma pass percent: {num+1} of {self.num_logs}", end='\r')
         print('')
         return gamma_list.mean()
 
@@ -1353,7 +1353,7 @@ class LogBase:
             self.filename = filename
             self.exclude_beam_off = exclude_beam_off
         else:
-            raise IOError("{} was not a valid log file".format(filename))
+            raise IOError(f"{filename} was not a valid log file")
 
     @classmethod
     def from_url(cls, url, exclude_beam_off=True):
@@ -1463,17 +1463,17 @@ class LogBase:
         - Gamma pass percentage
         - Average gamma value
         """
-        title = "Results of file: {}\n".format(self.filename)
+        title = f"Results of file: {self.filename}\n"
         if self.treatment_type == IMAGING:
             string = title + "Log is an Imaging field; no statistics can be calculated"
         else:
-            avg_rms = "Average RMS of all leaves: {:3.3f} mm\n".format(self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False)*10)
-            max_rms = "Max RMS error of all leaves: {:3.3f} mm\n".format(self.axis_data.mlc.get_RMS_max()*10)
-            p95 = "95th percentile error: {:3.3f} mm\n".format(self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False)*10)
-            num_holdoffs = "Number of beam holdoffs: {:1.0f}\n".format(self.num_beamholds)
+            avg_rms = f"Average RMS of all leaves: {self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False)*10:3.3f} mm\n"
+            max_rms = f"Max RMS error of all leaves: {self.axis_data.mlc.get_RMS_max()*10:3.3f} mm\n"
+            p95 = f"95th percentile error: {self.axis_data.mlc.get_error_percentile(95, only_moving_leaves=False)*10:3.3f} mm\n"
+            num_holdoffs = f"Number of beam holdoffs: {self.num_beamholds:1.0f}\n"
             self.fluence.gamma.calc_map()
-            gamma_pass = "Gamma pass %: {:2.2f}\n".format(self.fluence.gamma.pass_prcnt)
-            gamma_avg = "Gamma average: {:2.3f}\n".format(self.fluence.gamma.avg_gamma)
+            gamma_pass = f"Gamma pass %: {self.fluence.gamma.pass_prcnt:2.2f}\n"
+            gamma_avg = f"Gamma average: {self.fluence.gamma.avg_gamma:2.3f}\n"
 
             string = title + avg_rms + max_rms + p95 + num_holdoffs + gamma_pass + gamma_avg
         if printout:
@@ -1513,8 +1513,8 @@ class LogBase:
         base_filename = osp.basename(self.filename)
         under_index = base_filename.find('_')
         if under_index < 0:
-            raise NameError("Filename `{}` has no underscore. "
-                            "Place an underscore between the patient ID and the rest of the filename and try again.".format(base_filename))
+            raise NameError(f"Filename `{base_filename}` has no underscore. "
+                            "Place an underscore between the patient ID and the rest of the filename and try again.")
         return under_index
 
     def anonymize(self, inplace=False, destination=None, suffix=None):
@@ -1558,7 +1558,7 @@ class LogBase:
             dest_dir = osp.dirname(self.filename)
         else:
             if not osp.isdir(destination):
-                raise NotADirectoryError("Specified destination `{}` was not a valid directory".format(destination))
+                raise NotADirectoryError(f"Specified destination `{destination}` was not a valid directory")
             dest_dir = destination
 
         # copy or rename the files, depending on `inplace` parameter
@@ -1712,7 +1712,7 @@ class Dynalog(LogBase):
     def __init__(self, filename, exclude_beam_off=True):
         super().__init__(filename, exclude_beam_off)
         if not is_dlog(self.filename):
-            raise NotADynalogError("{} was not a valid Dynalog file".format(self.filename))
+            raise NotADynalogError(f"{self.filename} was not a valid Dynalog file")
         if not self._has_other_file:
             raise DynalogMatchError("Didn't find the matching dynalog file")  # TODO: clean up
 
@@ -1813,12 +1813,12 @@ class Dynalog(LogBase):
         canvas = pdf.PylinacCanvas(filename, page_title="Dynalog Analysis", metadata=metadata)
         canvas.add_text(
                       text=['Dynalog results:',
-                            'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg()*10),
-                            'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max()*10),
-                            '95th Percentile error (mm): {:2.2f}'.format(self.axis_data.mlc.get_error_percentile(95)*10),
-                            'Number of beam holdoffs: {}'.format(self.num_beamholds),
-                            'Gamma pass (%): {:2.1f}'.format(self.fluence.gamma.pass_prcnt),
-                            'Gamma average: {:2.2f}'.format(self.fluence.gamma.avg_gamma),
+                            f'Average RMS (mm): {self.axis_data.mlc.get_RMS_avg()*10:2.2f}',
+                            f'Max RMS (mm): {self.axis_data.mlc.get_RMS_max()*10:2.2f}',
+                            f'95th Percentile error (mm): {self.axis_data.mlc.get_error_percentile(95)*10:2.2f}',
+                            f'Number of beam holdoffs: {self.num_beamholds}',
+                            f'Gamma pass (%): {self.fluence.gamma.pass_prcnt:2.1f}',
+                            f'Gamma average: {self.fluence.gamma.avg_gamma:2.2f}',
                             ],
                         location=(10, 25.5))
         for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), ('actual', 'expected', 'gamma', ''))):
@@ -2155,12 +2155,12 @@ class TrajectoryLog(LogBase):
         canvas = pdf.PylinacCanvas(filename, page_title="Trajectory Log Analysis", metadata=metadata)
         canvas.add_text(
                       text=['Trajectory Log results:',
-                            'Average RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_avg()*10),
-                            'Max RMS (mm): {:2.2f}'.format(self.axis_data.mlc.get_RMS_max()*10),
-                            '95th Percentile error (mm): {:2.2f}'.format(self.axis_data.mlc.get_error_percentile(95)*10),
-                            'Number of beam holdoffs: {}'.format(self.num_beamholds),
-                            'Gamma pass (%): {:2.1f}'.format(self.fluence.gamma.pass_prcnt),
-                            'Gamma average: {:2.2f}'.format(self.fluence.gamma.avg_gamma),
+                            f'Average RMS (mm): {self.axis_data.mlc.get_RMS_avg()*10:2.2f}',
+                            f'Max RMS (mm): {self.axis_data.mlc.get_RMS_max()*10:2.2f}',
+                            f'95th Percentile error (mm): {self.axis_data.mlc.get_error_percentile(95)*10:2.2f}',
+                            f'Number of beam holdoffs: {self.num_beamholds}',
+                            f'Gamma pass (%): {self.fluence.gamma.pass_prcnt:2.1f}',
+                            f'Gamma average: {self.fluence.gamma.avg_gamma:2.2f}',
                             ],
                         location=(10, 25.5))
         for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), ('actual', 'expected', 'gamma', ''))):
@@ -2238,9 +2238,9 @@ def anonymize(source, inplace=False, destination=None, recursive=True):
                 if not recursive:
                     break
             concurrent.futures.wait(futures)
-        print("All logs in {} have been anonymized.".format(source))
+        print(f"All logs in {source} have been anonymized.")
     else:
-        raise NotALogError("{} is not a log file or directory.".format(source))
+        raise NotALogError(f"{source} is not a log file or directory.")
 
 
 def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
@@ -2274,7 +2274,7 @@ def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
     elif io.is_zipfile(file_or_dir):
         MachineLogs.from_zip(file_or_dir)
     else:
-        raise NotALogError("'{}' did not point to a valid file, directory, or ZIP archive".format(file_or_dir))
+        raise NotALogError(f"'{file_or_dir}' did not point to a valid file, directory, or ZIP archive")
 
  
 def is_log(filename):

@@ -92,7 +92,7 @@ class Point:
             return np.array([getattr(self, item) for item in self._attr_list if (getattr(self, item) is not None)])
 
     def __repr__(self):
-        return "Point(x={0:3.2f}, y={1:3.2f}, z={2:3.2f})".format(self.x, self.y, self.z)
+        return f"Point(x={self.x:3.2f}, y={self.y:3.2f}, z={self.z:3.2f})"
 
     def __eq__(self, other):
         # if all attrs equal, points considered equal
@@ -181,7 +181,7 @@ class Vector:
         self.z = z
 
     def __repr__(self):
-        return "Vector(x={0:.2f}, y={1:.2f}, z={2:.2f})".format(self.x, self.y, self.z)
+        return f"Vector(x={self.x:.2f}, y={self.y:.2f}, z={self.z:.2f})"
 
     def as_scalar(self) -> float:
         """Return the scalar equivalent of the vector."""
@@ -250,12 +250,8 @@ class Line:
         self.point2 = Point(point2)
 
     def __repr__(self):
-        return 'Line: p1:(x={:.1f}, y={:.1f}, z={:.1f}), p2:(x={:.1f}, y={:.1f}, z={:.1f})'.format(self.point1.x,
-                                                                                 self.point1.y,
-                                                                                 self.point1.z,
-                                                                                 self.point2.x,
-                                                                                 self.point2.y,
-                                                                                 self.point2.z)
+        return f'Line: p1:(x={self.point1.x:.1f}, y={self.point1.y:.1f}, z={self.point1.z:.1f}), ' \
+                   f'p2:(x={self.point2.x:.1f}, y={self.point2.y:.1f}, z={self.point2.z:.1f})'
 
     @property
     def m(self) -> float:

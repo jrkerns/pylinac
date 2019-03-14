@@ -155,7 +155,7 @@ def load(path: str, **kwargs) -> ImageLike:
     elif _is_image_file(path):
         return FileImage(path, **kwargs)
     else:
-        raise TypeError("The argument `{0}` was not found to be a valid DICOM file, Image file, or array".format(path))
+        raise TypeError(f"The argument `{path}` was not found to be a valid DICOM file, Image file, or array")
 
 
 def load_url(url: str, progress_bar: bool=True, **kwargs):
@@ -263,7 +263,7 @@ class BaseImage:
             The path to the image.
         """
         if not osp.isfile(path):
-            raise FileExistsError("File `{0}` does not exist. Verify the file path name.".format(path))
+            raise FileExistsError(f"File `{path}` does not exist. Verify the file path name.")
         self.path = path
         self.base_path = osp.basename(path)
 
@@ -574,11 +574,11 @@ class BaseImage:
         """
         # error checking
         if not is_close(self.dpi, comparison_image.dpi, delta=0.1):
-            raise AttributeError("The image DPIs to not match: {:.2f} vs. {:.2f}".format(self.dpi, comparison_image.dpi))
+            raise AttributeError(f"The image DPIs to not match: {self.dpi:.2f} vs. {comparison_image.dpi:.2f}")
         same_x = is_close(self.shape[1], comparison_image.shape[1], delta=1.1)
         same_y = is_close(self.shape[0], comparison_image.shape[0], delta=1.1)
         if not (same_x and same_y):
-            raise AttributeError("The images are not the same size: {} vs. {}".format(self.shape, comparison_image.shape))
+            raise AttributeError(f"The images are not the same size: {self.shape} vs. {comparison_image.shape}")
 
         # set up reference and comparison images
         ref_img = ArrayImage(copy.copy(self.array))
@@ -808,8 +808,7 @@ class LinacDicomImage(DicomImage):
                 match = re.search('(?<={})\d+'.format(axis_str.lower()), filename.lower())
                 if match is None:
                     raise ValueError(
-                            "The filename contains '{}' but could not read a number following it. Use the format '...{}<#>...'".format(
-                                axis_str, axis_str))
+                            f"The filename contains '{axis_str}' but could not read a number following it. Use the format '...{axis_str}<#>...'")
                 else:
                     axis = float(match.group())
                     axis_found = True
@@ -989,7 +988,7 @@ class DicomImageStack:
 
         # check that at least 1 image was loaded
         if len(self.images) < 1:
-            raise FileNotFoundError("No files were found in the specified location: {0}".format(folder))
+            raise FileNotFoundError(f"No files were found in the specified location: {folder}")
 
         # error checking
         if check_uid:

@@ -293,7 +293,7 @@ class AnalyzeCatPhan(AnalyzeMixin):
         if self.zip_format:
             return self.full_path.replace('.zip', '.pdf')
         else:
-            return "{}\CBCT - {}.pdf".format(osp.dirname(self.instance.dicom_stack[0].path), self.instance.dicom_stack[0].date_created(format="%A, %I-%M-%S, %B %d, %Y"))
+            return '{osp.dirname(self.instance.dicom_stack[0].path)}\CBCT - {self.instance.dicom_stack[0].date_created(format="%A, %I-%M-%S, %B %d, %Y")}.pdf'
 
     def analyze(self):
         self.instance.analyze(**self.analysis_settings)
@@ -399,7 +399,7 @@ class AnalyzeWL(AnalyzeMixin):
         else:
             dirname = osp.dirname(self.full_path[0])
             dcm = DicomImage(self.full_path[0])
-            name = 'Winston-Lutz - {}.pdf'.format(dcm.date_created())
+            name = f'Winston-Lutz - {dcm.date_created()}.pdf'
             return osp.join(dirname, name)
 
     @classmethod
@@ -483,7 +483,7 @@ class AnalyzeVMAT(AnalyzeMixin):
         else:
             dirname = osp.dirname(self.path[0])
             dcm = DicomImage(self.path[0])
-            name = 'VMAT {} - {}.pdf'.format(self.test_type.upper(), dcm.date_created())
+            name = f'VMAT {self.test_type.upper()} - {dcm.date_created()}.pdf'
             return osp.join(dirname, name)
 
     @classmethod
@@ -557,7 +557,7 @@ def _copy_new_files(directory, config):
         already_here = any(sbase in dfile for dfile in dest_files)
         if not already_here:
             shutil.copy(osp.join(source_dir, sfile), directory)
-            logger.info("Copied {} into pylinac directory".format(sfile))
+            logger.info(f"Copied {sfile} into pylinac directory")
 
     # return if no sources are configured or are not real directories
     source_undefined = config['general']['sources'] is None
@@ -571,7 +571,7 @@ def _copy_new_files(directory, config):
     dest_files = os.listdir(directory)
     with concurrent.futures.ThreadPoolExecutor(4) as exec:
         for source_dir in config['general']['sources']:
-            logger.info("Querying new files from {}".format(source_dir))
+            logger.info(f"Querying new files from {source_dir}")
             source_files = os.listdir(source_dir)
             time.sleep(0.5)
             if config['general']['rolling-window-days'] > 0:
@@ -642,7 +642,7 @@ def watch(directory=None, config_file=None):
     # set up configuration
     config = load_config(config_file, verbose=True)
     query_freq = config['general']['query-frequency']
-    logger.info("Querying frequency: {:1.0f}s".format(query_freq))
+    logger.info(f"Querying frequency: {query_freq:1.0f}s")
     schedule.every(query_freq).seconds.do(process, directory, config_file, True, False)
     while True:
         schedule.run_pending()
@@ -678,7 +678,7 @@ def process(directory=None, config_file=None, copy_new_files=False, verbose=True
         else:
             directory = config['general']['directory']
             if verbose:
-                logger.info("Performing analysis on directory: {}".format(directory))
+                logger.info(f"Performing analysis on directory: {directory}")
     if copy_new_files:
         _copy_new_files(directory, config)
     analyze_new_files(directory, config, force=force)
@@ -701,7 +701,7 @@ def load_config(config_file=None, verbose=False):
         yaml_config_file = config_file
     config = yaml.load(open(yaml_config_file).read())
     if verbose:
-        logger.info("Using configuration file: {}".format(yaml_config_file))
+        logger.info(f"Using configuration file: {yaml_config_file}")
     return config
 
 

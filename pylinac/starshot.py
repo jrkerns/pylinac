@@ -128,7 +128,7 @@ class Starshot:
         with TemporaryZipDirectory(zip_file) as tmpdir:
             image_files = image.retrieve_image_files(tmpdir)
             if not image_files:
-                raise IndexError("No valid starshot images were found in {}".format(zip_file))
+                raise IndexError(f"No valid starshot images were found in {zip_file}")
             if len(image_files) > 1:
                 return cls.from_multiple_images(image_files, **kwargs)
             else:
@@ -323,10 +323,9 @@ class Starshot:
         string
             A string with a statement of the minimum circle.
         """
-        string = ('\nResult: {} \n\n' +
-                  'The minimum circle that touches all the star lines has a diameter of {:2.3f} mm. \n\n' +
-                  'The center of the minimum circle is at {:3.1f}, {:3.1f}').format(self._passfail_str, self.wobble.radius_mm*2,
-                                                                                    self.wobble.center.x, self.wobble.center.y)
+        string = (f'\nResult: {self._passfail_str} \n\n' +
+                  f'The minimum circle that touches all the star lines has a diameter of {self.wobble.radius_mm*2:2.3f} mm. \n\n' +
+                  f'The center of the minimum circle is at {self.wobble.center.x:3.1f}, {self.wobble.center.y:3.1f}')
         return string
 
     def plot_analyzed_image(self, show: bool=True):
@@ -438,9 +437,9 @@ class Starshot:
             self.save_analyzed_subimage(data, img)
             canvas.add_image(data, location=(4, height), dimensions=(13, 13))
         text = ['Starshot results:',
-                'Source-to-Image Distance (mm): {:2.0f}'.format(self.image.sid),
-                'Tolerance (mm): {:2.1f}'.format(self.tolerance),
-                "Minimum circle diameter (mm): {:2.2f}".format(self.wobble.radius_mm*2),
+                f'Source-to-Image Distance (mm): {self.image.sid:2.0f}',
+                f'Tolerance (mm): {self.tolerance:2.1f}',
+                f"Minimum circle diameter (mm): {self.wobble.radius_mm*2:2.2f}",
                 ]
         canvas.add_text(text=text, location=(10, 25.5), font_size=12)
         if notes is not None:

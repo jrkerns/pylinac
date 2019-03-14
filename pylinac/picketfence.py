@@ -394,19 +394,17 @@ class PicketFence:
         self.plot_analyzed_image(guard_rails, mlc_peaks, overlay, leaf_error_subplot=leaf_error_subplot, show=False)
         plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
-            print("Picket fence image saved to: {0}".format(osp.abspath(filename)))
+            print(f"Picket fence image saved to: {osp.abspath(filename)}")
 
     def results(self) -> str:
         """Return results of analysis. Use with print()."""
         pass_pct = self.percent_passing
         offsets = ' '.join('{:.1f}'.format(pk.dist2cax) for pk in self.pickets)
-        string = "Picket Fence Results: \n{:2.1f}% " \
-                 "Passed\nMedian Error: {:2.3f}mm \n" \
-                 "Mean picket spacing: {:2.1f}mm \n" \
-                 "Picket offsets from CAX (mm): {}\n" \
-                 "Max Error: {:2.3f}mm on Picket: {}, Leaf: {}".format(pass_pct, self.abs_median_error,
-                                                                       self.pickets.mean_spacing, offsets,
-                                                                       self.max_error, self.max_error_picket, self.max_error_leaf)
+        string = f"Picket Fence Results: \n{pass_pct:2.1f}% " \
+                 f"Passed\nMedian Error: {self.abs_median_error:2.3f}mm \n" \
+                 f"Mean picket spacing: {self.pickets.mean_spacing:2.1f}mm \n" \
+                 f"Picket offsets from CAX (mm): {offsets}\n" \
+                 f"Max Error: {self.max_error:2.3f}mm on Picket: {self.max_error_picket}, Leaf: {self.max_error_leaf}"
         return string
 
     def publish_pdf(self, filename: str=None, notes: str=None, open_file: bool=False, metadata: dict=None):
@@ -438,15 +436,15 @@ class PicketFence:
         canvas.add_image(data, location=(3, 8), dimensions=(12, 12))
         text = [
             'Picket Fence results:',
-            'Magnification factor (SID/SAD): {:2.2f}'.format(self.image.metadata.RTImageSID/self.image.metadata.RadiationMachineSAD),
-            'Tolerance (mm): {}'.format(self.settings.tolerance),
-            'Leaves passing (%): {:2.1f}'.format(self.percent_passing),
-            'Absolute median error (mm): {:2.3f}'.format(self.abs_median_error),
-            'Mean picket spacing (mm): {:2.1f}'.format(self.pickets.mean_spacing),
-            'Maximum error (mm): {:2.3f} on Picket {}, Leaf {}'.format(self.max_error, self.max_error_picket, self.max_error_leaf),
+            f'Magnification factor (SID/SAD): {self.image.metadata.RTImageSID/self.image.metadata.RadiationMachineSAD:2.2f}',
+            f'Tolerance (mm): {self.settings.tolerance}',
+            f'Leaves passing (%): {self.percent_passing:2.1f}',
+            f'Absolute median error (mm): {self.abs_median_error:2.3f}',
+            f'Mean picket spacing (mm): {self.pickets.mean_spacing:2.1f}',
+            f'Maximum error (mm): {self.max_error:2.3f} on Picket {self.max_error_picket}, Leaf {self.max_error_leaf}',
         ]
-        text.append('Gantry Angle: {:2.2f}'.format(self.image.gantry_angle))
-        text.append('Collimator Angle: {:2.2f}'.format(self.image.collimator_angle))
+        text.append(f'Gantry Angle: {self.image.gantry_angle:2.2f}')
+        text.append(f'Collimator Angle: {self.image.collimator_angle:2.2f}')
         canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)

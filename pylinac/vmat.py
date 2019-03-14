@@ -330,11 +330,11 @@ class VMATBase:
         canvas.add_text(text='DMLC Image', location=(14, 22), font_size=18)
         canvas.add_text(text=f'{self.dmlc_image.base_path}', location=(14, 21.5))
         canvas.add_text(text='Median profiles', location=(8, 12), font_size=18)
-        text = ['{} VMAT results:'.format(self._result_header),
-                'Source-to-Image Distance (mm): {:2.0f}'.format(self.open_image.sid),
-                'Tolerance (%): {:2.1f}'.format(self._tolerance*100),
-                'Absolute mean deviation (%): {:2.2f}'.format(self.avg_abs_r_deviation),
-                'Maximum deviation (%): {:2.2f}'.format(self.max_r_deviation),
+        text = [f'{self._result_header} VMAT results:',
+                f'Source-to-Image Distance (mm): {self.open_image.sid:2.0f}',
+                f'Tolerance (%): {self._tolerance*100:2.1f}',
+                f'Absolute mean deviation (%): {self.avg_abs_r_deviation:2.2f}',
+                f'Maximum deviation (%): {self.max_r_deviation:2.2f}',
                 ]
         canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:

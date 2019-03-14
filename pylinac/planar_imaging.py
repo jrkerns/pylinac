@@ -339,9 +339,9 @@ class LasVegas(ImagePhantomBase):
             self.save_analyzed_image(data, image=img, low_contrast=lo)
             canvas.add_image(data, location=(w, l), dimensions=(13, 13))
         text = ['Las Vegas results:',
-                'Median Contrast: {:2.2f}'.format(np.median([roi.contrast for roi in self.lc_rois])),
-                'Median CNR: {:2.1f}'.format(np.median([roi.contrast_to_noise for roi in self.lc_rois])),
-                'ROIs "seen": {:2.0f}'.format(sum(roi.passed_contrast_constant for roi in self.lc_rois)),
+                f'Median Contrast: {np.median([roi.contrast for roi in self.lc_rois]):2.2f}',
+                f'Median CNR: {np.median([roi.contrast_to_noise for roi in self.lc_rois]):2.1f}',
+                f'ROIs "seen": {sum(roi.passed_contrast_constant for roi in self.lc_rois):2.0f}',
                 ]
         canvas.add_text(text=text, location=(10, 24.5))
         if notes is not None:
@@ -427,10 +427,10 @@ class StandardImagingQC3(ImagePhantomBase):
             self.save_analyzed_image(data, image=img, low_contrast=lo)
             canvas.add_image(data, location=(w, l), dimensions=(13, 13))
         text = ['QC-3 results:',
-                'MTF 80% (lp/mm): {:2.2f}'.format(self._mtf(80)),
-                'MTF 50% (lp/mm): {:2.2f}'.format(self._mtf(50)),
-                'Median Contrast: {:2.2f}'.format(np.median([roi.contrast for roi in self.lc_rois])),
-                'Median CNR: {:2.1f}'.format(np.median([roi.contrast_to_noise for roi in self.lc_rois])),
+                f'MTF 80% (lp/mm): {self._mtf(80):2.2f}',
+                f'MTF 50% (lp/mm): {self._mtf(50):2.2f}',
+                f'Median Contrast: {np.median([roi.contrast for roi in self.lc_rois]):2.2f}',
+                f'Median CNR: {np.median([roi.contrast_to_noise for roi in self.lc_rois]):2.1f}',
                 ]
         canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:
@@ -912,9 +912,9 @@ class LeedsTOR(ImagePhantomBase):
             self.save_analyzed_image(data, image=img, low_contrast=lo)
             canvas.add_image(data, location=(w, l), dimensions=(10, 10))
         text = ['Leeds TOR18 results:',
-                'MTF 80% (lp/mm): {:2.2f}'.format(self._mtf(80)),
-                'Median Contrast: {:2.2f}'.format(np.median([roi.contrast for roi in self.lc_rois])),
-                'Median CNR: {:2.1f}'.format(np.median([roi.contrast_to_noise for roi in self.lc_rois])),
+                f'MTF 80% (lp/mm): {self._mtf(80):2.2f}',
+                f'Median Contrast: {np.median([roi.contrast for roi in self.lc_rois]):2.2f}',
+                f'Median CNR: {np.median([roi.contrast_to_noise for roi in self.lc_rois]):2.1f}',
                 ]
         canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:

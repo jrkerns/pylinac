@@ -225,12 +225,12 @@ class WinstonLutz:
         x_dir = 'LEFT' if sv.x < 0 else 'RIGHT'
         y_dir = 'UP' if sv.y > 0 else 'DOWN'
         z_dir = 'IN' if sv.z < 0 else 'OUT'
-        move = "{} {:2.2f}mm; {} {:2.2f}mm; {} {:2.2f}mm".format(x_dir, abs(sv.x), y_dir, abs(sv.y), z_dir, abs(sv.z))
+        move = f"{x_dir} {abs(sv.x):2.2f}mm; {y_dir} {abs(sv.y):2.2f}mm; {z_dir} {abs(sv.z):2.2f}mm"
         if all(val is not None for val in [couch_vrt, couch_lat, couch_lng]):
             new_lat = round(couch_lat + sv.x/10, 2)
             new_vrt = round(couch_vrt + sv.y/10, 2)
             new_lng = round(couch_lng - sv.z/10, 2)
-            move += "\nNew couch coordinates (mm): VRT: {:3.2f}; LNG: {:3.2f}; LAT: {:3.2f}".format(new_vrt, new_lng, new_lat)
+            move += f"\nNew couch coordinates (mm): VRT: {new_vrt:3.2f}; LNG: {new_lng:3.2f}; LAT: {new_lat:3.2f}"
         return move
 
     @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
@@ -298,7 +298,7 @@ class WinstonLutz:
         show : bool
             Whether to show the image.
         """
-        title = 'Relative {} displacement'.format(item)
+        title = f'Relative {item} displacement'
         if item == EPID:
             attr = 'epid'
             item = GANTRY
@@ -322,7 +322,7 @@ class WinstonLutz:
         ax.plot(angles, rms, 'g+', label='RMS', ls='-')
         ax.set_title(title)
         ax.set_ylabel('mm')
-        ax.set_xlabel("{} angle".format(item))
+        ax.set_xlabel(f"{item} angle")
         ax.set_xticks(np.arange(0, 361, 45))
         ax.set_xlim([-15, 375])
         ax.grid(True)
@@ -372,7 +372,7 @@ class WinstonLutz:
         # set labels
         ax.set_title(axis + ' wobble')
         ax.set_xlabel(axis + ' positions superimposed')
-        ax.set_ylabel(axis + " iso size: {0:3.2f}mm".format(getattr(self, axis.lower() + '_iso_size')))
+        ax.set_ylabel(axis + f" iso size: {getattr(self, axis.lower() + '_iso_size'):3.2f}mm")
         if show:
             plt.show()
 
@@ -416,7 +416,7 @@ class WinstonLutz:
             plot_image(wl_image, mpl_axis)
 
         # set titles
-        fig.suptitle("{} images".format(axis), fontsize=14, y=1)
+        fig.suptitle(f"{axis} images", fontsize=14, y=1)
         plt.tight_layout()
         if show:
             plt.show()
@@ -466,25 +466,17 @@ class WinstonLutz:
         """Return the analysis results summary."""
         result = "\nWinston-Lutz Analysis\n" \
                  "=================================\n" \
-                 "Number of images: {}\n" \
-                 "Maximum 2D CAX->BB distance: {:.2f}mm\n" \
-                 "Median 2D CAX->BB distance: {:.2f}mm\n" \
-                 "Shift BB to iso, facing gantry: {}\n" \
-                 "Gantry 3D isocenter diameter: {:.2f}mm\n" \
-                 "Maximum Gantry RMS deviation (mm): {:.2f}mm\n" \
-                 "Maximum EPID RMS deviation (mm): {:.2f}mm\n" \
-                 "Collimator 2D isocenter diameter: {:.2f}mm\n" \
-                 "Maximum Collimator RMS deviation (mm): {:.2f}\n" \
-                 "Couch 2D isocenter diameter: {:.2f}mm\n" \
-                 "Maximum Couch RMS deviation (mm): {:.2f}".format(
-                    len(self.images), self.cax2bb_distance('max'), self.cax2bb_distance('median'),
-                    self.bb_shift_instructions(), self.gantry_iso_size, max(self.axis_rms_deviation(GANTRY)),
-                    max(self.axis_rms_deviation(EPID)),
-                    self.collimator_iso_size, max(self.axis_rms_deviation(COLLIMATOR)),
-                    self.couch_iso_size,
-                    max(self.axis_rms_deviation(COUCH)),
-                 )
-
+                 f"Number of images: {len(self.images)}\n" \
+                 f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm\n" \
+                 f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm\n" \
+                 f"Shift BB to iso, facing gantry: {self.bb_shift_instructions()}\n" \
+                 f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm\n" \
+                 f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation(GANTRY)):.2f}mm\n" \
+                 f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(EPID)):.2f}mm\n" \
+                 f"Collimator 2D isocenter diameter: {self.collimator_iso_size:.2f}mm\n" \
+                 f"Maximum Collimator RMS deviation (mm): {max(self.axis_rms_deviation(COLLIMATOR)):.2f}\n" \
+                 f"Couch 2D isocenter diameter: {self.couch_iso_size:.2f}mm\n" \
+                 f"Maximum Couch RMS deviation (mm): {max(self.axis_rms_deviation(COUCH)):.2f}"
         return result
 
     def publish_pdf(self, filename: str, notes: Union[str, List[str]]=None, open_file: bool=False, metadata: dict=None):
@@ -512,16 +504,16 @@ class WinstonLutz:
         canvas = pdf.PylinacCanvas(filename, page_title=title, metadata=metadata)
         avg_sid = np.mean([image.metadata.RTImageSID for image in self.images])
         text = ['Winston-Lutz results:',
-                'Average SID (mm): {:2.0f}'.format(avg_sid),
-                'Number of images: {}'.format(len(self.images)),
-                'Maximum distance to BB (mm): {:2.2f}'.format(self.cax2bb_distance('max')),
-                'Median distances to BB (mm): {:2.2f}'.format(self.cax2bb_distance('median')),
-                'Gantry 3D isocenter diameter (mm): {:2.2f}'.format(self.gantry_iso_size),
+                f'Average SID (mm): {avg_sid:2.0f}',
+                f'Number of images: {len(self.images)}',
+                f'Maximum distance to BB (mm): {self.cax2bb_distance("max"):2.2f}',
+                f'Median distances to BB (mm): {self.cax2bb_distance("median"):2.2f}',
+                f'Gantry 3D isocenter diameter (mm): {self.gantry_iso_size:2.2f}',
                 ]
         if self._contains_axis_images(COLLIMATOR):
-            text.append('Collimator 2D isocenter diameter (mm): {:2.2f}'.format(self.collimator_iso_size),)
+            text.append(f'Collimator 2D isocenter diameter (mm): {self.collimator_iso_size:2.2f}')
         if self._contains_axis_images(COUCH):
-            text.append('Couch 2D isocenter diameter (mm): {:2.2f}'.format(self.couch_iso_size), )
+            text.append(f'Couch 2D isocenter diameter (mm): {self.couch_iso_size:2.2f}')
         canvas.add_text(text=text, location=(10, 25.5))
         # draw summary image on 1st page
         data = io.BytesIO()
@@ -570,7 +562,7 @@ class WLImage(image.LinacDicomImage):
         self.bb = self._find_bb()
 
     def __repr__(self):
-        return "WLImage(G={0:.1f}, B={1:.1f}, P={2:.1f})".format(self.gantry_angle, self.collimator_angle, self.couch_angle)
+        return f"WLImage(G={self.gantry_angle:.1f}, B={self.collimator_angle:.1f}, P={self.couch_angle:.1f})"
 
     def _clean_edges(self, window_size: int=2):
         """Clean the edges of the image to be near the background level."""
@@ -776,8 +768,8 @@ class WLImage(image.LinacDicomImage):
         ax.set_yticklabels([])
         ax.set_xticklabels([])
         ax.set_title(self.file)
-        ax.set_xlabel("G={0:.0f}, B={1:.0f}, P={2:.0f}".format(self.gantry_angle, self.collimator_angle, self.couch_angle))
-        ax.set_ylabel("CAX to BB: {0:3.2f}mm".format(self.cax2bb_distance))
+        ax.set_xlabel(f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}")
+        ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
         if show:
             plt.show()
         return ax

@@ -36,7 +36,7 @@ class PylinacCanvas:
             for key, value in metadata.items():
                 text.append(f"{key}: {value}")
             date = datetime.now().strftime("%A, %B %d, %Y")
-            text.append('Analyzed on: {}'.format(date))
+            text.append(f'Analyzed on: {date}')
             self.add_text(text=text, location=(2, 25.5))
 
     def _generate_pylinac_template_theme(self):
