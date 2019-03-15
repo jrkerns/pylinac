@@ -1,4 +1,5 @@
 import os.path as osp
+import tempfile
 from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
@@ -37,6 +38,10 @@ class GeneralTests(TestCase):
 
     def test_demo(self):
         PicketFence.run_demo()
+
+    def test_publish_pdf(self):
+        with tempfile.TemporaryFile() as t:
+            self.pf.publish_pdf(t, notes='stuff', metadata={'Unit': 'TB1'})
 
 
 class TestPlottingSaving(TestCase):
@@ -120,6 +125,13 @@ class PFDemo(PFTestMixin, TestCase):
         pf.analyze(0.15, action_tolerance=0.05)
         pf.plot_analyzed_image()
         self.assertAlmostEqual(pf.percent_passing, 94, delta=1)
+
+
+class AS1200(PFTestMixin, TestCase):
+    """Tests for the AS1200 image."""
+    file_path = ['AS1200.dcm']
+    max_error = 0.08
+    abs_median_error = 0.02
 
 
 class MultipleImagesPF(PFTestMixin, TestCase):
