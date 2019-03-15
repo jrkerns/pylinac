@@ -409,10 +409,13 @@ class FluenceBase:
         self._mu = mu_axis
         self._jaws = jaw_struct
 
-    @property
-    def map_calced(self):
+    def is_map_calced(self, raise_error=False):
         """Return a boolean specifying whether the fluence has been calculated."""
-        return hasattr(self.array, 'size')
+        calced = hasattr(self.array, 'size')
+        if (not calced) and (raise_error is True):
+            raise ValueError("Map has not yet been calculated. Use .calc_map() with desired parameters first.")
+        else:
+            return calced
 
     @lru_cache(maxsize=1)
     def calc_map(self, resolution=0.1, equal_aspect=False):
@@ -522,8 +525,7 @@ class FluenceBase:
 
     def plot_map(self, show=True):
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
-        if not self.map_calced:
-            raise AttributeError("Map not yet calculated; use calc_map()")
+        self.is_map_calced(raise_error=True)
         plt.clf()
         plt.imshow(self.array, aspect='auto', cmap=get_array_cmap())
         if show:
@@ -583,6 +585,7 @@ class GammaFluence(FluenceBase):
         mlc_struct : MLC_Struct
             The MLC structure, so fluence can be calculated from leaf positions.
         """
+        self.array = object
         self.passfail_array = object
         self._actual_fluence = actual_fluence
         self._expected_fluence = expected_fluence
@@ -616,9 +619,9 @@ class GammaFluence(FluenceBase):
             A num_mlc_leaves-x-400/resolution numpy array.
         """
         # calc fluences if need be
-        if not self._actual_fluence.map_calced or resolution != self._actual_fluence.resolution:
+        if not self._actual_fluence.is_map_calced() or resolution != self._actual_fluence.resolution:
             self._actual_fluence.calc_map(resolution)
-        if not self._expected_fluence.map_calced or resolution != self._expected_fluence.resolution:
+        if not self._expected_fluence.is_map_calced() or resolution != self._expected_fluence.resolution:
             self._expected_fluence.calc_map(resolution)
 
         actual_img = image.load(self._actual_fluence.array, dpi=25.4 / resolution)
@@ -645,8 +648,7 @@ class GammaFluence(FluenceBase):
 
     def plot_map(self, show=True):
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
-        if not self.map_calced:
-            raise AttributeError("Map not yet calculated; use calc_map()")
+        self.is_map_calced(raise_error=True)
         plt.imshow(self.array, aspect='auto', vmax=1, cmap=get_array_cmap())
         plt.colorbar()
         plt.show()
@@ -666,13 +668,11 @@ class GammaFluence(FluenceBase):
         bin_edges : numpy.ndarray
             A 1D array of the bin edges. If left as None, the class default will be used (self.bins).
         """
-        if self.map_calced:
-            if bins is None:
-                bins = self.bins
-            hist_arr, bin_edges = np.histogram(self.array, bins=bins)
-            return hist_arr, bin_edges
-        else:
-            raise AttributeError("Gamma map not yet calculated")
+        self.is_map_calced(raise_error=True)
+        if bins is None:
+            bins = self.bins
+        hist_arr, bin_edges = np.histogram(self.array, bins=bins)
+        return hist_arr, bin_edges
 
     def plot_histogram(self, scale='log', bins=None, show=True):
         """Plot a histogram of the gamma map values.
@@ -684,16 +684,14 @@ class GammaFluence(FluenceBase):
         bins : sequence
             The bin edges for the gamma histogram; see numpy.histogram for more info.
         """
-        if self.map_calced:
-            if bins is None:
-                bins = self.bins
-            plt.clf()
-            plt.hist(self.array.flatten(), bins=bins)
-            plt.yscale(scale)
-            if show:
-                plt.show()
-        else:
-            raise AttributeError("Map not yet calculated; use calc_map()")
+        self.is_map_calced(raise_error=True)
+        if bins is None:
+            bins = self.bins
+        plt.clf()
+        plt.hist(self.array.flatten(), bins=bins)
+        plt.yscale(scale)
+        if show:
+            plt.show()
 
     def save_histogram(self, filename, scale='log', bins=None, **kwargs):
         """Save the histogram plot to file."""
@@ -702,11 +700,9 @@ class GammaFluence(FluenceBase):
 
     def plot_passfail_map(self):
         """Plot the binary gamma map, only showing whether pixels passed or failed."""
-        if self.map_calced:
-            plt.imshow(self.passfail_array, cmap=get_array_cmap())
-            plt.show()
-        else:
-            raise AttributeError("Map not yet calculated; use calc_map()")
+        self.is_map_calced(raise_error=True)
+        plt.imshow(self.passfail_array, cmap=get_array_cmap())
+        plt.show()
 
 
 class FluenceStruct:
@@ -1369,35 +1365,34 @@ class LogBase:
         """Plot actual & expected fluence, gamma map, gamma histogram,
             MLC error histogram, and MLC RMS histogram.
         """
-        if self.fluence.gamma.map_calced:
-            # plot the actual fluence
-            ax = plt.subplot(2, 3, 1)
-            self.plot_subimage('actual', ax, show=False)
+        self.fluence.gamma.is_map_calced(raise_error=True)
 
-            # plot the expected fluence
-            ax = plt.subplot(2, 3, 2)
-            self.plot_subimage('expected', ax, show=False)
+        # plot the actual fluence
+        ax = plt.subplot(2, 3, 1)
+        self.plot_subimage('actual', ax, show=False)
 
-            # plot the gamma map
-            ax = plt.subplot(2, 3, 3)
-            self.plot_subimage('gamma', ax, show=False)
+        # plot the expected fluence
+        ax = plt.subplot(2, 3, 2)
+        self.plot_subimage('expected', ax, show=False)
 
-            # plot the gamma histogram
-            ax = plt.subplot(2, 3, 4)
-            self.plot_subgraph('gamma', ax, show=False)
+        # plot the gamma map
+        ax = plt.subplot(2, 3, 3)
+        self.plot_subimage('gamma', ax, show=False)
 
-            # plot the MLC error histogram
-            ax = plt.subplot(2, 3, 5)
-            self.plot_subgraph('leaf hist', ax, show=False)
+        # plot the gamma histogram
+        ax = plt.subplot(2, 3, 4)
+        self.plot_subgraph('gamma', ax, show=False)
 
-            # plot the leaf RMSs
-            ax = plt.subplot(2,3,6)
-            self.plot_subgraph('rms', ax, show=False)
+        # plot the MLC error histogram
+        ax = plt.subplot(2, 3, 5)
+        self.plot_subgraph('leaf hist', ax, show=False)
 
-            if show:
-                plt.show()
-        else:
-            raise AttributeError("Gamma map has not yet been calculated.")
+        # plot the leaf RMSs
+        ax = plt.subplot(2,3,6)
+        self.plot_subgraph('rms', ax, show=False)
+
+        if show:
+            plt.show()
 
     def save_summary(self, filename, **kwargs):
         """Save the summary image to file."""
@@ -1814,7 +1809,7 @@ class Dynalog(LogBase):
         self.fluence.gamma.calc_map()
         if filename is None:
             base, _ = osp.splitext(self.filename)
-            filename = osp.join(base, '.pdf')
+            filename = base + '.pdf'
         canvas = pdf.PylinacCanvas(filename, page_title="Dynalog Analysis", metadata=metadata)
         canvas.add_text(
                       text=['Dynalog results:',
@@ -2053,6 +2048,8 @@ class TrajectoryLog(LogBase):
         renames = self.anon_file_renames(destination, suffix)
         if self.txt is not None:
             return [file for file in renames.values() if '.txt' in file]
+        else:
+            return []
 
     def _read_txt_file(self):
         """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
@@ -2156,7 +2153,7 @@ class TrajectoryLog(LogBase):
         self.fluence.gamma.calc_map()
         if filename is None:
             base, _ = osp.splitext(self.filename)
-            filename = osp.join(base, '.pdf')
+            filename = base + '.pdf'
         canvas = pdf.PylinacCanvas(filename, page_title="Trajectory Log Analysis", metadata=metadata)
         canvas.add_text(
                       text=['Trajectory Log results:',
@@ -2268,6 +2265,8 @@ def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
     if io.is_url(file_or_dir):
         file_or_dir = io.get_url(file_or_dir)
     if osp.isfile(file_or_dir):
+        if io.is_zipfile(file_or_dir):
+            return MachineLogs.from_zip(file_or_dir)
         if not is_log(file_or_dir):
             raise NotALogError("Not a valid log")
         elif is_tlog(file_or_dir):
@@ -2275,9 +2274,7 @@ def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
         else:
             return Dynalog(file_or_dir, exclude_beam_off)
     elif osp.isdir(file_or_dir):
-        MachineLogs(file_or_dir, recursive)
-    elif io.is_zipfile(file_or_dir):
-        MachineLogs.from_zip(file_or_dir)
+        return MachineLogs(file_or_dir, recursive)
     else:
         raise NotALogError(f"'{file_or_dir}' did not point to a valid file, directory, or ZIP archive")
 
@@ -2308,9 +2305,12 @@ def _is_log(filename, keys):
         is in the file it will return true.
     """
     if osp.isfile(filename):
-        with open(filename, mode='rb') as f:
-            header_sample = f.read(5).decode()
-        return any(key in header_sample for key in keys)
+        try:
+            with open(filename, mode='rb') as f:
+                header_sample = f.read(5).decode()
+            return any(key in header_sample for key in keys)
+        except:
+            return False
     else:
         return False
 

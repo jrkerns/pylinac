@@ -2,11 +2,12 @@ import os.path as osp
 import os
 from unittest import TestCase
 import shutil
+import tempfile
 
 import numpy as np
 
 from pylinac.log_analyzer import MachineLogs, STATIC_IMRT, DYNAMIC_IMRT, \
-    VMAT, anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError, IMAGING
+    VMAT, anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError, IMAGING, NotALogError
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
@@ -63,6 +64,38 @@ class TestAnonymizeFunction(TestCase):
         with self.assertRaises(NameError):
             dlog.anonymize()
 
+    def test_invalid(self):
+        invalid_path = r'nonexistant/path'
+        with self.assertRaises(NotALogError):
+            anonymize(invalid_path)
+
+
+class TestPublishPDF(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tlog = TrajectoryLog.from_demo()
+        cls.dlog = Dynalog.from_demo()
+
+    def test_publish_pdf(self):
+        # normal publish; shouldn't raise
+        with tempfile.TemporaryFile() as t:
+            self.dlog.publish_pdf(t)
+        with tempfile.TemporaryFile() as t:
+            self.tlog.publish_pdf(t)
+
+    def test_publish_pdf_without_filename_dynalog(self):
+        base, _ = osp.splitext(self.dlog.filename)
+        filename = base + '.pdf'
+        self.dlog.publish_pdf()
+        self.assertTrue(osp.isfile(filename))
+
+    def test_publish_pdf_without_filename_trajectorylog(self):
+        base, _ = osp.splitext(self.tlog.filename)
+        filename = base + '.pdf'
+        self.tlog.publish_pdf()
+        self.assertTrue(osp.isfile(filename))
+
 
 class TestLogPlottingSavingMixin:
     """Test the plotting methods and plot saving methods."""
@@ -78,14 +111,7 @@ class TestLogPlottingSavingMixin:
             method = getattr(self.log.axis_data.mlc.leaf_axes[10], methodname)
             save_file(method)
 
-            # save MPLD3 HTML
-            save_file(method, interactive=True, as_file_object='str')
-
     def test_fluence_plotting(self):
-        # raise error if map hasn't yet been calc'ed.
-        with self.assertRaises(AttributeError):
-            self.log.fluence.actual.plot_map()
-
         self.log.fluence.actual.calc_map()
         self.log.fluence.actual.plot_map()
         self.log.fluence.gamma.calc_map()
@@ -134,6 +160,39 @@ class TestDynalogTreatmentTypes(TestCase):
 
     def test_dynamic_imrt_log(self):
         pass  # need to find one
+
+
+class TestLoadLog(TestCase):
+
+    def test_dynalog_file(self):
+        dynalog = osp.join(TEST_DIR, 'dlogs', 'A_static_imrt.dlg')
+        self.assertIsInstance(load_log(dynalog), Dynalog)
+
+    def test_tlog_file(self):
+        tlog = osp.join(TEST_DIR, 'tlogs', 'dynamic_imrt.bin')
+        self.assertIsInstance(load_log(tlog), TrajectoryLog)
+
+    def test_url(self):
+        url = r'https://s3.amazonaws.com/pylinac/Tlog.bin'
+        self.assertIsInstance(load_log(url), TrajectoryLog)
+
+    def test_dir(self):
+        dlog_dir = osp.join(TEST_DIR, 'dlogs')
+        self.assertIsInstance(load_log(dlog_dir), MachineLogs)
+
+    def test_zip(self):
+        zip_file = osp.join(TEST_DIR, 'mixed_types.zip')
+        self.assertIsInstance(load_log(zip_file), MachineLogs)
+
+    def test_invalid_file(self):
+        invalid_file = osp.join(TEST_DIR, 'Demo subbeam 0 actual fluence.npy')
+        with self.assertRaises(NotALogError):
+            load_log(invalid_file)
+
+    def test_invalid_path(self):
+        invalid_path = r'nonexistant/path'
+        with self.assertRaises(NotALogError):
+            load_log(invalid_path)
 
 
 class TestLogBase:
@@ -289,6 +348,10 @@ class TestIndividualLogBase(LocationMixin):
         for leaf in static_leaves:
             self.assertFalse(self.log.axis_data.mlc.leaf_moved(leaf))
 
+    def test_publish_pdf(self):
+        with tempfile.TemporaryFile() as temp:
+            self.log.publish_pdf(temp)
+
 
 class TestIndividualTrajectoryLog(TestIndividualLogBase):
     version = 2.1  # or 3.0
@@ -411,6 +474,11 @@ class TestTrajectoryLogDemo(TestIndividualTrajectoryLog, TestCase):
         demo_fluence_1 = self.log.subbeams[1].fluence.actual.array
         self.assertTrue(np.array_equal(demo_fluence_1, reference_fluence_1))
 
+    def test_calc_gamma_early_fails(self):
+        log = TrajectoryLog.from_demo()
+        with self.assertRaises(ValueError):
+            log.fluence.gamma.plot_map()
+
 
 class TestMachineLogs(TestCase):
     _logs_dir = osp.abspath(osp.join(osp.dirname(__file__), '.', 'test_files', 'MLC logs'))
@@ -449,6 +517,8 @@ class TestMachineLogs(TestCase):
         empty_dir = osp.join(self._logs_dir, 'empty_dir')
         logs = MachineLogs(empty_dir)
         self.assertEqual(logs.num_logs, 0)
+        with self.assertRaises(ValueError):
+            logs.avg_gamma()
 
     def test_mixed_types(self):
         """test mixed directory (tlogs & dlogs)"""
@@ -496,3 +566,18 @@ class TestMachineLogs(TestCase):
         # clean up by deleting files
         for file in files:
             os.remove(file)
+
+    def test_writing_csv_with_no_logs(self):
+        empty_dir = osp.join(self._logs_dir, 'empty_dir')
+        logs = MachineLogs(empty_dir)
+        logs.to_csv()  # shouldn't raise but will print a statement
+
+    def test_anonymize(self):
+        logs = MachineLogs(self.logs_dir, recursive=False)
+        files = logs.anonymize(inplace=False, suffix='_suffixed')
+        self.assertIsInstance(files, list)
+        # cleanup
+        for pdir, sdir, files in os.walk(self.logs_dir):
+            to_remove = [file for file in files if 'suffixed' in file]
+            for file in to_remove:
+                os.remove(osp.join(pdir, file))
