@@ -31,6 +31,7 @@ import multiprocessing
 import os
 import os.path as osp
 import shutil
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -2128,7 +2129,7 @@ class TrajectoryLog(LogBase):
         print("CSV file written to: " + filename)
         return filename
 
-    def publish_pdf(self, filename: str=None, metadata: dict=None, notes: str=None, open_file: bool=False):
+    def publish_pdf(self, filename: str=None, metadata: dict=None, notes: Union[str, list]=None, open_file: bool=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
