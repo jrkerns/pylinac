@@ -1,5 +1,6 @@
 import os
 import os.path as osp
+import tempfile
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
@@ -133,6 +134,12 @@ class Multiples(StarMixin, TestCase):
         cls.star = Starshot.from_multiple_images(img_files)
         cls.star.analyze(radius=0.8)
 
+    def test_loading_from_zip(self):
+        img_zip = osp.join(TEST_DIR, 'set.zip')
+        star = Starshot.from_zip(img_zip)
+        # shouldn't raise
+        star.analyze()
+
 
 class Starshot1(StarMixin, TestCase):
     file_path = ['Starshot#1.tif']
@@ -182,3 +189,8 @@ class GeneralTests(Demo, TestCase):
         self.test_passed()
         self.test_wobble_center()
         self.test_wobble_diameter()
+
+    def test_publish_pdf(self):
+        with tempfile.TemporaryFile() as t:
+            self.star.publish_pdf(t, notes='stuff', metadata={"Unit": 'TB1'})
+
