@@ -1,20 +1,32 @@
 import os.path as osp
+import tempfile
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac import WinstonLutz
-from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE
+from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, COMBO, ALL
 from pylinac.core.geometry import Vector, vector_is_close
 from tests_basic import TEST_BANK_DIR, TEST_FILES_DIR
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
+
+
+TEST_DIR = osp.join(TEST_FILES_DIR, 'Winston-Lutz')
 
 
 class TestWLLoading(LoadingTestBase, TestCase):
     klass = WinstonLutz
     demo_load_method = 'from_demo_images'
     url = 'winston_lutz.zip'
+
+    def test_loading_1_image_fails(self):
+        with self.assertRaises(ValueError):
+            WinstonLutz(osp.join(TEST_DIR, 'lutz', '1_image'))
+
+    def test_invalid_dir(self):
+        with self.assertRaises(ValueError):
+            WinstonLutz(r'nonexistant/dir')
 
 
 class GeneralTests(TestCase):
@@ -29,6 +41,30 @@ class GeneralTests(TestCase):
     def test_results(self):
         print(self.wl.results())  # shouldn't raise
 
+    def test_bb_shift_instructions(self):
+        move = self.wl.bb_shift_instructions()
+        self.assertTrue("LEFT" in move)
+
+        move = self.wl.bb_shift_instructions(couch_vrt=-2, couch_lat=1, couch_lng=100)
+        self.assertTrue("LEFT" in move)
+        self.assertTrue("VRT" in move)
+
+
+class TestPublishPDF(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.wl = WinstonLutz.from_demo_images()
+
+    def test_publish_pdf(self):
+        # normal publish; shouldn't raise
+        with tempfile.TemporaryFile() as t:
+            self.wl.publish_pdf(t)
+
+    def test_publish_w_metadat_and_notes(self):
+        with tempfile.TemporaryFile() as t:
+            self.wl.publish_pdf(t, notes='stuff', metadata={'Unit': 'TB1'})
+
 
 class TestPlottingSaving(TestCase):
 
@@ -41,6 +77,10 @@ class TestPlottingSaving(TestCase):
 
     def test_plot(self):
         self.wl.plot_images()  # shouldn't raise
+        self.wl.plot_images(axis=GANTRY)
+        self.wl.plot_images(axis=COLLIMATOR)
+        self.wl.plot_images(axis=COUCH)
+        self.wl.plot_images(axis=COMBO)
 
     def test_save(self):
         save_file(self.wl.save_summary)

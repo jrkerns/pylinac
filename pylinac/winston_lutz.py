@@ -21,12 +21,12 @@ import math
 import os.path as osp
 from typing import Union, List, Tuple
 
+import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage, optimize
 
 from .core import image
-from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import filled_area_ratio, bounding_box
@@ -70,7 +70,7 @@ class ImageManager(list):
                 self.append(img)
         if len(self) < 2:
             raise ValueError("<2 valid WL images were found in the folder/file. Ensure you chose the correct folder/file for analysis")
-        # reorder list based on increasing gantry angle
+        # reorder list based on increasing gantry angle, collimator angle, then couch angle
         self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
 
 
@@ -233,7 +233,7 @@ class WinstonLutz:
             move += f"\nNew couch coordinates (mm): VRT: {new_vrt:3.2f}; LNG: {new_lng:3.2f}; LAT: {new_lat:3.2f}"
         return move
 
-    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
     def axis_rms_deviation(self, axis: str=GANTRY, value: str='all'):
         """The RMS deviations of a given axis/axes.
 
@@ -285,7 +285,7 @@ class WinstonLutz:
         elif metric == 'median':
             return np.median([image.cax2epid_distance for image in self.images])
 
-    @value_accept(item=(GANTRY, EPID, COLLIMATOR, COUCH))
+    @argue.options(item=(GANTRY, EPID, COLLIMATOR, COUCH))
     def _plot_deviation(self, item: str, ax: plt.Axes=None, show: bool=True):
         """Helper function: Plot the sag in Cartesian coordinates.
 
@@ -336,7 +336,7 @@ class WinstonLutz:
         images = [image for image in self.images if image.variable_axis in axis]
         return len(images), images
 
-    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO))
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, COMBO))
     def plot_axis_images(self, axis: str=GANTRY, show: bool=True, ax: plt.Axes=None):
         """Plot all CAX/BB/EPID positions for the images of a given axis.
 
@@ -376,7 +376,7 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
     def plot_images(self, axis: str=ALL, show: bool=True):
         """Plot a grid of all the images acquired.
 
@@ -421,7 +421,7 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    @value_accept(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
     def save_images(self, filename: str, axis: str=ALL, **kwargs):
         """Save the figure of `plot_images()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
