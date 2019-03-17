@@ -283,6 +283,9 @@ class PicketFence:
         if not self._is_analyzed:
             self.image.crop(pixels=2)
 
+        if invert:
+            self.image.invert()
+
         """Pre-analysis"""
         self._orientation = orientation
         self.settings = Settings(self.orientation, tolerance, action_tolerance, hdmlc, self.image, self._log_fits)
@@ -290,8 +293,6 @@ class PicketFence:
         if sag_adjustment != 0:
             sag_pixels = int(round(sag_adjustment * self.settings.dpmm))
             self.image.adjust_for_sag(sag_pixels, self.orientation)
-        if invert:
-            self.image.invert()
 
         """Analysis"""
         self.pickets = PicketManager(self.image, self.settings, num_pickets)
