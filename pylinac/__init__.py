@@ -1,8 +1,8 @@
 
 import sys
 
-__version__ = '2.2.4'
-__version_info__ = (2, 2, 4)
+__version__ = '2.2.5'
+__version_info__ = (2, 2, 5)
 
 # check python version
 if sys.version_info[0] < 3 or sys.version_info[1] < 6:
