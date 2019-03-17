@@ -44,7 +44,12 @@ few concepts that should be grasped before diving in.
     Dynalog files are inherently in mm for collimator and gantry axes, tenths of degrees for rotational axes, and
     MLC positions are not at isoplane. For consistency, Dynalog values are converted to Trajectory log specs, meaning
     linear axes, both collimator and MLCs are in cm at isoplane, and rotational axes are in degrees. Dynalog MU is always
-    from 0 to 25000 no matter the delivered MU (i.e. it's relative), unless it was a VMAT delivery, in which case the MU is actually the gantry position.
+    from 0 to 25000 no matter the delivered MU (i.e. it's relative), unless it was a VMAT delivery, in which case the
+    gantry position is substituted in the dose fraction column.
+
+  .. warning::
+    Dynalog VMAT files replace the dose fraction column with the gantry position. Unfortunately, because of the variable dose rate of Varian linacs the gantry position
+    is not a perfect surrogate for dose, but there is no other choice. Thus, fluence calculations will use the relative gantry movement as the dose in fluence calculations.
 
 
 * **All data Axes are similar** - Log files capture machine data in "control cycles", aka "snapshots" or "heartbeats". Let's assume a
@@ -102,10 +107,13 @@ Note that you can also save data in a PDF report:
 Loading Data
 ------------
 
+Loading Single Logs
+^^^^^^^^^^^^^^^^^^^
+
 Logs can be loaded two ways.
 The first way is through the main helper function ``load_log``. Note that if you've used pylinac versions <1.6
 the helper function is new and can be a replacement for ``MachineLog`` and ``MachineLogs``, depending on the context
-as discussed below. The second way is loading directly through the class:
+as discussed below.
 
 .. code-block:: python
 
@@ -118,9 +126,7 @@ In addition, a folder, ZIP archive, or URL can also be passed:
 
 .. code-block:: python
 
-    log1 = load_log('path/to/folder')
     log2 = load_log('http://myserver.com/logs/2.dlg')
-    log3 = load_log('path/to/logs.zip')
 
 .. note:: If loading from a URL the object can be a file or ZIP archive.
 
@@ -130,7 +136,7 @@ However, logs can be instantiated a second way: directly through the classes.
 
 .. code-block:: python
 
-    from pylinac import Dynalog, TrajectoryLog, MachineLogs
+    from pylinac import Dynalog, TrajectoryLog
 
     dlog_path = "C:/path/to/dlog.dlg"
     dlog = Dynalog(dlog_path)
@@ -138,8 +144,24 @@ However, logs can be instantiated a second way: directly through the classes.
     tlog_path = "C:/path/to/tlog.bin"
     tlog = TrajectoryLog(tlog_path)
 
+Loading Multiple Logs
+^^^^^^^^^^^^^^^^^^^^^
+
+Loading multiple files is also possible using the ``load_log`` function as listed above.
+The logs can also be directly instantiated by using ``MachineLogs``. Acceptable inputs include a folder and zip archive.
+
+.. code-block:: python
+
+    from pylinac import load_log, MachineLogs
+
     path_to_folder = "C:/path/to/dir"
+
+    # from folder; equivalent
     logs = MachineLogs(path_to_folder)
+    logs = load_log(path_to_folder)
+
+    # from ZIP archive
+    logs = load_log('path/to/logs.zip')
 
 
 Working with the Data

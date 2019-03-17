@@ -3,6 +3,24 @@
 Changelog
 =========
 
+V 2.2.5
+-------
+
+General
+^^^^^^^
+
+The `watcher` function has had several issues. It has been disabled and will be removed in v2.3.
+
+Bug Fixes
+^^^^^^^^^
+
+* `#173 <https://github.com/jrkerns/pylinac/issues/173>`_ When forcing inversion of picket fence, the inversion came after the orientation determination, causing orientation to be wrong when inversion was needed.
+* `#171 <https://github.com/jrkerns/pylinac/issues/171>`_ The `load_log` function was not working correctly when passing a directory or ZIP archive.
+* `#172 <https://github.com/jrkerns/pylinac/issues/172>`_ Calling `publish_pdf` from log_analyzer without passing a filename would fail.
+* `#169 <https://github.com/jrkerns/pylinac/issues/169>`_ VMAT Dynalogs were calculating fluence incorrectly for CCW plans due to the gantry angle replacing the dose.
+* `#160 <https://github.com/jrkerns/pylinac/issues/160>`_ While addressing #160 initially, Trajectory logs were unknowningly affected. Behavior has been reverted to pre-2.2.2 behavior and documentation changed.
+
+
 V 2.2.4
 -------
 
