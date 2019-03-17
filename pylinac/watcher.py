@@ -20,7 +20,7 @@ import yaml
 from pylinac.core.decorators import value_accept
 from pylinac.core.io import retrieve_demo_file, is_dicom_image
 from pylinac.core.image import prepare_for_classification, DicomImage
-from pylinac.core import schedule
+# from pylinac.core import schedule
 
 from pylinac import DRMLC, DRGS, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log, LasVegas
 from pylinac.log_analyzer import IMAGING
@@ -625,28 +625,28 @@ def analyze_new_files(directory, config, force):
     set_skip_list(directory, skip_list)
 
 
-def watch(directory=None, config_file=None):
-    """Start watching the directory and analyze any applicable files that may be moved there.
-
-    Parameters
-    ----------
-    directory : str, None
-        The path to the directory that pylinac will monitor for new files and keep analysis results.
-        If None, the directory will be pulled from the config file. If no path is specified either
-        by the argument or config file an error will be raised.
-    config_file : str, None
-        The path to the YAML configuration file.
-        If None (default), will load the default config file.
-    """
-    logger.info("Starting watcher...")
-    # set up configuration
-    config = load_config(config_file, verbose=True)
-    query_freq = config['general']['query-frequency']
-    logger.info(f"Querying frequency: {query_freq:1.0f}s")
-    schedule.every(query_freq).seconds.do(process, directory, config_file, True, False)
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+# def watch(directory=None, config_file=None):
+#     """Start watching the directory and analyze any applicable files that may be moved there.
+#
+#     Parameters
+#     ----------
+#     directory : str, None
+#         The path to the directory that pylinac will monitor for new files and keep analysis results.
+#         If None, the directory will be pulled from the config file. If no path is specified either
+#         by the argument or config file an error will be raised.
+#     config_file : str, None
+#         The path to the YAML configuration file.
+#         If None (default), will load the default config file.
+#     """
+#     logger.info("Starting watcher...")
+#     # set up configuration
+#     config = load_config(config_file, verbose=True)
+#     query_freq = config['general']['query-frequency']
+#     logger.info(f"Querying frequency: {query_freq:1.0f}s")
+#     schedule.every(query_freq).seconds.do(process, directory, config_file, True, False)
+#     while True:
+#         schedule.run_pending()
+#         time.sleep(1)
 
 
 def process(directory=None, config_file=None, copy_new_files=False, verbose=True, force=False):
