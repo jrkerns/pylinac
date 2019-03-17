@@ -21,5 +21,5 @@ from pylinac.vmat import DRMLC, DRGS
 from pylinac.winston_lutz import WinstonLutz
 from pylinac import calibration
 
-from pylinac.watcher import watch, process
+from pylinac.watcher import process
 from pylinac.py_gui import gui  # must be after everything since it imports it all
