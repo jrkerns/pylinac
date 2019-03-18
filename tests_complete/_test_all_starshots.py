@@ -16,6 +16,7 @@ class Starshot2(StarBankMixin, TestCase):
     wobble_center = Point(566, 590)
     wobble_diameter_mm = 0.2
     num_rad_lines = 4
+    # outside: 0.18-0.19
 
 
 class Starshot3(StarBankMixin, TestCase):
@@ -23,6 +24,7 @@ class Starshot3(StarBankMixin, TestCase):
     wobble_center = Point(466, 595)
     wobble_diameter_mm = 0.32
     num_rad_lines = 6
+    # outside 0.33
 
 
 class Starshot4(StarBankMixin, TestCase):
@@ -30,6 +32,7 @@ class Starshot4(StarBankMixin, TestCase):
     wobble_center = Point(446, 565)
     wobble_diameter_mm = 0.38
     num_rad_lines = 6
+    # outside 0.39
 
 
 class Starshot5(StarBankMixin, TestCase):
@@ -37,22 +40,23 @@ class Starshot5(StarBankMixin, TestCase):
     wobble_center = Point(557, 580)
     wobble_diameter_mm = 0.15
     num_rad_lines = 4
+    wobble_tolerance = 0.2
+    # outside: 0.14
 
 
 class Starshot6(StarBankMixin, TestCase):
     file_path = ['Starshot#6.tif']
     wobble_center = Point(528, 607)
-    wobble_diameter_mm = 0.5
+    wobble_diameter_mm = 0.3
     num_rad_lines = 7
-    wobble_tolerance = 0.55
 
 
 class Starshot7(StarBankMixin, TestCase):
     file_path = ['Starshot#7.tif']
     wobble_center = Point(469, 646)
-    wobble_diameter_mm = 0.4
+    wobble_diameter_mm = 0.2
     num_rad_lines = 4
-    wobble_tolerance = 0.4
+    wobble_tolerance = 0.2
 
 
 class Starshot8(StarBankMixin, TestCase):
@@ -81,7 +85,6 @@ class Starshot11(StarBankMixin, TestCase):
     wobble_center = Point(760, 650)
     wobble_diameter_mm = 0.6
     num_rad_lines = 4
-    wobble_tolerance = 0.4
 
 
 class Starshot12(StarBankMixin, TestCase):
@@ -94,9 +97,8 @@ class Starshot12(StarBankMixin, TestCase):
 class Starshot13(StarBankMixin, TestCase):
     file_path = ['Starshot#13.tiff']
     wobble_center = Point(376, 303)
-    wobble_diameter_mm = 0.25
+    wobble_diameter_mm = 0.2
     num_rad_lines = 4
-    # fwxm = False
 
 
 class Starshot14(StarBankMixin, TestCase):
@@ -130,9 +132,8 @@ class Starshot17(StarBankMixin, TestCase):
 class Starshot18(StarBankMixin, TestCase):
     file_path = ['Starshot#18.tiff']
     wobble_center = Point(1516, 1214)
-    wobble_diameter_mm = 0.7
+    wobble_diameter_mm = 0.6
     num_rad_lines = 6
-    wobble_tolerance = 0.35
 
 
 class Starshot19(StarBankMixin, TestCase):
@@ -147,14 +148,13 @@ class Starshot20(StarBankMixin, TestCase):
     wobble_center = Point(347, 328)
     wobble_diameter_mm = 0.75
     num_rad_lines = 4
-    wobble_tolerance = 0.35
 
 
 class Starshot21(StarBankMixin, TestCase):
     file_path = ['Starshot#21.tiff']
     wobble_center = Point(354, 294)
-    wobble_diameter_mm = 1.4
-    wobble_tolerance = 0.5
+    wobble_diameter_mm = 1.3
+    wobble_tolerance = 0.2
     num_rad_lines = 4
     passes = False
 
@@ -162,9 +162,9 @@ class Starshot21(StarBankMixin, TestCase):
 class Starshot22(StarBankMixin, TestCase):
     file_path = ['Starshot#22.tiff']
     wobble_center = Point(1305, 1513)
-    wobble_diameter_mm = 0.8
-    wobble_tolerance = 0.3
+    wobble_diameter_mm = 0.9
     num_rad_lines = 9
+    # outside 0.93mm
 
     def test_bad_input_no_recursion_fails(self):
         """Test that without recursion, a bad setup fails."""
@@ -200,9 +200,9 @@ class Starshot25(StarBankMixin, TestCase):
 class Starshot26(StarBankMixin, TestCase):
     file_path = ['Starshot#26.tiff']
     wobble_center = Point(1511, 1452)
-    wobble_diameter_mm = 0.5
+    wobble_diameter_mm = 0.55
     num_rad_lines = 4
-    wobble_tolerance = 0.3
+    wobble_tolerance = 0.15
 
 
 class Starshot27(StarBankMixin, TestCase):
@@ -224,6 +224,4 @@ class ChicagoSet(StarBankMixin, TestCase):
     wobble_center = Point(638, 639.3)
     wobble_diameter_mm = 0.65
     num_rad_lines = 5
-    radius = 0.5
     is_dir = True
-    test_all_radii = False

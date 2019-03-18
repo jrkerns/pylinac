@@ -298,7 +298,7 @@ class Starshot:
             """Calculate the maximum distance to any line from the given point."""
             return max(line.distance_to(Point(p[0], p[1])) for line in lines)
 
-        res = optimize.minimize(distance, sp.as_array(), args=(self.lines,), method='Nelder-Mead', options={'ftol': 0.0001})
+        res = optimize.minimize(distance, sp.as_array(), args=(self.lines,), method='Nelder-Mead', options={'ftol': 0.001})
         # res = optimize.least_squares(distance, sp.as_array(), args=(self.lines,), ftol=0.001)
 
         self.wobble.radius = res.fun
@@ -536,7 +536,7 @@ class StarProfile(CollapsedCircleProfile):
     """Class that holds and analyzes the circular profile which finds the radiation lines."""
     def __init__(self, image, start_point, radius, min_peak_height, fwhm):
         radius = self._convert_radius_perc2pix(image, start_point, radius)
-        super().__init__(center=start_point, radius=radius, image_array=image.array, width_ratio=0.1, num_profiles=1)
+        super().__init__(center=start_point, radius=radius, image_array=image.array, width_ratio=0.1, sampling_ratio=3)
         self.get_peaks(min_peak_height, fwhm=fwhm)
 
     @staticmethod
@@ -562,13 +562,12 @@ class StarProfile(CollapsedCircleProfile):
     def get_peaks(self, min_peak_height, min_peak_distance=0.02, fwhm=True):
         """Determine the peaks of the profile."""
         self._roll_prof_to_midvalley()
-        # self.filter(size=0.002, kind='gaussian')
+        self.filter(size=0.003, kind='gaussian')
         self.ground()
         if fwhm:
             self.find_fwxm_peaks(x=80, threshold=min_peak_height, min_distance=min_peak_distance, interpolate=True)
         else:
             self.find_peaks(min_peak_height, min_peak_distance)
-        ttt = 1
 
 
 def get_peak_height():
