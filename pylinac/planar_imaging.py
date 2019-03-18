@@ -153,7 +153,7 @@ class LasVegas(ImagePhantomBase):
     def __init__(self, filepath):
         super().__init__(filepath)
         self._phantom_ski_region = None
-        self.image.check_inversion(position=(0.1, 0.1))
+        self.image.check_inversion_by_histogram()
 
     @staticmethod
     def run_demo():
@@ -391,7 +391,7 @@ class StandardImagingQC3(ImagePhantomBase):
             backgrounds can cause this analysis to fail. If the contrasts/MTF ROIs appear correctly located but the
             plots are wonky, try setting this to True.
         """
-        self.image.check_inversion(box_size=30, position=(0.1, 0.1))
+        self.image.check_inversion_by_histogram()
         if invert:
             self.image.invert()
         self.low_contrast_threshold = low_contrast_threshold
@@ -804,7 +804,7 @@ class LeedsTOR(ImagePhantomBase):
             is in degrees and moves counter-clockwise. Use this if the low contrast ROI samples are offset from the real
             ROIs.
         """
-        self.image.check_inversion(box_size=30, position=(0.1, 0.25))
+        self.image.check_inversion_by_histogram()
         if invert:
             self.image.invert()
         self.low_contrast_threshold = low_contrast_threshold

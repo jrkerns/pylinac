@@ -134,24 +134,6 @@ class Starshot:
             else:
                 return cls(image_files[0], **kwargs)
 
-    def _check_image_inversion(self):
-        """Check the image for proper inversion, i.e. that pixel value increases with dose."""
-        # sum the image along each axis in the middle 80% to avoid pin pricks, artifacts, etc.
-        x_lt_edge, x_rt_edge = int(self.image.shape[1] * 0.1), int(self.image.shape[1] * 0.9)
-        x_sum = np.sum(self.image.array[:, x_lt_edge:x_rt_edge], 0)
-
-        y_lt_edge, y_rt_edge = int(self.image.shape[0] * 0.1), int(self.image.shape[0] * 0.9)
-        y_sum = np.sum(self.image.array[y_lt_edge:y_rt_edge, :], 1)
-
-        # determine the point of max value for each sum profile
-        xmaxind = np.argmax(x_sum)
-        ymaxind = np.argmax(y_sum)
-
-        # If that maximum point isn't near the center (central 1/3), invert image.
-        center_in_central_third = (len(x_sum) * 2 / 3 > xmaxind > len(x_sum) / 3) and (len(y_sum) * 2 / 3 > ymaxind > len(y_sum) / 3)
-        if not center_in_central_third:
-            self.image.invert()
-
     def _get_reasonable_start_point(self) -> Point:
         """Set the algorithm starting point automatically.
 
@@ -220,7 +202,7 @@ class Starshot:
             If a reasonable wobble value was not found.
         """
         self.tolerance = tolerance
-        self._check_image_inversion()
+        self.image.check_inversion_by_histogram(percentiles=[4, 50, 96])
 
         if start_point is None:
             start_point = self._get_reasonable_start_point()

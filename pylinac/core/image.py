@@ -220,7 +220,7 @@ def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True
 
     # replace array of first object and return
     first_img.array = combined_arr
-    first_img.check_inversion()
+    first_img.check_inversion_by_histogram()
     return first_img
 
 
@@ -534,6 +534,26 @@ class BaseImage:
         if avg > np.mean(self.array.flatten()):
             self.invert()
 
+    def check_inversion_by_histogram(self, percentiles=(5, 50, 95)):
+        """Check the inversion of the image using histogram analysis. The assumption is that the image
+        is mostly background-like values and that there is a relatively small amount of dose getting to the image
+        (e.g. a picket fence image). This function looks at the distance from one percentile to another to determine
+        if the image should be inverted.
+
+        Parameters
+        ----------
+        percentiles : 3-element tuple
+            The 3 percentiles to compare. Default is (5, 50, 95). Recommend using (x, 50, y). To invert the other way
+            (where pixel value is *decreasing* with dose, reverse the percentiles, e.g. (95, 50, 5).
+        """
+        p5 = np.percentile(self.array, percentiles[0])
+        p50 = np.percentile(self.array, percentiles[1])
+        p95 = np.percentile(self.array, percentiles[2])
+        dist_to_5 = abs(p50 - p5)
+        dist_to_95 = abs(p50 - p95)
+        if dist_to_5 > dist_to_95:
+            self.invert()
+
     @value_accept(threshold=(0.0, 1.0))
     def gamma(self, comparison_image: ImageLike, doseTA: NumberLike=1, distTA: NumberLike=1,
               threshold: NumberLike=0.1, ground: bool=True, normalize: bool=True):
@@ -582,13 +602,13 @@ class BaseImage:
 
         # set up reference and comparison images
         ref_img = ArrayImage(copy.copy(self.array))
-        ref_img.check_inversion()
+        ref_img.check_inversion_by_histogram()
         if ground:
             ref_img.ground()
         if normalize:
             ref_img.normalize()
         comp_img = ArrayImage(copy.copy(comparison_image.array))
-        comp_img.check_inversion()
+        comp_img.check_inversion_by_histogram()
         if ground:
             comp_img.ground()
         if normalize:

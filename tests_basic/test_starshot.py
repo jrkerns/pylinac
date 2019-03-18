@@ -180,7 +180,7 @@ class GeneralTests(Demo, TestCase):
         """Check that the demo image was actually inverted, as it needs to be."""
         star = Starshot.from_demo_image()
         top_left_corner_val_before = star.image.array[0, 0]
-        star._check_image_inversion()
+        star.image.check_inversion_by_histogram(percentiles=[4, 50, 96])
         top_left_corner_val_after = star.image.array[0, 0]
         self.assertNotEqual(top_left_corner_val_before, top_left_corner_val_after)
 

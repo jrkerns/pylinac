@@ -555,7 +555,7 @@ class WLImage(image.LinacDicomImage):
         """
         super().__init__(file, use_filenames=use_filenames)
         self.file = osp.basename(file)
-        self.check_inversion()
+        self.check_inversion_by_histogram()
         self.flipud()
         self._clean_edges()
         self.field_cax, self.bounding_box = self._find_field_centroid()

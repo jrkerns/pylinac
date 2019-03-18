@@ -46,7 +46,7 @@ class PFDicomImage(image.LinacDicomImage):
     def __init__(self, path: str, **kwargs):
         super().__init__(path, **kwargs)
         self._check_for_noise()
-        self.check_inversion(position=(0.2, 0.05))
+        self.check_inversion_by_histogram()
 
     def _check_for_noise(self):
         """Check if the image has extreme noise (dead pixel, etc) by comparing
