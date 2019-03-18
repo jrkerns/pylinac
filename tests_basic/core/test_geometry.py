@@ -74,7 +74,7 @@ class TestCircle(unittest.TestCase):
         # create default
         c = Circle()
         self.assertIsInstance(c.center, Point)
-        self.assertIsNone(c.radius)
+        self.assertEqual(c.radius, 0)
 
         # input Point class
         c = Circle(self.center_point_Point, self.radius)

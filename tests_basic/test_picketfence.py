@@ -134,6 +134,21 @@ class AS1200(PFTestMixin, TestCase):
     abs_median_error = 0.02
 
 
+class ClinacWeirdBackground(PFTestMixin, TestCase):
+    file_path = ['Clinac weird background.dcm']
+    max_error = 0.12
+    abs_median_error = 0.02
+    num_pickets = 5
+    mean_picket_spacing = 50
+
+
+@skip  # skip till v2.3 when padding is added
+class ElektaCloseEdges(PFTestMixin, TestCase):
+    file_path = ['PF, Elekta, pickets near edges.dcm']
+    max_error = 0.08
+    abs_median_error = 0.02
+
+
 class MultipleImagesPF(PFTestMixin, TestCase):
     """Test of a multiple image picket fence; e.g. EPID images."""
     max_error = 0.112
@@ -147,4 +162,4 @@ class MultipleImagesPF(PFTestMixin, TestCase):
         path1 = osp.join(TEST_DIR, 'combo-jaw.dcm')
         path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
         cls.pf = PicketFence.from_multiple_images([path1, path2])
-        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment, orientation='left', invert=True)
+        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment, orientation='left')
