@@ -43,7 +43,12 @@ Equation definitions are as follows:
 
   .. math:: \frac{273.2+T}{273.2+22} * \frac{101.33}{P}
 
-  .. warning:: Temperature is in Celsius and pressure is in kPa. Use the helper functions fahrenheit2celsius, mmHg2kPa, and mbar2kPa as needed.
+  .. warning::
+
+        Temperature is in Celsius and pressure is in kPa. Use the helper functions
+        :func:`~pylinac.calibration.tg51.fahrenheit2celsius`,
+        :func:`~pylinac.calibration.tg51.mmHg2kPa`, and
+        :func:`~pylinac.calibration.tg51.mbar2kPa` as needed.
 
 * Ppol (Polarity correction) - Rather than using TG-51 Eqn. 9, we opt instead for TRS-398 Eqn xx, which uses the absolute values
   of the positive and negative voltages. This is the same results as Eqn. 9 but without worrying about signs.:

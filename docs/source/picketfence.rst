@@ -52,26 +52,13 @@ Results will be printed to the console and a figure showing the analyzed picket 
     from pylinac import PicketFence
     PicketFence.run_demo()
 
-Or plot the figure interactively::
-
-  PicketFence.run_demo(interactive=True)
-
-.. raw:: html
-  :file: images/PF_analyzed.html
-
-Note the Home/Pan/Zoom tools in the corner when hovering. Additionally, hovering over a leaf pair shows the error.
-
-.. note::
-
-  MPLD3 currently does not show images/arrays well, so you may not be able to see the underlying EPID image.
-
 Finally, you can save the results to a PDF report:
 
 .. code-block:: python
 
     pf = PicketFence.from_demo()
     pf.analyze()
-    pf.publish_pdf()
+    pf.publish_pdf(filename='PF Oct-2018.pdf')
 
 
 Acquiring the Image
@@ -204,7 +191,7 @@ of the FWHM to determine the MLC positions:
 
 * The image must be a DICOM image acquired via the EPID.
 * Only Varian MLC models are supported (5/10mm or 2.5/5mm leaf combinations).
-* The delivery must be parallel to an image edge; i.e. the collimator should be at 0, 90, or -90 degrees.
+* The delivery must be parallel to an image edge; i.e. the collimator should be at 0, 90, or 270 degrees.
 
 **Pre-Analysis**
 
@@ -264,6 +251,15 @@ analysis, there are a few things you can do.
 * **Set the image inversion** - If you get an error like this: ``ValueError: max() arg is an empty sequence``,
   one issue may be that the image has the wrong inversion (negative values are positive, etc). Set the analyze flag ``invert``
   to ``True`` to invert the image from the automatic detection.
+* **Crop the image** - For Elekta images, the 0th column is often an extreme value. For any Elekta image, it is suggested
+  to crop the image. You can crop the image like so:
+
+  .. code-block:: python
+
+      pf = PicketFence(r'my/pf.dcm')
+      pf.image.crop(pixels=3)
+      pf.analyze()
+      ...
 
 API Documentation
 -----------------

@@ -64,12 +64,21 @@ The minimum needed to get going is to:
       leeds.analyze(low_contrast_threshold=0.01, hi_contrast_threshold=0.5)
 
 * **View the results** -- The results of analysis can be viewed with the :meth:`~pylinac.planar_imaging.LeedsTOR.plot_analyzed_image`
-  method. Note that each subimage can be turned on or off.::
+  method.
+
+    .. code-block:: python
+
+      leeds.plot_analyzed_image()
+
+
+  .. image:: images/leeds_analysis.png
+
+  Note that each subimage can be turned on or off.
+
+  .. code-block:: python
 
       # don't show the low contrast plot
       leeds.plot_analyzed_image(low_contrast=False)
-
-  .. image:: images/leeds_analysis.png
 
   The figure can also be saved::
 

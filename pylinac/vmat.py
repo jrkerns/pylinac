@@ -6,9 +6,8 @@ and Dose-Rate & MLC speed (DRMLC) tests.
 Features:
 
 * **Do both tests** - Pylinac can handle either DRGS or DRMLC tests.
-* **Adjust for offsets** - Older VMAT patterns were off-center. Easily account for the offset by passing it in.
-* **Automatic identification using file names** - If your file names are clear, the image type and test type don't even
-  have to be specified; just load and analyze.
+* **Automatic offset correction** - Older VMAT tests had the ROIs offset, newer ones are centered. No worries, pylinac finds the ROIs automatically.
+* **Automatic open/DMLC identification** - Pass in both images--don't worry about naming. Pylinac will automatically identify the right images.
 """
 from io import BytesIO
 from typing import Union, List, Tuple, Sequence

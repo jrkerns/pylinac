@@ -1,5 +1,9 @@
-"""The planar imaging module analyzes phantom images taken with the kV or MV imager in 2D;
-specifically, the Leeds, QC-3, and Las Vegas phantoms.
+"""The planar imaging module analyzes phantom images taken with the kV or MV imager in 2D.
+The following phantoms are supported:
+
+* Leeds TOR 18
+* Standard Imaging QC-3
+* Las Vegas
 
 Features:
 

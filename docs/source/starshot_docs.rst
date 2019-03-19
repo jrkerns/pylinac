@@ -26,9 +26,9 @@ Results will be printed to the console and a matplotlib figure showing the analy
 
     Result: PASS
 
-    The minimum circle that touches all the star lines has a diameter of 0.434 mm.
+    The minimum circle that touches all the star lines has a diameter of 0.381 mm.
 
-    The center of the minimum circle is at 1270.1, 1437.1
+    The center of the minimum circle is at 1270.0, 1437.2
 
 .. image:: images/starshot_analyzed.png
 
@@ -111,9 +111,7 @@ Algorithm
 * **Check for image noise** -- The image is checked for unreasonable noise by comparing the min and max
   to the 1/99th percentile pixel values respectively. If there is a large difference then there is likely an artifact
   and a median filter is applied until the min/max and 1/99th percentiles are similar.
-* **Check image inversion** -- The image is checked for proper inversion by summing the image along each axis and then
-  effectively finding the point of maximum value. If the point is not in the central 1/3 of the image, it is thought to be inverted.
-  This check can be skipped but is enabled by default.
+* **Check image inversion** -- The image is checked for proper inversion using histogram analysis.
 * **Set algorithm starting point** -- Unless the user has manually set the pixel location of the start point,
   it is automatically found by summing the image along each axis and finding the
   center of the full-width, 80%-max of each sum. The maximum value point is also located. Of the two points, the
@@ -127,7 +125,7 @@ Algorithm
   of the FWHM. An even number of spokes must be found (1 for each side; e.g. 3 collimator angles should produce 6
   spokes, one for each side of the CAX).
 * **Match peaks** -- Peaks are matched to their counterparts opposite the CAX to compose a line using a simple peak number offset.
-* **Find wobble** -- Starting at the initial starting point, an evolutionary gradient method is utilized to find the
+* **Find wobble** -- Starting at the initial starting point, a Nelder-Mead gradient method is utilized to find the
   point of minimum distance to all lines. If recursive is set to True and a "reasonable" wobble (<2mm) is not found
   using the passes settings, the peak height and radius are iterated until a reasonable wobble is found.
 
@@ -147,6 +145,8 @@ analysis, there are a few things you can do.
   wobble even if the conditions you passed don't for some reason give one.
 * **Make sure the center of the star is in the central 1/3 of the image** - Otherwise, pylinac won't find it.
 * **Make sure there aren't egregious artifacts** - Pin pricks can cause wild pixel values; crop them out if possible.
+* **Set `invert` to True** - While right most of the time, it's possible the inversion checker got it wrong. This would
+  look like peak locations in the "valley" regions of the image. If so, pass `invert=True` to the `analyze` method.
 
 
 .. _star_apidoc:

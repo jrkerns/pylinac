@@ -2,13 +2,16 @@
 
 Features:
 
+* **Couch shift instructions** - After running a WL test, get immediate feedback on how to shift the couch.
+  Couch values can also be passed in and the new couch values will be presented so you don't have to do that pesky conversion.
+  "Do I subtract that number or add it?"
 * **Automatic field & BB positioning** - When an image or directory is loaded, the field CAX and the BB
   are automatically found, along with the vector and scalar distance between them.
 * **Isocenter size determination** - Using backprojections of the EPID images, the 3D gantry isocenter size
   and position can be determined *independent of the BB position*. Additionally, the 2D planar isocenter size
   of the collimator and couch can also be determined.
-* **BB shift instructions** - Direct shift instructions can be printed for iterative BB placement.
-  The current couch position can even be input to get the new couch values.
+* **Image plotting** - WL images can be plotted separately or together, each of which shows the field CAX, BB and
+  scalar distance from BB to CAX.
 * **Axis deviation plots** - Plot the variation of the gantry, collimator, couch, and EPID in each plane
   as well as RMS variation.
 * **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
@@ -555,7 +558,7 @@ class WLImage(image.LinacDicomImage):
         """
         super().__init__(file, use_filenames=use_filenames)
         self.file = osp.basename(file)
-        self.check_inversion_by_histogram()
+        self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
         self._clean_edges()
         self.field_cax, self.bounding_box = self._find_field_centroid()

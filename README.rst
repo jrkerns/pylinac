@@ -91,10 +91,9 @@ Below are the high-level tools currently available:
 
    .. code-block:: python
 
-        from pylinac import watch, process
+        from pylinac import process
 
-        watch("dir/to/watch")  # will run forever
-        process("dir/to/watch")  # will run once and then return
+        process("dir/to/watch")
 
    And that's it! No code to write; no fuss, no muss.
    Analysis settings are `customizable <http://pylinac.readthedocs.org/en/stable/watcher.html#configuration>`_
@@ -192,6 +191,9 @@ Below are the high-level tools currently available:
 
     Features:
 
+    * **Couch shift instructions** - After running a WL test, get immediate feedback on how to shift the couch.
+      Couch values can also be passed in and the new couch values will be presented so you don't have to do that pesky conversion.
+      "Do I subtract that number or add it?"
     * **Automatic field & BB positioning** - When an image or directory is loaded, the field CAX and the BB
       are automatically found, along with the vector and scalar distance between them.
     * **Isocenter size determination** - Using backprojections of the EPID images, the 3D gantry isocenter size

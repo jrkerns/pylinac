@@ -58,6 +58,11 @@ the same coordinate space as `Winkler et al`_. All coordinates are looking from 
 * **Y-axis** - Anterior-Posterior, or up-down, with up being positive.
 * **Z-axis** - Gun-Target, or in-out, with out/Target being positive.
 
+
+.. note::
+    Collimator iso size is always in the plane normal to the gantry, while couch iso size is always in
+    the x-z plane.
+
 Typical Use
 -----------
 
@@ -102,8 +107,8 @@ Using File Names
 
 If your linac EPID images do not include axis information (such as Elekta) you can specify it in the file name.
 Any and all of the three axes can be defined. If one is not defined and is not in the DICOM tags, it will default to 0.
-The syntax to define the axes: "*gantry0*coll0*couch0*". There can be any text before, after, or in between each axis definition.
-However, the axes numerical value *must* immediately follow the axis name. Axis names are also fixed. The following examples
+The syntax to define the axes: "<*>gantry0<*>coll0<*>couch0<*>". There can be any text before, after, or in between each axis definition.
+However, the axes numerical value **must** immediately follow the axis name. Axis names are also fixed. The following examples
 are valid:
 
 * MyWL-gantry0-coll90-couch315.dcm

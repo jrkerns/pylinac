@@ -111,9 +111,13 @@ Loading Single Logs
 ^^^^^^^^^^^^^^^^^^^
 
 Logs can be loaded two ways.
-The first way is through the main helper function ``load_log``. Note that if you've used pylinac versions <1.6
-the helper function is new and can be a replacement for ``MachineLog`` and ``MachineLogs``, depending on the context
-as discussed below.
+The first way is through the main helper function :func:`~pylinac.log_analyzer.load_log`.
+
+.. note::
+
+    If you've used pylinac versions <1.6
+    the helper function is new and can be a replacement for ``MachineLog`` and ``MachineLogs``, depending on the context
+    as discussed below.
 
 .. code-block:: python
 
@@ -131,7 +135,7 @@ In addition, a folder, ZIP archive, or URL can also be passed:
 .. note:: If loading from a URL the object can be a file or ZIP archive.
 
 Pylinac will automatically infer the log type and load it into the appropriate data structures for analysis.
-The ``load_log`` function is a convenient wrapper around the classes within the log analysis module.
+The :func:`~pylinac.log_analyzer.load_log` function is a convenient wrapper around the classes within the log analysis module.
 However, logs can be instantiated a second way: directly through the classes.
 
 .. code-block:: python
@@ -147,8 +151,8 @@ However, logs can be instantiated a second way: directly through the classes.
 Loading Multiple Logs
 ^^^^^^^^^^^^^^^^^^^^^
 
-Loading multiple files is also possible using the ``load_log`` function as listed above.
-The logs can also be directly instantiated by using ``MachineLogs``. Acceptable inputs include a folder and zip archive.
+Loading multiple files is also possible using the :func:`~pylinac.log_analyzer.load_log` function as listed above.
+The logs can also be directly instantiated by using :class:`~pylinac.log_analyzer.MachineLogs`. Acceptable inputs include a folder and zip archive.
 
 .. code-block:: python
 

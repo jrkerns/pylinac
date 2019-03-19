@@ -64,7 +64,7 @@ If you don't have an image you can load the demo image:
 
     my_img = FlatSym.from_demo_image()
 
-You can then calculate the flatness and symmetry with the :classmethod:`~pylinac.flatsym.FlatSym.analyze` method:
+You can then calculate the flatness and symmetry with the :meth:`~pylinac.flatsym.FlatSym.analyze` method:
 
 .. code-block:: python
 
@@ -113,6 +113,15 @@ There are multiple definitions for both flatness and symmetry. Your machine vend
 or your clinic may use a specific definition. Pylinac has a number of built-in definitions which you can use.
 
 Symmetry:
+
+================================ ================================= ========== ================================================================================================================================
+Name                             Parameter values                  Vendors    Equation
+================================ ================================= ========== ================================================================================================================================
+Point Difference                 ``varian``, ``point difference``  Varian     :math:`100 * max(|L_{pt} - R_{pt}|)/ D_{CAX}` over 80%FW, where :math:`L_{pt}` and :math:`R_{pt}` are equidistant from the CAX.
+Point Difference Quotient (IEC)  ``elekta``, ``pdq iec``           Elekta     :math:`100 * max(|L_{pt}/R_{pt}|, |R_{pt}/L_{pt}|)` over 80%FW if 10<FW<30cm [#elekta]_
+================================ ================================= ========== ================================================================================================================================
+
+
 
 * -- **Parameter value(s), Name, Vendors that use it -- Equation**
 * -- ``varian``, ``point difference``, **Point Difference, Varian** -- :math:`100 * max(|L_{pt} - R_{pt}|)/ D_{CAX}` over 80%FW, where :math:`L_{pt}` and :math:`R_{pt}` are
