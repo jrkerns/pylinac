@@ -756,9 +756,7 @@ class MLC:
         """Construct an MLC structure from a Dynalog"""
         mlc = MLC(Dynalog, snapshot_idx, jaws)
         for leaf in range(1, (dlog.header.num_mlc_leaves // 2) + 1):
-            # shift expected position per issue #157
-            shifted_expected = cls._shift_expected_mlc_for_dlog(snapshot_data[(leaf - 1) * 4 + 14])
-            axis = LeafAxis(expected=shifted_expected, actual=snapshot_data[(leaf - 1) * 4 + 15])
+            axis = LeafAxis(expected=snapshot_data[(leaf - 1) * 4 + 14], actual=snapshot_data[(leaf - 1) * 4 + 15])
             mlc.add_leaf_axis(axis, leaf)
 
         # read in "B"-file to get bank B MLC positions. The file must be in the same folder as the "A"-file.
@@ -769,9 +767,7 @@ class MLC:
 
         # Add bank B MLC positions to mlc snapshot arrays
         for leaf in range(1, (dlog.header.num_mlc_leaves // 2) + 1):
-            # shift expected position per issue #157
-            shifted_expected = cls._shift_expected_mlc_for_dlog(snapshot_data[(leaf - 1) * 4 + 14])
-            axis = LeafAxis(expected=shifted_expected, actual=snapshot_data[(leaf - 1) * 4 + 15])
+            axis = LeafAxis(expected=snapshot_data[(leaf - 1) * 4 + 14], actual=snapshot_data[(leaf - 1) * 4 + 15])
             mlc.add_leaf_axis(axis, leaf_num=leaf+dlog.header.num_mlc_leaves // 2)
 
         # scale dynalog leaf positions from the physical plane to the isocenter plane and from 100ths of mm to cm.
@@ -780,14 +776,6 @@ class MLC:
             mlc.leaf_axes[leaf].actual *= dynalog_leaf_conversion / 1000
             mlc.leaf_axes[leaf].expected *= dynalog_leaf_conversion / 1000
         return mlc
-
-    @staticmethod
-    def _shift_expected_mlc_for_dlog(expected_positions):
-        # insert a copy of the first value
-        extra_position = np.insert(expected_positions, 0, expected_positions[0])
-        # drop the last value so the # of positions are the same
-        shifted_positions = extra_position[:-1]
-        return shifted_positions
 
     @classmethod
     def from_tlog(cls, tlog, subbeams, jaws, snapshot_data, snapshot_idx, column_iter):
