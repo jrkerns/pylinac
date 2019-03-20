@@ -18,7 +18,6 @@ class TestLoading(LoadingTestBase, TestCase):
     def test_filter_on_load(self):
         PicketFence(self.constructor_input, filter=3)  # shouldn't raise
 
-    @skip
     def test_load_with_log(self):
         log_file = osp.join(TEST_DIR, 'PF_log.bin')
         pf_file = osp.join(TEST_DIR, 'PF.dcm')
@@ -50,6 +49,9 @@ class TestPlottingSaving(TestCase):
     def setUpClass(cls):
         cls.pf = PicketFence.from_demo_image()
         cls.pf.analyze()
+        cls.pf_updown = PicketFence.from_demo_image()
+        cls.pf_updown.image.rot90()
+        cls.pf_updown.analyze()
 
     @classmethod
     def tearDownClass(cls):
@@ -57,9 +59,11 @@ class TestPlottingSaving(TestCase):
 
     def test_plotting(self):
         self.pf.plot_analyzed_image()
+        self.pf_updown.plot_analyzed_image()
 
     def test_saving_image(self):
         save_file(self.pf.save_analyzed_image)
+        save_file(self.pf_updown.save_analyzed_image)
 
 
 class PFTestMixin(LocationMixin):
@@ -68,6 +72,7 @@ class PFTestMixin(LocationMixin):
     picket_orientation = UP_DOWN
     hdmlc = False
     num_pickets = 10
+    pass_num_pickets = False
     percent_passing = 100
     max_error = 0
     abs_median_error = 0
@@ -85,7 +90,10 @@ class PFTestMixin(LocationMixin):
     @classmethod
     def setUpClass(cls):
         cls.pf = PicketFence(cls.get_filename(), log=cls.get_logfile())
-        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
+        if cls.pass_num_pickets:
+            cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment, num_pickets=cls.num_pickets)
+        else:
+            cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
 
     def test_passed(self):
         self.assertEqual(self.pf.passed, self.passes)
@@ -142,11 +150,27 @@ class ClinacWeirdBackground(PFTestMixin, TestCase):
     mean_picket_spacing = 50
 
 
-@skip  # skip till v2.3 when padding is added
 class ElektaCloseEdges(PFTestMixin, TestCase):
     file_path = ['PF, Elekta, pickets near edges.dcm']
-    max_error = 0.08
-    abs_median_error = 0.02
+    max_error = 0.23
+    abs_median_error = 0.07
+    num_pickets = 9
+    mean_picket_spacing = 30
+
+
+class ElektaCloseEdgesRot90(PFTestMixin, TestCase):
+    file_path = ['PF, Elekta, pickets near edges.dcm']
+    max_error = 0.23
+    abs_median_error = 0.07
+    num_pickets = 9
+    mean_picket_spacing = 30
+    picket_orientation = LEFT_RIGHT
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pf = PicketFence(cls.get_filename(), log=cls.get_logfile())
+        cls.pf.image.rot90()
+        cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment)
 
 
 class MultipleImagesPF(PFTestMixin, TestCase):

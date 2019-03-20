@@ -202,47 +202,39 @@ class AS1200ExtendedSIDVMAT(PFBankMixin, TestCase):
     abs_median_error = 0.06
 
 
-@skip
 class AS1200HD(PFBankMixin, TestCase):
     """Tests for the AS1200 image."""
     file_path = ['AS1200-HD.dcm']
     hdmlc = True
     max_error = 0.05
     abs_median_error = 0.02
-
-    @classmethod
-    def setUpClass(cls):
-        cls.pf = PicketFence(cls.file_path)
-        cls.pf.analyze(hdmlc=cls.hdmlc, num_pickets=cls.num_pickets)
+    num_pickets = 10
+    pass_num_pickets = True
 
 
-@skip
 class AS1200HDTranslated(PFBankMixin, TestCase):
     """Tests for the AS1200 image."""
     file_path = ['AS1200-HD-translated.dcm']
     hdmlc = True
-    max_error = 0.05
+    max_error = 0.15
     abs_median_error = 0.02
+    num_pickets = 10
+    pass_num_pickets = True
 
 
-# class ChicagoNoError(PFBankMixin, TestCase):
-#     file_path = ['Chicago', 'PF no error.dcm']
-#     # log = ['Chicago', 'PF no error tlog.bin']
-#     hdmlc = True
-#     max_error = 0.9
-#     abs_median_error = 0.2
-#     passes = False
-#     percent_passing = 87
+class ChicagoNoError(PFBankMixin, TestCase):
+    file_path = ['Chicago', 'PF no error.dcm']
+    # log = ['Chicago', 'PF no error tlog.bin']
+    hdmlc = True
+    max_error = 0.24
 
 
-# class ChicagoError(PFBankMixin, TestCase):
-#     file_path = ['Chicago', 'PF point2mm error.dcm']
-#     # log = ['Chicago', 'PF point2mm tlog.bin']
-#     hdmlc = True
-#     max_error = 0.8
-#     abs_median_error = 0.25
-#     passes = False
-#     percent_passing = 95
+class ChicagoError(PFBankMixin, TestCase):
+    file_path = ['Chicago', 'PF point2mm error.dcm']
+    # log = ['Chicago', 'PF point2mm tlog.bin']
+    hdmlc = True
+    max_error = 0.2
+
 
 @skip
 class CharlestonRA(PFBankMixin, TestCase):

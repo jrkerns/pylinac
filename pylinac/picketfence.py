@@ -664,7 +664,8 @@ class PicketManager:
     @property
     def mean_spacing(self) -> np.ndarray:
         """The average distance between pickets in mm."""
-        return np.mean([self.pickets[idx].dist2cax - self.pickets[idx+1].dist2cax for idx in range(len(self)-1)])
+        sorted_pickets = sorted(self.pickets, key=lambda x: x.dist2cax)
+        return np.mean([abs(sorted_pickets[idx].dist2cax - sorted_pickets[idx+1].dist2cax) for idx in range(len(sorted_pickets)-1)])
 
 
 class Picket:
@@ -731,14 +732,20 @@ class Picket:
         if self.settings.orientation == UP_DOWN:
             left_edge = int(self.approximate_idx - self.spacing)
             right_edge = int(self.approximate_idx + self.spacing)
+            # see #167 & #174
             if left_edge < 0:
-                raise ValueError("The detected pickets are too close to the edge. Future versions will add a `padding` parameter to `analyze()`. Padding the array is suggested. See this for a workaround: https://gist.github.com/jrkerns/6c96780e1919901d2d91e88fa375090c#file-workaround-py-L6")
+                self.spacing += left_edge
+                left_edge = int(self.approximate_idx - self.spacing)
+                right_edge = int(self.approximate_idx + self.spacing)
             array = self.image[:, left_edge:right_edge]
         else:
             top_edge = int(self.approximate_idx - self.spacing)
             bottom_edge = int(self.approximate_idx + self.spacing)
+            # see #167 & #174
             if top_edge < 0:
-                raise ValueError("The detected pickets are too close to the edge. Future versions will add a `padding` parameter to `analyze()`.Padding the array is suggested. See this for a workaround: https://gist.github.com/jrkerns/6c96780e1919901d2d91e88fa375090c#file-workaround-py-L6")
+                self.spacing += top_edge
+                top_edge = int(self.approximate_idx - self.spacing)
+                bottom_edge = int(self.approximate_idx + self.spacing)
             array = self.image[top_edge:bottom_edge, :]
         return array
 
