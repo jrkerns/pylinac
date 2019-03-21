@@ -1775,7 +1775,7 @@ class Dynalog(LogBase):
         dlog.report_basic_parameters()
         dlog.plot_summary()
 
-    def publish_pdf(self, filename: str=None, notes: str=None, metadata: dict=None, open_file: bool=False):
+    def publish_pdf(self, filename: str, notes: str=None, metadata: dict=None, open_file: bool=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -1796,9 +1796,6 @@ class Dynalog(LogBase):
             --------------
         """
         self.fluence.gamma.calc_map()
-        if filename is None:
-            base, _ = osp.splitext(self.filename)
-            filename = base + '.pdf'
         canvas = pdf.PylinacCanvas(filename, page_title="Dynalog Analysis", metadata=metadata)
         canvas.add_text(
                       text=['Dynalog results:',

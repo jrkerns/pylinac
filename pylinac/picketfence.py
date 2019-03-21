@@ -408,7 +408,7 @@ class PicketFence:
                  f"Max Error: {self.max_error:2.3f}mm on Picket: {self.max_error_picket}, Leaf: {self.max_error_leaf}"
         return string
 
-    def publish_pdf(self, filename: str=None, notes: str=None, open_file: bool=False, metadata: dict=None):
+    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: dict=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -429,8 +429,6 @@ class PicketFence:
             --------------
         """
         plt.ioff()
-        if filename is None:
-            filename = self.image.pdf_path
         canvas = pdf.PylinacCanvas(filename, page_title="Picket Fence Analysis", metadata=metadata)
         data = io.BytesIO()
         self.save_analyzed_image(data, leaf_error_subplot=True)
