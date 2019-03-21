@@ -13,15 +13,15 @@ Pylinac
     :alt: Latest Version
 
 .. image:: https://img.shields.io/pypi/l/pylinac.svg
-    :target: https://pypi.python.org/pypi/pylinac/
+    :target: https://choosealicense.com/licenses/mit/
     :alt: MIT
 
 .. image:: https://travis-ci.org/jrkerns/pylinac.svg?branch=master
     :target: https://travis-ci.org/jrkerns/pylinac
     :alt: Travis CI
 
-.. image:: https://coveralls.io/repos/jrkerns/pylinac/badge.svg?branch=master
-    :target: https://coveralls.io/r/jrkerns/pylinac?branch=master
+.. image:: https://coveralls.io/repos/github/jrkerns/pylinac/badge.svg?branch=master
+    :target: https://coveralls.io/github/jrkerns/pylinac?branch=master
     :alt: Code Coverage
 
 .. image:: https://readthedocs.org/projects/pylinac/badge/?version=stable
