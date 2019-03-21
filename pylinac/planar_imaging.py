@@ -88,7 +88,7 @@ class ImagePhantomBase:
 
         # label the canny edge regions
         labeled = measure.label(c)
-        regions = measure.regionprops(labeled, intensity_image=img_copy)
+        regions = measure.regionprops(labeled, intensity_image=img_copy, coordinates='rc')
         return regions
 
     @staticmethod

@@ -1435,7 +1435,7 @@ def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='o
     if fill_holes:
         bw = ndimage.binary_fill_holes(bw)
     labeled_arr, num_roi = measure.label(bw, return_num=True)
-    regionprops = measure.regionprops(labeled_arr, edges)
+    regionprops = measure.regionprops(labeled_arr, edges, coordinates='rc')
     return labeled_arr, regionprops, num_roi
 
 
