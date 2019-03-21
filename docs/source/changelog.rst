@@ -3,6 +3,17 @@
 Changelog
 =========
 
+V 2.2.6
+-------
+
+Bug Fixes
+^^^^^^^^^
+
+* `#157 <https://github.com/jrkerns/pylinac/issues/157>`_ This behavior is revered to pre-2.2.2 behavior to match the DFV and other software.
+* `#167 <https://github.com/jrkerns/pylinac/issues/167>`_ Originally, the fix for this was to raise an error and point to a workaround. At the time the fix was to add a parameter to v2.3.
+   Behavior was able to be changed internally to handle this case without an API change.
+
+
 V 2.2.5
 -------
 

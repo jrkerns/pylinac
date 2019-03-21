@@ -32,32 +32,13 @@ The recommended way to use pylinac's watcher is the one-time run function ``proc
     process(analysis_dir)  # will process and then return
 
 
-You can also run the watcher to continually monitor forever with ``watch``:
-
-.. code-block:: python
-
-    from pylinac import watch
-
-    analysis_dir = "C:/path/to/analysis/directory"
-    watch(analysis_dir)  # will monitor forever!
-
-.. warning::
-
-    ``watch`` is not recommended for log monitoring as memory leaks can accumulate.
-
-
 Analysis is also available via the command line and is similar in behavior.
-
-.. code-block:: bash
-
-    $ pylinac watch "dir/to/watch"  # watch forever
-
 
 .. code-block:: bash
 
     $ pylinac process "dir/to/process"  # analyze and return
 
-The ``watch`` and ``process`` calls initiate a thread that runs in the terminal. The directory to start watching is also
+The ``process`` call initiates a thread that runs in the terminal. The directory to start watching is also
 required. A logger will notify when the script has started, when a file gets added, and what the analysis status is. If a file
 gets analyzed successfully, a .png and .txt file with the same name as the originals plus a suffix (default is ``_analysis``) will be generated in the directory.
 You can also set up an email service when analysis runs, described below.

@@ -164,7 +164,7 @@ class TestBaseImage(TestCase):
         num_calced_pixels = np.nansum(g_map >= 0)
         pass_pct = num_passing_pixels / num_calced_pixels * 100
         average_gamma = np.nanmean(g_map)
-        expected_pass_pct = 86
+        expected_pass_pct = 81
         expected_avg_gamma = 0.87
         self.assertAlmostEqual(pass_pct, expected_pass_pct, delta=1)
         self.assertAlmostEqual(average_gamma, expected_avg_gamma, delta=0.02)
