@@ -155,14 +155,38 @@ class FlatSym(DicomImage):
         """
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
+        # do some calculations
+        horiz_penum = self.symmetry['horizontal']['profile'].penumbra_width() / self.dpmm
+        vert_penum = self.symmetry['vertical']['profile'].penumbra_width() / self.dpmm
+        horiz_width = self.symmetry['horizontal']['profile'].fwxm() / self.dpmm
+        vert_width = self.symmetry['vertical']['profile'].fwxm() / self.dpmm
+        upper_dist = abs(self.symmetry['vertical']['profile']._penumbra_point('left') - self.center.y) / self.dpmm
+        lower_dist = abs(self.symmetry['vertical']['profile']._penumbra_point('right') - self.center.y) / self.dpmm
+        left_dist = abs(self.symmetry['horizontal']['profile']._penumbra_point('left') - self.center.x) / self.dpmm
+        right_dist = abs(self.symmetry['horizontal']['profile']._penumbra_point('right') - self.center.x) / self.dpmm
         results = [f'Flatness & Symmetry',
                    f'File: {self.truncated_path}',
+                   "",
                    f'Flatness method: {self.flatness["method"].capitalize()}',
                    f"Vertical flatness: {self.flatness['vertical']['value']:3.3}%",
                    f"Horizontal flatness: {self.flatness['horizontal']['value']:3.3}%",
                    f'Symmetry method: {self.symmetry["method"].capitalize()}',
                    f"Vertical symmetry: {self.symmetry['vertical']['value']:3.3}%",
-                   f"Horizontal symmetry: {self.symmetry['horizontal']['value']:3.3}%"
+                   f"Horizontal symmetry: {self.symmetry['horizontal']['value']:3.3}%",
+                   "",
+                   "Penumbra (80/20):",
+                   f"Horizontal: {horiz_penum:3.1f}mm",
+                   f"Vertical: {vert_penum:3.1f}mm",
+                   "",
+                   "Field Size:",
+                   f'Horizontal: {horiz_width:3.1f}mm',
+                   f"Vertical: {vert_width:3.1f}mm",
+                   "",
+                   "CAX to edge distances:",
+                   f"CAX -> Upper edge: {upper_dist:3.1f}mm",
+                   f"CAX -> Lower edge: {lower_dist:3.1f}mm",
+                   f"CAX -> Left edge: {left_dist:3.1f}mm",
+                   f"CAX -> Right edge: {right_dist:3.1f}mm",
                    ]
         if as_str:
             results = '\n'.join(result for result in results)
@@ -224,16 +248,18 @@ class FlatSym(DicomImage):
         """
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
-        canvas = pdf.PylinacCanvas(filename, page_title="Flatness & Symmetry Analysis", metadata=metadata)
+        canvas = pdf.PylinacCanvas(filename, page_title="Flatness & Symmetry Analysis",
+                                   metadata=metadata, metadata_location=(2, 5))
         # draw result text
         text = self.results(as_str=False)
-        canvas.add_text(text=text, location=(3, 25.5), font_size=12)
+        canvas.add_text(text=text, location=(2, 25.5), font_size=14)
+        canvas.add_new_page()
         # draw flatness & symmetry on two pages
         for method in (self._plot_symmetry, self._plot_flatness):
-            for height, direction in zip((1, 11.5), ('vertical', 'horizontal')):
+            for height, direction in zip((1, 12.5), ('vertical', 'horizontal')):
                 data = io.BytesIO()
                 self._save_plot(method, data, direction=direction)
-                canvas.add_image(data, location=(1, height), dimensions=(19, 10))
+                canvas.add_image(data, location=(-4, height), dimensions=(28, 12))
             canvas.add_new_page()
         # draw image on last page
         data = io.BytesIO()
