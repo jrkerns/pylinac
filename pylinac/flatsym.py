@@ -1,14 +1,14 @@
 """Module for analyzing images, either film or EPID, for flatness and symmetry."""
 import io
 import os.path as osp
-from typing import Tuple
+from typing import Tuple, Union
 
 import matplotlib.pyplot as plt
 
 from pylinac.core.utilities import open_path
 from .core.exceptions import NotAnalyzed
 from .core.io import retrieve_demo_file
-from .core.image import LinacDicomImage
+from .core.image import DicomImage
 from .core.profile import SingleProfile
 from .core import pdf
 from .settings import get_dicom_cmap
@@ -79,7 +79,7 @@ FLATNESS_EQUATIONS = {
 }
 
 
-class FlatSym(LinacDicomImage):
+class FlatSym(DicomImage):
     """Class for analyzing the flatness and symmetry of a radiation image, most commonly an open image from a linac.
 
     Attributes
@@ -140,25 +140,32 @@ class FlatSym(LinacDicomImage):
         self.positions = {'vertical': vert_position, 'horizontal': horiz_position}
         self._is_analyzed = True
 
-    def results(self) -> str:
+    def results(self, as_str=True) -> Union[str, list]:
         """Get the results of the analysis.
+
+        Parameters
+        ----------
+        as_str : bool
+            If True, return a single string.
+            If False, return a list. Useful for PDF publishing.
 
         Return
         ------
-        results : str
+        results : str or list
         """
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
-        results = (f'Flatness & Symmetry\n' +
-                   '===================\n' +
-                   f'File: {self.path}\n' +
-                   f'Flatness method: {self.flatness["method"].capitalize()}\n' +
-                   f"Vertical flatness: {self.flatness['vertical']['value']:3.3}%\n" +
-                   f"Horizontal flatness: {self.flatness['horizontal']['value']:3.3}%\n" +
-                   f'Symmetry method: {self.symmetry["method"].capitalize()}\n' +
-                   f"Vertical symmetry: {self.symmetry['vertical']['value']:3.3}%\n" +
-                   f"Horizontal symmetry: {self.symmetry['horizontal']['value']:3.3}%\n"
-                   )
+        results = [f'Flatness & Symmetry',
+                   f'File: {self.truncated_path}',
+                   f'Flatness method: {self.flatness["method"].capitalize()}',
+                   f"Vertical flatness: {self.flatness['vertical']['value']:3.3}%",
+                   f"Horizontal flatness: {self.flatness['horizontal']['value']:3.3}%",
+                   f'Symmetry method: {self.symmetry["method"].capitalize()}',
+                   f"Vertical symmetry: {self.symmetry['vertical']['value']:3.3}%",
+                   f"Horizontal symmetry: {self.symmetry['horizontal']['value']:3.3}%"
+                   ]
+        if as_str:
+            results = '\n'.join(result for result in results)
         return results
 
     def _calc_symmetry(self, method: str, vert_position: float, horiz_position: float):
@@ -195,7 +202,7 @@ class FlatSym(LinacDicomImage):
             },
         }
 
-    def publish_pdf(self, filename: str, open_file: bool=False, metadata: dict=None):
+    def publish_pdf(self, filename: str, notes: Union[str, list]=None, open_file: bool=False, metadata: dict=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -219,15 +226,8 @@ class FlatSym(LinacDicomImage):
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
         canvas = pdf.PylinacCanvas(filename, page_title="Flatness & Symmetry Analysis", metadata=metadata)
         # draw result text
-        text = ['Flatness & Symmetry results:',
-                f"Flatness Algorithm: {self.flatness['method'].capitalize()}",
-                f"Vertical Flatness: {self.flatness['vertical']['value']:2.3}%",
-                f"Horizontal Flatness: {self.flatness['horizontal']['value']:2.3}%",
-                f"Symmetry Algorithm: {self.symmetry['method'].capitalize()}",
-                f"Vertical Symmetry: {self.symmetry['vertical']['value']:2.3}%",
-                f"Horizontal Symmetry: {self.symmetry['horizontal']['value']:2.3}%",
-                ]
-        canvas.add_text(text=text, location=(10, 25.5), font_size=12)
+        text = self.results(as_str=False)
+        canvas.add_text(text=text, location=(3, 25.5), font_size=12)
         # draw flatness & symmetry on two pages
         for method in (self._plot_symmetry, self._plot_flatness):
             for height, direction in zip((1, 11.5), ('vertical', 'horizontal')):
@@ -239,6 +239,9 @@ class FlatSym(LinacDicomImage):
         data = io.BytesIO()
         self._save_plot(self._plot_image, data, title="Image")
         canvas.add_image(data, location=(1, 2), dimensions=(18, 20))
+        if notes is not None:
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 5))
         canvas.finish()
 
         if open_file:
@@ -298,7 +301,7 @@ class FlatSym(LinacDicomImage):
         axis.axvline(data['profile left'], color='g', linestyle='-.')
         axis.axvline(data['profile right'], color='g', linestyle='-.')
 
-    def _plot_symmetry(self, direction: str, axis: plt.Axes=None, figsize: Tuple[int, int]=None):
+    def _plot_symmetry(self, direction: str, axis: plt.Axes=None):
         plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()

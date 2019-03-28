@@ -24,7 +24,7 @@ from .geometry import Point
 from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image, retrieve_dicom_file
 from .profile import stretch as stretcharray
 from .typing import NumberLike
-from ..settings import get_dicom_cmap
+from ..settings import get_dicom_cmap, PATH_TRUNCATION_LENGTH
 
 ARRAY = 'Array'
 DICOM = 'DICOM'
@@ -267,15 +267,17 @@ class BaseImage:
         self.path = path
         self.base_path = osp.basename(path)
 
+    @property
+    def truncated_path(self):
+        if len(self.path) > PATH_TRUNCATION_LENGTH:
+            return self.path[:PATH_TRUNCATION_LENGTH // 2] + '...' + self.path[-PATH_TRUNCATION_LENGTH // 2:]
+        else:
+            return self.path
+
     @classmethod
     def from_multiples(cls, filelist: List[str], method: str='mean', stretch: bool=True, **kwargs):
         """Load an instance from multiple image items. See :func:`~pylinac.core.image.load_multiples`."""
         return load_multiples(filelist, method, stretch, **kwargs)
-
-    @property
-    def pdf_path(self) -> str:
-        base, _ = osp.splitext(self.path)
-        return osp.join(base + '.pdf')
 
     @property
     def center(self) -> Point:
