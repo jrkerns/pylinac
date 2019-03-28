@@ -404,7 +404,7 @@ class StandardImagingQC3(ImagePhantomBase):
         self.lc_ref_rois, self.lc_rois = self._low_contrast()
         self.hc_rois = self._high_contrast()
 
-    def publish_pdf(self, filename=None, notes=None, open_file=False, metadata=None):
+    def publish_pdf(self, filename, notes=None, open_file=False, metadata=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -889,7 +889,7 @@ class LeedsTOR(ImagePhantomBase):
         if show:
             plt.show()
 
-    def publish_pdf(self, filename=None, notes=None, open_file=False, metadata=None):
+    def publish_pdf(self, filename, notes=None, open_file=False, metadata=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters

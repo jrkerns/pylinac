@@ -2114,7 +2114,7 @@ class TrajectoryLog(LogBase):
         print("CSV file written to: " + filename)
         return filename
 
-    def publish_pdf(self, filename: str=None, metadata: dict=None, notes: Union[str, list]=None, open_file: bool=False):
+    def publish_pdf(self, filename: str, metadata: dict=None, notes: Union[str, list]=None, open_file: bool=False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -2137,9 +2137,6 @@ class TrajectoryLog(LogBase):
         if self.treatment_type == IMAGING:
             raise ValueError("Log is of imaging type (e.g. kV setup) and does not contain relevant gamma/leaf data")
         self.fluence.gamma.calc_map()
-        if filename is None:
-            base, _ = osp.splitext(self.filename)
-            filename = base + '.pdf'
         canvas = pdf.PylinacCanvas(filename, page_title="Trajectory Log Analysis", metadata=metadata)
         canvas.add_text(
                       text=['Trajectory Log results:',
