@@ -272,12 +272,27 @@ class PylinacGUI(Frame):
             f = filedialog.askopenfilename()
             self.star_file.set(f)
 
+        def load_multiple_star():
+            f = filedialog.askopenfilenames()
+            self.star_mfiles = f
+            self.star_file.set(f)
+
+        def load_zip_star():
+            f = filedialog.askopenfilename()
+            self.star_file.set(f)
+
         def analyze_star():
-            star = starshot.Starshot(self.star_file.get(), sid=self.star_sid.get(),
-                                     dpi=self.star_dpi.get())
+            if osp.isfile(self.star_file.get()):
+                name, ext = osp.splitext(self.star_file.get())
+                if ext == '.zip':
+                    star = starshot.Starshot.from_zip(self.star_file.get(), sid=self.star_sid.get(), dpi=self.star_dpi.get())
+                else:
+                    star = starshot.Starshot(self.star_file.get(), sid=self.star_sid.get(), dpi=self.star_dpi.get())
+            else:
+                star = starshot.Starshot.from_multiple_images(self.star_mfiles, sid=self.star_sid.get(), dpi=self.star_dpi.get())
+                name, ext = osp.splitext(self.star_mfiles[0])
             star.analyze(radius=self.star_radius.get(), tolerance=self.star_tolerance.get(),
                          recursive=self.star_recursive.get())
-            name, _ = osp.splitext(self.star_file.get())
             fname = name + '.pdf'
             fname = utilities.file_exists(fname)
             star.publish_pdf(fname)
@@ -286,29 +301,33 @@ class PylinacGUI(Frame):
 
         self.star_tab = Frame(self.notebook)
         self.star_file = StringVar()
+        self.star_mfiles = []
         self.star_pdf = StringVar()
         self.star_dpi = DoubleVar()
         self.star_sid = DoubleVar()
         self.star_radius = DoubleVar(value=0.85)
         self.star_tolerance = DoubleVar(value=1)
         self.star_recursive = BooleanVar(value=True)
-        Button(self.star_tab, text='Load starshot file...', command=load_star).grid(column=1, row=1)
-        Label(self.star_tab, textvariable=self.star_file).grid(column=1, row=2)
-        Label(self.star_tab, text='DPI (if file is not DICOM):').grid(column=1, row=3)
-        Entry(self.star_tab, width=7, textvariable=self.star_dpi).grid(column=2, row=3)
-        Label(self.star_tab, text='SID (mm; if file is not DICOM):').grid(column=1, row=4)
-        Entry(self.star_tab, width=7, textvariable=self.star_sid).grid(column=2, row=4)
-        Label(self.star_tab, text='Normalized analysis radius (0.2-1.0):').grid(column=1, row=5)
-        Entry(self.star_tab, width=7, textvariable=self.star_radius).grid(column=2, row=5)
+        Label(self.star_tab, text='Load EITHER a single star shot file, multiple files or a zip file...').grid(column=2, row=1)
+        Button(self.star_tab, text='Load single file...', command=load_star).grid(column=1, row=2)
+        Button(self.star_tab, text='Load multiple files...', command=load_multiple_star).grid(column=2, row=2)
+        Button(self.star_tab, text='Load zipped files...', command=load_zip_star).grid(column=3, row=2)
+        Label(self.star_tab, textvariable=self.star_file, anchor='w', width=100).grid(column=1, row=3, columnspan=3, sticky='W')
+        Label(self.star_tab, text='DPI (if file is not DICOM):').grid(column=1, row=4)
+        Entry(self.star_tab, width=7, textvariable=self.star_dpi).grid(column=1, row=5)
+        Label(self.star_tab, text='SID (mm; if file is not DICOM):').grid(column=2, row=4)
+        Entry(self.star_tab, width=7, textvariable=self.star_sid).grid(column=2, row=5)
+        Label(self.star_tab, text='Normalized analysis radius (0.2-1.0):').grid(column=3, row=4)
+        Entry(self.star_tab, width=7, textvariable=self.star_radius).grid(column=3, row=5)
         Checkbutton(self.star_tab, text='Recursive analysis?', variable=self.star_recursive).grid(column=1, row=6)
-        Label(self.star_tab, text='Tolerance (mm):').grid(column=1, row=7)
-        Entry(self.star_tab, width=7, textvariable=self.star_tolerance).grid(column=2, row=7)
-        Button(self.star_tab, text='Analyze', command=analyze_star).grid(column=1, row=9)
+        Label(self.star_tab, text='Tolerance (mm):').grid(column=3, row=6)
+        Entry(self.star_tab, width=7, textvariable=self.star_tolerance).grid(column=3, row=7)
+        Button(self.star_tab, text='Analyze', command=analyze_star).grid(column=2, row=9)
         Label(self.star_tab,
               text='Analysis will analyze the file(s) according to the settings, \nsave a PDF in the same directory as the original file location and then open it.').grid(
-              column=1, row=10)
+              column=2, row=10)
         Label(self.star_tab, text='Save file:').grid(column=1, row=11)
-        Label(self.star_tab, textvariable=self.star_pdf).grid(column=1, row=12)
+        Label(self.star_tab, textvariable=self.star_pdf).grid(column=2, row=11)
         self.notebook.add(self.star_tab, text='Starshot')
         for child in self.star_tab.winfo_children():
             child.grid_configure(padx=10, pady=5)
