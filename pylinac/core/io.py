@@ -1,6 +1,7 @@
 """I/O helper functions for pylinac."""
 import os
 import os.path as osp
+import struct
 from tempfile import TemporaryDirectory
 from typing import Callable, List
 from urllib.error import HTTPError, URLError
@@ -54,7 +55,7 @@ def is_dicom_image(file: str) -> bool:
             img.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
         img.pixel_array
         result = True
-    except (AttributeError, TypeError):
+    except (AttributeError, TypeError, struct.error):
         pass
     return result
 
