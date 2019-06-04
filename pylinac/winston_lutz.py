@@ -411,7 +411,11 @@ class WinstonLutz:
 
         # create plots
         max_num_images = math.ceil(len(images)/4)
-        fig, axes = plt.subplots(nrows=max_num_images, ncols=4)
+        dpi = 72
+        width_px = 1080
+        width_in = width_px/dpi
+        height_in = (width_in / 4) * max_num_images
+        fig, axes = plt.subplots(nrows=max_num_images, ncols=4, figsize=(width_in, height_in))
         for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
             plot_image(wl_image, mpl_axis)
 
