@@ -20,6 +20,7 @@ import io
 import math
 import os.path as osp
 from typing import Union, List, Tuple
+from textwrap import wrap
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -779,7 +780,7 @@ class WLImage(image.LinacDicomImage):
         ax.set_xlim([self.bounding_box[2], self.bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
-        ax.set_title(self.file)
+        ax.set_title('\n'.join(wrap(self.file, 30)), fontsize=10)
         ax.set_xlabel("G={0:.0f}, B={1:.0f}, P={2:.0f}".format(self.gantry_angle, self.collimator_angle, self.couch_angle))
         ax.set_ylabel("CAX to BB: {0:3.2f}mm".format(self.cax2bb_distance))
         if show:
