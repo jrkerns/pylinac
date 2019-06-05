@@ -23,6 +23,7 @@ import io
 import math
 import os.path as osp
 from typing import Union, List, Tuple
+from textwrap import wrap
 
 import argue
 import matplotlib.pyplot as plt
@@ -786,7 +787,7 @@ class WLImage(image.LinacDicomImage):
         ax.set_xlim([self.rad_field_bounding_box[2], self.rad_field_bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
-        ax.set_title(self.file)
+        ax.set_title('\n'.join(wrap(self.file, 30)), fontsize=10)
         ax.set_xlabel(f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}")
         ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
         if show:
