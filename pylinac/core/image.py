@@ -622,7 +622,7 @@ class BaseImage:
 
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
         subtracted_img = np.abs(comp_img - ref_img)
-        denominator = np.sqrt((doseTA / 100.0 ** 2) + ((distTA_pixels ** 2) * (grad_img ** 2)))
+        denominator = np.sqrt(((doseTA / 100.0) ** 2) + ((distTA_pixels ** 2) * (grad_img ** 2)))
         gamma_map = subtracted_img / denominator
 
         return gamma_map
