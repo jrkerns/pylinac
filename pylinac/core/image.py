@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image as pImage
 from scipy import ndimage
-from scipy.misc import imresize
 import scipy.ndimage.filters as spf
+from skimage.transform import resize
 
 from .utilities import is_close, minmax_scale
 from .decorators import type_accept, value_accept
@@ -38,7 +38,7 @@ def prepare_for_classification(path: str):
     """Load and resize the image and return as flattened numpy array. Used when converting an image into
     a classification feature dataset"""
     img = load(path, dtype=np.float32)
-    resized_img = imresize(img.array, size=(100, 100), mode='F').flatten()
+    resized_img = resize(img.array, output_shape=(100, 100)).flatten()
     rescaled_img = minmax_scale(resized_img)
     return rescaled_img
 
@@ -419,13 +419,6 @@ class BaseImage:
     def rot90(self, n: int=1):
         """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW."""
         self.array = np.rot90(self.array, n)
-
-    def resize(self, size: Union[int, float, Tuple[int, int]], interp: str='bilinear'):
-        """Resize/scale the image.
-
-        Wrapper for scipy's `imresize <http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.misc.imresize.html>`_:
-        """
-        self.array = imresize(self.array, size=size, interp=interp, mode='F')
 
     @value_accept(kind=('high', 'low'))
     def threshold(self, threshold: int, kind: str='high'):
