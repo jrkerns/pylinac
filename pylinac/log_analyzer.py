@@ -1817,7 +1817,7 @@ class Dynalog(LogBase):
         if notes is not None:
             canvas.add_text(location=(1, 5.5), font_size=14, text="Notes:")
             canvas.add_text(location=(1, 5), text=notes)
-        canvas.add_new_page(metadata=metadata)
+        canvas.add_new_page()
         for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), ('leaf hist', 'leaf rms'))):
             data = BytesIO()
             self.save_subgraph(data, graph, fontsize=20, labelsize=12)
@@ -2158,7 +2158,7 @@ class TrajectoryLog(LogBase):
         if notes is not None:
             canvas.add_text(location=(1, 5.5), font_size=14, text="Notes:")
             canvas.add_text(location=(1, 5), text=notes)
-        canvas.add_new_page(metadata=metadata)
+        canvas.add_new_page()
         for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), ('leaf hist', 'leaf rms'))):
             data = BytesIO()
             self.save_subgraph(data, graph, fontsize=20, labelsize=12)

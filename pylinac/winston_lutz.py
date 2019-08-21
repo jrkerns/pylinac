@@ -528,7 +528,7 @@ class WinstonLutz:
         # add more pages showing individual axis images
         for ax in (GANTRY, COLLIMATOR, COUCH, COMBO):
             if self._contains_axis_images(ax):
-                canvas.add_new_page(metadata=metadata)
+                canvas.add_new_page()
                 data = io.BytesIO()
                 self.save_images(data, axis=ax, figsize=(10, 10))
                 canvas.add_image(data, location=(2, 7), dimensions=(18, 18))
