@@ -28,13 +28,13 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage, optimize
+from skimage import measure
 
 from .core import image
 from .core.geometry import Point, Line, Circle, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import filled_area_ratio, bounding_box
 from .core import pdf
-from .core.profile import SingleProfile
 from .core.utilities import is_close, open_path
 
 GANTRY = 'Gantry'
@@ -561,7 +561,7 @@ class WLImage(image.LinacDicomImage):
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
         self._clean_edges()
-        self.field_cax, self.bounding_box = self._find_field_centroid()
+        self.field_cax, self.rad_field_bounding_box = self._find_field_centroid()
         self.bb = self._find_bb()
 
     def __repr__(self):
@@ -634,11 +634,12 @@ class WLImage(image.LinacDicomImage):
                 binary_arr = np.logical_and((max_thresh > self), (self >= lower_thresh))
                 labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
                 roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
-                bw_bb_img = np.where(labeled_arr == np.argsort(roi_sizes)[-3], 1, 0)
+                bw_bb_img = np.where(labeled_arr == np.argsort(roi_sizes)[-3], 1, 0)  # we pick the 3rd largest one because the largest is the background, 2nd is rad field, 3rd is the BB
+                bb_regionprops = measure.regionprops(bw_bb_img)[0]
 
-                if not is_round(bw_bb_img):
+                if not is_round(bb_regionprops):
                     raise ValueError
-                if not is_modest_size(bw_bb_img, self.bounding_box):
+                if not is_modest_size(bw_bb_img, self.rad_field_bounding_box):
                     raise ValueError
                 if not is_symmetric(bw_bb_img):
                     raise ValueError
@@ -651,12 +652,10 @@ class WLImage(image.LinacDicomImage):
 
         # determine the center of mass of the BB
         inv_img = image.load(self.array)
-        inv_img.invert()
-        x_arr = np.abs(np.average(bw_bb_img, weights=inv_img, axis=0))
-        x_com = SingleProfile(x_arr).fwxm_center(interpolate=True)
-        y_arr = np.abs(np.average(bw_bb_img, weights=inv_img, axis=1))
-        y_com = SingleProfile(y_arr).fwxm_center(interpolate=True)
-        return Point(x_com, y_com)
+        # we invert so BB intensity increases w/ attenuation
+        inv_img.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
+        bb_rprops = measure.regionprops(bw_bb_img, intensity_image=inv_img)[0]
+        return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
 
     @property
     def epid(self) -> Point:
@@ -766,8 +765,8 @@ class WLImage(image.LinacDicomImage):
         ax.plot(self.field_cax.x, self.field_cax.y, 'gs', ms=8)
         ax.plot(self.bb.x, self.bb.y, 'ro', ms=8)
         ax.plot(self.epid.x, self.epid.y, 'b+', ms=8)
-        ax.set_ylim([self.bounding_box[0], self.bounding_box[1]])
-        ax.set_xlim([self.bounding_box[2], self.bounding_box[3]])
+        ax.set_ylim([self.rad_field_bounding_box[0], self.rad_field_bounding_box[1]])
+        ax.set_xlim([self.rad_field_bounding_box[2], self.rad_field_bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
         ax.set_title(self.file)
@@ -826,8 +825,8 @@ def is_modest_size(logical_array: np.ndarray, field_bounding_box) -> bool:
     return rad_field_area * 0.003 < np.sum(logical_array) < rad_field_area * 0.3
 
 
-def is_round(logical_array: np.ndarray) -> bool:
+def is_round(rprops) -> bool:
     """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
-    expected_fill_ratio = np.pi / 4
-    actual_fill_ratio = filled_area_ratio(logical_array)
+    expected_fill_ratio = np.pi / 4  # area of a circle inside a square
+    actual_fill_ratio = rprops.filled_area / rprops.bbox_area
     return expected_fill_ratio * 1.2 > actual_fill_ratio > expected_fill_ratio * 0.8
