@@ -865,7 +865,7 @@ class LeedsTOR(ImagePhantomBase):
 
             # plot the low contrast ROIs
             for roi in self.lc_rois:
-                roi.plot2axes(img_ax, edgecolor=roi.plot_color)
+                roi.plot2axes(img_ax, edgecolor=roi.plot_color_constant)
             for roi in self.lc_ref_rois:
                 roi.plot2axes(img_ax, edgecolor='g')
             # plot the high-contrast ROIs
