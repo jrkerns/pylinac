@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac import WinstonLutz
-from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, COMBO, ALL
+from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, COMBO, ALL, EPID
 from pylinac.core.geometry import Vector, vector_is_close
 from tests_basic import TEST_BANK_DIR, TEST_FILES_DIR
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
@@ -102,6 +102,7 @@ class WinstonLutzMixin(LocationMixin):
     couch_iso_size = 0
     cax2bb_max_distance = 0
     cax2bb_median_distance = 0
+    epid_deviation = None
     bb_shift_vector = Vector()  # vector to place BB at iso
     axis_of_rotation = {0: 'Reference'}  # fill with as many {image#: known_axis_of_rotation} pairs as desired
     print_results = False
@@ -135,6 +136,10 @@ class WinstonLutzMixin(LocationMixin):
         if self.couch_iso_size is not None:
             self.assertAlmostEqual(self.wl.couch_iso_size, self.couch_iso_size, delta=0.2)
 
+    def test_epid_deviation(self):
+        if self.epid_deviation is not None:
+            self.assertAlmostEqual(max(self.wl.axis_rms_deviation(EPID)), self.epid_deviation, delta=0.2)
+
     def test_bb_max_distance(self):
         self.assertAlmostEqual(self.wl.cax2bb_distance(metric='max'), self.cax2bb_max_distance, delta=0.2)
 
@@ -156,6 +161,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
     couch_iso_size = 1.1
     cax2bb_max_distance = 1
     cax2bb_median_distance = 0.7
+    epid_deviation = 1.3
     axis_of_rotation = {0: 'Reference'}
     bb_shift_vector = Vector(y=-0.1, z=0.3)
 

@@ -123,9 +123,54 @@ The following are invalid:
 * mywl-gantry=0-coll=90-couch=315.dcm
 * gan45_collimator30-table270.dcm
 
+Using the filenames within the code is done by passing the ``use_filenames=True`` flag to the init method:
+
+.. code-block:: python
+
+    my_directory = 'path/to/wl_images'
+    wl = WinstonLutz(my_directory, use_filenames=True)
+
 .. note:: If using filenames any relevant axes must be defined, otherwise they will default to zero. For example,
           if the acquisition was at gantry=45, coll=15, couch=0 then the filename must include both the gantry and collimator
           in the name (<...gantry45...coll15....dcm>). For this example, the couch need not be defined since it is 0.
+
+Image types & output definitions
+--------------------------------
+
+The following terms are used in pylinac's WL module and are worth defining.
+
+**Image axis definitions/Image types**
+Images are classified into 1 of 5 image types, depending on the position of the axes. The image type is then
+used for determining whether to use the image for the given calculation. Image types allow the module to isolate the
+analysis to a given axis if needed. E.g. for gantry iso size, as opposed to overall iso size, only the gantry should be moving
+so that no other variables influence it's calculation.
+
+* **Reference**: This is when all axes are at value 0 (gantry=coll=couch=0).
+* **Gantry**: This is when all axes but gantry are at value 0, e.g. gantry=45, coll=0, couch=0.
+* **Collimator**: This is when all axes but collimator are at value 0.
+* **Couch**: This is when all axes but the couch are at value 0.
+* **Combo**: This is when any two or more axes are not at 0.
+
+**Analysis definitions**
+Given the above terms, the following calculations are performed.
+
+* **Maximum 2D CAX->BB distance**: Analyzes all images for BB-to-rad field center distances.
+* **Median 2D CAX->BB distance**: Analyzes all images for BB-to-rad field center distances.
+* **Shift of BB to isocenter**: The instructions of how to move the BB/couch in order to place the BB at the determined isocenter.
+  This uses **all** image types, however, axes where the image is parallel to the radiation field are not considered. E.g. when
+  calculating the vertical shift over the images, the image where gantry is 0 is not considered since vertical cannot be accurately determined.
+  Technically, pylinac will find the 2D shift from BB to rad field, then apply a 3D geometric transformation according to
+  the gantry angle to get the shift values.
+* **Gantry 3D isocenter diameter**: Analyzes only the gantry axis images (see above image types). Applies backprojection of the
+  CAX in 3D and then minimizes a sphere that touches all the 3D backprojection lines.
+* **[Couch, Collimator] 2D isocenter diameter**: Analyzes only the collimator or couch images to determine the planar
+  circle size of the isocenter according to the axis in question. These are treated separately because the 2D diameter of the
+  couch is in the plane normal to the vertical axis and the collimator planar isocenter size is normal to the CAX. If no
+  images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
+* **[Maximum, All][Gantry, Collimator, Couch, Combo, EPID] RMS deviation**: Analyzes the images for the axis in question to determine the overall RMS
+  inclusive of all 3 coordinate axes (vert, long, lat). I.e. this is the overall displacement as a function of the axis in question.
+  For EPID, the displacement is calculated as the distance from image center to BB for all images with couch=0. If no
+  images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
 
 
 Algorithm
