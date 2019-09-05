@@ -3,6 +3,28 @@
 Changelog
 =========
 
+v 2.2.7
+-------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* A small change was made to the Winston-Lutz BB finding algorithm to be more robust and use less custom code. The output from WL analyses should be within 0.1mm of previous values.
+* A section was added to the documentation to describe how images are classified and the analysis of output from the .results() method.
+
+Bug Fixes
+^^^^^^^^^
+
+* `#187 <https://github.com/jrkerns/pylinac/issues/187>`_ Scipy's imresize function has been deprecated. Functionality was converted to use skimage.transform.resize().
+* `#185 <https://github.com/jrkerns/pylinac/issues/185>`_ Winston-Lutz PDF generation had an artifact causing catastrophic failure.
+* `#183 <https://github.com/jrkerns/pylinac/issues/183>`_ The Bakai fomula of the gamma calculation had an operational inconsistency such that dose-to-agreement other than 1% would give incorrect values of the gamma value.
+* `#190 <https://github.com/jrkerns/pylinac/issues/190>`_ The Catphan module had an inconsistency in the rMTF/spatial resolution determination. Some line pair regions would be detected for some phantoms and not for others. This was caused by the different CatPhan models having slighly different rotations of the CTP528 module. Pylinac now has model-specific boundaries.
+* `#192 <https://github.com/jrkerns/pylinac/issues/192>`_ The FlatSym plot would conflate the vertical and horizontal lines shown on the analyzed image. Analysis is unaffected, only the depiction of position.
+* `#194 <https://github.com/jrkerns/pylinac/issues/194>`_ The Leeds low contrast ROI color on the analyzed image was not consistent with the contrast plots. ROI color is now based on the pass/fail of the contrast constant, not the contrast.
+* `#196 <https://github.com/jrkerns/pylinac/issues/196>`_ Winston-Lutz images with a dense BB and low photon energy could cause BB detection to fail. A better BB-finding algorithm has been implemented.
+* `#197 <https://github.com/jrkerns/pylinac/issues/197>`_ EPID RMS deviation would return 0 for the .results() method always. This now calculates correctly.
+
+
 V 2.2.6
 -------
 

@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = '2.2.6'
+__version__ = '2.2.7'
 
 
 setup(
@@ -14,11 +14,11 @@ setup(
     author='James Kerns',
     author_email='jkerns100@gmail.com',
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
-    install_requires=["numpy >= 1.11",
-                      "scipy >= 0.17",
+    install_requires=["numpy >= 1.14, <= 1.17",
+                      "scipy >= 1.0",
                       "pydicom >= 1.0",
                       "matplotlib >= 1.4",
-                      "scikit-image >= 0.12",
+                      "scikit-image >= 0.12, <=0.14",
                       "scikit-learn >= 0.18",
                       "Pillow >= 4.0",
                       "tqdm >= 3.8",

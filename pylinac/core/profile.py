@@ -531,7 +531,7 @@ class MultiProfile(ProfileMixin):
         self.peaks = []
         self.valleys = []
 
-    def plot(self, show_peaks: bool=True):
+    def plot(self, show_peaks: bool=True, ax=None):
         """Plot the profile.
 
         Parameters
@@ -540,7 +540,8 @@ class MultiProfile(ProfileMixin):
             Whether to plot the peak locations as well. Will not show if a peak search has
             not yet been done.
         """
-        fig, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
         ax.plot(self.values)
         if show_peaks:
             peaks_x = [peak.idx for peak in self.peaks]
