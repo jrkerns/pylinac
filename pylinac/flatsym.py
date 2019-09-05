@@ -309,8 +309,8 @@ class FlatSym(DicomImage):
         if axis is None:
             fig, axis = plt.subplots()
         axis.imshow(self.array, cmap=get_dicom_cmap())
-        axis.axhline(self.positions['vertical']*self.array.shape[0], color='r')  # y
-        axis.axvline(self.positions['horizontal']*self.array.shape[1], color='r')  # x
+        axis.axhline(self.positions['horizontal']*self.array.shape[0], color='r')  # y
+        axis.axvline(self.positions['vertical']*self.array.shape[1], color='r')  # x
         _remove_ticklabels(axis)
         axis.set_title(title)
 
