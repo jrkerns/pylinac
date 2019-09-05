@@ -252,6 +252,7 @@ class WinstonLutz:
             attr = 'bb_'
         else:
             attr = 'epid_'
+            axis = (GANTRY, COLLIMATOR, REFERENCE)
         imgs = self._get_images(axis=axis)[1]
         if len(imgs) <= 1:
             return (0, )
