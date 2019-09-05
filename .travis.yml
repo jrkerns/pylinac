@@ -3,8 +3,7 @@ python:
   - "3.6"
 
 env:
-  - NUMPY=1.12
-  - NUMPY=1.13
+  - NUMPY=1.17
   - NUMPY=1.14
 
 sudo:
