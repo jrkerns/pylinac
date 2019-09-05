@@ -18,7 +18,7 @@ setup(
                       "scipy >= 1.0",
                       "pydicom >= 1.0",
                       "matplotlib >= 1.4",
-                      "scikit-image >= 0.12, <=0.13",
+                      "scikit-image >= 0.12, <=0.15",
                       "scikit-learn >= 0.18",
                       "Pillow >= 4.0",
                       "tqdm >= 3.8",
