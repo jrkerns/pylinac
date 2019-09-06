@@ -84,20 +84,6 @@ class TestPublishPDF(TestCase):
         with tempfile.TemporaryFile() as t:
             self.tlog.publish_pdf(t)
 
-    def test_publish_pdf_without_filename_dynalog(self):
-        base, _ = osp.splitext(self.dlog.filename)
-        filename = base + '.pdf'
-        self.dlog.publish_pdf()
-        self.assertTrue(osp.isfile(filename))
-
-    def test_publish_pdf_without_filename_trajectorylog(self):
-        for log in (self.dlog, self.tlog):
-            base, _ = osp.splitext(log.filename)
-            filename = base + '.pdf'
-            log.publish_pdf()
-            self.assertTrue(osp.isfile(filename))
-            os.remove(filename)
-
     def test_publish_pdf_w_imaging_log(self):
         imaging_tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'imaging.bin'))
         with self.assertRaises(ValueError), tempfile.TemporaryFile() as t:

@@ -99,11 +99,6 @@ class TestBaseImage(TestCase):
         # test that array was also changed
         self.assertAlmostEqual(self.dcm.array.min(), 0)
 
-    def test_resize(self):
-        new_size = (200, 300)
-        self.img.resize(new_size)
-        self.assertEqual(self.img.shape, new_size)
-
     def test_invert(self):
         self.img.invert()
         self.dcm.invert()
