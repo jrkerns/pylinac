@@ -11,7 +11,6 @@ from tests_basic.utils import has_www_connection, LocationMixin, save_file
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Flatness & Symmetry')
 
-
 def create_instance():
     fs = FlatSym.from_demo_image()
     fs.analyze('varian', 'varian')
@@ -141,3 +140,22 @@ class FlatSym18X(FlatSymBase, TestCase):
     vert_symmetry = 1.23
     horiz_flatness = 1.79
     horiz_symmetry = 1.16
+
+
+class FlatSym18XElekta(FlatSymBase, TestCase):
+    file_path = ['18x auto bulb2.dcm']
+    flatness_method = 'elekta'
+    symmetry_method = 'elekta'
+    vert_flatness = 103.3
+    vert_symmetry = 101.2
+    horiz_flatness = 103.6
+    horiz_symmetry = 101
+
+
+class TIF1(FlatSymBase, TestCase):
+    """This is a starshot file but tests the loading from TIFF"""
+    file_path = ['Starshot#2.tif']
+    vert_flatness = 0.6
+    vert_symmetry = 1.2
+    horiz_flatness = 7
+    horiz_symmetry = 12.7

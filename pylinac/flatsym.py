@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from pylinac.core.utilities import open_path
 from .core.exceptions import NotAnalyzed
 from .core.io import retrieve_demo_file
-from .core.image import DicomImage
+from .core import image
 from .core.profile import SingleProfile
 from .core import pdf
 from .settings import get_dicom_cmap
@@ -16,8 +16,11 @@ from .settings import get_dicom_cmap
 
 def flatness_varian(profile: SingleProfile):
     """The Varian specification for calculating flatness"""
-    dmax = profile.field_calculation(field_width=0.8, calculation='max')
-    dmin = profile.field_calculation(field_width=0.8, calculation='min')
+    try:
+        dmax = profile.field_calculation(field_width=0.8, calculation='max')
+        dmin = profile.field_calculation(field_width=0.8, calculation='min')
+    except ValueError:
+        raise ValueError("An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
     flatness = 100 * abs(dmax - dmin) / (dmax + dmin)
     lt_edge, rt_edge = profile.field_edges()
     return flatness, dmax, dmin, lt_edge, rt_edge
@@ -25,8 +28,11 @@ def flatness_varian(profile: SingleProfile):
 
 def flatness_elekta(profile: SingleProfile):
     """The Elekta specification for calculating flatness"""
-    dmax = profile.field_calculation(field_width=0.8, calculation='max')
-    dmin = profile.field_calculation(field_width=0.8, calculation='min')
+    try:
+        dmax = profile.field_calculation(field_width=0.8, calculation='max')
+        dmin = profile.field_calculation(field_width=0.8, calculation='min')
+    except ValueError:
+        raise ValueError("An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
     flatness = 100 * (dmax / dmin)
     lt_edge, rt_edge = profile.field_edges()
     return flatness, dmax, dmin, lt_edge, rt_edge
@@ -79,7 +85,7 @@ FLATNESS_EQUATIONS = {
 }
 
 
-class FlatSym(DicomImage):
+class FlatSym:
     """Class for analyzing the flatness and symmetry of a radiation image, most commonly an open image from a linac.
 
     Attributes
@@ -99,11 +105,12 @@ class FlatSym(DicomImage):
         path : str
             The path to the image.
         """
-        super().__init__(path)
+        self.image = image.load(path)
         self.symmetry: dict = {}
         self.flatness: dict = {}
         self.positions: dict = {}
         self._is_analyzed: bool = False
+        self.image.check_inversion()
 
     @classmethod
     def from_demo_image(cls):
@@ -156,16 +163,16 @@ class FlatSym(DicomImage):
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
         # do some calculations
-        horiz_penum = self.symmetry['horizontal']['profile'].penumbra_width() / self.dpmm
-        vert_penum = self.symmetry['vertical']['profile'].penumbra_width() / self.dpmm
-        horiz_width = self.symmetry['horizontal']['profile'].fwxm() / self.dpmm
-        vert_width = self.symmetry['vertical']['profile'].fwxm() / self.dpmm
-        upper_dist = abs(self.symmetry['vertical']['profile']._penumbra_point('left') - self.center.y) / self.dpmm
-        lower_dist = abs(self.symmetry['vertical']['profile']._penumbra_point('right') - self.center.y) / self.dpmm
-        left_dist = abs(self.symmetry['horizontal']['profile']._penumbra_point('left') - self.center.x) / self.dpmm
-        right_dist = abs(self.symmetry['horizontal']['profile']._penumbra_point('right') - self.center.x) / self.dpmm
+        horiz_penum = self.symmetry['horizontal']['profile'].penumbra_width() / self.image.dpmm
+        vert_penum = self.symmetry['vertical']['profile'].penumbra_width() / self.image.dpmm
+        horiz_width = self.symmetry['horizontal']['profile'].fwxm() / self.image.dpmm
+        vert_width = self.symmetry['vertical']['profile'].fwxm() / self.image.dpmm
+        upper_dist = abs(self.symmetry['vertical']['profile']._penumbra_point('left') - self.image.center.y) / self.image.dpmm
+        lower_dist = abs(self.symmetry['vertical']['profile']._penumbra_point('right') - self.image.center.y) / self.image.dpmm
+        left_dist = abs(self.symmetry['horizontal']['profile']._penumbra_point('left') - self.image.center.x) / self.image.dpmm
+        right_dist = abs(self.symmetry['horizontal']['profile']._penumbra_point('right') - self.image.center.x) / self.image.dpmm
         results = [f'Flatness & Symmetry',
-                   f'File: {self.truncated_path}',
+                   f'File: {self.image.truncated_path}',
                    "",
                    f'Flatness method: {self.flatness["method"].capitalize()}',
                    f"Vertical flatness: {self.flatness['vertical']['value']:3.3}%",
@@ -193,8 +200,8 @@ class FlatSym(DicomImage):
         return results
 
     def _calc_symmetry(self, method: str, vert_position: float, horiz_position: float):
-        vert_profile = SingleProfile(self.array[:, int(round(self.array.shape[1]*vert_position))])
-        horiz_profile = SingleProfile(self.array[int(round(self.array.shape[0]*horiz_position)), :])
+        vert_profile = SingleProfile(self.image.array[:, int(round(self.image.array.shape[1]*vert_position))])
+        horiz_profile = SingleProfile(self.image.array[int(round(self.image.array.shape[0]*horiz_position)), :])
         # calc sym from profile
         symmetry_calculation = SYMMETRY_EQUATIONS[method.lower()]
         vert_sym, vert_sym_array, vert_lt, vert_rt = symmetry_calculation(vert_profile)
@@ -210,8 +217,8 @@ class FlatSym(DicomImage):
         }
 
     def _calc_flatness(self, method: str, vert_position: float, horiz_position: float):
-        vert_profile = SingleProfile(self.array[:, int(round(self.array.shape[1] * vert_position))])
-        horiz_profile = SingleProfile(self.array[int(round(self.array.shape[0] * horiz_position)), :])
+        vert_profile = SingleProfile(self.image.array[:, int(round(self.image.array.shape[1] * vert_position))])
+        horiz_profile = SingleProfile(self.image.array[int(round(self.image.array.shape[0] * horiz_position)), :])
         # calc flatness from profile
         flatness_calculation = FLATNESS_EQUATIONS[method.lower()]
         vert_flatness, vert_max, vert_min, vert_lt, vert_rt = flatness_calculation(vert_profile)
@@ -298,7 +305,7 @@ class FlatSym(DicomImage):
         self._plot_symmetry('horizontal', horiz_sym_ax)
 
         # plot image and profile lines
-        self._plot_image(image_ax, title=osp.basename(self.path))
+        self._plot_image(image_ax, title=osp.basename(self.image.path))
 
         plt.suptitle("Flatness & Symmetry")
         if show:
@@ -308,9 +315,9 @@ class FlatSym(DicomImage):
         plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()
-        axis.imshow(self.array, cmap=get_dicom_cmap())
-        axis.axhline(self.positions['horizontal']*self.array.shape[0], color='r')  # y
-        axis.axvline(self.positions['vertical']*self.array.shape[1], color='r')  # x
+        axis.imshow(self.image.array, cmap=get_dicom_cmap())
+        axis.axhline(self.positions['horizontal']*self.image.array.shape[0], color='r')  # y
+        axis.axvline(self.positions['vertical']*self.image.array.shape[1], color='r')  # x
         _remove_ticklabels(axis)
         axis.set_title(title)
 
