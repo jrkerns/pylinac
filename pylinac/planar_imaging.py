@@ -505,8 +505,10 @@ class StandardImagingQC3(ImagePhantomBase):
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions()
         blobs = []
+        phantom_bbox_size_mm2 = 28000  # this is the size of the bounding box when phantom is at 45 deg. Too hard to use filled area as broken pixels can cause non-filling
+        phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2)
         for phantom_idx, region in enumerate(regions):
-            if region.area < 50:
+            if not np.isclose(region.bbox_area, phantom_size_pix, rtol=0.05):
                 continue
             semi_round = 0.7 > region.eccentricity > 0.3
             hollow = region.extent < 0.025
@@ -543,7 +545,7 @@ class StandardImagingQC3(ImagePhantomBase):
         angle : float
             The angle in degrees.
         """
-        return -np.rad2deg(self.phantom_ski_region.orientation)
+        return 45
 
     @property
     def phantom_center(self):
