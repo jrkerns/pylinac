@@ -161,7 +161,7 @@ class Starshot:
 
     @value_accept(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
     def analyze(self, radius: float=0.85, min_peak_height: float=0.25, tolerance: float=1.0,
-                start_point: Point=None, fwhm: bool=True, recursive: bool=True):
+                start_point: Point=None, fwhm: bool=True, recursive: bool=True, invert=False):
         """Analyze the starshot image.
 
         Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -196,6 +196,10 @@ class Starshot:
 
             .. warning:: It is strongly recommended to leave this setting at True.
 
+        invert : bool
+            Whether to force invert the image values. This should be set to True if the automatically-determined
+            pylinac inversion is incorrect.
+
         Raises
         ------
         RuntimeError
@@ -203,6 +207,8 @@ class Starshot:
         """
         self.tolerance = tolerance
         self.image.check_inversion_by_histogram(percentiles=[4, 50, 96])
+        if invert:
+            self.image.invert()
 
         if start_point is None:
             start_point = self._get_reasonable_start_point()
