@@ -847,7 +847,7 @@ class CTP515(CatPhanModule):
     @property
     def overall_passed(self):
         """Whether there were enough low contrast ROIs "seen"."""
-        return sum(roi.passed_constant for roi in self.rois.values()) >= self.tolerance
+        return sum(roi.passed_cnr_constant for roi in self.rois.values()) >= self.tolerance
 
     def plot_contrast(self, axis=None):
         """Plot the contrast constant.
