@@ -145,6 +145,8 @@ class FlatSym:
             Whether to invert the image. Setting this to True will override the default inversion. This is useful if
             pylinac's automatic inversion is incorrect.
         """
+        if invert:
+            self.image.invert()
         self.symmetry = self._calc_symmetry(symmetry_method, vert_position, horiz_position)
         self.flatness = self._calc_flatness(flatness_method, vert_position, horiz_position)
         self.positions = {'vertical': vert_position, 'horizontal': horiz_position}
