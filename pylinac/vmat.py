@@ -420,7 +420,7 @@ class Segment(Rectangle):
     @property
     def passed(self) -> bool:
         """Return whether the segment passed or failed."""
-        return self.r_dev < self._tolerance * 100
+        return abs(self.r_dev) < self._tolerance * 100
 
     def get_bg_color(self) -> str:
         """Get the background color of the segment when plotted, based on the pass/fail status."""
