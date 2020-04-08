@@ -110,7 +110,7 @@ class FlatSym:
         self.flatness: dict = {}
         self.positions: dict = {}
         self._is_analyzed: bool = False
-        self.image.check_inversion()
+        self.image.check_inversion_by_histogram()
 
     @classmethod
     def from_demo_image(cls):
@@ -126,7 +126,7 @@ class FlatSym:
         print(fs.results())
         fs.plot()
 
-    def analyze(self, flatness_method: str, symmetry_method: str, vert_position: float=0.5, horiz_position: float=0.5):
+    def analyze(self, flatness_method: str, symmetry_method: str, vert_position: float=0.5, horiz_position: float=0.5, invert=False):
         """Analyze the image to determine flatness & symmetry.
 
         Parameters
@@ -141,6 +141,9 @@ class FlatSym:
         horiz_position : float (0.0-1.0)
             The distance ratio of the image to sample. E.g. at the default of 0.5 the profile is extracted
             in the middle of the image. 0.0 is at the top edge of the image and 1.0 is at the bottom edge of the image.
+        invert : bool
+            Whether to invert the image. Setting this to True will override the default inversion. This is useful if
+            pylinac's automatic inversion is incorrect.
         """
         self.symmetry = self._calc_symmetry(symmetry_method, vert_position, horiz_position)
         self.flatness = self._calc_flatness(flatness_method, vert_position, horiz_position)
