@@ -3,6 +3,31 @@
 Changelog
 =========
 
+v 2.2.8
+-------
+
+General
+^^^^^^^
+
+Although the following changes should really mean a 2.3 release, I consider them small enough that I will keep it a maintenance release.
+
+* An `invert` parameter was added to the `analyze` method of the FlatSym module so the user can override the automatic inversion.
+* An `invert` parameter was added to the `analyze` method of the Starshot module so the user can override the automatic inversion.
+
+Bug Fixes
+^^^^^^^^^
+
+* `#272 <https://github.com/jrkerns/pylinac/issues/272>`_ An 'invert' parameter was added to the 'analyze' function of the starshot module. This allows the user to force invert the image if pylinac's auto-inversion algorithm is incorrect.
+* `#264/265 <https://github.com/jrkerns/pylinac/issues/264>`_ The 'results' method for the flatsym module would err out when images with 0 flatness were used.
+* `#191 <https://github.com/jrkerns/pylinac/issues/191>`_ The flatsym module was not loading non-DICOM images properly, causing processing failures.
+* `#202 <https://github.com/jrkerns/pylinac/issues/202>`_ The rotation determination of the QC-3 phantom was often incorrect. This has temporarily been fixed by hardcoding the angle to 45 degrees. This is a correct assumption if the phantom is being used according to the instructions.
+* `#263 <https://github.com/jrkerns/pylinac/issues/263>`_ The FlatSym module was sometimes incorrectly inverting images. This was fixed using a better histogram methodology.
+* `#266 <https://github.com/jrkerns/pylinac/issues/266>`_ The deviation of a VMAT ROI was not properly detecting failing segments if the value was negative.
+* `#267 <https://github.com/jrkerns/pylinac/issues/267>`_ The `overall_passed` property of the CTP515 module contained an error that would cause an error.
+* `#271 <https://github.com/jrkerns/pylinac/pull/271>`_ The line pair/mm values for the CT/CBCT module was inadvertently doubled. I.e. the lines/mm was given, not line *pairs*.
+
+
+
 v 2.2.7
 -------
 
