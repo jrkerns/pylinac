@@ -54,7 +54,7 @@ def is_dicom_image(file: str) -> bool:
             img.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
         img.pixel_array
         result = True
-    except (AttributeError, TypeError):
+    except (AttributeError, TypeError, KeyError):
         pass
     return result
 
