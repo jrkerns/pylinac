@@ -705,9 +705,11 @@ class DicomImage(BaseImage):
             self.array = ds.pixel_array.astype(dtype)
         else:
             self.array = ds.pixel_array
-        # convert values to proper HU: real_values = slope * raw + intercept
-        if self.metadata.SOPClassUID.name == 'CT Image Storage':
-            self.array = int(self.metadata.RescaleSlope)*self.array + int(self.metadata.RescaleIntercept)
+        # convert values to HU or CU: real_values = slope * raw + intercept
+        is_ct_storage = self.metadata.SOPClassUID.name == 'CT Image Storage'
+        has_rescale_tags = hasattr(self.metadata, 'RescaleSlope') and hasattr(self.metadata, 'RescaleIntercept')
+        if is_ct_storage or has_rescale_tags:
+            self.array = (self.metadata.RescaleSlope*self.array) + self.metadata.RescaleIntercept
 
     def save(self, filename: str) -> str:
         """Save the image instance back out to a .dcm file.

@@ -105,6 +105,8 @@ class VMATBase:
     def _load_images(image_paths):
         image1 = image.load(image_paths[0])
         image2 = image.load(image_paths[1])
+        image1.ground()
+        image2.ground()
         return image1, image2
 
     @staticmethod

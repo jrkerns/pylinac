@@ -83,6 +83,7 @@ class VMATMixin:
     avg_r_deviation = 0
     max_r_deviation = 0
     passes = True
+    print_debug = False
 
     @classmethod
     def absolute_path(cls):
@@ -98,6 +99,14 @@ class VMATMixin:
         else:
             self.vmat = self.klass(self.absolute_path())
         self.vmat.analyze()
+        if self.print_debug:
+            print(self.vmat.results())
+            print(f"Segment 0: rdev {self.vmat.segments[0].r_dev:2.3f}, rcorr {self.vmat.segments[0].r_corr:2.3f}")
+            if self.klass == DRGS:
+                print(f"Segment 4: rdev {self.vmat.segments[4].r_dev:2.3f}, rcorr {self.vmat.segments[4].r_corr:2.3f}")
+            else:
+                print(f"Segment 2: rdev {self.vmat.segments[2].r_dev:2.3f}, rcorr {self.vmat.segments[2].r_corr:2.3f}")
+            print("Max dev", self.vmat.max_r_deviation)
 
     def test_overall_passed(self):
         self.assertEqual(self.vmat.passed, self.passes)
@@ -126,12 +135,12 @@ class TestDRGSDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRGS demo images."""
     segment_positions = {0: Point(161, 192), 4: Point(314, 192)}
     segment_values = {
-        0: {'r_dev': 0.965, 'r_corr': 101.85},
-        4: {'r_dev': -0.459, 'r_corr': 100.42},
+        0: {'r_dev': 0.965, 'r_corr': 6.2},
+        4: {'r_dev': -0.459, 'r_corr': 6},
     }
-    avg_abs_r_deviation = 0.46
-    avg_r_deviation = 0
-    max_r_deviation = 0.96
+    avg_abs_r_deviation = 0.66
+    max_r_deviation = 1.8
+    passes = False
 
     def setUp(self):
         self.vmat = DRGS.from_demo_images()
@@ -146,12 +155,11 @@ class TestDRMLCDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRMLC demo images."""
     segment_positions = {0: Point(170, 192), 2: Point(285, 192)}
     segment_values = {
-        0: {'r_dev': 0.437, 'r_corr': 100.89},
-        2: {'r_dev': -0.405, 'r_corr': 100.04},
+        0: {'r_dev': -0.7, 'r_corr': 5.7},
+        2: {'r_dev': -0.405, 'r_corr': 5.8},
     }
-    avg_abs_r_deviation = 0.38
-    avg_r_deviation = 0
-    max_r_deviation = 0.44
+    avg_abs_r_deviation = 0.44
+    max_r_deviation = 0.89
 
     def setUp(self):
         self.vmat = DRMLC.from_demo_images()
@@ -167,12 +175,12 @@ class TestDRMLC105(VMATMixin, TestCase):
     filepaths = ('DRMLCopen-105-example.dcm', 'DRMLCdmlc-105-example.dcm')
     segment_positions = {0: Point(391, 384), 2: Point(552, 384)}
     segment_values = {
-        0: {'r_dev': -0.040, 'r_corr': 100.83},
-        2: {'r_dev': -0.021, 'r_corr': 100.85},
+        0: {'r_dev': -2.1, 'r_corr': 13.6},
+        2: {'r_dev': 0.22, 'r_corr': 14},
     }
-    avg_abs_r_deviation = 0.03
-    avg_r_deviation = 0
-    max_r_deviation = 0.04
+    avg_abs_r_deviation = 1.06
+    max_r_deviation = 2.11
+    passes = False
 
 
 class TestDRGS105(VMATMixin, TestCase):
@@ -181,12 +189,11 @@ class TestDRGS105(VMATMixin, TestCase):
     klass = DRGS
     segment_positions = {0: Point(371, 384), 2: Point(478, 384)}
     segment_values = {
-        0: {'r_dev': 0.780, 'r_corr': 102.43},
-        4: {'r_dev': -0.282, 'r_corr': 101.357},
+        0: {'r_dev': 1.385, 'r_corr': 15.12},
+        4: {'r_dev': -0.8, 'r_corr': 14.8},
     }
-    avg_abs_r_deviation = 0.34
-    avg_r_deviation = 0
-    max_r_deviation = 0.78
+    avg_abs_r_deviation = 0.68
+    max_r_deviation = 1.38
 
 
 class TestDRMLC2(VMATMixin, TestCase):
@@ -195,12 +202,12 @@ class TestDRMLC2(VMATMixin, TestCase):
     klass = DRMLC
     segment_positions = {0: Point(199, 192), 2: Point(275, 192)}
     segment_values = {
-        0: {'r_dev': 0.40, 'r_corr': 101.06},
-        2: {'r_dev': -0.49, 'r_corr': 100.16},
+        0: {'r_dev': 0.77, 'r_corr': 6.1},
+        2: {'r_dev': -1.1, 'r_corr': 6},
     }
-    avg_abs_r_deviation = 0.4
-    avg_r_deviation = 0
-    max_r_deviation = 0.5
+    avg_abs_r_deviation = 1.4
+    max_r_deviation = 1.98
+    passes = False
 
 
 class TestDRGS2(VMATMixin, TestCase):
@@ -209,10 +216,8 @@ class TestDRGS2(VMATMixin, TestCase):
     klass = DRGS
     segment_positions = {0: Point(191, 192), 2: Point(242, 192)}
     segment_values = {
-        0: {'r_dev': 1.6, 'r_corr': 103.0},
-        4: {'r_dev': -0.8, 'r_corr': 100.86},
+        0: {'r_dev': 1.5, 'r_corr': 6.4},
+        4: {'r_dev': -0.7, 'r_corr': 6.3},
     }
     avg_abs_r_deviation = 0.7
-    avg_r_deviation = 0
-    max_r_deviation = 1.6
-    passes = False
+    max_r_deviation = 1.5
