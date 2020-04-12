@@ -157,7 +157,7 @@ class CatPhanDemo(CatPhanMixin, TestCase):
     origin_slice = 32
     hu_values = {'Poly': -45, 'Acrylic': 117, 'Delrin': 341, 'Air': -998, 'Teflon': 997, 'PMP': -200, 'LDPE': -103}
     unif_values = {'Center': 17, 'Left': 10, 'Right': 0, 'Top': 6, 'Bottom': 6}
-    mtf_values = {50: 1.12}
+    mtf_values = {50: 0.56}
     avg_line_length = 49.92
     lowcon_visible = 3
     slice_thickness = 2.5
@@ -175,7 +175,7 @@ class CatPhan4(CatPhanMixin, TestCase):
     origin_slice = 31
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
     unif_values = {'Center': 17, 'Left': 10, 'Right': 22, 'Top': 18, 'Bottom': 13}
-    mtf_values = {80: 0.47, 90: 0.39, 60: 0.63, 70: 0.55, 95: 0.3}
+    mtf_values = {80: 0.24, 90: 0.2, 60: 0.31, 70: 0.23, 95: 0.15}
     lowcon_visible = 1
     slice_thickness = 2.4
 
@@ -187,7 +187,7 @@ class Elekta2(CatPhanMixin, TestCase):
     origin_slice = 162
     hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 253, 'PMP': -399, 'LDPE': -350}
     unif_values = {'Center': -285, 'Left': -279, 'Right': -278, 'Top': -279, 'Bottom': -279}
-    mtf_values = {80: 0.53, 90: 0.44, 60: 0.74, 70: 0.63, 95: 0.36}
+    mtf_values = {80: 0.28, 90: 0.22, 60: 0.37, 70: 0.31, 95: 0.18}
     slice_thickness = 1
 
 
@@ -200,7 +200,7 @@ class CatPhan600_2(CatPhanMixin, TestCase):
     hu_values = {'Poly': -29, 'Acrylic': 123, 'Delrin': 336, 'Air': -932, 'Teflon': 897, 'PMP': -164, 'LDPE': -80}
     hu_passed = False
     unif_values = {'Center': 14, 'Left': 15, 'Right': 15, 'Top': 16, 'Bottom': 13}
-    mtf_values = {50: 0.87}
+    mtf_values = {50: 0.4}
     avg_line_length = 50.02
     slice_thickness = 4.5
 
@@ -211,4 +211,4 @@ class CatPhan604Test(CatPhanMixin, TestCase):
     origin_slice = 45
     hu_values = {'Poly': -47, 'Acrylic': 105, 'Delrin': 338, 'Air': -981, 'Teflon': 942, 'PMP': -194, 'LDPE': -105, '50% Bone': 771, '20% Bone': 263}
     unif_values = {'Center': -3, 'Left': 0, 'Right': 0, 'Top': 0, 'Bottom': 0}
-    mtf_values = {50: 0.87}
+    mtf_values = {50: 0.43}
