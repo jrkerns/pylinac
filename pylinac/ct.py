@@ -1119,10 +1119,10 @@ class CatPhanBase:
                 # determine if the profile contains both low and high values and that most values are the same
                 low_end, high_end = np.percentile(prof, [2, 98])
                 median = np.median(prof)
-                if (low_end < median - 400) and (high_end > median + 400) and (
-                                np.percentile(prof, 80) - np.percentile(prof, 20) < 100):
+                middle_variation = np.percentile(prof, 80) - np.percentile(prof, 20)
+                variation_limit = max(100, self.dicom_stack.metadata.SliceThickness*-100+300)
+                if (low_end < median - 400) and (high_end > median + 400) and (middle_variation < variation_limit):
                     hu_slices.append(image_number)
-                    #print(image_number)
 
         if not hu_slices:
             raise ValueError("No slices were found that resembled the HU linearity module")
