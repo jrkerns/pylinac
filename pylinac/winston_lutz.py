@@ -562,6 +562,8 @@ class WLImage(image.LinacDicomImage):
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
         self._clean_edges()
+        self.ground()
+        self.normalize()
         self.field_cax, self.rad_field_bounding_box = self._find_field_centroid()
         self.bb = self._find_bb()
 
@@ -636,6 +638,7 @@ class WLImage(image.LinacDicomImage):
                 labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
                 roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
                 bw_bb_img = np.where(labeled_arr == np.argsort(roi_sizes)[-3], 1, 0)  # we pick the 3rd largest one because the largest is the background, 2nd is rad field, 3rd is the BB
+                bw_bb_img = ndimage.binary_fill_holes(bw_bb_img).astype(int)  # fill holes for low energy beams like 2.5MV
                 bb_regionprops = measure.regionprops(bw_bb_img)[0]
 
                 if not is_round(bb_regionprops):
@@ -654,7 +657,7 @@ class WLImage(image.LinacDicomImage):
         # determine the center of mass of the BB
         inv_img = image.load(self.array)
         # we invert so BB intensity increases w/ attenuation
-        inv_img.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
+        inv_img.check_inversion_by_histogram(percentiles=(99.99, 50, 0.01))
         bb_rprops = measure.regionprops(bw_bb_img, intensity_image=inv_img)[0]
         return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
 

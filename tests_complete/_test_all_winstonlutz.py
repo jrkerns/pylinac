@@ -11,7 +11,7 @@ class KatyiX0(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_iso_size = 1
     collimator_iso_size = 1.1
-    couch_iso_size = 1.3
+    couch_iso_size = 1.5
     cax2bb_max_distance = 1.07
     cax2bb_median_distance = 0.8
     bb_shift_vector = Vector(x=-0.4, y=-0.4, z=-0.2)
@@ -44,7 +44,7 @@ class KatyiX3(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_iso_size = 1.3
     collimator_iso_size = 1.5
-    couch_iso_size = 1.9
+    couch_iso_size = 1.6
     cax2bb_max_distance = 1.25
     cax2bb_median_distance = 0.8
     bb_shift_vector = Vector(x=-0.1, y=-0.3, z=-0.2)
@@ -55,7 +55,7 @@ class KatyTB0(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_iso_size = 0.72
     collimator_iso_size = 0.8
-    couch_iso_size = 2
+    couch_iso_size = 1.6
     cax2bb_max_distance = 1.07
     cax2bb_median_distance = 0.8
     bb_shift_vector = Vector(x=-0.4, y=-0.2, z=0.1)
@@ -92,7 +92,7 @@ class ChicagoTBFinal(WinstonLutzMixin, TestCase):
     couch_iso_size = 0.8
     cax2bb_max_distance = 0.5
     cax2bb_median_distance = 0.3
-    bb_shift_vector = Vector(x=0.1)
+    bb_shift_vector = Vector(x=-0.1)
 
 
 class ChicagoTB52915(WinstonLutzMixin, TestCase):
@@ -122,7 +122,7 @@ class SugarLandiX2015(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_iso_size = 1.25
     collimator_iso_size = 0.5
-    couch_iso_size = 2.1
+    couch_iso_size = 2.3
     cax2bb_max_distance = 1.67
     cax2bb_median_distance = 1.05
     bb_shift_vector = Vector(x=0.5, z=0.6)
@@ -133,7 +133,7 @@ class BayAreaiX0(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_iso_size = 1
     collimator_iso_size = 1.1
-    couch_iso_size = 1.1
+    couch_iso_size = 1.3
     cax2bb_max_distance = 1.25
     cax2bb_median_distance = 0.6
     bb_shift_vector = Vector(y=-0.1, z=0.3)

@@ -158,8 +158,8 @@ class WLDemo(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_iso_size = 1
     collimator_iso_size = 1.2
-    couch_iso_size = 1.1
-    cax2bb_max_distance = 1
+    couch_iso_size = 1.3
+    cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.7
     epid_deviation = 1.3
     axis_of_rotation = {0: 'Reference'}
