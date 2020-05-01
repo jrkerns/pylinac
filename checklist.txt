@@ -6,7 +6,6 @@ Version Release Checklist
     - setup.py,
     - pylinac/__init__.py
     - docs/source/conf.py
-    - conda/pylinac/meta.yaml
 - List changes in docs/source/changelog.rst
 - If a new module:
     - Add snippet to README.rst

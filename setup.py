@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = '2.2.8'
+__version__ = '2.3.0'
 
 
 setup(
@@ -18,7 +18,7 @@ setup(
                       "scipy >= 1.0",
                       "pydicom >= 1.0",
                       "matplotlib >= 1.4",
-                      "scikit-image >= 0.12",
+                      "scikit-image >= 0.13",
                       "scikit-learn >= 0.18",
                       "Pillow >= 4.0",
                       "tqdm >= 3.8",
