@@ -32,6 +32,7 @@ from .core.decorators import value_accept
 from .core.geometry import Point, Line
 from .core.io import get_url, retrieve_demo_file
 from .core import pdf
+from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, SingleProfile
 from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI
 from .core.utilities import simple_round
@@ -607,45 +608,34 @@ class CTP528(CatPhanModule):
         return rois
 
     @property
-    def lp_freq(self):
-        """Line pair frequencies in line pair/mm.
-
-        Returns
-        -------
-        list
-        """
-        return [v['lp/mm'] for v in self.sr_rois.values()]
-
-    @property
     @lru_cache(maxsize=1)
-    def mtfs(self):
+    def mtf(self):
         """The Relative MTF of the line pairs, normalized to the first region.
 
         Returns
         -------
         dict
         """
-        mtfs = OrderedDict()
+        maxs = list()
+        mins = list()
         for key, value in self.sr_rois.items():
             max_values = self.circle_profile.find_peaks(min_distance=value['peak spacing'], max_number=value['num peaks'],
                                                         search_region=(value['start'], value['end']), kind='value')
             # check that the right number of peaks were found before continuing, otherwise stop searching for regions
             if len(max_values) != value['num peaks']:
                 break
-            upper_mean = max_values.mean()
+            maxs.append(max_values.mean())
             max_indices = self.circle_profile.find_peaks(min_distance=value['peak spacing'], max_number=value['num peaks'],
                                                          search_region=(value['start'], value['end']), kind='index')
             lower_mean = self.circle_profile.find_valleys(min_distance=value['peak spacing'], max_number=value['num valleys'],
                                                           search_region=(min(max_indices), max(max_indices)), kind='value').mean()
-            mtfs[key] = (upper_mean - lower_mean) / (upper_mean + lower_mean)
-        if not mtfs:
+            mins.append(lower_mean)
+        if not maxs:
             raise ValueError("Did not find any spatial resolution pairs to analyze. File an issue on github (https://github.com/jrkerns/pylinac/issues) if this is a valid dataset.")
 
-        # normalize mtf
-        norm = mtfs['region 1']
-        for key, value in mtfs.items():
-            mtfs[key] = value/norm
-        return mtfs
+        spacings = [roi['lp/mm'] for roi in self.sr_rois.values()]
+        mtf = MTF(lp_spacings=spacings, lp_maximums=maxs, lp_minimums=mins)
+        return mtf
 
     @property
     def radius2linepairs(self):
@@ -690,32 +680,6 @@ class CTP528(CatPhanModule):
         circle_profile.ground()
         return circle_profile
 
-    def mtf(self, percent=None, region=None):
-        """Return the MTF value of the spatial resolution. Only one of the two parameters may be used.
-
-        Parameters
-        ----------
-        percent : int, float
-            The percent relative MTF; i.e. 0-100.
-        region : int
-            The line-pair region desired (1-6).
-
-        Returns
-        -------
-        float : the line-pair resolution at the given MTF percent or region.
-        """
-        if (region is None and percent is None) or (region is not None and percent is not None):
-            raise ValueError("Must pass in either region or percent")
-        if percent is not None:
-            y_vals = list(self.mtfs.values())
-            x_vals_intrp = np.arange(self.lp_freq[0], self.lp_freq[len(y_vals)-1], 0.01)
-            x_vals = self.lp_freq[:len(y_vals)]
-            y_vals_intrp = np.interp(x_vals_intrp, x_vals, y_vals)
-            mtf_percent = x_vals_intrp[np.argmin(np.abs(y_vals_intrp - (percent / 100)))]
-            return simple_round(mtf_percent, 2)
-        elif region is not None:
-            return self.line_pair_mtfs[region]
-
     def plot_mtf(self, axis=None):
         """Plot the Relative MTF.
 
@@ -726,8 +690,7 @@ class CTP528(CatPhanModule):
         """
         if axis is None:
             fig, axis = plt.subplots()
-        mtf_vals = list(self.mtfs.values())
-        points = axis.plot(self.lp_freq[:len(mtf_vals)], mtf_vals, marker='o')
+        points = axis.plot(list(self.mtf.norm_mtfs.keys()), list(self.mtf.norm_mtfs.values()), marker='o')
         axis.margins(0.05)
         axis.grid(True)
         axis.set_xlabel('Line pairs / mm')
@@ -1075,7 +1038,7 @@ class CatPhanBase:
         print(f"Origin slice: {self.find_origin_slice()}")
         mtfs = {}
         for mtf in (95, 90, 80, 50, 30):
-            mtfval = self.ctp528.mtf(mtf)
+            mtfval = self.ctp528.mtf.relative_resolution_at(mtf)
             mtfs[mtf] = mtfval
         print(f'MTFs: {mtfs}')
 
@@ -1216,9 +1179,9 @@ class CatPhanBase:
         module_images = [('hu', 'lin')]
         if CTP528 in self.modules:
             add = [' - CTP528 Results - ',
-             f'MTF 80% (lp/mm): {self.ctp528.mtf(80):2.2f}',
-             f'MTF 50% (lp/mm): {self.ctp528.mtf(50):2.2f}',
-             f'MTF 30% (lp/mm): {self.ctp528.mtf(30):2.2f}',
+             f'MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution_at(80):2.2f}',
+             f'MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution_at(50):2.2f}',
+             f'MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution_at(30):2.2f}',
             ]
             module_texts.append(add)
             module_images.append(('sp', 'mtf'))
@@ -1328,7 +1291,7 @@ class CatPhanBase:
                   f'Uniformity Passed?: {self.ctp486.overall_passed}\n')
             string += add
         if CTP528 in self.modules:
-            add = (f'MTF 50% (lp/mm): {self.ctp528.mtf(50):2.2f}\n')
+            add = (f'MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution_at(50):2.2f}\n')
             string += add
         if CTP515 in self.modules:
             add = (f'Low contrast ROIs "seen": {self.ctp515.rois_visible}\n')
@@ -1452,7 +1415,7 @@ def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='o
     if fill_holes:
         bw = ndimage.binary_fill_holes(bw)
     labeled_arr, num_roi = measure.label(bw, return_num=True)
-    regionprops = measure.regionprops(labeled_arr, edges, coordinates='rc')
+    regionprops = measure.regionprops(labeled_arr, edges)
     return labeled_arr, regionprops, num_roi
 
 
