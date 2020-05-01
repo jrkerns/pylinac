@@ -3,10 +3,17 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
-from pylinac import LeedsTOR, StandardImagingQC3, LasVegas
+from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from tests_basic.utils import save_file, LocationMixin
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Planar imaging')
+
+
+class GeneralTests(TestCase):
+
+    def test_overrides(self):
+        phan = DoselabMC2kV.from_demo_image()
+        phan.analyze(angle_override=44, center_override=(500, 500), size_override=50)
 
 
 class PlanarPhantomMixin(LocationMixin):
@@ -40,37 +47,42 @@ class PlanarPhantomMixin(LocationMixin):
     def test_pdf(self):
         save_file(self.instance.publish_pdf)
 
+    def test_mtf(self):
+        if self.instance.mtf is not None:
+            self.instance.analyze()
+            self.assertAlmostEqual(self.mtf_50, self.instance.mtf.relative_resolution(50), delta=0.3)
 
-class LeedsTORTestMixin(PlanarPhantomMixin):
+    def test_results(self):
+        self.instance.results()
+
+
+class LeedsDemo(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
-
-
-class LeedsDemo(LeedsTORTestMixin, TestCase):
 
     def test_demo(self):
         LeedsTOR.run_demo()  # shouldn't raise
 
 
-class LeedsCCW(LeedsTORTestMixin, TestCase):
+class LeedsCCW(PlanarPhantomMixin, TestCase):
+    klass = LeedsTOR
     file_path = ['Leeds_ccw.dcm']
 
 
-class SIQC3TestMixin(PlanarPhantomMixin):
-    klass = StandardImagingQC3
-
-
-class SIQC3Demo(SIQC3TestMixin, TestCase):
+class SIQC3Demo(PlanarPhantomMixin, TestCase):
+    mtf_50 = 0.53
 
     def test_demo(self):
         StandardImagingQC3.run_demo()  # shouldn't raise
 
 
-class SIQC3_1(SIQC3TestMixin, TestCase):
+class SIQC3_1(PlanarPhantomMixin, TestCase):
     file_path = ['QC3 2.5MV.dcm']
+    mtf_50 = 0.68
 
 
-class SIQC3_2(SIQC3TestMixin, TestCase):
+class SIQC3_2(PlanarPhantomMixin, TestCase):
     file_path = ['QC3 2.5MV 2.dcm']
+    mtf_50 = 0.68
 
 
 class LasVegasTestMixin(PlanarPhantomMixin):
@@ -86,8 +98,25 @@ class LasVegasTestMixin(PlanarPhantomMixin):
         self.assertAlmostEqual(self.instance.phantom_angle, self.phantom_angle, delta=1)
 
 
-class LasVegasDemo(LasVegasTestMixin, TestCase):
-    phantom_angle = 284
+class LasVegasDemo(PlanarPhantomMixin, TestCase):
+    klass = LasVegas
+    phantom_angle = 0
 
     def test_demo(self):
         LasVegas.run_demo()  # shouldn't raise
+
+
+class DoselabMVDemo(PlanarPhantomMixin, TestCase):
+    klass = DoselabMC2MV
+    mtf_50 = 0.54
+
+    def test_demo(self):
+        DoselabMC2MV.run_demo()
+
+
+class DoselabkVDemo(PlanarPhantomMixin, TestCase):
+    klass = DoselabMC2kV
+    mtf_50 = 2.16
+
+    def test_demo(self):
+        DoselabMC2kV.run_demo()

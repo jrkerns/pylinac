@@ -144,7 +144,7 @@ class CatPhanMixin(LocationMixin):
     def test_MTF_values(self):
         """Test MTF values."""
         for key, exp_mtf in self.mtf_values.items():
-            meas_mtf = self.cbct.ctp528.mtf(key)
+            meas_mtf = self.cbct.ctp528.mtf.relative_resolution(key)
             self.assertAlmostEqual(exp_mtf, meas_mtf, delta=0.1)
 
     def test_pdf(self):
