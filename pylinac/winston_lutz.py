@@ -27,11 +27,11 @@ from typing import Union, List, Tuple
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import ndimage, optimize
+from scipy import ndimage, optimize, linalg
 from skimage import measure
 
 from .core import image
-from .core.geometry import Point, Line, Circle, Vector, cos, sin
+from .core.geometry import Point, Line, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import filled_area_ratio, bounding_box
 from .core import pdf
@@ -40,10 +40,10 @@ from .core.utilities import is_close, open_path
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'
 COUCH = 'Couch'
-COMBO = 'Combo'
+GB_COMBO = 'GB Combo'
+GBP_COMBO = 'GBP Combo'
 EPID = 'Epid'
 REFERENCE = 'Reference'
-ALL = 'All'
 
 
 class ImageManager(list):
@@ -160,26 +160,22 @@ class WinstonLutz:
         wl.plot_summary()
 
     @lru_cache()
-    def _minimize_axis(self, axis=GANTRY):
+    def _minimize_axis(self, axes=(GANTRY,)):
         """Return the minimization result of the given axis."""
-        def distance(p, things):
+        if isinstance(axes, str):
+            axes = (axes,)
+
+        def max_distance_to_lines(p, lines) -> float:
             """Calculate the maximum distance to any line from the given point."""
-            other_thing = Point(p[0], p[1], p[2])
-            if axis == COUCH:
-                other_thing = Circle(other_thing, radius=p[3])
-            return max(thing.distance_to(other_thing) for thing in things)
+            point = Point(p[0], p[1], p[2])
+            return max(line.distance_to(point) for line in lines)
 
-        if axis == GANTRY:
-            attr = 'cax_line_projection'
-        else:
-            attr = 'cax2bb_vector'
-
-        things = [getattr(image, attr) for image in self.images if image.variable_axis in (axis, REFERENCE)]
+        things = [image.cax_line_projection for image in self.images if image.variable_axis in (axes + (REFERENCE,))]
         if len(things) <= 1:
             raise ValueError("Not enough images of the given type to identify the axis isocenter")
-        bounds = [(-30, 30), (-30, 30), (-30, 30), (0, 28)]  # search bounds for the optimization
-        initial_guess = np.array([0, 0, 0, 0])
-        result = optimize.minimize(distance, initial_guess, args=things, bounds=bounds)
+        initial_guess = np.array([0, 0, 0])
+        bounds = [(-20, 20), (-20, 20), (-20, 20)]
+        result = optimize.minimize(max_distance_to_lines, initial_guess, args=things, bounds=bounds)
         return result
 
     @property
@@ -193,12 +189,33 @@ class WinstonLutz:
             return 0
 
     @property
+    def gantry_coll_iso_size(self) -> float:
+        """The diameter of the 3D gantry isocenter size in mm *including collimator and gantry/coll combo images*.
+        Images where the couch!=0 are excluded."""
+        num_gantry_like_images = self._get_images((GANTRY, COLLIMATOR, GB_COMBO, REFERENCE))[0]
+        if num_gantry_like_images > 1:
+            return self._minimize_axis((GANTRY, COLLIMATOR, GB_COMBO)).fun * 2
+        else:
+            return 0
+
+    @staticmethod
+    def _find_max_distance_between_points(images) -> float:
+        """Find the maximum distance between a set of points. Used for 2D images like collimator and couch."""
+        points = [Point(image.cax2bb_vector.x, image.cax2bb_vector.y) for image in images]
+        dists = []
+        for point1 in points:
+            for point2 in points:
+                p = point1.distance_to(point2)
+                dists.append(p)
+        return max(dists)
+
+    @property
     def collimator_iso_size(self) -> float:
         """The 2D collimator isocenter size (diameter) in mm. The iso size is in the plane
         normal to the gantry."""
-        num_collimator_like_images = self._get_images((COLLIMATOR, REFERENCE))[0]
+        num_collimator_like_images, images = self._get_images((COLLIMATOR, REFERENCE))
         if num_collimator_like_images > 1:
-            return self._minimize_axis(COLLIMATOR).fun * 2
+            return self._find_max_distance_between_points(images)
         else:
             return 0
 
@@ -206,38 +223,61 @@ class WinstonLutz:
     def couch_iso_size(self) -> float:
         """The diameter of the 2D couch isocenter size in mm. Only images where
         the gantry and collimator were at zero are used to determine this value."""
-        num_couch_like_images = self._get_images((COUCH, REFERENCE))[0]
+        num_couch_like_images, images = self._get_images((COUCH, REFERENCE))
         if num_couch_like_images > 1:
-            return self._minimize_axis(COUCH).x[3] * 2
+            return self._find_max_distance_between_points(images)
         else:
             return 0
 
     @property
     def bb_shift_vector(self) -> Vector:
-        """The shift necessary to place the BB at the radiation isocenter"""
-        vs = [img.cax2bb_vector3d for img in self.images]
-        # only include the values that are clinically significant; rules out values that are along the beam axis
-        xs = np.mean([v.x for v in vs if (0.02 < v.x or v.x < -0.02)])
-        ys = np.mean([v.y for v in vs if (0.02 < v.y or v.y < -0.02)])
-        zs = np.mean([v.z for v in vs if (0.02 < v.z or v.z < -0.02)])
-        return Vector(-xs, -ys, -zs)
+        """The shift necessary to place the BB at the radiation isocenter.
+        The values are in the coordinates defined in the documentation.
+
+        The shift is based on the paper by Low et al. See online documentation for more.
+        """
+        A = np.empty([2 * len(self.images), 3])
+        epsilon = np.empty([2 * len(self.images), 1])
+        for idx, img in enumerate(self.images):
+            g = img.gantry_angle
+            c = img.couch_angle_varian_scale
+            A[2 * idx:2 * idx + 2, :] = np.array([[-cos(c), -sin(c), 0],
+                                                  [-cos(g) * sin(c), cos(g) * cos(c), -sin(g)],
+                                                  ])  # equation 6 (minus delta)
+            epsilon[2 * idx:2 * idx + 2] = np.array([[img.cax2bb_vector.y], [img.cax2bb_vector.x]])  # equation 7
+
+        B = linalg.pinv(A)
+        delta = B.dot(epsilon)  # equation 9
+        return Vector(x=delta[1][0], y=-delta[0][0], z=-delta[2][0])
 
     def bb_shift_instructions(self, couch_vrt: float=None, couch_lng: float=None, couch_lat: float=None) -> str:
-        """A string describing how to shift the BB to the radiation isocenter"""
+        """Returns a string describing how to shift the BB to the radiation isocenter looking from the foot of the couch.
+        Optionally, the current couch values can be passed in to get the new couch values. If passing the current
+        couch position all values must be passed.
+
+        Parameters
+        ----------
+        couch_vrt : float
+            The current couch vertical position in cm.
+        couch_lng : float
+            The current couch longitudinal position in cm.
+        couch_lat : float
+            The current couch lateral position in cm.
+        """
         sv = self.bb_shift_vector
         x_dir = 'LEFT' if sv.x < 0 else 'RIGHT'
-        y_dir = 'UP' if sv.y > 0 else 'DOWN'
-        z_dir = 'IN' if sv.z < 0 else 'OUT'
+        y_dir = 'IN' if sv.y > 0 else 'OUT'
+        z_dir = 'UP' if sv.z > 0 else 'DOWN'
         move = f"{x_dir} {abs(sv.x):2.2f}mm; {y_dir} {abs(sv.y):2.2f}mm; {z_dir} {abs(sv.z):2.2f}mm"
         if all(val is not None for val in [couch_vrt, couch_lat, couch_lng]):
             new_lat = round(couch_lat + sv.x/10, 2)
-            new_vrt = round(couch_vrt + sv.y/10, 2)
-            new_lng = round(couch_lng - sv.z/10, 2)
+            new_vrt = round(couch_vrt + sv.z/10, 2)
+            new_lng = round(couch_lng + sv.y/10, 2)
             move += f"\nNew couch coordinates (mm): VRT: {new_vrt:3.2f}; LNG: {new_lng:3.2f}; LAT: {new_lat:3.2f}"
         return move
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, COMBO), value=('all', 'range'))
-    def axis_rms_deviation(self, axis: str=GANTRY, value: str='all'):
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, GBP_COMBO), value=('all', 'range'))
+    def axis_rms_deviation(self, axis: str=GANTRY, value: str='all') -> float:
         """The RMS deviations of a given axis/axes.
 
         Parameters
@@ -249,21 +289,19 @@ class WinstonLutz:
             values, i.e. the 'sag'.
         """
         if axis != EPID:
-            attr = 'bb_'
+            attr = 'cax2bb_vector'
         else:
-            attr = 'epid_'
+            attr = 'cax2epid_vector'
             axis = (GANTRY, COLLIMATOR, REFERENCE)
         imgs = self._get_images(axis=axis)[1]
         if len(imgs) <= 1:
             return (0, )
-        rms = []
-        for img in imgs:
-            rms.append(np.sqrt(sum(getattr(img, attr + ax + '_offset') ** 2 for ax in ('x', 'y', 'z'))))
+        rms = [getattr(img, attr).as_scalar() for img in imgs]
         if value == 'range':
             rms = max(rms) - min(rms)
         return rms
 
-    def cax2bb_distance(self, metric: str='max'):
+    def cax2bb_distance(self, metric: str='max') -> float:
         """The distance in mm between the CAX and BB for all images according to the given metric.
 
         Parameters
@@ -276,7 +314,7 @@ class WinstonLutz:
         elif metric == 'median':
             return np.median([image.cax2bb_distance for image in self.images])
 
-    def cax2epid_distance(self, metric: str='max'):
+    def cax2epid_distance(self, metric: str='max') -> float:
         """The distance in mm between the CAX and EPID center pixel for all images according to the given metric.
 
         Parameters
@@ -302,27 +340,24 @@ class WinstonLutz:
         show : bool
             Whether to show the image.
         """
-        title = f'Relative {item} displacement'
+        title = f'In-plane {item} displacement'
         if item == EPID:
-            attr = 'epid'
+            attr = 'cax2epid_vector'
             item = GANTRY
         else:
-            attr = 'bb'
+            attr = 'cax2bb_vector'
         # get axis images, angles, and shifts
         imgs = [image for image in self.images if image.variable_axis in (item, REFERENCE)]
         angles = [getattr(image, '{}_angle'.format(item.lower())) for image in imgs]
-        z_sag = np.array([getattr(image, attr + '_z_offset') for image in imgs])
-        y_sag = np.array([getattr(image, attr + '_y_offset') for image in imgs])
-        x_sag = np.array([getattr(image, attr + '_x_offset') for image in imgs])
-        rms = np.sqrt(x_sag**2+y_sag**2+z_sag**2)
+        xz_sag = np.array([getattr(img, attr).x for img in imgs])
+        y_sag = np.array([getattr(img, attr).y for img in imgs])
+        rms = np.sqrt(xz_sag**2+y_sag**2)
 
         # plot the axis deviation
         if ax is None:
             ax = plt.subplot(111)
-        ax.plot(angles, z_sag, 'bo', label='In/Out', ls='-.')
-        ax.plot(angles, x_sag, 'm^', label='Left/Right', ls='-.')
-        if item not in (COUCH, COLLIMATOR):
-            ax.plot(angles, y_sag, 'r*', label='Up/Down', ls='-.')
+        ax.plot(angles, y_sag, 'bo', label='Y-axis', ls='-.')
+        ax.plot(angles, xz_sag, 'm^', label='X/Z-axis', ls='-.')
         ax.plot(angles, rms, 'g+', label='RMS', ls='-')
         ax.set_title(title)
         ax.set_ylabel('mm')
@@ -340,7 +375,7 @@ class WinstonLutz:
         images = [image for image in self.images if image.variable_axis in axis]
         return len(images), images
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, COMBO))
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GBP_COMBO))
     def plot_axis_images(self, axis: str=GANTRY, show: bool=True, ax: plt.Axes=None):
         """Plot all CAX/BB/EPID positions for the images of a given axis.
 
@@ -380,8 +415,8 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
-    def plot_images(self, axis: str=ALL, show: bool=True):
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GBP_COMBO, GB_COMBO))
+    def plot_images(self, axis: str=GANTRY, show: bool=True):
         """Plot a grid of all the images acquired.
 
         Four columns are plotted with the titles showing which axis that column represents.
@@ -408,9 +443,9 @@ class WinstonLutz:
             images = [image for image in self.images if image.variable_axis in (COLLIMATOR, REFERENCE)]
         elif axis == COUCH:
             images = [image for image in self.images if image.variable_axis in (COUCH, REFERENCE)]
-        elif axis == COMBO:
-            images = [image for image in self.images if image.variable_axis in (COMBO,)]
-        elif axis == ALL:
+        elif axis == GB_COMBO:
+            images = [image for image in self.images if image.variable_axis in (GB_COMBO, GANTRY, COLLIMATOR, REFERENCE)]
+        elif axis == GBP_COMBO:
             images = self.images
 
         # create plots
@@ -425,8 +460,8 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
-    def save_images(self, filename: str, axis: str=ALL, **kwargs):
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GBP_COMBO, GB_COMBO))
+    def save_images(self, filename: str, axis: str=GANTRY, **kwargs):
         """Save the figure of `plot_images()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
         Parameters
@@ -527,7 +562,7 @@ class WinstonLutz:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 4))
         # add more pages showing individual axis images
-        for ax in (GANTRY, COLLIMATOR, COUCH, COMBO):
+        for ax in (GANTRY, COLLIMATOR, COUCH, GBP_COMBO):
             if self._contains_axis_images(ax):
                 canvas.add_new_page()
                 data = io.BytesIO()
@@ -570,7 +605,7 @@ class WLImage(image.LinacDicomImage):
     def __repr__(self):
         return f"WLImage(G={self.gantry_angle:.1f}, B={self.collimator_angle:.1f}, P={self.couch_angle:.1f})"
 
-    def _clean_edges(self, window_size: int=2):
+    def _clean_edges(self, window_size: int=2) -> None:
         """Clean the edges of the image to be near the background level."""
         def has_noise(self, window_size):
             """Helper method to determine if there is spurious signal at any of the image edges.
@@ -605,6 +640,7 @@ class WLImage(image.LinacDicomImage):
         """
         min, max = np.percentile(self.array, [5, 99.9])
         threshold_img = self.as_binary((max - min)/2 + min)
+        filled_img = ndimage.binary_fill_holes(threshold_img)
         # clean single-pixel noise from outside field
         cleaned_img = ndimage.binary_erosion(threshold_img)
         [*edges] = bounding_box(cleaned_img)
@@ -612,7 +648,7 @@ class WLImage(image.LinacDicomImage):
         edges[1] += 10
         edges[2] -= 10
         edges[3] += 10
-        coords = ndimage.measurements.center_of_mass(threshold_img)
+        coords = ndimage.measurements.center_of_mass(filled_img)
         p = Point(x=coords[-1], y=coords[0])
         return p, edges
 
@@ -667,37 +703,6 @@ class WLImage(image.LinacDicomImage):
         return self.center
 
     @property
-    def epid_y_offset(self) -> float:
-        """The offset or distance between the field CAX and EPID in the y-direction (AP)."""
-        return -sin(self.gantry_angle) * self.cax2epid_vector.x
-
-    @property
-    def bb_y_offset(self) -> float:
-        """The offset or distance between the field CAX and BB in the y-direction (AP)."""
-        return -sin(self.gantry_angle) * self.cax2bb_vector.x
-
-    @property
-    def epid_x_offset(self) -> float:
-        """The offset or distance between the field CAX and EPID in the x-direction (LR)."""
-        return cos(self.gantry_angle) * self.cax2epid_vector.x
-
-    @property
-    def bb_x_offset(self) -> float:
-        """The offset or distance between the field CAX and BB in the x-direction (LR)."""
-        return cos(self.gantry_angle) * self.cax2bb_vector.x
-
-    @property
-    def epid_z_offset(self) -> float:
-        """The offset or distance between the field CAX and EPID in z-direction (SI)."""
-        if is_close(self.couch_angle, [0, 360], delta=2):
-            return -self.cax2epid_vector.y
-
-    @property
-    def bb_z_offset(self) -> float:
-        """The offset or distance between the field CAX and BB in z-direction (SI)."""
-        return -self.cax2bb_vector.y
-
-    @property
     def cax_line_projection(self) -> Line:
         """The projection of the field CAX through space around the area of the BB.
         Used for determining gantry isocenter size.
@@ -710,35 +715,29 @@ class WLImage(image.LinacDicomImage):
         p1 = Point()
         p2 = Point()
         # point 1 - ray origin
-        p1.x = self.bb_x_offset + 20 * sin(self.gantry_angle)
-        p1.y = self.bb_y_offset + 20 * cos(self.gantry_angle)
-        p1.z = self.bb_z_offset
+        p1.x = self.cax2bb_vector.x*cos(self.gantry_angle) + 20 * sin(self.gantry_angle)
+        p1.y = self.cax2bb_vector.x*-sin(self.gantry_angle) + 20 * cos(self.gantry_angle)
+        p1.z = self.cax2bb_vector.y
         # point 2 - ray destination
-        p2.x = self.bb_x_offset - 20 * sin(self.gantry_angle)
-        p2.y = self.bb_y_offset - 20 * cos(self.gantry_angle)
-        p2.z = self.bb_z_offset
+        p2.x = self.cax2bb_vector.x*cos(self.gantry_angle) - 20 * sin(self.gantry_angle)
+        p2.y = self.cax2bb_vector.x*-sin(self.gantry_angle) - 20 * cos(self.gantry_angle)
+        p2.z = self.cax2bb_vector.y
         l = Line(p1, p2)
         return l
+
+    @property
+    def couch_angle_varian_scale(self):
+        """The couch angle converted from IEC 61217 scale to "Varian" scale. Note that any new Varian machine uses 61217."""
+        #  convert to Varian scale per Low paper scale
+        if super().couch_angle > 250:
+            return 2*270-super().couch_angle
+        else:
+            return 180 - super().couch_angle
 
     @property
     def cax2bb_vector(self) -> Vector:
         """The vector in mm from the CAX to the BB."""
         dist = (self.bb - self.field_cax) / self.dpmm
-        # translate vector by couch angle
-        c_ang = self.couch_angle
-        new_x = dist.x * cos(c_ang) - dist.y * sin(c_ang)
-        new_y = dist.x * sin(c_ang) + dist.y * cos(c_ang)
-        return Vector(new_x, new_y, dist.z)
-
-    @property
-    def cax2bb_vector3d(self) -> Vector:
-        """The vector in mm from the CAX to the BB."""
-        return Vector(self.bb_x_offset, self.bb_y_offset, self.bb_z_offset)
-
-    @property
-    def cax2epid_vector(self) -> Vector:
-        """The vector in mm from the CAX to the EPID center pixel"""
-        dist = (self.epid - self.field_cax) / self.dpmm
         return Vector(dist.x, dist.y, dist.z)
 
     @property
@@ -746,6 +745,12 @@ class WLImage(image.LinacDicomImage):
         """The scalar distance in mm from the CAX to the BB."""
         dist = self.field_cax.distance_to(self.bb)
         return dist / self.dpmm
+
+    @property
+    def cax2epid_vector(self) -> Vector:
+        """The vector in mm from the CAX to the EPID center pixel"""
+        dist = (self.epid - self.field_cax) / self.dpmm
+        return Vector(dist.x, dist.y, dist.z)
 
     @property
     def cax2epid_distance(self) -> float:
@@ -808,8 +813,10 @@ class WLImage(image.LinacDicomImage):
             return GANTRY
         elif P0 and B0 and G0:
             return REFERENCE
+        elif P0:
+            return GB_COMBO
         else:
-            return COMBO
+            return GBP_COMBO
 
 
 def is_symmetric(logical_array: np.ndarray) -> bool:

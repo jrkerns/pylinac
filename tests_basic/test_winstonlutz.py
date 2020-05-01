@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac import WinstonLutz
-from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, COMBO, ALL, EPID
+from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, GB_COMBO, GBP_COMBO, EPID
 from pylinac.core.geometry import Vector, vector_is_close
 from tests_basic import TEST_BANK_DIR, TEST_FILES_DIR
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
@@ -43,10 +43,10 @@ class GeneralTests(TestCase):
 
     def test_bb_shift_instructions(self):
         move = self.wl.bb_shift_instructions()
-        self.assertTrue("LEFT" in move)
+        self.assertTrue("RIGHT" in move)
 
         move = self.wl.bb_shift_instructions(couch_vrt=-2, couch_lat=1, couch_lng=100)
-        self.assertTrue("LEFT" in move)
+        self.assertTrue("RIGHT" in move)
         self.assertTrue("VRT" in move)
 
 
@@ -80,7 +80,8 @@ class TestPlottingSaving(TestCase):
         self.wl.plot_images(axis=GANTRY)
         self.wl.plot_images(axis=COLLIMATOR)
         self.wl.plot_images(axis=COUCH)
-        self.wl.plot_images(axis=COMBO)
+        self.wl.plot_images(axis=GB_COMBO)
+        self.wl.plot_images(axis=GBP_COMBO)
 
     def test_save(self):
         save_file(self.wl.save_summary)
@@ -124,30 +125,30 @@ class WinstonLutzMixin(LocationMixin):
 
     def test_gantry_iso(self):
         # test iso size
-        self.assertAlmostEqual(self.wl.gantry_iso_size, self.gantry_iso_size, delta=0.2)
+        self.assertAlmostEqual(self.wl.gantry_iso_size, self.gantry_iso_size, delta=0.15)
 
     def test_collimator_iso(self):
         # test iso size
         if self.collimator_iso_size is not None:
-            self.assertAlmostEqual(self.wl.collimator_iso_size, self.collimator_iso_size, delta=0.2)
+            self.assertAlmostEqual(self.wl.collimator_iso_size, self.collimator_iso_size, delta=0.15)
 
     def test_couch_iso(self):
         # test iso size
         if self.couch_iso_size is not None:
-            self.assertAlmostEqual(self.wl.couch_iso_size, self.couch_iso_size, delta=0.2)
+            self.assertAlmostEqual(self.wl.couch_iso_size, self.couch_iso_size, delta=0.15)
 
     def test_epid_deviation(self):
         if self.epid_deviation is not None:
-            self.assertAlmostEqual(max(self.wl.axis_rms_deviation(EPID)), self.epid_deviation, delta=0.2)
+            self.assertAlmostEqual(max(self.wl.axis_rms_deviation(EPID)), self.epid_deviation, delta=0.15)
 
     def test_bb_max_distance(self):
-        self.assertAlmostEqual(self.wl.cax2bb_distance(metric='max'), self.cax2bb_max_distance, delta=0.2)
+        self.assertAlmostEqual(self.wl.cax2bb_distance(metric='max'), self.cax2bb_max_distance, delta=0.15)
 
     def test_bb_median_distance(self):
-        self.assertAlmostEqual(self.wl.cax2bb_distance(metric='median'), self.cax2bb_median_distance, delta=0.2)
+        self.assertAlmostEqual(self.wl.cax2bb_distance(metric='median'), self.cax2bb_median_distance, delta=0.1)
 
     def test_bb_shift_vector(self):
-        self.assertTrue(vector_is_close(self.wl.bb_shift_vector, self.bb_shift_vector, delta=0.2), msg="The vector {} is not sufficiently close to vector {}".format(self.wl.bb_shift_vector, self.bb_shift_vector))
+        self.assertTrue(vector_is_close(self.wl.bb_shift_vector, self.bb_shift_vector, delta=0.15), msg="The vector {} is not sufficiently close to vector {}".format(self.wl.bb_shift_vector, self.bb_shift_vector))
 
     def test_known_axis_of_rotation(self):
         for idx, axis in self.axis_of_rotation.items():
@@ -158,12 +159,12 @@ class WLDemo(WinstonLutzMixin, TestCase):
     num_images = 17
     gantry_iso_size = 1
     collimator_iso_size = 1.2
-    couch_iso_size = 1.3
+    couch_iso_size = 2.3
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.7
     epid_deviation = 1.3
     axis_of_rotation = {0: 'Reference'}
-    bb_shift_vector = Vector(y=-0.1, z=0.3)
+    bb_shift_vector = Vector(x=0.4, y=-0.4, z=-0.2)
 
     @classmethod
     def setUpClass(cls):
@@ -178,7 +179,7 @@ class WLLateral3mm(WinstonLutzMixin, TestCase):
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.8
     cax2bb_median_distance = 2.3
-    bb_shift_vector = Vector(x=-3.7, y=0.6, z=-0.5)
+    bb_shift_vector = Vector(x=-3.6, y=0.5, z=0.6)
 
 
 class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
@@ -189,8 +190,7 @@ class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.9
     cax2bb_median_distance = 3.7
-    bb_shift_vector = Vector(x=-0.7, y=0.6, z=-3.6)
-    print_results = True
+    bb_shift_vector = Vector(x=-0.63, y=3.6, z=0.6)
 
 
 class WLVertical3mm(WinstonLutzMixin, TestCase):
@@ -200,7 +200,7 @@ class WLVertical3mm(WinstonLutzMixin, TestCase):
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.8
     cax2bb_median_distance = 2.3
-    bb_shift_vector = Vector(x=-0.5, y=3.7, z=-0.5)
+    bb_shift_vector = Vector(x=-0.5, y=0.5, z=3.6)
     print_results = True
 
 
@@ -211,9 +211,8 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
     gantry_iso_size = 0.3
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
-    bb_shift_vector = Vector(x=-0.4, y=0.6, z=-0.6)
+    bb_shift_vector = Vector(x=-0.4, y=0.6, z=0.6)
     axis_of_rotation = {0: REFERENCE, 1: GANTRY, 2: GANTRY, 3: GANTRY}
-    print_results = True
 
 
 class WLUseFileNames(WinstonLutzMixin, TestCase):
@@ -224,9 +223,8 @@ class WLUseFileNames(WinstonLutzMixin, TestCase):
     collimator_iso_size = 1.2
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
-    bb_shift_vector = Vector(y=np.nan, z=-0.6)
+    bb_shift_vector = Vector(y=0.6)
     axis_of_rotation = {0: COLLIMATOR, 1: COLLIMATOR, 2: COLLIMATOR, 3: COLLIMATOR}
-    print_results = True
 
 
 class WLBadFilenames(TestCase):
