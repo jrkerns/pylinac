@@ -501,21 +501,36 @@ class WinstonLutz:
         plt.tight_layout()
         plt.savefig(filename, **kwargs)
 
-    def results(self) -> str:
-        """Return the analysis results summary."""
-        result = "\nWinston-Lutz Analysis\n" \
-                 "=================================\n" \
-                 f"Number of images: {len(self.images)}\n" \
-                 f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm\n" \
-                 f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm\n" \
-                 f"Shift BB to iso, facing gantry: {self.bb_shift_instructions()}\n" \
-                 f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm\n" \
-                 f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation(GANTRY)):.2f}mm\n" \
-                 f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(EPID)):.2f}mm\n" \
-                 f"Collimator 2D isocenter diameter: {self.collimator_iso_size:.2f}mm\n" \
-                 f"Maximum Collimator RMS deviation (mm): {max(self.axis_rms_deviation(COLLIMATOR)):.2f}\n" \
-                 f"Couch 2D isocenter diameter: {self.couch_iso_size:.2f}mm\n" \
-                 f"Maximum Couch RMS deviation (mm): {max(self.axis_rms_deviation(COUCH)):.2f}"
+    def results(self, as_list: bool=False) -> str:
+        """Return the analysis results summary.
+
+        Parameters
+        ----------
+        as_list : bool
+            Whether to return as a list of strings vs single string. Pretty much for internal usage.
+        """
+        num_gantry_imgs = self._get_images(axis=(GANTRY, REFERENCE))[0]
+        num_gantry_coll_imgs = self._get_images(axis=(GANTRY, COLLIMATOR, GB_COMBO, REFERENCE))[0]
+        num_coll_imgs = self._get_images(axis=(COLLIMATOR, REFERENCE))[0]
+        num_couch_imgs = self._get_images(axis=(COUCH, REFERENCE))[0]
+        num_imgs = len(self.images)
+        result = ["Winston-Lutz Analysis",
+                  "=================================",
+                  f"Number of images: {num_imgs}",
+                  f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm",
+                  f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
+                  f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
+                  f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm ({num_gantry_imgs}/{num_imgs} images considered)",
+                  f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation(GANTRY)):.2f}mm",
+                  f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(EPID)):.2f}mm",
+                  f"Gantry+Collimator 3D isocenter diameter: {self.gantry_coll_iso_size:.2f}mm ({num_gantry_coll_imgs}/{num_imgs} images considered)",
+                  f"Collimator 2D isocenter diameter: {self.collimator_iso_size:.2f}mm ({num_coll_imgs}/{num_imgs} images considered)",
+                  f"Maximum Collimator RMS deviation (mm): {max(self.axis_rms_deviation(COLLIMATOR)):.2f}",
+                  f"Couch 2D isocenter diameter: {self.couch_iso_size:.2f}mm ({num_couch_imgs}/{num_imgs} images considered)",
+                  f"Maximum Couch RMS deviation (mm): {max(self.axis_rms_deviation(COUCH)):.2f}"
+        ]
+        if not as_list:
+            result = '\n'.join(result)
         return result
 
     def publish_pdf(self, filename: str, notes: Union[str, List[str]]=None, open_file: bool=False, metadata: dict=None):
@@ -541,23 +556,12 @@ class WinstonLutz:
         plt.ioff()
         title = "Winston-Lutz Analysis"
         canvas = pdf.PylinacCanvas(filename, page_title=title, metadata=metadata)
-        avg_sid = np.mean([image.metadata.RTImageSID for image in self.images])
-        text = ['Winston-Lutz results:',
-                f'Average SID (mm): {avg_sid:2.0f}',
-                f'Number of images: {len(self.images)}',
-                f'Maximum distance to BB (mm): {self.cax2bb_distance("max"):2.2f}',
-                f'Median distances to BB (mm): {self.cax2bb_distance("median"):2.2f}',
-                f'Gantry 3D isocenter diameter (mm): {self.gantry_iso_size:2.2f}',
-                ]
-        if self._contains_axis_images(COLLIMATOR):
-            text.append(f'Collimator 2D isocenter diameter (mm): {self.collimator_iso_size:2.2f}')
-        if self._contains_axis_images(COUCH):
-            text.append(f'Couch 2D isocenter diameter (mm): {self.couch_iso_size:2.2f}')
-        canvas.add_text(text=text, location=(10, 25.5))
+        text = self.results(as_list=True)
+        canvas.add_text(text=text, location=(7, 25.5))
         # draw summary image on 1st page
         data = io.BytesIO()
-        self.save_summary(data, figsize=(10, 10))
-        canvas.add_image(image_data=data, location=(2, 3), dimensions=(18, 18))
+        self.save_summary(data, figsize=(8, 8))
+        canvas.add_image(image_data=data, location=(2, 3), dimensions=(16, 16))
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 4))

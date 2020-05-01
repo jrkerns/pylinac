@@ -12,7 +12,9 @@ Overview
 Running the Demo
 ----------------
 
-To run the Winston-Lutz demo, create a script or start an interpreter session and input::
+To run the Winston-Lutz demo, create a script or start an interpreter session and input:
+
+.. python::
 
     from pylinac import WinstonLutz
     WinstonLutz.run_demo()
@@ -22,16 +24,17 @@ Results will be printed to the console and a figure showing the zoomed-in images
     Winston-Lutz Analysis
     =================================
     Number of images: 17
-    Maximum 2D CAX->BB distance: 1.14mm
-    Median 2D CAX->BB distance: 0.64mm
-    Shift BB to iso, facing gantry: LEFT 0.02mm; DOWN 0.11mm; OUT 0.29mm
-    Gantry 3D isocenter diameter: 0.97mm
-    Maximum Gantry RMS deviation (mm): 0.99mm
-    Maximum EPID RMS deviation (mm): 0.00mm
-    Collimator 2D isocenter diameter: 1.12mm
-    Maximum Collimator RMS deviation (mm): 0.87
-    Couch 2D isocenter diameter: 1.13mm
-    Maximum Couch RMS deviation (mm): 1.14
+    Maximum 2D CAX->BB distance: 1.23mm
+    Median 2D CAX->BB distance: 0.69mm
+    Shift to iso: facing gantry, move BB: RIGHT 0.36mm; OUT 0.36mm; DOWN 0.20mm
+    Gantry 3D isocenter diameter: 1.05mm (9/17 images considered)
+    Maximum Gantry RMS deviation (mm): 1.03mm
+    Maximum EPID RMS deviation (mm): 1.31mm
+    Gantry+Collimator 3D isocenter diameter: 1.11mm (13/17 images considered)
+    Collimator 2D isocenter diameter: 1.09mm (7/17 images considered)
+    Maximum Collimator RMS deviation (mm): 0.79
+    Couch 2D isocenter diameter: 2.32mm (7/17 images considered)
+    Maximum Couch RMS deviation (mm): 1.23
 
 
 .. image:: images/winston_lutz_demo.png
@@ -71,20 +74,28 @@ IEC 61217 coordinate space. Colloquial descriptions are as if standing at the fo
 Typical Use
 -----------
 
-Analyzing a Winston-Lutz test is as simple as loading in your images. So, let's import the class::
+Analyzing a Winston-Lutz test is as simple as loading in your images. So, let's import the class:
+
+.. python::
 
     from pylinac import WinstonLutz
 
-From here, you can load a directory::
+From here, you can load a directory:
+
+.. python::
 
     my_directory = 'path/to/wl_images'
     wl = WinstonLutz(my_directory)
 
-You can also load a ZIP archive with the images in it::
+You can also load a ZIP archive with the images in it:
+
+.. python::
 
     wl = WinstonLutz.from_zip('path/to/wl.zip')
 
-And that's it! Once loaded you can view images, print the results, or publish a PDF report::
+And that's it! Once loaded you can view images, print the results, or publish a PDF report:
+
+.. python::
 
     # plot all the images
     wl.plot_images()
@@ -95,12 +106,16 @@ And that's it! Once loaded you can view images, print the results, or publish a 
     # print to PDF
     wl.publish_pdf('mywl.pdf')
 
-If you want to shift the BB based on the results and perform the test again there is a method for that::
+If you want to shift the BB based on the results and perform the test again there is a method for that:
+
+.. python::
 
     print(wl.bb_shift_instructions())
     # LEFT: 0.1mm, DOWN: 0.22mm, ...
 
-You can also pass in your couch coordinates and the new values will be generated::
+You can also pass in your couch coordinates and the new values will be generated:
+
+.. python::
 
     print(wl.bb_shift_instructions(couch_vrt=0.41, couch_lng=96.23, couch_lat=0.12))
     New couch coordinates (mm): VRT: 0.32; LNG: 96.11; LAT: 0.11
@@ -162,7 +177,7 @@ The following are invalid:
 
 Using the filenames within the code is done by passing the ``use_filenames=True`` flag to the init method:
 
-.. code-block:: python
+.. python::
 
     my_directory = 'path/to/wl_images'
     wl = WinstonLutz(my_directory, use_filenames=True)
