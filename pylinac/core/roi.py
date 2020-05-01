@@ -173,9 +173,8 @@ class LowContrastDiskROI(DiskROI):
 class HighContrastDiskROI(DiskROI):
     """A class for analyzing the high-contrast disks."""
     contrast_threshold: Optional[float]
-    mtf_norm: Optional[float]
 
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold, mtf_norm=None):
+    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold):
         """
         Parameters
         ----------
@@ -184,25 +183,6 @@ class HighContrastDiskROI(DiskROI):
         """
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.contrast_threshold = contrast_threshold
-        self.mtf_norm = mtf_norm
-
-    @property
-    def mtf(self) -> np.ndarray:
-        """The contrast of the bubble compared to background: (ROI - backg) / (ROI + backg)."""
-        mtf = (self.max - self.min) / (self.max + self.min)
-        if self.mtf_norm is not None:
-            mtf /= self.mtf_norm
-        return mtf
-
-    @property
-    def passed(self) -> np.ndarray:
-        """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
-        return self.mtf > self.contrast_threshold
-
-    @property
-    def plot_color(self) -> str:
-        """Return one of two colors depending on if ROI passed."""
-        return 'blue' if self.passed else 'red'
 
     @property
     def max(self) -> np.ndarray:
