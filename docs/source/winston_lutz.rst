@@ -45,23 +45,28 @@ Winston-Lutz analyses require these steps:
 
 * The BB should be fully within the field of view.
 * The MLC field should be symmetric.
+* The BB should be <2cm from the isocenter.
 
 .. _coordinate_space:
 
 Coordinate Space
 ----------------
 
+.. note::
+
+   In pylinac 2.3, the coordinates changed to be compliant with IEC 61217. Compared to previous versions,
+   the Y and Z axis have been swapped. The new Z axis has also flipped which way is positive.
+
+
 When interpreting results from a Winston-Lutz test, it's important to know the coordinates, origin, etc. Pylinac uses
-the same coordinate space as `Winkler et al`_. All coordinates are looking from the foot of the table toward the gantry:
+IEC 61217 coordinate space. Colloquial descriptions are as if standing at the foot of the couch looking at the gantry.
+
+.. image:: images/IEC61217.svg
 
 * **X-axis** - Lateral, or left-right, with right being positive.
-* **Y-axis** - Anterior-Posterior, or up-down, with up being positive.
-* **Z-axis** - Gun-Target, or in-out, with out/Target being positive.
+* **Y-axis** - Superior-Inferior, or in-out, with sup/in being positive.
+* **Z-axis** - Anterior-Posterior, or up-down, with up/anterior being positive.
 
-
-.. note::
-    Collimator iso size is always in the plane normal to the gantry, while couch iso size is always in
-    the x-z plane.
 
 Typical Use
 -----------
@@ -102,6 +107,38 @@ You can also pass in your couch coordinates and the new values will be generated
 
 .. _using_file_names_wl:
 
+
+Accessing data
+--------------
+
+All the data is easily reachable. For attributes that are inclusive of all the images (e.g. isocenter size), they can be
+reached like so:
+
+.. python::
+
+    wl = WinstonLutz(...)
+    wl.gantry_iso_size
+    wl.collimator_iso_size
+    wl.couch_iso_size
+    wl.gantry_coll_iso_size
+    wl.bb_shift_vector
+    wl.cax2bb_distance('max')  # this is the maximum scalar between CAX and BB across all images
+
+Accessing individual images
+---------------------------
+
+Each image can be plotted and otherwise accessed easily:
+
+.. python::
+
+    wl = WinstonLutz(...)
+    # access first image
+    wl.images[0]  # these are subclasses of the pylinac.core.image.DicomImage class, with a few special props
+    # plot 3rd image
+    wl.images[0].plot()  # the plot method is special to the WL module and shows the BB, EPID, and Field CAX.
+    # get 2D x/y vector of an image
+    wl.images[4].cax2bb_vector  # this is a Vector with a .x and .y attribute. Note that x and y are in respect to the image, not the fixed room coordinates.
+
 Using File Names
 ----------------
 
@@ -140,7 +177,7 @@ Image types & output definitions
 The following terms are used in pylinac's WL module and are worth defining.
 
 **Image axis definitions/Image types**
-Images are classified into 1 of 5 image types, depending on the position of the axes. The image type is then
+Images are classified into 1 of 6 image types, depending on the position of the axes. The image type is then
 used for determining whether to use the image for the given calculation. Image types allow the module to isolate the
 analysis to a given axis if needed. E.g. for gantry iso size, as opposed to overall iso size, only the gantry should be moving
 so that no other variables influence it's calculation.
@@ -149,25 +186,23 @@ so that no other variables influence it's calculation.
 * **Gantry**: This is when all axes but gantry are at value 0, e.g. gantry=45, coll=0, couch=0.
 * **Collimator**: This is when all axes but collimator are at value 0.
 * **Couch**: This is when all axes but the couch are at value 0.
-* **Combo**: This is when any two or more axes are not at 0.
+* **GB Combo**: This is when either the gantry or collimator are non-zero but the couch is 0.
+* **GBP Combo**: This is where the couch is kicked and the gantry and/or collimator are rotated.
 
 **Analysis definitions**
 Given the above terms, the following calculations are performed.
 
-* **Maximum 2D CAX->BB distance**: Analyzes all images for BB-to-rad field center distances.
-* **Median 2D CAX->BB distance**: Analyzes all images for BB-to-rad field center distances.
-* **Shift of BB to isocenter**: The instructions of how to move the BB/couch in order to place the BB at the determined isocenter.
-  This uses **all** image types, however, axes where the image is parallel to the radiation field are not considered. E.g. when
-  calculating the vertical shift over the images, the image where gantry is 0 is not considered since vertical cannot be accurately determined.
-  Technically, pylinac will find the 2D shift from BB to rad field, then apply a 3D geometric transformation according to
-  the gantry angle to get the shift values.
-* **Gantry 3D isocenter diameter**: Analyzes only the gantry axis images (see above image types). Applies backprojection of the
+* **Maximum 2D CAX->BB distance (scalar, mm)**: Analyzes all images individually for the maximum 2D distance from rad field center to the BB.
+* **Median 2D CAX->BB distance (scalar, mm)**: Same as above but the median.
+* **Shift of BB to isocenter (vector, mm)**: The instructions of how to move the BB/couch in order to place the BB at the determined isocenter.
+* **Gantry 3D isocenter diameter (scalar, mm)**: Analyzes only the gantry axis images (see above image types). Applies backprojection of the
   CAX in 3D and then minimizes a sphere that touches all the 3D backprojection lines.
-* **[Couch, Collimator] 2D isocenter diameter**: Analyzes only the collimator or couch images to determine the planar
-  circle size of the isocenter according to the axis in question. These are treated separately because the 2D diameter of the
-  couch is in the plane normal to the vertical axis and the collimator planar isocenter size is normal to the CAX. If no
+* **Gantry+Collimator 3D isocenter diameter (scalar, mm)**: Same as above but also considers Collimator and GB Combo images.
+* **[Couch, Collimator] 2D isocenter diameter (scalar, mm)**: Analyzes only the collimator or couch images to determine
+  the size of the isocenter according to the axis in question. The maximum distance between any of the points is the isocenter size.
+  The couch and collimator are treated separately for obvious reasons. If no
   images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
-* **[Maximum, All][Gantry, Collimator, Couch, Combo, EPID] RMS deviation**: Analyzes the images for the axis in question to determine the overall RMS
+* **[Maximum, All][Gantry, Collimator, Couch, GB Combo, GBP Combo, EPID] RMS deviation (array of scalars, mm)**: Analyzes the images for the axis in question to determine the overall RMS
   inclusive of all 3 coordinate axes (vert, long, lat). I.e. this is the overall displacement as a function of the axis in question.
   For EPID, the displacement is calculated as the distance from image center to BB for all images with couch=0. If no
   images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
@@ -176,16 +211,30 @@ Given the above terms, the following calculations are performed.
 Algorithm
 ---------
 
-The Winston-Lutz algorithm is based on the works of `Winkler et al`_ and `Du et al`_.
+The Winston-Lutz algorithm is based on the works of `Winkler et al`_, `Du et al`_, and `Low et al`_.
 Winkler found that the collimator and couch iso could be found using a minimum optimization
 of the field CAX points. They also found that the gantry isocenter could by found by "backprojecting"
-the field CAX as a line in 3D coordinate space, with the BB being the reference point.
+the field CAX as a line in 3D coordinate space, with the BB being the reference point. This method is used to find the
+gantry isocenter size.
+
+Low determined the geometric transformations to apply to 2D planar images to calculate the shift to apply to the BB.
+This method is used to determine the shift instructions. Specifically, equations 6 and 9.
+
+.. note::
+
+    If doing research, it is very important to note that Low implicitly used the "Varian" coordinate system.
+    This is an old coordinate system and any new Varian linac actually uses IEC 61217. However, because the
+    gantry and couch definitions are different, the matrix definitions are technically incorrect when using
+    IEC 61217. Pylinac assumes the images are in IEC 61217 scale and will internally convert it to varian scale
+    to be able to use Low's equations. The gantry is also reversed in Varian scale, but this can be compensated
+    by simply reversing the sign of the Z axis.
+
 The algorithm works like such:
 
 **Allowances**
 
 * The images can be acquired with any EPID (aS500, aS1000, aS1200) at any SID.
-* The BB does not need to be near the real isocenter to determine isocenter sizes or gantry isocenter,
+* The BB does not need to be near the real isocenter to determine isocenter sizes,
   but does affect the 2D image analysis.
 
 **Restrictions**
@@ -193,8 +242,9 @@ The algorithm works like such:
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The BB must be fully within the field of view.
-* The BB must be within 2.5cm of the real isocenter.
+* The BB must be within 2.0cm of the real isocenter.
 * The images must be acquired with the EPID.
+* The linac scale should be IEC 61217.
 
 **Analysis**
 
@@ -213,18 +263,15 @@ The algorithm works like such:
   a 3D line projection of the CAX is constructed. The BB is considered at the origin. Only images where the
   couch was at 0 are used for CAX projection lines.
 
-* **Determine gantry isocenter size and location** - Using the backprojection lines, an optimization function is run
-  to minimize the maximum distance to any line. The optimized distance is the isocenter radius, and the point
-  of maximum minimization is the isocenter location.
+* **Determine gantry isocenter size** - Using the backprojection lines, an optimization function is run
+  to minimize the maximum distance to any line. The optimized distance is the isocenter radius.
 
-* **Determine collimator isocenter size** - The same optimization is run for all collimator images using the field CAX,
-  but is only run in 2D, since the collimator only widens the isocenter size in the plane normal to the gantry angle.
+* **Determine collimator isocenter size** - The maximum distance between any two field CAX locations
+  is calculated for all collimator images.
 
 * **Determine couch isocenter size** - Instead of using the BB as the non-moving reference point, which is now
   moving with the couch, the Reference image (gantry = collimator = couch = 0) CAX location is the reference. The
-  movement of the BB relative to the Reference image CAX will form a semicircle (assuming the BB cannot be placed
-  *exactly* at isocenter). The optimization is run to minimize the distance of each point to the edge of a circle.
-  The optimum radius will determine the isocenter size.
+  maximum distance between any two BB points is calculated and taken as the isocenter size.
 
 .. note::
     Collimator iso size is always in the plane normal to the gantry, while couch iso size is always in
@@ -232,6 +279,7 @@ The algorithm works like such:
 
 .. _Winkler et al: http://iopscience.iop.org/article/10.1088/0031-9155/48/9/303/meta;jsessionid=269700F201744D2EAB897C14D1F4E7B3.c2.iopscience.cld.iop.org
 .. _Du et al: http://scitation.aip.org/content/aapm/journal/medphys/37/5/10.1118/1.3397452
+.. _Low et al: https://aapm.onlinelibrary.wiley.com/doi/abs/10.1118/1.597475
 
 API Documentation
 -----------------

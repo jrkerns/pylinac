@@ -9,6 +9,32 @@ Pylinac General Overview
 
 .. image:: images/PF_tight_tolerance.png
 
+What is pylinac?
+----------------
+
+Pylinac (pr. "pie-linac") is a Python library to analyze the images and datasets commonly used by therapy medical physicists
+in the course of their routine linac QA. These data usually follow tests outlined by AAPM TG-142. An example would be the
+"picket fence" test of MLCs done weekly or monthly.
+
+Pylinac will take in the image/data and can output numeric results, plots showing the analysis, or a PDF including both the
+numerical and plot data.
+
+- Pylinac consumes raw data to compute meaningful output related to common physics tests
+- Pylinac consumes raw data to present meaningful data types for further exploration
+
+What is pylinac NOT?
+--------------------
+
+.. role:: strike
+
+- Pylinac is not a database. Data outputs should be placed onto your clinic's data repository. You should use a high-quality
+  specially application like `QAtrack+ <http://qatrackplus.com/>`_, an open source application taylor-made for routine physics QA.
+- Pylinac is not liable for incorrect outputs. Either by inputting incorrect data, or the algorithm being incorrect,
+  you should **always** validate pylinac against a known methodology (automatic or manual), just as you should
+  do for any software used in your clinic.
+- Pylinac is not commercial software. It is open-source with a very lenient `MIT license <https://github.com/jrkerns/pylinac/blob/master/LICENSE.txt>`_
+  which means it can be used publicly, privately, or even used in commercial applications royalty-free.
+
 Intended Use
 ------------
 

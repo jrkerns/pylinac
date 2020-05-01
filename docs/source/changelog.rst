@@ -3,6 +3,76 @@
 Changelog
 =========
 
+v 2.3.0
+-------
+
+General
+^^^^^^^
+
+* The dependencies have been updated. Scikit-image min version is now 0.13 from 0.12. There is also no upper cap on numpy or scikit-image.
+* The planar imaging module was overhauled.
+* An MTF core module was introduced to refactor and standardize the MTF calculations performed across pylinac.
+* The Winston-Lutz 2D and 3D algorithms were improved.
+
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* The coordinate space definition has changed to be compatible with IEC 61217. This affects how to understand the 3D
+  shift vector. The `bb_shift_instructions` have been modified accordingly to still give colloquial instructions correctly (i.e. "Left 0.3mm").
+* The WL module received an internal overhaul with respect to the 3D shift algorithm (i.e. the BB shift vector/instructions).
+  The 3D algorithm was reimplemented according to `D Low's 1994 paper <https://aapm.onlinelibrary.wiley.com/doi/abs/10.1118/1.597475>`_.
+  Generally speaking, the results are more stable across multiple datasets, however, you may see individual differences of up to 0.3mm.
+* Due to above, the `bb_<axis>_offset` and `epid_<axis>_offset` properties have been removed.
+* Two new image categorizations have been added: `GB Combo` and `GBP Combo`. These represent a gantry/collimator combination image
+  with the couch at 0 and gantry/collimator/couch image where all axes are rotated. `GBP Combo` is a replacement for `ALL`.
+  This change should only affect users who explicitly call methods that ask for the image set like `.axis_rms_deviation`,
+  `.plot_axis_images`, etc.
+* A new property has been added: `.gantry_coll_iso_size` which calculates the isocenter size using both gantry and collimator images.
+* A new property has been added to individual images: `.couch_angle_varian_scale`. This conversion is needed to go from IEC 61217 to "Varian"
+  scale for proper 3D shift vector calculation per the 3D algorithm change. Users likely wouldn't need this, but it's there.
+* The 2D CAX->BB vector is improved slightly (#268). Thanks to @brjdenis and @SimonBiggs for bringing this to my attention and helping out.
+
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The Doselab MC2 (MV & kV) phantom has been added to the planar imaging module.
+* The planar imaging module has been overhauled. The automatic detection algorithms have been spotty with no easy way of correcting the inputs.
+  Further, each phantom had a few subtle differences making them just different enough to be annoying.
+* To this end, the phantom classes have been refactored to consistently use a base class. This means all main methods behave the same and give a standardized output.
+* Creating new custom phantom classes is now very easy. A new section of the planar imaging documentation has been added as a guide.
+* A `results` method has been added to the base class, thus inherited by all phantom classes.
+* The parameter `hi_contrast_threshold` has been refactored to `high_contrast_threshold`.
+* The attributes `lc_rois` and `hc_rois` have been refactored to `low_contrast_rois` and `high_contrast_rois`, respectively.
+* The `analyze` method now includes new standardized parameters `angle_override`, `size_override`, and `center_override`. Each of these is exactly what it
+  sounds like: overriding pylinac's automatic algorithm. This is useful if the automatic algorithm gives an incorrect value.
+* A phantom outline is now displayed on images. This outline is a simple representation and should only be used as a guide to the accuracy
+  of the phantom spatial detection. I.e. you can use this outline to potentially override the center, size, or angle based on the outline.
+* The automatic rotation analysis of the phantoms has been problematic. After spending a significant amount of time on the issue
+  a satisfactory solution was not found. Therefore, the default angle or phantoms is that of the recommendation of the manufacturer.
+  I.e. for the QC-3 phantom this means 45 degrees, as is the value when properly set up to the crosshairs.
+* High and low contrast ROIs now show as red if they were below the defined threshold.
+
+Core Modules
+^^^^^^^^^^^^
+
+* A new core module `mtf` has been created to standardize all MTF calculations in pylinac. Previously, these were handled independently.
+  The new module contains one class `MTF` with one method `relative_resolution` to calculate the lp/mm value at the passed rMTF percentage.
+
+Bug Fixes
+^^^^^^^^^
+
+* This release contains critical fixes. All users of the Winston-Lutz and VMAT modules are strongly encouraged to upgrade as soon as possible.
+* `#268 <https://github.com/jrkerns/pylinac/issues/268>`_ The Winston-Lutz BB-finding method contained an error that would cause the BB center to be slightly off-center. After running unit tests, 5/16 datasets had a couch isocenter size difference of >0.2mm. Of those, 3 were around 0.2mm greater and 2 were around 0.2mm smaller. No other changes to iso sizes were detected within the testing tolerance of 0.2mm.
+* `#204 <https://github.com/jrkerns/pylinac/issues/204>`_ The VMAT module was sometimes using raw pixel values to calculate the ROI deviations. This would cause the deviations to appear smaller than they should have been if the Rescale and Intercept had been applied to the pixel data.
+* `#280 <https://github.com/jrkerns/pylinac/issues/280>`_ The Winston-Lutz 3D BB shift vector was underestimating the shifts by ~30-40%. A new 3D algorithm was implemented.
+* `#275 <https://github.com/jrkerns/pylinac/issues/275>`_ Requirements no longer have an upper pinning, although scikit-image minimum version was bumped from 0.12 to 0.13.
+* `#274 <https://github.com/jrkerns/pylinac/issues/274>`_ A new MTF module was created to refactor multiple ad hoc implementations.
+* `#273 <https://github.com/jrkerns/pylinac/issues/273>`_ The CatPhan HU module detection algorithm was loosened slightly to account for very thin slice scans which have increased noise.
+
+
+
 v 2.2.8
 -------
 
