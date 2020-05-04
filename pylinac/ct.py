@@ -1038,7 +1038,7 @@ class CatPhanBase:
         print(f"Origin slice: {self.find_origin_slice()}")
         mtfs = {}
         for mtf in (95, 90, 80, 50, 30):
-            mtfval = self.ctp528.mtf.relative_resolution_at(mtf)
+            mtfval = self.ctp528.mtf.relative_resolution(mtf)
             mtfs[mtf] = mtfval
         print(f'MTFs: {mtfs}')
 
@@ -1179,9 +1179,9 @@ class CatPhanBase:
         module_images = [('hu', 'lin')]
         if CTP528 in self.modules:
             add = [' - CTP528 Results - ',
-             f'MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution_at(80):2.2f}',
-             f'MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution_at(50):2.2f}',
-             f'MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution_at(30):2.2f}',
+             f'MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}',
+             f'MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}',
+             f'MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}',
             ]
             module_texts.append(add)
             module_images.append(('sp', 'mtf'))
@@ -1291,7 +1291,7 @@ class CatPhanBase:
                   f'Uniformity Passed?: {self.ctp486.overall_passed}\n')
             string += add
         if CTP528 in self.modules:
-            add = (f'MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution_at(50):2.2f}\n')
+            add = (f'MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}\n')
             string += add
         if CTP515 in self.modules:
             add = (f'Low contrast ROIs "seen": {self.ctp515.rois_visible}\n')
