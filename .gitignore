@@ -7,3 +7,4 @@ env/*
 #Files to ignore
 *.old
 .directory
+/CatPhan_test_data/
