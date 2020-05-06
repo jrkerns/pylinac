@@ -129,18 +129,76 @@ The minimum needed to get going is to:
       # generate PDF
       mycbct.publish_pdf('mycatphan.pdf', open_file=True)  # open the PDF after saving as well.
 
+Advanced Use
+------------
+
+Partial scans
+^^^^^^^^^^^^^
+
+While the default behavior of pylinac is to analyze all modules in the scan (in fact it will error out if they aren't),
+the behavior can be customized. Pylinac **always** has to be aware of the CTP404 module as that's the reference slice
+for everything else. Thus, if the 404 is not in the scan you're SOL. However, if one of the other modules is not present
+you can remove or adjust its offset by subclassing and overloading the `modules` attr:
+
+.. python::
+
+    from pylinac import CatPhan504  # works for any of the other phantoms too
+    from pylinac.ct import CTP515, CTP486
+
+    class PartialCatPhan504(CatPhan504):
+        modules = {
+            CTP486: {'offset': -65},
+            CTP515: {'offset': -30},
+            # the CTP528 was omitted
+        }
+
+    ct = PartialCatPhan504.from_zip(...)  # use like normal
+
+Examining rMTF
+^^^^^^^^^^^^^
+
+The rMTF can be calculated ad hoc like so. Note that CTP528 must be present (see above):
+
+.. python::
+
+    ct = ... # load a dataset like normal
+    ct.analyze()
+    ct.ctp528.mtf.relative_resolution(x=40)  # get the rMTF (lp/mm) at 40% resolution
+
+Customizing module locations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Similar to partial scans, to modify the module location(s), overload the `modules` attr and edit the `offset` value.
+The value is in mm:
+
+.. python::
+
+    from pylinac import CatPhan504  # works for any of the other phantoms too
+    from pylinac.ct import CTP515, CTP486, CTP528
+
+    class OffsetCatPhan504(CatPhan504):
+        modules = {
+            CTP486: {'offset': -60},  # normally -65
+            CTP528: {'offset': 30},
+            CTP515: {'offset': -25},  # normally -30
+        }
+
+    ct = OffsetCatPhan504.from_zip(...)  # use like normal
+
 Algorithm
 ---------
 
 The CatPhan module is based on the tests and values given in the respective CatPhan manual. The algorithm works like such:
 
-**Allowances**
+Allowances
+^^^^^^^^^^
 
 * The images can be any size.
 * The phantom can have significant translation in all 3 directions.
 * The phantom can have significant roll and moderate yaw and pitch.
 
-**Restrictions**
+Restrictions
+^^^^^^^^^^^^
 
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
@@ -148,7 +206,8 @@ The CatPhan module is based on the tests and values given in the respective CatP
 * All of the relevant modules must be within the scan extent; i.e. one can't scan only part of the phantom.
 
 
-**Pre-Analysis**
+Pre-Analysis
+^^^^^^^^^^^^
 
 * **Determine image properties** -- Upon load, the image set is analyzed for its DICOM properties to determine mm/pixel
   spacing, rescale intercept and slope, manufacturer, etc.
@@ -163,7 +222,8 @@ The CatPhan module is based on the tests and values given in the respective CatP
       values then it is very likely the HU linearity module. All such slices are found and the median slice is set as the
       HU linearity module location. All other modules are located relative to this position.
 
-**Analysis**
+Analysis
+^^^^^^^^
 
 * **Determine phantom roll** -- Precise knowledge of the ROIs to analyze is important, and small changes in rotation
   could invalidate automatic results. The roll of the phantom is determined by examining the HU module and converting to
@@ -205,7 +265,8 @@ The CatPhan module is based on the tests and values given in the respective CatP
   two longest profiles are averaged and the value is converted from pixels to mm and multiplied by 0.42.
 
 
-**Post-Analysis**
+Post-Analysis
+^^^^^^^^^^^^^
 
 * **Test if values are within tolerance** -- For each module, the determined values are compared with the nominal values.
   If the difference between the two is below the specified tolerance then the module passes.
