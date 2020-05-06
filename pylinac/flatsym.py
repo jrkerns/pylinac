@@ -4,6 +4,7 @@ import os.path as osp
 from typing import Tuple, Union
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from pylinac.core.utilities import open_path
 from .core.exceptions import NotAnalyzed
@@ -96,6 +97,8 @@ class FlatSym:
         Contains the method of calculation and the vertical and horizontal flatness data including the value.
     positions : dict
         The position ratio used for analysis for vertical and horizontal.
+    widths : dict
+        The width ratios used for analysis for vertical and horizontal.
     """
 
     def __init__(self, path: str):
@@ -109,6 +112,7 @@ class FlatSym:
         self.symmetry: dict = {}
         self.flatness: dict = {}
         self.positions: dict = {}
+        self.widths: dict = {}
         self._is_analyzed: bool = False
         self.image.check_inversion_by_histogram()
 
@@ -126,7 +130,8 @@ class FlatSym:
         print(fs.results())
         fs.plot()
 
-    def analyze(self, flatness_method: str, symmetry_method: str, vert_position: float=0.5, horiz_position: float=0.5, invert=False):
+    def analyze(self, flatness_method: str, symmetry_method: str, vert_position: float=0.5, horiz_position: float=0.5,
+                vert_width=0, horiz_width=0):
         """Analyze the image to determine flatness & symmetry.
 
         Parameters
@@ -141,15 +146,17 @@ class FlatSym:
         horiz_position : float (0.0-1.0)
             The distance ratio of the image to sample. E.g. at the default of 0.5 the profile is extracted
             in the middle of the image. 0.0 is at the top edge of the image and 1.0 is at the bottom edge of the image.
-        invert : bool
-            Whether to invert the image. Setting this to True will override the default inversion. This is useful if
-            pylinac's automatic inversion is incorrect.
+        vert_width : float (0.0-1.0)
+            The width ratio of the image to sample. E.g. at the default of 0.0 a 1 pixel wide profile is extracted
+            in the middle of the image. 0.0 is 1 pixel wide and 1.0 is the image width.
+        horiz_width : float (0.0-1.0)
+            The width ratio of the image to sample. E.g. at the default of 0.0 a 1 pixel wide profile is extracted
+            in the middle of the image. 0.0 is 1 pixel wide and 1.0 is the image width.
         """
-        if invert:
-            self.image.invert()
-        self.symmetry = self._calc_symmetry(symmetry_method, vert_position, horiz_position)
-        self.flatness = self._calc_flatness(flatness_method, vert_position, horiz_position)
+        self.symmetry = self._calc_symmetry(symmetry_method, vert_position, horiz_position, vert_width, horiz_width)
+        self.flatness = self._calc_flatness(flatness_method, vert_position, horiz_position, vert_width, horiz_width)
         self.positions = {'vertical': vert_position, 'horizontal': horiz_position}
+        self.widths = {'vertical': vert_width, 'horizontal': horiz_width}
         self._is_analyzed = True
 
     def results(self, as_str=True) -> Union[str, list]:
@@ -204,9 +211,28 @@ class FlatSym:
             results = '\n'.join(result for result in results)
         return results
 
-    def _calc_symmetry(self, method: str, vert_position: float, horiz_position: float):
-        vert_profile = SingleProfile(self.image.array[:, int(round(self.image.array.shape[1]*vert_position))])
-        horiz_profile = SingleProfile(self.image.array[int(round(self.image.array.shape[0]*horiz_position)), :])
+    def _get_vert_profile(self, vert_position: float, vert_width: float):
+        left_width = int(round(self.array.shape[1]*vert_position - self.array.shape[1]*vert_width/2))
+        if left_width < 0:
+            left_width = 0
+        right_width = int(round(self.array.shape[1]*vert_position + self.array.shape[1]*vert_width/2) + 1)
+        if right_width > self.array.shape[1]:
+            right_width = self.array.shape[1]
+        return SingleProfile(np.sum(self.array[:, left_width:right_width], 1))
+
+    def _get_horiz_profile(self, horiz_position: float, horiz_width: float):
+        bottom_width = int(round(self.array.shape[0] * horiz_position - self.array.shape[0] * horiz_width / 2))
+        if bottom_width < 0:
+            bottom_width = 0
+        top_width = int(round(self.array.shape[0] * horiz_position + self.array.shape[0] * horiz_width / 2) + 1)
+        if top_width > self.array.shape[0]:
+            top_width = self.array.shape[0]
+        return SingleProfile(np.sum(self.array[bottom_width:top_width, :], 0))
+
+    def _calc_symmetry(self, method: str, vert_position: float, horiz_position: float, vert_width: float, horiz_width: float):
+        vert_profile = self._get_vert_profile(vert_position, vert_width)
+        horiz_profile = self._get_horiz_profile(horiz_position, horiz_width)
+
         # calc sym from profile
         symmetry_calculation = SYMMETRY_EQUATIONS[method.lower()]
         vert_sym, vert_sym_array, vert_lt, vert_rt = symmetry_calculation(vert_profile)
@@ -221,9 +247,10 @@ class FlatSym:
                 },
         }
 
-    def _calc_flatness(self, method: str, vert_position: float, horiz_position: float):
-        vert_profile = SingleProfile(self.image.array[:, int(round(self.image.array.shape[1] * vert_position))])
-        horiz_profile = SingleProfile(self.image.array[int(round(self.image.array.shape[0] * horiz_position)), :])
+    def _calc_flatness(self, method: str, vert_position: float, horiz_position: float, vert_width: float, horiz_width: float):
+        vert_profile = self._get_vert_profile(vert_position, vert_width)
+        horiz_profile = self._get_horiz_profile(horiz_position, horiz_width)
+
         # calc flatness from profile
         flatness_calculation = FLATNESS_EQUATIONS[method.lower()]
         vert_flatness, vert_max, vert_min, vert_lt, vert_rt = flatness_calculation(vert_profile)
@@ -320,9 +347,17 @@ class FlatSym:
         plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()
-        axis.imshow(self.image.array, cmap=get_dicom_cmap())
-        axis.axhline(self.positions['horizontal']*self.image.array.shape[0], color='r')  # y
-        axis.axvline(self.positions['vertical']*self.image.array.shape[1], color='r')  # x
+        axis.imshow(self.array, cmap=get_dicom_cmap())
+        #show horizontal profiles
+        left_profile = (self.positions['horizontal'] - self.widths['horizontal']/2)*self.array.shape[0]
+        right_profile = (self.positions['horizontal'] + self.widths['horizontal']/2)*self.array.shape[0]
+        axis.axhline(left_profile, color='r')  # X
+        axis.axhline(right_profile, color='r')  # X
+        #show vertical profiles
+        bottom_profile = (self.positions['vertical'] - self.widths['vertical']/2)*self.array.shape[1]
+        top_profile = (self.positions['vertical'] + self.widths['vertical']/2)*self.array.shape[1]
+        axis.axvline(bottom_profile, color='r')  # Y
+        axis.axvline(top_profile, color='r')  # Y
         _remove_ticklabels(axis)
         axis.set_title(title)
 
