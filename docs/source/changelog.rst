@@ -3,6 +3,15 @@
 Changelog
 =========
 
+
+v 2.3.1
+-------
+
+Bug Fixes
+^^^^^^^^^
+
+* `#281 <https://github.com/jrkerns/pylinac/issues/281>`_ The ct module had a wrong usage of the new MTF module that caused a break.
+
 v 2.3.0
 -------
 

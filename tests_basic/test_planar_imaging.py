@@ -58,6 +58,7 @@ class PlanarPhantomMixin(LocationMixin):
 
 class LeedsDemo(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
+    mtf_50 = 0.1
 
     def test_demo(self):
         LeedsTOR.run_demo()  # shouldn't raise
@@ -65,10 +66,12 @@ class LeedsDemo(PlanarPhantomMixin, TestCase):
 
 class LeedsCCW(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
+    mtf_50 = 1.5
     file_path = ['Leeds_ccw.dcm']
 
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
+    klass = StandardImagingQC3
     mtf_50 = 0.53
 
     def test_demo(self):
@@ -76,11 +79,13 @@ class SIQC3Demo(PlanarPhantomMixin, TestCase):
 
 
 class SIQC3_1(PlanarPhantomMixin, TestCase):
+    klass = StandardImagingQC3
     file_path = ['QC3 2.5MV.dcm']
     mtf_50 = 0.68
 
 
 class SIQC3_2(PlanarPhantomMixin, TestCase):
+    klass = StandardImagingQC3
     file_path = ['QC3 2.5MV 2.dcm']
     mtf_50 = 0.68
 
