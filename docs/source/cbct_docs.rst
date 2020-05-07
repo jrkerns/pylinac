@@ -140,7 +140,7 @@ the behavior can be customized. Pylinac **always** has to be aware of the CTP404
 for everything else. Thus, if the 404 is not in the scan you're SOL. However, if one of the other modules is not present
 you can remove or adjust its offset by subclassing and overloading the `modules` attr:
 
-.. python::
+  .. code-block:: python
 
     from pylinac import CatPhan504  # works for any of the other phantoms too
     from pylinac.ct import CTP515, CTP486
@@ -159,7 +159,7 @@ Examining rMTF
 
 The rMTF can be calculated ad hoc like so. Note that CTP528 must be present (see above):
 
-.. python::
+  .. code-block:: python
 
     ct = ... # load a dataset like normal
     ct.analyze()
@@ -171,7 +171,7 @@ Customizing module locations
 Similar to partial scans, to modify the module location(s), overload the `modules` attr and edit the `offset` value.
 The value is in mm:
 
-.. python::
+  .. code-block:: python
 
     from pylinac import CatPhan504  # works for any of the other phantoms too
     from pylinac.ct import CTP515, CTP486, CTP528
