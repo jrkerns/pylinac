@@ -3,6 +3,13 @@
 Changelog
 =========
 
+v 2.3.2
+-------
+
+Bug Fixes
+^^^^^^^^^
+
+* `#285 <https://github.com/jrkerns/pylinac/issues/285>`_ The SI QC-3 module was incorrectly failing when the phantom was at 140cm due to a faulty mag factor.
 
 v 2.3.1
 -------
