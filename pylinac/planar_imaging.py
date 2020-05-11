@@ -578,15 +578,17 @@ class StandardImagingQC3(ImagePhantomBase):
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions()
         blobs = []
-        phantom_bbox_size_mm2 = 28000  # this is the size of the bounding box when phantom is at 45 deg. Too hard to use filled area as broken pixels can cause non-filling
-        phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2)
+        phantom_bbox_size_mm2 = 176**2  # phantom is 115 x 134 mm2. At 45degrees that's 176 x 176mm
+        fudge_factor = 0.95  # in practice, the detected size is a little bit smaller
+        phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) * fudge_factor
+        img_center = (self.image.center.y, self.image.center.x)
         for phantom_idx, region in enumerate(regions):
-            is_at_iso = np.isclose(region.bbox_area, phantom_size_pix, rtol=0.05)
-            is_on_panel = np.isclose(region.bbox_area, phantom_size_pix/2, rtol=0.05)
-            semi_round = 0.7 > region.eccentricity > 0.3
-            hollow = region.extent < 0.025
-            angled = region.orientation > 0.2 or region.orientation < -0.2
-            if (is_at_iso or is_on_panel) and semi_round and hollow and angled:
+            if region.bbox_area < 1000:
+                continue
+            is_at_iso = np.isclose(region.bbox_area, phantom_size_pix, rtol=0.07)
+            is_at_140cm = np.isclose(region.bbox_area, phantom_size_pix/(1.4**2), rtol=0.07)
+            centered = np.allclose(region.centroid, img_center, rtol=0.1)
+            if (is_at_iso or is_at_140cm) and centered:
                 blobs.append(phantom_idx)
 
         if not blobs:

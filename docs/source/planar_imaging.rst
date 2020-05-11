@@ -256,6 +256,7 @@ The algorithm works like such:
 
 * The phantom must not be touching any image edges.
 * The phantom should have the "1" pointing toward the gantry stand.
+* The phantom should be at 100cm or 140cm.
 
 **Pre-Analysis**
 
