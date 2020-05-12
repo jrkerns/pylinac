@@ -15,7 +15,7 @@ from typing import Union, List, Tuple, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .core import image
+from .core import vmatIMAGE as image
 from .core.decorators import value_accept
 from .core.geometry import Point, Rectangle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
@@ -104,9 +104,9 @@ class VMATBase:
     @staticmethod
     def _load_images(image_paths):
         image1 = image.load(image_paths[0])
+       # image1 = np.rot90(image1)
         image2 = image.load(image_paths[1])
-        image1.ground()
-        image2.ground()
+       # image2 = np.rot90(image2)
         return image1, image2
 
     @staticmethod
@@ -165,11 +165,18 @@ class VMATBase:
         # post-analysis to update R_corr values
         self._update_r_corrs()
 
+
+
+
     def _update_r_corrs(self):
         """After the Segment constructions, the R_corr must be set for each segment."""
         avg_r_corr = np.array([segment.r_corr for segment in self.segments]).mean()
+        print(np.array([segment.r_corr for segment in self.segments])/avg_r_corr)
         for segment in self.segments:
             segment.r_dev = ((segment.r_corr / avg_r_corr) * 100) - 100
+        print(np.array([segment.r_dev for segment in self.segments]))
+
+
 
     @property
     def passed(self) -> bool:
@@ -194,6 +201,23 @@ class VMATBase:
     def max_r_deviation(self) -> float:
         """Return the value of the maximum R_deviation segment."""
         return np.max(np.abs(self.r_devs))
+
+    @property
+    def roi_mean_values(self) -> float:
+        """Return the average value for each roi"""
+        val1 = np.array([segment.r_corr for segment in self.segments]) / (np.array([segment.r_corr for segment in self.segments]).mean())
+        return val1
+
+    @property
+    def roi_mean_values_std(self) -> float:
+        """Return the standard deviation of each roi"""
+        return np.abs(np.array([segment.r_dev for segment in self.segments]))
+
+    @property
+    def normalization_factor(self) -> float:
+        """Return the normalization factor"""
+        return 
+
 
     def plot_analyzed_image(self, show: bool=True):
         """Plot the analyzed images. Shows the open and dmlc images with the segments drawn; also plots the median
@@ -321,15 +345,15 @@ class VMATBase:
             --------------
         """
         canvas = PylinacCanvas(filename=filename, page_title=f"{self._result_short_header} VMAT Analysis", metadata=metadata)
-        for y, x, width, img in zip((9, 9, -2), (1, 11, 3), (9, 9, 14), (OPEN, DMLC, PROFILE)):
+        for y, x, width, img in zip((7, 7, -2), (1, 11, 3), (9, 9, 14), (OPEN, DMLC, PROFILE)):
             data = BytesIO()
             self._save_analyzed_subimage(data, subimage=img)
             canvas.add_image(data, location=(x, y), dimensions=(width, 18))
             # canvas.add_text(text=f"{img} Image", location=(x + 2, y + 10), font_size=18)
-        canvas.add_text(text='Open Image', location=(4, 22), font_size=18)
-        canvas.add_text(text=f'{self.open_image.base_path}', location=(4, 21.5))
-        canvas.add_text(text='DMLC Image', location=(14, 22), font_size=18)
-        canvas.add_text(text=f'{self.dmlc_image.base_path}', location=(14, 21.5))
+        canvas.add_text(text='Open Image', location=(2, 20), font_size=18)
+        canvas.add_text(text=f'{self.open_image.base_path}', location=(2, 19.5))
+        canvas.add_text(text='DMLC Image', location=(12, 20), font_size=18)
+        canvas.add_text(text=f'{self.dmlc_image.base_path}', location=(12, 19.5))
         canvas.add_text(text='Median profiles', location=(8, 12), font_size=18)
         text = [f'{self._result_header} VMAT results:',
                 f'Source-to-Image Distance (mm): {self.open_image.sid:2.0f}',
@@ -337,9 +361,18 @@ class VMATBase:
                 f'Absolute mean deviation (%): {self.avg_abs_r_deviation:2.2f}',
                 f'Maximum deviation (%): {self.max_r_deviation:2.2f}',
                 ]
-        canvas.add_text(text=text, location=(10, 25.5))
+        canvas.add_text(text=text, location=(1, 25.5))
+
+        for i in range(7):
+            if self.roi_mean_values[i] < 0.885 or self.roi_mean_values[i] > 1.015 :
+                canvas.add_textRed(text=[f'ROI '+str(i)+f' Mean: {self.roi_mean_values[i]:2.3f} \u00B1 {self.roi_mean_values_std[i]:2.3f}'], location=(1,23.3-0.45*i))
+            else:
+                canvas.add_textGreen(
+                    text=[f'ROI '+str(i)+f' Mean: {self.roi_mean_values[i]:2.3f} \u00B1 {self.roi_mean_values_std[i]:2.3f}'],
+                    location=(1, 23.3-0.45*i))
+
         if notes is not None:
-            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=8)
             canvas.add_text(text=notes, location=(1, 5))
 
         canvas.finish()
@@ -422,7 +455,7 @@ class Segment(Rectangle):
     @property
     def passed(self) -> bool:
         """Return whether the segment passed or failed."""
-        return abs(self.r_dev) < self._tolerance * 100
+        return self.r_dev < self._tolerance * 100
 
     def get_bg_color(self) -> str:
         """Get the background color of the segment when plotted, based on the pass/fail status."""
