@@ -27,6 +27,7 @@ from typing import Union, List, Tuple
 
 import argue
 import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter
 import numpy as np
 from scipy import ndimage, optimize, linalg
 from skimage import measure
@@ -238,9 +239,9 @@ class WinstonLutz:
     def bb_shift_instructions(self, couch_vrt: float=None, couch_lng: float=None, couch_lat: float=None) -> str:
         """A string describing how to shift the BB to the radiation isocenter"""
         sv = self.bb_shift_vector
-        x_dir = 'LEFT' if sv.x < 0 else 'RIGHT'
-        y_dir = 'IN' if sv.y > 0 else 'OUT'
-        z_dir = 'UP' if sv.z > 0 else 'DOWN'
+        x_dir = 'LEFT -' if sv.x < 0 else 'RIGHT +'
+        y_dir = 'IN +' if sv.y > 0 else 'OUT -'
+        z_dir = 'UP +' if sv.z > 0 else 'DOWN -'
 
 
 
@@ -447,6 +448,7 @@ class WinstonLutz:
         max_num_images = math.ceil(len(images)/5)
         fig, axes = plt.subplots(nrows=max_num_images, ncols=5)
         for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
+            #plt.figure(str(wl_image))
             plot_image(wl_image, mpl_axis)
 
 
@@ -642,7 +644,7 @@ class WLImage(image.LinacDicomImage):
         edges
             The bounding box of the field, plus a small margin.
         """
-        min, max = np.percentile(self.array, [5, 99.9])
+        min, max = np.percentile(gaussian_filter(self.array,sigma=6), [5, 99.9])
         threshold_img = self.as_binary((max - min)/2 + min)
         # clean single-pixel noise from outside field
         cleaned_img = ndimage.binary_erosion(threshold_img)
@@ -655,6 +657,8 @@ class WLImage(image.LinacDicomImage):
         p = Point(x=coords[-1], y=coords[0])
         return p, edges
 
+
+
     def _find_bb(self) -> Point:
         """Find the BB within the radiation field. Iteratively searches for a circle-like object
         by lowering a low-pass threshold value until found.
@@ -665,7 +669,7 @@ class WLImage(image.LinacDicomImage):
             The weighted-pixel value location of the BB.
         """
         # get initial starting conditions
-        hmin, hmax = np.percentile(self.array, [5, 99.9])
+        hmin, hmax = np.percentile(gaussian_filter(self.array, sigma=6), [5, 99.9])
         spread = hmax - hmin
         max_thresh = hmax
         lower_thresh = hmax - spread / 1.5
@@ -692,12 +696,15 @@ class WLImage(image.LinacDicomImage):
             else:
                 found = True
 
+
         # determine the center of mass of the BB
         inv_img = image.load(self.array)
         # we invert so BB intensity increases w/ attenuation
         inv_img.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         bb_rprops = measure.regionprops(bw_bb_img, intensity_image=inv_img)[0]
+
         return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
+
 
     @property
     def epid(self) -> Point:
@@ -815,14 +822,14 @@ class WLImage(image.LinacDicomImage):
 
         ax = super().plot(ax=ax, show=False, clear_fig=clear_fig)
 
-        ax.plot(self.field_cax.x, self.field_cax.y, 'gs', ms=4)
-        ax.plot(self.bb.x, self.bb.y, 'ro', ms=4)
+        #ax.plot(self.field_cax.x, self.field_cax.y, 'gs', ms=4)
+        ax.plot(self.bb.x, self.bb.y, 'r+', ms=4)
         ax.plot(self.epid.x, self.epid.y, 'b+', ms=4)
         ax.set_ylim([self.rad_field_bounding_box[0], self.rad_field_bounding_box[1]])
         ax.set_xlim([self.rad_field_bounding_box[2], self.rad_field_bounding_box[3]])
         #ax.set_yticklabels([])
         #ax.set_xticklabels([])
-        #ax.set_title(self.file,fontsize=6)
+        ax.set_title(self.file,fontsize=6)
         ax.set_xlabel(f"\u0394(mm) = {((self.field_cax.x-self.bb.x)/self.dpmm):3.2f} \n G{self.gantry_angle:.0f}, C{self.collimator_angle:.0f}, T{360-self.couch_angle:.0f}", fontsize=8)
         ax.yaxis.set_label_position("right")
         ax.set_ylabel(f"\u0394(mm) = {((self.field_cax.y-self.bb.y)/self.dpmm):3.2f} \n CAX to BB: {self.cax2bb_distance:3.2f}mm", fontsize=8)
@@ -830,8 +837,7 @@ class WLImage(image.LinacDicomImage):
         #print(f"G{self.gantry_angle:.0f}, C{self.collimator_angle:.0f}, T{360-self.couch_angle:.0f}","CAX to BB, X coord", (self.field_cax.x-self.bb.x)/self.dpmm)
         #print(f"G{self.gantry_angle:.0f}, C{self.collimator_angle:.0f}, T{360-self.couch_angle:.0f}","CAX to BB, Y coord", (self.field_cax.y - self.bb.y) / self.dpmm)
 
-        plt.tight_layout()  # this was added by Adnan
-        
+
         if show:
            plt.tight_layout()
            plt.show()
