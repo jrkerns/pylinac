@@ -549,28 +549,30 @@ class CTP528CP504(CatPhanModule):
     boundaries = (0, 0.107, 0.173, 0.236, 0.286, 0.335, 0.387, 0.434, 0.479)
     start_angle = np.pi
     ccw = True
+    roi_settings = {
+        'region 1': {'start': boundaries[0], 'end': boundaries[1], 'num peaks': 2, 'num valleys': 1,
+                     'peak spacing': 0.021, 'gap size (cm)': 0.5, 'lp/mm': 0.1},
+        'region 2': {'start': boundaries[1], 'end': boundaries[2], 'num peaks': 3, 'num valleys': 2,
+                     'peak spacing': 0.01, 'gap size (cm)': 0.25, 'lp/mm': 0.2},
+        'region 3': {'start': boundaries[2], 'end': boundaries[3], 'num peaks': 4, 'num valleys': 3,
+                     'peak spacing': 0.006, 'gap size (cm)': 0.167, 'lp/mm': 0.3},
+        'region 4': {'start': boundaries[3], 'end': boundaries[4], 'num peaks': 4, 'num valleys': 3,
+                     'peak spacing': 0.00557, 'gap size (cm)': 0.125, 'lp/mm': 0.4},
+        'region 5': {'start': boundaries[4], 'end': boundaries[5], 'num peaks': 4, 'num valleys': 3,
+                     'peak spacing': 0.004777, 'gap size (cm)': 0.1, 'lp/mm': 0.5},
+        'region 6': {'start': boundaries[5], 'end': boundaries[6], 'num peaks': 5, 'num valleys': 4,
+                     'peak spacing': 0.00398, 'gap size (cm)': 0.083, 'lp/mm': 0.6},
+        'region 7': {'start': boundaries[6], 'end': boundaries[7], 'num peaks': 5, 'num valleys': 4,
+                     'peak spacing': 0.00358, 'gap size (cm)': 0.071, 'lp/mm': 0.7},
+        'region 8': {'start': boundaries[7], 'end': boundaries[8], 'num peaks': 5, 'num valleys': 4,
+                     'peak spacing': 0.0027866, 'gap size (cm)': 0.063, 'lp/mm': 0.8},
+    }
 
     def _setup_rois(self):
         pass
 
-    @property
-    def sr_rois(self):
-        """Spatial resolution ROI characteristics.
-
-        Returns
-        -------
-        dict
-        """
-        rois = OrderedDict()
-        rois['region 1'] = {'start': self.boundaries[0], 'end': self.boundaries[1], 'num peaks': 2, 'num valleys': 1, 'peak spacing': 0.021, 'gap size (cm)': 0.5, 'lp/mm': 0.1}
-        rois['region 2'] = {'start': self.boundaries[1], 'end': self.boundaries[2], 'num peaks': 3, 'num valleys': 2, 'peak spacing': 0.01, 'gap size (cm)': 0.25, 'lp/mm': 0.2}
-        rois['region 3'] = {'start': self.boundaries[2], 'end': self.boundaries[3], 'num peaks': 4, 'num valleys': 3, 'peak spacing': 0.006, 'gap size (cm)': 0.167, 'lp/mm': 0.3}
-        rois['region 4'] = {'start': self.boundaries[3], 'end': self.boundaries[4], 'num peaks': 4, 'num valleys': 3, 'peak spacing': 0.00557, 'gap size (cm)': 0.125, 'lp/mm': 0.4}
-        rois['region 5'] = {'start': self.boundaries[4], 'end': self.boundaries[5], 'num peaks': 4, 'num valleys': 3, 'peak spacing': 0.004777, 'gap size (cm)': 0.1, 'lp/mm': 0.5}
-        rois['region 6'] = {'start': self.boundaries[5], 'end': self.boundaries[6], 'num peaks': 5, 'num valleys': 4, 'peak spacing': 0.00398, 'gap size (cm)': 0.083, 'lp/mm': 0.6}
-        rois['region 7'] = {'start': self.boundaries[6], 'end': self.boundaries[7], 'num peaks': 5, 'num valleys': 4, 'peak spacing': 0.00358, 'gap size (cm)': 0.071, 'lp/mm': 0.7}
-        rois['region 8'] = {'start': self.boundaries[7], 'end': self.boundaries[8], 'num peaks': 5, 'num valleys': 4, 'peak spacing': 0.0027866, 'gap size (cm)': 0.063, 'lp/mm': 0.8}
-        return rois
+    def _convert_units_in_settings(self):
+        pass
 
     @property
     @lru_cache(maxsize=1)
@@ -583,7 +585,7 @@ class CTP528CP504(CatPhanModule):
         """
         maxs = list()
         mins = list()
-        for key, value in self.sr_rois.items():
+        for key, value in self.roi_settings.items():
             max_values = self.circle_profile.find_peaks(min_distance=value['peak spacing'], max_number=value['num peaks'],
                                                         search_region=(value['start'], value['end']), kind='value')
             # check that the right number of peaks were found before continuing, otherwise stop searching for regions
@@ -598,7 +600,7 @@ class CTP528CP504(CatPhanModule):
         if not maxs:
             raise ValueError("Did not find any spatial resolution pairs to analyze. File an issue on github (https://github.com/jrkerns/pylinac/issues) if this is a valid dataset.")
 
-        spacings = [roi['lp/mm'] for roi in self.sr_rois.values()]
+        spacings = [roi['lp/mm'] for roi in self.roi_settings.values()]
         mtf = MTF(lp_spacings=spacings, lp_maximums=maxs, lp_minimums=mins)
         return mtf
 
@@ -716,7 +718,6 @@ class CTP515(CatPhanModule):
     common_name = 'Low Contrast'
     num_slices = 1
     roi_dist_mm = 50
-    inner_bg_dist_mm = 37
     roi_radius_mm = [6, 3.5, 3, 2.5, 2, 1.5]
     roi_angles = [-87.4, -69.1, -52.7, -38.5, -25.1, -12.9]
     roi_settings = {
@@ -727,23 +728,26 @@ class CTP515(CatPhanModule):
         '6': {'angle': roi_angles[4], 'distance': roi_dist_mm, 'radius': roi_radius_mm[4]},
         '5': {'angle': roi_angles[5], 'distance': roi_dist_mm, 'radius': roi_radius_mm[5]},
     }
-    bg_roi_radius_mm = 4
-    background_roi_settings = {
-        '1': {'angle': roi_angles[0], 'distance': inner_bg_dist_mm, 'radius': bg_roi_radius_mm},
-        '3': {'angle': roi_angles[-1], 'distance': inner_bg_dist_mm, 'radius': bg_roi_radius_mm},
-    }
+    background_roi_dist_ratio = 0.75
+    background_roi_radius_mm = 4
 
     def __init__(self, catphan, tolerance, cnr_threshold, offset):
         self.cnr_threshold = cnr_threshold
         super().__init__(catphan, tolerance=tolerance, offset=offset)
 
     def _setup_rois(self):
-        for name, settings in self.background_roi_settings.items():
-            self.background_rois[name] = LowContrastDiskROI(self.image, settings['angle_corrected'], settings['radius_pixels'],
-                                                            settings['distance_pixels'], self.phan_center)
-        background_val = np.mean([roi.pixel_value for roi in self.background_rois.values()])
-
+        # create both background rois dynamically, then create the actual sample ROI as normal
         for name, setting in self.roi_settings.items():
+            self.background_rois[name+'-outer'] = LowContrastDiskROI(self.image, setting['angle_corrected'],
+                                                                     self.background_roi_radius_mm / self.mm_per_pixel,
+                                                                     setting['distance_pixels'] * (2-self.background_roi_dist_ratio),
+                                                                     self.phan_center)
+            self.background_rois[name+'-inner'] = LowContrastDiskROI(self.image, setting['angle_corrected'],
+                                                                     self.background_roi_radius_mm / self.mm_per_pixel,
+                                                                     setting['distance_pixels'] * self.background_roi_dist_ratio,
+                                                                     self.phan_center)
+            background_val = np.mean([self.background_rois[name+'-outer'].pixel_value, self.background_rois[name+'-inner'].pixel_value])
+
             self.rois[name] = LowContrastDiskROI(self.image, setting['angle_corrected'], setting['radius_pixels'], setting['distance_pixels'],
                                                  self.phan_center, background=background_val, cnr_threshold=self.cnr_threshold)
 

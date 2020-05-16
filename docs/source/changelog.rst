@@ -3,6 +3,29 @@
 Changelog
 =========
 
+v 2.4.0
+-------
+
+CT Module
+^^^^^^^^^
+
+The CT module has been reworked to be far more extensible to adjust individual component modules as desired. Previously,
+only the offset of the modules was easily adjustable. To edit individual modules the user would have to edit the source code directly.
+Now, the user can subclass individual modules, overload attributes as desired and pass those to the parent CatPhan class.
+A new tutorial section has been added to the documentation showing examples of this functionality.
+
+* The CTP404 and 528 modules have been refactored into CatPhan-specific classes for easier overloading by appending "CP<model>".
+  E.g. CTP404CP503.
+* CTP modules had an inconsistent naming scheme for rois. E.g. CTP404 had ``hu_rois`` and ``bg_hu_rois`` while CTP515 had
+  ``inner_bg_rois`` and ``rois``. This has been standardized (mostly) into ``rois`` for all modules and, where applicable, ``background_rois``.
+  Some modules still have **more** relevant attrs, e.g. ``thickness_rois`` for CTP404, but they all have have ``rois``.
+
+Flatness & Symmetry
+^^^^^^^^^^^^^^^^^^^
+
+
+
+
 v 2.3.2
 -------
 
