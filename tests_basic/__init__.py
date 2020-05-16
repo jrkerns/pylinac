@@ -16,7 +16,3 @@ def run_tests(directory, pattern='test*.py'):
     test_suite = unittest.defaultTestLoader.discover(directory, pattern)
     # run test runner
     runner.run(test_suite)
-
-
-if __name__ == '__main__':
-    run_tests('.')

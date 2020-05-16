@@ -2,15 +2,15 @@ import os.path as osp
 from unittest import TestCase
 
 from tests_basic import TEST_BANK_DIR
-from tests_basic.test_planar_imaging import LeedsTORTestMixin, SIQC3TestMixin, LasVegasTestMixin
+from tests_basic.test_planar_imaging import LasVegasTestMixin, PlanarPhantomMixin
 
 
 # mixins
-class LeedsBankBase(LeedsTORTestMixin):
+class LeedsBankBase(PlanarPhantomMixin):
     dir_location = osp.join(TEST_BANK_DIR, '2D Image quality phantoms', 'Leeds')
 
 
-class QC3BankBase(SIQC3TestMixin):
+class QC3BankBase(PlanarPhantomMixin):
     dir_location = osp.join(TEST_BANK_DIR, '2D Image quality phantoms', 'QC-3')
 
 
