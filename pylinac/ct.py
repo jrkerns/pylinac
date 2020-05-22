@@ -37,6 +37,17 @@ from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI
 from .settings import get_dicom_cmap
 
 
+AIR = -1000
+PMP = -196
+LDPE = -104
+POLY = -47
+ACRYLIC = 115
+DELRIN = 365
+TEFLON = 1000
+BONE_20 = 237
+BONE_50 = 725
+
+
 class HUDiskROI(DiskROI):
     """An HU ROI object. Represents a circular area measuring either HU sample (Air, Poly, ...)
     or HU uniformity (bottom, left, ...).
@@ -262,13 +273,13 @@ class CTP404CP504(CatPhanModule):
     roi_dist_mm = 58.7
     roi_radius_mm = 5
     roi_settings = {
-        'Air': {'value': -1000, 'angle': -90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'PMP': {'value': -200, 'angle': -120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'LDPE': {'value': -100, 'angle': 180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Poly': {'value': -35, 'angle': 120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Acrylic': {'value': 120, 'angle': 60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Delrin': {'value': 340, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Teflon': {'value': 990, 'angle': -60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Air': {'value': AIR, 'angle': -90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'PMP': {'value': PMP, 'angle': -120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'LDPE': {'value': LDPE, 'angle': 180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Poly': {'value': POLY, 'angle': 120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Acrylic': {'value': ACRYLIC, 'angle': 60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Delrin': {'value': DELRIN, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Teflon': {'value': TEFLON, 'angle': -60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
     }
     background_roi_settings = {
         '1': {'angle': -30, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
@@ -439,13 +450,13 @@ class CTP404CP600(CTP404CP504):
     roi_dist_mm = 58.7
     roi_radius_mm = 5
     roi_settings = {
-        'Air': {'value': -1000, 'angle': 90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'PMP': {'value': -200, 'angle': 60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'LDPE': {'value': -100, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Poly': {'value': -35, 'angle': -60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Acrylic': {'value': 120, 'angle': -120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Delrin': {'value': 340, 'angle': -180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Teflon': {'value': 990, 'angle': 120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Air': {'value': AIR, 'angle': 90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'PMP': {'value': PMP, 'angle': 60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'LDPE': {'value': LDPE, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Poly': {'value': POLY, 'angle': -60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Acrylic': {'value': ACRYLIC, 'angle': -120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Delrin': {'value': DELRIN, 'angle': -180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Teflon': {'value': TEFLON, 'angle': 120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
     }
 
 
@@ -453,15 +464,15 @@ class CTP404CP604(CTP404CP504):
     roi_dist_mm = 58.7
     roi_radius_mm = 5
     roi_settings = {
-        'Air': {'value': -1000, 'angle': -90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'PMP': {'value': -200, 'angle': -120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        '50% Bone': {'value': 725, 'angle': -150, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'LDPE': {'value': -100, 'angle': 180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Poly': {'value': -35, 'angle': 120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Acrylic': {'value': 120, 'angle': 60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        '20% Bone': {'value': 240, 'angle': 30, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Delrin': {'value': 340, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Teflon': {'value': 990, 'angle': -60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Air': {'value': AIR, 'angle': -90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'PMP': {'value': PMP, 'angle': -120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        '50% Bone': {'value': BONE_50, 'angle': -150, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'LDPE': {'value': LDPE, 'angle': 180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Poly': {'value': POLY, 'angle': 120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Acrylic': {'value': ACRYLIC, 'angle': 60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        '20% Bone': {'value': BONE_20, 'angle': 30, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Delrin': {'value': DELRIN, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Teflon': {'value': TEFLON, 'angle': -60, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
     }
     background_roi_settings = {
         '1': {'angle': -30, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
