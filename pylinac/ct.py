@@ -81,7 +81,7 @@ class HUDiskROI(DiskROI):
     @property
     def passed(self):
         """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
-        return self.value_diff <= self.tolerance
+        return abs(self.value_diff) <= self.tolerance
 
     @property
     def plot_color(self):
@@ -512,9 +512,8 @@ class CTP486(CatPhanModule):
         axis.plot(horiz_data, 'g', label='Horizontal')
         axis.plot(vert_data, 'b', label='Vertical')
         axis.autoscale(tight=True)
-        # TODO: replace .plot() calls with .axhline() calls when mpld3 fixes functionality
-        axis.plot([i for i in range(len(horiz_data))], [self.tolerance] * len(horiz_data), 'r-', linewidth=3)
-        axis.plot([i for i in range(len(horiz_data))], [-self.tolerance] * len(horiz_data), 'r-', linewidth=3)
+        axis.axhline(self.tolerance, color='r', linewidth=3)
+        axis.axhline(-self.tolerance, color='r', linewidth=3)
         axis.grid(True)
         axis.set_ylabel("HU")
         axis.legend(loc=8, fontsize='small', title="")
