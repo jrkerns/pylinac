@@ -23,6 +23,12 @@ A new tutorial section has been added to the documentation showing examples of t
 Flatness & Symmetry
 ^^^^^^^^^^^^^^^^^^^
 
+The flatness & symmetry module has been updated to allow for profiles of a select width to be analyzed rather than a single
+pixel profile. Thanks to `@alanphys <https://github.com/alanphys>`_ for the pull request.
+
+* Two new keyword parameters were added to analyze: ``vert_width`` and ``horiz_width``. You can read about their usage
+  in the documentation.
+* The ``plot()`` method was renamed to ``plot_analyzed_image`` to match the rest of the modules.
 
 
 

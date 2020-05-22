@@ -32,15 +32,6 @@ class FlatSymTests(TestCase):
     def test_demo_runs(self):
         FlatSym.run_demo()
 
-    def test_analyze_works(self):
-        fs = create_instance()
-        self.assertEqual(fs.symmetry['method'], 'varian')
-        self.assertEqual(fs.flatness['method'], 'varian')
-        self.assertEqual(fs.positions['vertical'], 0.5)
-        self.assertEqual(fs.positions['horizontal'], 0.5)
-        self.assertEqual(fs.widths['vertical'], 0.0)
-        self.assertEqual(fs.widths['horizontal'], 0.0)
-
     def test_profile_limits(self):
         """Extreme profile limits should not raise an error"""
         fs = FlatSym.from_demo_image()
@@ -51,6 +42,14 @@ class FlatSymTests(TestCase):
     def test_analyze_sets_analyzed_flag(self):
         fs = create_instance()
         self.assertTrue(fs._is_analyzed)
+
+    def test_analyze_fails_when_incorrectly_inverted(self):
+        fs = create_instance()
+        with self.assertRaises(ValueError):
+            fs.analyze('varian', 'varian', invert=True)
+        fs = create_instance()
+        with self.assertRaises(ValueError):
+            fs.analyze('elekta', 'elekta', invert=True)
 
     def test_flatness_methods(self):
         fs = FlatSym.from_demo_image()
@@ -75,13 +74,13 @@ class FlatSymTests(TestCase):
 
     def test_plot_works(self):
         fs = create_instance()
-        fs.plot()
-        fs.plot(show=True)
+        fs.plot_analyzed_image()
+        fs.plot_analyzed_image(show=True)
 
-    def test_plot_fails_if_not_analyed(self):
+    def test_plot_fails_if_not_analysed(self):
         fs = FlatSym.from_demo_image()
         with self.assertRaises(NotAnalyzed):
-            fs.plot()
+            fs.plot_analyzed_image()
 
     def test_pdf_gets_generated(self):
         fs = create_instance()

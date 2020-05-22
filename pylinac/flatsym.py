@@ -112,7 +112,6 @@ class FlatSym:
         self.symmetry: dict = {}
         self.flatness: dict = {}
         self.positions: dict = {}
-        self.widths: dict = {}
         self._is_analyzed: bool = False
         self.image.check_inversion_by_histogram()
 
@@ -128,7 +127,7 @@ class FlatSym:
         fs = FlatSym.from_demo_image()
         fs.analyze(flatness_method='varian', symmetry_method='varian')
         print(fs.results())
-        fs.plot()
+        fs.plot_analyzed_image()
 
     def analyze(self, flatness_method: str, symmetry_method: str, vert_position: float=0.5, horiz_position: float=0.5,
                 vert_width=0, horiz_width=0, invert=False):
@@ -147,11 +146,11 @@ class FlatSym:
             The distance ratio of the image to sample. E.g. at the default of 0.5 the profile is extracted
             in the middle of the image. 0.0 is at the top edge of the image and 1.0 is at the bottom edge of the image.
         vert_width : float (0.0-1.0)
-            The width ratio of the image to sample. E.g. at the default of 0.0 a 1 pixel wide profile is extracted
-            in the middle of the image. 0.0 is 1 pixel wide and 1.0 is the image width.
+            The width ratio of the image to sample. E.g. at the default of 0.0 a 1 pixel wide profile is extracted.
+            0.0 would be 1 pixel wide and 1.0 would be the vertical image width.
         horiz_width : float (0.0-1.0)
-            The width ratio of the image to sample. E.g. at the default of 0.0 a 1 pixel wide profile is extracted
-            in the middle of the image. 0.0 is 1 pixel wide and 1.0 is the image width.
+            The width ratio of the image to sample. E.g. at the default of 0.0 a 1 pixel wide profile is extracted.
+            0.0 would be 1 pixel wide and 1.0 would be the horizontal image width.
         invert : bool
             Whether to invert the image. Setting this to True will override the default inversion. This is useful if
             pylinac's automatic inversion is incorrect.
@@ -160,8 +159,6 @@ class FlatSym:
             self.image.invert()
         self.symmetry = self._calc_symmetry(symmetry_method, vert_position, horiz_position, vert_width, horiz_width)
         self.flatness = self._calc_flatness(flatness_method, vert_position, horiz_position, vert_width, horiz_width)
-        self.positions = {'vertical': vert_position, 'horizontal': horiz_position}
-        self.widths = {'vertical': vert_width, 'horizontal': horiz_width}
         self._is_analyzed = True
 
     def results(self, as_str=True) -> Union[str, list]:
@@ -217,22 +214,22 @@ class FlatSym:
         return results
 
     def _get_vert_profile(self, vert_position: float, vert_width: float):
-        left_width = int(round(self.image.array.shape[1]*vert_position - self.image.array.shape[1]*vert_width/2))
-        if left_width < 0:
-            left_width = 0
-        right_width = int(round(self.image.array.shape[1]*vert_position + self.image.array.shape[1]*vert_width/2) + 1)
-        if right_width > self.image.array.shape[1]:
-            right_width = self.image.array.shape[1]
-        return SingleProfile(np.sum(self.image.array[:, left_width:right_width], 1))
+        left_edge = int(round(self.image.array.shape[1]*vert_position - self.image.array.shape[1]*vert_width/2))
+        left_edge = max(left_edge, 0)  # clip to 0
+        right_edge = int(round(self.image.array.shape[1]*vert_position + self.image.array.shape[1]*vert_width/2) + 1)
+        right_edge = min(right_edge, self.image.array.shape[1])  # clip to image limit
+        self.positions['vertical left'] = left_edge
+        self.positions['vertical right'] = right_edge
+        return SingleProfile(np.sum(self.image.array[:, left_edge:right_edge], 1))
 
     def _get_horiz_profile(self, horiz_position: float, horiz_width: float):
-        bottom_width = int(round(self.image.array.shape[0] * horiz_position - self.image.array.shape[0] * horiz_width / 2))
-        if bottom_width < 0:
-            bottom_width = 0
-        top_width = int(round(self.image.array.shape[0] * horiz_position + self.image.array.shape[0] * horiz_width / 2) + 1)
-        if top_width > self.image.array.shape[0]:
-            top_width = self.image.array.shape[0]
-        return SingleProfile(np.sum(self.image.array[bottom_width:top_width, :], 0))
+        bottom_edge = int(round(self.image.array.shape[0] * horiz_position - self.image.array.shape[0] * horiz_width / 2))
+        bottom_edge = max(bottom_edge, 0)
+        top_edge = int(round(self.image.array.shape[0] * horiz_position + self.image.array.shape[0] * horiz_width / 2) + 1)
+        top_edge = min(top_edge, self.image.array.shape[0])
+        self.positions['horizontal bottom'] = bottom_edge
+        self.positions['horizontal top'] = top_edge
+        return SingleProfile(np.sum(self.image.array[bottom_edge:top_edge, :], 0))
 
     def _calc_symmetry(self, method: str, vert_position: float, horiz_position: float, vert_width: float, horiz_width: float):
         vert_profile = self._get_vert_profile(vert_position, vert_width)
@@ -241,7 +238,7 @@ class FlatSym:
         # calc sym from profile
         symmetry_calculation = SYMMETRY_EQUATIONS[method.lower()]
         vert_sym, vert_sym_array, vert_lt, vert_rt = symmetry_calculation(vert_profile)
-        horiz_sym , horiz_sym_array, horiz_lt, horiz_rt = symmetry_calculation(horiz_profile)
+        horiz_sym, horiz_sym_array, horiz_lt, horiz_rt = symmetry_calculation(horiz_profile)
         return {
             'method': method,
             'horizontal': {
@@ -317,7 +314,7 @@ class FlatSym:
         if open_file:
             open_path(filename)
 
-    def plot(self, show: bool=True):
+    def plot_analyzed_image(self, show: bool=True):
         """Plot the analyzed image. Shows both flatness & symmetry.
 
         Parameters
@@ -353,16 +350,16 @@ class FlatSym:
         if axis is None:
             fig, axis = plt.subplots()
         axis.imshow(self.image.array, cmap=get_dicom_cmap())
-        #show horizontal profiles
-        left_profile = (self.positions['horizontal'] - self.widths['horizontal']/2)*self.image.array.shape[0]
-        right_profile = (self.positions['horizontal'] + self.widths['horizontal']/2)*self.image.array.shape[0]
-        axis.axhline(left_profile, color='r')  # X
-        axis.axhline(right_profile, color='r')  # X
-        #show vertical profiles
-        bottom_profile = (self.positions['vertical'] - self.widths['vertical']/2)*self.image.array.shape[1]
-        top_profile = (self.positions['vertical'] + self.widths['vertical']/2)*self.image.array.shape[1]
-        axis.axvline(bottom_profile, color='r')  # Y
-        axis.axvline(top_profile, color='r')  # Y
+        # show vertical/axial profiles
+        left_profile = self.positions['vertical left']
+        right_profile = self.positions['vertical right']
+        axis.axvline(left_profile, color='b')
+        axis.axvline(right_profile, color='b')
+        # show horizontal/transverse profiles
+        bottom_profile = self.positions['horizontal bottom']
+        top_profile = self.positions['horizontal top']
+        axis.axhline(bottom_profile, color='b')
+        axis.axhline(top_profile, color='b')
         _remove_ticklabels(axis)
         axis.set_title(title)
 
