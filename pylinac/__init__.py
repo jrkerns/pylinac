@@ -19,7 +19,7 @@ from pylinac.picketfence import PicketFence  # must be after log analyzer
 from pylinac.starshot import Starshot
 from pylinac.vmat import DRMLC, DRGS
 from pylinac.winston_lutz import WinstonLutz
-from pylinac import calibration
+from pylinac.calibration import tg51, trs398
 
 from pylinac.watcher import process
 from pylinac.py_gui import gui  # must be after everything since it imports it all
