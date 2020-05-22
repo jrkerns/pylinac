@@ -61,7 +61,7 @@ class VarianLowDoseThorax(CatPhan504Mixin, TestCase):
     unif_values = {'Center': 16, 'Left': 7, 'Right': -1, 'Top': 3, 'Bottom': 2}
     mtf_values = {50: 0.3}
     avg_line_length = 49.7
-    lowcon_visible = 2
+    lowcon_visible = 0
     slice_thickness = 2.4
 
 
@@ -161,7 +161,7 @@ class CBCT5(CatPhan504Mixin, TestCase):
     origin_slice = 34
     hu_values = {'Poly': -56, 'Acrylic': 101, 'Delrin': 328, 'Air': -999, 'Teflon': 977, 'PMP': -201, 'LDPE': -110}
     unif_values = {'Center': 19, 'Left': -10, 'Right': -5, 'Top': -7, 'Bottom': -8}
-    mtf_values = {50: 0.54}
+    mtf_values = {50: 0.33}
     avg_line_length = 49.55
     lowcon_visible = 2
     slice_thickness = 2.35

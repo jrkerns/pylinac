@@ -167,7 +167,7 @@ class LowContrastDiskROI(DiskROI):
     @property
     def plot_color_cnr(self) -> str:
         """Return one of two colors depending on if ROI passed."""
-        return 'blue' if self.passed_cnr_constant else 'red'
+        return 'green' if self.passed_cnr_constant else 'red'
 
 
 class HighContrastDiskROI(DiskROI):
