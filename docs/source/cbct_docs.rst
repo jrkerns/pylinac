@@ -21,20 +21,20 @@ To run one of the CatPhan demos, create a script or start an interpreter and inp
 
 Results will be printed to the console and a figure showing the slices analyzed will pop up::
 
-     - CatPhan 504 QA Test -
-    HU Linearity ROIs: {'Poly': -45.0, 'PMP': -200.0, 'Acrylic': 115.0, 'Teflon': 997.0, 'Delrin': 340.0, 'Air': -998.0, 'LDPE': -102.0}
+    - CatPhan 504 QA Test -
+    HU Linearity ROIs: Air: -998.0, PMP: -200.0, LDPE: -102.0, Poly: -45.0, Acrylic: 115.0, Delrin: 340.0, Teflon: 997.0
     HU Passed?: True
-    Uniformity ROIs: {'Center': 14.0, 'Top': 6.0, 'Left': 10.0, 'Bottom': 5.0, 'Right': 0.0}
-    Uniformity index: -1.3806706114398422
-    Integral non-uniformity: 0.006951340615690168
-    Uniformity Passed?: True
-    MTF 50% (lp/mm): 0.95
-    Low contrast ROIs "seen": 3
-    Low contrast visibility: 3.4654015681608437
-    Geometric Line Average (mm): 49.93054775087732
+    Low contrast visibility: 3.46
+    Geometric Line Average (mm): 49.95
     Geometry Passed?: True
-    Slice Thickness (mm): 2.5007568359375
+    Measured Slice Thickness (mm): 2.499
     Slice Thickness Passed? True
+    Uniformity ROIs: Top: 6.0, Right: -1.0, Bottom: 5.0, Left: 10.0, Center: 14.0
+    Uniformity index: -1.479
+    Integral non-uniformity: 0.0075
+    Uniformity Passed?: True
+    MTF 50% (lp/mm): 0.56
+    Low contrast ROIs "seen": 3
 
 .. plot::
 
@@ -185,6 +185,41 @@ The value is in mm:
 
     ct = OffsetCatPhan504.from_zip(...)  # use like normal
 
+Customizing Modules
+^^^^^^^^^^^^^^^^^^^
+
+You can also customize modules themselves in v2.4+. Customization should always be done by subclassing an existing
+module and overloading the attributes. Then, pass in the new custom module into the parent CatPhan class. The easiest
+way to get started is copy the relevant attributes from the existing code.
+
+As an example, let's override the nominal HU values for CTP404.
+
+.. code-block:: python
+
+    from pylinac.ct import CatPhan504, CTP404CP504
+
+    # first, customize the module
+    class CustomCTP404(CTP404CP504):
+        roi_dist_mm = 58.7  # this is the default value; we repeat here because it's easy to copy from source
+        roi_radius_mm = 5  # ditto
+        roi_settings = {
+            'Air': {'value': -1000, 'angle': -93, 'distance': roi_dist_mm, 'radius': roi_radius_mm},  # changed 'angle' from -90
+            'PMP': {'value': -196, 'angle': -120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+            ...  # add other ROIs as appropriate
+        }
+
+    # then, pass to the CatPhan model
+    class CustomCP504(CatPhan504):
+        modules = {
+            CustomCTP404: {'offset': 0}
+            ...  # add other modules here as appropriate
+        }
+
+    ct = CustomCP504(...)
+
+.. warning:: If you overload the ``roi_settings`` or ``modules`` attributes, you are responsible for filling it out completely.
+             I.e. when you overload it's not partial. In the above example if you want other CTP modules you **must** populate them.
+
 Algorithm
 ---------
 
@@ -202,8 +237,7 @@ Restrictions
 
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
-* The phantom used must be an unmodified CatPhan 504, 503, or 600.
-* All of the relevant modules must be within the scan extent; i.e. one can't scan only part of the phantom.
+* All of the modules defined in the ``modules`` attribute must be within the scan extent.
 
 
 Pre-Analysis
@@ -239,7 +273,11 @@ Analysis
 
 * **Determine HU linearity** -- The HU module (CTP404) contains several materials with different HU values. Using
   hardcoded angles (corrected for roll) and radius from the center of the phantom, circular ROIs are sampled which
-  correspond to the HU material regions. The mean pixel value of the ROI is the stated HU value.
+  correspond to the HU material regions. The mean pixel value of the ROI is the stated HU value. Nominal HU values
+  are taken as the mean of the range given in the manual(s):
+
+  .. image:: images/catphan_densities.png
+
 * **Determine HU uniformity** -- HU uniformity (CTP486) is calculated in a similar manner to HU linearity, but
   within the CTP486 module/slice.
 * **Calculate Geometry/Scaling** -- The HU module (CTP404), besides HU materials, also contains several "nodes" which
@@ -290,6 +328,9 @@ Most problems in this module revolve around getting the data loaded.
 API Documentation
 -----------------
 
+CatPhan classes
+^^^^^^^^^^^^^^^
+
 The CatPhan classes uses several other classes. There are several Slices of Interest (SOI), most of which contain Regions of Interest (ROI).
 
 .. autoclass:: pylinac.ct.CatPhan504
@@ -309,9 +350,21 @@ Module classes (CTP404, etc)
 
 .. autoclass:: pylinac.ct.CatPhanModule
 
-.. autoclass:: pylinac.ct.CTP404
+.. autoclass:: pylinac.ct.CTP404CP503
 
-.. autoclass:: pylinac.ct.CTP528
+.. autoclass:: pylinac.ct.CTP404CP504
+
+.. autoclass:: pylinac.ct.CTP404CP600
+
+.. autoclass:: pylinac.ct.CTP404CP604
+
+.. autoclass:: pylinac.ct.CTP528CP503
+
+.. autoclass:: pylinac.ct.CTP528CP504
+
+.. autoclass:: pylinac.ct.CTP528CP600
+
+.. autoclass:: pylinac.ct.CTP528CP604
 
 .. autoclass:: pylinac.ct.CTP515
 
@@ -321,11 +374,7 @@ Module classes (CTP404, etc)
 ROI Objects
 ^^^^^^^^^^^
 
-.. autoclass:: pylinac.ct.ROIManagerMixin
-
 .. autoclass:: pylinac.ct.HUDiskROI
-
-.. autoclass:: pylinac.ct.RectangleROI
 
 .. autoclass:: pylinac.ct.ThicknessROI
 
@@ -335,3 +384,5 @@ Helper Functions
 ^^^^^^^^^^^^^^^^
 
 .. autofunction:: combine_surrounding_slices
+
+.. autofunction:: get_regions

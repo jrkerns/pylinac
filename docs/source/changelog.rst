@@ -6,6 +6,22 @@ Changelog
 v 2.4.0
 -------
 
+General
+^^^^^^^
+
+* The GUI function was removed from the pylinac init file. This was causing issues when deploying to Heroku as calls to tkinter
+  caused failures. The GUI should be called from the submodule now:
+
+  .. code-block:: python
+
+    # old
+    import pylinac
+    pylinac.gui()
+
+    # new
+    from pylinac.py_gui import gui
+    gui()
+
 CT Module
 ^^^^^^^^^
 
@@ -19,6 +35,11 @@ A new tutorial section has been added to the documentation showing examples of t
 * CTP modules had an inconsistent naming scheme for rois. E.g. CTP404 had ``hu_rois`` and ``bg_hu_rois`` while CTP515 had
   ``inner_bg_rois`` and ``rois``. This has been standardized (mostly) into ``rois`` for all modules and, where applicable, ``background_rois``.
   Some modules still have **more** relevant attrs, e.g. ``thickness_rois`` for CTP404, but they all have have ``rois``.
+* Due to the above refactor, you may notice small differences in the contrast constant value and thus the ROIs "seen".
+* HU differences are now signed. Previously the absolute value of the difference was taken.
+* HU nominal values have been adjusted to be the mean of the range listed in the CatPhan manuals. The changes
+  are as follows: Air: N/A (this is because most systems have a lower limit of -1000), PMP: -200 -> -196, LDPE: -100 -> -104,
+  Poly: -35 -> -47, Acrylic 120 -> 115, Delrin: 340 -> 365, Teflon: 990 -> 1000, Bone (20%): 240 -> 237, Bone (50%): N/A.
 
 Flatness & Symmetry
 ^^^^^^^^^^^^^^^^^^^
@@ -27,7 +48,7 @@ The flatness & symmetry module has been updated to allow for profiles of a selec
 pixel profile. Thanks to `@alanphys <https://github.com/alanphys>`_ for the pull request.
 
 * Two new keyword parameters were added to analyze: ``vert_width`` and ``horiz_width``. You can read about their usage
-  in the documentation.
+  in the ``analyze`` documentation.
 * The ``plot()`` method was renamed to ``plot_analyzed_image`` to match the rest of the modules.
 
 
