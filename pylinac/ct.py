@@ -65,7 +65,7 @@ class HUDiskROI(DiskROI):
     @property
     def value_diff(self):
         """The difference in HU between measured and nominal."""
-        return abs(self.pixel_value - self.nominal_val)
+        return self.pixel_value - self.nominal_val
 
     @property
     def passed(self):
