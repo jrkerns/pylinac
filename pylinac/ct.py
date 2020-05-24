@@ -19,6 +19,7 @@ import os
 import webbrowser
 import zipfile
 from typing import Optional
+from math import ceil, floor
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1023,6 +1024,10 @@ class CatPhanBase:
 
         if not hu_slices:
             raise ValueError("No slices were found that resembled the HU linearity module")
+        if isinstance(self, CatPhan604):
+            _604_hu_offset_index_front = int(ceil(5 / self.dicom_stack.metadata.SliceThickness))
+            _604_hu_offset_index_back = int(ceil(2 / self.dicom_stack.metadata.SliceThickness))
+            hu_slices = hu_slices[_604_hu_offset_index_front:-_604_hu_offset_index_back]
         hu_slices = np.array(hu_slices)
         c = int(round(np.median(hu_slices)))
         ln = len(hu_slices)
