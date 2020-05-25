@@ -1003,7 +1003,8 @@ class CatPhanBase:
             The middle slice of the HU linearity module.
         """
         hu_slices = []
-        for image_number in range(0, self.num_images, 2):
+        step_size = 2
+        for image_number in range(0, self.num_images, step_size):
             slice = Slice(self, image_number, combine=False)
             #print(image_number)
             # slice.image.plot()
@@ -1025,9 +1026,10 @@ class CatPhanBase:
         if not hu_slices:
             raise ValueError("No slices were found that resembled the HU linearity module")
         if isinstance(self, CatPhan604):
-            _604_hu_offset_index_front = int(ceil(5 / self.dicom_stack.metadata.SliceThickness))
-            _604_hu_offset_index_back = int(ceil(2 / self.dicom_stack.metadata.SliceThickness))
-            hu_slices = hu_slices[_604_hu_offset_index_front:-_604_hu_offset_index_back]
+            # remove the detected slices without the wire ramp
+            rois_without_ramp_mm = 10
+            _604_hu_offset_index_front = int(round((rois_without_ramp_mm / step_size) / self.dicom_stack.metadata.SliceThickness))
+            hu_slices = hu_slices[_604_hu_offset_index_front:]
         hu_slices = np.array(hu_slices)
         c = int(round(np.median(hu_slices)))
         ln = len(hu_slices)
