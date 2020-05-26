@@ -753,11 +753,11 @@ class CTP515(CatPhanModule):
     num_slices = 1
     dist2rois_mm = 50
     bg_roi_radius_mm = 4
-    inner_bg_dist_mm = [37, 39, 40, 40.5, 41.5, 41.5]
-    outer_bg_dist_mm = [63, 61, 60, 59.5, 58.5, 58.5]
-    roi_radius_mm = [6, 3.5, 3, 2.5, 2, 1.5]
-    roi_names = ['15', '9', '8', '7', '6', '5']
-    roi_nominal_angles = [-87.4, -69.1, -52.7, -38.5, -25.1, -12.9]
+    inner_bg_dist_mm = [37, 39, 40, 40.5, 41.5, 41.5, 41.5, 41.5]
+    outer_bg_dist_mm = [63, 61, 60, 59.5, 58.5, 58.5, 58.5, 58.5]
+    roi_radius_mm = [6, 3.5, 3, 2.5, 2, 1.5, 1, 1]
+    roi_names = ['15', '9', '8', '7', '6', '5', '4', '3']
+    roi_nominal_angles = [-87.4, -69.1, -52.7, -38.5, -25.1, -12.9, -3.7, 3.1]
 
     def __init__(self, catphan, tolerance, cnr_threshold, offset=0):
         self.cnr_threshold = cnr_threshold
