@@ -1,10 +1,13 @@
 # Folders to ignore
 env/*
 **/pylinac.egg-info
+**/.idea
 #**/demo_files
 **/__pycache__
 
 #Files to ignore
 *.old
 .directory
+.idea/workspace.xml
+.idea/tasks.xml
 /CatPhan_test_data/
