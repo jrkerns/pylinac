@@ -241,7 +241,7 @@ class WinstonLutz:
         sv = self.bb_shift_vector
         x_dir = 'LEFT -' if sv.x < 0 else 'RIGHT +'
         y_dir = 'IN +' if sv.y > 0 else 'OUT -'
-        z_dir = 'UP +' if sv.z > 0 else 'DOWN -'
+        z_dir = 'UP +' if sv.z < 0 else 'DOWN -'
 
 
 
@@ -770,9 +770,10 @@ class WLImage(image.LinacDicomImage):
         """The couch angle converted from IEC 61217 scale to "Varian" scale. Note that any new Varian machine uses 61217."""
         #  convert to Varian scale per Low paper scale
         if super().couch_angle > 250:
-            return 2 * 270 - super().couch_angle
+            #return 2 * 270 - super().couch_angle
+            return 360 - super().couch_angle
         else:
-            return 180 - super().couch_angle
+            return 360 - super().couch_angle
 
     @property
     def cax2bb_vector(self) -> Vector:
@@ -841,7 +842,7 @@ class WLImage(image.LinacDicomImage):
         if show:
            plt.tight_layout()
            plt.show()
-           
+
         return ax
 
     def save_plot(self, filename: str, **kwargs):
