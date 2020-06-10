@@ -3,7 +3,9 @@ env/*
 **/pylinac.egg-info
 #**/demo_files
 **/__pycache__
+.vscode
 
 #Files to ignore
 *.old
 .directory
+
