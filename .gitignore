@@ -1,4 +1,5 @@
 # Folders to ignore
+.vscode
 env/*
 **/pylinac.egg-info
 #**/demo_files
