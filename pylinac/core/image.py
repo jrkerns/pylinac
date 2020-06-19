@@ -47,18 +47,15 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, Imag
     """Crop and resize two images to make them:
       * The same pixel dimensions
       * The same DPI
-
     The usefulness of the function comes when trying to compare images from different sources.
     The best example is calculating gamma on a machine log fluence and EPID image. The physical
     and pixel dimensions must be normalized, the SID normalized
-
     Parameters
     ----------
     image1 : {:class:`~pylinac.core.image.ArrayImage`, :class:`~pylinac.core.image.DicomImage`, :class:`~pylinac.core.image.FileImage`}
         Must have DPI and SID.
     image2 : {:class:`~pylinac.core.image.ArrayImage`, :class:`~pylinac.core.image.DicomImage`, :class:`~pylinac.core.image.FileImage`}
         Must have DPI and SID.
-
     Returns
     -------
     image1 : :class:`~pylinac.core.image.ArrayImage`
@@ -96,7 +93,6 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, Imag
 
 def is_image(path: str) -> bool:
     """Determine whether the path is a valid image file.
-
     Returns
     -------
     bool
@@ -106,7 +102,6 @@ def is_image(path: str) -> bool:
 
 def retrieve_image_files(path: str) -> List:
     """Retrieve the file names of all the valid image files in the path.
-
     Returns
     -------
     list
@@ -117,7 +112,6 @@ def retrieve_image_files(path: str) -> List:
 
 def load(path: str, **kwargs) -> ImageLike:
     """Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
-
     Parameters
     ----------
     path : str, file-object
@@ -125,23 +119,18 @@ def load(path: str, **kwargs) -> ImageLike:
     kwargs
         See :class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.DicomImage`,
         or :class:`~pylinac.core.image.ArrayImage` for keyword arguments.
-
     Returns
     -------
     ::class:`~pylinac.core.image.FileImage`, :class:`~pylinac.core.image.ArrayImage`, or :class:`~pylinac.core.image.DicomImage`
         Return type depends on input image.
-
     Examples
     --------
     Load an image from a file and then apply a filter::
-
         >>> from pylinac.core.image import load
         >>> my_image = "C:\QA\image.tif"
         >>> img = load(my_image)  # returns a FileImage
         >>> img.filter(5)
-
     Loading from an array is just like loading from a file::
-
         >>> arr = np.arange(36).reshape(6, 6)
         >>> img = load(arr)  # returns an ArrayImage
     """
@@ -160,14 +149,11 @@ def load(path: str, **kwargs) -> ImageLike:
 
 def load_url(url: str, progress_bar: bool=True, **kwargs):
     """Load an image from a URL.
-
     Parameters
     ----------
     url : str
         A string pointing to a valid URL that points to a file.
-
         .. note:: For some images (e.g. Github), the raw binary URL must be used, not simply the basic link.
-
     progress_bar: bool
         Whether to display a progress bar of download status.
     """
@@ -178,7 +164,6 @@ def load_url(url: str, progress_bar: bool=True, **kwargs):
 @value_accept(method=('mean', 'max', 'sum'))
 def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True, **kwargs) -> ImageLike:
     """Combine multiple image files into one superimposed image.
-
     Parameters
     ----------
     image_file_list : list
@@ -189,11 +174,9 @@ def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True
         Whether to normalize the images being combined by stretching their high/low values to the same values across images.
     kwargs :
         Further keyword arguments are passed to the load function.
-
     Examples
     --------
     Load multiple images::
-
         >>> from pylinac.core.image import load_multiples
         >>> paths = ['starshot1.tif', 'starshot2.tif']
         >>> superimposed_img = load_multiples(paths)
@@ -245,7 +228,6 @@ def _is_array(obj: Any) -> bool:
 
 class BaseImage:
     """Base class for the Image classes.
-
     Attributes
     ----------
     path : str
@@ -311,7 +293,6 @@ class BaseImage:
 
     def plot(self, ax: plt.Axes=None, show: bool=True, clear_fig: bool=False, **kwargs):
         """Plot the image.
-
         Parameters
         ----------
         ax : matplotlib.Axes instance
@@ -322,18 +303,19 @@ class BaseImage:
             Whether to clear the prior items on the figure before plotting.
         """
         if ax is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(10,10))
+            plt.subplots_adjust(left=10, right=10, top=10, bottom=10)
         if clear_fig:
             plt.clf()
         ax.imshow(self.array, cmap=get_dicom_cmap(), **kwargs)
         if show:
+
             plt.show()
         return ax
 
     @value_accept(kind=('median', 'gaussian'))
     def filter(self, size: Union[float, int]=0.05, kind: str='median'):
         """Filter the profile.
-
         Parameters
         ----------
         size : int, float
@@ -359,7 +341,6 @@ class BaseImage:
     @type_accept(pixels=int)
     def crop(self, pixels: int=15, edges: Tuple[str, ...]=('top', 'bottom', 'left', 'right')):
         """Removes pixels on all edges of the image in-place.
-
         Parameters
         ----------
         pixels : int
@@ -381,7 +362,6 @@ class BaseImage:
     @type_accept(pixels=int)
     def remove_edges(self, pixels: int=15, edges: Tuple[str, ...]=('top', 'bottom', 'left', 'right')):
         """Removes pixels on all edges of the image in-place.
-
         Parameters
         ----------
         pixels : int
@@ -404,7 +384,6 @@ class BaseImage:
     @type_accept(direction=str, amount=int)
     def roll(self, direction: str='x', amount: int=1):
         """Roll the image array around in-place. Wrapper for np.roll().
-
         Parameters
         ----------
         direction : {'x', 'y'}
@@ -423,7 +402,6 @@ class BaseImage:
     @value_accept(kind=('high', 'low'))
     def threshold(self, threshold: int, kind: str='high'):
         """Apply a high- or low-pass threshold filter.
-
         Parameters
         ----------
         threshold : int
@@ -440,12 +418,10 @@ class BaseImage:
 
     def as_binary(self, threshold: int):
         """Return a binary (black & white) image based on the given threshold.
-
         Parameters
         ----------
         threshold : int, float
             The threshold value. If the value is above or equal to the threshold it is set to 1, otherwise to 0.
-
         Returns
         -------
         ArrayImage
@@ -456,11 +432,9 @@ class BaseImage:
     @type_accept(point=(Point, tuple))
     def dist2edge_min(self, point: Union[Point, Tuple]):
         """Calculates minimum distance from given point to image edges.
-
         Parameters
         ----------
         point : geometry.Point, tuple
-
         Returns
         -------
         float
@@ -478,11 +452,9 @@ class BaseImage:
 
     def ground(self) -> float:
         """Ground the profile such that the lowest value is 0.
-
         .. note::
             This will also "ground" profiles that are negative or partially-negative.
             For such profiles, be careful that this is the behavior you desire.
-
         Returns
         -------
         float
@@ -494,7 +466,6 @@ class BaseImage:
 
     def normalize(self, norm_val: Union[str, NumberLike]='max'):
         """Normalize the image values to the given value.
-
         Parameters
         ----------
         norm_val : str, number
@@ -511,7 +482,6 @@ class BaseImage:
     def check_inversion(self, box_size: int=20, position: Sequence=(0.0, 0.0)):
         """Check the image for inversion by sampling the 4 image corners.
         If the average value of the four corners is above the average pixel value, then it is very likely inverted.
-
         Parameters
         ----------
         box_size : int
@@ -534,7 +504,6 @@ class BaseImage:
         is mostly background-like values and that there is a relatively small amount of dose getting to the image
         (e.g. a picket fence image). This function looks at the distance from one percentile to another to determine
         if the image should be inverted.
-
         Parameters
         ----------
         percentiles : 3-element tuple
@@ -553,13 +522,10 @@ class BaseImage:
     def gamma(self, comparison_image: ImageLike, doseTA: NumberLike=1, distTA: NumberLike=1,
               threshold: NumberLike=0.1, ground: bool=True, normalize: bool=True):
         """Calculate the gamma between the current image (reference) and a comparison image.
-
         .. versionadded:: 1.2
-
         The gamma calculation is based on `Bakai et al
         <http://iopscience.iop.org/0031-9155/48/21/006/>`_ eq.6,
         which is a quicker alternative to the standard Low gamma equation.
-
         Parameters
         ----------
         comparison_image : {:class:`~pylinac.core.image.ArrayImage`, :class:`~pylinac.core.image.DicomImage`, or :class:`~pylinac.core.image.FileImage`}
@@ -577,12 +543,10 @@ class BaseImage:
             This can fix offset errors in the data.
         normalize : bool
             Whether to normalize the images. This sets the max value of each image to the same value.
-
         Returns
         -------
         gamma_map : numpy.ndarray
             The calculated gamma map.
-
         See Also
         --------
         :func:`~pylinac.core.image.equate_images`
@@ -665,7 +629,6 @@ class BaseImage:
 
 class DicomImage(BaseImage):
     """An image from a DICOM RTImage file.
-
     Attributes
     ----------
     metadata : pydicom Dataset
@@ -685,7 +648,6 @@ class DicomImage(BaseImage):
         The data type to cast the image data as. If None, will use whatever raw image format is.
             dpi : int, float
         The dots-per-inch of the image, defined at isocenter.
-
             .. note:: If a DPI tag is found in the image, that value will override the parameter, otherwise this one
                 will be used.
         sid : int, float
@@ -705,15 +667,12 @@ class DicomImage(BaseImage):
             self.array = ds.pixel_array.astype(dtype)
         else:
             self.array = ds.pixel_array
-        # convert values to HU or CU: real_values = slope * raw + intercept
-        is_ct_storage = self.metadata.SOPClassUID.name == 'CT Image Storage'
-        has_rescale_tags = hasattr(self.metadata, 'RescaleSlope') and hasattr(self.metadata, 'RescaleIntercept')
-        if is_ct_storage or has_rescale_tags:
-            self.array = (self.metadata.RescaleSlope*self.array) + self.metadata.RescaleIntercept
+        # convert values to proper HU: real_values = slope * raw + intercept
+        if self.metadata.SOPClassUID.name == 'CT Image Storage':
+            self.array = int(self.metadata.RescaleSlope)*self.array + int(self.metadata.RescaleIntercept)
 
     def save(self, filename: str) -> str:
         """Save the image instance back out to a .dcm file.
-
         Returns
         -------
         A string pointing to the new filename.
@@ -773,6 +732,7 @@ class LinacDicomImage(DicomImage):
     gantry_keyword = 'Gantry'
     collimator_keyword = 'Coll'
     couch_keyword = 'Couch'
+    mu_keyword = 'Meterset'
 
     _use_filenames: bool
 
@@ -784,6 +744,12 @@ class LinacDicomImage(DicomImage):
     def gantry_angle(self) -> NumberLike:
         """Gantry angle of the irradiation."""
         return self._get_axis(self.gantry_keyword.lower(), 'GantryAngle')
+
+    @property
+    def winstonLutz_MU (self) -> NumberLike:
+        """MU of the irradiation."""
+
+        return self.metadata.ExposureSequence[0]['3002', '0032'].value
 
     @property
     def collimator_angle(self) -> NumberLike:
@@ -799,14 +765,12 @@ class LinacDicomImage(DicomImage):
         """Retrieve the value of the axis. This will first look in the file name for the value.
         If not in the filename then it will look in the DICOM metadata. If the value can be found in neither
         then a value of 0 is assumed.
-
         Parameters
         ----------
         axis_str : str
             The string to look for in the filename.
         axis_dcm_attr : str
             The DICOM attribute that should contain the axis value.
-
         Returns
         -------
         float
@@ -844,7 +808,6 @@ class LinacDicomImage(DicomImage):
 
 class FileImage(BaseImage):
     """An image from a "regular" file (.tif, .jpg, .bmp).
-
     Attributes
     ----------
     info : dict
@@ -861,7 +824,6 @@ class FileImage(BaseImage):
             The path to the file or a data stream.
         dpi : int, float
             The dots-per-inch of the image, defined at isocenter.
-
             .. note:: If a DPI tag is found in the image, that value will override the parameter, otherwise this one
                 will be used.
         sid : int, float
@@ -918,7 +880,6 @@ class ArrayImage(BaseImage):
             The image array.
         dpi : int, float
             The dots-per-inch of the image, defined at isocenter.
-
             .. note:: If a DPI tag is found in the image, that value will override the parameter, otherwise this one
                 will be used.
         sid : int, float
@@ -960,13 +921,11 @@ class DicomImageStack:
     """A class that loads and holds a stack of DICOM images (e.g. a CT dataset). The class can take
     a folder or zip file and will read CT images. The images must all be the same size. Supports
     indexing to individual images.
-
     Attributes
     ----------
     images : list
         Holds instances of :class:`~pylinac.core.image.DicomImage`. Can be accessed via index;
         i.e. self[0] == self.images[0].
-
     Examples
     --------
     Load a folder of Dicom images
@@ -974,11 +933,9 @@ class DicomImageStack:
     >>> img_folder = r"folder/qa/cbct/june"
     >>> dcm_stack = image.DicomImageStack(img_folder)  # loads and sorts the images
     >>> dcm_stack.plot(3)  # plot the 3rd image
-
     Load a zip archive
     >>> img_folder_zip = r"archive/qa/cbct/june.zip"  # save space and zip your CBCTs
     >>> dcm_stack = image.DicomImageStack.from_zip(img_folder_zip)
-
     Load as a certain data type
     >>> dcm_stack_uint32 = image.DicomImageStack(img_folder, dtype=np.uint32)
     """
@@ -986,7 +943,6 @@ class DicomImageStack:
 
     def __init__(self, folder: str, dtype=None, min_number: int=39, check_uid: bool=True):
         """Load a folder with DICOM CT images.
-
         Parameters
         ----------
         folder : str
@@ -1016,7 +972,6 @@ class DicomImageStack:
     @classmethod
     def from_zip(cls, zip_path: str, dtype=None):
         """Load a DICOM ZIP archive.
-
         Parameters
         ----------
         zip_path : str
@@ -1047,7 +1002,6 @@ class DicomImageStack:
     @type_accept(slice=int)
     def plot(self, slice: int=0):
         """Plot a slice of the DICOM dataset.
-
         Parameters
         ----------
         slice : int
