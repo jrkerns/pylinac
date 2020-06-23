@@ -26,10 +26,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="dcdfe904-d4e5-443d-a106-b24ec160934f" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Practice.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pylinac/core/image.py" beforeDir="false" afterPath="$PROJECT_DIR$/pylinac/core/image.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pylinac/winston_lutz.py" beforeDir="false" afterPath="$PROJECT_DIR$/pylinac/winston_lutz.py" afterDir="false" />
     </list>
     <list id="15ad1f26-81a6-4f21-91d5-bf75aec61b27" name="relaxed WL module" comment="" />
@@ -45,7 +44,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state>
+            <state relative-caret-position="204">
+              <caret line="12" selection-start-line="12" selection-end-line="12" />
               <folding>
                 <element signature="e#0#31#0" expanded="true" />
               </folding>
@@ -56,8 +56,11 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/pylinac/winston_lutz.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="396">
-              <caret line="710" column="22" selection-start-line="710" selection-start-column="22" selection-end-line="710" selection-end-column="22" />
+            <state relative-caret-position="187">
+              <caret line="11" column="33" lean-forward="true" selection-start-line="11" selection-start-column="33" selection-end-line="11" selection-end-column="33" />
+              <folding>
+                <element signature="e#1327#1358#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -83,6 +86,7 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
+        <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/pylinac/winston_lutz.py" />
       </list>
     </option>
@@ -102,6 +106,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -118,7 +123,6 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="ProjectViewState">
@@ -193,9 +197,6 @@
       <module name="TBCCpylinac" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
       <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="true" />
@@ -287,14 +288,21 @@
       <option name="project" value="LOCAL" />
       <updated>1591923414851</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="added median filter to rad field detection to remove noise. Removed gaussian smoothing filter from rad field detection algorithm">
+      <created>1592584193052</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1592584193052</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="72" y="-8" width="1856" height="1096" extended-state="6" />
+    <frame x="54" y="-8" width="1874" height="1096" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.24972497" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.2472767" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -307,7 +315,7 @@
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Terminal" order="8" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info anchor="bottom" id="Python Console" order="10" />
+      <window_info anchor="bottom" id="Python Console" order="10" visible="true" weight="0.32917964" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -376,7 +384,8 @@
     <MESSAGE value="relaxed WL module" />
     <MESSAGE value="changed couch transformation to match doselab pro procedure" />
     <MESSAGE value="final final final final" />
-    <option name="LAST_COMMIT_MESSAGE" value="final final final final" />
+    <MESSAGE value="added median filter to rad field detection to remove noise. Removed gaussian smoothing filter from rad field detection algorithm" />
+    <option name="LAST_COMMIT_MESSAGE" value="added median filter to rad field detection to remove noise. Removed gaussian smoothing filter from rad field detection algorithm" />
   </component>
   <component name="WindowStateProjectService">
     <state x="555" y="-995" key="CommitChangelistDialog2" timestamp="1588624563603">
@@ -411,7 +420,8 @@
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state>
+        <state relative-caret-position="204">
+          <caret line="12" selection-start-line="12" selection-end-line="12" />
           <folding>
             <element signature="e#0#31#0" expanded="true" />
           </folding>
@@ -420,8 +430,11 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/pylinac/winston_lutz.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="396">
-          <caret line="710" column="22" selection-start-line="710" selection-start-column="22" selection-end-line="710" selection-end-column="22" />
+        <state relative-caret-position="187">
+          <caret line="11" column="33" lean-forward="true" selection-start-line="11" selection-start-column="33" selection-end-line="11" selection-end-column="33" />
+          <folding>
+            <element signature="e#1327#1358#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
