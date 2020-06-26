@@ -37,7 +37,6 @@ from .core.mask import filled_area_ratio, bounding_box
 from .core import pdf
 from .core.utilities import is_close, open_path
 
-import cv2
 
 
 
