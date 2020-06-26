@@ -37,6 +37,8 @@ from .core.mask import filled_area_ratio, bounding_box
 from .core import pdf
 from .core.utilities import is_close, open_path
 
+import cv2
+
 
 
 GANTRY = 'Gantry'
@@ -519,16 +521,21 @@ class WinstonLutz:
         fig, axes = plt.subplots(nrows=max_num_images, ncols=5)
         for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
             # plt.figure(str(wl_image))
-            c = plot_image2(wl_image, mpl_axis)[0]
-            d = plot_image2(wl_image, mpl_axis)[1]
-            e = plot_image2(wl_image, mpl_axis)[2]
-            f = plot_image2(wl_image, mpl_axis)[3]
-            g = plot_image2(wl_image, mpl_axis)[4]
-            if c != '[]' and d != []:
+            c = plot_image2(wl_image, mpl_axis)[0] #G{}C{}T{}
+            d = plot_image2(wl_image, mpl_axis)[1] #MU
+            e = plot_image2(wl_image, mpl_axis)[2] # Total Delta
+            f = plot_image2(wl_image, mpl_axis)[3] # delta x
+            g = plot_image2(wl_image, mpl_axis)[4] # delta y
+            if (c != '[]' and d != []) and c not in adnan:
                 adnan["{}".format(c)] = d
                 adnan["MU"] = e
                 adnan[c+" x delta"] = f
                 adnan[c+" y delta"] = g
+            elif (c != '[]' and d != '[]') and c in adnan:
+                adnan["{}(2)".format(c)] = d
+                adnan["MU"] = e
+                adnan[c + "(2) x delta"] = f
+                adnan[c + "(2) y delta"] = g
             else:
                 continue
         return adnan
@@ -574,7 +581,7 @@ class WinstonLutz:
         # plt.tight_layout()
         plt.savefig(filename, **kwargs)
 
-    def results(self, as_list: bool=False) -> str:
+    def results(self, as_list: bool=True) -> str:
         """Return the analysis results summary.
         Parameters
         ----------
@@ -591,7 +598,7 @@ class WinstonLutz:
         #print("\n".join(map(str, myListy)))
 
         delta_list = list(myListx[0] + myListy[0])
-        print(delta_list)
+        #print(delta_list)
         xs = np.array(delta_list)
         xs_abs = np.abs(xs)
         max_index = np.argmax(xs_abs)
@@ -607,6 +614,7 @@ class WinstonLutz:
         result = ["Winston-Lutz Analysis",
                   "=================================",
                   f"Number of images: {num_imgs}",
+                  f"Maximum 2D CAX->EPID distance: {self.cax2epid_distance('max'):.2f}mm",
                   f"Maximum Delta: {x:.2f}mm",
                   f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm",
                   f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
@@ -754,6 +762,13 @@ class WLImage(image.LinacDicomImage):
             The bounding box of the field, plus a small margin.
         """
 
+        def crop_center(img, cropx, cropy):
+            y, x = self.shape
+            startx = x // 2 - (cropx // 2)
+            starty = y // 2 - (cropy // 2)
+            return img[starty:starty + cropy, startx:startx + cropx]
+
+        self.array = crop_center(self.array, 100, 100)
 
         min, max = np.percentile(self.array, [5, 99.9])
         #min, max = np.percentile(gaussian_filter(self.array, sigma=6), [5, 99.9])
@@ -768,6 +783,13 @@ class WLImage(image.LinacDicomImage):
         edges[3] += 10
         coords = ndimage.measurements.center_of_mass(ndimage.median_filter(filled_img,5))
         p = Point(x=coords[-1], y=coords[0])
+        plt.figure()
+        plt.title("G{}C{}T{} File:{}".format(round(self.gantry_angle, 0), round(self.collimator_angle, 0),
+                                             round(self.couch_angle_varian_scale, 0),
+                                             self.file))
+        plt.imshow(self.array)
+        plt.imshow(filled_img,alpha=0.5,cmap='bone')
+        plt.plot(coords[-1],coords[0],'+b',ms=40)
         return p, edges
 
     def _find_bb(self) -> Point:
@@ -779,7 +801,15 @@ class WLImage(image.LinacDicomImage):
             The weighted-pixel value location of the BB.
         """
         # get initial starting conditions
-        #hmin, hmax = np.percentile
+        def crop_center(img, cropx, cropy):
+            y, x = self.shape
+            startx = x // 2 - (cropx // 2)
+            starty = y // 2 - (cropy // 2)
+            return img[starty:starty + cropy, startx:startx + cropx]
+
+        #self.array = crop_center(self.array, 100, 100)
+
+        #hmin, hmax = np.percentile(self.array,[5,99.9])
         hmin, hmax = np.percentile(gaussian_filter(self.array, sigma=6), [5, 99.9])
         #hmin, hmax = np.percentile(ndimage.median_filter(self.array, 3), [5, 99.9])
         spread = hmax - hmin
@@ -817,9 +847,40 @@ class WLImage(image.LinacDicomImage):
         inv_img.check_inversion_by_histogram(percentiles=(99.99, 50, 0.01))
         bb_rprops = measure.regionprops(bw_bb_img, intensity_image=(inv_img))[0]
 
+        plt.figure()
+        plt.title("G{}C{}T{} File:{}".format(round(self.gantry_angle,0), round(self.collimator_angle,0), round(self.couch_angle_varian_scale,0),
+                                             self.file))
+        plt.imshow(self.array)
+        plt.imshow(bw_bb_img, alpha=0.5,cmap='bone')
+        plt.plot(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0],'xr')
 
+        def second_bb_finding_method(input):
+            # read the DICOM file
+            d16 = input
+            # rescale original 16 bit image to 8 bit values [0,255]
+            x0 = d16.min()
+            x1 = d16.max()
+            y0 = 0
+            y1 = 255.0
+            i8 = ((d16 - x0) * ((y1 - y0) / (x1 - x0))) + y0
+            # create new array with rescaled values and unsigned 8 bit data type
+            o8 = i8.astype(np.uint8)
+            # apply hough transform
+            circles = cv2.HoughCircles(o8, cv2.HOUGH_GRADIENT, 1, 20, param1=50, param2=30, minRadius=0, maxRadius=30)
+            # place circles and cente rectangle on image
+            if circles is not None:
+                circles = np.round(circles[0, :].astype("int"))
+                for (x, y, r) in circles:
+                    # cv2.circle(output, (x, y), r, (0, 255, 0), 4)
+                    # cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
+                    # print("x: {}, y: {}".format(x,y))
+                    return x, y
+
+        #x = second_bb_finding_method(self.array)[0]
+        #y = second_bb_finding_method(self.array)[1]
         return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
-        #return Point(ndimage.measurements.center_of_mass(bw_bb_img)[1], ndimage.measurements.center_of_mass(bw_bb_img)[0])
+        #return Point(x, y)
+
 
     @property
     def epid(self) -> Point:
@@ -904,9 +965,9 @@ class WLImage(image.LinacDicomImage):
             Whether to clear the figure first before drawing.
         """
         ax = super().plot(ax=ax, show=False, clear_fig=clear_fig)
-        # ax.plot(self.field_cax.x, self.field_cax.y, 'gs', ms=4)
+        ax.plot(self.epid.x, self.epid.y, 'gs', ms=4)
         ax.plot(self.bb.x, self.bb.y, 'r+', ms=4)
-        ax.plot(self.epid.x, self.epid.y, 'b+', ms=4)
+        ax.plot(self.field_cax.x, self.field_cax.y, 'b+', ms=4)
         ax.set_ylim([self.rad_field_bounding_box[0], self.rad_field_bounding_box[1]])
         ax.set_xlim([self.rad_field_bounding_box[2], self.rad_field_bounding_box[3]])
         # ax.set_yticklabels([])
@@ -916,7 +977,6 @@ class WLImage(image.LinacDicomImage):
                       fontsize=8)
         ax.yaxis.set_label_position("right")
         ax.set_ylabel(f"\u0394(mm) = {((self.field_cax.y - self.bb.y) / self.dpmm):3.2f} \n CAX to BB: {self.cax2bb_distance:3.2f}mm",fontsize=8)
-
         # print(f"G{self.gantry_angle:.0f}, C{self.collimator_angle:.0f}, T{360-self.couch_angle:.0f}","CAX to BB, X coord", (self.field_cax.x-self.bb.x)/self.dpmm)
         # print(f"G{self.gantry_angle:.0f}, C{self.collimator_angle:.0f}, T{360-self.couch_angle:.0f}","CAX to BB, Y coord", (self.field_cax.y - self.bb.y) / self.dpmm)
         self.maximum_delta_x

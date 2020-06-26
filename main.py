@@ -1,12 +1,14 @@
 from pylinac import WinstonLutz
-from pylinac import settings
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import cm
 
-my_directory ="N:/MedicalPhysics/Quality Control Program/Treatment/Annual/QC/2019/Unit 3 SN 3484/WINSTON LUTZ/U3 WL/6X_Final/Z20130715"
+
+#my_directory ="N:/MedicalPhysics/Quality Control Program/Treatment/Annual/QC/2018/Unit 8 SN 1495/Winston-Lutz/Z20130715"
+#my_directory ="N:/MedicalPhysics/Quality Control Program/Treatment/Weekly/Winston-Lutz/Unit 03/2020_06_23 redo/QA Winston-Lutz U3"
+
+my_directory ="H:/WL Testing on U2/Forth Run/Z20190312/"
 
 wl = WinstonLutz(my_directory)
 wl.plot_images()
-wl.plot_deltas()
-wl.results()
-#wl.bb_shift_instructions()
+print(wl.plot_deltas())
+#print(wl.results()[3][-7:-2])
+#print(wl.bb_shift_instructions())
+print(wl.results())
