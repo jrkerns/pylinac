@@ -605,7 +605,7 @@ class WinstonLutz:
         xs_abs = np.abs(xs)
         max_index = np.argmax(xs_abs)
         x = xs[max_index]
-        self.maxD = x;
+        self.maxD = x
 
         #print("Maximum Delta: ", x)
 
