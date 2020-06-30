@@ -211,6 +211,7 @@ class WinstonLutz:
         else:
             return 0
 
+
     @property
     def couch_iso_size(self) -> float:
         """The diameter of the 2D couch isocenter size in mm. Only images where
@@ -295,7 +296,7 @@ class WinstonLutz:
         """The distance in mm between the CAX and BB for all images according to the given metric.
         Parameters
         ----------
-        metric : {'max', 'median'}
+        metric : {'max', 'median', 'mean'}
             The metric of distance to use.
         """
         if metric == 'max':
@@ -596,18 +597,11 @@ class WinstonLutz:
         myListy = self.deltaList()[1]
         myListy = [tuple(float(z) for z in k) for k in myListy]
 
-        #print("\n".join(map(str,myListx)))
-        #print("\n".join(map(str, myListy)))
-
         delta_list = list(myListx[0] + myListy[0])
-        #print(delta_list)
         xs = np.array(delta_list)
         xs_abs = np.abs(xs)
         max_index = np.argmax(xs_abs)
         x = xs[max_index]
-        self.maxD = x
-
-        #print("Maximum Delta: ", x)
 
         num_gantry_imgs = self._get_images(axis=(GANTRY, REFERENCE))[0]
         num_gantry_coll_imgs = self._get_images(axis=(GANTRY, COLLIMATOR, COMBO, REFERENCE))[0]
@@ -618,7 +612,7 @@ class WinstonLutz:
                   "=================================",
                   f"Number of images: {num_imgs}",
                   f"Maximum 2D CAX->EPID distance: {self.cax2epid_distance('max'):.2f}mm",
-                  f"Maximum Delta: {x:.2f}mm",
+                  f"Maximum Delta: {x:.5f}mm",
                   f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm",
                   f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
                   f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
