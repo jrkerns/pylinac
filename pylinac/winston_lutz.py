@@ -257,10 +257,10 @@ class WinstonLutz:
             The current couch lateral position in cm.
         """
         sv = self.bb_shift_vector
-        x_dir = 'LEFT -' if sv.x < 0 else 'RIGHT +'
-        y_dir = 'IN +' if sv.y > 0 else 'OUT -'
-        z_dir = 'UP +' if sv.z < 0 else 'DOWN -'
-        move = f"\033[92m {x_dir} {abs(sv.x):2.2f}mm; {y_dir} {abs(sv.y):2.2f}mm; {z_dir} {abs(sv.z):2.2f}mm"
+        x_dir = 'X -' if sv.x < 0 else 'X +'
+        y_dir = 'Y +' if sv.y > 0 else 'Y -'
+        z_dir = 'Z +' if sv.z < 0 else 'Z -'
+        move = f"{x_dir} {abs(sv.x):2.2f}mm; {y_dir} {abs(sv.y):2.2f}mm; {z_dir} {abs(sv.z):2.2f}mm"
         if all(val is not None for val in [couch_vrt, couch_lat, couch_lng]):
             new_lat = round(couch_lat + sv.x/10, 2)
             new_vrt = round(couch_vrt + sv.z/10, 2)
@@ -335,6 +335,7 @@ class WinstonLutz:
 
         x.append((image.maximum_delta_x for image in self.images))
         y.append((image.maximum_delta_y for image in self.images))
+
         return x,y
 
     def cax2epid_distance(self, metric: str='max') -> float:
@@ -479,8 +480,6 @@ class WinstonLutz:
         if show:
             plt.show()
 
-
-
     @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
     def plot_deltas(self, axis: str = ALL, show: bool = False):
         adnan = {}
@@ -503,9 +502,7 @@ class WinstonLutz:
             else:
                 plt.close()
                 a, b, c, d, e = image.totaldeltas(ax=axis, show=False)
-                #print(a,b)
-            return a,b,c,d,e
-
+            return a, b, c, d, e
 
         # get axis images
         if axis == GANTRY:
@@ -524,16 +521,16 @@ class WinstonLutz:
         fig, axes = plt.subplots(nrows=max_num_images, ncols=5)
         for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
             # plt.figure(str(wl_image))
-            c = plot_image2(wl_image, mpl_axis)[0] #G{}C{}T{}
-            d = plot_image2(wl_image, mpl_axis)[1] #MU
-            e = plot_image2(wl_image, mpl_axis)[2] # Total Delta
-            f = plot_image2(wl_image, mpl_axis)[3] # delta x
-            g = plot_image2(wl_image, mpl_axis)[4] # delta y
+            c = str(plot_image2(wl_image, mpl_axis)[0])  # G{}C{}T{}
+            d = plot_image2(wl_image, mpl_axis)[1]  # MU
+            e = plot_image2(wl_image, mpl_axis)[2]  # Total Delta
+            f = plot_image2(wl_image, mpl_axis)[3]  # delta x
+            g = plot_image2(wl_image, mpl_axis)[4]  # delta y
             if (c != '[]' and d != []) and c not in adnan:
                 adnan["{}".format(c)] = d
                 adnan["MU"] = e
-                adnan[c+" x delta"] = f
-                adnan[c+" y delta"] = g
+                adnan[c + " x delta"] = f
+                adnan[c + " y delta"] = g
             elif (c != '[]' and d != '[]') and c in adnan:
                 adnan["{}(2)".format(c)] = d
                 adnan["MU"] = e
@@ -582,7 +579,7 @@ class WinstonLutz:
         """Save the summary image."""
         self.plot_summary(show=False)
         # plt.tight_layout()
-        plt.savefig(filename, **kwargs)
+        plt.savefig(filename, dpi=260, **kwargs)
 
     def results(self, as_list: bool=True) -> str:
         """Return the analysis results summary.
@@ -593,7 +590,6 @@ class WinstonLutz:
         """
         myListx = self.deltaList()[0]
         myListx = [tuple(float(y) for y in x) for x in myListx]
-
         myListy = self.deltaList()[1]
         myListy = [tuple(float(z) for z in k) for k in myListy]
 
@@ -652,15 +648,27 @@ class WinstonLutz:
         title = "Winston-Lutz Analysis"
         canvas = pdf.PylinacCanvas(filename, page_title=title, metadata=metadata)
         avg_sid = np.mean([image.metadata.RTImageSID for image in self.images])
+        myListx = self.deltaList()[0]
+        myListx = [tuple(float(y) for y in x) for x in myListx]
+        myListy = self.deltaList()[1]
+        myListy = [tuple(float(z) for z in k) for k in myListy]
+
+        delta_list = list(myListx[0] + myListy[0])
+        xs = np.array(delta_list)
+        xs_abs = np.abs(xs)
+        max_index = np.argmax(xs_abs)
+        x = xs[max_index]
 
         text = ['Winston-Lutz results:',
                 f'Average SID (mm): {avg_sid:2.0f}',
                 f'Number of images: {len(self.images)}',
-                f'Maximum distance to BB (mm): {self.cax2bb_distance("max"):2.2f}',
-                f'Median distances to BB (mm): {self.cax2bb_distance("median"):2.2f}',
-                f'3D Target Positions (mm): {self.bb_shift_instructions()}'
-
+                f"Maximum 2D CAX->EPID distance: {self.cax2epid_distance('max'):.2f}mm",
+                f"Maximum Delta: {x:.5f}mm",
+                f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm",
+                f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
+                f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
                 ]
+
         if self._contains_axis_images(COLLIMATOR):
             text.append(f'Collimator 2D isocenter diameter (mm): {self.collimator_iso_size:2.2f}')
         if self._contains_axis_images(COUCH):
@@ -921,7 +929,7 @@ class WLImage(image.LinacDicomImage):
 
     @property
     def maximum_delta_y(self) -> float:
-        y_delta = ((self.field_cax.y - self.bb.y) / self.dpmm)
+        y_delta = ((self.bb.y - self.field_cax.y) / self.dpmm)
         return y_delta
 
     def plot(self, ax=None, show=True, clear_fig=False):
@@ -948,11 +956,11 @@ class WLImage(image.LinacDicomImage):
         ax.set_xlabel(f"\u0394(mm) = {((self.field_cax.x - self.bb.x) / self.dpmm):3.2f} \n G{self.gantry_angle:.0f}, C{self.collimator_angle:.0f}, T{360 - self.couch_angle:.0f}",
                       fontsize=8)
         ax.yaxis.set_label_position("right")
-        ax.set_ylabel(f"\u0394(mm) = {((self.field_cax.y - self.bb.y) / self.dpmm):3.2f} \n CAX to BB: {self.cax2bb_distance:3.2f}mm",fontsize=8)
+        ax.set_ylabel(f"\u0394(mm) = {((self.bb.y - self.field_cax.y) / self.dpmm):3.2f} \n CAX to BB: {self.cax2bb_distance:3.2f}mm",fontsize=8)
         # print(f"G{self.gantry_angle:.0f}, C{self.collimator_angle:.0f}, T{360-self.couch_angle:.0f}","CAX to BB, X coord", (self.field_cax.x-self.bb.x)/self.dpmm)
         # print(f"G{self.gantry_angle:.0f}, C{self.collimator_angle:.0f}, T{360-self.couch_angle:.0f}","CAX to BB, Y coord", (self.field_cax.y - self.bb.y) / self.dpmm)
-        self.maximum_delta_x
-        self.maximum_delta_y
+        #self.maximum_delta_x
+        #self.maximum_delta_y
         #print(f"G{self.gantry_angle:.0f}C{self.collimator_angle:.0f}T{self.couch_angle_varian_scale:.0f}: Total Delta {self.cax2bb_distance:3.2f}mm")
         #print(f"G{self.gantry_angle:.0f}C{self.collimator_angle:.0f}T{self.couch_angle_varian_scale:.0f}: Total Delta {self.cax2bb_distance:3.2f}")
         #print("x:",(self.field_cax.x - self.bb.x) / self.dpmm)
@@ -965,7 +973,7 @@ class WLImage(image.LinacDicomImage):
     def totaldeltas(self, ax=None, show=True, clear_fig=False):
         """Adnans modification"""
         #("G{}C{}T{},x:{},y:{}").format(round(self.gantry_angle),round(self.collimator_angle),round(self.couch_angle_varian_scale),((self.field_cax.x - self.bb.x) / self.dpmm),((self.field_cax.y - self.bb.y) / self.dpmm))
-        return ("G{}C{}T{}".format(round(self.gantry_angle), round(self.collimator_angle), round(self.couch_angle_varian_scale))), float(round(self.cax2bb_distance,2)),self.winstonLutz_MU, float(round(((self.field_cax.x - self.bb.x) / self.dpmm),2)),float(round(((self.field_cax.y - self.bb.y) / self.dpmm),2))
+        return ("G{}C{}T{}".format(round(self.gantry_angle), round(self.collimator_angle), round(self.couch_angle_varian_scale))), float(round(self.cax2bb_distance, 2)), self.winstonLutz_MU, float(round(((self.field_cax.x - self.bb.x) / self.dpmm), 2)), float(round(((self.bb.y - self.field_cax.y) / self.dpmm), 2))
 
 
     def save_plot(self, filename: str, **kwargs):

@@ -39,21 +39,21 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <leaf>
-      <file pinned="false" current-in-tab="false">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="272">
-              <caret line="16" column="13" selection-start-line="16" selection-start-column="13" selection-end-line="16" selection-end-column="13" />
+            <state relative-caret-position="170">
+              <caret line="10" lean-forward="true" selection-start-line="10" selection-end-line="10" />
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/pylinac/winston_lutz.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="948">
-              <caret line="614" column="40" selection-start-line="614" selection-start-column="40" selection-end-line="614" selection-end-column="40" />
+            <state relative-caret-position="877">
+              <caret line="523" column="68" selection-start-line="523" selection-start-column="68" selection-end-line="523" selection-end-column="68" />
               <folding>
                 <element signature="e#1327#1358#0" expanded="true" />
               </folding>
@@ -72,9 +72,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>tight_layout</find>
-      <find>plot_images</find>
-      <find>_find</find>
       <find>epid</find>
       <find>epid.x</find>
       <find>epid.y</find>
@@ -82,19 +79,29 @@
       <find>load</find>
       <find>rad_field_bounding_box</find>
       <find>plot</find>
-      <find>shift</find>
-      <find>bb_shift</find>
       <find>idx</find>
       <find>field</find>
       <find>find</find>
-      <find>cax2bb</find>
       <find>cax2epid</find>
-      <find>totaldeltas</find>
       <find>_find_bb</find>
       <find>cax2bb_distance(&quot;median&quot;)</find>
       <find>cax2bb_distance</find>
       <find>mean</find>
       <find>result</find>
+      <find>cax2bb</find>
+      <find>shift</find>
+      <find>pdf</find>
+      <find>save_summary</find>
+      <find>adnan</find>
+      <find>COUCH</find>
+      <find>publish</find>
+      <find>notes</find>
+      <find>publish_pdf</find>
+      <find>bb_shift</find>
+      <find>deltaList</find>
+      <find>maximum_delta_y</find>
+      <find>totaldeltas</find>
+      <find>plot_deltas</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -112,8 +119,8 @@
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="-1080" />
-    <option name="y" value="486" />
+    <option name="x" value="-1368" />
+    <option name="y" value="465" />
     <option name="width" value="1874" />
     <option name="height" value="1096" />
   </component>
@@ -126,6 +133,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -142,7 +150,6 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="ProjectViewState">
@@ -165,13 +172,6 @@
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
     <property name="two.files.diff.last.used.file" value="$PROJECT_DIR$/pylinac/ct.py" />
-  </component>
-  <component name="PyConsoleOptionsProvider">
-    <option name="myPythonConsoleState">
-      <console-settings>
-        <option name="useSoftWraps" value="true" />
-      </console-settings>
-    </option>
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
@@ -364,14 +364,30 @@
       <option name="project" value="LOCAL" />
       <updated>1593537454015</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="Clinical testing algorithm">
+      <created>1593538442637</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1593538442637</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
+  </component>
+  <component name="TodoView">
+    <todo-panel id="selected-file">
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+    <todo-panel id="all">
+      <are-packages-shown value="true" />
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
   </component>
   <component name="ToolWindowManager">
     <frame x="-1026" y="-8" width="1034" height="1936" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.31425703" />
+      <window_info content_ui="combo" id="Project" order="0" weight="0.31425703" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -380,11 +396,11 @@
       <window_info anchor="bottom" id="Debug" order="3" weight="0.39933443" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="TODO" order="6" weight="0.3294509" />
       <window_info anchor="bottom" id="Version Control" order="7" weight="0.32889628" />
       <window_info anchor="bottom" id="Terminal" order="8" weight="0.32889628" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info active="true" anchor="bottom" id="Python Console" order="10" visible="true" weight="0.16971713" />
+      <window_info anchor="bottom" id="Python Console" order="10" weight="0.25568497" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -555,20 +571,29 @@
     <entry file="file://$PROJECT_DIR$/main2.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/pylinac/core/pdf.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="272">
-          <caret line="16" column="13" selection-start-line="16" selection-start-column="13" selection-end-line="16" selection-end-column="13" />
+        <state>
+          <folding>
+            <element signature="e#76#105#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/pylinac/winston_lutz.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="948">
-          <caret line="614" column="40" selection-start-line="614" selection-start-column="40" selection-end-line="614" selection-end-column="40" />
+        <state relative-caret-position="877">
+          <caret line="523" column="68" selection-start-line="523" selection-start-column="68" selection-end-line="523" selection-end-column="68" />
           <folding>
             <element signature="e#1327#1358#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="170">
+          <caret line="10" lean-forward="true" selection-start-line="10" selection-end-line="10" />
         </state>
       </provider>
     </entry>
