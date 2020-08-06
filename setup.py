@@ -1,14 +1,14 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
-__version__ = '2.3.1'
+__version__ = 'qat-2.3.1.1'
 
 
 setup(
-    name='pylinac',
+    name='pylinac-qatrackplus',
     version=__version__,
     packages=find_packages(),
     package_data={'pylinac': ['watcher_config.yml', 'files/*.png']},
-    url='https://github.com/jrkerns/pylinac',
+    url='https://github.com/qatrackplus/pylinac',
     keywords="""medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog starshot linac Varian Elekta
              trajectory log kv MV planar Leeds Las Vegas Standard Imaging PipsPro TG51""",
     author='James Kerns',
