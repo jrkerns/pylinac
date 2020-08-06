@@ -703,7 +703,7 @@ class DicomImage(BaseImage):
         if dtype is not None:
             self.array = ds.pixel_array.astype(dtype)
         else:
-            self.array = ds.pixel_array
+            self.array = ds.pixel_array.copy()
         # convert values to HU or CU: real_values = slope * raw + intercept
         is_ct_storage = self.metadata.SOPClassUID.name == 'CT Image Storage'
         has_rescale_tags = hasattr(self.metadata, 'RescaleSlope') and hasattr(self.metadata, 'RescaleIntercept')
