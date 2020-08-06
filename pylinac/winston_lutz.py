@@ -17,7 +17,6 @@ Features:
 * **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
   such information in the DICOM tags. E.g. "myWL_gantry45_coll0_couch315.dcm".
 """
-from functools import lru_cache
 from itertools import zip_longest
 import io
 import math
@@ -159,7 +158,6 @@ class WinstonLutz:
         print(wl.results())
         wl.plot_summary()
 
-    @lru_cache()
     def _minimize_axis(self, axes=(GANTRY,)):
         """Return the minimization result of the given axis."""
         if isinstance(axes, str):

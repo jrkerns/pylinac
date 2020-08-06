@@ -4,7 +4,6 @@ import collections
 import concurrent.futures
 import datetime
 import os
-from functools import lru_cache
 import gzip
 import importlib
 import logging
@@ -705,7 +704,6 @@ def load_config(config_file=None, verbose=False):
     return config
 
 
-@lru_cache(maxsize=1)
 @value_accept(img_type=('single', 'vmat'))
 def get_image_classifier(img_type):
     """Load the CBCT HU slice classifier model. If the classifier is not locally available it will be downloaded."""

@@ -1,5 +1,4 @@
 
-from functools import lru_cache
 from typing import Union, Tuple, Optional
 
 import numpy as np
@@ -59,7 +58,6 @@ class DiskROI(Circle):
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
     @property
-    @lru_cache()
     def pixel_value(self) -> np.ndarray:
         """The median pixel value of the ROI."""
         masked_img = self.circle_mask()
@@ -71,7 +69,6 @@ class DiskROI(Circle):
         masked_img = self.circle_mask()
         return np.nanstd(masked_img)
 
-    @lru_cache()
     def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
         # http://scikit-image.org/docs/dev/auto_examples/plot_camera_numpy.html

@@ -13,7 +13,6 @@ Features:
 from abc import abstractmethod
 from collections import OrderedDict
 from datetime import datetime
-from functools import lru_cache
 import io
 from os import path as osp
 import os
@@ -84,7 +83,6 @@ class ThicknessROI(RectangleROI):
     """A rectangular ROI that measures the angled wire rod in the HU linearity slice which determines slice thickness."""
 
     @property
-    @lru_cache(maxsize=1)
     def long_profile(self):
         """The profile along the axis perpendicular to ramped wire."""
         img = image.load(self.pixel_array)
@@ -93,7 +91,6 @@ class ThicknessROI(RectangleROI):
         return prof
 
     @property
-    @lru_cache(maxsize=1)
     def wire_fwhm(self):
         """The FWHM of the wire in pixels."""
         return self.long_profile.fwxm(x=50, interpolate=True)
@@ -183,7 +180,6 @@ class Slice:
         return self.image.array[item]
 
     @property
-    @lru_cache(maxsize=1)
     def phan_center(self):
         """Determine the location of the center of the phantom.
 
@@ -608,7 +604,6 @@ class CTP528(CatPhanModule):
         return rois
 
     @property
-    @lru_cache(maxsize=1)
     def mtf(self):
         """The Relative MTF of the line pairs, normalized to the first region.
 
@@ -665,7 +660,6 @@ class CTP528(CatPhanModule):
             self.model = '604'
 
     @property
-    @lru_cache(maxsize=1)
     def circle_profile(self):
         """Calculate the median profile of the Line Pair region.
 
@@ -1052,7 +1046,6 @@ class CatPhanBase:
         """The millimeters per pixel of the DICOM images."""
         return self.dicom_stack.metadata.PixelSpacing[0]
 
-    @lru_cache(maxsize=1)
     def find_origin_slice(self):
         """Using a brute force search of the images, find the median HU linearity slice.
 
@@ -1099,7 +1092,6 @@ class CatPhanBase:
             #print(center_hu_slice)
             return center_hu_slice
 
-    @lru_cache(maxsize=1)
     def find_phantom_roll(self):
         """Determine the "roll" of the phantom.
 

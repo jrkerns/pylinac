@@ -23,7 +23,6 @@ import collections
 import concurrent.futures
 import copy
 import csv
-from functools import lru_cache
 import gc
 import itertools
 from io import BytesIO
@@ -349,7 +348,6 @@ class AxisMovedMixin:
     AXIS_MOVE_THRESHOLD = 0.003
 
     @property
-    @lru_cache(maxsize=1)
     def moved(self):
         """Return whether the axis moved during treatment."""
         return np.std(self.actual) > self.AXIS_MOVE_THRESHOLD
@@ -418,7 +416,6 @@ class FluenceBase:
         else:
             return calced
 
-    @lru_cache(maxsize=1)
     def calc_map(self, resolution=0.1, equal_aspect=False):
         """Calculate a fluence pixel map.
 
@@ -592,7 +589,6 @@ class GammaFluence(FluenceBase):
         self._expected_fluence = expected_fluence
         self._mlc = mlc_struct
 
-    @lru_cache(maxsize=1)
     def calc_map(self, doseTA=1, distTA=1, threshold=0.1, resolution=0.1, calc_individual_maps=False):
         """Calculate the gamma from the actual and expected fluences.
 
@@ -812,7 +808,6 @@ class MLC:
         return len(self.moving_leaves)
 
     @property
-    @lru_cache(maxsize=1)
     def moving_leaves(self):
         """Return an array of the leaves that moved during treatment."""
         threshold = 0.01
@@ -1062,7 +1057,6 @@ class MLC:
         return np.abs(self._error_array_all_leaves)
 
     @property
-    @lru_cache(maxsize=1)
     def _error_array_all_leaves(self):
         """Error array of all leaves."""
         mlc_error = np.zeros((self.num_leaves, self.num_snapshots))
@@ -1080,7 +1074,6 @@ class MLC:
         return arr
 
     @property
-    @lru_cache(maxsize=1)
     def _RMS_array_all_leaves(self):
         """Return the RMS of all leaves."""
         rms_array = np.array([np.sqrt(np.sum(leafdata.difference[self.snapshot_idx] ** 2) / self.num_snapshots) for leafdata in self.leaf_axes.values()])
@@ -1741,14 +1734,12 @@ class Dynalog(LogBase):
         return True if self.identify_other_file(self.filename, raise_find_error=False) is not None else False
 
     @property
-    @lru_cache(maxsize=1)
     def a_logfile(self):
         """Path of the A* dynalog file."""
         other_dlg_file = self.identify_other_file(self.filename)
         return self.filename if osp.basename(self.filename).startswith('A') else other_dlg_file
 
     @property
-    @lru_cache(maxsize=1)
     def b_logfile(self):
         """Path of the B* dynalog file."""
         other_dlg_file = self.identify_other_file(self.filename)

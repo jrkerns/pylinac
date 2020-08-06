@@ -1,6 +1,5 @@
 """Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
 import copy
-from functools import lru_cache
 from typing import Union, Tuple, Sequence, List, Optional
 
 import numpy as np
@@ -208,7 +207,6 @@ class SingleProfile(ProfileMixin):
         return grounded_values
 
     @property
-    @lru_cache()
     def _initial_peak_idx(self) -> int:
         """The initial peak index."""
         x_idx = self._get_initial_peak(self._passed_initial_peak)
@@ -248,7 +246,6 @@ class SingleProfile(ProfileMixin):
         return initial_peak
 
     @value_accept(side=(LEFT, RIGHT), kind=(VALUE, INDEX))
-    @lru_cache()
     def _penumbra_point(self, side: str='left', x: int=50, interpolate: bool=False, kind: str='index'):
         """Return the index of the given penumbra. Search starts at the peak and moves index-by-index
         outward until the penumbra value is hit.
@@ -307,7 +304,6 @@ class SingleProfile(ProfileMixin):
             return peak
 
     @property
-    @lru_cache()
     def _values_left_interp(self) -> np.ndarray:
         """Interpolated values of the "left side" profile data."""
         ydata_f = interp1d(self._indices, self._values_left, kind=self.interpolation_type)
@@ -315,7 +311,6 @@ class SingleProfile(ProfileMixin):
         return y_data
 
     @property
-    @lru_cache()
     def _values_right_interp(self) -> np.ndarray:
         """Interpolated values of the "right side" profile data."""
         ydata_f = interp1d(self._indices, self._values_right, kind=self.interpolation_type)
@@ -323,7 +318,6 @@ class SingleProfile(ProfileMixin):
         return y_data
 
     @property
-    @lru_cache()
     def _values_interp(self) -> np.ndarray:
         """Interpolated values of the entire profile array."""
         ydata_f = interp1d(self._indices, self.values, kind=self.interpolation_type)

@@ -15,7 +15,6 @@ Features:
 """
 import copy
 import warnings
-from functools import lru_cache
 import io
 
 import matplotlib.pyplot as plt
@@ -573,7 +572,6 @@ class StandardImagingQC3(ImagePhantomBase):
         qc3.plot_analyzed_image()
 
     @property
-    @lru_cache()
     def phantom_ski_region(self):
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions()
@@ -676,7 +674,6 @@ class LeedsTOR(ImagePhantomBase):
     }
 
     @property
-    @lru_cache(1)
     def _blobs(self):
         """The indices of the regions that were significant; i.e. a phantom circle outline or lead/copper square."""
         blobs = []
@@ -691,7 +688,6 @@ class LeedsTOR(ImagePhantomBase):
         return blobs
 
     @property
-    @lru_cache(1)
     def _regions(self):
         """All the regions of the canny image that were labeled."""
         return self._get_canny_regions()
@@ -824,7 +820,6 @@ class DoselabMC2kV(ImagePhantomBase):
         leeds.plot_analyzed_image()
 
     @property
-    @lru_cache()
     def phantom_ski_region(self):
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions(percentiles=(0.01, 0.1))

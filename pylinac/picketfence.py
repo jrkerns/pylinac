@@ -13,7 +13,6 @@ Features:
 * **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
 """
 from collections import Sequence
-from functools import lru_cache
 import os.path as osp
 import io
 from itertools import cycle
@@ -190,7 +189,6 @@ class PicketFence:
         return np.argmax(picket.error_array)
 
     @property
-    @lru_cache()
     def abs_median_error(self) -> float:
         """Return the median error found."""
         return np.median(np.hstack([picket.error_array for picket in self.pickets]))
@@ -455,7 +453,6 @@ class PicketFence:
             open_path(filename)
 
     @property
-    @lru_cache(maxsize=1)
     def orientation(self) -> str:
         """The orientation of the image, either Up-Down or Left-Right."""
         # if orientation was passed in, use it
@@ -568,7 +565,6 @@ class Settings:
         return 20 if not self.hdmlc else 28
 
     @property
-    @lru_cache()
     def leaf_centers(self) -> np.ndarray:
         """Return a set of leaf centers perpendicular to the leaf motion based on the position of the CAX."""
         # generate a set of leaf center points based on physical widths of large and small leaves
@@ -724,7 +720,6 @@ class Picket:
         return np.round(np.median(np.diff(self.settings.leaf_centers) * 2 / 5) / 2).astype(int)
 
     @property
-    @lru_cache()
     def picket_array(self) -> np.ndarray:
         """A slice of the whole image that contains the area around the picket."""
         if self.settings.orientation == UP_DOWN:
@@ -758,7 +753,6 @@ class Picket:
         return self.error_array.max()
 
     @property
-    @lru_cache()
     def error_array(self) -> np.ndarray:
         """An array containing the error values of all the measurements."""
         return np.array([meas.error for meas in self.mlc_meas])
@@ -780,7 +774,6 @@ class Picket:
             raise AttributeError("No action tolerance was specified")
 
     @property
-    @lru_cache(maxsize=1)
     def fit(self):
         """The fit of a polynomial to the MLC measurements."""
         if self.settings.log_fits is not None:
@@ -890,7 +883,6 @@ class MLCMeas(Line):
             return self.error < self.settings.action_tolerance
 
     @property
-    @lru_cache()
     def leaf_pair(self) -> Tuple[int, int]:
         """The leaf pair that formed the MLC measurement.
 
