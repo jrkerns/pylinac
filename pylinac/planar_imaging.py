@@ -571,6 +571,9 @@ class StandardImagingQC3(ImagePhantomBase):
         qc3.analyze()
         qc3.plot_analyzed_image()
 
+    def _check_inversion(self) -> None:
+        self.image.check_inversion_by_histogram()
+
     @property
     def phantom_ski_region(self):
         """The skimage region of the phantom outline."""
