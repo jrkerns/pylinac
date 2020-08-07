@@ -27,8 +27,6 @@
   <component name="ChangeListManager">
     <list default="true" id="dcdfe904-d4e5-443d-a106-b24ec160934f" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pylinac/winston_lutz.py" beforeDir="false" afterPath="$PROJECT_DIR$/pylinac/winston_lutz.py" afterDir="false" />
     </list>
     <list id="15ad1f26-81a6-4f21-91d5-bf75aec61b27" name="relaxed WL module" comment="" />
     <list id="3d09c6ea-c924-43ef-a73e-3ce150fde602" name="Revert &quot;Initial configuration&quot;" comment="Revert &quot;Initial configuration&quot;&#10;&#10;This reverts commit eb089b1d" />
@@ -39,24 +37,33 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+    <leaf>
       <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/main.py">
+        <entry file="file://$PROJECT_DIR$/pylinac/winston_lutz.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="170">
-              <caret line="10" lean-forward="true" selection-start-line="10" selection-end-line="10" />
+            <state relative-caret-position="523">
+              <caret line="959" column="44" lean-forward="true" selection-start-line="959" selection-start-column="44" selection-end-line="959" selection-end-column="44" />
+              <folding>
+                <element signature="e#1327#1358#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/pylinac/winston_lutz.py">
+        <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="877">
-              <caret line="523" column="68" selection-start-line="523" selection-start-column="68" selection-end-line="523" selection-end-column="68" />
-              <folding>
-                <element signature="e#1327#1358#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="85">
+              <caret line="5" selection-start-line="5" selection-end-line="6" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/.gitignore">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="119">
+              <caret line="7" selection-start-line="7" selection-end-line="7" />
             </state>
           </provider>
         </entry>
@@ -72,13 +79,9 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>epid</find>
-      <find>epid.x</find>
-      <find>epid.y</find>
       <find>distance_to</find>
       <find>load</find>
       <find>rad_field_bounding_box</find>
-      <find>plot</find>
       <find>idx</find>
       <find>field</find>
       <find>find</find>
@@ -88,7 +91,6 @@
       <find>cax2bb_distance</find>
       <find>mean</find>
       <find>result</find>
-      <find>cax2bb</find>
       <find>shift</find>
       <find>pdf</find>
       <find>save_summary</find>
@@ -96,12 +98,17 @@
       <find>COUCH</find>
       <find>publish</find>
       <find>notes</find>
-      <find>publish_pdf</find>
       <find>bb_shift</find>
       <find>deltaList</find>
       <find>maximum_delta_y</find>
       <find>totaldeltas</find>
+      <find>cax2bb</find>
       <find>plot_deltas</find>
+      <find>publish_pdf</find>
+      <find>file</find>
+      <find>plot</find>
+      <find>plot_images</find>
+      <find>CAX to BB</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -114,15 +121,16 @@
         <option value="$PROJECT_DIR$/pylinac/core/image.py" />
         <option value="$PROJECT_DIR$/main2.py" />
         <option value="$PROJECT_DIR$/main.py" />
+        <option value="$PROJECT_DIR$/.gitignore" />
         <option value="$PROJECT_DIR$/pylinac/winston_lutz.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="-1368" />
-    <option name="y" value="465" />
-    <option name="width" value="1874" />
-    <option name="height" value="1096" />
+    <option name="x" value="-1026" />
+    <option name="y" value="-8" />
+    <option name="width" value="1034" />
+    <option name="height" value="1936" />
   </component>
   <component name="ProjectId" id="1bSJa3livUQru48ShVSYVlaewjN" />
   <component name="ProjectLevelVcsManager">
@@ -133,7 +141,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -150,6 +157,7 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="ProjectViewState">
@@ -371,7 +379,21 @@
       <option name="project" value="LOCAL" />
       <updated>1593538442637</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="Clinical testing algorithm;&#10;fixes:&#10;1. inverted y-axis by subtracting self.field_cax_y by self.bb.y &#10;2. In QAT+, included the negative sign infront of the shift_bb.z&#10;3. Fixed a bug in totaldelta()">
+      <created>1594220534474</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1594220534474</updated>
+    </task>
+    <task id="LOCAL-00019" summary="fixed pdf">
+      <created>1596827398155</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1596827398156</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TodoView">
@@ -387,7 +409,7 @@
     <frame x="-1026" y="-8" width="1034" height="1936" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" weight="0.31425703" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.20281124" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -396,11 +418,11 @@
       <window_info anchor="bottom" id="Debug" order="3" weight="0.39933443" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" weight="0.3294509" />
-      <window_info anchor="bottom" id="Version Control" order="7" weight="0.32889628" />
-      <window_info anchor="bottom" id="Terminal" order="8" weight="0.32889628" />
+      <window_info anchor="bottom" id="TODO" order="6" weight="0.32917964" />
+      <window_info anchor="bottom" id="Version Control" order="7" weight="0.41640705" />
+      <window_info anchor="bottom" id="Terminal" order="8" weight="0.23468328" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info anchor="bottom" id="Python Console" order="10" weight="0.25568497" />
+      <window_info anchor="bottom" id="Python Console" order="10" weight="0.12756518" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -480,7 +502,9 @@
     <MESSAGE value="added median filter to rad field detection to remove noise. Removed gaussian smoothing filter from rad field detection algorithm" />
     <MESSAGE value="new algorithm" />
     <MESSAGE value="Clinical testing algorithm" />
-    <option name="LAST_COMMIT_MESSAGE" value="Clinical testing algorithm" />
+    <MESSAGE value="Clinical testing algorithm;&#10;fixes:&#10;1. inverted y-axis by subtracting self.field_cax_y by self.bb.y &#10;2. In QAT+, included the negative sign infront of the shift_bb.z&#10;3. Fixed a bug in totaldelta()" />
+    <MESSAGE value="fixed pdf" />
+    <option name="LAST_COMMIT_MESSAGE" value="fixed pdf" />
   </component>
   <component name="WindowStateProjectService">
     <state x="555" y="-995" key="CommitChangelistDialog2" timestamp="1588624563603">
@@ -568,9 +592,6 @@
     <entry file="file://$PROJECT_DIR$/pylinac/vmat.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/main2.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
     <entry file="file://$PROJECT_DIR$/pylinac/core/pdf.py">
       <provider selected="true" editor-type-id="text-editor">
         <state>
@@ -580,20 +601,43 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/pylinac/winston_lutz.py">
+    <entry file="file://$PROJECT_DIR$/pylinac/starshot.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/LICENSE.txt">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main2.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/.gitignore">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="877">
-          <caret line="523" column="68" selection-start-line="523" selection-start-column="68" selection-end-line="523" selection-end-column="68" />
-          <folding>
-            <element signature="e#1327#1358#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="119">
+          <caret line="7" selection-start-line="7" selection-end-line="7" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pylinac/ct.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="574">
+          <caret line="1160" column="19" selection-start-line="1160" selection-start-column="8" selection-end-line="1160" selection-end-column="19" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="170">
-          <caret line="10" lean-forward="true" selection-start-line="10" selection-end-line="10" />
+        <state relative-caret-position="85">
+          <caret line="5" selection-start-line="5" selection-end-line="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pylinac/winston_lutz.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="523">
+          <caret line="959" column="44" lean-forward="true" selection-start-line="959" selection-start-column="44" selection-end-line="959" selection-end-column="44" />
+          <folding>
+            <element signature="e#1327#1358#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

@@ -954,7 +954,7 @@ class WLImage(image.LinacDicomImage):
         ax.set_xlim([self.rad_field_bounding_box[2], self.rad_field_bounding_box[3]])
         # ax.set_yticklabels([])
         # ax.set_xticklabels([])
-        ax.set_title(self.file, fontsize=6)
+        #ax.set_title(self.file, fontsize=6)
         ax.set_xlabel(f"\u0394(mm) = {((self.field_cax.x - self.bb.x) / self.dpmm):3.2f} \n G{self.gantry_angle:.0f}, C{self.collimator_angle:.0f}, T{360 - self.couch_angle:.0f}",
                       fontsize=8)
         ax.yaxis.set_label_position("right")
