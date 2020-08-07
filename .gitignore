@@ -4,6 +4,8 @@ env/*
 **/.idea
 #**/demo_files
 **/__pycache__
+.idea
+
 
 #Files to ignore
 *.old

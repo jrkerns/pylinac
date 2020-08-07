@@ -527,15 +527,15 @@ class WinstonLutz:
             f = plot_image2(wl_image, mpl_axis)[3]  # delta x
             g = plot_image2(wl_image, mpl_axis)[4]  # delta y
             if (c != '[]' and d != []) and c not in adnan:
-                adnan["{}".format(c)] = d
+                adnan["{} (mm)".format(c)] = d
                 adnan["MU"] = e
-                adnan[c + " x delta"] = f
-                adnan[c + " y delta"] = g
+                adnan[c + " x delta (mm)"] = f
+                adnan[c + " y delta (mm)"] = g
             elif (c != '[]' and d != '[]') and c in adnan:
-                adnan["{}(2)".format(c)] = d
+                adnan["{}(2) (mm)".format(c)] = d
                 adnan["MU"] = e
-                adnan[c + "(2) x delta"] = f
-                adnan[c + "(2) y delta"] = g
+                adnan[c + "(2) x delta (mm)"] = f
+                adnan[c + "(2) y delta (mm)"] = g
             else:
                 continue
         return adnan
@@ -667,18 +667,20 @@ class WinstonLutz:
                 f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm",
                 f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
                 f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
+                f"Total Delta's per Image"
                 ]
 
         if self._contains_axis_images(COLLIMATOR):
             text.append(f'Collimator 2D isocenter diameter (mm): {self.collimator_iso_size:2.2f}')
         if self._contains_axis_images(COUCH):
             text.append(f'Couch 2D isocenter diameter (mm): {self.couch_iso_size:2.2f}')
+
+        for k, v in (self.plot_deltas()).items():
+            #print("{}: {}mm".format(k, v))
+            text.append(f"{k}: {v}")
         canvas.add_text(text=text, location=(1, 25.5))
 
-        # draw summary image on 1st page
-        data = io.BytesIO()
-        self.save_summary(data, figsize=(10, 10))
-        canvas.add_image(image_data=data, location=(2, 3), dimensions=(18, 18))
+
 
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=8)
@@ -690,7 +692,7 @@ class WinstonLutz:
                     # canvas.add_new_page()
                     data2 = io.BytesIO()
                     self.save_images(data2, axis=ax)
-                    canvas.add_image(data2, location=(1, 5), dimensions=(15, 15))
+                    canvas.add_image(data2, location=(8, 10), dimensions=(10, 10))
 
             # for ax in (COUCH, COLLIMATOR):
             #     if self._contains_axis_images(ax):
