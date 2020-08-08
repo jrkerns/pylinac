@@ -7,7 +7,7 @@ setup(
     name='TBCCpylinac',
     version=__version__,
     packages=find_packages(),
-    package_data={'TBCCpylinac': ['watcher_config.yml', 'files/*.png']},
+    package_data={'pylinac': ['watcher_config.yml', 'files/*.png']},
     url='https://github.com/jmadamesila/TBCCpylinac',
     keywords="""medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog starshot linac Varian Elekta
              trajectory log kv MV planar Leeds Las Vegas Standard Imaging PipsPro TG51""",
