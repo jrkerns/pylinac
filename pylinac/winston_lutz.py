@@ -979,7 +979,7 @@ class WLImage(image.LinacDicomImage):
         new_gantry_angle = round(self.gantry_angle)
         new_col_angle = round(self.collimator_angle)
 
-        if abs(min(possible_angles, key=lambda x:abs(x-self.couch_angle_varian_scale)) - round(self.couch_angle_varian_scale)) < 1:
+        if abs(min(possible_angles, key=lambda x:abs(x-self.couch_angle_varian_scale)) - round(self.couch_angle_varian_scale)) < 4:
             expected_couch_angle = min(possible_angles, key=lambda x:abs(x-self.couch_angle_varian_scale))
             pass
         else:
