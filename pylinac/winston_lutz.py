@@ -975,8 +975,8 @@ class WLImage(image.LinacDicomImage):
     def totaldeltas(self, ax=None, show=True, clear_fig=False):
         """Adnans modification"""
         possible_angles = [0,45,90,180,270,315,360]
-        new_gantry_angle = min(possible_angles, key=lambda x:abs(x-round(self.gantry_angle)))
-        new_col_angle = min(possible_angles, key=lambda x:abs(x-round(self.collimator_angle)))
+        new_gantry_angle = round(self.gantry_angle)
+        new_col_angle = round(self.collimator_angle)
         new_couch_angle = min(possible_angles, key=lambda x:abs(x-self.couch_angle_varian_scale))
 
 
