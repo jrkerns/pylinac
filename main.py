@@ -1,8 +1,9 @@
 from pylinac import WinstonLutz
 
-wl = WinstonLutz.from_zip('N:/MedicalPhysics/Quality Control Program/Treatment/Weekly/Winston-Lutz/Unit 05/2020_08_04/QA Winston-Lutz U5/RI.QA Winston-Lutz U5.MV_90_0a.zip')
-#Print 3D Target Offset
-#print(wl.bb_shift_instructions())
-#my_directory = 'N:/MedicalPhysics/Quality Control Program/Treatment/Weekly/Winston-Lutz/Unit 05/2020_08_04/QA Winston-Lutz U5'
+wl = WinstonLutz.from_zip('C:/Users/adnanhafeez/Documents/Python Scripts/TBCCpylinac/WL_Data/Unit 01/2019_08_12/Z20150323/Z20150323.zip')
 
-wl.publish_pdf('reportBuilder3.pdf')
+for k, v in (wl.plot_deltas()).items():
+    print("{}: {}mm".format(k, v))
+
+
+

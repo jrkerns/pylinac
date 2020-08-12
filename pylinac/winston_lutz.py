@@ -975,13 +975,19 @@ class WLImage(image.LinacDicomImage):
     def totaldeltas(self, ax=None, show=True, clear_fig=False):
         """Adnans modification"""
         possible_angles = [0,45,90,180,270,315,360]
+
         new_gantry_angle = round(self.gantry_angle)
         new_col_angle = round(self.collimator_angle)
-        new_couch_angle = min(possible_angles, key=lambda x:abs(x-self.couch_angle_varian_scale))
+
+        if abs(min(possible_angles, key=lambda x:abs(x-self.couch_angle_varian_scale)) - round(self.couch_angle_varian_scale)) < 1:
+            expected_couch_angle = min(possible_angles, key=lambda x:abs(x-self.couch_angle_varian_scale))
+            pass
+        else:
+            raise Exception('Expected couch value vs true couch value outside of 3 deg tolerance for G{}C{}T{}'.format(new_gantry_angle, new_col_angle, round(self.couch_angle_varian_scale)))
 
 
         #("G{}C{}T{},x:{},y:{}").format(round(self.gantry_angle),round(self.collimator_angle),round(self.couch_angle_varian_scale),((self.field_cax.x - self.bb.x) / self.dpmm),((self.field_cax.y - self.bb.y) / self.dpmm))
-        return ("G{}C{}T{}".format(new_gantry_angle, new_col_angle, new_couch_angle)), float(round(self.cax2bb_distance, 2)), self.winstonLutz_MU, float(round(((self.field_cax.x - self.bb.x) / self.dpmm), 2)), float(round(((self.bb.y - self.field_cax.y) / self.dpmm), 2))
+        return ("G{}C{}T{}".format(new_gantry_angle, new_col_angle, expected_couch_angle)), float(round(self.cax2bb_distance, 2)), self.winstonLutz_MU, float(round(((self.field_cax.x - self.bb.x) / self.dpmm), 2)), float(round(((self.bb.y - self.field_cax.y) / self.dpmm), 2))
 
 
     def save_plot(self, filename: str, **kwargs):
