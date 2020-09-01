@@ -540,6 +540,66 @@ class WinstonLutz:
                 continue
         return adnan
 
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
+    def plot_deltas_pdf(self, axis: str = ALL, show: bool = False):
+        adnan = {}
+        """Plot a grid of all the images acquired.
+        Four columns are plotted with the titles showing which axis that column represents.
+        Parameters
+        ----------
+        axis : {'Gantry', 'Collimator', 'Couch', 'Combo', 'All'}
+        show : bool
+            Whether to show the image.
+        """
+
+        def plot_image2(image, axis):
+            """Helper function to plot a WLImage to an axis."""
+            a, b, c = [], [], []
+            d, e = [], []
+            if image is None:
+                axis.set_frame_on(False)
+                axis.axis('off')
+            else:
+                plt.close()
+                a, b, c, d, e = image.totaldeltas_pdf(ax=axis, show=False)
+            return a, b, c, d, e
+
+        # get axis images
+        if axis == GANTRY:
+            images = [image for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
+        elif axis == COLLIMATOR:
+            images = [image for image in self.images if image.variable_axis in (COLLIMATOR, REFERENCE)]
+        elif axis == COUCH:
+            images = [image for image in self.images if image.variable_axis in (COUCH, REFERENCE)]
+        elif axis == COMBO:
+            images = [image for image in self.images if image.variable_axis in (COMBO,)]
+        elif axis == ALL:
+            images = self.images
+
+        # create plots
+        max_num_images = math.ceil(len(images) / 5)
+        fig, axes = plt.subplots(nrows=max_num_images, ncols=5)
+        for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
+            # plt.figure(str(wl_image))
+            c = str(plot_image2(wl_image, mpl_axis)[0])  # G{}C{}T{}
+            d = plot_image2(wl_image, mpl_axis)[1]  # MU
+            e = plot_image2(wl_image, mpl_axis)[2]  # Total Delta
+            f = plot_image2(wl_image, mpl_axis)[3]  # delta x
+            g = plot_image2(wl_image, mpl_axis)[4]  # delta y
+            if (c != '[]' and d != []) and c not in adnan:
+                adnan["MU"] = e
+                adnan["{} (mm)".format(c)] = d
+                adnan[c + " x delta (mm)"] = f
+                adnan[c + " y delta (mm)"] = g
+            elif (c != '[]' and d != '[]') and c in adnan:
+                adnan["MU"] = e
+                adnan["{}(2) (mm)".format(c)] = d
+                adnan[c + "(2) x delta (mm)"] = f
+                adnan[c + "(2) y delta (mm)"] = g
+            else:
+                continue
+        return adnan
+
 
     @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, COMBO, ALL))
     def save_images(self, filename: str, axis: str=ALL, **kwargs):
@@ -675,7 +735,7 @@ class WinstonLutz:
         if self._contains_axis_images(COUCH):
             text.append(f'Couch 2D isocenter diameter (mm): {self.couch_iso_size:2.2f}')
 
-        for k, v in (self.plot_deltas()).items():
+        for k, v in (self.plot_deltas_pdf()).items():
             #print("{}: {}mm".format(k, v))
             text.append(f"{k}: {v}")
         canvas.add_text(text=text, location=(1, 25.5))
@@ -981,6 +1041,8 @@ class WLImage(image.LinacDicomImage):
 
         if abs(min(possible_angles, key=lambda x:abs(x-self.couch_angle_varian_scale)) - round(self.couch_angle_varian_scale)) < 4:
             expected_couch_angle = min(possible_angles, key=lambda x:abs(x-self.couch_angle_varian_scale))
+            if expected_couch_angle == 0:
+                expected_couch_angle = 360
             pass
         else:
             raise Exception('Expected couch value vs true couch value outside of 3 deg tolerance for G{}C{}T{}'.format(new_gantry_angle, new_col_angle, round(self.couch_angle_varian_scale)))
@@ -988,6 +1050,17 @@ class WLImage(image.LinacDicomImage):
 
         #("G{}C{}T{},x:{},y:{}").format(round(self.gantry_angle),round(self.collimator_angle),round(self.couch_angle_varian_scale),((self.field_cax.x - self.bb.x) / self.dpmm),((self.field_cax.y - self.bb.y) / self.dpmm))
         return ("G{}C{}T{}".format(new_gantry_angle, new_col_angle, expected_couch_angle)), float(round(self.cax2bb_distance, 2)), self.winstonLutz_MU, float(round(((self.field_cax.x - self.bb.x) / self.dpmm), 2)), float(round(((self.bb.y - self.field_cax.y) / self.dpmm), 2))
+
+
+    def totaldeltas_pdf(self, ax=None, show=True, clear_fig=False):
+        """Adnans modification"""
+        possible_angles = [0,45,90,180,270,315,360]
+
+        new_gantry_angle = round(self.gantry_angle)
+        new_col_angle = round(self.collimator_angle)
+
+        #("G{}C{}T{},x:{},y:{}").format(round(self.gantry_angle),round(self.collimator_angle),round(self.couch_angle_varian_scale),((self.field_cax.x - self.bb.x) / self.dpmm),((self.field_cax.y - self.bb.y) / self.dpmm))
+        return ("G{}C{}T{}".format(new_gantry_angle, new_col_angle, round(self.couch_angle_varian_scale))), float(round(self.cax2bb_distance, 2)), self.winstonLutz_MU, float(round(((self.field_cax.x - self.bb.x) / self.dpmm), 2)), float(round(((self.bb.y - self.field_cax.y) / self.dpmm), 2))
 
 
     def save_plot(self, filename: str, **kwargs):
