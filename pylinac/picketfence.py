@@ -24,6 +24,7 @@ import argue
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
+from numpy.core._multiarray_umath import ndarray
 
 from pylinac.core.typing import NumberLike
 from pylinac.core.utilities import open_path
@@ -100,6 +101,7 @@ class PicketFence:
         >>> print(mypf.results())
         >>> mypf.plot_analyzed_image()
     """
+
     def __init__(self, filename: str, filter: int=None, log: str=None, use_filename: bool=False):
         """
         Parameters
@@ -177,6 +179,11 @@ class PicketFence:
     def max_error(self) -> float:
         """Return the maximum error found."""
         return max(picket.max_error for picket in self.pickets)
+
+    @property
+    def max_std(self) -> float:
+        pos, vals, err, leaf_nums = self.pickets.error_hist()
+        return np.max(err)
 
     @property
     def max_error_picket(self) -> int:
@@ -299,7 +306,7 @@ class PicketFence:
         self._is_analyzed = True
 
     def plot_analyzed_image(self, guard_rails: bool=True, mlc_peaks: bool=True, overlay: bool=True,
-                            leaf_error_subplot: bool=True, show: bool=True):
+                            leaf_error_subplot: bool=True, show: bool=True, picket: bool=True):
         """Plot the analyzed image.
 
         Parameters
@@ -317,34 +324,42 @@ class PicketFence:
             If True, plots a linked leaf error subplot adjacent to the PF image plotting the average and standard
             deviation of leaf error.
         """
-        # plot the image
-        fig, ax = plt.subplots(figsize=self.settings.figure_size)
-        ax.imshow(self.image.array, cmap=get_dicom_cmap())
+        if picket == False:
+            fig = plt.figure(figsize=(16,8))
+            ax2 = fig.add_subplot(111)
+
+        if picket:
+            # plot the image
+            fig, ax = plt.subplots(figsize=self.settings.figure_size)
+            ax.imshow(self.image.array, cmap=get_dicom_cmap())
 
         # generate a leaf error subplot if desired
         if leaf_error_subplot:
-            self._add_leaf_error_subplot(ax)
+            self._add_leaf_error_subplot(ax2)
 
         # plot guard rails and mlc peaks as desired
-        for p_num, picket in enumerate(self.pickets):
-            if guard_rails:
-                picket.add_guards_to_axes(ax.axes)
-            if mlc_peaks:
-                for idx, mlc_meas in enumerate(picket.mlc_meas):
-                    mlc_meas.plot2axes(ax.axes, width=1.5)
+
+        if picket:
+            for p_num, picket in enumerate(self.pickets):
+                if guard_rails:
+                    picket.add_guards_to_axes(ax.axes)
+                if mlc_peaks:
+                    for idx, mlc_meas in enumerate(picket.mlc_meas):
+                        mlc_meas.plot2axes(ax.axes, width=1.5)
 
         # plot the overlay if desired.
         if overlay:
             o = Overlay(self.image, self.settings, self.pickets)
             o.add_to_axes(ax)
 
-        # plot CAX
-        ax.plot(self.image.center.x, self.image.center.y, 'r+', ms=12, markeredgewidth=3)
+        if picket:
+            # plot CAX
+            ax.plot(self.image.center.x, self.image.center.y, 'r+', ms=12, markeredgewidth=3)
 
-        # tighten up the plot view
-        ax.set_xlim([0, self.image.shape[1]])
-        ax.set_ylim([0, self.image.shape[0]])
-        ax.axis('off')
+            # tighten up the plot view
+            ax.set_xlim([0, self.image.shape[1]])
+            ax.set_ylim([0, self.image.shape[0]])
+            ax.axis('off')
 
         if show:
             plt.show()
@@ -354,16 +369,17 @@ class PicketFence:
         tol_line_height = [self.settings.tolerance, self.settings.tolerance]
         tol_line_width = [0, max(self.image.shape)]
 
-        # make the new axis
-        divider = make_axes_locatable(ax)
-        if self.settings.orientation == UP_DOWN:
-            axtop = divider.append_axes('right', 2, pad=1, sharey=ax)
-        else:
-            axtop = divider.append_axes('bottom', 2, pad=1, sharex=ax)
+        # # make the new axis
+        # divider = make_axes_locatable(ax)
+        # if self.settings.orientation == UP_DOWN:
+        #     axtop = divider.append_axes('right', 2, pad=1, sharey=ax)
+        # else:
+        #     axtop = divider.append_axes('bottom', 2, pad=1, sharex=ax)
 
+        axtop = ax
         # get leaf positions, errors, standard deviation, and leaf numbers
         pos, vals, err, leaf_nums = self.pickets.error_hist()
-
+        #self.max_std = np.max(err)
         # plot the leaf errors as a bar plot
         if self.settings.orientation == UP_DOWN:
             axtop.barh(pos, vals, xerr=err, height=self.pickets[0].sample_width * 2, alpha=0.4, align='center')
@@ -387,12 +403,12 @@ class PicketFence:
         axtop.grid(True)
         axtop.set_title("Average Error (mm)")
 
-    def save_analyzed_image(self, filename: str, guard_rails: bool=True, mlc_peaks: bool=True, overlay: bool=True,
+    def save_analyzed_image(self, filename: str, picket: bool=True, guard_rails: bool=True, mlc_peaks: bool=True, overlay: bool=True,
                             leaf_error_subplot: bool=False, **kwargs):
         """Save the analyzed figure to a file. See :meth:`~pylinac.picketfence.PicketFence.plot_analyzed_image()` for
         further parameter info.
         """
-        self.plot_analyzed_image(guard_rails, mlc_peaks, overlay, leaf_error_subplot=leaf_error_subplot, show=False)
+        self.plot_analyzed_image(guard_rails, mlc_peaks, overlay, leaf_error_subplot=leaf_error_subplot, picket=picket, show=False)
         plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
             print(f"Picket fence image saved to: {osp.abspath(filename)}")
@@ -401,11 +417,22 @@ class PicketFence:
         """Return results of analysis. Use with print()."""
         pass_pct = self.percent_passing
         offsets = ' '.join('{:.1f}'.format(pk.dist2cax) for pk in self.pickets)
+        offset_list = list(map(float, offsets.split()))
+
         string = f"Picket Fence Results: \n{pass_pct:2.1f}% " \
                  f"Passed\nMedian Error: {self.abs_median_error:2.3f}mm \n" \
                  f"Mean picket spacing: {self.pickets.mean_spacing:2.1f}mm \n" \
                  f"Picket offsets from CAX (mm): {offsets}\n" \
-                 f"Max Error: {self.max_error:2.3f}mm on Picket: {self.max_error_picket}, Leaf: {self.max_error_leaf}"
+                 f"Max Error: {self.max_error:2.3f}mm on Picket: {self.max_error_picket}, Leaf: {self.max_error_leaf}\n" \
+                 f"Distance between Line 1 and 2: {abs(round(offset_list[0]-offset_list[1],4))} mm\n" \
+                 f"Distance between Line 2 and 3: {abs(round(offset_list[1] - offset_list[2], 4))} mm\n" \
+                 f"Distance between Line 3 and 4: {abs(round(offset_list[2] - offset_list[3], 4))} mm\n" \
+                 f"Distance between Line 4 and 5: {abs(round(offset_list[3] - offset_list[4], 4))} mm\n" \
+                 f"Distance between Line 5 and 6: {abs(round(offset_list[4] - offset_list[5], 4))} mm\n" \
+                 f"Distance between Line 6 and 7: {abs(round(offset_list[5] - offset_list[6], 4))} mm\n" \
+                 f"Distance between Line 7 and 8: {abs(round(offset_list[6] - offset_list[7], 4))} mm\n" \
+                 f"Distance between Line 8 and 9: {abs(round(offset_list[7] - offset_list[8], 4))} mm\n" \
+                 f"Distance between Line 9 and 10: {abs(round(offset_list[8] - offset_list[9], 4))} mm\n"
         return string
 
     def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: dict=None):
@@ -428,11 +455,12 @@ class PicketFence:
             Unit: TrueBeam
             --------------
         """
+
         plt.ioff()
         canvas = pdf.PylinacCanvas(filename, page_title="Picket Fence Analysis", metadata=metadata)
         data = io.BytesIO()
-        self.save_analyzed_image(data, leaf_error_subplot=True)
-        canvas.add_image(data, location=(3, 8), dimensions=(12, 12))
+        self.save_analyzed_image(data, leaf_error_subplot=False)
+        canvas.add_image(data, location=(3, 5), dimensions=(15, 19))
         text = [
             'Picket Fence results:',
             f'Magnification factor (SID/SAD): {self.image.metadata.RTImageSID/self.image.metadata.RadiationMachineSAD:2.2f}',
@@ -441,7 +469,9 @@ class PicketFence:
             f'Absolute median error (mm): {self.abs_median_error:2.3f}',
             f'Mean picket spacing (mm): {self.pickets.mean_spacing:2.1f}',
             f'Maximum error (mm): {self.max_error:2.3f} on Picket {self.max_error_picket}, Leaf {self.max_error_leaf}',
+            f'Maximum std (mm): {self.max_std:2.3f}',
         ]
+
         text.append(f'Gantry Angle: {self.image.gantry_angle:2.2f}')
         text.append(f'Collimator Angle: {self.image.collimator_angle:2.2f}')
         canvas.add_text(text=text, location=(10, 25.5))
@@ -449,6 +479,15 @@ class PicketFence:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 5))
 
+        canvas.add_new_page()
+        data = io.BytesIO()
+        self.save_analyzed_image(data, leaf_error_subplot=False, guard_rails=False, mlc_peaks=False, overlay=False)
+        canvas.add_image(data, location=(3, 5), dimensions=(15, 19))
+
+        canvas.add_new_page()
+        data = io.BytesIO()
+        self.save_analyzed_image(data, picket=False, leaf_error_subplot=True, guard_rails=False, mlc_peaks=False, overlay=False, show=False)
+        canvas.add_image(data, location=(3, 5), dimensions=(15, 19))
         canvas.finish()
 
         if open_file:
@@ -539,9 +578,9 @@ class Settings:
     def figure_size(self) -> Tuple[int, int]:
         """The size of the figure to draw; depends on the picket orientation."""
         if self.orientation == UP_DOWN:
-            return (12, 8)
+            return (35, 25)
         else:
-            return (9, 9)
+            return (25, 35)
 
     @property
     def small_leaf_width(self) -> int:
@@ -625,7 +664,7 @@ class PicketManager:
                 error_plot_positions.append(mlc_meas.center.y)
             else:
                 error_plot_positions.append(mlc_meas.center.x)
-
+        #print(np.max(error_stds))
         return error_plot_positions, error_means, error_stds, mlc_leaves
 
     def find_pickets(self):
@@ -681,6 +720,7 @@ class Picket:
         self.approximate_idx = approximate_idx
         self.spacing = spacing
         self._get_mlc_positions()
+
 
     def _get_mlc_positions(self):
         """Calculate the positions of all the MLC pairs."""
