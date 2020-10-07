@@ -440,6 +440,18 @@ class CTP404CP504(CatPhanModule):
         """Returns whether all the line lengths were within tolerance."""
         return all(line.passed for line in self.lines.values())
 
+    @property
+    def results_dict(self):
+        result_dict = {}
+        hus = {}
+        for name, roi in self.rois.items():
+            hus[name] = roi.pixel_value
+        result_dict['HUs'] = hus
+        result_dict['lcv'] = self.lcv
+        result_dict['meas_slice_thickness'] = self.meas_slice_thickness
+        result_dict['geometry'] = self.avg_line_length
+        return result_dict
+
 
 class CTP404CP503(CTP404CP504):
     """Alias for namespace consistency"""
@@ -538,6 +550,16 @@ class CTP486(CatPhanModule):
         maxhu = max(roi.pixel_value for roi in self.rois.values())
         minhu = min(roi.pixel_value for roi in self.rois.values())
         return (maxhu - minhu)/(maxhu + minhu + 2000)
+
+
+    @property
+    def results_dict(self):
+        result_dict = {}
+        result_dict['Uniformity Tol'] = self.tolerance
+        result_dict['Uniformity Index'] = self.uniformity_index
+        result_dict['Integral Non-Uni'] = self.integral_non_uniformity
+        return result_dict
+
 
 
 class CTP528CP504(CatPhanModule):
@@ -656,6 +678,14 @@ class CTP528CP504(CatPhanModule):
         axis.set_ylabel("Relative MTF")
         axis.set_title('RMTF')
         return points
+    
+    @property
+    def results_dict(self):
+        result_dict = {}
+        result_dict['MTF 80'] = self.mtf.relative_resolution(80)
+        result_dict['MTF 50'] = self.mtf.relative_resolution(50)
+        result_dict['MTF 30'] = self.mtf.relative_resolution(30)
+        return result_dict
 
 
 class CTP528CP604(CTP528CP504):
@@ -769,6 +799,12 @@ class CTP515(CatPhanModule):
         """The number of ROIs "visible"."""
         return sum(roi.passed_cnr_constant for roi in self.rois.values())
 
+    @property
+    def results_dict(self):
+        result_dict = {}
+        result_dict['CNR threshhold'] = self.cnr_threshold
+        result_dict['Low contrast ROIs'] = self.rois_visible
+        return result_dict
 
 class CatPhanBase:
     """A class for loading and analyzing CT DICOM files of a CatPhan 504 & CatPhan 503. Can be from a CBCT or CT scanner
@@ -779,6 +815,11 @@ class CatPhanBase:
     air_bubble_radius_mm = 7
     localization_radius = 59
     was_from_zip = False
+    catphan_radius_mm = 0
+    modules = {
+        
+    }
+
 
     def __init__(self, folderpath, check_uid=True):
         """
@@ -1246,6 +1287,19 @@ class CatPhanBase:
             add = (f'Low contrast ROIs "seen": {self.ctp515.rois_visible}\n')
             string += add
         return string
+    
+    @property
+    def results_dict(self):
+        result = {}
+        if self._has_module(CTP404CP503):
+            result["CTP404"] = self.ctp404.results_dict
+        if self._has_module(CTP486):
+            result["CTP486"] = self.ctp486.results_dict
+        if self._has_module(CTP515):
+            result["CTP515"] = self.ctp515.results_dict
+        if self._has_module(CTP528CP504):
+            result["CTP528"] = self.ctp528.result_dict
+        return result
 
 
 class CatPhan503(CatPhanBase):
@@ -1309,6 +1363,20 @@ class CatPhan604(CatPhanBase):
         CTP515: {'offset': -40}
     }
 
+    @property
+    def results_dict(self):
+        result = {}
+        if self._has_module(CTP404CP604):
+            result["CTP404"] = self.ctp404.results_dict
+        if self._has_module(CTP486):
+            result["CTP486"] = self.ctp486.results_dict
+        if self._has_module(CTP515):
+            result["CTP515"] = self.ctp515.results_dict
+        if self._has_module(CTP528CP604):
+            result["CTP528"] = self.ctp528.results_dict
+        return result
+
+
     @staticmethod
     def run_demo(show=True):
         """Run the CBCT demo using high-quality head protocol images."""
@@ -1316,6 +1384,7 @@ class CatPhan604(CatPhanBase):
         cbct.analyze()
         print(cbct.results())
         cbct.plot_analyzed_image(show)
+        
 
 
 class CatPhan600(CatPhanBase):
@@ -1340,6 +1409,7 @@ class CatPhan600(CatPhanBase):
         cbct.analyze()
         print(cbct.results())
         cbct.plot_analyzed_image(show)
+
 
 
 def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='otsu'):
