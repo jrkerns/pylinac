@@ -108,9 +108,9 @@ Equation definitions are as follows:
   Where A, B, and C are chamber-specific fitting values as given in Table I.
   Pylinac automatically retrieves values based on the chamber model passed to the function.
 
-* kQ for Electrons (cylindrical chamber-specific quality conversion factor) - `Muir & Rodgers 2014`_
+* kQ for Electrons (cylindrical chamber-specific quality conversion factor) - `Muir & Rogers 2014`_
 
-  The study of Muir & Rodgers was to find kecal values that could be determined soley from R50. Through
+  The study of Muir & Rogers was to find kecal values that could be determined soley from R50. Through
   Monte Carlo experiments, the optimal Pgradient was determined as well as fitting parameters for numerous
   common ion chambers. That study eliminates the need for Pgradient measurements. These kecal values will
   very likely be incorporated into the next TG-51 addendum (as has their kQ values for photons in the first
@@ -137,7 +137,7 @@ Equation definitions are as follows:
   .. math::
        M*P^Q_{gr}*k'_{R_{50}}*k_{ecal}*N^{60Co}_{D,w}  (Gy)
 
-.. _Muir & Rodgers 2014: http://onlinelibrary.wiley.com/doi/10.1118/1.4893915/abstract
+.. _Muir & Rogers 2014: http://onlinelibrary.wiley.com/doi/10.1118/1.4893915/abstract
 
 
 Function-based Use
@@ -152,7 +152,7 @@ values.
 .. note::
     The Photon class uses kQ values from the TG-51 addendum.
     The Legacy Electron class will make the user specify a kecal value and measure Pgradient.
-    The Modern Electron class will calculate kQ completely from R50 and the chamber from Muir & Rodgers 2014 paper,
+    The Modern Electron class will calculate kQ completely from R50 and the chamber from Muir & Rogers 2014 paper,
     no kecal or Pgradient needed.
 
 
