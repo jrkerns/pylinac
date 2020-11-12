@@ -285,19 +285,12 @@ class SingleProfile(ProfileMixin):
         max_point = y_data.max()
         threshold = max_point * (x / 100)
 
-        # find the index, moving 1 element at a time until the value is encountered
-        found = False
-        at_end = False
-        try:
-            while not found and not at_end:
-                if y_data[peak] < threshold:
-                    found = True
-                    peak -= 1 if side == RIGHT else -1
-                elif peak == 0:
-                    at_end = True
-                peak += 1 if side == RIGHT else -1
-        except IndexError:
+        not_found = len(np.where(y_data <= threshold)[0]) == 0
+        if not_found:
             raise IndexError("The point of interest was beyond the profile; i.e. the profile may be cut off on the side")
+
+        locs = np.where(y_data > threshold)[0]
+        peak = locs[-1] + 1 if side == RIGHT else locs[0] - 1
 
         if kind == VALUE:
             return self._values_interp[peak] if interpolate else self.values[peak]
