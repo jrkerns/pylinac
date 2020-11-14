@@ -481,10 +481,10 @@ Winston-Lutz
 TG-51
 ^^^^^
 
-* The Electron class has been adjusted to reflect the `Muir & Rodgers 2014`_ kecal data which allows the user to calculate kQ from just R50 data.
+* The Electron class has been adjusted to reflect the `Muir & Rogers 2014`_ kecal data which allows the user to calculate kQ from just R50 data.
 * The `kq` function now accepts an `r_50` parameter to calculate kQ based on the above data.
 
-.. _Muir & Rodgers 2014: http://onlinelibrary.wiley.com/doi/10.1118/1.4893915/abstract
+.. _Muir & Rogers 2014: http://onlinelibrary.wiley.com/doi/10.1118/1.4893915/abstract
 
 Core Modules
 ^^^^^^^^^^^^

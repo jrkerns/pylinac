@@ -1,9 +1,9 @@
 """
 The TG-51 module contains a number of helper functions and classes that can calculate parameters for performing the
 TG-51 absolute linac dose calibration although there are some modifications from the original TG-51. The modifications 
-include updated kQ and kecal values from Muir and Rodgers' set of papers.
+include updated kQ and kecal values from Muir and Rogers' set of papers.
 Functions include all relevant calculations for TG-51 including PDDx, kQ,
-Dref, and chamber reading corrections. Where Muir & Rodgers' values/equations are used they are specified in the documentation.
+Dref, and chamber reading corrections. Where Muir & Rogers' values/equations are used they are specified in the documentation.
 
 Classes include photon and electron calibrations using cylindrical chambers. Pass all the relevant raw measurements
 and the class will compute all corrections and corrected readings and dose at 10cm and dmax/dref.
@@ -299,7 +299,7 @@ def kq_photon_pddx(*, chamber: str, pddx: float) -> float:
     ----------
     chamber : str
         The chamber of the chamber. Valid values are those listed in
-        Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
+        Table III of Muir and Rogers and Table I of the TG-51 Addendum.
     pddx : {>63.0, <86.0}
         The **PHOTON-ONLY** PDD measurement at 10cm depth for a 10x10cm2 field.
 
@@ -322,7 +322,7 @@ def kq_photon_tpr(*, chamber: str, tpr: float) -> float:
     ----------
     chamber : str
         The chamber of the chamber. Valid values are those listed in
-        Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
+        Table III of Muir and Rogers and Table I of the TG-51 Addendum.
     tpr : {>0.630, <0.860}
         The TPR(20,10) value.
 
@@ -336,13 +336,13 @@ def kq_photon_tpr(*, chamber: str, tpr: float) -> float:
 @argue.options(chamber=KQ_ELECTRONS.keys())
 def kq_electron(*, chamber: str, r_50: float) -> float:
     """Calculate kQ based on the chamber and clinical measurements. This will calculate kQ for electrons
-    for *CYLINDRICAL* chambers only according to Muir & Rodgers.
+    for *CYLINDRICAL* chambers only according to Muir & Rogers.
 
     Parameters
     ----------
     chamber : str
         The chamber of the chamber. Valid values are those listed in
-        Tables VI and VII of Muir and Rodgers 2014.
+        Tables VI and VII of Muir and Rogers 2014.
     r_50 : float
         The R50 value in cm of an electron beam.
     """
@@ -788,7 +788,7 @@ class TG51ElectronModern(TG51Base):
     """Class for calculating absolute dose to water using a cylindrical chamber in an electron beam.
 
     .. warning::
-        This class uses the values of Muir & Rodgers. These values are likely to be included in the new TG-51
+        This class uses the values of Muir & Rogers. These values are likely to be included in the new TG-51
         addendum, but are not official. The results can be up to 1% different. Physicists should use their own
         judgement when deciding which class to use. To use a manual kecal value, Pgradient and the classic TG-51 equations use
         the :class:`~pylinac.calibration.tg51.TG51ElectronLegacy` class.
@@ -879,7 +879,7 @@ class TG51ElectronModern(TG51Base):
 
     @property
     def kq(self) -> float:
-        """The kQ value using the updated Muir & Rodgers values from their 2014 paper, equation 11, or classically
+        """The kQ value using the updated Muir & Rogers values from their 2014 paper, equation 11, or classically
         if kecal is passed."""
         return kq_electron(chamber=self.chamber, r_50=self.r_50)
 
