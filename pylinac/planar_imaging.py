@@ -782,9 +782,11 @@ class LeedsTOR(ImagePhantomBase):
         leeds.plot_analyzed_image()
 
     def _preprocess(self) -> None:
-        self.image.check_inversion_by_histogram()
         if self._is_counter_clockwise():
             self._flip_image_data()
+
+    def _check_inversion(self) -> None:
+        self.image.check_inversion_by_histogram()
 
     def _flip_image_data(self) -> None:
         """Flip the image left->right and invert the center, and angle as appropriate.
