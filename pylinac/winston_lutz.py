@@ -881,7 +881,7 @@ class WLImage(image.LinacDicomImage):
         #hmin, hmax = np.percentile(ndimage.median_filter(self.array, 3), [5, 99.9])
         spread = hmax - hmin
         max_thresh = hmax
-        lower_thresh = hmax - spread / 1.5
+        lower_thresh = hmax - spread / 1 #1.5
         # search for the BB by iteratively lowering the low-pass threshold value until the BB is found.
         found = False
         while not found:
@@ -914,12 +914,12 @@ class WLImage(image.LinacDicomImage):
         inv_img.check_inversion_by_histogram(percentiles=(99.99, 50, 0.01))
         bb_rprops = measure.regionprops(bw_bb_img, intensity_image=(inv_img))[0]
 
-        #plt.figure()
-        #plt.title("G{}C{}T{} File:{} X{} Y{}".format(round(self.gantry_angle,0), round(self.collimator_angle,0), round(self.couch_angle_varian_scale,0),
-        #                                     self.file, bb_rprops.weighted_centroid[1],bb_rprops.weighted_centroid[0]))
-        #plt.imshow(self.array)
-        #plt.imshow(bw_bb_img, alpha=0.5,cmap='bone')
-        #plt.plot(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0],'xr')
+        plt.figure()
+        plt.title("G{}C{}T{} File:{} X{} Y{}".format(round(self.gantry_angle,0), round(self.collimator_angle,0), round(self.couch_angle_varian_scale,0),
+                                             self.file, bb_rprops.weighted_centroid[1],bb_rprops.weighted_centroid[0]))
+        plt.imshow(self.array)
+        plt.imshow(bw_bb_img, alpha=0.5,cmap='bone')
+        plt.plot(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0],'xr')
         return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
 
 
