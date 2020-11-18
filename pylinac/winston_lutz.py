@@ -914,12 +914,12 @@ class WLImage(image.LinacDicomImage):
         inv_img.check_inversion_by_histogram(percentiles=(99.99, 50, 0.01))
         bb_rprops = measure.regionprops(bw_bb_img, intensity_image=(inv_img))[0]
 
-        plt.figure()
-        plt.title("G{}C{}T{} File:{} X{} Y{}".format(round(self.gantry_angle,0), round(self.collimator_angle,0), round(self.couch_angle_varian_scale,0),
-                                             self.file, bb_rprops.weighted_centroid[1],bb_rprops.weighted_centroid[0]))
-        plt.imshow(self.array)
-        plt.imshow(bw_bb_img, alpha=0.5,cmap='bone')
-        plt.plot(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0],'xr')
+        #plt.figure()
+        #plt.title("G{}C{}T{} File:{} X{} Y{}".format(round(self.gantry_angle,0), round(self.collimator_angle,0), round(self.couch_angle_varian_scale,0),
+        #                                     self.file, bb_rprops.weighted_centroid[1],bb_rprops.weighted_centroid[0]))
+        #plt.imshow(self.array)
+        #plt.imshow(bw_bb_img, alpha=0.5,cmap='bone')
+        #plt.plot(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0],'xr')
         return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
 
 
