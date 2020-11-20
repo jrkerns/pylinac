@@ -730,17 +730,23 @@ class LeedsTOR(ImagePhantomBase):
         Returns
         -------
         angle : float
-            The angle in radians.
+            The angle in degrees
         """
-        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius * 0.79, self.image,
-                                        width_ratio=0.04, ccw=True)
-        circle.ground()
-        circle.filter(size=0.01)
+
+        if self._phantom_angle:
+            return self._phantom_angle
+
+        start_angle_deg = self._start_angle_for_circle_profile()
+        circle = self._circle_profile_for_phantom_angle(start_angle_deg)
         peak_idx = circle.find_fwxm_peaks(threshold=0.6, max_number=1)[0]
+
         shift_percent = peak_idx / len(circle.values)
         shift_radians = shift_percent * 2 * np.pi
         shift_radians_corrected = 2*np.pi - shift_radians
-        return np.degrees(shift_radians_corrected)
+
+        self._phantom_angle = np.degrees(shift_radians_corrected) + start_angle_deg
+
+        return self._phantom_angle
 
     def _phantom_radius_calc(self) -> float:
         """Determine the radius of the phantom.
@@ -766,13 +772,64 @@ class LeedsTOR(ImagePhantomBase):
         -------
         boolean
         """
-        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius * 0.79, self.image, width_ratio=0.04, ccw=True)
-        circle.ground()
-        circle.filter(size=0.01)
-        circle.values = np.roll(circle.values, -circle.values.argmax())
+
+        circle = self._circle_profile_for_phantom_angle(0)
+        peak_idx = circle.find_fwxm_peaks(threshold=0.6, max_number=1)[0]
+        circle.values = np.roll(circle.values, -peak_idx)
         first_set = circle.find_peaks(search_region=(0.05, 0.45), threshold=0, min_distance=0.025, kind='value', max_number=9)
         second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0, min_distance=0.025, kind='value', max_number=9)
         return max(first_set) > max(second_set)
+
+    def _start_angle_for_circle_profile(self):
+        """Determine an appropriate angle for starting the circular profile
+        used to determine the phantom angle.
+
+        In most cases we can just use 0 degs but for the case where the phantom
+        is set up near 0 degs, the peak of the circular profile will be split
+        between the left and right sides of the profile.  We can check for this
+        case by looking at a few of the peak indexes and determining whether
+        they are all on the left or right side of the profile or split left and
+        right.  If they're split left and right, then we we need to use a
+        different circular profile start angle  to get an accurate angle
+        determination
+
+        Returns
+        -------
+        start_angle_deg: float
+            The start angle to be used for the circular profile used to determine the
+            phantom rotation.
+        """
+
+        circle = self._circle_profile_for_phantom_angle(0)
+        peak_idxs = circle.find_fwxm_peaks(threshold=0.6, max_number=4)
+        on_left_half = [x < len(circle.values) / 2 for x in peak_idxs]
+        aligned_to_zero_deg = not(all(on_left_half) or not any(on_left_half))
+        return 90 if aligned_to_zero_deg else 0
+
+    def _circle_profile_for_phantom_angle(self, start_angle_deg):
+        """Create a circular profile centered at phantom origin
+        Parameters
+        ----------
+        start_angle_deg: float
+
+            Angle in degrees at which to start the profile
+        Returns
+        -------
+        circle : CollapsedCircleProfile
+            The circular profile centered on the phantom center.
+        """
+
+        circle = CollapsedCircleProfile(
+            self.phantom_center,
+            self.phantom_radius * 0.79,
+            self.image,
+            width_ratio=0.04,
+            ccw=True,
+            start_angle=np.deg2rad(start_angle_deg),
+        )
+        circle.ground()
+        circle.filter(size=0.01)
+        return circle
 
     @staticmethod
     def run_demo() -> None:
