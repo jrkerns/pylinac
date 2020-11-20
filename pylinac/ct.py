@@ -490,9 +490,9 @@ class CTP486(CatPhanModule):
     roi_radius_mm = 10
     nominal_value = 0
     roi_settings = {
-        'Top': {'value': nominal_value, 'angle': 90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Top': {'value': nominal_value, 'angle': -90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
         'Right': {'value': nominal_value, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Bottom': {'value': nominal_value, 'angle': -90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Bottom': {'value': nominal_value, 'angle': 90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
         'Left': {'value': nominal_value, 'angle': 180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
         'Center': {'value': nominal_value, 'angle': 0, 'distance': 0, 'radius': roi_radius_mm},
     }

@@ -222,7 +222,7 @@ class CatPhan4(CatPhanMixin, TestCase):
     expected_roll = -2.57
     origin_slice = 31
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
-    unif_values = {'Center': 17, 'Left': 10, 'Right': 22, 'Top': 18, 'Bottom': 13}
+    unif_values = {'Center': 17, 'Left': 10, 'Right': 22, 'Top': 13, 'Bottom': 18}
     mtf_values = {80: 0.24, 90: 0.2, 60: 0.31, 70: 0.23, 95: 0.15}
     lowcon_visible = 1
     slice_thickness = 2.4
