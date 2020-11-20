@@ -20,7 +20,6 @@
    winston_lutz
    planar_imaging
    flatsym
-   watcher
    core_modules
    pylinac_core_hacking
    troubleshooting

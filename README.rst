@@ -53,7 +53,7 @@ To get started, install the package, run the demos, view the API docs, and learn
 Installation
 ------------
 
-Install via ``pip``, just check the `dependencies <http://pylinac.readthedocs.io/en/stable/installation.html#dependencies>`_ first:
+Install via ``pip``:
 
 .. code-block:: bash
 
@@ -250,6 +250,7 @@ Below are the high-level tools currently available:
     * **Automatic testing of all major modules** - Major modules are automatically registered and analyzed.
     * **Any scan protocol** - Scan your CatPhan with any protocol; or even scan it in a regular CT scanner.
       Any field size or field extent is allowed.
+    * **Customize modules** - You can easily override settings in the event you have a custom scenario such as a partial scan.
 
     Example script:
 
@@ -344,6 +345,8 @@ Below are the high-level tools currently available:
         fs.analyze(flatness_method='varian', symmetry_method='varian', vert_position=0.5, horiz_position=0.5)
         # print results
         print(fs.results())
+        # plot results
+        fs.plot_analyzed_image()
         # publish a PDF file
         fs.publish_pdf(filename='myFS.pdf')
 

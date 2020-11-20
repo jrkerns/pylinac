@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = '2.3.2'
+__version__ = '2.4.0'
 
 
 setup(
@@ -16,14 +16,11 @@ setup(
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
     install_requires=["numpy >= 1.14",
                       "scipy >= 1.0",
-                      "pydicom >= 1.0",
-                      "matplotlib >= 1.4",
+                      "pydicom >= 2.0",
+                      "matplotlib >= 2",
                       "scikit-image >= 0.13",
-                      "scikit-learn >= 0.18",
                       "Pillow >= 4.0",
                       "tqdm >= 3.8",
-                      "pyyaml >= 3.10",
-                      "yagmail",
                       "argue",
                       "reportlab >= 3.3"],
     license='MIT',

@@ -75,7 +75,7 @@ After analysis, the results can be printed, plotted, or saved to a PDF:
 .. code-block:: python
 
     print(my_img.results())  # print results
-    my_img.plot()  # matplotlib image
+    my_img.plot_analyzed_image()  # matplotlib image
     my_img.publish_pdf(filename="flatsym.pdf")  # create PDF and save to file
 
 Raw Data
@@ -93,12 +93,13 @@ The raw data values of analysis are also available within the public attributes 
 Analysis Options
 ----------------
 
-The flatness/symmetry algorithms can be specified as well as the position of the analysis within the image.
+The flatness/symmetry algorithms can be specified as well as the position of the analysis within the image and the width of the profile.
 See :ref:`analysis_definitions` for the common algorithms.
 
 .. code-block:: python
 
-    my_img.analyze(flatness_method='elekta', symmetry_method='point difference', vert_position=0.4, horiz_position=0.6)
+    my_img.analyze(flatness_method='elekta', symmetry_method='point difference', vert_position=0.4, horiz_position=0.6,
+    vert_width=0.05, horiz_width=0.05)
 
 You can also create your own algorithms.
 

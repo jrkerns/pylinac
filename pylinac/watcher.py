@@ -515,36 +515,6 @@ def drop_skips(files, skip_list):
     return [f for f in files if (osp.basename(f) not in skip_list)]
 
 
-def matches_classifier(file, obj):
-    if obj in (AnalyzePF, AnalyzeQC3, AnalyzeLeeds, AnalyzeStar, AnalyzeWL):
-        img_type = 'single'
-        match = {
-            AnalyzePF: 1,
-            AnalyzeQC3: 2,
-            AnalyzeLeeds: 3,
-            AnalyzeStar: 4,
-            AnalyzeWL: 5,
-        }
-    elif isinstance(obj, AnalyzeVMAT):
-        img_type = 'vmat'
-        match = {
-            1: 'open',
-            2: 'drgs',
-            3: 'mlcs',
-        }
-    clf = get_image_classifier(img_type)
-    try:
-        img = prepare_for_classification(file)
-        classification = clf.predict(img.reshape(1, -1))
-    except:
-        return False
-    else:
-        if img_type == 'single':
-            return classification[0] == match[obj]
-        if img_type == 'vmat':
-            return match[classification[0]]
-
-
 def contains_keywords(file, config, obj):
     return any(keyword.lower() in osp.basename(file.lower()) for keyword in config[obj]['keywords'])
 
@@ -703,23 +673,3 @@ def load_config(config_file=None, verbose=False):
     if verbose:
         logger.info(f"Using configuration file: {yaml_config_file}")
     return config
-
-
-@lru_cache(maxsize=1)
-@value_accept(img_type=('single', 'vmat'))
-def get_image_classifier(img_type):
-    """Load the CBCT HU slice classifier model. If the classifier is not locally available it will be downloaded."""
-    if img_type == 'single':
-        classifier = 'singleimage_classifier.pkl.gz'
-    elif img_type == 'vmat':
-        classifier = 'vmat_classifier.pkl.gz'
-    classifier_file = osp.join(osp.dirname(__file__), 'demo_files', classifier)
-    # get the classifier if it's not downloaded
-    if not osp.isfile(classifier_file):
-        logger.info("Downloading classifier from the internet...")
-        classifier_file = retrieve_demo_file(classifier)
-        logger.info("Done downloading")
-
-    with gzip.open(classifier_file, mode='rb') as m:
-        clf = pickle.load(m)
-    return clf

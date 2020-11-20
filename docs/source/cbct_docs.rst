@@ -138,7 +138,7 @@ Partial scans
 While the default behavior of pylinac is to analyze all modules in the scan (in fact it will error out if they aren't),
 the behavior can be customized. Pylinac **always** has to be aware of the CTP404 module as that's the reference slice
 for everything else. Thus, if the 404 is not in the scan you're SOL. However, if one of the other modules is not present
-you can remove or adjust its offset by subclassing and overloading the `modules` attr:
+you can remove or adjust its offset by subclassing and overloading the ``modules`` attr:
 
   .. code-block:: python
 
@@ -168,7 +168,7 @@ The rMTF can be calculated ad hoc like so. Note that CTP528 must be present (see
 Customizing module locations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Similar to partial scans, to modify the module location(s), overload the `modules` attr and edit the `offset` value.
+Similar to partial scans, to modify the module location(s), overload the ``modules`` attr and edit the ``offset`` value.
 The value is in mm:
 
   .. code-block:: python
@@ -176,6 +176,7 @@ The value is in mm:
     from pylinac import CatPhan504  # works for any of the other phantoms too
     from pylinac.ct import CTP515, CTP486, CTP528
 
+    # create custom catphan with module locations
     class OffsetCatPhan504(CatPhan504):
         modules = {
             CTP486: {'offset': -60},  # normally -65
@@ -215,6 +216,7 @@ As an example, let's override the nominal HU values for CTP404.
             ...  # add other modules here as appropriate
         }
 
+    # use like normal
     ct = CustomCP504(...)
 
 .. warning:: If you overload the ``roi_settings`` or ``modules`` attributes, you are responsible for filling it out completely.

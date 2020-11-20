@@ -9,6 +9,8 @@ v 2.4.0
 General
 ^^^^^^^
 
+Thanks to several contributors for making pull requests in this release!
+
 * The GUI function was removed from the pylinac init file. This was causing issues when deploying to Heroku as calls to tkinter
   caused failures. The GUI should be called from the submodule now:
 
@@ -45,12 +47,26 @@ Flatness & Symmetry
 ^^^^^^^^^^^^^^^^^^^
 
 The flatness & symmetry module has been updated to allow for profiles of a select width to be analyzed rather than a single
-pixel profile. Thanks to `@alanphys <https://github.com/alanphys>`_ for the pull request.
+pixel profile.
 
 * Two new keyword parameters were added to analyze: ``vert_width`` and ``horiz_width``. You can read about their usage
   in the ``analyze`` documentation.
 * The ``plot()`` method was renamed to ``plot_analyzed_image`` to match the rest of the modules.
 
+Watcher
+^^^^^^^
+
+The watcher script has been officially deprecated for now (it was broken for a long time anyway). A better overall solution is to use something like QATrack+ anyway =).
+
+Bug Fixes
+^^^^^^^^^
+
+* `#314 <https://github.com/jrkerns/pylinac/issues/314>`_ The Flat/Sym module now performs pixel interpolation when calculating field width and edges.
+* `#325 <https://github.com/jrkerns/pylinac/issues/325>`_ The Leeds angle detection should be more robust when the phantom angle is very close to 0.
+* `#313 <https://github.com/jrkerns/pylinac/issues/313>`_ The catphan CTP486 module had an inverted top and bottom ROI assignment.
+* `#305 <https://github.com/jrkerns/pylinac/issues/305>`_ The Leeds ``invert`` parameter was not being respected.
+* `#303 <https://github.com/jrkerns/pylinac/issues/303>`_ Un-inverted WL image analysis would give an error.
+* `#290 <https://github.com/jrkerns/pylinac/issues/290>`_ Catphan HU linearity differences are now signed.
 
 
 v 2.3.2
