@@ -738,7 +738,7 @@ class LeedsTOR(ImagePhantomBase):
 
         start_angle_deg = self._determine_start_angle_for_circle_profile()
         circle = self._circle_profile_for_phantom_angle(start_angle_deg)
-        peak_idx = circle.find_fwxm_peaks(threshold=0.6, max_number=1)[0]
+        peak_idx = circle.find_fwxm_peaks(threshold=0.6, x=80, max_number=1)[0]
 
         shift_percent = peak_idx / len(circle.values)
         shift_radians = shift_percent * 2 * np.pi
@@ -774,10 +774,11 @@ class LeedsTOR(ImagePhantomBase):
         """
 
         circle = self._circle_profile_for_phantom_angle(0)
-        peak_idx = circle.find_fwxm_peaks(threshold=0.6, max_number=1)[0]
+        peak_idx = circle.find_fwxm_peaks(threshold=0.6, x=80, max_number=1)[0]
         circle.values = np.roll(circle.values, -peak_idx)
         first_set = circle.find_peaks(search_region=(0.05, 0.45), threshold=0, min_distance=0.025, kind='value', max_number=9)
         second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0, min_distance=0.025, kind='value', max_number=9)
+
         return max(first_set) > max(second_set)
 
     def _determine_start_angle_for_circle_profile(self) -> float:
@@ -801,7 +802,7 @@ class LeedsTOR(ImagePhantomBase):
         """
 
         circle = self._circle_profile_for_phantom_angle(0)
-        peak_idxs = circle.find_fwxm_peaks(threshold=0.6, max_number=4)
+        peak_idxs = circle.find_fwxm_peaks(threshold=0.6, x=80, max_number=4)
         on_left_half = [x < len(circle.values) / 2 for x in peak_idxs]
         aligned_to_zero_deg = not(all(on_left_half) or not any(on_left_half))
         return 90 if aligned_to_zero_deg else 0
