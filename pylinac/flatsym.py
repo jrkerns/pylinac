@@ -23,7 +23,7 @@ def flatness_varian(profile: SingleProfile):
     except ValueError:
         raise ValueError("An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
     flatness = 100 * abs(dmax - dmin) / (dmax + dmin)
-    lt_edge, rt_edge = profile.field_edges()
+    lt_edge, rt_edge = profile.field_edges(interpolate=True)
     return flatness, dmax, dmin, lt_edge, rt_edge
 
 
@@ -35,14 +35,14 @@ def flatness_elekta(profile: SingleProfile):
     except ValueError:
         raise ValueError("An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
     flatness = 100 * (dmax / dmin)
-    lt_edge, rt_edge = profile.field_edges()
+    lt_edge, rt_edge = profile.field_edges(interpolate=True)
     return flatness, dmax, dmin, lt_edge, rt_edge
 
 
 def symmetry_point_difference(profile: SingleProfile):
     """Calculation of symmetry by way of point difference equidistant from the CAX"""
     values = profile.field_values(field_width=0.8)
-    lt_edge, rt_edge = profile.field_edges(field_width=0.8)
+    lt_edge, rt_edge = profile.field_edges(field_width=0.8, interpolate=True)
     cax = profile.fwxm_center()
     dcax = profile.values[cax]
     max_val = 0
@@ -59,7 +59,7 @@ def symmetry_point_difference(profile: SingleProfile):
 def symmetry_pdq_iec(profile: SingleProfile):
     """Symmetry calculation by way of PDQ IEC"""
     values = profile.field_values(field_width=0.8)
-    lt_edge, rt_edge = profile.field_edges(field_width=0.8)
+    lt_edge, rt_edge = profile.field_edges(field_width=0.8, interpolate=True)
     max_val = 0
     sym_array = []
     for lt_pt, rt_pt in zip(values, values[::-1]):
@@ -391,7 +391,7 @@ class FlatSym:
         # plot symmetry array
         if not data['array'] == 0:
             twin_axis = axis.twinx()
-            twin_axis.plot(range(cax_idx, data['profile right']), data['array'][int(round(len(data['array'])/2)):])
+            twin_axis.plot(range(cax_idx, int(round(data['profile right']))), data['array'][int(round(len(data['array'])/2)):])
             twin_axis.set_ylabel("Symmetry (%)")
         _remove_ticklabels(axis)
         # plot profile mirror
