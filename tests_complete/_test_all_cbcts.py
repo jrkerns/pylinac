@@ -146,7 +146,7 @@ class CBCT3(CatPhan504Mixin, TestCase):
     expected_roll = -2.66
     origin_slice = 36
     hu_values = {'Poly': -44, 'Acrylic': 113, 'Delrin': 325, 'Air': -982, 'Teflon': 952, 'PMP': -194, 'LDPE': -103}
-    unif_values = {'Center': -2, 'Left': -3, 'Right': 6, 'Top': 6, 'Bottom': -2}
+    unif_values = {'Center': -2, 'Left': -3, 'Right': 6, 'Top': -2, 'Bottom': 6}
     mtf_values = {50: 0.33}
     avg_line_length = 49.9
     lowcon_visible = 1
@@ -289,7 +289,7 @@ class CBCT15(CatPhan504Mixin, TestCase):
     file_path = ['CBCT_15.zip']
     origin_slice = 61
     hu_values = {'Poly': -32, 'Acrylic': 121, 'Delrin': 353, 'Air': -998, 'Teflon': 945, 'PMP': -186, 'LDPE': -93}
-    unif_values = {'Center': -2, 'Left': 6, 'Right': 5, 'Top': 11, 'Bottom': 3}
+    unif_values = {'Center': -2, 'Left': 6, 'Right': 5, 'Top': 3, 'Bottom': 11}
     mtf_values = {50: 0.35}
     lowcon_visible = 6
 
@@ -337,7 +337,7 @@ class Katy1(CatPhan504Mixin, TestCase):
     file_path = ['Katy iX', 'Monday, March 10, 2014 1-05-47 PM (super high HU).zip']
     origin_slice = 44
     hu_values = {'Poly': 584, 'Acrylic': 797, 'Delrin': 1046, 'Air': -404, 'Teflon': 1720, 'PMP': 424, 'LDPE': 522}
-    unif_values = {'Center': 612, 'Left': 628, 'Right': 645, 'Top': 642, 'Bottom': 631}
+    unif_values = {'Center': 612, 'Left': 628, 'Right': 645, 'Top': 631, 'Bottom': 642}
     mtf_values = {50: 0.51}
     lowcon_visible = 3
     slice_thickness = 2.4
@@ -361,7 +361,7 @@ class AGElekta2(CatPhan503Mixin, TestCase):
     expected_roll = -0.44
     origin_slice = 189
     hu_values = {'Poly': 746, 'Acrylic': 834, 'Delrin': 969, 'Air': 181, 'Teflon': 1324, 'PMP': 670, 'LDPE': 722}
-    unif_values = {'Center': 707, 'Left': 758, 'Right': 748, 'Top': 758, 'Bottom': 750}
+    unif_values = {'Center': 707, 'Left': 758, 'Right': 748, 'Top': 750, 'Bottom': 758}
     mtf_values = {50: 0.22}
     avg_line_length = 50.2
     slice_thickness = 0.5
@@ -401,7 +401,7 @@ class UNC100kV(CatPhan503Mixin, TestCase):
     file_path = ['UNC-Chapel Hill', '100kV_CBCT_Feb2016.zip']
     origin_slice = 131
     hu_values = {'Poly': -112, 'Acrylic': 35, 'Delrin': 245, 'Air': -973, 'Teflon': 856, 'PMP': -239, 'LDPE': -168}
-    unif_values = {'Center': -45, 'Left': -72, 'Right': -73, 'Top': -71, 'Bottom': -61}
+    unif_values = {'Center': -45, 'Left': -72, 'Right': -73, 'Top': -61, 'Bottom': -71}
     mtf_values = {50: 0.55}
     slice_thickness = 1.4
 
@@ -410,7 +410,7 @@ class UNC120kV(CatPhan503Mixin, TestCase):
     file_path = ['UNC-Chapel Hill', '120kV_CBCT_Feb2016.zip']
     origin_slice = 131
     hu_values = {'Poly': -274, 'Acrylic': -150, 'Delrin': 22, 'Air': -996, 'Teflon': 486, 'PMP': -380, 'LDPE': -315}
-    unif_values = {'Center': -223, 'Left': -236, 'Right': -238, 'Top': -239, 'Bottom': -232}
+    unif_values = {'Center': -223, 'Left': -236, 'Right': -238, 'Top': -232, 'Bottom': -239}
     mtf_values = {50: 0.56}
     slice_thickness = 1.5
 
@@ -455,7 +455,7 @@ class Philips1MM(CatPhan504Mixin, TestCase):
     expected_roll = -0.49
     origin_slice = 284
     hu_values = {'Poly': -32, 'Acrylic': 125, 'Delrin': 343, 'Air': -967, 'Teflon': 914, 'PMP': -175, 'LDPE': -85}
-    unif_values = {'Center': 95, 'Left': 96, 'Right': 96, 'Top': 94, 'Bottom': 99}
+    unif_values = {'Center': 95, 'Left': 96, 'Right': 96, 'Top': 99, 'Bottom': 94}
     mtf_values = {50: 0.48}
     avg_line_length = 49.8
     lowcon_visible = 0
@@ -469,7 +469,7 @@ class Siemens5MM(CatPhan504Mixin, TestCase):
     expected_roll = 1.26
     origin_slice = 41
     hu_values = {'Poly': -40, 'Acrylic': 120, 'Delrin': 347, 'Air': -1003, 'Teflon': 953, 'PMP': -187, 'LDPE': -95}
-    unif_values = {'Center': 47, 'Left': 50, 'Right': 49, 'Top': 49, 'Bottom': 53}
+    unif_values = {'Center': 47, 'Left': 50, 'Right': 49, 'Top': 53, 'Bottom': 49}
     mtf_values = {50: 0.65}
     lowcon_visible = 0
 
