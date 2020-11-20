@@ -1099,6 +1099,18 @@ class CatPhanBase:
         ----------
         filename : (str, file-like object}
             The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
         """
         analysis_title = f'CatPhan {self._model} Analysis'
         module_texts = [
