@@ -26,25 +26,3 @@ class TestUtilities(unittest.TestCase):
         noniters = (5,)
         for iter in noniters:
             self.assertFalse(is_iterable(iter))
-
-    def test_typed_property(self):
-
-        class DumbClass:
-            intprop = typed_property('dumbprop', int)
-            floatstrprop = typed_property('floatstrprop', (float, str))
-
-        dc = DumbClass()
-
-        # test the intprop
-        self.assertIsNone(dc.intprop)
-        dc.intprop = 3
-        self.assertEqual(dc.intprop, 3)
-        self.assertRaises(TypeError, setattr, dc, 'intprop', 1.0)
-
-        # test the intstrprop
-        dc.floatstrprop = 3.3
-        self.assertEqual(dc.floatstrprop, 3.3)
-        dc.floatstrprop = 'mystring'
-        self.assertEqual(dc.floatstrprop, dc._floatstrprop)
-        self.assertRaises(TypeError, setattr, dc, 'floatstrprop', 3)
-

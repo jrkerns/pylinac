@@ -3,6 +3,7 @@ import copy
 from functools import lru_cache
 from typing import Union, Tuple, Sequence, List, Optional
 
+import argue
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 import matplotlib.pyplot as plt
@@ -10,7 +11,6 @@ from scipy import ndimage
 from scipy.interpolate import interp1d
 
 from .utilities import is_float_like, is_int_like
-from .decorators import value_accept
 from .geometry import Point, Circle
 from .typing import NumberLike
 
@@ -103,7 +103,7 @@ class ProfileMixin:
         self.values = self.values - min_val
         return min_val
 
-    @value_accept(kind=('median', 'gaussian'))
+    @argue.options(kind=('median', 'gaussian'))
     def filter(self, size: NumberLike=0.05, kind: str='median'):
         """Filter the profile.
 
@@ -247,7 +247,7 @@ class SingleProfile(ProfileMixin):
 
         return initial_peak
 
-    @value_accept(side=(LEFT, RIGHT), kind=(VALUE, INDEX))
+    @argue.options(side=(LEFT, RIGHT), kind=(VALUE, INDEX))
     @lru_cache()
     def _penumbra_point(self, side: str='left', x: int=50, interpolate: bool=False, kind: str='index'):
         """Return the index of the given penumbra. Search starts at the peak and moves index-by-index
@@ -378,7 +378,7 @@ class SingleProfile(ProfileMixin):
         else:
             return fwxmcen
 
-    @value_accept(side=(LEFT, RIGHT, BOTH), lower=(0, 100), upper=(0, 100))
+    @argue.options(side=(LEFT, RIGHT, BOTH), lower=(0, 100), upper=(0, 100))
     def penumbra_width(self, side: str='left', lower: int=20, upper: int=80, interpolate: bool=False) -> float:
         """Return the penumbra width of the profile.
 
@@ -421,7 +421,7 @@ class SingleProfile(ProfileMixin):
 
         return pen
 
-    @value_accept(field_width=(0, 1))
+    @argue.bounds(field_width=(0, 1))
     def field_values(self, field_width: float=0.8) -> np.ndarray:
         """Return a subarray of the values of the profile for the given field width.
         This is helpful for doing, e.g., flatness or symmetry calculations, where you
@@ -440,7 +440,7 @@ class SingleProfile(ProfileMixin):
         field_values = self.values[left:right]
         return field_values
 
-    @value_accept(field_width=(0, 1))
+    @argue.bounds(field_width=(0, 1))
     def field_edges(self, field_width: float=0.8, interpolate: bool=False) -> Tuple[NumberLike, NumberLike]:
         """Return the indices of the field width edges, based on the FWHM.
 
@@ -462,7 +462,7 @@ class SingleProfile(ProfileMixin):
             right = int(round(fwhmc + field_width / 2))
         return left, right
 
-    @value_accept(field_width=(0, 1), calculation=('mean', 'median', 'max', 'min', 'area'))
+    @argue.options(calculation=('mean', 'median', 'max', 'min', 'area'))
     def field_calculation(self, field_width: float=0.8, calculation: str='mean') -> Union[float, Tuple[float, float]]:
         """Perform an operation on the field values of the profile.
         This function is useful for determining field symmetry and flatness.
@@ -548,7 +548,7 @@ class MultiProfile(ProfileMixin):
             peaks_y = [peak.value for peak in self.peaks]
             ax.plot(peaks_x, peaks_y, 'go')
 
-    @value_accept(kind=(INDEX, VALUE))
+    @argue.options(kind=(INDEX, VALUE))
     def find_peaks(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05, max_number: int=None,
                    search_region: Tuple=(0.0, 1.0), kind: str='index') -> np.ndarray:
         """Find the peaks of the profile using a simple maximum value search. This also sets the `peaks` attribute.
@@ -607,7 +607,7 @@ class MultiProfile(ProfileMixin):
 
         return valley_idxs if kind == INDEX else valley_vals
 
-    @value_accept(x=(0, 100))
+    @argue.bounds(x=(0, 100))
     def find_fwxm_peaks(self, x:int =50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
                         max_number: int=None, search_region: Tuple=(0.0, 1.0), kind: str='index',
                         interpolate: bool=False, interpolation_factor: int=100, interpolation_type: str='linear') -> List:
@@ -850,7 +850,7 @@ class CollapsedCircleProfile(CircleProfile):
     width_ratio: float
     num_profiles: int
 
-    @value_accept(width_ratio=(0, 1))
+    @argue.bounds(width_ratio=(0, 1))
     def __init__(self, center: Point, radius: NumberLike, image_array: np.ndarray, start_angle: int=0,
                  ccw: bool=True, sampling_ratio: float=1.0, width_ratio: float=0.1, num_profiles: int=20):
         """

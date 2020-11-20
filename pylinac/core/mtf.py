@@ -1,9 +1,8 @@
 import warnings
 
+import argue
 import numpy as np
 from scipy.interpolate import interp1d
-
-from .decorators import value_accept
 
 
 class MTF:
@@ -39,7 +38,7 @@ class MTF:
         if max_delta > 0:
             warnings.warn("The MTF does not drop monotonically; be sure the ROIs are correctly aligned.")
 
-    @value_accept(x=(0, 100))
+    @argue.bounds(x=(0, 100))
     def relative_resolution(self, x=50):
         """Return the line pair value at the given rMTF resolution value.
 

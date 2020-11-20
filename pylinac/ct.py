@@ -20,6 +20,7 @@ import webbrowser
 import zipfile
 from typing import Optional
 
+import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
@@ -27,7 +28,6 @@ from skimage import filters, measure, segmentation
 
 from .core import image
 from .core.io import TemporaryZipDirectory
-from .core.decorators import value_accept
 from .core.geometry import Point, Line
 from .core.io import get_url, retrieve_demo_file
 from .core import pdf
@@ -1372,7 +1372,7 @@ def get_regions(slice_or_arr, fill_holes=False, clear_borders=True, threshold='o
     return labeled_arr, regionprops, num_roi
 
 
-@value_accept(mode=('mean', 'median', 'max'))
+@argue.options(mode=('mean', 'median', 'max'))
 def combine_surrounding_slices(dicomstack, nominal_slice_num, slices_plusminus=1, mode='mean'):
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
 

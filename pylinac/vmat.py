@@ -12,11 +12,11 @@ Features:
 from io import BytesIO
 from typing import Union, List, Tuple, Sequence
 
+import argue
 import matplotlib.pyplot as plt
 import numpy as np
 
 from .core import image
-from .core.decorators import value_accept
 from .core.geometry import Point, Rectangle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core.pdf import PylinacCanvas
@@ -85,7 +85,7 @@ class VMATBase:
         demo_file = retrieve_demo_file(url=cls._url_suffix)
         return cls.from_zip(demo_file)
 
-    @value_accept(tolerance=(0, 8))
+    @argue.bounds(tolerance=(0, 8))
     def analyze(self, tolerance: Union[float, int]=1.5):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
@@ -217,7 +217,7 @@ class VMATBase:
             plt.tight_layout(h_pad=1.5)
             plt.show()
 
-    @value_accept(subimage=(DMLC, OPEN, PROFILE))
+    @argue.options(subimage=(DMLC, OPEN, PROFILE))
     def _save_analyzed_subimage(self, filename: str, subimage: str, **kwargs):
         """Save the analyzed images as a png file.
 
@@ -231,7 +231,7 @@ class VMATBase:
         self._plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
-    @value_accept(subimage=(DMLC, OPEN, PROFILE))
+    @argue.options(subimage=(DMLC, OPEN, PROFILE))
     def _plot_analyzed_subimage(self, subimage: str, show: bool=True, ax: plt.Axes=None):
         """Plot an individual piece of the VMAT analysis.
 

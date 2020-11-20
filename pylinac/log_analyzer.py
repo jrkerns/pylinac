@@ -33,13 +33,13 @@ import os.path as osp
 import shutil
 from typing import Union
 
+import argue
 import matplotlib.pyplot as plt
 import numpy as np
 
 from .settings import get_array_cmap
 from .core import image
 from .core import io
-from .core.decorators import type_accept, value_accept
 from .core import pdf
 from .core.utilities import is_iterable, decode_binary, Structure, open_path
 
@@ -55,7 +55,7 @@ HDMLC_FOV_HEIGHT_MM = 220
 
 class MachineLogs(list):
     """Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
-    @type_accept(folder=str)
+
     def __init__(self, folder, recursive=True):
         """
         Parameters
@@ -84,7 +84,6 @@ class MachineLogs(list):
         self.load_folder(folder, recursive)
 
     @classmethod
-    @type_accept(zfile=str)
     def from_zip(cls, zfile):
         """Instantiate from a ZIP archive.
 
@@ -330,7 +329,7 @@ class Axis:
         self._plot('difference', show=False)
         self._save(filename, **kwargs)
 
-    @value_accept(param=('actual', 'expected', 'difference'))
+    @argue.options(param=('actual', 'expected', 'difference'))
     def _plot(self, param='', show=True):
         """Plot the parameter: actual, expected, or difference."""
         plt.plot(getattr(self, param))
@@ -826,8 +825,7 @@ class MLC:
                 indices += (leaf_num,)
         return np.array(indices)
 
-    @type_accept(leaf_axis=LeafAxis, leaf_num=int)
-    def add_leaf_axis(self, leaf_axis, leaf_num):
+    def add_leaf_axis(self, leaf_axis: LeafAxis, leaf_num: int):
         """Add a leaf axis to the MLC data structure.
 
         Parameters

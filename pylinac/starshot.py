@@ -23,12 +23,12 @@ import copy
 import io
 from typing import Union, List
 
+import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import optimize
 
 from .core import image
-from .core.decorators import value_accept
 from .core.geometry import Point, Line, Circle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core import pdf
@@ -159,7 +159,7 @@ class Starshot:
         center_point = Point(fwxm_x_point, fwxm_y_point)
         return center_point
 
-    @value_accept(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
+    @argue.bounds(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
     def analyze(self, radius: float=0.85, min_peak_height: float=0.25, tolerance: float=1.0,
                 start_point: Point=None, fwhm: bool=True, recursive: bool=True, invert=False):
         """Analyze the starshot image.

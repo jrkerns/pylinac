@@ -72,23 +72,6 @@ def is_close(val: NumberLike, target: Union[NumberLike, Sequence], delta: Number
     return False
 
 
-def typed_property(name, expected_type_or_tuple_of_types):
-    """Type-enforced property. Python Cookbook 9.21 (3rd ed)."""
-    storage_name = '_' + name
-
-    @property
-    def prop(self):
-        return getattr(self, storage_name, None)
-
-    @prop.setter
-    def prop(self, value):
-        if not isinstance(value, expected_type_or_tuple_of_types):
-            raise TypeError(f"{name} must be a {expected_type_or_tuple_of_types}. Got: {type(value)}")
-        setattr(self, storage_name, value)
-
-    return prop
-
-
 def simple_round(number: NumberLike, decimals: int=0):
     """Round a number to the given number of decimals. Fixes small floating number errors."""
     num = int(round(number * 10 ** decimals))

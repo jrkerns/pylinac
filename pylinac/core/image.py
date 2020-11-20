@@ -17,9 +17,9 @@ from PIL import Image as pImage
 from scipy import ndimage
 import scipy.ndimage.filters as spf
 from skimage.transform import resize
+import argue
 
 from .utilities import is_close, minmax_scale
-from .decorators import type_accept, value_accept
 from .geometry import Point
 from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image, retrieve_dicom_file
 from .profile import stretch as stretcharray
@@ -175,7 +175,7 @@ def load_url(url: str, progress_bar: bool=True, **kwargs):
     return load(filename, **kwargs)
 
 
-@value_accept(method=('mean', 'max', 'sum'))
+@argue.options(method=('mean', 'max', 'sum'))
 def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True, **kwargs) -> ImageLike:
     """Combine multiple image files into one superimposed image.
 
@@ -330,7 +330,7 @@ class BaseImage:
             plt.show()
         return ax
 
-    @value_accept(kind=('median', 'gaussian'))
+    @argue.options(kind=('median', 'gaussian'))
     def filter(self, size: Union[float, int]=0.05, kind: str='median'):
         """Filter the profile.
 
@@ -356,7 +356,6 @@ class BaseImage:
         elif kind == 'gaussian':
             self.array = ndimage.gaussian_filter(self.array, sigma=size)
 
-    @type_accept(pixels=int)
     def crop(self, pixels: int=15, edges: Tuple[str, ...]=('top', 'bottom', 'left', 'right')):
         """Removes pixels on all edges of the image in-place.
 
@@ -378,7 +377,6 @@ class BaseImage:
         if 'right' in edges:
             self.array = self.array[:, :-pixels]
 
-    @type_accept(pixels=int)
     def remove_edges(self, pixels: int=15, edges: Tuple[str, ...]=('top', 'bottom', 'left', 'right')):
         """Removes pixels on all edges of the image in-place.
 
@@ -401,7 +399,6 @@ class BaseImage:
         orig_array = self.array
         self.array = -orig_array + orig_array.max() + orig_array.min()
 
-    @type_accept(direction=str, amount=int)
     def roll(self, direction: str='x', amount: int=1):
         """Roll the image array around in-place. Wrapper for np.roll().
 
@@ -415,12 +412,11 @@ class BaseImage:
         axis = 1 if direction == 'x' else 0
         self.array = np.roll(self.array, amount, axis=axis)
 
-    @type_accept(n=int)
     def rot90(self, n: int=1):
         """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW."""
         self.array = np.rot90(self.array, n)
 
-    @value_accept(kind=('high', 'low'))
+    @argue.options(kind=('high', 'low'))
     def threshold(self, threshold: int, kind: str='high'):
         """Apply a high- or low-pass threshold filter.
 
@@ -453,7 +449,7 @@ class BaseImage:
         array = np.where(self.array >= threshold, 1, 0)
         return ArrayImage(array)
 
-    @type_accept(point=(Point, tuple))
+    @argue.options(point=(Point, tuple))
     def dist2edge_min(self, point: Union[Point, Tuple]):
         """Calculates minimum distance from given point to image edges.
 
@@ -507,7 +503,6 @@ class BaseImage:
             val = norm_val
         self.array = self.array / val
 
-    @type_accept(box_size=int)
     def check_inversion(self, box_size: int=20, position: Sequence=(0.0, 0.0)):
         """Check the image for inversion by sampling the 4 image corners.
         If the average value of the four corners is above the average pixel value, then it is very likely inverted.
@@ -549,7 +544,7 @@ class BaseImage:
         if dist_to_5 > dist_to_95:
             self.invert()
 
-    @value_accept(threshold=(0.0, 1.0))
+    @argue.bounds(threshold=(0.0, 1.0))
     def gamma(self, comparison_image: ImageLike, doseTA: NumberLike=1, distTA: NumberLike=1,
               threshold: NumberLike=0.1, ground: bool=True, normalize: bool=True):
         """Calculate the gamma between the current image (reference) and a comparison image.
@@ -1044,7 +1039,6 @@ class DicomImageStack:
             raise ValueError("The minimum number images from the same study were not found")
         return [i for i in self.images if i.metadata.SeriesInstanceUID == most_common_uid[0]]
 
-    @type_accept(slice=int)
     def plot(self, slice: int=0):
         """Plot a slice of the DICOM dataset.
 
