@@ -736,7 +736,7 @@ class LeedsTOR(ImagePhantomBase):
         if self._phantom_angle:
             return self._phantom_angle
 
-        start_angle_deg = self._start_angle_for_circle_profile()
+        start_angle_deg = self._determine_start_angle_for_circle_profile()
         circle = self._circle_profile_for_phantom_angle(start_angle_deg)
         peak_idx = circle.find_fwxm_peaks(threshold=0.6, max_number=1)[0]
 
@@ -780,7 +780,7 @@ class LeedsTOR(ImagePhantomBase):
         second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0, min_distance=0.025, kind='value', max_number=9)
         return max(first_set) > max(second_set)
 
-    def _start_angle_for_circle_profile(self):
+    def _determine_start_angle_for_circle_profile(self) -> float:
         """Determine an appropriate angle for starting the circular profile
         used to determine the phantom angle.
 
@@ -806,7 +806,7 @@ class LeedsTOR(ImagePhantomBase):
         aligned_to_zero_deg = not(all(on_left_half) or not any(on_left_half))
         return 90 if aligned_to_zero_deg else 0
 
-    def _circle_profile_for_phantom_angle(self, start_angle_deg):
+    def _circle_profile_for_phantom_angle(self, start_angle_deg: float) -> CollapsedCircleProfile:
         """Create a circular profile centered at phantom origin
         Parameters
         ----------
@@ -816,7 +816,7 @@ class LeedsTOR(ImagePhantomBase):
         Returns
         -------
         circle : CollapsedCircleProfile
-            The circular profile centered on the phantom center.
+            The circular profile centered on the phantom center and origin set to the given start angle.
         """
 
         circle = CollapsedCircleProfile(

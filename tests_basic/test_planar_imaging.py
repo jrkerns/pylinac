@@ -19,6 +19,7 @@ class GeneralTests(TestCase):
 class PlanarPhantomMixin(LocationMixin):
     klass = object
     dir_location = TEST_DIR
+    mtf_50 = None
 
     @classmethod
     def setUpClass(cls):
@@ -58,7 +59,7 @@ class PlanarPhantomMixin(LocationMixin):
 
 class LeedsDemo(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
-    mtf_50 = 0.1
+    mtf_50 = 1.5
 
     def test_demo(self):
         LeedsTOR.run_demo()  # shouldn't raise
@@ -68,6 +69,27 @@ class LeedsCCW(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.5
     file_path = ['Leeds_ccw.dcm']
+
+
+class Leeds45Deg(PlanarPhantomMixin, TestCase):
+    klass = LeedsTOR
+    mtf_50 = 1.9
+    file_path = ['Leeds - 45deg.dcm']
+
+
+class LeedsDirtyEdges(PlanarPhantomMixin, TestCase):
+    klass = LeedsTOR
+    mtf_50 = 1.3
+    file_path = ['Leeds - dirty edges.dcm']
+
+
+class LeedsClosedBlades(PlanarPhantomMixin, TestCase):
+    klass = LeedsTOR
+    mtf_50 = 1.3
+    file_path = ['Leeds - closed blades.dcm']
+
+    def test_analyze(self):
+        self.instance.analyze(invert=True)
 
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):

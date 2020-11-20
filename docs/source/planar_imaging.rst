@@ -109,6 +109,8 @@ The algorithm works like such:
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching or close to any image edges.
+* The blades should be fully or mostly open to correctly invert the image. This may not result in a complete failure,
+  but you may have to force-invert the analysis if this case isn't true (i.e. ``myleeds.analyze(invert=True)``).
 
 **Pre-Analysis**
 
