@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import shutil
 import unittest
+from unittest.case import skip
 
 from pylinac.watcher import process
 from pylinac.core.io import retrieve_filenames
@@ -54,5 +55,6 @@ class TestProcess(unittest.TestCase):
         """Remove all files from the destination directory."""
         self.clean_dir()
 
+    @skip
     def test_process_files(self):
         process(WATCHER_DIR, copy_new_files=True)

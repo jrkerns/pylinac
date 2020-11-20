@@ -449,7 +449,6 @@ class BaseImage:
         array = np.where(self.array >= threshold, 1, 0)
         return ArrayImage(array)
 
-    @argue.options(point=(Point, tuple))
     def dist2edge_min(self, point: Union[Point, Tuple]):
         """Calculates minimum distance from given point to image edges.
 

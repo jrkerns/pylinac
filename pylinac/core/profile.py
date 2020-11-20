@@ -378,7 +378,8 @@ class SingleProfile(ProfileMixin):
         else:
             return fwxmcen
 
-    @argue.options(side=(LEFT, RIGHT, BOTH), lower=(0, 100), upper=(0, 100))
+    @argue.options(side=(LEFT, RIGHT, BOTH))
+    @argue.bounds(lower=(0, 100), upper=(0, 100))
     def penumbra_width(self, side: str='left', lower: int=20, upper: int=80, interpolate: bool=False) -> float:
         """Return the penumbra width of the profile.
 
