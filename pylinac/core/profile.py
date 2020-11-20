@@ -285,6 +285,10 @@ class SingleProfile(ProfileMixin):
         max_point = y_data.max()
         threshold = max_point * (x / 100)
 
+        not_found = len(np.where(y_data <= threshold)[0]) == 0
+        if not_found:
+            raise IndexError("The point of interest was beyond the profile; i.e. the profile may be cut off on the side")
+
         # look for negative slope for RIGHT direction, postive slope for LEFT direction
         grad = np.gradient(y_data)
         cond = grad < 0 if side == RIGHT else grad > 0
