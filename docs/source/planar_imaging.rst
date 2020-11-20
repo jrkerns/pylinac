@@ -248,7 +248,6 @@ The algorithm works like such:
 **Allowances**
 
 * The images can be acquired at any SID.
-* The phantom can be at any distance.
 * The images can be acquired with any EPID.
 * The phantom can be somewhat offset from the ideal 45 degree orientation.
 
