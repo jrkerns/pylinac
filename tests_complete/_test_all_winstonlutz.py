@@ -169,7 +169,7 @@ class DAmoursElektaCentered(WinstonLutzMixin, TestCase):
     couch_iso_size = None
     cax2bb_max_distance = 0.8
     cax2bb_median_distance = 0.5
-    bb_shift_vector = Vector(z=-0.3, y=0.4)
+    bb_shift_vector = Vector(y=0.4)
 
 
 class DeBr6XElekta(WinstonLutzMixin, TestCase):
