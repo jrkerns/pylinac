@@ -285,7 +285,11 @@ class SingleProfile(ProfileMixin):
         max_point = y_data.max()
         threshold = max_point * (x / 100)
 
-        locs = np.where(y_data > threshold)[0]
+        # look for negative slope for RIGHT direction, postive slope for LEFT direction
+        grad = np.gradient(y_data)
+        cond = grad < 0 if side == RIGHT else grad > 0
+        locs = np.where((y_data > threshold) & cond)[0]
+
         peak = locs[-1] + 1 if side == RIGHT else locs[0] - 1
 
         if kind == VALUE:
