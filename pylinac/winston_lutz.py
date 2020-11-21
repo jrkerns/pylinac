@@ -671,7 +671,7 @@ class WLImage(image.LinacDicomImage):
             The weighted-pixel value location of the BB.
         """
         # get initial starting conditions
-        hmin, hmax = np.percentile(self.array, [5, 99.9])
+        hmin, hmax = np.percentile(self.array, [5, 99.99])
         spread = hmax - hmin
         max_thresh = hmax
         lower_thresh = hmax - spread / 1.5
@@ -688,7 +688,7 @@ class WLImage(image.LinacDicomImage):
 
                 if not is_round(bb_regionprops):
                     raise ValueError
-                if not is_modest_size(bw_bb_img, self.rad_field_bounding_box):
+                if not is_modest_size(bw_bb_img, self.dpmm):
                     raise ValueError
                 if not is_symmetric(bw_bb_img):
                     raise ValueError
@@ -838,11 +838,11 @@ def is_symmetric(logical_array: np.ndarray) -> bool:
     return True
 
 
-def is_modest_size(logical_array: np.ndarray, field_bounding_box) -> bool:
+def is_modest_size(logical_array: np.ndarray, dpmm: float) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
-    bbox = field_bounding_box
-    rad_field_area = (bbox[1] - bbox[0]) * (bbox[3] - bbox[2])
-    return rad_field_area * 0.003 < np.sum(logical_array) < rad_field_area * 0.3
+    bb_area = np.sum(logical_array / dpmm ** 2)
+    bb_diameter = 2 * np.sqrt(bb_area / np.pi)
+    return 3 < bb_diameter < 10
 
 
 def is_round(rprops) -> bool:

@@ -282,8 +282,8 @@ class BaseImage:
     @property
     def center(self) -> Point:
         """Return the center position of the image array as a Point."""
-        x_center = self.shape[1] / 2
-        y_center = self.shape[0] / 2
+        x_center = (self.shape[1] / 2) - 0.5
+        y_center = (self.shape[0] / 2) - 0.5
         return Point(x_center, y_center)
 
     @property
