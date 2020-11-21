@@ -171,6 +171,48 @@ class WLDemo(WinstonLutzMixin, TestCase):
         cls.wl = WinstonLutz.from_demo_images()
 
 
+class WLPerfect30x8(WinstonLutzMixin, TestCase):
+    """30x30mm field, 8mm BB"""
+    dir_location = TEST_FILES_DIR
+    file_path = ['Winston-Lutz', 'perfect_WL_30x8.zip']
+    num_images = 10
+    gantry_iso_size = 0
+    collimator_iso_size = 0
+    couch_iso_size = 0
+    cax2bb_max_distance = 0
+    cax2bb_median_distance = 0
+    epid_deviation = 0
+    bb_shift_vector = Vector()
+
+
+class WLPerfect10x4(WinstonLutzMixin, TestCase):
+    """10x10mm field, 4mm BB"""
+    dir_location = TEST_FILES_DIR
+    file_path = ['Winston-Lutz', 'perfect_WL_10x4.zip']
+    num_images = 10
+    gantry_iso_size = 0
+    collimator_iso_size = 0
+    couch_iso_size = 0
+    cax2bb_max_distance = 0
+    cax2bb_median_distance = 0
+    epid_deviation = 0
+    bb_shift_vector = Vector()
+
+
+class WLNoisy30x5(WinstonLutzMixin, TestCase):
+    """30x30mm field, 5mm BB. S&P noise added"""
+    dir_location = TEST_FILES_DIR
+    file_path = ['Winston-Lutz', 'noisy_WL_30x5.zip']
+    num_images = 10
+    gantry_iso_size = 0.08
+    collimator_iso_size = 0
+    couch_iso_size = 0
+    cax2bb_max_distance = 0
+    cax2bb_median_distance = 0
+    epid_deviation = 0
+    bb_shift_vector = Vector()
+
+
 class WLLateral3mm(WinstonLutzMixin, TestCase):
     # verified independently
     dir_location = TEST_FILES_DIR
