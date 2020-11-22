@@ -155,7 +155,7 @@ you can remove or adjust its offset by subclassing and overloading the ``modules
     ct = PartialCatPhan504.from_zip(...)  # use like normal
 
 Examining rMTF
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^
 
 The rMTF can be calculated ad hoc like so. Note that CTP528 must be present (see above):
 

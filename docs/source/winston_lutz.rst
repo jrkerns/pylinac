@@ -14,7 +14,7 @@ Running the Demo
 
 To run the Winston-Lutz demo, create a script or start an interpreter session and input:
 
-.. python::
+.. code-block:: python
 
     from pylinac import WinstonLutz
     WinstonLutz.run_demo()
@@ -76,26 +76,26 @@ Typical Use
 
 Analyzing a Winston-Lutz test is as simple as loading in your images. So, let's import the class:
 
-.. python::
+.. code-block:: python
 
     from pylinac import WinstonLutz
 
 From here, you can load a directory:
 
-.. python::
+.. code-block:: python
 
     my_directory = 'path/to/wl_images'
     wl = WinstonLutz(my_directory)
 
 You can also load a ZIP archive with the images in it:
 
-.. python::
+.. code-block:: python
 
     wl = WinstonLutz.from_zip('path/to/wl.zip')
 
 And that's it! Once loaded you can view images, print the results, or publish a PDF report:
 
-.. python::
+.. code-block:: python
 
     # plot all the images
     wl.plot_images()
@@ -108,14 +108,14 @@ And that's it! Once loaded you can view images, print the results, or publish a 
 
 If you want to shift the BB based on the results and perform the test again there is a method for that:
 
-.. python::
+.. code-block:: python
 
     print(wl.bb_shift_instructions())
     # LEFT: 0.1mm, DOWN: 0.22mm, ...
 
 You can also pass in your couch coordinates and the new values will be generated:
 
-.. python::
+.. code-block:: python
 
     print(wl.bb_shift_instructions(couch_vrt=0.41, couch_lng=96.23, couch_lat=0.12))
     New couch coordinates (mm): VRT: 0.32; LNG: 96.11; LAT: 0.11
@@ -129,7 +129,7 @@ Accessing data
 All the data is easily reachable. For attributes that are inclusive of all the images (e.g. isocenter size), they can be
 reached like so:
 
-.. python::
+.. code-block:: python
 
     wl = WinstonLutz(...)
     wl.gantry_iso_size
@@ -144,7 +144,7 @@ Accessing individual images
 
 Each image can be plotted and otherwise accessed easily:
 
-.. python::
+.. code-block:: python
 
     wl = WinstonLutz(...)
     # access first image
@@ -177,7 +177,7 @@ The following are invalid:
 
 Using the filenames within the code is done by passing the ``use_filenames=True`` flag to the init method:
 
-.. python::
+.. code-block:: python
 
     my_directory = 'path/to/wl_images'
     wl = WinstonLutz(my_directory, use_filenames=True)

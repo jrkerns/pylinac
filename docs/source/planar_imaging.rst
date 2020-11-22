@@ -500,7 +500,7 @@ phantoms:
 
 1. Subclass the `ImagePhantomBase` class:
 
-    .. python::
+    .. code-block:: python
 
         from pylinac.planar_imaging import ImagePhantomBase
 
@@ -509,14 +509,14 @@ phantoms:
 
 2. Define the `common_name`. This is the name shown in plots and PDF reports.
 
-    .. python::
+    .. code-block:: python
 
         class CustomPhantom(ImagePhantomBase):
             common_name = 'Custom Phantom v2.0'
 
 3. If the phantom has a high-contrast measurement object, define the ROI locations.
 
-    .. python::
+    .. code-block:: python
 
         class CustomPhantom(ImagePhantomBase):
             ...
@@ -532,7 +532,7 @@ phantoms:
 
 4. If the phantom has a low-contrast measurement object, define the sample ROI and background ROI locations.
 
-    .. python::
+    .. code-block:: python
 
         class CustomPhantom(ImagePhantomBase):
             ...
@@ -553,7 +553,7 @@ phantoms:
 5. Optionally, add a phantom outline object. This helps visualize the algorithm's determination of the size, center, and angle.
    If no object is defined, then no outline will be shown. This step is optional.
 
-    .. python::
+    .. code-block:: python
 
         class CustomPhantom(ImagePhantomBase):
             ...
@@ -565,7 +565,7 @@ At this point you could technically call it done. You would need to always overr
 To automate this part you will need to fill in the associated logic. You can use whatever method you like. What I have
 found most useful is to use an edge detection algorithm and find the outline of the phantom.
 
-    .. python::
+    .. code-block:: python
 
         class CustomPhantom(ImagePhantomBase):
             ...
@@ -593,7 +593,7 @@ Adjust an ROI on an existing phantom
 
 To adjust an ROI, override the relevant attribute or create a subclass. E.g. to move the 2nd ROI of the high-contrast ROI set of the QC-3 phantom:
 
-.. python::
+.. code-block:: python
 
     from pylinac import StandardImagingQC3
 
@@ -614,7 +614,7 @@ Calculate a specific MTF
 
 To calculate a specific MTF value, i.e. the frequency at a given MTF%:
 
-.. python::
+.. code-block:: python
 
     dl = DoselabMC2kV(...)
     dl.analyze(...)
@@ -623,7 +623,7 @@ To calculate a specific MTF value, i.e. the frequency at a given MTF%:
 Get/View the contrast of a low-contrast ROI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. python::
+.. code-block:: python
 
     leeds = LeedsTOR(...)
     leeds.analyze(...)
