@@ -6,7 +6,7 @@ from tkinter import messagebox
 import os.path as osp
 import webbrowser
 
-from . import picketfence, vmat, ct, log_analyzer, starshot, planar_imaging, __version__, winston_lutz, utilities, watcher
+from pylinac import picketfence, vmat, ct, log_analyzer, starshot, planar_imaging, __version__, winston_lutz, utilities, watcher
 
 
 class PylinacGUI(Frame):
@@ -442,3 +442,7 @@ def gui():
     app.mainloop()
     root.destroy()
     del root
+
+
+if __name__ == "__main__":
+    gui()
