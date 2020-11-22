@@ -207,7 +207,7 @@ def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True
         if img.shape != first_img.shape:
             raise ValueError("Images were not the same shape")
         if stretch:
-            img.array = stretcharray(img.array, fill_dtype=first_img.array.dtype)
+            img.array = stretcharray(img.array)
 
     # stack and combine arrays
     new_array = np.dstack(tuple(img.array for img in img_list))

@@ -27,7 +27,7 @@ Thanks to several contributors for making pull requests in this release!
 CT Module
 ^^^^^^^^^
 
-The CT module has been reworked to be far more extensible to adjust individual component modules as desired. Previously,
+No breaking changes have been introduced. The CT module has been reworked to be far more extensible to adjust individual component modules as desired. Previously,
 only the offset of the modules was easily adjustable. To edit individual modules the user would have to edit the source code directly.
 Now, the user can subclass individual modules, overload attributes as desired and pass those to the parent CatPhan class.
 A new tutorial section has been added to the documentation showing examples of this functionality.
@@ -51,7 +51,7 @@ pixel profile.
 
 * Two new keyword parameters were added to analyze: ``vert_width`` and ``horiz_width``. You can read about their usage
   in the ``analyze`` documentation.
-* The ``plot()`` method was renamed to ``plot_analyzed_image`` to match the rest of the modules.
+* The ``plot()`` method was renamed to ``plot_analyzed_image()`` to match the rest of the modules.
 
 Watcher
 ^^^^^^^
@@ -67,6 +67,7 @@ Bug Fixes
 * `#305 <https://github.com/jrkerns/pylinac/issues/305>`_ The Leeds ``invert`` parameter was not being respected.
 * `#303 <https://github.com/jrkerns/pylinac/issues/303>`_ Un-inverted WL image analysis would give an error.
 * `#290 <https://github.com/jrkerns/pylinac/issues/290>`_ Catphan HU linearity differences are now signed.
+* Loading starshots and picket fences from multiple images has been fixed.
 
 
 v 2.3.2
