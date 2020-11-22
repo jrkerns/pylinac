@@ -21,6 +21,7 @@
    planar_imaging
    flatsym
    core_modules
+   image_generator
    pylinac_core_hacking
    troubleshooting
    contributing
