@@ -289,12 +289,18 @@ class SingleProfile(ProfileMixin):
         if not_found:
             raise IndexError("The point of interest was beyond the profile; i.e. the profile may be cut off on the side")
 
-        # look for negative slope for RIGHT direction, postive slope for LEFT direction
+        # find all the points where the profile falls below the threshold and gradient
+        # is negative for the RIGHT side and positive for the left side
         grad = np.gradient(y_data)
         cond = grad < 0 if side == RIGHT else grad > 0
-        locs = np.where((y_data > threshold) & cond)[0]
+        locs = np.where((y_data <= threshold) & cond)[0]
 
-        peak = locs[-1] + 1 if side == RIGHT else locs[0] - 1
+        if side == RIGHT:
+            # Pick the left most index after the peak
+            peak = locs[np.where(locs >= peak)[0][0]]
+        else:
+            # Pick the rignt most index before the peak
+            peak = locs[np.where(locs <= peak)[0][-1]]
 
         if kind == VALUE:
             return self._values_interp[peak] if interpolate else self.values[peak]
