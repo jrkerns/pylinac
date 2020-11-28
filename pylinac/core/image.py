@@ -176,7 +176,7 @@ def load_url(url: str, progress_bar: bool=True, **kwargs):
 
 
 @argue.options(method=('mean', 'max', 'sum'))
-def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True, **kwargs) -> ImageLike:
+def load_multiples(image_file_list: List, method: str='mean', stretch_each: bool=True, **kwargs) -> ImageLike:
     """Combine multiple image files into one superimposed image.
 
     Parameters
@@ -185,10 +185,10 @@ def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True
         A list of the files to be superimposed.
     method : {'mean', 'max', 'sum'}
         A string specifying how the image values should be combined.
-    stretch : bool
+    stretch_each : bool
         Whether to normalize the images being combined by stretching their high/low values to the same values across images.
     kwargs :
-        Further keyword arguments are passed to the load function.
+        Further keyword arguments are passed to the load function and stretch function.
 
     Examples
     --------
@@ -206,8 +206,8 @@ def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True
     for img in img_list:
         if img.shape != first_img.shape:
             raise ValueError("Images were not the same shape")
-        if stretch:
-            img.array = stretcharray(img.array)
+        if stretch_each:
+            img.array = stretcharray(img.array, fill_dtype=kwargs.get('dtype'))
 
     # stack and combine arrays
     new_array = np.dstack(tuple(img.array for img in img_list))
@@ -220,7 +220,6 @@ def load_multiples(image_file_list: List, method: str='mean', stretch: bool=True
 
     # replace array of first object and return
     first_img.array = combined_arr
-    first_img.check_inversion_by_histogram()
     return first_img
 
 
@@ -714,7 +713,7 @@ class DicomImage(BaseImage):
         """
         if self.metadata.SOPClassUID.name == 'CT Image Storage':
             self.array = (self.array - int(self.metadata.RescaleIntercept)) / int(self.metadata.RescaleSlope)
-        self.metadata.PixelData = self.array.astype(self._original_dtype).tostring()
+        self.metadata.PixelData = self.array.astype(self._original_dtype).tobytes()
         self.metadata.save_as(filename)
         return filename
 

@@ -141,19 +141,21 @@ class PicketFence:
         return cls(demo_file, filter=filter)
 
     @classmethod
-    def from_multiple_images(cls, path_list: Sequence):
+    def from_multiple_images(cls, path_list: Sequence, dtype=np.uint16, **kwargs):
         """Load and superimpose multiple images and instantiate a Starshot object.
 
         Parameters
         ----------
         path_list : iterable
             An iterable of path locations to the files to be loaded/combined.
+        kwargs
+            Passed to :func:`~pylinac.core.image.load_multiples`.
         """
         obj = cls.from_demo_image()
         # save a combined image to a temporary dir, then load it back in as a PFDicomImage
         with TemporaryDirectory() as tmp:
             filename = osp.join(tmp, 'mydcm.dcm')
-            image.load_multiples(path_list, method='mean').save(filename)
+            image.load_multiples(path_list, dtype=dtype, **kwargs).save(filename)
             obj.image = PFDicomImage(filename)
         return obj
 
