@@ -44,12 +44,14 @@ class FlatSymTests(TestCase):
         self.assertTrue(fs._is_analyzed)
 
     def test_analyze_fails_when_incorrectly_inverted(self):
-        fs = create_instance()
+        fs = FlatSym.from_demo_image()
         with self.assertRaises(ValueError):
             fs.analyze('varian', 'varian', invert=True)
-        fs = create_instance()
+            fs.plot_analyzed_image()
+        fs = FlatSym.from_demo_image()
         with self.assertRaises(ValueError):
             fs.analyze('elekta', 'elekta', invert=True)
+            fs.plot_analyzed_image()
 
     def test_flatness_methods(self):
         fs = FlatSym.from_demo_image()
@@ -94,6 +96,9 @@ class FlatSymTests(TestCase):
 
 class FlatSymBase(LocationMixin):
     dir_location = TEST_DIR
+    sym_tolerance = 0.05
+    flat_tolerance = 0.05
+    apply_smoothing = None
     vert_symmetry = 0
     vert_flatness = 0
     horiz_symmetry = 0
@@ -108,7 +113,7 @@ class FlatSymBase(LocationMixin):
 
     @classmethod
     def setUpClass(cls):
-        cls.fs = FlatSym(cls.get_filename())
+        cls.fs = FlatSym(cls.get_filename(), filter=cls.apply_smoothing)
         cls.fs.analyze(flatness_method=cls.flatness_method, symmetry_method=cls.symmetry_method,
                        vert_position=cls.vert_position, horiz_position=cls.horiz_position,
                        vert_width=cls.vert_width, horiz_width=cls.horiz_width)
@@ -116,16 +121,16 @@ class FlatSymBase(LocationMixin):
             print(cls.fs.results())
 
     def test_vert_symmetry(self):
-        self.assertAlmostEqual(self.fs.symmetry['vertical']['value'], self.vert_symmetry, delta=0.02)
+        self.assertAlmostEqual(self.fs.symmetry['vertical']['value'], self.vert_symmetry, delta=self.sym_tolerance)
 
     def test_horiz_symmetry(self):
-        self.assertAlmostEqual(self.fs.symmetry['horizontal']['value'], self.horiz_symmetry, delta=0.02)
+        self.assertAlmostEqual(self.fs.symmetry['horizontal']['value'], self.horiz_symmetry, delta=self.sym_tolerance)
 
     def test_vert_flatness(self):
-        self.assertAlmostEqual(self.fs.flatness['vertical']['value'], self.vert_flatness, delta=0.02)
+        self.assertAlmostEqual(self.fs.flatness['vertical']['value'], self.vert_flatness, delta=self.flat_tolerance)
 
     def test_horiz_flatness(self):
-        self.assertAlmostEqual(self.fs.flatness['horizontal']['value'], self.horiz_flatness, delta=0.02)
+        self.assertAlmostEqual(self.fs.flatness['horizontal']['value'], self.horiz_flatness, delta=self.flat_tolerance)
 
 
 class FlatSymDemo(FlatSymBase, TestCase):
@@ -141,18 +146,22 @@ class FlatSymDemo(FlatSymBase, TestCase):
 
 class FlatSym6X(FlatSymBase, TestCase):
     file_path = ['6x auto bulb 2.dcm']
-    vert_flatness = 2.06
-    vert_symmetry = 1.24
-    horiz_flatness = 1.73
-    horiz_symmetry = 1.21
+    apply_smoothing = 5
+    # independently verified
+    vert_flatness = 1.5
+    vert_symmetry = 0.4
+    horiz_flatness = 1.4
+    horiz_symmetry = 0.5
 
 
 class FlatSym18X(FlatSymBase, TestCase):
     file_path = ['18x auto bulb2.dcm']
-    vert_flatness = 1.62
-    vert_symmetry = 1.23
-    horiz_flatness = 1.79
-    horiz_symmetry = 1.16
+    # independently verified
+    apply_smoothing = 5
+    vert_flatness = 1.4
+    vert_symmetry = 0.5
+    horiz_flatness = 1.5
+    horiz_symmetry = 0.5
 
 
 class FlatSymWideDemo(FlatSymBase, TestCase):
