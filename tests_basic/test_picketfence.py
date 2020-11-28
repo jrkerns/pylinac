@@ -132,7 +132,7 @@ class PFDemo(PFTestMixin, TestCase):
         pf = PicketFence.from_demo_image()
         pf.analyze(0.15, action_tolerance=0.05)
         pf.plot_analyzed_image()
-        self.assertAlmostEqual(pf.percent_passing, 94, delta=1)
+        self.assertAlmostEqual(pf.percent_passing, 95, delta=1)
 
 
 class AS1200(PFTestMixin, TestCase):
@@ -185,5 +185,5 @@ class MultipleImagesPF(PFTestMixin, TestCase):
     def setUpClass(cls):
         path1 = osp.join(TEST_DIR, 'combo-jaw.dcm')
         path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
-        cls.pf = PicketFence.from_multiple_images([path1, path2])
+        cls.pf = PicketFence.from_multiple_images([path1, path2], stretch_each=True)
         cls.pf.analyze(hdmlc=cls.hdmlc, sag_adjustment=cls.sag_adjustment, orientation='left')

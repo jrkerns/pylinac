@@ -117,6 +117,7 @@ class Demo(StarMixin, TestCase):
     wobble_diameter_mm = 0.30
     wobble_center = Point(1270, 1437)
     num_rad_lines = 4
+    wobble_tolerance = 0.15
     # outside program: 0.24-0.26mm
 
     @classmethod
@@ -146,6 +147,13 @@ class Starshot1(StarMixin, TestCase):
     wobble_diameter_mm = 0.23
     num_rad_lines = 4
     # outside 0.20-0.27mm
+
+
+class StarshotPerfect30Deg(StarMixin, TestCase):
+    file_path = ['Starshot 30 deg perfect.dcm']
+    wobble_center = Point(639.5, 639.5)
+    wobble_diameter_mm = 0.0
+    num_rad_lines = 6
 
 
 class Starshot1FWHM(Starshot1):

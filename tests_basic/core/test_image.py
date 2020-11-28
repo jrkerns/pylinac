@@ -113,8 +113,8 @@ class TestBaseImage(TestCase):
 
     def test_center(self):
         self.assertIsInstance(self.img.center, Point)
-        img_known_center = Point(512, 1702)
-        dcm_known_center = Point(512, 384)
+        img_known_center = Point(511.5, 1702)
+        dcm_known_center = Point(511.5, 383.5)
         self.assertEqual(self.img.center.x, img_known_center.x)
         self.assertEqual(self.dcm.center.y, dcm_known_center.y)
 
