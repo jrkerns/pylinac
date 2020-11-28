@@ -105,7 +105,7 @@ class ThicknessROI(RectangleROI):
     @lru_cache(maxsize=1)
     def wire_fwhm(self):
         """The FWHM of the wire in pixels."""
-        return self.long_profile.fwxm(x=50, interpolate=True)
+        return self.long_profile.fwxm(x=50)
 
     @property
     def plot_color(self):
@@ -596,17 +596,15 @@ class CTP528CP504(CatPhanModule):
         maxs = list()
         mins = list()
         for key, value in self.roi_settings.items():
-            max_values = self.circle_profile.find_peaks(min_distance=value['peak spacing'], max_number=value['num peaks'],
-                                                        search_region=(value['start'], value['end']), kind='value')
+            max_indices, max_values = self.circle_profile.find_peaks(min_distance=value['peak spacing'], max_number=value['num peaks'],
+                                                        search_region=(value['start'], value['end']))
             # check that the right number of peaks were found before continuing, otherwise stop searching for regions
             if len(max_values) != value['num peaks']:
                 break
             maxs.append(max_values.mean())
-            max_indices = self.circle_profile.find_peaks(min_distance=value['peak spacing'], max_number=value['num peaks'],
-                                                         search_region=(value['start'], value['end']), kind='index')
-            lower_mean = self.circle_profile.find_valleys(min_distance=value['peak spacing'], max_number=value['num valleys'],
-                                                          search_region=(min(max_indices), max(max_indices)), kind='value').mean()
-            mins.append(lower_mean)
+            _, min_values = self.circle_profile.find_valleys(min_distance=value['peak spacing'], max_number=value['num valleys'],
+                                                             search_region=(min(max_indices), max(max_indices)))
+            mins.append(min_values.mean())
         if not maxs:
             raise ValueError("Did not find any spatial resolution pairs to analyze. File an issue on github (https://github.com/jrkerns/pylinac/issues) if this is a valid dataset.")
 

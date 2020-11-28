@@ -150,7 +150,7 @@ class VMATBase:
         """Construct the center points of the segments based on the field center and known x-offsets."""
         points = []
         dmlc_prof, _ = self._median_profiles((self.dmlc_image, self.open_image))
-        x_field_center = dmlc_prof.fwxm_center()
+        x_field_center, _ = dmlc_prof.fwxm_center()
         for x_offset_mm in self.SEGMENT_X_POSITIONS_MM:
             y = self.open_image.center.y
             x_offset_pixels = x_offset_mm * self.open_image.dpmm

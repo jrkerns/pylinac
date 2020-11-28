@@ -35,20 +35,19 @@ def flatness_elekta(profile: SingleProfile):
     except ValueError:
         raise ValueError("An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
     flatness = 100 * (dmax / dmin)
-    lt_edge, rt_edge = profile.field_edges(interpolate=True)
+    lt_edge, rt_edge = profile.field_edges()
     return flatness, dmax, dmin, lt_edge, rt_edge
 
 
 def symmetry_point_difference(profile: SingleProfile):
     """Calculation of symmetry by way of point difference equidistant from the CAX"""
     values = profile.field_values(field_width=0.8)
-    lt_edge, rt_edge = profile.field_edges(field_width=0.8, interpolate=True)
-    cax = profile.fwxm_center()
-    dcax = profile.values[cax]
+    lt_edge, rt_edge = profile.field_edges(field_width=0.8)
+    _, cax_val = profile.fwxm_center()
     max_val = 0
     sym_array = []
     for lt_pt, rt_pt in zip(values, values[::-1]):
-        val = 100 * abs(lt_pt - rt_pt) / dcax
+        val = 100 * abs(lt_pt - rt_pt) / cax_val
         sym_array.append(val)
         if val > max_val:
             max_val = val
@@ -177,14 +176,16 @@ class FlatSym:
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
         # do some calculations
-        horiz_penum = self.symmetry['horizontal']['profile'].penumbra_width() / self.image.dpmm
-        vert_penum = self.symmetry['vertical']['profile'].penumbra_width() / self.image.dpmm
+        horiz_penum = np.mean(self.symmetry['horizontal']['profile'].penumbra_width()) / self.image.dpmm
+        vert_penum = np.mean(self.symmetry['vertical']['profile'].penumbra_width()) / self.image.dpmm
         horiz_width = self.symmetry['horizontal']['profile'].fwxm() / self.image.dpmm
         vert_width = self.symmetry['vertical']['profile'].fwxm() / self.image.dpmm
-        upper_dist = abs(self.symmetry['vertical']['profile']._penumbra_point('left') - self.image.center.y) / self.image.dpmm
-        lower_dist = abs(self.symmetry['vertical']['profile']._penumbra_point('right') - self.image.center.y) / self.image.dpmm
-        left_dist = abs(self.symmetry['horizontal']['profile']._penumbra_point('left') - self.image.center.x) / self.image.dpmm
-        right_dist = abs(self.symmetry['horizontal']['profile']._penumbra_point('right') - self.image.center.x) / self.image.dpmm
+        up_edge_idx, bt_edge_idx = self.symmetry['vertical']['profile'].field_edges(field_width=1.0, interpolate=True)
+        upper_dist = abs(up_edge_idx - self.image.center.y) / self.image.dpmm
+        lower_dist = abs(bt_edge_idx - self.image.center.y) / self.image.dpmm
+        lt_edge_idx, rt_edge_idx = self.symmetry['horizontal']['profile'].field_edges(field_width=1.0, interpolate=True)
+        left_dist = abs(lt_edge_idx - self.image.center.x) / self.image.dpmm
+        right_dist = abs(rt_edge_idx - self.image.center.x) / self.image.dpmm
         results = [f'Flatness & Symmetry',
                    f'File: {self.image.truncated_path}',
                    "",
@@ -384,7 +385,7 @@ class FlatSym:
         axis.set_title(direction.capitalize() + " Symmetry")
         axis.plot(data['profile'].values)
         # plot lines
-        cax_idx = data['profile'].fwxm_center()
+        cax_idx, _ = data['profile'].fwxm_center()
         axis.axvline(data['profile left'], color='g', linestyle='-.')
         axis.axvline(data['profile right'], color='g', linestyle='-.')
         axis.axvline(cax_idx, color='m', linestyle='-.')

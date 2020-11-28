@@ -631,7 +631,7 @@ class PicketManager:
     def find_pickets(self):
         """Find the pickets of the image."""
         leaf_prof = self.image_mlc_inplane_mean_profile
-        peak_idxs = leaf_prof.find_peaks(min_distance=0.02, threshold=0.5, max_number=self.num_pickets)
+        peak_idxs, _ = leaf_prof.find_peaks(min_distance=0.02, threshold=0.5, max_number=self.num_pickets)
         peak_spacing = np.median(np.diff(np.sort(peak_idxs)))
         if np.isnan(peak_spacing):
             peak_spacing = 20
@@ -704,7 +704,7 @@ class Picket:
             pix_vals = np.median(self.picket_array[:, mlc_rows], axis=1)
         if max(pix_vals) > np.percentile(self.picket_array, 80):
             prof = SingleProfile(pix_vals)
-            fw80mc = prof.fwxm_center(70, interpolate=True)
+            fw80mc, _ = prof.fwxm_center(70, interpolate=True)
             return fw80mc + self.approximate_idx - self.spacing
 
     def add_mlc_meas(self, mlc_center, mlc_position):

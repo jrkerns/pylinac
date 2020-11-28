@@ -1,5 +1,4 @@
 """Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
-import copy
 from functools import lru_cache
 from typing import Union, Tuple, Sequence, List, Optional
 
@@ -7,18 +6,11 @@ import argue
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 import matplotlib.pyplot as plt
-from scipy import ndimage
+from scipy import ndimage, signal
 from scipy.interpolate import interp1d
 
-from .utilities import is_float_like, is_int_like
 from .geometry import Point, Circle
 from .typing import NumberLike
-
-LEFT = 'left'
-RIGHT = 'right'
-VALUE = 'value'
-INDEX = 'index'
-BOTH = 'both'
 
 
 def stretch(array: np.ndarray, min: int=0, max: int=1, fill_dtype=None) -> np.array:
@@ -47,12 +39,14 @@ def stretch(array: np.ndarray, min: int=0, max: int=1, fill_dtype=None) -> np.ar
             di = np.finfo(fill_dtype)
         new_max = di.max
         new_min = di.min
-    # perfectly normalize the array (0..1)
+    # perfectly normalize the array (0..1). ground, then div by range
     stretched_array = (array - array.min())/(array.max() - array.min())
     # stretch normalized array to new max/min
     stretched_array *= new_max
-    stretched_array += new_min
-    return stretched_array.astype(array.dtype)
+    # stretched_array += new_min
+    if fill_dtype:
+        stretched_array = stretched_array.astype(fill_dtype)
+    return stretched_array
 
 
 class ProfileMixin:
@@ -174,155 +168,6 @@ class SingleProfile(ProfileMixin):
         self._values = value.astype(float)
 
     @property
-    def _right_side_min(self) -> float:
-        """The minimum on the right side of the peak."""
-        return self.values[self._initial_peak_idx:].min()
-
-    @property
-    def _left_side_min(self) -> float:
-        """The minimum on the left side of the peak."""
-        return self.values[:self._initial_peak_idx].min()
-
-    @property
-    def _values_right(self) -> np.ndarray:
-        """The "right side" y data."""
-        if self._normalize_sides:
-            return self.values - self._right_side_min
-        else:
-            return self._grounded_values
-
-    @property
-    def _values_left(self) -> np.ndarray:
-        """The "left side" y data."""
-        if self._normalize_sides:
-            return self.values - self._left_side_min
-        else:
-            return self._grounded_values
-
-    @property
-    def _grounded_values(self) -> np.ndarray:
-        """Ground the profile such that the lowest value is 0.
-        """
-        min_val = self.values.min()
-        grounded_values = self.values - min_val
-        return grounded_values
-
-    @property
-    @lru_cache()
-    def _initial_peak_idx(self) -> int:
-        """The initial peak index."""
-        x_idx = self._get_initial_peak(self._passed_initial_peak)
-        return int(x_idx)
-
-    @_initial_peak_idx.setter
-    def _initial_peak_idx(self, value):
-        self._passed_initial_peak = value
-
-    def _get_initial_peak(self, initial_peak: int=None) -> int:
-        """Determine an initial peak to use as a rough guideline.
-
-        Parameters
-        ----------
-        initial_peak : int, None
-            If None, a peak is automatically determined and used.
-            If an integer, must be within the range of index values of the profile array.
-        """
-        # if not passed, get one by peak searching.
-        if initial_peak is None:
-            lf_edge = 0.2
-            rt_edge = 0.8
-            while True:
-                _, initial_peak_arr = peak_detect(self.values, max_number=1, search_region=(lf_edge, rt_edge))
-                try:
-                    initial_peak = initial_peak_arr[0]
-                    break
-                except IndexError:
-                    lf_edge -= 0.01
-                    rt_edge -= 0.01
-                    if lf_edge < 0:
-                        raise ValueError("A reasonable initial peak was not found in the profile. Ensure peak is not at profile edge")
-        # otherwise use the one passed.
-        elif len(self.values) < initial_peak < 0:
-            raise IndexError("Initial peak that was passed was not reasonably within the profile x_data range")
-
-        return initial_peak
-
-    @argue.options(side=(LEFT, RIGHT), kind=(VALUE, INDEX))
-    @lru_cache()
-    def _penumbra_point(self, side: str='left', x: int=50, interpolate: bool=False, kind: str='index'):
-        """Return the index of the given penumbra. Search starts at the peak and moves index-by-index
-        outward until the penumbra value is hit.
-
-        Parameters
-        ----------
-        side : {'left', 'right'}
-            Which side to look for the penumbra.
-        x : int
-            The penumbra value to search for. E.g. if passed 20, the method finds
-            the index of 0.2*max profile value.
-        interpolate : bool
-            Whether to interpolate the profile array values to get subpixel precision.
-        kind : {'value', 'index'}
-            What kind of return is given. If 'index' (default), returns the *index* of the point
-            desired. If 'value', returns the value of the profile at the given index.
-
-        Returns
-        -------
-        int, float
-            The index or value of the penumbra point desired.
-        """
-        # get peak
-        peak = copy.copy(self._initial_peak_idx)
-        peak = int(peak*self.interpolation_factor if interpolate else peak)
-
-        # get y-data
-        if side == LEFT:
-            y_data = self._values_left_interp if interpolate else self._values_left
-        else:
-            y_data = self._values_right_interp if interpolate else self._values_right
-
-        # get threshold
-        max_point = y_data.max()
-        threshold = max_point * (x / 100)
-
-        # find the index, moving 1 element at a time until the value is encountered
-        found = False
-        at_end = False
-        try:
-            while not found and not at_end:
-                if y_data[peak] < threshold:
-                    found = True
-                    peak -= 1 if side == RIGHT else -1
-                elif peak == 0:
-                    at_end = True
-                peak += 1 if side == RIGHT else -1
-        except IndexError:
-            raise IndexError("The point of interest was beyond the profile; i.e. the profile may be cut off on the side")
-
-        if kind == VALUE:
-            return self._values_interp[peak] if interpolate else self.values[peak]
-        elif kind == INDEX:
-            if interpolate:
-                peak /= self.interpolation_factor
-            return peak
-
-    @property
-    @lru_cache()
-    def _values_left_interp(self) -> np.ndarray:
-        """Interpolated values of the "left side" profile data."""
-        ydata_f = interp1d(self._indices, self._values_left, kind=self.interpolation_type)
-        y_data = ydata_f(self._indices_interp)
-        return y_data
-
-    @property
-    @lru_cache()
-    def _values_right_interp(self) -> np.ndarray:
-        """Interpolated values of the "right side" profile data."""
-        ydata_f = interp1d(self._indices, self._values_right, kind=self.interpolation_type)
-        y_data = ydata_f(self._indices_interp)
-        return y_data
-
-    @property
     @lru_cache()
     def _values_interp(self) -> np.ndarray:
         """Interpolated values of the entire profile array."""
@@ -340,7 +185,8 @@ class SingleProfile(ProfileMixin):
         """Values of the profile index data."""
         return np.linspace(start=0, stop=len(self.values)-1, num=len(self.values))
 
-    def fwxm(self, x: int=50, interpolate: bool=False) -> float:
+    @argue.bounds(x=(0, 100))
+    def fwxm(self, x: int = 50) -> float:
         """Return the width at X-Max, where X is the percentage height.
 
         Parameters
@@ -348,39 +194,32 @@ class SingleProfile(ProfileMixin):
         x : int
             The percent height of the profile. E.g. x = 50 is 50% height,
             i.e. FWHM.
-        interpolate : bool
-            If True, interpolates the values to give a more accurate FWXM.
 
         Returns
         -------
         int, float
             The width in number of elements of the FWXM.
         """
-        li = self._penumbra_point(LEFT, x, interpolate)
-        ri = self._penumbra_point(RIGHT, x, interpolate)
-        fwxm = np.abs(ri - li)
-        return fwxm
+        _, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
+        return peak_props['widths'][0]
 
-    def fwxm_center(self, x: int=50, interpolate: bool=False, kind: str='index') -> float:
-        """Return the center index of the FWXM.
+    def fwxm_center(self, x: int=50, interpolate: bool=False) -> Tuple[NumberLike, NumberLike]:
+        """Return the center of the FWXM.
 
         See Also
         --------
         fwxm() : Further parameter info
         """
-        fwxm = self.fwxm(x, interpolate=interpolate)
-        li = self._penumbra_point(LEFT, x, interpolate)
-        fwxmcen = np.abs(li + fwxm / 2)
-        if not interpolate:
-            fwxmcen = int(round(fwxmcen))
-        if kind == VALUE:
-            return self.values[fwxmcen] if not interpolate else self._values_interp[int(fwxmcen*self.interpolation_factor)]
+        _, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
+        fwxm_center_idx = (peak_props['right_ips'][0] - peak_props['left_ips'][0])/2 + peak_props['left_ips'][0]
+        if interpolate:
+            return fwxm_center_idx, self._values_interp[int(fwxm_center_idx*self.interpolation_factor)]
         else:
-            return fwxmcen
+            fwxm_center_idx = int(round(fwxm_center_idx))
+            return fwxm_center_idx, self.values[fwxm_center_idx]
 
-    @argue.options(side=(LEFT, RIGHT, BOTH))
     @argue.bounds(lower=(0, 100), upper=(0, 100))
-    def penumbra_width(self, side: str='left', lower: int=20, upper: int=80, interpolate: bool=False) -> float:
+    def penumbra_width(self, lower: int=20, upper: int=80) -> Tuple[float, float]:
         """Return the penumbra width of the profile.
 
         This is the standard "penumbra width" calculation that medical physics talks about in
@@ -389,15 +228,10 @@ class SingleProfile(ProfileMixin):
 
         Parameters
         ----------
-        side : {'left', 'right', 'both'}
-            Which side of the profile to determined penumbra.
-            If 'both', the left and right sides are averaged.
         lower : int
             The "lower" penumbra value used to calculate penumbra. Must be lower than upper.
         upper : int
             The "upper" penumbra value used to calculate penumbra.
-        interpolate : bool
-            Whether to interpolate the profile to get more accurate values.
 
         Raises
         ------
@@ -407,20 +241,11 @@ class SingleProfile(ProfileMixin):
         if lower > upper:
             raise ValueError("Upper penumbra value must be larger than the lower penumbra value")
 
-        if side in (LEFT, RIGHT):
-            li = self._penumbra_point(side, lower, interpolate)
-            ui = self._penumbra_point(side, upper, interpolate)
-            pen = np.abs(ui - li)
-        elif side == BOTH:
-            li = self._penumbra_point(LEFT, lower, interpolate)
-            ui = self._penumbra_point(LEFT, upper, interpolate)
-            lpen = np.abs(ui - li)
-            li = self._penumbra_point(RIGHT, lower, interpolate)
-            ui = self._penumbra_point(RIGHT, upper, interpolate)
-            rpen = np.abs(ui - li)
-            pen = np.mean([lpen, rpen])
-
-        return pen
+        _, upper_peak_props = find_peaks(self.values, fwxm_height=upper/100, max_number=1)
+        _, lower_peak_props = find_peaks(self.values, fwxm_height=lower/100, max_number=1)
+        left_penum = np.abs(upper_peak_props['left_ips'][0] - lower_peak_props['left_ips'][0])
+        right_penum = np.abs(upper_peak_props['right_ips'][0] - lower_peak_props['right_ips'][0])
+        return left_penum, right_penum
 
     @argue.bounds(field_width=(0, 1))
     def field_values(self, field_width: float=0.8) -> np.ndarray:
@@ -453,8 +278,8 @@ class SingleProfile(ProfileMixin):
         -------
         left_index, right_index
         """
-        fwhmc = self.fwxm_center(interpolate=interpolate)
-        field_width *= self.fwxm(interpolate=interpolate)
+        fwhmc, _ = self.fwxm_center(interpolate=interpolate)
+        field_width *= self.fwxm()
         if interpolate:
             left = fwhmc - (field_width / 2)
             right = fwhmc + (field_width / 2)
@@ -492,14 +317,18 @@ class SingleProfile(ProfileMixin):
         elif calculation == 'min':
             return field_values.min()
         elif calculation == 'area':
-            cax = self.fwxm_center()
+            cax, _ = self.fwxm_center()
             lt_area = field_values[:cax+1]
             rt_area = field_values[cax:]
             return lt_area, rt_area
 
-    def plot(self):
+    def plot(self, x=50):
         """Plot the profile."""
+        peak_idx, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
         plt.plot(self.values)
+        plt.plot(peak_idx, peak_props['peak_heights'][0], marker=7, color="green")
+        plt.vlines(peak_idx, ymin=peak_props['peak_heights'][0]-peak_props['prominences'][0], ymax=peak_props['peak_heights'][0], color="red")
+        plt.hlines(peak_props['width_heights'][0], xmin=peak_props['left_ips'], xmax=peak_props['right_ips'], color="red")
         plt.show()
 
 
@@ -532,7 +361,7 @@ class MultiProfile(ProfileMixin):
         self.peaks = []
         self.valleys = []
 
-    def plot(self, show_peaks: bool=True, ax=None):
+    def plot(self, ax=None):
         """Plot the profile.
 
         Parameters
@@ -544,14 +373,15 @@ class MultiProfile(ProfileMixin):
         if ax is None:
             fig, ax = plt.subplots()
         ax.plot(self.values)
-        if show_peaks:
-            peaks_x = [peak.idx for peak in self.peaks]
-            peaks_y = [peak.value for peak in self.peaks]
-            ax.plot(peaks_x, peaks_y, 'go')
+        peaks_x = [peak.idx for peak in self.peaks]
+        peaks_y = [peak.value for peak in self.peaks]
+        ax.plot(peaks_x, peaks_y, "gv")
+        valley_x = [peak.idx for peak in self.valleys]
+        valley_y = [peak.value for peak in self.valleys]
+        ax.plot(valley_x, valley_y, "r^")
 
-    @argue.options(kind=(INDEX, VALUE))
     def find_peaks(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05, max_number: int=None,
-                   search_region: Tuple=(0.0, 1.0), kind: str='index') -> np.ndarray:
+                   search_region: Tuple=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
         """Find the peaks of the profile using a simple maximum value search. This also sets the `peaks` attribute.
 
         Parameters
@@ -580,38 +410,37 @@ class MultiProfile(ProfileMixin):
 
         Returns
         -------
-        ndarray
-            Either the values or indices of the peaks.
+        indices: ndarray, values, ndarray
+            The indices and values of the peaks.
         """
-        peak_vals, peak_idxs = peak_detect(self.values, threshold, min_distance,
-                                           max_number, search_region=search_region)
-        self.peaks = [Point(value=peak_val, idx=peak_idx) for peak_idx, peak_val in zip(peak_idxs, peak_vals)]
+        peak_idxs, peak_props = find_peaks(self.values, threshold=threshold, peak_separation=min_distance, max_number=max_number,
+                                           search_region=search_region)
+        self.peaks = [Point(value=peak_val, idx=peak_idx) for peak_idx, peak_val in zip(peak_idxs, peak_props['peak_heights'])]
 
-        return peak_idxs if kind == INDEX else peak_vals
+        return peak_idxs, peak_props['peak_heights']
 
     def find_valleys(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
-                     max_number: int=None, search_region: Tuple=(0.0, 1.0), kind: str='index'):
+                     max_number: int=None, search_region: Tuple=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
         """Find the valleys (minimums) of the profile using a simple minimum value search.
 
         Returns
         -------
-        ndarray
-            Either the values or indices of the peaks.
+        indices: ndarray, values, ndarray
+            The indices and values of the valleys.
 
         See Also
         --------
         :meth:`~pylinac.core.profile.MultiProfile.find_peaks` : Further parameter info.
         """
-        valley_vals, valley_idxs = peak_detect(self.values, threshold, min_distance,
-                                               max_number, search_region=search_region, find_min_instead=True)
-        self.valleys = [Point(value=valley_val, idx=valley_idx) for valley_idx, valley_val in zip(valley_idxs, valley_vals)]
+        valley_idxs, valley_props = find_peaks(-self.values, threshold=threshold, peak_separation=min_distance, max_number=max_number,
+                                               search_region=search_region)
+        self.valleys = [Point(value=valley_val, idx=valley_idx) for valley_idx, valley_val in zip(valley_idxs, -valley_props['peak_heights'])]
 
-        return valley_idxs if kind == INDEX else valley_vals
+        return valley_idxs, -valley_props['peak_heights']
 
     @argue.bounds(x=(0, 100))
-    def find_fwxm_peaks(self, x:int =50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
-                        max_number: int=None, search_region: Tuple=(0.0, 1.0), kind: str='index',
-                        interpolate: bool=False, interpolation_factor: int=100, interpolation_type: str='linear') -> List:
+    def find_fwxm_peaks(self, x: int = 50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
+                        max_number: int=None, search_region: Tuple=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
         """Find peaks using the center of the FWXM (rather than by max value).
 
         Parameters
@@ -619,67 +448,22 @@ class MultiProfile(ProfileMixin):
         x : int, float
             The Full-Width-X-Maximum desired. E.g. 0.7 will return the FW70%M.
             Values must be between 0 and 100.
-        interpolate : bool
-            Whether to interpolate the profile to determine a more accurate peak location.
-        interpolation_factor : int
-            The interpolation multiplication factor. E.g. if 10, the profile is interpolated to have 10x the number
-            of values. Only used if `interpolate` is True.
-        interpolation_type : {'linear', 'cubic'}
-            The type of interpolation to perform. Only used if `interpolate` is True.
 
         See Also
         --------
         find_peaks : Further parameter info
         """
-        self.find_peaks(threshold, min_distance, max_number, search_region=search_region)
-        if not self.peaks:
-            return [], []
+        _, peak_props = find_peaks(self.values, threshold=threshold, min_width=min_distance, max_number=max_number,
+                                           search_region=search_region)
+        fwxm_peak_idxs = []
+        for lt, rt in zip(peak_props['left_ips'], peak_props['right_ips']):
+            fwxm = int(round(lt + (rt - lt)/2))
+            fwxm_peak_idxs.append(fwxm)
 
-        # subdivide the profiles into SingleProfile's
-        subprofiles = self.subdivide(interpolation_factor, interpolation_type)
+        fwxm_peak_vals = [self.values[fwxm] for fwxm in fwxm_peak_idxs]
+        self.peaks = [Point(value=peak_val, idx=peak_idx) for peak_idx, peak_val in zip(fwxm_peak_idxs, fwxm_peak_vals)]
 
-        # update peak indices with the FWHM value instead of maximum value
-        original_peaks = copy.deepcopy(self.peaks)
-        for num, (peak, profile) in enumerate(zip(self.peaks, subprofiles)):
-            shift = original_peaks[num - 1].idx if num > 0 else 0
-            # shift = sum(len(profile.values) for profile in subprofiles[:num])
-            fwhmc = profile.fwxm_center(x, interpolate=interpolate)
-            peak.idx = fwhmc + shift
-
-        if kind == INDEX:
-            return [peak.idx for peak in self.peaks]
-        else:
-            return [peak.value for peak in self.peaks]
-
-    def subdivide(self, interpolation_factor: int=100, interpolation_type: str='linear') -> List[SingleProfile]:
-        """Subdivide the profile data into SingleProfiles.
-
-        Returns
-        -------
-        list
-            List of :class:`~pylinac.core.profile.SingleProfile`
-        """
-        # append the peak list to include the endpoints of the profile
-        peaks = self.peaks.copy()
-        peaks.insert(0, Point(idx=0))
-        peaks.append(Point(idx=len(self.values)))
-
-        # create a list of single profiles from segments of original profile data.
-        # New profiles are segmented by initial peak locations.
-        subprofiles = []
-        for idx in range(len(peaks)-2):
-            left_end = peaks[idx].idx
-            peak_idx = peaks[idx+1].idx - left_end
-            right_end = peaks[idx+2].idx
-
-            values = self.values[int(left_end):int(right_end)]
-
-            subprofile = SingleProfile(values, initial_peak=peak_idx)
-            subprofile.interpolation_factor = interpolation_factor
-            subprofile.interpolation_type = interpolation_type
-            subprofiles.append(subprofile)
-
-        return subprofiles
+        return np.array(fwxm_peak_idxs), np.array(fwxm_peak_vals)
 
 
 class CircleProfile(MultiProfile, Circle):
@@ -775,28 +559,27 @@ class CircleProfile(MultiProfile, Circle):
         return ndimage.map_coordinates(self.image_array, [self.y_locations, self.x_locations], order=0)
 
     def find_peaks(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
-                   max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0), kind: str='index') -> np.ndarray:
+                   max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
         """Overloads Profile to also map peak locations to the image."""
-        array = super().find_peaks(threshold, min_distance, max_number, search_region, kind)
+        peak_idxs, peak_vals = super().find_peaks(threshold, min_distance, max_number, search_region)
         self._map_peaks()
-        return array
+        return peak_idxs, peak_vals
 
     def find_valleys(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
-                     max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0), kind: str='index') -> np.ndarray:
+                     max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
         """Overload Profile to also map valley locations to the image."""
-        array = super().find_valleys(threshold, min_distance, max_number, search_region, kind)
+        valley_idxs, valley_vals = super().find_valleys(threshold, min_distance, max_number, search_region)
         self._map_peaks()
-        return array
+        return valley_idxs, valley_vals
 
+    @argue.bounds(x=(0, 100))
     def find_fwxm_peaks(self, x: int=50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
-                        max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0), kind: str='index',
-                        interpolate: bool=False, interpolation_factor: int=100, interpolation_type: str='linear') -> np.ndarray:
+                        max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
         """Overloads Profile to also map the peak locations to the image."""
-        array = super().find_fwxm_peaks(x, threshold, min_distance, max_number, interpolate=interpolate,
-                                        search_region=search_region, kind=kind, interpolation_type=interpolation_type,
-                                        interpolation_factor=interpolation_factor)
+        peak_idxs, peak_vals = super().find_fwxm_peaks(x, threshold, min_distance, max_number,
+                                        search_region=search_region)
         self._map_peaks()
-        return array
+        return peak_idxs, peak_vals
 
     def _map_peaks(self):
         """Map found peaks to the x,y locations on the image/array; i.e. adds x,y coordinates to the peak locations"""
@@ -930,14 +713,9 @@ class CollapsedCircleProfile(CircleProfile):
             axes.scatter(x_locs, y_locs, s=20, marker='x', c=edgecolor)
 
 
-def peak_detect(values: np.ndarray, threshold: Union[float, int]=None, min_distance: Union[float, int]=10,
-                max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0),
-                find_min_instead: bool=False) -> Tuple[np.ndarray, np.ndarray]:
-    """Find the peaks or valleys of a 1D signal.
-
-    Uses the difference (np.diff) in signal to find peaks. Current limitations include:
-        1) Only for use in 1-D data; 2D may be possible with the gradient function.
-        2) Will not detect peaks at the very edge of array (i.e. 0 or -1 index)
+def find_peaks(values: np.ndarray, threshold: Union[float, int]=-np.inf, peak_separation: Union[float, int]=0,
+               max_number: int=None, fwxm_height: float=0.5, min_width: int=0, search_region: Tuple=(0.0, 1.0)):
+    """Find the peaks of a 1D signal. Heavily relies on the scipy implementation.
 
     Parameters
     ----------
@@ -950,142 +728,62 @@ def peak_detect(values: np.ndarray, threshold: Union[float, int]=None, min_dista
         E.g. when passed 15, any peak less with a value <15 is removed.
         If passed a float, it will threshold as a percent. Must be between 0 and 1.
         E.g. when passed 0.4, any peak <40% of the maximum value will be removed.
-    min_distance : int, float
+    peak_separation : int, float
         If passed an int, parameter is the number of elements apart a peak must be from neighboring peaks.
         If passed a float, must be between 0 and 1 and represents the ratio of the profile to exclude.
         E.g. if passed 0.05 with a 1000-element profile, the minimum peak width will be 0.05*1000 = 50 elements.
-    max_number : int
+    max_number : int, None
         Specify up to how many peaks will be returned. E.g. if 3 is passed in and 5 peaks are found, only the 3 largest
         peaks will be returned.
-    find_min_instead : bool
-        If False (default), peaks will be returned.
-        If True, valleys will be returned.
+    fwxm_height: float
+        The relative height at which a FWXM calculation is performed. Although this function finds simple max values,
+        the underlying function can provide fwxm information as well.
+    min_width: int
+        The minimum width of the peak.
+    search_region: tuple
+        The search region to use within the values.
+        Using between 0 and 1 will convert to a ratio of the indices. E.g. to search the middle half of the passed values, use (0.25, 0.75).
+        Using ints above 1 will use the indices directly. E.g. (33, 71) will search between those two indices.
 
     Returns
     -------
-    max_vals : numpy.array
-        The values of the peaks found.
-    max_idxs : numpy.array
-        The x-indices (locations) of the peaks.
-
-    Raises
-    ------
-    ValueError
-        If float not between 0 and 1 passed to threshold.
+    peak_idxs : numpy.array
+        The indices of the peaks found.
+    peak_props : dict
+        A dict containing contextual peak data.
     """
-    peak_vals = []  # a list to hold the y-values of the peaks. Will be converted to a numpy array
-    peak_idxs = []  # ditto for x-values (index) of y data.
+    peak_separation, shift_amount, threshold, trimmed_values = _parse_peak_args(peak_separation, search_region, threshold,
+                                                                                values)
 
-    if find_min_instead:
-        values = -values
+    peak_idxs, peak_props = signal.find_peaks(trimmed_values, rel_height=(1 - fwxm_height), width=min_width, height=threshold,
+                                              distance=peak_separation)
+    peak_idxs += shift_amount  # shift according to the search region left edge
 
-    """Limit search to search region"""
-    left_end = search_region[0]
-    if is_float_like(left_end):
-        left_index = int(left_end*len(values))
-    elif is_int_like(left_end):
-        left_index = left_end
+    # get the "largest" peaks up to max number, and then re-sort to be left->right like it was originally
+    largest_peak_idxs = sorted(list(np.argsort(peak_props['prominences']))[::-1][:max_number])
+
+    # cut down prop arrays as need be
+    for key, array_vals in peak_props.items():
+        peak_props[key] = array_vals[largest_peak_idxs]
+    return peak_idxs[largest_peak_idxs], peak_props
+
+
+def _parse_peak_args(peak_separation, search_region, threshold, values):
+    """Converts arguments as needed. E.g. converting a ratio to actual values"""
+    # set threshold as % if between 0 and 1
+    val_range = values.max() - values.min()
+    if 0 <= threshold <= 1:
+        threshold = values.min() + threshold * val_range
+    # set separation as % if between 0 and 1
+    if 0 <= peak_separation <= 1:
+        peak_separation = max(int(peak_separation * len(values)), 1)
+    # limit to search region
+    if max(search_region) <= 1:
+        shift_amount = int(search_region[0] * len(values))
+        values = values[int(search_region[0] * len(values)):int(search_region[1] * len(values))]
     else:
-        raise ValueError(f"{left_end} must be a float or int")
+        values = values[search_region[0]:search_region[1]]
+        shift_amount = search_region[0]
+    return peak_separation, shift_amount, threshold, values
 
-    right_end = search_region[1]
-    if is_float_like(right_end):
-        right_index = int(right_end * len(values))
-    elif is_int_like(right_end):
-        right_index = right_end
-    else:
-        raise ValueError(f"{right_end} must be a float or int")
 
-    # minimum peak spacing calc
-    if isinstance(min_distance, float):
-        if 0 > min_distance >= 1:
-            raise ValueError("When min_peak_width is passed a float, value must be between 0 and 1")
-        else:
-            min_distance = int(min_distance * len(values))
-
-    values = values[left_index:right_index]
-
-    """Determine threshold value"""
-    if isinstance(threshold, float) and threshold < 1:
-        data_range = values.max() - values.min()
-        threshold = threshold * data_range + values.min()
-    elif isinstance(threshold, float) and threshold >= 1:
-        raise ValueError("When threshold is passed a float, value must be less than 1")
-    elif threshold is None:
-        threshold = values.min()
-
-    """Take difference"""
-    values_diff = np.diff(values.astype(float))  # y and y_diff must be converted to signed type.
-
-    """Find all potential peaks"""
-    for idx in range(len(values_diff) - 1):
-        # For each item of the diff array, check if:
-        # 1) The y-value is above the threshold.
-        # 2) The value of y_diff is positive (negative for valley search), it means the y-value changed upward.
-        # 3) The next y_diff value is zero or negative (or positive for valley search); a positive-then-negative diff value means the value
-        # is a peak of some kind. If the diff is zero it could be a flat peak, which still counts.
-
-        # 1)
-        if values[idx + 1] < threshold:
-            continue
-
-        y1_gradient = values_diff[idx] > 0
-        y2_gradient = values_diff[idx + 1] <= 0
-
-        # 2) & 3)
-        if y1_gradient and y2_gradient:
-            # If the next value isn't zero it's a single-pixel peak. Easy enough.
-            if values_diff[idx + 1] != 0:
-                peak_vals.append(values[idx + 1])
-                peak_idxs.append(idx + 1 + left_index)
-            # elif idx >= len(y_diff) - 1:
-            #     pass
-            # Else if the diff value is zero, it could be a flat peak, or it could keep going up; we don't know yet.
-            else:
-                # Continue on until we find the next nonzero diff value.
-                try:
-                    shift = 0
-                    while values_diff[(idx + 1) + shift] == 0:
-                        shift += 1
-                        if (idx + 1 + shift) >= (len(values_diff) - 1):
-                            break
-                    # If the next diff is negative (or positive for min), we've found a peak. Also put the peak at the center of the flat
-                    # region.
-                    is_a_peak = values_diff[(idx + 1) + shift] < 0
-                    if is_a_peak:
-                        peak_vals.append(values[int((idx + 1) + np.round(shift / 2))])
-                        peak_idxs.append((idx + 1 + left_index) + np.round(shift / 2))
-                except IndexError:
-                    pass
-
-    # convert to numpy arrays
-    peak_vals = np.array(peak_vals)
-    peak_idxs = np.array(peak_idxs)
-
-    """Enforce the min_peak_distance by removing smaller peaks."""
-    # For each peak, determine if the next peak is within the min peak width range.
-    index = 0
-    while index < len(peak_idxs) - 1:
-
-        # If the second peak is closer than min_peak_distance to the first peak, find the larger peak and remove the other one.
-        if peak_idxs[index] > peak_idxs[index + 1] - min_distance:
-            if peak_vals[index] > peak_vals[index + 1]:
-                idx2del = index + 1
-            else:
-                idx2del = index
-            peak_vals = np.delete(peak_vals, idx2del)
-            peak_idxs = np.delete(peak_idxs, idx2del)
-        else:
-            index += 1
-
-    """If Maximum Number passed, return only up to number given based on a sort of peak values."""
-    if max_number is not None and len(peak_idxs) > max_number:
-        sorted_peak_vals = peak_vals.argsort()  # sorts low to high
-        peak_vals = peak_vals[sorted_peak_vals[-max_number:]]
-        peak_idxs = peak_idxs[sorted_peak_vals[-max_number:]]
-
-    # If we were looking for minimums, convert the values back to the original sign
-    if find_min_instead:
-        peak_vals = -peak_vals
-
-    return peak_vals, peak_idxs

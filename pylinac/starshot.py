@@ -154,8 +154,8 @@ class Starshot:
         y_sum = np.sum(central_array, 1)
 
         # Calculate Full-Width, 80% Maximum center
-        fwxm_x_point = SingleProfile(x_sum).fwxm_center(80) + left_third
-        fwxm_y_point = SingleProfile(y_sum).fwxm_center(80) + top_third
+        fwxm_x_point = SingleProfile(x_sum).fwxm_center(80)[0] + left_third
+        fwxm_y_point = SingleProfile(y_sum).fwxm_center(80)[0] + top_third
         center_point = Point(fwxm_x_point, fwxm_y_point)
         return center_point
 
@@ -553,7 +553,7 @@ class StarProfile(CollapsedCircleProfile):
         self.filter(size=0.003, kind='gaussian')
         self.ground()
         if fwhm:
-            self.find_fwxm_peaks(x=80, threshold=min_peak_height, min_distance=min_peak_distance, interpolate=True)
+            self.find_fwxm_peaks(x=80, threshold=min_peak_height, min_distance=min_peak_distance)
         else:
             self.find_peaks(min_peak_height, min_peak_distance)
 
