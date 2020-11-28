@@ -100,14 +100,19 @@ class FlatSym:
         The width ratios used for analysis for vertical and horizontal.
     """
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, filter: Union[None, int]=None):
         """
         Parameters
         ----------
         path : str
             The path to the image.
+        filter : None or int
+            If None, no filter is applied. If an int, a median filter of size n pixels is applied. Generally, a good idea.
+            Default is None for backwards compatibility.
         """
         self.image = image.load(path)
+        if filter:
+            self.image.filter(size=filter)
         self.symmetry: dict = {}
         self.flatness: dict = {}
         self.positions: dict = {}
