@@ -139,22 +139,14 @@ class SingleProfile(ProfileMixin):
     interpolation_type: str = 'linear'
     _values: np.ndarray  # ndarray, but Sphinx/napoleon won't compile as `np.ndarray`
 
-    def __init__(self, values: np.ndarray, normalize_sides: bool=True, initial_peak: int=None):
+    def __init__(self, values: np.ndarray):
         """
         Parameters
         ----------
         values : ndarray
             The profile numpy array. Must be 1D.
-        normalize_sides : bool, optional
-            If True (default), each side of the profile will be grounded independently.
-            If False, the profile will be grounded by the profile global minimum.
-        initial_peak : int, optional
-            If the approximate peak of the profile is known it can be passed in. Not needed unless there is more than
-            one major peak in the profile, e.g. a very high edge.
         """
         self.values = values
-        self._passed_initial_peak = initial_peak
-        self._normalize_sides = normalize_sides
 
     @property
     def values(self) -> np.ndarray:
@@ -434,9 +426,9 @@ class MultiProfile(ProfileMixin):
         """
         valley_idxs, valley_props = find_peaks(-self.values, threshold=threshold, peak_separation=min_distance, max_number=max_number,
                                                search_region=search_region)
-        self.valleys = [Point(value=valley_val, idx=valley_idx) for valley_idx, valley_val in zip(valley_idxs, -valley_props['peak_heights'])]
+        self.valleys = [Point(value=self.values[valley_idx], idx=valley_idx) for valley_idx, valley_val in zip(valley_idxs, -valley_props['peak_heights'])]
 
-        return valley_idxs, -valley_props['peak_heights']
+        return valley_idxs, self.values[valley_idxs]
 
     @argue.bounds(x=(0, 100))
     def find_fwxm_peaks(self, x: int = 50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
