@@ -1,8 +1,8 @@
 numpy >= 1.16
-scipy >= 0.19
+scipy >= 1.1
 pydicom >= 2.0
 matplotlib >= 2.0
-scikit-image >= 0.14
+scikit-image >= 0.17
 Pillow >= 4.0
 tqdm >= 3.8
 reportlab >= 3.3
