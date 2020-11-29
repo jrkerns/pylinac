@@ -87,6 +87,7 @@ Bug Fixes
 * `#303 <https://github.com/jrkerns/pylinac/issues/303>`_ Un-inverted WL image analysis would give an error.
 * `#290 <https://github.com/jrkerns/pylinac/issues/290>`_ Catphan HU linearity differences are now signed.
 * `#301 <https://github.com/jrkerns/pylinac/issues/301>`_ Loading starshots and picket fences from multiple images has been fixed.
+* `#199 <https://github.com/jrkerns/pylinac/issues/199>`_ Printing Picket Fence PDFs with a log has been fixed.
 
 
 v 2.3.2
