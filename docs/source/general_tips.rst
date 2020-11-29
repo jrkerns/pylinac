@@ -20,10 +20,11 @@ Let's get started by running a demo of the ``Starshot`` module. First, import th
 This class has all the capabilities of loading and analyzing a Starshot image. Let's 1) create an instance of that
 class and then 2) run its demonstration method:
 
-.. code-block:: python
+.. plot::
 
-    mystar = Starshot()
-    mystar.run_demo()
+    from pylinac import Starshot
+
+    Starshot.run_demo()
 
 Running this should result in a printing of information to the console and an image showing the analyzed image, like so::
 
@@ -32,11 +33,6 @@ Running this should result in a printing of information to the console and an im
     The minimum circle that touches all the star lines has a diameter of 0.434 mm.
 
     The center of the minimum circle is at 1270.1, 1437.1
-
-.. plot::
-
-   from pylinac import Starshot
-   Starshot.run_demo()
 
 Congratulations! In 3 lines you've successfully used a pylinac module. Of course there's more to it than that; you'll want to analyze your
 own images. For further documentation on starshots, see :ref:`starshot_doc`.
@@ -84,38 +80,20 @@ DICOM images are shown in grayscale, while most other arrays are shown in jet. C
 All that's required is to pass a valid matplotlib colormap (see `options <http://matplotlib.org/examples/color/colormaps_reference.html>`_ here).
 Let's set the DICOM plots to be 'cool':
 
-.. code-block:: python
+.. plot::
 
     import pylinac
     # change the colormap setting
     pylinac.settings.DICOM_COLORMAP = 'cool'
     pylinac.CatPhan504.run_demo()
 
-This will result in something like this:
-
-.. plot::
-
-    import matplotlib.pyplot as plt
-    import pylinac
-    # change the colormap setting
-    pylinac.settings.DICOM_COLORMAP = plt.cm.cool
-    pylinac.CatPhan504.run_demo()
-
-We can also change other arrays, for example the arrays in the `log_analyzer` module.
+We can also change other arrays, for example the arrays in the ``log_analyzer`` module.
 Let's change it to the newer, better matplotlib default colormap, viridis:
 
-.. code-block:: python
-
-    import matplotlib.pyplot as plt
-    import pylinac
-    # change the colormap setting
-    pylinac.settings.ARRAY_COLORMAP = plt.cm.viridis
-    pylinac.TrajectoryLog.run_demo()
-
 .. plot::
 
     import matplotlib.pyplot as plt
     import pylinac
-    # change the colormap setting
+
     pylinac.settings.ARRAY_COLORMAP = plt.cm.viridis
     pylinac.TrajectoryLog.run_demo()

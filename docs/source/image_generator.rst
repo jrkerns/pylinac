@@ -7,6 +7,8 @@ Image Generator module documentation
 Overview
 --------
 
+.. versionadded:: 2.4
+
 The image generator module allows users to generate simulated radiation
 images. This module is different than other modules in that the goal here is non-deterministic. There are no phantom
 analysis routines here. What is here started as a testing concept for pylinac itself, but has uses for advanced users
@@ -22,7 +24,7 @@ Quick Start
 
 The basics to get started are to import the image simulators and layers from pylinac and add the layers as desired.
 
-.. code-block:: python
+.. plot::
 
     from matplotlib import pyplot as plt
 
@@ -33,19 +35,6 @@ The basics to get started are to import the image simulators and layers from pyl
     as1000.add_layer(FilteredFieldLayer(field_size_mm=(50, 50)))  # create a 50x50mm square field
     as1000.add_layer(GaussianFilterLayer(sigma_mm=2))  # add an image-wide gaussian to simulate penumbra/scatter
     as1000.generate_dicom(file_out_name="my_AS1000.dcm", gantry_angle=45)  # create a DICOM file with the simulated image
-    # plot the generated image
-    plt.imshow(as1000.image)
-
-
-.. plot::
-
-    from matplotlib import pyplot as plt
-    from pylinac.core.image_generator import AS1000Image
-    from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
-
-    as1000 = AS1000Image()  # this will set the pixel size and shape automatically
-    as1000.add_layer(FilteredFieldLayer(field_size_mm=(50, 50)))  # create a 50x50mm square field
-    as1000.add_layer(GaussianFilterLayer(sigma_mm=2))  # add an image-wide gaussian to simulate penumbra/scatter
     # plot the generated image
     plt.imshow(as1000.image)
 
@@ -103,17 +92,6 @@ Let's make some images!
 Simple Open Field
 ^^^^^^^^^^^^^^^^^
 
-
-.. code-block:: python
-
-    from pylinac.core.image_generator import AS1000Image
-    from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
-
-    as1000 = AS1000Image()
-    as1000.add_layer(FilteredFieldLayer(field_size_mm=(150, 150)))
-    as1000.add_layer(GaussianFilterLayer(sigma_mm=2))
-
-
 .. plot::
 
     from matplotlib import pyplot as plt
@@ -129,17 +107,6 @@ Simple Open Field
 Off-center Open Field
 ^^^^^^^^^^^^^^^^^^^^^
 
-
-.. code-block:: python
-
-    from pylinac.core.image_generator import AS1000Image
-    from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
-
-    as1000 = AS1000Image()
-    as1000.add_layer(FilteredFieldLayer(field_size_mm=(30, 30), cax_offset_mm=(20, 40)))
-    as1000.add_layer(GaussianFilterLayer(sigma_mm=3))
-
-
 .. plot::
 
     from matplotlib import pyplot as plt
@@ -154,19 +121,6 @@ Off-center Open Field
 
 Winston-Lutz FFF Cone Field with Noise
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
-.. code-block:: python
-
-    from pylinac.core.image_generator import AS1200Image
-    from pylinac.core.image_generator.layers import FilterFreeConeLayer, GaussianFilterLayer, PerfectBBLayer, RandomNoiseLayer
-
-    as1200 = AS1200Image()
-    as1200.add_layer(FilterFreeConeLayer(50))
-    as1200.add_layer(PerfectBBLayer(bb_size_mm=5))
-    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
-    as1200.add_layer(RandomNoiseLayer(sigma=2000))
-
 
 .. plot::
 
@@ -185,19 +139,6 @@ Winston-Lutz FFF Cone Field with Noise
 VMAT DRMLC
 ^^^^^^^^^^
 
-.. code-block:: python
-
-    from pylinac.core.image_generator import AS1200Image
-    from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
-
-    as1200 = AS1200Image()
-    as1200.add_layer(FilteredFieldLayer((150, 20), cax_offset_mm=(0, -40)))
-    as1200.add_layer(FilteredFieldLayer((150, 20), cax_offset_mm=(0, -10)))
-    as1200.add_layer(FilteredFieldLayer((150, 20), cax_offset_mm=(0, 20)))
-    as1200.add_layer(FilteredFieldLayer((150, 20), cax_offset_mm=(0, 50)))
-    as1200.add_layer(GaussianFilterLayer())
-
-
 .. plot::
 
     from matplotlib import pyplot as plt
@@ -213,6 +154,25 @@ VMAT DRMLC
     plt.imshow(as1200.image)
     plt.show()
 
+Picket Fence
+^^^^^^^^^^^^
+
+.. plot::
+
+    from matplotlib import pyplot as plt
+    from pylinac.core.image_generator import AS1200Image
+    from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
+
+    as1200 = AS1200Image()
+    height = 350
+    width = 4
+    offsets = range(-100, 100, 20)
+    for offset in offsets:
+        as1200.add_layer(FilteredFieldLayer((height, width), cax_offset_mm=(0, offset)))
+    as1200.add_layer(GaussianFilterLayer())
+    plt.imshow(as1200.image)
+    plt.show()
+
 Starshot
 ^^^^^^^^
 
@@ -222,28 +182,6 @@ rotates the image after every layer is applied.
 .. note:: Rotating the image like this is a convenient trick but note that it will rotate the entire existing image
           including all previous layers. This will also possibly erroneously adjust the horn effect simulation.
           Use with caution.
-
-.. code-block:: python
-
-    from scipy import ndimage
-
-    from pylinac.core.image_generator import AS1200Image
-    from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
-
-    as1200 = AS1200Image()
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
-    as1200.add_layer(FilteredFieldLayer((250, 7), alpha=0.5))
-    as1200.add_layer(GaussianFilterLayer())
-
 
 .. plot::
 

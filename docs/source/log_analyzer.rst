@@ -77,10 +77,16 @@ Which will output the following::
     Gamma pass %: 18.65
     Gamma average: 0.468
 
-.. image:: images/logs/dlog_results.png
+.. plot::
+    :include-source: false
+
+    import pylinac
+    pylinac.Dynalog.run_demo()
 
 Your file location will be different, but the values should be the same.
-The same can be done using the demo Trajectory log::
+The same can be done using the demo Trajectory log:
+
+.. code-block:: python
 
     from pylinac import TrajectoryLog
     TrajectoryLog.run_demo()
@@ -95,7 +101,12 @@ Which will give::
     Gamma pass %: 100.00
     Gamma average: 0.002
 
-.. image:: images/logs/tlog_analyzed.png
+.. plot::
+    :include-source: false
+
+    import pylinac
+    pylinac.TrajectoryLog.run_demo()
+
 
 Note that you can also save data in a PDF report:
 
@@ -235,7 +246,7 @@ Working with Axis Data
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Axis data is all the information relating to the measurements of the various machine axes and is accessible
-under the `axis_data` attribute. This includes the gantry,
+under the ``axis_data`` attribute. This includes the gantry,
 collimator, MLCs, etc. Trajectory logs capture more information than Dynalogs, and additionally hold the expected
 positions not only for MLCs but also for all axes. Every measurement axis has :class:`~pylinac.log_analyzer.Axis` as
 its base; they all have similar methods to access and plot the data (see :ref:`plotting`). However, not all attributes
@@ -385,49 +396,48 @@ expected arrays, then the difference is also available.
 
 Example of plotting the MU actual:
 
-.. code-block:: python
+.. plot::
+    :context:
 
-    log = TrajectoryLog.from_demo()
+    import pylinac
+
+    log = pylinac.TrajectoryLog.from_demo()
     log.axis_data.mu.plot_actual()
-
-.. raw:: html
-    :file: images/logs/tlog_mu_actual.html
 
 Plot the Gantry difference:
 
-.. code-block:: python
+.. plot::
+    :context:
 
     log.axis_data.gantry.plot_difference()
 
-.. raw:: html
-    :file: images/logs/gantry_difference.html
+Axis plots are just as easily saved:
 
-Axis plots are just as easily saved::
+.. code-block:: python
 
     log.axis_data.gantry.save_plot_difference(filename='gantry diff.png')
 
-Now, lets plot the actual fluence::
-
-    log.fluence.actual.plot_map()
-
-.. image:: images/logs/tlog_actual_fluence.png
-
-And the fluence gamma::
-
-    log.fluence.gamma.plot_map()
-
-.. image:: images/logs/actual_fluence.png
-
-Additionally, you can calculate and view the fluences of subbeams if you're working with trajectory logs::
-
-    log = TrajectoryLog.from_demo()
-    log.subbeams[0].fluence.actual.calc_map()
-    log.subbeams[0].fluence.actual.plot_map()
+Now, lets plot the actual fluence:
 
 .. plot::
+    :context:
 
-    from pylinac import TrajectoryLog
-    log = TrajectoryLog.from_demo()
+    log.fluence.actual.calc_map()
+    log.fluence.actual.plot_map()
+
+And the fluence gamma. But note we must calculate the gamma first, passing in any DoseTA or DistTA parameters:
+
+.. plot::
+    :context:
+
+    log.fluence.gamma.calc_map()
+    log.fluence.gamma.plot_map()
+
+Additionally, you can calculate and view the fluences of subbeams if you're working with trajectory logs:
+
+.. plot::
+    :context:
+
     log.subbeams[0].fluence.gamma.calc_map()
     log.subbeams[0].fluence.actual.plot_map()
 
@@ -438,7 +448,9 @@ If you already have the log files, you obviously have a record of treatment. How
 format and are not easily readable without tools like pylinac. You can save trajectory logs in a more readable format
 through the :meth:`~pylinac.log_analyzer.TrajectoryLog.to_csv()` method. This will write the log to a comma-separated
 variable (CSV) file, which can be read with Excel and many other programs. You can do further or specialized analysis
-with the CSV files if you wish, without having to use pylinac::
+with the CSV files if you wish, without having to use pylinac:
+
+.. code-block:: python
 
     log = TrajectoryLog.from_demo()
     log.to_csv()
@@ -447,7 +459,9 @@ Anonymizing Logs
 ----------------
 
 Machine logs can be anonymized two ways. The first is using the :meth:`~pylinac.log_analyzer.TrajectoryLog.anonymize` method, available to
-both Trajectory logs and Dynalogs. Example script::
+both Trajectory logs and Dynalogs. Example script:
+
+.. code-block:: python
 
     tlog = TrajectoryLog.from_demo()
     tlog.anonymize()
@@ -455,7 +469,9 @@ both Trajectory logs and Dynalogs. Example script::
     dlog.anonymize()
 
 The other way is the use the module function :func:`~pylinac.log_analyzer.anonymize`. This function will anonymize a single
-log file or a whole directory. If you plan on anonymizing a lot of logs, use this method as it is threaded and is much faster::
+log file or a whole directory. If you plan on anonymizing a lot of logs, use this method as it is threaded and is much faster:
+
+.. code-block:: python
 
     from pylinac.log_analyzer import anonymize
 

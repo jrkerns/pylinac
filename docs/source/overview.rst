@@ -28,22 +28,17 @@ What is pylinac NOT?
 .. role:: strike
 
 - Pylinac is not a database. Data outputs should be placed onto your clinic's data repository. You should use a high-quality
-  specially application like `QAtrack+ <http://qatrackplus.com/>`_, an open source application taylor-made for routine physics QA.
+  specialty application like `QAtrack+ <http://qatrackplus.com/>`_, an open source application taylor-made (bah-dum-ch) for routine physics QA.
 - Pylinac is not liable for incorrect outputs. Either by inputting incorrect data, or the algorithm being incorrect,
   you should **always** validate pylinac against a known methodology (automatic or manual), just as you should
   do for any software used in your clinic.
 - Pylinac is not commercial software. It is open-source with a very lenient `MIT license <https://github.com/jrkerns/pylinac/blob/master/LICENSE.txt>`_
   which means it can be used publicly, privately, or even used in commercial applications royalty-free.
 
-Intended Use
-------------
+Intended Audience
+-----------------
 
-Pylinac is intended to be used by two types of physicists: ones who know at least a bit of programming and those who know nothing about
-programming.
-
-For the first group, pylinac can be used within a Python environment to automate analysis of QA images.
-
-For the second group, pylinac is also implemented as a `web app <www.assuranceqa.herokuapp.com>`_ and a desktop GUI.
+Pylinac is intended to be used by physicists who know at least a bit of programming.
 
 Philosophy
 ----------
@@ -56,6 +51,7 @@ Pylinac runs on a few philosophical principles:
 * The underlying code of pylinac should be easy to understand.
 
 .. epigraph::
+
     The joy of coding Python should be in seeing short, concise, readable classes that express
     a lot of action in a small amount of clear code -- not in reams of trivial code that bores
     the reader to death.

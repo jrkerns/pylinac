@@ -14,12 +14,12 @@ Running the Demo
 
 To run one of the CatPhan demos, create a script or start an interpreter and input:
 
-.. code-block:: python
+.. plot::
 
     from pylinac import CatPhan504
-    CatPhan504.run_demo() # the demo is a Varian high quality head scan
+    cbct = CatPhan504.run_demo()  # the demo is a Varian high quality head scan
 
-Results will be printed to the console and a figure showing the slices analyzed will pop up::
+Results will be also be printed to the console::
 
     - CatPhan 504 QA Test -
     HU Linearity ROIs: Air: -998.0, PMP: -200.0, LDPE: -102.0, Poly: -45.0, Acrylic: 115.0, Delrin: 340.0, Teflon: 997.0
@@ -36,41 +36,38 @@ Results will be printed to the console and a figure showing the slices analyzed 
     MTF 50% (lp/mm): 0.56
     Low contrast ROIs "seen": 3
 
+
+As well, you can plot and save individual pieces of the analysis such as linearity:
+
 .. plot::
 
     from pylinac import CatPhan504
-    cbct = CatPhan504.from_demo_images()
-    cbct.analyze()
-    cbct.plot_analyzed_image()
-
-As well, you can plot and save individual pieces of the analysis:
-
-.. code-block:: python
 
     cbct = CatPhan504.from_demo_images()
     cbct.analyze()
     cbct.plot_analyzed_subimage('linearity')
     cbct.save_analyzed_subimage('linearity.png', subimage='linearity')
 
-.. raw:: html
-    :file: images/cbct_hu_lin.html
-
-Or:
+Or the rMTF:
 
 .. code-block:: python
 
     cbct.plot_analyzed_subimage('rmtf')
 
-.. raw:: html
-    :file: images/cbct_rmtf.html
+.. plot::
+    :include-source: false
+
+    from pylinac import CatPhan504
+
+    cbct = CatPhan504.from_demo_images()
+    cbct.analyze()
+    cbct.plot_analyzed_subimage('rmtf')
 
 Or generate a PDF report:
 
 .. code-block:: python
 
     cbct.publish_pdf('mycbct.pdf')
-
-
 
 Typical Use
 -----------
@@ -140,7 +137,7 @@ the behavior can be customized. Pylinac **always** has to be aware of the CTP404
 for everything else. Thus, if the 404 is not in the scan you're SOL. However, if one of the other modules is not present
 you can remove or adjust its offset by subclassing and overloading the ``modules`` attr:
 
-  .. code-block:: python
+.. code-block:: python
 
     from pylinac import CatPhan504  # works for any of the other phantoms too
     from pylinac.ct import CTP515, CTP486
@@ -159,7 +156,7 @@ Examining rMTF
 
 The rMTF can be calculated ad hoc like so. Note that CTP528 must be present (see above):
 
-  .. code-block:: python
+.. code-block:: python
 
     ct = ... # load a dataset like normal
     ct.analyze()
@@ -171,7 +168,7 @@ Customizing module locations
 Similar to partial scans, to modify the module location(s), overload the ``modules`` attr and edit the ``offset`` value.
 The value is in mm:
 
-  .. code-block:: python
+.. code-block:: python
 
     from pylinac import CatPhan504  # works for any of the other phantoms too
     from pylinac.ct import CTP515, CTP486, CTP528

@@ -11,6 +11,16 @@ General
 
 Thanks to several contributors for making pull requests in this release!
 
+* A new image generator module has been added. This module can generate custom test images easily: :ref:`image_generator_module`.
+* The core peak-finding functionality used in several modules was refactored to use `scipy's implementation <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html>`_.
+  When pylinac was built, such a function did not exist. Now that it does, the custom code has been removed (yay!).
+  The major difference between this implementation and pylinac's is the use of "prominence", which is a concept I had never
+  heard of. The resulting peak-finding functionality is the same for max-value peak-finding. For FWXM peak finding, this
+  can have small differences. The biggest differences would be for profiles that have a very asymmetric "floor".
+  I.e. if one valley on one side of the peak has a very different value than the other side then a difference would be detected.
+  Fortunately, this is a very rare scenario.
+* Documentation plots have been updated to be generated on-the-fly. This will result in better agreement with documentation plots
+  vs. what people experience. Previously, some old figures were used that did not match the functionality.
 * The GUI function was removed from the pylinac init file. This was causing issues when deploying to Heroku as calls to tkinter
   caused failures. The GUI should be called from the submodule now:
 
@@ -24,10 +34,17 @@ Thanks to several contributors for making pull requests in this release!
     from pylinac.py_gui import gui
     gui()
 
+Dependencies
+############
+
+Two requirements have been bumped: ``scipy>=1.1`` and ``scikit-image>=0.17``.
+
 CT Module
 ^^^^^^^^^
 
-No breaking changes have been introduced. The CT module has been reworked to be far more extensible to adjust individual component modules as desired. Previously,
+If you do not perform any advanced functionality, no changes are noteworthy.
+
+The CT module has been reworked to be far more extensible to adjust individual component modules as desired. Previously,
 only the offset of the modules was easily adjustable. To edit individual modules the user would have to edit the source code directly.
 Now, the user can subclass individual modules, overload attributes as desired and pass those to the parent CatPhan class.
 A new tutorial section has been added to the documentation showing examples of this functionality.
@@ -49,6 +66,9 @@ Flatness & Symmetry
 The flatness & symmetry module has been updated to allow for profiles of a select width to be analyzed rather than a single
 pixel profile.
 
+* A ``filter`` parameter has been added to the constructor. This filter will apply a median filter of pixel size x.
+* Due to the new peak-finding function, flatness and symmetry values may be slightly different. In testing, if a filter was
+  not used the values could change by up to 0.3%. However, when a filter was applied the difference was negligible.
 * Two new keyword parameters were added to analyze: ``vert_width`` and ``horiz_width``. You can read about their usage
   in the ``analyze`` documentation.
 * The ``plot()`` method was renamed to ``plot_analyzed_image()`` to match the rest of the modules.
@@ -61,13 +81,12 @@ The watcher script has been officially deprecated for now (it was broken for a l
 Bug Fixes
 ^^^^^^^^^
 
-* `#314 <https://github.com/jrkerns/pylinac/issues/314>`_ The Flat/Sym module now performs pixel interpolation when calculating field width and edges.
 * `#325 <https://github.com/jrkerns/pylinac/issues/325>`_ The Leeds angle detection should be more robust when the phantom angle is very close to 0.
 * `#313 <https://github.com/jrkerns/pylinac/issues/313>`_ The catphan CTP486 module had an inverted top and bottom ROI assignment.
 * `#305 <https://github.com/jrkerns/pylinac/issues/305>`_ The Leeds ``invert`` parameter was not being respected.
 * `#303 <https://github.com/jrkerns/pylinac/issues/303>`_ Un-inverted WL image analysis would give an error.
 * `#290 <https://github.com/jrkerns/pylinac/issues/290>`_ Catphan HU linearity differences are now signed.
-* Loading starshots and picket fences from multiple images has been fixed.
+* `#301 <https://github.com/jrkerns/pylinac/issues/301>`_ Loading starshots and picket fences from multiple images has been fixed.
 
 
 v 2.3.2

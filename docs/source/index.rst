@@ -22,6 +22,7 @@
    flatsym
    core_modules
    image_generator
+   gui
    pylinac_core_hacking
    troubleshooting
    contributing

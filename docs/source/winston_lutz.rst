@@ -36,8 +36,12 @@ Results will be printed to the console and a figure showing the zoomed-in images
     Couch 2D isocenter diameter: 2.32mm (7/17 images considered)
     Maximum Couch RMS deviation (mm): 1.23
 
+.. plot::
+    :include-source: false
 
-.. image:: images/winston_lutz_demo.png
+    from pylinac import WinstonLutz
+
+    WinstonLutz.run_demo()
 
 Image Acquisition
 -----------------

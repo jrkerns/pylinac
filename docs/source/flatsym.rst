@@ -17,25 +17,37 @@ Running the Demo
 
 To run the demo, import the main class and run the demo method:
 
-.. code-block:: python
+.. plot::
 
     from pylinac import FlatSym
 
     FlatSym.run_demo()
 
-Which will result in the following output and plot::
+Which will also result in the following output::
 
     Flatness & Symmetry
-    ===================
-    File: ...\pylinac\demo_files\flatsym_demo.dcm
-    Flatness method: Varian
-    Vertical flatness: 1.93%
-    Horizontal flatness: 1.86%
-    Symmetry method: Varian
-    Vertical symmetry: 2.46%
-    Horizontal symmetry: 2.99%
+    File: C:\Users\jkern\...inac\pylinac\demo_files\flatsym_demo.dcm
 
-.. image:: images/flatsym_demo.png
+    Flatness method: Varian
+    Vertical flatness: 1.931%
+    Horizontal flatness: 1.857%
+    Symmetry method: Varian
+    Vertical symmetry: 2.462%
+    Horizontal symmetry: 2.989%
+
+    Penumbra (80/20):
+    Horizontal: 2.6mm
+    Vertical: 2.8mm
+
+    Field Size:
+    Horizontal: 140.9mm
+    Vertical: 200.2mm
+
+    CAX to edge distances:
+    CAX -> Upper edge: 99.9mm
+    CAX -> Lower edge: 100.4mm
+    CAX -> Left edge: 60.4mm
+    CAX -> Right edge: 80.6mm
 
 Typical Use
 -----------
@@ -156,15 +168,15 @@ one input and correct number and order of outputs is fixed:
 
 .. code-block:: python
 
-    def custom_flatness(profile):
+    def custom_flatness(profile: SingleProfile) -> Sequence[float]:
         ...
         return flatness_value, max_value, min_value, left_edge_index, right_edge_index
 
-    def custom_symmetry(profile):
+    def custom_symmetry(profile: SingleProfile) -> Tuple[float, Sequence[float], float, float]:
         ...
         return symmetry_value, symmetry_array, left_edge, right_edge
 
-While most values are easily understood the ``symmetry_array`` should be a numpy array of the symmetry value at each point,
+While most values are easily understood the ``symmetry_array`` should be a list of floats or numpy array of the symmetry value at each point,
 assuming to start at the CAX and move outward.
 
 .. note:: When creating custom algorithms, use the above for guidance. It 1) must be a function and
@@ -192,7 +204,7 @@ The name can be anything you like that is a valid dictionary key:
     from pylinac import FlatSym
     from pylinac.flatsym import SYMMETRY_EQUATIONS, FLATNESS_EQUATIONS
 
-    def custom_flatness(profile):
+    def custom_flatness(profile: SingleProfile):
         ...
 
     FLATNESS_EQUATIONS['my custom flatness'] = custom_flatness  # no parentheses; we don't want to call it, just assign it
