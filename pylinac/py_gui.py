@@ -6,7 +6,7 @@ from tkinter import messagebox
 import os.path as osp
 import webbrowser
 
-from . import picketfence, vmat, ct, log_analyzer, starshot, planar_imaging, __version__, winston_lutz, utilities, watcher
+from . import picketfence, vmat, ct, log_analyzer, starshot, planar_imaging, __version__, winston_lutz, utilities
 
 
 class PylinacGUI(Frame):
@@ -23,7 +23,6 @@ class PylinacGUI(Frame):
         self.init_star()
         self.init_planar_imaging()
         self.init_winstonlutz()
-        self.init_watcher()
         self.init_help()
         for child in self.winfo_children():
             child.grid_configure(padx=10, pady=10)
@@ -53,37 +52,6 @@ class PylinacGUI(Frame):
         Button(self.help_tab, text='Github', command=gotogithub)
         self.notebook.add(self.help_tab, text='Help/Upload Images')
         for child in self.help_tab.winfo_children():
-            child.grid_configure(padx=10, pady=5)
-
-    def init_watcher(self):
-
-        def load_yaml():
-            f = filedialog.askopenfilename()
-            self.watch_yaml.set(f)
-
-        def load_dir():
-            f = filedialog.askdirectory()
-            self.watch_dir.set(f)
-
-        def process_dir():
-            watcher.process(directory=self.watch_dir.get(), config_file=self.watch_yaml.get(), force=self.watch_force.get())
-
-        def open_dir():
-            webbrowser.open(self.watch_dir.get())
-
-        self.watch_tab = Frame(self.notebook)
-        self.watch_yaml = StringVar(value=osp.join(osp.dirname(__file__), 'watcher_config.yml'))
-        self.watch_dir = StringVar()
-        self.watch_force = BooleanVar(value=False)
-        Button(self.watch_tab, text='Load YAML config file...', command=load_yaml).grid(column=1, row=1)
-        Label(self.watch_tab, textvariable=self.watch_yaml).grid(column=1, row=2)
-        Button(self.watch_tab, text='Select analysis directory...', command=load_dir).grid(column=1, row=3)
-        Label(self.watch_tab, textvariable=self.watch_dir).grid(column=1, row=4)
-        Checkbutton(self.watch_tab, text='Force analysis (even previously analysed files)?', variable=self.watch_force).grid(column=1, row=5)
-        Button(self.watch_tab, text='Process directory', command=process_dir).grid(column=1, row=6)
-        Button(self.watch_tab, text='Open analysis directory', command=open_dir).grid(column=1, row=7)
-        self.notebook.add(self.watch_tab, text='Batch Processor')
-        for child in self.watch_tab.winfo_children():
             child.grid_configure(padx=10, pady=5)
 
     def init_vmat(self):

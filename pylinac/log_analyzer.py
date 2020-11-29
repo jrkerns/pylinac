@@ -1427,7 +1427,6 @@ class LogBase:
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    @argue.options(graph=('gamma hist', 'leaf hist', 'leaf rms'))
     def plot_subgraph(self, graph: str, ax: plt.Axes=None, show: bool=True, fontsize: int=10, labelsize: int=8):
         # graph: {'gamma hist', 'leaf hist', 'leaf rms'}
         if ax is None:
@@ -1450,7 +1449,6 @@ class LogBase:
         if show:
             plt.show()
 
-    @argue.options(img=('gamma hist', 'leaf hist', 'leaf rms'))
     def save_subgraph(self, filename: str, img: str, fontsize: int=10, labelsize: int=8, **kwargs):
         self.plot_subgraph(img, show=False, fontsize=fontsize, labelsize=labelsize)
         plt.savefig(filename, **kwargs)

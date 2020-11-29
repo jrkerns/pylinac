@@ -185,12 +185,12 @@ class CatPhanModule(Slice):
     """
     combine_method: str = 'mean'
     num_slices: int = 0
-    roi_settings: dict
-    background_roi_settings: dict
+    roi_settings: dict = {}
+    background_roi_settings: dict = {}
     roi_dist_mm = float
     roi_radius_mm = float
-    rois: dict  # dicts of HUDiskROIs
-    background_rois: dict  # dict of HUDiskROIs; possibly empty
+    rois: dict = {}  # dicts of HUDiskROIs
+    background_rois: dict = {}  # dict of HUDiskROIs; possibly empty
 
     def __init__(self, catphan, tolerance: float, offset: int=0):
         """
@@ -900,7 +900,7 @@ class CatPhanBase:
         self.plot_analyzed_image(show=False)
         plt.savefig(filename, **kwargs)
 
-    @argue.options(subimage=('hu', 'un', 'lc', 'mtf', 'lin', 'prof'))
+    @argue.options(subimage=('hu', 'un', 'lc', 'mtf', 'lin', 'prof', 'sp'))
     def plot_analyzed_subimage(self, subimage: str='hu', delta: bool=True, show: bool=True) -> None:
         """Plot a specific component of the CBCT analysis.
 
@@ -956,7 +956,7 @@ class CatPhanBase:
         if show:
             plt.show()
 
-    @argue.options(subimage=('hu', 'un', 'lc', 'mtf', 'lin', 'prof'))
+    @argue.options(subimage=('hu', 'un', 'lc', 'mtf', 'lin', 'prof', 'sp'))
     def save_analyzed_subimage(self, filename: str, subimage: str='hu', **kwargs):
         """Save a component image to file.
 
