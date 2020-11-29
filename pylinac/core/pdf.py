@@ -1,6 +1,6 @@
 """Module for constructing and interacting with PDF reports for Pylinac."""
 from datetime import datetime
-from typing import List, Union, Sequence
+from typing import List, Union, Sequence, Tuple
 import io
 import os.path as osp
 
@@ -10,6 +10,7 @@ from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
 
+from .typing import NumberLike
 from .. import __version__
 
 
@@ -24,12 +25,12 @@ class PylinacCanvas:
         self._generate_pylinac_template_theme()
         self._add_metadata()
 
-    def add_new_page(self):
+    def add_new_page(self) -> None:
         self.canvas.showPage()
         self._generate_pylinac_template_theme()
         self._add_metadata()
 
-    def _add_metadata(self):
+    def _add_metadata(self) -> None:
         if self._metadata is None:
             return
         else:
@@ -38,7 +39,7 @@ class PylinacCanvas:
                 text.append(f"{key}: {value}")
             self.add_text(text=text, location=self._metadata_location)
 
-    def _generate_pylinac_template_theme(self):
+    def _generate_pylinac_template_theme(self) -> None:
         # draw logo and header separation line
         self.canvas.drawImage(osp.join(osp.dirname(osp.dirname(osp.abspath(__file__))), 'files', 'Pylinac Full cropped.png'),
                          1 * cm, 26.5 * cm, width=5 * cm, height=3 * cm, preserveAspectRatio=True)
@@ -49,7 +50,7 @@ class PylinacCanvas:
         date = datetime.now().strftime("%B %d, %Y, %H:%M")
         self.add_text(f"Generated with Pylinac v{__version__} on {date}", location=(0.5, 0.5), font_size=8)
 
-    def add_text(self, text: Union[str, List[str]], location: Sequence, font_size: int=10):
+    def add_text(self, text: Union[str, List[str]], location: Tuple[NumberLike, NumberLike], font_size: int=10) -> None:
         """Generic text drawing function.
 
         Parameters
@@ -73,12 +74,12 @@ class PylinacCanvas:
                 textobj.textLine(line)
         self.canvas.drawText(textobj)
 
-    def add_image(self, image_data: io.BytesIO, location: Sequence, dimensions: Sequence, preserve_aspect_ratio: bool=True):
+    def add_image(self, image_data: io.BytesIO, location: Sequence, dimensions: Sequence, preserve_aspect_ratio: bool=True) -> None:
         image_data.seek(0)
         image = ImageReader(Image.open(image_data))
         self.canvas.drawImage(image, location[0]*cm, location[1]*cm, width=dimensions[0]*cm,
                               height=dimensions[1]*cm, preserveAspectRatio=preserve_aspect_ratio)
 
-    def finish(self):
+    def finish(self) -> None:
         self.canvas.showPage()
         self.canvas.save()

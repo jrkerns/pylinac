@@ -10,7 +10,7 @@ Features:
 * **Automatic open/DMLC identification** - Pass in both images--don't worry about naming. Pylinac will automatically identify the right images.
 """
 from io import BytesIO
-from typing import Union, List, Tuple, Sequence
+from typing import Union, List, Tuple, Sequence, Optional
 
 import argue
 import matplotlib.pyplot as plt
@@ -18,6 +18,7 @@ import numpy as np
 
 from .core import image
 from .core.geometry import Point, Rectangle
+from .core.image import ImageLike
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import SingleProfile
@@ -102,7 +103,7 @@ class VMATBase:
         self._construct_segments(points)
 
     @staticmethod
-    def _load_images(image_paths):
+    def _load_images(image_paths: list) -> Tuple[ImageLike, ImageLike]:
         image1 = image.load(image_paths[0])
         image2 = image.load(image_paths[1])
         image1.ground()
@@ -110,13 +111,13 @@ class VMATBase:
         return image1, image2
 
     @staticmethod
-    def _check_img_inversion(image1, image2):
+    def _check_img_inversion(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, ImageLike]:
         """Check that the images are correctly inverted."""
         for image in [image1, image2]:
             image.check_inversion()
         return image1, image2
 
-    def _identify_images(self, image1, image2):
+    def _identify_images(self, image1: ImageLike, image2: ImageLike):
         """Identify which image is the DMLC and which is the open field."""
         profile1, profile2 = self._median_profiles((image1, image2))
         field_profile1 = profile1.field_values()
@@ -232,7 +233,7 @@ class VMATBase:
         plt.savefig(filename, **kwargs)
 
     @argue.options(subimage=(DMLC, OPEN, PROFILE))
-    def _plot_analyzed_subimage(self, subimage: str, show: bool=True, ax: plt.Axes=None):
+    def _plot_analyzed_subimage(self, subimage: str, show: bool=True, ax: Optional[plt.Axes]=None):
         """Plot an individual piece of the VMAT analysis.
 
         Parameters
@@ -300,7 +301,7 @@ class VMATBase:
 
         return profile1, profile2
 
-    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: dict=None):
+    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters

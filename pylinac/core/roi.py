@@ -9,6 +9,7 @@ from matplotlib.patches import Circle as mpl_Circle
 from skimage.measure._regionprops import _RegionProperties
 
 from .geometry import Circle, Point, Rectangle
+from .typing import NumberLike
 
 
 def bbox_center(region: _RegionProperties) -> Point:
@@ -52,7 +53,7 @@ class DiskROI(Circle):
         self._array = array
 
     @staticmethod
-    def _get_shifted_center(angle: Union[float, int], dist_from_center: Union[float, int], phantom_center: Point):
+    def _get_shifted_center(angle: Union[float, int], dist_from_center: Union[float, int], phantom_center: Point) -> Point:
         """The center of the ROI; corrects for phantom dislocation and roll."""
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
@@ -82,7 +83,7 @@ class DiskROI(Circle):
         masked_array[outer_disk_mask] = np.NaN
         return masked_array
 
-    def plot2axes(self, axes=None, edgecolor: str='black', fill: bool=False):
+    def plot2axes(self, axes=None, edgecolor: str='black', fill: bool=False) -> None:
         """Plot the Circle on the axes.
 
         Parameters
@@ -106,8 +107,10 @@ class LowContrastDiskROI(DiskROI):
     cnr_threshold: Optional[float]
     background: Optional[float]
 
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold=None, background=None,
-                 cnr_threshold=None):
+    def __init__(self, array: np.ndarray, angle: float, roi_radius: float, dist_from_center: float,
+                 phantom_center: Union[tuple, Point], contrast_threshold: Optional[float] = None,
+                 background: Optional[float] = None,
+                 cnr_threshold: Optional[float] = None):
         """
         Parameters
         ----------
@@ -174,7 +177,7 @@ class HighContrastDiskROI(DiskROI):
     """A class for analyzing the high-contrast disks."""
     contrast_threshold: Optional[float]
 
-    def __init__(self, array, angle, roi_radius, dist_from_center, phantom_center, contrast_threshold):
+    def __init__(self, array: np.ndarray, angle: float, roi_radius: float, dist_from_center: float, phantom_center: Union[tuple, Point], contrast_threshold: float):
         """
         Parameters
         ----------

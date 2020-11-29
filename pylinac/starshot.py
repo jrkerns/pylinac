@@ -21,7 +21,7 @@ Features:
 """
 import copy
 import io
-from typing import Union, List
+from typing import Union, List, Optional
 
 import argue
 import matplotlib.pyplot as plt
@@ -161,7 +161,7 @@ class Starshot:
 
     @argue.bounds(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
     def analyze(self, radius: float=0.85, min_peak_height: float=0.25, tolerance: float=1.0,
-                start_point: Point=None, fwhm: bool=True, recursive: bool=True, invert=False):
+                start_point: Point=None, fwhm: bool=True, recursive: bool=True, invert: bool=False):
         """Analyze the starshot image.
 
         Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -274,7 +274,7 @@ class Starshot:
                                 raise RuntimeError("The algorithm was unable to determine a reasonable wobble. Try setting "
                                                    "recursive to False and manually adjusting algorithm parameters")
 
-    def _find_wobble_minimize(self):
+    def _find_wobble_minimize(self) -> None:
         """Find the minimum distance wobble location and radius to all radiation lines.
 
         The minimum is found using a scipy minimization function.
@@ -336,7 +336,7 @@ class Starshot:
         if show:
             plt.show()
 
-    def plot_analyzed_subimage(self, subimage: str='wobble', ax: plt.Axes=None, show: bool=True):
+    def plot_analyzed_subimage(self, subimage: str='wobble', ax: Optional[plt.Axes]=None, show: bool=True):
         """Plot a subimage of the starshot analysis. Current options are the zoomed out image and the zoomed in image.
 
         Parameters
@@ -399,7 +399,7 @@ class Starshot:
         self.plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
-    def publish_pdf(self, filename: str, notes: Union[str, List[str]]=None, open_file: bool=False, metadata: dict=None):
+    def publish_pdf(self, filename: str, notes: Union[str, List[str]]=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters

@@ -1,8 +1,9 @@
 """Module for analyzing images, either film or EPID, for flatness and symmetry."""
 import io
 import os.path as osp
-from typing import Tuple, Union
+from typing import Tuple, Union, Sequence, Optional
 
+import argue
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -15,7 +16,7 @@ from .core import pdf
 from .settings import get_dicom_cmap
 
 
-def flatness_varian(profile: SingleProfile):
+def flatness_varian(profile: SingleProfile) -> Sequence[float]:
     """The Varian specification for calculating flatness"""
     try:
         dmax = profile.field_calculation(field_width=0.8, calculation='max')
@@ -27,7 +28,7 @@ def flatness_varian(profile: SingleProfile):
     return flatness, dmax, dmin, lt_edge, rt_edge
 
 
-def flatness_elekta(profile: SingleProfile):
+def flatness_elekta(profile: SingleProfile) -> Sequence[float]:
     """The Elekta specification for calculating flatness"""
     try:
         dmax = profile.field_calculation(field_width=0.8, calculation='max')
@@ -39,23 +40,20 @@ def flatness_elekta(profile: SingleProfile):
     return flatness, dmax, dmin, lt_edge, rt_edge
 
 
-def symmetry_point_difference(profile: SingleProfile):
+def symmetry_point_difference(profile: SingleProfile) -> Tuple[float, Sequence[float], float, float]:
     """Calculation of symmetry by way of point difference equidistant from the CAX"""
     values = profile.field_values(field_width=0.8)
     lt_edge, rt_edge = profile.field_edges(field_width=0.8)
     _, cax_val = profile.fwxm_center()
-    max_val = 0
     sym_array = []
     for lt_pt, rt_pt in zip(values, values[::-1]):
         val = 100 * abs(lt_pt - rt_pt) / cax_val
         sym_array.append(val)
-        if val > max_val:
-            max_val = val
-    symmetry = max_val
+    symmetry = max(sym_array)
     return symmetry, sym_array, lt_edge, rt_edge
 
 
-def symmetry_pdq_iec(profile: SingleProfile):
+def symmetry_pdq_iec(profile: SingleProfile) -> Tuple[float, Sequence[float], float, float]:
     """Symmetry calculation by way of PDQ IEC"""
     values = profile.field_values(field_width=0.8)
     lt_edge, rt_edge = profile.field_edges(field_width=0.8, interpolate=True)
@@ -100,7 +98,7 @@ class FlatSym:
         The width ratios used for analysis for vertical and horizontal.
     """
 
-    def __init__(self, path: str, filter: Union[None, int]=None):
+    def __init__(self, path: str, filter: Optional[int]=None):
         """
         Parameters
         ----------
@@ -133,8 +131,10 @@ class FlatSym:
         print(fs.results())
         fs.plot_analyzed_image()
 
+    @argue.options(flatness_method=FLATNESS_EQUATIONS.keys(), symmetry_method=SYMMETRY_EQUATIONS.keys())
+    @argue.bounds(vert_position=(0, 1), horiz_position=(0, 1), vert_width=(0, 1), horiz_width=(0, 1))
     def analyze(self, flatness_method: str, symmetry_method: str, vert_position: float=0.5, horiz_position: float=0.5,
-                vert_width=0, horiz_width=0, invert=False):
+                vert_width: Union[float, int]=0, horiz_width: Union[float, int]=0, invert: bool=False):
         """Analyze the image to determine flatness & symmetry.
 
         Parameters
@@ -165,7 +165,7 @@ class FlatSym:
         self.flatness = self._calc_flatness(flatness_method, vert_position, horiz_position, vert_width, horiz_width)
         self._is_analyzed = True
 
-    def results(self, as_str=True) -> Union[str, list]:
+    def results(self, as_str: bool=True) -> Union[str, list]:
         """Get the results of the analysis.
 
         Parameters
@@ -219,7 +219,7 @@ class FlatSym:
             results = '\n'.join(result for result in results)
         return results
 
-    def _get_vert_profile(self, vert_position: float, vert_width: float):
+    def _get_vert_profile(self, vert_position: float, vert_width: float) -> SingleProfile:
         left_edge = int(round(self.image.array.shape[1]*vert_position - self.image.array.shape[1]*vert_width/2))
         left_edge = max(left_edge, 0)  # clip to 0
         right_edge = int(round(self.image.array.shape[1]*vert_position + self.image.array.shape[1]*vert_width/2) + 1)
@@ -228,7 +228,7 @@ class FlatSym:
         self.positions['vertical right'] = right_edge
         return SingleProfile(np.sum(self.image.array[:, left_edge:right_edge], 1))
 
-    def _get_horiz_profile(self, horiz_position: float, horiz_width: float):
+    def _get_horiz_profile(self, horiz_position: float, horiz_width: float) -> SingleProfile:
         bottom_edge = int(round(self.image.array.shape[0] * horiz_position - self.image.array.shape[0] * horiz_width / 2))
         bottom_edge = max(bottom_edge, 0)
         top_edge = int(round(self.image.array.shape[0] * horiz_position + self.image.array.shape[0] * horiz_width / 2) + 1)
@@ -237,7 +237,7 @@ class FlatSym:
         self.positions['horizontal top'] = top_edge
         return SingleProfile(np.sum(self.image.array[bottom_edge:top_edge, :], 0))
 
-    def _calc_symmetry(self, method: str, vert_position: float, horiz_position: float, vert_width: float, horiz_width: float):
+    def _calc_symmetry(self, method: str, vert_position: float, horiz_position: float, vert_width: float, horiz_width: float) -> dict:
         vert_profile = self._get_vert_profile(vert_position, vert_width)
         horiz_profile = self._get_horiz_profile(horiz_position, horiz_width)
 
@@ -255,7 +255,7 @@ class FlatSym:
                 },
         }
 
-    def _calc_flatness(self, method: str, vert_position: float, horiz_position: float, vert_width: float, horiz_width: float):
+    def _calc_flatness(self, method: str, vert_position: float, horiz_position: float, vert_width: float, horiz_width: float) -> dict:
         vert_profile = self._get_vert_profile(vert_position, vert_width)
         horiz_profile = self._get_horiz_profile(horiz_position, horiz_width)
 
@@ -320,7 +320,7 @@ class FlatSym:
         if open_file:
             open_path(filename)
 
-    def plot_analyzed_image(self, show: bool=True):
+    def plot_analyzed_image(self, show: bool=True) -> None:
         """Plot the analyzed image. Shows both flatness & symmetry.
 
         Parameters
@@ -351,7 +351,7 @@ class FlatSym:
         if show:
             plt.show()
 
-    def _plot_image(self, axis: plt.Axes=None, title: str=''):
+    def _plot_image(self, axis: Optional[plt.Axes]=None, title: str=''):
         plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()
@@ -369,7 +369,7 @@ class FlatSym:
         _remove_ticklabels(axis)
         axis.set_title(title)
 
-    def _plot_flatness(self, direction: str, axis: plt.Axes=None):
+    def _plot_flatness(self, direction: str, axis: Optional[plt.Axes]=None):
         plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()
@@ -382,7 +382,7 @@ class FlatSym:
         axis.axvline(data['profile left'], color='g', linestyle='-.')
         axis.axvline(data['profile right'], color='g', linestyle='-.')
 
-    def _plot_symmetry(self, direction: str, axis: plt.Axes=None):
+    def _plot_symmetry(self, direction: str, axis: Optional[plt.Axes]=None):
         plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()

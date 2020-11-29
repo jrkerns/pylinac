@@ -161,7 +161,7 @@ def is_url(url: str) -> bool:
         return False
 
 
-def get_url(url: str, destination: str=None, progress_bar: bool=True):
+def get_url(url: str, destination: str=None, progress_bar: bool=True) -> str:
     """Download a URL to a local file.
 
     Parameters

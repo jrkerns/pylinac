@@ -1,14 +1,17 @@
 import warnings
+from typing import Sequence
 
 import argue
 import numpy as np
 from scipy.interpolate import interp1d
 
+from pylinac.core.roi import HighContrastDiskROI
+
 
 class MTF:
     """This class will calculate relative MTF"""
 
-    def __init__(self, lp_spacings, lp_maximums, lp_minimums):
+    def __init__(self, lp_spacings: Sequence[float], lp_maximums: Sequence[float], lp_minimums: Sequence[float]):
         """
 
         Parameters
@@ -39,7 +42,7 @@ class MTF:
             warnings.warn("The MTF does not drop monotonically; be sure the ROIs are correctly aligned.")
 
     @argue.bounds(x=(0, 100))
-    def relative_resolution(self, x=50):
+    def relative_resolution(self, x=50) -> float:
         """Return the line pair value at the given rMTF resolution value.
 
         Parameters
@@ -54,7 +57,7 @@ class MTF:
         return float(mtf)
 
     @classmethod
-    def from_high_contrast_diskset(cls, spacings, diskset):
+    def from_high_contrast_diskset(cls, spacings: Sequence[float], diskset: Sequence[HighContrastDiskROI]):
         """Construct the MTF using high contrast disks from the ROI module."""
         maximums = [roi.max for roi in diskset]
         minimums = [roi.min for roi in diskset]

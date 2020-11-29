@@ -154,7 +154,7 @@ class Circle:
         """Get the diameter of the circle."""
         return self.radius*2
 
-    def plot2axes(self, axes, edgecolor: str='black', fill: bool=False):
+    def plot2axes(self, axes, edgecolor: str='black', fill: bool=False) -> None:
         """Plot the Circle on the axes.
 
         Parameters
@@ -308,7 +308,7 @@ class Line:
         denominator = np.sqrt(np.sum(np.power(lp2 - lp1, 2)))
         return numerator/denominator
 
-    def plot2axes(self, axes: plt.Axes, width: NumberLike=1, color: str='w'):
+    def plot2axes(self, axes: plt.Axes, width: NumberLike=1, color: str='w') -> None:
         """Plot the line to an axes.
 
         Parameters

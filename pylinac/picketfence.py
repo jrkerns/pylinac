@@ -18,7 +18,7 @@ import os.path as osp
 import io
 from itertools import cycle
 from tempfile import TemporaryDirectory
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional, Any
 
 import argue
 import matplotlib.pyplot as plt
@@ -65,7 +65,8 @@ class PFDicomImage(image.LinacDicomImage):
         min_is_extreme = (min < near_min * 0.75) and (abs(min - near_min) > 0.1 * (near_max - near_min))
         return max_is_extreme or min_is_extreme
 
-    def adjust_for_sag(self, sag, orientation):
+    @argue.options(orientation=(UP_DOWN, LEFT_RIGHT))
+    def adjust_for_sag(self, sag: int, orientation: Union[UP_DOWN, LEFT_RIGHT]):
         """Roll the image to adjust for EPID sag."""
         direction = 'y' if orientation == UP_DOWN else 'x'
         self.roll(direction, sag)
@@ -230,9 +231,9 @@ class PicketFence:
         print(pf.results())
         pf.plot_analyzed_image(leaf_error_subplot=True)
 
-    def analyze(self, tolerance: float=0.5, action_tolerance: float=None, hdmlc: bool=False, num_pickets: int=None,
+    def analyze(self, tolerance: float=0.5, action_tolerance: Optional[float]=None, hdmlc: bool=False, num_pickets: Optional[int]=None,
                 sag_adjustment: Union[float, int]=0,
-                orientation: str=None, invert: bool=False):
+                orientation: Optional[str]=None, invert: bool=False):
         """Analyze the picket fence image.
 
         Parameters
@@ -459,7 +460,7 @@ class PicketFence:
 
     @property
     @lru_cache(maxsize=1)
-    def orientation(self) -> str:
+    def orientation(self) -> Union[UP_DOWN, LEFT_RIGHT]:
         """The orientation of the image, either Up-Down or Left-Right."""
         # if orientation was passed in, use it
         if type(self._orientation) is str:
@@ -497,7 +498,7 @@ class Overlay:
         self.settings = settings
         self.pickets = pickets
 
-    def add_to_axes(self, axes):
+    def add_to_axes(self, axes: plt.Axes):
         """Add the overlay to the axes."""
         rect_width = self.pickets[0].sample_width*2
         for mlc_num, mlc in enumerate(sorted(self.pickets, key=lambda x: len(x.mlc_meas))[0].mlc_meas):
@@ -603,7 +604,7 @@ class Settings:
 
 class PicketManager:
     """Finds and handles the pickets of the image."""
-    def __init__(self, image, settings, num_pickets):
+    def __init__(self, image: PFDicomImage, settings: Settings, num_pickets: Optional[int]):
         self.pickets = []
         self.image = image
         self.settings = settings
@@ -677,7 +678,7 @@ class Picket:
     mlc_meas : list
         Holds :class:`~pylinac.picketfence.MLCMeas` objects.
     """
-    def __init__(self, image, settings, approximate_idx, spacing):
+    def __init__(self, image: PFDicomImage, settings: Settings, approximate_idx: int, spacing):
         self.mlc_meas = []
         self.image = image
         self.settings = settings
@@ -698,7 +699,7 @@ class Picket:
         for idx, meas in enumerate(self.mlc_meas):
             meas.fit = self.fit
 
-    def find_mlc_peak(self, mlc_center):
+    def find_mlc_peak(self, mlc_center: int):
         """Determine the center of the picket."""
         mlc_rows = np.arange(mlc_center - self.sample_width, mlc_center + self.sample_width + 1)
         if self.settings.orientation == UP_DOWN:
@@ -710,7 +711,7 @@ class Picket:
             fw80mc, _ = prof.fwxm_center(70, interpolate=True)
             return fw80mc + self.approximate_idx - self.spacing
 
-    def add_mlc_meas(self, mlc_center, mlc_position):
+    def add_mlc_meas(self, mlc_center: float, mlc_position: float):
         """Add an MLC measurement point."""
         upper_point = mlc_center - self.sample_width / 2
         lower_point = mlc_center + self.sample_width / 2
@@ -894,7 +895,7 @@ class MLCMeas(Line):
 
     @property
     @lru_cache()
-    def leaf_pair(self) -> Tuple[int, int]:
+    def leaf_pair(self) -> List[Union[int, Any]]:
         """The leaf pair that formed the MLC measurement.
 
         Returns

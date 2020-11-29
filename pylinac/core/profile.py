@@ -13,7 +13,7 @@ from .geometry import Point, Circle
 from .typing import NumberLike
 
 
-def stretch(array: np.ndarray, min: int=0, max: int=1, fill_dtype=None) -> np.array:
+def stretch(array: np.ndarray, min: int=0, max: int=1, fill_dtype: Optional[np.dtype]=None) -> np.ndarray:
     """'Stretch' the profile to the fit a new min and max value and interpolate in between.
     From: http://www.labri.fr/perso/nrougier/teaching/numpy.100/  exercise #17
 
@@ -53,12 +53,12 @@ class ProfileMixin:
     """A mixin to provide various manipulations of 1D profile data."""
     values: np.ndarray
 
-    def invert(self):
+    def invert(self) -> None:
         """Invert (imcomplement) the profile."""
         orig_array = self.values
         self.values = -orig_array + orig_array.max() + orig_array.min()
 
-    def normalize(self, norm_val: Union[str, NumberLike]='max'):
+    def normalize(self, norm_val: Union[str, NumberLike]='max') -> None:
         """Normalize the profile to the given value.
 
         Parameters
@@ -73,7 +73,7 @@ class ProfileMixin:
             val = norm_val
         self.values /= val
 
-    def stretch(self, min: NumberLike=0, max: NumberLike=1):
+    def stretch(self, min: NumberLike=0, max: NumberLike=1) -> None:
         """'Stretch' the profile to the min and max parameter values.
 
         Parameters
@@ -98,7 +98,7 @@ class ProfileMixin:
         return min_val
 
     @argue.options(kind=('median', 'gaussian'))
-    def filter(self, size: NumberLike=0.05, kind: str='median'):
+    def filter(self, size: NumberLike=0.05, kind: str='median') -> None:
         """Filter the profile.
 
         Parameters
@@ -137,7 +137,7 @@ class SingleProfile(ProfileMixin):
     """
     interpolation_factor: int = 100
     interpolation_type: str = 'linear'
-    _values: np.ndarray  # ndarray, but Sphinx/napoleon won't compile as `np.ndarray`
+    _values: np.ndarray
 
     def __init__(self, values: np.ndarray):
         """
@@ -314,7 +314,7 @@ class SingleProfile(ProfileMixin):
             rt_area = field_values[cax:]
             return lt_area, rt_area
 
-    def plot(self, x=50):
+    def plot(self, x: int=50) -> None:
         """Plot the profile."""
         peak_idx, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
         plt.plot(self.values)
@@ -353,14 +353,13 @@ class MultiProfile(ProfileMixin):
         self.peaks = []
         self.valleys = []
 
-    def plot(self, ax=None):
+    def plot(self, ax: Optional[plt.Axes]=None) -> None:
         """Plot the profile.
 
         Parameters
         ----------
-        show_peaks : bool
-            Whether to plot the peak locations as well. Will not show if a peak search has
-            not yet been done.
+        ax: plt.Axes
+            An axis to plot onto. Optional.
         """
         if ax is None:
             fig, ax = plt.subplots()
@@ -396,9 +395,6 @@ class MultiProfile(ProfileMixin):
             The region within the profile to search. The tuple specifies the (left, right) edges to search.
             This allows exclusion of edges from the search. If a value is an int, it is taken as is. If a float, must
             be between 0 and 1 and is the ratio of the profile length. The left value must be less than the right.
-        kind : {'value', 'index'}
-            What kind of return is given. If 'index' (default), returns the index of the point
-            desired. If 'value', returns the value of the profile at the given index.
 
         Returns
         -------
@@ -569,23 +565,23 @@ class CircleProfile(MultiProfile, Circle):
                         max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
         """Overloads Profile to also map the peak locations to the image."""
         peak_idxs, peak_vals = super().find_fwxm_peaks(x, threshold, min_distance, max_number,
-                                        search_region=search_region)
+                                                       search_region=search_region)
         self._map_peaks()
         return peak_idxs, peak_vals
 
-    def _map_peaks(self):
+    def _map_peaks(self) -> None:
         """Map found peaks to the x,y locations on the image/array; i.e. adds x,y coordinates to the peak locations"""
         for peak in self.peaks:
             peak.x = self.x_locations[int(peak.idx)]
             peak.y = self.y_locations[int(peak.idx)]
 
-    def roll(self, amount: int):
+    def roll(self, amount: int) -> None:
         """Roll the profile and x and y coordinates."""
         self.values = np.roll(self.values, -amount)
         self.x_locations = np.roll(self.x_locations, -amount)
         self.y_locations = np.roll(self.y_locations, -amount)
 
-    def plot2axes(self, axes: plt.Axes=None, edgecolor: str='black', fill: bool=False, plot_peaks: bool=True):
+    def plot2axes(self, axes: plt.Axes=None, edgecolor: str='black', fill: bool=False, plot_peaks: bool=True) -> None:
         """Plot the circle to an axes.
 
         Parameters
@@ -611,7 +607,7 @@ class CircleProfile(MultiProfile, Circle):
             axes.scatter(x_locs, y_locs, s=40, marker='x', c=edgecolor)
 
     @staticmethod
-    def _ensure_array_size(array: np.ndarray, min_width: int, min_height: int):
+    def _ensure_array_size(array: np.ndarray, min_width: int, min_height: int) -> None:
             """Ensure the array size of inputs are greater than the minimums."""
             height = array.shape[0]
             width = array.shape[1]
@@ -684,7 +680,7 @@ class CollapsedCircleProfile(CircleProfile):
         profile /= self.num_profiles
         return profile
 
-    def plot2axes(self, axes: plt.Axes=None, edgecolor: str='black', fill: bool=False, plot_peaks: bool=True):
+    def plot2axes(self, axes: plt.Axes=None, edgecolor: str='black', fill: bool=False, plot_peaks: bool=True) -> None:
         """Add 2 circles to the axes: one at the maximum and minimum radius of the ROI.
 
         See Also
@@ -705,8 +701,11 @@ class CollapsedCircleProfile(CircleProfile):
             axes.scatter(x_locs, y_locs, s=20, marker='x', c=edgecolor)
 
 
-def find_peaks(values: np.ndarray, threshold: Union[float, int]=-np.inf, peak_separation: Union[float, int]=0,
-               max_number: int=None, fwxm_height: float=0.5, min_width: int=0, search_region: Tuple=(0.0, 1.0)):
+@argue.bounds(search_region=(0, 1))
+def find_peaks(values: np.ndarray, threshold: Union[float, int] = -np.inf, peak_separation: Union[float, int] = 0,
+               max_number: int = None, fwxm_height: float = 0.5, min_width: int = 0,
+               search_region: Tuple[float, float] = (0.0, 1.0)) \
+        -> Tuple[np.ndarray, dict]:
     """Find the peaks of a 1D signal. Heavily relies on the scipy implementation.
 
     Parameters
@@ -760,7 +759,8 @@ def find_peaks(values: np.ndarray, threshold: Union[float, int]=-np.inf, peak_se
     return peak_idxs[largest_peak_idxs], peak_props
 
 
-def _parse_peak_args(peak_separation, search_region, threshold, values):
+def _parse_peak_args(peak_separation: NumberLike, search_region: Tuple[float, float], threshold: NumberLike,
+                     values: np.ndarray) -> Tuple[NumberLike, int, NumberLike, np.ndarray]:
     """Converts arguments as needed. E.g. converting a ratio to actual values"""
     # set threshold as % if between 0 and 1
     val_range = values.max() - values.min()

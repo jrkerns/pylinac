@@ -31,7 +31,7 @@ import multiprocessing
 import os
 import os.path as osp
 import shutil
-from typing import Union
+from typing import Union, List, Optional, Tuple, Iterable, Sequence
 
 import argue
 import matplotlib.pyplot as plt
@@ -56,7 +56,7 @@ HDMLC_FOV_HEIGHT_MM = 220
 class MachineLogs(list):
     """Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
 
-    def __init__(self, folder, recursive=True):
+    def __init__(self, folder: str, recursive: bool=True):
         """
         Parameters
         ----------
@@ -84,7 +84,7 @@ class MachineLogs(list):
         self.load_folder(folder, recursive)
 
     @classmethod
-    def from_zip(cls, zfile):
+    def from_zip(cls, zfile: str):
         """Instantiate from a ZIP archive.
 
         Parameters
@@ -97,21 +97,21 @@ class MachineLogs(list):
         return logs
 
     @property
-    def num_logs(self):
+    def num_logs(self) -> int:
         """The number of logs currently loaded."""
         return len(self)
 
     @property
-    def num_tlogs(self):
+    def num_tlogs(self) -> int:
         """The number of Trajectory logs currently loaded."""
         return sum(isinstance(log, TrajectoryLog) for log in self)
 
     @property
-    def num_dlogs(self):
+    def num_dlogs(self) -> int:
         """The number of Trajectory logs currently loaded."""
         return sum(isinstance(log, Dynalog) for log in self)
 
-    def load_folder(self, directory, recursive=True):
+    def load_folder(self, directory: str, recursive: bool=True):
         """Load log files from a directory and append to existing list.
 
         Parameters
@@ -138,12 +138,12 @@ class MachineLogs(list):
             print(f"Log loaded: {idx+1} of {len(log_files)}", end='\r')
         print('')
 
-    def _check_empty(self):
+    def _check_empty(self) -> None:
         """Check if any logs have been loaded."""
         if len(self) == 0:
             raise ValueError("No logs have been loaded yet.")
 
-    def report_basic_parameters(self):
+    def report_basic_parameters(self) -> None:
         """Report basic parameters of the logs.
 
         - Number of logs
@@ -154,7 +154,7 @@ class MachineLogs(list):
         print(f"Average gamma: {self.avg_gamma():3.2f}")
         print(f"Average gamma pass percent: {self.avg_gamma_pct():3.1f}")
 
-    def append(self, obj, recursive=True):
+    def append(self, obj, recursive: bool=True):
         """Append a log. Overloads list method.
 
         Parameters
@@ -179,7 +179,7 @@ class MachineLogs(list):
         else:
             raise TypeError("Can only append MachineLog or string pointing to a log or log directory.")
 
-    def avg_gamma(self, doseTA=1, distTA=1, threshold=0.1, resolution=0.1):
+    def avg_gamma(self, doseTA: Union[int, float]=1, distTA: Union[int, float]=1, threshold: Union[int, float]=0.1, resolution: Union[int, float]=0.1) -> float:
         """Calculate and return the average gamma of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
@@ -192,7 +192,7 @@ class MachineLogs(list):
         print('')
         return gamma_list.mean()
 
-    def avg_gamma_pct(self, doseTA=1, distTA=1, threshold=0.1, resolution=0.1):
+    def avg_gamma_pct(self, doseTA: Union[int, float]=1, distTA: Union[int, float]=1, threshold: Union[int, float]=0.1, resolution: Union[int, float]=0.1) -> float:
         """Calculate and return the average gamma pass percent of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
@@ -205,7 +205,7 @@ class MachineLogs(list):
         print('')
         return gamma_list.mean()
 
-    def to_csv(self):
+    def to_csv(self) -> List[str]:
         """Write trajectory logs to CSV. If there are both dynalogs and trajectory logs,
         only the trajectory logs will be written. File names will be the same as the original log file names.
 
@@ -227,7 +227,7 @@ class MachineLogs(list):
             print('\nNo files written. Either no logs are loaded or all logs were dynalogs.')
         return files
 
-    def anonymize(self, inplace=False, suffix=None):
+    def anonymize(self, inplace: bool=False, suffix: Optional[str]=None):
         """Save anonymized versions of the logs.
 
         For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
@@ -272,7 +272,7 @@ class Axis:
     ----------
     Parameters are Attributes
     """
-    def __init__(self, actual, expected=None):
+    def __init__(self, actual: np.ndarray, expected: Optional[np.ndarray]=None):
         """
         Parameters
         ----------
@@ -292,7 +292,7 @@ class Axis:
             self.expected = expected
 
     @property
-    def difference(self):
+    def difference(self) -> np.ndarray:
         """Return an array of the difference between actual and expected positions.
 
         Returns
@@ -305,32 +305,32 @@ class Axis:
         else:
             raise AttributeError("Expected positions not passed to Axis")
 
-    def plot_actual(self):
+    def plot_actual(self) -> None:
         """Plot the actual positions as a matplotlib figure."""
         self._plot('actual')
 
-    def save_plot_actual(self, filename, **kwargs):
+    def save_plot_actual(self, filename: str, **kwargs) -> None:
         self._plot('actual', show=False)
         self._save(filename, **kwargs)
 
-    def plot_expected(self):
+    def plot_expected(self) -> None:
         """Plot the expected positions as a matplotlib figure."""
         self._plot('expected')
 
-    def save_plot_expected(self, filename, **kwargs):
+    def save_plot_expected(self, filename: str, **kwargs) -> None:
         self._plot('expected', show=False)
         self._save(filename, **kwargs)
 
-    def plot_difference(self):
+    def plot_difference(self) -> None:
         """Plot the difference of positions as a matplotlib figure."""
         self._plot('difference')
 
-    def save_plot_difference(self, filename, **kwargs):
+    def save_plot_difference(self, filename: str, **kwargs) -> None:
         self._plot('difference', show=False)
         self._save(filename, **kwargs)
 
     @argue.options(param=('actual', 'expected', 'difference'))
-    def _plot(self, param='', show=True):
+    def _plot(self, param: str, show: bool=True):
         """Plot the parameter: actual, expected, or difference."""
         plt.plot(getattr(self, param))
         plt.grid(True)
@@ -338,18 +338,18 @@ class Axis:
         if show:
             plt.show()
 
-    def _save(self, filename, **kwargs):
+    def _save(self, filename: str, **kwargs):
         """Save the figure to a file, either .png or .html."""
         plt.savefig(filename, **kwargs)
 
 
 class AxisMovedMixin:
     """Mixin class for Axis."""
-    AXIS_MOVE_THRESHOLD = 0.003
+    AXIS_MOVE_THRESHOLD: float = 0.003
 
     @property
     @lru_cache(maxsize=1)
-    def moved(self):
+    def moved(self) -> bool:
         """Return whether the axis moved during treatment."""
         return np.std(self.actual) > self.AXIS_MOVE_THRESHOLD
 
@@ -396,7 +396,7 @@ class FluenceBase:
     resolution = -1
     FLUENCE_TYPE = ''  # must be specified by subclass
 
-    def __init__(self, mlc_struct=None, mu_axis=None, jaw_struct=None):
+    def __init__(self, mlc_struct=None, mu_axis: Axis=None, jaw_struct=None):
         """
         Parameters
         ----------
@@ -409,7 +409,7 @@ class FluenceBase:
         self._mu = mu_axis
         self._jaws = jaw_struct
 
-    def is_map_calced(self, raise_error=False):
+    def is_map_calced(self, raise_error: bool=False) -> bool:
         """Return a boolean specifying whether the fluence has been calculated."""
         calced = hasattr(self.array, 'size')
         if (not calced) and (raise_error is True):
@@ -418,7 +418,7 @@ class FluenceBase:
             return calced
 
     @lru_cache(maxsize=1)
-    def calc_map(self, resolution=0.1, equal_aspect=False):
+    def calc_map(self, resolution: float=0.1, equal_aspect: bool=False) -> np.ndarray:
         """Calculate a fluence pixel map.
 
         Fluence calculation is done by adding fluence snapshot by snapshot, and leaf pair by leaf pair.
@@ -431,6 +431,8 @@ class FluenceBase:
         ----------
         resolution : int, float
             The resolution in mm of the fluence calculation in the leaf-moving direction.
+        equal_aspect : bool
+            If True, make the y-direction the same resolution as x. If False, the y-axis will be equal to the number of leaves.
 
          Returns
          -------
@@ -523,7 +525,7 @@ class FluenceBase:
 
         return fluence
 
-    def plot_map(self, show=True):
+    def plot_map(self, show: bool=True) -> None:
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         self.is_map_calced(raise_error=True)
         plt.clf()
@@ -531,7 +533,7 @@ class FluenceBase:
         if show:
             plt.show()
 
-    def save_map(self, filename, **kwargs):
+    def save_map(self, filename: str, **kwargs) -> None:
         """Save the fluence map figure to a file."""
         self.plot_map(show=False)
         plt.savefig(filename, **kwargs)
@@ -574,7 +576,7 @@ class GammaFluence(FluenceBase):
     avg_gamma = -1
     bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1]
 
-    def __init__(self, actual_fluence, expected_fluence, mlc_struct):
+    def __init__(self, actual_fluence: ActualFluence, expected_fluence: ExpectedFluence, mlc_struct):
         """
         Parameters
         ----------
@@ -592,7 +594,8 @@ class GammaFluence(FluenceBase):
         self._mlc = mlc_struct
 
     @lru_cache(maxsize=1)
-    def calc_map(self, doseTA=1, distTA=1, threshold=0.1, resolution=0.1, calc_individual_maps=False):
+    def calc_map(self, doseTA: Union[int, float] = 1, distTA: Union[int, float] = 1, threshold: Union[int, float] = 0.1,
+                 resolution: Union[int, float] = 0.1, calc_individual_maps: bool = False) -> np.ndarray:
         """Calculate the gamma from the actual and expected fluences.
 
         The gamma calculation is based on `Bakai et al
@@ -646,14 +649,14 @@ class GammaFluence(FluenceBase):
         self.array = gamma_map
         return gamma_map
 
-    def plot_map(self, show=True):
+    def plot_map(self, show: bool=True):
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         self.is_map_calced(raise_error=True)
         plt.imshow(self.array, aspect='auto', vmax=1, cmap=get_array_cmap())
         plt.colorbar()
         plt.show()
 
-    def histogram(self, bins=None):
+    def histogram(self, bins: Optional[list]=None) -> Tuple[np.ndarray, np.ndarray]:
         """Return a histogram array and bin edge array of the gamma map values.
 
         Parameters
@@ -674,7 +677,8 @@ class GammaFluence(FluenceBase):
         hist_arr, bin_edges = np.histogram(self.array, bins=bins)
         return hist_arr, bin_edges
 
-    def plot_histogram(self, scale='log', bins=None, show=True):
+    @argue.options(scale=('log', 'linear'))
+    def plot_histogram(self, scale: str='log', bins: Optional[list]=None, show: bool=True) -> None:
         """Plot a histogram of the gamma map values.
 
         Parameters
@@ -693,12 +697,13 @@ class GammaFluence(FluenceBase):
         if show:
             plt.show()
 
-    def save_histogram(self, filename, scale='log', bins=None, **kwargs):
+    @argue.options(scale=('log', 'linear'))
+    def save_histogram(self, filename: str, scale: str='log', bins: Optional[list]=None, **kwargs) -> None:
         """Save the histogram plot to file."""
         self.plot_histogram(scale, bins, show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_passfail_map(self):
+    def plot_passfail_map(self) -> None:
         """Plot the binary gamma map, only showing whether pixels passed or failed."""
         self.is_map_calced(raise_error=True)
         plt.imshow(self.passfail_array, cmap=get_array_cmap())
@@ -717,7 +722,7 @@ class FluenceStruct:
     gamma : :class:`~pylinac.log_analyzer.GammaFluence`
         The gamma structure regarding the actual and expected fluences.
     """
-    def __init__(self, mlc_struct=None, mu_axis=None, jaw_struct=None):
+    def __init__(self, mlc_struct=None, mu_axis: Axis=None, jaw_struct=None):
         self.actual = ActualFluence(mlc_struct, mu_axis, jaw_struct)
         self.expected = ExpectedFluence(mlc_struct, mu_axis, jaw_struct)
         self.gamma = GammaFluence(self.actual, self.expected, mlc_struct)
@@ -725,10 +730,11 @@ class FluenceStruct:
 
 class MLC:
     """The MLC class holds MLC information and retrieves relevant data about the MLCs and positions."""
-    def __init__(self, log_type, snapshot_idx=None, jaw_struct=None, hdmlc=False, subbeams=None):
+    def __init__(self, log_type, snapshot_idx: Optional[np.ndarray]=None, jaw_struct=None, hdmlc: bool=False, subbeams=None):
         """
         Parameters
         ----------
+        log_type: Dynalog, TrajectoryLog
         snapshot_idx : array, list
             The snapshots to be considered for RMS and error calculations (can be all snapshots or just when beam was on).
         jaw_struct : Jaw_Struct
@@ -743,7 +749,7 @@ class MLC:
 
             .. warning:: Leaf numbers are 1-index based to correspond with Varian convention.
         """
-        self.leaf_axes = {}
+        self.leaf_axes: dict = {}
         self.snapshot_idx = snapshot_idx
         self._jaws = jaw_struct
         self.hdmlc = hdmlc
@@ -751,7 +757,7 @@ class MLC:
         self.subbeams = subbeams
 
     @classmethod
-    def from_dlog(cls, dlog, jaws, snapshot_data, snapshot_idx):
+    def from_dlog(cls, dlog, jaws, snapshot_data: np.ndarray, snapshot_idx: np.ndarray):
         """Construct an MLC structure from a Dynalog"""
         mlc = MLC(Dynalog, snapshot_idx, jaws)
         for leaf in range(1, (dlog.header.num_mlc_leaves // 2) + 1):
@@ -786,17 +792,17 @@ class MLC:
         return mlc
 
     @property
-    def num_pairs(self):
+    def num_pairs(self) -> int:
         """Return the number of MLC pairs."""
         return int(self.num_leaves/2)
 
     @property
-    def num_leaves(self):
+    def num_leaves(self) -> int:
         """Return the number of MLC leaves."""
         return len(self.leaf_axes)
 
     @property
-    def num_snapshots(self):
+    def num_snapshots(self) -> int:
         """Return the number of snapshots used for MLC RMS & Fluence calculations.
 
         .. warning::
@@ -806,13 +812,13 @@ class MLC:
         return len(self.snapshot_idx)
 
     @property
-    def num_moving_leaves(self):
+    def num_moving_leaves(self) -> int:
         """Return the number of leaves that moved."""
         return len(self.moving_leaves)
 
     @property
     @lru_cache(maxsize=1)
-    def moving_leaves(self):
+    def moving_leaves(self) -> np.ndarray:
         """Return an array of the leaves that moved during treatment."""
         threshold = 0.01
         indices = ()
@@ -825,7 +831,7 @@ class MLC:
                 indices += (leaf_num,)
         return np.array(indices)
 
-    def add_leaf_axis(self, leaf_axis: LeafAxis, leaf_num: int):
+    def add_leaf_axis(self, leaf_axis: LeafAxis, leaf_num: int) -> None:
         """Add a leaf axis to the MLC data structure.
 
         Parameters
@@ -839,7 +845,7 @@ class MLC:
         """
         self.leaf_axes[leaf_num] = leaf_axis
 
-    def leaf_moved(self, leaf_num):
+    def leaf_moved(self, leaf_num: int) -> bool:
         """Return whether the given leaf moved during treatment.
 
         Parameters
@@ -851,7 +857,7 @@ class MLC:
         """
         return leaf_num in self.moving_leaves
 
-    def pair_moved(self, pair_num):
+    def pair_moved(self, pair_num: int) -> bool:
         """Return whether the given pair moved during treatment.
 
         If either leaf moved, the pair counts as moving.
@@ -868,11 +874,12 @@ class MLC:
         return self.leaf_moved(a_leaf) or self.leaf_moved(b_leaf)
 
     @property
-    def _all_leaf_indices(self):
+    def _all_leaf_indices(self) -> np.ndarray:
         """Return an array enumerated over all the leaves."""
         return np.array(range(1, len(self.leaf_axes) + 1))
 
-    def get_RMS_avg(self, bank='both', only_moving_leaves=False):
+    @argue.options(bank=('both', 'A', 'B'))
+    def get_RMS_avg(self, bank: str='both', only_moving_leaves: bool=False):
         """Return the overall average RMS of given leaves.
 
         Parameters
@@ -900,7 +907,8 @@ class MLC:
         else:
             return rms
 
-    def get_RMS_max(self, bank='both'):
+    @argue.options(bank=('both', 'A', 'B'))
+    def get_RMS_max(self, bank: str='both') -> float:
         """Return the overall maximum RMS of given leaves.
 
         Parameters
@@ -920,7 +928,8 @@ class MLC:
         else:
             return rms
 
-    def get_RMS_percentile(self, percentile=95, bank='both', only_moving_leaves=False):
+    @argue.options(bank=('both', 'A', 'B'))
+    def get_RMS_percentile(self, percentile: Union[int, float]=95, bank: str='both', only_moving_leaves: bool=False):
         """Return the n-th percentile value of RMS for the given leaves.
 
         Parameters
@@ -942,7 +951,7 @@ class MLC:
         rms_array = self.create_RMS_array(leaves)
         return np.percentile(rms_array, percentile)
 
-    def get_RMS(self, leaves_or_bank):
+    def get_RMS(self, leaves_or_bank: Union[str, Iterable]) -> np.ndarray:
         """Return an array of leaf RMSs for the given leaves or MLC bank.
 
         Parameters
@@ -962,7 +971,8 @@ class MLC:
             raise TypeError("Input must be iterable, or specify an MLC bank")
         return self.create_RMS_array(np.array(leaves_or_bank))
 
-    def get_leaves(self, bank='both', only_moving_leaves=False):
+    @argue.options(bank=('both', 'A', 'B'))
+    def get_leaves(self, bank: str='both', only_moving_leaves: bool=False) -> list:
         """Return a list of leaves that match the given conditions.
 
         Parameters
@@ -988,7 +998,8 @@ class MLC:
 
         return leaves
 
-    def get_error_percentile(self, percentile=95, bank='both', only_moving_leaves=False):
+    @argue.options(bank=('both', 'A', 'B'))
+    def get_error_percentile(self, percentile: Union[int, float]=95, bank: str='both', only_moving_leaves: bool=False) -> float:
         """Calculate the n-th percentile error of the leaf error.
 
         Parameters
@@ -1013,7 +1024,7 @@ class MLC:
         abs_error = np.abs(error_array)
         return np.percentile(abs_error, percentile)
 
-    def create_error_array(self, leaves, absolute=True):
+    def create_error_array(self, leaves: Sequence[int], absolute: bool=True) -> np.ndarray:
         """Create and return an error array of only the leaves specified.
 
         Parameters
@@ -1035,7 +1046,7 @@ class MLC:
             error_array = self._error_array_all_leaves
         return error_array[leaves, :]
 
-    def create_RMS_array(self, leaves):
+    def create_RMS_array(self, leaves: Sequence[int]) -> np.ndarray:
         """Create an RMS array of only the leaves specified.
 
         Parameters
@@ -1055,13 +1066,13 @@ class MLC:
         return rms_array[leaves]
 
     @property
-    def _abs_error_all_leaves(self):
+    def _abs_error_all_leaves(self) -> float:
         """Absolute error of all leaves."""
         return np.abs(self._error_array_all_leaves)
 
     @property
     @lru_cache(maxsize=1)
-    def _error_array_all_leaves(self):
+    def _error_array_all_leaves(self) -> np.ndarray:
         """Error array of all leaves."""
         mlc_error = np.zeros((self.num_leaves, self.num_snapshots))
         # construct numpy array for easy array calculation
@@ -1069,7 +1080,8 @@ class MLC:
             mlc_error[leaf, :] = self.leaf_axes[leaf+1].difference[self.snapshot_idx]
         return mlc_error
 
-    def _snapshot_array(self, dtype='actual'):
+    @argue.options(dtype=('actual', 'expected'))
+    def _snapshot_array(self, dtype: str='actual') -> np.ndarray:
         """Return an array of the snapshot data of all leaves."""
         arr = np.zeros((self.num_leaves, self.num_snapshots))
         # construct numpy array for easy array calculation
@@ -1079,12 +1091,12 @@ class MLC:
 
     @property
     @lru_cache(maxsize=1)
-    def _RMS_array_all_leaves(self):
+    def _RMS_array_all_leaves(self) -> np.ndarray:
         """Return the RMS of all leaves."""
         rms_array = np.array([np.sqrt(np.sum(leafdata.difference[self.snapshot_idx] ** 2) / self.num_snapshots) for leafdata in self.leaf_axes.values()])
         return rms_array
 
-    def leaf_under_y_jaw(self, leaf_num):
+    def leaf_under_y_jaw(self, leaf_num: int) -> bool:
         """Return a boolean specifying if the given leaf is under one of the y jaws.
 
         Parameters
@@ -1116,7 +1128,8 @@ class MLC:
             thickness = outer_leaf_thickness
         return mlc_position < y1_position or mlc_position - thickness > y2_position
 
-    def get_snapshot_values(self, bank_or_leaf='both', dtype='actual'):
+    @argue.options(bank_or_leaf=('A', 'B', 'both'), dtype=('actual', 'expected'))
+    def get_snapshot_values(self, bank_or_leaf: str='both', dtype: str='actual') -> np.ndarray:
         """Retrieve the snapshot data of the given MLC bank or leaf/leaves
 
         Parameters
@@ -1142,25 +1155,25 @@ class MLC:
         arr = self._snapshot_array(dtype)
         return arr[leaves, :]
 
-    def plot_mlc_error_hist(self, show=True):
+    def plot_mlc_error_hist(self, show: bool=True) -> None:
         """Plot an MLC error histogram."""
         plt.hist(self._abs_error_all_leaves.flatten())
         if show:
             plt.show()
 
-    def save_mlc_error_hist(self, filename, **kwargs):
+    def save_mlc_error_hist(self, filename: str, **kwargs) -> None:
         """Save the MLC error histogram to file."""
         self.plot_mlc_error_hist(show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_rms_by_leaf(self, show=True):
+    def plot_rms_by_leaf(self, show: bool=True) -> None:
         """Plot RMSs by leaf."""
         plt.clf()
         plt.bar(np.arange(len(self.get_RMS('both')))[::-1], self.get_RMS('both'), align='center')
         if show:
             plt.show()
 
-    def save_rms_by_leaf(self, filename, **kwargs):
+    def save_rms_by_leaf(self, filename: str, **kwargs) -> None:
         """Save the RMS-leaf to file."""
         self.plot_rms_by_leaf(show=False)
         plt.savefig(filename, **kwargs)
@@ -1176,7 +1189,7 @@ class JawStruct:
     x2 : :class:`~pylinac.log_analyzer.Axis`
     y2 : :class:`~pylinac.log_analyzer.Axis`
     """
-    def __init__(self, x1, y1, x2, y2):
+    def __init__(self, x1: HeadAxis, y1: HeadAxis, x2: HeadAxis, y2: HeadAxis):
         if not all((
                 isinstance(x1, HeadAxis),
                 isinstance(y1, HeadAxis),
@@ -1199,7 +1212,8 @@ class CouchStruct:
     latl : :class:`~pylinac.log_analyzer.Axis`
     rotn : :class:`~pylinac.log_analyzer.Axis`
     """
-    def __init__(self, vertical, longitudinal, lateral, rotational, pitch=None, roll=None):
+    def __init__(self, vertical: CouchAxis, longitudinal: CouchAxis, lateral: CouchAxis, rotational: CouchAxis,
+                 pitch: Optional[CouchAxis] = None, roll: Optional[CouchAxis] = None):
         if not all((isinstance(vertical, CouchAxis),
                     isinstance(longitudinal, CouchAxis),
                     isinstance(lateral, CouchAxis),
@@ -1230,7 +1244,7 @@ class Subbeam:
     beam_name : str
         Name of the subbeam.
     """
-    def __init__(self, file, log_version):
+    def __init__(self, file, log_version: float):
         f = file
         self.control_point = decode_binary(f, int)
         self.mu_delivered = decode_binary(f, float)
@@ -1244,36 +1258,36 @@ class Subbeam:
         self.beam_name = decode_binary(f, str, chars, 32)
 
     @property
-    def gantry_angle(self):
+    def gantry_angle(self) -> float:
         """Median gantry angle of the subbeam."""
         return self._get_metadata_axis('gantry')
 
     @property
-    def collimator_angle(self):
+    def collimator_angle(self) -> float:
         """Median collimator angle of the subbeam."""
         return self._get_metadata_axis('collimator')
 
     @property
-    def jaw_x1(self):
+    def jaw_x1(self) -> float:
         """Median X1 position of the subbeam."""
         return self._get_metadata_axis('jaws', 'x1')
 
     @property
-    def jaw_x2(self):
+    def jaw_x2(self) -> float:
         """Median X2 position of the subbeam."""
         return self._get_metadata_axis('jaws', 'x2')
 
     @property
-    def jaw_y1(self):
+    def jaw_y1(self) -> float:
         """Median Y1 position of the subbeam."""
         return self._get_metadata_axis('jaws', 'y1')
 
     @property
-    def jaw_y2(self):
+    def jaw_y2(self) -> float:
         """Median Y2 position of the subbeam."""
         return self._get_metadata_axis('jaws', 'y2')
 
-    def _get_metadata_axis(self, attr, subattr=None):
+    def _get_metadata_axis(self, attr, subattr=None) -> Axis:
         if subattr is None:
             actual = getattr(self._axis_data, attr).actual[self._snapshots]
             expected = getattr(self._axis_data, attr).expected[self._snapshots]
@@ -1302,7 +1316,7 @@ class SubbeamManager:
             subbeam.fluence = FluenceStruct(mlc_subsection, axis_data.mu, axis_data.jaws)
         gc.collect()  # don't know why gc is needed; maybe something to do w/ copy?
 
-    def _set_subbeam_snapshots(self, axis_data, beam_num):
+    def _set_subbeam_snapshots(self, axis_data, beam_num: int):
         """Get the snapshot indices 1) where the beam was on and 2) between the subbeam control point values."""
         subbeam = self.subbeams[beam_num]
         cp_by_snapshot = axis_data.control_point.actual
@@ -1324,7 +1338,7 @@ class SubbeamManager:
         subbeam._snapshots = combined_snapshots
         subbeam._axis_data = axis_data
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> Subbeam:
         return self.subbeams[item]
 
     def __len__(self):
@@ -1335,7 +1349,7 @@ class LogBase:
     """Base class for the Dynalog and TrajectoryLog classes. Should not be called directly."""
     ANON_LINE = -1
 
-    def __init__(self, filename, exclude_beam_off=True):
+    def __init__(self, filename: str, exclude_beam_off: bool=True):
         if is_log(filename):
             self.filename = filename
             self.exclude_beam_off = exclude_beam_off
@@ -1343,12 +1357,12 @@ class LogBase:
             raise IOError(f"{filename} was not a valid log file")
 
     @classmethod
-    def from_url(cls, url, exclude_beam_off=True):
+    def from_url(cls, url: str, exclude_beam_off: bool=True):
         """Instantiate a log from a URL."""
         filename = io.get_url(url)
         return cls(filename, exclude_beam_off)
 
-    def plot_summary(self, show=True):
+    def plot_summary(self, show: bool=True):
         """Plot actual & expected fluence, gamma map, gamma histogram,
             MLC error histogram, and MLC RMS histogram.
         """
@@ -1381,13 +1395,14 @@ class LogBase:
         if show:
             plt.show()
 
-    def save_summary(self, filename, **kwargs):
+    def save_summary(self, filename: str, **kwargs) -> None:
         """Save the summary image to file."""
         self.plot_summary(show=False)
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    def plot_subimage(self, img, ax=None, show=True, fontsize=10):
+    @argue.options(img=('actual', 'expected', 'gamma'))
+    def plot_subimage(self, img: str, ax: plt.Axes=None, show: bool=True, fontsize: int=10):
         # img: {'actual', 'expected', 'gamma'}
         if ax is None:
             ax = plt.subplot()
@@ -1406,12 +1421,14 @@ class LogBase:
         if show:
             plt.show()
 
-    def save_subimage(self, filename, img, fontsize, **kwargs):
+    @argue.options(img=('actual', 'expected', 'gamma'))
+    def save_subimage(self, filename: str, img: str, fontsize: int, **kwargs):
         self.plot_subimage(img, show=False, fontsize=fontsize)
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    def plot_subgraph(self, graph, ax=None, show=True, fontsize=10, labelsize=8):
+    @argue.options(graph=('gamma hist', 'leaf hist', 'leaf rms'))
+    def plot_subgraph(self, graph: str, ax: plt.Axes=None, show: bool=True, fontsize: int=10, labelsize: int=8):
         # graph: {'gamma hist', 'leaf hist', 'leaf rms'}
         if ax is None:
             ax = plt.subplot()
@@ -1433,12 +1450,13 @@ class LogBase:
         if show:
             plt.show()
 
-    def save_subgraph(self, filename, img, fontsize=10, labelsize=8, **kwargs):
+    @argue.options(img=('gamma hist', 'leaf hist', 'leaf rms'))
+    def save_subgraph(self, filename: str, img: str, fontsize: int=10, labelsize: int=8, **kwargs):
         self.plot_subgraph(img, show=False, fontsize=fontsize, labelsize=labelsize)
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    def report_basic_parameters(self, printout=True):
+    def report_basic_parameters(self, printout: bool=True) -> str:
         """Print the common parameters analyzed when investigating machine logs:
 
         - Log type
@@ -1467,7 +1485,7 @@ class LogBase:
         return string
 
     @property
-    def treatment_type(self):
+    def treatment_type(self) -> Union[VMAT, STATIC_IMRT, DYNAMIC_IMRT, IMAGING]:
         """The treatment type of the log. Possible options:
 
         Returns
@@ -1495,7 +1513,7 @@ class LogBase:
             return DYNAMIC_IMRT
 
     @property
-    def _underscore_idx(self):
+    def _underscore_idx(self) -> int:
         base_filename = osp.basename(self.filename)
         under_index = base_filename.find('_')
         if under_index < 0:
@@ -1503,7 +1521,7 @@ class LogBase:
                             "Place an underscore between the patient ID and the rest of the filename and try again.")
         return under_index
 
-    def anonymize(self, inplace=False, destination=None, suffix=None):
+    def anonymize(self, inplace: bool=False, destination: Optional[str]=None, suffix: Optional[str]=None) -> list:
         """Save an anonymized version of the log.
 
         For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
@@ -1709,7 +1727,7 @@ class Dynalog(LogBase):
         self.axis_data = DynalogAxisData(self, dlgdata)
         self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
-    def anon_file_renames(self, destination, suffix):
+    def anon_file_renames(self, destination: str, suffix: str) -> dict:
         base_a = osp.basename(self.a_logfile)
         base_b = osp.basename(self.b_logfile)
         anonymous_base_a = base_a[:self._underscore_idx] + '_Anonymous' + suffix + '.dlg'
@@ -1721,10 +1739,10 @@ class Dynalog(LogBase):
         filenames[self.b_logfile] = anonymous_b
         return filenames
 
-    def anon_files(self, destination, suffix):
+    def anon_files(self, destination: str, suffix: str):
         return self.anon_file_renames(destination, suffix).values()
 
-    def snapshot_idx(self, axis_data):
+    def snapshot_idx(self, axis_data) -> list:
         if self.exclude_beam_off:
             hold_idx = np.where(axis_data.beam_hold.actual == 0)[0]
             beamon_idx = np.where(axis_data.beam_on.actual == 1)[0]
@@ -1734,33 +1752,33 @@ class Dynalog(LogBase):
         return snapshot_idx
 
     @property
-    def _has_other_file(self):
+    def _has_other_file(self) -> bool:
         """Whether the companion file (A* for B-file or vic versa)."""
         return True if self.identify_other_file(self.filename, raise_find_error=False) is not None else False
 
     @property
     @lru_cache(maxsize=1)
-    def a_logfile(self):
+    def a_logfile(self) -> str:
         """Path of the A* dynalog file."""
         other_dlg_file = self.identify_other_file(self.filename)
         return self.filename if osp.basename(self.filename).startswith('A') else other_dlg_file
 
     @property
     @lru_cache(maxsize=1)
-    def b_logfile(self):
+    def b_logfile(self) -> str:
         """Path of the B* dynalog file."""
         other_dlg_file = self.identify_other_file(self.filename)
         return self.filename if osp.basename(self.filename).startswith('B') else other_dlg_file
 
     @property
-    def num_beamholds(self):
+    def num_beamholds(self) -> int:
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.axis_data.beam_hold.actual)
         num_holds = int(np.sum(diffmatrix > 0))
         return num_holds
 
     @classmethod
-    def from_demo(cls, exclude_beam_off=True):
+    def from_demo(cls, exclude_beam_off: bool=True):
         """Load and instantiate from the demo dynalog file included with the package."""
         demo_file = io.retrieve_demo_file(url='AQA.dlg')
         io.retrieve_demo_file(url='BQA.dlg')  # also download "B" dynalog
@@ -1826,7 +1844,7 @@ class Dynalog(LogBase):
             open_path(filename)
 
     @staticmethod
-    def identify_other_file(first_dlg_file, raise_find_error=True):
+    def identify_other_file(first_dlg_file: str, raise_find_error: bool=True) -> str:
         """Return the filename of the corresponding dynalog file.
 
         For example, if the A*.dlg file was passed in, return the corresponding B*.dlg filename.
@@ -1997,7 +2015,7 @@ class TrajectoryLog(LogBase):
     """
     ANON_LINE = 0
 
-    def __init__(self, filename, exclude_beam_off=True):
+    def __init__(self, filename: str, exclude_beam_off: bool=True):
         super().__init__(filename, exclude_beam_off)
 
         self._read_txt_file()
@@ -2012,12 +2030,12 @@ class TrajectoryLog(LogBase):
             self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
     @property
-    def txt_filename(self):
+    def txt_filename(self) -> str:
         """The name of the associated .txt file for the .bin file. The file may or may not be available."""
         if self.txt is not None:
             return self.filename.replace('.bin', '.txt')
 
-    def anon_file_renames(self, destination, suffix):
+    def anon_file_renames(self, destination: str, suffix: str) -> dict:
         base_filename = osp.basename(self.filename)
         anonymous_base_filename = 'Anonymous' + suffix + base_filename[self._underscore_idx:]
         anonymous_filename = osp.join(destination, anonymous_base_filename)
@@ -2028,14 +2046,14 @@ class TrajectoryLog(LogBase):
             filenames[self.txt_filename] = anonymous_txtfilename
         return filenames
 
-    def anon_files(self, destination, suffix):
+    def anon_files(self, destination: str, suffix: str) -> list:
         renames = self.anon_file_renames(destination, suffix)
         if self.txt is not None:
             return [file for file in renames.values() if '.txt' in file]
         else:
             return []
 
-    def _read_txt_file(self):
+    def _read_txt_file(self) -> None:
         """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
         self.txt = None
         if '.bin' in self.filename:  # files downloaded via URL may not have .bin ending
@@ -2050,7 +2068,7 @@ class TrajectoryLog(LogBase):
                         self.txt[items[0].strip()] = items[1].strip()
 
     @classmethod
-    def from_demo(cls, exclude_beam_off=True):
+    def from_demo(cls, exclude_beam_off: bool=True):
         """Load and instantiate from the demo trajetory log file included with the package."""
         demo_file = io.retrieve_demo_file(url='Tlog.bin')
         return cls(demo_file, exclude_beam_off)
@@ -2062,7 +2080,7 @@ class TrajectoryLog(LogBase):
         tlog.report_basic_parameters()
         tlog.plot_summary()
 
-    def to_csv(self, filename=None):
+    def to_csv(self, filename: Optional[str]=None) -> str:
         """Write the log to a CSV file.
 
         Parameters
@@ -2167,19 +2185,19 @@ class TrajectoryLog(LogBase):
             open_path(filename)
 
     @property
-    def num_beamholds(self):
+    def num_beamholds(self) -> int:
         """Return the number of times the beam was held."""
         diffmatrix = np.diff(self.axis_data.beam_hold.actual)
         num_holds = int(np.sum(diffmatrix > 0))
         return num_holds
 
     @property
-    def is_hdmlc(self):
+    def is_hdmlc(self) -> bool:
         """Whether the machine has an HDMLC or not."""
         return self.header.mlc_model == 3
 
 
-def anonymize(source, inplace=False, destination=None, recursive=True):
+def anonymize(source: str, inplace: bool=False, destination: bool=None, recursive: bool=True):
     """Quickly anonymize an individual log or directory of logs.
     For directories, threaded execution is performed, making this much faster (10-20x) than loading a ``MachineLogs``
     instance of the folder and using the ``.anonymize()`` method.
@@ -2226,7 +2244,8 @@ def anonymize(source, inplace=False, destination=None, recursive=True):
         raise NotALogError(f"{source} is not a log file or directory.")
 
 
-def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
+def load_log(file_or_dir: str, exclude_beam_off: bool = True, recursive: bool = True) -> Union[
+             TrajectoryLog, Dynalog, MachineLogs]:
     """Load a log file or directory of logs, either dynalogs or Trajectory logs.
 
     Parameters
@@ -2260,22 +2279,22 @@ def load_log(file_or_dir, exclude_beam_off=True, recursive=True):
         raise NotALogError(f"'{file_or_dir}' did not point to a valid file, directory, or ZIP archive")
 
  
-def is_log(filename):
+def is_log(filename: str) -> bool:
     """Boolean specifying if filename is a valid log file."""
     return is_tlog(filename) or is_dlog(filename)
 
 
-def is_tlog(filename):
+def is_tlog(filename: str) -> bool:
     """Boolean specifying if filename is a Trajectory log file."""
     return _is_log(filename, ('VOSTL',))
 
 
-def is_dlog(filename):
+def is_dlog(filename: str) -> bool:
     """Boolean specifying if filename is a Dynalog file."""
     return _is_log(filename, ('B', 'A'))
 
 
-def _is_log(filename, keys):
+def _is_log(filename: str, keys: Sequence[str]) -> bool:
     """Internal function that determines whether a file is a log.
 
     Parameters
@@ -2311,7 +2330,7 @@ def write_array(writer, description, value, unit=None):
         writer.writerow(arr2write)
 
 
-def _get_log_filenames(directory, recursive=True):
+def _get_log_filenames(directory: str, recursive: bool=True) -> list:
     """Extract the names of real log files from a directory."""
     tlogs = io.retrieve_filenames(directory, is_tlog, recursive=recursive)
     dlogs = io.retrieve_filenames(directory, is_dlog, recursive=recursive)

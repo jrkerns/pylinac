@@ -22,7 +22,7 @@ from itertools import zip_longest
 import io
 import math
 import os.path as osp
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Optional
 from textwrap import wrap
 
 import argue
@@ -251,7 +251,8 @@ class WinstonLutz:
         delta = B.dot(epsilon)  # equation 9
         return Vector(x=delta[1][0], y=-delta[0][0], z=-delta[2][0])
 
-    def bb_shift_instructions(self, couch_vrt: float=None, couch_lng: float=None, couch_lat: float=None) -> str:
+    def bb_shift_instructions(self, couch_vrt: Optional[float] = None, couch_lng: Optional[float] = None,
+                              couch_lat: Optional[float] = None) -> str:
         """Returns a string describing how to shift the BB to the radiation isocenter looking from the foot of the couch.
         Optionally, the current couch values can be passed in to get the new couch values. If passing the current
         couch position all values must be passed.
@@ -302,6 +303,7 @@ class WinstonLutz:
             rms = max(rms) - min(rms)
         return rms
 
+    @argue.options(metric=('max', 'median'))
     def cax2bb_distance(self, metric: str='max') -> float:
         """The distance in mm between the CAX and BB for all images according to the given metric.
 
@@ -315,6 +317,7 @@ class WinstonLutz:
         elif metric == 'median':
             return np.median([image.cax2bb_distance for image in self.images])
 
+    @argue.options(metric=('max', 'median'))
     def cax2epid_distance(self, metric: str='max') -> float:
         """The distance in mm between the CAX and EPID center pixel for all images according to the given metric.
 
@@ -329,7 +332,7 @@ class WinstonLutz:
             return np.median([image.cax2epid_distance for image in self.images])
 
     @argue.options(item=(GANTRY, EPID, COLLIMATOR, COUCH))
-    def _plot_deviation(self, item: str, ax: plt.Axes=None, show: bool=True):
+    def _plot_deviation(self, item: str, ax: Optional[plt.Axes]=None, show: bool=True):
         """Helper function: Plot the sag in Cartesian coordinates.
 
         Parameters
@@ -377,7 +380,7 @@ class WinstonLutz:
         return len(images), images
 
     @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GBP_COMBO))
-    def plot_axis_images(self, axis: str=GANTRY, show: bool=True, ax: plt.Axes=None):
+    def plot_axis_images(self, axis: str=GANTRY, show: bool=True, ax: Optional[plt.Axes]=None):
         """Plot all CAX/BB/EPID positions for the images of a given axis.
 
         For example, axis='Couch' plots a reference image, and all the BB points of the other
@@ -538,7 +541,7 @@ class WinstonLutz:
             result = '\n'.join(result)
         return result
 
-    def publish_pdf(self, filename: str, notes: Union[str, List[str]]=None, open_file: bool=False, metadata: dict=None):
+    def publish_pdf(self, filename: str, notes: Optional[Union[str, List[str]]]=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -735,7 +738,7 @@ class WLImage(image.LinacDicomImage):
         return l
 
     @property
-    def couch_angle_varian_scale(self):
+    def couch_angle_varian_scale(self) -> float:
         """The couch angle converted from IEC 61217 scale to "Varian" scale. Note that any new Varian machine uses 61217."""
         #  convert to Varian scale per Low paper scale
         if super().couch_angle > 250:

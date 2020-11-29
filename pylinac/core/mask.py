@@ -33,7 +33,7 @@ def square_ratio(array: np.array) -> float:
     return y/x
 
 
-def sector_mask(shape: Tuple, center: Point, radius: NumberLike, angle_range: Tuple=(0, 360)) -> np.array:
+def sector_mask(shape: Tuple, center: Point, radius: NumberLike, angle_range: Tuple=(0, 360)) -> np.ndarray:
     """Return a circular arc-shaped boolean mask.
 
     Parameters
