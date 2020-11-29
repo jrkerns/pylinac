@@ -701,7 +701,6 @@ class CollapsedCircleProfile(CircleProfile):
             axes.scatter(x_locs, y_locs, s=20, marker='x', c=edgecolor)
 
 
-@argue.bounds(search_region=(0, 1))
 def find_peaks(values: np.ndarray, threshold: Union[float, int] = -np.inf, peak_separation: Union[float, int] = 0,
                max_number: int = None, fwxm_height: float = 0.5, min_width: int = 0,
                search_region: Tuple[float, float] = (0.0, 1.0)) \

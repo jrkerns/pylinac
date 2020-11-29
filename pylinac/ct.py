@@ -18,7 +18,7 @@ from os import path as osp
 import os
 import webbrowser
 import zipfile
-from typing import Optional
+from typing import Optional, Union, Dict, Tuple, Sequence
 
 import argue
 import matplotlib.pyplot as plt
@@ -121,7 +121,7 @@ class Slice:
     """Base class for analyzing specific slices of a CBCT dicom set."""
 
     @argue.options(combine_method=('mean', 'max'))
-    def __init__(self, catphan: CatPhanBase, slice_num: Optional[int]=None, combine: bool=True, combine_method: str='mean', num_slices: int=0):
+    def __init__(self, catphan, slice_num: Optional[int]=None, combine: bool=True, combine_method: str='mean', num_slices: int=0):
         """
         Parameters
         ----------
@@ -189,10 +189,10 @@ class CatPhanModule(Slice):
     background_roi_settings: dict
     roi_dist_mm = float
     roi_radius_mm = float
-    rois: dict[HUDiskROI]  # dicts of HUDiskROIs
-    background_rois: dict[HUDiskROI]  # dict of HUDiskROIs; possibly empty
+    rois: dict  # dicts of HUDiskROIs
+    background_rois: dict  # dict of HUDiskROIs; possibly empty
 
-    def __init__(self, catphan: CatPhanBase, tolerance: float, offset: int=0):
+    def __init__(self, catphan, tolerance: float, offset: int=0):
         """
         Parameters
         ----------
@@ -224,7 +224,7 @@ class CatPhanModule(Slice):
             self.background_roi_settings[roi]['angle_corrected'] = settings['angle'] + self.catphan_roll
             self.background_roi_settings[roi]['radius_pixels'] = settings['radius'] / self.mm_per_pixel
 
-    def preprocess(self, catphan: CatPhanBase):
+    def preprocess(self, catphan):
         """A preprocessing step before analyzing the CTP module.
 
         Parameters
@@ -313,7 +313,7 @@ class CTP404CP504(CatPhanModule):
         'Right-Vertical': (1, 3),
     }
 
-    def __init__(self, catphan: CatPhanBase, offset: int, hu_tolerance: float, thickness_tolerance: float, scaling_tolerance: float):
+    def __init__(self, catphan, offset: int, hu_tolerance: float, thickness_tolerance: float, scaling_tolerance: float):
         """
         Parameters
         ----------
@@ -339,7 +339,7 @@ class CTP404CP504(CatPhanModule):
             self.thickness_roi_settings[roi]['angle_corrected'] = settings['angle'] + self.catphan_roll
             self.thickness_roi_settings[roi]['distance_pixels'] = settings['distance'] / self.mm_per_pixel
 
-    def preprocess(self, catphan: CatPhanBase) -> None:
+    def preprocess(self, catphan) -> None:
         # for the thickness analysis image, combine thin slices or just use one slice if slices are thick
         if float(catphan.dicom_stack.metadata.SliceThickness) < 3.5:
             self.pad = 1
@@ -380,7 +380,7 @@ class CTP404CP504(CatPhanModule):
         """The low-contrast visibility"""
         return 2 * abs(self.rois['LDPE'].pixel_value - self.rois['Poly'].pixel_value) / (self.rois['LDPE'].std + self.rois['Poly'].std)
 
-    def plot_linearity(self, axis: Optional[plt.Axes]=None, plot_delta: bool=True) -> Tuple:
+    def plot_linearity(self, axis: Optional[plt.Axes]=None, plot_delta: bool=True) -> tuple:
         """Plot the HU linearity values to an axis.
 
         Parameters
@@ -746,7 +746,7 @@ class CTP515(CatPhanModule):
     background_roi_dist_ratio = 0.75
     background_roi_radius_mm = 4
 
-    def __init__(self, catphan: CatPhanBase, tolerance: float, cnr_threshold: float, offset: int):
+    def __init__(self, catphan, tolerance: float, cnr_threshold: float, offset: int):
         self.cnr_threshold = cnr_threshold
         super().__init__(catphan, tolerance=tolerance, offset=offset)
 

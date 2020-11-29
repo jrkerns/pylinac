@@ -1485,7 +1485,7 @@ class LogBase:
         return string
 
     @property
-    def treatment_type(self) -> Union[VMAT, STATIC_IMRT, DYNAMIC_IMRT, IMAGING]:
+    def treatment_type(self) -> str:
         """The treatment type of the log. Possible options:
 
         Returns
