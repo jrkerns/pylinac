@@ -900,7 +900,6 @@ class CatPhanBase:
         self.plot_analyzed_image(show=False)
         plt.savefig(filename, **kwargs)
 
-    @argue.options(subimage=('hu', 'un', 'lc', 'mtf', 'lin', 'prof', 'sp'))
     def plot_analyzed_subimage(self, subimage: str='hu', delta: bool=True, show: bool=True) -> None:
         """Plot a specific component of the CBCT analysis.
 
@@ -956,7 +955,6 @@ class CatPhanBase:
         if show:
             plt.show()
 
-    @argue.options(subimage=('hu', 'un', 'lc', 'mtf', 'lin', 'prof', 'sp'))
     def save_analyzed_subimage(self, filename: str, subimage: str='hu', **kwargs):
         """Save a component image to file.
 
