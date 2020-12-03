@@ -276,10 +276,10 @@ The minimum needed to get going is to:
   .. plot::
       :include-source: false
 
-    import pylinac
-    qc = pylinac.StandardImagingQC3.from_demo_image()
-    qc.analyze(low_contrast_threshold=0.01, high_contrast_threshold=0.5)
-    qc.plot_analyzed_image(low_contrast=False)
+      import pylinac
+      qc = pylinac.StandardImagingQC3.from_demo_image()
+      qc.analyze(low_contrast_threshold=0.01, high_contrast_threshold=0.5)
+      qc.plot_analyzed_image(low_contrast=False)
 
   The figure can also be saved:
 
@@ -425,10 +425,10 @@ The minimum needed to get going is to:
   .. plot::
       :include-source: false
 
-    import pylinac
-    lv = pylinac.LasVegas.from_demo_image()
-    lv.analyze(low_contrast_threshold=0.01)
-    lv.plot_analyzed_image(low_contrast=False)
+      import pylinac
+      lv = pylinac.LasVegas.from_demo_image()
+      lv.analyze(low_contrast_threshold=0.01)
+      lv.plot_analyzed_image(low_contrast=False)
 
   The figure can also be saved:
 

@@ -130,10 +130,10 @@ The minimum needed to get going is to:
   .. plot::
       :include-source: false
 
-    from pylinac import PicketFence
-    pf = PicketFence.from_demo_image()
-    pf.analyze(tolerance=0.15, action_tolerance=0.03)
-    pf.plot_analyzed_image()
+      from pylinac import PicketFence
+      pf = PicketFence.from_demo_image()
+      pf.analyze(tolerance=0.15, action_tolerance=0.03)
+      pf.plot_analyzed_image()
 
   The plot is also able to be saved to PNG:
 

@@ -13,22 +13,22 @@ dependencies:
 - matplotlib=2
 - mkl
 - networkx
-- numpy=1.12
+- numpy
 - openssl
-- pillow=3.1
-- pip=8.1.0
-- pygments=2.1
+- pillow
+- pip
+- pygments
 - pyparsing
-- pyqt=4.11.4
-- python=3.5
+- pyqt
+- python=3.7
 - python-dateutil
 - pytz
-- qt=4.8.7
+- qt
 - readline
-- reportlab=3.3
-- scikit-image=0.17
-- sphinx=3
-- scipy=1.1
+- reportlab
+- scikit-image
+- sphinx
+- scipy
 - setuptools
 - sip
 - six
@@ -38,5 +38,5 @@ dependencies:
 - xz
 - zlib
 - pip:
-  - pydicom=2
-  - tqdm==3.8
+  - pydicom
+  - tqdm

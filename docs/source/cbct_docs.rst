@@ -40,6 +40,7 @@ Results will be also be printed to the console::
 As well, you can plot and save individual pieces of the analysis such as linearity:
 
 .. plot::
+    :include-source: false
 
     from pylinac import CatPhan504
 

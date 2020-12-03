@@ -94,9 +94,9 @@ The minimum needed to get going is to:
   .. plot::
       :include-source: false
 
-    import pylinac
+      import pylinac
 
-    pylinac.DRGS.run_demo()
+      pylinac.DRGS.run_demo()
 
   PDF reports can also be generated:
 
