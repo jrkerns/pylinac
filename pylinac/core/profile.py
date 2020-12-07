@@ -138,6 +138,7 @@ class SingleProfile(ProfileMixin):
     interpolation_factor: int = 100
     interpolation_type: str = 'linear'
     _values: np.ndarray
+    _dpmm: float
 
     def __init__(self, values: np.ndarray):
         """
@@ -158,6 +159,24 @@ class SingleProfile(ProfileMixin):
         if not isinstance(value, np.ndarray):
             raise TypeError("Values must be a numpy array")
         self._values = value.astype(float)
+
+    @property
+    def dpmm(self) -> NumberLike:
+        """The Dots-per-mm of the profile, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
+        the dpmm will scale back to 100cm. Added by ACC 3/12/2020"""
+        return self._dpmm
+
+    @dpmm.setter
+    def dpmm(self, value):
+        """The Dots-per-mm of the profile, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
+        the dpmm will scale back to 100cm. Added by ACC 3/12/2020"""
+        if value > 0:
+            self._dpmm = value
+
+    @property
+    def profile_center(self):
+        """Returns the center index of the profile. Added by ACC 3/12/2020"""
+        return (self.values.shape[0] - 1)/2
 
     @property
     @lru_cache()
@@ -209,6 +228,57 @@ class SingleProfile(ProfileMixin):
         else:
             fwxm_center_idx = int(round(fwxm_center_idx))
             return fwxm_center_idx, self.values[fwxm_center_idx]
+
+    @argue.bounds(x=(0, 100))
+    @argue.options(norm=('max', 'max grounded', 'cax', 'cax grounded'), interpolate=(True, False))
+    def distance_to_dose(self, x: int=50, norm='max grounded', interpolate=True) -> Tuple[float, float]:
+        """Return the width at X-Max, where X is the percentage height.
+
+        Parameters
+        ----------
+        x : int
+            The dose level of the profile. E.g. x = 50 is 50% height, 100 is the profile peak.
+            i.e. FWHM.
+        norm : str
+            The type of normalisation to apply:
+                'max'          : normalises to the profile maximum with no grounding
+                'max grounded' : grounds each side to the profile minimum and normalises to the profile maximum
+                'cax'          : normalises to the profile centre value with no grounding
+                'cax grounded' : grounds each side to the profile minimum and normalises to the profile centre value
+            Default is 'max_grounded' as this is the intrinsic method of the scipy sgnal.find_peak function.
+        interpolate : bool
+            Whether to interpolate the profile array values to get subpixel precision.
+
+        Returns
+        -------
+        left index, right index
+            The left and right indices of the dose level.
+        """
+
+        # prevent array from being grounded by setting ends to zero
+        if norm in ['max', 'cax']:
+            ydata = np.insert(self.values, 0, 0)
+            ydata = np.append(ydata, 0)
+        else:
+            ydata = self.values
+
+        # adjust x to give the equivalent level if peak val was at CAX
+        if norm == 'cax':
+            ylen = len(ydata)
+            if ylen % 2 == 0:           # ylen is even and central detectors straddle CAX
+                cax = (ydata[ylen/2] + ydata[(ylen - 1)/2])/2.0
+            else:                       # ylen is odd and we have a central detector
+                cax = ydata[int((ylen - 1)/2)]
+            ymax = ydata.max()
+            x = x*cax/ymax
+
+        _, peak_props = find_peaks(ydata, fwxm_height=x/100, max_number=1)
+        left = peak_props['left_ips'][0] if interpolate else int(round(peak_props['left_ips'][0]))
+        right = peak_props['right_ips'][0] if interpolate else int(round(peak_props['right_ips'][0]))
+        if norm in ['max', 'cax']:
+            left = left - 1
+            right = right - 1
+        return left, right
 
     @argue.bounds(lower=(0, 100), upper=(0, 100))
     def penumbra_width(self, lower: int=20, upper: int=80) -> Tuple[float, float]:

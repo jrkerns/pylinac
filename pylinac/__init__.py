@@ -13,6 +13,7 @@ from pylinac.ct import CatPhan504, CatPhan600, CatPhan503, CatPhan604
 from pylinac.core import decorators, geometry, image, io, mask, profile, roi, utilities
 from pylinac.core.utilities import clear_data_files, assign2machine
 from pylinac.flatsym import FlatSym
+from pylinac.fieldparams import FieldParams
 from pylinac.planar_imaging import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from pylinac.log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
 from pylinac.picketfence import PicketFence  # must be after log analyzer
