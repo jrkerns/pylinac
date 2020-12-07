@@ -3,7 +3,7 @@
 
 import io
 import os.path as osp
-from typing import Union, Optional
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,7 +15,6 @@ from .core import image
 from .core.profile import SingleProfile
 from .core import pdf
 from .settings import get_dicom_cmap
-from .core.hillreg import hill_reg
 
 interpolate: bool = True
 norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 'max grounded'
@@ -28,48 +27,18 @@ norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 
 
 def left_edge_50(profile: SingleProfile, *args) -> float:
     """Return the position of the 50% of max dose value on the left of the profile"""
-    left_edge = abs(profile.distance_to_dose(50, norm, interpolate)[0] - profile.profile_center()[0])/profile.dpmm
+    left_edge = abs(profile.distance_to_dose(50, norm, interpolate)[0] - profile.profile_center)/profile.dpmm
     return left_edge
 
 
 def right_edge_50(profile: SingleProfile, *args):
     """Return the position of the 50% of max dose value on the right of the profile"""
-    right_edge = abs(profile.distance_to_dose(50, norm, interpolate)[1] - profile.profile_center()[0])/profile.dpmm
-    return right_edge
-
-
-def left_edge_inf(profile: SingleProfile, *args):
-    """Return the position of the inflection point on the left of the profile. The steepest gradient is used as
-    an initial approximation"""
-    cax_idx = profile.profile_center()[0]
-    left_edge_idx = np.argmax(np.diff(profile.values[:int(cax_idx)]))
-    end_idx = int(left_edge_idx*2)                  # take profile values around left edge
-    if end_idx > cax_idx:
-        end_idx = round(cax_idx)
-    values = profile.values[:end_idx]
-    indices = profile._indices[:end_idx]
-    left_edge_idx = hill_reg(indices,values)[2]
-    left_edge = abs(left_edge_idx - cax_idx)/profile.dpmm
-    return left_edge
-
-
-def right_edge_inf(profile: SingleProfile, *args):
-    """Return the position of the inflection point on the right of the profile"""
-    cax_idx = profile.profile_center()[0]
-    right_edge_idx = np.argmax(np.diff(profile.values[int(cax_idx):])) + round(cax_idx)
-    start_idx = int(right_edge_idx*2 - profile.values.shape[0])                  # take profile values around right edge
-    if start_idx < cax_idx:
-        start_idx = round(cax_idx)
-    values = profile.values[start_idx:]
-    indices = profile._indices[start_idx:]
-    right_edge_idx = hill_reg(indices,values)[2]
-    right_edge = abs(right_edge_idx - cax_idx)/profile.dpmm
+    right_edge = abs(profile.distance_to_dose(50, norm, interpolate)[1] - profile.profile_center)/profile.dpmm
     return right_edge
 
 
 def field_size_50(profile: SingleProfile, *args):
-    """Return the field size at 50% of max dose. Not affected by the normalisation mode.
-    Included for testing purposes"""
+    """Return the field size at 50% of max dose"""
     return profile.fwxm(50)/profile.dpmm
 
 
@@ -79,9 +48,8 @@ def field_size_edge_50(profile: SingleProfile, *args):
 
 
 def field_center_fwhm(profile: SingleProfile, *args):
-    """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
-    Included for testing purposes"""
-    field_center = (profile.fwxm_center(50, interpolate)[0] - profile.profile_center()[0])/profile.dpmm
+    """Field center as given by the center of the profile FWHM"""
+    field_center = (profile.fwxm_center(50, interpolate)[0] - profile.profile_center)/profile.dpmm
     return field_center
 
 
@@ -104,7 +72,7 @@ def penumbra_right_80_20(profile: SingleProfile, *args):
     return right_penum
 
 
-def flatness_dose_difference(profile: SingleProfile, ifa: float=0.8):
+def flatness_dose_difference(profile: SingleProfile, ifa:float=0.8):
     """The Varian specification for calculating flatness"""
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
@@ -115,7 +83,7 @@ def flatness_dose_difference(profile: SingleProfile, ifa: float=0.8):
     return flatness
 
 
-def flatness_dose_ratio(profile: SingleProfile, ifa: float=0.8):
+def flatness_dose_ratio(profile: SingleProfile, ifa:float=0.8):
     """The Elekta specification for calculating flatness"""
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
@@ -126,14 +94,10 @@ def flatness_dose_ratio(profile: SingleProfile, ifa: float=0.8):
     return flatness
 
 
-def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
-    """Calculation of symmetry by way of point difference equidistant from the CAX. Field calculation is
-    automatically centred."""
+def symmetry_point_difference(profile: SingleProfile, ifa:float=0.8):
+    """Calculation of symmetry by way of point difference equidistant from the CAX"""
     values = profile.field_values(field_width=ifa)
-    if norm in ['max', 'max grounded']:
-        _, cax_val = profile.fwxm_center()
-    else:
-        _, cax_val = profile.profile_center()
+    _, cax_val = profile.fwxm_center()
     sym_array = []
     for lt_pt, rt_pt in zip(values, values[::-1]):
         val = 100 * abs(lt_pt - rt_pt) / cax_val
@@ -142,8 +106,8 @@ def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
     return symmetry
 
 
-def symmetry_pdq_iec(profile: SingleProfile, ifa: float = 0.8):
-    """Symmetry calculation by way of PDQ IEC. Field calculation is automatically centred"""
+def symmetry_pdq_iec(profile: SingleProfile, ifa:float = 0.8):
+    """Symmetry calculation by way of PDQ IEC"""
     values = profile.field_values(field_width=ifa)
     max_val = 0
     for lt_pt, rt_pt in zip(values, values[::-1]):
@@ -152,50 +116,6 @@ def symmetry_pdq_iec(profile: SingleProfile, ifa: float = 0.8):
             max_val = val
     symmetry = 100 * max_val
     return symmetry
-
-
-def symmetry_area(profile: SingleProfile, ifa: float = 0.8):
-    """Ratio of the area under the left and right profile segments. Field is automatically centered."""
-    values = profile.field_values(field_width=ifa)
-    plen = len(values)
-    cax_idx = round((plen - 1)/2)
-    if plen % 2 == 0:                         # even number of values, CAX is straddled by centre values.
-        area_left = np.sum(values[:cax_idx])
-        area_right = np.sum(values[cax_idx:])
-    else:                                     # include centre value on CAX
-        area_left = np.sum(values[:cax_idx + 1])
-        area_right = np.sum(values[cax_idx:])
-    symmetry = 100*abs(area_left - area_right)/(area_left + area_right)
-    return symmetry
-
-
-def deviation_diff(profile: SingleProfile, ifa: float = 0.8):
-    """Maximum deviation"""
-    if norm in ['max', 'max grounded']:
-        _, cax_val = profile.fwxm_center()
-    else:
-        _, cax_val = profile.profile_center()
-    try:
-        dmax = profile.field_calculation(field_width=ifa, calculation='max')
-        dmin = profile.field_calculation(field_width=ifa, calculation='min')
-    except ValueError:
-        raise ValueError("An error was encountered in the deviation calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
-    deviation = 100*(dmax - dmin)/cax_val
-    return deviation
-
-
-def deviation_max(profile: SingleProfile, ifa: float = 0.8):
-    """Maximum deviation"""
-    if norm in ['max', 'max grounded']:
-        _, cax_val = profile.fwxm_center()
-    else:
-        _, cax_val = profile.profile_center()
-    try:
-        dmax = profile.field_calculation(field_width=ifa, calculation='max')
-    except ValueError:
-        raise ValueError("An error was encountered in the deviation calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
-    deviation = 100*dmax/cax_val
-    return deviation
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -212,13 +132,8 @@ ALL = {
     'Field center FWHM': field_center_fwhm,
     'Penumbra 80-20% left': penumbra_left_80_20,
     'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness diff': flatness_dose_difference,
-    'Flatness ratio': flatness_dose_ratio,
-    'Symmetry diff': symmetry_point_difference,
-    'Symmetry ratio': symmetry_pdq_iec,
-    'Symmetry area': symmetry_area,
-    'Deviation max': deviation_max,
-    'Deviation diff': deviation_diff
+    'Flatness': flatness_dose_difference,
+    'Symmetry': symmetry_point_difference,
 }
 
 VARIAN = {
@@ -252,7 +167,6 @@ ELEKTA = {
     'Penumbra 80-20% right': penumbra_right_80_20,
     'Flatness': flatness_dose_ratio,
     'Symmetry': symmetry_pdq_iec,
-    'Deviation diff': deviation_diff
 }
 
 SIEMENS = {
@@ -262,9 +176,7 @@ SIEMENS = {
     'Field center': field_center_fwhm,
     'Penumbra 80-20% left': penumbra_left_80_20,
     'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_difference,
-    'Symmetry': symmetry_area,
-    'Deviation max': deviation_max
+    'Flatness': flatness_dose_difference
 }
 
 VOM80 = {
@@ -284,38 +196,9 @@ IEC9076 = {
     'Field center': field_center_fwhm,
     'Penumbra 80-20% left': penumbra_left_80_20,
     'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_ratio,
     'Symmetry': symmetry_pdq_iec,
 }
 
-AFSSAPS_JORF = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_edge_50,
-    'Field center': field_center_edge_50,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_difference,
-    'Symmetry': symmetry_pdq_iec,
-    'Deviation max': deviation_max
-}
-
-DIN = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_50,
-    'Field center': field_center_fwhm,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_ratio,
-    'Symmetry': symmetry_pdq_iec,
-}
-
-
-FFF = {
-    'Left edge inf': left_edge_inf,
-    'Right edge inf': right_edge_inf
-}
 # ----------------------------------------------------------------------------------------------------------------------
 # End of predefined protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these
 # protocols and add the protocol name to the dictionary PROTOCOLS.
@@ -323,15 +206,11 @@ FFF = {
 
 PROTOCOLS = {
     'all': ALL,
-    'default': VARIAN,
     'varian': VARIAN,
     'elekta': ELEKTA,
     'siemens': SIEMENS,
     'vom80': VOM80,
-    'iec9076': IEC9076,
-    'afssaps-jorf': AFSSAPS_JORF,
-    'din': DIN,
-    'fff': FFF
+    'iec9076': IEC9076
 }
 
 
@@ -346,19 +225,14 @@ class FieldParams:
         The position ratio used for analysis for vertical and horizontal.
     """
 
-    def __init__(self, path: str, filter: Optional[int]=None):
+    def __init__(self, path: str):
         """
         Parameters
         ----------
         path : str
             The path to the image.
-        filter : None or int
-            If None, no filter is applied. If an int, a median filter of size n pixels is applied. Generally, a good idea.
-            Default is None for backwards compatibility.
         """
         self.image = image.load(path)
-        if filter:
-            self.image.filter(size=filter)
         self.vert_profile = SingleProfile(np.empty(0))
         self.horiz_profile = SingleProfile(np.empty(0))
         self.infield_area: float = 0.8
