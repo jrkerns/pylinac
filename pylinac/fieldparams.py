@@ -3,7 +3,7 @@
 
 import io
 import os.path as osp
-from typing import Union
+from typing import Union, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,7 +38,8 @@ def right_edge_50(profile: SingleProfile, *args):
 
 
 def field_size_50(profile: SingleProfile, *args):
-    """Return the field size at 50% of max dose"""
+    """Return the field size at 50% of max dose. Not affected by the normalisation mode.
+    Included for testing purposes"""
     return profile.fwxm(50)/profile.dpmm
 
 
@@ -48,7 +49,8 @@ def field_size_edge_50(profile: SingleProfile, *args):
 
 
 def field_center_fwhm(profile: SingleProfile, *args):
-    """Field center as given by the center of the profile FWHM"""
+    """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
+    Included for testing purposes"""
     field_center = (profile.fwxm_center(50, interpolate)[0] - profile.profile_center)/profile.dpmm
     return field_center
 
@@ -72,7 +74,7 @@ def penumbra_right_80_20(profile: SingleProfile, *args):
     return right_penum
 
 
-def flatness_dose_difference(profile: SingleProfile, ifa:float=0.8):
+def flatness_dose_difference(profile: SingleProfile, ifa: float=0.8):
     """The Varian specification for calculating flatness"""
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
@@ -83,7 +85,7 @@ def flatness_dose_difference(profile: SingleProfile, ifa:float=0.8):
     return flatness
 
 
-def flatness_dose_ratio(profile: SingleProfile, ifa:float=0.8):
+def flatness_dose_ratio(profile: SingleProfile, ifa: float=0.8):
     """The Elekta specification for calculating flatness"""
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
@@ -94,8 +96,9 @@ def flatness_dose_ratio(profile: SingleProfile, ifa:float=0.8):
     return flatness
 
 
-def symmetry_point_difference(profile: SingleProfile, ifa:float=0.8):
-    """Calculation of symmetry by way of point difference equidistant from the CAX"""
+def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
+    """Calculation of symmetry by way of point difference equidistant from the CAX. Field calculation is
+    automatically centred."""
     values = profile.field_values(field_width=ifa)
     _, cax_val = profile.fwxm_center()
     sym_array = []
@@ -106,8 +109,8 @@ def symmetry_point_difference(profile: SingleProfile, ifa:float=0.8):
     return symmetry
 
 
-def symmetry_pdq_iec(profile: SingleProfile, ifa:float = 0.8):
-    """Symmetry calculation by way of PDQ IEC"""
+def symmetry_pdq_iec(profile: SingleProfile, ifa: float = 0.8):
+    """Symmetry calculation by way of PDQ IEC. Field calculation is automatically centred"""
     values = profile.field_values(field_width=ifa)
     max_val = 0
     for lt_pt, rt_pt in zip(values, values[::-1]):
@@ -132,8 +135,10 @@ ALL = {
     'Field center FWHM': field_center_fwhm,
     'Penumbra 80-20% left': penumbra_left_80_20,
     'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_difference,
-    'Symmetry': symmetry_point_difference,
+    'Flatness diff': flatness_dose_difference,
+    'Flatness ratio': flatness_dose_ratio,
+    'Symmetry diff': symmetry_point_difference,
+    'Symmetry ratio': symmetry_pdq_iec
 }
 
 VARIAN = {
@@ -225,14 +230,19 @@ class FieldParams:
         The position ratio used for analysis for vertical and horizontal.
     """
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, filter: Optional[int]=None):
         """
         Parameters
         ----------
         path : str
             The path to the image.
+        filter : None or int
+            If None, no filter is applied. If an int, a median filter of size n pixels is applied. Generally, a good idea.
+            Default is None for backwards compatibility.
         """
         self.image = image.load(path)
+        if filter:
+            self.image.filter(size=filter)
         self.vert_profile = SingleProfile(np.empty(0))
         self.horiz_profile = SingleProfile(np.empty(0))
         self.infield_area: float = 0.8
