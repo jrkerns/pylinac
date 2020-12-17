@@ -40,11 +40,6 @@ class CalcParamTests(TestCase):
         fp.norm = 'cax'
         self.assertAlmostEqual(fp.right_edge_50(self.profile), 104.04, delta=self.delta)
 
-    def test_left_edge_inf(self):
-        fp.interpolate = True
-        fp.norm = 'cax'
-        self.assertAlmostEqual(fp.left_edge_inf(self.profile), 96.06, delta=self.delta)
-
     def test_field_size_edge_50(self):
         fp.interpolate = True
         fp.norm = 'cax'
@@ -76,17 +71,6 @@ class CalcParamTests(TestCase):
 
     def test_symmetry_pdq_iec(self):
         self.assertAlmostEqual(fp.symmetry_pdq_iec(self.profile, 0.8), 101.88, delta=self.delta)
-
-    def test_symmetry_area(self):
-        self.assertAlmostEqual(fp.symmetry_area(self.profile, 1.0), 0.44, delta=self.delta)
-
-    def test_deviation_max(self):
-        fp.norm = 'cax'
-        self.assertAlmostEqual(fp.deviation_max(self.profile, 0.8), 104.80, delta=self.delta)
-
-    def test_deviation_diff(self):
-        fp.norm = 'cax'
-        self.assertAlmostEqual(fp.deviation_diff(self.profile, 0.8), 4.80, delta=self.delta)
 
 
 class FieldParamTests(TestCase):
@@ -126,7 +110,7 @@ class FieldParamTests(TestCase):
     def test_protocols(self):
         fs = FieldParams.from_demo_image()
         analyze = partial(fs.analyze, protocol='varian')
-        for method in ('all', 'default', 'varian', 'elekta', 'siemens', 'vom80', 'iec9076', 'din', 'afssaps-jorf'):
+        for method in ('all', 'varian', 'elekta', 'siemens', 'vom80', 'iec9076'):
             analyze(protocol=method)  # shouldn't raise
 
     def test_results(self):
