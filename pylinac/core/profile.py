@@ -266,7 +266,7 @@ class SingleProfile(ProfileMixin):
         if norm == 'cax':
             ylen = len(ydata)
             if ylen % 2 == 0:           # ylen is even and central detectors straddle CAX
-                cax = (ydata[ylen/2] + ydata[(ylen - 1)/2])/2.0
+                cax = (ydata[int(ylen/2)] + ydata[int(ylen/2) - 1])/2.0
             else:                       # ylen is odd and we have a central detector
                 cax = ydata[int((ylen - 1)/2)]
             ymax = ydata.max()
