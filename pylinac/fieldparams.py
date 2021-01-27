@@ -27,13 +27,13 @@ norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 
 
 def left_edge_50(profile: SingleProfile, *args) -> float:
     """Return the position of the 50% of max dose value on the left of the profile"""
-    left_edge = abs(profile.distance_to_dose(50, norm, interpolate)[0] - profile.profile_center)/profile.dpmm
+    left_edge = abs(profile.distance_to_dose(50, norm, interpolate)[0] - profile.profile_center()[0])/profile.dpmm
     return left_edge
 
 
 def right_edge_50(profile: SingleProfile, *args):
     """Return the position of the 50% of max dose value on the right of the profile"""
-    right_edge = abs(profile.distance_to_dose(50, norm, interpolate)[1] - profile.profile_center)/profile.dpmm
+    right_edge = abs(profile.distance_to_dose(50, norm, interpolate)[1] - profile.profile_center()[0])/profile.dpmm
     return right_edge
 
 
@@ -51,7 +51,7 @@ def field_size_edge_50(profile: SingleProfile, *args):
 def field_center_fwhm(profile: SingleProfile, *args):
     """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
     Included for testing purposes"""
-    field_center = (profile.fwxm_center(50, interpolate)[0] - profile.profile_center)/profile.dpmm
+    field_center = (profile.fwxm_center(50, interpolate)[0] - profile.profile_center()[0])/profile.dpmm
     return field_center
 
 
@@ -100,7 +100,10 @@ def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
     """Calculation of symmetry by way of point difference equidistant from the CAX. Field calculation is
     automatically centred."""
     values = profile.field_values(field_width=ifa)
-    _, cax_val = profile.fwxm_center()
+    if norm in ['max', 'max grounded']:
+        _, cax_val = profile.fwxm_center()
+    else:
+        _, cax_val = profile.profile_center()
     sym_array = []
     for lt_pt, rt_pt in zip(values, values[::-1]):
         val = 100 * abs(lt_pt - rt_pt) / cax_val
@@ -121,6 +124,50 @@ def symmetry_pdq_iec(profile: SingleProfile, ifa: float = 0.8):
     return symmetry
 
 
+def symmetry_area(profile: SingleProfile, ifa: float = 0.8):
+    """Ratio of the area under the left and right profile segments. Field is automatically centered."""
+    values = profile.field_values(field_width=ifa)
+    plen = len(values)
+    cax_idx = round((plen - 1)/2)
+    if plen % 2 == 0:                         # even number of values, CAX is straddled by centre values.
+        area_left = np.sum(values[:cax_idx])
+        area_right = np.sum(values[cax_idx:])
+    else:                                     # include centre value on CAX
+        area_left = np.sum(values[:cax_idx + 1])
+        area_right = np.sum(values[cax_idx:])
+    symmetry = 100*abs(area_left - area_right)/(area_left + area_right)
+    return symmetry
+
+
+def deviation_diff(profile: SingleProfile, ifa: float = 0.8):
+    """Maximum deviation"""
+    if norm in ['max', 'max grounded']:
+        _, cax_val = profile.fwxm_center()
+    else:
+        _, cax_val = profile.profile_center()
+    try:
+        dmax = profile.field_calculation(field_width=ifa, calculation='max')
+        dmin = profile.field_calculation(field_width=ifa, calculation='min')
+    except ValueError:
+        raise ValueError("An error was encountered in the deviation calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
+    deviation = 100*(dmax - dmin)/cax_val
+    return deviation
+
+
+def deviation_max(profile: SingleProfile, ifa: float = 0.8):
+    """Maximum deviation"""
+    if norm in ['max', 'max grounded']:
+        _, cax_val = profile.fwxm_center()
+    else:
+        _, cax_val = profile.profile_center()
+    try:
+        dmax = profile.field_calculation(field_width=ifa, calculation='max')
+    except ValueError:
+        raise ValueError("An error was encountered in the deviation calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
+    deviation = 100*dmax/cax_val
+    return deviation
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 # Predefined Protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these protocols
 # and add the protocol name to the dictionary PROTOCOLS.
@@ -138,7 +185,10 @@ ALL = {
     'Flatness diff': flatness_dose_difference,
     'Flatness ratio': flatness_dose_ratio,
     'Symmetry diff': symmetry_point_difference,
-    'Symmetry ratio': symmetry_pdq_iec
+    'Symmetry ratio': symmetry_pdq_iec,
+    'Symmetry area': symmetry_area,
+    'Deviation max': deviation_max,
+    'Deviation diff': deviation_diff
 }
 
 VARIAN = {
@@ -172,6 +222,7 @@ ELEKTA = {
     'Penumbra 80-20% right': penumbra_right_80_20,
     'Flatness': flatness_dose_ratio,
     'Symmetry': symmetry_pdq_iec,
+    'Deviation diff': deviation_diff
 }
 
 SIEMENS = {
@@ -181,7 +232,9 @@ SIEMENS = {
     'Field center': field_center_fwhm,
     'Penumbra 80-20% left': penumbra_left_80_20,
     'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_difference
+    'Flatness': flatness_dose_difference,
+    'Symmetry': symmetry_area,
+    'Deviation max': deviation_max
 }
 
 VOM80 = {
@@ -201,6 +254,30 @@ IEC9076 = {
     'Field center': field_center_fwhm,
     'Penumbra 80-20% left': penumbra_left_80_20,
     'Penumbra 80-20% right': penumbra_right_80_20,
+    'Flatness': flatness_dose_ratio,
+    'Symmetry': symmetry_pdq_iec,
+}
+
+AFSSAPS_JORF = {
+    'Left edge (50%)': left_edge_50,
+    'Right edge (50%)': right_edge_50,
+    'Field size': field_size_edge_50,
+    'Field center': field_center_edge_50,
+    'Penumbra 80-20% left': penumbra_left_80_20,
+    'Penumbra 80-20% right': penumbra_right_80_20,
+    'Flatness': flatness_dose_difference,
+    'Symmetry': symmetry_pdq_iec,
+    'Deviation max': deviation_max
+}
+
+DIN = {
+    'Left edge (50%)': left_edge_50,
+    'Right edge (50%)': right_edge_50,
+    'Field size': field_size_50,
+    'Field center': field_center_fwhm,
+    'Penumbra 80-20% left': penumbra_left_80_20,
+    'Penumbra 80-20% right': penumbra_right_80_20,
+    'Flatness': flatness_dose_ratio,
     'Symmetry': symmetry_pdq_iec,
 }
 
@@ -211,11 +288,14 @@ IEC9076 = {
 
 PROTOCOLS = {
     'all': ALL,
+    'default': VARIAN,
     'varian': VARIAN,
     'elekta': ELEKTA,
     'siemens': SIEMENS,
     'vom80': VOM80,
-    'iec9076': IEC9076
+    'iec9076': IEC9076,
+    'afssaps-jorf': AFSSAPS_JORF,
+    'din': DIN
 }
 
 

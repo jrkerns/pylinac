@@ -173,10 +173,17 @@ class SingleProfile(ProfileMixin):
         if value > 0:
             self._dpmm = value
 
-    @property
-    def profile_center(self):
-        """Returns the center index of the profile. Added by ACC 3/12/2020"""
-        return (self.values.shape[0] - 1)/2
+    def profile_center(self) -> Tuple[NumberLike, NumberLike]:
+        """Returns the center index and value of the profile. If the profile has an even number of values the centre
+        lies between the two centre indices and the centre value is the average of the two centre values else the
+        centre index and value are returned. Added by ACC 3/12/2020"""
+        plen = self.values.shape[0]
+        if plen % 2 == 0:  # plen is even and central detectors straddle CAX
+            cax = (self.values[int(plen / 2)] + self.values[int(plen / 2) - 1]) / 2.0
+        else:  # plen is odd and we have a central detector
+            cax = self.values[int((plen - 1) / 2)]
+        plen = (plen - 1)/2.0
+        return plen, cax
 
     @property
     @lru_cache()
