@@ -11,25 +11,26 @@ class Simulator(ABC):
     pixel_size: float
     shape: Tuple[int, int]
 
-    def __init__(self):
+    def __init__(self, sid=1500):
         self.image = np.zeros(self.shape, np.uint16)
+        self.sid = sid / 1000
 
     def add_layer(self, layer: Layer):
         """Add a layer to the image"""
-        self.image = layer.apply(self.image, self.pixel_size)
+        self.image = layer.apply(self.image, self.pixel_size / self.sid)
 
-    def generate_dicom(self, **kwargs):
+    def generate_dicom(self, file_out_name: str, **kwargs):
         """Generate a DICOM file with the constructed image (via add_layer)"""
         raise NotImplementedError("This method has not been implemented for this simulator. Overload the method of your simulator.")
 
 
 class AS500Image(Simulator):
     """Simulates an AS500 EPID image."""
-    pixel_size: float = 0.784
+    pixel_size: float = 0.78125
     shape: Tuple[int, int] = (384, 512)
 
     def generate_dicom(self, file_out_name: str, gantry_angle: float = 0.0, coll_angle: float = 0.0,
-                       table_angle: float = 0.0, sid: float = 1500.0):
+                       table_angle: float = 0.0):
         file_meta = FileMetaDataset()
         # Main data elements
         ds = Dataset()
@@ -75,7 +76,7 @@ class AS500Image(Simulator):
         ds.ImagePlanePixelSpacing = [self.pixel_size, self.pixel_size]
         ds.RTImagePosition = [-200.70400, 150.52800]
         ds.RadiationMachineSAD = "1000.0"
-        ds.RTImageSID = str(sid)
+        ds.RTImageSID = str(self.sid * 1000)
         ds.PrimaryDosimeterUnit = 'MU'
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
@@ -90,11 +91,11 @@ class AS500Image(Simulator):
 
 class AS1000Image(Simulator):
     """Simulates an AS1000 EPID image."""
-    pixel_size: float = 0.392
+    pixel_size: float = 0.390625
     shape: Tuple[int, int] = (768, 1024)
 
     def generate_dicom(self, file_out_name: str, gantry_angle: float = 0.0, coll_angle: float = 0.0,
-                       table_angle: float = 0.0, sid: float = 1500.0):
+                       table_angle: float = 0.0):
         # File meta info data elements
         file_meta = FileMetaDataset()
 
@@ -142,7 +143,7 @@ class AS1000Image(Simulator):
         ds.ImagePlanePixelSpacing = [self.pixel_size, self.pixel_size]
         ds.RTImagePosition = [-200.70400, 150.523400]
         ds.RadiationMachineSAD = "1000.0"
-        ds.RTImageSID = str(sid)
+        ds.RTImageSID = str(self.sid * 1000)
         ds.PrimaryDosimeterUnit = 'MU'
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
@@ -169,7 +170,7 @@ class AS1200Image(Simulator):
     shape: Tuple[int, int] = (1280, 1280)
 
     def generate_dicom(self, file_out_name: str, gantry_angle: float = 0.0, coll_angle: float = 0.0,
-                       table_angle: float = 0.0, sid: float = 1500.0):
+                       table_angle: float = 0.0):
         file_meta = FileMetaDataset()
         file_meta.FileMetaInformationGroupLength = 196
         file_meta.FileMetaInformationVersion = b'\x00\x01'
@@ -239,8 +240,7 @@ class AS1200Image(Simulator):
         ds.RTImagePosition = [-214.872, 214.872]
         ds.RadiationMachineName = 'TrueBeam from Hell'
         ds.RadiationMachineSAD = "1000.0"
-        ds.RTImageSID = str(sid)
-
+        ds.RTImageSID = str(self.sid * 1000)
         ds.PrimaryDosimeterUnit = 'MU'
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
