@@ -87,7 +87,7 @@ class AS500error(PFBankMixin, TestCase):
     """Tests for the AS500#2 image."""
     file_path = ['AS500-error.dcm']
     num_pickets = 6
-    percent_passing = 97.5
+    percent_passing = 99
     max_error = 0.55
     abs_median_error = 0.07
     passes = False
@@ -135,7 +135,7 @@ class AS1000HDSmall(PFBankMixin, TestCase):
     """Tests for the AS1000 image."""
     file_path = ['AS1000-HD-small.dcm']
     mlc = 'HD'
-    max_error = 0.18
+    max_error = 0.05
     abs_median_error = 0.05
 
 

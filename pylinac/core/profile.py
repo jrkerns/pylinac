@@ -372,7 +372,7 @@ class MultiProfile(ProfileMixin):
         ax.plot(valley_x, valley_y, "r^")
 
     def find_peaks(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05, max_number: int=None,
-                   search_region: Tuple=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
+                   search_region: Tuple=(0.0, 1.0), peak_sort='prominences') -> Tuple[np.ndarray, np.ndarray]:
         """Find the peaks of the profile using a simple maximum value search. This also sets the `peaks` attribute.
 
         Parameters
@@ -402,7 +402,7 @@ class MultiProfile(ProfileMixin):
             The indices and values of the peaks.
         """
         peak_idxs, peak_props = find_peaks(self.values, threshold=threshold, peak_separation=min_distance, max_number=max_number,
-                                           search_region=search_region)
+                                           search_region=search_region, peak_sort=peak_sort)
         self.peaks = [Point(value=peak_val, idx=peak_idx) for peak_idx, peak_val in zip(peak_idxs, peak_props['peak_heights'])]
 
         return peak_idxs, peak_props['peak_heights']
@@ -703,7 +703,7 @@ class CollapsedCircleProfile(CircleProfile):
 
 def find_peaks(values: np.ndarray, threshold: Union[float, int] = -np.inf, peak_separation: Union[float, int] = 0,
                max_number: int = None, fwxm_height: float = 0.5, min_width: int = 0,
-               search_region: Tuple[float, float] = (0.0, 1.0)) \
+               search_region: Tuple[float, float] = (0.0, 1.0), peak_sort='prominences') \
         -> Tuple[np.ndarray, dict]:
     """Find the peaks of a 1D signal. Heavily relies on the scipy implementation.
 
@@ -734,6 +734,10 @@ def find_peaks(values: np.ndarray, threshold: Union[float, int] = -np.inf, peak_
         The search region to use within the values.
         Using between 0 and 1 will convert to a ratio of the indices. E.g. to search the middle half of the passed values, use (0.25, 0.75).
         Using ints above 1 will use the indices directly. E.g. (33, 71) will search between those two indices.
+    peak_sort
+        Either 'peak_heights' or 'prominences'. This is the method for determining the peaks. Usually not needed
+        unless the wrong number of pickets have been detected.
+        See the scipy.signal.find_peaks function for more information.
 
     Returns
     -------
@@ -750,7 +754,7 @@ def find_peaks(values: np.ndarray, threshold: Union[float, int] = -np.inf, peak_
     peak_idxs += shift_amount  # shift according to the search region left edge
 
     # get the "largest" peaks up to max number, and then re-sort to be left->right like it was originally
-    largest_peak_idxs = sorted(list(np.argsort(peak_props['prominences']))[::-1][:max_number])
+    largest_peak_idxs = sorted(list(np.argsort(peak_props[peak_sort]))[::-1][:max_number])
 
     # cut down prop arrays as need be
     for key, array_vals in peak_props.items():
