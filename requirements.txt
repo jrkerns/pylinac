@@ -7,3 +7,4 @@ Pillow >= 4.0
 tqdm >= 3.8
 reportlab >= 3.3
 argue
+py-linq
