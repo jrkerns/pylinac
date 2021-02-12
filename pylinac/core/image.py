@@ -797,7 +797,16 @@ class LinacDicomImage(DicomImage):
         float
         """
         axis_found = False
-        if self._use_filenames:
+
+        # try to interpret from DICOM data
+        if not axis_found:
+            try:
+                axis = float(getattr(self.metadata, axis_dcm_attr))
+                axis_found = True
+            except AttributeError:
+                axis = 0
+
+        if self._use_filenames and not axis_found:
             filename = osp.basename(self.path)
             # see if the keyword is in the filename
             keyword_in_filename = axis_str.lower() in filename.lower()
