@@ -130,6 +130,13 @@ class VMATMixin:
         self.assertAlmostEqual(self.vmat.avg_r_deviation, self.avg_r_deviation, delta=0.02)
         self.assertAlmostEqual(self.vmat.max_r_deviation, self.max_r_deviation, delta=0.1)
 
+    def test_different_segment_size_is_nearly_the_same(self):
+        segment_width_mm = 10
+        segment_height_mm = 50
+        self.vmat.analyze(segment_size_mm=(segment_width_mm, segment_height_mm))
+        self.assertTrue(self.vmat.segments[0]._nominal_width_mm, segment_width_mm)
+        self.assertTrue(self.vmat.segments[0]._nominal_height_mm, segment_height_mm)
+
 
 class TestDRGSDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRGS demo images."""

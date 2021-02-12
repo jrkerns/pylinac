@@ -87,7 +87,7 @@ class VMATBase:
         return cls.from_zip(demo_file)
 
     @argue.bounds(tolerance=(0, 8))
-    def analyze(self, tolerance: Union[float, int]=1.5):
+    def analyze(self, tolerance: Union[float, int] = 1.5, segment_size_mm: Tuple = (5, 100)):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
         Parameters
@@ -95,11 +95,15 @@ class VMATBase:
         tolerance : float, int, optional
             The tolerance of the sample deviations in percent. Default is 1.5.
             Must be between 0 and 8.
+        segment_size_mm : tuple(int, int)
+            The (width, height) of the ROI segments in mm.
         """
         self._tolerance = tolerance/100
 
         """Analysis"""
         points = self._calculate_segment_centers()
+        Segment._nominal_width_mm = segment_size_mm[0]
+        Segment._nominal_height_mm = segment_size_mm[1]
         self._construct_segments(points)
 
     @staticmethod
@@ -397,8 +401,8 @@ class Segment(Rectangle):
         Specifies where the segment reading deviation was under tolerance.
     """
     # width of the segment (i.e. parallel to MLC motion) in pixels under reference conditions
-    _nominal_width_mm: int = 5
-    _nominal_height_mm: int = 100
+    _nominal_width_mm: int
+    _nominal_height_mm: int
 
     def __init__(self, center_point: Point, open_image: image.DicomImage, dmlc_image: image.DicomImage,
                  tolerance: Union[float, int]):
