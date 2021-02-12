@@ -27,6 +27,7 @@ jobs:
         with:
           user: ${{ secrets.PYPI_USERNAME }}
           password: ${{ secrets.PYPI_PASSWORD }}
+          check: false
           build: true
           # only upload if a tag is pushed (otherwise just build & check)
           upload: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
