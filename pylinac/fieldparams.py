@@ -15,6 +15,7 @@ from .core import image
 from .core.profile import SingleProfile
 from .core import pdf
 from .settings import get_dicom_cmap
+from .core.hillreg import hill_reg
 
 interpolate: bool = True
 norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 'max grounded'
@@ -34,6 +35,35 @@ def left_edge_50(profile: SingleProfile, *args) -> float:
 def right_edge_50(profile: SingleProfile, *args):
     """Return the position of the 50% of max dose value on the right of the profile"""
     right_edge = abs(profile.distance_to_dose(50, norm, interpolate)[1] - profile.profile_center()[0])/profile.dpmm
+    return right_edge
+
+
+def left_edge_inf(profile: SingleProfile, *args):
+    """Return the position of the inflection point on the left of the profile. The steepest gradient is used as
+    an initial approximation"""
+    cax_idx = profile.profile_center()[0]
+    left_edge_idx = np.argmax(np.diff(profile.values[:int(cax_idx)]))
+    end_idx = int(left_edge_idx*2)                  # take profile values around left edge
+    if end_idx > cax_idx:
+        end_idx = round(cax_idx)
+    values = profile.values[:end_idx]
+    indices = profile._indices[:end_idx]
+    left_edge_idx = hill_reg(indices,values)[2]
+    left_edge = abs(left_edge_idx - cax_idx)/profile.dpmm
+    return left_edge
+
+
+def right_edge_inf(profile: SingleProfile, *args):
+    """Return the position of the inflection point on the right of the profile"""
+    cax_idx = profile.profile_center()[0]
+    right_edge_idx = np.argmax(np.diff(profile.values[int(cax_idx):])) + round(cax_idx)
+    start_idx = int(right_edge_idx*2 - profile.values.shape[0])                  # take profile values around right edge
+    if start_idx < cax_idx:
+        start_idx = round(cax_idx)
+    values = profile.values[start_idx:]
+    indices = profile._indices[start_idx:]
+    right_edge_idx = hill_reg(indices,values)[2]
+    right_edge = abs(right_edge_idx - cax_idx)/profile.dpmm
     return right_edge
 
 
@@ -281,6 +311,11 @@ DIN = {
     'Symmetry': symmetry_pdq_iec,
 }
 
+
+FFF = {
+    'Left edge inf': left_edge_inf,
+    'Right edge inf': right_edge_inf
+}
 # ----------------------------------------------------------------------------------------------------------------------
 # End of predefined protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these
 # protocols and add the protocol name to the dictionary PROTOCOLS.
@@ -295,7 +330,8 @@ PROTOCOLS = {
     'vom80': VOM80,
     'iec9076': IEC9076,
     'afssaps-jorf': AFSSAPS_JORF,
-    'din': DIN
+    'din': DIN,
+    'fff': FFF
 }
 
 

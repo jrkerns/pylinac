@@ -40,6 +40,11 @@ class CalcParamTests(TestCase):
         fp.norm = 'cax'
         self.assertAlmostEqual(fp.right_edge_50(self.profile), 104.04, delta=self.delta)
 
+    def test_left_edge_inf(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        self.assertAlmostEqual(fp.left_edge_inf(self.profile), 96.06, delta=self.delta)
+
     def test_field_size_edge_50(self):
         fp.interpolate = True
         fp.norm = 'cax'
