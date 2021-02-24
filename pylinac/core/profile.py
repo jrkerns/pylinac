@@ -163,17 +163,17 @@ class SingleProfile(ProfileMixin):
     @property
     def dpmm(self) -> NumberLike:
         """The Dots-per-mm of the profile, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
-        the dpmm will scale back to 100cm. Added by ACC 3/12/2020"""
+        the dpmm will scale back to 100cm."""
         return self._dpmm
 
     @dpmm.setter
     def dpmm(self, value):
         """The Dots-per-mm of the profile, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
-        the dpmm will scale back to 100cm. Added by ACC 3/12/2020"""
+        the dpmm will scale back to 100cm."""
         if value > 0:
             self._dpmm = value
 
-    def profile_center(self) -> Tuple[NumberLike, NumberLike]:
+    def center(self) -> Tuple[NumberLike, NumberLike]:
         """Returns the center index and value of the profile. If the profile has an even number of values the centre
         lies between the two centre indices and the centre value is the average of the two centre values else the
         centre index and value are returned. Added by ACC 3/12/2020"""
@@ -236,9 +236,9 @@ class SingleProfile(ProfileMixin):
             fwxm_center_idx = int(round(fwxm_center_idx))
             return fwxm_center_idx, self.values[fwxm_center_idx]
 
-    @argue.bounds(x=(0, 100))
+    @argue.bounds(x=(0, 100), ifa=(0, 1.0))
     @argue.options(norm=('max', 'max grounded', 'cax', 'cax grounded'), interpolate=(True, False))
-    def distance_to_dose(self, x: int=50, norm='max grounded', interpolate=True) -> Tuple[float, float]:
+    def field_edges(self, ifa: float=1.0, x: int=50, norm='max grounded', interpolate=False) -> Tuple[float, float]:
         """Return the width at X-Max, where X is the percentage height.
 
         Parameters
@@ -246,6 +246,8 @@ class SingleProfile(ProfileMixin):
         x : int
             The dose level of the profile. E.g. x = 50 is 50% height, 100 is the profile peak.
             i.e. FWHM.
+        ifa : float
+            In Field Area: 1.0 is the entire field at the dose level.
         norm : str
             The type of normalisation to apply:
                 'max'          : normalises to the profile maximum with no grounding
@@ -259,7 +261,7 @@ class SingleProfile(ProfileMixin):
         Returns
         -------
         left index, right index
-            The left and right indices of the dose level.
+            The left and right indices of the in field area at the dose level.
         """
 
         # prevent array from being grounded by setting ends to zero
@@ -271,17 +273,22 @@ class SingleProfile(ProfileMixin):
 
         # adjust x to give the equivalent level if peak val was at CAX
         if norm == 'cax':
-            ylen = len(ydata)
-            if ylen % 2 == 0:           # ylen is even and central detectors straddle CAX
-                cax = (ydata[int(ylen/2)] + ydata[int(ylen/2) - 1])/2.0
-            else:                       # ylen is odd and we have a central detector
-                cax = ydata[int((ylen - 1)/2)]
+            _, cax_val = self.center()
             ymax = ydata.max()
-            x = x*cax/ymax
+            x = x*cax_val/ymax
 
         _, peak_props = find_peaks(ydata, fwxm_height=x/100, max_number=1)
-        left = peak_props['left_ips'][0] if interpolate else int(round(peak_props['left_ips'][0]))
-        right = peak_props['right_ips'][0] if interpolate else int(round(peak_props['right_ips'][0]))
+        left = peak_props['left_ips'][0]
+        right = peak_props['right_ips'][0]
+        if ifa < 1.0:
+            delta = (1.0 - ifa)*(right - left)/2.0
+            left = left + delta
+            right = right - delta
+
+        if not interpolate:
+            left = round(left)
+            right = round(right)
+
         if norm in ['max', 'cax']:
             left = left - 1
             right = right - 1
@@ -336,7 +343,7 @@ class SingleProfile(ProfileMixin):
         return field_values
 
     @argue.bounds(field_width=(0, 1))
-    def field_edges(self, field_width: float=0.8, interpolate: bool=False) -> Tuple[NumberLike, NumberLike]:
+    def field_edges_deprecated(self, field_width: float=0.8, interpolate: bool=False) -> Tuple[NumberLike, NumberLike]:
         """Return the indices of the field width edges, based on the FWHM.
 
         See Also

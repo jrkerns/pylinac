@@ -1,0 +1,8 @@
+# Ignore folders
+tests/*
+env/*
+demo_files/*
+__pycache__/*
+
+# Ignore files
+*.old

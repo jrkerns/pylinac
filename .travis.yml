@@ -1,0 +1,61 @@
+language: python
+python:
+  - "3.6"
+  - "3.7"
+  - "3.8"
+
+env:
+  - SKI=0.13.*
+  - SKI=0.14.*
+  - SKI=0.16.*
+
+sudo:
+  false
+
+cache:
+  directories:
+    - $HOME/miniconda
+    - $HOME/.cache/pip
+
+install:
+
+  # Install conda
+#  - mkdir -p miniconda
+#  - cd miniconda
+#  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+#  - chmod +x miniconda.sh
+#  - ./miniconda.sh -b
+#  - cd ..
+#  - export PATH="$HOME/miniconda3/bin:$PATH"
+#  - hash -r
+#  - conda config --set always_yes yes --set changeps1 no
+#  - conda update -q conda
+#  - conda info -a
+#
+#  # Set up conda
+#  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy=1.12 scipy=0.19 matplotlib pip setuptools pillow pyqt scikit-image=0.12 scikit-learn=0.18
+#  - source activate test-environment
+#
+#  # install deps
+#  - pip install pydicom coveralls watchdog requests jinja2 mpld3 click pyyaml tqdm==3.8
+
+  - pip install numpy scipy matplotlib pillow scikit-image==$SKI scikit-learn pydicom coveralls pyyaml yagmail tqdm reportlab cython
+  # install your own package into the environment
+  - python setup.py install
+  # attempt to fix DISPLAY variable errors of matplotlib's. See: https://github.com/mwaskom/seaborn/pull/97
+  - cp tests_basic/matplotlibrc .
+
+# test script
+script:
+#  - python setup.py test
+  - coverage run --source=pylinac setup.py test
+
+after_success:
+  coveralls
+
+notifications:
+  email: false
+
+branches:
+  except:
+   - minified
