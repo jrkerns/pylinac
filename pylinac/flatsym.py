@@ -42,8 +42,8 @@ def flatness_elekta(profile: SingleProfile) -> Sequence[float]:
 
 def symmetry_point_difference(profile: SingleProfile) -> Tuple[float, Sequence[float], float, float]:
     """Calculation of symmetry by way of point difference equidistant from the CAX"""
-    values = profile.field_values(field_width=0.8)
-    lt_edge, rt_edge = profile.field_edges(field_width=0.8)
+    values = profile.field_values(0.8)
+    lt_edge, rt_edge = profile.field_edges(0.8)
     _, cax_val = profile.fwxm_center()
     sym_array = []
     for lt_pt, rt_pt in zip(values, values[::-1]):
@@ -55,8 +55,8 @@ def symmetry_point_difference(profile: SingleProfile) -> Tuple[float, Sequence[f
 
 def symmetry_pdq_iec(profile: SingleProfile) -> Tuple[float, Sequence[float], float, float]:
     """Symmetry calculation by way of PDQ IEC"""
-    values = profile.field_values(field_width=0.8)
-    lt_edge, rt_edge = profile.field_edges(field_width=0.8, interpolate=True)
+    values = profile.field_values(0.8)
+    lt_edge, rt_edge = profile.field_edges(0.8, interpolate=True)
     max_val = 0
     sym_array = []
     for lt_pt, rt_pt in zip(values, values[::-1]):
@@ -185,10 +185,10 @@ class FlatSym:
         vert_penum = np.mean(self.symmetry['vertical']['profile'].penumbra_width()) / self.image.dpmm
         horiz_width = self.symmetry['horizontal']['profile'].fwxm() / self.image.dpmm
         vert_width = self.symmetry['vertical']['profile'].fwxm() / self.image.dpmm
-        up_edge_idx, bt_edge_idx = self.symmetry['vertical']['profile'].field_edges(field_width=1.0, interpolate=True)
+        up_edge_idx, bt_edge_idx = self.symmetry['vertical']['profile'].field_edges(1.0, interpolate=True)
         upper_dist = abs(up_edge_idx - self.image.center.y) / self.image.dpmm
         lower_dist = abs(bt_edge_idx - self.image.center.y) / self.image.dpmm
-        lt_edge_idx, rt_edge_idx = self.symmetry['horizontal']['profile'].field_edges(field_width=1.0, interpolate=True)
+        lt_edge_idx, rt_edge_idx = self.symmetry['horizontal']['profile'].field_edges(1.0, interpolate=True)
         left_dist = abs(lt_edge_idx - self.image.center.x) / self.image.dpmm
         right_dist = abs(rt_edge_idx - self.image.center.x) / self.image.dpmm
         results = [f'Flatness & Symmetry',

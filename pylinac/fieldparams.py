@@ -15,6 +15,7 @@ from .core import image
 from .core.profile import SingleProfile
 from .core import pdf
 from .settings import get_dicom_cmap
+from .core.hillreg import hill_reg
 
 interpolate: bool = True
 norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 'max grounded'
@@ -27,13 +28,42 @@ norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 
 
 def left_edge_50(profile: SingleProfile, *args) -> float:
     """Return the position of the 50% of max dose value on the left of the profile"""
-    left_edge = abs(profile.distance_to_dose(50, norm, interpolate)[0] - profile.profile_center()[0])/profile.dpmm
+    left_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[0] - profile.center()[0])/profile.dpmm
     return left_edge
 
 
 def right_edge_50(profile: SingleProfile, *args):
     """Return the position of the 50% of max dose value on the right of the profile"""
-    right_edge = abs(profile.distance_to_dose(50, norm, interpolate)[1] - profile.profile_center()[0])/profile.dpmm
+    right_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[1] - profile.center()[0])/profile.dpmm
+    return right_edge
+
+
+def left_edge_inf(profile: SingleProfile, *args):
+    """Return the position of the inflection point on the left of the profile. The steepest gradient is used as
+    an initial approximation"""
+    cax_idx = profile.center()[0]
+    left_edge_idx = np.argmax(np.diff(profile.values[:int(cax_idx)]))
+    end_idx = int(left_edge_idx*2)                  # take profile values around left edge
+    if end_idx > cax_idx:
+        end_idx = round(cax_idx)
+    values = profile.values[:end_idx]
+    indices = profile._indices[:end_idx]
+    left_edge_idx = hill_reg(indices,values)[2]
+    left_edge = abs(left_edge_idx - cax_idx)/profile.dpmm
+    return left_edge
+
+
+def right_edge_inf(profile: SingleProfile, *args):
+    """Return the position of the inflection point on the right of the profile"""
+    cax_idx = profile.center()[0]
+    right_edge_idx = np.argmin(np.diff(profile.values[int(cax_idx):])) + round(cax_idx)
+    start_idx = int(right_edge_idx*2 - profile.values.shape[0])                  # take profile values around right edge
+    if start_idx < cax_idx:
+        start_idx = round(cax_idx)
+    values = profile.values[start_idx:]
+    indices = profile._indices[start_idx:]
+    right_edge_idx = hill_reg(indices,values)[2]
+    right_edge = abs(right_edge_idx - cax_idx)/profile.dpmm
     return right_edge
 
 
@@ -51,7 +81,7 @@ def field_size_edge_50(profile: SingleProfile, *args):
 def field_center_fwhm(profile: SingleProfile, *args):
     """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
     Included for testing purposes"""
-    field_center = (profile.fwxm_center(50, interpolate)[0] - profile.profile_center()[0])/profile.dpmm
+    field_center = (profile.fwxm_center(50, interpolate)[0] - profile.center()[0])/profile.dpmm
     return field_center
 
 
@@ -62,15 +92,15 @@ def field_center_edge_50(profile: SingleProfile, *args):
 
 def penumbra_left_80_20(profile: SingleProfile, *args):
     """Return the distance between the 80% and 20% max dose values on the left side of the profile"""
-    left_penum = abs(profile.distance_to_dose(80, norm, interpolate)[0]
-                     - profile.distance_to_dose(20, norm, interpolate)[0])/profile.dpmm
+    left_penum = abs(profile.field_edges(1.0, 80, norm, interpolate)[0]
+                     - profile.field_edges(1.0, 20, norm, interpolate)[0])/profile.dpmm
     return left_penum
 
 
 def penumbra_right_80_20(profile: SingleProfile, *args):
     """Return the distance between the 80% and 20% max dose values on the right side of the profile"""
-    right_penum = abs(profile.distance_to_dose(80, norm, interpolate)[1]
-                      - profile.distance_to_dose(20, norm, interpolate)[1])/profile.dpmm
+    right_penum = abs(profile.field_edges(1.0, 80, norm, interpolate)[1]
+                      - profile.field_edges(1.0, 20, norm, interpolate)[1])/profile.dpmm
     return right_penum
 
 
@@ -103,7 +133,7 @@ def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
     else:
-        _, cax_val = profile.profile_center()
+        _, cax_val = profile.center()
     sym_array = []
     for lt_pt, rt_pt in zip(values, values[::-1]):
         val = 100 * abs(lt_pt - rt_pt) / cax_val
@@ -144,7 +174,7 @@ def deviation_diff(profile: SingleProfile, ifa: float = 0.8):
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
     else:
-        _, cax_val = profile.profile_center()
+        _, cax_val = profile.center()
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
         dmin = profile.field_calculation(field_width=ifa, calculation='min')
@@ -159,7 +189,7 @@ def deviation_max(profile: SingleProfile, ifa: float = 0.8):
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
     else:
-        _, cax_val = profile.profile_center()
+        _, cax_val = profile.center()
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
     except ValueError:
@@ -202,7 +232,7 @@ VARIAN = {
     'Symmetry': symmetry_point_difference,
 }
 
-ORIGINAL_VARIAN = {
+FLATSYM_VARIAN = {
     'Left edge (50%)': left_edge_50,
     'Right edge (50%)': right_edge_50,
     'Field size': field_size_50,
@@ -281,6 +311,11 @@ DIN = {
     'Symmetry': symmetry_pdq_iec,
 }
 
+
+FFF = {
+    'Left edge inf': left_edge_inf,
+    'Right edge inf': right_edge_inf
+}
 # ----------------------------------------------------------------------------------------------------------------------
 # End of predefined protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these
 # protocols and add the protocol name to the dictionary PROTOCOLS.
@@ -290,11 +325,14 @@ PROTOCOLS = {
     'all': ALL,
     'default': VARIAN,
     'varian': VARIAN,
+    'flatsym_varian': FLATSYM_VARIAN,
     'elekta': ELEKTA,
     'siemens': SIEMENS,
     'vom80': VOM80,
     'iec9076': IEC9076,
     'afssaps-jorf': AFSSAPS_JORF,
+    'din': DIN,
+    'fff': FFF,
     'din': DIN
 }
 

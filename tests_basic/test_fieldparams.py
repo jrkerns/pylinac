@@ -38,7 +38,17 @@ class CalcParamTests(TestCase):
     def test_right_edge_50(self):
         fp.interpolate = True
         fp.norm = 'cax'
-        self.assertAlmostEqual(fp.right_edge_50(self.profile), 104.04, delta=self.delta)
+        self.assertAlmostEqual(fp.right_edge_50(self.profile), 103.96, delta=self.delta)
+
+    def test_left_edge_inf(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        self.assertAlmostEqual(fp.left_edge_inf(self.profile), 96.06, delta=self.delta)
+
+    def test_right_edge_inf(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        self.assertAlmostEqual(fp.right_edge_inf(self.profile), 104.04, delta=self.delta)
 
     def test_field_size_edge_50(self):
         fp.interpolate = True
@@ -172,6 +182,7 @@ class FieldParamsBase(LocationMixin):
     @classmethod
     def setUpClass(cls):
         fp.norm = 'max grounded'
+        fp.interpolate = False
         cls.fs = FieldParams(cls.get_filename(), filter=cls.apply_smoothing)
         cls.fs.analyze(protocol=cls.protocol, vert_position=cls.vert_position, horiz_position=cls.horiz_position,
                        vert_width=cls.vert_width, horiz_width=cls.horiz_width)
@@ -193,6 +204,7 @@ class FieldParamsBase(LocationMixin):
 
 class FieldParamsDemo(FieldParamsBase, TestCase):
     fp.norm = 'max grounded'
+    fp.interpolate = False
     vert_flatness = 1.93
     vert_symmetry = 2.46
     horiz_flatness = 1.86
@@ -210,7 +222,7 @@ class FlatSym6X(FieldParamsBase, TestCase):
     vert_flatness = 1.5
     vert_symmetry = 0.4
     horiz_flatness = 1.4
-    horiz_symmetry = 0.5
+    horiz_symmetry = 0.44
 
 
 class FlatSym18X(FieldParamsBase, TestCase):
@@ -218,7 +230,7 @@ class FlatSym18X(FieldParamsBase, TestCase):
     # independently verified
     apply_smoothing = 5
     vert_flatness = 1.4
-    vert_symmetry = 0.5
+    vert_symmetry = 0.44
     horiz_flatness = 1.5
     horiz_symmetry = 0.5
 
@@ -234,4 +246,3 @@ class FieldParamsWideDemo(FieldParamsBase, TestCase):
     @classmethod
     def get_filename(cls):
         return retrieve_demo_file(url='flatsym_demo.dcm')
-
