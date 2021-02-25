@@ -131,7 +131,7 @@ class FieldParamTests(TestCase):
     def test_protocols(self):
         fs = FieldParams.from_demo_image()
         analyze = partial(fs.analyze, protocol='varian')
-        for method in ('all', 'default', 'varian', 'elekta', 'siemens', 'vom80', 'iec9076', 'din', 'afssaps-jorf'):
+        for method in ('all', 'default', 'varian', 'elekta', 'siemens', 'vom80', 'iec9076', 'din', 'afssaps-jorf','fff'):
             analyze(protocol=method)  # shouldn't raise
 
     def test_results(self):
@@ -190,16 +190,16 @@ class FieldParamsBase(LocationMixin):
             print(cls.fs.results())
 
     def test_vert_symmetry(self):
-        self.assertAlmostEqual(self.fs.parameters['vertical']['Symmetry'], self.vert_symmetry, delta=self.sym_tolerance)
+        self.assertAlmostEqual(self.fs.parameters['vertical']['symmetry: {:.2f} %'], self.vert_symmetry, delta=self.sym_tolerance)
 
     def test_horiz_symmetry(self):
-        self.assertAlmostEqual(self.fs.parameters['horizontal']['Symmetry'], self.horiz_symmetry, delta=self.sym_tolerance)
+        self.assertAlmostEqual(self.fs.parameters['horizontal']['symmetry: {:.2f} %'], self.horiz_symmetry, delta=self.sym_tolerance)
 
     def test_vert_flatness(self):
-        self.assertAlmostEqual(self.fs.parameters['vertical']['Flatness'], self.vert_flatness, delta=self.flat_tolerance)
+        self.assertAlmostEqual(self.fs.parameters['vertical']['flatness: {:.2f} %'], self.vert_flatness, delta=self.flat_tolerance)
 
     def test_horiz_flatness(self):
-        self.assertAlmostEqual(self.fs.parameters['horizontal']['Flatness'], self.horiz_flatness, delta=self.flat_tolerance)
+        self.assertAlmostEqual(self.fs.parameters['horizontal']['flatness: {:.2f} %'], self.horiz_flatness, delta=self.flat_tolerance)
 
 
 class FieldParamsDemo(FieldParamsBase, TestCase):

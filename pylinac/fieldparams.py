@@ -15,7 +15,7 @@ from .core import image
 from .core.profile import SingleProfile
 from .core import pdf
 from .settings import get_dicom_cmap
-from .core.hillreg import hill_reg
+from .core.hillreg import hill_reg, hill_func, inv_hill_func
 
 interpolate: bool = True
 norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 'max grounded'
@@ -26,6 +26,7 @@ norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 
 # ----------------------------------------------------------------------------------------------------------------------
 
 
+# Field edge parameters ------------------------------------------------------------------------------------------------
 def left_edge_50(profile: SingleProfile, *args) -> float:
     """Return the position of the 50% of max dose value on the left of the profile"""
     left_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[0] - profile.center()[0])/profile.dpmm
@@ -41,32 +42,21 @@ def right_edge_50(profile: SingleProfile, *args):
 def left_edge_inf(profile: SingleProfile, *args):
     """Return the position of the inflection point on the left of the profile. The steepest gradient is used as
     an initial approximation"""
-    cax_idx = profile.center()[0]
-    left_edge_idx = np.argmax(np.diff(profile.values[:int(cax_idx)]))
-    end_idx = int(left_edge_idx*2)                  # take profile values around left edge
-    if end_idx > cax_idx:
-        end_idx = round(cax_idx)
-    values = profile.values[:end_idx]
-    indices = profile._indices[:end_idx]
-    left_edge_idx = hill_reg(indices,values)[2]
-    left_edge = abs(left_edge_idx - cax_idx)/profile.dpmm
+    indices, values = profile.penumbra_values('left')
+    left_edge_idx = hill_reg(indices, values)[2]
+    left_edge = abs(left_edge_idx - profile.center()[0])/profile.dpmm
     return left_edge
 
 
 def right_edge_inf(profile: SingleProfile, *args):
     """Return the position of the inflection point on the right of the profile"""
-    cax_idx = profile.center()[0]
-    right_edge_idx = np.argmin(np.diff(profile.values[int(cax_idx):])) + round(cax_idx)
-    start_idx = int(right_edge_idx*2 - profile.values.shape[0])                  # take profile values around right edge
-    if start_idx < cax_idx:
-        start_idx = round(cax_idx)
-    values = profile.values[start_idx:]
-    indices = profile._indices[start_idx:]
-    right_edge_idx = hill_reg(indices,values)[2]
-    right_edge = abs(right_edge_idx - cax_idx)/profile.dpmm
+    indices, values = profile.penumbra_values('right')
+    right_edge_idx = hill_reg(indices, values)[2]
+    right_edge = abs(right_edge_idx - profile.center()[0])/profile.dpmm
     return right_edge
 
 
+# Field size parameters ------------------------------------------------------------------------------------------------
 def field_size_50(profile: SingleProfile, *args):
     """Return the field size at 50% of max dose. Not affected by the normalisation mode.
     Included for testing purposes"""
@@ -78,6 +68,7 @@ def field_size_edge_50(profile: SingleProfile, *args):
     return right_edge_50(profile) + left_edge_50(profile)
 
 
+# Field centre parameters ----------------------------------------------------------------------------------------------
 def field_center_fwhm(profile: SingleProfile, *args):
     """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
     Included for testing purposes"""
@@ -90,6 +81,7 @@ def field_center_edge_50(profile: SingleProfile, *args):
     return (right_edge_50(profile) - left_edge_50(profile))/2
 
 
+# Field penumbra parameters --------------------------------------------------------------------------------------------
 def penumbra_left_80_20(profile: SingleProfile, *args):
     """Return the distance between the 80% and 20% max dose values on the left side of the profile"""
     left_penum = abs(profile.field_edges(1.0, 80, norm, interpolate)[0]
@@ -104,6 +96,33 @@ def penumbra_right_80_20(profile: SingleProfile, *args):
     return right_penum
 
 
+def penumbra_left_inf(profile: SingleProfile, *args):
+    """Returns  the distance between the locations where the dose equals 0.4 times the dose at the inflection point
+    and 1.6 times that dose on the left side of the profile."""
+    indices, values = profile.penumbra_values('left')
+    fit_params = hill_reg(indices, values)
+    inf_idx = fit_params[2]
+    inf_val = hill_func(inf_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    upper_idx = inv_hill_func(inf_val*1.6, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    lower_idx = inv_hill_func(inf_val*0.4, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    left_penum = abs(upper_idx - lower_idx)/profile.dpmm
+    return left_penum
+
+
+def penumbra_right_inf(profile: SingleProfile, *args):
+    """Returns  the distance between the locations where the dose equals 0.4 times the dose at the inflection point
+    and 1.6 times that dose on the right side of the profile."""
+    indices, values = profile.penumbra_values('right')
+    fit_params = hill_reg(indices, values)
+    inf_idx = fit_params[2]
+    inf_val = hill_func(inf_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    upper_idx = inv_hill_func(inf_val*1.6, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    lower_idx = inv_hill_func(inf_val*0.4, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    right_penum = abs(upper_idx - lower_idx)/profile.dpmm
+    return right_penum
+
+
+# Field flatness parameters --------------------------------------------------------------------------------------------
 def flatness_dose_difference(profile: SingleProfile, ifa: float=0.8):
     """The Varian specification for calculating flatness"""
     try:
@@ -126,6 +145,7 @@ def flatness_dose_ratio(profile: SingleProfile, ifa: float=0.8):
     return flatness
 
 
+# Field symmetry parameters --------------------------------------------------------------------------------------------
 def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
     """Calculation of symmetry by way of point difference equidistant from the CAX. Field calculation is
     automatically centred."""
@@ -169,6 +189,7 @@ def symmetry_area(profile: SingleProfile, ifa: float = 0.8):
     return symmetry
 
 
+# Field deviation parameters -------------------------------------------------------------------------------------------
 def deviation_diff(profile: SingleProfile, ifa: float = 0.8):
     """Maximum deviation"""
     if norm in ['max', 'max grounded']:
@@ -200,121 +221,127 @@ def deviation_max(profile: SingleProfile, ifa: float = 0.8):
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Predefined Protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these protocols
-# and add the protocol name to the dictionary PROTOCOLS.
+# and add the protocol name to the dictionary PROTOCOLS. Parameter labels should include decimal places and units.
 # ----------------------------------------------------------------------------------------------------------------------
 
 ALL = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size FWHM': field_size_50,
-    'Field size edge': field_size_edge_50,
-    'Field center edge': field_center_edge_50,
-    'Field center FWHM': field_center_fwhm,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness diff': flatness_dose_difference,
-    'Flatness ratio': flatness_dose_ratio,
-    'Symmetry diff': symmetry_point_difference,
-    'Symmetry ratio': symmetry_pdq_iec,
-    'Symmetry area': symmetry_area,
-    'Deviation max': deviation_max,
-    'Deviation diff': deviation_diff
+    'left edge 50%: {:.1f} mm': left_edge_50,
+    'right edge 50%: {:.1f} mm': right_edge_50,
+    'left edge Inf: {:.1f} mm': left_edge_inf,
+    'right edge Inf: {:.1f} mm': right_edge_inf,
+    'field size FWHM: {:.1f} mm': field_size_50,
+    'field size edge: {:.1f} mm': field_size_edge_50,
+    'field center edge: {:.1f} mm': field_center_edge_50,
+    'field center FWHM: {:.1f} mm': field_center_fwhm,
+    'left penumbra 80-20%: {:.1f} mm': penumbra_left_80_20,
+    'right penumbra 80-20%: {:.1f} mm': penumbra_right_80_20,
+    'left penumbra Inf: {:.1f} mm': penumbra_left_inf,
+    'right penumbra Inf: {:.1f} mm': penumbra_right_inf,
+    'flatness diff: {:.2f} %': flatness_dose_difference,
+    'flatness ratio: {:.2f} %': flatness_dose_ratio,
+    'symmetry diff: {:.2f} %': symmetry_point_difference,
+    'symmetry ratio: {:.2f} %': symmetry_pdq_iec,
+    'symmetry area: {:.2f} %': symmetry_area,
+    'deviation max: {:.2f} %': deviation_max,
+    'deviation diff: {:.2f} %': deviation_diff
 }
 
 VARIAN = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_edge_50,
-    'Field center': field_center_edge_50,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_difference,
-    'Symmetry': symmetry_point_difference,
+    'left edge 50%: {:.1f} mm': left_edge_50,
+    'right edge 50%: {:.1f} mm': right_edge_50,
+    'field size: {:.1f} mm': field_size_edge_50,
+    'field center: {:.1f} mm': field_center_edge_50,
+    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+    'flatness: {:.2f} %': flatness_dose_difference,
+    'symmetry: {:.2f} %': symmetry_point_difference,
 }
 
 FLATSYM_VARIAN = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_50,
-    'Field center': field_center_fwhm,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_difference,
-    'Symmetry': symmetry_point_difference,
+    'left edge 50%: {:.1f} mm': left_edge_50,
+    'right edge 50%: {:.1f} mm': right_edge_50,
+    'field size: {:.1f} mm': field_size_50,
+    'field center: {:.1f} mm': field_center_fwhm,
+    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+    'flatness: {:.2f} %': flatness_dose_difference,
+    'symmetry: {:.2f} %': symmetry_point_difference,
 }
 
 ELEKTA = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_50,
-    'Field center': field_center_fwhm,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_ratio,
-    'Symmetry': symmetry_pdq_iec,
-    'Deviation diff': deviation_diff
+    'left edge 50%: {:.1f} mm': left_edge_50,
+    'right edge 50%: {:.1f} mm': right_edge_50,
+    'field size: {:.1f} mm': field_size_50,
+    'field center: {:.1f} mm': field_center_fwhm,
+    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+    'flatness: {:.2f} %': flatness_dose_ratio,
+    'symmetry: {:.2f} %': symmetry_pdq_iec,
+    'deviation diff: {:.2f} %': deviation_diff
 }
 
 SIEMENS = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_50,
-    'Field center': field_center_fwhm,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_difference,
-    'Symmetry': symmetry_area,
-    'Deviation max': deviation_max
+    'left edge 50%: {:.1f} mm': left_edge_50,
+    'right edge 50%: {:.1f} mm': right_edge_50,
+    'field size: {:.1f} mm': field_size_50,
+    'field center: {:.1f} mm': field_center_fwhm,
+    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+    'flatness: {:.2f} %': flatness_dose_difference,
+    'symmetry: {:.2f} %': symmetry_area,
+    'deviation max: {:.2f} %': deviation_max
 }
 
 VOM80 = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_50,
-    'Field center': field_center_fwhm,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_difference
+    'left edge 50%: {:.1f} mm': left_edge_50,
+    'right edge 50%: {:.1f} mm': right_edge_50,
+    'field size: {:.1f} mm': field_size_50,
+    'field center: {:.1f} mm': field_center_fwhm,
+    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+    'flatness: {:.2f} %': flatness_dose_difference
 }
 
 IEC9076 = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_50,
-    'Field center': field_center_fwhm,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_ratio,
-    'Symmetry': symmetry_pdq_iec,
+    'left edge 50%: {:.1f} mm': left_edge_50,
+    'right edge 50%: {:.1f} mm': right_edge_50,
+    'field size: {:.1f} mm': field_size_50,
+    'field center: {:.1f} mm': field_center_fwhm,
+    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+    'flatness: {:.2f} %': flatness_dose_ratio,
+    'symmetry: {:.2f} %': symmetry_pdq_iec,
 }
 
 AFSSAPS_JORF = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_edge_50,
-    'Field center': field_center_edge_50,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_difference,
-    'Symmetry': symmetry_pdq_iec,
-    'Deviation max': deviation_max
+    'left edge 50%: {:.1f} mm': left_edge_50,
+    'right edge 50%: {:.1f} mm': right_edge_50,
+    'field size: {:.1f} mm': field_size_edge_50,
+    'field center: {:.1f} mm': field_center_edge_50,
+    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+    'flatness: {:.2f} %': flatness_dose_difference,
+    'symmetry: {:.2f} %': symmetry_pdq_iec,
+    'deviation max: {:.2f} %': deviation_max
 }
 
 DIN = {
-    'Left edge (50%)': left_edge_50,
-    'Right edge (50%)': right_edge_50,
-    'Field size': field_size_50,
-    'Field center': field_center_fwhm,
-    'Penumbra 80-20% left': penumbra_left_80_20,
-    'Penumbra 80-20% right': penumbra_right_80_20,
-    'Flatness': flatness_dose_ratio,
-    'Symmetry': symmetry_pdq_iec,
+    'left edge 50%: {:.1f} mm': left_edge_50,
+    'right edge 50%: {:.1f} mm': right_edge_50,
+    'field size: {:.1f} mm': field_size_50,
+    'field center: {:.1f} mm': field_center_fwhm,
+    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+    'flatness: {:.2f} %': flatness_dose_ratio,
+    'symmetry: {:.2f} %': symmetry_pdq_iec,
 }
 
 
 FFF = {
-    'Left edge inf': left_edge_inf,
-    'Right edge inf': right_edge_inf
+    'left edge inf: {:.1f} mm': left_edge_inf,
+    'right edge inf: {:.1f} mm': right_edge_inf,
+    'left penumbra: {:.1f} mm': penumbra_left_inf,
+    'right penumbra: {:.1f} mm': penumbra_right_inf
 }
 # ----------------------------------------------------------------------------------------------------------------------
 # End of predefined protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these
@@ -458,8 +485,10 @@ class FieldParams:
         vert_params = self.parameters['vertical']
         horiz_params = self.parameters['horizontal']
         for param in vert_params:
-            results.append(f"{param} vertical: {vert_params[param]:.2f}")
-            results.append(f"{param} horizontal: {horiz_params[param]:.2f}")
+            s_vert = param.format(vert_params[param])
+            results.append(f"Vertical {s_vert}")
+            s_horiz = param.format(horiz_params[param])
+            results.append(f"Horizontal {s_horiz}")
             results.append('')
 
         if as_str:

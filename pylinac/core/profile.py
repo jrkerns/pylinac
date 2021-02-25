@@ -323,6 +323,25 @@ class SingleProfile(ProfileMixin):
         right_penum = np.abs(upper_peak_props['right_ips'][0] - lower_peak_props['right_ips'][0])
         return left_penum, right_penum
 
+    @argue.options(side=('left', 'right'))
+    def penumbra_values(self, side: str):
+        cax_idx = self.center()[0]
+        if side == 'left':
+            left_edge_idx = np.argmax(np.diff(self.values[:int(cax_idx)]))
+            end_idx = int(left_edge_idx * 2)  # take profile values around left edge
+            if end_idx > cax_idx:
+                end_idx = round(cax_idx)
+            values = self.values[:end_idx]
+            indices = self._indices[:end_idx]
+        else:
+            right_edge_idx = np.argmin(np.diff(self.values[int(cax_idx):])) + round(cax_idx)
+            start_idx = int(right_edge_idx * 2 - self.values.shape[0])  # take profile values around right edge
+            if start_idx < cax_idx:
+                start_idx = round(cax_idx)
+            values = self.values[start_idx:]
+            indices = self._indices[start_idx:]
+        return indices, values
+
     @argue.bounds(field_width=(0, 1))
     def field_values(self, field_width: float=0.8) -> np.ndarray:
         """Return a subarray of the values of the profile for the given field width.
