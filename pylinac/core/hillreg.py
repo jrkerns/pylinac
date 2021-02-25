@@ -1,20 +1,35 @@
 """Perform non-linear regression using a Hill function"""
 import numpy as np
+import math
 from scipy.optimize import curve_fit
 from scipy.optimize import differential_evolution
 import warnings
 
 
-def hill_reg(xData: np.ndarray, yData: np.ndarray):
+def hill_func(x, a, b, c, d):  # Hill function
+    """ Calculates the Hill function at x
+        a: sigmoid low level
+        b: sigmoid high level
+        c: approximate inflection point
+        d: slope of the sigmoid
+    """
+    return a + (b - a) / (1.0 + (c / x) ** d)
 
-    def hill_func(x, a, b, c, d):  # Hill function
-        """
-            a: sigmoid low level
-            b: sigmoid high level
-            c: approximate inflection point
-            d: slope of the sigmoid
-        """
-        return a + (b-a)/(1.0 + (c/x)**d)
+
+def inv_hill_func(y, a, b, c, d):  # Inverse Hill function
+    """ Calculates the inverse Hill function at y
+        a: sigmoid low level
+        b: sigmoid high level
+        c: approximate inflection point
+        d: slope of the sigmoid
+    """
+    if (y > min(a, b)) and (y < max(a, b)) and (d != 0):
+        return c*math.pow((y - a)/(b - y), 1/d)
+    else:
+        return 0
+
+
+def hill_reg(xData: np.ndarray, yData: np.ndarray):
 
     # function for genetic algorithm to minimize (sum of squared error)
     def sumOfSquaredError(parameterTuple):
