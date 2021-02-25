@@ -1,4 +1,5 @@
 """Perform non-linear regression using a Hill function"""
+
 import numpy as np
 import math
 from scipy.optimize import curve_fit
@@ -7,21 +8,23 @@ import warnings
 
 
 def hill_func(x, a, b, c, d):  # Hill function
-    """ Calculates the Hill function at x
-        a: sigmoid low level
-        b: sigmoid high level
-        c: approximate inflection point
-        d: slope of the sigmoid
+    """ Calculates the Hill function at x.
+
+        a : sigmoid low level
+        b : sigmoid high level
+        c : approximate inflection point
+        d : slope of the sigmoid
     """
     return a + (b - a) / (1.0 + (c / x) ** d)
 
 
 def inv_hill_func(y, a, b, c, d):  # Inverse Hill function
-    """ Calculates the inverse Hill function at y
-        a: sigmoid low level
-        b: sigmoid high level
-        c: approximate inflection point
-        d: slope of the sigmoid
+    """ Calculates the inverse Hill function at y.
+
+        a : sigmoid low level
+        b : sigmoid high level
+        c : approximate inflection point
+        d : slope of the sigmoid
     """
     if (y > min(a, b)) and (y < max(a, b)) and (d != 0):
         return c*math.pow((y - a)/(b - y), 1/d)
@@ -30,9 +33,25 @@ def inv_hill_func(y, a, b, c, d):  # Inverse Hill function
 
 
 def hill_reg(xData: np.ndarray, yData: np.ndarray):
+    """Performs non-linear least squares regression on a Hill (sigmoid) function.
 
-    # function for genetic algorithm to minimize (sum of squared error)
+       Parameters
+       ----------
+       xData: X values of the function
+       yData: Y values of the function
+
+       Returns
+       -------
+       Fitted Parameters
+            [0] : sigmoid low level
+            [1] : sigmoid high level
+            [2] : approximate inflection point
+            [3] : slope of the sigmoid
+       """
+
     def sumOfSquaredError(parameterTuple):
+        """function for genetic algorithm to minimize (sum of squared error)"""
+
         warnings.filterwarnings("ignore")  # do not print warnings by genetic algorithm
         val = hill_func(xData, *parameterTuple)
         return np.sum((yData - val) ** 2.0)
@@ -57,5 +76,5 @@ def hill_reg(xData: np.ndarray, yData: np.ndarray):
     genetic_parameters = generate_initial_parameters(xData, yData)
 
     # curve fit the data
-    fitted_parameters, pcov = curve_fit(hill_func, xData, yData, genetic_parameters)
+    fitted_parameters, _ = curve_fit(hill_func, xData, yData, genetic_parameters)
     return fitted_parameters
