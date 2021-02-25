@@ -23,6 +23,7 @@ def create_instance():
 
 class CalcParamTests(TestCase):
     """Values verified from BeamScheme file 2-Sep-2011-A.txt X profile"""
+
     profile = SingleProfile(np.array([
         2.18,2.68,3.27,4.36,5.83,9.12,15.44,63.73,94.96,97.26,98.38,98.78,98.86,99,98.89,98.98,98.8,98.95,98.9,98.52,
         98.05,97.31,96.26,95.38,94.59,94.53,94.47,94.46,94.49,94.57,94.7,95.18,95.51,96.51,97.32,97.82,97.95,97.99,
@@ -102,14 +103,14 @@ class FieldParamTests(TestCase):
             self.assertTrue(osp.isfile(file))
 
     def test_demo_loads_properly(self):
-        """Loading the demo shouldn't raise an error"""
+        """Loading the demo shouldn't raise an error."""
         FieldParams.from_demo_image()  # shouldn't raise
 
     def test_demo_runs(self):
         FieldParams.run_demo()
 
     def test_profile_limits(self):
-        """Extreme profile limits should not raise an error"""
+        """Extreme profile limits should not raise an error."""
         fs = FieldParams.from_demo_image()
         fs.analyze(protocol="varian", vert_position=0.5, horiz_position=0.5, vert_width=0, horiz_width=0)
         fs.analyze(protocol="varian", vert_position=0.0, horiz_position=0.0, vert_width=1, horiz_width=1)

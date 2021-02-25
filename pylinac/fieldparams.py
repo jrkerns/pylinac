@@ -28,20 +28,20 @@ norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 
 
 # Field edge parameters ------------------------------------------------------------------------------------------------
 def left_edge_50(profile: SingleProfile, *args) -> float:
-    """Return the position of the 50% of max dose value on the left of the profile"""
+    """Return the position of the 50% of max dose value on the left of the profile."""
     left_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[0] - profile.center()[0])/profile.dpmm
     return left_edge
 
 
 def right_edge_50(profile: SingleProfile, *args):
-    """Return the position of the 50% of max dose value on the right of the profile"""
+    """Return the position of the 50% of max dose value on the right of the profile."""
     right_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[1] - profile.center()[0])/profile.dpmm
     return right_edge
 
 
 def left_edge_inf(profile: SingleProfile, *args):
     """Return the position of the inflection point on the left of the profile. The steepest gradient is used as
-    an initial approximation"""
+    an initial approximation."""
     indices, values = profile.penumbra_values('left')
     left_edge_idx = hill_reg(indices, values)[2]
     left_edge = abs(left_edge_idx - profile.center()[0])/profile.dpmm
@@ -49,7 +49,7 @@ def left_edge_inf(profile: SingleProfile, *args):
 
 
 def right_edge_inf(profile: SingleProfile, *args):
-    """Return the position of the inflection point on the right of the profile"""
+    """Return the position of the inflection point on the right of the profile."""
     indices, values = profile.penumbra_values('right')
     right_edge_idx = hill_reg(indices, values)[2]
     right_edge = abs(right_edge_idx - profile.center()[0])/profile.dpmm
@@ -64,33 +64,33 @@ def field_size_50(profile: SingleProfile, *args):
 
 
 def field_size_edge_50(profile: SingleProfile, *args):
-    """Return the field size at 50% of max dose"""
+    """Return the field size at 50% of max dose."""
     return right_edge_50(profile) + left_edge_50(profile)
 
 
 # Field centre parameters ----------------------------------------------------------------------------------------------
 def field_center_fwhm(profile: SingleProfile, *args):
     """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
-    Included for testing purposes"""
+    Included for testing purposes."""
     field_center = (profile.fwxm_center(50, interpolate)[0] - profile.center()[0])/profile.dpmm
     return field_center
 
 
 def field_center_edge_50(profile: SingleProfile, *args):
-    """Calculates the field center from the 50 dose max field edges. May be different from the field_center_fwxm"""
+    """Calculates the field center from the 50 dose max field edges. May be different from the field_center_fwxm."""
     return (right_edge_50(profile) - left_edge_50(profile))/2
 
 
 # Field penumbra parameters --------------------------------------------------------------------------------------------
 def penumbra_left_80_20(profile: SingleProfile, *args):
-    """Return the distance between the 80% and 20% max dose values on the left side of the profile"""
+    """Return the distance between the 80% and 20% max dose values on the left side of the profile."""
     left_penum = abs(profile.field_edges(1.0, 80, norm, interpolate)[0]
                      - profile.field_edges(1.0, 20, norm, interpolate)[0])/profile.dpmm
     return left_penum
 
 
 def penumbra_right_80_20(profile: SingleProfile, *args):
-    """Return the distance between the 80% and 20% max dose values on the right side of the profile"""
+    """Return the distance between the 80% and 20% max dose values on the right side of the profile."""
     right_penum = abs(profile.field_edges(1.0, 80, norm, interpolate)[1]
                       - profile.field_edges(1.0, 20, norm, interpolate)[1])/profile.dpmm
     return right_penum
@@ -124,7 +124,7 @@ def penumbra_right_inf(profile: SingleProfile, *args):
 
 # Field flatness parameters --------------------------------------------------------------------------------------------
 def flatness_dose_difference(profile: SingleProfile, ifa: float=0.8):
-    """The Varian specification for calculating flatness"""
+    """The Varian specification for calculating flatness."""
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
         dmin = profile.field_calculation(field_width=ifa, calculation='min')
@@ -135,7 +135,7 @@ def flatness_dose_difference(profile: SingleProfile, ifa: float=0.8):
 
 
 def flatness_dose_ratio(profile: SingleProfile, ifa: float=0.8):
-    """The Elekta specification for calculating flatness"""
+    """The Elekta specification for calculating flatness."""
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
         dmin = profile.field_calculation(field_width=ifa, calculation='min')
@@ -148,7 +148,7 @@ def flatness_dose_ratio(profile: SingleProfile, ifa: float=0.8):
 # Field symmetry parameters --------------------------------------------------------------------------------------------
 def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
     """Calculation of symmetry by way of point difference equidistant from the CAX. Field calculation is
-    automatically centred."""
+    automatically centered."""
     values = profile.field_values(field_width=ifa)
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
@@ -163,7 +163,7 @@ def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
 
 
 def symmetry_pdq_iec(profile: SingleProfile, ifa: float = 0.8):
-    """Symmetry calculation by way of PDQ IEC. Field calculation is automatically centred"""
+    """Symmetry calculation by way of PDQ IEC. Field calculation is automatically centered"""
     values = profile.field_values(field_width=ifa)
     max_val = 0
     for lt_pt, rt_pt in zip(values, values[::-1]):
@@ -191,7 +191,7 @@ def symmetry_area(profile: SingleProfile, ifa: float = 0.8):
 
 # Field deviation parameters -------------------------------------------------------------------------------------------
 def deviation_diff(profile: SingleProfile, ifa: float = 0.8):
-    """Maximum deviation"""
+    """Difference between the minimum and maximum."""
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
     else:
@@ -206,7 +206,7 @@ def deviation_diff(profile: SingleProfile, ifa: float = 0.8):
 
 
 def deviation_max(profile: SingleProfile, ifa: float = 0.8):
-    """Maximum deviation"""
+    """Maximum deviation."""
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
     else:
@@ -360,7 +360,6 @@ PROTOCOLS = {
     'afssaps-jorf': AFSSAPS_JORF,
     'din': DIN,
     'fff': FFF,
-    'din': DIN
 }
 
 
@@ -497,7 +496,7 @@ class FieldParams:
 
     def _get_infield_area(self, protocol):
         """Return the in field area as a proportion 0.0-1.0 of the field size. The in field area depends on the
-        protocol and field size, but for now define it as 80%"""
+        protocol and field size, but for now define it as 80%."""
         return 0.8
 
     def _get_vert_profile(self, vert_position: float, vert_width: float):
