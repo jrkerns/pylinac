@@ -168,15 +168,18 @@ class SingleProfile(ProfileMixin):
 
     @dpmm.setter
     def dpmm(self, value):
-        """The Dots-per-mm of the profile, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
-        the dpmm will scale back to 100cm."""
+        """The Dots-per-mm of the profile, defined at isocenter.
+
+         E.g. if an EPID image is taken at 150cm SID the dpmm will scale back to 100cm.
+         """
         if value > 0:
             self._dpmm = value
 
     def center(self) -> Tuple[NumberLike, NumberLike]:
-        """Returns the center index and value of the profile. If the profile has an even number of values the centre
-        lies between the two centre indices and the centre value is the average of the two centre values else the
-        centre index and value are returned. Added by ACC 3/12/2020"""
+        """Returns the center index and value of the profile.
+
+         If the profile has an even number of values the centre lies between the two centre indices and the centre
+         value is the average of the two centre values else the centre index and value are returned."""
         plen = self.values.shape[0]
         if plen % 2 == 0:  # plen is even and central detectors straddle CAX
             cax = (self.values[int(plen / 2)] + self.values[int(plen / 2) - 1]) / 2.0
@@ -324,22 +327,43 @@ class SingleProfile(ProfileMixin):
         return left_penum, right_penum
 
     @argue.options(side=('left', 'right'))
-    def penumbra_values(self, side: str):
+    @argue.bounds(dist=(0, 200))
+    def penumbra_values(self, side: str, dist: float=20.0):
+        """Returns the penumbra values around the maximum gradient
+
+        Parameters
+           side : Penumbra side 'left' or 'right'
+           dist : distance around maximum gradient to return penumbra. If dist = 0 penumbra is returned from tail
+                  to 80% field size.
+           """
         cax_idx = self.center()[0]
+        left_edge_idx = np.argmax(np.diff(self.values[:int(cax_idx)]))
+        right_edge_idx = self.values.shape[0] - np.argmax(np.diff(np.flip(self.values[int(cax_idx):])))
         if side == 'left':
-            left_edge_idx = np.argmax(np.diff(self.values[:int(cax_idx)]))
-            end_idx = int(left_edge_idx * 2)  # take profile values around left edge
+            if dist > 0:
+                start_idx = int(left_edge_idx - dist*self.dpmm)
+                end_idx = int(left_edge_idx + dist * self.dpmm)
+            else:
+                start_idx = 0
+                end_idx = int(left_edge_idx + (right_edge_idx - left_edge_idx)*0.1)
+            if start_idx < 0:
+                start_idx = 0
             if end_idx > cax_idx:
                 end_idx = round(cax_idx)
-            values = self.values[:end_idx]
-            indices = self._indices[:end_idx]
         else:
-            right_edge_idx = np.argmin(np.diff(self.values[int(cax_idx):])) + round(cax_idx)
-            start_idx = int(right_edge_idx * 2 - self.values.shape[0])  # take profile values around right edge
+            if dist > 0:
+                start_idx = int(right_edge_idx - dist*self.dpmm)  # take profile values around right edge
+                end_idx = int(right_edge_idx + dist * self.dpmm)
+            else:
+                start_idx = int(right_edge_idx - (right_edge_idx - left_edge_idx)*0.1)
+                end_idx = self.values.shape[0]
             if start_idx < cax_idx:
                 start_idx = round(cax_idx)
-            values = self.values[start_idx:]
-            indices = self._indices[start_idx:]
+            if end_idx > self.values.shape[0]:
+                end_idx = self.values.shape[0]
+
+        values = self.values[start_idx: end_idx]
+        indices = self._indices[start_idx: end_idx]
         return indices, values
 
     @argue.bounds(field_width=(0, 1))

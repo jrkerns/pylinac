@@ -1,5 +1,7 @@
 """Module for analyzing images or 2D arrays for parameters such as flatness and symmetry.
-   Adapted from FlatSym by Alan Chamberlain"""
+
+   Adapted from FlatSym by Alan Chamberlain
+   """
 
 import io
 import os.path as osp
@@ -7,6 +9,7 @@ from typing import Union, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 
 from pylinac.core.utilities import open_path
 from .core.exceptions import NotAnalyzed
@@ -15,10 +18,11 @@ from .core import image
 from .core.profile import SingleProfile
 from .core import pdf
 from .settings import get_dicom_cmap
-from .core.hillreg import hill_reg, hill_func, inv_hill_func
+from .core.hillreg import hill_reg, hill_func, inv_hill_func, deriv_hill_func, infl_point_hill_func
 
 interpolate: bool = True
 norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 'max grounded'
+pen_width = 20                            # penumbra width for sigmoid analysis
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Parameter functions. Each parameter defined in a protocol list must have an associated parameter function that
@@ -39,19 +43,20 @@ def right_edge_50(profile: SingleProfile, *args):
     return right_edge
 
 
-def left_edge_inf(profile: SingleProfile, *args):
-    """Return the position of the inflection point on the left of the profile. The steepest gradient is used as
-    an initial approximation."""
-    indices, values = profile.penumbra_values('left')
-    left_edge_idx = hill_reg(indices, values)[2]
+def left_edge_infl(profile: SingleProfile, *args):
+    """Return the position of the inflection point on the left of the profile."""
+    indices, values = profile.penumbra_values('left', pen_width)
+    fit_params = hill_reg(indices, values)
+    left_edge_idx = infl_point_hill_func(fit_params)
     left_edge = abs(left_edge_idx - profile.center()[0])/profile.dpmm
     return left_edge
 
 
-def right_edge_inf(profile: SingleProfile, *args):
+def right_edge_infl(profile: SingleProfile, *args):
     """Return the position of the inflection point on the right of the profile."""
-    indices, values = profile.penumbra_values('right')
-    right_edge_idx = hill_reg(indices, values)[2]
+    indices, values = profile.penumbra_values('right', pen_width)
+    fit_params = hill_reg(indices, values)
+    right_edge_idx = infl_point_hill_func(fit_params)
     right_edge = abs(right_edge_idx - profile.center()[0])/profile.dpmm
     return right_edge
 
@@ -59,7 +64,8 @@ def right_edge_inf(profile: SingleProfile, *args):
 # Field size parameters ------------------------------------------------------------------------------------------------
 def field_size_50(profile: SingleProfile, *args):
     """Return the field size at 50% of max dose. Not affected by the normalisation mode.
-    Included for testing purposes"""
+
+       Included for testing purposes"""
     return profile.fwxm(50)/profile.dpmm
 
 
@@ -71,7 +77,8 @@ def field_size_edge_50(profile: SingleProfile, *args):
 # Field centre parameters ----------------------------------------------------------------------------------------------
 def field_center_fwhm(profile: SingleProfile, *args):
     """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
-    Included for testing purposes."""
+
+       Included for testing purposes."""
     field_center = (profile.fwxm_center(50, interpolate)[0] - profile.center()[0])/profile.dpmm
     return field_center
 
@@ -96,30 +103,60 @@ def penumbra_right_80_20(profile: SingleProfile, *args):
     return right_penum
 
 
-def penumbra_left_inf(profile: SingleProfile, *args):
-    """Returns  the distance between the locations where the dose equals 0.4 times the dose at the inflection point
+def penumbra_left_infl(profile: SingleProfile, *args):
+    """Left penumbra value.
+
+    Returns the distance between the locations where the dose equals 0.4 times the dose at the inflection point
     and 1.6 times that dose on the left side of the profile."""
-    indices, values = profile.penumbra_values('left')
+    indices, values = profile.penumbra_values('left', pen_width)
     fit_params = hill_reg(indices, values)
     inf_idx = fit_params[2]
     inf_val = hill_func(inf_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
-    upper_idx = inv_hill_func(inf_val*1.6, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
-    lower_idx = inv_hill_func(inf_val*0.4, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    upper_idx = inv_hill_func(inf_val*1.6, fit_params)
+    lower_idx = inv_hill_func(inf_val*0.4, fit_params)
     left_penum = abs(upper_idx - lower_idx)/profile.dpmm
     return left_penum
 
 
-def penumbra_right_inf(profile: SingleProfile, *args):
-    """Returns  the distance between the locations where the dose equals 0.4 times the dose at the inflection point
+def penumbra_right_infl(profile: SingleProfile, *args):
+    """Right penumbra value.
+
+    Returns  the distance between the locations where the dose equals 0.4 times the dose at the inflection point
     and 1.6 times that dose on the right side of the profile."""
-    indices, values = profile.penumbra_values('right')
+    indices, values = profile.penumbra_values('right', pen_width)
     fit_params = hill_reg(indices, values)
     inf_idx = fit_params[2]
     inf_val = hill_func(inf_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
-    upper_idx = inv_hill_func(inf_val*1.6, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
-    lower_idx = inv_hill_func(inf_val*0.4, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    upper_idx = inv_hill_func(inf_val*1.6, fit_params)
+    lower_idx = inv_hill_func(inf_val*0.4, fit_params)
     right_penum = abs(upper_idx - lower_idx)/profile.dpmm
     return right_penum
+
+
+def penumbra_slope_left_infl(profile: SingleProfile, *args):
+    """Slope at the inflection point on the left penumbra"""
+    if norm in ['max', 'max grounded']:
+        cax_val = profile.values.max()
+    else:
+        _, cax_val = profile.fwxm_center()
+    indices, values = profile.penumbra_values('left', pen_width)
+    fit_params = hill_reg(indices, values)
+    left_edge_idx = infl_point_hill_func(fit_params)
+    inf_slope = 100*deriv_hill_func(left_edge_idx, fit_params)*profile.dpmm/cax_val
+    return inf_slope
+
+
+def penumbra_slope_right_infl(profile: SingleProfile, *args):
+    """Slope at the inflection point on the right penumbra"""
+    if norm in ['max', 'max grounded']:
+        cax_val = profile.values.max()
+    else:
+        _, cax_val = profile.fwxm_center()
+    indices, values = profile.penumbra_values('right', pen_width)
+    fit_params = hill_reg(indices, values)
+    right_edge_idx = infl_point_hill_func(fit_params)
+    inf_slope = 100*deriv_hill_func(right_edge_idx, fit_params)*profile.dpmm/cax_val
+    return inf_slope
 
 
 # Field flatness parameters --------------------------------------------------------------------------------------------
@@ -147,8 +184,9 @@ def flatness_dose_ratio(profile: SingleProfile, ifa: float=0.8):
 
 # Field symmetry parameters --------------------------------------------------------------------------------------------
 def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
-    """Calculation of symmetry by way of point difference equidistant from the CAX. Field calculation is
-    automatically centered."""
+    """Calculation of symmetry by way of point difference equidistant from the CAX.
+
+    Field calculation is automatically centered."""
     values = profile.field_values(field_width=ifa)
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
@@ -163,7 +201,7 @@ def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
 
 
 def symmetry_pdq_iec(profile: SingleProfile, ifa: float = 0.8):
-    """Symmetry calculation by way of PDQ IEC. Field calculation is automatically centered"""
+    """Symmetry calculation by way of PDQ IEC. Field calculation is automatically centered."""
     values = profile.field_values(field_width=ifa)
     max_val = 0
     for lt_pt, rt_pt in zip(values, values[::-1]):
@@ -227,16 +265,18 @@ def deviation_max(profile: SingleProfile, ifa: float = 0.8):
 ALL = {
     'left edge 50%: {:.1f} mm': left_edge_50,
     'right edge 50%: {:.1f} mm': right_edge_50,
-    'left edge Inf: {:.1f} mm': left_edge_inf,
-    'right edge Inf: {:.1f} mm': right_edge_inf,
+    'left edge Inf: {:.1f} mm': left_edge_infl,
+    'right edge Inf: {:.1f} mm': right_edge_infl,
     'field size FWHM: {:.1f} mm': field_size_50,
     'field size edge: {:.1f} mm': field_size_edge_50,
     'field center edge: {:.1f} mm': field_center_edge_50,
     'field center FWHM: {:.1f} mm': field_center_fwhm,
     'left penumbra 80-20%: {:.1f} mm': penumbra_left_80_20,
     'right penumbra 80-20%: {:.1f} mm': penumbra_right_80_20,
-    'left penumbra Inf: {:.1f} mm': penumbra_left_inf,
-    'right penumbra Inf: {:.1f} mm': penumbra_right_inf,
+    'left penumbra Inf: {:.1f} mm': penumbra_left_infl,
+    'right penumbra Inf: {:.1f} mm': penumbra_right_infl,
+    'left penumbra slope {:.1f} %/mm': penumbra_slope_left_infl,
+    'right penumbra slope {:.1f} %/mm': penumbra_slope_right_infl,
     'flatness diff: {:.2f} %': flatness_dose_difference,
     'flatness ratio: {:.2f} %': flatness_dose_ratio,
     'symmetry diff: {:.2f} %': symmetry_point_difference,
@@ -338,10 +378,12 @@ DIN = {
 
 
 FFF = {
-    'left edge inf: {:.1f} mm': left_edge_inf,
-    'right edge inf: {:.1f} mm': right_edge_inf,
-    'left penumbra: {:.1f} mm': penumbra_left_inf,
-    'right penumbra: {:.1f} mm': penumbra_right_inf
+    'left edge inf: {:.1f} mm': left_edge_infl,
+    'right edge inf: {:.1f} mm': right_edge_infl,
+    'left penumbra: {:.1f} mm': penumbra_left_infl,
+    'right penumbra: {:.1f} mm': penumbra_right_infl,
+    'left penumbra slope {:.1f} %/mm': penumbra_slope_left_infl,
+    'right penumbra slope {:.1f} %/mm': penumbra_slope_right_infl
 }
 # ----------------------------------------------------------------------------------------------------------------------
 # End of predefined protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these
@@ -376,6 +418,7 @@ class FieldParams:
 
     def __init__(self, path: str, filter: Optional[int]=None):
         """
+
         Parameters
         ----------
         path : str
@@ -397,7 +440,7 @@ class FieldParams:
 
     @classmethod
     def from_demo_image(cls):
-        """Load the demo image into an instance"""
+        """Load the demo image into an instance."""
         demo_file = retrieve_demo_file(url='flatsym_demo.dcm')
         return cls(demo_file)
 
@@ -625,55 +668,96 @@ class FieldParams:
         axis.set_title(title)
 
     def _plot_vert(self, axis: plt.Axes=None):
+        """Plot vertical profile"""
         plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()
         axis.set_title("Vertical Profile")
         axis.plot(self.vert_profile.values)
-        left_ifa, right_ifa = self.vert_profile.field_edges(self.infield_area)
-        axis.axvline(left_ifa, color='g', linestyle='-.')
-        axis.axvline(right_ifa, color='g', linestyle='-.')
-        _remove_ticklabels(axis)
+
+        # plot parameters on profile
+        protocol = self.parameters['Method']
+        protocol_params = PROTOCOLS[protocol]
+        if bool([val for key, val in protocol_params.items() if 'flatness' in key]):
+            plot_flatness(self.vert_profile, self.infield_area, axis)
+        if bool([val for key, val in protocol_params.items() if 'inf' in key]):
+            plot_hill_func(self.vert_profile, axis)
+        # _remove_ticklabels(axis)
 
     def _plot_horiz(self, axis: plt.Axes=None):
+        """Plot horizontal profile"""
         plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()
         axis.set_title("Horizontal Profile")
         axis.plot(self.horiz_profile.values)
-        left_ifa, right_ifa = self.horiz_profile.field_edges(self.infield_area)
-        axis.axvline(left_ifa, color='g', linestyle='-.')
-        axis.axvline(right_ifa, color='g', linestyle='-.')
-        _remove_ticklabels(axis)
 
-    def _plot_symmetry(self, direction: str, axis: plt.Axes=None):
-        plt.ioff()
-        if axis is None:
-            fig, axis = plt.subplots()
-        data = self.symmetry[direction.lower()]
-        axis.set_title(direction.capitalize() + " Symmetry")
-        axis.plot(data['profile'].values)
-        # plot lines
-        cax_idx = data['profile'].fwxm_center()
-        axis.axvline(data['profile left'], color='g', linestyle='-.')
-        axis.axvline(data['profile right'], color='g', linestyle='-.')
-        axis.axvline(cax_idx, color='m', linestyle='-.')
-        # plot symmetry array
-        if not data['array'] == 0:
-            twin_axis = axis.twinx()
-            twin_axis.plot(range(cax_idx, data['profile right']), data['array'][int(round(len(data['array'])/2)):])
-            twin_axis.set_ylabel("Symmetry (%)")
-        _remove_ticklabels(axis)
-        # plot profile mirror
-        central_idx = int(round(data['profile'].values.size / 2))
-        offset = cax_idx - central_idx
-        mirror_vals = data['profile'].values[::-1]
-        axis.plot(data['profile']._indices + 2 * offset, mirror_vals)
+        # plot parameters on profile
+        protocol = self.parameters['Method']
+        protocol_params = PROTOCOLS[protocol]
+        if bool([val for key, val in protocol_params.items() if 'flatness' in key]):
+            plot_flatness(self.horiz_profile, self.infield_area, axis)
+        if bool([val for key, val in protocol_params.items() if 'inf' in key]):
+            plot_hill_func(self.horiz_profile, axis)
+        # _remove_ticklabels(axis)
 
     @staticmethod
     def _save_plot(func, filename: str, **kwargs):
         func(**kwargs)
         plt.savefig(filename)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Plot functions. These display various parameters graphically and are called depending on the protocol.
+# ----------------------------------------------------------------------------------------------------------------------
+
+def plot_flatness(profile: SingleProfile, ifa: float=0.8, axis: plt.Axes = None):
+    """Plot flatness parameters"""
+    left_ifa, right_ifa = profile.field_edges(ifa)
+    axis.axvline(left_ifa, color='g', linestyle='-.')
+    axis.axvline(right_ifa, color='g', linestyle='-.')
+
+
+def plot_hill_func(profile: SingleProfile, axis: plt.Axes = None):
+    """Plot the non-linear regression fit against the profile"""
+
+    # plot left penumbra
+    indices, values = profile.penumbra_values('left', pen_width)
+    fit_params = hill_reg(indices, values)
+    xModel = np.linspace(min(indices), max(indices))
+    yModel = hill_func(xModel, *fit_params)
+    axis.plot(xModel, yModel, color='r')
+
+    # plot right penumbra
+    indices, values = profile.penumbra_values('right', pen_width)
+    fit_params = hill_reg(indices, values)
+    xModel = np.linspace(min(indices), max(indices))
+    yModel = hill_func(xModel, *fit_params)
+    axis.plot(xModel, yModel, color='r')
+
+
+def _plot_symmetry(profile: SingleProfile, axis: plt.Axes = None):
+    plt.ioff()
+    if axis is None:
+        fig, axis = plt.subplots()
+    data = profile.values
+    axis.plot(data['profile'].values)
+    # plot lines
+    cax_idx = data['profile'].fwxm_center()
+    axis.axvline(data['profile left'], color='g', linestyle='-.')
+    axis.axvline(data['profile right'], color='g', linestyle='-.')
+    axis.axvline(cax_idx, color='m', linestyle='-.')
+    # plot symmetry array
+    if not data['array'] == 0:
+        twin_axis = axis.twinx()
+        twin_axis.plot(range(cax_idx, data['profile right']), data['array'][int(round(len(data['array']) / 2)):])
+        twin_axis.set_ylabel("Symmetry (%)")
+    _remove_ticklabels(axis)
+    # plot profile mirror
+    central_idx = int(round(data['profile'].values.size / 2))
+    offset = cax_idx - central_idx
+    mirror_vals = data['profile'].values[::-1]
+    axis.plot(data['profile']._indices + 2 * offset, mirror_vals)
 
 
 def _remove_ticklabels(axis: plt.Axes):

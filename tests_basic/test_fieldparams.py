@@ -22,6 +22,7 @@ def create_instance():
 
 
 class CalcParamTests(TestCase):
+
     """Values verified from BeamScheme file 2-Sep-2011-A.txt X profile"""
 
     profile = SingleProfile(np.array([
@@ -41,15 +42,15 @@ class CalcParamTests(TestCase):
         fp.norm = 'cax'
         self.assertAlmostEqual(fp.right_edge_50(self.profile), 103.96, delta=self.delta)
 
-    def test_left_edge_inf(self):
+    def test_left_edge_infl(self):
         fp.interpolate = True
         fp.norm = 'cax'
-        self.assertAlmostEqual(fp.left_edge_inf(self.profile), 96.06, delta=self.delta)
+        self.assertAlmostEqual(fp.left_edge_infl(self.profile), 96.2, delta=self.delta)
 
-    def test_right_edge_inf(self):
+    def test_right_edge_infl(self):
         fp.interpolate = True
         fp.norm = 'cax'
-        self.assertAlmostEqual(fp.right_edge_inf(self.profile), 104.04, delta=self.delta)
+        self.assertAlmostEqual(fp.right_edge_infl(self.profile), 103.9, delta=self.delta)
 
     def test_field_size_edge_50(self):
         fp.interpolate = True
@@ -70,6 +71,29 @@ class CalcParamTests(TestCase):
         fp.interpolate = True
         fp.norm = 'cax'
         self.assertAlmostEqual(fp.penumbra_right_80_20(self.profile), 7.13, delta=self.delta)
+
+    def test_penumbra_left_infl(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.penumbra_left_infl(self.profile), 6.37, delta=self.delta)
+
+    def test_penumbra_right_infl(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.penumbra_right_infl(self.profile), 5.37, delta=self.delta)
+
+    def test_penumbra_slope_left_infl(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+
+        self.assertAlmostEqual(fp.penumbra_slope_left_infl(self.profile), 12.48, delta=self.delta)
+
+    def test_penumbra_slope_right_infl(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        self.assertAlmostEqual(fp.penumbra_slope_right_infl(self.profile), -15.12, delta=self.delta)
 
     def test_flatness_dose_difference(self):
         self.assertAlmostEqual(fp.flatness_dose_difference(self.profile, 0.8), 2.35, delta=self.delta)
