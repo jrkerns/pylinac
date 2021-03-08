@@ -1,4 +1,4 @@
-"""Perform non-linear regression using a Hill function"""
+"""Perform non-linear regression using a Hill function."""
 
 import numpy as np
 import math
@@ -8,7 +8,7 @@ import warnings
 
 
 def hill_func(x, a, b, c, d):  # Hill function
-    """ Calculates the Hill function at x.
+    """Calculates the Hill function at x.
 
         a : sigmoid low level
         b : sigmoid high level
@@ -18,18 +18,44 @@ def hill_func(x, a, b, c, d):  # Hill function
     return a + (b - a) / (1.0 + (c / x) ** d)
 
 
-def inv_hill_func(y, a, b, c, d):  # Inverse Hill function
-    """ Calculates the inverse Hill function at y.
+def inv_hill_func(y, fit_params):  # Inverse Hill function
+    """Calculates the inverse Hill function at y.
 
-        a : sigmoid low level
-        b : sigmoid high level
-        c : approximate inflection point
-        d : slope of the sigmoid
+        [0] : sigmoid low level
+        [1] : sigmoid high level
+        [2] : approximate inflection point
+        [3] : slope of the sigmoid
     """
-    if (y > min(a, b)) and (y < max(a, b)) and (d != 0):
-        return c*math.pow((y - a)/(b - y), 1/d)
+    if (y > min(fit_params[0], fit_params[1])) and (y < max(fit_params[0], fit_params[1])) and (fit_params[3] != 0):
+        return fit_params[2]*math.pow((y - fit_params[0])/(fit_params[1] - y), 1/fit_params[3])
     else:
         return 0
+
+
+def deriv_hill_func(x, fit_params) -> float:
+    """calculates the tangent of the Hill function at X.
+
+        [0] : sigmoid low level
+        [1] : sigmoid high level
+        [2] : approximate inflection point
+        [3] : slope of the sigmoid
+    """
+    if x > 0:
+        cxd = math.pow(fit_params[2]/x, fit_params[3])
+        return (fit_params[1] - fit_params[0])*fit_params[3]*cxd/(math.pow(cxd + 1, 2)*x)
+    else:
+        return 0
+
+
+def infl_point_hill_func(fit_params) -> float:
+    """calculates the inflection point of the Hill function.
+
+        [0] : sigmoid low level
+        [1] : sigmoid high level
+        [2] : approximate inflection point
+        [3] : slope of the sigmoid
+    """
+    return fit_params[2]*math.pow((fit_params[3] - 1)/(fit_params[3] + 1), 1/fit_params[3])
 
 
 def hill_reg(xData: np.ndarray, yData: np.ndarray):
@@ -51,7 +77,6 @@ def hill_reg(xData: np.ndarray, yData: np.ndarray):
 
     def sumOfSquaredError(parameterTuple):
         """function for genetic algorithm to minimize (sum of squared error)"""
-
         warnings.filterwarnings("ignore")  # do not print warnings by genetic algorithm
         val = hill_func(xData, *parameterTuple)
         return np.sum((yData - val) ** 2.0)
