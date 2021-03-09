@@ -43,16 +43,6 @@ class FlatSymTests(TestCase):
         fs = create_instance()
         self.assertTrue(fs._is_analyzed)
 
-    def test_analyze_fails_when_incorrectly_inverted(self):
-        fs = FlatSym.from_demo_image()
-        with self.assertRaises(ValueError):
-            fs.analyze('varian', 'varian', invert=True)
-            fs.plot_analyzed_image()
-        fs = FlatSym.from_demo_image()
-        with self.assertRaises(ValueError):
-            fs.analyze('elekta', 'elekta', invert=True)
-            fs.plot_analyzed_image()
-
     def test_flatness_methods(self):
         fs = FlatSym.from_demo_image()
         analyze = partial(fs.analyze, symmetry_method='varian')

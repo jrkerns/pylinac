@@ -6,6 +6,8 @@ Changelog
 v 2.5.0
 -------
 
+.. warning:: There appears to be `an issue <https://github.com/conda-forge/pillow-feedstock/issues/69>`_ with reading TIFF images on Windows with libtiff=4.1.0. If you experience TIFF header errors, downgrade libtiff to <4.1.
+
 General
 ^^^^^^^
 
@@ -30,7 +32,7 @@ Picket Fence
 VMAT
 ^^^^
 
-* The ROI segment size can now be specified in analyze. This is discussed in the new section :ref:`customizing_vmat_analysis`.
+* The ROI segment size can now be specified in `analyze`. This is discussed in the new section :ref:`customizing_vmat_analysis`.
 
 Image generator
 ^^^^^^^^^^^^^^^
