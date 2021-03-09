@@ -44,7 +44,7 @@ def generate_winstonlutz(simulator: Simulator, field_layer: Layer, dir_out: str,
         if final_layers is not None:
             for layer in final_layers:
                 sim_single.add_layer(layer)
-        file_name = f"WL G={gantry}, C={coll}, P={couch}; BB={bb_size_mm}mm @ left={offset_mm_left}, in={offset_mm_in}, up={offset_mm_up}; Gantry tilt: {gantry_tilt}, Gantry sag: {gantry_sag}.dcm"
+        file_name = f"WL G={gantry}, C={coll}, P={couch}; BB={bb_size_mm}mm @ left={offset_mm_left}, in={offset_mm_in}, up={offset_mm_up}; Gantry tilt={gantry_tilt}, Gantry sag={gantry_sag}.dcm"
         sim_single.generate_dicom(osp.join(dir_out, file_name), gantry_angle=gantry, coll_angle=coll, table_angle=couch)
         file_names.append(file_name)
     return file_names

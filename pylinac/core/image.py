@@ -27,6 +27,10 @@ from ..settings import get_dicom_cmap, PATH_TRUNCATION_LENGTH
 ARRAY = 'Array'
 DICOM = 'DICOM'
 IMAGE = 'Image'
+
+FILE_TYPE = 'file'
+STREAM_TYPE = 'stream'
+
 MM_PER_INCH = 25.4
 
 ImageLike = Union['DicomImage', 'ArrayImage', 'FileImage', 'LinacDicomImage']
@@ -241,7 +245,6 @@ class BaseImage:
     array : numpy.ndarray
         The actual image pixel array.
     """
-    path: str
 
     def __init__(self, path: str):
         """
@@ -250,10 +253,17 @@ class BaseImage:
         path : str
             The path to the image.
         """
-        if not osp.isfile(path):
+        path: str
+        source: Union[FILE_TYPE, STREAM_TYPE]
+
+        if isinstance(path, str) and not osp.isfile(path):
             raise FileExistsError(f"File `{path}` does not exist. Verify the file path name.")
-        self.path = path
-        self.base_path = osp.basename(path)
+        elif isinstance(path, str) and osp.isfile(path):
+            self.path = path
+            self.base_path = osp.basename(path)
+            self.source = FILE_TYPE
+        else:
+            self.source = STREAM_TYPE
 
     @property
     def truncated_path(self) -> str:

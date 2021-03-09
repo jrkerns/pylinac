@@ -3,9 +3,6 @@ from typing import Tuple
 
 import numpy as np
 
-from .geometry import Point
-from .typing import NumberLike
-
 
 def bounding_box(array: np.array) -> Tuple[float, ...]:
     """Get the bounding box values of an ROI in a 2D array."""
@@ -31,48 +28,3 @@ def square_ratio(array: np.array) -> float:
     y = abs(ymax - ymin)
     x = abs(xmax - xmin)
     return y/x
-
-
-def sector_mask(shape: Tuple, center: Point, radius: NumberLike, angle_range: Tuple=(0, 360)) -> np.ndarray:
-    """Return a circular arc-shaped boolean mask.
-
-    Parameters
-    ----------
-    shape : tuple
-        Shape of the image matrix. Usually easiest to pass something like array.shape
-    center : Point, iterable
-        The center point of the desired mask.
-    radius : int, float
-        Radius of the mask.
-    angle_range : iterable
-        The angle range of the mask. E.g. the default (0, 360) creates an entire circle.
-        The start/stop angles should be given in clockwise order. 0 is right (0 on unit circle).
-
-    References
-    ----------
-    https://stackoverflow.com/questions/18352973/mask-a-circular-sector-in-a-numpy-array/18354475#18354475
-    """
-
-    x, y = np.ogrid[:shape[0], :shape[1]]
-    cy, cx = center.x, center.y
-    # tmin, tmax = np.deg2rad(angle_range)
-    tmin, tmax = angle_range
-
-    # ensure stop angle > start angle
-    if tmax < tmin:
-        tmax += 2 * np.pi
-
-    # convert cartesian --> polar coordinates
-    r2 = (x - cx) * (x - cx) + (y - cy) * (y - cy)
-    theta = np.arctan2(x - cx, y - cy) - tmin
-
-    # wrap angles between 0 and 2*pi
-    theta %= (2 * np.pi)
-
-    # circular mask
-    circmask = r2 <= radius * radius
-
-    # angular mask
-    anglemask = theta <= (tmax - tmin)
-
-    return circmask * anglemask
