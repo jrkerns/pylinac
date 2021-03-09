@@ -309,7 +309,7 @@ Below are the high-level tools currently available:
 
     Features:
 
-    * **Analyze either HD or regular MLCs** - Just pass a flag and tell pylinac whether it's HD or not.
+    * **Preset & customizable MLC configurations** - Standard configurations are built-in and you can create your own configuration of leaves if needed.
     * **Easy-to-read pass/warn/fail overlay** - Analysis gives you easy-to-read tools for determining the status of an MLC pair.
     * **Any Source-to-Image distance** - Whatever your clinic uses as the SID for picket fence, pylinac can account for it.
     * **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.

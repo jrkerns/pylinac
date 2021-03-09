@@ -104,6 +104,35 @@ The minimum needed to get going is to:
 
     myvmat.publish_pdf('drgs.pdf')
 
+.. _customizing_vmat_analysis:
+
+Customizing the analysis
+------------------------
+
+You can alter both the segment size and segment positions as desired.
+
+To change the segment size:
+
+.. code-block:: python
+
+    drgs = DRGS.from_demo_image()
+    drgs.analyze(..., segment_size_mm=(10, 150))  # ROI segments will now be 10mm wide by 150mm tall
+    # same story for DRMLC
+
+To change the x-positions of the ROI segments, the class property must be changed. This is different
+behavior because by default the x-positions are different for the DRGS and DRMLC test:
+
+.. code-block:: python
+
+    from pylinac import DRGS, DRMLC
+
+    DRGS.SEGMENT_X_POSITIONS_MM = (-100, -80, ...)
+    # proceed as normal
+    my_drgs = DRGS(...)
+
+    # DRMLC must be addressed separately
+    DRMLC.SEGMENT_X_POSITIONS_MM = (-40, -10, 10, 40)
+    my_drmlc = DRMLC(...)
 
 Accessing Data
 --------------

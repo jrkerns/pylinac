@@ -7,6 +7,7 @@ Version Release Checklist
     - pylinac/__init__.py
     - docs/source/conf.py
 - List changes in docs/source/changelog.rst
+- List any new dependencies in changelog
 - If a new module:
     - Add snippet to README.rst
 - Build: run setup.py task..., `bdist_wheel` to make a wheel

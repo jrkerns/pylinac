@@ -107,6 +107,15 @@ The minimum needed to get going is to:
 
      pf = PicketFence.from_demo_image()
 
+  You can also change the MLC type:
+
+  .. code-block:: python
+
+    pf = PicketFence(pf_img, mlc="HD")
+
+  In this case, we've set the MLCs to be HD Millennium. For more options and to customize the MLC configuration,
+  see :ref:`customizing_pf_mlcs`.
+
 * **Analyze the image** -- Once the image is loaded, tell PicketFence to start analyzing the image. See the
   Algorithm section for details on how this is done. While defaults exist, you may pass in a tolerance as well as
   an "action" tolerance (meaning that while passing, action should be required above this tolerance):
@@ -170,6 +179,54 @@ Everything else is the same except the measurements are **absolute**.
 Results will look similar. Here's an example of the results of using a log:
 
 .. image:: images/PF_with_log.png
+
+.. _customizing_pf_mlcs:
+
+Customizing MLCs
+----------------
+
+As of v2.5, MLC configuration is set a priori (vs empirical determination as before) and the user can also create
+custom MLC types. Pylinac was only able to handle Millennium and HD Millennium previously.
+
+Use a specific preset config:
+
+.. code-block:: python
+
+    pf = PicketFence(pf_img, mlc="Millennium")
+
+Preset configurations
+^^^^^^^^^^^^^^^^^^^^^^
+
+The following are preset in pylinac and can be referenced by string, as per above:
+
+.. plot::
+
+    from pylinac import PicketFence
+
+    print(list(PicketFence.MLCs.keys()))
+
+Creating and using a custom configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Using a custom configuration is very easy. You must create and then pass in a custom :class:`~pylinac.picketfence.MLCArrangement`.
+Leaf arrangements are sets of tuples with the leaf number and leaf width. An example will make this clear:
+
+.. code-block:: python
+
+    from pylinac.picketfence import PicketFence, MLCArrangement
+
+    # recreate a standard Millennium MLC with 10 leaves of 10mm width, then 40 leaves of 5mm, then 10 of 10mm again.
+    mlc_setup = MLCArrangement(leaf_arrangement=[(10, 10), (40, 5), (10, 10)])
+    # add an offset for Halcyon-style or odd-numbered leaf setups
+    mlc_setup_offset = MLCArrangement(leaf_arrangement=..., offset=2.5)  # offset is in mm
+
+    # pass it in to the mlc parameter
+    pf = PicketFence('path/to/img', mlc=mlc_setup)
+
+    # proceed as normal
+    pf.analyze(...)
+    ...
+
 
 Tips & Tricks
 -------------
@@ -296,14 +353,13 @@ API Documentation
 
 .. autoclass:: pylinac.picketfence.PicketFence
 
-Supporting Data Structures
+.. autoclass:: pylinac.picketfence.MLCArrangement
 
-.. autoclass:: pylinac.picketfence.PicketManager
+Supporting Classes
 
-.. autoclass:: pylinac.picketfence.Settings
+.. autoclass:: pylinac.picketfence.PFDicomImage
 
 .. autoclass:: pylinac.picketfence.Picket
 
-.. autoclass:: pylinac.picketfence.MLCMeas
+.. autoclass:: pylinac.picketfence.MLCValue
 
-.. autoclass:: pylinac.picketfence.Overlay

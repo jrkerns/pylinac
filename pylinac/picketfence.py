@@ -97,7 +97,7 @@ class PFDicomImage(image.LinacDicomImage):
         return max_is_extreme or min_is_extreme
 
     @argue.options(orientation=(UP_DOWN, LEFT_RIGHT))
-    def adjust_for_sag(self, sag: int, orientation: Union[UP_DOWN, LEFT_RIGHT]):
+    def adjust_for_sag(self, sag: int, orientation: Union[UP_DOWN, LEFT_RIGHT]) -> None:
         """Roll the image to adjust for EPID sag."""
         direction = 'y' if orientation == UP_DOWN else 'x'
         self.roll(direction, sag)
@@ -255,7 +255,7 @@ class PicketFence:
         self._log_fits = cycle([p.get_fit() for p in pf.pickets])
 
     @staticmethod
-    def run_demo(tolerance: float = 0.5, action_tolerance: float = None):
+    def run_demo(tolerance: float = 0.5, action_tolerance: float = None) -> None:
         """Run the Picket Fence demo using the demo image. See analyze() for parameter info."""
         pf = PicketFence.from_demo_image()
         pf.analyze(tolerance, action_tolerance=action_tolerance)
@@ -266,7 +266,7 @@ class PicketFence:
                 num_pickets: Optional[int] = None, sag_adjustment: Union[float, int] = 0,
                 orientation: Optional[str] = None, invert: bool = False, leaf_analysis_width_ratio: float = 0.4,
                 picket_spacing: Optional[float] = None, height_threshold: float = 0.6, edge_threshold: float = 1.5,
-                peak_sort: str = 'peak_heights'):
+                peak_sort: str = 'peak_heights') -> None:
         """Analyze the picket fence image.
 
         Parameters
@@ -305,10 +305,11 @@ class PicketFence:
             If given, it should be an int or float specifying the number of **PIXELS** apart the pickets are.
         height_threshold
             The threshold that the MLC peak needs to be above to be considered a picket (vs background).
-            Lower if not all leaves are being caught.
+            Lower if not all leaves are being caught. Note that for FFF beams this would very likely need to be lowered.
         edge_threshold
-            The threshold that the MLC standard deviation must be under to be considered a full leaf. This is
-            specifically to omit or catch leaves at the edge of the field. Raise to catch more edge leaves.
+            The threshold of pixel value standard deviation within the analysis window of the MLC leaf to be considered a full leaf.
+            This is how pylinac removes MLCs that are eclipsed by the jaw. This also is how to
+            omit or catch leaves at the edge of the field. Raise to catch more edge leaves.
         peak_sort
             Either 'peak_heights' or 'prominences'. This is the method for determining the peaks. Usually not needed
             unless the wrong number of pickets have been detected.
@@ -392,7 +393,7 @@ class PicketFence:
         is_not_at_edge = max(std) < edge_threshold * np.median(std)
         return is_above_height_threshold and is_not_at_edge
 
-    def _get_mlc_window(self, leaf_center, leaf_width, approx_idx, spacing):
+    def _get_mlc_window(self, leaf_center, leaf_width, approx_idx, spacing) -> np.ndarray:
         """A small 2D window of the image that contains the area around the picket."""
         leaf_width_px = leaf_width * self.image.dpmm
         leaf_center_px = leaf_center * self.image.dpmm + (
@@ -423,7 +424,7 @@ class PicketFence:
 
     def plot_analyzed_image(self, guard_rails: bool = True, mlc_peaks: bool = True, overlay: bool = True,
                             leaf_error_subplot: bool = True, show: bool = True,
-                            figure_size: Union[str, Tuple] = 'auto'):
+                            figure_size: Union[str, Tuple] = 'auto') -> None:
         """Plot the analyzed image.
 
         Parameters
@@ -480,7 +481,7 @@ class PicketFence:
         if show:
             plt.show()
 
-    def _add_leaf_error_subplot(self, ax: plt.Axes):
+    def _add_leaf_error_subplot(self, ax: plt.Axes) -> None:
         """Add a bar subplot showing the leaf error."""
 
         # make the new axis
@@ -525,7 +526,7 @@ class PicketFence:
         axtop.set_title("Average Error (mm)")
 
     def save_analyzed_image(self, filename: str, guard_rails: bool = True, mlc_peaks: bool = True, overlay: bool = True,
-                            leaf_error_subplot: bool = False, **kwargs):
+                            leaf_error_subplot: bool = False, **kwargs) -> None:
         """Save the analyzed figure to a file. See :meth:`~pylinac.picketfence.PicketFence.plot_analyzed_image()` for
         further parameter info.
         """

@@ -273,3 +273,11 @@ Simulators
 
 .. autoclass:: pylinac.core.image_generator.simulators.AS1200Image
     :inherited-members:
+
+Helpers
+^^^^^^^
+
+.. autofunction:: pylinac.core.image_generator.utils.generate_picketfence
+
+.. autofunction:: pylinac.core.image_generator.utils.generate_winstonlutz
+

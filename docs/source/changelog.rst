@@ -3,6 +3,41 @@
 Changelog
 =========
 
+v 2.5.0
+-------
+
+General
+^^^^^^^
+
+* This release adds utility functions to the image generator module and also a change in configuration of the picket fence module, allowing users to create their own MLC configurations.
+
+Dependencies
+############
+
+* `py-linq` has been added as a dependency. It's pure python so it will not add secondary dependencies.
+
+Picket Fence
+^^^^^^^^^^^^
+
+* MLC configuration has changed from being empirical to a priori, meaning that leaves are no longer determined, but passed in via configuration. This allows users to configure their own
+  custom MLCs arrangements. See :ref:`customizing_pf_mlcs`.
+* Linked with the above, the `is_hdmlc` parameter is deprecated and users should now use the `mlc` parameter in the constructor.
+* Also due to above, new parameters have been added to the `analyze` method. Please see the documentation for more info.
+* The colored overlay is now broken up into the individual leaf kisses rather than one line.
+* Several internal classes were removed or overhauled. This should not affect you if you're just using the basic routines like analyze().
+  `Settings` no longer exists, `MLCMeas` is now `MLCValue`. `PicketManager` no longer exists.
+
+VMAT
+^^^^
+
+* The ROI segment size can now be specified in analyze. This is discussed in the new section :ref:`customizing_vmat_analysis`.
+
+Image generator
+^^^^^^^^^^^^^^^
+
+In the previous release, a new image generator module was introduced. This release adds utility scripts for easily creating
+Winston-Lutz and picket fence image sets. See the Helpers section of the generator documentation.
+
 v 2.4.0
 -------
 
