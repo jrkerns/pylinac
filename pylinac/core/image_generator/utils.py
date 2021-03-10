@@ -44,9 +44,34 @@ def generate_winstonlutz(simulator: Simulator, field_layer: Layer, dir_out: str,
         if final_layers is not None:
             for layer in final_layers:
                 sim_single.add_layer(layer)
-        file_name = f"WL G={gantry}, C={coll}, P={couch}; BB={bb_size_mm}mm @ left={offset_mm_left}, in={offset_mm_in}, up={offset_mm_up}; Gantry tilt={gantry_tilt}, Gantry sag={gantry_sag}.dcm"
+        file_name = f"WL G={gantry}, C={coll}, P={couch}; Field={field_size_mm}mm; BB={bb_size_mm}mm @ left={offset_mm_left}, in={offset_mm_in}, up={offset_mm_up}; Gantry tilt={gantry_tilt}, Gantry sag={gantry_sag}.dcm"
         sim_single.generate_dicom(osp.join(dir_out, file_name), gantry_angle=gantry, coll_angle=coll, table_angle=couch)
         file_names.append(file_name)
     return file_names
 
+
+def generate_winstonlutz_cone(simulator: Simulator, cone_layer: Layer, dir_out: str, cone_size_mm=17.5,
+                         final_layers: List[Layer]=None, bb_size_mm=5, offset_mm_left=0, offset_mm_up=0, offset_mm_in=0,
+                         image_axes: List[Tuple[int, int, int]]=[(0, 0, 0), (90, 0, 0), (180, 0, 0), (270, 0, 0)],
+                         gantry_tilt=0, gantry_sag=0) -> List[str]:
+    """Create a mock set of WL images with a cone field, simulating gantry sag effects. Produces one image for each item in image_axes.
+
+    Parameters
+    ----------
+    image_axes
+        List of axes for the images. Sequence is (Gantry, Coll, Couch).
+    """
+    file_names = []
+    for (gantry, coll, couch) in image_axes:
+        sim_single = copy.copy(simulator)
+        sim_single.add_layer(cone_layer(cone_size_mm=cone_size_mm, cax_offset_mm=(gantry_tilt*cos(gantry), gantry_sag*sin(gantry))))
+        sim_single.add_layer(PerfectBBLayer(cax_offset_mm=(-offset_mm_in,
+                                                           -offset_mm_left*cos(gantry)-offset_mm_up*sin(gantry))))
+        if final_layers is not None:
+            for layer in final_layers:
+                sim_single.add_layer(layer)
+        file_name = f"WL G={gantry}, C={coll}, P={couch}; Cone={cone_size_mm}mm; BB={bb_size_mm}mm @ left={offset_mm_left}, in={offset_mm_in}, up={offset_mm_up}; Gantry tilt={gantry_tilt}, Gantry sag={gantry_sag}.dcm"
+        sim_single.generate_dicom(osp.join(dir_out, file_name), gantry_angle=gantry, coll_angle=coll, table_angle=couch)
+        file_names.append(file_name)
+    return file_names
 
