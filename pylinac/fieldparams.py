@@ -74,6 +74,11 @@ def field_size_edge_50(profile: SingleProfile, *args):
     return right_edge_50(profile) + left_edge_50(profile)
 
 
+def field_size_edge_infl(profile: SingleProfile, *args):
+    """Return the field size at 50% of max dose."""
+    return right_edge_infl(profile) + left_edge_infl(profile)
+
+
 # Field centre parameters ----------------------------------------------------------------------------------------------
 def field_center_fwhm(profile: SingleProfile, *args):
     """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
@@ -86,6 +91,11 @@ def field_center_fwhm(profile: SingleProfile, *args):
 def field_center_edge_50(profile: SingleProfile, *args):
     """Calculates the field center from the 50 dose max field edges. May be different from the field_center_fwxm."""
     return (right_edge_50(profile) - left_edge_50(profile))/2
+
+
+def field_center_edge_infl(profile: SingleProfile, *args):
+    """Calculates the field center from the inflection point field edges. May be different from the field_center_fwxm."""
+    return (right_edge_infl(profile) - left_edge_infl(profile))/2
 
 
 # Field penumbra parameters --------------------------------------------------------------------------------------------
@@ -269,12 +279,14 @@ ALL = {
     'right edge Inf: {:.1f} mm': right_edge_infl,
     'field size FWHM: {:.1f} mm': field_size_50,
     'field size edge: {:.1f} mm': field_size_edge_50,
+    'field size infl: {:.1f} mm': field_size_edge_infl,
     'field center edge: {:.1f} mm': field_center_edge_50,
     'field center FWHM: {:.1f} mm': field_center_fwhm,
+    'field center infl: {:.1f} mm': field_center_edge_infl,
     'left penumbra 80-20%: {:.1f} mm': penumbra_left_80_20,
     'right penumbra 80-20%: {:.1f} mm': penumbra_right_80_20,
-    'left penumbra Inf: {:.1f} mm': penumbra_left_infl,
-    'right penumbra Inf: {:.1f} mm': penumbra_right_infl,
+    'left penumbra infl: {:.1f} mm': penumbra_left_infl,
+    'right penumbra infl: {:.1f} mm': penumbra_right_infl,
     'left penumbra slope {:.1f} %/mm': penumbra_slope_left_infl,
     'right penumbra slope {:.1f} %/mm': penumbra_slope_right_infl,
     'flatness diff: {:.2f} %': flatness_dose_difference,
@@ -380,6 +392,8 @@ DIN = {
 FFF = {
     'left edge inf: {:.1f} mm': left_edge_infl,
     'right edge inf: {:.1f} mm': right_edge_infl,
+    'field center infl: {:.1f} mm': field_center_edge_infl,
+    'field size infl: {:.1f} mm': field_size_edge_infl,
     'left penumbra: {:.1f} mm': penumbra_left_infl,
     'right penumbra: {:.1f} mm': penumbra_right_infl,
     'left penumbra slope {:.1f} %/mm': penumbra_slope_left_infl,

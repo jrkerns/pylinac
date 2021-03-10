@@ -57,10 +57,22 @@ class CalcParamTests(TestCase):
         fp.norm = 'cax'
         self.assertAlmostEqual(fp.field_size_edge_50(self.profile), 200.75, delta=self.delta)
 
+    def test_field_size_edge_infl(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.field_size_edge_infl(self.profile), 200.29, delta=self.delta)
+
     def test_field_center_edge_50(self):
         fp.interpolate = True
         fp.norm = 'cax'
         self.assertAlmostEqual(fp.field_center_edge_50(self.profile), 3.67, delta=self.delta)
+
+    def test_field_center_edge_infl(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.field_center_edge_infl(self.profile), 3.67, delta=self.delta)
 
     def test_penumbra_left_80_20(self):
         fp.interpolate = True
@@ -87,12 +99,13 @@ class CalcParamTests(TestCase):
     def test_penumbra_slope_left_infl(self):
         fp.interpolate = True
         fp.norm = 'cax'
-
+        fp.pen_width = 0
         self.assertAlmostEqual(fp.penumbra_slope_left_infl(self.profile), 12.48, delta=self.delta)
 
     def test_penumbra_slope_right_infl(self):
         fp.interpolate = True
         fp.norm = 'cax'
+        fp.pen_width = 0
         self.assertAlmostEqual(fp.penumbra_slope_right_infl(self.profile), -15.12, delta=self.delta)
 
     def test_flatness_dose_difference(self):
