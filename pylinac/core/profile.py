@@ -11,6 +11,7 @@ from scipy.interpolate import interp1d
 
 from .geometry import Point, Circle
 from .typing import NumberLike
+from .hillreg import hill_reg, infl_point_hill_func
 
 
 def stretch(array: np.ndarray, min: int=0, max: int=1, fill_dtype: Optional[np.dtype]=None) -> np.ndarray:
@@ -297,6 +298,14 @@ class SingleProfile(ProfileMixin):
             right = right - 1
         return left, right
 
+    @argue.bounds(pen_width=(0, 200))
+    @argue.options(side=('left', 'right'))
+    def infl_points(self, pen_width: float = 20, side: str = 'left'):
+        indices, values = self.penumbra_values(side, pen_width)
+        fit_params = hill_reg(indices, values)
+        edge_idx = infl_point_hill_func(fit_params)
+        return edge_idx, fit_params
+
     @argue.bounds(lower=(0, 100), upper=(0, 100))
     def penumbra_width(self, lower: int=20, upper: int=80) -> Tuple[float, float]:
         """Return the penumbra width of the profile.
@@ -342,7 +351,7 @@ class SingleProfile(ProfileMixin):
         if side == 'left':
             if dist > 0:
                 start_idx = int(left_edge_idx - dist*self.dpmm)
-                end_idx = int(left_edge_idx + dist * self.dpmm)
+                end_idx = int(left_edge_idx + dist * self.dpmm) + 1
             else:
                 start_idx = 0
                 end_idx = int(left_edge_idx + (right_edge_idx - left_edge_idx)*0.1)
@@ -353,7 +362,7 @@ class SingleProfile(ProfileMixin):
         else:
             if dist > 0:
                 start_idx = int(right_edge_idx - dist*self.dpmm)  # take profile values around right edge
-                end_idx = int(right_edge_idx + dist * self.dpmm)
+                end_idx = int(right_edge_idx + dist * self.dpmm) + 1
             else:
                 start_idx = int(right_edge_idx - (right_edge_idx - left_edge_idx)*0.1)
                 end_idx = self.values.shape[0]

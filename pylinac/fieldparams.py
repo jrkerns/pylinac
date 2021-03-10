@@ -18,7 +18,7 @@ from .core import image
 from .core.profile import SingleProfile
 from .core import pdf
 from .settings import get_dicom_cmap
-from .core.hillreg import hill_reg, hill_func, inv_hill_func, deriv_hill_func, infl_point_hill_func
+from .core.hillreg import hill_reg, hill_func, inv_hill_func, deriv_hill_func
 
 interpolate: bool = True
 norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 'max grounded'
@@ -45,18 +45,14 @@ def right_edge_50(profile: SingleProfile, *args):
 
 def left_edge_infl(profile: SingleProfile, *args):
     """Return the position of the inflection point on the left of the profile."""
-    indices, values = profile.penumbra_values('left', pen_width)
-    fit_params = hill_reg(indices, values)
-    left_edge_idx = infl_point_hill_func(fit_params)
+    left_edge_idx = profile.infl_points(pen_width, 'left')[0]
     left_edge = abs(left_edge_idx - profile.center()[0])/profile.dpmm
     return left_edge
 
 
 def right_edge_infl(profile: SingleProfile, *args):
     """Return the position of the inflection point on the right of the profile."""
-    indices, values = profile.penumbra_values('right', pen_width)
-    fit_params = hill_reg(indices, values)
-    right_edge_idx = infl_point_hill_func(fit_params)
+    right_edge_idx = profile.infl_points(pen_width, 'right')[0]
     right_edge = abs(right_edge_idx - profile.center()[0])/profile.dpmm
     return right_edge
 
@@ -118,12 +114,10 @@ def penumbra_left_infl(profile: SingleProfile, *args):
 
     Returns the distance between the locations where the dose equals 0.4 times the dose at the inflection point
     and 1.6 times that dose on the left side of the profile."""
-    indices, values = profile.penumbra_values('left', pen_width)
-    fit_params = hill_reg(indices, values)
-    inf_idx = fit_params[2]
-    inf_val = hill_func(inf_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
-    upper_idx = inv_hill_func(inf_val*1.6, fit_params)
-    lower_idx = inv_hill_func(inf_val*0.4, fit_params)
+    infl_idx, fit_params = profile.infl_points(pen_width, 'left')
+    infl_val = hill_func(infl_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    upper_idx = inv_hill_func(infl_val*1.6, fit_params)
+    lower_idx = inv_hill_func(infl_val*0.4, fit_params)
     left_penum = abs(upper_idx - lower_idx)/profile.dpmm
     return left_penum
 
@@ -133,12 +127,10 @@ def penumbra_right_infl(profile: SingleProfile, *args):
 
     Returns  the distance between the locations where the dose equals 0.4 times the dose at the inflection point
     and 1.6 times that dose on the right side of the profile."""
-    indices, values = profile.penumbra_values('right', pen_width)
-    fit_params = hill_reg(indices, values)
-    inf_idx = fit_params[2]
-    inf_val = hill_func(inf_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
-    upper_idx = inv_hill_func(inf_val*1.6, fit_params)
-    lower_idx = inv_hill_func(inf_val*0.4, fit_params)
+    infl_idx, fit_params = profile.infl_points(pen_width, 'right')
+    infl_val = hill_func(infl_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
+    upper_idx = inv_hill_func(infl_val*1.6, fit_params)
+    lower_idx = inv_hill_func(infl_val*0.4, fit_params)
     right_penum = abs(upper_idx - lower_idx)/profile.dpmm
     return right_penum
 
@@ -149,9 +141,7 @@ def penumbra_slope_left_infl(profile: SingleProfile, *args):
         cax_val = profile.values.max()
     else:
         _, cax_val = profile.fwxm_center()
-    indices, values = profile.penumbra_values('left', pen_width)
-    fit_params = hill_reg(indices, values)
-    left_edge_idx = infl_point_hill_func(fit_params)
+    left_edge_idx, fit_params = profile.infl_points(pen_width, 'left')
     inf_slope = 100*deriv_hill_func(left_edge_idx, fit_params)*profile.dpmm/cax_val
     return inf_slope
 
@@ -162,11 +152,15 @@ def penumbra_slope_right_infl(profile: SingleProfile, *args):
         cax_val = profile.values.max()
     else:
         _, cax_val = profile.fwxm_center()
-    indices, values = profile.penumbra_values('right', pen_width)
-    fit_params = hill_reg(indices, values)
-    right_edge_idx = infl_point_hill_func(fit_params)
+    right_edge_idx, fit_params = profile.infl_points(pen_width, 'right')
     inf_slope = 100*deriv_hill_func(right_edge_idx, fit_params)*profile.dpmm/cax_val
     return inf_slope
+
+
+# Dose point values ----------------------------------------------------------------------------------------------------
+def dose_point_left_20(profile: SingleProfile, *args):
+    left_edge = 0.2*left_edge_infl(profile)*profile.dpmm + profile.center()
+    return
 
 
 # Field flatness parameters --------------------------------------------------------------------------------------------
@@ -695,7 +689,7 @@ class FieldParams:
         if bool([val for key, val in protocol_params.items() if 'flatness' in key]):
             plot_flatness(self.vert_profile, self.infield_area, axis)
         if bool([val for key, val in protocol_params.items() if 'inf' in key]):
-            plot_hill_func(self.vert_profile, axis)
+            plot_infl(self.vert_profile, axis)
         # _remove_ticklabels(axis)
 
     def _plot_horiz(self, axis: plt.Axes=None):
@@ -711,8 +705,8 @@ class FieldParams:
         protocol_params = PROTOCOLS[protocol]
         if bool([val for key, val in protocol_params.items() if 'flatness' in key]):
             plot_flatness(self.horiz_profile, self.infield_area, axis)
-        if bool([val for key, val in protocol_params.items() if 'inf' in key]):
-            plot_hill_func(self.horiz_profile, axis)
+        if bool([val for key, val in protocol_params.items() if 'infl' in key]):
+            plot_infl(self.horiz_profile, axis)
         # _remove_ticklabels(axis)
 
     @staticmethod
@@ -732,7 +726,7 @@ def plot_flatness(profile: SingleProfile, ifa: float=0.8, axis: plt.Axes = None)
     axis.axvline(right_ifa, color='g', linestyle='-.')
 
 
-def plot_hill_func(profile: SingleProfile, axis: plt.Axes = None):
+def plot_infl(profile: SingleProfile, axis: plt.Axes = None):
     """Plot the non-linear regression fit against the profile"""
 
     # plot left penumbra

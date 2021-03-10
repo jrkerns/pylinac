@@ -88,7 +88,7 @@ class CalcParamTests(TestCase):
         fp.interpolate = True
         fp.norm = 'cax'
         fp.pen_width = 0
-        self.assertAlmostEqual(fp.penumbra_left_infl(self.profile), 6.37, delta=self.delta)
+        self.assertAlmostEqual(fp.penumbra_left_infl(self.profile), 5.91, delta=self.delta)
 
     def test_penumbra_right_infl(self):
         fp.interpolate = True
