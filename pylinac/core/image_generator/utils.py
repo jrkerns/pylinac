@@ -39,8 +39,8 @@ def generate_winstonlutz(simulator: Simulator, field_layer: Layer, dir_out: str,
     for (gantry, coll, couch) in image_axes:
         sim_single = copy.copy(simulator)
         sim_single.add_layer(field_layer(field_size_mm=field_size_mm, cax_offset_mm=(gantry_tilt*cos(gantry), gantry_sag*sin(gantry))))
-        sim_single.add_layer(PerfectBBLayer(cax_offset_mm=(offset_mm_in,
-                                                           offset_mm_left*cos(gantry)+offset_mm_up*sin(gantry))))
+        sim_single.add_layer(PerfectBBLayer(cax_offset_mm=(-offset_mm_in,
+                                                           -offset_mm_left*cos(gantry)-offset_mm_up*sin(gantry))))
         if final_layers is not None:
             for layer in final_layers:
                 sim_single.add_layer(layer)
