@@ -111,6 +111,10 @@ class SIQC3_2(PlanarPhantomMixin, TestCase):
     file_path = ['QC3 2.5MV 2.dcm']
     mtf_50 = 0.68
 
+    def test_wrong_ssd_fails(self):
+        with self.assertRaises(ValueError):
+            self.instance.analyze(ssd=140)
+
 
 class LasVegasTestMixin(PlanarPhantomMixin):
     klass = LasVegas
