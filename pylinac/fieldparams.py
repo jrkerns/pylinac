@@ -9,7 +9,7 @@ from typing import Union, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-import math
+from scipy.interpolate import interp1d
 
 from pylinac.core.utilities import open_path
 from .core.exceptions import NotAnalyzed
@@ -159,8 +159,19 @@ def penumbra_slope_right_infl(profile: SingleProfile, *args):
 
 # Dose point values ----------------------------------------------------------------------------------------------------
 def dose_point_left_20(profile: SingleProfile, *args):
-    left_edge = 0.2*left_edge_infl(profile)*profile.dpmm + profile.center()
-    return
+    """Dose value at 20% of field size from CAX"""
+    left_edge_idx = profile.infl_points(pen_width, 'left')[0]
+    if norm in ['max', 'max grounded']:
+        cax_idx, cax_val = profile.fwxm_center(x=50, interpolate=interpolate)
+    else:
+        cax_idx, cax_val = profile.center()
+    dose_idx = cax_idx - (cax_idx - left_edge_idx)*0.2
+    if interpolate:
+        ydata_f = interp1d(profile._indices, profile.values, kind=profile.interpolation_type)
+        dose_val = ydata_f(dose_idx)
+    else:
+        dose_val = profile.values[round(cax_idx)]
+    return 100*dose_val/cax_val
 
 
 # Field flatness parameters --------------------------------------------------------------------------------------------
@@ -391,7 +402,8 @@ FFF = {
     'left penumbra: {:.1f} mm': penumbra_left_infl,
     'right penumbra: {:.1f} mm': penumbra_right_infl,
     'left penumbra slope {:.1f} %/mm': penumbra_slope_left_infl,
-    'right penumbra slope {:.1f} %/mm': penumbra_slope_right_infl
+    'right penumbra slope {:.1f} %/mm': penumbra_slope_right_infl,
+    'left dose point 20%: {:.1f} %': dose_point_left_20
 }
 # ----------------------------------------------------------------------------------------------------------------------
 # End of predefined protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these
