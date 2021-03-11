@@ -23,6 +23,7 @@ from typing import Optional, Union, Dict, Tuple, Sequence
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+from py_linq import Enumerable
 from scipy import ndimage
 from skimage import filters, measure, segmentation
 
@@ -745,6 +746,7 @@ class CTP515(CatPhanModule):
     }
     background_roi_dist_ratio = 0.75
     background_roi_radius_mm = 4
+    WINDOW_SIZE = 50
 
     def __init__(self, catphan, tolerance: float, cnr_threshold: float, offset: int):
         self.cnr_threshold = cnr_threshold
@@ -773,6 +775,28 @@ class CTP515(CatPhanModule):
     def rois_visible(self) -> int:
         """The number of ROIs "visible"."""
         return sum(roi.passed_cnr_constant for roi in self.rois.values())
+
+    @property
+    def lower_window(self) -> float:
+        return Enumerable(self.background_rois.values()).min(lambda r: r.pixel_value) - self.WINDOW_SIZE
+
+    @property
+    def upper_window(self) -> float:
+        return Enumerable(self.rois.values()).max(lambda r: r.pixel_value) + self.WINDOW_SIZE
+
+
+class CTP515CP600(CTP515):
+    roi_angles = [-87.4+180, -69.1+180, -52.7+180, -38.5+180, -25.1+180, -12.9+180]
+    roi_dist_mm = 50
+    roi_radius_mm = [6, 3.5, 3, 2.5, 2, 1.5]
+    roi_settings = {
+        '15': {'angle': roi_angles[0], 'distance': roi_dist_mm, 'radius': roi_radius_mm[0]},
+        '9': {'angle': roi_angles[1], 'distance': roi_dist_mm, 'radius': roi_radius_mm[1]},
+        '8': {'angle': roi_angles[2], 'distance': roi_dist_mm, 'radius': roi_radius_mm[2]},
+        '7': {'angle': roi_angles[3], 'distance': roi_dist_mm, 'radius': roi_radius_mm[3]},
+        '6': {'angle': roi_angles[4], 'distance': roi_dist_mm, 'radius': roi_radius_mm[4]},
+        '5': {'angle': roi_angles[5], 'distance': roi_dist_mm, 'radius': roi_radius_mm[5]},
+    }
 
 
 class CatPhanBase:
@@ -855,8 +879,8 @@ class CatPhanBase:
         show : bool
             Whether to plot the image or not.
         """
-        def plot(ctp_module, axis):
-            axis.imshow(ctp_module.image.array, cmap=get_dicom_cmap())
+        def plot(ctp_module, axis, vmin=None, vmax=None):
+            axis.imshow(ctp_module.image.array, cmap=get_dicom_cmap(), vmin=vmin, vmax=vmax)
             ctp_module.plot_rois(axis)
             axis.autoscale(tight=True)
             axis.set_title(ctp_module.common_name)
@@ -880,7 +904,7 @@ class CatPhanBase:
             self.ctp528.plot_mtf(mtf_ax)
         if self._has_module(CTP515):
             locon_ax = plt.subplot2grid(grid_size, (1, 1))
-            plot(self.ctp515, locon_ax)
+            plot(self.ctp515, locon_ax, vmin=self.ctp515.lower_window, vmax=self.ctp515.upper_window)
 
         # finish up
         plt.tight_layout()
@@ -940,7 +964,7 @@ class CatPhanBase:
             plt.axis('on')
             self.ctp528.plot_mtf(plt.gca())
         elif 'lc' in subimage:
-            plt.imshow(self.ctp515.image.array, cmap=get_dicom_cmap())
+            plt.imshow(self.ctp515.image.array, cmap=get_dicom_cmap(), vmin=self.ctp515.lower_window, vmax=self.ctp515.upper_window)
             self.ctp515.plot_rois(plt.gca())
             plt.autoscale(tight=True)
         elif 'lin' in subimage:
@@ -1336,7 +1360,7 @@ class CatPhan600(CatPhanBase):
     modules = {
         CTP404CP600: {'offset': 0},
         CTP486: {'offset': -160},
-        CTP515: {'offset': -110},
+        CTP515CP600: {'offset': -110},
         CTP528CP600: {'offset': -70},
     }
 

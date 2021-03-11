@@ -251,6 +251,7 @@ class CatPhan600_2(CatPhanMixin, TestCase):
     mtf_values = {50: 0.4}
     avg_line_length = 50.02
     slice_thickness = 4.5
+    lowcon_visible = 5
 
 
 class CatPhan604Test(CatPhanMixin, TestCase):
