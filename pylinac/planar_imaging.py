@@ -90,6 +90,7 @@ class ImagePhantomBase:
         self._center_override = None
         self._high_contrast_threshold = None
         self._low_contrast_threshold = None
+        self._ssd: float = 100
         self.mtf = None
 
     @classmethod
@@ -116,7 +117,7 @@ class ImagePhantomBase:
         pass
 
     def analyze(self, low_contrast_threshold: float=0.05, high_contrast_threshold: float=0.5, invert: bool=False, angle_override: Optional[float]=None,
-                center_override: Optional[tuple]=None, size_override: Optional[float]=None) -> None:
+                center_override: Optional[tuple]=None, size_override: Optional[float]=None, ssd: float = 100) -> None:
         """Analyze the phantom using the provided thresholds and settings.
 
         Parameters
@@ -147,12 +148,15 @@ class ImagePhantomBase:
             .. Note::
 
                  This value is not necessarily the physical size of the phantom. It is an arbitrary value.
+        ssd
+            The SSD of the phantom itself in cm.
         """
         self._angle_override = angle_override
         self._center_override = center_override
         self._size_override = size_override
         self._high_contrast_threshold = high_contrast_threshold
         self._low_contrast_threshold = low_contrast_threshold
+        self._ssd = ssd
         self._check_inversion()
         if invert:
             self.image.invert()
@@ -587,10 +591,9 @@ class StandardImagingQC3(ImagePhantomBase):
         for phantom_idx, region in enumerate(regions):
             if region.bbox_area < 1000:
                 continue
-            is_at_iso = np.isclose(region.bbox_area, phantom_size_pix, rtol=0.07)
-            is_at_140cm = np.isclose(region.bbox_area, phantom_size_pix/(1.4**2), rtol=0.07)
+            is_at_ssd = np.isclose(region.bbox_area, phantom_size_pix/(self._ssd/100)**2, rtol=0.1)
             centered = np.allclose(region.centroid, img_center, rtol=0.1)
-            if (is_at_iso or is_at_140cm) and centered:
+            if is_at_ssd and centered:
                 blobs.append(phantom_idx)
 
         if not blobs:
