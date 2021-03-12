@@ -108,6 +108,42 @@ class CalcParamTests(TestCase):
         fp.pen_width = 0
         self.assertAlmostEqual(fp.penumbra_slope_right_infl(self.profile), -15.12, delta=self.delta)
 
+    def test_dose_point_left_20(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.dose_point_left_20(self.profile), 101.75, delta=self.delta)
+
+    def test_dose_point_right_20(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.dose_point_right_20(self.profile), 100.33, delta=self.delta)
+
+    def test_dose_point_left_50(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.dose_point_left_50(self.profile), 104.65, delta=self.delta)
+
+    def test_dose_point_right_50(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.dose_point_right_50(self.profile), 103.71, delta=self.delta)
+
+    def test_dose_point_left_80(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.dose_point_left_80(self.profile), 104.41, delta=self.delta)
+
+    def test_dose_point_right_80(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        fp.pen_width = 0
+        self.assertAlmostEqual(fp.dose_point_right_80(self.profile), 103.94, delta=self.delta)
+
     def test_flatness_dose_difference(self):
         self.assertAlmostEqual(fp.flatness_dose_difference(self.profile, 0.8), 2.35, delta=self.delta)
 

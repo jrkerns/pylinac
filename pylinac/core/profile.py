@@ -300,11 +300,64 @@ class SingleProfile(ProfileMixin):
 
     @argue.bounds(pen_width=(0, 200))
     @argue.options(side=('left', 'right'))
-    def infl_points(self, pen_width: float = 20, side: str = 'left'):
+    def infl_points(self, pen_width: float=20, side: str='left'):
+        """Calculate the profile inflection point on the given side of the penumbra.
+
+        Fits a sigmoid model (Hill function) to the penumbra values.
+
+        Parameters
+        ----------
+        pen_width : Penumbra width
+        side      : 'left' or 'right' side of the profile
+
+        Returns
+        -------
+        edge_idx   : index of the inflection point
+        fit_params : sigmoid model parameters
+        """
+
         indices, values = self.penumbra_values(side, pen_width)
         fit_params = hill_reg(indices, values)
         edge_idx = infl_point_hill_func(fit_params)
         return edge_idx, fit_params
+
+    @argue.bounds(rel_dist=(0, 1.0), pen_width=(0, 200))
+    @argue.options(side=('left', 'right'), norm=('max', 'max grounded', 'cax', 'cax grounded'), interpolate=(True, False))
+    def dose_point(self, rel_dist: float, pen_width: float=20, side: str='left', norm: str='max grounded', interpolate: bool=False):
+        """Dose value relative to CAX at 20% of field size from CAX.
+
+        Parameters
+        ----------
+        rel_dist  : Relative distance from CAX. Depends on norm
+        pen_width : Penumbra width
+        side      : 'left' or 'right' side of the profile
+        norm      : str
+            The type of normalisation to apply:
+                'max'          : normalises to the profile maximum with no grounding
+                'max grounded' : grounds each side to the profile minimum and normalises to the profile maximum
+                'cax'          : normalises to the profile centre value with no grounding
+                'cax grounded' : grounds each side to the profile minimum and normalises to the profile centre value
+            Default is 'max_grounded' as this is the intrinsic method of the scipy sgnal.find_peak function.
+        interpolate : bool
+            Whether to interpolate the profile array values to get subpixel precision.
+
+        Returns
+        -------
+        Dose value as a percentage of CAX
+        """
+
+        edge_idx = self.infl_points(pen_width, side)[0]
+        if norm in ['max', 'max grounded']:
+            cax_idx, cax_val = self.fwxm_center(x=50, interpolate=interpolate)
+        else:
+            cax_idx, cax_val = self.center()
+        dose_idx = cax_idx + (edge_idx - cax_idx)*rel_dist
+        if interpolate:
+            ydata_f = interp1d(self._indices, self.values, kind=self.interpolation_type)
+            dose_val = ydata_f(dose_idx)
+        else:
+            dose_val = self.values[round(dose_idx)]
+        return 100 * dose_val / cax_val
 
     @argue.bounds(lower=(0, 100), upper=(0, 100))
     def penumbra_width(self, lower: int=20, upper: int=80) -> Tuple[float, float]:

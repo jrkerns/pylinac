@@ -9,7 +9,6 @@ from typing import Union, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.interpolate import interp1d
 
 from pylinac.core.utilities import open_path
 from .core.exceptions import NotAnalyzed
@@ -22,7 +21,7 @@ from .core.hillreg import hill_reg, hill_func, inv_hill_func, deriv_hill_func
 
 interpolate: bool = True
 norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 'max grounded'
-pen_width = 20                            # penumbra width for sigmoid analysis
+pen_width: float = 20                    # penumbra width for sigmoid analysis
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Parameter functions. Each parameter defined in a protocol list must have an associated parameter function that
@@ -159,19 +158,33 @@ def penumbra_slope_right_infl(profile: SingleProfile, *args):
 
 # Dose point values ----------------------------------------------------------------------------------------------------
 def dose_point_left_20(profile: SingleProfile, *args):
-    """Dose value at 20% of field size from CAX"""
-    left_edge_idx = profile.infl_points(pen_width, 'left')[0]
-    if norm in ['max', 'max grounded']:
-        cax_idx, cax_val = profile.fwxm_center(x=50, interpolate=interpolate)
-    else:
-        cax_idx, cax_val = profile.center()
-    dose_idx = cax_idx - (cax_idx - left_edge_idx)*0.2
-    if interpolate:
-        ydata_f = interp1d(profile._indices, profile.values, kind=profile.interpolation_type)
-        dose_val = ydata_f(dose_idx)
-    else:
-        dose_val = profile.values[round(cax_idx)]
-    return 100*dose_val/cax_val
+    """Dose value relative to CAX at 20% of field size from CAX"""
+    return profile.dose_point(rel_dist=0.2, pen_width=20, side='left', norm=norm, interpolate=interpolate)
+
+
+def dose_point_right_20(profile: SingleProfile, *args):
+    """Dose value relative to CAX at 20% of field size from CAX"""
+    return profile.dose_point(rel_dist=0.2, pen_width=20, side='right', norm=norm, interpolate=interpolate)
+
+
+def dose_point_left_50(profile: SingleProfile, *args):
+    """Dose value relative to CAX at 20% of field size from CAX"""
+    return profile.dose_point(rel_dist=0.5, pen_width=20, side='left', norm=norm, interpolate=interpolate)
+
+
+def dose_point_right_50(profile: SingleProfile, *args):
+    """Dose value relative to CAX at 20% of field size from CAX"""
+    return profile.dose_point(rel_dist=0.5, pen_width=20, side='right', norm=norm, interpolate=interpolate)
+
+
+def dose_point_left_80(profile: SingleProfile, *args):
+    """Dose value relative to CAX at 20% of field size from CAX"""
+    return profile.dose_point(rel_dist=0.8, pen_width=20, side='left', norm=norm, interpolate=interpolate)
+
+
+def dose_point_right_80(profile: SingleProfile, *args):
+    """Dose value relative to CAX at 20% of field size from CAX"""
+    return profile.dose_point(rel_dist=0.8, pen_width=20, side='right', norm=norm, interpolate=interpolate)
 
 
 # Field flatness parameters --------------------------------------------------------------------------------------------
@@ -300,7 +313,13 @@ ALL = {
     'symmetry ratio: {:.2f} %': symmetry_pdq_iec,
     'symmetry area: {:.2f} %': symmetry_area,
     'deviation max: {:.2f} %': deviation_max,
-    'deviation diff: {:.2f} %': deviation_diff
+    'deviation diff: {:.2f} %': deviation_diff,
+    'left dose point 20%: {:.1f} %': dose_point_left_20,
+    'right dose point 20%: {:.1f} %': dose_point_right_20,
+    'left dose point 50%: {:.1f} %': dose_point_left_50,
+    'right dose point 50%: {:.1f} %': dose_point_right_50,
+    'left dose point 80%: {:.1f} %': dose_point_left_80,
+    'right dose point 80%: {:.1f} %': dose_point_right_80
 }
 
 VARIAN = {
@@ -403,7 +422,12 @@ FFF = {
     'right penumbra: {:.1f} mm': penumbra_right_infl,
     'left penumbra slope {:.1f} %/mm': penumbra_slope_left_infl,
     'right penumbra slope {:.1f} %/mm': penumbra_slope_right_infl,
-    'left dose point 20%: {:.1f} %': dose_point_left_20
+    'left dose point 20%: {:.1f} %': dose_point_left_20,
+    'right dose point 20%: {:.1f} %': dose_point_right_20,
+    'left dose point 50%: {:.1f} %': dose_point_left_50,
+    'right dose point 50%: {:.1f} %': dose_point_right_50,
+    'left dose point 80%: {:.1f} %': dose_point_left_80,
+    'right dose point 80%: {:.1f} %': dose_point_right_80,
 }
 # ----------------------------------------------------------------------------------------------------------------------
 # End of predefined protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these
