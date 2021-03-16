@@ -115,6 +115,23 @@ class WinstonLutz:
         images : :class:`~pylinac.winston_lutz.ImageManager` instance
         """
         self.images = ImageManager(directory, use_filenames)
+        self._json = {}
+    
+    @classmethod
+    def rebuild_json(self):
+        """not sure if method needed, rebuilds JSON summary object by rerunnning public analysis methods """
+        self.axis_rms_deviation
+        self.bb_shift_instructions
+        self.bb_shift_vector
+        self.cax2bb_distance
+        self.cax2epid_distance
+        self.collimator_iso_size
+        self.couch_iso_size
+        self.gantry_coll_iso_size
+        self.gantry_iso_size
+        self.mro
+        self.results
+        return
 
     @classmethod
     def from_demo_images(cls):
@@ -180,12 +197,19 @@ class WinstonLutz:
         return result
 
     @property
+    def json(self):
+        """Produces a dictionary object with the summary of analysis which is jsonable, should be part of API/ABI"""
+        return self._json
+
+    @property
     def gantry_iso_size(self) -> float:
         """The diameter of the 3D gantry isocenter size in mm. Only images where the collimator
         and couch were at 0 are used to determine this value."""
         num_gantry_like_images = self._get_images((GANTRY, REFERENCE))[0]
         if num_gantry_like_images > 1:
-            return self._minimize_axis(GANTRY).fun * 2
+            retval = self._minimize_axis(GANTRY).fun * 2
+            self._json["gantry iso size"] = retval
+            return retval
         else:
             return 0
 
@@ -195,7 +219,9 @@ class WinstonLutz:
         Images where the couch!=0 are excluded."""
         num_gantry_like_images = self._get_images((GANTRY, COLLIMATOR, GB_COMBO, REFERENCE))[0]
         if num_gantry_like_images > 1:
-            return self._minimize_axis((GANTRY, COLLIMATOR, GB_COMBO)).fun * 2
+            retval =  self._minimize_axis((GANTRY, COLLIMATOR, GB_COMBO)).fun * 2
+            self._json["gantry coll iso size"] = retval
+            return retval
         else:
             return 0
 
@@ -216,7 +242,9 @@ class WinstonLutz:
         normal to the gantry."""
         num_collimator_like_images, images = self._get_images((COLLIMATOR, REFERENCE))
         if num_collimator_like_images > 1:
-            return self._find_max_distance_between_points(images)
+            retval = self._find_max_distance_between_points(images)
+            self._json["coll iso size"] = retval
+            return retval
         else:
             return 0
 
@@ -226,7 +254,9 @@ class WinstonLutz:
         the gantry and collimator were at zero are used to determine this value."""
         num_couch_like_images, images = self._get_images((COUCH, REFERENCE))
         if num_couch_like_images > 1:
-            return self._find_max_distance_between_points(images)
+            retval = self._find_max_distance_between_points(images)
+            self._json["couch iso size"] = retval
+            return retval
         else:
             return 0
 
@@ -249,7 +279,9 @@ class WinstonLutz:
 
         B = linalg.pinv(A)
         delta = B.dot(epsilon)  # equation 9
-        return Vector(x=delta[1][0], y=-delta[0][0], z=-delta[2][0])
+        retval = Vector(x=delta[1][0], y=-delta[0][0], z=-delta[2][0])
+        self._json["bb shift vector"] = retval
+        return retval
 
     def bb_shift_instructions(self, couch_vrt: Optional[float] = None, couch_lng: Optional[float] = None,
                               couch_lat: Optional[float] = None) -> str:
@@ -276,6 +308,7 @@ class WinstonLutz:
             new_vrt = round(couch_vrt + sv.z/10, 2)
             new_lng = round(couch_lng + sv.y/10, 2)
             move += f"\nNew couch coordinates (mm): VRT: {new_vrt:3.2f}; LNG: {new_lng:3.2f}; LAT: {new_lat:3.2f}"
+        self._json["bb shift instructions"] = move
         return move
 
     @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, GBP_COMBO), value=('all', 'range'))
@@ -301,6 +334,7 @@ class WinstonLutz:
         rms = [getattr(img, attr).as_scalar() for img in imgs]
         if value == 'range':
             rms = max(rms) - min(rms)
+        self._json["axis rms deviation"] = rms
         return rms
 
     @argue.options(metric=('max', 'median'))
@@ -312,10 +346,14 @@ class WinstonLutz:
         metric : {'max', 'median'}
             The metric of distance to use.
         """
+        retmax = max(image.cax2bb_distance for image in self.images)
+        retmean = np.median([image.cax2bb_distance for image in self.images])
+        self._json["cax2bb max"] = retmax
+        self._json["cax2bb mean"] = retmean
         if metric == 'max':
-            return max(image.cax2bb_distance for image in self.images)
+            return retmax
         elif metric == 'median':
-            return np.median([image.cax2bb_distance for image in self.images])
+            return retmean
 
     @argue.options(metric=('max', 'median'))
     def cax2epid_distance(self, metric: str='max') -> float:
@@ -326,10 +364,14 @@ class WinstonLutz:
         metric : {'max', 'median'}
             The metric of distance to use.
         """
+        retmax = max(image.cax2epid_distance for image in self.images)
+        retmean = np.median([image.cax2epid_distance for image in self.images])
+        self._json["cax2epid max"] = retmax
+        self._json["cax2epid mean"] = retmean
         if metric == 'max':
-            return max(image.cax2epid_distance for image in self.images)
+            return retmax
         elif metric == 'median':
-            return np.median([image.cax2epid_distance for image in self.images])
+            return retmean
 
     @argue.options(item=(GANTRY, EPID, COLLIMATOR, COUCH))
     def _plot_deviation(self, item: str, ax: Optional[plt.Axes]=None, show: bool=True):

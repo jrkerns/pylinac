@@ -48,6 +48,9 @@ class GeneralTests(TestCase):
         move = self.wl.bb_shift_instructions(couch_vrt=-2, couch_lat=1, couch_lng=100)
         self.assertTrue("RIGHT" in move)
         self.assertTrue("VRT" in move)
+    
+    def test_json(self):
+        print(self.wl.json) # shouldn't raise
 
 
 class TestPublishPDF(TestCase):
