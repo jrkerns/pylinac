@@ -546,13 +546,16 @@ class WinstonLutz:
         return_dict = {}
         return_dict['cax2bb max'] = self.cax2bb_distance('max')
         return_dict['cax2bb median'] = self.cax2bb_distance('median')
+        return_dict['cax2epid max'] = self.cax2epid_distance('max')
+        return_dict['cax2epid median'] = self.cax2epid_distance('median')
         return_dict['coll iso size'] = self.collimator_iso_size
         return_dict['couch iso size'] = self.couch_iso_size
         return_dict['gantry iso size'] = self.gantry_iso_size
         return_dict['gantry coll iso size'] = self.gantry_coll_iso_size
-        return_dict['MechRad x'] = self.bb_shift_vector.x
-        return_dict['MechRad y'] = self.bb_shift_vector.y
-        return_dict['MechRad z'] = self.bb_shift_vector.z
+        return_dict['MechRad x'] = -1 *self.bb_shift_vector.x
+        return_dict['MechRad y'] = -1 * self.bb_shift_vector.y
+        return_dict['MechRad z'] = -1 * self.bb_shift_vector.z
+        return_dict['axis rms dev'] =  self.axis_rms_deviation
         return return_dict
 
     def publish_pdf(self, filename: str, notes: Optional[Union[str, List[str]]]=None, open_file: bool=False, metadata: Optional[dict]=None):
