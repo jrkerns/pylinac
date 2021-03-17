@@ -49,6 +49,10 @@ class GeneralTests(TestCase):
         self.assertTrue("RIGHT" in move)
         self.assertTrue("VRT" in move)
 
+    def test_results_data(self): 
+        self.assertTrue(bool(self.wl.results_data())) # empty dictionaries evaluate to false
+        
+
 
 class TestPublishPDF(TestCase):
 
