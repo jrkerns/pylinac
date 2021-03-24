@@ -8,6 +8,7 @@ from matplotlib.patches import Circle as mpl_Circle
 import matplotlib.pyplot as plt
 from scipy import ndimage, signal
 from scipy.interpolate import interp1d
+from scipy.stats import linregress
 
 from .geometry import Point, Circle
 from .typing import NumberLike
@@ -240,6 +241,24 @@ class SingleProfile(ProfileMixin):
             fwxm_center_idx = int(round(fwxm_center_idx))
             return fwxm_center_idx, self.values[fwxm_center_idx]
 
+    def top(self, dist: float=25.0, interpolate=False):
+        """Return the position of the maximum value
+
+        If interpolate is True a 2nd order polynomial is fitted around the max position and the point where
+        the tangent is zero is returned"""
+
+        max_idx = np.argmax(self.values)
+        left_idx = round(max_idx - dist * self.dpmm)
+        right_idx = round(max_idx + dist * self.dpmm)
+        if (left_idx < 0) or (right_idx > self.values.shape[0]):
+            raise Exception("The peak is not well formed. Are you sure this is a FFF field?")
+        if interpolate:
+            x_data = self._indices[left_idx: right_idx]
+            y_data = self.values[left_idx: right_idx]
+            fit_params = np.polyfit(x_data, y_data, deg=2)
+            max_idx = -fit_params[1]/(2*fit_params[0])
+        return max_idx, left_idx, right_idx, fit_params
+
     @argue.bounds(x=(0, 100), ifa=(0, 1.0))
     @argue.options(norm=('max', 'max grounded', 'cax', 'cax grounded'), interpolate=(True, False))
     def field_edges(self, ifa: float=1.0, x: int=50, norm='max grounded', interpolate=False) -> Tuple[float, float]:
@@ -300,6 +319,7 @@ class SingleProfile(ProfileMixin):
 
     @argue.bounds(pen_width=(0, 200))
     @argue.options(side=('left', 'right'))
+    @lru_cache()
     def infl_points(self, pen_width: float=20, side: str='left'):
         """Calculate the profile inflection point on the given side of the penumbra.
 
@@ -390,6 +410,7 @@ class SingleProfile(ProfileMixin):
 
     @argue.options(side=('left', 'right'))
     @argue.bounds(dist=(0, 200))
+    @lru_cache()
     def penumbra_values(self, side: str, dist: float=20.0):
         """Returns the penumbra values around the maximum gradient
 
@@ -426,6 +447,50 @@ class SingleProfile(ProfileMixin):
 
         values = self.values[start_idx: end_idx]
         indices = self._indices[start_idx: end_idx]
+        return indices, values
+
+    def infield_slope(self,  field_width: float=0.8, side: str='left', dist: float=25.0):
+        """Calculate the slope of the in field area (IFA)
+
+        Parameters
+        ----------
+        field_width : proportion of the field size (FWHM) to use
+        side : profile side 'left' or 'right'
+        dist : distance to exclude peak of FFF field
+
+        Returns
+        -------
+        Slope, Intercept : of straight line equation y= mx + c where m = slope and c = intercept
+        """
+
+        x_data, y_data = self.infield_values(field_width, side, dist)
+        result = linregress(x_data, y_data)
+        return result.slope, result.intercept
+
+    @argue.options(side=('left', 'right'))
+    @argue.bounds(field_width=(0, 1), dist=(0, 400))
+    def infield_values(self, field_width: float=0.8, side: str='left', dist: float=25.0) -> np.ndarray:
+        """Return a subarray of the values in the in field area (IFA)
+
+        Parameters
+        ----------
+        field_width : proportion of the field size (FWHM) to use
+        side : profile side 'left' or 'right'
+        dist : distance to exclude peak of FFF field
+
+        Returns
+        -------
+        ndarray
+        """
+        left, right = self.field_edges(field_width)
+        if side == 'left':
+            right = round(self.center()[0] - dist*self.dpmm)
+        else:
+            left = round(self.center()[0] + dist*self.dpmm)
+        if left >= right:
+            raise Exception('The field size is not large enough to calculate the slope of the in field area.')
+        values = self.values[left: right]
+        indices = self._indices[left: right]
         return indices, values
 
     @argue.bounds(field_width=(0, 1))

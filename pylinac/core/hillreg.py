@@ -2,8 +2,7 @@
 
 import numpy as np
 import math
-from scipy.optimize import curve_fit
-from scipy.optimize import differential_evolution
+from scipy.optimize import curve_fit, differential_evolution
 import warnings
 
 

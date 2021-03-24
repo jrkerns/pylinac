@@ -93,6 +93,18 @@ def field_center_edge_infl(profile: SingleProfile, *args):
     return (right_edge_infl(profile) - left_edge_infl(profile))/2
 
 
+def field_center_infield_slope(profile: SingleProfile, *args):
+    """Calculates the peak of a FFF field according to the intersection of the left and right in-field slope"""
+    slope_left, interc_left = profile.infield_slope(0.8,'left', 25.0)
+    slope_right, interc_right = profile.infield_slope(0.8, 'right', 25.0)
+    return ((interc_right - interc_left)/(slope_left - slope_right) - profile.center()[0])/profile.dpmm
+
+
+def field_top(profile:SingleProfile, *args):
+    """Calculates the position of the profile maximum"""
+    return (profile.top(dist=25.0, interpolate=interpolate)[0] - profile.center()[0])/profile.dpmm
+
+
 # Field penumbra parameters --------------------------------------------------------------------------------------------
 def penumbra_left_80_20(profile: SingleProfile, *args):
     """Return the distance between the 80% and 20% max dose values on the left side of the profile."""
@@ -154,6 +166,22 @@ def penumbra_slope_right_infl(profile: SingleProfile, *args):
     right_edge_idx, fit_params = profile.infl_points(pen_width, 'right')
     inf_slope = 100*deriv_hill_func(right_edge_idx, fit_params)*profile.dpmm/cax_val
     return inf_slope
+
+
+def infield_slope_left(profile: SingleProfile, *args):
+    if norm in ['max', 'max grounded']:
+        cax_val = profile.values.max()
+    else:
+        _, cax_val = profile.fwxm_center()
+    return 100*profile.infield_slope(0.8, 'left', 25.0)[0]*profile.dpmm/cax_val
+
+
+def infield_slope_right(profile: SingleProfile, *args):
+    if norm in ['max', 'max grounded']:
+        cax_val = profile.values.max()
+    else:
+        _, cax_val = profile.fwxm_center()
+    return 100*profile.infield_slope(0.8, 'right', 25.0)[0]*profile.dpmm/cax_val
 
 
 # Dose point values ----------------------------------------------------------------------------------------------------
@@ -301,6 +329,7 @@ ALL = {
     'field center edge: {:.1f} mm': field_center_edge_50,
     'field center FWHM: {:.1f} mm': field_center_fwhm,
     'field center infl: {:.1f} mm': field_center_edge_infl,
+    'field center in-field slope: {:.1f} mm': field_center_infield_slope,
     'left penumbra 80-20%: {:.1f} mm': penumbra_left_80_20,
     'right penumbra 80-20%: {:.1f} mm': penumbra_right_80_20,
     'left penumbra infl: {:.1f} mm': penumbra_left_infl,
@@ -319,7 +348,9 @@ ALL = {
     'left dose point 50%: {:.1f} %': dose_point_left_50,
     'right dose point 50%: {:.1f} %': dose_point_right_50,
     'left dose point 80%: {:.1f} %': dose_point_left_80,
-    'right dose point 80%: {:.1f} %': dose_point_right_80
+    'right dose point 80%: {:.1f} %': dose_point_right_80,
+    'in-field slope left: {:.2f} %/mm': infield_slope_left,
+    'in-field slope right: {:.2f} %/mm': infield_slope_right
 }
 
 VARIAN = {
@@ -417,6 +448,8 @@ FFF = {
     'left edge inf: {:.1f} mm': left_edge_infl,
     'right edge inf: {:.1f} mm': right_edge_infl,
     'field center infl: {:.1f} mm': field_center_edge_infl,
+    'field center in-field slope: {:.1f} mm': field_center_infield_slope,
+    'max position: {:.1f} mm': field_top,
     'field size infl: {:.1f} mm': field_size_edge_infl,
     'left penumbra: {:.1f} mm': penumbra_left_infl,
     'right penumbra: {:.1f} mm': penumbra_right_infl,
@@ -428,6 +461,8 @@ FFF = {
     'right dose point 50%: {:.1f} %': dose_point_right_50,
     'left dose point 80%: {:.1f} %': dose_point_left_80,
     'right dose point 80%: {:.1f} %': dose_point_right_80,
+    'in-field slope left: {:.2f} %/mm': infield_slope_left,
+    'in-field slope right: {:.2f} %/mm': infield_slope_right
 }
 # ----------------------------------------------------------------------------------------------------------------------
 # End of predefined protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these
@@ -682,12 +717,34 @@ class FieldParams:
         vert_ax = plt.subplot2grid((2, 2), (1, 1))
         horiz_ax = plt.subplot2grid((2, 2), (0, 0))
 
-        # plot parameters
-
         # plot image and profile lines
         self._plot_image(image_ax, title=osp.basename(self.image.path))
         self._plot_horiz(horiz_ax)
         self._plot_vert(vert_ax)
+
+        # plot legend
+        lines = []
+        labels = []
+        line, lable = image_ax.get_legend_handles_labels()
+        for l in line:
+            lines.append(l) if l not in lines else []
+        for l in lable:
+            labels.append(l) if l not in labels else []
+        line, lable = vert_ax.get_legend_handles_labels()
+        for l in line:
+            lines.append(l) if l not in lines else []
+        for l in lable:
+            labels.append(l) if l not in labels else []
+        line, lable = horiz_ax.get_legend_handles_labels()
+        for l in line:
+            lines.append(l) if l not in lines else []
+        for l in lable:
+            labels.append(l) if l not in labels else []
+        legend_ax = plt.subplot2grid((2, 2), (1, 0))
+        legend_ax.legend(lines, labels, loc="center")
+        legend_ax.axis('off')
+        _remove_ticklabels(legend_ax)
+
 
         plt.suptitle("Beam Parameters")
         if show:
@@ -701,7 +758,7 @@ class FieldParams:
         # show vertical/axial profiles
         left_profile = self.positions['vertical left']
         right_profile = self.positions['vertical right']
-        axis.axvline(left_profile, color='b')
+        axis.axvline(left_profile, color='b', label='Image profile region')
         axis.axvline(right_profile, color='b')
         # show horizontal/transverse profiles
         bottom_profile = self.positions['horizontal bottom']
@@ -717,7 +774,7 @@ class FieldParams:
         if axis is None:
             fig, axis = plt.subplots()
         axis.set_title("Vertical Profile")
-        axis.plot(self.vert_profile.values)
+        axis.plot(self.vert_profile.values, label='Profile')
 
         # plot parameters on profile
         protocol = self.parameters['Method']
@@ -726,6 +783,10 @@ class FieldParams:
             plot_flatness(self.vert_profile, self.infield_area, axis)
         if bool([val for key, val in protocol_params.items() if 'inf' in key]):
             plot_infl(self.vert_profile, axis)
+        if bool([val for key, val in protocol_params.items() if 'in-field slope' in key]):
+            plot_infield_slope(self.vert_profile, axis)
+        if bool([val for key, val in protocol_params.items() if 'max position' in key]):
+            plot_top(self.vert_profile, axis)
         # _remove_ticklabels(axis)
 
     def _plot_horiz(self, axis: plt.Axes=None):
@@ -743,6 +804,10 @@ class FieldParams:
             plot_flatness(self.horiz_profile, self.infield_area, axis)
         if bool([val for key, val in protocol_params.items() if 'infl' in key]):
             plot_infl(self.horiz_profile, axis)
+        if bool([val for key, val in protocol_params.items() if 'in-field slope' in key]):
+            plot_infield_slope(self.horiz_profile, axis)
+        if bool([val for key, val in protocol_params.items() if 'max position' in key]):
+            plot_top(self.horiz_profile, axis)
         # _remove_ticklabels(axis)
 
     @staticmethod
@@ -758,7 +823,7 @@ class FieldParams:
 def plot_flatness(profile: SingleProfile, ifa: float=0.8, axis: plt.Axes = None):
     """Plot flatness parameters"""
     left_ifa, right_ifa = profile.field_edges(ifa)
-    axis.axvline(left_ifa, color='g', linestyle='-.')
+    axis.axvline(left_ifa, color='g', linestyle='-.', label='In field area')
     axis.axvline(right_ifa, color='g', linestyle='-.')
 
 
@@ -770,14 +835,42 @@ def plot_infl(profile: SingleProfile, axis: plt.Axes = None):
     fit_params = hill_reg(indices, values)
     xModel = np.linspace(min(indices), max(indices))
     yModel = hill_func(xModel, *fit_params)
-    axis.plot(xModel, yModel, color='r')
+    axis.plot(xModel, yModel, color='r', label='Sigmoid model')
 
     # plot right penumbra
     indices, values = profile.penumbra_values('right', pen_width)
     fit_params = hill_reg(indices, values)
     xModel = np.linspace(min(indices), max(indices))
     yModel = hill_func(xModel, *fit_params)
-    axis.plot(xModel, yModel, color='r')
+    axis.plot(xModel, yModel, color='r', )
+
+
+def plot_infield_slope(profile: SingleProfile, axis: plt.Axes = None):
+    """Plot the best fit straight lines to the in field area (IFA) of the profile"""
+
+    # Plot left slope
+    indices, values = profile.infield_values(0.8, 'left', 25.0)
+    slope, intercept = profile.infield_slope(0.8, 'left', 25.0)
+    x_model = np.linspace(min(indices), max(indices))
+    y_model = slope*x_model + intercept
+    axis.plot(x_model, y_model, color='b', label='In field slope')
+
+    # Plot right slope
+    indices, values = profile.infield_values(0.8, 'right', 25.0)
+    slope, intercept = profile.infield_slope(0.8, 'right', 25.0)
+    x_model = np.linspace(min(indices), max(indices))
+    y_model = slope*x_model + intercept
+    axis.plot(x_model, y_model, color='b')
+
+
+def plot_top(profile: SingleProfile, axis: plt.Axes = None):
+    """Plot a second order polynomial to the peak of the FFF field"""
+
+    max_idx, left_idx, right_idx, fit_params = profile.top(dist=25.0, interpolate=interpolate)
+    x_model = np.linspace(left_idx, right_idx)
+    y_model = fit_params[0]*x_model**2 + fit_params[1]*x_model + fit_params[2]
+    axis.plot(x_model, y_model, color='y', label='Polynomial fit')
+    axis.plot(max_idx, profile.values[round(max_idx)], 'yx', label='Max position')
 
 
 def _plot_symmetry(profile: SingleProfile, axis: plt.Axes = None):
