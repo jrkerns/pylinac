@@ -26,9 +26,10 @@ class CalcParamTests(TestCase):
     """Values verified from BeamScheme file 2-Sep-2011-A.txt X profile"""
 
     profile = SingleProfile(np.array([
-        2.18,2.68,3.27,4.36,5.83,9.12,15.44,63.73,94.96,97.26,98.38,98.78,98.86,99,98.89,98.98,98.8,98.95,98.9,98.52,
-        98.05,97.31,96.26,95.38,94.59,94.53,94.47,94.46,94.49,94.57,94.7,95.18,95.51,96.51,97.32,97.82,97.95,97.99,
-        97.98,98.2,98.33,98.31,98.33,98.1,97.7,95.9,92.2,36.68,12.18,8.02,4.92,3.97,3.01]))
+        2.18, 2.68, 3.27, 4.36, 5.83, 9.12, 15.44, 63.73, 94.96, 97.26, 98.38, 98.78, 98.86, 99, 98.89, 98.98, 98.8,
+        98.95, 98.9, 98.52, 98.05, 97.31, 96.26, 95.38, 94.59, 94.53, 94.47, 94.46, 94.49, 94.57, 94.7, 95.18, 95.51,
+        96.51, 97.32, 97.82, 97.95, 97.99, 97.98, 98.2, 98.33, 98.31, 98.33, 98.1, 97.7, 95.9, 92.2, 36.68, 12.18,
+        8.02, 4.92, 3.97, 3.01]))
     profile.dpmm = 0.2
     delta = 0.2
 
@@ -74,6 +75,15 @@ class CalcParamTests(TestCase):
         fp.pen_width = 0
         self.assertAlmostEqual(fp.field_center_edge_infl(self.profile), 3.67, delta=self.delta)
 
+    def test_field_center_infield_slope(self):
+        fp.interpolate = True
+        fp.norm = 'cax'
+        self.assertAlmostEqual(fp.field_center_infield_slope(self.profile), 54.29, delta=self.delta)
+
+    def test_field_top(self):
+        fp.interpolate = True
+        self.assertAlmostEqual(fp.field_top(self.profile), -59.85, delta=self.delta)
+
     def test_penumbra_left_80_20(self):
         fp.interpolate = True
         fp.norm = 'cax'
@@ -107,6 +117,12 @@ class CalcParamTests(TestCase):
         fp.norm = 'cax'
         fp.pen_width = 0
         self.assertAlmostEqual(fp.penumbra_slope_right_infl(self.profile), -15.12, delta=self.delta)
+
+    def test_infield_slope_left(self):
+        self.assertAlmostEqual(fp.infield_slope_left(self.profile), -0.06, delta=self.delta)
+
+    def test_infield_slope_right(self):
+        self.assertAlmostEqual(fp.infield_slope_right(self.profile), 0.06, delta=self.delta)
 
     def test_dose_point_left_20(self):
         fp.interpolate = True
