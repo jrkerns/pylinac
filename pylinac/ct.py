@@ -58,7 +58,7 @@ class HUDiskROI(DiskROI):
     def __init__(self, array: np.ndarray, angle: float, roi_radius: float, dist_from_center: float,
                  phantom_center: Union[tuple, Point], nominal_value: Optional[int] = None,
                  tolerance: Optional[int] = None,
-                 background_median: Optional[float]=None, background_std: Optional[float]=None):
+                 background_mean: Optional[float]=None, background_std: Optional[float]=None):
         """
         Parameters
         ----------
@@ -70,13 +70,15 @@ class HUDiskROI(DiskROI):
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.nominal_val = nominal_value
         self.tolerance = tolerance
-        self.background_median = background_median
+        self.background_mean = background_mean
         self.background_std = background_std
 
     @property
     def cnr(self) -> float:
         """The contrast-to-noise value of the HU disk"""
-        return 2*abs(self.pixel_value - self.background_median) / (self.std + self.background_std)
+        if self.background_mean is None or self.background_std is None:
+            return None
+        return 2*abs(self.pixel_value - self.background_mean) / (self.std + self.background_std)
 
     @property
     def value_diff(self) -> float:
@@ -248,14 +250,18 @@ class CatPhanModule(Slice):
         for name, setting in self.background_roi_settings.items():
             self.background_rois[name] = HUDiskROI(self.image, setting['angle_corrected'], setting['radius_pixels'], setting['distance_pixels'],
                                         self.phan_center)
-        background_median = np.mean([roi.pixel_value for roi in self.background_rois.values()])
-        background_std = np.std([roi.pixel_value for roi in self.background_rois.values()])
+        if self.background_rois:
+            background_mean = np.mean([roi.pixel_value for roi in self.background_rois.values()])
+            background_std = np.std([roi.pixel_value for roi in self.background_rois.values()])
+        else:
+            background_mean = None
+            background_std = None
 
         for name, setting in self.roi_settings.items():
             nominal_value = setting.get('value', 0)
             self.rois[name] = HUDiskROI(self.image, setting['angle_corrected'], setting['radius_pixels'], setting['distance_pixels'],
                                         self.phan_center, nominal_value, self.tolerance,
-                                        background_median=background_median, background_std=background_std)
+                                        background_mean=background_mean, background_std=background_std)
 
     # TODO: better define threshold
     def plot_rois(self, axis: plt.Axes, threshold=None) -> None:
