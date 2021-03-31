@@ -49,6 +49,72 @@ class GeneralTests(TestCase):
         self.assertTrue("RIGHT" in move)
         self.assertTrue("VRT" in move)
 
+    def test_results_data(self): 
+        self.assertTrue(bool(self.wl.results_data())) # empty dictionaries evaluate to false
+
+
+class TestResultsData(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.wl = WinstonLutz.from_demo_images()
+
+    def test_results_data_cax2epid_max(self):
+        rd_result = self.wl.results_data()['cax2epid max']
+        result = self.wl.cax2epid_distance('max')
+        self.assertEqual(rd_result, result )
+    def test_results_data_cax2epid_median(self):
+        rd_result = self.wl.results_data()['cax2epid median']
+        result = self.wl.cax2epid_distance('median')
+        self.assertEqual(rd_result, result )
+
+    def test_results_data_cax2bb_max(self):
+        rd_result = self.wl.results_data()['cax2bb max']
+        result = self.wl.cax2bb_distance('max')
+        self.assertEqual(rd_result, result ) 
+    
+    def test_results_data_cax2bb_median(self): 
+        rd_result = self.wl.results_data()['cax2bb median']
+        result = self.wl.cax2bb_distance('median')
+        self.assertEqual(rd_result, result )
+    
+    def test_results_data_coll_iso_size(self):
+        rd_result = self.wl.results_data()['coll iso size']
+        result = self.wl.collimator_iso_size
+        self.assertEqual(rd_result, result )
+    
+    def test_results_data_couch_iso_size(self):
+        rd_result = self.wl.results_data()['couch iso size']
+        result = self.wl.couch_iso_size
+        self.assertEqual(rd_result, result )
+    
+    def test_results_data_gantry_iso_size(self):
+        rd_result = self.wl.results_data()['gantry iso size']
+        result = self.wl.gantry_iso_size
+        self.assertEqual(rd_result, result )
+
+    def test_results_data_gantry_coll_iso_size(self):
+        rd_result = self.wl.results_data()['gantry coll iso size']
+        result = self.wl.gantry_coll_iso_size
+        self.assertEqual(rd_result, result )        
+
+    def test_results_data_mech_rad_x(self):
+        rd_result = self.wl.results_data()['MechRad x']
+        result = -1* self.wl.bb_shift_vector.x
+        self.assertEqual(rd_result, result)  
+    def test_results_data_mech_rad_y(self):
+        rd_result = self.wl.results_data()['MechRad y']
+        result = -1* self.wl.bb_shift_vector.y
+        self.assertEqual(rd_result, result) 
+    def test_results_data_mech_rad_z(self):
+        rd_result = self.wl.results_data()['MechRad z']
+        result = -1* self.wl.bb_shift_vector.z
+        self.assertEqual(rd_result, result) 
+
+    def test_results_data_gaxis_rms(self):
+        rd_result = self.wl.results_data()['axis rms dev']
+        result = self.wl.axis_rms_deviation
+        self.assertEqual(rd_result, result )  
 
 class TestPublishPDF(TestCase):
 
