@@ -76,6 +76,8 @@ class HUDiskROI(DiskROI):
     @property
     def cnr(self) -> float:
         """The contrast-to-noise value of the HU disk"""
+        if self.background_median is None or self.background_std is None:
+            return None
         return 2*abs(self.pixel_value - self.background_median) / (self.std + self.background_std)
 
     @property
@@ -248,8 +250,12 @@ class CatPhanModule(Slice):
         for name, setting in self.background_roi_settings.items():
             self.background_rois[name] = HUDiskROI(self.image, setting['angle_corrected'], setting['radius_pixels'], setting['distance_pixels'],
                                         self.phan_center)
-        background_median = np.mean([roi.pixel_value for roi in self.background_rois.values()])
-        background_std = np.std([roi.pixel_value for roi in self.background_rois.values()])
+        if self.background_rois:
+            background_median = np.mean([roi.pixel_value for roi in self.background_rois.values()])
+            background_std = np.std([roi.pixel_value for roi in self.background_rois.values()])
+        else:
+            background_median = None
+            background_std = None
 
         for name, setting in self.roi_settings.items():
             nominal_value = setting.get('value', 0)
