@@ -455,6 +455,26 @@ class CTP404CP504(CatPhanModule):
         return all(line.passed for line in self.lines.values())
 
 
+class CTP401CP500(CTP404CP504):
+    """Class for analysis of the HU linearity, geometry, and slice thickness regions of the CTP401.
+    """
+    attr_name = 'ctp401'
+    common_name = 'HU Linearity'
+    roi_dist_mm = 58.7
+    roi_radius_mm = 5
+    roi_settings = {
+        'Air': {'value': AIR, 'angle': -90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'LDPE': {'value': LDPE, 'angle': 180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Acrylic': {'value': ACRYLIC, 'angle': 90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        'Teflon': {'value': TEFLON, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+    }
+    
+    @property
+    def lcv(self):
+        """The low-contrast visibility"""
+        return 2 * abs(self.rois['LDPE'].pixel_value - self.rois['Acrylic'].pixel_value) / (self.rois['LDPE'].std + self.rois['Acrylic'].std)
+
+
 class CTP404CP503(CTP404CP504):
     """Alias for namespace consistency"""
     pass
@@ -674,7 +694,6 @@ class CTP528CP604(CTP528CP504):
     """Alias for namespace consistency."""
     pass
 
-
 class CTP528CP600(CTP528CP504):
     start_angle = np.pi - 0.1
     ccw = False
@@ -685,6 +704,10 @@ class CTP528CP503(CTP528CP504):
     start_angle = 0
     ccw = False
     boundaries = (0, 0.111, 0.176, 0.240, 0.289, 0.339, 0.390, 0.436, 0.481)
+
+class CTP528CP500(CTP528CP503):
+    """Alias for namespace consistency."""
+    pass
 
 
 class GeometricLine(Line):
@@ -804,6 +827,15 @@ class CTP515CP600(CTP515):
         '5': {'angle': roi_angles[5], 'distance': roi_dist_mm, 'radius': roi_radius_mm[5]},
     }
 
+
+class CTP515CP500(CTP515):
+    """515 in Catphan500 is rotated by 180 compare to Catphan504"""
+    roi_angles = [180+x for x in [-87.4, -69.1, -52.7, -38.5, -25.1, -12.9] ]
+
+
+class CTP515CP600(CTP515):
+    """515 in Catphan600 is rotated by 180 compare to Catphan504"""
+    roi_angles = [180+x for x in [-87.4, -69.1, -52.7, -38.5, -25.1, -12.9] ]
 
 class CatPhanBase:
     """A class for loading and analyzing CT DICOM files of a CatPhan 504 & CatPhan 503. Can be from a CBCT or CT scanner
@@ -1284,7 +1316,279 @@ class CatPhanBase:
             string += add
         return string
 
+class CatPhanBase401(CatPhanBase):
+    """Inherent from CatPhanBase (with 404).
+    A class for loading and analyzing CT DICOM files of a CatPhan 500 or Catphan based on module 401. Can be from a CBCT or CT scanner
+    Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
+    """
+    _demo_url = ''
+    _model = ''
+    air_bubble_radius_mm = 7
+    localization_radius = 59
+    teflon_pin_radius = 50/1.414
+    was_from_zip = False
+    angle_adj = 0  # Hardcode an adjustment angle for debug
 
+    def plot_analyzed_image(self, show=True):
+        """Plot the images used in the calculate and summary data.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to plot the image or not.
+        """
+        def plot(ctp_module, axis):
+            axis.imshow(ctp_module.image.array, cmap=get_dicom_cmap())
+            ctp_module.plot_rois(axis)
+            axis.autoscale(tight=True)
+            axis.set_title(ctp_module.common_name)
+            axis.axis('off')
+
+        # set up grid and axes
+        grid_size = (2, 4)
+        hu_ax = plt.subplot2grid(grid_size, (0, 1))
+        plot(self.ctp401, hu_ax)
+        hu_lin_ax = plt.subplot2grid(grid_size, (0, 2))
+        self.ctp401.plot_linearity(hu_lin_ax)
+        if self._has_module(CTP486):
+            unif_ax = plt.subplot2grid(grid_size, (0, 0))
+            plot(self.ctp486, unif_ax)
+            unif_prof_ax = plt.subplot2grid(grid_size, (1, 2), colspan=2)
+            self.ctp486.plot_profiles(unif_prof_ax)
+        if self._has_module(CTP528CP504):
+            sr_ax = plt.subplot2grid(grid_size, (1, 0))
+            plot(self.ctp528, sr_ax)
+            mtf_ax = plt.subplot2grid(grid_size, (0, 3))
+            self.ctp528.plot_mtf(mtf_ax)
+        if self._has_module(CTP515):
+            locon_ax = plt.subplot2grid(grid_size, (1, 1))
+            plot(self.ctp515, locon_ax)
+
+        # finish up
+        plt.tight_layout()
+        if show:
+            plt.show()
+
+
+    def plot_analyzed_subimage(self, subimage='hu', delta=True, show=True):
+        """Plot a specific component of the CBCT analysis.
+
+        Parameters
+        ----------
+        subimage : {'hu', 'un', 'sp', 'lc', 'mtf', 'lin', 'prof'}
+            The subcomponent to plot. Values must contain one of the following letter combinations.
+            E.g. ``linearity``, ``linear``, and ``lin`` will all draw the HU linearity values.
+
+            * ``hu`` draws the HU linearity image.
+            * ``un`` draws the HU uniformity image.
+            * ``sp`` draws the Spatial Resolution image.
+            * ``mtf`` draws the RMTF plot.
+            * ``lin`` draws the HU linearity values. Used with ``delta``.
+            * ``prof`` draws the HU uniformity profiles.
+        delta : bool
+            Only for use with ``lin``. Whether to plot the HU delta or actual values.
+        show : bool
+            Whether to actually show the plot.
+        """
+        subimage = subimage.lower()
+        plt.clf()
+        plt.axis('off')
+
+        if 'hu' in subimage:  # HU, GEO & thickness objects
+            plt.imshow(self.ctp401.image.array, cmap=get_dicom_cmap())
+            self.ctp401.plot_rois(plt.gca())
+            plt.autoscale(tight=True)
+        elif 'un' in subimage:  # uniformity
+            plt.imshow(self.ctp486.image.array, cmap=get_dicom_cmap())
+            self.ctp486.plot_rois(plt.gca())
+            plt.autoscale(tight=True)
+        elif 'sp' in subimage:  # SR objects
+            plt.imshow(self.ctp528.image.array, cmap=get_dicom_cmap())
+            self.ctp528.plot_rois(plt.gca())
+            plt.autoscale(tight=True)
+        elif 'mtf' in subimage:
+            plt.axis('on')
+            self.ctp528.plot_mtf(plt.gca())
+        elif 'lc' in subimage:
+            plt.imshow(self.ctp515.image.array, cmap=get_dicom_cmap())
+            self.ctp515.plot_rois(plt.gca())
+            plt.autoscale(tight=True)
+        elif 'lin' in subimage:
+            plt.axis('on')
+            self.ctp401.plot_linearity(plt.gca(), delta)
+        elif 'prof' in subimage:
+            plt.axis('on')
+            self.ctp486.plot_profiles(plt.gca())
+        else:
+            raise ValueError(f"Subimage parameter {subimage} not understood")
+
+        if show:
+            plt.show()
+
+    def find_phantom_roll(self ):
+        subsample_halfwidth = 10
+        
+        slice = Slice(self, self.origin_slice)
+        # use the 50mm spacing air and teflon pin to find rolling angle
+        circle_prof = CollapsedCircleProfile(slice.phan_center, radius=self.teflon_pin_radius/self.mm_per_pixel, image_array=slice.image, width_ratio=0.1, num_profiles=5)
+        prof = circle_prof.values
+
+        # extract a subsample
+        subsample = np.arange(prof.argmax()-subsample_halfwidth,prof.argmax()+subsample_halfwidth)
+        white_sample = prof.take(subsample, mode='wrap')
+        black_sample = prof.take(subsample + int(prof.size/2), mode='wrap')
+        
+        white_ind = white_sample.argmax() - subsample_halfwidth
+        black_ind = black_sample.argmin() - subsample_halfwidth+int(prof.size/2)
+        
+        anglroll = (prof.argmax() + white_ind)/ prof.size * 360 - 45
+        # average using teflon pin and air pin in opposite
+        #anglroll+ = (prof.argmax() + black_ind)/ prof.size * 360 - 45 -180
+        #anglroll /= 2
+        return (anglroll  + self.angle_adj)
+
+
+
+    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: Optional[dict]=None):
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        """
+        analysis_title = f'CatPhan {self._model} Analysis'
+        module_texts = [
+            [' - CTP401 Results - ',
+             f'HU Linearity tolerance: {self.ctp401.hu_tolerance}',
+             f'HU Linearity ROIs: {self.ctp401.roi_vals_as_str}',
+             f'Geometric node spacing (mm): {self.ctp401.avg_line_length:2.2f}',
+             f'Slice thickness (mm): {self.ctp401.meas_slice_thickness:2.2f}',
+             f'Low contrast visibility: {self.ctp401.lcv:2.2f}',
+            ],
+        ]
+        module_images = [('hu', 'lin')]
+        if self._has_module(CTP528CP500):
+            add = [' - CTP528 Results - ',
+             f'MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}',
+             f'MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}',
+             f'MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}',
+            ]
+            module_texts.append(add)
+            module_images.append(('sp', 'mtf'))
+        if self._has_module(CTP486):
+            add = [' - CTP486 Results - ',
+             f'Uniformity tolerance: {self.ctp486.tolerance}',
+             f'Uniformity ROIs: {self.ctp486.roi_vals_as_str}',
+             f'Uniformity Index: {self.ctp486.uniformity_index:2.2f}',
+             f'Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}',
+            ]
+            module_texts.append(add)
+            module_images.append(('un', 'prof'))
+        if self._has_module(CTP515):
+            add = [' - CTP515 Results - ',
+             f'CNR threshold: {self.ctp515.cnr_threshold}',
+             f'Low contrast ROIs "seen": {self.ctp515.rois_visible}'
+            ]
+            module_texts.append(add)
+            module_images.append(('lc', None))
+
+        self._publish_pdf(filename, metadata, notes, analysis_title,
+                          module_texts, module_images)
+        if open_file:
+            webbrowser.open(filename)
+
+
+    def analyze(self, hu_tolerance=40, scaling_tolerance=1, thickness_tolerance=0.2,
+                low_contrast_tolerance=1, cnr_threshold=15, zip_after=False):
+        """Single-method full analysis of CBCT DICOM files.
+
+        Parameters
+        ----------
+        hu_tolerance : int
+            The HU tolerance value for both HU uniformity and linearity.
+        scaling_tolerance : float, int
+            The scaling tolerance in mm of the geometric nodes on the HU linearity slice (CTP401 module).
+        thickness_tolerance : float, int
+            The tolerance of the thickness calculation in mm, based on the wire ramps in the CTP401 module.
+
+            .. warning:: Thickness accuracy degrades with image noise; i.e. low mAs images are less accurate.
+
+        low_contrast_tolerance : int
+            The number of low-contrast bubbles needed to be "seen" to pass.
+        cnr_threshold : float, int
+            The threshold for "detecting" low-contrast image. See RTD for calculation info.
+        zip_after : bool
+            If the CT images were not compressed before analysis and this is set to true, pylinac will compress
+            the analyzed images into a ZIP archive.
+        """
+        ctp401, offset = self._get_module(CTP401CP500, raise_empty=True)
+        print(offset)
+        self.ctp401 = ctp401(self, offset=offset, hu_tolerance=hu_tolerance, thickness_tolerance=thickness_tolerance,
+                             scaling_tolerance=scaling_tolerance)
+        if self._has_module(CTP486):
+            ctp486, offset = self._get_module(CTP486)
+            self.ctp486 = ctp486(self, offset=offset, tolerance=hu_tolerance)
+        if self._has_module(CTP528CP500):
+            ctp528, offset = self._get_module(CTP528CP500)
+            self.ctp528 = ctp528(self, offset=offset, tolerance=None)
+        if self._has_module(CTP515):
+            ctp515, offset = self._get_module(CTP515)
+            self.ctp515 = ctp515(self, tolerance=low_contrast_tolerance, cnr_threshold=cnr_threshold,
+                                 offset=offset)
+        if zip_after and not self.was_from_zip:
+            self._zip_images()
+
+
+    def results(self):
+        """Return the results of the analysis as a string. Use with print()."""
+        string = (f'\n - CatPhan {self._model} QA Test - \n'
+                  f'HU Linearity ROIs: {self.ctp401.roi_vals_as_str}\n'
+                  f'HU Passed?: {self.ctp401.passed_hu}\n'
+                  f'Low contrast visibility: {self.ctp401.lcv:2.2f}\n'
+                  f'Geometric Line Average (mm): {self.ctp401.avg_line_length:2.2f}\n'
+                  f'Geometry Passed?: {self.ctp401.passed_geometry}\n'
+                  f'Measured Slice Thickness (mm): {self.ctp401.meas_slice_thickness:2.3f}\n'
+                  f'Slice Thickness Passed? {self.ctp401.passed_thickness}\n')
+        if self._has_module(CTP486):
+            add = (f'Uniformity ROIs: {self.ctp486.roi_vals_as_str}\n'
+                  f'Uniformity index: {self.ctp486.uniformity_index:2.3f}\n'
+                  f'Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}\n'
+                  f'Uniformity Passed?: {self.ctp486.overall_passed}\n')
+            string += add
+        if self._has_module(CTP528CP504):
+            add = (f'MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}\n')
+            string += add
+        if self._has_module(CTP515):
+            add = (f'Low contrast ROIs "seen": {self.ctp515.rois_visible}\n')
+            string += add
+        return string
+    
+    
+class CatPhan500(CatPhanBase401):
+    """A class for loading and analyzing CT DICOM files of a CatPhan 500.
+    Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528),
+    Image Scaling & HU Linearity (CTP401), and Low contrast (CTP515).
+    """
+    _demo_url = 'CatPhan500.zip'
+    _model = '500'
+    catphan_radius_mm = 101
+    modules = {
+        CTP401CP500: {'offset': 0},
+        CTP486: {'offset': -110},
+        CTP515CP500: {'offset': -70},
+        CTP528CP500: {'offset': -30},
+    }
+
+    @staticmethod
+    def run_demo(show=True):
+        """Run the CatPhan 500 demo."""
+        cbct = CatPhan500.from_demo_images()
+        cbct.analyze()
+        print(cbct.results())
+        cbct.plot_analyzed_image(show)
+
+    
 class CatPhan503(CatPhanBase):
     """A class for loading and analyzing CT DICOM files of a CatPhan 503.
     Analyzes: Uniformity (CTP486), High-Contrast Spatial Resolution (CTP528), Image Scaling & HU Linearity (CTP404).
