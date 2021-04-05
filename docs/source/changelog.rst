@@ -3,6 +3,14 @@
 Changelog
 =========
 
+v 2.6.0
+-------
+
+Calibration
+^^^^^^^^^^^
+
+* `#353 <https://github.com/jrkerns/pylinac/issues/353>`_ The bounds for most functions/methods have been converted to constants. This lets users override the default values should they wish it.
+
 v 2.5.0
 -------
 
