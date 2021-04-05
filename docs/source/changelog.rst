@@ -11,6 +11,12 @@ Calibration
 
 * `#353 <https://github.com/jrkerns/pylinac/issues/353>`_ The bounds for most functions/methods have been converted to constants. This lets users override the default values should they wish it.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* `#358 <https://github.com/jrkerns/pylinac/issues/358>`_ The user can now change the size range of the BB expected for WL.
+
+
 v 2.5.0
 -------
 
