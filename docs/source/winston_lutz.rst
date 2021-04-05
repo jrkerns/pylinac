@@ -190,6 +190,19 @@ Using the filenames within the code is done by passing the ``use_filenames=True`
           if the acquisition was at gantry=45, coll=15, couch=0 then the filename must include both the gantry and collimator
           in the name (<...gantry45...coll15....dcm>). For this example, the couch need not be defined since it is 0.
 
+Changing BB detection size
+--------------------------
+
+To change the size of BB pylinac is expecting you can override the constants in the module like so:
+
+.. code-block:: python
+
+    import pylinac
+
+    # set BB sizes
+    pylinac.winston_lutz.MAX_BB_SIZE = 10  # mm
+    pylinac.winston_lutz.MIN_BB_SIZE = 3  # mm
+
 Image types & output definitions
 --------------------------------
 

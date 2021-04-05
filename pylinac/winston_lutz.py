@@ -34,7 +34,7 @@ from skimage import measure
 from .core import image
 from .core.geometry import Point, Line, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
-from .core.mask import filled_area_ratio, bounding_box
+from .core.mask import bounding_box
 from .core import pdf
 from .core.utilities import is_close, open_path
 
@@ -45,6 +45,8 @@ GB_COMBO = 'GB Combo'
 GBP_COMBO = 'GBP Combo'
 EPID = 'Epid'
 REFERENCE = 'Reference'
+MIN_BB_SIZE = 3
+MAX_BB_SIZE = 10
 
 
 class ImageManager(list):
@@ -862,7 +864,7 @@ def is_modest_size(logical_array: np.ndarray, dpmm: float) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
     bb_area = np.sum(logical_array / dpmm ** 2)
     bb_diameter = 2 * np.sqrt(bb_area / np.pi)
-    return 3 < bb_diameter < 10
+    return MIN_BB_SIZE < bb_diameter < MAX_BB_SIZE
 
 
 def is_round(rprops) -> bool:
