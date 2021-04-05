@@ -14,9 +14,22 @@ from typing import Optional
 import argue
 import numpy as np
 
+from ..core.pdf import PylinacCanvas
 from ..core.typing import NumberLike, NumberOrArray
 from ..core.utilities import Structure, open_path
-from ..core.pdf import PylinacCanvas
+
+MIN_TEMP = 15
+MAX_TEMP = 35
+MIN_PRESSURE = 90
+MAX_PRESSURE = 115
+MIN_PION = 1
+MAX_PION = 1.05
+MIN_PTP = 0.9
+MAX_PTP = 1.1
+MIN_PELEC = 0.98
+MAX_PELEC = 1.02
+MIN_PPOL = 0.98
+MAX_PPOL = 1.02
 
 
 KQ_PHOTONS = {
@@ -117,8 +130,6 @@ def tpr2010_from_pdd2010(*, pdd2010: float) -> float:
     return 1.2661*pdd2010 - 0.0595
 
 
-@argue.bounds(temp=(17, 27), message="Temperature {:2.2f} out of range. Did you use Fahrenheit? Consider using the utility function fahrenheit2celsius()")
-@argue.bounds(press=(91,  111), message="Pressure {:2.2f} out of range. Did you use kPa? Consider using the utility functions mmHg2kPa() or mbar2kPa()")
 def p_tp(*, temp: NumberLike, press: NumberLike) -> float:
     """Calculate the temperature & pressure correction.
 
@@ -127,9 +138,14 @@ def p_tp(*, temp: NumberLike, press: NumberLike) -> float:
     temp : float (17-27)
         The temperature in degrees Celsius.
     press : float (91-111)
-        The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
+        The value of pressure in kPa. Can be converted from mmHg and mbar;
+        see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
     """
-    return ((273.2+temp)/295.2)*(101.33/press)
+    argue.verify_bounds(temp, bounds=(MIN_TEMP, MAX_TEMP),
+                        message="Temperature {:2.2f} out of range. Did you use Fahrenheit? Consider using the utility function fahrenheit2celsius()")
+    argue.verify_bounds(press, bounds=(MIN_PRESSURE, MAX_PRESSURE),
+                        message="Pressure {:2.2f} out of range. Did you use kPa? Consider using the utility functions mmHg2kPa() or mbar2kPa()")
+    return ((273.2 + temp) / 295.2)*(101.33/press)
 
 
 def p_pol(*, m_reference: NumberOrArray, m_opposite: NumberOrArray) -> float:
@@ -149,7 +165,7 @@ def p_pol(*, m_reference: NumberOrArray, m_opposite: NumberOrArray) -> float:
     mref_avg = np.mean(m_reference)
     mopp_avg = np.mean(m_opposite)
     polarity = (abs(mref_avg) + abs(mopp_avg))/abs(2*mref_avg)
-    argue.verify_bounds(polarity, bounds=(0.99, 1.01), message="Polarity correction {:2.2f} out of range (+/-2%). Verify inputs")
+    argue.verify_bounds(polarity, bounds=(MIN_PPOL, MAX_PPOL), message="Polarity correction {:2.2f} out of range (+/-2%). Verify inputs")
     return float(polarity)
 
 
@@ -172,11 +188,10 @@ def p_ion(*, voltage_reference: int, voltage_reduced: int, m_reference: NumberOr
     BoundsError if calculated Pion is outside the range 1.00-1.05.
     """
     ion = (1 - voltage_reference / voltage_reduced) / (np.mean(m_reference) / np.mean(m_reduced) - voltage_reference / voltage_reduced)
-    argue.verify_bounds(ion, bounds=(1, 1.05), message="Pion out of range (1.00-1.05). Check inputs or chamber")
+    argue.verify_bounds(ion, bounds=(MIN_PION, MAX_PION), message="Pion out of range (1.00-1.05). Check inputs or chamber")
     return float(ion)
 
 
-@argue.bounds(i_50=argue.POSITIVE, message="i50 should be positive")
 def d_ref(*, i_50: float) -> float:
     """Calculate the dref of an electron beam based on the I50 depth.
 
@@ -185,11 +200,11 @@ def d_ref(*, i_50: float) -> float:
     i_50 : float
         The value of I50 in cm.
     """
+    argue.verify_bounds(i_50, bounds=argue.POSITIVE, message="i50 should be positive")
     r50 = r_50(i_50=i_50)
     return 0.6*r50-0.1
 
 
-@argue.bounds(i_50=argue.POSITIVE, message="i50 should be positive")
 def r_50(*, i_50: float) -> float:
     """Calculate the R50 depth of an electron beam based on the I50 depth.
 
@@ -198,6 +213,7 @@ def r_50(*, i_50: float) -> float:
     i_50 : float
         The value of I50 in cm.
     """
+    argue.verify_bounds(i_50, bounds=argue.POSITIVE, message="i50 should be positive")
     if i_50 < 10:
         r50 = 1.029 * i_50 - 0.06
     else:
@@ -205,7 +221,6 @@ def r_50(*, i_50: float) -> float:
     return r50
 
 
-@argue.bounds(r_50=(2, 9))
 def kp_r50(*, r_50: float) -> float:
     """Calculate k'R50 for Farmer-like chambers.
 
@@ -214,6 +229,7 @@ def kp_r50(*, r_50: float) -> float:
     r_50 : float (2-9)
         The R50 value in cm.
     """
+    argue.verify_bounds(r_50, bounds=(2, 9))
     return 0.9905+0.071*np.exp(-r_50/3.67)
 
 
@@ -230,7 +246,6 @@ def pq_gr(*, m_dref_plus: NumberOrArray, m_dref: NumberOrArray) -> float:
     return float(np.mean(m_dref_plus) / np.mean(m_dref))
 
 
-@argue.bounds(p_ion=(1, 1.05), p_tp=(0.92, 1.08), p_elec=(0.98, 1.02), p_pol=(0.98, 1.02))
 def m_corrected(*, p_ion: float, p_tp: float, p_elec: float, p_pol: float, m_reference: NumberOrArray) -> float:
     """Calculate M_corrected, the ion chamber reading with all corrections applied.
 
@@ -251,6 +266,10 @@ def m_corrected(*, p_ion: float, p_tp: float, p_elec: float, p_pol: float, m_ref
     -------
     float
     """
+    argue.verify_bounds(p_ion, bounds=(MIN_PION, MAX_PION))
+    argue.verify_bounds(p_tp, bounds=(MIN_PTP, MAX_PTP))
+    argue.verify_bounds(p_elec, bounds=(MIN_PELEC, MAX_PELEC))
+    argue.verify_bounds(p_pol, bounds=(MIN_PPOL, MAX_PPOL))
     return float(p_ion*p_tp*p_elec*p_pol*np.mean(m_reference))
 
 
