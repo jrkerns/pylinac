@@ -5,6 +5,7 @@ from unittest import TestCase
 import matplotlib.pyplot as plt
 import numpy as np
 
+import pylinac
 from pylinac import WinstonLutz
 from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, GB_COMBO, GBP_COMBO, EPID
 from pylinac.core.geometry import Vector, vector_is_close
@@ -40,6 +41,11 @@ class GeneralTests(TestCase):
 
     def test_results(self):
         print(self.wl.results())  # shouldn't raise
+
+    def test_bb_override(self):
+        pylinac.winston_lutz.MAX_BB_SIZE = 3
+        with self.assertRaises(ValueError):
+            wl = pylinac.WinstonLutz.from_demo_images()
 
     def test_bb_shift_instructions(self):
         move = self.wl.bb_shift_instructions()
