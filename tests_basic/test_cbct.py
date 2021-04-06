@@ -41,6 +41,14 @@ class GeneralTests(TestCase):
         self.assertAlmostEqual(self.cbct.ctp404.phan_center.x, known_phan_center.x, delta=0.7)
         self.assertAlmostEqual(self.cbct.ctp404.phan_center.y, known_phan_center.y, delta=0.7)
 
+    def test_results_data(self):
+        self.cbct.analyze()
+        data = self.cbct.results_data()
+        self.assertIsInstance(data, dict)
+        self.assertEqual(len(data), 26)
+        self.assertIn('pylinac version', data)
+        self.assertEqual(data['CTP404 HU tolerance (HU)'], self.cbct.ctp404.hu_tolerance)
+
 
 class CustomPhantom(TestCase):
 

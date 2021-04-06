@@ -37,6 +37,7 @@ from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dico
 from .core.mask import bounding_box
 from .core import pdf
 from .core.utilities import is_close, open_path
+from . import __version__
 
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'
@@ -543,22 +544,36 @@ class WinstonLutz:
             result = '\n'.join(result)
         return result
     
-    def results_data(self):
+    def results_data(self) -> dict:
         """Return the analysis results as a dictionary."""
-        return_dict = {}
-        return_dict['cax2bb max'] = self.cax2bb_distance('max')
-        return_dict['cax2bb median'] = self.cax2bb_distance('median')
-        return_dict['cax2epid max'] = self.cax2epid_distance('max')
-        return_dict['cax2epid median'] = self.cax2epid_distance('median')
-        return_dict['coll iso size'] = self.collimator_iso_size
-        return_dict['couch iso size'] = self.couch_iso_size
-        return_dict['gantry iso size'] = self.gantry_iso_size
-        return_dict['gantry coll iso size'] = self.gantry_coll_iso_size
-        return_dict['MechRad x'] = -1 *self.bb_shift_vector.x
-        return_dict['MechRad y'] = -1 * self.bb_shift_vector.y
-        return_dict['MechRad z'] = -1 * self.bb_shift_vector.z
-        return_dict['axis rms dev'] =  self.axis_rms_deviation
-        return return_dict
+        num_gantry_imgs = self._get_images(axis=(GANTRY, REFERENCE))[0]
+        num_gantry_coll_imgs = self._get_images(axis=(GANTRY, COLLIMATOR, GB_COMBO, REFERENCE))[0]
+        num_coll_imgs = self._get_images(axis=(COLLIMATOR, REFERENCE))[0]
+        num_couch_imgs = self._get_images(axis=(COUCH, REFERENCE))[0]
+
+        data = dict()
+        data['pylinac version'] = __version__
+
+        data['WL # of images'] = len(self.images)
+        data['WL CAX->BB 2D max (mm)'] = self.cax2bb_distance('max')
+        data['WL CAX->BB 2D median (mm)'] = self.cax2bb_distance('median')
+        data['WL CAX->EPID 2D max (mm)'] = self.cax2epid_distance('max')
+        data['WL CAX->EPID 2D median (mm)'] = self.cax2epid_distance('median')
+        data['WL Collimator 2D iso size (mm)'] = self.collimator_iso_size
+        data['WL Collimator RMS deviations (mm)'] = self.axis_rms_deviation(axis=COLLIMATOR)
+        data['WL # Coll images considered'] = num_coll_imgs
+        data['WL Couch 2D iso size (mm)'] = self.couch_iso_size
+        data['WL Couch RMS deviations (mm)'] = self.axis_rms_deviation(axis=COUCH)
+        data['WL # Couch images considered'] = num_couch_imgs
+        data['WL Gantry 3D iso size (mm)'] = self.gantry_iso_size
+        data['WL Gantry RMS deviations (mm)'] = self.axis_rms_deviation(axis=GANTRY)
+        data['WL # Gantry images considered'] = num_gantry_imgs
+        data['WL Gantry+Coll 3D iso size (mm)'] = self.gantry_coll_iso_size
+        data['WL # Gantry+Coll images considered'] = num_gantry_coll_imgs
+        data['WL BB shift instructions'] = self.bb_shift_instructions()
+        data['WL BB 3D position from Iso'] = {'x': self.bb_shift_vector.x, 'y': self.bb_shift_vector.y, 'z': self.bb_shift_vector.z}
+        data['WL Iso 3D position from BB'] = {'x': -self.bb_shift_vector.x, 'y': -self.bb_shift_vector.y, 'z': -self.bb_shift_vector.z}
+        return data
 
     def publish_pdf(self, filename: str, notes: Optional[Union[str, List[str]]]=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.

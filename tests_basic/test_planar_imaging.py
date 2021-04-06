@@ -15,6 +15,15 @@ class GeneralTests(TestCase):
         phan = DoselabMC2kV.from_demo_image()
         phan.analyze(angle_override=44, center_override=(500, 500), size_override=50)
 
+    def test_results_data(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        data = phan.results_data()
+        self.assertIsInstance(data, dict)
+        self.assertEqual(len(data), 9)
+        self.assertIn('pylinac version', data)
+        self.assertEqual(data['Planar phantom center (px)'], {'x': phan.phantom_center.x, 'y': phan.phantom_center.y})
+
 
 class PlanarPhantomMixin(LocationMixin):
     klass = object

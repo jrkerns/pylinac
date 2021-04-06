@@ -35,6 +35,7 @@ from .core import pdf
 from .core.profile import SingleProfile, CollapsedCircleProfile
 from .core.utilities import open_path
 from .settings import get_dicom_cmap
+from . import __version__
 
 
 class Starshot:
@@ -315,6 +316,17 @@ class Starshot:
                   f'The minimum circle that touches all the star lines has a diameter of {self.wobble.radius_mm*2:2.3f} mm. \n\n' +
                   f'The center of the minimum circle is at {self.wobble.center.x:3.1f}, {self.wobble.center.y:3.1f}')
         return string
+
+    def results_data(self) -> dict:
+        """Return the analysis data as a dict."""
+        data = dict()
+        data['pylinac version'] = __version__
+        data['Starshot tolerance (mm)'] = self.tolerance
+        data['Starshot circle diameter (mm)'] = self.wobble.radius_mm*2
+        data['Starshot circle radius (mm)'] = self.wobble.radius_mm
+        data['Starshot circle center (px)'] = {'x': self.wobble.center.x, 'y': self.wobble.center.y}
+        data['Starshot passed?'] = self.passed
+        return data
 
     def plot_analyzed_image(self, show: bool=True):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.
