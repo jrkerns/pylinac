@@ -55,8 +55,12 @@ class GeneralTests(TestCase):
         self.assertTrue("RIGHT" in move)
         self.assertTrue("VRT" in move)
 
-    def test_results_data(self): 
-        self.assertTrue(bool(self.wl.results_data())) # empty dictionaries evaluate to false
+    def test_results_data(self):
+        data = self.wl.results_data()
+        self.assertIsInstance(data, dict)
+        self.assertEqual(len(data), 20)
+        self.assertIn('pylinac version', data)
+        self.assertEqual(data['WL Collimator 2D iso size (mm)'], self.wl.collimator_iso_size)
 
 
 class TestResultsData(TestCase):
