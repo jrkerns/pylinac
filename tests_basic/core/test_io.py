@@ -3,7 +3,8 @@ import unittest
 import os
 import os.path as osp
 
-from pylinac.core.io import TemporaryZipDirectory, get_url, URLError, is_dicom
+from pylinac.core.io import TemporaryZipDirectory, get_url, URLError, is_dicom, SNCProfiler
+from pylinac.core.profile import SingleProfile
 
 
 class TestIO(unittest.TestCase):
@@ -48,3 +49,18 @@ class TestIO(unittest.TestCase):
 
         # test invalid path
         self.assertRaises(IOError, is_dicom, invalid_file)
+
+
+class TestSNCProfiler(unittest.TestCase):
+
+    def test_loading(self):
+        path = '../test_files/9E GA0.prs'
+        prof = SNCProfiler(path)
+        self.assertEqual(len(prof.detectors), 254)
+
+    def test_to_profiles(self):
+        path = '../test_files/9E GA0.prs'
+        prof = SNCProfiler(path)
+        profs = prof.to_profiles()
+        self.assertEqual(len(profs), 4)
+        self.assertIsInstance(profs[0], SingleProfile)
