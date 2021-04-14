@@ -212,7 +212,7 @@ def get_url(url: str, destination: str=None, progress_bar: bool=True) -> str:
 class SNCProfiler:
     """Load a file from a Sun Nuclear Profiler device. This accepts .prs files."""
 
-    def __init__(self, path: str, detector_row: int = -5, bias_row: int = -4, calibration_row: int = -3,
+    def __init__(self, path: str, detector_row: int = 106, bias_row: int = 107, calibration_row: int = 108,
                  data_row: int = -1, data_columns: slice = slice(5, 259)):
         """
         Parameters
