@@ -1,4 +1,5 @@
 """Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
+import enum
 from functools import lru_cache
 from typing import Union, Tuple, Sequence, List, Optional
 
@@ -8,6 +9,7 @@ from matplotlib.patches import Circle as mpl_Circle
 import matplotlib.pyplot as plt
 from scipy import ndimage, signal
 from scipy.interpolate import interp1d
+from scipy.ndimage import gaussian_filter1d
 from scipy.stats import linregress
 
 from .geometry import Point, Circle
@@ -132,84 +134,101 @@ class ProfileMixin:
         return self.values[items]
 
 
+class Fitting(enum.Enum):
+    NONE = None
+    INTERPOLATE_LINEAR = 'interpolate-linear'
+    INTERPOLATE_SPLINE = 'interpolate-spline'
+    HILL = 'hill'
+
+
+class Normalization(enum.Enum):
+    NONE = None
+    GEOMETRIC_CENTER = 'geometric-center'
+    BEAM_CENTER = 'beam-center'
+    MAX = 'max'
+
+
+
 class SingleProfile(ProfileMixin):
     """A profile that has one large signal, e.g. a radiation beam profile.
     Signal analysis methods are given, mostly based on FWXM calculations.
     Profiles with multiple peaks are better suited by the MultiProfile class.
     """
-    interpolation_factor: int = 100
-    interpolation_type: str = 'linear'
-    _values: np.ndarray
-    _dpmm: float
 
-    def __init__(self, values: np.ndarray):
+    def __init__(self, values: np.ndarray, dpmm: float = None, fit_method=Fitting.INTERPOLATE_LINEAR,
+                 ground=True,
+                 interpolation_resolution_mm=0.1,
+                 interpolation_factor=10,
+                 normalization_method=Normalization.BEAM_CENTER):
         """
         Parameters
         ----------
         values : ndarray
             The profile numpy array. Must be 1D.
         """
-        self.values = values
+        fitted_values, dpmm, x_indices = self._fit_data_to_method(values, dpmm, interpolation_resolution_mm,
+                                                                  interpolation_factor, fit_method)
+        if ground:
+            fitted_values -= fitted_values.min()
+        norm_values = self._normalize(fitted_values, normalization_method)
+        self.values = norm_values
+        self.dpmm = dpmm
+        self.x_indices = x_indices
+        self._fit_method = fit_method
+        self._interpolation_res = interpolation_resolution_mm
+        self._interpolation_factor = interpolation_factor
+        self._norm_method = normalization_method
 
-    @property
-    def values(self) -> np.ndarray:
-        """The profile array."""
-        return self._values
+    @staticmethod
+    def _fit_data_to_method(values, dpmm, interpolation_resolution, interpolation_factor, fit_method: Fitting) -> (float, float, float):
+        # fit_method = getattr(fit_method, 'value', fit_method)
+        x_indices = list(range(len(values)))
+        if fit_method == Fitting.NONE:
+            return values, dpmm, x_indices  # do nothing
+        elif fit_method == Fitting.INTERPOLATE_LINEAR:
+            if dpmm is not None:
+                samples = int(round(len(x_indices)/(dpmm*interpolation_resolution)))
+            else:
+                samples = int(round(len(x_indices)*interpolation_factor))
+            f = interp1d(x_indices, values, kind='linear', bounds_error=False)
+            new_x = np.linspace(0, len(x_indices)-1, num=samples)
+            return f(new_x), dpmm, new_x
+        elif fit_method == Fitting.INTERPOLATE_SPLINE:
+            if dpmm is not None:
+                samples = int(round(len(x_indices)/(dpmm*interpolation_resolution)))
+            else:
+                samples = int(round(len(x_indices)*interpolation_factor))
+            f = interp1d(x_indices, values, kind='cubic')
+            new_x = np.linspace(0, len(x_indices), num=samples)
+            return f(new_x), dpmm, new_x
+        elif fit_method == Fitting.HILL:
+            pass
 
-    @values.setter
-    def values(self, value):
-        if not isinstance(value, np.ndarray):
-            raise TypeError("Values must be a numpy array")
-        self._values = value.astype(float)
+    def _normalize(self, values, method: Normalization) -> np.ndarray:
+        # method = getattr(method, 'value', method)
+        if method == Normalization.NONE:
+            return values
+        elif method == Normalization.MAX:
+            return values / values.max()
+        elif method == Normalization.GEOMETRIC_CENTER:
+            return values / self._geometric_center(values)[1]
 
-    @property
-    def dpmm(self) -> NumberLike:
-        """The Dots-per-mm of the profile, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
-        the dpmm will scale back to 100cm."""
-        return self._dpmm
-
-    @dpmm.setter
-    def dpmm(self, value):
-        """The Dots-per-mm of the profile, defined at isocenter.
-
-         E.g. if an EPID image is taken at 150cm SID the dpmm will scale back to 100cm.
-         """
-        if value > 0:
-            self._dpmm = value
-
-    def center(self) -> Tuple[NumberLike, NumberLike]:
+    @staticmethod
+    def _geometric_center(values) -> Tuple[NumberLike, NumberLike]:
         """Returns the center index and value of the profile.
 
          If the profile has an even number of values the centre lies between the two centre indices and the centre
          value is the average of the two centre values else the centre index and value are returned."""
-        plen = self.values.shape[0]
+        plen = values.shape[0]
         if plen % 2 == 0:  # plen is even and central detectors straddle CAX
-            cax = (self.values[int(plen / 2)] + self.values[int(plen / 2) - 1]) / 2.0
+            cax = (values[int(plen / 2)] + values[int(plen / 2) - 1]) / 2.0
         else:  # plen is odd and we have a central detector
-            cax = self.values[int((plen - 1) / 2)]
+            cax = values[int((plen - 1) / 2)]
         plen = (plen - 1)/2.0
         return plen, cax
 
-    @property
-    @lru_cache()
-    def _values_interp(self) -> np.ndarray:
-        """Interpolated values of the entire profile array."""
-        ydata_f = interp1d(self._indices, self.values, kind=self.interpolation_type)
-        y_data = ydata_f(self._indices_interp)
-        return y_data
-
-    @property
-    def _indices_interp(self) -> np.ndarray:
-        """Interpolated values of the profile index data."""
-        return np.linspace(start=0, stop=len(self.values)-1, num=(len(self.values)-1) * self.interpolation_factor)
-
-    @property
-    def _indices(self) -> np.ndarray:
-        """Values of the profile index data."""
-        return np.linspace(start=0, stop=len(self.values)-1, num=len(self.values))
-
     @argue.bounds(x=(0, 100))
-    def fwxm(self, x: int = 50) -> float:
+    def fwxm_data(self, x: int = 50) -> dict:
         """Return the width at X-Max, where X is the percentage height.
 
         Parameters
@@ -224,22 +243,20 @@ class SingleProfile(ProfileMixin):
             The width in number of elements of the FWXM.
         """
         _, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
-        return peak_props['widths'][0]
+        left_idx = int(round(peak_props['left_ips'][0]))
+        right_idx = int(round(peak_props['right_ips'][0]))
+        fwxm_center_idx = int(round((peak_props['right_ips'][0] - peak_props['left_ips'][0]) / 2 + peak_props['left_ips'][0]))
 
-    def fwxm_center(self, x: int=50, interpolate: bool=False) -> Tuple[NumberLike, NumberLike]:
-        """Return the center of the FWXM.
-
-        See Also
-        --------
-        fwxm() : Further parameter info
-        """
-        _, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
-        fwxm_center_idx = (peak_props['right_ips'][0] - peak_props['left_ips'][0])/2 + peak_props['left_ips'][0]
-        if interpolate:
-            return fwxm_center_idx, self._values_interp[int(fwxm_center_idx*self.interpolation_factor)]
-        else:
-            fwxm_center_idx = int(round(fwxm_center_idx))
-            return fwxm_center_idx, self.values[fwxm_center_idx]
+        data = {'width': peak_props['widths'][0], 'center index': fwxm_center_idx,
+                'center value': self.values[fwxm_center_idx],
+                'left index': left_idx,
+                'right index': right_idx,
+                'field values': self.values[left_idx:right_idx]}
+        if self.dpmm:
+            data['width mm'] = data['width'] / self.dpmm
+            data['left distance mm'] = abs(data['center index'] - data['left index']) / self.dpmm
+            data['right distance mm'] = abs(data['right index'] - data['center index']) / self.dpmm
+        return data
 
     def top(self, dist: float=25.0, interpolate=False):
         """Return the position of the maximum value
@@ -259,9 +276,8 @@ class SingleProfile(ProfileMixin):
             max_idx = -fit_params[1]/(2*fit_params[0])
         return max_idx, left_idx, right_idx, fit_params
 
-    @argue.bounds(x=(0, 100), ifa=(0, 1.0))
-    @argue.options(norm=('max', 'max grounded', 'cax', 'cax grounded'), interpolate=(True, False))
-    def field_edges(self, ifa: float=1.0, x: int=50, norm='max grounded', interpolate=False) -> Tuple[float, float]:
+    @argue.bounds(x=(0, 100), field_ratio=(0, 1.0))
+    def field_data(self, field_ratio: float=1.0, x: int=50) -> dict:
         """Return the width at X-Max, where X is the percentage height.
 
         Parameters
@@ -286,41 +302,18 @@ class SingleProfile(ProfileMixin):
         left index, right index
             The left and right indices of the in field area at the dose level.
         """
-
-        # prevent array from being grounded by setting ends to zero
-        if norm in ['max', 'cax']:
-            ydata = np.insert(self.values, 0, 0)
-            ydata = np.append(ydata, 0)
-        else:
-            ydata = self.values
-
-        # adjust x to give the equivalent level if peak val was at CAX
-        if norm == 'cax':
-            _, cax_val = self.center()
-            ymax = ydata.max()
-            x = x*cax_val/ymax
-
-        _, peak_props = find_peaks(ydata, fwxm_height=x/100, max_number=1)
+        _, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
         left = peak_props['left_ips'][0]
         right = peak_props['right_ips'][0]
-        if ifa < 1.0:
-            delta = (1.0 - ifa)*(right - left)/2.0
-            left = left + delta
-            right = right - delta
-
-        if not interpolate:
-            left = round(left)
-            right = round(right)
-
-        if norm in ['max', 'cax']:
-            left = left - 1
-            right = right - 1
-        return left, right
+        width = abs(right - left)
+        left_idx = int(round(left+field_ratio*width))
+        right_idx = int(round(right-field_ratio*width))
+        data = {'left index': left_idx, 'right index': right_idx,
+                'left value': self.values[left_idx], 'right value': self.values[right_idx]}
+        return data
 
     @argue.bounds(pen_width=(0, 200))
-    @argue.options(side=('left', 'right'))
-    @lru_cache()
-    def infl_points(self, pen_width: float=20, side: str='left'):
+    def inflection_points(self, pen_width: float=20):
         """Calculate the profile inflection point on the given side of the penumbra.
 
         Fits a sigmoid model (Hill function) to the penumbra values.
@@ -328,16 +321,18 @@ class SingleProfile(ProfileMixin):
         Parameters
         ----------
         pen_width : Penumbra width
-        side      : 'left' or 'right' side of the profile
 
         Returns
         -------
         edge_idx   : index of the inflection point
         fit_params : sigmoid model parameters
         """
-
-        indices, values = self.penumbra_values(side, pen_width)
-        fit_params = hill_reg(indices, values)
+        if self._fit_method != Fitting.HILL:
+            # take 2nd derivative via simple diff
+            d2 = np.gradient(np.gradient(gaussian_filter1d(self.values, sigma=3)))
+            infls = np.where(np.diff(np.sign(d2)))[0]
+        indices, values = self.penumbra_values(pen_width)
+        data['left distance mm'] = (data['center index'] - data['left index']) / self.dpmm
         edge_idx = infl_point_hill_func(fit_params)
         return edge_idx, fit_params
 
@@ -366,11 +361,11 @@ class SingleProfile(ProfileMixin):
         Dose value as a percentage of CAX
         """
 
-        edge_idx = self.infl_points(pen_width, side)[0]
+        edge_idx = self.inflection_points(pen_width, side)[0]
         if norm in ['max', 'max grounded']:
             cax_idx, cax_val = self.fwxm_center(x=50, interpolate=interpolate)
         else:
-            cax_idx, cax_val = self.center()
+            cax_idx, cax_val = self.geometric_center()
         dose_idx = cax_idx + (edge_idx - cax_idx)*rel_dist
         if interpolate:
             ydata_f = interp1d(self._indices, self.values, kind=self.interpolation_type)
@@ -419,7 +414,7 @@ class SingleProfile(ProfileMixin):
            dist : distance around maximum gradient to return penumbra. If dist = 0 penumbra is returned from tail
                   to 80% field size.
            """
-        cax_idx = self.center()[0]
+        cax_idx = self.geometric_center()[0]
         left_edge_idx = np.argmax(np.diff(self.values[:int(cax_idx)]))
         right_edge_idx = self.values.shape[0] - np.argmax(np.diff(np.flip(self.values[int(cax_idx):])))
         if side == 'left':
@@ -484,9 +479,9 @@ class SingleProfile(ProfileMixin):
         """
         left, right = self.field_edges(field_width)
         if side == 'left':
-            right = round(self.center()[0] - dist*self.dpmm)
+            right = round(self.geometric_center()[0] - dist * self.dpmm)
         else:
-            left = round(self.center()[0] + dist*self.dpmm)
+            left = round(self.geometric_center()[0] + dist * self.dpmm)
         if left >= right:
             raise Exception('The field size is not large enough to calculate the slope of the in field area.')
         values = self.values[left: right]
@@ -525,7 +520,7 @@ class SingleProfile(ProfileMixin):
         left_index, right_index
         """
         fwhmc, _ = self.fwxm_center(interpolate=interpolate)
-        field_width *= self.fwxm()
+        field_width *= self.fwxm_data()
         if interpolate:
             left = fwhmc - (field_width / 2)
             right = fwhmc + (field_width / 2)

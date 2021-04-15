@@ -183,8 +183,8 @@ class FlatSym:
         # do some calculations
         horiz_penum = np.mean(self.symmetry['horizontal']['profile'].penumbra_width()) / self.image.dpmm
         vert_penum = np.mean(self.symmetry['vertical']['profile'].penumbra_width()) / self.image.dpmm
-        horiz_width = self.symmetry['horizontal']['profile'].fwxm() / self.image.dpmm
-        vert_width = self.symmetry['vertical']['profile'].fwxm() / self.image.dpmm
+        horiz_width = self.symmetry['horizontal']['profile'].fwxm_data() / self.image.dpmm
+        vert_width = self.symmetry['vertical']['profile'].fwxm_data() / self.image.dpmm
         up_edge_idx, bt_edge_idx = self.symmetry['vertical']['profile'].field_edges(1.0, interpolate=True)
         upper_dist = abs(up_edge_idx - self.image.center.y) / self.image.dpmm
         lower_dist = abs(bt_edge_idx - self.image.center.y) / self.image.dpmm

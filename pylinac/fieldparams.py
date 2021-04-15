@@ -32,27 +32,27 @@ pen_width: float = 20                    # penumbra width for sigmoid analysis
 # Field edge parameters ------------------------------------------------------------------------------------------------
 def left_edge_50(profile: SingleProfile, *args) -> float:
     """Return the position of the 50% of max dose value on the left of the profile."""
-    left_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[0] - profile.center()[0])/profile.dpmm
+    left_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[0] - profile.geometric_center()[0]) / profile.dpmm
     return left_edge
 
 
 def right_edge_50(profile: SingleProfile, *args):
     """Return the position of the 50% of max dose value on the right of the profile."""
-    right_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[1] - profile.center()[0])/profile.dpmm
+    right_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[1] - profile.geometric_center()[0]) / profile.dpmm
     return right_edge
 
 
 def left_edge_infl(profile: SingleProfile, *args):
     """Return the position of the inflection point on the left of the profile."""
-    left_edge_idx = profile.infl_points(pen_width, 'left')[0]
-    left_edge = abs(left_edge_idx - profile.center()[0])/profile.dpmm
+    left_edge_idx = profile.inflection_points(pen_width, 'left')[0]
+    left_edge = abs(left_edge_idx - profile.geometric_center()[0]) / profile.dpmm
     return left_edge
 
 
 def right_edge_infl(profile: SingleProfile, *args):
     """Return the position of the inflection point on the right of the profile."""
-    right_edge_idx = profile.infl_points(pen_width, 'right')[0]
-    right_edge = abs(right_edge_idx - profile.center()[0])/profile.dpmm
+    right_edge_idx = profile.inflection_points(pen_width, 'right')[0]
+    right_edge = abs(right_edge_idx - profile.geometric_center()[0]) / profile.dpmm
     return right_edge
 
 
@@ -61,7 +61,7 @@ def field_size_50(profile: SingleProfile, *args):
     """Return the field size at 50% of max dose. Not affected by the normalisation mode.
 
        Included for testing purposes"""
-    return profile.fwxm(50)/profile.dpmm
+    return profile.fwxm_data(50) / profile.dpmm
 
 
 def field_size_edge_50(profile: SingleProfile, *args):
@@ -79,7 +79,7 @@ def field_center_fwhm(profile: SingleProfile, *args):
     """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
 
        Included for testing purposes."""
-    field_center = (profile.fwxm_center(50, interpolate)[0] - profile.center()[0])/profile.dpmm
+    field_center = (profile.fwxm_center(50, interpolate)[0] - profile.geometric_center()[0]) / profile.dpmm
     return field_center
 
 
@@ -97,12 +97,12 @@ def field_center_infield_slope(profile: SingleProfile, *args):
     """Calculates the peak of a FFF field according to the intersection of the left and right in-field slope"""
     slope_left, interc_left = profile.infield_slope(0.8,'left', 25.0)
     slope_right, interc_right = profile.infield_slope(0.8, 'right', 25.0)
-    return ((interc_right - interc_left)/(slope_left - slope_right) - profile.center()[0])/profile.dpmm
+    return ((interc_right - interc_left) / (slope_left - slope_right) - profile.geometric_center()[0]) / profile.dpmm
 
 
 def field_top(profile:SingleProfile, *args):
     """Calculates the position of the profile maximum"""
-    return (profile.top(dist=25.0, interpolate=interpolate)[0] - profile.center()[0])/profile.dpmm
+    return (profile.top(dist=25.0, interpolate=interpolate)[0] - profile.geometric_center()[0]) / profile.dpmm
 
 
 # Field penumbra parameters --------------------------------------------------------------------------------------------
@@ -125,7 +125,7 @@ def penumbra_left_infl(profile: SingleProfile, *args):
 
     Returns the distance between the locations where the dose equals 0.4 times the dose at the inflection point
     and 1.6 times that dose on the left side of the profile."""
-    infl_idx, fit_params = profile.infl_points(pen_width, 'left')
+    infl_idx, fit_params = profile.inflection_points(pen_width, 'left')
     infl_val = hill_func(infl_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
     upper_idx = inv_hill_func(infl_val*1.6, fit_params)
     lower_idx = inv_hill_func(infl_val*0.4, fit_params)
@@ -138,7 +138,7 @@ def penumbra_right_infl(profile: SingleProfile, *args):
 
     Returns  the distance between the locations where the dose equals 0.4 times the dose at the inflection point
     and 1.6 times that dose on the right side of the profile."""
-    infl_idx, fit_params = profile.infl_points(pen_width, 'right')
+    infl_idx, fit_params = profile.inflection_points(pen_width, 'right')
     infl_val = hill_func(infl_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
     upper_idx = inv_hill_func(infl_val*1.6, fit_params)
     lower_idx = inv_hill_func(infl_val*0.4, fit_params)
@@ -152,7 +152,7 @@ def penumbra_slope_left_infl(profile: SingleProfile, *args):
         cax_val = profile.values.max()
     else:
         _, cax_val = profile.fwxm_center()
-    left_edge_idx, fit_params = profile.infl_points(pen_width, 'left')
+    left_edge_idx, fit_params = profile.inflection_points(pen_width, 'left')
     inf_slope = 100*deriv_hill_func(left_edge_idx, fit_params)*profile.dpmm/cax_val
     return inf_slope
 
@@ -163,7 +163,7 @@ def penumbra_slope_right_infl(profile: SingleProfile, *args):
         cax_val = profile.values.max()
     else:
         _, cax_val = profile.fwxm_center()
-    right_edge_idx, fit_params = profile.infl_points(pen_width, 'right')
+    right_edge_idx, fit_params = profile.inflection_points(pen_width, 'right')
     inf_slope = 100*deriv_hill_func(right_edge_idx, fit_params)*profile.dpmm/cax_val
     return inf_slope
 
@@ -247,7 +247,7 @@ def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
     else:
-        _, cax_val = profile.center()
+        _, cax_val = profile.geometric_center()
     sym_array = []
     for lt_pt, rt_pt in zip(values, values[::-1]):
         val = 100 * abs(lt_pt - rt_pt) / cax_val
@@ -289,7 +289,7 @@ def deviation_diff(profile: SingleProfile, ifa: float = 0.8):
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
     else:
-        _, cax_val = profile.center()
+        _, cax_val = profile.geometric_center()
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
         dmin = profile.field_calculation(field_width=ifa, calculation='min')
@@ -304,7 +304,7 @@ def deviation_max(profile: SingleProfile, ifa: float = 0.8):
     if norm in ['max', 'max grounded']:
         _, cax_val = profile.fwxm_center()
     else:
-        _, cax_val = profile.center()
+        _, cax_val = profile.geometric_center()
     try:
         dmax = profile.field_calculation(field_width=ifa, calculation='max')
     except ValueError:

@@ -110,7 +110,7 @@ class ThicknessROI(RectangleROI):
     @lru_cache(maxsize=1)
     def wire_fwhm(self) -> float:
         """The FWHM of the wire in pixels."""
-        return self.long_profile.fwxm(x=50)
+        return self.long_profile.fwxm_data(x=50)
 
     @property
     def plot_color(self) -> str:

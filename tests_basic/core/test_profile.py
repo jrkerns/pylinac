@@ -27,7 +27,7 @@ class SingleProfileMixin:
 
     def test_fwxms(self):
         for fwxm, fwhm_idx in self.fwxm_indices.items():
-            self.assertAlmostEqual(self.profile.fwxm(fwxm), fwhm_idx, delta=1)
+            self.assertAlmostEqual(self.profile.fwxm_data(fwxm), fwhm_idx, delta=1)
 
     def test_fwxm_centers(self):
         # test values, interpolated and not interpolated
