@@ -616,6 +616,10 @@ class FieldParams:
             results = '\n'.join(result for result in results)
         return results
 
+    @staticmethod
+    def list_protocols():
+        return "\n".join([*PROTOCOLS])
+
     def _get_infield_area(self, protocol):
         """Return the in field area as a proportion 0.0-1.0 of the field size. The in field area depends on the
         protocol and field size, but for now define it as 80%."""

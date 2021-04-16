@@ -224,6 +224,10 @@ class FieldParamTests(TestCase):
         for method in ('all', 'default', 'varian', 'elekta', 'siemens', 'vom80', 'iec9076', 'din', 'afssaps-jorf','fff'):
             analyze(protocol=method)  # shouldn't raise
 
+    def test_list_protocols(self):
+        fs = create_instance()
+        self.assertIsInstance(fs.list_protocols(),str)
+
     def test_results(self):
         fs = create_instance()
         self.assertIsInstance(fs.results(), str)
