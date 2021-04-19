@@ -70,61 +70,62 @@ class TestResultsData(TestCase):
         cls.wl = WinstonLutz.from_demo_images()
 
     def test_results_data_cax2epid_max(self):
-        rd_result = self.wl.results_data()['cax2epid max']
+        rd_result = self.wl.results_data()['WL CAX->EPID 2D max (mm)']
         result = self.wl.cax2epid_distance('max')
         self.assertEqual(rd_result, result )
     def test_results_data_cax2epid_median(self):
-        rd_result = self.wl.results_data()['cax2epid median']
+        rd_result = self.wl.results_data()['WL CAX->EPID 2D median (mm)']
         result = self.wl.cax2epid_distance('median')
         self.assertEqual(rd_result, result )
 
     def test_results_data_cax2bb_max(self):
-        rd_result = self.wl.results_data()['cax2bb max']
+        rd_result = self.wl.results_data()['WL CAX->BB 2D max (mm)']
         result = self.wl.cax2bb_distance('max')
         self.assertEqual(rd_result, result ) 
     
     def test_results_data_cax2bb_median(self): 
-        rd_result = self.wl.results_data()['cax2bb median']
+        rd_result = self.wl.results_data()['WL CAX->BB 2D median (mm)']
         result = self.wl.cax2bb_distance('median')
         self.assertEqual(rd_result, result )
     
     def test_results_data_coll_iso_size(self):
-        rd_result = self.wl.results_data()['coll iso size']
+        rd_result = self.wl.results_data()['WL Collimator 2D iso size (mm)']
         result = self.wl.collimator_iso_size
         self.assertEqual(rd_result, result )
     
     def test_results_data_couch_iso_size(self):
-        rd_result = self.wl.results_data()['couch iso size']
+        rd_result = self.wl.results_data()['WL Couch 2D iso size (mm)']
         result = self.wl.couch_iso_size
         self.assertEqual(rd_result, result )
     
     def test_results_data_gantry_iso_size(self):
-        rd_result = self.wl.results_data()['gantry iso size']
+        rd_result = self.wl.results_data()['WL Gantry 3D iso size (mm)']
         result = self.wl.gantry_iso_size
         self.assertEqual(rd_result, result )
 
     def test_results_data_gantry_coll_iso_size(self):
-        rd_result = self.wl.results_data()['gantry coll iso size']
+        rd_result = self.wl.results_data()['WL Gantry+Coll 3D iso size (mm)']
         result = self.wl.gantry_coll_iso_size
         self.assertEqual(rd_result, result )        
 
     def test_results_data_mech_rad_x(self):
-        rd_result = self.wl.results_data()['MechRad x']
+        rd_result = self.wl.results_data()['WL Iso 3D position from BB']['x']
         result = -1* self.wl.bb_shift_vector.x
         self.assertEqual(rd_result, result)  
     def test_results_data_mech_rad_y(self):
-        rd_result = self.wl.results_data()['MechRad y']
+        rd_result = self.wl.results_data()['WL Iso 3D position from BB']['y']
         result = -1* self.wl.bb_shift_vector.y
         self.assertEqual(rd_result, result) 
     def test_results_data_mech_rad_z(self):
-        rd_result = self.wl.results_data()['MechRad z']
+        rd_result = self.wl.results_data()['WL Iso 3D position from BB']['z']
         result = -1* self.wl.bb_shift_vector.z
         self.assertEqual(rd_result, result) 
 
-    def test_results_data_gaxis_rms(self):
-        rd_result = self.wl.results_data()['axis rms dev']
-        result = self.wl.axis_rms_deviation
-        self.assertEqual(rd_result, result )  
+    def test_results_data_gantry_rms(self):
+        rd_result = self.wl.results_data()['WL Gantry RMS deviations (mm)']
+        result = self.wl.axis_rms_deviation(axis=GANTRY, value='max')
+        self.assertEqual(rd_result, result )
+
 
 class TestPublishPDF(TestCase):
 
