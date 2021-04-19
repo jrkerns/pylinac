@@ -281,7 +281,7 @@ class WinstonLutz:
             move += f"\nNew couch coordinates (mm): VRT: {new_vrt:3.2f}; LNG: {new_lng:3.2f}; LAT: {new_lat:3.2f}"
         return move
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, GBP_COMBO), value=('all', 'range'))
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, GBP_COMBO), value=('all', 'range', 'max'))
     def axis_rms_deviation(self, axis: str=GANTRY, value: str='all') -> float:
         """The RMS deviations of a given axis/axes.
 
@@ -304,6 +304,8 @@ class WinstonLutz:
         rms = [getattr(img, attr).as_scalar() for img in imgs]
         if value == 'range':
             rms = max(rms) - min(rms)
+        if value == 'max':
+            rms = max(rms)
         return rms
 
     @argue.options(metric=('max', 'median'))
@@ -560,13 +562,13 @@ class WinstonLutz:
         data['WL CAX->EPID 2D max (mm)'] = self.cax2epid_distance('max')
         data['WL CAX->EPID 2D median (mm)'] = self.cax2epid_distance('median')
         data['WL Collimator 2D iso size (mm)'] = self.collimator_iso_size
-        data['WL Collimator RMS deviations (mm)'] = self.axis_rms_deviation(axis=COLLIMATOR)
+        data['WL Collimator RMS deviations (mm)'] = self.axis_rms_deviation(axis=COLLIMATOR, value='max')
         data['WL # Coll images considered'] = num_coll_imgs
         data['WL Couch 2D iso size (mm)'] = self.couch_iso_size
-        data['WL Couch RMS deviations (mm)'] = self.axis_rms_deviation(axis=COUCH)
+        data['WL Couch RMS deviations (mm)'] = self.axis_rms_deviation(axis=COUCH, value='max')
         data['WL # Couch images considered'] = num_couch_imgs
         data['WL Gantry 3D iso size (mm)'] = self.gantry_iso_size
-        data['WL Gantry RMS deviations (mm)'] = self.axis_rms_deviation(axis=GANTRY)
+        data['WL Gantry RMS deviations (mm)'] = self.axis_rms_deviation(axis=GANTRY, value='max')
         data['WL # Gantry images considered'] = num_gantry_imgs
         data['WL Gantry+Coll 3D iso size (mm)'] = self.gantry_coll_iso_size
         data['WL # Gantry+Coll images considered'] = num_gantry_coll_imgs
