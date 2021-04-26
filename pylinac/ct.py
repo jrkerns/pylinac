@@ -38,6 +38,7 @@ from .core.profile import CollapsedCircleProfile, SingleProfile, Interpolation
 from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI
 from .core.typing import NumberLike
 from .settings import get_dicom_cmap
+from . import __version__
 
 
 AIR = -1000
@@ -58,7 +59,7 @@ class HUDiskROI(DiskROI):
     def __init__(self, array: np.ndarray, angle: float, roi_radius: float, dist_from_center: float,
                  phantom_center: Union[tuple, Point], nominal_value: Optional[int] = None,
                  tolerance: Optional[int] = None,
-                 background_median: Optional[float]=None, background_std: Optional[float]=None):
+                 background_mean: Optional[float]=None, background_std: Optional[float]=None):
         """
         Parameters
         ----------
@@ -70,13 +71,15 @@ class HUDiskROI(DiskROI):
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.nominal_val = nominal_value
         self.tolerance = tolerance
-        self.background_median = background_median
+        self.background_mean = background_mean
         self.background_std = background_std
 
     @property
     def cnr(self) -> float:
         """The contrast-to-noise value of the HU disk"""
-        return 2*abs(self.pixel_value - self.background_median) / (self.std + self.background_std)
+        if self.background_mean is None or self.background_std is None:
+            return None
+        return 2*abs(self.pixel_value - self.background_mean) / (self.std + self.background_std)
 
     @property
     def value_diff(self) -> float:
@@ -208,7 +211,7 @@ class CatPhanModule(Slice):
         self.slice_thickness = catphan.dicom_stack.metadata.SliceThickness
         self.catphan_roll = catphan.catphan_roll
         self.mm_per_pixel = catphan.mm_per_pixel
-        self.rois = {}  # dicts of HUDiskROIs
+        self.rois: Dict[HUDiskROI] = {}  # dicts of HUDiskROIs
         self.background_rois = {}  # dict of HUDiskROIs; possibly empty
         Slice.__init__(self, catphan, combine_method=self.combine_method, num_slices=self.num_slices)
         self._convert_units_in_settings()
@@ -248,14 +251,18 @@ class CatPhanModule(Slice):
         for name, setting in self.background_roi_settings.items():
             self.background_rois[name] = HUDiskROI(self.image, setting['angle_corrected'], setting['radius_pixels'], setting['distance_pixels'],
                                         self.phan_center)
-        background_median = np.mean([roi.pixel_value for roi in self.background_rois.values()])
-        background_std = np.std([roi.pixel_value for roi in self.background_rois.values()])
+        if self.background_rois:
+            background_mean = np.mean([roi.pixel_value for roi in self.background_rois.values()])
+            background_std = np.std([roi.pixel_value for roi in self.background_rois.values()])
+        else:
+            background_mean = None
+            background_std = None
 
         for name, setting in self.roi_settings.items():
             nominal_value = setting.get('value', 0)
             self.rois[name] = HUDiskROI(self.image, setting['angle_corrected'], setting['radius_pixels'], setting['distance_pixels'],
                                         self.phan_center, nominal_value, self.tolerance,
-                                        background_median=background_median, background_std=background_std)
+                                        background_mean=background_mean, background_std=background_std)
 
     # TODO: better define threshold
     def plot_rois(self, axis: plt.Axes, threshold=None) -> None:
@@ -778,10 +785,12 @@ class CTP515(CatPhanModule):
 
     @property
     def lower_window(self) -> float:
+        """Lower bound of CT window/leveling to show on the plotted image. Improves apparent contrast."""
         return Enumerable(self.background_rois.values()).min(lambda r: r.pixel_value) - self.WINDOW_SIZE
 
     @property
     def upper_window(self) -> float:
+        """Upper bound of CT window/leveling to show on the plotted image. Improves apparent contrast"""
         return Enumerable(self.rois.values()).max(lambda r: r.pixel_value) + self.WINDOW_SIZE
 
 
@@ -1277,6 +1286,58 @@ class CatPhanBase:
             add = (f'Low contrast ROIs "seen": {self.ctp515.rois_visible}\n')
             string += add
         return string
+
+    def results_data(self) -> Dict:
+        """Return the results of the analysis as a dict. Useful for accessing data in a consistent manner."""
+        data = dict()
+        data['pylinac version'] = __version__
+        data['General info'] = {'CatPhan model': self._model,
+                                'CatPhan roll (degrees)': self.catphan_roll,
+                                'Origin slice (CTP404)': self.origin_slice,
+                                'Num images': self.num_images,
+                                'Modules': [{mod.attr_name: offset} for mod, offset in self.modules.items()]}
+
+        # CTP 404 HU stuff
+        data['CTP404 HU ROI settings'] = self.ctp404.roi_settings
+        data['CTP404 HU ROI background settings'] = self.ctp404.background_roi_settings
+        data['CTP404 HU ROI values'] = [{name: {'avg value': val.pixel_value, 'cnr': val.cnr,
+                                                'difference': val.value_diff, 'nominal value': val.nominal_val,
+                                                'passed': val.passed}} for name, val in self.ctp404.rois.items()]
+        data['CTP404 HU tolerance (HU)'] = self.ctp404.hu_tolerance
+        data['CTP404 HU linearity passed?'] = self.ctp404.passed_hu
+
+        # CTP 404 Geometry stuff
+        data['CTP404 Geometry ROI analysis size setting (mm)'] = self.ctp404.geometry_roi_size_mm
+        data['CTP404 Geometry ROI distances (mm)'] = [{name: l.length_mm} for name, l in self.ctp404.lines.items()]
+        data['CTP404 Geometry AVG distance (mm)'] = self.ctp404.avg_line_length
+        data['CTP404 Geometry passed?'] = self.ctp404.passed_geometry
+
+        # CTP 404 Thickness stuff
+        data['CTP404 Thickness ROI settings'] = self.ctp404.thickness_roi_settings
+        data['CTP404 Thickness # slices combined'] = self.ctp404.num_slices + self.ctp404.pad
+        data['CTP404 Thickness measured (mm)'] = self.ctp404.meas_slice_thickness
+        data['CTP404 Thickness passed?'] = self.ctp404.passed_thickness
+        data['CTP404 Thickness LCV'] = self.ctp404.lcv
+
+        # CTP 486 Uniformity stuff
+        if self._has_module(CTP486):
+            data['CTP486 Uniformity ROI settings'] = self.ctp486.roi_settings
+            data['CTP486 Uniformity index'] = self.ctp486.uniformity_index
+            data['CTP486 Uniformity integral non-uniformity'] = self.ctp486.integral_non_uniformity
+            data['CTP486 Uniformity passed?'] = self.ctp486.overall_passed
+
+        # CTP 528 stuff
+        if self._has_module(CTP528CP504):
+            data['CTP528 Spatial Resolution ROI settings'] = self.ctp528.roi_settings
+            data['CTP528 Spatial Resolution start angle (radians)'] = self.ctp528.start_angle
+            data['CTP528 Spatial Resolution rMTFs (lp/mm)'] = [{p: self.ctp528.mtf.relative_resolution(p)} for p in (80, 50, 30)]
+
+        # CTP 515 stuff
+        if self._has_module(CTP515):
+            data['CTP515 Low Contrast CNR threshold'] = self.ctp515.cnr_threshold
+            data['CTP515 Low Contrast # seen'] = self.ctp515.rois_visible
+            data['CTP515 Low Contrast ROI settings'] = self.ctp515.roi_settings
+        return data
 
 
 class CatPhan503(CatPhanBase):

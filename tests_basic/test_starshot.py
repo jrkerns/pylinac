@@ -203,3 +203,10 @@ class GeneralTests(Demo, TestCase):
         with tempfile.TemporaryFile() as t:
             self.star.publish_pdf(t, notes='stuff', metadata={"Unit": 'TB1'})
 
+    def test_results_data(self):
+        data = self.star.results_data()
+        self.assertIsInstance(data, dict)
+        self.assertEqual(len(data), 6)
+        self.assertIn('pylinac version', data)
+        self.assertEqual(data['Starshot circle radius (mm)'], self.star.wobble.radius_mm)
+

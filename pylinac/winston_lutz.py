@@ -34,9 +34,10 @@ from skimage import measure
 from .core import image
 from .core.geometry import Point, Line, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
-from .core.mask import filled_area_ratio, bounding_box
+from .core.mask import bounding_box
 from .core import pdf
 from .core.utilities import is_close, open_path
+from . import __version__
 
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'
@@ -45,6 +46,8 @@ GB_COMBO = 'GB Combo'
 GBP_COMBO = 'GBP Combo'
 EPID = 'Epid'
 REFERENCE = 'Reference'
+MIN_BB_SIZE = 3
+MAX_BB_SIZE = 10
 
 
 class ImageManager(list):
@@ -540,6 +543,37 @@ class WinstonLutz:
         if not as_list:
             result = '\n'.join(result)
         return result
+    
+    def results_data(self) -> dict:
+        """Return the analysis results as a dictionary."""
+        num_gantry_imgs = self._get_images(axis=(GANTRY, REFERENCE))[0]
+        num_gantry_coll_imgs = self._get_images(axis=(GANTRY, COLLIMATOR, GB_COMBO, REFERENCE))[0]
+        num_coll_imgs = self._get_images(axis=(COLLIMATOR, REFERENCE))[0]
+        num_couch_imgs = self._get_images(axis=(COUCH, REFERENCE))[0]
+
+        data = dict()
+        data['pylinac version'] = __version__
+
+        data['WL # of images'] = len(self.images)
+        data['WL CAX->BB 2D max (mm)'] = self.cax2bb_distance('max')
+        data['WL CAX->BB 2D median (mm)'] = self.cax2bb_distance('median')
+        data['WL CAX->EPID 2D max (mm)'] = self.cax2epid_distance('max')
+        data['WL CAX->EPID 2D median (mm)'] = self.cax2epid_distance('median')
+        data['WL Collimator 2D iso size (mm)'] = self.collimator_iso_size
+        data['WL Collimator RMS deviations (mm)'] = self.axis_rms_deviation(axis=COLLIMATOR)
+        data['WL # Coll images considered'] = num_coll_imgs
+        data['WL Couch 2D iso size (mm)'] = self.couch_iso_size
+        data['WL Couch RMS deviations (mm)'] = self.axis_rms_deviation(axis=COUCH)
+        data['WL # Couch images considered'] = num_couch_imgs
+        data['WL Gantry 3D iso size (mm)'] = self.gantry_iso_size
+        data['WL Gantry RMS deviations (mm)'] = self.axis_rms_deviation(axis=GANTRY)
+        data['WL # Gantry images considered'] = num_gantry_imgs
+        data['WL Gantry+Coll 3D iso size (mm)'] = self.gantry_coll_iso_size
+        data['WL # Gantry+Coll images considered'] = num_gantry_coll_imgs
+        data['WL BB shift instructions'] = self.bb_shift_instructions()
+        data['WL BB 3D position from Iso'] = {'x': self.bb_shift_vector.x, 'y': self.bb_shift_vector.y, 'z': self.bb_shift_vector.z}
+        data['WL Iso 3D position from BB'] = {'x': -self.bb_shift_vector.x, 'y': -self.bb_shift_vector.y, 'z': -self.bb_shift_vector.z}
+        return data
 
     def publish_pdf(self, filename: str, notes: Optional[Union[str, List[str]]]=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
@@ -845,7 +879,7 @@ def is_modest_size(logical_array: np.ndarray, dpmm: float) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
     bb_area = np.sum(logical_array / dpmm ** 2)
     bb_diameter = 2 * np.sqrt(bb_area / np.pi)
-    return 3 < bb_diameter < 10
+    return MIN_BB_SIZE < bb_diameter < MAX_BB_SIZE
 
 
 def is_round(rprops) -> bool:

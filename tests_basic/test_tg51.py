@@ -1,4 +1,7 @@
+import copy
 from unittest import TestCase
+
+from argue import BoundsError
 
 from pylinac.calibration import tg51
 
@@ -13,6 +16,15 @@ class TestFunctions(TestCase):
         expected_ptp = (1.0, 0.997, 1.0165)
         for temp, press, exp in zip(temps, press, expected_ptp):
             self.assertAlmostEqual(tg51.p_tp(temp=temp, press=press), exp, delta=0.001)
+
+    def test_override_p_tp(self):
+        original_temp = copy.copy(tg51.MAX_TEMP)
+        tg51.MAX_TEMP = 20
+        temp = 22
+        press = 101.33
+        with self.assertRaises(BoundsError):
+            tg51.p_tp(temp=temp, press=press)
+        tg51.MAX_TEMP = original_temp  # set back so other tests don't fail
 
     def test_p_pol(self):
         m_ref = (20, -20.2, 19.8)

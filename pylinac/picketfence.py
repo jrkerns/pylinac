@@ -34,6 +34,7 @@ from .core.profile import MultiProfile, SingleProfile, Interpolation
 from .core.utilities import open_path
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
+from . import __version__
 
 # possible orientations of the pickets.
 UP_DOWN = 'Up-Down'
@@ -545,6 +546,21 @@ class PicketFence:
                  f"Picket offsets from CAX (mm): {offsets}\n" \
                  f"Max Error: {self.max_error:2.3f}mm on Picket: {self.max_error_picket}, Leaf: {self.max_error_leaf}"
         return string
+
+    def results_data(self) -> dict:
+        """Present the results data and metadata as a dict."""
+        data = dict()
+        data['pylinac version'] = __version__
+        data['PF tolerance'] = self.tolerance
+        data['PF action tolerance'] = self.action_tolerance
+        data['PF % passing'] = self.percent_passing
+        data['PF # pickets'] = self.num_pickets
+        data['PF abs median error (mm)'] = self.abs_median_error
+        data['PF max error (mm)'] = self.max_error
+        data['PF mean picket spacing (mm)'] = self.mean_picket_spacing
+        data['PF offsets from CAX (mm)'] = [pk.dist2cax for pk in self.pickets]
+        data["PF passed?"] = self.passed
+        return data
 
     def publish_pdf(self, filename: str, notes: str = None, open_file: bool = False, metadata: dict = None) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.

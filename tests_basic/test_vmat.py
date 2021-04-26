@@ -59,6 +59,15 @@ class TestLoadingBase:
         instance.analyze()
         save_file(instance.publish_pdf)
 
+    def test_results_data(self):
+        instance = self.klass.from_demo_images()
+        instance.analyze()
+        data = instance.results_data()
+        self.assertIsInstance(data, dict)
+        self.assertEqual(len(data), 7)
+        self.assertIn('pylinac version', data)
+        self.assertEqual(data['VMAT abs mean deviation (%)'], instance.avg_abs_r_deviation)
+
 
 class TestDRGSLoading(TestLoadingBase, TestCase):
     demo_name = 'drgs.zip'

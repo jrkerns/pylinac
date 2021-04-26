@@ -1,3 +1,4 @@
+from abc import ABC
 from datetime import datetime
 from typing import Union, List, Optional
 
@@ -6,7 +7,8 @@ import numpy as np
 
 from pylinac.core.pdf import PylinacCanvas
 from . import tg51 as _tg51
-from .tg51 import mmHg2kPa, mbar2kPa, fahrenheit2celsius, tpr2010_from_pdd2010  # make available to module
+from .tg51 import mmHg2kPa, mbar2kPa, fahrenheit2celsius, tpr2010_from_pdd2010, MIN_PTP, \
+    MAX_PTP, MIN_PELEC, MAX_PELEC, MIN_PPOL, MAX_PPOL, MIN_PION, MAX_PION  # make available to module
 from ..core.utilities import is_close, Structure, open_path
 from ..core.typing import NumberOrArray
 
@@ -133,7 +135,7 @@ def k_s(*, voltage_reference: int, voltage_reduced: int,
     _verify_voltage_ratio_is_valid(v_ratio)
     a = V1_V2_FITS[v_ratio]
     m_ratio = np.mean(m_reference) / np.mean(m_reduced)
-    argue.verify_bounds(m_ratio, bounds=(1.0, 1.05), message="Ks is out of bounds. Verify inputs or check chamber")
+    argue.verify_bounds(m_ratio, bounds=(MIN_PION, MAX_PION), message="Ks is out of bounds. Verify inputs or check chamber")
     return float(a['a0'] + a['a1']*m_ratio + a['a2']*(m_ratio**2))
 
 
@@ -199,7 +201,6 @@ def kq_electron(*, chamber: str, r_50: float) -> float:
     return np.interp([r_50], KQ_ELECTRON_R50S, KQ_ELECTRON_CHAMBERS[chamber])[0]
 
 
-@argue.bounds(k_tp=(0.9, 1.1), k_elec=(0.95, 1.05), k_pol=(0.95, 1.05), k_s=(1.0, 1.05))
 def m_corrected(*, m_reference, k_tp, k_elec, k_pol, k_s) -> float:
     """The fully corrected chamber reading.
 
@@ -221,10 +222,14 @@ def m_corrected(*, m_reference, k_tp, k_elec, k_pol, k_s) -> float:
     m : float
         The fully corrected chamber reading.
     """
+    argue.verify_bounds(k_tp, bounds=(MIN_PTP, MAX_PTP))
+    argue.verify_bounds(k_elec, bounds=(MIN_PELEC, MAX_PELEC))
+    argue.verify_bounds(k_pol, bounds=(MIN_PPOL, MAX_PPOL))
+    argue.verify_bounds(k_s, bounds=(MIN_PION, MAX_PION))
     return float(np.mean(m_reference) * k_tp * k_elec * k_pol * k_s)
 
 
-class TRS398Base(Structure):
+class TRS398Base(ABC, Structure):
 
     @property
     def k_tp(self):

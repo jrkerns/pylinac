@@ -2,14 +2,17 @@
 import os
 import os.path as osp
 import struct
+import zipfile
 from tempfile import TemporaryDirectory
-from typing import Callable, List
+from typing import Callable, List, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.request import urlretrieve, urlopen
-import zipfile
 
+import numpy as np
 import pydicom
 from tqdm import tqdm
+
+from pylinac.core.profile import SingleProfile
 
 
 def is_dicom(file: str) -> bool:
@@ -203,3 +206,46 @@ def get_url(url: str, destination: str=None, progress_bar: bool=True) -> str:
     except (HTTPError, URLError, ValueError) as e:
         raise e
     return filename
+
+
+# this is easier with pandas, but I don't want that as a dependency at this point
+class SNCProfiler:
+    """Load a file from a Sun Nuclear Profiler device. This accepts .prs files."""
+
+    def __init__(self, path: str, detector_row: int = 106, bias_row: int = 107, calibration_row: int = 108,
+                 data_row: int = -1, data_columns: slice = slice(5, 259)):
+        """
+        Parameters
+        ----------
+        path : str
+            Path to the .prs file.
+        detector_row
+        bias_row
+        calibration_row
+        data_row
+        data_columns
+            The range of columns that the data is in. Usually, there are some columns before and after the real data.
+        """
+        with open(path) as f:
+            raw_data = f.read().splitlines()
+            self.detectors = raw_data[detector_row].split('\t')[data_columns]
+            self.bias = np.array(raw_data[bias_row].split('\t')[data_columns]).astype(np.float)
+            self.calibration = np.array(raw_data[calibration_row].split('\t')[data_columns]).astype(np.float)
+            self.data = np.array(raw_data[data_row].split('\t')[data_columns]).astype(np.float)
+            self.timetic = float(raw_data[bias_row].split('\t')[2])
+            self.integrated_dose = self.calibration * (self.data - self.bias * self.timetic)
+
+    def to_profiles(self, n_detectors_row: int = 63) -> Tuple[SingleProfile, SingleProfile, SingleProfile, SingleProfile]:
+        """Convert the SNC data to SingleProfiles. These can be analyzed directly or passed to other modules like flat/sym.
+
+        Parameters
+        ----------
+        n_detectors_row : int
+            The number of detectors in a given row. Note that they Y profile includes 2 extra detectors from the other 3.
+        """
+        x_prof = SingleProfile(self.integrated_dose[:n_detectors_row])
+        y_prof = SingleProfile(self.integrated_dose[n_detectors_row:2*n_detectors_row+2])
+        pos_prof = SingleProfile(self.integrated_dose[2*n_detectors_row+2:3*n_detectors_row+2])
+        neg_prof = SingleProfile(self.integrated_dose[3*n_detectors_row+2:4*n_detectors_row+2])
+        return x_prof, y_prof, pos_prof, neg_prof
+

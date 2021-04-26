@@ -42,6 +42,12 @@ class GeneralTests(TestCase):
         with tempfile.TemporaryFile() as t:
             self.pf.publish_pdf(t, notes='stuff', metadata={'Unit': 'TB1'})
 
+    def test_results_data(self):
+        data = self.pf.results_data()
+        self.assertIsInstance(data, dict)
+        self.assertEqual(len(data), 10)
+        self.assertIn('pylinac version', data)
+        self.assertEqual(data['PF max error (mm)'], self.pf.max_error)
 
 class TestPlottingSaving(TestCase):
 

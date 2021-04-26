@@ -30,6 +30,28 @@ Vocabulary that may be different than the protocol
 
 Vocabulary not listed here should be the same as the respective protocol.
 
+Changing a bound
+----------------
+
+Bounds are placed in the module to prevent catastrophic errors from passing in the wrong values; e.g. the wrong units.
+If you live in a place that has extreme temperatures or pressures or just otherwise want to change the default bounds,
+you can change the default range of acceptable values.
+E.g. to change the minimum allowable temperature that can be passed:
+
+.. code-block:: python
+
+    from pylinac import tg51
+
+    tg51.p_tp(temp=5, press=100)  # will raise bounds error
+
+    # override
+    tg51.MIN_TEMP = 0
+
+    tg51.p_tp(temp=5, press=100)  # no bounds error will be raised
+
+You can override the min/max of temp, pressure, p ion, p elec, p tp, p pol. These bounds are the same for TRS-398.
+I.e. setting these in either module will set them for both modules.
+
 TG-51
 -----
 

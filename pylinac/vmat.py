@@ -24,6 +24,7 @@ from .core.pdf import PylinacCanvas
 from .core.profile import SingleProfile, Interpolation
 from .core.utilities import open_path
 from .settings import get_dicom_cmap
+from . import __version__
 
 DMLC = 'dmlc'
 OPEN = 'open'
@@ -150,6 +151,18 @@ class VMATBase:
 
         string += f'Max Deviation: {self.max_r_deviation:2.3}%\nAbsolute Mean Deviation: {self.avg_abs_r_deviation:2.3}%'
         return string
+
+    def results_data(self) -> dict:
+        """Analysis and metadata as a dict"""
+        data = dict()
+        data['pylinac version'] = __version__
+        data['VMAT test'] = self._result_header
+        data['VMAT tolerance (%)'] = self._tolerance*100
+        data['VMAT max deviation (%)'] = self.max_r_deviation
+        data['VMAT abs mean deviation (%)'] = self.avg_abs_r_deviation
+        data['VMAT segment X positions (mm)'] = self.SEGMENT_X_POSITIONS_MM
+        data['VMAT passed?'] = self.passed
+        return data
 
     def _calculate_segment_centers(self) -> List[Point]:
         """Construct the center points of the segments based on the field center and known x-offsets."""

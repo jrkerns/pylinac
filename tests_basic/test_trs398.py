@@ -1,4 +1,7 @@
+import copy
 from unittest import TestCase
+
+from argue import BoundsError
 
 from pylinac.calibration import trs398
 from tests_basic.utils import save_file
@@ -13,6 +16,13 @@ class TestFunctions(TestCase):
         for low, high, exp in zip(low_vals, high_vals, expected_pion):
             self.assertAlmostEqual(trs398.k_s(voltage_reference=300, voltage_reduced=150, m_reference=high, m_reduced=low), exp,
                                    delta=0.001)
+
+    def test_override_k_s(self):
+        original_max_pion = copy.copy(trs398.MAX_PION)
+        trs398.MAX_PION = 1
+        with self.assertRaises(BoundsError):
+            trs398.k_s(voltage_reference=300, voltage_reduced=150, m_reference=22, m_reduced=20)
+        trs398.MAX_PION = original_max_pion
 
     def test_m_corrected(self):
         exp = 20.225

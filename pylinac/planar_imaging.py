@@ -33,6 +33,7 @@ from .core.profile import CollapsedCircleProfile
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, bbox_center
 from .core import pdf
 from .core import geometry
+from . import __version__
 
 
 class ImagePhantomBase:
@@ -367,6 +368,20 @@ class ImagePhantomBase:
                      f'MTF 30% (lp/mm): {self.mtf.relative_resolution(30):2.2f}',
             ]
         return text
+
+    def results_data(self) -> dict:
+        data = dict()
+        data['pylinac version'] = __version__
+        data['Planar phantom analysis type'] = self.common_name
+        data['Planar median contrast'] = np.median([roi.contrast for roi in self.low_contrast_rois])
+        data['Planar median CNR'] = np.median([roi.contrast_to_noise for roi in self.low_contrast_rois])
+        data['Planar # contrast ROIs seen'] = sum(roi.passed for roi in self.low_contrast_rois)
+        data['Planar phantom center (px)'] = {'x': self.phantom_center.x, 'y': self.phantom_center.y}
+        data['Planar phantom low contrast ROI settings'] = self.low_contrast_roi_settings
+        if self.mtf is not None:
+            data['Planar phantom high contrast ROI settings'] = self.high_contrast_roi_settings
+            data['Planar rMTF (%:lp/mm)'] = [{p: self.mtf.relative_resolution(p)} for p in (80, 50, 30)]
+        return data
 
     def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
