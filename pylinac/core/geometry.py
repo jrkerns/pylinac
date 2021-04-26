@@ -371,7 +371,7 @@ class Rectangle:
         return Point(self.center.x + self.width / 2, self.center.y + self.height / 2, as_int=self._as_int)
 
     def plot2axes(self, axes: plt.Axes, edgecolor: str='black', angle: float=0.0, fill: bool=False,
-                  alpha: float=1, facecolor: str='g'):
+                  alpha: float=1, facecolor: str='g', label=None):
         """Plot the Rectangle to the axes.
 
         Parameters
@@ -392,5 +392,6 @@ class Rectangle:
                                      edgecolor=edgecolor,
                                      alpha=alpha,
                                      facecolor=facecolor,
-                                     fill=fill))
+                                     fill=fill,
+                                     label=label))
 

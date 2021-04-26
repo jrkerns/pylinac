@@ -117,8 +117,8 @@ class VMATMixin:
 
     def test_segment_positions(self):
         for key, value in self.segment_positions.items():
-            within_5(self.vmat.segments[key].geometric_center.x, value.x)
-            within_5(self.vmat.segments[key].geometric_center.y, value.y)
+            within_5(self.vmat.segments[key].center.x, value.x)
+            within_5(self.vmat.segments[key].center.y, value.y)
 
     def test_segment_values(self):
         for key, value in self.segment_values.items():

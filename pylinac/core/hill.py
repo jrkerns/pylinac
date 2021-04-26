@@ -2,8 +2,46 @@
 
 import numpy as np
 import math
-from scipy.optimize import curve_fit, differential_evolution
-import warnings
+from scipy.optimize import curve_fit
+
+
+class Hill:
+    """A Hill function is for modeling a field falloff (i.e. penumbra). It's not a perfect model, but it fits to a
+    function, which is not limited by resolution issues as may be experienced on low-res devices like ion chamber arrays."""
+
+    @classmethod
+    def fit(cls, x_data: np.ndarray, y_data: np.ndarray):
+        """Fit x & y data to a Hill function."""
+        fitted_parameters, _ = curve_fit(hill_func, x_data, y_data, p0=(min(y_data), max(y_data), np.median(x_data), 0))
+        instance = cls()
+        instance.params = fitted_parameters
+        return instance
+
+    def inflection_idx(self) -> dict:
+        """Determine the x-value inflection point of the fitted Hill function."""
+        idx = self.params[2] * math.pow((self.params[3] - 1) / (self.params[3] + 1), 1 / self.params[3])
+        return {'index (exact)': idx, 'index (rounded)': int(round(idx))}
+
+    @classmethod
+    def from_params(cls, params):
+        """Create a Hill function from pre-determined parameters. Useful to recreate a Hill function"""
+        instance = cls()
+        instance.params = params
+        return instance
+
+    def gradient_at(self, x: float) -> float:
+        """Return the gradient of the Hill function at a given x-value"""
+        cxd = math.pow(self.params[2]/x, self.params[3])
+        return (self.params[1] - self.params[0])*self.params[3]*cxd/(math.pow(cxd + 1, 2)*x)
+
+    def x(self, y: float) -> float:
+        """Return the x-value given a y-value"""
+        return self.params[2] * math.pow((y - self.params[0]) / (self.params[1] - y), 1 / self.params[3])
+
+    def y(self, x: float) -> float:
+        """Return the y-value given an x-value."""
+        return self.params[0] + (self.params[1] - self.params[0]) / (1 + (self.params[2]/x) ** self.params[3])
+
 
 
 def hill_func(x, a, b, c, d):  # Hill function
@@ -46,7 +84,7 @@ def deriv_hill_func(x, fit_params) -> float:
         return 0
 
 
-def infl_point_hill_func(fit_params) -> float:
+def inflection(fit_params) -> float:
     """calculates the inflection point of the Hill function.
 
         [0] : sigmoid low level
@@ -57,7 +95,7 @@ def infl_point_hill_func(fit_params) -> float:
     return fit_params[2]*math.pow((fit_params[3] - 1)/(fit_params[3] + 1), 1/fit_params[3])
 
 
-def hill_reg(xData: np.ndarray, yData: np.ndarray):
+def fit_to_hill(xData: np.ndarray, yData: np.ndarray):
     """Performs non-linear least squares regression on a Hill (sigmoid) function.
 
        Parameters
@@ -73,32 +111,5 @@ def hill_reg(xData: np.ndarray, yData: np.ndarray):
             [2] : approximate inflection point
             [3] : slope of the sigmoid
        """
-
-    def sumOfSquaredError(parameterTuple):
-        """function for genetic algorithm to minimize (sum of squared error)"""
-        warnings.filterwarnings("ignore")  # do not print warnings by genetic algorithm
-        val = hill_func(xData, *parameterTuple)
-        return np.sum((yData - val) ** 2.0)
-
-    def generate_initial_parameters(xData, yData):
-        # min and max used for bounds
-        maxX = max(xData)
-        minX = min(xData)
-        maxY = max(yData)
-
-        parameterBounds = []
-        parameterBounds.append([0, maxY])  # search bounds for a
-        parameterBounds.append([0, maxY])  # search bounds for b
-        parameterBounds.append([minX, maxX])  # search bounds for c
-        parameterBounds.append([-100, 100])  # search bounds for d
-
-        # "seed" the numpy random number generator for repeatable results
-        result = differential_evolution(sumOfSquaredError, parameterBounds, seed=3)
-        return result.x
-
-    # generate initial parameter values
-    genetic_parameters = generate_initial_parameters(xData, yData)
-
-    # curve fit the data
-    fitted_parameters, _ = curve_fit(hill_func, xData, yData, genetic_parameters)
+    fitted_parameters, _ = curve_fit(hill_func, xData, yData, p0=(min(yData), max(yData), np.median(xData), 0))
     return fitted_parameters

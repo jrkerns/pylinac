@@ -1,20 +1,19 @@
 """Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
 import enum
-from functools import lru_cache
 from typing import Union, Tuple, Sequence, List, Optional
 
 import argue
+import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
-import matplotlib.pyplot as plt
 from scipy import ndimage, signal
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 from scipy.stats import linregress
 
 from .geometry import Point, Circle
+from .hillreg import Hill
 from .typing import NumberLike
-from .hillreg import hill_reg, infl_point_hill_func
 
 
 def stretch(array: np.ndarray, min: int=0, max: int=1, fill_dtype: Optional[np.dtype]=None) -> np.ndarray:
@@ -134,98 +133,163 @@ class ProfileMixin:
         return self.values[items]
 
 
-class Fitting(enum.Enum):
+class Interpolation(enum.Enum):
+    """Interpolation Enum"""
     NONE = None
-    INTERPOLATE_LINEAR = 'interpolate-linear'
-    INTERPOLATE_SPLINE = 'interpolate-spline'
-    HILL = 'hill'
+    LINEAR = 'linear'
+    SPLINE = 'spline'
 
 
 class Normalization(enum.Enum):
+    """Normalization method Enum"""
     NONE = None
     GEOMETRIC_CENTER = 'geometric-center'
     BEAM_CENTER = 'beam-center'
     MAX = 'max'
 
 
+class Edge(enum.Enum):
+    """Edge detection Enum"""
+    FWHM = 'fwhm'
+    INFLECTION_DERIVATIVE = 'inflection-derivative'
+    INFLECTION_HILL = 'inflection-hill'
+
 
 class SingleProfile(ProfileMixin):
     """A profile that has one large signal, e.g. a radiation beam profile.
-    Signal analysis methods are given, mostly based on FWXM calculations.
+    Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
     Profiles with multiple peaks are better suited by the MultiProfile class.
     """
 
-    def __init__(self, values: np.ndarray, dpmm: float = None, fit_method=Fitting.INTERPOLATE_LINEAR,
-                 ground=True,
-                 interpolation_resolution_mm=0.1,
-                 interpolation_factor=10,
-                 normalization_method=Normalization.BEAM_CENTER):
+    def __init__(self, values: np.ndarray, dpmm: float = None,
+                 interpolation: Interpolation = Interpolation.LINEAR,
+                 ground: bool = True,
+                 interpolation_resolution_mm: float=0.1,
+                 interpolation_factor: float=10,
+                 normalization_method: Normalization = Normalization.BEAM_CENTER,
+                 edge_detection_method: Edge = Edge.FWHM,
+                 edge_smoothing_ratio: float=0.003):
         """
         Parameters
         ----------
-        values : ndarray
+        values
             The profile numpy array. Must be 1D.
+        dpmm
+            The dots (pixels) per mm. Pass to get info like beam width in distance units in addition to pixels
+        interpolation
+            Interpolation technique.
+        ground
+            Whether to ground the profile (set min value to 0). Helpful most of the time.
+        interpolation_resolution_mm
+            The resolution that the interpolation will scale to. *Only used if dpmm is passed and interpolation is set*.
+            E.g. if the dpmm is 0.5 and the resolution is set to 0.1mm the data will be interpolated to have a new dpmm of 10 (1/0.1).
+        interpolation_factor
+            The factor to multiply the data by. **Only used if interpolation is used and dpmm is NOT passed**. E.g. 10
+            will perfectly decimate the existing data according to the interpolation method passed.
+        normalization_method
+            How to pick the point to normalize the data to.
+        edge_detection_method
+            The method by which to detect the field edge. FWHM is reasonable most of the time except for FFF beams.
+            Inflection-derivative will use the max gradient to determine the field edge. Note that this may not be the
+            50% height. In fact, for FFF beams it shouldn't be. Inflection methods are better for FFF and other unusual
+            beam shapes.
+        edge_smoothing_ratio
+            The ratio of the length of the values to use as the sigma for a Gaussian filter applied before searching for
+            the inflection. E.g. 0.005 with a profile of 1000 points will result in a sigma of 5.
+            This helps make the inflection point detection more robust to noise. Increase for noisy data.
         """
-        fitted_values, dpmm, x_indices = self._fit_data_to_method(values, dpmm, interpolation_resolution_mm,
-                                                                  interpolation_factor, fit_method)
-        if ground:
-            fitted_values -= fitted_values.min()
-        norm_values = self._normalize(fitted_values, normalization_method)
-        self.values = norm_values
-        self.dpmm = dpmm
-        self.x_indices = x_indices
-        self._fit_method = fit_method
+        self._interp_method = interpolation
         self._interpolation_res = interpolation_resolution_mm
         self._interpolation_factor = interpolation_factor
         self._norm_method = normalization_method
+        self._edge_method = edge_detection_method
+        self._edge_smoothing_ratio = edge_smoothing_ratio
+        self.values = values  # set initial data so we can do things like find beam center
+        self.dpmm = dpmm
+        fitted_values, new_dpmm, x_indices = self._fit_data_to_method(values, dpmm, interpolation_resolution_mm,
+                                                                                      interpolation_factor, interpolation)
+        self.dpmm = new_dpmm  # update as needed
+        self.x_indices = x_indices
+        if ground:
+            fitted_values -= fitted_values.min()
+        norm_values = self._normalize(fitted_values, normalization_method)
+        self.values = norm_values  # update values
 
     @staticmethod
-    def _fit_data_to_method(values, dpmm, interpolation_resolution, interpolation_factor, fit_method: Fitting) -> (float, float, float):
-        # fit_method = getattr(fit_method, 'value', fit_method)
+    def _fit_data_to_method(values, dpmm, interpolation_resolution, interpolation_factor, fit_method: Interpolation) -> (float, float, float, float):
+        """Fit the data to the passed interpolation method. Will also calculate the new values to correct the measurements such as dpmm"""
+        rescale_factor = 1
         x_indices = list(range(len(values)))
-        if fit_method == Fitting.NONE:
+        if fit_method == Interpolation.NONE:
             return values, dpmm, x_indices  # do nothing
-        elif fit_method == Fitting.INTERPOLATE_LINEAR:
+        elif fit_method == Interpolation.LINEAR:
             if dpmm is not None:
                 samples = int(round(len(x_indices)/(dpmm*interpolation_resolution)))
+                new_dpmm = 1/interpolation_resolution
+                # rescale_factor = 1/(dpmm*interpolation_resolution)
             else:
                 samples = int(round(len(x_indices)*interpolation_factor))
+                new_dpmm = None
+                # rescale_factor = interpolation_factor
             f = interp1d(x_indices, values, kind='linear', bounds_error=False)
             new_x = np.linspace(0, len(x_indices)-1, num=samples)
-            return f(new_x), dpmm, new_x
-        elif fit_method == Fitting.INTERPOLATE_SPLINE:
+            return f(new_x), new_dpmm, new_x
+        elif fit_method == Interpolation.SPLINE:
             if dpmm is not None:
                 samples = int(round(len(x_indices)/(dpmm*interpolation_resolution)))
+                new_dpmm = 1 / interpolation_resolution
+                # rescale_factor = 1 / dpmm * interpolation_resolution
             else:
                 samples = int(round(len(x_indices)*interpolation_factor))
+                new_dpmm = None
+                # rescale_factor = interpolation_factor
             f = interp1d(x_indices, values, kind='cubic')
-            new_x = np.linspace(0, len(x_indices), num=samples)
-            return f(new_x), dpmm, new_x
-        elif fit_method == Fitting.HILL:
-            pass
+            new_x = np.linspace(0, len(x_indices)-1, num=samples)
+            return f(new_x), new_dpmm, new_x
 
     def _normalize(self, values, method: Normalization) -> np.ndarray:
-        # method = getattr(method, 'value', method)
+        """Normalize the data given a method."""
         if method == Normalization.NONE:
             return values
         elif method == Normalization.MAX:
             return values / values.max()
         elif method == Normalization.GEOMETRIC_CENTER:
-            return values / self._geometric_center(values)[1]
+            return values / self._geometric_center(values)['value (exact)']
+        elif method == Normalization.BEAM_CENTER:
+            return values / self.beam_center()['value (@rounded)']
 
-    @staticmethod
-    def _geometric_center(values) -> Tuple[NumberLike, NumberLike]:
+    def _geometric_center(self, values) -> dict:
         """Returns the center index and value of the profile.
 
          If the profile has an even number of values the centre lies between the two centre indices and the centre
          value is the average of the two centre values else the centre index and value are returned."""
         plen = values.shape[0]
+        # buffer overflow can cause the below addition to give strange results
+        values = values.astype(np.float64)
         if plen % 2 == 0:  # plen is even and central detectors straddle CAX
             cax = (values[int(plen / 2)] + values[int(plen / 2) - 1]) / 2.0
         else:  # plen is odd and we have a central detector
             cax = values[int((plen - 1) / 2)]
         plen = (plen - 1)/2.0
-        return plen, cax
+        return {'index (exact)': plen, 'value (exact)': cax}
+
+    def geometric_center(self) -> dict:
+        """The geometric center (i.e. the device center)"""
+        return self._geometric_center(self.values)
+
+    def beam_center(self) -> dict:
+        """The center of the detected beam. This can account for asymmetries in the beam position (e.g. offset jaws)"""
+        if self._edge_method == Edge.FWHM:
+            data = self.fwxm_data(x=50)
+            return {'index (rounded)': data['center index (rounded)'],
+                    'index (exact)': data['center index (exact)'],
+                    'value (@rounded)': data['center value (@rounded)']}
+        elif self._edge_method in (Edge.INFLECTION_DERIVATIVE, Edge.INFLECTION_HILL):
+            infl = self.inflection_data()
+            mid_point = infl['left index (exact)'] + (infl['right index (exact)'] - infl['left index (exact)']) / 2
+            return {'index (rounded)': int(round(mid_point)),
+                    'index (exact)': mid_point,
+                    'value (@rounded)': self.values[int(round(mid_point))]}
 
     @argue.bounds(x=(0, 100))
     def fwxm_data(self, x: int = 50) -> dict:
@@ -233,343 +297,343 @@ class SingleProfile(ProfileMixin):
 
         Parameters
         ----------
-        x : int
+        x
             The percent height of the profile. E.g. x = 50 is 50% height,
             i.e. FWHM.
-
-        Returns
-        -------
-        int, float
-            The width in number of elements of the FWXM.
         """
         _, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
-        left_idx = int(round(peak_props['left_ips'][0]))
-        right_idx = int(round(peak_props['right_ips'][0]))
-        fwxm_center_idx = int(round((peak_props['right_ips'][0] - peak_props['left_ips'][0]) / 2 + peak_props['left_ips'][0]))
+        left_idx = peak_props['left_ips'][0]
+        right_idx = peak_props['right_ips'][0]
+        fwxm_center_idx = ((peak_props['right_ips'][0] - peak_props['left_ips'][0]) / 2 + peak_props['left_ips'][0])
 
-        data = {'width': peak_props['widths'][0], 'center index': fwxm_center_idx,
-                'center value': self.values[fwxm_center_idx],
-                'left index': left_idx,
-                'right index': right_idx,
-                'field values': self.values[left_idx:right_idx]}
+        data = {'width (exact)': peak_props['widths'][0],
+                'width (rounded)': int(round(right_idx)) - int(round(left_idx)),
+                'center index (rounded)': int(round(fwxm_center_idx)),
+                'center index (exact)': fwxm_center_idx,
+                'center value (@rounded)': self.values[int(round(fwxm_center_idx))],
+                'left index (exact)': left_idx,
+                'left index (rounded)': int(round(left_idx)),
+                'left value (@rounded)': self.values[int(round(left_idx))],
+                'right index (exact)': right_idx,
+                'right index (rounded)': int(round(right_idx)),
+                'right value (@rounded)': self.values[int(round(right_idx))],
+                'field values': self.values[int(round(left_idx)):
+                                            int(round(right_idx))]}
         if self.dpmm:
-            data['width mm'] = data['width'] / self.dpmm
-            data['left distance mm'] = abs(data['center index'] - data['left index']) / self.dpmm
-            data['right distance mm'] = abs(data['right index'] - data['center index']) / self.dpmm
+            data['width (exact) mm'] = data['width (exact)'] / self.dpmm
+            data['left distance (exact) mm'] = abs(data['center index (exact)'] - data['left index (exact)']) / self.dpmm
+            data['right distance (exact) mm'] = abs(data['right index (exact)'] - data['center index (exact)']) / self.dpmm
+
         return data
 
-    def top(self, dist: float=25.0, interpolate=False):
-        """Return the position of the maximum value
-
-        If interpolate is True a 2nd order polynomial is fitted around the max position and the point where
-        the tangent is zero is returned"""
-
-        max_idx = np.argmax(self.values)
-        left_idx = round(max_idx - dist * self.dpmm)
-        right_idx = round(max_idx + dist * self.dpmm)
-        if (left_idx < 0) or (right_idx > self.values.shape[0]):
-            raise Exception("The peak is not well formed. Are you sure this is a FFF field?")
-        if interpolate:
-            x_data = self._indices[left_idx: right_idx]
-            y_data = self.values[left_idx: right_idx]
-            fit_params = np.polyfit(x_data, y_data, deg=2)
-            max_idx = -fit_params[1]/(2*fit_params[0])
-        return max_idx, left_idx, right_idx, fit_params
-
-    @argue.bounds(x=(0, 100), field_ratio=(0, 1.0))
-    def field_data(self, field_ratio: float=1.0, x: int=50) -> dict:
+    @argue.bounds(in_field_ratio=(0, 1.0), slope_exclusion_ratio=(0, 1.0))
+    def field_data(self, in_field_ratio: float=0.8, slope_exclusion_ratio=0.2) -> dict:
         """Return the width at X-Max, where X is the percentage height.
 
         Parameters
         ----------
-        x : int
-            The dose level of the profile. E.g. x = 50 is 50% height, 100 is the profile peak.
-            i.e. FWHM.
-        ifa : float
-            In Field Area: 1.0 is the entire field at the dose level.
-        norm : str
-            The type of normalisation to apply:
-                'max'          : normalises to the profile maximum with no grounding
-                'max grounded' : grounds each side to the profile minimum and normalises to the profile maximum
-                'cax'          : normalises to the profile centre value with no grounding
-                'cax grounded' : grounds each side to the profile minimum and normalises to the profile centre value
-            Default is 'max_grounded' as this is the intrinsic method of the scipy sgnal.find_peak function.
-        interpolate : bool
-            Whether to interpolate the profile array values to get subpixel precision.
+        in_field_ratio
+            In Field Ratio: 1.0 is the entire detected field; 0.8 would be the central 80%, etc.
+        slope_exclusion_ratio
+            Ratio of the field width to use as the cutoff between "top" calculation and "slope" calculation. Useful for FFF beams.
+            This area is centrally located in the field. E.g. 0.2 will use the central 20% of the field to calculate
+            the "top" value. To calculate the slope of each side, the field width between the edges of the in_field_ratio
+            and the slope exclusion region are used.
 
-        Returns
-        -------
-        left index, right index
-            The left and right indices of the in field area at the dose level.
+            .. warning:: The "top" value is always calculated. For FFF beams this should be reasonable, but for flat beams
+                         this value may end up being non-sensible.
         """
-        _, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
-        left = peak_props['left_ips'][0]
-        right = peak_props['right_ips'][0]
-        width = abs(right - left)
-        left_idx = int(round(left+field_ratio*width))
-        right_idx = int(round(right-field_ratio*width))
-        data = {'left index': left_idx, 'right index': right_idx,
-                'left value': self.values[left_idx], 'right value': self.values[right_idx]}
+        if slope_exclusion_ratio >= in_field_ratio:
+            raise ValueError("The exclusion region must be smaller than the field ratio")
+        if self._edge_method == Edge.FWHM:
+            data = self.fwxm_data(x=50)
+            beam_center_idx = data['center index (exact)']
+            full_width = data['width (exact)']
+
+        elif self._edge_method in (Edge.INFLECTION_DERIVATIVE, Edge.INFLECTION_HILL):
+            infl_data = self.inflection_data()
+            beam_center_idx = self.beam_center()['index (exact)']
+            full_width = infl_data['right index (exact)'] - infl_data['left index (exact)']
+        beam_center_idx_r = int(round(beam_center_idx))
+
+        cax_idx = self.geometric_center()['index (exact)']
+        cax_idx_r = int(round(cax_idx))
+
+        field_left_idx = beam_center_idx - in_field_ratio * full_width / 2
+        field_left_idx_r = int(round(field_left_idx))
+        field_right_idx = beam_center_idx + in_field_ratio * full_width / 2
+        field_right_idx_r = int(round(field_right_idx))
+        field_width = field_right_idx - field_left_idx
+
+        # slope calcs
+        inner_left_idx = beam_center_idx - slope_exclusion_ratio*field_width/2
+        inner_left_idx_r = int(round(inner_left_idx))
+        inner_right_idx = beam_center_idx + slope_exclusion_ratio*field_width/2
+        inner_right_idx_r = int(round(inner_right_idx))
+        left_fit = linregress(range(field_left_idx_r, inner_left_idx_r),
+                              self.values[field_left_idx_r:inner_left_idx_r])
+        right_fit = linregress(range(inner_right_idx_r, field_right_idx_r),
+                               self.values[inner_right_idx_r:field_right_idx_r])
+
+        # top calc
+        fit_params = np.polyfit(range(inner_left_idx_r, inner_right_idx_r),
+                                self.values[inner_left_idx_r:
+                                            inner_right_idx_r], deg=2)
+        top_vals = np.polyval(fit_params, range(inner_left_idx_r, inner_right_idx_r))
+        top_val = top_vals.max()
+        top_idx = np.argmax(top_vals) + inner_left_idx
+
+        data = {'width (exact)': field_width,
+                'beam center index (exact)': beam_center_idx,
+                'beam center index (rounded)': beam_center_idx_r,
+                'beam center value (@rounded)': self.values[int(round(beam_center_idx))],
+                'cax index (exact)': cax_idx,
+                'cax index (rounded)': cax_idx_r,
+                'cax value (@rounded)': self.values[int(round(cax_idx))],
+                'left index (exact)': field_left_idx,
+                'left index (rounded)': field_left_idx_r,
+                'left value (@rounded)': self.values[int(round(field_left_idx))],
+                'left slope': left_fit.slope,
+                'left intercept': left_fit.intercept,
+                'right slope': right_fit.slope,
+                'right intercept': right_fit.intercept,
+                'left inner index (exact)': inner_left_idx,
+                'left inner index (rounded)': inner_left_idx_r,
+                'right inner index (exact)': inner_right_idx,
+                'right inner index (rounded)': inner_right_idx_r,
+                '"top" index (exact)': top_idx,
+                '"top" index (rounded)': int(round(top_idx)),
+                '"top" value (@rounded)': top_val,
+                'top params': fit_params,
+                'right index (exact)': field_right_idx,
+                'right index (rounded)': field_right_idx_r,
+                'right value (@rounded)': self.values[int(round(field_right_idx))],
+                'field values': self.values[int(round(field_left_idx)):
+                                            int(round(field_right_idx))]}
+        if self.dpmm:
+            data['width (exact) mm'] = data['width (exact)'] / self.dpmm
+            data['left slope (%/mm)'] = data['left slope'] / self.dpmm
+            data['right slope (%/mm)'] = data['right slope'] / self.dpmm
+            data['left distance->beam center (exact) mm'] = abs(data['beam center index (exact)'] - data['left index (exact)']) / self.dpmm
+            data['right distance->beam center (exact) mm'] = abs(data['right index (exact)'] - data['beam center index (exact)']) / self.dpmm
+            data['left distance->CAX (exact) mm'] = abs(data['cax index (exact)'] - data['left index (exact)']) / self.dpmm
+            data['right distance->CAX (exact) mm'] = abs(data['cax index (exact)'] - data['right index (exact)']) / self.dpmm
+
+            data['left distance->top (exact) mm'] = abs(data['"top" index (exact)'] - data['left index (exact)']) / self.dpmm
+            data['right distance->top (exact) mm'] = abs(data['"top" index (exact)'] - data['right index (exact)']) / self.dpmm
+            data['"top"->beam center (exact) mm'] = (data['"top" index (exact)'] - data['beam center index (exact)']) / self.dpmm
+            data['"top"->CAX (exact) mm'] = abs(data['"top" index (exact)'] - data['cax index (exact)']) / self.dpmm
         return data
 
-    @argue.bounds(pen_width=(0, 200))
-    def inflection_points(self, pen_width: float=20):
-        """Calculate the profile inflection point on the given side of the penumbra.
+    def inflection_data(self, hill_window_ratio: float=0.2) -> dict:
+        """Calculate the profile inflection values using either the 2nd derivative or a fitted Hill function.
 
-        Fits a sigmoid model (Hill function) to the penumbra values.
+        .. note::
+            This only applies if the edge detection method is `INFLECTION_...`.
 
         Parameters
         ----------
-        pen_width : Penumbra width
-
-        Returns
-        -------
-        edge_idx   : index of the inflection point
-        fit_params : sigmoid model parameters
+        hill_window_ratio
+            The ratio of the field size to use as the window to fit the Hill function. E.g. 0.2 will using a window
+            centered about each edge with a width of 20% the size of the field width. **Only applies when the edge
+            detection is ``INFLECTION_HILL`` **.
         """
-        if self._fit_method != Fitting.HILL:
-            # take 2nd derivative via simple diff
-            d2 = np.gradient(np.gradient(gaussian_filter1d(self.values, sigma=3)))
-            infls = np.where(np.diff(np.sign(d2)))[0]
-        indices, values = self.penumbra_values(pen_width)
-        data['left distance mm'] = (data['center index'] - data['left index']) / self.dpmm
-        edge_idx = infl_point_hill_func(fit_params)
-        return edge_idx, fit_params
+        # get max/min of the gradient, which is basically the same as the 2nd deriv 0-crossing
+        if self._edge_method == Edge.FWHM:
+            raise ValueError("FWHM edge method does not have inflection points. Use a different edge detection method")
+        d1 = np.gradient(gaussian_filter1d(self.values, sigma=self._edge_smoothing_ratio * len(self.values)))
+        left_idx = np.argmax(d1)
+        right_idx = np.argmin(d1)
+        if self._edge_method == Edge.INFLECTION_DERIVATIVE:
+            data = {'left index (rounded)': left_idx,
+                    'left index (exact)': left_idx,
+                    'right index (rounded)': right_idx,
+                    'right index (exact)': right_idx,
+                    'left value (@rounded)': self.values[int(round(left_idx))],
+                    'left value (@exact)': self.values[int(round(left_idx))],
+                    'right value (@rounded)': self.values[int(round(right_idx))],
+                    'right value (@exact)': self.values[int(round(right_idx))]
+                    }
+            return data
+        else:  # Hill
+            # the 2nd deriv is a good approximation for the inflection point. Start there and fit Hill about it
+            penum_half_window = int(round(hill_window_ratio * abs(right_idx - left_idx) / 2))
 
-    @argue.bounds(rel_dist=(0, 1.0), pen_width=(0, 200))
-    @argue.options(side=('left', 'right'), norm=('max', 'max grounded', 'cax', 'cax grounded'), interpolate=(True, False))
-    def dose_point(self, rel_dist: float, pen_width: float=20, side: str='left', norm: str='max grounded', interpolate: bool=False):
-        """Dose value relative to CAX at 20% of field size from CAX.
+            # left side
+            x_data = np.arange(left_idx - penum_half_window, left_idx + penum_half_window)
+            y_data = self.values[left_idx - penum_half_window: left_idx + penum_half_window]
+            left_hill = Hill.fit(x_data, y_data)
+            left_infl = left_hill.inflection_idx()
 
-        Parameters
-        ----------
-        rel_dist  : Relative distance from CAX. Depends on norm
-        pen_width : Penumbra width
-        side      : 'left' or 'right' side of the profile
-        norm      : str
-            The type of normalisation to apply:
-                'max'          : normalises to the profile maximum with no grounding
-                'max grounded' : grounds each side to the profile minimum and normalises to the profile maximum
-                'cax'          : normalises to the profile centre value with no grounding
-                'cax grounded' : grounds each side to the profile minimum and normalises to the profile centre value
-            Default is 'max_grounded' as this is the intrinsic method of the scipy sgnal.find_peak function.
-        interpolate : bool
-            Whether to interpolate the profile array values to get subpixel precision.
+            # right side
+            x_data = np.arange(right_idx - penum_half_window, right_idx + penum_half_window)
+            y_data = self.values[right_idx - penum_half_window: right_idx + penum_half_window]
+            right_hill = Hill.fit(x_data, y_data)
+            right_infl = right_hill.inflection_idx()
 
-        Returns
-        -------
-        Dose value as a percentage of CAX
-        """
+            data = {'left index (rounded)': left_infl['index (rounded)'],
+                    'left index (exact)': left_infl['index (exact)'],
+                    'right index (rounded)': right_infl['index (rounded)'],
+                    'right index (exact)': right_infl['index (exact)'],
+                    'left value (@exact)': left_hill.y(left_infl['index (exact)']),
+                    'right value (@exact)': right_hill.y(right_infl['index (exact)']),
+                    'left Hill params': left_hill.params, 'right Hill params': right_hill.params}
+            return data
 
-        edge_idx = self.inflection_points(pen_width, side)[0]
-        if norm in ['max', 'max grounded']:
-            cax_idx, cax_val = self.fwxm_center(x=50, interpolate=interpolate)
-        else:
-            cax_idx, cax_val = self.geometric_center()
-        dose_idx = cax_idx + (edge_idx - cax_idx)*rel_dist
-        if interpolate:
-            ydata_f = interp1d(self._indices, self.values, kind=self.interpolation_type)
-            dose_val = ydata_f(dose_idx)
-        else:
-            dose_val = self.values[round(dose_idx)]
-        return 100 * dose_val / cax_val
-
-    @argue.bounds(lower=(0, 100), upper=(0, 100))
-    def penumbra_width(self, lower: int=20, upper: int=80) -> Tuple[float, float]:
-        """Return the penumbra width of the profile.
-
-        This is the standard "penumbra width" calculation that medical physics talks about in
-        radiation profiles. Standard is the 80/20 width, although 90/10
-        is sometimes used.
+    def penumbra(self, lower: int = 20, upper: int = 80):
+        """Calculate the penumbra of the field. Dependent on the edge detection method.
 
         Parameters
         ----------
-        lower : int
-            The "lower" penumbra value used to calculate penumbra. Must be lower than upper.
-        upper : int
-            The "upper" penumbra value used to calculate penumbra.
-
-        Raises
-        ------
-        ValueError
-            If lower penumbra is larger than upper penumbra
+        lower
+            The lower % of the beam to use. If the edge method is FWHM, this is the typical % penumbra you're thinking.
+            If the inflection method is used it will be the value/50 of the inflection point value. E.g. if the inflection
+            point is perfectly at 50% with a ``lower`` of 20, then the penumbra value here will be 20% of the maximum.
+            If the inflection point is at 30% of the max value (say for a FFF beam) then the lower penumbra will be ``lower/50``
+            of the inflection point or ``0.3*lower/50``.
+        upper
+            Upper % of the beam to use. See lower for details.
         """
         if lower > upper:
             raise ValueError("Upper penumbra value must be larger than the lower penumbra value")
+        if self._edge_method == Edge.FWHM:
+            upper_data = self.fwxm_data(x=upper)
+            lower_data = self.fwxm_data(x=lower)
+            data = {f'left {lower}% index (exact)': lower_data['left index (exact)'],
+                    f'left {lower}% value (@rounded)': lower_data['left value (@rounded)'],
+                    f'left {upper}% index (exact)': upper_data['left index (exact)'],
+                    f'left {upper}% value (@rounded)': upper_data['left value (@rounded)'],
 
-        _, upper_peak_props = find_peaks(self.values, fwxm_height=upper/100, max_number=1)
-        _, lower_peak_props = find_peaks(self.values, fwxm_height=lower/100, max_number=1)
-        left_penum = np.abs(upper_peak_props['left_ips'][0] - lower_peak_props['left_ips'][0])
-        right_penum = np.abs(upper_peak_props['right_ips'][0] - lower_peak_props['right_ips'][0])
-        return left_penum, right_penum
+                    f'right {lower}% index (exact)': lower_data['right index (exact)'],
+                    f'right {lower}% value (@rounded)': lower_data['right value (@rounded)'],
+                    f'right {upper}% index (exact)': upper_data['right index (exact)'],
+                    f'right {upper}% value (@rounded)': upper_data['right value (@rounded)'],
 
-    @argue.options(side=('left', 'right'))
-    @argue.bounds(dist=(0, 200))
-    @lru_cache()
-    def penumbra_values(self, side: str, dist: float=20.0):
-        """Returns the penumbra values around the maximum gradient
+                    'left values': self.values[lower_data['left index (rounded)']:upper_data['left index (rounded)']],
+                    'right values': self.values[upper_data['right index (rounded)']:lower_data['right index (rounded)']],
 
-        Parameters
-           side : Penumbra side 'left' or 'right'
-           dist : distance around maximum gradient to return penumbra. If dist = 0 penumbra is returned from tail
-                  to 80% field size.
-           """
-        cax_idx = self.geometric_center()[0]
-        left_edge_idx = np.argmax(np.diff(self.values[:int(cax_idx)]))
-        right_edge_idx = self.values.shape[0] - np.argmax(np.diff(np.flip(self.values[int(cax_idx):])))
-        if side == 'left':
-            if dist > 0:
-                start_idx = int(left_edge_idx - dist*self.dpmm)
-                end_idx = int(left_edge_idx + dist * self.dpmm) + 1
-            else:
-                start_idx = 0
-                end_idx = int(left_edge_idx + (right_edge_idx - left_edge_idx)*0.1)
-            if start_idx < 0:
-                start_idx = 0
-            if end_idx > cax_idx:
-                end_idx = round(cax_idx)
+                    f'left penumbra width (exact)': abs(upper_data['left index (exact)'] - lower_data['left index (exact)']),
+                    f'right penumbra width (exact)': abs(upper_data['right index (exact)'] - lower_data['right index (exact)']),
+                    }
+            if self.dpmm:
+                data['left penumbra width (exact) mm'] = data['left penumbra width (exact)'] / self.dpmm
+                data['right penumbra width (exact) mm'] = data['right penumbra width (exact)'] / self.dpmm
+            return data
+        elif self._edge_method == Edge.INFLECTION_DERIVATIVE:
+            infl_data = self.inflection_data()
+            lower_left_value = infl_data['left value (@rounded)']*lower/50*100
+            upper_left_value = infl_data['left value (@rounded)']*upper/50*100
+            upper_left_data = self.fwxm_data(x=upper_left_value)
+            lower_left_data = self.fwxm_data(x=lower_left_value)
+
+            lower_right_value = infl_data['right value (@exact)']*lower/50*100
+            upper_right_value = infl_data['right value (@exact)']*upper/50*100
+            upper_right_data = self.fwxm_data(x=upper_right_value)
+            lower_right_data = self.fwxm_data(x=lower_right_value)
+
+            data = {f'left {lower}% index (exact)': lower_left_data['left index (exact)'],
+                    f'left {upper}% index (exact)': upper_left_data['left index (exact)'],
+
+                    f'right {lower}% index (exact)': lower_right_data['right index (exact)'],
+                    f'right {upper}% index (exact)': upper_right_data['right index (exact)'],
+
+                    'left values': self.values[lower_left_data['left index (rounded)']:upper_left_data['left index (rounded)']],
+                    'right values': self.values[upper_right_data['right index (rounded)']:lower_right_data['right index (rounded)']],
+
+                    f'left penumbra width (exact)': abs(upper_left_data['left index (exact)'] - lower_left_data['left index (exact)']),
+                    f'right penumbra width (exact)': abs(upper_right_data['right index (exact)'] - lower_right_data['right index (exact)']),
+                    }
+            if self.dpmm:
+                data['left penumbra width (exact) mm'] = data['left penumbra width (exact)'] / self.dpmm
+                data['right penumbra width (exact) mm'] = data['right penumbra width (exact)'] / self.dpmm
+            return data
+        elif self._edge_method == Edge.INFLECTION_HILL:
+            infl_data = self.inflection_data()
+            left_hill = Hill.from_params(infl_data['left Hill params'])
+            right_hill = Hill.from_params(infl_data['right Hill params'])
+
+            lower_left_value = infl_data['left value (@exact)']*lower/50
+            lower_left_index = left_hill.x(lower_left_value)
+            upper_left_value = infl_data['left value (@exact)']*upper/50
+            upper_left_index = left_hill.x(upper_left_value)
+
+            lower_right_value = infl_data['right value (@exact)']*lower/50
+            lower_right_index = right_hill.x(lower_right_value)
+            upper_right_value = infl_data['right value (@exact)']*upper/50
+            upper_right_index = right_hill.x(upper_right_value)
+
+            data = {f'left {lower}% index (exact)': lower_left_index,
+                    f'left {lower}% value (exact)': lower_left_value,
+                    f'left {upper}% index (exact)': upper_left_index,
+                    f'left {upper}% value (exact)': upper_left_value,
+
+                    f'right {lower}% index (exact)': lower_right_index,
+                    f'right {lower}% value (exact)': lower_right_value,
+                    f'right {upper}% index (exact)': upper_right_index,
+                    f'right {upper}% value (exact)': upper_right_value,
+
+                    'left values': self.values[int(round(lower_left_index)):int(round(upper_left_index))],
+                    'right values': self.values[int(round(upper_right_index)):int(round(lower_right_index))],
+
+                    f'left penumbra width (exact)': abs(upper_left_index - lower_left_index),
+                    f'right penumbra width (exact)': abs(upper_right_index - lower_right_index),
+
+                    f'left gradient (exact)': left_hill.gradient_at(infl_data['left index (exact)']),
+                    r'right gradient (exact)': right_hill.gradient_at(infl_data['right index (exact)']),
+                    }
+            if self.dpmm:
+                data['left penumbra width (exact) mm'] = data['left penumbra width (exact)'] / self.dpmm
+                data['left gradient (exact) %/mm'] = data['left gradient (exact)'] / self.dpmm
+                data['right penumbra width (exact) mm'] = data['right penumbra width (exact)'] / self.dpmm
+                data['right gradient (exact) %/mm'] = data['right gradient (exact)'] / self.dpmm
+            return data
+
+    def field_value(self, dist_from_cax: Optional[float] = None, ratio_from_cax: Optional[float] = None) -> dict:
+        """Return the value at a given distance from the CAX"""
+        if self.dpmm is None and dist_from_cax is not None:
+            raise ValueError("The dpmm must be set to get a value at a certain distance away")
+        if dist_from_cax is not None and ratio_from_cax is not None:
+            raise ValueError("Can only specify one distance parameter. Use EITHER dist* or ratio*")
+        if ratio_from_cax:
+            ratio = ratio_from_cax
         else:
-            if dist > 0:
-                start_idx = int(right_edge_idx - dist*self.dpmm)  # take profile values around right edge
-                end_idx = int(right_edge_idx + dist * self.dpmm) + 1
-            else:
-                start_idx = int(right_edge_idx - (right_edge_idx - left_edge_idx)*0.1)
-                end_idx = self.values.shape[0]
-            if start_idx < cax_idx:
-                start_idx = round(cax_idx)
-            if end_idx > self.values.shape[0]:
-                end_idx = self.values.shape[0]
-
-        values = self.values[start_idx: end_idx]
-        indices = self._indices[start_idx: end_idx]
-        return indices, values
-
-    def infield_slope(self,  field_width: float=0.8, side: str='left', dist: float=25.0):
-        """Calculate the slope of the in field area (IFA)
-
-        Parameters
-        ----------
-        field_width : proportion of the field size (FWHM) to use
-        side : profile side 'left' or 'right'
-        dist : distance to exclude peak of FFF field
-
-        Returns
-        -------
-        Slope, Intercept : of straight line equation y= mx + c where m = slope and c = intercept
-        """
-
-        x_data, y_data = self.infield_values(field_width, side, dist)
-        result = linregress(x_data, y_data)
-        return result.slope, result.intercept
-
-    @argue.options(side=('left', 'right'))
-    @argue.bounds(field_width=(0, 1), dist=(0, 400))
-    def infield_values(self, field_width: float=0.8, side: str='left', dist: float=25.0) -> np.ndarray:
-        """Return a subarray of the values in the in field area (IFA)
-
-        Parameters
-        ----------
-        field_width : proportion of the field size (FWHM) to use
-        side : profile side 'left' or 'right'
-        dist : distance to exclude peak of FFF field
-
-        Returns
-        -------
-        ndarray
-        """
-        left, right = self.field_edges(field_width)
-        if side == 'left':
-            right = round(self.geometric_center()[0] - dist * self.dpmm)
-        else:
-            left = round(self.geometric_center()[0] + dist * self.dpmm)
-        if left >= right:
-            raise Exception('The field size is not large enough to calculate the slope of the in field area.')
-        values = self.values[left: right]
-        indices = self._indices[left: right]
-        return indices, values
-
-    @argue.bounds(field_width=(0, 1))
-    def field_values(self, field_width: float=0.8) -> np.ndarray:
-        """Return a subarray of the values of the profile for the given field width.
-        This is helpful for doing, e.g., flatness or symmetry calculations, where you
-        want to calculate something over the field, not the whole profile.
-
-        Parameters
-        ----------
-        field_width : float
-            The field width of the profile, based on the fwhm. Must be between 0 and 1.
-
-        Returns
-        -------
-        ndarray
-        """
-        left, right = self.field_edges(field_width)
-        field_values = self.values[left:right]
-        return field_values
-
-    @argue.bounds(field_width=(0, 1))
-    def field_edges_deprecated(self, field_width: float=0.8, interpolate: bool=False) -> Tuple[NumberLike, NumberLike]:
-        """Return the indices of the field width edges, based on the FWHM.
-
-        See Also
-        --------
-        field_values() : Further parameter info.
-
-        Returns
-        -------
-        left_index, right_index
-        """
-        fwhmc, _ = self.fwxm_center(interpolate=interpolate)
-        field_width *= self.fwxm_data()
-        if interpolate:
-            left = fwhmc - (field_width / 2)
-            right = fwhmc + (field_width / 2)
-        else:
-            left = int(round(fwhmc - field_width / 2))
-            right = int(round(fwhmc + field_width / 2))
-        return left, right
+            ratio = dist_from_cax / self.field_data(in_field_ratio=1.0, slope_exclusion_ratio=0.01)['width (exact) mm']
+        return {'left': self.field_data(in_field_ratio=ratio, slope_exclusion_ratio=ratio/2)['left value (@rounded)'],
+                'right': self.field_data(in_field_ratio=ratio, slope_exclusion_ratio=ratio/2)['right value (@rounded)']}
 
     @argue.options(calculation=('mean', 'median', 'max', 'min', 'area'))
-    def field_calculation(self, field_width: float=0.8, calculation: str='mean') -> Union[float, Tuple[float, float]]:
+    def field_calculation(self, in_field_ratio: float=0.8, calculation: str='mean') -> Union[float, Tuple[float, float]]:
         """Perform an operation on the field values of the profile.
         This function is useful for determining field symmetry and flatness.
 
         Parameters
         ----------
+        in_field_ratio
+            Ratio of the field width to use in the calculation.
         calculation : {'mean', 'median', 'max', 'min', 'area'}
             Calculation to perform on the field values.
-
-        Returns
-        -------
-        float
-
-        See Also
-        --------
-        field_values() : Further parameter info.
         """
-        field_values = self.field_values(field_width)
+        field_values = self.field_data(in_field_ratio)
 
         if calculation == 'mean':
-            return field_values.mean()
+            return field_values['field values'].mean()
         elif calculation == 'median':
-            return np.median(field_values)
+            return np.median(field_values['field values'])
         elif calculation == 'max':
-            return field_values.max()
+            return field_values['field values'].max()
         elif calculation == 'min':
-            return field_values.min()
-        elif calculation == 'area':
-            cax, _ = self.fwxm_center()
-            lt_area = field_values[:cax+1]
-            rt_area = field_values[cax:]
-            return lt_area, rt_area
+            return field_values['field values'].min()
 
     def plot(self, x: int=50) -> None:
         """Plot the profile."""
-        peak_idx, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
+        # peak_idx, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
         plt.plot(self.values)
-        plt.plot(peak_idx, peak_props['peak_heights'][0], marker=7, color="green")
-        plt.vlines(peak_idx, ymin=peak_props['peak_heights'][0]-peak_props['prominences'][0], ymax=peak_props['peak_heights'][0], color="red")
-        plt.hlines(peak_props['width_heights'][0], xmin=peak_props['left_ips'], xmax=peak_props['right_ips'], color="red")
+        # plt.plot(self.field_data())
+        # plt.plot(self.penumbra(20, 80)['left index (rounded)'], self.penumbra(20, 80)['left values'])
+
+        # plt.plot(peak_idx, peak_props['peak_heights'][0], marker=7, color="green")
+        # plt.vlines(peak_idx, ymin=peak_props['peak_heights'][0]-peak_props['prominences'][0], ymax=peak_props['peak_heights'][0], color="red")
+        # plt.hlines(peak_props['width_heights'][0], xmin=peak_props['left_ips'], xmax=peak_props['right_ips'], color="red")
         plt.show()
 
 
@@ -621,7 +685,7 @@ class MultiProfile(ProfileMixin):
         ax.plot(valley_x, valley_y, "r^")
 
     def find_peaks(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05, max_number: int=None,
-                   search_region: Tuple=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
+                   search_region: Tuple=(0.0, 1.0), peak_sort='prominences') -> Tuple[np.ndarray, np.ndarray]:
         """Find the peaks of the profile using a simple maximum value search. This also sets the `peaks` attribute.
 
         Parameters
@@ -651,7 +715,7 @@ class MultiProfile(ProfileMixin):
             The indices and values of the peaks.
         """
         peak_idxs, peak_props = find_peaks(self.values, threshold=threshold, peak_separation=min_distance, max_number=max_number,
-                                           search_region=search_region)
+                                           search_region=search_region, peak_sort=peak_sort)
         self.peaks = [Point(value=peak_val, idx=peak_idx) for peak_idx, peak_val in zip(peak_idxs, peak_props['peak_heights'])]
 
         return peak_idxs, peak_props['peak_heights']
@@ -952,7 +1016,7 @@ class CollapsedCircleProfile(CircleProfile):
 
 def find_peaks(values: np.ndarray, threshold: Union[float, int] = -np.inf, peak_separation: Union[float, int] = 0,
                max_number: int = None, fwxm_height: float = 0.5, min_width: int = 0,
-               search_region: Tuple[float, float] = (0.0, 1.0)) \
+               search_region: Tuple[float, float] = (0.0, 1.0), peak_sort='prominences') \
         -> Tuple[np.ndarray, dict]:
     """Find the peaks of a 1D signal. Heavily relies on the scipy implementation.
 
@@ -999,7 +1063,7 @@ def find_peaks(values: np.ndarray, threshold: Union[float, int] = -np.inf, peak_
     peak_idxs += shift_amount  # shift according to the search region left edge
 
     # get the "largest" peaks up to max number, and then re-sort to be left->right like it was originally
-    largest_peak_idxs = sorted(list(np.argsort(peak_props['prominences']))[::-1][:max_number])
+    largest_peak_idxs = sorted(list(np.argsort(peak_props[peak_sort]))[::-1][:max_number])
 
     # cut down prop arrays as need be
     for key, array_vals in peak_props.items():

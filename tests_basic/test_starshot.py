@@ -88,10 +88,10 @@ class StarMixin(LocationMixin):
     def test_wobble_center(self):
         """Test that the center of the wobble circle is close to what it's shown to be."""
         # test y-coordinate
-        y_coord = self.star.wobble.geometric_center.y
+        y_coord = self.star.wobble.center.y
         self.assertAlmostEqual(y_coord, self.wobble_center.y, delta=3)
         # test x-coordinate
-        x_coord = self.star.wobble.geometric_center.x
+        x_coord = self.star.wobble.center.x
         self.assertAlmostEqual(x_coord, self.wobble_center.x, delta=3)
 
     def test_num_rad_lines(self):

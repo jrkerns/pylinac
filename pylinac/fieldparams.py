@@ -2,500 +2,281 @@
 
    Adapted from FlatSym by Alan Chamberlain
    """
-
+import enum
 import io
 import os.path as osp
+from math import floor, ceil
 from typing import Union, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac.core.utilities import open_path
+from . import __version__
+from .core import image, pdf
 from .core.exceptions import NotAnalyzed
+from .core.geometry import Rectangle
 from .core.io import retrieve_demo_file
-from .core import image
-from .core.profile import SingleProfile
-from .core import pdf
+from .core.profile import SingleProfile, Edge, Interpolation, Normalization
 from .settings import get_dicom_cmap
-from .core.hillreg import hill_reg, hill_func, inv_hill_func, deriv_hill_func
-
-interpolate: bool = True
-norm: str = 'max grounded'               # one of 'cax', 'max', 'cax grounded', 'max grounded'
-pen_width: float = 20                    # penumbra width for sigmoid analysis
-
-# ----------------------------------------------------------------------------------------------------------------------
-# Parameter functions. Each parameter defined in a protocol list must have an associated parameter function that
-# returns the value of the parameter.
-# ----------------------------------------------------------------------------------------------------------------------
-
-
-# Field edge parameters ------------------------------------------------------------------------------------------------
-def left_edge_50(profile: SingleProfile, *args) -> float:
-    """Return the position of the 50% of max dose value on the left of the profile."""
-    left_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[0] - profile.geometric_center()[0]) / profile.dpmm
-    return left_edge
-
-
-def right_edge_50(profile: SingleProfile, *args):
-    """Return the position of the 50% of max dose value on the right of the profile."""
-    right_edge = abs(profile.field_edges(1.0, 50, norm, interpolate)[1] - profile.geometric_center()[0]) / profile.dpmm
-    return right_edge
-
-
-def left_edge_infl(profile: SingleProfile, *args):
-    """Return the position of the inflection point on the left of the profile."""
-    left_edge_idx = profile.inflection_points(pen_width, 'left')[0]
-    left_edge = abs(left_edge_idx - profile.geometric_center()[0]) / profile.dpmm
-    return left_edge
-
-
-def right_edge_infl(profile: SingleProfile, *args):
-    """Return the position of the inflection point on the right of the profile."""
-    right_edge_idx = profile.inflection_points(pen_width, 'right')[0]
-    right_edge = abs(right_edge_idx - profile.geometric_center()[0]) / profile.dpmm
-    return right_edge
-
-
-# Field size parameters ------------------------------------------------------------------------------------------------
-def field_size_50(profile: SingleProfile, *args):
-    """Return the field size at 50% of max dose. Not affected by the normalisation mode.
-
-       Included for testing purposes"""
-    return profile.fwxm_data(50) / profile.dpmm
-
-
-def field_size_edge_50(profile: SingleProfile, *args):
-    """Return the field size at 50% of max dose."""
-    return right_edge_50(profile) + left_edge_50(profile)
-
-
-def field_size_edge_infl(profile: SingleProfile, *args):
-    """Return the field size at 50% of max dose."""
-    return right_edge_infl(profile) + left_edge_infl(profile)
-
-
-# Field centre parameters ----------------------------------------------------------------------------------------------
-def field_center_fwhm(profile: SingleProfile, *args):
-    """Field center as given by the center of the profile FWHM. Not affected by the normalisation mode.
-
-       Included for testing purposes."""
-    field_center = (profile.fwxm_center(50, interpolate)[0] - profile.geometric_center()[0]) / profile.dpmm
-    return field_center
-
-
-def field_center_edge_50(profile: SingleProfile, *args):
-    """Calculates the field center from the 50 dose max field edges. May be different from the field_center_fwxm."""
-    return (right_edge_50(profile) - left_edge_50(profile))/2
-
-
-def field_center_edge_infl(profile: SingleProfile, *args):
-    """Calculates the field center from the inflection point field edges. May be different from the field_center_fwxm."""
-    return (right_edge_infl(profile) - left_edge_infl(profile))/2
-
-
-def field_center_infield_slope(profile: SingleProfile, *args):
-    """Calculates the peak of a FFF field according to the intersection of the left and right in-field slope"""
-    slope_left, interc_left = profile.infield_slope(0.8,'left', 25.0)
-    slope_right, interc_right = profile.infield_slope(0.8, 'right', 25.0)
-    return ((interc_right - interc_left) / (slope_left - slope_right) - profile.geometric_center()[0]) / profile.dpmm
-
-
-def field_top(profile:SingleProfile, *args):
-    """Calculates the position of the profile maximum"""
-    return (profile.top(dist=25.0, interpolate=interpolate)[0] - profile.geometric_center()[0]) / profile.dpmm
-
-
-# Field penumbra parameters --------------------------------------------------------------------------------------------
-def penumbra_left_80_20(profile: SingleProfile, *args):
-    """Return the distance between the 80% and 20% max dose values on the left side of the profile."""
-    left_penum = abs(profile.field_edges(1.0, 80, norm, interpolate)[0]
-                     - profile.field_edges(1.0, 20, norm, interpolate)[0])/profile.dpmm
-    return left_penum
-
-
-def penumbra_right_80_20(profile: SingleProfile, *args):
-    """Return the distance between the 80% and 20% max dose values on the right side of the profile."""
-    right_penum = abs(profile.field_edges(1.0, 80, norm, interpolate)[1]
-                      - profile.field_edges(1.0, 20, norm, interpolate)[1])/profile.dpmm
-    return right_penum
-
-
-def penumbra_left_infl(profile: SingleProfile, *args):
-    """Left penumbra value.
-
-    Returns the distance between the locations where the dose equals 0.4 times the dose at the inflection point
-    and 1.6 times that dose on the left side of the profile."""
-    infl_idx, fit_params = profile.inflection_points(pen_width, 'left')
-    infl_val = hill_func(infl_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
-    upper_idx = inv_hill_func(infl_val*1.6, fit_params)
-    lower_idx = inv_hill_func(infl_val*0.4, fit_params)
-    left_penum = abs(upper_idx - lower_idx)/profile.dpmm
-    return left_penum
-
-
-def penumbra_right_infl(profile: SingleProfile, *args):
-    """Right penumbra value.
-
-    Returns  the distance between the locations where the dose equals 0.4 times the dose at the inflection point
-    and 1.6 times that dose on the right side of the profile."""
-    infl_idx, fit_params = profile.inflection_points(pen_width, 'right')
-    infl_val = hill_func(infl_idx, fit_params[0], fit_params[1], fit_params[2], fit_params[3])
-    upper_idx = inv_hill_func(infl_val*1.6, fit_params)
-    lower_idx = inv_hill_func(infl_val*0.4, fit_params)
-    right_penum = abs(upper_idx - lower_idx)/profile.dpmm
-    return right_penum
-
-
-def penumbra_slope_left_infl(profile: SingleProfile, *args):
-    """Slope at the inflection point on the left penumbra"""
-    if norm in ['max', 'max grounded']:
-        cax_val = profile.values.max()
-    else:
-        _, cax_val = profile.fwxm_center()
-    left_edge_idx, fit_params = profile.inflection_points(pen_width, 'left')
-    inf_slope = 100*deriv_hill_func(left_edge_idx, fit_params)*profile.dpmm/cax_val
-    return inf_slope
-
-
-def penumbra_slope_right_infl(profile: SingleProfile, *args):
-    """Slope at the inflection point on the right penumbra"""
-    if norm in ['max', 'max grounded']:
-        cax_val = profile.values.max()
-    else:
-        _, cax_val = profile.fwxm_center()
-    right_edge_idx, fit_params = profile.inflection_points(pen_width, 'right')
-    inf_slope = 100*deriv_hill_func(right_edge_idx, fit_params)*profile.dpmm/cax_val
-    return inf_slope
-
-
-def infield_slope_left(profile: SingleProfile, *args):
-    if norm in ['max', 'max grounded']:
-        cax_val = profile.values.max()
-    else:
-        _, cax_val = profile.fwxm_center()
-    return 100*profile.infield_slope(0.8, 'left', 25.0)[0]*profile.dpmm/cax_val
-
-
-def infield_slope_right(profile: SingleProfile, *args):
-    if norm in ['max', 'max grounded']:
-        cax_val = profile.values.max()
-    else:
-        _, cax_val = profile.fwxm_center()
-    return 100*profile.infield_slope(0.8, 'right', 25.0)[0]*profile.dpmm/cax_val
-
-
-# Dose point values ----------------------------------------------------------------------------------------------------
-def dose_point_left_20(profile: SingleProfile, *args):
-    """Dose value relative to CAX at 20% of field size from CAX"""
-    return profile.dose_point(rel_dist=0.2, pen_width=20, side='left', norm=norm, interpolate=interpolate)
-
-
-def dose_point_right_20(profile: SingleProfile, *args):
-    """Dose value relative to CAX at 20% of field size from CAX"""
-    return profile.dose_point(rel_dist=0.2, pen_width=20, side='right', norm=norm, interpolate=interpolate)
-
-
-def dose_point_left_50(profile: SingleProfile, *args):
-    """Dose value relative to CAX at 20% of field size from CAX"""
-    return profile.dose_point(rel_dist=0.5, pen_width=20, side='left', norm=norm, interpolate=interpolate)
-
-
-def dose_point_right_50(profile: SingleProfile, *args):
-    """Dose value relative to CAX at 20% of field size from CAX"""
-    return profile.dose_point(rel_dist=0.5, pen_width=20, side='right', norm=norm, interpolate=interpolate)
-
-
-def dose_point_left_80(profile: SingleProfile, *args):
-    """Dose value relative to CAX at 20% of field size from CAX"""
-    return profile.dose_point(rel_dist=0.8, pen_width=20, side='left', norm=norm, interpolate=interpolate)
-
-
-def dose_point_right_80(profile: SingleProfile, *args):
-    """Dose value relative to CAX at 20% of field size from CAX"""
-    return profile.dose_point(rel_dist=0.8, pen_width=20, side='right', norm=norm, interpolate=interpolate)
 
 
 # Field flatness parameters --------------------------------------------------------------------------------------------
-def flatness_dose_difference(profile: SingleProfile, ifa: float=0.8):
+def flatness_dose_difference(profile: SingleProfile, ifa: float = 0.8, **kwargs):
     """The Varian specification for calculating flatness."""
     try:
-        dmax = profile.field_calculation(field_width=ifa, calculation='max')
-        dmin = profile.field_calculation(field_width=ifa, calculation='min')
-    except ValueError:
-        raise ValueError("An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
-    flatness = 100 * abs(dmax - dmin)/(dmax + dmin)
+        dmax = profile.field_calculation(in_field_ratio=ifa)
+        dmin = profile.field_calculation(in_field_ratio=ifa)
+    except IOError:
+        raise ValueError(
+            "An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
+    flatness = 100 * abs(dmax - dmin) / (dmax + dmin)
     return flatness
 
 
-def flatness_dose_ratio(profile: SingleProfile, ifa: float=0.8):
+def flatness_dose_ratio(profile: SingleProfile, ifa: float = 0.8, **kwargs):
     """The Elekta specification for calculating flatness."""
     try:
-        dmax = profile.field_calculation(field_width=ifa, calculation='max')
-        dmin = profile.field_calculation(field_width=ifa, calculation='min')
+        dmax = profile.field_calculation(in_field_ratio=ifa, calculation='max')
+        dmin = profile.field_calculation(in_field_ratio=ifa, calculation='min')
     except ValueError:
-        raise ValueError("An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
-    flatness = 100 * (dmax/dmin)
+        raise ValueError(
+            "An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
+    flatness = 100 * (dmax / dmin)
     return flatness
+
+
+def plot_flatness(instance, profile: SingleProfile, axis: plt.Axes):
+    """Plot flatness parameters"""
+    data = profile.field_data(in_field_ratio=instance._in_field_ratio)
+    axis.axhline(np.max(data['field values']), color='g', linestyle='-.', label='Flatness region')
+    axis.axhline(np.min(data['field values']), color='g', linestyle='-.')
 
 
 # Field symmetry parameters --------------------------------------------------------------------------------------------
-def symmetry_point_difference(profile: SingleProfile, ifa: float=0.8):
-    """Calculation of symmetry by way of point difference equidistant from the CAX.
+def symmetry_point_difference(profile: SingleProfile, in_field_ratio: float, **kwargs) -> float:
+    """Calculation of symmetry by way of point difference equidistant from the CAX."""
+    field = profile.field_data(in_field_ratio=in_field_ratio)
+    field_values = field['field values']
+    cax_value = field['beam center value (@rounded)']
 
-    Field calculation is automatically centered."""
-    values = profile.field_values(field_width=ifa)
-    if norm in ['max', 'max grounded']:
-        _, cax_val = profile.fwxm_center()
-    else:
-        _, cax_val = profile.geometric_center()
-    sym_array = []
-    for lt_pt, rt_pt in zip(values, values[::-1]):
-        val = 100 * abs(lt_pt - rt_pt) / cax_val
-        sym_array.append(val)
-    symmetry = max(sym_array)
-    return symmetry
+    def calc_sym(lt, rt, cax) -> float:
+        return 100 * abs(lt - rt) / cax
+
+    return max(calc_sym(lt, rt, cax_value) for lt, rt in zip(field_values, field_values[::-1]))
 
 
-def symmetry_pdq_iec(profile: SingleProfile, ifa: float = 0.8):
+def plot_symmetry_point_difference(instance, profile: SingleProfile, axis: plt.Axes) -> None:
+    """Calculation of symmetry by way of point difference equidistant from the CAX."""
+
+    def calc_sym(lt, rt, cax) -> float:
+        return 100 * abs(lt - rt) / cax
+
+    _plot_sym_common(instance, calc_sym, profile, axis, label='Symmetry (%)', padding=(5, 0.5))
+
+
+def _plot_sym_common(instance, calc_func, profile, axis, label: str, padding: tuple):
+    field = profile.field_data(in_field_ratio=instance._in_field_ratio)
+    field_values = field['field values']
+    left_idx = field['left index (rounded)']
+    right_idx = field['right index (rounded)']
+    cax_value = field['beam center value (@rounded)']
+
+    # same calc as PDQ and point difference, except we find the INDEX where the symmetry is maximum
+    sym_values = [calc_func(lt, rt, cax_value) for lt, rt, _ in zip(field_values, field_values[::-1], range(int(round(len(field_values)/2))))]
+
+    idx = np.argmax(sym_values)
+    axis.plot(field['left index (rounded)']+idx, profile.values[field['left index (rounded)']+idx], '*', color='red', label='Symmetry max')
+    axis.plot(field['right index (rounded)']-idx, profile.values[field['right index (rounded)']-idx], '*', color='red')
+    sec_ax = axis.twinx()
+    sec_ax.set_ylabel(label)
+
+    # squish the secondary graph so it's not so large-looking
+    ylim_top = max(sym_values) + padding[0]
+    ylim_bottom = min(sym_values) - padding[1]
+    sec_ax.set_ylim(ylim_bottom, ylim_top)
+    left_end = int(round(left_idx+(right_idx-left_idx)/2))
+    sec_ax.plot(range(left_end, left_end + len(sym_values)), sym_values[::-1])
+
+
+def plot_symmetry_pdq(instance, profile: SingleProfile, axis: plt.Axes) -> None:
+    """Calculation of symmetry by way of point difference equidistant from the CAX."""
+
+    def calc_sym(lt, rt, _) -> float:
+        return max(abs(lt / rt), abs(rt / lt))
+
+    _plot_sym_common(instance, calc_sym, profile, axis, label='Symmetry (AU)', padding=(0.05, 0.01))
+
+
+def symmetry_pdq_iec(profile: SingleProfile, in_field_ratio: float, **kwargs):
     """Symmetry calculation by way of PDQ IEC. Field calculation is automatically centered."""
-    values = profile.field_values(field_width=ifa)
-    max_val = 0
-    for lt_pt, rt_pt in zip(values, values[::-1]):
-        val = max(abs(lt_pt / rt_pt), abs(rt_pt / lt_pt))
-        if val > max_val:
-            max_val = val
-    symmetry = 100 * max_val
-    return symmetry
+    field = profile.field_data(in_field_ratio=in_field_ratio)
+    field_values = field['field values']
+
+    def calc_sym(lt, rt) -> float:
+        return max(abs(lt / rt), abs(rt / lt))
+
+    return max(calc_sym(lt, rt) for lt, rt in zip(field_values, field_values[::-1]))
 
 
-def symmetry_area(profile: SingleProfile, ifa: float = 0.8):
+def symmetry_area(profile: SingleProfile, in_field_ratio: float, **kwargs):
     """Ratio of the area under the left and right profile segments. Field is automatically centered."""
-    values = profile.field_values(field_width=ifa)
-    plen = len(values)
-    cax_idx = round((plen - 1)/2)
-    if plen % 2 == 0:                         # even number of values, CAX is straddled by centre values.
-        area_left = np.sum(values[:cax_idx])
-        area_right = np.sum(values[cax_idx:])
-    else:                                     # include centre value on CAX
-        area_left = np.sum(values[:cax_idx + 1])
-        area_right = np.sum(values[cax_idx:])
-    symmetry = 100*abs(area_left - area_right)/(area_left + area_right)
+    data = profile.field_data(in_field_ratio=in_field_ratio)
+    cax_idx = data['beam center index (exact)'] - data['left index (exact)']
+    area_left = np.sum(data['field values'][:floor(cax_idx)])
+    area_right = np.sum(data['field values'][ceil(cax_idx):])
+    symmetry = 100 * abs(area_left - area_right) / (area_left + area_right)
     return symmetry
 
 
-# Field deviation parameters -------------------------------------------------------------------------------------------
-def deviation_diff(profile: SingleProfile, ifa: float = 0.8):
-    """Difference between the minimum and maximum."""
-    if norm in ['max', 'max grounded']:
-        _, cax_val = profile.fwxm_center()
-    else:
-        _, cax_val = profile.geometric_center()
-    try:
-        dmax = profile.field_calculation(field_width=ifa, calculation='max')
-        dmin = profile.field_calculation(field_width=ifa, calculation='min')
-    except ValueError:
-        raise ValueError("An error was encountered in the deviation calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
-    deviation = 100*(dmax - dmin)/cax_val
-    return deviation
+def plot_symmetry_area(instance, profile, axis):
+    data = profile.field_data(in_field_ratio=instance._in_field_ratio)
+    cax_idx = data['beam center index (exact)']
+    left_idx = data['left index (rounded)']
+    right_idx = data['right index (rounded)']
+
+    axis.fill_between(range(left_idx, floor(cax_idx)), data['field values'][:floor(cax_idx)-left_idx], color='green', alpha=0.1, label='Left Area')
+    axis.fill_between(range(ceil(cax_idx), right_idx), data['field values'][ceil(cax_idx)-left_idx:], color='slateblue', alpha=0.1, label='Right Area')
 
 
-def deviation_max(profile: SingleProfile, ifa: float = 0.8):
-    """Maximum deviation."""
-    if norm in ['max', 'max grounded']:
-        _, cax_val = profile.fwxm_center()
-    else:
-        _, cax_val = profile.geometric_center()
-    try:
-        dmax = profile.field_calculation(field_width=ifa, calculation='max')
-    except ValueError:
-        raise ValueError("An error was encountered in the deviation calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert().")
-    deviation = 100*dmax/cax_val
-    return deviation
+# VARIAN = {
+    # 'left edge 50%: {:.1f} mm': left_edge_50,
+    # 'right edge 50%: {:.1f} mm': right_edge_50,
+    # 'field size: {:.1f} mm': field_size_edge_50,
+    # 'field center: {:.1f} mm': field_center_edge_50,
+    # 'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+    # 'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+#     'flatness: {:.2f} %': flatness_dose_difference,
+#     'symmetry: {:.2f} %': symmetry_point_difference,
+# }
 
+# FLATSYM_VARIAN = {
+#     'left edge 50%: {:.1f} mm': left_edge_50,
+#     'right edge 50%: {:.1f} mm': right_edge_50,
+#     'field size: {:.1f} mm': field_size_50,
+#     'field center: {:.1f} mm': field_center_fwhm,
+#     'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+#     'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+#     'flatness: {:.2f} %': flatness_dose_difference,
+#     'symmetry: {:.2f} %': symmetry_point_difference,
+# }
+#
+# ELEKTA = {
+#     'left edge 50%: {:.1f} mm': left_edge_50,
+#     'right edge 50%: {:.1f} mm': right_edge_50,
+#     'field size: {:.1f} mm': field_size_50,
+#     'field center: {:.1f} mm': field_center_fwhm,
+#     'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+#     'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+#     'flatness: {:.2f} %': flatness_dose_ratio,
+#     'symmetry: {:.2f} %': symmetry_pdq_iec,
+#     # 'deviation diff: {:.2f} %': deviation_diff
+# }
+#
+# SIEMENS = {
+#     'left edge 50%: {:.1f} mm': left_edge_50,
+#     'right edge 50%: {:.1f} mm': right_edge_50,
+#     'field size: {:.1f} mm': field_size_50,
+#     'field center: {:.1f} mm': field_center_fwhm,
+#     'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+#     'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+#     'flatness: {:.2f} %': flatness_dose_difference,
+#     'symmetry: {:.2f} %': symmetry_area,
+#     # 'deviation max: {:.2f} %': deviation_max
+# }
+#
+# VOM80 = {
+#     'left edge 50%: {:.1f} mm': left_edge_50,
+#     'right edge 50%: {:.1f} mm': right_edge_50,
+#     'field size: {:.1f} mm': field_size_50,
+#     'field center: {:.1f} mm': field_center_fwhm,
+#     'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+#     'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+#     'flatness: {:.2f} %': flatness_dose_difference
+# }
+#
+# IEC9076 = {
+#     'left edge 50%: {:.1f} mm': left_edge_50,
+#     'right edge 50%: {:.1f} mm': right_edge_50,
+#     'field size: {:.1f} mm': field_size_50,
+#     'field center: {:.1f} mm': field_center_fwhm,
+#     'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+#     'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+#     'flatness: {:.2f} %': flatness_dose_ratio,
+#     'symmetry: {:.2f} %': symmetry_pdq_iec,
+# }
+#
+# AFSSAPS_JORF = {
+#     'left edge 50%: {:.1f} mm': left_edge_50,
+#     'right edge 50%: {:.1f} mm': right_edge_50,
+#     'field size: {:.1f} mm': field_size_edge_50,
+#     'field center: {:.1f} mm': field_center_edge_50,
+#     'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+#     'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+#     'flatness: {:.2f} %': flatness_dose_difference,
+#     'symmetry: {:.2f} %': symmetry_pdq_iec,
+#     # 'deviation max: {:.2f} %': deviation_max
+# }
+#
+# DIN = {
+#     'left edge 50%: {:.1f} mm': left_edge_50,
+#     'right edge 50%: {:.1f} mm': right_edge_50,
+#     'field size: {:.1f} mm': field_size_50,
+#     'field center: {:.1f} mm': field_center_fwhm,
+#     'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
+#     'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
+#     'flatness: {:.2f} %': flatness_dose_ratio,
+#     'symmetry: {:.2f} %': symmetry_pdq_iec,
+# }
+#
+# FFF = {
+#     'left edge inf: {:.1f} mm': left_edge_infl,
+#     'right edge inf: {:.1f} mm': right_edge_infl,
+#     'field center infl: {:.1f} mm': field_center_edge_infl,
+#     'field center in-field slope: {:.1f} mm': field_center_infield_slope,
+#     'max position: {:.1f} mm': field_top,
+#     'field size infl: {:.1f} mm': field_size_edge_infl,
+#     'left penumbra: {:.1f} mm': penumbra_left_infl,
+#     'right penumbra: {:.1f} mm': penumbra_right_infl,
+#     'left penumbra slope {:.1f} %/mm': penumbra_slope_left_infl,
+#     'right penumbra slope {:.1f} %/mm': penumbra_slope_right_infl,
+#     'left dose point 20%: {:.1f} %': dose_point_left_20,
+#     'right dose point 20%: {:.1f} %': dose_point_right_20,
+#     'left dose point 50%: {:.1f} %': dose_point_left_50,
+#     'right dose point 50%: {:.1f} %': dose_point_right_50,
+#     'left dose point 80%: {:.1f} %': dose_point_left_80,
+#     'right dose point 80%: {:.1f} %': dose_point_right_80,
+#     'in-field slope left: {:.2f} %/mm': infield_slope_left,
+#     'in-field slope right: {:.2f} %/mm': infield_slope_right
+# }
 
-# ----------------------------------------------------------------------------------------------------------------------
-# Predefined Protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these protocols
-# and add the protocol name to the dictionary PROTOCOLS. Parameter labels should include decimal places and units.
-# ----------------------------------------------------------------------------------------------------------------------
-
-ALL = {
-    'left edge 50%: {:.1f} mm': left_edge_50,
-    'right edge 50%: {:.1f} mm': right_edge_50,
-    'left edge Inf: {:.1f} mm': left_edge_infl,
-    'right edge Inf: {:.1f} mm': right_edge_infl,
-    'field size FWHM: {:.1f} mm': field_size_50,
-    'field size edge: {:.1f} mm': field_size_edge_50,
-    'field size infl: {:.1f} mm': field_size_edge_infl,
-    'field center edge: {:.1f} mm': field_center_edge_50,
-    'field center FWHM: {:.1f} mm': field_center_fwhm,
-    'field center infl: {:.1f} mm': field_center_edge_infl,
-    'field center in-field slope: {:.1f} mm': field_center_infield_slope,
-    'left penumbra 80-20%: {:.1f} mm': penumbra_left_80_20,
-    'right penumbra 80-20%: {:.1f} mm': penumbra_right_80_20,
-    'left penumbra infl: {:.1f} mm': penumbra_left_infl,
-    'right penumbra infl: {:.1f} mm': penumbra_right_infl,
-    'left penumbra slope {:.1f} %/mm': penumbra_slope_left_infl,
-    'right penumbra slope {:.1f} %/mm': penumbra_slope_right_infl,
-    'flatness diff: {:.2f} %': flatness_dose_difference,
-    'flatness ratio: {:.2f} %': flatness_dose_ratio,
-    'symmetry diff: {:.2f} %': symmetry_point_difference,
-    'symmetry ratio: {:.2f} %': symmetry_pdq_iec,
-    'symmetry area: {:.2f} %': symmetry_area,
-    'deviation max: {:.2f} %': deviation_max,
-    'deviation diff: {:.2f} %': deviation_diff,
-    'left dose point 20%: {:.1f} %': dose_point_left_20,
-    'right dose point 20%: {:.1f} %': dose_point_right_20,
-    'left dose point 50%: {:.1f} %': dose_point_left_50,
-    'right dose point 50%: {:.1f} %': dose_point_right_50,
-    'left dose point 80%: {:.1f} %': dose_point_left_80,
-    'right dose point 80%: {:.1f} %': dose_point_right_80,
-    'in-field slope left: {:.2f} %/mm': infield_slope_left,
-    'in-field slope right: {:.2f} %/mm': infield_slope_right
+varian_protocol = {
+    'symmetry': {'calc': symmetry_point_difference, 'unit': '%', 'plot': plot_symmetry_point_difference},
+    'flatness': {'calc': flatness_dose_difference, 'unit': '%', 'plot': plot_flatness},
 }
-
-VARIAN = {
-    'left edge 50%: {:.1f} mm': left_edge_50,
-    'right edge 50%: {:.1f} mm': right_edge_50,
-    'field size: {:.1f} mm': field_size_edge_50,
-    'field center: {:.1f} mm': field_center_edge_50,
-    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
-    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
-    'flatness: {:.2f} %': flatness_dose_difference,
-    'symmetry: {:.2f} %': symmetry_point_difference,
+elekta_protocol = {
+    'symmetry': {'calc': symmetry_pdq_iec, 'unit': '', 'plot': plot_symmetry_pdq},
+    'flatness': {'calc': flatness_dose_ratio, 'unit': '', 'plot': plot_flatness},
 }
-
-FLATSYM_VARIAN = {
-    'left edge 50%: {:.1f} mm': left_edge_50,
-    'right edge 50%: {:.1f} mm': right_edge_50,
-    'field size: {:.1f} mm': field_size_50,
-    'field center: {:.1f} mm': field_center_fwhm,
-    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
-    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
-    'flatness: {:.2f} %': flatness_dose_difference,
-    'symmetry: {:.2f} %': symmetry_point_difference,
-}
-
-ELEKTA = {
-    'left edge 50%: {:.1f} mm': left_edge_50,
-    'right edge 50%: {:.1f} mm': right_edge_50,
-    'field size: {:.1f} mm': field_size_50,
-    'field center: {:.1f} mm': field_center_fwhm,
-    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
-    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
-    'flatness: {:.2f} %': flatness_dose_ratio,
-    'symmetry: {:.2f} %': symmetry_pdq_iec,
-    'deviation diff: {:.2f} %': deviation_diff
-}
-
-SIEMENS = {
-    'left edge 50%: {:.1f} mm': left_edge_50,
-    'right edge 50%: {:.1f} mm': right_edge_50,
-    'field size: {:.1f} mm': field_size_50,
-    'field center: {:.1f} mm': field_center_fwhm,
-    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
-    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
-    'flatness: {:.2f} %': flatness_dose_difference,
-    'symmetry: {:.2f} %': symmetry_area,
-    'deviation max: {:.2f} %': deviation_max
-}
-
-VOM80 = {
-    'left edge 50%: {:.1f} mm': left_edge_50,
-    'right edge 50%: {:.1f} mm': right_edge_50,
-    'field size: {:.1f} mm': field_size_50,
-    'field center: {:.1f} mm': field_center_fwhm,
-    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
-    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
-    'flatness: {:.2f} %': flatness_dose_difference
-}
-
-IEC9076 = {
-    'left edge 50%: {:.1f} mm': left_edge_50,
-    'right edge 50%: {:.1f} mm': right_edge_50,
-    'field size: {:.1f} mm': field_size_50,
-    'field center: {:.1f} mm': field_center_fwhm,
-    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
-    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
-    'flatness: {:.2f} %': flatness_dose_ratio,
-    'symmetry: {:.2f} %': symmetry_pdq_iec,
-}
-
-AFSSAPS_JORF = {
-    'left edge 50%: {:.1f} mm': left_edge_50,
-    'right edge 50%: {:.1f} mm': right_edge_50,
-    'field size: {:.1f} mm': field_size_edge_50,
-    'field center: {:.1f} mm': field_center_edge_50,
-    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
-    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
-    'flatness: {:.2f} %': flatness_dose_difference,
-    'symmetry: {:.2f} %': symmetry_pdq_iec,
-    'deviation max: {:.2f} %': deviation_max
-}
-
-DIN = {
-    'left edge 50%: {:.1f} mm': left_edge_50,
-    'right edge 50%: {:.1f} mm': right_edge_50,
-    'field size: {:.1f} mm': field_size_50,
-    'field center: {:.1f} mm': field_center_fwhm,
-    'penumbra 80-20% left: {:.1f} mm': penumbra_left_80_20,
-    'penumbra 80-20% right: {:.1f} mm': penumbra_right_80_20,
-    'flatness: {:.2f} %': flatness_dose_ratio,
-    'symmetry: {:.2f} %': symmetry_pdq_iec,
+# TODO: check below
+siemens_protocol = {
+    'symmetry': {'calc': symmetry_area, 'unit': '', 'plot': plot_symmetry_area},
+    'flatness': {'calc': flatness_dose_difference, 'unit': '', 'plot': plot_flatness},
 }
 
 
-FFF = {
-    'left edge inf: {:.1f} mm': left_edge_infl,
-    'right edge inf: {:.1f} mm': right_edge_infl,
-    'field center infl: {:.1f} mm': field_center_edge_infl,
-    'field center in-field slope: {:.1f} mm': field_center_infield_slope,
-    'max position: {:.1f} mm': field_top,
-    'field size infl: {:.1f} mm': field_size_edge_infl,
-    'left penumbra: {:.1f} mm': penumbra_left_infl,
-    'right penumbra: {:.1f} mm': penumbra_right_infl,
-    'left penumbra slope {:.1f} %/mm': penumbra_slope_left_infl,
-    'right penumbra slope {:.1f} %/mm': penumbra_slope_right_infl,
-    'left dose point 20%: {:.1f} %': dose_point_left_20,
-    'right dose point 20%: {:.1f} %': dose_point_right_20,
-    'left dose point 50%: {:.1f} %': dose_point_left_50,
-    'right dose point 50%: {:.1f} %': dose_point_right_50,
-    'left dose point 80%: {:.1f} %': dose_point_left_80,
-    'right dose point 80%: {:.1f} %': dose_point_right_80,
-    'in-field slope left: {:.2f} %/mm': infield_slope_left,
-    'in-field slope right: {:.2f} %/mm': infield_slope_right
-}
-# ----------------------------------------------------------------------------------------------------------------------
-# End of predefined protocols - Do not change these. Instead copy a protocol, give it a new name, put it after these
-# protocols and add the protocol name to the dictionary PROTOCOLS.
-# ----------------------------------------------------------------------------------------------------------------------
-
-PROTOCOLS = {
-    'all': ALL,
-    'default': VARIAN,
-    'varian': VARIAN,
-    'flatsym_varian': FLATSYM_VARIAN,
-    'elekta': ELEKTA,
-    'siemens': SIEMENS,
-    'vom80': VOM80,
-    'iec9076': IEC9076,
-    'afssaps-jorf': AFSSAPS_JORF,
-    'din': DIN,
-    'fff': FFF,
-}
+class Protocol(enum.Enum):
+    NONE = {}
+    VARIAN = varian_protocol
+    SIEMENS = siemens_protocol
+    ELEKTA = elekta_protocol
 
 
 class FieldParams:
     """Class for analyzing the various parameters of a radiation image, most commonly an open image from a linac.
-
-    Attributes
-    ----------
-    parameters : dict
-        Contains the calculated parameters.
-    positions : dict
-        The position ratio used for analysis for vertical and horizontal.
     """
 
-    def __init__(self, path: str, filter: Optional[int]=None):
+    def __init__(self, path: str, filter: Optional[int] = None):
         """
 
         Parameters
@@ -509,11 +290,8 @@ class FieldParams:
         self.image = image.load(path)
         if filter:
             self.image.filter(size=filter)
-        self.vert_profile = SingleProfile(np.empty(0))
-        self.horiz_profile = SingleProfile(np.empty(0))
-        self.infield_area: float = 0.8
-        self.parameters: dict = {}
-        self.positions: dict = {}
+        self.vert_profile: SingleProfile
+        self.horiz_profile: SingleProfile
         self._is_analyzed: bool = False
         self.image.check_inversion_by_histogram()
 
@@ -527,12 +305,20 @@ class FieldParams:
     def run_demo():
         """Run the Flat/Sym demo by loading the demo image, print results, and plot the profiles."""
         fs = FieldParams.from_demo_image()
-        fs.analyze(protocol='varian')
+        # fs.analyze(protocol='varian')
         print(fs.results())
         fs.plot_analyzed_image()
 
-    def analyze(self, protocol: str, vert_position: float=0.5, horiz_position: float=0.5,
-                vert_width: float=0, horiz_width: float=0, invert=False):
+    def analyze(self, protocol: Protocol,
+                vert_position: float = 0.5, horiz_position: float = 0.5,
+                vert_width: float = 0, horiz_width: float = 0,
+                in_field_ratio=0.8,
+                is_FFF=False,
+                invert=False,
+                penumbra=(20, 80), interpolation=Interpolation.LINEAR, interpolation_resolution=0.1,
+                ground=True, normalization_method=Normalization.BEAM_CENTER, edge_detection_method=Edge.FWHM,
+                edge_smoothing_ratio=0.003,
+                slope_exclusion_ratio=0.2, **kwargs):
         """Analyze the image to determine parameters such as flatness and symmetry.
 
         Parameters
@@ -557,93 +343,194 @@ class FieldParams:
         """
         if invert:
             self.image.invert()
-        protocol_params = PROTOCOLS[protocol]
-        self.parameters['Method'] = protocol
-        self.infield_area = self._get_infield_area(protocol)
+        self._protocol = protocol
+        self._penumbra = penumbra
+        self._is_FFF: bool = is_FFF
+        self._edge_detection = edge_detection_method
+        self._in_field_ratio = in_field_ratio
+        self._slope_exclusion_ratio = slope_exclusion_ratio
 
-        # get vertical (inline) parameters
-        self.vert_profile = self._get_vert_profile(vert_position, vert_width)
-        self.parameters['vertical'] = {}
-        for param in protocol_params:
-            calc = protocol_params[param]
-            vresult = calc(self.vert_profile, self.infield_area)
-            self.parameters['vertical'][param] = vresult
+        # calculate the profiles
+        horiz_values, upper_h_idx, lower_h_idx = self._get_horiz_values(horiz_position, horiz_width)
+        self._upper_h_index = upper_h_idx
+        self._lower_h_index = lower_h_idx
+        self.horiz_profile = SingleProfile(horiz_values, dpmm=self.image.dpmm, interpolation=interpolation,
+                                           interpolation_resolution_mm=interpolation_resolution, ground=ground,
+                                           edge_detection_method=edge_detection_method,
+                                           normalization_method=normalization_method,
+                                           edge_smoothing_ratio=edge_smoothing_ratio)
 
-        # get horizontal (crossline) parameters
-        self.horiz_profile = self._get_horiz_profile(horiz_position, horiz_width)
-        self.parameters['horizontal'] = {}
-        for param in protocol_params:
-            calc = protocol_params[param]
-            hresult = calc(self.horiz_profile, self.infield_area)
-            self.parameters['horizontal'][param] = hresult
+        vert_values, left_v_idx, right_v_idx = self._get_vert_values(vert_position, vert_width)
+        self._left_v_index = left_v_idx
+        self._right_v_index = right_v_idx
+        self.vert_profile = SingleProfile(vert_values, dpmm=self.image.dpmm, interpolation=interpolation,
+                                          interpolation_resolution_mm=interpolation_resolution, ground=ground,
+                                          edge_detection_method=edge_detection_method,
+                                          normalization_method=normalization_method,
+                                          edge_smoothing_ratio=edge_smoothing_ratio)
+
+        self._results = {}
+        # calculate common field info
+        v_pen = self.vert_profile.penumbra(penumbra[0], penumbra[1])
+        h_pen = self.horiz_profile.penumbra(penumbra[0], penumbra[1])
+        self._results['top penumbra (mm)'] = v_pen['left penumbra width (exact) mm']
+        self._results['bottom penumbra (mm)'] = v_pen['right penumbra width (exact) mm']
+        self._results['left penumbra (mm)'] = h_pen['left penumbra width (exact) mm']
+        self._results['right penumbra (mm)'] = h_pen['right penumbra width (exact) mm']
+        if edge_detection_method == Edge.INFLECTION_HILL:
+            self._results['top penumbra (%/mm)'] = abs(v_pen['left gradient (exact) %/mm'])
+            self._results['bottom penumbra (%/mm)'] = abs(v_pen['right gradient (exact) %/mm'])
+            self._results['left penumbra (%/mm)'] = abs(h_pen['left gradient (exact) %/mm'])
+            self._results['right penumbra (%/mm)'] = abs(h_pen['right gradient (exact) %/mm'])
+
+        self._results['geometric center index (x, y)'] = (self.horiz_profile.geometric_center()['index (exact)'],
+                                                          self.vert_profile.geometric_center()['index (exact)'])
+        self._results['beam center index (x, y)'] = (self.horiz_profile.beam_center()['index (exact)'],
+                                                     self.vert_profile.beam_center()['index (exact)'])
+        self._results['field size vertical (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)['width (exact) mm']
+        self._results['field size horizontal (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+            'width (exact) mm']
+        self._results['beam center->Top (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)[
+            'left distance->beam center (exact) mm']
+        self._results['beam center->Bottom (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)[
+            'right distance->beam center (exact) mm']
+        self._results['beam center->Left (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+            'left distance->beam center (exact) mm']
+        self._results['beam center->Right (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+            'right distance->beam center (exact) mm']
+        self._results['CAX->Top (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)[
+            'left distance->CAX (exact) mm']
+        self._results['CAX->Bottom (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)[
+            'right distance->CAX (exact) mm']
+        self._results['CAX->Left (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+            'left distance->CAX (exact) mm']
+        self._results['CAX->Right (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+            'right distance->CAX (exact) mm']
+
+        # if is_FFF:
+        h_field_data = self.horiz_profile.field_data(in_field_ratio=in_field_ratio,
+                                                     slope_exclusion_ratio=slope_exclusion_ratio)
+        v_field_data = self.vert_profile.field_data(in_field_ratio=in_field_ratio,
+                                                    slope_exclusion_ratio=slope_exclusion_ratio)
+        self._results['"top" position index (x, y)'] = (
+            h_field_data['"top" index (exact)'], v_field_data['"top" index (exact)'])
+        self._results['"top" horizontal distance from CAX (mm)'] = h_field_data['"top"->CAX (exact) mm']
+        self._results['"top" vertical distance from CAX (mm)'] = v_field_data['"top"->CAX (exact) mm']
+        self._results['"top" horizontal distance from beam center (mm)'] = h_field_data['"top"->beam center (exact) mm']
+        self._results['"top" vertical distance from beam center (mm)'] = v_field_data['"top"->beam center (exact) mm']
+        self._results['left slope'] = h_field_data['left slope (%/mm)']
+        self._results['right slope'] = h_field_data['right slope (%/mm)']
+        self._results['top slope'] = v_field_data['left slope (%/mm)']
+        self._results['bottom slope'] = v_field_data['right slope (%/mm)']
+
+        # calculate protocol info
+        for name, item in protocol.value.items():
+            self._results[name + ' horizontal'] = item['calc'](self.horiz_profile, in_field_ratio, **kwargs)
+            self._results[name + ' vertical'] = item['calc'](self.vert_profile, in_field_ratio, **kwargs)
 
         self._is_analyzed = True
 
-    def results(self, as_str=True) -> Union[str, list]:
-        """Get the results of the analysis.
-
-        Parameters
-        ----------
-        as_str : bool
-            If True, return a single string.
-            If False, return a list. Useful for PDF publishing.
-
-        Return
-        ------
-        results : str or list
-        """
+    def results(self, as_str=True) -> str:
+        """Get the results of the analysis."""
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
-        # return parameters
+
         results = [
-            'Field Parameters',
-            '',
-            f"Analysis protocol: {self.parameters['Method']}",
-            f"Normalisation method: {norm}",
-            f"Interpolation is {'on' if interpolate else 'off'}",
+            'Field Analysis Results',
+            '----------------------',
             f'File: {self.image.truncated_path}',
-            '']
-        vert_params = self.parameters['vertical']
-        horiz_params = self.parameters['horizontal']
-        for param in vert_params:
-            s_vert = param.format(vert_params[param])
-            results.append(f"Vertical {s_vert}")
-            s_horiz = param.format(horiz_params[param])
-            results.append(f"Horizontal {s_horiz}")
+            f"Protocol: {self._protocol.name}",
+            f"Normalization method: {self.horiz_profile._norm_method.value}",
+            f"Interpolation: {self.horiz_profile._interp_method.value}",
+            f"Edge detection method: {self.horiz_profile._edge_method.value}",
+            "",
+            f"Penumbra width ({self._penumbra[0]}/{self._penumbra[1]}):",
+            f"Left: {self._results['left penumbra (mm)']:3.1f}mm",
+            f"Right: {self._results['right penumbra (mm)']:3.1f}mm",
+            f"Top: {self._results['top penumbra (mm)']:3.1f}mm",
+            f"Bottom: {self._results['bottom penumbra (mm)']:3.1f}mm",
+            "",
+            ]
+        if self._edge_detection == Edge.INFLECTION_HILL:
+            results += [
+                "Penumbra gradients:",
+                f"Left gradient: {self._results['left penumbra (%/mm)']:3.4f}%/mm",
+                f"Right gradient: {self._results['right penumbra (%/mm)']:3.4f}%/mm",
+                f"Top gradient: {self._results['top penumbra (%/mm)']:3.4f}%/mm",
+                f"Bottom gradient: {self._results['bottom penumbra (%/mm)']:3.4f}%/mm",
+            ]
+        results += [
+            "",
+            "Field Size:",
+            f"Horizontal: {self._results['field size horizontal (mm)']:3.1f}mm",
+            f"Vertical: {self._results['field size vertical (mm)']:3.1f}mm",
+            "",
+            "CAX to edge distances:",
+            f"CAX -> Top edge: {self._results['CAX->Top (mm)']:3.1f}mm",
+            f"CAX -> Bottom edge: {self._results['CAX->Bottom (mm)']:3.1f}mm",
+            f"CAX -> Left edge: {self._results['CAX->Left (mm)']:3.1f}mm",
+            f"CAX -> Right edge: {self._results['CAX->Right (mm)']:3.1f}mm",
+            ""]
+        if self._is_FFF:
+            results += [
+                "'Top' vertical distance from CAX: {:3.1f}mm".format(
+                        self._results['"top" vertical distance from CAX (mm)']),
+                "'Top' horizontal distance from CAX: {:3.1f}mm".format(
+                        self._results['"top" horizontal distance from CAX (mm)']),
+                "'Top' vertical distance from beam center: {:3.1f}mm".format(
+                        self._results['"top" vertical distance from beam center (mm)']),
+                "'Top' horizontal distance from beam center: {:3.1f}mm".format(
+                        self._results['"top" horizontal distance from beam center (mm)']),
+                "", ]
+        results += [
+            f"Top slope: {self._results['top slope']:3.3f}%/mm",
+            f"Bottom slope: {self._results['bottom slope']:3.4f}%/mm",
+            f"Left slope: {self._results['left slope']:3.5f}%/mm",
+            f"Right slope: {self._results['right slope']:3.6f}%/mm",
+            "",
+            "Protocol data:",
+            "--------------",
+        ]
+
+        for name, item in self._protocol.value.items():
+            results.append(f"Vertical {name}: {self._results[name + ' vertical']:3.3f}{item['unit']}")
+            results.append(
+                f"Horizontal {name}: {self._results[name + ' horizontal']:3.3f}{item['unit']}")
             results.append('')
 
         if as_str:
             results = '\n'.join(result for result in results)
         return results
 
-    def _get_infield_area(self, protocol):
-        """Return the in field area as a proportion 0.0-1.0 of the field size. The in field area depends on the
-        protocol and field size, but for now define it as 80%."""
-        return 0.8
+    def results_data(self):
+        """Present the results data and metadata as a dict."""
+        data = dict()
+        data['pylinac version'] = __version__
+        data['protocol'] = self._protocol.name
+        data['normalization method'] = self.horiz_profile._norm_method.value
+        data['interpolation'] = self.horiz_profile._interp_method.value
+        data['edge detection method'] = self.horiz_profile._edge_method.value
+        data.update(self._results)
+        return data
 
-    def _get_vert_profile(self, vert_position: float, vert_width: float):
-        left_edge = int(round(self.image.array.shape[1]*vert_position - self.image.array.shape[1]*vert_width/2))
+    def _get_vert_values(self, vert_position: float, vert_width: float) -> (np.ndarray, float, float):
+        left_edge = int(round(self.image.array.shape[1] * vert_position - self.image.array.shape[1] * vert_width / 2))
         left_edge = max(left_edge, 0)  # clip to 0
-        right_edge = int(round(self.image.array.shape[1]*vert_position + self.image.array.shape[1]*vert_width/2) + 1)
+        right_edge = int(
+                round(self.image.array.shape[1] * vert_position + self.image.array.shape[1] * vert_width / 2) + 1)
         right_edge = min(right_edge, self.image.array.shape[1])  # clip to image limit
-        self.positions['vertical left'] = left_edge
-        self.positions['vertical right'] = right_edge
-        vert_profile = SingleProfile(np.sum(self.image.array[:, left_edge:right_edge], 1))
-        vert_profile.dpmm = self.image.dpmm
-        return vert_profile
+        return np.mean(self.image.array[:, left_edge:right_edge], 1), left_edge, right_edge
 
-    def _get_horiz_profile(self, horiz_position: float, horiz_width: float):
+    def _get_horiz_values(self, horiz_position: float, horiz_width: float) -> (np.ndarray, float, float):
         bottom_edge = int(round(self.image.array.shape[0] * horiz_position - self.image.array.shape[0] * horiz_width / 2))
         bottom_edge = max(bottom_edge, 0)
-        top_edge = int(round(self.image.array.shape[0] * horiz_position + self.image.array.shape[0] * horiz_width / 2) + 1)
+        top_edge = int(
+                round(self.image.array.shape[0] * horiz_position + self.image.array.shape[0] * horiz_width / 2) + 1)
         top_edge = min(top_edge, self.image.array.shape[0])
-        self.positions['horizontal bottom'] = bottom_edge
-        self.positions['horizontal top'] = top_edge
-        horiz_profile = SingleProfile(np.sum(self.image.array[bottom_edge:top_edge, :], 0))
-        horiz_profile.dpmm = self.image.dpmm
-        return horiz_profile
+        return np.mean(self.image.array[bottom_edge:top_edge, :], 0), bottom_edge, top_edge
 
-    def publish_pdf(self, filename: str, notes: Union[str, list]=None, open_file: bool=False, metadata: dict=None):
+    def publish_pdf(self, filename: str, notes: Union[str, list] = None, open_file: bool = False,
+                    metadata: dict = None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -674,7 +561,7 @@ class FieldParams:
         while i < number_of_lines:
             if i > number_of_lines - 1:
                 i = number_of_lines - 1
-            canvas.add_text(text=text[i:i+39], location=(2, 25.5), font_size=14)
+            canvas.add_text(text=text[i:i + 39], location=(2, 25.5), font_size=12)
             canvas.add_new_page()
             i = i + 40
 
@@ -701,13 +588,15 @@ class FieldParams:
         if open_file:
             open_path(filename)
 
-    def plot_analyzed_image(self, show: bool=True):
+    def plot_analyzed_image(self, show: bool = True, grid: bool = True):
         """Plot the analyzed image. Shows parameters such as flatness & symmetry.
 
         Parameters
         ----------
-        show : bool
+        show
             Whether to show the plot when called.
+        grid
+            Whether to show a grid on the profile plots
         """
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
@@ -716,185 +605,145 @@ class FieldParams:
         image_ax = plt.subplot2grid((2, 2), (0, 1))
         vert_ax = plt.subplot2grid((2, 2), (1, 1))
         horiz_ax = plt.subplot2grid((2, 2), (0, 0))
+        if grid:
+            vert_ax.grid(True)
+            horiz_ax.grid(True)
 
         # plot image and profile lines
         self._plot_image(image_ax, title=osp.basename(self.image.path))
-        self._plot_horiz(horiz_ax)
         self._plot_vert(vert_ax)
+        self._plot_horiz(horiz_ax)
 
         # plot legend
         lines = []
         labels = []
-        line, lable = image_ax.get_legend_handles_labels()
-        for l in line:
-            lines.append(l) if l not in lines else []
-        for l in lable:
-            labels.append(l) if l not in labels else []
-        line, lable = vert_ax.get_legend_handles_labels()
-        for l in line:
-            lines.append(l) if l not in lines else []
-        for l in lable:
-            labels.append(l) if l not in labels else []
-        line, lable = horiz_ax.get_legend_handles_labels()
-        for l in line:
-            lines.append(l) if l not in lines else []
-        for l in lable:
-            labels.append(l) if l not in labels else []
+        v_lines, v_labels = vert_ax.get_legend_handles_labels()
+        h_lines, h_labels = horiz_ax.get_legend_handles_labels()
+        for line, label in zip((v_lines + h_lines), (v_labels + h_labels)):
+            if line not in lines: lines.append(line)
+            if label not in labels: labels.append(label)
         legend_ax = plt.subplot2grid((2, 2), (1, 0))
         legend_ax.legend(lines, labels, loc="center")
         legend_ax.axis('off')
+
         _remove_ticklabels(legend_ax)
-
-
-        plt.suptitle("Beam Parameters")
+        plt.suptitle("Field Profile Analysis")
         if show:
             plt.show()
 
-    def _plot_image(self, axis: plt.Axes=None, title: str=''):
+    def _plot_image(self, axis: plt.Axes = None, title: str = ''):
         plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()
         axis.imshow(self.image.array, cmap=get_dicom_cmap())
-        # show vertical/axial profiles
-        left_profile = self.positions['vertical left']
-        right_profile = self.positions['vertical right']
-        axis.axvline(left_profile, color='b', label='Image profile region')
-        axis.axvline(right_profile, color='b')
-        # show horizontal/transverse profiles
-        bottom_profile = self.positions['horizontal bottom']
-        top_profile = self.positions['horizontal top']
-        axis.axhline(bottom_profile, color='b')
-        axis.axhline(top_profile, color='b')
+
+        # vertical line/rect
+        width = abs(self._left_v_index-self._right_v_index)
+        center = (width / 2 + self._left_v_index, self.image.shape[0]/2)
+        r = Rectangle(width=width,
+                      height=self.image.shape[0],
+                      center=center)
+        r.plot2axes(axis, edgecolor='b', fill=True, alpha=0.2, facecolor='b', label="Profile Extraction Area")
+
+        # show horizontal line/rect
+        width_h = abs(self._upper_h_index-self._lower_h_index)
+        center_h = (self.image.shape[1]/2, width / 2 + self._upper_h_index)
+        r = Rectangle(width=self.image.shape[1],
+                      height=width_h,
+                      center=center_h)
+        r.plot2axes(axis, edgecolor='b', fill=True, alpha=0.2, facecolor='b')
         _remove_ticklabels(axis)
         axis.set_title(title)
+        axis.legend()
 
-    def _plot_vert(self, axis: plt.Axes=None):
+    def _plot_vert(self, axis: plt.Axes = None):
         """Plot vertical profile"""
-        plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()
         axis.set_title("Vertical Profile")
         axis.plot(self.vert_profile.values, label='Profile')
+        axis.set_xlabel("pixels")
+        axis.set_ylabel("Normalized Response")
 
-        # plot parameters on profile
-        protocol = self.parameters['Method']
-        protocol_params = PROTOCOLS[protocol]
-        if bool([val for key, val in protocol_params.items() if 'flatness' in key]):
-            plot_flatness(self.vert_profile, self.infield_area, axis)
-        if bool([val for key, val in protocol_params.items() if 'inf' in key]):
-            plot_infl(self.vert_profile, axis)
-        if bool([val for key, val in protocol_params.items() if 'in-field slope' in key]):
-            plot_infield_slope(self.vert_profile, axis)
-        if bool([val for key, val in protocol_params.items() if 'max position' in key]):
-            plot_top(self.vert_profile, axis)
-        # _remove_ticklabels(axis)
+        # plot second axis w/ physical distance
+        sec_y = axis.twiny()
+        physical_distance = np.array(range(int(len(self.vert_profile.values)))) / self.vert_profile.dpmm
+        sec_y.plot(physical_distance, self.vert_profile.values)
+        sec_y.set_xlabel("mm")
 
-    def _plot_horiz(self, axis: plt.Axes=None):
+        # plot basic parameters on profile
+        self._plot_penumbra(self.vert_profile, axis)
+        self._plot_field_edges(self.vert_profile, axis)
+        if self._is_FFF:
+            self._plot_top(self.vert_profile, axis)
+            self._plot_infield_slope(self.vert_profile, axis)
+
+        for name, item in self._protocol.value.items():
+            if item.get("plot"):
+                item['plot'](self, self.vert_profile, axis)
+
+    def _plot_horiz(self, axis: plt.Axes = None):
         """Plot horizontal profile"""
-        plt.ioff()
         if axis is None:
             fig, axis = plt.subplots()
         axis.set_title("Horizontal Profile")
-        axis.plot(self.horiz_profile.values)
+        axis.plot(self.horiz_profile.values, label='Profile')
+        axis.set_xlabel("pixels")
+        axis.set_ylabel("Normalized Response")
 
-        # plot parameters on profile
-        protocol = self.parameters['Method']
-        protocol_params = PROTOCOLS[protocol]
-        if bool([val for key, val in protocol_params.items() if 'flatness' in key]):
-            plot_flatness(self.horiz_profile, self.infield_area, axis)
-        if bool([val for key, val in protocol_params.items() if 'infl' in key]):
-            plot_infl(self.horiz_profile, axis)
-        if bool([val for key, val in protocol_params.items() if 'in-field slope' in key]):
-            plot_infield_slope(self.horiz_profile, axis)
-        if bool([val for key, val in protocol_params.items() if 'max position' in key]):
-            plot_top(self.horiz_profile, axis)
-        # _remove_ticklabels(axis)
+        # plot second axis w/ physical distance
+        sec_y = axis.twiny()
+        physical_distance = np.array(range(int(len(self.horiz_profile.values)))) / self.horiz_profile.dpmm
+        sec_y.plot(physical_distance, self.horiz_profile.values)
+        sec_y.set_xlabel("mm")
+
+        # plot basic parameters on profile
+        self._plot_penumbra(self.horiz_profile, axis)
+        self._plot_field_edges(self.horiz_profile, axis)
+        if self._is_FFF:
+            self._plot_top(self.horiz_profile, axis)
+            self._plot_infield_slope(self.horiz_profile, axis)
+
+        for name, item in self._protocol.value.items():
+            if item.get("plot"):
+                item['plot'](self, self.horiz_profile, axis)
 
     @staticmethod
     def _save_plot(func, filename: str, **kwargs):
         func(**kwargs)
         plt.savefig(filename)
 
+    def _plot_penumbra(self, profile: SingleProfile, axis: plt.Axes = None):
+        """Plot the non-linear regression fit against the profile"""
+        data = profile.penumbra(self._penumbra[0], self._penumbra[1])
+        axis.axvline(x=data[f'left {self._penumbra[0]}% index (exact)'], color='pink')
+        axis.axvline(x=data[f'left {self._penumbra[1]}% index (exact)'], color='pink', label='Penumbra region')
+        axis.axvline(x=data[f'right {self._penumbra[0]}% index (exact)'], color='pink')
+        axis.axvline(x=data[f'right {self._penumbra[1]}% index (exact)'], color='pink')
 
-# ----------------------------------------------------------------------------------------------------------------------
-# Plot functions. These display various parameters graphically and are called depending on the protocol.
-# ----------------------------------------------------------------------------------------------------------------------
+    def _plot_field_edges(self, profile: SingleProfile, axis: plt.Axes):
+        data = profile.field_data(in_field_ratio=1.0, slope_exclusion_ratio=self._slope_exclusion_ratio)
+        axis.plot(data['left index (rounded)'], data['left value (@rounded)'], 'x', color='green', label='Field edge')
+        axis.plot(data['right index (rounded)'], data['right value (@rounded)'], 'x', color='green')
 
-def plot_flatness(profile: SingleProfile, ifa: float=0.8, axis: plt.Axes = None):
-    """Plot flatness parameters"""
-    left_ifa, right_ifa = profile.field_edges(ifa)
-    axis.axvline(left_ifa, color='g', linestyle='-.', label='In field area')
-    axis.axvline(right_ifa, color='g', linestyle='-.')
+    def _plot_infield_slope(self, profile: SingleProfile, axis: plt.Axes):
+        data = profile.field_data(self._in_field_ratio, self._slope_exclusion_ratio)
+        # left slope
+        left_x_values = range(data['left index (rounded)'], data['left inner index (rounded)'])
+        left_y_values = data['left slope'] * left_x_values + data['left intercept']
+        axis.plot(left_x_values, left_y_values, color='yellow', label='in-field slope')
+        # right slope
+        right_x_values = range(data['right inner index (rounded)'], data['right index (rounded)'])
+        right_y_values = data['right slope'] * right_x_values + data['right intercept']
+        axis.plot(right_x_values, right_y_values, color='yellow')
 
-
-def plot_infl(profile: SingleProfile, axis: plt.Axes = None):
-    """Plot the non-linear regression fit against the profile"""
-
-    # plot left penumbra
-    indices, values = profile.penumbra_values('left', pen_width)
-    fit_params = hill_reg(indices, values)
-    xModel = np.linspace(min(indices), max(indices))
-    yModel = hill_func(xModel, *fit_params)
-    axis.plot(xModel, yModel, color='r', label='Sigmoid model')
-
-    # plot right penumbra
-    indices, values = profile.penumbra_values('right', pen_width)
-    fit_params = hill_reg(indices, values)
-    xModel = np.linspace(min(indices), max(indices))
-    yModel = hill_func(xModel, *fit_params)
-    axis.plot(xModel, yModel, color='r', )
-
-
-def plot_infield_slope(profile: SingleProfile, axis: plt.Axes = None):
-    """Plot the best fit straight lines to the in field area (IFA) of the profile"""
-
-    # Plot left slope
-    indices, values = profile.infield_values(0.8, 'left', 25.0)
-    slope, intercept = profile.infield_slope(0.8, 'left', 25.0)
-    x_model = np.linspace(min(indices), max(indices))
-    y_model = slope*x_model + intercept
-    axis.plot(x_model, y_model, color='b', label='In field slope')
-
-    # Plot right slope
-    indices, values = profile.infield_values(0.8, 'right', 25.0)
-    slope, intercept = profile.infield_slope(0.8, 'right', 25.0)
-    x_model = np.linspace(min(indices), max(indices))
-    y_model = slope*x_model + intercept
-    axis.plot(x_model, y_model, color='b')
-
-
-def plot_top(profile: SingleProfile, axis: plt.Axes = None):
-    """Plot a second order polynomial to the peak of the FFF field"""
-
-    max_idx, left_idx, right_idx, fit_params = profile.top(dist=25.0, interpolate=interpolate)
-    x_model = np.linspace(left_idx, right_idx)
-    y_model = fit_params[0]*x_model**2 + fit_params[1]*x_model + fit_params[2]
-    axis.plot(x_model, y_model, color='y', label='Polynomial fit')
-    axis.plot(max_idx, profile.values[round(max_idx)], 'yx', label='Max position')
-
-
-def _plot_symmetry(profile: SingleProfile, axis: plt.Axes = None):
-    plt.ioff()
-    if axis is None:
-        fig, axis = plt.subplots()
-    data = profile.values
-    axis.plot(data['profile'].values)
-    # plot lines
-    cax_idx = data['profile'].fwxm_center()
-    axis.axvline(data['profile left'], color='g', linestyle='-.')
-    axis.axvline(data['profile right'], color='g', linestyle='-.')
-    axis.axvline(cax_idx, color='m', linestyle='-.')
-    # plot symmetry array
-    if not data['array'] == 0:
-        twin_axis = axis.twinx()
-        twin_axis.plot(range(cax_idx, data['profile right']), data['array'][int(round(len(data['array']) / 2)):])
-        twin_axis.set_ylabel("Symmetry (%)")
-    _remove_ticklabels(axis)
-    # plot profile mirror
-    central_idx = int(round(data['profile'].values.size / 2))
-    offset = cax_idx - central_idx
-    mirror_vals = data['profile'].values[::-1]
-    axis.plot(data['profile']._indices + 2 * offset, mirror_vals)
+    def _plot_top(self, profile: SingleProfile, axis: plt.Axes = None):
+        """Plot a second order polynomial to the peak of the FFF field"""
+        data = profile.field_data(self._in_field_ratio, self._slope_exclusion_ratio)
+        x_model = np.linspace(data['left inner index (rounded)'], data['right inner index (rounded)'])
+        y_model = data['top params'][0] * x_model ** 2 + data['top params'][1] * x_model + data['top params'][2]
+        axis.plot(x_model, y_model, color='magenta', label='Polynomial fit')
+        axis.plot(data['"top" index (rounded)'], data['"top" value (@rounded)'], 'x', color='magenta', label='Max position')
 
 
 def _remove_ticklabels(axis: plt.Axes):
