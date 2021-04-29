@@ -108,16 +108,15 @@ class PylinacGUI(Frame):
             self.pf_file.set(f)
 
         def analyze_pf():
+            mlc_type = self.pf_mlc.get()
             if self.pf_filter.get():
-                pf = picketfence.PicketFence(self.pf_file.get(), filter=3)
+                pf = picketfence.PicketFence(self.pf_file.get(), mlc=mlc_type, filter=3)
             else:
-                pf = picketfence.PicketFence(self.pf_file.get())
+                pf = picketfence.PicketFence(self.pf_file.get(), mlc=mlc_type)
             atol = self.pf_atol.get() if self.pf_atol.get() == 0 else None
             pickets = self.pf_pickets.get() if self.pf_pickets.get() == 0 else None
-            hd = self.pf_hdmlc.get()
             pf.analyze(tolerance=self.pf_tol.get(),
                        action_tolerance=atol,
-                       hdmlc=hd,
                        num_pickets=pickets,
                        )
             fname = osp.join(self.pf_file.get().replace('.dcm', '.pdf'))
@@ -132,19 +131,20 @@ class PylinacGUI(Frame):
         self.pf_tol = DoubleVar(value=0.5)
         self.pf_atol = DoubleVar(value=0.25)
         self.pf_pickets = IntVar(value=10)
-        self.pf_hdmlc = BooleanVar(value=False)
         self.pf_pdf = StringVar()
+        self.pf_mlc = StringVar()
         Checkbutton(self.pf_tab, text='Apply median filter', variable=self.pf_filter).grid(column=1, row=3)
         Button(self.pf_tab, text='Load File...', command=load_file).grid(column=1, row=1)
         Label(self.pf_tab, text='File:').grid(column=1, row=2)
-        Label(self.pf_tab, textvariable=self.pf_file).grid(column=2, row=3)
+        Label(self.pf_tab, textvariable=self.pf_file).grid(column=2, row=2)
         Label(self.pf_tab, text='Tolerance (mm):').grid(column=1, row=4)
         Entry(self.pf_tab, width=7, textvariable=self.pf_tol).grid(column=2, row=4)
         Label(self.pf_tab, text='Action Tolerance (mm):').grid(column=1, row=5)
         Entry(self.pf_tab, width=7, textvariable=self.pf_atol).grid(column=2, row=5)
         Label(self.pf_tab, text='Number of pickets:').grid(column=1, row=6)
         Entry(self.pf_tab, width=7, textvariable=self.pf_pickets).grid(column=2, row=6)
-        Checkbutton(self.pf_tab, text='HD-MLC?', variable=self.pf_hdmlc).grid(column=1, row=7)
+        Label(self.pf_tab, text='MLC type:').grid(column=1, row=7)
+        Combobox(self.pf_tab, values=list(picketfence.MLCs.keys()), textvariable=self.pf_mlc, state='readonly').grid(column=2, row=7)
         Button(self.pf_tab, text='Analyze', command=analyze_pf).grid(column=1, row=8)
         Label(self.pf_tab, text='Analysis will analyze the file according to the settings, \nsave a PDF in the same directory as the original file location and then open it.').grid(column=1, row=9)
         self.notebook.add(self.pf_tab, text='Picket Fence')
