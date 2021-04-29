@@ -34,7 +34,7 @@ from .core.geometry import Point, Line
 from .core.io import get_url, retrieve_demo_file
 from .core import pdf
 from .core.mtf import MTF
-from .core.profile import CollapsedCircleProfile, SingleProfile
+from .core.profile import CollapsedCircleProfile, SingleProfile, Interpolation
 from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI
 from .core.typing import NumberLike
 from .settings import get_dicom_cmap
@@ -106,14 +106,14 @@ class ThicknessROI(RectangleROI):
         """The profile along the axis perpendicular to ramped wire."""
         img = image.load(self.pixel_array)
         img.filter(size=1, kind='gaussian')
-        prof = SingleProfile(img.array.max(axis=np.argmin(img.shape)))
+        prof = SingleProfile(img.array.max(axis=np.argmin(img.shape)), interpolation=Interpolation.NONE)
         return prof
 
     @property
     @lru_cache(maxsize=1)
     def wire_fwhm(self) -> float:
         """The FWHM of the wire in pixels."""
-        return self.long_profile.fwxm(x=50)
+        return self.long_profile.fwxm_data(x=50)['width (exact)']
 
     @property
     def plot_color(self) -> str:

@@ -32,7 +32,7 @@ from .core import image
 from .core.geometry import Point, Line, Circle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core import pdf
-from .core.profile import SingleProfile, CollapsedCircleProfile
+from .core.profile import SingleProfile, CollapsedCircleProfile, Interpolation
 from .core.utilities import open_path
 from .settings import get_dicom_cmap
 from . import __version__
@@ -155,8 +155,8 @@ class Starshot:
         y_sum = np.sum(central_array, 1)
 
         # Calculate Full-Width, 80% Maximum center
-        fwxm_x_point = SingleProfile(x_sum).fwxm_center(80)[0] + left_third
-        fwxm_y_point = SingleProfile(y_sum).fwxm_center(80)[0] + top_third
+        fwxm_x_point = SingleProfile(x_sum, interpolation=Interpolation.NONE).fwxm_data(80)['center index (rounded)'] + left_third
+        fwxm_y_point = SingleProfile(y_sum, interpolation=Interpolation.NONE).fwxm_data(80)['center index (rounded)'] + top_third
         center_point = Point(fwxm_x_point, fwxm_y_point)
         return center_point
 

@@ -5,99 +5,100 @@ import numpy as np
 import scipy.signal as sps
 
 from pylinac.core import image
-from pylinac.core.profile import SingleProfile, MultiProfile, CircleProfile, CollapsedCircleProfile
+from pylinac.core.image_generator.simulators import Simulator
+from pylinac.core.profile import SingleProfile, MultiProfile, CircleProfile, CollapsedCircleProfile, Normalization, \
+    Interpolation
 
 
-class SingleProfileMixin:
+def generate_open_field(field_size=(100, 100), sigma=2, center=(0, 0)) -> Simulator:
+    from pylinac.core.image_generator import AS1000Image
+    from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
 
-    ydata = np.ndarray
-    fwxm_indices = {30: 0, 50: 0, 80: 0}
-    fwxm_center_values = {40: 0, 60: 0, 80: 0}
-    fwxm_center_indices = {40: 0, 60: 0, 80: 0}
-    field_value_length = 0
-    penumbra_widths_8020 = {'left': 0, 'right': 0, 'both': 0}
-    penumbra_widths_9010 = {'left': 0, 'right': 0, 'both': 0}
-    field_edge_indices = (0, 0)
-    field_calculations = {'max': 0, 'mean': 0, 'min': 0}
-    peak_idx = 0
-
-    @classmethod
-    def setUpClass(cls):
-        cls.profile = SingleProfile(cls.ydata)
-
-    def test_fwxms(self):
-        for fwxm, fwhm_idx in self.fwxm_indices.items():
-            self.assertAlmostEqual(self.profile.fwxm(fwxm), fwhm_idx, delta=1)
-
-    def test_fwxm_centers(self):
-        # test values, interpolated and not interpolated
-        for fwxm, fwhm_val in self.fwxm_center_values.items():
-            self.assertAlmostEqual(self.profile.fwxm_center(fwxm)[1], fwhm_val, delta=0.1)
-        for fwxm, fwhm_val in self.fwxm_center_values.items():
-            self.assertAlmostEqual(self.profile.fwxm_center(fwxm, interpolate=True)[1], fwhm_val, delta=0.1)
-
-        # test indices, interpolated and not interpolated
-        for fwxm, fwhm_idx in self.fwxm_center_indices.items():
-            self.assertAlmostEqual(self.profile.fwxm_center(fwxm)[0], fwhm_idx, delta=1)
-        for fwxm, fwhm_idx in self.fwxm_center_indices.items():
-            self.assertAlmostEqual(self.profile.fwxm_center(fwxm, interpolate=True)[0], fwhm_idx, delta=1)
-
-    def test_penum_widths(self):
-        # test 80/20, interp and non-interp
-        lt_penum, rt_penum = self.profile.penumbra_width(lower=20, upper=80)
-        self.assertAlmostEqual(lt_penum, self.penumbra_widths_8020['left'], delta=1)
-        self.assertAlmostEqual(rt_penum, self.penumbra_widths_8020['right'], delta=1)
-        self.assertAlmostEqual(np.mean([lt_penum, rt_penum]), self.penumbra_widths_8020['both'], delta=1)
-        # test 90/10
-        lt_penum, rt_penum = self.profile.penumbra_width(lower=10, upper=90)
-        self.assertAlmostEqual(lt_penum, self.penumbra_widths_9010['left'], delta=1)
-        self.assertAlmostEqual(rt_penum, self.penumbra_widths_9010['right'], delta=1)
-        self.assertAlmostEqual(np.mean([lt_penum, rt_penum]), self.penumbra_widths_9010['both'], delta=1)
-
-    def test_field_value_length(self):
-        field_values = self.profile.field_values()
-        self.assertAlmostEqual(len(field_values), self.field_value_length, delta=2)
-
-    def test_field_edges(self):
-        for meas, known in zip(self.field_edge_indices, self.profile.field_edges()):
-            self.assertAlmostEqual(meas, known, delta=0.1)
-
-    def test_field_calculations(self):
-        for calc, val in self.field_calculations.items():
-            self.assertAlmostEqual(self.profile.field_calculation(calculation=calc), val, delta=0.1)
-
-    def test_unnormalized_peaks(self):
-        pass
+    as1000 = AS1000Image()  # this will set the pixel size and shape automatically
+    as1000.add_layer(FilteredFieldLayer(field_size_mm=field_size, cax_offset_mm=center))  # create a 50x50mm square field
+    as1000.add_layer(GaussianFilterLayer(sigma_mm=sigma))  # add an image-wide gaussian to simulate penumbra/scatter
+    return as1000
 
 
-class SingleProfileTriangle(SingleProfileMixin, TestCase):
+class SingleProfileTests(TestCase):
 
-    xdata = np.linspace(0, 2*np.pi, num=200)
-    ydata = sps.sawtooth(xdata, width=0.5)
-    fwxm_indices = {30: 140, 50: 101, 80: 41}
-    fwxm_center_values = {40: 1, 60: 1, 80: 1}
-    fwxm_center_indices = {40: 100, 60: 100, 80: 100}
-    penumbra_widths_8020 = {'left': 60, 'right': 60, 'both': 60}
-    penumbra_widths_9010 = {'left': 80, 'right': 80, 'both': 80}
-    field_edge_indices = (60, 140)
-    field_calculations = {'max': 0.99, 'mean': 0.60, 'min': 0.21}
-    field_value_length = 80
-    peak_idx = 100
+    def test_normalization(self):
+        array = np.random.rand(1, 100).squeeze()
+
+        # don't apply normalization
+        max_v = array.max()
+        p = SingleProfile(array, normalization_method=Normalization.NONE, interpolation=Interpolation.NONE, ground=False)
+        self.assertEqual(max_v, p.values.max())
+
+        # apply max norm
+        p = SingleProfile(array, normalization_method=Normalization.MAX, interpolation=Interpolation.NONE)
+        self.assertEqual(1.0, p.values.max())
+
+        # make sure interpolation doesn't affect the norm
+        p = SingleProfile(array, normalization_method=Normalization.MAX, interpolation=Interpolation.LINEAR)
+        self.assertEqual(1.0, p.values.max())
+
+        # test out a real field
+        field = generate_open_field()
+        p = SingleProfile(field.image[:, 500], normalization_method=Normalization.MAX)
+        self.assertEqual(1.0, p.values.max())
+
+        # filtered beam center is less than max value
+        p = SingleProfile(field.image[:, 500], normalization_method=Normalization.BEAM_CENTER)
+        self.assertGreaterEqual(p.values.max(), 1.0)
+
+    def test_beam_center(self):
+        # centered field
+        field = generate_open_field()
+        p = SingleProfile(field.image[:, int(field.shape[1]/2)], interpolation=Interpolation.NONE)
+        self.assertAlmostEqual(p.beam_center()['index (exact)'], field.shape[0]/2, delta=1)
+
+        # offset field
+        field = generate_open_field(center=(10, 10))
+        p = SingleProfile(field.image[:, int(field.shape[1]/2)], interpolation=Interpolation.NONE)
+        self.assertAlmostEqual(p.beam_center()['index (exact)'], 422, delta=1)
+
+    def test_geometric_center(self):
+        # centered field
+        field = generate_open_field()
+        p = SingleProfile(field.image[:, int(field.shape[1]/2)], interpolation=Interpolation.NONE)
+        self.assertAlmostEqual(p.geometric_center()['index (exact)'], field.shape[0]/2, delta=1)
+
+        # offset field should still be centered
+        field = generate_open_field(center=(20, 20))
+        p = SingleProfile(field.image[:, int(field.shape[1]/2)], interpolation=Interpolation.NONE)
+        self.assertAlmostEqual(p.geometric_center()['index (exact)'], field.shape[0]/2, delta=1)
+
+    def test_interpolation(self):
+        # centered field
+        field = generate_open_field()
+        # no interp
+        p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.NONE)
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)]))
+
+        # linear interp
+        p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR, interpolation_factor=10)
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10)
+
+        p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
+                          dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
+        # right length
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*field.pixel_size/0.1)
+        # right dpmm
+        self.assertEqual(p.dpmm, 10)
+
+        # spline interp
+        p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.SPLINE, interpolation_factor=10)
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10)
+
+        p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.SPLINE,
+                          dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
+        # right length
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*field.pixel_size/0.1)
+        # right dpmm
+        self.assertEqual(p.dpmm, 10)
 
 
-class SingleProfileCutoffTriangle(SingleProfileMixin, TestCase):
-    """A triangle cut short on the right side. Can effectively test the normalization of each side."""
-    xdata = np.linspace(0, 1.7 * np.pi, num=200)
-    ydata = sps.sawtooth(xdata, width=0.5)
-    fwxm_indices = {30: 115, 50: 82, 80: 33}
-    fwxm_center_values = {40: 1, 60: 1, 80: 1}
-    fwxm_center_indices = {40: 117, 60: 117, 80: 117}
-    penumbra_widths_8020 = {'left': 49, 'right': 49, 'both': 49}
-    penumbra_widths_9010 = {'left': 65, 'right': 65, 'both': 65}
-    field_edge_indices = (84, 150)
-    field_calculations = {'max': 0.99, 'mean': 0.64, 'min': 0.43}
-    field_value_length = 66
-    peak_idx = 117
 
 
 class MultiProfileTestMixin:

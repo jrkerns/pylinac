@@ -30,7 +30,7 @@ from py_linq import Enumerable
 from .core import image, pdf
 from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url, retrieve_demo_file
-from .core.profile import MultiProfile, SingleProfile
+from .core.profile import MultiProfile, SingleProfile, Interpolation
 from .core.utilities import open_path
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
@@ -676,9 +676,10 @@ class MLCValue:
             pix_vals = np.median(self._image_window, axis=0)
         else:
             pix_vals = np.median(self._image_window, axis=1)
-        prof = SingleProfile(pix_vals)
-        fw80mc, _ = prof.fwxm_center(80, interpolate=True)
-        return fw80mc + max(self._approximate_idx - self._spacing / 2, 0)  # crop to left edge if need be
+        interpolation_factor = 100
+        prof = SingleProfile(pix_vals, interpolation=Interpolation.SPLINE, interpolation_factor=interpolation_factor)
+        fw80m = prof.fwxm_data(80)
+        return fw80m['center index (exact)']/interpolation_factor + max(self._approximate_idx - self._spacing / 2, 0)  # crop to left edge if need be
 
     @property
     def passed(self) -> bool:

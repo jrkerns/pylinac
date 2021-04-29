@@ -21,7 +21,7 @@ from .core.geometry import Point, Rectangle
 from .core.image import ImageLike
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core.pdf import PylinacCanvas
-from .core.profile import SingleProfile
+from .core.profile import SingleProfile, Interpolation
 from .core.utilities import open_path
 from .settings import get_dicom_cmap
 from . import __version__
@@ -125,8 +125,8 @@ class VMATBase:
     def _identify_images(self, image1: ImageLike, image2: ImageLike):
         """Identify which image is the DMLC and which is the open field."""
         profile1, profile2 = self._median_profiles((image1, image2))
-        field_profile1 = profile1.field_values()
-        field_profile2 = profile2.field_values()
+        field_profile1 = profile1.field_data()['field values']
+        field_profile2 = profile2.field_data()['field values']
         if np.std(field_profile1) > np.std(field_profile2):
             self.dmlc_image = image1
             self.open_image = image2
@@ -168,7 +168,7 @@ class VMATBase:
         """Construct the center points of the segments based on the field center and known x-offsets."""
         points = []
         dmlc_prof, _ = self._median_profiles((self.dmlc_image, self.open_image))
-        x_field_center, _ = dmlc_prof.fwxm_center()
+        x_field_center = dmlc_prof.fwxm_data()['center index (rounded)']
         for x_offset_mm in self.SEGMENT_X_POSITIONS_MM:
             y = self.open_image.center.y
             x_offset_pixels = x_offset_mm * self.open_image.dpmm
@@ -305,9 +305,9 @@ class VMATBase:
     @staticmethod
     def _median_profiles(images) -> Tuple[SingleProfile, SingleProfile]:
         """Return two median profiles from the open and dmlc image. For visual comparison."""
-        profile1 = SingleProfile(np.mean(images[0], axis=0))
+        profile1 = SingleProfile(np.mean(images[0], axis=0), interpolation=Interpolation.NONE)
         profile1.stretch()
-        profile2 = SingleProfile(np.mean(images[1], axis=0))
+        profile2 = SingleProfile(np.mean(images[1], axis=0), interpolation=Interpolation.NONE)
         profile2.stretch()
 
         # normalize the profiles to approximately the same value
