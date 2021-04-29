@@ -235,7 +235,7 @@ class SNCProfiler:
             self.timetic = float(raw_data[bias_row].split('\t')[2])
             self.integrated_dose = self.calibration * (self.data - self.bias * self.timetic)
 
-    def to_profiles(self, n_detectors_row: int = 63) -> Tuple[SingleProfile, SingleProfile, SingleProfile, SingleProfile]:
+    def to_profiles(self, n_detectors_row: int = 63, **kwargs) -> Tuple[SingleProfile, SingleProfile, SingleProfile, SingleProfile]:
         """Convert the SNC data to SingleProfiles. These can be analyzed directly or passed to other modules like flat/sym.
 
         Parameters
@@ -243,9 +243,9 @@ class SNCProfiler:
         n_detectors_row : int
             The number of detectors in a given row. Note that they Y profile includes 2 extra detectors from the other 3.
         """
-        x_prof = SingleProfile(self.integrated_dose[:n_detectors_row])
-        y_prof = SingleProfile(self.integrated_dose[n_detectors_row:2*n_detectors_row+2])
-        pos_prof = SingleProfile(self.integrated_dose[2*n_detectors_row+2:3*n_detectors_row+2])
-        neg_prof = SingleProfile(self.integrated_dose[3*n_detectors_row+2:4*n_detectors_row+2])
+        x_prof = SingleProfile(self.integrated_dose[:n_detectors_row], **kwargs)
+        y_prof = SingleProfile(self.integrated_dose[n_detectors_row:2*n_detectors_row+2], **kwargs)
+        pos_prof = SingleProfile(self.integrated_dose[2*n_detectors_row+2:3*n_detectors_row+2], **kwargs)
+        neg_prof = SingleProfile(self.integrated_dose[3*n_detectors_row+2:4*n_detectors_row+2], **kwargs)
         return x_prof, y_prof, pos_prof, neg_prof
 

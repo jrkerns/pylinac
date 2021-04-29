@@ -1,5 +1,6 @@
 """Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
 import enum
+import warnings
 from typing import Union, Tuple, Sequence, List, Optional
 
 import argue
@@ -9,11 +10,16 @@ from matplotlib.patches import Circle as mpl_Circle
 from scipy import ndimage, signal
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
+from scipy.optimize import OptimizeWarning, minimize
 from scipy.stats import linregress
 
 from .geometry import Point, Circle
-from .hillreg import Hill
+from .hill import Hill
 from .typing import NumberLike
+
+# for Hill fits of 2D device data the # of points can be small.
+# This results in optimization warnings about the variance of the fit (the variance isn't of concern for us for that particular item)
+warnings.simplefilter("ignore", OptimizeWarning)
 
 
 def stretch(array: np.ndarray, min: int=0, max: int=1, fill_dtype: Optional[np.dtype]=None) -> np.ndarray:
@@ -136,23 +142,23 @@ class ProfileMixin:
 class Interpolation(enum.Enum):
     """Interpolation Enum"""
     NONE = None
-    LINEAR = 'linear'
-    SPLINE = 'spline'
+    LINEAR = 'Linear'
+    SPLINE = 'Spline'
 
 
 class Normalization(enum.Enum):
     """Normalization method Enum"""
     NONE = None
-    GEOMETRIC_CENTER = 'geometric-center'
-    BEAM_CENTER = 'beam-center'
-    MAX = 'max'
+    GEOMETRIC_CENTER = 'Geometric center'
+    BEAM_CENTER = 'Beam center'
+    MAX = 'Max'
 
 
 class Edge(enum.Enum):
     """Edge detection Enum"""
-    FWHM = 'fwhm'
-    INFLECTION_DERIVATIVE = 'inflection-derivative'
-    INFLECTION_HILL = 'inflection-hill'
+    FWHM = 'FWHM'
+    INFLECTION_DERIVATIVE = 'Inflection Derivative'
+    INFLECTION_HILL = 'Inflection Hill'
 
 
 class SingleProfile(ProfileMixin):
@@ -164,11 +170,12 @@ class SingleProfile(ProfileMixin):
     def __init__(self, values: np.ndarray, dpmm: float = None,
                  interpolation: Interpolation = Interpolation.LINEAR,
                  ground: bool = True,
-                 interpolation_resolution_mm: float=0.1,
-                 interpolation_factor: float=10,
+                 interpolation_resolution_mm: float = 0.1,
+                 interpolation_factor: float = 10,
                  normalization_method: Normalization = Normalization.BEAM_CENTER,
                  edge_detection_method: Edge = Edge.FWHM,
-                 edge_smoothing_ratio: float=0.003):
+                 edge_smoothing_ratio: float = 0.003,
+                 hill_window_ratio: float = 0.1):
         """
         Parameters
         ----------
@@ -194,9 +201,15 @@ class SingleProfile(ProfileMixin):
             50% height. In fact, for FFF beams it shouldn't be. Inflection methods are better for FFF and other unusual
             beam shapes.
         edge_smoothing_ratio
+            *Only applies to INFLECTION_DERIVATIVE and INFLECTION_HILL.*
+
             The ratio of the length of the values to use as the sigma for a Gaussian filter applied before searching for
             the inflection. E.g. 0.005 with a profile of 1000 points will result in a sigma of 5.
             This helps make the inflection point detection more robust to noise. Increase for noisy data.
+        hill_window_ratio
+            The ratio of the field size to use as the window to fit the Hill function. E.g. 0.2 will using a window
+            centered about each edge with a width of 20% the size of the field width. *Only applies when the edge
+            detection is ``INFLECTION_HILL`` *.
         """
         self._interp_method = interpolation
         self._interpolation_res = interpolation_resolution_mm
@@ -204,11 +217,13 @@ class SingleProfile(ProfileMixin):
         self._norm_method = normalization_method
         self._edge_method = edge_detection_method
         self._edge_smoothing_ratio = edge_smoothing_ratio
+        self._hill_window_ratio = hill_window_ratio
         self.values = values  # set initial data so we can do things like find beam center
         self.dpmm = dpmm
-        fitted_values, new_dpmm, x_indices = self._fit_data_to_method(values, dpmm, interpolation_resolution_mm,
-                                                                                      interpolation_factor, interpolation)
+        fitted_values, new_dpmm, x_indices = self._interpolate(values, dpmm, interpolation_resolution_mm,
+                                                               interpolation_factor, interpolation)
         self.dpmm = new_dpmm  # update as needed
+        self.values = fitted_values
         self.x_indices = x_indices
         if ground:
             fitted_values -= fitted_values.min()
@@ -216,33 +231,29 @@ class SingleProfile(ProfileMixin):
         self.values = norm_values  # update values
 
     @staticmethod
-    def _fit_data_to_method(values, dpmm, interpolation_resolution, interpolation_factor, fit_method: Interpolation) -> (float, float, float, float):
+    def _interpolate(values, dpmm, interpolation_resolution, interpolation_factor, interp_method: Interpolation) -> (
+            np.ndarray, float, float, float):
         """Fit the data to the passed interpolation method. Will also calculate the new values to correct the measurements such as dpmm"""
-        rescale_factor = 1
         x_indices = list(range(len(values)))
-        if fit_method == Interpolation.NONE:
+        if interp_method == Interpolation.NONE:
             return values, dpmm, x_indices  # do nothing
-        elif fit_method == Interpolation.LINEAR:
+        elif interp_method == Interpolation.LINEAR:
             if dpmm is not None:
                 samples = int(round(len(x_indices)/(dpmm*interpolation_resolution)))
                 new_dpmm = 1/interpolation_resolution
-                # rescale_factor = 1/(dpmm*interpolation_resolution)
             else:
                 samples = int(round(len(x_indices)*interpolation_factor))
                 new_dpmm = None
-                # rescale_factor = interpolation_factor
             f = interp1d(x_indices, values, kind='linear', bounds_error=False)
             new_x = np.linspace(0, len(x_indices)-1, num=samples)
             return f(new_x), new_dpmm, new_x
-        elif fit_method == Interpolation.SPLINE:
+        elif interp_method == Interpolation.SPLINE:
             if dpmm is not None:
                 samples = int(round(len(x_indices)/(dpmm*interpolation_resolution)))
                 new_dpmm = 1 / interpolation_resolution
-                # rescale_factor = 1 / dpmm * interpolation_resolution
             else:
                 samples = int(round(len(x_indices)*interpolation_factor))
                 new_dpmm = None
-                # rescale_factor = interpolation_factor
             f = interp1d(x_indices, values, kind='cubic')
             new_x = np.linspace(0, len(x_indices)-1, num=samples)
             return f(new_x), new_dpmm, new_x
@@ -327,7 +338,7 @@ class SingleProfile(ProfileMixin):
         return data
 
     @argue.bounds(in_field_ratio=(0, 1.0), slope_exclusion_ratio=(0, 1.0))
-    def field_data(self, in_field_ratio: float=0.8, slope_exclusion_ratio=0.2) -> dict:
+    def field_data(self, in_field_ratio: float = 0.8, slope_exclusion_ratio=0.2) -> dict:
         """Return the width at X-Max, where X is the percentage height.
 
         Parameters
@@ -377,11 +388,17 @@ class SingleProfile(ProfileMixin):
 
         # top calc
         fit_params = np.polyfit(range(inner_left_idx_r, inner_right_idx_r),
-                                self.values[inner_left_idx_r:
-                                            inner_right_idx_r], deg=2)
-        top_vals = np.polyval(fit_params, range(inner_left_idx_r, inner_right_idx_r))
-        top_val = top_vals.max()
-        top_idx = np.argmax(top_vals) + inner_left_idx
+                                self.values[inner_left_idx_r:inner_right_idx_r], deg=2)
+        width = abs(inner_right_idx_r - inner_left_idx_r)
+
+        def poly_func(x):
+            # return the negative since we're MINIMIZING and want the top value
+            return -(fit_params[0] * (x ** 2) + fit_params[1] * x + fit_params[2])
+
+        # minimize the polynomial function
+        min_f = minimize(poly_func, x0=(inner_left_idx_r+width/2,), bounds=((inner_left_idx_r, inner_right_idx_r),))
+        top_idx = min_f.x[0]
+        top_val = -min_f.fun
 
         data = {'width (exact)': field_width,
                 'beam center index (exact)': beam_center_idx,
@@ -403,7 +420,7 @@ class SingleProfile(ProfileMixin):
                 'right inner index (rounded)': inner_right_idx_r,
                 '"top" index (exact)': top_idx,
                 '"top" index (rounded)': int(round(top_idx)),
-                '"top" value (@rounded)': top_val,
+                '"top" value (@exact)': top_val,
                 'top params': fit_params,
                 'right index (exact)': field_right_idx,
                 'right index (rounded)': field_right_idx_r,
@@ -412,8 +429,8 @@ class SingleProfile(ProfileMixin):
                                             int(round(field_right_idx))]}
         if self.dpmm:
             data['width (exact) mm'] = data['width (exact)'] / self.dpmm
-            data['left slope (%/mm)'] = data['left slope'] / self.dpmm
-            data['right slope (%/mm)'] = data['right slope'] / self.dpmm
+            data['left slope (%/mm)'] = data['left slope'] * self.dpmm * 100
+            data['right slope (%/mm)'] = data['right slope'] * self.dpmm * 100
             data['left distance->beam center (exact) mm'] = abs(data['beam center index (exact)'] - data['left index (exact)']) / self.dpmm
             data['right distance->beam center (exact) mm'] = abs(data['right index (exact)'] - data['beam center index (exact)']) / self.dpmm
             data['left distance->CAX (exact) mm'] = abs(data['cax index (exact)'] - data['left index (exact)']) / self.dpmm
@@ -425,7 +442,7 @@ class SingleProfile(ProfileMixin):
             data['"top"->CAX (exact) mm'] = abs(data['"top" index (exact)'] - data['cax index (exact)']) / self.dpmm
         return data
 
-    def inflection_data(self, hill_window_ratio: float=0.2) -> dict:
+    def inflection_data(self) -> dict:
         """Calculate the profile inflection values using either the 2nd derivative or a fitted Hill function.
 
         .. note::
@@ -433,10 +450,7 @@ class SingleProfile(ProfileMixin):
 
         Parameters
         ----------
-        hill_window_ratio
-            The ratio of the field size to use as the window to fit the Hill function. E.g. 0.2 will using a window
-            centered about each edge with a width of 20% the size of the field width. **Only applies when the edge
-            detection is ``INFLECTION_HILL`` **.
+
         """
         # get max/min of the gradient, which is basically the same as the 2nd deriv 0-crossing
         if self._edge_method == Edge.FWHM:
@@ -457,17 +471,19 @@ class SingleProfile(ProfileMixin):
             return data
         else:  # Hill
             # the 2nd deriv is a good approximation for the inflection point. Start there and fit Hill about it
-            penum_half_window = int(round(hill_window_ratio * abs(right_idx - left_idx) / 2))
+            # penum_half_window = self.field_data()['width (exact)'] * self._hill_window_ratio / 2
+            penum_half_window = int(round(self._hill_window_ratio * abs(right_idx - left_idx) / 2))
 
             # left side
-            x_data = np.arange(left_idx - penum_half_window, left_idx + penum_half_window)
-            y_data = self.values[left_idx - penum_half_window: left_idx + penum_half_window]
+            x_data = np.array([x for x in np.arange(left_idx - penum_half_window, left_idx + penum_half_window) if x >=0])
+            y_data = self.values[x_data]
+            # y_data = self.values[left_idx - penum_half_window: left_idx + penum_half_window]
             left_hill = Hill.fit(x_data, y_data)
             left_infl = left_hill.inflection_idx()
 
             # right side
-            x_data = np.arange(right_idx - penum_half_window, right_idx + penum_half_window)
-            y_data = self.values[right_idx - penum_half_window: right_idx + penum_half_window]
+            x_data = np.array([x for x in np.arange(right_idx - penum_half_window, right_idx + penum_half_window) if x < len(d1)])
+            y_data = self.values[x_data]
             right_hill = Hill.fit(x_data, y_data)
             right_infl = right_hill.inflection_idx()
 
@@ -583,23 +599,10 @@ class SingleProfile(ProfileMixin):
                     }
             if self.dpmm:
                 data['left penumbra width (exact) mm'] = data['left penumbra width (exact)'] / self.dpmm
-                data['left gradient (exact) %/mm'] = data['left gradient (exact)'] / self.dpmm
+                data['left gradient (exact) %/mm'] = data['left gradient (exact)'] * self.dpmm * 100  # 100 to convert to %
                 data['right penumbra width (exact) mm'] = data['right penumbra width (exact)'] / self.dpmm
-                data['right gradient (exact) %/mm'] = data['right gradient (exact)'] / self.dpmm
+                data['right gradient (exact) %/mm'] = data['right gradient (exact)'] * self.dpmm * 100
             return data
-
-    def field_value(self, dist_from_cax: Optional[float] = None, ratio_from_cax: Optional[float] = None) -> dict:
-        """Return the value at a given distance from the CAX"""
-        if self.dpmm is None and dist_from_cax is not None:
-            raise ValueError("The dpmm must be set to get a value at a certain distance away")
-        if dist_from_cax is not None and ratio_from_cax is not None:
-            raise ValueError("Can only specify one distance parameter. Use EITHER dist* or ratio*")
-        if ratio_from_cax:
-            ratio = ratio_from_cax
-        else:
-            ratio = dist_from_cax / self.field_data(in_field_ratio=1.0, slope_exclusion_ratio=0.01)['width (exact) mm']
-        return {'left': self.field_data(in_field_ratio=ratio, slope_exclusion_ratio=ratio/2)['left value (@rounded)'],
-                'right': self.field_data(in_field_ratio=ratio, slope_exclusion_ratio=ratio/2)['right value (@rounded)']}
 
     @argue.options(calculation=('mean', 'median', 'max', 'min', 'area'))
     def field_calculation(self, in_field_ratio: float=0.8, calculation: str='mean') -> Union[float, Tuple[float, float]]:
@@ -624,16 +627,9 @@ class SingleProfile(ProfileMixin):
         elif calculation == 'min':
             return field_values['field values'].min()
 
-    def plot(self, x: int=50) -> None:
+    def plot(self) -> None:
         """Plot the profile."""
-        # peak_idx, peak_props = find_peaks(self.values, fwxm_height=x/100, max_number=1)
         plt.plot(self.values)
-        # plt.plot(self.field_data())
-        # plt.plot(self.penumbra(20, 80)['left index (rounded)'], self.penumbra(20, 80)['left values'])
-
-        # plt.plot(peak_idx, peak_props['peak_heights'][0], marker=7, color="green")
-        # plt.vlines(peak_idx, ymin=peak_props['peak_heights'][0]-peak_props['prominences'][0], ymax=peak_props['peak_heights'][0], color="red")
-        # plt.hlines(peak_props['width_heights'][0], xmin=peak_props['left_ips'], xmax=peak_props['right_ips'], color="red")
         plt.show()
 
 

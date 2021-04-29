@@ -19,10 +19,9 @@
    picketfence
    winston_lutz
    planar_imaging
-   flatsym
+   field_analysis
    core_modules
    image_generator
-   gui
    pylinac_core_hacking
    troubleshooting
    contributing

@@ -327,30 +327,31 @@ Below are the high-level tools currently available:
         pf.plot_analyzed_image()
         pf.publish_pdf()
 
-* `Flatness & Symmetry Analysis <http://pylinac.readthedocs.org/en/stable/flatsym.html>`_ -
-    Flatness & symmetry from a digital image such as EPID DICOM can easily by analyzed. The module contains built-in
-    F&S equation definitions but is extensible to quickly create custom F&S equations.
+* `Open Field Analysis <http://pylinac.readthedocs.org/en/stable/field_analysis.html>`_ -
+    Field analysis from a digital image such as EPID DICOM or 2D device array can easily be analyzed. The module contains built-in
+    flatness and symmetry equation definitions but is extensible to quickly create custom F&S equations.
 
     Features:
-
-    * **Analyze any digital image** - JPG, TIFF, DICOM are all valid inputs.
-    * **Built-in F&S equations** - The common Elekta and Varian defintions are included
-    * **Extensible F&S equations** - Adding custom equations for F&S is straightforward
+    * **EPID or device data** - Any EPID image or the SNC Profiler.
+    * **Built-in F&S equations** - The common Elekta, Varian, and Siemens definitions are included
+    * **Extensible equations** - Adding custom equations for image metrics are easy
 
     Example script:
 
     .. code-block:: python
 
-        from pylinac import FlatSym
+        from pylinac import FieldAnalysis, DeviceFieldAnalysis, Protocol
 
-        fs = FlatSym(path="myFS.dcm")
-        fs.analyze(flatness_method='varian', symmetry_method='varian', vert_position=0.5, horiz_position=0.5)
+        fa = FieldAnalysis(path="myFS.dcm")  # equivalently, DeviceFieldAnalysis
+        fa.analyze(protocol=Protocol.VARIAN)
         # print results
-        print(fs.results())
+        print(fa.results())
+        # get results as a dict
+        fa.results_data()
         # plot results
-        fs.plot_analyzed_image()
+        fa.plot_analyzed_image()
         # publish a PDF file
-        fs.publish_pdf(filename='myFS.pdf')
+        fa.publish_pdf(filename='my field analysis.pdf')
 
 Discussion
 ----------
