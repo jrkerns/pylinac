@@ -281,13 +281,13 @@ class WinstonLutz:
             move += f"\nNew couch coordinates (mm): VRT: {new_vrt:3.2f}; LNG: {new_lng:3.2f}; LAT: {new_lat:3.2f}"
         return move
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, GBP_COMBO), value=('all', 'range'))
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, GB_COMBO, GBP_COMBO), value=('all', 'range'))
     def axis_rms_deviation(self, axis: str=GANTRY, value: str='all') -> float:
         """The RMS deviations of a given axis/axes.
 
         Parameters
         ----------
-        axis : ('Gantry', 'Collimator', 'Couch', 'Epid', 'Combo'}
+        axis : ('Gantry', 'Collimator', 'Couch', 'Epid', 'GB Combo',  'GBP Combo'}
             The axis desired.
         value : {'all', 'range'}
             Whether to return all the RMS values from all images for that axis, or only return the maximum range of
@@ -382,7 +382,7 @@ class WinstonLutz:
         images = [image for image in self.images if image.variable_axis in axis]
         return len(images), images
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GBP_COMBO))
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GB_COMBO, GBP_COMBO))
     def plot_axis_images(self, axis: str=GANTRY, show: bool=True, ax: Optional[plt.Axes]=None):
         """Plot all CAX/BB/EPID positions for the images of a given axis.
 
@@ -391,7 +391,7 @@ class WinstonLutz:
 
         Parameters
         ----------
-        axis : {'Gantry', 'Collimator', 'Couch', 'Combo'}
+        axis : {'Gantry', 'Collimator', 'Couch', 'GB Combo',  'GBP Combo'}
             The images/markers from which accelerator axis to plot.
         show : bool
             Whether to actually show the images.
@@ -422,7 +422,7 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GBP_COMBO, GB_COMBO))
+    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GB_COMBO, GBP_COMBO))
     def plot_images(self, axis: str=GANTRY, show: bool=True):
         """Plot a grid of all the images acquired.
 
@@ -430,7 +430,7 @@ class WinstonLutz:
 
         Parameters
         ----------
-        axis : {'Gantry', 'Collimator', 'Couch', 'Combo', 'All'}
+        axis : {'Gantry', 'Collimator', 'Couch', 'GB Combo', 'GBP Combo', 'All'}
         show : bool
             Whether to show the image.
         """
@@ -543,7 +543,7 @@ class WinstonLutz:
         if not as_list:
             result = '\n'.join(result)
         return result
-    
+
     def results_data(self) -> dict:
         """Return the analysis results as a dictionary."""
         num_gantry_imgs = self._get_images(axis=(GANTRY, REFERENCE))[0]
@@ -608,7 +608,7 @@ class WinstonLutz:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 4))
         # add more pages showing individual axis images
-        for ax in (GANTRY, COLLIMATOR, COUCH, GBP_COMBO):
+        for ax in (GANTRY, COLLIMATOR, COUCH, GB_COMBO, GBP_COMBO):
             if self._contains_axis_images(ax):
                 canvas.add_new_page()
                 data = io.BytesIO()
