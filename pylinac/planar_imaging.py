@@ -152,6 +152,7 @@ class ImagePhantomBase:
         ssd
             The SSD of the phantom itself in mm.
         """
+        self._phantom_ski_region = None
         self._angle_override = angle_override
         self._center_override = center_override
         self._size_override = size_override
@@ -542,7 +543,7 @@ class LasVegas(ImagePhantomBase):
             regions = self._get_canny_regions()
             blobs = []
             phantom_bbox_size_mm2 = 20260
-            phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) / (self._ssd/1000)
+            phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) / ((self._ssd/1000)**2)
             for phantom_idx, region in enumerate(regions):
                 if region.bbox_area < 50:
                     continue
@@ -566,6 +567,7 @@ class LasVegas(ImagePhantomBase):
 class StandardImagingQC3(ImagePhantomBase):
     _demo_filename = 'qc3.dcm'
     common_name = 'SI QC-3'
+    _phantom_ski_region = None
     phantom_outline_object = {'Rectangle': {'width ratio': 7.5, 'height ratio': 6}}
     high_contrast_roi_settings = {
         'roi 1': {'distance from center': 2.8, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.1},
@@ -593,32 +595,34 @@ class StandardImagingQC3(ImagePhantomBase):
         qc3.analyze()
         qc3.plot_analyzed_image()
 
-    @property
-    @lru_cache()
-    def phantom_ski_region(self) -> RegionProperties:
+    def _phantom_ski_region_calc(self) -> RegionProperties:
         """The skimage region of the phantom outline."""
-        regions = self._get_canny_regions()
-        blobs = []
-        phantom_bbox_size_mm2 = 176**2  # phantom is 115 x 134 mm2. At 45degrees that's 176 x 176mm
-        fudge_factor = 0.95  # in practice, the detected size is a little bit smaller
-        phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) * fudge_factor
-        img_center = (self.image.center.y, self.image.center.x)
-        for phantom_idx, region in enumerate(regions):
-            if region.bbox_area < 1000:
-                continue
-            is_at_ssd = np.isclose(region.bbox_area, phantom_size_pix/(self._ssd/1000), rtol=0.1)
-            centered = np.allclose(region.centroid, img_center, rtol=0.1)
-            if is_at_ssd and centered:
-                blobs.append(phantom_idx)
+        if self._phantom_ski_region is not None:
+            return self._phantom_ski_region
+        else:
+            regions = self._get_canny_regions()
+            blobs = []
+            phantom_bbox_size_mm2 = 176**2  # phantom is 115 x 134 mm2. At 45degrees that's 176 x 176mm
+            fudge_factor = 0.95  # in practice, the detected size is a little bit smaller
+            phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) * fudge_factor / ((self._ssd/1000)**2)
+            img_center = (self.image.center.y, self.image.center.x)
+            for phantom_idx, region in enumerate(regions):
+                if region.bbox_area < 1000:
+                    continue
+                is_at_ssd = np.isclose(region.bbox_area, phantom_size_pix, rtol=0.1)
+                centered = np.allclose(region.centroid, img_center, rtol=0.1)
+                if is_at_ssd and centered:
+                    blobs.append(phantom_idx)
 
-        if not blobs:
-            raise ValueError("Unable to find the QC-3 phantom in the image.")
+            if not blobs:
+                raise ValueError("Unable to find the QC-3 phantom in the image.")
 
-        # find the biggest ROI and call that the phantom outline
-        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
-        phantom_idx = blobs[big_roi_idx]
+            # find the biggest ROI and call that the phantom outline
+            big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
+            phantom_idx = blobs[big_roi_idx]
 
-        return regions[phantom_idx]
+            self._phantom_ski_region = regions[phantom_idx]
+            return regions[phantom_idx]
 
     def _phantom_radius_calc(self) -> float:
         """The radius of the phantom in pixels; the value itself doesn't matter, it's just
@@ -628,7 +632,7 @@ class StandardImagingQC3(ImagePhantomBase):
         -------
         radius : float
         """
-        return self.phantom_ski_region.major_axis_length / 14
+        return self._phantom_ski_region_calc().major_axis_length / 14
 
     def _phantom_angle_calc(self) -> float:
         """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
@@ -648,7 +652,7 @@ class StandardImagingQC3(ImagePhantomBase):
         -------
         center : Point
         """
-        return bbox_center(self.phantom_ski_region)
+        return bbox_center(self._phantom_ski_region_calc())
 
 
 class LeedsTOR(ImagePhantomBase):
@@ -904,35 +908,38 @@ class DoselabMC2kV(ImagePhantomBase):
         leeds.analyze()
         leeds.plot_analyzed_image()
 
-    @property
-    @lru_cache()
-    def phantom_ski_region(self) -> RegionProperties:
+    def phantom_ski_region_calc(self) -> RegionProperties:
         """The skimage region of the phantom outline."""
-        regions = self._get_canny_regions(percentiles=(0.01, 0.1))
-        blobs = []
-        phantom_bbox_size_mm2 = 26300
-        phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) / (self._ssd/1000)
-        for phantom_idx, region in enumerate(regions):
-            if not np.isclose(phantom_size_pix, region.bbox_area, rtol=0.1):
-                continue
-            hollow = region.extent < 0.05
-            if hollow:
-                blobs.append(phantom_idx)
+        if self._phantom_ski_region is not None:
+            return self._phantom_ski_region
+        else:
+            regions = self._get_canny_regions(percentiles=(0.01, 0.1))
+            blobs = []
+            phantom_bbox_size_mm2 = 26300
+            phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) / ((self._ssd/1000)**2)
+            for phantom_idx, region in enumerate(regions):
+                if not np.isclose(phantom_size_pix, region.bbox_area, rtol=0.1):
+                    continue
+                hollow = region.extent < 0.05
+                if hollow:
+                    blobs.append(phantom_idx)
 
-        if not blobs or (len(blobs) != 1):
-            raise ValueError("Unable to find the Doselab phantom in the image.")
+            if not blobs or (len(blobs) != 1):
+                raise ValueError("Unable to find the Doselab phantom in the image.")
 
-        return regions[blobs[0]]
+            self._phantom_ski_region = regions[blobs[0]]
+
+            return regions[blobs[0]]
 
     def _phantom_center_calc(self) -> Point:
-        roi = self.phantom_ski_region
+        roi = self.phantom_ski_region_calc()
         return Point(roi.centroid[1], roi.centroid[0])
 
     def _phantom_radius_calc(self) -> float:
-        return self.phantom_ski_region.major_axis_length
+        return self.phantom_ski_region_calc().major_axis_length
 
     def _phantom_angle_calc(self) -> float:
-        roi = self.phantom_ski_region
+        roi = self.phantom_ski_region_calc()
         angle = np.degrees(roi.orientation) + 90
         if not np.isclose(angle, 45, atol=5):
             raise ValueError("Angles not close enough to the ideal 45 degrees. Check phantom setup or override angle.")
