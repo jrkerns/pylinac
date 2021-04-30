@@ -651,6 +651,46 @@ class StandardImagingQC3(ImagePhantomBase):
         return bbox_center(self.phantom_ski_region)
 
 
+class StandardImagingQCkV1(StandardImagingQC3):
+    _demo_filename = 'qckv1.dcm'
+    common_name = 'SI QC-kV1'
+    phantom_outline_object = {'Rectangle': {'width ratio': 7.5, 'height ratio': 6}}
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Standard Imaging QC-3 phantom analysis demonstration."""
+        qc3 = StandardImagingQCkV1.from_demo_image()
+        qc3.analyze()
+        qc3.plot_analyzed_image()
+
+    @property
+    @lru_cache()
+    def phantom_ski_region(self) -> RegionProperties:
+        """The skimage region of the phantom outline."""
+        regions = self._get_canny_regions()
+        blobs = []
+        phantom_bbox_size_mm2 = 160**2  # phantom is 115 x 134 mm2. At 45degrees that's 176 x 176mm
+        fudge_factor = 0.95  # in practice, the detected size is a little bit smaller
+        phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) * fudge_factor
+        img_center = (self.image.center.y, self.image.center.x)
+        for phantom_idx, region in enumerate(regions):
+            if region.bbox_area < 1000:
+                continue
+            is_at_ssd = np.isclose(region.bbox_area, phantom_size_pix/(self._ssd/100)**2, rtol=0.1)
+            centered = np.allclose(region.centroid, img_center, rtol=0.1)
+            if is_at_ssd and centered:
+                blobs.append(phantom_idx)
+
+        if not blobs:
+            raise ValueError("Unable to find the QC-3 phantom in the image.")
+
+        # find the biggest ROI and call that the phantom outline
+        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
+        phantom_idx = blobs[big_roi_idx]
+
+        return regions[phantom_idx]
+
+
 class LeedsTOR(ImagePhantomBase):
     _demo_filename = 'leeds.dcm'
     common_name = 'Leeds'
