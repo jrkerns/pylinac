@@ -122,7 +122,7 @@ class SIQC3_2(PlanarPhantomMixin, TestCase):
 
     def test_wrong_ssd_fails(self):
         with self.assertRaises(ValueError):
-            self.instance.analyze(ssd=140)
+            self.instance.analyze(ssd=1800)
 
 
 class LasVegasTestMixin(PlanarPhantomMixin):

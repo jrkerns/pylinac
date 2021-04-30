@@ -689,6 +689,23 @@ and methods, the plotting and PDF report functionality comes for free.
 Usage tips & tweaks
 -------------------
 
+Set the SSD of your phantom
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If your phantom is at a non-standard distance (!= 1000mm), e.g. sitting on the EPID panel, you can specify its
+distance via the ``ssd`` parameter.
+
+.. warning::
+
+    The ``ssd`` should be in mm, not cm. Pylinac is moving toward consistent units on everything and it will be mm for distance.
+
+.. code-block:: python
+
+    from pylinac import StandardImagingQC3
+
+    qc = StandardImagingQC3(...)
+    qc.analyze(..., ssd=1500)  # distance to the phantom in mm.
+
 Adjust an ROI on an existing phantom
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
