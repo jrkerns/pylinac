@@ -382,6 +382,7 @@ class ImagePhantomBase:
                      f'MTF 50% (lp/mm): {self.mtf.relative_resolution(50):2.2f}',
                      f'MTF 30% (lp/mm): {self.mtf.relative_resolution(30):2.2f}',
             ]
+        text = '\n'.join(text)
         return text
 
     def results_data(self, as_dict=False) -> Union[PlanarResult, dict]:

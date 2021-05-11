@@ -75,7 +75,7 @@ class PlanarPhantomMixin(LocationMixin):
             self.assertAlmostEqual(self.mtf_50, self.instance.mtf.relative_resolution(50), delta=0.3)
 
     def test_results(self):
-        self.instance.results()
+        self.assertIsInstance(self.instance.results(), str)
 
 
 class LeedsDemo(PlanarPhantomMixin, TestCase):
