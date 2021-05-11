@@ -20,22 +20,36 @@ Features:
   do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
 import copy
+import dataclasses
 import io
-from typing import Union, List, Optional
+from dataclasses import dataclass
+from typing import Union, List, Optional, Tuple
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import optimize
 
-from .core import image
+from .core import image, pdf
 from .core.geometry import Point, Line, Circle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
-from .core import pdf
 from .core.profile import SingleProfile, CollapsedCircleProfile, Interpolation
-from .core.utilities import open_path
+from .core.utilities import open_path, ResultBase
 from .settings import get_dicom_cmap
-from . import __version__
+
+
+@dataclass
+class StarshotResults(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes.
+    """
+    tolerance_mm: float  #:
+    circle_diameter_mm: float  #:
+    circle_radius_mm: float  #:
+    passed: bool  #:
+    circle_center_x_y: Tuple[float, float]  #:
 
 
 class Starshot:
@@ -161,8 +175,8 @@ class Starshot:
         return center_point
 
     @argue.bounds(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
-    def analyze(self, radius: float=0.85, min_peak_height: float=0.25, tolerance: float=1.0,
-                start_point: Point=None, fwhm: bool=True, recursive: bool=True, invert: bool=False):
+    def analyze(self, radius: float = 0.85, min_peak_height: float = 0.25, tolerance: float = 1.0,
+                start_point: Point = None, fwhm: bool = True, recursive: bool = True, invert: bool = False):
         """Analyze the starshot image.
 
         Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -317,15 +331,18 @@ class Starshot:
                   f'The center of the minimum circle is at {self.wobble.center.x:3.1f}, {self.wobble.center.y:3.1f}')
         return string
 
-    def results_data(self) -> dict:
-        """Return the analysis data as a dict."""
-        data = dict()
-        data['pylinac version'] = __version__
-        data['Starshot tolerance (mm)'] = self.tolerance
-        data['Starshot circle diameter (mm)'] = self.wobble.radius_mm*2
-        data['Starshot circle radius (mm)'] = self.wobble.radius_mm
-        data['Starshot circle center (px)'] = {'x': self.wobble.center.x, 'y': self.wobble.center.y}
-        data['Starshot passed?'] = self.passed
+    def results_data(self, as_dict: bool = False) -> Union[StarshotResults, dict]:
+        """Present the results data and metadata as a dataclass or dict.
+        The default return type is a dataclass."""
+        data = StarshotResults(
+                tolerance_mm=self.tolerance,
+                circle_diameter_mm=self.wobble.radius_mm * 2,
+                circle_radius_mm=self.wobble.radius_mm,
+                circle_center_x_y=(self.wobble.center.x, self.wobble.center.y),
+                passed=self.passed,
+        )
+        if as_dict:
+            return dataclasses.asdict(data)
         return data
 
     def plot_analyzed_image(self, show: bool=True):

@@ -8,6 +8,7 @@ import numpy as np
 
 from pylinac.core.geometry import Point
 from pylinac import Starshot
+from pylinac.starshot import StarshotResults
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
 
 plt.close('all')
@@ -205,8 +206,8 @@ class GeneralTests(Demo, TestCase):
 
     def test_results_data(self):
         data = self.star.results_data()
-        self.assertIsInstance(data, dict)
-        self.assertEqual(len(data), 6)
-        self.assertIn('pylinac version', data)
-        self.assertEqual(data['Starshot circle radius (mm)'], self.star.wobble.radius_mm)
+        self.assertIsInstance(data, StarshotResults)
+        self.assertEqual(data.circle_radius_mm, self.star.wobble.radius_mm)
 
+        data_dict = self.star.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)

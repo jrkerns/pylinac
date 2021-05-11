@@ -1,8 +1,8 @@
 .. _field_analysis_module:
 
-======================================
-Field Analysis module documentation
-======================================
+==============
+Field Analysis
+==============
 
 Overview
 --------
@@ -619,6 +619,8 @@ To load a Profiler dataset:
           - Inflection derivative
           - Inflection Hill
 
+.. _fff_fields:
+
 FFF fields
 ----------
 
@@ -703,17 +705,42 @@ notekeeping.
 API Documentation
 -----------------
 
+Main classes
+^^^^^^^^^^^^
+
+These are the classes a typical user may interface with.
+
 .. autoclass:: pylinac.field_analysis.FieldAnalysis
+    :members:
+
+.. autoclass:: pylinac.field_analysis.FieldResults
     :members:
 
 .. autoclass:: pylinac.field_analysis.DeviceFieldAnalysis
     :members:
 
 .. autoclass:: pylinac.field_analysis.Device
+    :members:
 
 .. autoclass:: pylinac.field_analysis.Protocol
+    :members:
 
 .. autoclass:: pylinac.field_analysis.Centering
+    :members:
+
+.. autoclass:: pylinac.field_analysis.Interpolation
+    :members:
+
+.. autoclass:: pylinac.field_analysis.Normalization
+    :members:
+
+.. autoclass:: pylinac.field_analysis.Edge
+    :members:
+
+Supporting Classes
+^^^^^^^^^^^^^^^^^^
+
+You generally won't have to interface with these unless you're doing advanced behavior.
 
 .. autofunction:: pylinac.field_analysis.flatness_dose_difference
 

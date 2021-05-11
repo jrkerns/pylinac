@@ -1,17 +1,34 @@
 """Utility functions for pylinac."""
+from dataclasses import dataclass, field
+from enum import Enum
 from collections import Iterable
 import decimal
 import os
 import os.path as osp
 import subprocess
 import struct
-from typing import Union, Sequence
+from typing import Union, Sequence, Type
 from datetime import datetime
 
 import pydicom
 import numpy as np
 
 from .typing import NumberLike
+from .. import __version__
+
+
+def convert_to_enum(value: Union[str, Type[Enum]], enum: Type[Enum]):
+    return enum(value) if isinstance(value, str) else value
+
+
+@dataclass
+class ResultBase:
+    pylinac_version: str = field(init=False)  #:
+    date_of_analysis: datetime = field(init=False)  #:
+
+    def __post_init__(self):
+        self.pylinac_version = __version__
+        self.date_of_analysis = datetime.today()
 
 
 def clear_data_files():

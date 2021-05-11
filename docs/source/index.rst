@@ -14,7 +14,7 @@
    calibration_docs
    starshot_docs
    vmat_docs
-   cbct_docs
+   cbct
    log_analyzer
    picketfence
    winston_lutz

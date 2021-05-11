@@ -1,8 +1,8 @@
 .. _calibration_module:
 
-================================
-Calibration module documentation
-================================
+===========================
+Calibration (TG-51/TRS-398)
+===========================
 
 Overview
 --------

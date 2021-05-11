@@ -677,12 +677,13 @@ class DicomImage(BaseImage):
         path : str, file-object
             The path to the file or the data stream.
         dtype : dtype, None, optional
-        The data type to cast the image data as. If None, will use whatever raw image format is.
-            dpi : int, float
-        The dots-per-inch of the image, defined at isocenter.
+            The data type to cast the image data as. If None, will use whatever raw image format is.
+        dpi : int, float
+            The dots-per-inch of the image, defined at isocenter.
 
             .. note:: If a DPI tag is found in the image, that value will override the parameter, otherwise this one
                 will be used.
+
         sid : int, float
             The Source-to-Image distance in mm.
         """

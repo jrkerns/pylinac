@@ -2,7 +2,7 @@ import copy
 from typing import Union, List, Tuple
 import os.path as osp
 
-from .layers import *
+from .layers import FilteredFieldLayer, FilterFreeFieldLayer, Layer, PerfectBBLayer
 from .simulators import Simulator
 from ..geometry import cos, sin
 

@@ -1,8 +1,8 @@
 .. _image_generator_module:
 
-====================================
-Image Generator module documentation
-====================================
+===============
+Image Generator
+===============
 
 Overview
 --------

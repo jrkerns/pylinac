@@ -1,8 +1,8 @@
 .. _planar_imaging:
 
-===================================
-Planar Imaging module documentation
-===================================
+==============
+Planar Imaging
+==============
 
 Overview
 --------

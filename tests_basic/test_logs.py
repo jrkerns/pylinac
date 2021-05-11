@@ -6,8 +6,8 @@ import tempfile
 
 import numpy as np
 
-from pylinac.log_analyzer import MachineLogs, STATIC_IMRT, DYNAMIC_IMRT, \
-    VMAT, anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError, IMAGING, NotALogError
+from pylinac.log_analyzer import MachineLogs, TreatmentType, \
+    anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError, NotALogError
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
@@ -133,30 +133,30 @@ class TestTrajectoryTreatmentTypes(TestCase):
 
     def test_imaging_log(self):
         tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'imaging.bin'))
-        self.assertTrue(tlog.treatment_type, IMAGING)
+        self.assertTrue(tlog.treatment_type, TreatmentType.IMAGING.value)
 
     def test_vmat_log(self):
         tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'vmat.bin'))
-        self.assertTrue(tlog.treatment_type, VMAT)
+        self.assertTrue(tlog.treatment_type, TreatmentType.VMAT.value)
 
     def test_static_imrt_log(self):
         tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'static_imrt.bin'))
-        self.assertTrue(tlog.treatment_type, STATIC_IMRT)
+        self.assertTrue(tlog.treatment_type, TreatmentType.STATIC_IMRT.value)
 
     def test_dynamic_imrt_log(self):
         tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'dynamic_imrt.bin'))
-        self.assertTrue(tlog.treatment_type, DYNAMIC_IMRT)
+        self.assertTrue(tlog.treatment_type, TreatmentType.DYNAMIC_IMRT.value)
 
 
 class TestDynalogTreatmentTypes(TestCase):
 
     def test_vmat_log(self):
         dlog = Dynalog(osp.join(TEST_DIR, 'dlogs', 'A_vmat.dlg'))
-        self.assertTrue(dlog.treatment_type, VMAT)
+        self.assertTrue(dlog.treatment_type, TreatmentType.VMAT)
 
     def test_static_imrt_log(self):
         dlog = Dynalog(osp.join(TEST_DIR, 'dlogs', 'A_static_imrt.dlg'))
-        self.assertTrue(dlog.treatment_type, STATIC_IMRT)
+        self.assertTrue(dlog.treatment_type, TreatmentType.STATIC_IMRT)
 
     def test_dynamic_imrt_log(self):
         pass  # need to find one
@@ -306,7 +306,7 @@ class TestIndividualLogBase(LocationMixin):
     @classmethod
     def setUpClass(cls):
         cls.log = load_log(cls.get_filename())
-        if cls.log.treatment_type != IMAGING:
+        if cls.log.treatment_type != TreatmentType.IMAGING.value:
             cls.log.fluence.gamma.calc_map()
 
     def test_num_leaves(self):
@@ -324,7 +324,7 @@ class TestIndividualLogBase(LocationMixin):
 
     def test_fluence_gamma(self):
         """Test gamma results for fluences."""
-        if self.log.treatment_type != IMAGING:
+        if self.log.treatment_type != TreatmentType.IMAGING.value:
             self.assertAlmostEqual(self.log.fluence.gamma.avg_gamma, self.average_gamma, delta=0.02)
             self.assertAlmostEqual(self.log.fluence.gamma.pass_prcnt, self.percent_pass_gamma, delta=0.1)
 
@@ -419,7 +419,7 @@ class TestIndividualDynalog(TestIndividualLogBase):
 
 class TestDynalogDemo(TestIndividualDynalog, TestCase):
     """Tests of the dynalog demo."""
-    treatment_type = DYNAMIC_IMRT
+    treatment_type = TreatmentType.DYNAMIC_IMRT.value
     num_beamholds = 20
     num_snapshots = 99
     average_rms = 0.04
@@ -446,7 +446,7 @@ class TestTrajectoryLogDemo(TestIndividualTrajectoryLog, TestCase):
     num_subbeams = 2
     num_beamholds = 19
     mlc_model = 3
-    treatment_type = DYNAMIC_IMRT
+    treatment_type = TreatmentType.DYNAMIC_IMRT.value
     static_axes = ['collimator']
     moving_axes = ['gantry']
     average_rms = 0.001

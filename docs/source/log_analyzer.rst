@@ -1,9 +1,9 @@
 
 .. _log_analyzer_module:
 
-=================================
-Log Analyzer module documentation
-=================================
+============
+Log Analyzer
+============
 
 Overview
 --------
@@ -514,48 +514,93 @@ Trajectory logs in a MachineLogs instance can also be converted to CSV, just as 
 API Documentation
 -----------------
 
+Main classes
+^^^^^^^^^^^^
+
+These are the classes a typical user may interface with.
+
 .. autofunction:: pylinac.log_analyzer.load_log
+    :members:
 
 .. autofunction:: pylinac.log_analyzer.anonymize
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.Dynalog
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.TrajectoryLog
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.MachineLogs
+    :members:
+
+.. autoclass:: pylinac.log_analyzer.Graph
+    :members:
+
+.. autoclass:: pylinac.log_analyzer.MLCBank
+    :members:
+
+.. autoclass:: pylinac.log_analyzer.Image
+    :members:
+
+.. autoclass:: pylinac.log_analyzer.TreatmentType
+    :members:
+
+Supporting Classes
+^^^^^^^^^^^^^^^^^^
+
+You generally won't have to interface with these unless you're doing advanced behavior.
 
 .. autoclass:: pylinac.log_analyzer.Axis
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.MLC
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.DynalogHeader
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.DynalogAxisData
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.TrajectoryLogHeader
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.TrajectoryLogAxisData
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.SubbeamManager
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.Subbeam
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.FluenceStruct
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.FluenceBase
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.ActualFluence
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.ExpectedFluence
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.GammaFluence
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.JawStruct
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.CouchStruct
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.NotALogError
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.NotADynalogError
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.DynalogMatchError
+    :members:

@@ -1,6 +1,6 @@
-=================================
-Picket Fence module documentation
-=================================
+============
+Picket Fence
+============
 
 Overview
 --------
@@ -188,22 +188,19 @@ Customizing MLCs
 As of v2.5, MLC configuration is set a priori (vs empirical determination as before) and the user can also create
 custom MLC types. Pylinac was only able to handle Millennium and HD Millennium previously.
 
-Use a specific preset config:
-
-.. code-block:: python
-
-    pf = PicketFence(pf_img, mlc="Millennium")
 
 Preset configurations
 ^^^^^^^^^^^^^^^^^^^^^^
 
-The following are preset in pylinac and can be referenced by string, as per above:
+Use a specific preset config:
 
-.. plot::
+.. code-block:: python
 
-    from pylinac import PicketFence
+    from pylinac.picketfence import PicketFence, MLCs
 
-    print(list(PicketFence.MLCs.keys()))
+    pf = PicketFence(pf_img, mlc=MLC.Millennium)
+
+The built-in presets can be seen in attrs of the :class:`~pylinac.picketfence.MLC` class.
 
 Creating and using a custom configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -227,24 +224,56 @@ Leaf arrangements are sets of tuples with the leaf number and leaf width. An exa
     pf.analyze(...)
     ...
 
+.. _acquiring_good_pf_images:
+
+Acquiring good images
+---------------------
+
+The following are general tips on getting good images that pylinac will analyze easily. These are
+in addition to the algorithm allowances and restrictions:
+
+* Keep your pickets away from the edges. That is, in the direction parallel to leaf motion keep the pickets at least 1-2cm from the edge.
+* If you use wide-gap pickets, try to make the spacing between pickets wider than the picket gaps. E.g. 1cm picket widths should use 2cm or more spacing between pickets.
+* If you use Y-jaws, leave them open 1-2 leaves more than the leaves you want to measure. For example. if you're just analyze the "central"
+  leaves and set Y-jaws to something like +/-20cm, the leaves at the edge may not be caught by the algorithm
+  (although see the ``edge_threshold`` parameter of ``analyze``). To avoid having to tweak the algorithm, just open the jaws a bit more.
+* Don't put anything else in the beam path. This might sound obvious, but I'm continually surprised at the types of images people try to use/take.
+  No, pylinac cannot account for the MV phantom you left on the couch when you took your PF image.
+* Keep the leaves parallel to an edge. I.e. as close to 0, 90, 270 as possible.
 
 Tips & Tricks
 -------------
 
+Use ``results_data``
+^^^^^^^^^^^^^^^^^^^^
+
 Using the picketfence module in your own scripts? While the analysis results can be printed out,
-if you intend on using them elsewhere, they can be accessed through properties. Continuing from
-above:
+if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.picketfence.PicketFence.analyze` method
+which returns a :class:`~pylinac.picketfence.PFResult` instance.
+
+.. note::
+    While the pylinac tooling may change under the hood, this object should remain largely the same and/or expand.
+    Thus, using this is more stable than accessing attrs directly.
+
+Continuing from above:
 
 .. code-block:: python
 
-    pf.max_error  # max error in mm
-    pf.max_error_picket  # which picket contained the max error
-    pf.max_error_leaf  # which leaf contained the maximum error
-    pf.abs_median_error  # the absolute median error of all the leaves
-    pf.num_pickets  # how many pickets were found
-    pf.percent_passing  # the percent of MLC measurements below tolerance
+    data = pf.results_data()
+    data.max_error_mm
+    data.tolerance_mm
+    # and more
 
-The EPID can also sag at certain angles. Because pylinac assumes a perfect panel, sometimes the analysis will
+    # return as a dict
+    data_dict = pf.results_data(as_dict=True)
+    data_dict['max_error_mm']
+    ...
+
+
+EPID sag
+^^^^^^^^
+
+For older linacs, the EPID can also sag at certain angles. Because pylinac assumes a perfect panel, sometimes the analysis will
 not be centered exactly on the MLC leaves. If you want to correct for this, simply pass the EPID sag in mm:
 
 .. code-block:: python
@@ -262,7 +291,7 @@ of the FWHM to determine the MLC positions:
 
 * The image can be any size.
 * Various leaf sizes can be analyzed (e.g. 5 and 10mm leaves for standard Millennium).
-* Either standard or HD MLCs can be analyzed.
+* Any MLC can be analyzed. See :ref:`customizing_pf_mlcs`
 * The image can be either orientation (pickets going up-down or left-right).
 * The image can be at any SSD.
 * Any EPID type can be used (aS500, aS1000, aS1200).
@@ -273,8 +302,7 @@ of the FWHM to determine the MLC positions:
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The image must be a DICOM image acquired via the EPID.
-* Only Varian MLC models are supported (5/10mm or 2.5/5mm leaf combinations).
-* The delivery must be parallel to an image edge; i.e. the collimator should be at 0, 90, or 270 degrees.
+* The delivery must be parallel or nearly-parallel (<~5°) to an image edge; i.e. the collimator should be at 0, 90, or 270 degrees.
 
 **Pre-Analysis**
 
@@ -308,8 +336,13 @@ Troubleshooting
 First, check the general :ref:`general_troubleshooting` section. Specific to the picket fence
 analysis, there are a few things you can do.
 
-* **Ensure the HDMLC status** - If your image is from an HD MLC, you need to set the ``hdmlc`` parameter in
-  :meth:`~pylinac.picketfence.PicketFence.analyze` to True, and vic versa.
+* **Crop the edges** - This is far and away the most common problem. Elekta is notorious for having
+  noisy/bad edges. Pass a larger value into the constructor:
+
+  .. code-block:: python
+
+    pf = PicketFence(..., crop_mm=7)
+
 * **Apply a filter upon load** - While pylinac tries to correct for unreasonable noise in
   the image before analysis, there may still be noise that causes analysis to fail. A way to check
   this is by applying a median filter upon loading the image:
@@ -351,15 +384,38 @@ analysis, there are a few things you can do.
 API Documentation
 -----------------
 
+Main classes
+^^^^^^^^^^^^
+
+These are the classes a typical user may interface with.
+
 .. autoclass:: pylinac.picketfence.PicketFence
+    :members:
 
 .. autoclass:: pylinac.picketfence.MLCArrangement
+    :members:
+
+.. autoclass:: pylinac.picketfence.Orientation
+    :members:
+
+.. autoclass:: pylinac.picketfence.MLC
+    :members:
+
+.. autoclass:: pylinac.picketfence.PFResult
+    :inherited-members:
+    :members:
 
 Supporting Classes
+^^^^^^^^^^^^^^^^^^
+
+You generally won't have to interface with these unless you're doing advanced behavior.
 
 .. autoclass:: pylinac.picketfence.PFDicomImage
+    :members:
 
 .. autoclass:: pylinac.picketfence.Picket
+    :members:
 
 .. autoclass:: pylinac.picketfence.MLCValue
+    :members:
 

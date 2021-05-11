@@ -1,3 +1,4 @@
+import copy
 import os.path as osp
 import tempfile
 from unittest import TestCase
@@ -7,7 +8,7 @@ import numpy as np
 
 import pylinac
 from pylinac import WinstonLutz
-from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, GB_COMBO, GBP_COMBO, EPID
+from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, GB_COMBO, GBP_COMBO, EPID, WinstonLutzResult
 from pylinac.core.geometry import Vector, vector_is_close
 from tests_basic import TEST_BANK_DIR, TEST_FILES_DIR
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
@@ -43,9 +44,12 @@ class GeneralTests(TestCase):
         print(self.wl.results())  # shouldn't raise
 
     def test_bb_override(self):
+        original_size = copy.copy(pylinac.winston_lutz.MAX_BB_SIZE)
         pylinac.winston_lutz.MAX_BB_SIZE = 3
         with self.assertRaises(ValueError):
             wl = pylinac.WinstonLutz.from_demo_images()
+        # reset so it doesn't mess up other tests
+        pylinac.winston_lutz.MAX_BB_SIZE = original_size
 
     def test_bb_shift_instructions(self):
         move = self.wl.bb_shift_instructions()
@@ -57,74 +61,15 @@ class GeneralTests(TestCase):
 
     def test_results_data(self):
         data = self.wl.results_data()
-        self.assertIsInstance(data, dict)
-        self.assertEqual(len(data), 20)
-        self.assertIn('pylinac version', data)
-        self.assertEqual(data['WL Collimator 2D iso size (mm)'], self.wl.collimator_iso_size)
+        self.assertIsInstance(data, WinstonLutzResult)
+        self.assertEqual(data.num_couch_images, self.wl._get_images(axis=(COUCH, REFERENCE))[0])
+        self.assertEqual(data.max_2d_cax_to_epid_mm, self.wl.cax2epid_distance('max'))
+        self.assertEqual(data.median_2d_cax_to_epid_mm, self.wl.cax2epid_distance('median'))
 
+        data_dict = self.wl.results_data(as_dict=True)
+        self.assertIn('pylinac_version', data_dict)
+        self.assertEqual(data_dict['gantry_3d_iso_diameter_mm'], self.wl.gantry_iso_size)
 
-class TestResultsData(TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.wl = WinstonLutz.from_demo_images()
-
-    def test_results_data_cax2epid_max(self):
-        rd_result = self.wl.results_data()['cax2epid max']
-        result = self.wl.cax2epid_distance('max')
-        self.assertEqual(rd_result, result )
-    def test_results_data_cax2epid_median(self):
-        rd_result = self.wl.results_data()['cax2epid median']
-        result = self.wl.cax2epid_distance('median')
-        self.assertEqual(rd_result, result )
-
-    def test_results_data_cax2bb_max(self):
-        rd_result = self.wl.results_data()['cax2bb max']
-        result = self.wl.cax2bb_distance('max')
-        self.assertEqual(rd_result, result ) 
-    
-    def test_results_data_cax2bb_median(self): 
-        rd_result = self.wl.results_data()['cax2bb median']
-        result = self.wl.cax2bb_distance('median')
-        self.assertEqual(rd_result, result )
-    
-    def test_results_data_coll_iso_size(self):
-        rd_result = self.wl.results_data()['coll iso size']
-        result = self.wl.collimator_iso_size
-        self.assertEqual(rd_result, result )
-    
-    def test_results_data_couch_iso_size(self):
-        rd_result = self.wl.results_data()['couch iso size']
-        result = self.wl.couch_iso_size
-        self.assertEqual(rd_result, result )
-    
-    def test_results_data_gantry_iso_size(self):
-        rd_result = self.wl.results_data()['gantry iso size']
-        result = self.wl.gantry_iso_size
-        self.assertEqual(rd_result, result )
-
-    def test_results_data_gantry_coll_iso_size(self):
-        rd_result = self.wl.results_data()['gantry coll iso size']
-        result = self.wl.gantry_coll_iso_size
-        self.assertEqual(rd_result, result )        
-
-    def test_results_data_mech_rad_x(self):
-        rd_result = self.wl.results_data()['MechRad x']
-        result = -1* self.wl.bb_shift_vector.x
-        self.assertEqual(rd_result, result)  
-    def test_results_data_mech_rad_y(self):
-        rd_result = self.wl.results_data()['MechRad y']
-        result = -1* self.wl.bb_shift_vector.y
-        self.assertEqual(rd_result, result) 
-    def test_results_data_mech_rad_z(self):
-        rd_result = self.wl.results_data()['MechRad z']
-        result = -1* self.wl.bb_shift_vector.z
-        self.assertEqual(rd_result, result) 
-
-    def test_results_data_gaxis_rms(self):
-        rd_result = self.wl.results_data()['axis rms dev']
-        result = self.wl.axis_rms_deviation
-        self.assertEqual(rd_result, result )  
 
 class TestPublishPDF(TestCase):
 

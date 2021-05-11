@@ -3,8 +3,63 @@
 Changelog
 =========
 
-v 2.6.0
+v 3.0.0
 -------
+
+.. warning:: Version 3.0 contains numerous breaking changes (hence the increment). Review the changelog before upgrading.
+
+General
+^^^^^^^
+
+* A new method, ``results_data`` has been added to most modules (excluding calibration and log analyzer). This is complementary to ``results``. ``results_data``
+  will return a dataclass or dictionary, which includes pretty much everything in ``results`` as well as metadata (e.g. pylinac
+  version). This dictionary will be useful for APIs and referencing certain information that will be more stable across
+  versions 🤞. Thanks to `@crcrewso <https://github.com/crcrewso>`_ for the suggestion.
+* Enums have been added in numerous places to mostly replace string options. E.g. for picket fence instead of specifying "up-down"
+  as the orientation literally, the user now has the option to pass an Enum:
+
+  .. code-block:: python
+
+    from pylinac.picketfence import PicketFence, Orientation
+
+    pf = PicketFence(...)
+    pf.analyze(..., orientation=Orientation.UP_DOWN)  # specify the orientation via an Enum
+
+  The advantage here is two-fold: 1) introspection/autocompletion using your IDE vs remembering/looking up documentation,
+  2) easier to generate documentation as now we can point to a class with the options. Note however that string options are still
+  available for backwards compatibility.
+
+  .. code-block:: python
+
+    pf = PicketFence(...)
+    pf.analyze(..., orientation='Up-Down')  # specify the orientation via a string. Works the same as above
+
+  Assuming you'd like to use the string version, how do you know the options? Go to the auto-generated documentation
+  of the enum! =) E.g. :class:`~pylinac.picketfence.Orientation`.
+
+  .. note::
+        Relying on your IDE is a good idea. A smart one can warn you of incompatible data types.
+
+
+Field Analysis (previously Flatness/Symmetry)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning:: This release introduced numerous breaking changes to this module. Existing code using the ``flatsym`` module will break.
+
+* Two classes are now offered: ``FieldAnalysis`` and ``DeviceFieldAnalysis``.
+* Many, many options were added to the :meth:`~pylinac.field_analysis.FieldAnalysis.analyze` method. See below and the documentation page for all the details.
+* The ``flatsym`` module has been renamed to ``field_analysis`` to reflect the generalized nature of the module.
+  Many thanks to Alan Chamberlain (`@alanphys <https://github.com/alanphys>`_) for `suggesting and doing the initial implementation <https://github.com/jrkerns/pylinac/pull/332>`_
+  for this. This also introduced some early support for `NCS-33 <https://radiationdosimetry.org/files/Prepublication_-_NCS_Report_33_Beam_parameters_V2020-07-29.pdf>`_
+  , which gives guidance on FFF beams.
+* From the above report, a "top" position as well as field slope values are calculated for FFF beams.
+  See :ref:`fff_fields`.
+* The new module can handle files from devices, specifically the SNC Profiler. See :ref:`loading_device_data`.
+* Extensibility was greatly enhanced. Users can now easily add their own custom analysis routines to the module.
+  See :ref:`custom_protocols`.
+* New options for :ref:`centering`, :ref:`normalization`, :ref:`edge`, and :ref:`interpolation` were introduced. Each of these can be
+  granularly controlled.
+
 
 Calibration
 ^^^^^^^^^^^
@@ -16,6 +71,32 @@ Winston-Lutz
 
 * `#358 <https://github.com/jrkerns/pylinac/issues/358>`_ The user can now change the size range of the BB expected for WL.
 
+I/O
+^^^
+
+* An SNC Profiler file parser has been added: :class:`pylinac.core.io.SNCProfiler`.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* `#339 <https://github.com/jrkerns/pylinac/issues/339>`_ The user can now pass an SSD value for their phantoms.
+  The default is 1000mm, but if you set it on your panel you can pass something like 1400mm.
+
+Picket Fence
+^^^^^^^^^^^^
+
+Overall, most code shouldn't need to change from v2.5. From v2.4 or below, the way MLCs are passed and used has changed.
+
+* Wide-gap tests should now work better than before. However, please read the :ref:`acquiring_good_pf_images` section.
+* The ``mlc`` parameter of the ``PicketFence`` constructor has been changed to use an Enum or ``MLCArrangement``: :class:`~pylinac.picketfence.MLC`.
+  See the :ref:`customizing_pf_mlcs` section for more.
+* A ``crop_mm`` parameter has been added to the ``PicketFence`` constructor. This is for cropping the edges of images.
+  The primary cause of issues with the PF module is dirty/noisy/dead edges.
+* The ``orientation`` parameter of the ``analyze`` method has been changed to use an Enum or str: :class:`~pylinac.picketfence.Orientation`.
+* A ``required_prominence`` parameter has been added to ``analyze``. This is to prevent multiple peaks detection for wide-gap images.
+* A ``fwxm`` parameter has been added to ``analyze``. This is to allow the user to set the FWXM height to use for the MLC kiss profile.
+* A ``results_data`` method has been added. See General above.
+* The colored rectangular overlay has been reduced in size slightly.
 
 v 2.5.0
 -------
@@ -329,7 +410,7 @@ Bug Fixes
 ^^^^^^^^^
 
 * `#157 <https://github.com/jrkerns/pylinac/issues/157>`_ Dynalog MLC leaf error was calculated incorrectly. Expected positions were off by a row. Error results should be lower on average.
-* `#160 <https://github.com/jrkerns/pylinac/issues/160>`_ Dynalog MLC leaf internal pair mapping (1-61 vs 1-120) was different than documentation. Fluence calculations should not change.
+* `#160 <https://github.com/jrkerns/pylinac/issues/160>`_ Dynalog MLC leaf internal pair mapping (1-61 vs 1-120) was different than documentation. Image calculations should not change.
 * `#162 <https://github.com/jrkerns/pylinac/issues/162>`_ The LeedsTOR `angle_offset` in the `.analyze()` method was not being followed by the high-contrast bubbles.
 * `#144 <https://github.com/jrkerns/pylinac/issues/144>`_ The LeedsTOR angle determination is much more robust. Previously, only certain orientations of the phantom would correctly identify.
 

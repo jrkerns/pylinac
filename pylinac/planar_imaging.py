@@ -14,7 +14,9 @@ Features:
   as you see fit.
 """
 import copy
+import dataclasses
 import warnings
+from dataclasses import dataclass
 from functools import lru_cache
 import io
 from typing import Optional, List, Tuple, Union
@@ -25,7 +27,7 @@ from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
 from .core.mtf import MTF
-from .core.utilities import open_path
+from .core.utilities import open_path, ResultBase
 from .core import image
 from .core.geometry import Point, Rectangle, Circle
 from .core.io import get_url, retrieve_demo_file
@@ -33,7 +35,20 @@ from .core.profile import CollapsedCircleProfile
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, bbox_center
 from .core import pdf
 from .core import geometry
-from . import __version__
+
+
+@dataclass
+class PlanarResult(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    analysis_type: str  #:
+    median_contrast: float  #:
+    median_cnr: float  #:
+    num_contrast_rois_seen: int  #:
+    phantom_center_x_y: Tuple[float, float]  #:
+    mtf_lp_mm: Tuple[float, float, float] = None  #:
 
 
 class ImagePhantomBase:
@@ -369,18 +384,19 @@ class ImagePhantomBase:
             ]
         return text
 
-    def results_data(self) -> dict:
-        data = dict()
-        data['pylinac version'] = __version__
-        data['Planar phantom analysis type'] = self.common_name
-        data['Planar median contrast'] = np.median([roi.contrast for roi in self.low_contrast_rois])
-        data['Planar median CNR'] = np.median([roi.contrast_to_noise for roi in self.low_contrast_rois])
-        data['Planar # contrast ROIs seen'] = sum(roi.passed for roi in self.low_contrast_rois)
-        data['Planar phantom center (px)'] = {'x': self.phantom_center.x, 'y': self.phantom_center.y}
-        data['Planar phantom low contrast ROI settings'] = self.low_contrast_roi_settings
+    def results_data(self, as_dict=False) -> Union[PlanarResult, dict]:
+        data = PlanarResult(
+                analysis_type=self.common_name,
+                median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
+                median_cnr=np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]),
+                num_contrast_rois_seen=sum(roi.passed for roi in self.low_contrast_rois),
+                phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y)
+        )
+
         if self.mtf is not None:
-            data['Planar phantom high contrast ROI settings'] = self.high_contrast_roi_settings
-            data['Planar rMTF (%:lp/mm)'] = [{p: self.mtf.relative_resolution(p)} for p in (80, 50, 30)]
+            data.mtf_lp_mm = [{p: self.mtf.relative_resolution(p)} for p in (80, 50, 30)]
+        if as_dict:
+            return dataclasses.asdict(data)
         return data
 
     def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: Optional[dict]=None):

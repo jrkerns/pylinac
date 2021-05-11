@@ -31,6 +31,9 @@ class AS500Image(Simulator):
 
     def generate_dicom(self, file_out_name: str, gantry_angle: float = 0.0, coll_angle: float = 0.0,
                        table_angle: float = 0.0):
+        # make image look like an EPID with flipped data (dose->low)
+        flipped_image = -self.image + self.image.max() + self.image.min()
+
         file_meta = FileMetaDataset()
         # Main data elements
         ds = Dataset()
@@ -81,7 +84,7 @@ class AS500Image(Simulator):
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
         ds.PatientSupportAngle = str(table_angle)
-        ds.PixelData = self.image  # XXX Array of 393216 bytes excluded
+        ds.PixelData = flipped_image  # XXX Array of 393216 bytes excluded
 
         ds.file_meta = file_meta
         ds.is_implicit_VR = True
@@ -96,6 +99,9 @@ class AS1000Image(Simulator):
 
     def generate_dicom(self, file_out_name: str, gantry_angle: float = 0.0, coll_angle: float = 0.0,
                        table_angle: float = 0.0):
+        # make image look like an EPID with flipped data (dose->low)
+        flipped_image = -self.image + self.image.max() + self.image.min()
+
         # File meta info data elements
         file_meta = FileMetaDataset()
 
@@ -156,7 +162,7 @@ class AS1000Image(Simulator):
         # ds.DataValueRepresentation = 3
         # ds.CurveLabel = 'Field Edge (Q:MV)'
         # ds.CurveData = b'\x00\x00\x00\x00 .\x81@\x00\x00\x00\x00\x10\\z@\x00\x00\x00\x00 .\x81@\x00\x00\x00\x00\x90\x93u@\x00\x00\x00\x00\xc0\x93}@\x00\x00\x00\x00\x90\x93u@\x00\x00\x00\x00\xc0\x93}@\x00\x00\x00\x00\x10\\z@'
-        ds.PixelData = self.image  # XXX Array of 1572864 bytes excluded
+        ds.PixelData = flipped_image  # XXX Array of 1572864 bytes excluded
 
         ds.file_meta = file_meta
         ds.is_implicit_VR = True

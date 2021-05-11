@@ -23,6 +23,7 @@ import collections
 import concurrent.futures
 import copy
 import csv
+import enum
 from functools import lru_cache
 import gc
 import itertools
@@ -41,16 +42,37 @@ from .settings import get_array_cmap
 from .core import image
 from .core import io
 from .core import pdf
-from .core.utilities import is_iterable, decode_binary, Structure, open_path
+from .core.utilities import is_iterable, decode_binary, Structure, open_path, convert_to_enum
 
-STATIC_IMRT = 'Static IMRT'
-DYNAMIC_IMRT = 'Dynamic IMRT'
-VMAT = 'VMAT'
-IMAGING = 'Imaging'
+
+class TreatmentType(enum.Enum):
+    STATIC_IMRT = 'Static IMRT'  #:
+    DYNAMIC_IMRT = 'Dynamic IMRT'  #:
+    VMAT = 'VMAT'  #:
+    IMAGING = 'Imaging'  #:
+
 
 MLC_FOV_WIDTH_MM = 400
 MLC_FOV_HEIGHT_MM = 400
 HDMLC_FOV_HEIGHT_MM = 220
+
+
+class MLCBank(enum.Enum):
+    A = 'A'  #:
+    B = 'B'  #:
+    BOTH = 'both'  #:
+
+
+class Image(enum.Enum):
+    ACTUAL = 'actual'  #:
+    EXPECTED = 'expected'  #:
+    GAMMA = 'gamma'  #:
+
+
+class Graph(enum.Enum):
+    GAMMA = 'gamma'  #:
+    HISTOGRAM = 'histogram'  #:
+    RMS = 'rms'  #:
 
 
 class MachineLogs(list):
@@ -421,7 +443,7 @@ class FluenceBase:
     def calc_map(self, resolution: float=0.1, equal_aspect: bool=False) -> np.ndarray:
         """Calculate a fluence pixel map.
 
-        Fluence calculation is done by adding fluence snapshot by snapshot, and leaf pair by leaf pair.
+        Image calculation is done by adding fluence snapshot by snapshot, and leaf pair by leaf pair.
         Each leaf pair is analyzed separately. First, to optimize, it checks if the leaf is under the y-jaw.
         If so, the fluence is left at zero; if not, the leaf (or jaw) ends are determined and the MU fraction of that
         snapshot is added to the total fluence. All snapshots are iterated over for each leaf pair until the total fluence
@@ -878,13 +900,12 @@ class MLC:
         """Return an array enumerated over all the leaves."""
         return np.array(range(1, len(self.leaf_axes) + 1))
 
-    @argue.options(bank=('both', 'A', 'B'))
-    def get_RMS_avg(self, bank: str='both', only_moving_leaves: bool=False):
+    def get_RMS_avg(self, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool=False):
         """Return the overall average RMS of given leaves.
 
         Parameters
         ----------
-        bank : {'A', 'B', 'both'}
+        bank :
             Specifies which bank(s) is desired.
         only_moving_leaves : boolean
             If False (default), include all the leaves.
@@ -907,13 +928,12 @@ class MLC:
         else:
             return rms
 
-    @argue.options(bank=('both', 'A', 'B'))
-    def get_RMS_max(self, bank: str='both') -> float:
+    def get_RMS_max(self, bank: MLCBank = MLCBank.BOTH) -> float:
         """Return the overall maximum RMS of given leaves.
 
         Parameters
         ----------
-        bank : {'A', 'B', 'both'}
+        bank :
             Specifies which bank(s) is desired.
 
         Returns
@@ -928,15 +948,14 @@ class MLC:
         else:
             return rms
 
-    @argue.options(bank=('both', 'A', 'B'))
-    def get_RMS_percentile(self, percentile: Union[int, float]=95, bank: str='both', only_moving_leaves: bool=False):
+    def get_RMS_percentile(self, percentile: Union[int, float]=95, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool=False):
         """Return the n-th percentile value of RMS for the given leaves.
 
         Parameters
         ----------
         percentile : int
             RMS percentile desired.
-        bank : {'A', 'B', 'both'}
+        bank :
             Specifies which bank(s) is desired.
         only_moving_leaves : boolean
             If False (default), include all the leaves.
@@ -951,7 +970,7 @@ class MLC:
         rms_array = self.create_RMS_array(leaves)
         return np.percentile(rms_array, percentile)
 
-    def get_RMS(self, leaves_or_bank: Union[str, Iterable]) -> np.ndarray:
+    def get_RMS(self, leaves_or_bank: Union[str, MLCBank, Iterable]) -> np.ndarray:
         """Return an array of leaf RMSs for the given leaves or MLC bank.
 
         Parameters
@@ -965,14 +984,13 @@ class MLC:
         numpy.ndarray
             An array for the given leaves containing the RMS error.
         """
-        if isinstance(leaves_or_bank, str):
+        if isinstance(leaves_or_bank, (str, MLCBank)):
             leaves_or_bank = self.get_leaves(leaves_or_bank)
         elif not is_iterable(leaves_or_bank):
             raise TypeError("Input must be iterable, or specify an MLC bank")
         return self.create_RMS_array(np.array(leaves_or_bank))
 
-    @argue.options(bank=('both', 'A', 'B'))
-    def get_leaves(self, bank: str='both', only_moving_leaves: bool=False) -> list:
+    def get_leaves(self, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool=False) -> list:
         """Return a list of leaves that match the given conditions.
 
         Parameters
@@ -983,6 +1001,8 @@ class MLC:
             If False (default), include all the leaves.
             If True, will remove the leaves that were static during treatment.
         """
+        bank = convert_to_enum(bank, MLCBank)
+
         # get all leaves or only the moving leaves
         if only_moving_leaves:
             leaves = copy.copy(self.moving_leaves)
@@ -991,15 +1011,14 @@ class MLC:
 
         # select leaves by bank if desired
         if bank is not None:
-            if bank.lower() == 'a':
+            if bank == MLCBank.A:
                 leaves = leaves[leaves <= self.num_pairs]
-            elif bank.lower() == 'b':
+            elif bank == MLCBank.B:
                 leaves = leaves[leaves > self.num_pairs]
 
         return leaves
 
-    @argue.options(bank=('both', 'A', 'B'))
-    def get_error_percentile(self, percentile: Union[int, float]=95, bank: str='both', only_moving_leaves: bool=False) -> float:
+    def get_error_percentile(self, percentile: Union[int, float]=95, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool=False) -> float:
         """Calculate the n-th percentile error of the leaf error.
 
         Parameters
@@ -1128,8 +1147,8 @@ class MLC:
             thickness = outer_leaf_thickness
         return mlc_position < y1_position or mlc_position - thickness > y2_position
 
-    @argue.options(bank_or_leaf=('A', 'B', 'both'), dtype=('actual', 'expected'))
-    def get_snapshot_values(self, bank_or_leaf: str='both', dtype: str='actual') -> np.ndarray:
+    @argue.options(dtype=('actual', 'expected'))
+    def get_snapshot_values(self, bank_or_leaf: Union[MLCBank, Iterable] = MLCBank.BOTH, dtype: str='actual') -> np.ndarray:
         """Retrieve the snapshot data of the given MLC bank or leaf/leaves
 
         Parameters
@@ -1146,7 +1165,7 @@ class MLC:
             An array of shape (number of leaves - x - number of snapshots). E.g. for an MLC bank
             and 500 snapshots, the array would be (60, 500).
         """
-        if isinstance(bank_or_leaf, str):
+        if isinstance(bank_or_leaf, (str, MLCBank)):
             leaves = self.get_leaves(bank=bank_or_leaf)
             leaves -= 1
         else:
@@ -1169,7 +1188,7 @@ class MLC:
     def plot_rms_by_leaf(self, show: bool=True) -> None:
         """Plot RMSs by leaf."""
         plt.clf()
-        plt.bar(np.arange(len(self.get_RMS('both')))[::-1], self.get_RMS('both'), align='center')
+        plt.bar(np.arange(len(self.get_RMS(MLCBank.BOTH)))[::-1], self.get_RMS(MLCBank.BOTH), align='center')
         if show:
             plt.show()
 
@@ -1374,19 +1393,19 @@ class LogBase:
 
         # plot the expected fluence
         ax = plt.subplot(2, 3, 2)
-        self.plot_subimage('expected', ax, show=False)
+        self.plot_subimage(Image.EXPECTED, ax, show=False)
 
         # plot the gamma map
         ax = plt.subplot(2, 3, 3)
-        self.plot_subimage('gamma', ax, show=False)
+        self.plot_subimage(Image.GAMMA, ax, show=False)
 
         # plot the gamma histogram
         ax = plt.subplot(2, 3, 4)
-        self.plot_subgraph('gamma', ax, show=False)
+        self.plot_subgraph(Graph.GAMMA, ax, show=False)
 
         # plot the MLC error histogram
         ax = plt.subplot(2, 3, 5)
-        self.plot_subgraph('leaf hist', ax, show=False)
+        self.plot_subgraph(Graph.HISTOGRAM, ax, show=False)
 
         # plot the leaf RMSs
         ax = plt.subplot(2,3,6)
@@ -1401,18 +1420,18 @@ class LogBase:
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    @argue.options(img=('actual', 'expected', 'gamma'))
-    def plot_subimage(self, img: str, ax: plt.Axes=None, show: bool=True, fontsize: int=10):
-        # img: {'actual', 'expected', 'gamma'}
+    def plot_subimage(self, img: Image, ax: plt.Axes=None, show: bool=True, fontsize: int=10):
+        """Plot a subimage."""
+        img = convert_to_enum(img, Image)
         if ax is None:
             ax = plt.subplot()
         ax.tick_params(axis='both', labelsize=8)
-        if img in ('actual', 'expected'):
-            title = img.capitalize() + ' Fluence'
-            plt.imshow(getattr(self.fluence, img).array.astype(np.float32), aspect='auto', interpolation='none',
+        if img in (Image.ACTUAL, Image.EXPECTED):
+            title = img.value.capitalize() + ' Image'
+            plt.imshow(getattr(self.fluence, img.value).array.astype(np.float32), aspect='auto', interpolation='none',
                        cmap=get_array_cmap())
-        elif img == 'gamma':
-            plt.imshow(getattr(self.fluence, img).array.astype(np.float32), aspect='auto', interpolation='none', vmax=1,
+        elif img == Image.GAMMA:
+            plt.imshow(getattr(self.fluence, img.value).array.astype(np.float32), aspect='auto', interpolation='none', vmax=1,
                        cmap=get_array_cmap())
             plt.colorbar(ax=ax)
             title = 'Gamma Map'
@@ -1421,24 +1440,24 @@ class LogBase:
         if show:
             plt.show()
 
-    @argue.options(img=('actual', 'expected', 'gamma'))
-    def save_subimage(self, filename: str, img: str, fontsize: int, **kwargs):
+    def save_subimage(self, filename: str, img: Image, fontsize: int, **kwargs):
+        """Save a subimage to file"""
         self.plot_subimage(img, show=False, fontsize=fontsize)
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    def plot_subgraph(self, graph: str, ax: plt.Axes=None, show: bool=True, fontsize: int=10, labelsize: int=8):
-        # graph: {'gamma hist', 'leaf hist', 'leaf rms'}
+    def plot_subgraph(self, graph: Graph, ax: plt.Axes=None, show: bool=True, fontsize: int=10, labelsize: int=8):
+        graph = convert_to_enum(graph, Graph)
         if ax is None:
             ax = plt.subplot()
-        if graph.find('gam') >= 0:
+        if graph == Graph.GAMMA:
             title = 'Gamma Histogram'
             plt.hist(self.fluence.gamma.array.flatten(), bins=self.fluence.gamma.bins)
             ax.set_yscale('log')
-        elif graph.find('hist') >= 0:
+        elif graph == Graph.HISTOGRAM:
             title = 'Leaf Histogram'
             plt.hist(self.axis_data.mlc._abs_error_all_leaves.flatten())
-        elif graph.find('rms') >= 0:
+        elif graph == Graph.RMS:
             title = 'Leaf RMS (mm)'
             ax.set_xlim([-0.5, self.axis_data.mlc.num_leaves + 0.5])  # bit of padding since bar chart alignment is center
             plt.bar(np.arange(len(self.axis_data.mlc.get_RMS('both')))[::-1], self.axis_data.mlc.get_RMS('both')*10,
@@ -1449,8 +1468,8 @@ class LogBase:
         if show:
             plt.show()
 
-    def save_subgraph(self, filename: str, img: str, fontsize: int=10, labelsize: int=8, **kwargs):
-        self.plot_subgraph(img, show=False, fontsize=fontsize, labelsize=labelsize)
+    def save_subgraph(self, filename: str, graph: Graph, fontsize: int=10, labelsize: int=8, **kwargs):
+        self.plot_subgraph(graph, show=False, fontsize=fontsize, labelsize=labelsize)
         plt.savefig(filename, **kwargs)
         plt.close()
 
@@ -1466,7 +1485,7 @@ class LogBase:
         - Average gamma value
         """
         title = f"Results of file: {self.filename}\n"
-        if self.treatment_type == IMAGING:
+        if self.treatment_type == TreatmentType.IMAGING.value:
             string = title + "Log is an Imaging field; no statistics can be calculated"
         else:
             avg_rms = f"Average RMS of all leaves: {self.axis_data.mlc.get_RMS_avg(only_moving_leaves=False)*10:3.3f} mm\n"
@@ -1489,26 +1508,22 @@ class LogBase:
         Returns
         -------
         str
-            One of the following:
-            * VMAT
-            * Dynamic IMRT
-            * Static IMRT
-            * Imaging
+            See :class:`~pylinac.log_analyzer.TreatmentType`
         """
         if isinstance(self, TrajectoryLog):  # trajectory log
             gantry_std = max(subbeam.gantry_angle.actual.std() for subbeam in self.subbeams)
             if np.isnan(gantry_std):
-                return IMAGING
+                return TreatmentType.IMAGING.value
         else:
             gantry_std = self.axis_data.gantry.actual.std()
         if gantry_std > 0.5:
-            return VMAT
+            return TreatmentType.VMAT.value
         elif self.axis_data.mu.actual.max() <= 2.1:
-            return IMAGING
+            return TreatmentType.IMAGING.value
         elif self.axis_data.mlc.num_moving_leaves == 0 and isinstance(self, TrajectoryLog):
-            return STATIC_IMRT
+            return TreatmentType.STATIC_IMRT.value
         else:
-            return DYNAMIC_IMRT
+            return TreatmentType.DYNAMIC_IMRT.value
 
     @property
     def _underscore_idx(self) -> int:
@@ -1832,7 +1847,7 @@ class Dynalog(LogBase):
             canvas.add_text(location=(1, 5.5), font_size=14, text="Notes:")
             canvas.add_text(location=(1, 5), text=notes)
         canvas.add_new_page()
-        for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), ('leaf hist', 'leaf rms'))):
+        for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), (Graph.HISTOGRAM, Graph.RMS))):
             data = BytesIO()
             self.save_subgraph(data, graph, fontsize=20, labelsize=12)
             canvas.add_image(location=(x, y), dimensions=(13, 13), image_data=data)
@@ -2024,7 +2039,7 @@ class TrajectoryLog(LogBase):
             self.axis_data = TrajectoryLogAxisData(self, tlogfile, self.subbeams)
 
         self.subbeams.post_hoc_metadata(self.axis_data)
-        if not self.treatment_type == IMAGING:
+        if not self.treatment_type == TreatmentType.IMAGING.value:
             self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
 
     @property
@@ -2148,7 +2163,7 @@ class TrajectoryLog(LogBase):
             Unit: TrueBeam
             --------------
         """
-        if self.treatment_type == IMAGING:
+        if self.treatment_type == TreatmentType.IMAGING.value:
             raise ValueError("Log is of imaging type (e.g. kV setup) and does not contain relevant gamma/leaf data")
         self.fluence.gamma.calc_map()
         canvas = pdf.PylinacCanvas(filename, page_title="Trajectory Log Analysis", metadata=metadata)
@@ -2162,18 +2177,18 @@ class TrajectoryLog(LogBase):
                             f'Gamma average: {self.fluence.gamma.avg_gamma:2.2f}',
                             ],
                         location=(10, 25.5))
-        for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), ('actual', 'expected', 'gamma', ''))):
+        for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), (Image.ACTUAL, Image.EXPECTED, Image.GAMMA, ''))):
             data = BytesIO()
-            if idx != 3:
+            if graph != '':
                 self.save_subimage(data, graph, fontsize=20)
             else:
-                self.save_subgraph(data, 'gamma', fontsize=20, labelsize=12)
+                self.save_subgraph(data, Graph.GAMMA, fontsize=20, labelsize=12)
             canvas.add_image(data, location=(x, y), dimensions=(9, 9))
         if notes is not None:
             canvas.add_text(location=(1, 5.5), font_size=14, text="Notes:")
             canvas.add_text(location=(1, 5), text=notes)
         canvas.add_new_page()
-        for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), ('leaf hist', 'leaf rms'))):
+        for idx, (x, y, graph) in enumerate(zip((5, 5), (13, 2), (Graph.HISTOGRAM, Graph.RMS))):
             data = BytesIO()
             self.save_subgraph(data, graph, fontsize=20, labelsize=12)
             canvas.add_image(location=(x, y), dimensions=(13, 13), image_data=data)

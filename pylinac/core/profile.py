@@ -141,24 +141,24 @@ class ProfileMixin:
 
 class Interpolation(enum.Enum):
     """Interpolation Enum"""
-    NONE = None
-    LINEAR = 'Linear'
-    SPLINE = 'Spline'
+    NONE = None  #:
+    LINEAR = 'Linear'  #:
+    SPLINE = 'Spline'  #:
 
 
 class Normalization(enum.Enum):
     """Normalization method Enum"""
-    NONE = None
-    GEOMETRIC_CENTER = 'Geometric center'
-    BEAM_CENTER = 'Beam center'
-    MAX = 'Max'
+    NONE = None  #:
+    GEOMETRIC_CENTER = 'Geometric center'  #:
+    BEAM_CENTER = 'Beam center'  #:
+    MAX = 'Max'  #:
 
 
 class Edge(enum.Enum):
     """Edge detection Enum"""
-    FWHM = 'FWHM'
-    INFLECTION_DERIVATIVE = 'Inflection Derivative'
-    INFLECTION_HILL = 'Inflection Hill'
+    FWHM = 'FWHM'  #:
+    INFLECTION_DERIVATIVE = 'Inflection Derivative'  #:
+    INFLECTION_HILL = 'Inflection Hill'  #:
 
 
 class SingleProfile(ProfileMixin):
@@ -737,7 +737,7 @@ class MultiProfile(ProfileMixin):
 
     @argue.bounds(x=(0, 100))
     def find_fwxm_peaks(self, x: int = 50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
-                        max_number: int=None, search_region: Tuple=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
+                        max_number: int = None, search_region: Tuple=(0.0, 1.0), peak_sort: str = 'prominences', required_prominence=None) -> Tuple[np.ndarray, np.ndarray]:
         """Find peaks using the center of the FWXM (rather than by max value).
 
         Parameters
@@ -751,7 +751,7 @@ class MultiProfile(ProfileMixin):
         find_peaks : Further parameter info
         """
         _, peak_props = find_peaks(self.values, threshold=threshold, min_width=min_distance, max_number=max_number,
-                                           search_region=search_region)
+                                   search_region=search_region, peak_sort=peak_sort, required_prominence=required_prominence)
         fwxm_peak_idxs = []
         for lt, rt in zip(peak_props['left_ips'], peak_props['right_ips']):
             fwxm = int(round(lt + (rt - lt)/2))
@@ -1012,7 +1012,7 @@ class CollapsedCircleProfile(CircleProfile):
 
 def find_peaks(values: np.ndarray, threshold: Union[float, int] = -np.inf, peak_separation: Union[float, int] = 0,
                max_number: int = None, fwxm_height: float = 0.5, min_width: int = 0,
-               search_region: Tuple[float, float] = (0.0, 1.0), peak_sort='prominences') \
+               search_region: Tuple[float, float] = (0.0, 1.0), peak_sort='prominences', required_prominence=None) \
         -> Tuple[np.ndarray, dict]:
     """Find the peaks of a 1D signal. Heavily relies on the scipy implementation.
 
@@ -1055,7 +1055,7 @@ def find_peaks(values: np.ndarray, threshold: Union[float, int] = -np.inf, peak_
                                                                                 values)
 
     peak_idxs, peak_props = signal.find_peaks(trimmed_values, rel_height=(1 - fwxm_height), width=min_width, height=threshold,
-                                              distance=peak_separation)
+                                              distance=peak_separation, prominence=required_prominence)
     peak_idxs += shift_amount  # shift according to the search region left edge
 
     # get the "largest" peaks up to max number, and then re-sort to be left->right like it was originally

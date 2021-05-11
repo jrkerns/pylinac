@@ -2,9 +2,10 @@ from unittest import TestCase
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
-from pylinac.ct import CTP404CP504, CTP404CP503, CTP515, CTP528CP503, CTP528CP504
+from pylinac.ct import CTP404CP504, CTP404CP503, CTP515, CTP528CP503, CTP528CP504, CatphanResult
 from pylinac.core.geometry import Point
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
 
@@ -44,10 +45,11 @@ class GeneralTests(TestCase):
     def test_results_data(self):
         self.cbct.analyze()
         data = self.cbct.results_data()
-        self.assertIsInstance(data, dict)
-        self.assertEqual(len(data), 26)
-        self.assertIn('pylinac version', data)
-        self.assertEqual(data['CTP404 HU tolerance (HU)'], self.cbct.ctp404.hu_tolerance)
+        self.assertIsInstance(data, CatphanResult)
+        self.assertEqual(data.num_images, self.cbct.num_images)
+
+        # check the additional modules got added
+        self.assertAlmostEqual(data.ctp528.start_angle_radians, np.pi, delta=0.02)
 
 
 class CustomPhantom(TestCase):

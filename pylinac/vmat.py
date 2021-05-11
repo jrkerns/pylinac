@@ -9,6 +9,10 @@ Features:
 * **Automatic offset correction** - Older VMAT tests had the ROIs offset, newer ones are centered. No worries, pylinac finds the ROIs automatically.
 * **Automatic open/DMLC identification** - Pass in both images--don't worry about naming. Pylinac will automatically identify the right images.
 """
+import dataclasses
+import enum
+import typing
+from dataclasses import dataclass
 from io import BytesIO
 from typing import Union, List, Tuple, Sequence, Optional
 
@@ -22,13 +26,39 @@ from .core.image import ImageLike
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import SingleProfile, Interpolation
-from .core.utilities import open_path
+from .core.utilities import open_path, ResultBase
 from .settings import get_dicom_cmap
-from . import __version__
 
-DMLC = 'dmlc'
-OPEN = 'open'
-PROFILE = 'profile'
+
+class ImageType(enum.Enum):
+    """The image type options"""
+    DMLC = 'dmlc'  #:
+    OPEN = 'open'  #:
+    PROFILE = 'profile'  #:
+
+
+@dataclass
+class SegmentResult:
+    """An individual segment/ROI result"""
+    passed: bool  #:
+    x_position_mm: float  #:
+    r_corr: float  #:
+    r_dev: float  #:
+    center_x_y: float  #:
+
+
+@dataclass
+class VMATResult(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    test_type: str  #:
+    tolerance_percent: float  #:
+    max_deviation_percent: float  #:
+    abs_mean_deviation: float  #:
+    passed: bool  #:
+    segment_data: typing.Iterable[SegmentResult]  #:
 
 
 class VMATBase:
@@ -152,16 +182,27 @@ class VMATBase:
         string += f'Max Deviation: {self.max_r_deviation:2.3}%\nAbsolute Mean Deviation: {self.avg_abs_r_deviation:2.3}%'
         return string
 
-    def results_data(self) -> dict:
-        """Analysis and metadata as a dict"""
-        data = dict()
-        data['pylinac version'] = __version__
-        data['VMAT test'] = self._result_header
-        data['VMAT tolerance (%)'] = self._tolerance*100
-        data['VMAT max deviation (%)'] = self.max_r_deviation
-        data['VMAT abs mean deviation (%)'] = self.avg_abs_r_deviation
-        data['VMAT segment X positions (mm)'] = self.SEGMENT_X_POSITIONS_MM
-        data['VMAT passed?'] = self.passed
+    def results_data(self, as_dict=False) -> Union[VMATResult, dict]:
+        """Present the results data and metadata as a dataclass or dict.
+        The default return type is a dataclass."""
+        segment_data = []
+        for idx, segment in enumerate(self.segments):
+            segment_data.append(SegmentResult(passed=segment.passed,
+                                              r_corr=segment.r_corr,
+                                              r_dev=segment.r_dev,
+                                              center_x_y=segment.center.as_array(),
+                                              x_position_mm=self.SEGMENT_X_POSITIONS_MM[idx]))
+        data = VMATResult(
+                test_type=self._result_header,
+                tolerance_percent=self._tolerance*100,
+                max_deviation_percent=self.max_r_deviation,
+                abs_mean_deviation=self.avg_abs_r_deviation,
+                passed=self.passed,
+                segment_data=segment_data,
+        )
+
+        if as_dict:
+            return dataclasses.asdict(data)
         return data
 
     def _calculate_segment_centers(self) -> List[Point]:
@@ -223,7 +264,7 @@ class VMATBase:
             Whether to actually show the image.
         """
         fig, axes = plt.subplots(ncols=3, sharex=True)
-        subimages = (OPEN, DMLC, PROFILE)
+        subimages = (ImageType.OPEN, ImageType.DMLC, ImageType.PROFILE)
         titles = ('Open', 'DMLC', 'Median Profiles')
         for subimage, axis, title in zip(subimages, axes, titles):
             self._plot_analyzed_subimage(subimage=subimage, ax=axis, show=False)
@@ -235,8 +276,7 @@ class VMATBase:
             plt.tight_layout(h_pad=1.5)
             plt.show()
 
-    @argue.options(subimage=(DMLC, OPEN, PROFILE))
-    def _save_analyzed_subimage(self, filename: str, subimage: str, **kwargs):
+    def _save_analyzed_subimage(self, filename: str, subimage: ImageType, **kwargs):
         """Save the analyzed images as a png file.
 
         Parameters
@@ -249,8 +289,7 @@ class VMATBase:
         self._plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
-    @argue.options(subimage=(DMLC, OPEN, PROFILE))
-    def _plot_analyzed_subimage(self, subimage: str, show: bool=True, ax: Optional[plt.Axes]=None):
+    def _plot_analyzed_subimage(self, subimage: ImageType, show: bool=True, ax: Optional[plt.Axes]=None):
         """Plot an individual piece of the VMAT analysis.
 
         Parameters
@@ -267,10 +306,10 @@ class VMATBase:
             fig, ax = plt.subplots()
 
         # plot DMLC or OPEN image
-        if subimage in (DMLC, OPEN):
-            if subimage == DMLC:
+        if subimage in (ImageType.DMLC, ImageType.OPEN):
+            if subimage == ImageType.DMLC:
                 img = self.dmlc_image
-            elif subimage == OPEN:
+            elif subimage == ImageType.OPEN:
                 img = self.open_image
             ax.imshow(img, cmap=get_dicom_cmap())
             self._draw_segments(ax)
@@ -279,7 +318,7 @@ class VMATBase:
             plt.tight_layout()
 
         # plot profile
-        elif subimage == PROFILE:
+        elif subimage == ImageType.PROFILE:
             dmlc_prof, open_prof = self._median_profiles((self.dmlc_image, self.open_image))
             ax.plot(dmlc_prof.values, label='DMLC')
             ax.plot(open_prof.values, label='Open')
@@ -339,7 +378,7 @@ class VMATBase:
             --------------
         """
         canvas = PylinacCanvas(filename=filename, page_title=f"{self._result_short_header} VMAT Analysis", metadata=metadata)
-        for y, x, width, img in zip((9, 9, -2), (1, 11, 3), (9, 9, 14), (OPEN, DMLC, PROFILE)):
+        for y, x, width, img in zip((9, 9, -2), (1, 11, 3), (9, 9, 14), (ImageType.OPEN, ImageType.DMLC, ImageType.PROFILE)):
             data = BytesIO()
             self._save_analyzed_subimage(data, subimage=img)
             canvas.add_image(data, location=(x, y), dimensions=(width, 18))

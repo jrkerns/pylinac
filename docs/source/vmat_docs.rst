@@ -1,7 +1,7 @@
 
-=========================
-VMAT module documentation
-=========================
+====
+VMAT
+====
 
 Overview
 --------
@@ -137,20 +137,29 @@ behavior because by default the x-positions are different for the DRGS and DRMLC
 Accessing Data
 --------------
 
-As with most other modules, the raw data can be examined and use as part of a larger project, e.g. QATrack+.
-Perusing the documentation will show what is available, but a quick list is shown here by example:
+.. versionchanged:: 3.0
+
+Using the VMAT module in your own scripts? While the analysis results can be printed out,
+if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.vmat.VMATBase.results_data` method
+which returns a :class:`~pylinac.vmat.VMATResult` instance.
+
+.. note::
+    While the pylinac tooling may change under the hood, this object should remain largely the same and/or expand.
+    Thus, using this is more stable than accessing attrs directly.
+
+Continuing from above:
 
 .. code-block:: python
 
-    mydrgs.avg_abs_r_deviation  # float
-    mydrgs.avg_r_deviation  # float; usually artificially low due to positive and negative R values
-    mydrgs.max_r_deviation  # float; regardless of sign
-    mydrgs.dmlc_image  # DicomImage instance
-    mydrgs.open_image  # DicomImage instance
-    mydrgs.passed  # bool
-    mydrgs.r_devs  # numpy array of all R_deviation values
-    mydrgs.segments[1].r_corr  # the 1st segment's R ratio
-    mydrgs.segments[0].passed  # whether the 0th segment passed based on the tolerance of ``analyze()``
+    data = my_drmlc.results_data()
+    data.test_type
+    data.passed
+    # and more
+
+    # return as a dict
+    data_dict = my_drmlc.results_data(as_dict=True)
+    data_dict['test_type']
+    ...
 
 
 Algorithm
@@ -208,10 +217,37 @@ The algorithm works like such:
 API Documentation
 -----------------
 
+Main classes
+^^^^^^^^^^^^
+
+These are the classes a typical user may interface with.
+
 .. autoclass:: pylinac.vmat.DRGS
+    :inherited-members:
+    :members:
 
 .. autoclass:: pylinac.vmat.DRMLC
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.vmat.VMATResult
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.vmat.SegmentResult
+    :inherited-members:
+    :members:
+
+
+Supporting Classes
+^^^^^^^^^^^^^^^^^^
+
+You generally won't have to interface with these unless you're doing advanced behavior.
 
 .. autoclass:: pylinac.vmat.VMATBase
+    :inherited-members:
+    :members:
 
 .. autoclass:: pylinac.vmat.Segment
+    :inherited-members:
+    :members:

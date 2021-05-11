@@ -6,22 +6,24 @@ pair to the picket, and give a few visual indicators for passing/warning/failing
 
 Features:
 
-* **Analyze either HD or regular MLCs** - Just pass a flag and tell pylinac whether it's HD or not.
+* **Analyze any MLC type** - Both default MLCs and custom MLCs can be used.
 * **Easy-to-read pass/warn/fail overlay** - Analysis gives you easy-to-read tools for determining the status of an MLC pair.
 * **Any Source-to-Image distance** - Whatever your clinic uses as the SID for picket fence, pylinac can account for it.
 * **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
 * **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
 """
+import dataclasses
+import enum
 import io
 import os.path as osp
+import warnings
 from collections import Sequence
+from dataclasses import dataclass
 from functools import lru_cache
 from itertools import cycle
 from tempfile import TemporaryDirectory
 from typing import Union, Tuple, List, Optional
-import warnings
 
-import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -31,14 +33,15 @@ from .core import image, pdf
 from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import MultiProfile, SingleProfile, Interpolation
-from .core.utilities import open_path
+from .core.utilities import open_path, ResultBase, convert_to_enum
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
-from . import __version__
 
-# possible orientations of the pickets.
-UP_DOWN = 'Up-Down'
-LEFT_RIGHT = 'Left-Right'
+
+class Orientation(enum.Enum):
+    """Possible orientations of the image"""
+    UP_DOWN = 'Up-Down'  #:
+    LEFT_RIGHT = 'Left-Right'  #:
 
 
 class MLCArrangement:
@@ -64,20 +67,43 @@ class MLCArrangement:
         self.centers = [c - np.mean(self.centers) + offset for c in self.centers]
 
 
-MLCs = {
-    'Millennium': MLCArrangement([(10, 10), (40, 5), (10, 10)]),
-    'HD': MLCArrangement([(10, 5), (40, 2.5), (10, 5)]),
-    'Halcyon Distal': MLCArrangement([(60, 5)], offset=2.5),
-    'Halcyon Proximal': MLCArrangement([(60, 5)]),
-}
+class MLC(enum.Enum):
+    """The pre-built MLC types"""
+    MILLENNIUM = MLCArrangement([(10, 10), (40, 5), (10, 10)])  #:
+    HD_MILLENNIUM = MLCArrangement([(10, 5), (40, 2.5), (10, 5)]),  #:
+    HALCYON_DISTAL = MLCArrangement([(60, 5)], offset=2.5),  #:
+    HALCYON_PROXIMAL = MLCArrangement([(60, 5)]),  #:
+
+
+@dataclass
+class PFResult(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    tolerance_mm: float  #:
+    action_tolerance_mm: float  #:
+    percent_leaves_passing: float  #:
+    number_of_pickets: int  #:
+    absolute_median_error_mm: float  #:
+    max_error_mm: float  #:
+    mean_picket_spacing_mm: float  #:
+    offsets_from_cax_mm: List[float]  #:
+    passed: bool  #:
 
 
 class PFDicomImage(image.LinacDicomImage):
     """A subclass of a DICOM image that checks for noise and inversion when instantiated. Can also adjust for EPID sag."""
 
     def __init__(self, path: str, **kwargs):
+        crop_mm = kwargs.pop("crop_mm", 3)
         super().__init__(path, **kwargs)
+        # crop the images so that Elekta images don't fail. See #168
+        crop_pixels = int(round(crop_mm * self.dpmm))
+        self.crop(pixels=crop_pixels)
+        # self.invert()  # EPID images are always inverted; rather than check inversion, just flip it.
         self._check_for_noise()
+        # Possibly revert/change the below if inversion detection doesn't work so well
         self.check_inversion_by_histogram()
 
     def _check_for_noise(self) -> None:
@@ -97,10 +123,10 @@ class PFDicomImage(image.LinacDicomImage):
         min_is_extreme = (min < near_min * 0.75) and (abs(min - near_min) > 0.1 * (near_max - near_min))
         return max_is_extreme or min_is_extreme
 
-    @argue.options(orientation=(UP_DOWN, LEFT_RIGHT))
-    def adjust_for_sag(self, sag: int, orientation: Union[UP_DOWN, LEFT_RIGHT]) -> None:
+    def adjust_for_sag(self, sag: int, orientation: Union[str, Orientation]) -> None:
         """Roll the image to adjust for EPID sag."""
-        direction = 'y' if orientation == UP_DOWN else 'x'
+        orient = convert_to_enum(orientation, Orientation)
+        direction = 'y' if orient == Orientation.UP_DOWN else 'x'
         self.roll(direction, sag)
 
 
@@ -112,7 +138,7 @@ class PicketFence:
     """
 
     def __init__(self, filename: str, filter: Optional[int] = None, log: Optional[str] = None,
-                 use_filename: bool = False, mlc: Union[str, MLCArrangement] = 'Millennium'):
+                 use_filename: bool = False, mlc: Union[MLC, MLCArrangement] = MLC.MILLENNIUM, crop_mm: int = 3):
         """
         Parameters
         ----------
@@ -130,19 +156,22 @@ class PicketFence:
             If True, the filename will be searched for keywords that describe the gantry and/or collimator angle.
             For example, if set to True and the file name was "PF_gantry45.dcm" the gantry would be interpreted as being at 45 degrees.
         mlc
-            The MLC model of the image. If a string, must be one of the keys in the MLCs dict. Otherwise this must be
-            an instance of :class:`~pylinac.picketfence.MLC`.
+            The MLC model of the image. Must be an option from the enum :class:`~pylinac.picketfence.MLCs` or
+            an :class:`~pylinac.picketfence.MLCArrangement`.
+        crop_mm
+            The number of mm to crop from all edges. Elekta is infamous for having columns of dead pixels on the side of their images.
+            These need to be cleaned up first. For Varian images, this really shouldn't make a difference unless the pickets are
+            very close to the edge. Generally speaking, they shouldn't be for the best accuracy.
         """
-        leaf_analysis_width: float
-        mlc_meas: List
-        pickets: List
-        tolerance: float
-        action_tolerance: float
-        image: PFDicomImage
-        orientation: str
+        leaf_analysis_width: float  #:
+        mlc_meas: List  #:
+        pickets: List  #:
+        tolerance: float  #:
+        action_tolerance: float  #:
+        image: PFDicomImage  #:
 
         if filename is not None:
-            self.image = PFDicomImage(filename, use_filenames=use_filename)
+            self.image = PFDicomImage(filename, use_filenames=use_filename, crop_mm=crop_mm)
             if isinstance(filter, int):
                 self.image.filter(size=filter)
             self.image.ground()
@@ -152,13 +181,10 @@ class PicketFence:
         else:
             self._log_fits = None
         self._is_analyzed = False
-        if isinstance(mlc, str):
-            self.mlc = MLCs[mlc]
-        elif isinstance(mlc, MLCArrangement):
+        if isinstance(mlc, MLCArrangement):
             self.mlc = mlc
         else:
-            raise RuntimeError(
-                f"The MLC parameter must be an instance of MLCArrangment or a string matching the keys of the MLCs module dict: {list(MLCs.keys())}")
+            self.mlc = mlc.value
 
     @classmethod
     def from_url(cls, url: str, filter: int = None):
@@ -247,7 +273,7 @@ class PicketFence:
 
         # equate them such that they're the same size & DPI
         fluence_img, img_array = image.equate_images(fli, self.image)
-        self.image.array = img_array
+        self.image.array = img_array.array
 
         # get picket fits from the modified fluence image
         pf = PicketFence.from_demo_image()
@@ -265,9 +291,9 @@ class PicketFence:
 
     def analyze(self, tolerance: float = 0.5, action_tolerance: Optional[float] = None,
                 num_pickets: Optional[int] = None, sag_adjustment: Union[float, int] = 0,
-                orientation: Optional[str] = None, invert: bool = False, leaf_analysis_width_ratio: float = 0.4,
-                picket_spacing: Optional[float] = None, height_threshold: float = 0.6, edge_threshold: float = 1.5,
-                peak_sort: str = 'peak_heights') -> None:
+                orientation: Optional[Union[Orientation, str]] = None, invert: bool = False, leaf_analysis_width_ratio: float = 0.4,
+                picket_spacing: Optional[float] = None, height_threshold: float = 0.5, edge_threshold: float = 1.5,
+                peak_sort: str = 'peak_heights', required_prominence: float = 0.2, fwxm: float = 50) -> None:
         """Analyze the picket fence image.
 
         Parameters
@@ -315,16 +341,28 @@ class PicketFence:
             Either 'peak_heights' or 'prominences'. This is the method for determining the peaks. Usually not needed
             unless the wrong number of pickets have been detected.
             See the scipy.signal.find_peaks function for more information.
+        required_prominence
+            The required height of the picket (not individual MLCs) to be considered a peak.
+            Pylinac takes a mean of the image axis perpendicular to the leaf motion to get an initial guess of the peak
+            locations and also to determine picket spacing. Changing this can be useful for wide-gap tests where
+            the shape of the beam horns can form two or more local maximums in the picket area. Increase if for wide-gap
+            images that are catching too many pickets. Consider lowering for FFF beams if there are analysis issues.
+
+            .. warning::
+
+                We do not recommend performing FFF wide-gap PF tests. Make your FFF pickets narrow or measure with a flat beam instead.
+
+        fwxm
+            For each MLC kiss, the profile is a curve from low to high to low. The FWXM (0-100) is the height to use to measure
+            to determine the center of the curve, which is the surrogate for MLC kiss position. I.e. for each MLC kiss,
+            what height of the picket should you use to actually determine the center location? It is unusual to change this.
+            If you have something in the way (we've seen crazy examples with a BB in the way) you may want to increase this.
         """
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
         self.tolerance = tolerance
         self.action_tolerance = action_tolerance
         self.leaf_analysis_width = leaf_analysis_width_ratio
-
-        # crop the images so that Elekta images don't fail. See #168
-        if not self._is_analyzed:
-            self.image.crop(pixels=2)
 
         if invert:
             self.image.invert()
@@ -335,15 +373,15 @@ class PicketFence:
             sag_pixels = int(round(sag_adjustment * self.image.dpmm))
             self.image.adjust_for_sag(sag_pixels, self.orientation)
 
+        if self.orientation == Orientation.UP_DOWN:
+            leaf_prof = np.mean(self.image, 0)
+        else:
+            leaf_prof = np.mean(self.image, 1)
+        leaf_prof = MultiProfile(leaf_prof)
+        peak_idxs, peak_vals = leaf_prof.find_fwxm_peaks(min_distance=0.02, threshold=height_threshold, max_number=num_pickets,
+                                                         peak_sort=peak_sort, required_prominence=required_prominence)
         # get picket spacing if not set by user
         if picket_spacing is None:
-            if self.orientation == UP_DOWN:
-                leaf_prof = np.mean(self.image, 0)
-            else:
-                leaf_prof = np.mean(self.image, 1)
-            leaf_prof = MultiProfile(leaf_prof)
-            peak_idxs, peak_vals = leaf_prof.find_peaks(min_distance=0.02, threshold=0.5, max_number=num_pickets,
-                                                        peak_sort=peak_sort)
             picket_spacing = np.median(np.diff(np.sort(peak_idxs)))
 
         # loop through each leaf row and analyze each MLC kiss
@@ -359,7 +397,10 @@ class PicketFence:
                                                   leaf_analysis_width_ratio=leaf_analysis_width_ratio,
                                                   tolerance=tolerance, action_tolerance=action_tolerance,
                                                   leaf_num=leaf_num, approx_peak_val=picket_peak_val,
-                                                  image_window=window, image=self.image))
+                                                  image_window=window, image=self.image, fwxm=fwxm))
+        if not self.mlc_meas:
+            raise ValueError("No MLC measurements were found. This may be due to an incorrect inversion. Try setting invert=True. Or, you may have passed an incorrect orientation.")
+
         # drop any leaf rows that don't have the right amount of MLC kisses (i.e. near edge where one is dropped)
         median_num_leaves = Enumerable(self.mlc_meas) \
             .group_by(key=lambda m: m.leaf_num) \
@@ -372,7 +413,7 @@ class PicketFence:
             .distinct() \
             .to_list()
         self.mlc_meas = [m for m in self.mlc_meas if m.leaf_num in full_leaves]
-        if [True for m in self.mlc_meas if m.leaf_num not in full_leaves]:
+        if any([True for m in self.mlc_meas if m.leaf_num not in full_leaves]):
             warnings.warn("Some leaves were removed from analysis because they were not detected for all pickets. If some valid leaves are missing try adjusting height_threshold or edge_threshold")
 
         # retrospectively create the pickets and update the individual MLC measurements so error can be calculated
@@ -386,7 +427,7 @@ class PicketFence:
 
     def _is_mlc_peak_in_window(self, window, height_threshold, edge_threshold, picket_peak_val) -> bool:
         """Whether the MLC peak is inside the given window. E.g. the jaw could be closed or at an edge."""
-        if self.orientation == UP_DOWN:
+        if self.orientation == Orientation.UP_DOWN:
             std = np.std(window, axis=1)
         else:
             std = np.std(window, axis=0)
@@ -398,8 +439,8 @@ class PicketFence:
         """A small 2D window of the image that contains the area around the picket."""
         leaf_width_px = leaf_width * self.image.dpmm
         leaf_center_px = leaf_center * self.image.dpmm + (
-            self.image.shape[0] / 2 if self.orientation == UP_DOWN else self.image.shape[1] / 2)
-        if self.orientation == UP_DOWN:
+            self.image.shape[0] / 2 if self.orientation == Orientation.UP_DOWN else self.image.shape[1] / 2)
+        if self.orientation == Orientation.UP_DOWN:
             # crop edges to image boundary if need be; if the pickets are too close to edge we could spill outside
             left_edge = max(int(approx_idx - spacing / 2), 0)
             right_edge = min(int(approx_idx + spacing / 2), self.image.shape[1])
@@ -416,7 +457,7 @@ class PicketFence:
 
     def _leaves_in_view(self, analysis_width) -> List[Tuple[int, int]]:
         """Crop the leaves if not all leaves are in view."""
-        range = self.image.shape[0] / 2 if self.orientation == UP_DOWN else self.image.shape[1] / 2
+        range = self.image.shape[0] / 2 if self.orientation == Orientation.UP_DOWN else self.image.shape[1] / 2
         # cut off the edge so that we're not halfway through a leaf.
         range -= max(self.mlc.widths[0] * analysis_width, self.mlc.widths[-1] * analysis_width) * self.image.dpmm
         leaves = [i for i, c in enumerate(self.mlc.centers) if abs(c) < (range / self.image.dpmm)]
@@ -450,7 +491,7 @@ class PicketFence:
 
         # plot the image
         if figure_size == 'auto':
-            if self.orientation == UP_DOWN:
+            if self.orientation == Orientation.UP_DOWN:
                 figure_size = (12, 8)
             else:
                 figure_size = (9, 9)
@@ -487,13 +528,13 @@ class PicketFence:
 
         # make the new axis
         divider = make_axes_locatable(ax)
-        if self.orientation == UP_DOWN:
+        if self.orientation == Orientation.UP_DOWN:
             axtop = divider.append_axes('right', 2, pad=1, sharey=ax)
         else:
             axtop = divider.append_axes('bottom', 2, pad=1, sharex=ax)
 
         # get leaf positions, errors, standard deviation, and leaf numbers
-        if self.orientation == UP_DOWN:
+        if self.orientation == Orientation.UP_DOWN:
             pos = [position.marker_line.center.y for position in self.pickets[0].mlc_meas]
         else:
             pos = [position.marker_line.center.x for position in self.pickets[0].mlc_meas]
@@ -506,7 +547,7 @@ class PicketFence:
             error_stdev.append(np.std([m.error for m in self.mlc_meas if m.leaf_num == leaf_num]))
 
         # plot the leaf errors as a bar plot
-        if self.orientation == UP_DOWN:
+        if self.orientation == Orientation.UP_DOWN:
             axtop.barh(pos, error_vals, xerr=error_stdev, height=self.leaf_analysis_width * 2, alpha=0.4,
                        align='center')
             # plot the tolerance line(s)
@@ -526,7 +567,7 @@ class PicketFence:
         axtop.grid(True)
         axtop.set_title("Average Error (mm)")
 
-    def save_analyzed_image(self, filename: str, guard_rails: bool = True, mlc_peaks: bool = True, overlay: bool = True,
+    def save_analyzed_image(self, filename: Union[str, io.BytesIO], guard_rails: bool = True, mlc_peaks: bool = True, overlay: bool = True,
                             leaf_error_subplot: bool = False, **kwargs) -> None:
         """Save the analyzed figure to a file. See :meth:`~pylinac.picketfence.PicketFence.plot_analyzed_image()` for
         further parameter info.
@@ -547,22 +588,23 @@ class PicketFence:
                  f"Max Error: {self.max_error:2.3f}mm on Picket: {self.max_error_picket}, Leaf: {self.max_error_leaf}"
         return string
 
-    def results_data(self) -> dict:
-        """Present the results data and metadata as a dict."""
-        data = dict()
-        data['pylinac version'] = __version__
-        data['PF tolerance'] = self.tolerance
-        data['PF action tolerance'] = self.action_tolerance
-        data['PF % passing'] = self.percent_passing
-        data['PF # pickets'] = self.num_pickets
-        data['PF abs median error (mm)'] = self.abs_median_error
-        data['PF max error (mm)'] = self.max_error
-        data['PF mean picket spacing (mm)'] = self.mean_picket_spacing
-        data['PF offsets from CAX (mm)'] = [pk.dist2cax for pk in self.pickets]
-        data["PF passed?"] = self.passed
+    def results_data(self, as_dict=False) -> Union[PFResult, dict]:
+        """Present the results data and metadata as a dataclass, dict, or tuple.
+        The default return type is a dataclass."""
+        data = PFResult(tolerance_mm=self.tolerance,
+                        action_tolerance_mm=self.action_tolerance,
+                        percent_leaves_passing=self.percent_passing,
+                        number_of_pickets=self.num_pickets,
+                        absolute_median_error_mm=self.abs_median_error,
+                        max_error_mm=self.max_error,
+                        mean_picket_spacing_mm=self.mean_picket_spacing,
+                        offsets_from_cax_mm=[pk.dist2cax for pk in self.pickets],
+                        passed=self.passed)
+        if as_dict:
+            return dataclasses.asdict(data)
         return data
 
-    def publish_pdf(self, filename: str, notes: str = None, open_file: bool = False, metadata: dict = None) -> None:
+    def publish_pdf(self, filename: Union[str, io.BytesIO], notes: str = None, open_file: bool = False, metadata: dict = None) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -610,14 +652,11 @@ class PicketFence:
 
     @property
     @lru_cache(maxsize=1)
-    def orientation(self) -> Union[UP_DOWN, LEFT_RIGHT]:
+    def orientation(self) -> Orientation:
         """The orientation of the image, either Up-Down or Left-Right."""
         # if orientation was passed in, use it
-        if type(self._orientation) is str:
-            if 'u' in self._orientation.lower():
-                return UP_DOWN
-            elif 'l' in self._orientation.lower():
-                return LEFT_RIGHT
+        if self._orientation is not None:
+            return convert_to_enum(self._orientation, Orientation)
 
         # replace any dead pixels with median value
         temp_image = self.image.array.copy()
@@ -634,9 +673,9 @@ class PicketFence:
         # The true picket side will have a greater difference in
         # percentiles than will the non-picket size.
         if row_range < col_range:
-            orientation = LEFT_RIGHT
+            orientation = Orientation.LEFT_RIGHT
         else:
-            orientation = UP_DOWN
+            orientation = Orientation.UP_DOWN
         return orientation
 
 
@@ -644,7 +683,7 @@ class MLCValue:
 
     def __init__(self, picket_num, approx_idx, leaf_width, leaf_center, picket_spacing, orientation,
                  leaf_analysis_width_ratio, tolerance, action_tolerance, leaf_num,
-                 approx_peak_val, image_window, image):
+                 approx_peak_val, image_window, image, fwxm):
         """Representation of an MLC kiss."""
         self._approximate_idx = approx_idx
         self.picket_num = picket_num
@@ -652,10 +691,11 @@ class MLCValue:
         self.leaf_width_px: float = leaf_width * image.dpmm
         self._leaf_center: float = leaf_center
         self.leaf_center_px: float = leaf_center * image.dpmm + (
-            image.shape[0] / 2 if orientation == UP_DOWN else image.shape[1] / 2)
+            image.shape[0] / 2 if orientation == Orientation.UP_DOWN else image.shape[1] / 2)
         self.leaf_num = leaf_num
         self._image_window = image_window
         self._image = image
+        self._fwxm = fwxm
         self._analysis_ratio: float = leaf_analysis_width_ratio
         self._spacing: float = picket_spacing
         self._orientation = orientation
@@ -672,14 +712,14 @@ class MLCValue:
         self.marker_line.plot2axes(axes, width, color=self.bg_color)
 
     def get_peak_position(self) -> float:
-        if self._orientation == UP_DOWN:
+        if self._orientation == Orientation.UP_DOWN:
             pix_vals = np.median(self._image_window, axis=0)
         else:
             pix_vals = np.median(self._image_window, axis=1)
         interpolation_factor = 100
-        prof = SingleProfile(pix_vals, interpolation=Interpolation.SPLINE, interpolation_factor=interpolation_factor)
-        fw80m = prof.fwxm_data(80)
-        return fw80m['center index (exact)']/interpolation_factor + max(self._approximate_idx - self._spacing / 2, 0)  # crop to left edge if need be
+        prof = SingleProfile(pix_vals, interpolation=Interpolation.LINEAR, interpolation_factor=interpolation_factor)
+        fwxm = prof.fwxm_data(self._fwxm)
+        return fwxm['center index (exact)']/interpolation_factor + max(self._approximate_idx - self._spacing / 2, 0)  # crop to left edge if need be
 
     @property
     def passed(self) -> bool:
@@ -702,7 +742,7 @@ class MLCValue:
     @property
     def error(self) -> float:
         """The error (difference) of the MLC measurement and the picket fit."""
-        if self._orientation == UP_DOWN:
+        if self._orientation == Orientation.UP_DOWN:
             picket_pos = self._fit(self.marker_line.center.y)
             mlc_pos = self.marker_line.center.x
         else:
@@ -715,7 +755,7 @@ class MLCValue:
         upper_point = self.leaf_center_px - self.leaf_width_px / 2 * self._analysis_ratio
         lower_point = self.leaf_center_px + self.leaf_width_px / 2 * self._analysis_ratio
 
-        if self._orientation == UP_DOWN:
+        if self._orientation == Orientation.UP_DOWN:
             line = Line((self.position, upper_point), (self.position, lower_point))
         else:
             line = Line((upper_point, self.position), (lower_point, self.position))
@@ -724,11 +764,11 @@ class MLCValue:
     def plot_overlay2axes(self, axes) -> None:
         # create a rectangle overlay
         width = self.leaf_width_px * 0.6
-        if self._orientation == UP_DOWN:
-            r = Rectangle(self._image_window.shape[1] * 0.8, width,
+        if self._orientation == Orientation.UP_DOWN:
+            r = Rectangle(self._image_window.shape[1] * 0.3, width,
                           center=(self.marker_line.center.x, self.marker_line.center.y))
         else:
-            r = Rectangle(width, self._image_window.shape[0] * 0.8,
+            r = Rectangle(width, self._image_window.shape[0] * 0.3,
                           center=(self.marker_line.center.x, self.marker_line.center.y))
         r.plot2axes(axes, edgecolor='none', fill=True, alpha=0.1, facecolor=self.bg_color)
 
@@ -736,12 +776,12 @@ class MLCValue:
 class Picket:
     """Holds picket information in a Picket Fence test."""
 
-    def __init__(self, mlc_measurements: List[MLCValue], log_fits, orientation: Union[UP_DOWN, LEFT_RIGHT],
+    def __init__(self, mlc_measurements: List[MLCValue], log_fits, orientation: Orientation,
                  image: PFDicomImage, tolerance: float):
         self.mlc_meas: List[MLCValue] = mlc_measurements
         self.log_fits = log_fits
         self.tolerance: float = tolerance
-        self.orientation: Union[UP_DOWN, LEFT_RIGHT] = orientation
+        self.orientation: Orientation = orientation
         self.image: PFDicomImage = image
         self.fit = self.get_fit()
         for m in self.mlc_meas:
@@ -753,7 +793,7 @@ class Picket:
             return next(self.log_fits)
         x = np.array([mlc.marker_line.point1.y for mlc in self.mlc_meas])
         y = np.array([mlc.marker_line.point1.x for mlc in self.mlc_meas])
-        if self.orientation == UP_DOWN:
+        if self.orientation == Orientation.UP_DOWN:
             fit = np.polyfit(x, y, 1)
         else:
             fit = np.polyfit(y, x, 1)
@@ -764,14 +804,14 @@ class Picket:
         """The distance from the CAX to the picket, in mm."""
         # TODO: see about using line and built-in dist to point.
         center_fit = np.poly1d(self.fit)
-        if self.orientation == UP_DOWN:
+        if self.orientation == Orientation.UP_DOWN:
             length = self.image.shape[0]
         else:
             length = self.image.shape[1]
         x_data = np.arange(length)
         y_data = center_fit(x_data)
         idx = int(round(len(x_data) / 2))
-        if self.orientation == UP_DOWN:
+        if self.orientation == Orientation.UP_DOWN:
             axis = 'x'
             p1 = Point(y_data[idx], x_data[idx])
         else:
@@ -795,14 +835,14 @@ class Picket:
 
     def add_guards_to_axes(self, axis: plt.Axes, color: str = 'g') -> None:
         """Plot guard rails to the axis."""
-        if self.orientation == UP_DOWN:
+        if self.orientation == Orientation.UP_DOWN:
             length = self.image.shape[0]
         else:
             length = self.image.shape[1]
         x_data = np.arange(length)
         left_y_data = self.left_guard(x_data)
         right_y_data = self.right_guard(x_data)
-        if self.orientation == UP_DOWN:
+        if self.orientation == Orientation.UP_DOWN:
             axis.plot(left_y_data, x_data, color=color)
             axis.plot(right_y_data, x_data, color=color)
         else:

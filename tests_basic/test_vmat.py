@@ -6,6 +6,7 @@ from unittest import TestCase
 from pylinac.core.geometry import Point
 from pylinac.core.io import retrieve_demo_file
 from pylinac import DRGS, DRMLC
+from pylinac.vmat import VMATResult
 
 from tests_basic.utils import save_file, has_www_connection
 
@@ -63,10 +64,13 @@ class TestLoadingBase:
         instance = self.klass.from_demo_images()
         instance.analyze()
         data = instance.results_data()
-        self.assertIsInstance(data, dict)
-        self.assertEqual(len(data), 7)
-        self.assertIn('pylinac version', data)
-        self.assertEqual(data['VMAT abs mean deviation (%)'], instance.avg_abs_r_deviation)
+        self.assertIsInstance(data, VMATResult)
+        self.assertEqual(data.test_type, instance._result_header)
+
+        data_dict = instance.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+        self.assertIn('pylinac_version', data_dict)
+        self.assertEqual(data_dict['max_deviation_percent'], instance.max_r_deviation)
 
 
 class TestDRGSLoading(TestLoadingBase, TestCase):

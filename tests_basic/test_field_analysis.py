@@ -7,7 +7,7 @@ from pylinac.core.exceptions import NotAnalyzed
 from pylinac.core.io import retrieve_demo_file
 from pylinac.core.profile import Edge, Normalization, Interpolation
 from pylinac.field_analysis import FieldAnalysis, Protocol, DeviceFieldAnalysis, Device, Centering, \
-    symmetry_point_difference, flatness_dose_difference, plot_flatness, plot_symmetry_point_difference
+    symmetry_point_difference, flatness_dose_difference, plot_flatness, plot_symmetry_point_difference, FieldResults
 from tests_basic.utils import has_www_connection, LocationMixin, save_file
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Flatness & Symmetry')
@@ -47,6 +47,19 @@ class FieldAnalysisTests(TestCase):
     def test_results(self):
         fs = create_instance()
         self.assertIsInstance(fs.results(), str)
+
+    def test_results_data(self):
+        fs = create_instance()
+        fs.analyze()
+        data = fs.results_data()
+        self.assertIsInstance(data, FieldResults)
+        self.assertEqual(data.field_size_vertical_mm, fs._results['field_size_vertical_mm'])
+
+        data_dict = fs.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+
+        data_tuple = fs.results_data(as_tuple=True)
+        self.assertIsInstance(data_tuple, tuple)
 
     def test_results_fails_if_not_analyzed(self):
         fs = FieldAnalysis.from_demo_image()

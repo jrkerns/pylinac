@@ -2,8 +2,10 @@ import os.path as osp
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
+from pylinac.planar_imaging import PlanarResult
 from tests_basic.utils import save_file, LocationMixin
 
 TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Planar imaging')
@@ -19,10 +21,20 @@ class GeneralTests(TestCase):
         phan = LeedsTOR.from_demo_image()
         phan.analyze()
         data = phan.results_data()
-        self.assertIsInstance(data, dict)
-        self.assertEqual(len(data), 9)
-        self.assertIn('pylinac version', data)
-        self.assertEqual(data['Planar phantom center (px)'], {'x': phan.phantom_center.x, 'y': phan.phantom_center.y})
+        self.assertIsInstance(data, PlanarResult)
+        self.assertEqual(data.median_contrast, np.median([roi.contrast for roi in phan.low_contrast_rois]))
+
+        data_dict = phan.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+        self.assertEqual(len(data_dict), 8)
+        self.assertIn('pylinac_version', data_dict)
+
+    def test_results_data_no_mtf(self):
+        phan = LasVegas.from_demo_image()
+        phan.analyze()
+
+        data_dict = phan.results_data(as_dict=True)
+        self.assertEqual(len(data_dict), 8)
 
 
 class PlanarPhantomMixin(LocationMixin):

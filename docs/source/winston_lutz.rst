@@ -1,7 +1,7 @@
 
-=================================
-Winston-Lutz module documentation
-=================================
+============
+Winston-Lutz
+============
 
 Overview
 --------
@@ -130,18 +130,30 @@ You can also pass in your couch coordinates and the new values will be generated
 Accessing data
 --------------
 
-All the data is easily reachable. For attributes that are inclusive of all the images (e.g. isocenter size), they can be
-reached like so:
+
+.. versionchanged:: 3.0
+
+Using the WL module in your own scripts? While the analysis results can be printed out,
+if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.winston_lutz.WinstonLutz.results_data` method
+which returns a :class:`~pylinac.winston_lutz.WinstonLutzResult` instance.
+
+.. note::
+    While the pylinac tooling may change under the hood, this object should remain largely the same and/or expand.
+    Thus, using this is more stable than accessing attrs directly.
+
+Continuing from above:
 
 .. code-block:: python
 
-    wl = WinstonLutz(...)
-    wl.gantry_iso_size
-    wl.collimator_iso_size
-    wl.couch_iso_size
-    wl.gantry_coll_iso_size
-    wl.bb_shift_vector
-    wl.cax2bb_distance('max')  # this is the maximum scalar between CAX and BB across all images
+    data = wl.results_data()
+    data.num_total_images
+    data.max_2d_cax_to_bb_mm
+    # and more
+
+    # return as a dict
+    data_dict = wl.results_data(as_dict=True)
+    data_dict['num_total_images']
+    ...
 
 Accessing individual images
 ---------------------------
@@ -317,7 +329,14 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutz
+    :members:
+
+.. autoclass:: pylinac.winston_lutz.WinstonLutzResult
+    :members:
+    :inherited-members:
 
 .. autoclass:: pylinac.winston_lutz.ImageManager
+    :members:
 
 .. autoclass:: pylinac.winston_lutz.WLImage
+    :members:

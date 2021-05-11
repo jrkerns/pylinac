@@ -17,6 +17,8 @@ Features:
 * **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
   such information in the DICOM tags. E.g. "myWL_gantry45_coll0_couch315.dcm".
 """
+import dataclasses
+from dataclasses import dataclass
 from functools import lru_cache
 from itertools import zip_longest
 import io
@@ -36,8 +38,7 @@ from .core.geometry import Point, Line, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import bounding_box
 from .core import pdf
-from .core.utilities import is_close, open_path
-from . import __version__
+from .core.utilities import is_close, open_path, ResultBase
 
 GANTRY = 'Gantry'
 COLLIMATOR = 'Collimator'
@@ -46,8 +47,33 @@ GB_COMBO = 'GB Combo'
 GBP_COMBO = 'GBP Combo'
 EPID = 'Epid'
 REFERENCE = 'Reference'
-MIN_BB_SIZE = 3
+MIN_BB_SIZE = 2
 MAX_BB_SIZE = 10
+
+
+@dataclass
+class WinstonLutzResult(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    num_gantry_images: int  #:
+    num_gantry_coll_images: int  #:
+    num_coll_images: int  #:
+    num_couch_images: int  #:
+    num_total_images: int  #:
+    max_2d_cax_to_bb_mm: float  #:
+    median_2d_cax_to_bb_mm: float  #:
+    max_2d_cax_to_epid_mm: float  #:
+    median_2d_cax_to_epid_mm: float  #:
+    gantry_3d_iso_diameter_mm: float  #:
+    max_gantry_rms_deviation_mm: float  #:
+    max_epid_rms_deviation_mm: float  #:
+    gantry_coll_3d_iso_diameter_mm: float  #:
+    coll_2d_iso_diameter_mm: float  #:
+    max_coll_rms_deviation_mm: float  #:
+    couch_2d_iso_diameter_mm: float  #:
+    max_couch_rms_deviation_mm: float  #:
 
 
 class ImageManager(list):
@@ -282,7 +308,7 @@ class WinstonLutz:
         return move
 
     @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, GB_COMBO, GBP_COMBO), value=('all', 'range'))
-    def axis_rms_deviation(self, axis: str=GANTRY, value: str='all') -> float:
+    def axis_rms_deviation(self, axis: str=GANTRY, value: str='all') -> Union[list, float]:
         """The RMS deviations of a given axis/axes.
 
         Parameters
@@ -544,35 +570,35 @@ class WinstonLutz:
             result = '\n'.join(result)
         return result
 
-    def results_data(self) -> dict:
-        """Return the analysis results as a dictionary."""
+    def results_data(self, as_dict=False) -> Union[WinstonLutzResult, dict]:
+        """Present the results data and metadata as a dataclass or dict.
+        The default return type is a dataclass."""
         num_gantry_imgs = self._get_images(axis=(GANTRY, REFERENCE))[0]
         num_gantry_coll_imgs = self._get_images(axis=(GANTRY, COLLIMATOR, GB_COMBO, REFERENCE))[0]
         num_coll_imgs = self._get_images(axis=(COLLIMATOR, REFERENCE))[0]
         num_couch_imgs = self._get_images(axis=(COUCH, REFERENCE))[0]
 
-        data = dict()
-        data['pylinac version'] = __version__
-
-        data['WL # of images'] = len(self.images)
-        data['WL CAX->BB 2D max (mm)'] = self.cax2bb_distance('max')
-        data['WL CAX->BB 2D median (mm)'] = self.cax2bb_distance('median')
-        data['WL CAX->EPID 2D max (mm)'] = self.cax2epid_distance('max')
-        data['WL CAX->EPID 2D median (mm)'] = self.cax2epid_distance('median')
-        data['WL Collimator 2D iso size (mm)'] = self.collimator_iso_size
-        data['WL Collimator RMS deviations (mm)'] = self.axis_rms_deviation(axis=COLLIMATOR)
-        data['WL # Coll images considered'] = num_coll_imgs
-        data['WL Couch 2D iso size (mm)'] = self.couch_iso_size
-        data['WL Couch RMS deviations (mm)'] = self.axis_rms_deviation(axis=COUCH)
-        data['WL # Couch images considered'] = num_couch_imgs
-        data['WL Gantry 3D iso size (mm)'] = self.gantry_iso_size
-        data['WL Gantry RMS deviations (mm)'] = self.axis_rms_deviation(axis=GANTRY)
-        data['WL # Gantry images considered'] = num_gantry_imgs
-        data['WL Gantry+Coll 3D iso size (mm)'] = self.gantry_coll_iso_size
-        data['WL # Gantry+Coll images considered'] = num_gantry_coll_imgs
-        data['WL BB shift instructions'] = self.bb_shift_instructions()
-        data['WL BB 3D position from Iso'] = {'x': self.bb_shift_vector.x, 'y': self.bb_shift_vector.y, 'z': self.bb_shift_vector.z}
-        data['WL Iso 3D position from BB'] = {'x': -self.bb_shift_vector.x, 'y': -self.bb_shift_vector.y, 'z': -self.bb_shift_vector.z}
+        data = WinstonLutzResult(
+                num_total_images=len(self.images),
+                num_gantry_images=num_gantry_imgs,
+                num_coll_images=num_coll_imgs,
+                num_gantry_coll_images=num_gantry_coll_imgs,
+                num_couch_images=num_couch_imgs,
+                max_2d_cax_to_bb_mm=self.cax2bb_distance('max'),
+                median_2d_cax_to_bb_mm=self.cax2bb_distance('median'),
+                max_2d_cax_to_epid_mm=self.cax2epid_distance('max'),
+                median_2d_cax_to_epid_mm=self.cax2epid_distance('median'),
+                coll_2d_iso_diameter_mm=self.collimator_iso_size,
+                couch_2d_iso_diameter_mm=self.couch_iso_size,
+                gantry_3d_iso_diameter_mm=self.gantry_iso_size,
+                gantry_coll_3d_iso_diameter_mm=self.gantry_coll_iso_size,
+                max_gantry_rms_deviation_mm=max(self.axis_rms_deviation(axis=GANTRY)),
+                max_coll_rms_deviation_mm=max(self.axis_rms_deviation(axis=COLLIMATOR)),
+                max_couch_rms_deviation_mm=max(self.axis_rms_deviation(axis=COUCH)),
+                max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=EPID)),
+        )
+        if as_dict:
+            return dataclasses.asdict(data)
         return data
 
     def publish_pdf(self, filename: str, notes: Optional[Union[str, List[str]]]=None, open_file: bool=False, metadata: Optional[dict]=None):

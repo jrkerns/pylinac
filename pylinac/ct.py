@@ -10,15 +10,16 @@ Features:
 * **Any scan protocol** - Scan your CatPhan with any protocol; even scan it in a regular CT scanner.
   Any field size or field extent is allowed.
 """
-from collections import OrderedDict
-from datetime import datetime
-from functools import lru_cache
+import dataclasses
 import io
-from os import path as osp
 import os
 import webbrowser
 import zipfile
-from typing import Optional, Union, Dict, Tuple, Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from functools import lru_cache
+from os import path as osp
+from typing import Optional, Union, Dict, Tuple, Sequence, List
 
 import argue
 import matplotlib.pyplot as plt
@@ -27,18 +28,15 @@ from py_linq import Enumerable
 from scipy import ndimage
 from skimage import filters, measure, segmentation
 
-from .core import image
-from .core.image import DicomImageStack
-from .core.io import TemporaryZipDirectory
+from .core import image, pdf
 from .core.geometry import Point, Line
-from .core.io import get_url, retrieve_demo_file
-from .core import pdf
+from .core.image import DicomImageStack
+from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, SingleProfile, Interpolation
 from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI
-from .core.typing import NumberLike
+from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
-from . import __version__
 
 
 AIR = -1000
@@ -50,6 +48,90 @@ DELRIN = 365
 TEFLON = 1000
 BONE_20 = 237
 BONE_50 = 725
+
+
+@dataclass
+class ROIResult:
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    name: str  #:
+    value: float  #:
+    cnr: float  #:
+    difference: float  #:
+    nominal_value: float  #:
+    passed: bool  #:
+
+
+@dataclass
+class CTP404Result:
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    offset: int  #:
+    low_contrast_visibility: float  #:
+    thickness_passed: bool  #:
+    measured_slice_thickness_mm: float  #:
+    thickness_num_slices_combined: int  #:
+
+    geometry_passed: bool  #:
+    avg_line_distance_mm: float  #:
+    line_distances_mm: List[float]  #:
+
+    hu_linearity_passed: bool  #:
+    hu_tolerance: float  #:
+    hu_rois: List[ROIResult]  #:
+
+
+@dataclass
+class CTP486Result:
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    uniformity_index: float  #:
+    integral_non_uniformity: float  #:
+    passed: bool  #:
+
+
+@dataclass
+class CTP515Result:
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    cnr_threshold: float  #:
+    num_rois_seen: int  #:
+    roi_settings: dict  #:
+
+
+@dataclass
+class CTP528Result:
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    start_angle_radians: float  #:
+    mtf_lp_mm: dict  #:
+    roi_settings: dict  #:
+
+
+@dataclass
+class CatphanResult(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    catphan_model: str  #:
+    catphan_roll_deg: float  #:
+    origin_slice: int  #:
+    num_images: int  #:
+    ctp404: CTP404Result  #:
+    ctp486: Optional[CTP486Result] = None  #:
+    ctp528: Optional[CTP528Result] = None  #:
+    ctp515: Optional[CTP515Result] = None  #:
 
 
 class HUDiskROI(DiskROI):
@@ -200,7 +282,7 @@ class CatPhanModule(Slice):
         """
         Parameters
         ----------
-        catphan : `~pylinac.cbct.CatPhanBase` instance.
+        catphan
         tolerance : float
         offset : int, float
         """
@@ -829,8 +911,10 @@ class CatPhanBase:
 
         Raises
         ------
-        NotADirectoryError : If folder str passed is not a valid directory.
-        FileNotFoundError : If no CT images are found in the folder
+        NotADirectoryError
+            If folder str passed is not a valid directory.
+        FileNotFoundError
+            If no CT images are found in the folder
         """
         self.origin_slice = 0
         self.catphan_roll = 0
@@ -1287,56 +1371,65 @@ class CatPhanBase:
             string += add
         return string
 
-    def results_data(self) -> Dict:
-        """Return the results of the analysis as a dict. Useful for accessing data in a consistent manner."""
-        data = dict()
-        data['pylinac version'] = __version__
-        data['General info'] = {'CatPhan model': self._model,
-                                'CatPhan roll (degrees)': self.catphan_roll,
-                                'Origin slice (CTP404)': self.origin_slice,
-                                'Num images': self.num_images,
-                                'Modules': [{mod.attr_name: offset} for mod, offset in self.modules.items()]}
+    def results_data(self, as_dict=False) -> Union[CatphanResult, dict]:
+        """Present the results data and metadata as a dataclass or dict.
+        The default return type is a dataclass."""
+        hu_rois = [ROIResult(name=name,
+                             value=roi.pixel_value,
+                             cnr=roi.cnr,
+                             difference=roi.value_diff,
+                             nominal_value=roi.nominal_val,
+                             passed=roi.passed
+                             ) for name, roi in self.ctp404.rois.items()]
+        ctp404_result = CTP404Result(
+                offset=self.ctp404._offset,
+                low_contrast_visibility=self.ctp404.lcv,
+                thickness_passed=self.ctp404.passed_thickness,
+                measured_slice_thickness_mm=self.ctp404.meas_slice_thickness,
+                thickness_num_slices_combined=self.ctp404.num_slices + self.ctp404.pad,
 
-        # CTP 404 HU stuff
-        data['CTP404 HU ROI settings'] = self.ctp404.roi_settings
-        data['CTP404 HU ROI background settings'] = self.ctp404.background_roi_settings
-        data['CTP404 HU ROI values'] = [{name: {'avg value': val.pixel_value, 'cnr': val.cnr,
-                                                'difference': val.value_diff, 'nominal value': val.nominal_val,
-                                                'passed': val.passed}} for name, val in self.ctp404.rois.items()]
-        data['CTP404 HU tolerance (HU)'] = self.ctp404.hu_tolerance
-        data['CTP404 HU linearity passed?'] = self.ctp404.passed_hu
+                geometry_passed=self.ctp404.passed_geometry,
+                avg_line_distance_mm=self.ctp404.avg_line_length,
+                line_distances_mm=[l.length_mm for name, l in self.ctp404.lines.items()],
 
-        # CTP 404 Geometry stuff
-        data['CTP404 Geometry ROI analysis size setting (mm)'] = self.ctp404.geometry_roi_size_mm
-        data['CTP404 Geometry ROI distances (mm)'] = [{name: l.length_mm} for name, l in self.ctp404.lines.items()]
-        data['CTP404 Geometry AVG distance (mm)'] = self.ctp404.avg_line_length
-        data['CTP404 Geometry passed?'] = self.ctp404.passed_geometry
-
-        # CTP 404 Thickness stuff
-        data['CTP404 Thickness ROI settings'] = self.ctp404.thickness_roi_settings
-        data['CTP404 Thickness # slices combined'] = self.ctp404.num_slices + self.ctp404.pad
-        data['CTP404 Thickness measured (mm)'] = self.ctp404.meas_slice_thickness
-        data['CTP404 Thickness passed?'] = self.ctp404.passed_thickness
-        data['CTP404 Thickness LCV'] = self.ctp404.lcv
+                hu_linearity_passed=self.ctp404.passed_hu,
+                hu_tolerance=self.ctp404.hu_tolerance,
+                hu_rois=hu_rois
+        )
+        data = CatphanResult(
+                catphan_model=self._model,
+                catphan_roll_deg=self.catphan_roll,
+                origin_slice=self.origin_slice,
+                num_images=self.num_images,
+                ctp404=ctp404_result
+        )
 
         # CTP 486 Uniformity stuff
         if self._has_module(CTP486):
-            data['CTP486 Uniformity ROI settings'] = self.ctp486.roi_settings
-            data['CTP486 Uniformity index'] = self.ctp486.uniformity_index
-            data['CTP486 Uniformity integral non-uniformity'] = self.ctp486.integral_non_uniformity
-            data['CTP486 Uniformity passed?'] = self.ctp486.overall_passed
+            data.ctp486 = CTP486Result(
+                    passed=self.ctp486.overall_passed,
+                    uniformity_index=self.ctp486.uniformity_index,
+                    integral_non_uniformity=self.ctp486.integral_non_uniformity,
+            )
 
         # CTP 528 stuff
         if self._has_module(CTP528CP504):
-            data['CTP528 Spatial Resolution ROI settings'] = self.ctp528.roi_settings
-            data['CTP528 Spatial Resolution start angle (radians)'] = self.ctp528.start_angle
-            data['CTP528 Spatial Resolution rMTFs (lp/mm)'] = [{p: self.ctp528.mtf.relative_resolution(p)} for p in (80, 50, 30)]
+            data.ctp528 = CTP528Result(
+                    roi_settings=self.ctp528.roi_settings,
+                    start_angle_radians=self.ctp528.start_angle,
+                    mtf_lp_mm={p: self.ctp528.mtf.relative_resolution(p) for p in (80, 50, 30)}
+            )
 
         # CTP 515 stuff
         if self._has_module(CTP515):
-            data['CTP515 Low Contrast CNR threshold'] = self.ctp515.cnr_threshold
-            data['CTP515 Low Contrast # seen'] = self.ctp515.rois_visible
-            data['CTP515 Low Contrast ROI settings'] = self.ctp515.roi_settings
+            data.ctp515 = CTP515Result(
+                    cnr_threshold=self.ctp515.cnr_threshold,
+                    num_rois_seen=self.ctp515.rois_visible,
+                    roi_settings=self.ctp515.roi_settings
+            )
+
+        if as_dict:
+            return dataclasses.asdict(data)
         return data
 
 

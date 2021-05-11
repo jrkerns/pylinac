@@ -237,7 +237,7 @@ class Line:
     point1: Point
     point2: Point
 
-    def __init__(self, point1: Point, point2: Point):
+    def __init__(self, point1: Union[Point, Tuple[float, float]], point2: Union[Point, Tuple[float, float]]):
         """
         Parameters
         ----------

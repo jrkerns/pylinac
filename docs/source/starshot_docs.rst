@@ -1,9 +1,9 @@
 
 .. _starshot_doc:
 
-=============================
-Starshot module documentation
-=============================
+========
+Starshot
+========
 
 .. _star_overview:
 
@@ -80,6 +80,22 @@ A typical analysis sequence looks like so:
       print(mystar.results())
       # view analyzed image
       mystar.plot_analyzed_image()
+
+  Additionally, the data can be accessed through a convenient :class:`~pylinac.starshot.StarshotResults` class
+  which comes in useful when using pylinac through an API or for passing data to other scripts/routines.
+
+  .. code-block:: python
+
+    # return a dataclass with introspection
+    data = mystar.results_data()
+    data.tolerance_mm
+    data.passed
+    ...
+
+    # return as a dict
+    data_dict = mystart.results_data(as_dict=True)
+    data_dict['passed']
+    ...
 
   Each subplot can be plotted independently as well:
 
@@ -170,10 +186,18 @@ analysis, there are a few things you can do.
 API Documentation
 -----------------
 
+
 .. autoclass:: pylinac.starshot.Starshot
+    :members:
+
+.. autoclass:: pylinac.starshot.StarshotResults
+    :members:
 
 .. autoclass:: pylinac.starshot.StarProfile
+    :members:
 
 .. autoclass:: pylinac.starshot.Wobble
+    :members:
 
 .. autoclass:: pylinac.starshot.LineManager
+    :members:

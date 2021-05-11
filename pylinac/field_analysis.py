@@ -1,7 +1,9 @@
 """Module for performing analysis of images or 2D arrays for parameters such as flatness and symmetry."""
+import dataclasses
 import io
 import os.path as osp
 import warnings
+from dataclasses import dataclass
 from enum import Enum
 from math import floor, ceil
 from typing import Union, Optional, Tuple
@@ -9,8 +11,7 @@ from typing import Union, Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pylinac.core.utilities import open_path
-from . import __version__
+from pylinac.core.utilities import open_path, ResultBase
 from .core import image, pdf
 from .core.exceptions import NotAnalyzed
 from .core.geometry import Rectangle
@@ -174,23 +175,69 @@ siemens_protocol = {
 
 class Protocol(Enum):
     """Protocols to analyze additional metrics of the field. See :ref:`analysis_definitions`"""
-    NONE = {}
-    VARIAN = varian_protocol
-    SIEMENS = siemens_protocol
-    ELEKTA = elekta_protocol
+    NONE = {}  #:
+    VARIAN = varian_protocol  #:
+    SIEMENS = siemens_protocol  #:
+    ELEKTA = elekta_protocol  #:
 
 
 class Centering(Enum):
     """See :ref:`centering`"""
-    MANUAL = 'manual'
-    BEAM_CENTER = 'Beam center'
-    GEOMETRIC_CENTER = 'Geometric center'
+    MANUAL = 'manual'  #:
+    BEAM_CENTER = 'Beam center'  #:
+    GEOMETRIC_CENTER = 'Geometric center'  #:
+
+
+@dataclass
+class FieldResults(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes.
+
+    In addition to the below attrs, custom protocol data will also be attached as
+    ``<protocol name>_vertical`` and ``<protocol name>_horizontal`` for each protocol item.
+
+    E.g. a protocol item of ``symmetry`` will result in ``symmetry_vertical`` and ``symmetry_horizontal``.
+    """
+    protocol: Protocol  #:
+    centering_method: Centering  #:
+    normalization_method: Normalization  #:
+    interpolation_method: Interpolation  #:
+    edge_detection_method: Edge  #:
+    top_penumbra_mm: float  #:
+    bottom_penumbra_mm: float  #:
+    left_penumbra_mm: float  #:
+    right_penumbra_mm: float  #:
+    geometric_center_index_x_y: Tuple[float, float]  #:
+    beam_center_index_x_y: Tuple[float, float]  #:
+    field_size_vertical_mm: float  #:
+    field_size_horizontal_mm: float  #:
+    beam_center_to_top_mm: float  #:
+    beam_center_to_bottom_mm: float  #:
+    beam_center_to_left_mm: float  #:
+    beam_center_to_right_mm: float  #:
+    cax_to_top_mm: float  #:
+    cax_to_bottom_mm: float  #:
+    cax_to_left_mm: float  #:
+    cax_to_right_mm: float  #:
+    top_position_index_x_y: Tuple[float, float]  #:
+    top_horizontal_distance_from_cax_mm: float  #:
+    top_vertical_distance_from_cax_mm: float  #:
+    top_horizontal_distance_from_beam_center_mm: float  #:
+    top_vertical_distance_from_beam_center_mm: float  #:
+    left_slope_percent_mm: float  #:
+    right_slope_percent_mm: float  #:
+    top_slope_percent_mm: float  #:
+    bottom_slope_percent_mm: float  #:
+    top_penumbra_percent_mm: float = 0  #:
+    bottom_penumbra_percent_mm: float = 0  #:
+    left_penumbra_percent_mm: float = 0  #:
+    right_penumbra_percent_mm: float = 0  #:
 
 
 class FieldAnalysis:
     """Class for analyzing the various parameters of a radiation image, most commonly an open image from a linac.
-
-
     """
 
     def __init__(self, path: str, filter: Optional[int] = None):
@@ -204,20 +251,13 @@ class FieldAnalysis:
         filter
             If None, no filter is applied. If an int, a median filter of size n pixels is applied. Generally, a good idea.
             Default is None for backwards compatibility.
-
-
-        Attributes
-        ----------
-        vert_profile : :class:`pylinac.core.profile.SingleProfile`
-        horiz_profile : :class:`pylinac.core.profile.SingleProfile`
-        image : :class:`pylinac.core.image.DicomImage`
         """
         self._path: str = path
-        self.image: image.ImageLike = image.load(path)
+        self.image: image.ImageLike = image.load(path)  #:
         if filter:
             self.image.filter(size=filter)
-        self.vert_profile: SingleProfile
-        self.horiz_profile: SingleProfile
+        self.vert_profile: SingleProfile  #:
+        self.horiz_profile: SingleProfile  #:
         self._is_analyzed: bool = False
         self._from_device: bool = False
         self.image.check_inversion_by_histogram()
@@ -230,7 +270,7 @@ class FieldAnalysis:
 
     @staticmethod
     def run_demo() -> None:
-        """Run the Flat/Sym demo by loading the demo image, print results, and plot the profiles."""
+        """Run the Field Analysis demo by loading the demo image, print results, and plot the profiles."""
         fs = FieldAnalysis.from_demo_image()
         fs.analyze(protocol=Protocol.VARIAN)
         print(fs.results())
@@ -412,58 +452,59 @@ class FieldAnalysis:
         # calculate common field info
         v_pen = self.vert_profile.penumbra(penumbra[0], penumbra[1])
         h_pen = self.horiz_profile.penumbra(penumbra[0], penumbra[1])
-        self._results['top penumbra (mm)'] = v_pen['left penumbra width (exact) mm']
-        self._results['bottom penumbra (mm)'] = v_pen['right penumbra width (exact) mm']
-        self._results['left penumbra (mm)'] = h_pen['left penumbra width (exact) mm']
-        self._results['right penumbra (mm)'] = h_pen['right penumbra width (exact) mm']
+        self._results['top_penumbra_mm'] = v_pen['left penumbra width (exact) mm']
+        self._results['bottom_penumbra_mm'] = v_pen['right penumbra width (exact) mm']
+        self._results['left_penumbra_mm'] = h_pen['left penumbra width (exact) mm']
+        self._results['right_penumbra_mm'] = h_pen['right penumbra width (exact) mm']
         if edge_detection_method == Edge.INFLECTION_HILL:
-            self._results['top penumbra (%/mm)'] = abs(v_pen['left gradient (exact) %/mm'])
-            self._results['bottom penumbra (%/mm)'] = abs(v_pen['right gradient (exact) %/mm'])
-            self._results['left penumbra (%/mm)'] = abs(h_pen['left gradient (exact) %/mm'])
-            self._results['right penumbra (%/mm)'] = abs(h_pen['right gradient (exact) %/mm'])
-        self._results['geometric center index (x, y)'] = (self.horiz_profile.geometric_center()['index (exact)'],
+            self._results['top_penumbra_percent_mm'] = abs(v_pen['left gradient (exact) %/mm'])
+            self._results['bottom_penumbra_percent_mm'] = abs(v_pen['right gradient (exact) %/mm'])
+            self._results['left_penumbra_percent_mm'] = abs(h_pen['left gradient (exact) %/mm'])
+            self._results['right_penumbra_percent_mm'] = abs(h_pen['right gradient (exact) %/mm'])
+        self._results['geometric_center_index_x_y'] = (self.horiz_profile.geometric_center()['index (exact)'],
                                                           self.vert_profile.geometric_center()['index (exact)'])
-        self._results['beam center index (x, y)'] = (self.horiz_profile.beam_center()['index (exact)'],
+        self._results['beam_center_index_x_y'] = (self.horiz_profile.beam_center()['index (exact)'],
                                                      self.vert_profile.beam_center()['index (exact)'])
-        self._results['field size vertical (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)['width (exact) mm']
-        self._results['field size horizontal (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+        self._results['field_size_vertical_mm'] = self.vert_profile.field_data(in_field_ratio=1.0)['width (exact) mm']
+        self._results['field_size_horizontal_mm'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
             'width (exact) mm']
-        self._results['beam center->Top (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)[
+        self._results['beam_center_to_top_mm'] = self.vert_profile.field_data(in_field_ratio=1.0)[
             'left distance->beam center (exact) mm']
-        self._results['beam center->Bottom (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)[
+        self._results['beam_center_to_bottom_mm'] = self.vert_profile.field_data(in_field_ratio=1.0)[
             'right distance->beam center (exact) mm']
-        self._results['beam center->Left (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+        self._results['beam_center_to_left_mm'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
             'left distance->beam center (exact) mm']
-        self._results['beam center->Right (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+        self._results['beam_center_to_right_mm'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
             'right distance->beam center (exact) mm']
-        self._results['CAX->Top (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)[
+        self._results['cax_to_top_mm'] = self.vert_profile.field_data(in_field_ratio=1.0)[
             'left distance->CAX (exact) mm']
-        self._results['CAX->Bottom (mm)'] = self.vert_profile.field_data(in_field_ratio=1.0)[
+        self._results['cax_to_bottom_mm'] = self.vert_profile.field_data(in_field_ratio=1.0)[
             'right distance->CAX (exact) mm']
-        self._results['CAX->Left (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+        self._results['cax_to_left_mm'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
             'left distance->CAX (exact) mm']
-        self._results['CAX->Right (mm)'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
+        self._results['cax_to_right_mm'] = self.horiz_profile.field_data(in_field_ratio=1.0)[
             'right distance->CAX (exact) mm']
 
         h_field_data = self.horiz_profile.field_data(in_field_ratio=in_field_ratio,
                                                      slope_exclusion_ratio=slope_exclusion_ratio)
         v_field_data = self.vert_profile.field_data(in_field_ratio=in_field_ratio,
                                                     slope_exclusion_ratio=slope_exclusion_ratio)
-        self._results['"top" position index (x, y)'] = (
+        self._results['top_position_index_x_y'] = (
             h_field_data['"top" index (exact)'], v_field_data['"top" index (exact)'])
-        self._results['"top" horizontal distance from CAX (mm)'] = h_field_data['"top"->CAX (exact) mm']
-        self._results['"top" vertical distance from CAX (mm)'] = v_field_data['"top"->CAX (exact) mm']
-        self._results['"top" horizontal distance from beam center (mm)'] = h_field_data['"top"->beam center (exact) mm']
-        self._results['"top" vertical distance from beam center (mm)'] = v_field_data['"top"->beam center (exact) mm']
-        self._results['left slope'] = h_field_data['left slope (%/mm)']
-        self._results['right slope'] = h_field_data['right slope (%/mm)']
-        self._results['top slope'] = v_field_data['left slope (%/mm)']
-        self._results['bottom slope'] = v_field_data['right slope (%/mm)']
+        self._results['top_horizontal_distance_from_cax_mm'] = h_field_data['"top"->CAX (exact) mm']
+        self._results['top_vertical_distance_from_cax_mm'] = v_field_data['"top"->CAX (exact) mm']
+        self._results['top_horizontal_distance_from_beam_center_mm'] = h_field_data['"top"->beam center (exact) mm']
+        self._results['top_vertical_distance_from_beam_center_mm'] = v_field_data['"top"->beam center (exact) mm']
+        self._results['left_slope_percent_mm'] = h_field_data['left slope (%/mm)']
+        self._results['right_slope_percent_mm'] = h_field_data['right slope (%/mm)']
+        self._results['top_slope_percent_mm'] = v_field_data['left slope (%/mm)']
+        self._results['bottom_slope_percent_mm'] = v_field_data['right slope (%/mm)']
 
         # calculate protocol info
+        self._extra_results = {}
         for name, item in protocol.value.items():
-            self._results[name + ' horizontal'] = item['calc'](self.horiz_profile, in_field_ratio, **kwargs)
-            self._results[name + ' vertical'] = item['calc'](self.vert_profile, in_field_ratio, **kwargs)
+            self._extra_results[f"{name}_horizontal"] = item['calc'](self.horiz_profile, in_field_ratio, **kwargs)
+            self._extra_results[f"{name}_vertical"] = item['calc'](self.vert_profile, in_field_ratio, **kwargs)
         self._is_analyzed = True
 
     def results(self, as_str=True) -> str:
@@ -491,73 +532,76 @@ class FieldAnalysis:
             f"Edge detection method: {self.horiz_profile._edge_method.value}",
             "",
             f"Penumbra width ({self._penumbra[0]}/{self._penumbra[1]}):",
-            f"Left: {self._results['left penumbra (mm)']:3.1f}mm",
-            f"Right: {self._results['right penumbra (mm)']:3.1f}mm",
-            f"Top: {self._results['top penumbra (mm)']:3.1f}mm",
-            f"Bottom: {self._results['bottom penumbra (mm)']:3.1f}mm",
+            f"Left: {self._results['left_penumbra_mm']:3.1f}mm",
+            f"Right: {self._results['right_penumbra_mm']:3.1f}mm",
+            f"Top: {self._results['top_penumbra_mm']:3.1f}mm",
+            f"Bottom: {self._results['bottom_penumbra_mm']:3.1f}mm",
             "",
             ]
         if self._edge_detection == Edge.INFLECTION_HILL:
             results += [
                 "Penumbra gradients:",
-                f"Left gradient: {self._results['left penumbra (%/mm)']:3.2f}%/mm",
-                f"Right gradient: {self._results['right penumbra (%/mm)']:3.2f}%/mm",
-                f"Top gradient: {self._results['top penumbra (%/mm)']:3.2f}%/mm",
-                f"Bottom gradient: {self._results['bottom penumbra (%/mm)']:3.2f}%/mm",
+                f"Left gradient: {self._results['left_penumbra_percent_mm']:3.2f}%/mm",
+                f"Right gradient: {self._results['right_penumbra_percent_mm']:3.2f}%/mm",
+                f"Top gradient: {self._results['top_penumbra_percent_mm']:3.2f}%/mm",
+                f"Bottom gradient: {self._results['bottom_penumbra_percent_mm']:3.2f}%/mm",
                 "",
             ]
         results += [
             "Field Size:",
-            f"Horizontal: {self._results['field size horizontal (mm)']:3.1f}mm",
-            f"Vertical: {self._results['field size vertical (mm)']:3.1f}mm",
+            f"Horizontal: {self._results['field_size_horizontal_mm']:3.1f}mm",
+            f"Vertical: {self._results['field_size_vertical_mm']:3.1f}mm",
             "",
             "CAX to edge distances:",
-            f"CAX -> Top edge: {self._results['CAX->Top (mm)']:3.1f}mm",
-            f"CAX -> Bottom edge: {self._results['CAX->Bottom (mm)']:3.1f}mm",
-            f"CAX -> Left edge: {self._results['CAX->Left (mm)']:3.1f}mm",
-            f"CAX -> Right edge: {self._results['CAX->Right (mm)']:3.1f}mm",
+            f"CAX -> Top edge: {self._results['cax_to_top_mm']:3.1f}mm",
+            f"CAX -> Bottom edge: {self._results['cax_to_bottom_mm']:3.1f}mm",
+            f"CAX -> Left edge: {self._results['cax_to_left_mm']:3.1f}mm",
+            f"CAX -> Right edge: {self._results['cax_to_right_mm']:3.1f}mm",
             ""]
         if self._is_FFF:
             results += [
                 "'Top' vertical distance from CAX: {:3.1f}mm".format(
-                        self._results['"top" vertical distance from CAX (mm)']),
+                        self._results['top_vertical_distance_from_cax_mm']),
                 "'Top' horizontal distance from CAX: {:3.1f}mm".format(
-                        self._results['"top" horizontal distance from CAX (mm)']),
+                        self._results['top_horizontal_distance_from_cax_mm']),
                 "'Top' vertical distance from beam center: {:3.1f}mm".format(
-                        self._results['"top" vertical distance from beam center (mm)']),
+                        self._results['top_vertical_distance_from_beam_center_mm']),
                 "'Top' horizontal distance from beam center: {:3.1f}mm".format(
-                        self._results['"top" horizontal distance from beam center (mm)']),
+                        self._results['top_horizontal_distance_from_beam_center_mm']),
                 "", ]
         results += [
-            f"Top slope: {self._results['top slope']:3.3f}%/mm",
-            f"Bottom slope: {self._results['bottom slope']:3.3f}%/mm",
-            f"Left slope: {self._results['left slope']:3.3f}%/mm",
-            f"Right slope: {self._results['right slope']:3.3f}%/mm",
+            f"Top slope: {self._results['top_slope_percent_mm']:3.3f}%/mm",
+            f"Bottom slope: {self._results['bottom_slope_percent_mm']:3.3f}%/mm",
+            f"Left slope: {self._results['left_slope_percent_mm']:3.3f}%/mm",
+            f"Right slope: {self._results['right_slope_percent_mm']:3.3f}%/mm",
             "",
             "Protocol data:",
             "--------------",
         ]
 
         for name, item in self._protocol.value.items():
-            results.append(f"Vertical {name}: {self._results[name + ' vertical']:3.3f}{item['unit']}")
+            results.append(f"Vertical {name}: {self._extra_results[name + '_vertical']:3.3f}{item['unit']}")
             results.append(
-                f"Horizontal {name}: {self._results[name + ' horizontal']:3.3f}{item['unit']}")
+                f"Horizontal {name}: {self._extra_results[name + '_horizontal']:3.3f}{item['unit']}")
             results.append('')
 
         if as_str:
             results = '\n'.join(result for result in results)
         return results
 
-    def results_data(self) -> dict:
-        """Present the results data and metadata as a dict."""
-        data = dict()
-        data['pylinac version'] = __version__
-        data['protocol'] = self._protocol.name
-        data['centering method'] = getattr(self._centering, 'value', None)
-        data['normalization method'] = self.horiz_profile._norm_method.value
-        data['interpolation'] = self.horiz_profile._interp_method.value
-        data['edge detection method'] = self.horiz_profile._edge_method.value
-        data.update(self._results)
+    def results_data(self, as_dict: bool = False) -> Union[FieldResults, dict]:
+        """Present the results data and metadata as a dataclass or dict.
+        The default return type is a dataclass."""
+        data = FieldResults(**self._results, protocol=self._protocol.name,
+                            centering_method=getattr(self._centering, 'value', None),
+                            normalization_method=self.horiz_profile._norm_method.value,
+                            interpolation_method=self.horiz_profile._interp_method.value,
+                            edge_detection_method=self.horiz_profile._edge_method.value)
+        # add custom data
+        for key, value in self._extra_results.items():
+            setattr(data, key, value)
+        if as_dict:
+            return dataclasses.asdict(data)
         return data
 
     def _get_vert_values(self, vert_position: float, vert_width: float) -> (np.ndarray, float, float):
@@ -846,12 +890,8 @@ class FieldAnalysis:
 
 class Device(Enum):
     """2D array device Enum.
-
-    Attributes
-    ----------
-    PROFILER
     """
-    PROFILER = {'device': SNCProfiler, 'detector spacing (mm)': 5}
+    PROFILER = {'device': SNCProfiler, 'detector spacing (mm)': 5}  #:
 
 
 class DeviceFieldAnalysis(FieldAnalysis):
@@ -865,15 +905,8 @@ class DeviceFieldAnalysis(FieldAnalysis):
             Path to the file of the device output
         device
             The array device. Currently, the Profiler is supported. See :ref:`loading_device_data`.
-
-
-        Attributes
-        ----------
-        vert_profile : :class:`pylinac.core.profile.SingleProfile`
-        horiz_profile : :class:`pylinac.core.profile.SingleProfile`
-        device : :class:`pylinac.field_analysis.Device`
         """
-        self.device = device.value['device'](path=path)
+        self.device: Device = device.value['device'](path=path)  #:
         self._path = path
         self._from_device = True
         self._dpmm = 1/device.value['detector spacing (mm)']

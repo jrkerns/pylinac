@@ -1,7 +1,7 @@
 
-============================
-CatPhan module documentation
-============================
+==========
+CatPhan/CT
+==========
 
 Overview
 --------
@@ -129,6 +129,34 @@ The minimum needed to get going is to:
 
 Advanced Use
 ------------
+
+Using ``results_data``
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionchanged:: 3.0
+
+Using the catphan module in your own scripts? While the analysis results can be printed out,
+if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.ct.CatphanBase.results_data` method
+which returns a :class:`~pylinac.ct.CatphanResult` instance.
+
+.. note::
+    While the pylinac tooling may change under the hood, this object should remain largely the same and/or expand.
+    Thus, using this is more stable than accessing attrs directly.
+
+Continuing from above:
+
+.. code-block:: python
+
+    data = mycbct.results_data()
+    data.catphan_model
+    data.ctp404.measured_slice_thickness_mm
+    # and more
+
+    # return as a dict
+    data_dict = mycbct.results_data(as_dict=True)
+    data_dict['ctp404']['measured_slice_thickness_mm']
+    ...
+
 
 Partial scans
 ^^^^^^^^^^^^^
@@ -328,57 +356,98 @@ Most problems in this module revolve around getting the data loaded.
 API Documentation
 -----------------
 
-CatPhan classes
-^^^^^^^^^^^^^^^
 
-The CatPhan classes uses several other classes. There are several Slices of Interest (SOI), most of which contain Regions of Interest (ROI).
+Main classes
+^^^^^^^^^^^^
+
+These are the classes a typical user may interface with.
 
 .. autoclass:: pylinac.ct.CatPhan504
+    :inherited-members:
+    :members:
 
 .. autoclass:: pylinac.ct.CatPhan503
+    :inherited-members:
+    :members:
 
 .. autoclass:: pylinac.ct.CatPhan600
+    :inherited-members:
+    :members:
 
 .. autoclass:: pylinac.ct.CatPhan604
+    :inherited-members:
+    :members:
 
-.. autoclass:: pylinac.ct.CatPhanBase
+.. autoclass:: pylinac.ct.CatphanResult
+    :members:
+
+.. autoclass:: pylinac.ct.CTP404Result
+    :members:
+
+.. autoclass:: pylinac.ct.CTP528Result
+    :members:
+
+.. autoclass:: pylinac.ct.CTP515Result
+    :members:
+
+.. autoclass:: pylinac.ct.CTP486Result
+    :members:
+
+.. autoclass:: pylinac.ct.ROIResult
+    :members:
+
 
 Module classes (CTP404, etc)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: pylinac.ct.Slice
+    :members:
 
 .. autoclass:: pylinac.ct.CatPhanModule
+    :members:
 
 .. autoclass:: pylinac.ct.CTP404CP503
+    :members:
 
 .. autoclass:: pylinac.ct.CTP404CP504
+    :members:
 
 .. autoclass:: pylinac.ct.CTP404CP600
+    :members:
 
 .. autoclass:: pylinac.ct.CTP404CP604
+    :members:
 
 .. autoclass:: pylinac.ct.CTP528CP503
+    :members:
 
 .. autoclass:: pylinac.ct.CTP528CP504
+    :members:
 
 .. autoclass:: pylinac.ct.CTP528CP600
+    :members:
 
 .. autoclass:: pylinac.ct.CTP528CP604
+    :members:
 
 .. autoclass:: pylinac.ct.CTP515
+    :members:
 
 .. autoclass:: pylinac.ct.CTP486
+    :members:
 
 
 ROI Objects
 ^^^^^^^^^^^
 
 .. autoclass:: pylinac.ct.HUDiskROI
+    :members:
 
 .. autoclass:: pylinac.ct.ThicknessROI
+    :members:
 
 .. autoclass:: pylinac.ct.GeometricLine
+    :members:
 
 Helper Functions
 ^^^^^^^^^^^^^^^^

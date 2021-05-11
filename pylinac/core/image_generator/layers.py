@@ -168,7 +168,8 @@ class RandomNoiseLayer(Layer):
         self.sigma = sigma
 
     def apply(self, image: np.ndarray, pixel_size: float) -> np.ndarray:
-        noise = np.random.normal(self.mean, self.sigma, size=image.shape)
+        normalized_sigma = self.sigma * image.max()
+        noise = np.random.normal(self.mean, normalized_sigma, size=image.shape)
         return clip_add(image, noise, dtype=image.dtype)
 
 
