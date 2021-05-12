@@ -10,7 +10,7 @@ Bug Fixes
 ^^^^^^^^^
 
 * `#391 <https://github.com/jrkerns/pylinac/issues/391>`_ If the valleys between ROIs on VMAT tests were too deep the field center was not being calculated correctly.
-* `#388 <https://github.com/jrkerns/pylinac/issues/388>`_ The ``results()`` method for planar imaging was returing a list of strings, not a string.
+* `#388 <https://github.com/jrkerns/pylinac/issues/388>`_ The ``results()`` method for planar imaging was returning a list of strings, not a string.
 
 
 v 2.5.0
