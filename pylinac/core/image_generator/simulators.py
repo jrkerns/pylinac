@@ -13,11 +13,12 @@ class Simulator(ABC):
 
     def __init__(self, sid=1500):
         self.image = np.zeros(self.shape, np.uint16)
-        self.sid = sid / 1000
+        self.sid = sid
+        self.mag_factor = sid / 1000
 
     def add_layer(self, layer: Layer):
         """Add a layer to the image"""
-        self.image = layer.apply(self.image, self.pixel_size / self.sid)
+        self.image = layer.apply(self.image, self.pixel_size / self.mag_factor)
 
     def generate_dicom(self, file_out_name: str, **kwargs):
         """Generate a DICOM file with the constructed image (via add_layer)"""
@@ -79,7 +80,7 @@ class AS500Image(Simulator):
         ds.ImagePlanePixelSpacing = [self.pixel_size, self.pixel_size]
         ds.RTImagePosition = [-200.70400, 150.52800]
         ds.RadiationMachineSAD = "1000.0"
-        ds.RTImageSID = str(self.sid * 1000)
+        ds.RTImageSID = self.sid
         ds.PrimaryDosimeterUnit = 'MU'
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
@@ -149,7 +150,7 @@ class AS1000Image(Simulator):
         ds.ImagePlanePixelSpacing = [self.pixel_size, self.pixel_size]
         ds.RTImagePosition = [-200.70400, 150.523400]
         ds.RadiationMachineSAD = "1000.0"
-        ds.RTImageSID = str(self.sid * 1000)
+        ds.RTImageSID = self.sid
         ds.PrimaryDosimeterUnit = 'MU'
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
@@ -239,14 +240,14 @@ class AS1200Image(Simulator):
         ds.RTImageDescription = ""
         ds.ReportedValuesOrigin = 'ACTUAL'
         ds.RTImagePlane = 'NORMAL'
-        ds.XRayImageReceptorTranslation = [0.00, 0.00, 1000 - sid]
+        ds.XRayImageReceptorTranslation = [0.00, 0.00, 1000 - self.sid]
         ds.XRayImageReceptorAngle = "0.0"
         ds.RTImageOrientation = [1, 0, 0, 0, -1, 0]
         ds.ImagePlanePixelSpacing = [self.pixel_size, self.pixel_size]
         ds.RTImagePosition = [-214.872, 214.872]
         ds.RadiationMachineName = 'TrueBeam from Hell'
         ds.RadiationMachineSAD = "1000.0"
-        ds.RTImageSID = str(self.sid * 1000)
+        ds.RTImageSID = self.sid
         ds.PrimaryDosimeterUnit = 'MU'
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
