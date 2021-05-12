@@ -125,7 +125,7 @@ class VMATMixin:
         self.assertEqual(self.vmat.passed, self.passes)
 
     def test_fail_with_tight_tolerance(self):
-        self.vmat.analyze(tolerance=0.01)
+        self.vmat.analyze(tolerance=0.001)
         self.assertFalse(self.vmat.passed)
 
     def test_segment_positions(self):
@@ -241,3 +241,37 @@ class TestDRGS2(VMATMixin, TestCase):
     }
     avg_abs_r_deviation = 0.7
     max_r_deviation = 1.5
+
+
+class TestDRMLCWideGaps(VMATMixin, TestCase):
+    """Tests of the result values of a perfect DRMLC but with very wide gaps."""
+    filepaths = ('vmat-drgs-open-wide-gaps.dcm', 'vmat-drgs-open-wide-gaps.dcm')
+    klass = DRMLC
+    segment_positions = {0: Point(439, 640), 2: Point(707, 640)}
+    segment_values = {
+        0: {'r_dev': 0, 'r_corr': 100},
+        2: {'r_dev': 0, 'r_corr': 100},
+    }
+    avg_abs_r_deviation = 0
+    max_r_deviation = 0.0
+    passes = True
+
+    def test_fail_with_tight_tolerance(self):
+        pass
+
+
+class TestDRMLCOverlapGaps(VMATMixin, TestCase):
+    """Tests of the result values of a perfect DRMLC but with gaps that are overlapping (e.g. from a poor DLG)."""
+    filepaths = ('vmat-drgs-open-overlap.dcm', 'vmat-drgs-open-overlap.dcm')
+    klass = DRMLC
+    segment_positions = {0: Point(439, 640), 2: Point(707, 640)}
+    segment_values = {
+        0: {'r_dev': 0, 'r_corr': 100},
+        2: {'r_dev': 0, 'r_corr': 100},
+    }
+    avg_abs_r_deviation = 0
+    max_r_deviation = 0.0
+    passes = True
+
+    def test_fail_with_tight_tolerance(self):
+        pass
