@@ -456,8 +456,10 @@ class SingleProfile(ProfileMixin):
         if self._edge_method == Edge.FWHM:
             raise ValueError("FWHM edge method does not have inflection points. Use a different edge detection method")
         d1 = np.gradient(gaussian_filter1d(self.values, sigma=self._edge_smoothing_ratio * len(self.values)))
-        left_idx = np.argmax(d1)
-        right_idx = np.argmin(d1)
+        (peak_idxs, _) = MultiProfile(d1).find_peaks(threshold=0.8)
+        (valley_idxs, _) = MultiProfile(d1).find_valleys(threshold=0.8)
+        left_idx = peak_idxs[0]  # left-most index
+        right_idx = valley_idxs[-1]  # right-most index
         if self._edge_method == Edge.INFLECTION_DERIVATIVE:
             data = {'left index (rounded)': left_idx,
                     'left index (exact)': left_idx,

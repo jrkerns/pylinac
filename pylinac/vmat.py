@@ -25,7 +25,7 @@ from .core.geometry import Point, Rectangle
 from .core.image import ImageLike
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core.pdf import PylinacCanvas
-from .core.profile import SingleProfile, Interpolation
+from .core.profile import SingleProfile, Interpolation, Edge
 from .core.utilities import open_path, ResultBase
 from .settings import get_dicom_cmap
 
@@ -209,7 +209,7 @@ class VMATBase:
         """Construct the center points of the segments based on the field center and known x-offsets."""
         points = []
         dmlc_prof, _ = self._median_profiles((self.dmlc_image, self.open_image))
-        x_field_center = dmlc_prof.fwxm_data()['center index (rounded)']
+        x_field_center = dmlc_prof.beam_center()['index (rounded)']
         for x_offset_mm in self.SEGMENT_X_POSITIONS_MM:
             y = self.open_image.center.y
             x_offset_pixels = x_offset_mm * self.open_image.dpmm
@@ -344,9 +344,9 @@ class VMATBase:
     @staticmethod
     def _median_profiles(images) -> Tuple[SingleProfile, SingleProfile]:
         """Return two median profiles from the open and dmlc image. For visual comparison."""
-        profile1 = SingleProfile(np.mean(images[0], axis=0), interpolation=Interpolation.NONE)
+        profile1 = SingleProfile(np.mean(images[0], axis=0), interpolation=Interpolation.NONE, edge_detection_method=Edge.INFLECTION_DERIVATIVE)
         profile1.stretch()
-        profile2 = SingleProfile(np.mean(images[1], axis=0), interpolation=Interpolation.NONE)
+        profile2 = SingleProfile(np.mean(images[1], axis=0), interpolation=Interpolation.NONE, edge_detection_method=Edge.INFLECTION_DERIVATIVE)
         profile2.stretch()
 
         # normalize the profiles to approximately the same value
