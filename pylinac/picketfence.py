@@ -70,9 +70,9 @@ class MLCArrangement:
 class MLC(enum.Enum):
     """The pre-built MLC types"""
     MILLENNIUM = MLCArrangement([(10, 10), (40, 5), (10, 10)])  #:
-    HD_MILLENNIUM = MLCArrangement([(10, 5), (40, 2.5), (10, 5)]),  #:
-    HALCYON_DISTAL = MLCArrangement([(60, 5)], offset=2.5),  #:
-    HALCYON_PROXIMAL = MLCArrangement([(60, 5)]),  #:
+    HD_MILLENNIUM = MLCArrangement([(10, 5), (40, 2.5), (10, 5)])  #:
+    HALCYON_DISTAL = MLCArrangement([(60, 5)], offset=2.5)  #:
+    HALCYON_PROXIMAL = MLCArrangement([(60, 5)])  #:
 
 
 @dataclass
