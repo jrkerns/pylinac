@@ -81,6 +81,18 @@ class GeneralTests(TestCase):
         pf.results()
         pf.results_data()
 
+    def test_mlc_string(self):
+        mlc_setup = 'Millennium'
+
+        # pass it in to the mlc parameter
+        path = osp.join(TEST_DIR, 'AS500_PF.dcm')
+        pf = PicketFence(path, mlc=mlc_setup)
+
+        # shouldn't raise
+        pf.analyze()
+        pf.results()
+        pf.results_data()
+
 
 class TestPlottingSaving(TestCase):
 

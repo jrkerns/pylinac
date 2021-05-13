@@ -69,10 +69,10 @@ class MLCArrangement:
 
 class MLC(enum.Enum):
     """The pre-built MLC types"""
-    MILLENNIUM = MLCArrangement([(10, 10), (40, 5), (10, 10)])  #:
-    HD_MILLENNIUM = MLCArrangement([(10, 5), (40, 2.5), (10, 5)])  #:
-    HALCYON_DISTAL = MLCArrangement([(60, 5)], offset=2.5)  #:
-    HALCYON_PROXIMAL = MLCArrangement([(60, 5)])  #:
+    MILLENNIUM = {'name': 'Millennium', 'arrangement': MLCArrangement([(10, 10), (40, 5), (10, 10)])}  #:
+    HD_MILLENNIUM = {'name': 'HD Millennium', 'arrangement': MLCArrangement([(10, 5), (40, 2.5), (10, 5)])}  #:
+    HALCYON_DISTAL = {'name': 'Halcyon distal', 'arrangement': MLCArrangement([(60, 5)], offset=2.5)}  #:
+    HALCYON_PROXIMAL = {'name': 'Halcyon proximal', 'arrangement': MLCArrangement([(60, 5)])}  #:
 
 
 @dataclass
@@ -138,7 +138,7 @@ class PicketFence:
     """
 
     def __init__(self, filename: str, filter: Optional[int] = None, log: Optional[str] = None,
-                 use_filename: bool = False, mlc: Union[MLC, MLCArrangement] = MLC.MILLENNIUM, crop_mm: int = 3):
+                 use_filename: bool = False, mlc: Union[MLC, MLCArrangement, str] = MLC.MILLENNIUM, crop_mm: int = 3):
         """
         Parameters
         ----------
@@ -181,10 +181,20 @@ class PicketFence:
         else:
             self._log_fits = None
         self._is_analyzed = False
-        if isinstance(mlc, MLCArrangement):
-            self.mlc = mlc
-        else:
-            self.mlc = mlc.value
+        self.mlc = self._get_mlc(mlc)
+        # if isinstance(mlc, MLCArrangement):
+        #     self.mlc = mlc
+        # else:
+        #     self.mlc = mlc.value
+
+    def _get_mlc(self, value):
+        if isinstance(value, MLC):
+            return value.value['arrangement']
+        if isinstance(value, MLCArrangement):
+            return value
+        if isinstance(value, str):
+            return [member.value['arrangement'] for name, member in MLC.__members__.items() if member.value['name'] == value][0]
+            # return Enumerable(MLC.__members__.items()).single(lambda name, member: member.value['name'] == value)
 
     @classmethod
     def from_url(cls, url: str, filter: int = None):
