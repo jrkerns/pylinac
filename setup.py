@@ -3,14 +3,14 @@ from setuptools import setup, find_packages
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-__version__ = '2.5.0.0'
+__version__ = '3.0a'
 
 
 setup(
     name='pylinac',
     version=__version__,
     packages=find_packages(),
-    package_data={'pylinac': ['watcher_config.yml', 'files/*.png']},
+    package_data={'pylinac': ['files/*.png',]},
     url='https://github.com/jrkerns/pylinac',
     keywords="""medical physics AAPM TG142 quality assurance starshot cbct vmat dynalog starshot linac Varian Elekta
              trajectory log kv MV planar Leeds Las Vegas Standard Imaging PipsPro TG51""",
