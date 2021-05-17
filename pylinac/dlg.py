@@ -5,9 +5,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import stats
 
+from pylinac import Normalization
 from pylinac.core import image
 from pylinac.core.profile import SingleProfile, find_peaks
-from pylinac.picketfence import MLCArrangement
+from pylinac.picketfence import MLCArrangement, MLC
 
 
 class DLG:
@@ -21,7 +22,7 @@ class DLG:
         self.planned_dlg_per_leaf: list = []
         self._lin_fit = None
 
-    def analyze(self, gaps: Sequence, mlc: MLCArrangement, y_field_size: float = 100, profile_width=10):
+    def analyze(self, gaps: Sequence, mlc: MLC, y_field_size: float = 100, profile_width=10):
         """Analyze an EPID image with varying MLC overlaps to determine the DLG.
 
         Parameters
@@ -43,6 +44,7 @@ class DLG:
         """
         measured_dlg_per_leaf = []
         planned_dlg_per_leaf = []
+        mlc = mlc.value['arrangement']
         g = list(gaps)
         g.sort()
         profile_width_px = round(self.image.dpmm * profile_width)
@@ -96,7 +98,7 @@ class DLG:
     def _determine_measured_gap(profile: np.ndarray) -> float:
         """Return the measured gap based on profile height"""
         mid_value = profile[int(len(profile) / 2)]
-        prof = SingleProfile(profile)
+        prof = SingleProfile(profile, normalization_method=Normalization.NONE)
         if mid_value < profile.mean():
             prof.invert()
         _, props = find_peaks(prof.values, max_number=1)

@@ -17,12 +17,12 @@ import copy
 import dataclasses
 import warnings
 from dataclasses import dataclass
-from methodtools import lru_cache
 import io
 from typing import Optional, List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+from cached_property import cached_property
 from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
@@ -610,8 +610,7 @@ class StandardImagingQC3(ImagePhantomBase):
         qc3.analyze()
         qc3.plot_analyzed_image()
 
-    @property
-    @lru_cache()
+    @cached_property
     def phantom_ski_region(self) -> RegionProperties:
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions()
@@ -714,8 +713,7 @@ class LeedsTOR(ImagePhantomBase):
         'roi 18': {'distance from center': 0.785, 'angle': 330, 'roi radius': 0.025},
     }
 
-    @property
-    @lru_cache(1)
+    @cached_property
     def _blobs(self) -> list:
         """The indices of the regions that were significant; i.e. a phantom circle outline or lead/copper square."""
         blobs = []
@@ -729,8 +727,7 @@ class LeedsTOR(ImagePhantomBase):
             raise ValueError("Could not find the phantom in the image.")
         return blobs
 
-    @property
-    @lru_cache(1)
+    @cached_property
     def _regions(self) -> List[RegionProperties]:
         """All the regions of the canny image that were labeled."""
         return self._get_canny_regions()
@@ -921,8 +918,7 @@ class DoselabMC2kV(ImagePhantomBase):
         leeds.analyze()
         leeds.plot_analyzed_image()
 
-    @property
-    @lru_cache()
+    @cached_property
     def phantom_ski_region(self) -> RegionProperties:
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions(percentiles=(0.01, 0.1))

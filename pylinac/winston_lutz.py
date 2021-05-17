@@ -19,7 +19,6 @@ Features:
 """
 import dataclasses
 from dataclasses import dataclass
-from methodtools import lru_cache
 from itertools import zip_longest
 import io
 import math
@@ -29,6 +28,7 @@ from textwrap import wrap
 
 import argue
 import matplotlib.pyplot as plt
+from methodtools import lru_cache
 import numpy as np
 from scipy import ndimage, optimize, linalg
 from skimage import measure

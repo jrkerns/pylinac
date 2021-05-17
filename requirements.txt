@@ -10,3 +10,4 @@ argue
 py-linq
 dataclasses>=0.8; python_version < '3.7'
 methodtools~=0.4.2
+cached-property~=1.5.2

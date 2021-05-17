@@ -17,12 +17,13 @@ import webbrowser
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime
-from methodtools import lru_cache
 from os import path as osp
 from typing import Optional, Union, Dict, Tuple, Sequence, List
 
 import argue
+from cached_property import cached_property
 import matplotlib.pyplot as plt
+from methodtools import lru_cache
 import numpy as np
 from py_linq import Enumerable
 from scipy import ndimage
@@ -182,8 +183,7 @@ class HUDiskROI(DiskROI):
 class ThicknessROI(RectangleROI):
     """A rectangular ROI that measures the angled wire rod in the HU linearity slice which determines slice thickness."""
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def long_profile(self) -> SingleProfile:
         """The profile along the axis perpendicular to ramped wire."""
         img = image.load(self.pixel_array)
@@ -191,8 +191,7 @@ class ThicknessROI(RectangleROI):
         prof = SingleProfile(img.array.max(axis=np.argmin(img.shape)), interpolation=Interpolation.NONE)
         return prof
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def wire_fwhm(self) -> float:
         """The FWHM of the wire in pixels."""
         return self.long_profile.fwxm_data(x=50)['width (exact)']
@@ -236,8 +235,7 @@ class Slice:
     def __getitem__(self, item):
         return self.image.array[item]
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def phan_center(self) -> Point:
         """Determine the location of the center of the phantom.
 
@@ -681,8 +679,7 @@ class CTP528CP504(CatPhanModule):
     def _convert_units_in_settings(self):
         pass
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def mtf(self) -> MTF:
         """The Relative MTF of the line pairs, normalized to the first region.
 
@@ -718,8 +715,7 @@ class CTP528CP504(CatPhanModule):
         """Plot the circles where the profile was taken within."""
         self.circle_profile.plot2axes(axis, edgecolor='blue', plot_peaks=False)
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def circle_profile(self) -> CollapsedCircleProfile:
         """Calculate the median profile of the Line Pair region.
 

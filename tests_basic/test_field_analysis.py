@@ -58,9 +58,6 @@ class FieldAnalysisTests(TestCase):
         data_dict = fs.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
 
-        data_tuple = fs.results_data(as_tuple=True)
-        self.assertIsInstance(data_tuple, tuple)
-
     def test_results_fails_if_not_analyzed(self):
         fs = FieldAnalysis.from_demo_image()
         with self.assertRaises(NotAnalyzed):
@@ -141,61 +138,61 @@ class FieldAnalysisBase(LocationMixin):
 
     def test_top_slope(self):
         if self.is_FFF:
-            self.assertAlmostEqual(self.fs.results_data()['top slope'], self.top_slope, delta=0.1)
+            self.assertAlmostEqual(self.fs.results_data().top_slope_percent_mm, self.top_slope, delta=0.1)
 
     def test_bottom_slope(self):
         if self.is_FFF:
-            self.assertAlmostEqual(self.fs.results_data()['bottom slope'], self.bottom_slope, delta=0.1)
+            self.assertAlmostEqual(self.fs.results_data().bottom_slope_percent_mm, self.bottom_slope, delta=0.1)
 
     def test_left_slope(self):
         if self.is_FFF:
-            self.assertAlmostEqual(self.fs.results_data()['left slope'], self.left_slope, delta=0.1)
+            self.assertAlmostEqual(self.fs.results_data().left_slope_percent_mm, self.left_slope, delta=0.1)
 
     def test_right_slope(self):
         if self.is_FFF:
-            self.assertAlmostEqual(self.fs.results_data()['right slope'], self.right_slope, delta=0.1)
+            self.assertAlmostEqual(self.fs.results_data().right_slope_percent_mm, self.right_slope, delta=0.1)
 
     def test_cax_to_top(self):
-        self.assertAlmostEqual(self.fs.results_data()['CAX->Top (mm)'], self.cax_to_top, delta=0.3)
+        self.assertAlmostEqual(self.fs.results_data().cax_to_top_mm, self.cax_to_top, delta=0.3)
 
     def test_cax_to_bottom(self):
-        self.assertAlmostEqual(self.fs.results_data()['CAX->Bottom (mm)'], self.cax_to_bottom, delta=0.3)
+        self.assertAlmostEqual(self.fs.results_data().cax_to_bottom_mm, self.cax_to_bottom, delta=0.3)
 
     def test_cax_to_left(self):
-        self.assertAlmostEqual(self.fs.results_data()['CAX->Left (mm)'], self.cax_to_left, delta=0.3)
+        self.assertAlmostEqual(self.fs.results_data().cax_to_left_mm, self.cax_to_left, delta=0.3)
 
     def test_cax_to_right(self):
-        self.assertAlmostEqual(self.fs.results_data()['CAX->Right (mm)'], self.cax_to_right, delta=0.3)
+        self.assertAlmostEqual(self.fs.results_data().cax_to_right_mm, self.cax_to_right, delta=0.3)
 
     def test_penumbra_bottom(self):
-        self.assertAlmostEqual(self.fs.results_data()['bottom penumbra (mm)'], self.penum_bottom, delta=0.3)
+        self.assertAlmostEqual(self.fs.results_data().bottom_penumbra_mm, self.penum_bottom, delta=0.3)
 
     def test_penumbra_top(self):
-        self.assertAlmostEqual(self.fs.results_data()['top penumbra (mm)'], self.penum_top, delta=0.3)
+        self.assertAlmostEqual(self.fs.results_data().top_penumbra_mm, self.penum_top, delta=0.3)
 
     def test_penumbra_left(self):
-        self.assertAlmostEqual(self.fs.results_data()['left penumbra (mm)'], self.penum_left, delta=0.3)
+        self.assertAlmostEqual(self.fs.results_data().left_penumbra_mm, self.penum_left, delta=0.3)
 
     def test_penumbra_right(self):
-        self.assertAlmostEqual(self.fs.results_data()['right penumbra (mm)'], self.penum_right, delta=0.3)
+        self.assertAlmostEqual(self.fs.results_data().right_penumbra_mm, self.penum_right, delta=0.3)
 
     def test_horiz_field_size(self):
-        self.assertAlmostEqual(self.fs.results_data()['field size horizontal (mm)'], self.horiz_field_size, delta=1)
+        self.assertAlmostEqual(self.fs.results_data().field_size_horizontal_mm, self.horiz_field_size, delta=1)
 
     def test_vert_field_size(self):
-        self.assertAlmostEqual(self.fs.results_data()['field size vertical (mm)'], self.vert_field_size, delta=1)
+        self.assertAlmostEqual(self.fs.results_data().field_size_vertical_mm, self.vert_field_size, delta=1)
 
     def test_vert_symmetry(self):
-        self.assertAlmostEqual(self.fs.results_data()['symmetry vertical'], self.vert_symmetry, delta=self.sym_tolerance)
+        self.assertAlmostEqual(self.fs.results_data().symmetry_vertical, self.vert_symmetry, delta=self.sym_tolerance)
 
     def test_horiz_symmetry(self):
-        self.assertAlmostEqual(self.fs.results_data()['symmetry horizontal'], self.horiz_symmetry, delta=self.sym_tolerance)
+        self.assertAlmostEqual(self.fs.results_data().symmetry_horizontal, self.horiz_symmetry, delta=self.sym_tolerance)
 
     def test_vert_flatness(self):
-        self.assertAlmostEqual(self.fs.results_data()['flatness vertical'], self.vert_flatness, delta=self.flat_tolerance)
+        self.assertAlmostEqual(self.fs.results_data().flatness_vertical, self.vert_flatness, delta=self.flat_tolerance)
 
     def test_horiz_flatness(self):
-        self.assertAlmostEqual(self.fs.results_data()['flatness horizontal'], self.horiz_flatness, delta=self.flat_tolerance)
+        self.assertAlmostEqual(self.fs.results_data().flatness_horizontal, self.horiz_flatness, delta=self.flat_tolerance)
 
 
 class DeviceAnalysisBase(FieldAnalysisBase):

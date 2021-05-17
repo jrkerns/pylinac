@@ -19,12 +19,12 @@ import os.path as osp
 import warnings
 from collections import Sequence
 from dataclasses import dataclass
-from methodtools import lru_cache
 from itertools import cycle
 from tempfile import TemporaryDirectory
 from typing import Union, Tuple, List, Optional
 
 import matplotlib.pyplot as plt
+from cached_property import cached_property
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from py_linq import Enumerable
@@ -660,8 +660,7 @@ class PicketFence:
         if open_file:
             open_path(filename)
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def orientation(self) -> Orientation:
         """The orientation of the image, either Up-Down or Left-Right."""
         # if orientation was passed in, use it

@@ -24,7 +24,6 @@ import concurrent.futures
 import copy
 import csv
 import enum
-from methodtools import lru_cache
 import gc
 import itertools
 from io import BytesIO
@@ -36,6 +35,8 @@ from typing import Union, List, Optional, Tuple, Iterable, Sequence
 
 import argue
 import matplotlib.pyplot as plt
+from cached_property import cached_property
+from methodtools import lru_cache
 import numpy as np
 
 from .settings import get_array_cmap
@@ -369,8 +370,7 @@ class AxisMovedMixin:
     """Mixin class for Axis."""
     AXIS_MOVE_THRESHOLD: float = 0.003
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def moved(self) -> bool:
         """Return whether the axis moved during treatment."""
         return np.std(self.actual) > self.AXIS_MOVE_THRESHOLD
@@ -838,8 +838,7 @@ class MLC:
         """Return the number of leaves that moved."""
         return len(self.moving_leaves)
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def moving_leaves(self) -> np.ndarray:
         """Return an array of the leaves that moved during treatment."""
         threshold = 0.01
@@ -1089,8 +1088,7 @@ class MLC:
         """Absolute error of all leaves."""
         return np.abs(self._error_array_all_leaves)
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def _error_array_all_leaves(self) -> np.ndarray:
         """Error array of all leaves."""
         mlc_error = np.zeros((self.num_leaves, self.num_snapshots))
@@ -1108,8 +1106,7 @@ class MLC:
             arr[leaf, :] = getattr(self.leaf_axes[leaf + 1], dtype)[self.snapshot_idx]
         return arr
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def _RMS_array_all_leaves(self) -> np.ndarray:
         """Return the RMS of all leaves."""
         rms_array = np.array([np.sqrt(np.sum(leafdata.difference[self.snapshot_idx] ** 2) / self.num_snapshots) for leafdata in self.leaf_axes.values()])
@@ -1769,15 +1766,13 @@ class Dynalog(LogBase):
         """Whether the companion file (A* for B-file or vic versa)."""
         return True if self.identify_other_file(self.filename, raise_find_error=False) is not None else False
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def a_logfile(self) -> str:
         """Path of the A* dynalog file."""
         other_dlg_file = self.identify_other_file(self.filename)
         return self.filename if osp.basename(self.filename).startswith('A') else other_dlg_file
 
-    @property
-    @lru_cache(maxsize=1)
+    @cached_property
     def b_logfile(self) -> str:
         """Path of the B* dynalog file."""
         other_dlg_file = self.identify_other_file(self.filename)
