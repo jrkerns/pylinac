@@ -24,7 +24,7 @@ import concurrent.futures
 import copy
 import csv
 import enum
-from functools import lru_cache
+from methodtools import lru_cache
 import gc
 import itertools
 from io import BytesIO

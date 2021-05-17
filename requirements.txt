@@ -8,5 +8,5 @@ tqdm >= 3.8
 reportlab >= 3.3
 argue
 py-linq
-pytest-xdist
 dataclasses>=0.8; python_version < '3.7'
+methodtools~=0.4.2

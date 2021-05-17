@@ -17,7 +17,7 @@ import copy
 import dataclasses
 import warnings
 from dataclasses import dataclass
-from functools import lru_cache
+from methodtools import lru_cache
 import io
 from typing import Optional, List, Tuple, Union
 

@@ -19,7 +19,7 @@ import os.path as osp
 import warnings
 from collections import Sequence
 from dataclasses import dataclass
-from functools import lru_cache
+from methodtools import lru_cache
 from itertools import cycle
 from tempfile import TemporaryDirectory
 from typing import Union, Tuple, List, Optional

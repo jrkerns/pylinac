@@ -19,7 +19,7 @@ Features:
 """
 import dataclasses
 from dataclasses import dataclass
-from functools import lru_cache
+from methodtools import lru_cache
 from itertools import zip_longest
 import io
 import math

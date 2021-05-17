@@ -17,7 +17,7 @@ import webbrowser
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime
-from functools import lru_cache
+from methodtools import lru_cache
 from os import path as osp
 from typing import Optional, Union, Dict, Tuple, Sequence, List
 
