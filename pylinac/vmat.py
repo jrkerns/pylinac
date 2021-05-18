@@ -71,7 +71,7 @@ class VMATBase:
     segments: List
     _tolerance: float
 
-    def __init__(self, image_paths: Sequence[str]):
+    def __init__(self, image_paths: Sequence[Union[str, BytesIO]]):
         """
         Parameters
         ----------
@@ -138,7 +138,7 @@ class VMATBase:
         self._construct_segments(points)
 
     @staticmethod
-    def _load_images(image_paths: list) -> Tuple[ImageLike, ImageLike]:
+    def _load_images(image_paths: Sequence[Union[str, BytesIO]]) -> Tuple[ImageLike, ImageLike]:
         image1 = image.load(image_paths[0])
         image2 = image.load(image_paths[1])
         image1.ground()
@@ -276,7 +276,7 @@ class VMATBase:
             plt.tight_layout(h_pad=1.5)
             plt.show()
 
-    def _save_analyzed_subimage(self, filename: str, subimage: ImageType, **kwargs):
+    def _save_analyzed_subimage(self, filename: Union[str, BytesIO], subimage: ImageType, **kwargs):
         """Save the analyzed images as a png file.
 
         Parameters

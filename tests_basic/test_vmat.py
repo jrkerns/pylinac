@@ -1,6 +1,7 @@
+import io
 from functools import partial
 from os import path as osp
-from typing import Union, List
+from typing import Union, List, Type
 from unittest import TestCase
 
 from pylinac.core.geometry import Point
@@ -18,7 +19,7 @@ within_1 = partial(TestCase().assertAlmostEqual, delta=1)
 
 class TestLoadingBase:
     demo_name = ''
-    klass = object
+    klass: Union[Type[DRGS], Type[DRMLC]]
 
     def test_demo_is_reachable(self):
         if has_www_connection():
@@ -33,6 +34,24 @@ class TestLoadingBase:
         one = osp.join(TEST_DIR, 'no_test_or_image_type_1.dcm')
         two = osp.join(TEST_DIR, 'no_test_or_image_type_2.dcm')
         instance = self.klass(image_paths=(one, two))
+        self.assertIsInstance(instance, self.klass)
+
+    def test_from_stream(self):
+        one = osp.join(TEST_DIR, 'no_test_or_image_type_1.dcm')
+        two = osp.join(TEST_DIR, 'no_test_or_image_type_2.dcm')
+        with open(one, 'rb') as s1, open(two, 'rb') as s2:
+            s11 = io.BytesIO(s1.read())
+            s22 = io.BytesIO(s2.read())
+            instance = self.klass(image_paths=(s11, s22))
+            instance.analyze()
+        self.assertIsInstance(instance, self.klass)
+
+    def test_from_file_object(self):
+        one = osp.join(TEST_DIR, 'no_test_or_image_type_1.dcm')
+        two = osp.join(TEST_DIR, 'no_test_or_image_type_2.dcm')
+        with open(one, 'rb') as s1, open(two, 'rb') as s2:
+            instance = self.klass(image_paths=(s1, s2))
+            instance.analyze()
         self.assertIsInstance(instance, self.klass)
 
     def test_from_url(self):

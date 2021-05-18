@@ -1,4 +1,5 @@
 import copy
+import io
 import os.path as osp
 import tempfile
 from unittest import TestCase
@@ -30,6 +31,22 @@ class TestWLLoading(LoadingTestBase, TestCase):
         with self.assertRaises(ValueError):
             WinstonLutz(r'nonexistant/dir')
 
+    def test_load_from_file_object(self):
+        path = osp.join(TEST_DIR, 'perfect_WL_10x4.zip')
+        ref_w = WinstonLutz.from_zip(path)
+        with open(path, 'rb') as f:
+            w = WinstonLutz.from_zip(f)
+        self.assertIsInstance(w, WinstonLutz)
+        self.assertEqual(w.gantry_iso_size, ref_w.gantry_iso_size)
+
+    def test_load_from_stream(self):
+        path = osp.join(TEST_DIR, 'perfect_WL_10x4.zip')
+        ref_w = WinstonLutz.from_zip(path)
+        with open(path, 'rb') as f:
+            s = io.BytesIO(f.read())
+            w = WinstonLutz.from_zip(s)
+        self.assertIsInstance(w, WinstonLutz)
+        self.assertEqual(w.gantry_iso_size, ref_w.gantry_iso_size)
 
 class GeneralTests(TestCase):
 

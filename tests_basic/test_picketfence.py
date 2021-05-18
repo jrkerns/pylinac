@@ -1,3 +1,4 @@
+import io
 import os
 import os.path as osp
 import tempfile
@@ -24,6 +25,27 @@ class TestLoading(LoadingTestBase, TestCase):
         pf_file = osp.join(TEST_DIR, 'PF.dcm')
         pf = PicketFence(pf_file, log=log_file)
         pf.analyze()
+
+    def test_load_from_file_object(self):
+        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        ref_pf = PicketFence(pf_file)
+        ref_pf.analyze()
+        with open(pf_file, 'rb') as f:
+            pf = PicketFence(f)
+            pf.analyze()
+        self.assertIsInstance(pf, PicketFence)
+        self.assertEqual(pf.percent_passing, ref_pf.percent_passing)
+
+    def test_load_from_stream(self):
+        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        ref_pf = PicketFence(pf_file)
+        ref_pf.analyze()
+        with open(pf_file, 'rb') as f:
+            s = io.BytesIO(f.read())
+            pf = PicketFence(s)
+            pf.analyze()
+        self.assertIsInstance(pf, PicketFence)
+        self.assertEqual(pf.percent_passing, ref_pf.percent_passing)
 
 
 class GeneralTests(TestCase):

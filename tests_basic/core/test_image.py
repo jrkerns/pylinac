@@ -1,4 +1,5 @@
 import copy
+import io
 from unittest import TestCase
 import os.path as osp
 
@@ -28,9 +29,39 @@ class TestLoaders(TestCase):
         img = image.load(dcm_path)
         self.assertIsInstance(img, DicomImage)
 
+    def test_load_dicom_from_stream(self):
+        img_ref = image.load(dcm_path)
+        with open(dcm_path, 'rb') as f:
+            p = io.BytesIO(f.read())
+            img = image.load(p)
+        self.assertIsInstance(img, DicomImage)
+        self.assertEqual(img.dpi, img_ref.dpi)
+
+    def test_load_dicom_from_file_object(self):
+        img_ref = image.load(dcm_path)
+        with open(dcm_path, 'rb') as f:
+            img = image.load(f)
+        self.assertIsInstance(img, DicomImage)
+        self.assertEqual(img.dpi, img_ref.dpi)
+
     def test_load_file(self):
         img = image.load(tif_path)
         self.assertIsInstance(img, FileImage)
+
+    def test_load_file_from_stream(self):
+        img_ref = image.load(tif_path)
+        with open(tif_path, 'rb') as f:
+            p = io.BytesIO(f.read())
+            img = image.load(p)
+        self.assertIsInstance(img, FileImage)
+        self.assertEqual(img.center, img_ref.center)
+
+    def test_load_file_from_file_object(self):
+        img_ref = image.load(tif_path)
+        with open(tif_path, 'rb') as f:
+            img = image.load(f)
+        self.assertIsInstance(img, FileImage)
+        self.assertEqual(img.center, img_ref.center)
 
     def test_load_array(self):
         arr = np.arange(36).reshape(6, 6)

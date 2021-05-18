@@ -1,3 +1,4 @@
+import io
 import os.path as osp
 from unittest import TestCase
 
@@ -12,6 +13,21 @@ TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Planar imaging')
 
 
 class GeneralTests(TestCase):
+
+    def test_from_file_object(self):
+        path = osp.join(TEST_DIR, 'Leeds_ccw.dcm')
+        with open(path, 'rb') as f:
+            phan = LeedsTOR(f)
+            phan.analyze()
+        self.assertIsInstance(phan, LeedsTOR)
+
+    def test_from_stream(self):
+        path = osp.join(TEST_DIR, 'Leeds_ccw.dcm')
+        with open(path, 'rb') as f:
+            s = io.BytesIO(f.read())
+            phan = LeedsTOR(s)
+            phan.analyze()
+        self.assertIsInstance(phan, LeedsTOR)
 
     def test_overrides(self):
         phan = DoselabMC2kV.from_demo_image()

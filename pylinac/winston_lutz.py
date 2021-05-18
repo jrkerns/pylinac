@@ -23,7 +23,7 @@ from itertools import zip_longest
 import io
 import math
 import os.path as osp
-from typing import Union, List, Tuple, Optional
+from typing import Union, List, Tuple, Optional, BinaryIO
 from textwrap import wrap
 
 import argue
@@ -152,12 +152,12 @@ class WinstonLutz:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_zip(cls, zfile: str, use_filenames: bool=False):
+    def from_zip(cls, zfile: Union[str, BinaryIO], use_filenames: bool=False):
         """Instantiate from a zip file rather than a directory.
 
         Parameters
         ----------
-        zfile : str
+        zfile
             Path to the archive file.
         use_filenames : bool
             Whether to interpret axis angles using the filenames.

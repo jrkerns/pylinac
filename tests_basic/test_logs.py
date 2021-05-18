@@ -164,6 +164,14 @@ class TestDynalogTreatmentTypes(TestCase):
 
 class TestLoadLog(TestCase):
 
+    def test_load_trajectory_log_from_file_object(self):
+        path = osp.join(TEST_DIR, 'tlogs', 'dynamic_imrt.bin')
+        ref_log = TrajectoryLog(path)
+        with open(path, 'rb') as f:
+            t = TrajectoryLog(f)
+        self.assertIsInstance(t, TrajectoryLog)
+        self.assertEqual(t.num_beamholds, ref_log.num_beamholds)
+
     def test_dynalog_file(self):
         dynalog = osp.join(TEST_DIR, 'dlogs', 'A_static_imrt.dlg')
         self.assertIsInstance(load_log(dynalog), Dynalog)

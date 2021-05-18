@@ -1,12 +1,14 @@
 """This module holds classes for image loading and manipulation."""
 import copy
+import io
+import pathlib
 from collections import Counter
 from datetime import datetime
-from io import BytesIO
+from io import BytesIO, BufferedReader
 import re
 import os.path as osp
 import os
-from typing import Union, Sequence, List, Any, Tuple, Optional
+from typing import Union, Sequence, List, Any, Tuple, Optional, BinaryIO
 
 import pydicom
 from pydicom.errors import InvalidDicomError
@@ -87,7 +89,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, Imag
     return image1, image2
 
 
-def is_image(path: str) -> bool:
+def is_image(path: Union[str, io.BytesIO, ImageLike, np.ndarray]) -> bool:
     """Determine whether the path is a valid image file.
 
     Returns
@@ -97,7 +99,7 @@ def is_image(path: str) -> bool:
     return any((_is_array(path), _is_dicom(path), _is_image_file(path)))
 
 
-def retrieve_image_files(path: str) -> List:
+def retrieve_image_files(path: str) -> List[str]:
     """Retrieve the file names of all the valid image files in the path.
 
     Returns
@@ -108,7 +110,7 @@ def retrieve_image_files(path: str) -> List:
     return retrieve_filenames(directory=path, func=is_image)
 
 
-def load(path: str, **kwargs) -> ImageLike:
+def load(path: Union[str, ImageLike, np.ndarray, BinaryIO], **kwargs) -> ImageLike:
     """Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
     Parameters
@@ -216,7 +218,7 @@ def load_multiples(image_file_list: List, method: str='mean', stretch_each: bool
     return first_img
 
 
-def _is_dicom(path: str) -> bool:
+def _is_dicom(path: Union[str, io.BytesIO, ImageLike, np.ndarray]) -> bool:
     """Whether the file is a readable DICOM file via pydicom."""
     return is_dicom_image(file=path)
 
@@ -246,31 +248,34 @@ class BaseImage:
         The actual image pixel array.
     """
 
-    def __init__(self, path: str):
+    def __init__(self, path: Union[str, BytesIO, ImageLike, np.ndarray, BufferedReader]):
         """
         Parameters
         ----------
         path : str
             The path to the image.
         """
-        path: str
         source: Union[FILE_TYPE, STREAM_TYPE]
 
-        if isinstance(path, str) and not osp.isfile(path):
+        if isinstance(path, (str, pathlib.Path)) and not osp.isfile(path):
             raise FileExistsError(f"File `{path}` does not exist. Verify the file path name.")
-        elif isinstance(path, str) and osp.isfile(path):
+        elif isinstance(path, (str, pathlib.Path)) and osp.isfile(path):
             self.path = path
             self.base_path = osp.basename(path)
             self.source = FILE_TYPE
         else:
             self.source = STREAM_TYPE
+            path.seek(0)
 
     @property
     def truncated_path(self) -> str:
-        if len(self.path) > PATH_TRUNCATION_LENGTH:
-            return self.path[:PATH_TRUNCATION_LENGTH // 2] + '...' + self.path[-PATH_TRUNCATION_LENGTH // 2:]
+        if self.source == FILE_TYPE:
+            if len(self.path) > PATH_TRUNCATION_LENGTH:
+                return self.path[:PATH_TRUNCATION_LENGTH // 2] + '...' + self.path[-PATH_TRUNCATION_LENGTH // 2:]
+            else:
+                return self.path
         else:
-            return self.path
+            return ''  # was from stream, no path
 
     @classmethod
     def from_multiples(cls, filelist: List[str], method: str='mean', stretch: bool=True, **kwargs) -> ImageLike:
@@ -670,7 +675,7 @@ class DicomImage(BaseImage):
     _sid = NumberLike
     _dpi = NumberLike
 
-    def __init__(self, path: str, *, dtype=None, dpi: NumberLike=None, sid: NumberLike=None):
+    def __init__(self, path: Union[str, BytesIO, BufferedReader], *, dtype=None, dpi: NumberLike=None, sid: NumberLike=None):
         """
         Parameters
         ----------
@@ -694,7 +699,7 @@ class DicomImage(BaseImage):
         self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
         # read a second time to get pixel data
-        if isinstance(path, BytesIO):
+        if isinstance(path, (BytesIO, BufferedReader)):
             path.seek(0)
         ds = retrieve_dicom_file(path)
         if dtype is not None:

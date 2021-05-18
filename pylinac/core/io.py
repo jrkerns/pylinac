@@ -96,7 +96,7 @@ class TemporaryZipDirectory(TemporaryDirectory):
         zfiles.extractall(path=self.name)
 
 
-def retrieve_filenames(directory: str, func: Callable=None, recursive: bool=True, **kwargs) -> List:
+def retrieve_filenames(directory: str, func: Callable=None, recursive: bool=True, **kwargs) -> List[str]:
     """Retrieve file names in a directory.
 
     Parameters

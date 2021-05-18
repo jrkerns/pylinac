@@ -18,7 +18,7 @@ import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from os import path as osp
-from typing import Optional, Union, Dict, Tuple, Sequence, List
+from typing import Optional, Union, Dict, Tuple, Sequence, List, BinaryIO
 
 import argue
 from cached_property import cached_property
@@ -939,7 +939,7 @@ class CatPhanBase:
         return cls.from_zip(filename, check_uid=check_uid)
 
     @classmethod
-    def from_zip(cls, zip_file: Union[str, zipfile.ZipFile], check_uid: bool=True):
+    def from_zip(cls, zip_file: Union[str, zipfile.ZipFile, BinaryIO], check_uid: bool=True):
         """Construct a CBCT object and pass the zip file.
 
         Parameters

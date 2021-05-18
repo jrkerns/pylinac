@@ -23,7 +23,7 @@ import copy
 import dataclasses
 import io
 from dataclasses import dataclass
-from typing import Union, List, Optional, Tuple
+from typing import Union, List, Optional, Tuple, BinaryIO
 
 import argue
 import matplotlib.pyplot as plt
@@ -76,11 +76,11 @@ class Starshot:
         >>> print(mystar.results())
         >>> mystar.plot_analyzed_image()
     """
-    def __init__(self, filepath: str, **kwargs):
+    def __init__(self, filepath: Union[str, BinaryIO], **kwargs):
         """
         Parameters
         ----------
-        filepath : str
+        filepath
             The path to the image file.
         kwargs
             Passed to :func:`~pylinac.core.image.load`.

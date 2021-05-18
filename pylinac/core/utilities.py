@@ -122,7 +122,7 @@ class Structure:
         self.__dict__.update(**kwargs)
 
 
-def decode_binary(file, dtype: Union[int, float, str], num_values: int=1, cursor_shift: int=0) -> Union[int, float, str]:
+def decode_binary(file, dtype: Union[Type[int], Type[float], Type[str]], num_values: int=1, cursor_shift: int=0) -> Union[int, float, str]:
     """Read in a raw binary file and convert it to given data types.
 
     Parameters

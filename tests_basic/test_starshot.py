@@ -1,3 +1,4 @@
+import io
 import os
 import os.path as osp
 import tempfile
@@ -19,6 +20,19 @@ class TestStarshotLoading(LoadingTestBase, TestCase):
     klass = Starshot
     url = 'starshot.tif'
     kwargs = {'dpi': 30, 'sid': 1000}
+
+    def test_load_from_file_object(self):
+        with open(osp.join(TEST_DIR, 'Starshot 30 deg perfect.dcm'), 'rb') as f:
+            star = Starshot(f)
+            star.analyze()
+        self.assertIsInstance(star, Starshot)
+
+    def test_load_from_stream(self):
+        with open(osp.join(TEST_DIR, 'Starshot 30 deg perfect.dcm'), 'rb') as f:
+            s = io.BytesIO(f.read())
+            star = Starshot(s)
+            star.analyze()
+        self.assertIsInstance(star, Starshot)
 
     def test_no_dpi(self):
         # raise error when DPI isn't in image or given

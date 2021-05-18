@@ -26,12 +26,12 @@ import csv
 import enum
 import gc
 import itertools
-from io import BytesIO
+from io import BytesIO, BufferedReader
 import multiprocessing
 import os
 import os.path as osp
 import shutil
-from typing import Union, List, Optional, Tuple, Iterable, Sequence
+from typing import Union, List, Optional, Tuple, Iterable, Sequence, BinaryIO
 
 import argue
 import matplotlib.pyplot as plt
@@ -1993,7 +1993,7 @@ class TrajectoryLogHeader:
         The MLC model; 2 -> NDS 120 (e.g. Millennium), 3 -> NDS 120 HD (e.g. Millennium 120 HD)
     """
 
-    def __init__(self, file):
+    def __init__(self, file: BinaryIO):
         f = file
         self.header = decode_binary(f, str, 16)  # for version 1.5 will be "VOSTL"
         self.version = float(decode_binary(f, str, 16))  # in the format of 2.x or 3.x
@@ -2028,14 +2028,24 @@ class TrajectoryLog(LogBase):
 
         self._read_txt_file()
 
-        with open(self.filename, mode='rb') as tlogfile:
-            self.header = TrajectoryLogHeader(tlogfile)
-            self.subbeams = SubbeamManager(tlogfile, self.header)
-            self.axis_data = TrajectoryLogAxisData(self, tlogfile, self.subbeams)
+        # load from file object
+        if isinstance(filename, (BinaryIO, BufferedReader)):
+            filename.seek(0)
+            self._read_it(filename)
+        # load from disk
+        else:
+            with open(self.filename, mode='rb') as tlogfile:
+                self._read_it(tlogfile)
 
         self.subbeams.post_hoc_metadata(self.axis_data)
         if not self.treatment_type == TreatmentType.IMAGING.value:
             self.fluence = FluenceStruct(self.axis_data.mlc, self.axis_data.mu, self.axis_data.jaws)
+
+    def _read_it(self, tlogfile: BinaryIO):
+        """Read the file object"""
+        self.header = TrajectoryLogHeader(tlogfile)
+        self.subbeams = SubbeamManager(tlogfile, self.header)
+        self.axis_data = TrajectoryLogAxisData(self, tlogfile, self.subbeams)
 
     @property
     def txt_filename(self) -> str:
@@ -2312,7 +2322,10 @@ def _is_log(filename: str, keys: Sequence[str]) -> bool:
         An iterable of strings that should be in the file. If any key
         is in the file it will return true.
     """
-    if osp.isfile(filename):
+    if isinstance(filename, (BytesIO, BufferedReader)):
+        header_sample = filename.read(5).decode()
+        return any(key in header_sample for key in keys)
+    elif osp.isfile(filename):
         try:
             with open(filename, mode='rb') as f:
                 header_sample = f.read(5).decode()

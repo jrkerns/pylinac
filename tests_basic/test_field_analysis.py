@@ -1,5 +1,6 @@
 """Tests for the flatsym module of pylinac."""
 import enum
+import io
 import os.path as osp
 from unittest import TestCase
 
@@ -20,6 +21,27 @@ def create_instance():
 
 
 class FieldAnalysisTests(TestCase):
+
+    def test_load_from_file_object(self):
+        path = osp.join(TEST_DIR, '6x auto bulb 2.dcm')
+        ref_fa = FieldAnalysis(path)
+        ref_fa.analyze()
+        with open(path, 'rb') as f:
+            fa = FieldAnalysis(f)
+            fa.analyze()
+        self.assertIsInstance(fa, FieldAnalysis)
+        self.assertEqual(fa.image.shape, ref_fa.image.shape)
+
+    def test_load_from_stream(self):
+        path = osp.join(TEST_DIR, '6x auto bulb 2.dcm')
+        ref_fa = FieldAnalysis(path)
+        ref_fa.analyze()
+        with open(path, 'rb') as f:
+            s = io.BytesIO(f.read())
+            fa = FieldAnalysis(s)
+            fa.analyze()
+        self.assertIsInstance(fa, FieldAnalysis)
+        self.assertEqual(fa.image.shape, ref_fa.image.shape)
 
     def test_demo_is_reachable(self):
         if has_www_connection():

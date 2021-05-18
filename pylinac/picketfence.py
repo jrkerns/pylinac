@@ -21,7 +21,7 @@ from collections import Sequence
 from dataclasses import dataclass
 from itertools import cycle
 from tempfile import TemporaryDirectory
-from typing import Union, Tuple, List, Optional
+from typing import Union, Tuple, List, Optional, BinaryIO
 
 import matplotlib.pyplot as plt
 from cached_property import cached_property
@@ -137,13 +137,13 @@ class PicketFence:
     for any angle.
     """
 
-    def __init__(self, filename: str, filter: Optional[int] = None, log: Optional[str] = None,
+    def __init__(self, filename: Union[str, BinaryIO], filter: Optional[int] = None, log: Optional[str] = None,
                  use_filename: bool = False, mlc: Union[MLC, MLCArrangement, str] = MLC.MILLENNIUM, crop_mm: int = 3):
         """
         Parameters
         ----------
         filename
-            Name of the file as a string. If None, image must be loaded later.
+            Name of the file as a string or a file-like object.
         filter
             If None (default), no filtering will be done to the image.
             If an int, will perform median filtering over image of size ``filter``.

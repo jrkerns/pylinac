@@ -1,5 +1,7 @@
+import io
 from unittest import TestCase
 from pathlib import Path
+import os.path as osp
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,6 +27,25 @@ class GeneralTests(TestCase):
 
     def setUp(self):
         self.cbct = CatPhan504.from_demo_images()
+
+    def test_load_from_stream(self):
+        path = osp.join(TEST_DIR, 'CBCT_4.zip')
+        ref_cbct = CatPhan504.from_zip(path)
+        with open(path, 'rb') as f:
+            s = io.BytesIO(f.read())
+            cbct = CatPhan504.from_zip(s)
+            cbct.analyze()
+        self.assertIsInstance(cbct, CatPhan504)
+        self.assertEqual(cbct.origin_slice, ref_cbct.origin_slice)
+
+    def test_load_from_file_object(self):
+        path = osp.join(TEST_DIR, 'CBCT_4.zip')
+        ref_cbct = CatPhan504.from_zip(path)
+        with open(path, 'rb') as f:
+            cbct = CatPhan504.from_zip(f)
+            cbct.analyze()
+        self.assertIsInstance(cbct, CatPhan504)
+        self.assertEqual(cbct.origin_slice, ref_cbct.origin_slice)
 
     def test_demo(self):
         """Run the demo to make sure it works."""

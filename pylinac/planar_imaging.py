@@ -18,7 +18,7 @@ import dataclasses
 import warnings
 from dataclasses import dataclass
 import io
-from typing import Optional, List, Tuple, Union
+from typing import Optional, List, Tuple, Union, BinaryIO
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -90,7 +90,7 @@ class ImagePhantomBase:
     low_contrast_background_value = None
     phantom_outline_object = None
 
-    def __init__(self, filepath: str):
+    def __init__(self, filepath: Union[str, BinaryIO]):
         """
         Parameters
         ----------

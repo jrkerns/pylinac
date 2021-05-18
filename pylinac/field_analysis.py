@@ -6,7 +6,7 @@ import warnings
 from dataclasses import dataclass
 from enum import Enum
 from math import floor, ceil
-from typing import Union, Optional, Tuple
+from typing import Union, Optional, Tuple, BinaryIO
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -240,7 +240,7 @@ class FieldAnalysis:
     """Class for analyzing the various parameters of a radiation image, most commonly an open image from a linac.
     """
 
-    def __init__(self, path: str, filter: Optional[int] = None):
+    def __init__(self, path: Union[str, BinaryIO], filter: Optional[int] = None):
         """
 
 
