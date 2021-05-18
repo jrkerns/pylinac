@@ -23,7 +23,6 @@ from typing import Optional, Union, Dict, Tuple, Sequence, List
 import argue
 from cached_property import cached_property
 import matplotlib.pyplot as plt
-from methodtools import lru_cache
 import numpy as np
 from py_linq import Enumerable
 from scipy import ndimage
@@ -1086,8 +1085,8 @@ class CatPhanBase:
     def _results(self) -> None:
         """Helper function to spit out values that will be tested."""
         print(self.results())
-        print(f"Phantom roll: {self.find_phantom_roll()}")
-        print(f"Origin slice: {self.find_origin_slice()}")
+        print(f"Phantom roll: {self.catphan_roll}")
+        print(f"Origin slice: {self.origin_slice}")
         mtfs = {}
         for mtf in (95, 90, 80, 50, 30):
             mtfval = self.ctp528.mtf.relative_resolution(mtf)
@@ -1104,7 +1103,6 @@ class CatPhanBase:
         """The millimeters per pixel of the DICOM images."""
         return self.dicom_stack.metadata.PixelSpacing[0]
 
-    @lru_cache(maxsize=1)
     def find_origin_slice(self) -> int:
         """Using a brute force search of the images, find the median HU linearity slice.
 
@@ -1151,7 +1149,6 @@ class CatPhanBase:
             #print(center_hu_slice)
             return center_hu_slice
 
-    @lru_cache(maxsize=1)
     def find_phantom_roll(self) -> float:
         """Determine the "roll" of the phantom.
 

@@ -28,12 +28,12 @@ from textwrap import wrap
 
 import argue
 import matplotlib.pyplot as plt
-from methodtools import lru_cache
 import numpy as np
 from scipy import ndimage, optimize, linalg
 from skimage import measure
 
 from .core import image
+from .core.decorators import lru_cache
 from .core.geometry import Point, Line, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import bounding_box

@@ -36,9 +36,9 @@ from typing import Union, List, Optional, Tuple, Iterable, Sequence
 import argue
 import matplotlib.pyplot as plt
 from cached_property import cached_property
-from methodtools import lru_cache
 import numpy as np
 
+from .core.decorators import lru_cache
 from .settings import get_array_cmap
 from .core import image
 from .core import io

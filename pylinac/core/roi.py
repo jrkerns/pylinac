@@ -1,13 +1,14 @@
 
-from functools import lru_cache
 from typing import Union, Tuple, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
+from cached_property import cached_property
 from matplotlib.patches import Circle as mpl_Circle
 
 from skimage.measure._regionprops import _RegionProperties
 
+from .decorators import lru_cache
 from .geometry import Circle, Point, Rectangle
 from .typing import NumberLike
 
@@ -59,14 +60,13 @@ class DiskROI(Circle):
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
-    @property
-    @lru_cache()
+    @cached_property
     def pixel_value(self) -> np.ndarray:
         """The median pixel value of the ROI."""
         masked_img = self.circle_mask()
         return np.nanmedian(masked_img)
 
-    @property
+    @cached_property
     def std(self) -> np.ndarray:
         """The standard deviation of the pixel values."""
         masked_img = self.circle_mask()
@@ -187,13 +187,13 @@ class HighContrastDiskROI(DiskROI):
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.contrast_threshold = contrast_threshold
 
-    @property
+    @cached_property
     def max(self) -> np.ndarray:
         """The max pixel value of the ROI."""
         masked_img = self.circle_mask()
         return np.nanmax(masked_img)
 
-    @property
+    @cached_property
     def min(self) -> np.ndarray:
         """The min pixel value of the ROI."""
         masked_img = self.circle_mask()
@@ -210,7 +210,7 @@ class RectangleROI(Rectangle):
         super().__init__(width, height, center, as_int=True)
         self._array = array
 
-    @property
+    @cached_property
     def pixel_array(self) -> np.ndarray:
         """The pixel array within the ROI."""
         return self._array[self.bl_corner.x:self.tr_corner.x, self.bl_corner.y:self.tr_corner.y]
