@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
-from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV
+from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV
 from tests_basic.utils import save_file, LocationMixin, get_folder_from_cloud_test_repo
 
 TEST_DIR = get_folder_from_cloud_test_repo(['planar_imaging'])
@@ -149,6 +149,7 @@ class SIQC3_2(PlanarPhantomMixin, TestCase):
     mtf_50 = 0.68
 
     def test_wrong_ssd_fails(self):
+        self.instance = self.klass(self.get_filename())
         with self.assertRaises(ValueError):
             self.instance.analyze(ssd=1800)
 
@@ -204,3 +205,11 @@ class SNCMVDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         SNCkV.run_demo()
+
+
+class SIQCkVDemo(PlanarPhantomMixin, TestCase):
+    klass = StandardImagingQCkV
+    mtf_50 = 1.81
+
+    def test_demo(self):
+        StandardImagingQCkV.run_demo()

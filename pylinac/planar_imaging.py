@@ -59,7 +59,7 @@ def is_centered(region: RegionProperties, instance: object, rtol=0.1) -> bool:
 
 def is_right_size(region: RegionProperties, instance: object, rtol=0.1) -> bool:
     """Whether the region is close to the expected size of the phantom, given the SSD and physical phantom size."""
-    return bool(np.isclose(region.bbox_area, instance.phantom_bbox_size_px / (instance._ssd / 1000), rtol=rtol))
+    return bool(np.isclose(region.bbox_area, instance.phantom_bbox_size_px / (instance._ssd / 1000)**2, rtol=rtol))
 
 
 class ImagePhantomBase:
@@ -603,7 +603,7 @@ class LasVegas(ImagePhantomBase):
 class StandardImagingQC3(ImagePhantomBase):
     _demo_filename = 'qc3.dcm'
     common_name = 'SI QC-3'
-    phantom_bbox_size_mm2 = (176**2) * 0.95
+    phantom_bbox_size_mm2 = 176**2
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 7.5, 'height ratio': 6}}
     high_contrast_roi_settings = {
@@ -661,6 +661,39 @@ class StandardImagingQC3(ImagePhantomBase):
         center : Point
         """
         return bbox_center(self.phantom_ski_region)
+
+
+class StandardImagingQCkV(StandardImagingQC3):
+    _demo_filename = 'SI-QC-kV.dcm'
+    common_name = 'SI QC-kV'
+    phantom_bbox_size_mm2 = 160**2
+    detection_conditions = [is_centered, is_right_size]
+    phantom_outline_object = {'Rectangle': {'width ratio': 7.8, 'height ratio': 6.4}}
+    high_contrast_roi_settings = {
+        'roi 1': {'distance from center': 2.8, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.66},
+        'roi 2': {'distance from center': -2.8, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.98},
+        'roi 3': {'distance from center': 1.45, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 1.50},
+        'roi 4': {'distance from center': -1.45, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 2.00},
+        'roi 5': {'distance from center': 0, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 2.46},
+    }
+    low_contrast_roi_settings = {
+        'roi 1': {'distance from center': 2, 'angle': 90, 'roi radius': 0.5},
+        'roi 2': {'distance from center': 2, 'angle': -90, 'roi radius': 0.5},
+        'roi 3': {'distance from center': 2.4, 'angle': 55, 'roi radius': 0.5},
+        'roi 4': {'distance from center': 2.4, 'angle': -55, 'roi radius': 0.5},
+        'roi 5': {'distance from center': 2.4, 'angle': 128, 'roi radius': 0.5},
+        'roi 6': {'distance from center': 2.4, 'angle': -128, 'roi radius': 0.5},
+    }
+    low_contrast_background_roi_settings = {
+        'roi 1': {'distance from center': 2, 'angle': 90, 'roi radius': 0.5},
+    }
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Standard Imaging QC-3 phantom analysis demonstration."""
+        qc3 = StandardImagingQCkV.from_demo_image()
+        qc3.analyze()
+        qc3.plot_analyzed_image()
 
 
 class SNCkV(ImagePhantomBase):
