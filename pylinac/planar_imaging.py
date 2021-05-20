@@ -110,17 +110,21 @@ class ImagePhantomBase:
     detection_canny_settings = {'sigma': 2, 'percentiles': (0.001, 0.01)}
     phantom_bbox_size_mm2: float
 
-    def __init__(self, filepath: Union[str, BinaryIO]):
+    def __init__(self, filepath: Union[str, BinaryIO], normalize: bool = True):
         """
         Parameters
         ----------
         filepath : str
             Path to the image file.
+        normalize: bool
+            Whether to "ground" and normalize the image. This can affect contrast measurements, but for
+            backwards compatibility this is True. You may want to set this to False if trying to compare with other software.
         """
         self.image = image.load(filepath)
         self.image.invert()
-        self.image.ground()
-        self.image.normalize()
+        if normalize:
+            self.image.ground()
+            self.image.normalize()
         self._angle_override = None
         self._size_override = None
         self._center_override = None
@@ -672,13 +676,14 @@ class SNCkV(ImagePhantomBase):
         'roi 4': {'distance from center': 1.8, 'angle': 90, 'roi radius': 0.7, 'lp/mm': 2.4},
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 2.6, 'angle': 135, 'roi radius': 0.6},
-        'roi 2': {'distance from center': 2.6, 'angle': 45, 'roi radius': 0.6},
-        'roi 3': {'distance from center': 2.6, 'angle': -135, 'roi radius': 0.6},
-        'roi 4': {'distance from center': 2.6, 'angle': -45, 'roi radius': 0.6},
+        'roi 1': {'distance from center': 2.6, 'angle': -45, 'roi radius': 0.6},
+        'roi 2': {'distance from center': 2.6, 'angle': -135, 'roi radius': 0.6},
+        'roi 3': {'distance from center': 2.6, 'angle': 45, 'roi radius': 0.6},
+        'roi 4': {'distance from center': 2.6, 'angle': 135, 'roi radius': 0.6},
     }
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 3.25, 'angle': 0, 'roi radius': 0.4},
+        'roi 1': {'distance from center': 0.5, 'angle': 90, 'roi radius': 0.25},
+        'roi 2': {'distance from center': 0.5, 'angle': -90, 'roi radius': 0.25},
     }
 
     @staticmethod
@@ -717,6 +722,48 @@ class SNCkV(ImagePhantomBase):
         center : Point
         """
         return bbox_center(self.phantom_ski_region)
+
+
+class SNCMV(SNCkV):
+    _demo_filename = 'SNC-MV.dcm'
+    common_name = 'SNC MV-QA'
+    phantom_bbox_size_mm2 = 118 ** 2
+    detection_conditions = [is_centered, is_right_size]
+    phantom_outline_object = {'Rectangle': {'width ratio': 7.5, 'height ratio': 7.5}}
+    high_contrast_roi_settings = {
+        'roi 1': {'distance from center': -2.3, 'angle': 0, 'roi radius': 0.8, 'lp/mm': 0.1},
+        'roi 2': {'distance from center': 2.3, 'angle': 90, 'roi radius': 0.8, 'lp/mm': 0.2},
+        'roi 3': {'distance from center': 2.3, 'angle': 0, 'roi radius': 0.8, 'lp/mm': 0.5},
+        'roi 4': {'distance from center': -2.3, 'angle': 90, 'roi radius': 0.8, 'lp/mm': 1.0},
+    }
+    low_contrast_roi_settings = {
+        'roi 1': {'distance from center': 3.4, 'angle': -45, 'roi radius': 0.7},
+        'roi 2': {'distance from center': 3.4, 'angle': 45, 'roi radius': 0.7},
+        'roi 3': {'distance from center': 3.4, 'angle': 135, 'roi radius': 0.7},
+        'roi 4': {'distance from center': 3.4, 'angle': -135, 'roi radius': 0.7},
+    }
+    low_contrast_background_roi_settings = {
+        'roi 1': {'distance from center': 0.7, 'angle': 0, 'roi radius': 0.2},
+        'roi 2': {'distance from center': -0.7, 'angle': 0, 'roi radius': 0.2},
+    }
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Sun Nuclear MV-QA phantom analysis demonstration."""
+        snc = SNCMV.from_demo_image()
+        snc.analyze()
+        snc.plot_analyzed_image()
+
+    def _phantom_angle_calc(self) -> float:
+        """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
+        which angles the phantom at 45 degrees.
+
+        Returns
+        -------
+        angle : float
+            The angle in degrees.
+        """
+        return 45
 
 
 class LeedsTOR(ImagePhantomBase):
