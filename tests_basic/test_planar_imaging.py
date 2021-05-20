@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
-from pylinac.planar_imaging import PlanarResult
+from pylinac.planar_imaging import PlanarResult, SNCkV
 from tests_basic.utils import save_file, LocationMixin, get_folder_from_cloud_test_repo
 
 TEST_DIR = get_folder_from_cloud_test_repo(['planar_imaging'])
@@ -188,3 +188,11 @@ class DoselabkVDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         DoselabMC2kV.run_demo()
+
+
+class SNCkVDemo(PlanarPhantomMixin, TestCase):
+    klass = SNCkV
+    mtf_50 = 1.76
+
+    def test_demo(self):
+        SNCkV.run_demo()

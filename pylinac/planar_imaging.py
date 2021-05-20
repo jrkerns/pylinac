@@ -51,6 +51,17 @@ class PlanarResult(ResultBase):
     mtf_lp_mm: Tuple[float, float, float] = None  #:
 
 
+def is_centered(region: RegionProperties, instance: object, rtol=0.1) -> bool:
+    """Whether the region is centered on the image"""
+    img_center = (instance.image.center.y, instance.image.center.x)
+    return np.allclose(region.centroid, img_center, rtol=rtol)
+
+
+def is_right_size(region: RegionProperties, instance: object, rtol=0.1) -> bool:
+    """Whether the region is close to the expected size of the phantom, given the SSD and physical phantom size."""
+    return bool(np.isclose(region.bbox_area, instance.phantom_bbox_size_px / (instance._ssd / 1000), rtol=rtol))
+
+
 class ImagePhantomBase:
     """Base class for planar phantom classes.
 
@@ -78,6 +89,12 @@ class ImagePhantomBase:
         Settings of the placement of the background low-contrast ROIs.
     low_contrast_background_value : float
         The average pixel value of all the low-contrast background ROIs.
+    detection_conditions: list of callables
+        This should be a list of functions that return a boolean. It is used for finding the phantom outline in the image.
+        E.g. is_at_center().
+    phantom_bbox_size_mm2: float
+        This is the expected size of the **BOUNDING BOX** of the phantom. Additionally, it is usually smaller than the
+        physical bounding box because we sometimes detect an inner ring/square. Usually x0.9-1.0 of the physical size.
     """
     _demo_filename: str
     common_name: str
@@ -89,6 +106,9 @@ class ImagePhantomBase:
     low_contrast_background_rois = []
     low_contrast_background_value = None
     phantom_outline_object = None
+    detection_conditions: List[object]
+    detection_canny_settings = {'sigma': 2, 'percentiles': (0.001, 0.01)}
+    phantom_bbox_size_mm2: float
 
     def __init__(self, filepath: Union[str, BinaryIO]):
         """
@@ -131,6 +151,29 @@ class ImagePhantomBase:
 
     def _check_inversion(self):
         pass
+
+    @property
+    def phantom_bbox_size_px(self) -> float:
+        """The phantom bounding box size in pixels^2."""
+        return self.phantom_bbox_size_mm2 * (self.image.dpmm ** 2)
+
+    @cached_property
+    def phantom_ski_region(self) -> RegionProperties:
+        """The skimage region of the phantom outline."""
+        regions = self._get_canny_regions()
+        blobs = []
+        for phantom_idx, region in enumerate(regions):
+            if all(condition(region, self) for condition in self.detection_conditions):
+                blobs.append(phantom_idx)
+
+        if not blobs:
+            raise ValueError("Unable to find the phantom in the image.")
+
+        # find the biggest ROI and call that the phantom outline
+        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
+        phantom_idx = blobs[big_roi_idx]
+
+        return regions[phantom_idx]
 
     def analyze(self, low_contrast_threshold: float=0.05, high_contrast_threshold: float=0.5, invert: bool=False, angle_override: Optional[float]=None,
                 center_override: Optional[tuple]=None, size_override: Optional[float]=None, ssd: float = 1000) -> None:
@@ -241,15 +284,15 @@ class ImagePhantomBase:
         self.plot_analyzed_image(show=False, **kwargs)
         plt.savefig(filename, **kwargs)
 
-    def _get_canny_regions(self, sigma=2, percentiles=(0.001, 0.01)):
+    def _get_canny_regions(self):
         """Compute the canny edges of the image and return the connected regions found."""
         # copy, filter, and ground the image
         img_copy = copy.copy(self.image)
-        img_copy.filter(kind='gaussian', size=sigma)
+        img_copy.filter(kind='gaussian', size=self.detection_canny_settings['sigma'])
         img_copy.ground()
 
         # compute the canny edges with very low thresholds (detects nearly everything)
-        lo_th, hi_th = np.percentile(img_copy, percentiles)
+        lo_th, hi_th = np.percentile(img_copy, self.detection_canny_settings['percentiles'])
         c = feature.canny(img_copy, low_threshold=lo_th, high_threshold=hi_th)
 
         # label the canny edge regions
@@ -475,7 +518,8 @@ class ImagePhantomBase:
 class LasVegas(ImagePhantomBase):
     _demo_filename = 'lasvegas.dcm'
     common_name = 'Las Vegas'
-    _phantom_ski_region = None
+    phantom_bbox_size_mm2 = 20260
+    detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 0.62, 'height ratio': 0.62}}
     low_contrast_background_roi_settings = {
         'roi 1': {'distance from center': 0.24, 'angle': 0, 'roi radius': 0.03},
@@ -518,7 +562,7 @@ class LasVegas(ImagePhantomBase):
 
     def _check_inversion(self):
         """Check the inversion by using the histogram of the phantom region"""
-        roi = self._phantom_ski_region_calc()
+        roi = self.phantom_ski_region
         phantom_array = self.image.array[roi.bbox[0]:roi.bbox[2], roi.bbox[1]:roi.bbox[3]]
         phantom_sub_image = image.load(phantom_array)
         phantom_sub_image.crop(int(phantom_sub_image.shape[0]*0.1))
@@ -543,46 +587,20 @@ class LasVegas(ImagePhantomBase):
             self._phantom_ski_region = None
 
     def _phantom_center_calc(self) -> Point:
-        return bbox_center(self._phantom_ski_region_calc())
+        return bbox_center(self.phantom_ski_region)
 
     def _phantom_radius_calc(self) -> float:
-        return self._phantom_ski_region_calc().major_axis_length
+        return self.phantom_ski_region.major_axis_length
 
     def _phantom_angle_calc(self) -> float:
         return 0.0
-
-    def _phantom_ski_region_calc(self) -> RegionProperties:
-        """The skimage region of the phantom outline."""
-        if self._phantom_ski_region is not None:
-            return self._phantom_ski_region
-        else:
-            regions = self._get_canny_regions()
-            blobs = []
-            phantom_bbox_size_mm2 = 20260
-            phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) / (self._ssd/1000)
-            for phantom_idx, region in enumerate(regions):
-                if region.bbox_area < 50:
-                    continue
-                is_near_iso = np.isclose(region.bbox_area, phantom_size_pix, rtol=0.05)
-                is_on_panel = np.isclose(region.bbox_area, phantom_size_pix/2, rtol=0.05)
-                if (not is_near_iso) and (not is_on_panel):
-                    continue
-                hollow = region.extent < 0.02
-                near_center_y = np.isclose(region.centroid[0], self.image.center.y, rtol=0.1)
-                near_center_x = np.isclose(region.centroid[1], self.image.center.x, rtol=0.1)
-                if (is_near_iso or is_on_panel) and near_center_x and near_center_y and hollow:
-                    blobs.append(phantom_idx)
-
-            if not blobs or (len(blobs) != 1):
-                raise ValueError("Unable to find the Las Vegas phantom in the image. Either the phantom 1) was not centered, 2) was not set at iso (e.g. it's directly on the panel), 3) has an artifact (e.g. couch, rails), or 4) is rotated (not at 0, 90, 180, 270).")
-
-            self._phantom_ski_region = regions[blobs[0]]
-            return regions[blobs[0]]
 
 
 class StandardImagingQC3(ImagePhantomBase):
     _demo_filename = 'qc3.dcm'
     common_name = 'SI QC-3'
+    phantom_bbox_size_mm2 = (176**2) * 0.95
+    detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 7.5, 'height ratio': 6}}
     high_contrast_roi_settings = {
         'roi 1': {'distance from center': 2.8, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.1},
@@ -610,32 +628,6 @@ class StandardImagingQC3(ImagePhantomBase):
         qc3.analyze()
         qc3.plot_analyzed_image()
 
-    @cached_property
-    def phantom_ski_region(self) -> RegionProperties:
-        """The skimage region of the phantom outline."""
-        regions = self._get_canny_regions()
-        blobs = []
-        phantom_bbox_size_mm2 = 176**2  # phantom is 115 x 134 mm2. At 45degrees that's 176 x 176mm
-        fudge_factor = 0.95  # in practice, the detected size is a little bit smaller
-        phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) * fudge_factor
-        img_center = (self.image.center.y, self.image.center.x)
-        for phantom_idx, region in enumerate(regions):
-            if region.bbox_area < 1000:
-                continue
-            is_at_ssd = np.isclose(region.bbox_area, phantom_size_pix/(self._ssd/1000), rtol=0.1)
-            centered = np.allclose(region.centroid, img_center, rtol=0.1)
-            if is_at_ssd and centered:
-                blobs.append(phantom_idx)
-
-        if not blobs:
-            raise ValueError("Unable to find the QC-3 phantom in the image.")
-
-        # find the biggest ROI and call that the phantom outline
-        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
-        phantom_idx = blobs[big_roi_idx]
-
-        return regions[phantom_idx]
-
     def _phantom_radius_calc(self) -> float:
         """The radius of the phantom in pixels; the value itself doesn't matter, it's just
         used for relative distances to ROIs.
@@ -656,6 +648,66 @@ class StandardImagingQC3(ImagePhantomBase):
             The angle in degrees.
         """
         return 45.0
+
+    def _phantom_center_calc(self) -> Point:
+        """The center point of the phantom.
+
+        Returns
+        -------
+        center : Point
+        """
+        return bbox_center(self.phantom_ski_region)
+
+
+class SNCkV(ImagePhantomBase):
+    _demo_filename = 'SNC-kV.dcm'
+    common_name = 'SNC kV-QA'
+    phantom_bbox_size_mm2 = 134 ** 2
+    detection_conditions = [is_centered, is_right_size]
+    phantom_outline_object = {'Rectangle': {'width ratio': 7.7, 'height ratio': 5.6}}
+    high_contrast_roi_settings = {
+        'roi 1': {'distance from center': 1.8, 'angle': 0, 'roi radius': 0.7, 'lp/mm': 0.6},
+        'roi 2': {'distance from center': -1.8, 'angle': 90, 'roi radius': 0.7, 'lp/mm': 1.2},
+        'roi 3': {'distance from center': -1.8, 'angle': 0, 'roi radius': 0.7, 'lp/mm': 1.8},
+        'roi 4': {'distance from center': 1.8, 'angle': 90, 'roi radius': 0.7, 'lp/mm': 2.4},
+    }
+    low_contrast_roi_settings = {
+        'roi 1': {'distance from center': 2.6, 'angle': 135, 'roi radius': 0.6},
+        'roi 2': {'distance from center': 2.6, 'angle': 45, 'roi radius': 0.6},
+        'roi 3': {'distance from center': 2.6, 'angle': -135, 'roi radius': 0.6},
+        'roi 4': {'distance from center': 2.6, 'angle': -45, 'roi radius': 0.6},
+    }
+    low_contrast_background_roi_settings = {
+        'roi 1': {'distance from center': 3.25, 'angle': 0, 'roi radius': 0.4},
+    }
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Sun Nuclear kV-QA phantom analysis demonstration."""
+        snc = SNCkV.from_demo_image()
+        snc.analyze()
+        snc.plot_analyzed_image()
+
+    def _phantom_radius_calc(self) -> float:
+        """The radius of the phantom in pixels; the value itself doesn't matter, it's just
+        used for relative distances to ROIs.
+
+        Returns
+        -------
+        radius : float
+        """
+        return self.phantom_ski_region.major_axis_length / 12
+
+    def _phantom_angle_calc(self) -> float:
+        """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
+        which angles the phantom at 45 degrees.
+
+        Returns
+        -------
+        angle : float
+            The angle in degrees.
+        """
+        return 135
 
     def _phantom_center_calc(self) -> Point:
         """The center point of the phantom.
@@ -894,6 +946,8 @@ class LeedsTOR(ImagePhantomBase):
 class DoselabMC2kV(ImagePhantomBase):
     common_name = "Doselab MC2 kV"
     _demo_filename = 'Doselab_kV.dcm'
+    phantom_bbox_size_mm2 = 26300
+    detection_conditions = [is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 0.55, 'height ratio': 0.63}}
     low_contrast_background_roi_settings = {
         'roi 1': {'distance from center': 0.14, 'angle': 36, 'roi radius': 0.02},
@@ -917,25 +971,6 @@ class DoselabMC2kV(ImagePhantomBase):
         leeds = DoselabMC2kV.from_demo_image()
         leeds.analyze()
         leeds.plot_analyzed_image()
-
-    @cached_property
-    def phantom_ski_region(self) -> RegionProperties:
-        """The skimage region of the phantom outline."""
-        regions = self._get_canny_regions(percentiles=(0.01, 0.1))
-        blobs = []
-        phantom_bbox_size_mm2 = 26300
-        phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) / (self._ssd/1000)
-        for phantom_idx, region in enumerate(regions):
-            if not np.isclose(phantom_size_pix, region.bbox_area, rtol=0.1):
-                continue
-            hollow = region.extent < 0.05
-            if hollow:
-                blobs.append(phantom_idx)
-
-        if not blobs or (len(blobs) != 1):
-            raise ValueError("Unable to find the Doselab phantom in the image.")
-
-        return regions[blobs[0]]
 
     def _phantom_center_calc(self) -> Point:
         roi = self.phantom_ski_region
