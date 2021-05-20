@@ -600,10 +600,80 @@ class LasVegas(ImagePhantomBase):
         return 0.0
 
 
+class PTWEPIDQC(ImagePhantomBase):
+    _demo_filename = 'PTW-EPID-QC.dcm'
+    common_name = 'PTW EPID QC'
+    phantom_bbox_size_mm2 = 250**2
+    detection_conditions = [is_centered, is_right_size]
+    phantom_outline_object = {'Rectangle': {'width ratio': 8.55, 'height ratio': 8.55}}
+    high_contrast_roi_settings = {
+        # angled rois
+        'roi 1': {'distance from center': 1.5, 'angle': -135, 'roi radius': 0.35, 'lp/mm': 0.15},
+        'roi 2': {'distance from center': 3.1, 'angle': -109, 'roi radius': 0.35, 'lp/mm': 0.21},
+        'roi 3': {'distance from center': 3.2, 'angle': -60, 'roi radius': 0.3, 'lp/mm': 0.27},
+        'roi 4': {'distance from center': 1.9, 'angle': -60, 'roi radius': 0.25, 'lp/mm': 0.33},
+        # vertical rois
+        'roi 5': {'distance from center': 3.6, 'angle': -90, 'roi radius': 0.18, 'lp/mm': 0.5},
+        'roi 6': {'distance from center': 2.9, 'angle': -90, 'roi radius': 0.08, 'lp/mm': 2},
+        'roi 7': {'distance from center': 2.2, 'angle': -90, 'roi radius': 0.04, 'lp/mm': 3},
+    }
+    low_contrast_roi_settings = {
+        'roi 1': {'distance from center': 3.87, 'angle': 31, 'roi radius': 0.3},
+        'roi 2': {'distance from center': 3.48, 'angle': 17, 'roi radius': 0.3},
+        'roi 3': {'distance from center': 3.3, 'angle': 0, 'roi radius': 0.3},
+        'roi 4': {'distance from center': 3.48, 'angle': -17, 'roi radius': 0.3},
+        'roi 5': {'distance from center': 3.87, 'angle': -31, 'roi radius': 0.3},
+        'roi 6': {'distance from center': 3.87, 'angle': 180-31, 'roi radius': 0.3},
+        'roi 7': {'distance from center': 3.48, 'angle': 180 - 17, 'roi radius': 0.3},
+        'roi 8': {'distance from center': 3.3, 'angle': 180, 'roi radius': 0.3},
+        'roi 9': {'distance from center': 3.48, 'angle': 180 + 17, 'roi radius': 0.3},
+    }
+    low_contrast_background_roi_settings = {
+        'roi 1': {'distance from center': 3.85, 'angle': -148, 'roi radius': 0.3},
+    }
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Standard Imaging QC-3 phantom analysis demonstration."""
+        ptw = PTWEPIDQC.from_demo_image()
+        ptw.analyze()
+        ptw.plot_analyzed_image()
+
+    def _phantom_radius_calc(self) -> float:
+        """The radius of the phantom in pixels; the value itself doesn't matter, it's just
+        used for relative distances to ROIs.
+
+        Returns
+        -------
+        radius : float
+        """
+        return self.phantom_ski_region.major_axis_length / 14
+
+    def _phantom_angle_calc(self) -> float:
+        """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
+        which angles the phantom at 45 degrees.
+
+        Returns
+        -------
+        angle : float
+            The angle in degrees.
+        """
+        return 0
+
+    def _phantom_center_calc(self) -> Point:
+        """The center point of the phantom.
+
+        Returns
+        -------
+        center : Point
+        """
+        return bbox_center(self.phantom_ski_region)
+
+
 class StandardImagingQC3(ImagePhantomBase):
     _demo_filename = 'qc3.dcm'
     common_name = 'SI QC-3'
-    phantom_bbox_size_mm2 = 176**2
+    phantom_bbox_size_mm2 = 168**2
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 7.5, 'height ratio': 6}}
     high_contrast_roi_settings = {

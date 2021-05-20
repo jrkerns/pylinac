@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
-from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV
+from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC
 from tests_basic.utils import save_file, LocationMixin, get_folder_from_cloud_test_repo
 
 TEST_DIR = get_folder_from_cloud_test_repo(['planar_imaging'])
@@ -71,7 +71,6 @@ class PlanarPhantomMixin(LocationMixin):
 
     def test_analyze(self):
         self.instance.analyze()
-        self.instance.analyze(invert=True)
 
     def test_plotting(self):
         self.instance.plot_analyzed_image()
@@ -140,13 +139,13 @@ class SIQC3Demo(PlanarPhantomMixin, TestCase):
 class SIQC3_1(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     file_path = ['QC3-2.5MV.dcm']
-    mtf_50 = 0.68
+    mtf_50 = 1.19
 
 
 class SIQC3_2(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     file_path = ['QC3-2.5MV-2.dcm']
-    mtf_50 = 0.68
+    mtf_50 = 1.16
 
     def test_wrong_ssd_fails(self):
         self.instance = self.klass(self.get_filename())
@@ -213,3 +212,11 @@ class SIQCkVDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         StandardImagingQCkV.run_demo()
+
+
+class PTWEPIDDemo(PlanarPhantomMixin, TestCase):
+    klass = PTWEPIDQC
+    mtf_50 = 0.79
+
+    def test_demo(self):
+        PTWEPIDQC.run_demo()
