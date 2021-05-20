@@ -1,7 +1,6 @@
 import copy
 import io
 from unittest import TestCase
-import os.path as osp
 
 import numpy as np
 
@@ -9,12 +8,11 @@ from pylinac.core.geometry import Point
 from pylinac.core import image
 from pylinac.core.image import DicomImage, ArrayImage, FileImage, DicomImageStack
 from pylinac.core.io import TemporaryZipDirectory
-from tests_basic.utils import save_file
+from tests_basic.utils import save_file, get_file_from_cloud_test_repo
 
-test_dir = osp.join(osp.dirname(osp.dirname(__file__)), 'test_files')
-tif_path = osp.join(test_dir, 'Starshot', 'Starshot#1.tif')
-png_path = osp.join(test_dir, 'Starshot', 'Starshot#1.png')
-dcm_path = osp.join(test_dir, 'VMAT', 'DRGSdmlc-105-example.dcm')
+tif_path = get_file_from_cloud_test_repo(['Starshot', 'Starshot-1.tif'])
+png_path = get_file_from_cloud_test_repo(['Starshot', 'Starshot-1.png'])
+dcm_path = get_file_from_cloud_test_repo(['VMAT', 'DRGSdmlc-105-example.dcm'])
 dcm_url = 'https://s3.amazonaws.com/pylinac/EPID-PF-LR.dcm'
 
 
@@ -85,7 +83,7 @@ class TestLoaders(TestCase):
     def test_is_image(self):
         self.assertTrue(image.is_image(dcm_path))
         # not an image
-        self.assertFalse(image.is_image(osp.join(test_dir, 'MLC logs', 'dlogs', 'Adlog1.dlg')))
+        self.assertFalse(image.is_image(get_file_from_cloud_test_repo(['mlc_logs', 'dlogs', 'Adlog1.dlg'])))
 
 
 class TestBaseImage(TestCase):
@@ -266,7 +264,7 @@ class TestArrayImage(TestCase):
 
 
 class TestDicomStack(TestCase):
-    stack_location = osp.join(test_dir, 'CBCT', 'CBCT_4.zip')
+    stack_location = get_file_from_cloud_test_repo(['CBCT', 'CBCT_4.zip'])
 
     def test_loading(self):
         # test normal construction
@@ -277,6 +275,6 @@ class TestDicomStack(TestCase):
         dstack = DicomImageStack.from_zip(self.stack_location)
 
     def test_mixed_studies(self):
-        mixed_study_zip = osp.join(test_dir, 'CBCT', 'mixed_studies.zip')
+        mixed_study_zip = get_file_from_cloud_test_repo(['CBCT', 'mixed_studies.zip'])
         with self.assertRaises(ValueError):
             DicomImageStack.from_zip(mixed_study_zip)

@@ -1,7 +1,7 @@
 import io
 from functools import partial
 from os import path as osp
-from typing import Union, List, Type
+from typing import Union, Type, Iterable
 from unittest import TestCase
 
 from pylinac.core.geometry import Point
@@ -9,9 +9,10 @@ from pylinac.core.io import retrieve_demo_file
 from pylinac import DRGS, DRMLC
 from pylinac.vmat import VMATResult
 
-from tests_basic.utils import save_file, has_www_connection
+from tests_basic.utils import save_file, has_www_connection, get_file_from_cloud_test_repo, \
+    get_folder_from_cloud_test_repo
 
-TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'VMAT')
+TEST_DIR = get_folder_from_cloud_test_repo(['VMAT'])
 
 within_5 = partial(TestCase().assertAlmostEqual, delta=5)
 within_1 = partial(TestCase().assertAlmostEqual, delta=1)
@@ -104,7 +105,7 @@ class TestDRMLCLoading(TestLoadingBase, TestCase):
 
 class VMATMixin:
     klass = object
-    filepaths = Union[str, List]
+    filepaths = Union[str, Iterable[str]]
     is_zip = False
     segment_positions = {1: Point(100, 200)}
     segment_values = {
@@ -120,7 +121,7 @@ class VMATMixin:
     @classmethod
     def absolute_path(cls):
         if cls.is_zip:
-            path = osp.join(TEST_DIR, cls.filepaths)
+            path = osp.join(TEST_DIR, *cls.filepaths)
         else:
             path = [osp.join(TEST_DIR, path) for path in cls.filepaths]
         return path
@@ -237,7 +238,7 @@ class TestDRGS105(VMATMixin, TestCase):
 
 class TestDRMLC2(VMATMixin, TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
-    filepaths = ('DRMLC#2_open.dcm', 'DRMLC#2_dmlc.dcm')
+    filepaths = ('DRMLC-2_open.dcm', 'DRMLC-2_dmlc.dcm')
     klass = DRMLC
     segment_positions = {0: Point(199, 192), 2: Point(275, 192)}
     segment_values = {
@@ -251,7 +252,7 @@ class TestDRMLC2(VMATMixin, TestCase):
 
 class TestDRGS2(VMATMixin, TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
-    filepaths = ('DRGS#2_open.dcm', 'DRGS#2_dmlc.dcm')
+    filepaths = ('DRGS-2_open.dcm', 'DRGS-2_dmlc.dcm')
     klass = DRGS
     segment_positions = {0: Point(191, 192), 2: Point(242, 192)}
     segment_values = {

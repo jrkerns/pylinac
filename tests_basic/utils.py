@@ -6,9 +6,44 @@ import os.path as osp
 import pprint
 import time
 from tempfile import TemporaryDirectory
+from typing import List
 from urllib.request import urlopen
 
+import boto3
+
 from pylinac.core import image
+from pylinac.core.io import get_url
+
+
+def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
+    s3 = boto3.resource('s3')
+    my_bucket = s3.Bucket('pylinac')
+
+    for s3_object in my_bucket.objects.all():
+        # Need to split s3_object.key into path and file name, else it will give error file not found.
+        path, filename = osp.split(s3_object.key)
+        if (path == 'test_files/' + '/'.join(folder)) and filename != '':
+            # make folder if need be
+            dest_folder = osp.join(osp.dirname(__file__), 'test_files', *folder)
+            if not osp.isdir(dest_folder):
+                os.makedirs(dest_folder)
+            # download file
+            dest_path = osp.join(osp.dirname(__file__), s3_object.key)
+            my_bucket.download_file(s3_object.key, dest_path)
+    return osp.join(osp.dirname(__file__), 'test_files', *folder)
+
+
+def get_file_from_cloud_test_repo(path: List[str]) -> str:
+    root_url = 'https://s3.amazonaws.com/pylinac/test_files/'
+    full_url = root_url + '/'.join(list(path))
+
+    demo_file = osp.join(osp.dirname(__file__), 'test_files', *path)
+    if not osp.isfile(demo_file):
+        demo_dir = osp.dirname(demo_file)
+        if not osp.exists(demo_dir):
+            os.makedirs(demo_dir)
+        get_url(full_url, destination=demo_file)
+    return demo_file
 
 
 def has_www_connection():
@@ -53,29 +88,48 @@ class LocationMixin:
     """
     dir_location = ''
     file_path = []
+    cloud_dir: str
 
     @classmethod
     def get_filename(cls):
         """Return the canonical path to the file."""
-        return osp.join(cls.dir_location, *cls.file_path)
+        if cls.dir_location is '':
+            return get_file_from_cloud_test_repo([cls.cloud_dir, *cls.file_path])
+        else:
+            return osp.join(cls.dir_location, *cls.file_path)
 
 
 class LoadingTestBase:
     """This class can be used as a base for a module's loading test class."""
     klass = object
-    constructor_input = None
+    constructor_input: List[str] = None
     demo_load_method = 'from_demo_image'
-    url = None
-    zip = None
+    url: str = None
+    zip: List[str] = None
     kwargs = {}
 
     @property
     def full_url(self):
         return 'https://s3.amazonaws.com/pylinac/' + self.url
 
-    def test_consructor(self):
+    def get_constructor_input(self) -> str:
+        # download files if need be
         if self.constructor_input is not None:
-            self.klass(self.constructor_input, **self.kwargs)
+            if osp.splitext(self.constructor_input[-1])[1] == '':  # i.e. a folder
+                input_folder = osp.join(osp.dirname(__file__), 'test_files', *self.constructor_input)
+                if not osp.isdir(input_folder):
+                    get_folder_from_cloud_test_repo(self.constructor_input)
+                return input_folder
+            else:
+                file = get_file_from_cloud_test_repo(self.constructor_input)
+                return file
+        else:
+            return ''
+
+    def test_constructor(self):
+        # download files if need be
+        if self.constructor_input is not None:
+            self.klass(self.get_constructor_input(), **self.kwargs)
 
     def test_from_demo(self):
         if self.demo_load_method is not None:
@@ -87,7 +141,8 @@ class LoadingTestBase:
 
     def test_from_zip(self):
         if self.zip is not None:
-            self.klass.from_zip(self.zip, **self.kwargs)
+            file = get_file_from_cloud_test_repo(self.zip)
+            self.klass.from_zip(file, **self.kwargs)
 
 
 class DataBankMixin:

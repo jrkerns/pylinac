@@ -7,18 +7,18 @@ from unittest import TestCase
 import matplotlib.pyplot as plt
 
 from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
+from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
 
-TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Picket Fence')
+TEST_DIR = get_folder_from_cloud_test_repo(['picket_fence'])
 
 
 class TestLoading(LoadingTestBase, TestCase):
     klass = PicketFence
-    constructor_input = osp.join(TEST_DIR, 'AS500_PF.dcm')
+    constructor_input = ['picket_fence', 'AS500_PF.dcm']
     url = 'EPID-PF-LR.dcm'
 
     def test_filter_on_load(self):
-        PicketFence(self.constructor_input, filter=3)  # shouldn't raise
+        PicketFence(self.get_constructor_input(), filter=3)  # shouldn't raise
 
     def test_load_with_log(self):
         log_file = osp.join(TEST_DIR, 'PF_log.bin')
@@ -76,7 +76,7 @@ class GeneralTests(TestCase):
         self.assertIn('pylinac_version', data_dict)
 
     def test_no_measurements_suggests_inversion(self):
-        file_loc = osp.join(TEST_DIR, 'noisy FFF wide-gap pf.dcm')
+        file_loc = osp.join(TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm')
         pf = PicketFence(file_loc)
         with self.assertRaises(ValueError):
             pf.analyze(invert=False)
@@ -141,7 +141,7 @@ class TestPlottingSaving(TestCase):
 
 class PFTestMixin(LocationMixin):
     """Base Mixin for testing a picketfence image."""
-    dir_location = TEST_DIR
+    cloud_dir = 'picket_fence'
     picket_orientation = Orientation.UP_DOWN
     mlc = 'Millennium'
     num_pickets = 10
@@ -210,7 +210,7 @@ class PFDemo(PFTestMixin, TestCase):
 
 
 class WideGapSimulation(PFTestMixin, TestCase):
-    file_path = ['noisy wide-gap pf.dcm']
+    file_path = ['noisy-wide-gap-pf.dcm']
     max_error = 0.11
     invert = True
     abs_median_error = 0.06
@@ -219,7 +219,7 @@ class WideGapSimulation(PFTestMixin, TestCase):
 
 
 class FFFWideGapSimulation(PFTestMixin, TestCase):
-    file_path = ['noisy FFF wide-gap pf.dcm']
+    file_path = ['noisy-FFF-wide-gap-pf.dcm']
     max_error = 0.17
     invert = True
     abs_median_error = 0.06
@@ -235,7 +235,7 @@ class AS1200(PFTestMixin, TestCase):
 
 
 class ClinacWeirdBackground(PFTestMixin, TestCase):
-    file_path = ['Clinac weird background.dcm']
+    file_path = ['Clinac-weird-background.dcm']
     max_error = 0.12
     abs_median_error = 0.02
     num_pickets = 5
@@ -243,7 +243,7 @@ class ClinacWeirdBackground(PFTestMixin, TestCase):
 
 
 class ElektaCloseEdges(PFTestMixin, TestCase):
-    file_path = ['PF, Elekta, pickets near edges.dcm']
+    file_path = ['PF,-Elekta,-pickets-near-edges.dcm']
     max_error = 0.23
     abs_median_error = 0.07
     num_pickets = 9
@@ -251,7 +251,7 @@ class ElektaCloseEdges(PFTestMixin, TestCase):
 
 
 class ElektaCloseEdgesRot90(PFTestMixin, TestCase):
-    file_path = ['PF, Elekta, pickets near edges.dcm']
+    file_path = ['PF,-Elekta,-pickets-near-edges.dcm']
     max_error = 0.23
     abs_median_error = 0.07
     num_pickets = 9

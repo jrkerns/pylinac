@@ -9,17 +9,18 @@ import numpy as np
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.ct import CTP404CP504, CTP404CP503, CTP515, CTP528CP503, CTP528CP504, CatphanResult
 from pylinac.core.geometry import Point
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
+from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
 
-TEST_DIR = Path('./test_files/CBCT')
+
+TEST_DIR = get_folder_from_cloud_test_repo(['CBCT'])
 
 
 class CBCTLoading(LoadingTestBase, TestCase):
     klass = CatPhan504
-    constructor_input = Path(TEST_DIR, 'Pelvis')
+    constructor_input = ['CBCT', 'Pelvis']
     demo_load_method = 'from_demo_images'
     url = 'CatPhan504.zip'
-    zip = Path(TEST_DIR, 'CBCT_4.zip')
+    zip = ['CBCT', 'CBCT_4.zip']
 
 
 class GeneralTests(TestCase):
@@ -157,7 +158,7 @@ class CatPhanMixin(LocationMixin):
     check_uid = True
     origin_slice = 0
     file_path = []
-    dir_location = TEST_DIR
+    cloud_dir = 'CBCT'
     hu_tolerance = 40
     scaling_tolerance = 1
     zip = True

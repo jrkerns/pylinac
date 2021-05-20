@@ -7,9 +7,9 @@ import numpy as np
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from pylinac.planar_imaging import PlanarResult
-from tests_basic.utils import save_file, LocationMixin
+from tests_basic.utils import save_file, LocationMixin, get_folder_from_cloud_test_repo
 
-TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Planar imaging')
+TEST_DIR = get_folder_from_cloud_test_repo(['planar_imaging'])
 
 
 class GeneralTests(TestCase):
@@ -111,19 +111,19 @@ class LeedsCCW(PlanarPhantomMixin, TestCase):
 class Leeds45Deg(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.9
-    file_path = ['Leeds - 45deg.dcm']
+    file_path = ['Leeds-45deg.dcm']
 
 
 class LeedsDirtyEdges(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.3
-    file_path = ['Leeds - dirty edges.dcm']
+    file_path = ['Leeds-dirty-edges.dcm']
 
 
 class LeedsClosedBlades(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.3
-    file_path = ['Leeds - closed blades.dcm']
+    file_path = ['Leeds-closed-blades.dcm']
 
     def test_analyze(self):
         self.instance.analyze(invert=True)
@@ -139,13 +139,13 @@ class SIQC3Demo(PlanarPhantomMixin, TestCase):
 
 class SIQC3_1(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
-    file_path = ['QC3 2.5MV.dcm']
+    file_path = ['QC3-2.5MV.dcm']
     mtf_50 = 0.68
 
 
 class SIQC3_2(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
-    file_path = ['QC3 2.5MV 2.dcm']
+    file_path = ['QC3-2.5MV-2.dcm']
     mtf_50 = 0.68
 
     def test_wrong_ssd_fails(self):

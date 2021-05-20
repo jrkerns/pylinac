@@ -1,12 +1,12 @@
 import unittest
-from pathlib import Path
 
 from pylinac.dlg import DLG
 from pylinac.picketfence import MLC
+from tests_basic.utils import get_file_from_cloud_test_repo
 
 
 class TestDLG(unittest.TestCase):
-    file_path = Path(__file__).parent / Path('test_files/DLG 1.5+0.2.dcm')
+    file_path = get_file_from_cloud_test_repo(['DLG_1.5_0.2.dcm'])
 
     def test_measured_dlg(self):
         dlg = DLG(self.file_path)

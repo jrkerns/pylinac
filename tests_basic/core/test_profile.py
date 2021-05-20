@@ -8,6 +8,7 @@ from pylinac.core import image
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import SingleProfile, MultiProfile, CircleProfile, CollapsedCircleProfile, Normalization, \
     Interpolation
+from tests_basic.utils import get_file_from_cloud_test_repo
 
 
 def generate_open_field(field_size=(100, 100), sigma=2, center=(0, 0)) -> Simulator:
@@ -149,8 +150,7 @@ class MultiProfileTriangle(MultiProfileTestMixin, TestCase):
 
 class CircleProfileTestMixin:
     klass = CircleProfile
-    image_file_location = osp.join(osp.dirname(osp.dirname(osp.abspath(__file__))), 'test_files', 'Starshot',
-                                   'Starshot#1.tif')
+    image_file_location = get_file_from_cloud_test_repo(['Starshot', 'Starshot-1.tif'])
     radius = 300
     peak_idxs = (0,)
     valley_idxs = (0,)

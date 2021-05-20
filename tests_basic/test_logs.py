@@ -1,3 +1,4 @@
+import io
 import os.path as osp
 import os
 from unittest import TestCase
@@ -8,23 +9,26 @@ import numpy as np
 
 from pylinac.log_analyzer import MachineLogs, TreatmentType, \
     anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError, NotALogError
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
+from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_file_from_cloud_test_repo, \
+    get_folder_from_cloud_test_repo
 
-TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'MLC logs')
-ANONYMOUS_SOURCE_FOLDER = osp.join(TEST_DIR, '_anonbase')
-ANONYMOUS_DEST_FOLDER = osp.join(TEST_DIR, 'anonymous')
+TEST_DIR = get_folder_from_cloud_test_repo(['mlc_logs'])
+ANONYMOUS_SOURCE_FOLDER = get_folder_from_cloud_test_repo(['mlc_logs', '_anonbase'])
+ANONYMOUS_DEST_FOLDER = get_folder_from_cloud_test_repo(['mlc_logs', 'anonymous'])
 
 
 class TestAnonymizeFunction(TestCase):
     """Test the anonymization method."""
 
     def setUp(self):
+        anon_source = get_folder_from_cloud_test_repo(['mlc_logs', '_anonbase'])
+        anon_dest = get_folder_from_cloud_test_repo(['mlc_logs', 'anonymous'])
         # move over files from other directory, since the filenames get overridden
-        for file in os.listdir(ANONYMOUS_SOURCE_FOLDER):
-            basefile = osp.join(ANONYMOUS_SOURCE_FOLDER, file)
-            destfile = osp.join(ANONYMOUS_DEST_FOLDER, file)
+        for file in os.listdir(anon_source):
+            basefile = osp.join(anon_source, file)
+            destfile = osp.join(anon_dest, file)
             if not osp.isfile(destfile):
-                shutil.copy(basefile, ANONYMOUS_DEST_FOLDER)
+                shutil.copy(basefile, anon_dest)
 
     @classmethod
     def tearDownClass(cls):
@@ -85,9 +89,9 @@ class TestPublishPDF(TestCase):
             self.tlog.publish_pdf(t)
 
     def test_publish_pdf_w_imaging_log(self):
-        imaging_tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'imaging.bin'))
-        with self.assertRaises(ValueError), tempfile.TemporaryFile() as t:
-            imaging_tlog.publish_pdf(t)
+        imaging_tlog = TrajectoryLog(get_file_from_cloud_test_repo(['mlc_logs', 'tlogs', 'imaging.bin']))
+        with self.assertRaises(ValueError), tempfile.NamedTemporaryFile() as t:
+            imaging_tlog.publish_pdf(t.name)
 
     def test_publish_pdf_w_metadata_and_notes(self):
         with tempfile.TemporaryFile() as t:
@@ -132,30 +136,32 @@ class TestLogPlottingSavingMixin:
 class TestTrajectoryTreatmentTypes(TestCase):
 
     def test_imaging_log(self):
-        tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'imaging.bin'))
+        tlog = TrajectoryLog(get_file_from_cloud_test_repo(['mlc_logs', 'tlogs', 'imaging.bin']))
         self.assertTrue(tlog.treatment_type, TreatmentType.IMAGING.value)
 
     def test_vmat_log(self):
-        tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'vmat.bin'))
+        tlog = TrajectoryLog(get_file_from_cloud_test_repo(['mlc_logs', 'tlogs', 'vmat.bin']))
         self.assertTrue(tlog.treatment_type, TreatmentType.VMAT.value)
 
     def test_static_imrt_log(self):
-        tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'static_imrt.bin'))
+        tlog = TrajectoryLog(get_file_from_cloud_test_repo(['mlc_logs', 'tlogs', 'static_imrt.bin']))
         self.assertTrue(tlog.treatment_type, TreatmentType.STATIC_IMRT.value)
 
     def test_dynamic_imrt_log(self):
-        tlog = TrajectoryLog(osp.join(TEST_DIR, 'tlogs', 'dynamic_imrt.bin'))
+        tlog = TrajectoryLog(get_file_from_cloud_test_repo(['mlc_logs', 'tlogs', 'dynamic_imrt.bin']))
         self.assertTrue(tlog.treatment_type, TreatmentType.DYNAMIC_IMRT.value)
 
 
 class TestDynalogTreatmentTypes(TestCase):
 
     def test_vmat_log(self):
-        dlog = Dynalog(osp.join(TEST_DIR, 'dlogs', 'A_vmat.dlg'))
+        get_folder_from_cloud_test_repo(['mlc_logs', 'dlogs'])
+        dlog = Dynalog(get_file_from_cloud_test_repo(['mlc_logs', 'dlogs', 'A_vmat.dlg']))
         self.assertTrue(dlog.treatment_type, TreatmentType.VMAT)
 
     def test_static_imrt_log(self):
-        dlog = Dynalog(osp.join(TEST_DIR, 'dlogs', 'A_static_imrt.dlg'))
+        get_folder_from_cloud_test_repo(['mlc_logs', 'dlogs'])
+        dlog = Dynalog(get_file_from_cloud_test_repo(['mlc_logs', 'dlogs', 'A_static_imrt.dlg']))
         self.assertTrue(dlog.treatment_type, TreatmentType.STATIC_IMRT)
 
     def test_dynamic_imrt_log(self):
@@ -165,7 +171,7 @@ class TestDynalogTreatmentTypes(TestCase):
 class TestLoadLog(TestCase):
 
     def test_load_trajectory_log_from_file_object(self):
-        path = osp.join(TEST_DIR, 'tlogs', 'dynamic_imrt.bin')
+        path = get_file_from_cloud_test_repo(['mlc_logs', 'tlogs', 'dynamic_imrt.bin'])
         ref_log = TrajectoryLog(path)
         with open(path, 'rb') as f:
             t = TrajectoryLog(f)
@@ -173,11 +179,11 @@ class TestLoadLog(TestCase):
         self.assertEqual(t.num_beamholds, ref_log.num_beamholds)
 
     def test_dynalog_file(self):
-        dynalog = osp.join(TEST_DIR, 'dlogs', 'A_static_imrt.dlg')
+        dynalog = get_file_from_cloud_test_repo(['mlc_logs', 'dlogs', 'A_static_imrt.dlg'])
         self.assertIsInstance(load_log(dynalog), Dynalog)
 
     def test_tlog_file(self):
-        tlog = osp.join(TEST_DIR, 'tlogs', 'dynamic_imrt.bin')
+        tlog = get_file_from_cloud_test_repo(['mlc_logs', 'tlogs', 'dynamic_imrt.bin'])
         self.assertIsInstance(load_log(tlog), TrajectoryLog)
 
     def test_url(self):
@@ -185,15 +191,15 @@ class TestLoadLog(TestCase):
         self.assertIsInstance(load_log(url), TrajectoryLog)
 
     def test_dir(self):
-        dlog_dir = osp.join(TEST_DIR, 'dlogs')
+        dlog_dir = get_folder_from_cloud_test_repo(['mlc_logs', 'dlogs'])
         self.assertIsInstance(load_log(dlog_dir), MachineLogs)
 
     def test_zip(self):
-        zip_file = osp.join(TEST_DIR, 'mixed_types.zip')
+        zip_file = get_file_from_cloud_test_repo(['mlc_logs', 'mixed_types.zip'])
         self.assertIsInstance(load_log(zip_file), MachineLogs)
 
     def test_invalid_file(self):
-        invalid_file = osp.join(TEST_DIR, 'Demo subbeam 0 actual fluence.npy')
+        invalid_file = get_file_from_cloud_test_repo(['mlc_logs', 'Demo-subbeam-0-actual-fluence.npy'])
         with self.assertRaises(NotALogError):
             load_log(invalid_file)
 
@@ -245,10 +251,10 @@ class TestTrajectoryLog(TestLogPlottingSavingMixin, LoadingTestBase, TestLogBase
 
     def test_not_logs(self):
         # throw an error for files that aren't logs
-        test_tlog = osp.join(TEST_DIR, 'tlogs', "Anonymous_4DC Treatment_JS0_TX_20140712095629.bin")
+        test_tlog = get_file_from_cloud_test_repo(['mlc_logs', 'tlogs', "Anonymous_4DC_Treatment_JS0_TX_20140712095629.bin"])
         not_a_file = test_tlog.replace(".bin", 'blahblah.bin')
         self.assertRaises(IOError, TrajectoryLog, not_a_file)
-        not_a_log = osp.join(osp.dirname(__file__), 'test_files', 'VMAT', 'DRGSmlc-105-example.dcm')
+        not_a_log = get_file_from_cloud_test_repo(['VMAT', 'DRGSdmlc-105-example.dcm'])
         self.assertRaises(IOError, TrajectoryLog, not_a_log)
 
     def test_save_to_csv(self):
@@ -256,7 +262,8 @@ class TestTrajectoryLog(TestLogPlottingSavingMixin, LoadingTestBase, TestLogBase
 
     def test_txt_file_also_loads_if_around(self):
         # has a .txt file
-        log_with_txt = osp.join(TEST_DIR, 'mixed_types', "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin")
+        _ = get_folder_from_cloud_test_repo(['mlc_logs', 'mixed_types'])
+        log_with_txt = get_file_from_cloud_test_repo(['mlc_logs', 'mixed_types', "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin"])
 
         log = TrajectoryLog(log_with_txt)
         self.assertIsNotNone(log.txt)
@@ -264,7 +271,8 @@ class TestTrajectoryLog(TestLogPlottingSavingMixin, LoadingTestBase, TestLogBase
         self.assertEqual(log.txt['Patient ID'], 'Anonymous')
 
         # DOESN'T have a txt file
-        log_no_txt = osp.join(TEST_DIR, 'tlogs', "Anonymous_4DC Treatment_JS0_TX_20140712095629.bin")
+        _ = get_folder_from_cloud_test_repo(['mlc_logs', 'tlogs'])
+        log_no_txt = get_file_from_cloud_test_repo(['mlc_logs', 'tlogs', "Anonymous_4DC_Treatment_JS0_TX_20140712095629.bin"])
 
         log = TrajectoryLog(log_no_txt)
         self.assertIsNone(log.txt)
@@ -276,22 +284,25 @@ class TestDynalog(TestLogPlottingSavingMixin, LoadingTestBase, TestLogBase, Test
     anon_file = 'A1234_patientid.dlg'
 
     def test_loading_can_find_paired_file(self):
+        # get all the test files
+        get_folder_from_cloud_test_repo(['mlc_logs', 'dlogs'])
+
         # shouldn't raise since it can find B-file
-        a_file = osp.join(TEST_DIR, 'dlogs', 'Adlog1.dlg')
+        a_file = get_file_from_cloud_test_repo(['mlc_logs', 'dlogs', 'Adlog1.dlg'])
         Dynalog(a_file)
 
         # ditto for A-file
-        b_file = osp.join(TEST_DIR, 'dlogs', 'Bdlog1.dlg')
+        b_file = get_file_from_cloud_test_repo(['mlc_logs', 'dlogs', 'Bdlog1.dlg'])
         Dynalog(b_file)
 
     def test_loading_bad_names(self):
-        a_but_not_b_dir = osp.join(TEST_DIR, 'a_no_b_dir', 'Adlog1.dlg')
+        a_but_not_b_dir = get_file_from_cloud_test_repo(['mlc_logs', 'a_no_b_dir', 'Adlog1.dlg'])
         self.assertRaises(DynalogMatchError, Dynalog, a_but_not_b_dir)
 
-        b_but_not_a_dir = osp.join(TEST_DIR, 'b_no_a_dir', 'Bdlog1.dlg')
+        b_but_not_a_dir = get_file_from_cloud_test_repo(['mlc_logs', 'b_no_a_dir', 'Bdlog1.dlg'])
         self.assertRaises(DynalogMatchError, Dynalog, b_but_not_a_dir)
 
-        bad_name_dlg = osp.join(TEST_DIR, 'bad_names', 'bad_name_dlg.dlg')
+        bad_name_dlg = get_file_from_cloud_test_repo(['mlc_logs', 'bad_names', 'bad_name_dlg.dlg'])
         self.assertRaises(ValueError, Dynalog, bad_name_dlg)
 
 
@@ -357,7 +368,7 @@ class TestIndividualLogBase(LocationMixin):
             self.assertFalse(self.log.axis_data.mlc.leaf_moved(leaf))
 
     def test_publish_pdf(self):
-        with tempfile.TemporaryFile() as temp:
+        with io.BytesIO() as temp:
             self.log.publish_pdf(temp)
 
 
@@ -442,7 +453,7 @@ class TestDynalogDemo(TestIndividualDynalog, TestCase):
         cls.log.fluence.gamma.calc_map()
 
     def test_fluences(self):
-        reference_fluence = np.load(osp.join(TEST_DIR, 'Dynalog demo actual fluence.npy'))
+        reference_fluence = np.load(get_file_from_cloud_test_repo(['mlc_logs', 'Dynalog-demo-actual-fluence.npy']))
         self.log.fluence.actual.calc_map()
         demo_fluence = self.log.fluence.actual.array
         self.assertTrue(np.array_equal(demo_fluence, reference_fluence))
@@ -471,13 +482,13 @@ class TestTrajectoryLogDemo(TestIndividualTrajectoryLog, TestCase):
 
     def test_subbeam_fluences(self):
         # subbeam 0
-        reference_fluence_0 = np.load(osp.join(TEST_DIR, 'Demo subbeam 0 actual fluence.npy'))
+        reference_fluence_0 = np.load(get_file_from_cloud_test_repo(['mlc_logs', 'Demo-subbeam-0-actual-fluence.npy']))
         self.log.subbeams[0].fluence.actual.calc_map()
         demo_fluence_0 = self.log.subbeams[0].fluence.actual.array
         self.assertTrue(np.array_equal(demo_fluence_0, reference_fluence_0))
 
         # subbeam 1
-        reference_fluence_1 = np.load(osp.join(TEST_DIR, 'Demo subbeam 1 actual fluence.npy'))
+        reference_fluence_1 = np.load(get_file_from_cloud_test_repo(['mlc_logs', 'Demo-subbeam-1-actual-fluence.npy']))
         self.log.subbeams[1].fluence.actual.calc_map()
         demo_fluence_1 = self.log.subbeams[1].fluence.actual.array
         self.assertTrue(np.array_equal(demo_fluence_1, reference_fluence_1))
@@ -489,10 +500,10 @@ class TestTrajectoryLogDemo(TestIndividualTrajectoryLog, TestCase):
 
 
 class TestMachineLogs(TestCase):
-    _logs_dir = osp.abspath(osp.join(osp.dirname(__file__), '.', 'test_files', 'MLC logs'))
-    logs_dir = osp.join(_logs_dir, 'mixed_types')
-    logs_altdir = osp.join(_logs_dir, 'altdir')
-    mix_type_dir = osp.join(_logs_dir, 'mixed_types')
+
+    @property
+    def logs_dir(self):
+        return get_folder_from_cloud_test_repo(['mlc_logs', 'mixed_types'])
 
     def test_loading(self):
         # test root level directory
@@ -502,7 +513,7 @@ class TestMachineLogs(TestCase):
         logs = MachineLogs(self.logs_dir)
         self.assertEqual(logs.num_logs, 3)
         # test using zip file
-        zfile = osp.join(self._logs_dir, 'mixed_types.zip')
+        zfile = get_file_from_cloud_test_repo(['mlc_logs', 'mixed_types.zip'])
         logs = MachineLogs.from_zip(zfile)
         self.assertEqual(logs.num_logs, 3)
 
@@ -517,12 +528,8 @@ class TestMachineLogs(TestCase):
         self.assertEqual(logs.num_tlogs, 2)
         self.assertEqual(logs.num_dlogs, 1)
 
-        logs = MachineLogs(self.mix_type_dir)
-        self.assertEqual(logs.num_dlogs, 1)
-        self.assertEqual(logs.num_tlogs, 2)
-
     def test_empty_dir(self):
-        empty_dir = osp.join(self._logs_dir, 'empty_dir')
+        empty_dir = get_folder_from_cloud_test_repo(['mlc_logs', 'empty_dir'])
         logs = MachineLogs(empty_dir)
         self.assertEqual(logs.num_logs, 0)
         with self.assertRaises(ValueError):
@@ -530,23 +537,23 @@ class TestMachineLogs(TestCase):
 
     def test_mixed_types(self):
         """test mixed directory (tlogs & dlogs)"""
-        log_dir = osp.join(self._logs_dir, 'mixed_types')
+        log_dir = get_folder_from_cloud_test_repo(['mlc_logs', 'mixed_types'])
         logs = MachineLogs(log_dir)
         self.assertEqual(logs.num_logs, 3)
 
     def test_dlog_matches_missing(self):
         """Test that Dlogs without a match are skipped."""
-        log_dir = osp.join(self._logs_dir, 'some_matches_missing')
+        log_dir = get_folder_from_cloud_test_repo(['mlc_logs', 'some_matches_missing'])
         logs = MachineLogs(log_dir)
         self.assertEqual(logs.num_logs, 1)
 
     def test_append(self):
         # append a directory
-        logs = MachineLogs(self.logs_altdir)
-        logs.append(self.logs_altdir)
+        logs = MachineLogs(get_folder_from_cloud_test_repo(['mlc_logs', 'altdir']))
+        logs.append(get_folder_from_cloud_test_repo(['mlc_logs', 'altdir']))
         self.assertEqual(logs.num_logs, 8)
         # append a file string
-        single_file = osp.join(self.logs_altdir, 'Anonymous_4DC Treatment_JST90_TX_20140712094246.bin')
+        single_file = get_file_from_cloud_test_repo(['mlc_logs', 'altdir', 'Anonymous_4DC Treatment_JST90_TX_20140712094246.bin'])
         logs.append(single_file)
         # append a MachineLog
         single_log = load_log(single_file)
@@ -576,7 +583,7 @@ class TestMachineLogs(TestCase):
             os.remove(file)
 
     def test_writing_csv_with_no_logs(self):
-        empty_dir = osp.join(self._logs_dir, 'empty_dir')
+        empty_dir = get_folder_from_cloud_test_repo(['mlc_logs', 'empty_dir'])
         logs = MachineLogs(empty_dir)
         logs.to_csv()  # shouldn't raise but will print a statement
 

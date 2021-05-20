@@ -5,17 +5,15 @@ import tempfile
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 import pylinac
 from pylinac import WinstonLutz
 from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, GB_COMBO, GBP_COMBO, EPID, WinstonLutzResult
 from pylinac.core.geometry import Vector, vector_is_close
-from tests_basic import TEST_BANK_DIR, TEST_FILES_DIR
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
+from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
 
 
-TEST_DIR = osp.join(TEST_FILES_DIR, 'Winston-Lutz')
+TEST_DIR = get_folder_from_cloud_test_repo(['Winston-Lutz'])
 
 
 class TestWLLoading(LoadingTestBase, TestCase):
@@ -25,7 +23,8 @@ class TestWLLoading(LoadingTestBase, TestCase):
 
     def test_loading_1_image_fails(self):
         with self.assertRaises(ValueError):
-            WinstonLutz(osp.join(TEST_DIR, 'lutz', '1_image'))
+            folder = get_folder_from_cloud_test_repo(['Winston-Lutz', 'lutz', '1_image'])
+            WinstonLutz(folder)
 
     def test_invalid_dir(self):
         with self.assertRaises(ValueError):
@@ -127,13 +126,13 @@ class TestPlottingSaving(TestCase):
 
     def test_plot_wo_all_axes(self):
         # test that analyzing images w/o gantry images doesn't fail
-        wl_zip = osp.join(TEST_FILES_DIR, 'Winston-Lutz', 'Naming.zip')
+        wl_zip = osp.join(TEST_DIR, 'Naming.zip')
         wl = WinstonLutz.from_zip(wl_zip, use_filenames=True)
         wl.plot_summary()  # shouldn't raise
 
 
 class WinstonLutzMixin(LocationMixin):
-    dir_location = osp.join(TEST_BANK_DIR, 'Winston-Lutz')
+    cloud_dir = 'Winston-Lutz'
     num_images = 0
     zip = True
     gantry_iso_size = 0
@@ -211,8 +210,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
 
 class WLPerfect30x8(WinstonLutzMixin, TestCase):
     """30x30mm field, 8mm BB"""
-    dir_location = TEST_FILES_DIR
-    file_path = ['Winston-Lutz', 'perfect_WL_30x8.zip']
+    file_path = ['perfect_WL_30x8.zip']
     num_images = 10
     gantry_iso_size = 0
     collimator_iso_size = 0
@@ -225,8 +223,7 @@ class WLPerfect30x8(WinstonLutzMixin, TestCase):
 
 class WLPerfect10x4(WinstonLutzMixin, TestCase):
     """10x10mm field, 4mm BB"""
-    dir_location = TEST_FILES_DIR
-    file_path = ['Winston-Lutz', 'perfect_WL_10x4.zip']
+    file_path = ['perfect_WL_10x4.zip']
     num_images = 10
     gantry_iso_size = 0
     collimator_iso_size = 0
@@ -239,8 +236,7 @@ class WLPerfect10x4(WinstonLutzMixin, TestCase):
 
 class WLNoisy30x5(WinstonLutzMixin, TestCase):
     """30x30mm field, 5mm BB. S&P noise added"""
-    dir_location = TEST_FILES_DIR
-    file_path = ['Winston-Lutz', 'noisy_WL_30x5.zip']
+    file_path = ['noisy_WL_30x5.zip']
     num_images = 10
     gantry_iso_size = 0.08
     collimator_iso_size = 0
@@ -253,8 +249,7 @@ class WLNoisy30x5(WinstonLutzMixin, TestCase):
 
 class WLLateral3mm(WinstonLutzMixin, TestCase):
     # verified independently
-    dir_location = TEST_FILES_DIR
-    file_path = ['Winston-Lutz', 'lat3mm.zip']
+    file_path = ['lat3mm.zip']
     num_images = 4
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.8
@@ -264,8 +259,7 @@ class WLLateral3mm(WinstonLutzMixin, TestCase):
 
 class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
     # verified independently
-    dir_location = TEST_FILES_DIR
-    file_path = ['Winston-Lutz', 'lng3mm.zip']
+    file_path = ['lng3mm.zip']
     num_images = 4
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.9
@@ -274,8 +268,7 @@ class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
 
 
 class WLVertical3mm(WinstonLutzMixin, TestCase):
-    dir_location = TEST_FILES_DIR
-    file_path = ['Winston-Lutz', 'vrt3mm.zip']
+    file_path = ['vrt3mm.zip']
     num_images = 4
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.8
@@ -285,8 +278,7 @@ class WLVertical3mm(WinstonLutzMixin, TestCase):
 
 
 class WLDontUseFileNames(WinstonLutzMixin, TestCase):
-    dir_location = TEST_FILES_DIR
-    file_path = ['Winston-Lutz', 'Naming.zip']
+    file_path = ['Naming.zip']
     num_images = 4
     gantry_iso_size = 0.3
     cax2bb_max_distance = 0.9
@@ -296,8 +288,7 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
 
 
 class WLUseFileNames(WinstonLutzMixin, TestCase):
-    dir_location = TEST_FILES_DIR
-    file_path = ['Winston-Lutz', 'Naming.zip']
+    file_path = ['Naming.zip']
     use_filenames = True
     num_images = 4
     collimator_iso_size = 1.2
@@ -311,6 +302,6 @@ class WLBadFilenames(TestCase):
 
     def test_bad_filenames(self):
         # tests_basic that using filenames with incorrect syntax will fail
-        wl_dir = osp.join(TEST_FILES_DIR, 'Winston-Lutz', 'Bad Names.zip')
+        wl_dir = osp.join(TEST_DIR, 'Bad-Names.zip')
         with self.assertRaises(ValueError):
             wl = WinstonLutz.from_zip(wl_dir, use_filenames=True)

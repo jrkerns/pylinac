@@ -10,10 +10,11 @@ import numpy as np
 from pylinac.core.geometry import Point
 from pylinac import Starshot
 from pylinac.starshot import StarshotResults
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
+from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_file_from_cloud_test_repo, \
+    get_folder_from_cloud_test_repo
 
 plt.close('all')
-TEST_DIR = osp.join(osp.dirname(__file__), 'test_files', 'Starshot')
+TEST_DIR = get_folder_from_cloud_test_repo(['Starshot'])
 
 
 class TestStarshotLoading(LoadingTestBase, TestCase):
@@ -22,13 +23,13 @@ class TestStarshotLoading(LoadingTestBase, TestCase):
     kwargs = {'dpi': 30, 'sid': 1000}
 
     def test_load_from_file_object(self):
-        with open(osp.join(TEST_DIR, 'Starshot 30 deg perfect.dcm'), 'rb') as f:
+        with open(osp.join(TEST_DIR, 'Starshot-30-deg-perfect.dcm'), 'rb') as f:
             star = Starshot(f)
             star.analyze()
         self.assertIsInstance(star, Starshot)
 
     def test_load_from_stream(self):
-        with open(osp.join(TEST_DIR, 'Starshot 30 deg perfect.dcm'), 'rb') as f:
+        with open(osp.join(TEST_DIR, 'Starshot-30-deg-perfect.dcm'), 'rb') as f:
             s = io.BytesIO(f.read())
             star = Starshot(s)
             star.analyze()
@@ -61,7 +62,8 @@ class TestPlottingSaving(TestCase):
 
 class StarMixin(LocationMixin):
     """Mixin for testing a starshot image."""
-    dir_location = TEST_DIR
+    # dir_location = TEST_DIR
+    cloud_dir = 'Starshot'
     is_dir = False  # whether the starshot is a single file (False) or directory of images to combine (True)
     wobble_diameter_mm = 0
     wobble_center = Point()
@@ -133,7 +135,7 @@ class Demo(StarMixin, TestCase):
     wobble_center = Point(1270, 1437)
     num_rad_lines = 4
     wobble_tolerance = 0.15
-    # outside program: 0.24-0.26mm
+    # independently verified: 0.24-0.26mm
 
     @classmethod
     def construct_star(cls):
@@ -149,15 +151,20 @@ class Multiples(StarMixin, TestCase):
     file_path = ['set']
     is_dir = True
 
+    @classmethod
+    def get_filename(cls):
+        """Return the canonical path to the file."""
+        return get_folder_from_cloud_test_repo([cls.cloud_dir, *cls.file_path])
+
     def test_loading_from_zip(self):
-        img_zip = osp.join(TEST_DIR, 'set.zip')
+        img_zip = get_file_from_cloud_test_repo(['Starshot', 'set.zip'])
         star = Starshot.from_zip(img_zip)
         # shouldn't raise
         star.analyze()
 
 
 class Starshot1(StarMixin, TestCase):
-    file_path = ['Starshot#1.tif']
+    file_path = ['Starshot-1.tif']
     wobble_center = Point(508, 683)
     wobble_diameter_mm = 0.23
     num_rad_lines = 4
@@ -165,7 +172,7 @@ class Starshot1(StarMixin, TestCase):
 
 
 class StarshotPerfect30Deg(StarMixin, TestCase):
-    file_path = ['Starshot 30 deg perfect.dcm']
+    file_path = ['Starshot-30-deg-perfect.dcm']
     wobble_center = Point(639.5, 639.5)
     wobble_diameter_mm = 0.0
     num_rad_lines = 6
