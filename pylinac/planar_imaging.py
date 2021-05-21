@@ -3,8 +3,13 @@ The following phantoms are supported:
 
 * Leeds TOR 18
 * Standard Imaging QC-3
+* Standard Imaging QC-kV
 * Las Vegas
-* Doselab MC2 (MV & kV)
+* Doselab MC2 MV
+* Doselab MC2 kV
+* SNC kV
+* SNC MV
+* PTW EPID QC
 
 Features:
 
@@ -18,7 +23,7 @@ import dataclasses
 import warnings
 from dataclasses import dataclass
 import io
-from typing import Optional, List, Tuple, Union, BinaryIO
+from typing import Optional, List, Tuple, Union, BinaryIO, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,6 +31,7 @@ from cached_property import cached_property
 from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
+from .core.decorators import lru_cache
 from .core.mtf import MTF
 from .core.utilities import open_path, ResultBase
 from .core import image
@@ -51,10 +57,15 @@ class PlanarResult(ResultBase):
     mtf_lp_mm: Tuple[float, float, float] = None  #:
 
 
-def is_centered(region: RegionProperties, instance: object, rtol=0.1) -> bool:
+def _middle_of_bbox_region(region: RegionProperties) -> Tuple:
+    return ((region.bbox[2] - region.bbox[0]) / 2 + region.bbox[0], (region.bbox[3] - region.bbox[1]) / 2 + region.bbox[1])
+
+
+def is_centered(region: RegionProperties, instance: object, rtol=0.3) -> bool:
     """Whether the region is centered on the image"""
     img_center = (instance.image.center.y, instance.image.center.x)
-    return np.allclose(region.centroid, img_center, rtol=rtol)
+    # we don't want centroid because that could be offset by missing lengths of the outline. Center of bbox is more robust
+    return np.allclose(_middle_of_bbox_region(region), img_center, rtol=rtol)
 
 
 def is_right_size(region: RegionProperties, instance: object, rtol=0.1) -> bool:
@@ -106,7 +117,7 @@ class ImagePhantomBase:
     low_contrast_background_rois = []
     low_contrast_background_value = None
     phantom_outline_object = None
-    detection_conditions: List[object]
+    detection_conditions: [List[Callable]] = [is_centered, is_right_size]
     detection_canny_settings = {'sigma': 2, 'percentiles': (0.001, 0.01)}
     phantom_bbox_size_mm2: float
 
@@ -121,7 +132,6 @@ class ImagePhantomBase:
             backwards compatibility this is True. You may want to set this to False if trying to compare with other software.
         """
         self.image = image.load(filepath)
-        self.image.invert()
         if normalize:
             self.image.ground()
             self.image.normalize()
@@ -165,16 +175,18 @@ class ImagePhantomBase:
     def phantom_ski_region(self) -> RegionProperties:
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions()
+        # search through all the canny ROIs to see which ones pass the detection conditions
         blobs = []
         for phantom_idx, region in enumerate(regions):
-            if all(condition(region, self) for condition in self.detection_conditions):
+            conditions_met = [condition(region, self) for condition in self.detection_conditions]
+            if all(conditions_met):
                 blobs.append(phantom_idx)
 
         if not blobs:
-            raise ValueError("Unable to find the phantom in the image.")
+            raise ValueError("Unable to find the phantom in the image. Potential solutions: check the SSD was passed correctly, check that the phantom isn't at the edge of the field, check that the phantom is centered along the CAX.")
 
-        # find the biggest ROI and call that the phantom outline
-        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
+        # take the smallest ROI and call that the phantom outline
+        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[0]
         phantom_idx = blobs[big_roi_idx]
 
         return regions[phantom_idx]
@@ -358,7 +370,6 @@ class ImagePhantomBase:
         if image:
             img_ax = next(axes)
             self.image.plot(ax=img_ax, show=False)
-            # self.image.plot(ax=img_ax, show=False)
             img_ax.axis('off')
             img_ax.set_title(f'{self.common_name} Phantom Analysis')
 
@@ -510,7 +521,7 @@ class ImagePhantomBase:
         return self._angle_override if self._angle_override is not None else self._phantom_angle_calc()
 
     def _phantom_center_calc(self):
-        pass
+        return bbox_center(self.phantom_ski_region)
 
     def _phantom_angle_calc(self):
         pass
@@ -526,13 +537,9 @@ class LasVegas(ImagePhantomBase):
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 0.62, 'height ratio': 0.62}}
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.24, 'angle': 0, 'roi radius': 0.03},
-        'roi 2': {'distance from center': 0.24, 'angle': 90, 'roi radius': 0.03},
-        'roi 3': {'distance from center': 0.24, 'angle': 180, 'roi radius': 0.03},
-        'roi 4': {'distance from center': 0.24, 'angle': 270, 'roi radius': 0.03},
+        'roi 1': {'distance from center': 0.107, 'angle': 0.5, 'roi radius': 0.020},
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 0.107, 'angle': 0.5, 'roi radius': 0.028},
         'roi 2': {'distance from center': 0.141, 'angle': 39.5, 'roi radius': 0.028},
         'roi 3': {'distance from center': 0.205, 'angle': 58, 'roi radius': 0.028},
         'roi 4': {'distance from center': 0.179, 'angle': -76.5, 'roi radius': 0.016},
@@ -590,9 +597,6 @@ class LasVegas(ImagePhantomBase):
             self.image.array = np.fliplr(self.image.array)
             self._phantom_ski_region = None
 
-    def _phantom_center_calc(self) -> Point:
-        return bbox_center(self.phantom_ski_region)
-
     def _phantom_radius_calc(self) -> float:
         return self.phantom_ski_region.major_axis_length
 
@@ -605,6 +609,7 @@ class PTWEPIDQC(ImagePhantomBase):
     common_name = 'PTW EPID QC'
     phantom_bbox_size_mm2 = 250**2
     detection_conditions = [is_centered, is_right_size]
+    detection_canny_settings = {'sigma': 4, 'percentiles': (0.001, 0.01)}
     phantom_outline_object = {'Rectangle': {'width ratio': 8.55, 'height ratio': 8.55}}
     high_contrast_roi_settings = {
         # angled rois
@@ -631,6 +636,11 @@ class PTWEPIDQC(ImagePhantomBase):
     low_contrast_background_roi_settings = {
         'roi 1': {'distance from center': 3.85, 'angle': -148, 'roi radius': 0.3},
     }
+
+    # def _check_inversion(self):
+        # pass
+        # self.image.check_inversion_by_histogram()
+        # self.image.check_inversion()
 
     @staticmethod
     def run_demo() -> None:
@@ -660,15 +670,6 @@ class PTWEPIDQC(ImagePhantomBase):
         """
         return 0
 
-    def _phantom_center_calc(self) -> Point:
-        """The center point of the phantom.
-
-        Returns
-        -------
-        center : Point
-        """
-        return bbox_center(self.phantom_ski_region)
-
 
 class StandardImagingQC3(ImagePhantomBase):
     _demo_filename = 'qc3.dcm'
@@ -684,16 +685,23 @@ class StandardImagingQC3(ImagePhantomBase):
         'roi 5': {'distance from center': 0, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.76},
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 2, 'angle': 90, 'roi radius': 0.5},
-        'roi 2': {'distance from center': 2, 'angle': -90, 'roi radius': 0.5},
-        'roi 3': {'distance from center': 2.4, 'angle': 55, 'roi radius': 0.5},
-        'roi 4': {'distance from center': 2.4, 'angle': -55, 'roi radius': 0.5},
-        'roi 5': {'distance from center': 2.4, 'angle': 128, 'roi radius': 0.5},
-        'roi 6': {'distance from center': 2.4, 'angle': -128, 'roi radius': 0.5},
+        'roi 1': {'distance from center': 2, 'angle': -90, 'roi radius': 0.5},
+        'roi 2': {'distance from center': 2.4, 'angle': 55, 'roi radius': 0.5},
+        'roi 3': {'distance from center': 2.4, 'angle': -55, 'roi radius': 0.5},
+        'roi 4': {'distance from center': 2.4, 'angle': 128, 'roi radius': 0.5},
+        'roi 5': {'distance from center': 2.4, 'angle': -128, 'roi radius': 0.5},
     }
     low_contrast_background_roi_settings = {
         'roi 1': {'distance from center': 2, 'angle': 90, 'roi radius': 0.5},
     }
+
+    @classmethod
+    def from_demo_image(cls):
+        """Instantiate and load the demo image."""
+        demo_file = retrieve_demo_file(url=cls._demo_filename)
+        inst = cls(demo_file)
+        inst.image.invert()
+        return inst
 
     @staticmethod
     def run_demo() -> None:
@@ -723,20 +731,11 @@ class StandardImagingQC3(ImagePhantomBase):
         """
         return 45.0
 
-    def _phantom_center_calc(self) -> Point:
-        """The center point of the phantom.
-
-        Returns
-        -------
-        center : Point
-        """
-        return bbox_center(self.phantom_ski_region)
-
 
 class StandardImagingQCkV(StandardImagingQC3):
     _demo_filename = 'SI-QC-kV.dcm'
     common_name = 'SI QC-kV'
-    phantom_bbox_size_mm2 = 160**2
+    phantom_bbox_size_mm2 = 142**2
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 7.8, 'height ratio': 6.4}}
     high_contrast_roi_settings = {
@@ -764,6 +763,16 @@ class StandardImagingQCkV(StandardImagingQC3):
         qc3 = StandardImagingQCkV.from_demo_image()
         qc3.analyze()
         qc3.plot_analyzed_image()
+
+    def _phantom_radius_calc(self) -> float:
+        """The radius of the phantom in pixels; the value itself doesn't matter, it's just
+        used for relative distances to ROIs.
+
+        Returns
+        -------
+        radius : float
+        """
+        return self.phantom_ski_region.major_axis_length / 12.5
 
 
 class SNCkV(ImagePhantomBase):
@@ -817,15 +826,6 @@ class SNCkV(ImagePhantomBase):
         """
         return 135
 
-    def _phantom_center_calc(self) -> Point:
-        """The center point of the phantom.
-
-        Returns
-        -------
-        center : Point
-        """
-        return bbox_center(self.phantom_ski_region)
-
 
 class SNCMV(SNCkV):
     _demo_filename = 'SNC-MV.dcm'
@@ -872,8 +872,8 @@ class SNCMV(SNCkV):
 class LeedsTOR(ImagePhantomBase):
     _demo_filename = 'leeds.dcm'
     common_name = 'Leeds'
-    _phantom_angle = None
-    _phantom_center = None
+    phantom_bbox_size_mm2 = 148**2
+    _is_ccw = False
     phantom_outline_object = {'Circle': {'radius ratio': 0.97}}
     high_contrast_roi_settings = {
         'roi 1': {'distance from center': 0.3, 'angle': 54.8, 'roi radius': 0.04, 'lp/mm': 0.5},
@@ -885,6 +885,9 @@ class LeedsTOR(ImagePhantomBase):
         'roi 7': {'distance from center': 0.252, 'angle': -263, 'roi radius': 0.02, 'lp/mm': 1.0},
         'roi 8': {'distance from center': 0.094, 'angle': -246, 'roi radius': 0.018, 'lp/mm': 1.12},
         'roi 9': {'distance from center': 0.0958, 'angle': -117, 'roi radius': 0.018, 'lp/mm': 1.25},
+        'roi 10': {'distance from center': 0.27, 'angle': 112.5, 'roi radius': 0.015, 'lp/mm': 1.4},
+        'roi 11': {'distance from center': 0.13, 'angle': 145, 'roi radius': 0.015, 'lp/mm': 1.6},
+        'roi 12': {'distance from center': 0.135, 'angle': -142, 'roi radius': 0.011, 'lp/mm': 1.8},
     }
     low_contrast_background_roi_settings = {
         'roi 1': {'distance from center': 0.65, 'angle': 30, 'roi radius': 0.025},
@@ -915,47 +918,14 @@ class LeedsTOR(ImagePhantomBase):
         'roi 18': {'distance from center': 0.785, 'angle': 330, 'roi radius': 0.025},
     }
 
-    @cached_property
-    def _blobs(self) -> list:
-        """The indices of the regions that were significant; i.e. a phantom circle outline or lead/copper square."""
-        blobs = []
-        for idx, region in enumerate(self._regions):
-            if region.area < 100:
-                continue
-            round = region.eccentricity < 0.3
-            if round:
-                blobs.append(idx)
-        if not blobs:
-            raise ValueError("Could not find the phantom in the image.")
-        return blobs
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Leeds TOR phantom analysis demonstration."""
+        leeds = LeedsTOR.from_demo_image()
+        leeds.analyze()
+        leeds.plot_analyzed_image()
 
-    @cached_property
-    def _regions(self) -> List[RegionProperties]:
-        """All the regions of the canny image that were labeled."""
-        return self._get_canny_regions()
-
-    def _phantom_center_calc(self) -> Point:
-        """Determine the phantom center.
-
-        This is done by searching for circular ROIs of the canny image. Those that are circular and roughly the
-        same size as the biggest circle ROI are all sampled for the center of the bounding box. The values are
-        averaged over all the detected circles to give a more robust value.
-
-        Returns
-        -------
-        center : Point
-        """
-        if self._phantom_center is not None:
-            return self._phantom_center
-        circles = [roi for roi in self._blobs if
-                   np.isclose(self._regions[roi].major_axis_length, self.phantom_radius * 3.35, rtol=0.3)]
-
-        # get average center of all circles
-        circle_rois = [self._regions[roi] for roi in circles]
-        y = np.mean([bbox_center(roi).y for roi in circle_rois])
-        x = np.mean([bbox_center(roi).x for roi in circle_rois])
-        return Point(x, y)
-
+    @lru_cache()
     def _phantom_angle_calc(self) -> float:
         """Determine the angle of the phantom.
 
@@ -968,10 +938,6 @@ class LeedsTOR(ImagePhantomBase):
         angle : float
             The angle in degrees
         """
-
-        if self._phantom_angle:
-            return self._phantom_angle
-
         start_angle_deg = self._determine_start_angle_for_circle_profile()
         circle = self._circle_profile_for_phantom_angle(start_angle_deg)
         peak_idx, _ = circle.find_fwxm_peaks(threshold=0.6, max_number=1)
@@ -980,9 +946,8 @@ class LeedsTOR(ImagePhantomBase):
         shift_radians = shift_percent * 2 * np.pi
         shift_radians_corrected = 2*np.pi - shift_radians
 
-        self._phantom_angle = np.degrees(shift_radians_corrected) + start_angle_deg
-
-        return self._phantom_angle
+        angle = np.degrees(shift_radians_corrected) + start_angle_deg
+        return angle
 
     def _phantom_radius_calc(self) -> float:
         """Determine the radius of the phantom.
@@ -996,25 +961,7 @@ class LeedsTOR(ImagePhantomBase):
             The radius of the phantom in pixels. The actual value is not important; it is used for scaling the
             distances to the low and high contrast ROIs.
         """
-        big_circle_idx = np.argsort([self._regions[roi].major_axis_length for roi in self._blobs])[-1]
-        circle_roi = self._regions[self._blobs[big_circle_idx]]
-        radius = circle_roi.major_axis_length / 3.35
-        return radius
-
-    def _is_counter_clockwise(self) -> bool:
-        """Determine if the low-contrast bubbles go from high to low clockwise or counter-clockwise.
-
-        Returns
-        -------
-        boolean
-        """
-
-        circle = self._circle_profile_for_phantom_angle(0)
-        peak_idx, _ = circle.find_fwxm_peaks(threshold=0.6, max_number=1)
-        circle.values = np.roll(circle.values, -peak_idx[0])
-        _, first_set = circle.find_peaks(search_region=(0.05, 0.45), threshold=0, min_distance=0.025, max_number=9)
-        _, second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0, min_distance=0.025, max_number=9)
-        return max(first_set) > max(second_set)
+        return self.phantom_ski_region.major_axis_length / 2.73
 
     def _determine_start_angle_for_circle_profile(self) -> float:
         """Determine an appropriate angle for starting the circular profile
@@ -1042,8 +989,21 @@ class LeedsTOR(ImagePhantomBase):
         aligned_to_zero_deg = not(all(on_left_half) or not any(on_left_half))
         return 90 if aligned_to_zero_deg else 0
 
+    def _preprocess(self) -> None:
+        self._check_if_counter_clockwise()
+
+    def _check_if_counter_clockwise(self) -> None:
+        """Determine if the low-contrast bubbles go from high to low clockwise or counter-clockwise."""
+        circle = self._circle_profile_for_phantom_angle(0)
+        peak_idx, _ = circle.find_fwxm_peaks(threshold=0.6, max_number=1)
+        circle.values = np.roll(circle.values, -peak_idx[0])
+        _, first_set = circle.find_peaks(search_region=(0.05, 0.45), threshold=0, min_distance=0.025, max_number=9)
+        _, second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0, min_distance=0.025, max_number=9)
+        self._is_ccw = max(first_set) > max(second_set)
+
     def _circle_profile_for_phantom_angle(self, start_angle_deg: float) -> CollapsedCircleProfile:
         """Create a circular profile centered at phantom origin
+
         Parameters
         ----------
         start_angle_deg: float
@@ -1054,43 +1014,18 @@ class LeedsTOR(ImagePhantomBase):
         circle : CollapsedCircleProfile
             The circular profile centered on the phantom center and origin set to the given start angle.
         """
-
         circle = CollapsedCircleProfile(
             self.phantom_center,
             self.phantom_radius * 0.79,
-            self.image,
+            self.image.array,
             width_ratio=0.04,
-            ccw=True,
+            ccw=self._is_ccw,
             start_angle=np.deg2rad(start_angle_deg),
         )
         circle.ground()
         circle.filter(size=0.01)
+        circle.invert()
         return circle
-
-    @staticmethod
-    def run_demo() -> None:
-        """Run the Leeds TOR phantom analysis demonstration."""
-        leeds = LeedsTOR.from_demo_image()
-        leeds.analyze()
-        leeds.plot_analyzed_image()
-
-    def _preprocess(self) -> None:
-        if self._is_counter_clockwise():
-            self._flip_image_data()
-
-    def _check_inversion(self) -> None:
-        self.image.check_inversion_by_histogram()
-
-    def _flip_image_data(self) -> None:
-        """Flip the image left->right and invert the center, and angle as appropriate.
-
-        Sometimes the Leeds phantom is set upside down on the imaging panel. Pylinac's
-        analysis goes counter-clockwise, so this method flips the image and coordinates to
-        make the image ccw. Quicker than flipping the image and reanalyzing.
-        """
-        self.image.array = np.fliplr(self.image.array)
-        new_x = self.image.shape[1] - self.phantom_center.x
-        self._phantom_center = Point(new_x, self.phantom_center.y)
 
 
 class DoselabMC2kV(ImagePhantomBase):
@@ -1100,13 +1035,16 @@ class DoselabMC2kV(ImagePhantomBase):
     detection_conditions = [is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 0.55, 'height ratio': 0.63}}
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.14, 'angle': 36, 'roi radius': 0.02},
+        'roi 1': {'distance from center': 0.27, 'angle': 48.5, 'roi radius': 0.025},
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 0.265, 'angle': 48, 'roi radius': 0.025},
-        'roi 2': {'distance from center': 0.215, 'angle': 64.5, 'roi radius': 0.025},
-        'roi 3': {'distance from center': 0.19, 'angle': 89, 'roi radius': 0.025},
-        'roi 4': {'distance from center': 0.205, 'angle': 113, 'roi radius': 0.025},
+        'roi 1': {'distance from center': 0.27, 'angle': -48.5, 'roi radius': 0.025},
+        'roi 2': {'distance from center': 0.225, 'angle': -65, 'roi radius': 0.025},
+        'roi 3': {'distance from center': 0.205, 'angle': -88.5, 'roi radius': 0.025},
+        'roi 4': {'distance from center': 0.22, 'angle': -110, 'roi radius': 0.025},
+        'roi 5': {'distance from center': 0.22, 'angle': 110, 'roi radius': 0.025},
+        'roi 6': {'distance from center': 0.205, 'angle': 88.5, 'roi radius': 0.025},
+        'roi 7': {'distance from center': 0.225, 'angle': 65, 'roi radius': 0.025},
     }
     high_contrast_roi_settings = {
         'roi 1': {'distance from center': 0.17, 'angle': -20, 'roi radius': 0.013, 'lp/mm': 0.6},
@@ -1121,10 +1059,6 @@ class DoselabMC2kV(ImagePhantomBase):
         leeds = DoselabMC2kV.from_demo_image()
         leeds.analyze()
         leeds.plot_analyzed_image()
-
-    def _phantom_center_calc(self) -> Point:
-        roi = self.phantom_ski_region
-        return Point(roi.centroid[1], roi.centroid[0])
 
     def _phantom_radius_calc(self) -> float:
         return self.phantom_ski_region.major_axis_length
@@ -1141,13 +1075,16 @@ class DoselabMC2MV(DoselabMC2kV):
     common_name = 'Doselab MC2 MV'
     _demo_filename = 'Doselab_MV.dcm'
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.14, 'angle': -138, 'roi radius': 0.02},
+        'roi 1': {'distance from center': 0.27, 'angle': 48.5, 'roi radius': 0.025},
     }
     low_contrast_roi_settings = {
         'roi 1': {'distance from center': 0.27, 'angle': -48.5, 'roi radius': 0.025},
         'roi 2': {'distance from center': 0.225, 'angle': -65, 'roi radius': 0.025},
         'roi 3': {'distance from center': 0.205, 'angle': -88.5, 'roi radius': 0.025},
         'roi 4': {'distance from center': 0.22, 'angle': -110, 'roi radius': 0.025},
+        'roi 5': {'distance from center': 0.22, 'angle': 110, 'roi radius': 0.025},
+        'roi 6': {'distance from center': 0.205, 'angle': 88.5, 'roi radius': 0.025},
+        'roi 7': {'distance from center': 0.225, 'angle': 65, 'roi radius': 0.025},
     }
     high_contrast_roi_settings = {
         'roi 1': {'distance from center': 0.23, 'angle': -135.3, 'roi radius': 0.012, 'lp/mm': 0.1},

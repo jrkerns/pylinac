@@ -10,21 +10,22 @@ Overview
 .. automodule:: pylinac.planar_imaging
     :no-members:
 
+.. _typical_planar_usage:
 
-Leeds TOR Phantom
------------------
+Typical module usage
+--------------------
 
-The Leeds phantom is used to measure image quality metrics for the kV imager of a linac. It contains both
-high and low contrast ROIs.
+The following snippets can be used with any of the phantoms in this module; they all have the same or very similar
+methods. We will use the LeedsTOR for the example, but plug in any phantom from this module.
 
-Running the Leeds Demo
-^^^^^^^^^^^^^^^^^^^^^^
+Running the Demo
+^^^^^^^^^^^^^^^^
 
-To run the Leeds TOR demo, create a script or start an interpreter session and input:
+To run the demo of any phantom, create a script or start an interpreter session and input:
 
 .. code-block:: python
 
-    from pylinac import LeedsTOR
+    from pylinac import LeedsTOR  # or LasVegas, DoselabMC2kV, etc
 
     LeedsTOR.run_demo()
 
@@ -36,13 +37,6 @@ A figure showing the phantom, low contrast plot, and RMTF will be generated:
     from pylinac import LeedsTOR
     LeedsTOR.run_demo()
 
-Image Acquisition
-^^^^^^^^^^^^^^^^^
-
-You can acquire the images any way you like. Just ensure that the phantom is not touching a field edge. It
-is also recommended by the manufacturer to rotate the phantom to a non-cardinal angle so that pixel aliasing does not occur for the
-high-contrast line pairs.
-
 Typical Use
 ^^^^^^^^^^^
 
@@ -50,7 +44,7 @@ Import the class:
 
 .. code-block:: python
 
-    from pylinac import LeedsTOR
+    from pylinac import LeedsTOR  # or whatever phantom you like from the planar imaging module
 
 The minimum needed to get going is to:
 
@@ -78,6 +72,12 @@ The minimum needed to get going is to:
   .. code-block:: python
 
      leeds.analyze(low_contrast_threshold=0.01, high_contrast_threshold=0.5)
+
+  Additionally, you may specify the SSD of the phantom if it is not at iso (e.g. sitting on the panel):
+
+  .. code-block:: python
+
+     leeds.analyze(..., ssd=1400)
 
 * **View the results** -- The results of analysis can be viewed with the :meth:`~pylinac.planar_imaging.LeedsTOR.plot_analyzed_image`
   method.
@@ -113,6 +113,20 @@ The minimum needed to get going is to:
 
       leeds.publish_pdf('leeds_october16.pdf')
 
+
+Leeds TOR Phantom
+-----------------
+
+The Leeds phantom is used to measure image quality metrics for the kV imager of a linac. It contains both
+high and low contrast ROIs.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+You can acquire the images any way you like. Just ensure that the phantom is not touching a field edge. It
+is also recommended by the manufacturer to rotate the phantom to a non-cardinal angle so that pixel aliasing does not occur for the
+high-contrast line pairs.
+
 Algorithm
 ^^^^^^^^^
 
@@ -136,6 +150,7 @@ The algorithm works like such:
 * The phantom must not be touching or close to any image edges.
 * The blades should be fully or mostly open to correctly invert the image. This may not result in a complete failure,
   but you may have to force-invert the analysis if this case isn't true (i.e. ``myleeds.analyze(invert=True)``).
+* The phantom should be centered near the CAX (<1-2cm).
 
 **Pre-Analysis**
 
@@ -194,6 +209,19 @@ When analyzed, the angle is 180 degrees opposite the lead square, causing the RO
 flipped 180 degrees. To correct this problem, pass ``invert=True`` to :meth:`~pylinac.planar_imaging.LeedsTOR.analyze`.
 This will force pylinac to invert the image the opposite way and correctly identify the lead square.
 
+Another common problem is an offset analysis, as shown below:
+
+.. image:: images/leeds_offset_inverted.png
+
+This is caused by a wrong inversion.
+
+.. note::
+
+    If the image flash is dark, then the image inversion is very likely wrong.
+
+Again, pass ``invert=True`` to the ``analyze`` method. This is the same image but with invert=True:
+
+.. image:: images/leeds_offset_corrected.png
 
 Standard Imaging QC-3 Phantom
 -----------------------------
@@ -201,97 +229,14 @@ Standard Imaging QC-3 Phantom
 The Standard Imaging phantom is an MV imaging quality assurance phantom and has high and low contrast regions,
 just as the Leeds phantom, but with different geometric configurations.
 
-Running the StandardImagingQC3 Demo
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To run the Standard Imaging demo, create a script or start an interpreter session and input:
-
-.. code-block:: python
-
-    from pylinac import StandardImagingQC3
-
-    StandardImagingQC3.run_demo()
-
-A figure showing the phantom, low contrast plot, and RMTF will be generated:
-
-.. plot::
-    :include-source: false
-
-    import pylinac
-    pylinac.StandardImagingQC3.run_demo()
-
-.. _pipspro_image_acquisition:
+.. _qc3_image_acquisition:
 
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
 
 The Standard Imaging phantom has a specific setup as recommended by the manufacturer. The phantom should be angled 45
 degrees, with the "1" pointed toward the gantry stand and centered along the CAX. For best results when using pylinac,
-open the jaws to fully cover the EPID.
-
-Typical Use
-^^^^^^^^^^^
-
-Import the class:
-
-.. code-block:: python
-
-    from pylinac import StandardImagingQC3
-
-The minimum needed to get going is to:
-
-* **Load image** -- Load the planar image as you would any other class: by passing the path directly to the constructor:
-
-  .. code-block:: python
-
-      qc3 = StandardImagingQC3('path/to/qc3.dcm')
-
-  Alternatively, a URL can be passed:
-
-  .. code-block:: python
-
-      qc3 = StandardImagingQC3.from_url('http://myserver.com/myQC3image.dcm')
-
-  You may also use the demo image:
-
-  .. code-block:: python
-
-      qc3 = StandardImagingQC3.from_demo_image()
-
-* **Analyze the images** -- Analyze the image using the :meth:`~pylinac.planar_imaging.StandardImagingQC3.analyze` method. The
-  low and high contrast thresholds can be specified:
-
-  .. code-block:: python
-
-      qc3.analyze(low_contrast_threshold=0.01, high_contrast_threshold=0.5)
-
-* **View the results** -- The results of analysis can be viewed with the :meth:`~pylinac.planar_imaging.StandardImagingQC3.plot_analyzed_image`
-  method. Note that each subimage can be turned on or off.:
-
-  .. code-block:: python
-
-      # don't show the low contrast plot
-      qc3.plot_analyzed_image(low_contrast=False)
-
-  .. plot::
-      :include-source: false
-
-      import pylinac
-      qc = pylinac.StandardImagingQC3.from_demo_image()
-      qc.analyze(low_contrast_threshold=0.01, high_contrast_threshold=0.5)
-      qc.plot_analyzed_image(low_contrast=False)
-
-  The figure can also be saved:
-
-  .. code-block:: python
-
-      qc3.save_analyzed_image('myqc3.png')
-
-  A PDF report can also be generated:
-
-  .. code-block:: python
-
-      qc3.publish_pdf('myqc3-june.pdf')
+open the jaws to fully cover the EPID, or at least give 1-2cm flash around the phantom edges.
 
 Algorithm
 ^^^^^^^^^
@@ -302,15 +247,16 @@ The algorithm works like such:
 
 * The images can be acquired at any SID.
 * The images can be acquired with any EPID.
-* The phantom can be somewhat offset from the ideal 45 degree orientation.
+* The images can be acquired with the phantom at any SSD.
 
 **Restrictions**
 
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
+* The phantom must be at 45 degrees.
 * The phantom must not be touching any image edges.
 * The phantom should have the "1" pointing toward the gantry stand.
-* The phantom should be at 100cm or 140cm.
+* The phantom should be centered near the CAX (<1-2cm).
 
 **Pre-Analysis**
 
@@ -338,7 +284,7 @@ Troubleshooting
 ^^^^^^^^^^^^^^^
 
 If you're having issues with the StandardImaging class, make sure you have correctly positioned the phantom as per
-the manufacturer's instructions (also see :ref:`pipspro_image_acquisition`). One issue that may arise is incorrect
+the manufacturer's instructions (also see :ref:`qc3_image_acquisition`). One issue that may arise is incorrect
 inversion. If the jaws are closed tightly around the phantom, the automatic inversion correction may falsely
 invert the image, just as for the Leeds phantom. If you have an image that looks inverted or just plain weird, add ``invert=True``
 to :meth:`~pylinac.planar_imaging.StandardImagingQC3.analyze`. If this doesn't help, reshoot the phantom with the jaws open.
@@ -349,25 +295,6 @@ Las Vegas Phantom
 
 The Las Vegas phantom is for MV image quality testing and includes low contrast regions of varying contrast and size.
 
-Running the LasVegas Demo
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To run the Las Vegas demo, create a script or start an interpreter session and input:
-
-.. code-block:: python
-
-    from pylinac import LasVegas
-
-    LasVegas.run_demo()
-
-A figure showing the phantom and low contrast plot will be generated:
-
-.. plot::
-    :include-source: false
-
-    import pylinac
-    pylinac.LasVegas.run_demo()
-
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
 
@@ -375,72 +302,6 @@ The Las Vegas phantom has a recommended position as stated on the phantom. Pylin
 shifts, and inversions. Best practices for the Las Vegas phantom:
 
 * Keep the phantom from a couch edge or any rails.
-* Close the jaws around the phantom (i.e. not 30x30cm)
-* Place the phantom at approximately 100cm SSD.
-
-Typical Use
-^^^^^^^^^^^
-
-Import the class:
-
-.. code-block:: python
-
-    from pylinac import LasVegas
-
-The minimum needed to get going is to:
-
-* **Load image** -- Load the planar image as you would any other class: by passing the path directly to the constructor:
-
-  .. code-block:: python
-
-      lv = LasVegas('path/to/lasvegasphan.dcm')
-
-  Alternatively, a URL can be passed:
-
-  .. code-block:: python
-
-      lv = LasVegas.from_url('http://myserver.com/myLVimage.dcm')
-
-  You may also use the demo image:
-
-  .. code-block:: python
-
-      lv = LasVegas.from_demo_image()
-
-* **Analyze the images** -- Analyze the image using the :meth:`~pylinac.planar_imaging.LasVegas.analyze` method. The
-  low and high contrast thresholds can be specified:
-
-  .. code-block:: python
-
-      lv.analyze(low_contrast_threshold=0.01)
-
-* **View the results** -- The results of analysis can be viewed with the :meth:`~pylinac.planar_imaging.LasVegas.plot_analyzed_image`
-  method. Note that each subimage can be turned on or off:
-
-  .. code-block:: python
-
-      # don't show the low contrast plot
-      lv.plot_analyzed_image(low_contrast=False)
-
-  .. plot::
-      :include-source: false
-
-      import pylinac
-      lv = pylinac.LasVegas.from_demo_image()
-      lv.analyze(low_contrast_threshold=0.01)
-      lv.plot_analyzed_image(low_contrast=False)
-
-  The figure can also be saved:
-
-  .. code-block:: python
-
-      lv.save_analyzed_image('mylvplot.png')
-
-  A PDF report can also be generated:
-
-  .. code-block:: python
-
-      lv.publish_pdf('lv-3-10-17.pdf')
 
 Algorithm
 ^^^^^^^^^
@@ -457,7 +318,8 @@ The algorithm works like such:
     .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching any image edges.
-* The phantom should be at 0, 90, 180, or 270 degrees relative to the EPID.
+* The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
+* The phantom should be centered near the CAX (<1-2cm).
 
 **Pre-Analysis**
 
@@ -481,27 +343,8 @@ The algorithm works like such:
 Doselab MC2 MV & kV
 -------------------
 
-The Doselab MC2 phantom is for kV & MV image quality testing and includes low and high contrast regions of varying contrast.
-
-Running the Doselab MC2 Demo
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To run the MC2 demo, create a script or start an interpreter session and input:
-
-.. code-block:: python
-
-    from pylinac import DoselabMC2MV, DoselabMC2kV
-
-    DoselabMC2MV.run_demo()
-    DoselabMC2kV.run_demo()  # kv works the same
-
-A figure showing the phantom and contrast ROIs and graphs will be generated:
-
-.. plot::
-    :include-source: false
-
-    import pylinac
-    pylinac.DoselabMC2MV.run_demo()
+The Doselab MC2 phantom is for both kV & MV image quality testing and includes low and high contrast regions of varying contrast.
+There are two high contrast sections, one intended for kV and one for MV.
 
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
@@ -510,65 +353,7 @@ The Doselab phantom has a recommended position as stated on the phantom. Pylinac
 shifts and inversions. Best practices for the Doselab phantom:
 
 * Keep the phantom from a couch edge or any rails.
-* Close the jaws around the phantom (i.e. not 30x30cm)
-* Place the phantom at approximately isocenter.
-
-Typical Use
-^^^^^^^^^^^
-
-Import the class:
-
-.. code-block:: python
-
-    from pylinac import DoselabMC2MV, DoselabMC2kV
-
-For the following examples the kV and MV class can be used interchangeably.
-The minimum needed to get going is to:
-
-* **Load image** -- Load the planar image as you would any other class: by passing the path directly to the constructor:
-
-  .. code-block:: python
-
-      dl = DoselabMC2MV('path/to/doselabmv_phan.dcm')
-
-  Alternatively, a URL can be passed:
-
-  .. code-block:: python
-
-      dl = DoselabMC2MV.from_url('http://myserver.com/myDLimage.dcm')
-
-  You may also use the demo image:
-
-  .. code-block:: python
-
-      dl = DoselabMC2MV.from_demo_image()
-
-* **Analyze the images** -- Analyze the image using the :meth:`~pylinac.planar_imaging.DoselabMC2MV.analyze` method. The
-  low and high contrast thresholds can be specified:
-
-  .. code-block:: python
-
-      dl.analyze(low_contrast_threshold=0.01, high_contrast_threshold=0.4)
-
-* **View the results** -- The results of analysis can be viewed with the :meth:`~pylinac.planar_imaging.DoselabMC2MV.plot_analyzed_image`
-  method. Note that each subimage can be turned on or off:
-
-  .. code-block:: python
-
-      # don't show the low contrast plot
-      dl.plot_analyzed_image(low_contrast=False, high_contrast=False)
-
-  The figure can also be saved:
-
-  .. code-block:: python
-
-      dl.save_analyzed_image('mydlplot.png')
-
-  A PDF report can also be generated:
-
-  .. code-block:: python
-
-      dl.publish_pdf('dl-3-10-17.pdf')
+* Center the phantom along the CAX.
 
 Algorithm
 ^^^^^^^^^
@@ -586,6 +371,7 @@ The algorithm works like such:
 
 * The phantom must not be touching any image edges.
 * The phantom should be at 45 degrees relative to the EPID.
+* The phantom should be centered near the CAX (<1-2cm).
 
 
 Creating a custom phantom
@@ -651,7 +437,23 @@ phantoms:
         The exact values of your ROIs will need to be empirically determined. This usually involves an iterative process of
         adjusting the values until the values are satisfactory based on the ROI sample alignment to the actual ROIs.
 
-5. Optionally, add a phantom outline object. This helps visualize the algorithm's determination of the size, center, and angle.
+5. Set the "detection conditions", which is the list of rules that must be true to properly detect the phantom ROI.
+   E.g. the phantom should be near the center of the image.
+   Detection conditions must always have a specific signature as shown below:
+
+    .. code-block:: python
+
+        def my_special_detection_condition(region: RegionProperties, instance: object, rtol: float) -> bool:
+            # region is a scikit regionprop (https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.regionprops)
+            # instance == self of the phantom
+            # rtol is relative tolerance of agreement. Don't have to use this.
+            do_stuff  # e.g. is the region size and position correct?
+            return bool(result)  # must always return a boolean
+
+        class CustomPhantom(ImagePhantomBase):
+            detection_conditions = [my_special_detection_condition,]  # list of conditions; add as many as you want.
+
+6. Optionally, add a phantom outline object. This helps visualize the algorithm's determination of the size, center, and angle.
    If no object is defined, then no outline will be shown. This step is optional.
 
     .. code-block:: python
@@ -682,6 +484,7 @@ found most useful is to use an edge detection algorithm and find the outline of 
             def _phantom_angle_calc(self) -> float:
                 # do stuff in here to return a float that represents the angle of the phantom.
                 # Again, this value does not have to correspond to reality; it simply offsets the ROIs.
+                # You may also return a constant if you like for any of these.
 
 Congratulations! You now have a fully-functioning custom phantom. By using the base class and the predefined attributes
 and methods, the plotting and PDF report functionality comes for free.
@@ -747,6 +550,24 @@ Get/View the contrast of a low-contrast ROI
     leeds.analyze(...)
     print(leeds.low_contrast_rois[1].contrast)  # get the 2nd ROI contrast value
 
+Loosen the ROI finding conditions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If for some reason you have a need to loosen the existing phantom-finding algorithm conditions you can
+do so fairly easily by overloading the current tooling:
+
+.. code-block:: python
+
+    from pylinac.planar_imaging import is_right_size, is_centered, LeedsTOR
+
+    def is_right_size_loose(region, instance, rtol=0.3):  # rtol default is 0.1
+        return is_right_size(region, instance, rtol)
+
+    # set the new condition for whatever
+    LeedsTOR.detection_conditions = [is_right_size_loose, is_centered]
+    # proceed as normal
+    myleeds = LeedsTOR(...)
+
 API Documentation
 -----------------
 
@@ -756,6 +577,9 @@ API Documentation
 .. autoclass:: pylinac.planar_imaging.StandardImagingQC3
     :inherited-members:
 
+.. autoclass:: pylinac.planar_imaging.StandardImagingQCkV
+    :inherited-members:
+
 .. autoclass:: pylinac.planar_imaging.LasVegas
     :inherited-members:
 
@@ -763,4 +587,13 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.DoselabMC2kV
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.SNCMV
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.SNCkV
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.PTWEPIDQC
     :inherited-members:
