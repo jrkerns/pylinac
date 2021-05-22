@@ -18,37 +18,38 @@ Features:
   such information in the DICOM tags. E.g. "myWL_gantry45_coll0_couch315.dcm".
 """
 import dataclasses
-from dataclasses import dataclass
-from itertools import zip_longest
+import enum
 import io
 import math
 import os.path as osp
-from typing import Union, List, Tuple, Optional, BinaryIO
+from dataclasses import dataclass
+from itertools import zip_longest
 from textwrap import wrap
+from typing import Union, List, Tuple, Optional, BinaryIO, Iterable
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage, optimize, linalg
 from skimage import measure
+from skimage.measure._regionprops import RegionProperties
 
-from .core import image
+from .core import image, pdf
 from .core.decorators import lru_cache
 from .core.geometry import Point, Line, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import bounding_box
-from .core import pdf
-from .core.utilities import is_close, open_path, ResultBase
+from .core.utilities import is_close, open_path, ResultBase, convert_to_enum
 
-GANTRY = 'Gantry'
-COLLIMATOR = 'Collimator'
-COUCH = 'Couch'
-GB_COMBO = 'GB Combo'
-GBP_COMBO = 'GBP Combo'
-EPID = 'Epid'
-REFERENCE = 'Reference'
-MIN_BB_SIZE = 2
-MAX_BB_SIZE = 10
+
+class Axis(enum.Enum):
+    GANTRY = 'Gantry'  #:
+    COLLIMATOR = 'Collimator'  #:
+    COUCH = 'Couch'  #:
+    GB_COMBO = 'GB Combo'  #:
+    GBP_COMBO = 'GBP Combo'  #:
+    EPID = 'Epid'  #:
+    REFERENCE = 'Reference'  #:
 
 
 @dataclass
@@ -109,7 +110,7 @@ class ImageManager(list):
 
 class WinstonLutz:
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
-    images: ImageManager
+    images: ImageManager  #:
 
     def __init__(self, directory: str, use_filenames: bool = False):
         """
@@ -120,30 +121,9 @@ class WinstonLutz:
         use_filenames: bool
             Whether to try to use the file name to determine axis values.
             Useful for Elekta machines that do not include that info in the DICOM data.
-
-        Examples
-        --------
-        Run the demo:
-
-            >>> WinstonLutz.run_demo()
-
-        Load a directory with Winston-Lutz EPID images::
-
-            >>> wl = WinstonLutz('path/to/directory')
-
-        Load from a zip file::
-
-            >>> wl = WinstonLutz.from_zip('path/to/images.zip')
-
-        Or use the demo images provided::
-
-            >>> wl = WinstonLutz.from_demo_images()
-
-        Attributes
-        ----------
-        images : :class:`~pylinac.winston_lutz.ImageManager` instance
         """
         self.images = ImageManager(directory, use_filenames)
+        self._is_analyzed = False
 
     @classmethod
     def from_demo_images(cls):
@@ -152,7 +132,7 @@ class WinstonLutz:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_zip(cls, zfile: Union[str, BinaryIO], use_filenames: bool=False):
+    def from_zip(cls, zfile: Union[str, BinaryIO], use_filenames: bool = False):
         """Instantiate from a zip file rather than a directory.
 
         Parameters
@@ -186,13 +166,26 @@ class WinstonLutz:
     def run_demo():
         """Run the Winston-Lutz demo, which loads the demo files, prints results, and plots a summary image."""
         wl = WinstonLutz.from_demo_images()
+        wl.analyze()
         print(wl.results())
         wl.plot_summary()
 
+    def analyze(self, bb_size_mm: float = 5):
+        """Analyze the WL images.
+
+        Parameters
+        ----------
+        bb_size_mm
+            The expected size of the BB in mm.
+        """
+        for img in self.images:
+            img.process(bb_size_mm)
+        self._is_analyzed = True
+
     @lru_cache()
-    def _minimize_axis(self, axes=(GANTRY,)):
+    def _minimize_axis(self, axes: Union[Axis, Tuple[Axis, ...]] = (Axis.GANTRY,)):
         """Return the minimization result of the given axis."""
-        if isinstance(axes, str):
+        if isinstance(axes, Axis):
             axes = (axes,)
 
         def max_distance_to_lines(p, lines) -> float:
@@ -200,7 +193,7 @@ class WinstonLutz:
             point = Point(p[0], p[1], p[2])
             return max(line.distance_to(point) for line in lines)
 
-        things = [image.cax_line_projection for image in self.images if image.variable_axis in (axes + (REFERENCE,))]
+        things = [image.cax_line_projection for image in self.images if image.variable_axis in (axes + (Axis.REFERENCE,))]
         if len(things) <= 1:
             raise ValueError("Not enough images of the given type to identify the axis isocenter")
         initial_guess = np.array([0, 0, 0])
@@ -212,9 +205,9 @@ class WinstonLutz:
     def gantry_iso_size(self) -> float:
         """The diameter of the 3D gantry isocenter size in mm. Only images where the collimator
         and couch were at 0 are used to determine this value."""
-        num_gantry_like_images = self._get_images((GANTRY, REFERENCE))[0]
+        num_gantry_like_images = self._get_images((Axis.GANTRY, Axis.REFERENCE))[0]
         if num_gantry_like_images > 1:
-            return self._minimize_axis(GANTRY).fun * 2
+            return self._minimize_axis(Axis.GANTRY).fun * 2
         else:
             return 0
 
@@ -222,9 +215,9 @@ class WinstonLutz:
     def gantry_coll_iso_size(self) -> float:
         """The diameter of the 3D gantry isocenter size in mm *including collimator and gantry/coll combo images*.
         Images where the couch!=0 are excluded."""
-        num_gantry_like_images = self._get_images((GANTRY, COLLIMATOR, GB_COMBO, REFERENCE))[0]
+        num_gantry_like_images = self._get_images((Axis.GANTRY, Axis.COLLIMATOR, Axis.GB_COMBO, Axis.REFERENCE))[0]
         if num_gantry_like_images > 1:
-            return self._minimize_axis((GANTRY, COLLIMATOR, GB_COMBO)).fun * 2
+            return self._minimize_axis((Axis.GANTRY, Axis.COLLIMATOR, Axis.GB_COMBO)).fun * 2
         else:
             return 0
 
@@ -243,7 +236,7 @@ class WinstonLutz:
     def collimator_iso_size(self) -> float:
         """The 2D collimator isocenter size (diameter) in mm. The iso size is in the plane
         normal to the gantry."""
-        num_collimator_like_images, images = self._get_images((COLLIMATOR, REFERENCE))
+        num_collimator_like_images, images = self._get_images((Axis.COLLIMATOR, Axis.REFERENCE))
         if num_collimator_like_images > 1:
             return self._find_max_distance_between_points(images)
         else:
@@ -253,7 +246,7 @@ class WinstonLutz:
     def couch_iso_size(self) -> float:
         """The diameter of the 2D couch isocenter size in mm. Only images where
         the gantry and collimator were at zero are used to determine this value."""
-        num_couch_like_images, images = self._get_images((COUCH, REFERENCE))
+        num_couch_like_images, images = self._get_images((Axis.COUCH, Axis.REFERENCE))
         if num_couch_like_images > 1:
             return self._find_max_distance_between_points(images)
         else:
@@ -307,8 +300,8 @@ class WinstonLutz:
             move += f"\nNew couch coordinates (mm): VRT: {new_vrt:3.2f}; LNG: {new_lng:3.2f}; LAT: {new_lat:3.2f}"
         return move
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, EPID, GB_COMBO, GBP_COMBO), value=('all', 'range'))
-    def axis_rms_deviation(self, axis: str=GANTRY, value: str='all') -> Union[list, float]:
+    @argue.options(value=('all', 'range'))
+    def axis_rms_deviation(self, axis: Axis = Axis.GANTRY, value: str = 'all') -> Union[Iterable, float]:
         """The RMS deviations of a given axis/axes.
 
         Parameters
@@ -319,11 +312,12 @@ class WinstonLutz:
             Whether to return all the RMS values from all images for that axis, or only return the maximum range of
             values, i.e. the 'sag'.
         """
-        if axis != EPID:
+        axis = convert_to_enum(axis, Axis)
+        if axis != Axis.EPID:
             attr = 'cax2bb_vector'
         else:
             attr = 'cax2epid_vector'
-            axis = (GANTRY, COLLIMATOR, REFERENCE)
+            axis = (Axis.GANTRY, Axis.COLLIMATOR, Axis.REFERENCE)
         imgs = self._get_images(axis=axis)[1]
         if len(imgs) <= 1:
             return (0, )
@@ -333,7 +327,7 @@ class WinstonLutz:
         return rms
 
     @argue.options(metric=('max', 'median'))
-    def cax2bb_distance(self, metric: str='max') -> float:
+    def cax2bb_distance(self, metric: str = 'max') -> float:
         """The distance in mm between the CAX and BB for all images according to the given metric.
 
         Parameters
@@ -347,7 +341,7 @@ class WinstonLutz:
             return np.median([image.cax2bb_distance for image in self.images])
 
     @argue.options(metric=('max', 'median'))
-    def cax2epid_distance(self, metric: str='max') -> float:
+    def cax2epid_distance(self, metric: str = 'max') -> float:
         """The distance in mm between the CAX and EPID center pixel for all images according to the given metric.
 
         Parameters
@@ -360,28 +354,27 @@ class WinstonLutz:
         elif metric == 'median':
             return np.median([image.cax2epid_distance for image in self.images])
 
-    @argue.options(item=(GANTRY, EPID, COLLIMATOR, COUCH))
-    def _plot_deviation(self, item: str, ax: Optional[plt.Axes]=None, show: bool=True):
+    def _plot_deviation(self, axis: Axis, ax: Optional[plt.Axes] = None, show: bool=True):
         """Helper function: Plot the sag in Cartesian coordinates.
 
         Parameters
         ----------
-        item : {'gantry', 'epid', 'collimator', 'couch'}
+        axis : {'gantry', 'epid', 'collimator', 'couch'}
             The axis to plot.
         ax : None, matplotlib.Axes
             The axis to plot to. If None, creates a new plot.
         show : bool
             Whether to show the image.
         """
-        title = f'In-plane {item} displacement'
-        if item == EPID:
+        title = f'In-plane {axis.value} displacement'
+        if axis == Axis.EPID:
             attr = 'cax2epid_vector'
-            item = GANTRY
+            axis = Axis.GANTRY
         else:
             attr = 'cax2bb_vector'
         # get axis images, angles, and shifts
-        imgs = [image for image in self.images if image.variable_axis in (item, REFERENCE)]
-        angles = [getattr(image, '{}_angle'.format(item.lower())) for image in imgs]
+        imgs = [image for image in self.images if image.variable_axis in (axis, Axis.REFERENCE)]
+        angles = [getattr(image, '{}_angle'.format(axis.value.lower())) for image in imgs]
         xz_sag = np.array([getattr(img, attr).x for img in imgs])
         y_sag = np.array([getattr(img, attr).y for img in imgs])
         rms = np.sqrt(xz_sag**2+y_sag**2)
@@ -394,22 +387,21 @@ class WinstonLutz:
         ax.plot(angles, rms, 'g+', label='RMS', ls='-')
         ax.set_title(title)
         ax.set_ylabel('mm')
-        ax.set_xlabel(f"{item} angle")
+        ax.set_xlabel(f"{axis.value} angle")
         ax.set_xticks(np.arange(0, 361, 45))
-        ax.set_xlim([-15, 375])
+        ax.set_xlim(-15, 375)
         ax.grid(True)
         ax.legend(numpoints=1)
         if show:
             plt.show()
 
-    def _get_images(self, axis: tuple=(GANTRY,)) -> Tuple[float, list]:
-        if isinstance(axis, str):
+    def _get_images(self, axis: Union[Axis, Tuple[Axis, ...]] = (Axis.GANTRY,)) -> Tuple[float, list]:
+        if isinstance(axis, Axis):
             axis = (axis,)
         images = [image for image in self.images if image.variable_axis in axis]
         return len(images), images
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GB_COMBO, GBP_COMBO))
-    def plot_axis_images(self, axis: str=GANTRY, show: bool=True, ax: Optional[plt.Axes]=None):
+    def plot_axis_images(self, axis: Axis = Axis.GANTRY, show: bool = True, ax: Optional[plt.Axes] = None):
         """Plot all CAX/BB/EPID positions for the images of a given axis.
 
         For example, axis='Couch' plots a reference image, and all the BB points of the other
@@ -424,9 +416,10 @@ class WinstonLutz:
         ax : None, matplotlib.Axes
             The axis to plot to. If None, creates a new plot.
         """
-        images = [image for image in self.images if image.variable_axis in (axis, REFERENCE)]
+        axis = convert_to_enum(axis, Axis)
+        images = [image for image in self.images if image.variable_axis in (axis, Axis.REFERENCE)]
         ax = images[0].plot(show=False, ax=ax)  # plots the first marker; plot the rest of the markers below
-        if axis != COUCH:
+        if axis != Axis.COUCH:
             # plot EPID
             epid_xs = [img.epid.x for img in images[1:]]
             epid_ys = [img.epid.y for img in images[1:]]
@@ -442,14 +435,13 @@ class WinstonLutz:
             marker = 'ro'
         ax.plot(xs, ys, marker, ms=8)
         # set labels
-        ax.set_title(axis + ' wobble')
-        ax.set_xlabel(axis + ' positions superimposed')
-        ax.set_ylabel(axis + f" iso size: {getattr(self, axis.lower() + '_iso_size'):3.2f}mm")
+        ax.set_title(axis.value + ' wobble')
+        ax.set_xlabel(axis.value + ' positions superimposed')
+        ax.set_ylabel(axis.value + f" iso size: {getattr(self, axis.value.lower() + '_iso_size'):3.2f}mm")
         if show:
             plt.show()
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GB_COMBO, GBP_COMBO))
-    def plot_images(self, axis: str=GANTRY, show: bool=True):
+    def plot_images(self, axis: Axis = Axis.GANTRY, show: bool = True):
         """Plot a grid of all the images acquired.
 
         Four columns are plotted with the titles showing which axis that column represents.
@@ -460,6 +452,9 @@ class WinstonLutz:
         show : bool
             Whether to show the image.
         """
+        axis = convert_to_enum(axis, Axis)
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
 
         def plot_image(image, axis):
             """Helper function to plot a WLImage to an axis."""
@@ -470,15 +465,15 @@ class WinstonLutz:
                 image.plot(ax=axis, show=False)
 
         # get axis images
-        if axis == GANTRY:
-            images = [image for image in self.images if image.variable_axis in (GANTRY, REFERENCE)]
-        elif axis == COLLIMATOR:
-            images = [image for image in self.images if image.variable_axis in (COLLIMATOR, REFERENCE)]
-        elif axis == COUCH:
-            images = [image for image in self.images if image.variable_axis in (COUCH, REFERENCE)]
-        elif axis == GB_COMBO:
-            images = [image for image in self.images if image.variable_axis in (GB_COMBO, GANTRY, COLLIMATOR, REFERENCE)]
-        elif axis == GBP_COMBO:
+        if axis == Axis.GANTRY:
+            images = [image for image in self.images if image.variable_axis in (Axis.GANTRY, Axis.REFERENCE)]
+        elif axis == Axis.COLLIMATOR:
+            images = [image for image in self.images if image.variable_axis in (Axis.COLLIMATOR, Axis.REFERENCE)]
+        elif axis == Axis.COUCH:
+            images = [image for image in self.images if image.variable_axis in (Axis.COUCH, Axis.REFERENCE)]
+        elif axis == Axis.GB_COMBO:
+            images = [image for image in self.images if image.variable_axis in (Axis.GB_COMBO, Axis.GANTRY, Axis.COLLIMATOR, Axis.REFERENCE)]
+        elif axis == Axis.GBP_COMBO:
             images = self.images
 
         # create plots
@@ -497,48 +492,51 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    @argue.options(axis=(GANTRY, COLLIMATOR, COUCH, GBP_COMBO, GB_COMBO))
-    def save_images(self, filename: str, axis: str=GANTRY, **kwargs):
+    def save_images(self, filename: Union[str, BinaryIO], axis: Axis = Axis.GANTRY, **kwargs):
         """Save the figure of `plot_images()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
         Parameters
         ----------
         filename : str
             The name of the file to save to.
+        axis
+            The axis to save.
         """
         self.plot_images(axis=axis, show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_summary(self, show: bool=True):
+    def plot_summary(self, show: bool = True):
         """Plot a summary figure showing the gantry sag and wobble plots of the three axes."""
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
         plt.figure(figsize=(11, 9))
         grid = (3, 6)
         gantry_sag_ax = plt.subplot2grid(grid, (0, 0), colspan=3)
-        self._plot_deviation(GANTRY, gantry_sag_ax, show=False)
+        self._plot_deviation(Axis.GANTRY, gantry_sag_ax, show=False)
         epid_sag_ax = plt.subplot2grid(grid, (0, 3), colspan=3)
-        self._plot_deviation(EPID, epid_sag_ax, show=False)
-        if self._get_images((COLLIMATOR, REFERENCE))[0] > 1:
+        self._plot_deviation(Axis.EPID, epid_sag_ax, show=False)
+        if self._get_images((Axis.COLLIMATOR, Axis.REFERENCE))[0] > 1:
             coll_sag_ax = plt.subplot2grid(grid, (1, 0), colspan=3)
-            self._plot_deviation(COLLIMATOR, coll_sag_ax, show=False)
-        if self._get_images((COUCH, REFERENCE))[0] > 1:
+            self._plot_deviation(Axis.COLLIMATOR, coll_sag_ax, show=False)
+        if self._get_images((Axis.COUCH, Axis.REFERENCE))[0] > 1:
             couch_sag_ax = plt.subplot2grid(grid, (1, 3), colspan=3)
-            self._plot_deviation(COUCH, couch_sag_ax, show=False)
+            self._plot_deviation(Axis.COUCH, couch_sag_ax, show=False)
 
-        for axis, axnum in zip((GANTRY, COLLIMATOR, COUCH), (0, 2, 4)):
-            if self._get_images((axis, REFERENCE))[0] > 1:
+        for axis, axnum in zip((Axis.GANTRY, Axis.COLLIMATOR, Axis.COUCH), (0, 2, 4)):
+            if self._get_images((axis, Axis.REFERENCE))[0] > 1:
                 ax = plt.subplot2grid(grid, (2, axnum), colspan=2)
                 self.plot_axis_images(axis=axis, ax=ax, show=False)
         if show:
             plt.tight_layout()
             plt.show()
 
-    def save_summary(self, filename: str, **kwargs):
+    def save_summary(self, filename: Union[str, BinaryIO], **kwargs):
         """Save the summary image."""
         self.plot_summary(show=False)
         plt.tight_layout()
         plt.savefig(filename, **kwargs)
 
-    def results(self, as_list: bool=False) -> str:
+    def results(self, as_list: bool = False) -> str:
         """Return the analysis results summary.
 
         Parameters
@@ -546,10 +544,12 @@ class WinstonLutz:
         as_list : bool
             Whether to return as a list of strings vs single string. Pretty much for internal usage.
         """
-        num_gantry_imgs = self._get_images(axis=(GANTRY, REFERENCE))[0]
-        num_gantry_coll_imgs = self._get_images(axis=(GANTRY, COLLIMATOR, GB_COMBO, REFERENCE))[0]
-        num_coll_imgs = self._get_images(axis=(COLLIMATOR, REFERENCE))[0]
-        num_couch_imgs = self._get_images(axis=(COUCH, REFERENCE))[0]
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
+        num_gantry_imgs = self._get_images(axis=(Axis.GANTRY, Axis.REFERENCE))[0]
+        num_gantry_coll_imgs = self._get_images(axis=(Axis.GANTRY, Axis.COLLIMATOR, Axis.GB_COMBO, Axis.REFERENCE))[0]
+        num_coll_imgs = self._get_images(axis=(Axis.COLLIMATOR, Axis.REFERENCE))[0]
+        num_couch_imgs = self._get_images(axis=(Axis.COUCH, Axis.REFERENCE))[0]
         num_imgs = len(self.images)
         result = ["Winston-Lutz Analysis",
                   "=================================",
@@ -558,13 +558,13 @@ class WinstonLutz:
                   f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
                   f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
                   f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm ({num_gantry_imgs}/{num_imgs} images considered)",
-                  f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation(GANTRY)):.2f}mm",
-                  f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(EPID)):.2f}mm",
+                  f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation(Axis.GANTRY)):.2f}mm",
+                  f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(Axis.EPID)):.2f}mm",
                   f"Gantry+Collimator 3D isocenter diameter: {self.gantry_coll_iso_size:.2f}mm ({num_gantry_coll_imgs}/{num_imgs} images considered)",
                   f"Collimator 2D isocenter diameter: {self.collimator_iso_size:.2f}mm ({num_coll_imgs}/{num_imgs} images considered)",
-                  f"Maximum Collimator RMS deviation (mm): {max(self.axis_rms_deviation(COLLIMATOR)):.2f}",
+                  f"Maximum Collimator RMS deviation (mm): {max(self.axis_rms_deviation(Axis.COLLIMATOR)):.2f}",
                   f"Couch 2D isocenter diameter: {self.couch_iso_size:.2f}mm ({num_couch_imgs}/{num_imgs} images considered)",
-                  f"Maximum Couch RMS deviation (mm): {max(self.axis_rms_deviation(COUCH)):.2f}"
+                  f"Maximum Couch RMS deviation (mm): {max(self.axis_rms_deviation(Axis.COUCH)):.2f}"
         ]
         if not as_list:
             result = '\n'.join(result)
@@ -573,10 +573,12 @@ class WinstonLutz:
     def results_data(self, as_dict=False) -> Union[WinstonLutzResult, dict]:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
-        num_gantry_imgs = self._get_images(axis=(GANTRY, REFERENCE))[0]
-        num_gantry_coll_imgs = self._get_images(axis=(GANTRY, COLLIMATOR, GB_COMBO, REFERENCE))[0]
-        num_coll_imgs = self._get_images(axis=(COLLIMATOR, REFERENCE))[0]
-        num_couch_imgs = self._get_images(axis=(COUCH, REFERENCE))[0]
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
+        num_gantry_imgs = self._get_images(axis=(Axis.GANTRY, Axis.REFERENCE))[0]
+        num_gantry_coll_imgs = self._get_images(axis=(Axis.GANTRY, Axis.COLLIMATOR, Axis.GB_COMBO, Axis.REFERENCE))[0]
+        num_coll_imgs = self._get_images(axis=(Axis.COLLIMATOR, Axis.REFERENCE))[0]
+        num_couch_imgs = self._get_images(axis=(Axis.COUCH, Axis.REFERENCE))[0]
 
         data = WinstonLutzResult(
                 num_total_images=len(self.images),
@@ -592,16 +594,17 @@ class WinstonLutz:
                 couch_2d_iso_diameter_mm=self.couch_iso_size,
                 gantry_3d_iso_diameter_mm=self.gantry_iso_size,
                 gantry_coll_3d_iso_diameter_mm=self.gantry_coll_iso_size,
-                max_gantry_rms_deviation_mm=max(self.axis_rms_deviation(axis=GANTRY)),
-                max_coll_rms_deviation_mm=max(self.axis_rms_deviation(axis=COLLIMATOR)),
-                max_couch_rms_deviation_mm=max(self.axis_rms_deviation(axis=COUCH)),
-                max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=EPID)),
+                max_gantry_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.GANTRY)),
+                max_coll_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.COLLIMATOR)),
+                max_couch_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.COUCH)),
+                max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
         )
         if as_dict:
             return dataclasses.asdict(data)
         return data
 
-    def publish_pdf(self, filename: str, notes: Optional[Union[str, List[str]]]=None, open_file: bool=False, metadata: Optional[dict]=None):
+    def publish_pdf(self, filename: str, notes: Optional[Union[str, List[str]]] = None, open_file: bool = False,
+                    metadata: Optional[dict] = None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -621,6 +624,8 @@ class WinstonLutz:
             Unit: TrueBeam
             --------------
         """
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
         plt.ioff()
         title = "Winston-Lutz Analysis"
         canvas = pdf.PylinacCanvas(filename, page_title=title, metadata=metadata)
@@ -634,7 +639,7 @@ class WinstonLutz:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 4))
         # add more pages showing individual axis images
-        for ax in (GANTRY, COLLIMATOR, COUCH, GB_COMBO, GBP_COMBO):
+        for ax in (Axis.GANTRY, Axis.COLLIMATOR, Axis.COUCH, Axis.GB_COMBO, Axis.GBP_COMBO):
             if self._contains_axis_images(ax):
                 canvas.add_new_page()
                 data = io.BytesIO()
@@ -646,7 +651,7 @@ class WinstonLutz:
         if open_file:
             open_path(filename)
 
-    def _contains_axis_images(self, axis: str=GANTRY) -> bool:
+    def _contains_axis_images(self, axis: Axis = Axis.GANTRY) -> bool:
         """Return whether or not the set of WL images contains images pertaining to a given axis"""
         return any(True for image in self.images if image.variable_axis in (axis,))
 
@@ -666,18 +671,21 @@ class WLImage(image.LinacDicomImage):
         """
         super().__init__(file, use_filenames=use_filenames)
         self.file = osp.basename(file)
+
+    def process(self, bb_size: float) -> None:
+        """Analyze the image."""
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
         self._clean_edges()
         self.ground()
         self.normalize()
         self.field_cax, self.rad_field_bounding_box = self._find_field_centroid()
-        self.bb = self._find_bb()
+        self.bb = self._find_bb(bb_size)
 
     def __repr__(self):
         return f"WLImage(G={self.gantry_angle:.1f}, B={self.collimator_angle:.1f}, P={self.couch_angle:.1f})"
 
-    def _clean_edges(self, window_size: int=2) -> None:
+    def _clean_edges(self, window_size: int = 2) -> None:
         """Clean the edges of the image to be near the background level."""
         def has_noise(self, window_size):
             """Helper method to determine if there is spurious signal at any of the image edges.
@@ -724,7 +732,7 @@ class WLImage(image.LinacDicomImage):
         p = Point(x=coords[-1], y=coords[0])
         return p, edges
 
-    def _find_bb(self) -> Point:
+    def _find_bb(self, bb_size: float) -> Point:
         """Find the BB within the radiation field. Iteratively searches for a circle-like object
         by lowering a low-pass threshold value until found.
 
@@ -743,6 +751,9 @@ class WLImage(image.LinacDicomImage):
         while not found:
             try:
                 binary_arr = np.logical_and((max_thresh > self), (self >= lower_thresh))
+                # use below for debugging
+                # plt.imshow(binary_arr)
+                # plt.show()
                 labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
                 roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
                 bw_bb_img = np.where(labeled_arr == np.argsort(roi_sizes)[-3], 1, 0)  # we pick the 3rd largest one because the largest is the background, 2nd is rad field, 3rd is the BB
@@ -751,12 +762,12 @@ class WLImage(image.LinacDicomImage):
 
                 if not is_round(bb_regionprops):
                     raise ValueError
-                if not is_modest_size(bw_bb_img, self.dpmm):
+                if not is_modest_size(bw_bb_img, self.dpmm, bb_size):
                     raise ValueError
                 if not is_symmetric(bw_bb_img):
                     raise ValueError
             except (IndexError, ValueError):
-                max_thresh -= 0.05 * spread
+                max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
                     raise ValueError("Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images.")
             else:
@@ -829,7 +840,7 @@ class WLImage(image.LinacDicomImage):
         """The scalar distance in mm from the CAX to the EPID center pixel"""
         return self.field_cax.distance_to(self.epid) / self.dpmm
 
-    def plot(self, ax=None, show=True, clear_fig=False):
+    def plot(self, ax: Optional[plt.Axes] = None, show: bool = True, clear_fig: bool = False):
         """Plot the image, zoomed-in on the radiation field, along with the detected
         BB location and field CAX location.
 
@@ -863,7 +874,7 @@ class WLImage(image.LinacDicomImage):
         plt.savefig(filename, **kwargs)
 
     @property
-    def variable_axis(self) -> str:
+    def variable_axis(self) -> Axis:
         """The axis that is varying.
 
         There are five types of images:
@@ -878,17 +889,17 @@ class WLImage(image.LinacDicomImage):
         B0 = is_close(self.collimator_angle, [0, 360])
         P0 = is_close(self.couch_angle, [0, 360])
         if G0 and B0 and not P0:
-            return COUCH
+            return Axis.COUCH
         elif G0 and P0 and not B0:
-            return COLLIMATOR
+            return Axis.COLLIMATOR
         elif P0 and B0 and not G0:
-            return GANTRY
+            return Axis.GANTRY
         elif P0 and B0 and G0:
-            return REFERENCE
+            return Axis.REFERENCE
         elif P0:
-            return GB_COMBO
+            return Axis.GB_COMBO
         else:
-            return GBP_COMBO
+            return Axis.GBP_COMBO
 
 
 def is_symmetric(logical_array: np.ndarray) -> bool:
@@ -901,15 +912,19 @@ def is_symmetric(logical_array: np.ndarray) -> bool:
     return True
 
 
-def is_modest_size(logical_array: np.ndarray, dpmm: float) -> bool:
+def is_modest_size(logical_array: np.ndarray, dpmm: float, bb_size: float) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
-    bb_area = np.sum(logical_array / dpmm ** 2)
-    bb_diameter = 2 * np.sqrt(bb_area / np.pi)
-    return MIN_BB_SIZE < bb_diameter < MAX_BB_SIZE
+    bb_area = np.sum(logical_array) / (dpmm ** 2)
+    bb_size = max((bb_size, 2.1))
+    expected_bb_area = np.pi * (bb_size/2)**2
+    larger_bb_area = np.pi * ((bb_size+2)/2)**2
+    smaller_bb_area = np.pi * ((bb_size-2)/2)**2
+    # return bool(np.isclose(bb_area, expected_bb_area, rtol=0.6))
+    return smaller_bb_area < bb_area < larger_bb_area
 
 
-def is_round(rprops) -> bool:
+def is_round(region: RegionProperties) -> bool:
     """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
     expected_fill_ratio = np.pi / 4  # area of a circle inside a square
-    actual_fill_ratio = rprops.filled_area / rprops.bbox_area
+    actual_fill_ratio = region.filled_area / region.bbox_area
     return expected_fill_ratio * 1.2 > actual_fill_ratio > expected_fill_ratio * 0.8

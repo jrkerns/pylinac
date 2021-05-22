@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 import pylinac
 from pylinac import WinstonLutz
-from pylinac.winston_lutz import GANTRY, COLLIMATOR, COUCH, REFERENCE, GB_COMBO, GBP_COMBO, EPID, WinstonLutzResult
+from pylinac.winston_lutz import Axis, WinstonLutzResult
 from pylinac.core.geometry import Vector, vector_is_close
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
 
@@ -31,27 +31,33 @@ class TestWLLoading(LoadingTestBase, TestCase):
             WinstonLutz(r'nonexistant/dir')
 
     def test_load_from_file_object(self):
-        path = osp.join(TEST_DIR, 'perfect_WL_10x4.zip')
+        path = osp.join(TEST_DIR, 'noisy_WL_30x5.zip')
         ref_w = WinstonLutz.from_zip(path)
+        ref_w.analyze()
         with open(path, 'rb') as f:
             w = WinstonLutz.from_zip(f)
+            w.analyze()
         self.assertIsInstance(w, WinstonLutz)
         self.assertEqual(w.gantry_iso_size, ref_w.gantry_iso_size)
 
     def test_load_from_stream(self):
-        path = osp.join(TEST_DIR, 'perfect_WL_10x4.zip')
+        path = osp.join(TEST_DIR, 'noisy_WL_30x5.zip')
         ref_w = WinstonLutz.from_zip(path)
+        ref_w.analyze()
         with open(path, 'rb') as f:
             s = io.BytesIO(f.read())
             w = WinstonLutz.from_zip(s)
+            w.analyze()
         self.assertIsInstance(w, WinstonLutz)
         self.assertEqual(w.gantry_iso_size, ref_w.gantry_iso_size)
+
 
 class GeneralTests(TestCase):
 
     @classmethod
     def setUpClass(cls):
         cls.wl = WinstonLutz.from_demo_images()
+        cls.wl.analyze()
 
     def test_run_demo(self):
         WinstonLutz.run_demo()  # shouldn't raise
@@ -59,13 +65,29 @@ class GeneralTests(TestCase):
     def test_results(self):
         print(self.wl.results())  # shouldn't raise
 
+    def test_not_yet_analyzed(self):
+        wl = WinstonLutz.from_demo_images()
+        with self.assertRaises(ValueError):
+            wl.results()  # not yet analyzed
+
+        with self.assertRaises(ValueError):
+            wl.plot_images()
+
+        with self.assertRaises(ValueError):
+            wl.plot_summary()
+
+    def test_str_or_enum(self):
+        # shouldn't raise
+        self.wl.plot_images('Gantry')
+        self.wl.plot_images(Axis.GANTRY)
+
+        self.wl.plot_axis_images('Gantry')
+        self.wl.plot_axis_images(Axis.GANTRY)
+
     def test_bb_override(self):
-        original_size = copy.copy(pylinac.winston_lutz.MAX_BB_SIZE)
-        pylinac.winston_lutz.MAX_BB_SIZE = 3
         with self.assertRaises(ValueError):
             wl = pylinac.WinstonLutz.from_demo_images()
-        # reset so it doesn't mess up other tests
-        pylinac.winston_lutz.MAX_BB_SIZE = original_size
+            wl.analyze(bb_size_mm=8)
 
     def test_bb_shift_instructions(self):
         move = self.wl.bb_shift_instructions()
@@ -78,7 +100,7 @@ class GeneralTests(TestCase):
     def test_results_data(self):
         data = self.wl.results_data()
         self.assertIsInstance(data, WinstonLutzResult)
-        self.assertEqual(data.num_couch_images, self.wl._get_images(axis=(COUCH, REFERENCE))[0])
+        self.assertEqual(data.num_couch_images, self.wl._get_images(axis=(Axis.COUCH, Axis.REFERENCE))[0])
         self.assertEqual(data.max_2d_cax_to_epid_mm, self.wl.cax2epid_distance('max'))
         self.assertEqual(data.median_2d_cax_to_epid_mm, self.wl.cax2epid_distance('median'))
 
@@ -92,13 +114,14 @@ class TestPublishPDF(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.wl = WinstonLutz.from_demo_images()
+        cls.wl.analyze()
 
     def test_publish_pdf(self):
         # normal publish; shouldn't raise
         with tempfile.TemporaryFile() as t:
             self.wl.publish_pdf(t)
 
-    def test_publish_w_metadat_and_notes(self):
+    def test_publish_w_metadata_and_notes(self):
         with tempfile.TemporaryFile() as t:
             self.wl.publish_pdf(t, notes='stuff', metadata={'Unit': 'TB1'})
 
@@ -107,6 +130,7 @@ class TestPlottingSaving(TestCase):
 
     def setUp(self):
         self.wl = WinstonLutz.from_demo_images()
+        self.wl.analyze()
 
     @classmethod
     def tearDownClass(cls):
@@ -114,11 +138,11 @@ class TestPlottingSaving(TestCase):
 
     def test_plot(self):
         self.wl.plot_images()  # shouldn't raise
-        self.wl.plot_images(axis=GANTRY)
-        self.wl.plot_images(axis=COLLIMATOR)
-        self.wl.plot_images(axis=COUCH)
-        self.wl.plot_images(axis=GB_COMBO)
-        self.wl.plot_images(axis=GBP_COMBO)
+        self.wl.plot_images(axis=Axis.GANTRY)
+        self.wl.plot_images(axis=Axis.COLLIMATOR)
+        self.wl.plot_images(axis=Axis.COUCH)
+        self.wl.plot_images(axis=Axis.GB_COMBO)
+        self.wl.plot_images(axis=Axis.GBP_COMBO)
 
     def test_save(self):
         save_file(self.wl.save_summary)
@@ -128,6 +152,7 @@ class TestPlottingSaving(TestCase):
         # test that analyzing images w/o gantry images doesn't fail
         wl_zip = osp.join(TEST_DIR, 'Naming.zip')
         wl = WinstonLutz.from_zip(wl_zip, use_filenames=True)
+        wl.analyze()
         wl.plot_summary()  # shouldn't raise
 
 
@@ -135,6 +160,7 @@ class WinstonLutzMixin(LocationMixin):
     cloud_dir = 'Winston-Lutz'
     num_images = 0
     zip = True
+    bb_size = 5
     gantry_iso_size = 0
     collimator_iso_size = 0
     couch_iso_size = 0
@@ -142,7 +168,7 @@ class WinstonLutzMixin(LocationMixin):
     cax2bb_median_distance = 0
     epid_deviation = None
     bb_shift_vector = Vector()  # vector to place BB at iso
-    axis_of_rotation = {0: 'Reference'}  # fill with as many {image#: known_axis_of_rotation} pairs as desired
+    axis_of_rotation = {0: Axis.REFERENCE}  # fill with as many {image#: known_axis_of_rotation} pairs as desired
     print_results = False
     use_filenames = False
 
@@ -153,12 +179,13 @@ class WinstonLutzMixin(LocationMixin):
             cls.wl = WinstonLutz.from_zip(filename, use_filenames=cls.use_filenames)
         else:
             cls.wl = WinstonLutz(filename, use_filenames=cls.use_filenames)
+        cls.wl.analyze(bb_size_mm=cls.bb_size)
         if cls.print_results:
             print(cls.wl.results())
             print(cls.wl.bb_shift_vector)
 
     def test_number_of_images(self):
-        self.assertEqual(len(self.wl.images), self.num_images)
+        self.assertEqual(self.num_images, len(self.wl.images))
 
     def test_gantry_iso(self):
         # test iso size
@@ -176,7 +203,7 @@ class WinstonLutzMixin(LocationMixin):
 
     def test_epid_deviation(self):
         if self.epid_deviation is not None:
-            self.assertAlmostEqual(max(self.wl.axis_rms_deviation(EPID)), self.epid_deviation, delta=0.15)
+            self.assertAlmostEqual(max(self.wl.axis_rms_deviation(Axis.EPID)), self.epid_deviation, delta=0.15)
 
     def test_bb_max_distance(self):
         self.assertAlmostEqual(self.wl.cax2bb_distance(metric='max'), self.cax2bb_max_distance, delta=0.15)
@@ -200,18 +227,19 @@ class WLDemo(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.7
     epid_deviation = 1.3
-    axis_of_rotation = {0: 'Reference'}
+    axis_of_rotation = {0: Axis.REFERENCE}
     bb_shift_vector = Vector(x=0.4, y=-0.4, z=-0.2)
 
     @classmethod
     def setUpClass(cls):
         cls.wl = WinstonLutz.from_demo_images()
+        cls.wl.analyze()
 
 
 class WLPerfect30x8(WinstonLutzMixin, TestCase):
     """30x30mm field, 8mm BB"""
     file_path = ['perfect_WL_30x8.zip']
-    num_images = 10
+    num_images = 4
     gantry_iso_size = 0
     collimator_iso_size = 0
     couch_iso_size = 0
@@ -221,10 +249,24 @@ class WLPerfect30x8(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector()
 
 
+class WLPerfect30x2(WinstonLutzMixin, TestCase):
+    """30x30mm field, 2mm BB"""
+    file_path = ['perfect_WL_30x2mm.zip']
+    num_images = 4
+    gantry_iso_size = 0
+    collimator_iso_size = 0
+    couch_iso_size = 0
+    cax2bb_max_distance = 0
+    cax2bb_median_distance = 0
+    epid_deviation = 0
+    bb_shift_vector = Vector()
+    bb_size = 2
+
+
 class WLPerfect10x4(WinstonLutzMixin, TestCase):
     """10x10mm field, 4mm BB"""
     file_path = ['perfect_WL_10x4.zip']
-    num_images = 10
+    num_images = 4
     gantry_iso_size = 0
     collimator_iso_size = 0
     couch_iso_size = 0
@@ -237,7 +279,7 @@ class WLPerfect10x4(WinstonLutzMixin, TestCase):
 class WLNoisy30x5(WinstonLutzMixin, TestCase):
     """30x30mm field, 5mm BB. S&P noise added"""
     file_path = ['noisy_WL_30x5.zip']
-    num_images = 10
+    num_images = 4
     gantry_iso_size = 0.08
     collimator_iso_size = 0
     couch_iso_size = 0
@@ -284,7 +326,7 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
     bb_shift_vector = Vector(x=-0.4, y=0.6, z=0.6)
-    axis_of_rotation = {0: REFERENCE, 1: GANTRY, 2: GANTRY, 3: GANTRY}
+    axis_of_rotation = {0: Axis.REFERENCE, 1: Axis.GANTRY, 2: Axis.GANTRY, 3: Axis.GANTRY}
 
 
 class WLUseFileNames(WinstonLutzMixin, TestCase):
@@ -295,7 +337,7 @@ class WLUseFileNames(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
     bb_shift_vector = Vector(y=0.6)
-    axis_of_rotation = {0: COLLIMATOR, 1: COLLIMATOR, 2: COLLIMATOR, 3: COLLIMATOR}
+    axis_of_rotation = {0: Axis.COLLIMATOR, 1: Axis.COLLIMATOR, 2: Axis.COLLIMATOR, 3: Axis.COLLIMATOR}
 
 
 class WLBadFilenames(TestCase):
@@ -305,3 +347,4 @@ class WLBadFilenames(TestCase):
         wl_dir = osp.join(TEST_DIR, 'Bad-Names.zip')
         with self.assertRaises(ValueError):
             wl = WinstonLutz.from_zip(wl_dir, use_filenames=True)
+            wl.analyze()
