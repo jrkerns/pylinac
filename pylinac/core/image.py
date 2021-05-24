@@ -707,10 +707,12 @@ class DicomImage(BaseImage):
         else:
             self.array = ds.pixel_array.copy()
         # convert values to HU or CU: real_values = slope * raw + intercept
-        is_ct_storage = self.metadata.SOPClassUID.name == 'CT Image Storage'
         has_rescale_tags = hasattr(self.metadata, 'RescaleSlope') and hasattr(self.metadata, 'RescaleIntercept') and hasattr(self.metadata, 'PixelIntensityRelationshipSign')
-        if is_ct_storage or has_rescale_tags:
+        is_ct_storage = self.metadata.SOPClassUID.name == 'CT Image Storage'
+        if has_rescale_tags:
             self.array = ((self.metadata.RescaleSlope*self.array) + self.metadata.RescaleIntercept)*self.metadata.PixelIntensityRelationshipSign
+        elif is_ct_storage:
+            self.array = (self.metadata.RescaleSlope * self.array) + self.metadata.RescaleIntercept
         else:
             # invert it
             orig_array = self.array
