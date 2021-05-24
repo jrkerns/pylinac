@@ -93,14 +93,14 @@ class ImageManager(list):
         if isinstance(directory, list):
             for file in directory:
                 if is_dicom_image(file):
-                    img = WLImage(file, use_filenames)
+                    img = WinstonLutz2D(file, use_filenames)
                     self.append(img)
         elif not osp.isdir(directory):
             raise ValueError("Invalid directory passed. Check the correct method and file was used.")
         else:
             image_files = image.retrieve_image_files(directory)
             for file in image_files:
-                img = WLImage(file, use_filenames)
+                img = WinstonLutz2D(file, use_filenames)
                 self.append(img)
         if len(self) < 2:
             raise ValueError("<2 valid WL images were found in the folder/file. Ensure you chose the correct folder/file for analysis")
@@ -176,10 +176,10 @@ class WinstonLutz:
         Parameters
         ----------
         bb_size_mm
-            The expected size of the BB in mm.
+            The expected size of the BB in mm. The actual size of the BB can be +/-2mm from the passed value.
         """
         for img in self.images:
-            img.process(bb_size_mm)
+            img.analyze(bb_size_mm)
         self._is_analyzed = True
 
     @lru_cache()
@@ -656,10 +656,10 @@ class WinstonLutz:
         return any(True for image in self.images if image.variable_axis in (axis,))
 
 
-class WLImage(image.LinacDicomImage):
+class WinstonLutz2D(image.LinacDicomImage):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
-    def __init__(self, file: str, use_filenames: bool):
+    def __init__(self, file: str, use_filenames: bool = False):
         """
         Parameters
         ----------
@@ -672,7 +672,7 @@ class WLImage(image.LinacDicomImage):
         super().__init__(file, use_filenames=use_filenames)
         self.file = osp.basename(file)
 
-    def process(self, bb_size: float) -> None:
+    def analyze(self, bb_size_mm: float = 5) -> None:
         """Analyze the image."""
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
@@ -680,7 +680,7 @@ class WLImage(image.LinacDicomImage):
         self.ground()
         self.normalize()
         self.field_cax, self.rad_field_bounding_box = self._find_field_centroid()
-        self.bb = self._find_bb(bb_size)
+        self.bb = self._find_bb(bb_size_mm)
 
     def __repr__(self):
         return f"WLImage(G={self.gantry_angle:.1f}, B={self.collimator_angle:.1f}, P={self.couch_angle:.1f})"
