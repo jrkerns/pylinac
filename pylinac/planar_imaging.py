@@ -18,11 +18,10 @@ Features:
 * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
   as you see fit.
 """
-import copy
 import dataclasses
+import io
 import warnings
 from dataclasses import dataclass
-import io
 from typing import Optional, List, Tuple, Union, BinaryIO, Callable
 
 import matplotlib.pyplot as plt
@@ -31,16 +30,14 @@ from cached_property import cached_property
 from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
+from .core import image, pdf, geometry
 from .core.decorators import lru_cache
-from .core.mtf import MTF
-from .core.utilities import open_path, ResultBase
-from .core import image
 from .core.geometry import Point, Rectangle, Circle
 from .core.io import get_url, retrieve_demo_file
+from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile
-from .core.roi import LowContrastDiskROI, HighContrastDiskROI, bbox_center
-from .core import pdf
-from .core import geometry
+from .core.roi import LowContrastDiskROI, HighContrastDiskROI, bbox_center, Contrast
+from .core.utilities import open_path, ResultBase
 
 
 @dataclass
@@ -191,8 +188,11 @@ class ImagePhantomBase:
 
         return regions[phantom_idx]
 
-    def analyze(self, low_contrast_threshold: float=0.05, high_contrast_threshold: float=0.5, invert: bool=False, angle_override: Optional[float]=None,
-                center_override: Optional[tuple]=None, size_override: Optional[float]=None, ssd: float = 1000) -> None:
+    def analyze(self, low_contrast_threshold: float = 0.05, high_contrast_threshold: float = 0.5, invert: bool = False,
+                angle_override: Optional[float] = None,
+                center_override: Optional[tuple] = None, size_override: Optional[float] = None,
+                ssd: float = 1000, low_contrast_method: Contrast = Contrast.MICHELSON,
+                visibility_threshold: float = 100) -> None:
         """Analyze the phantom using the provided thresholds and settings.
 
         Parameters
@@ -225,12 +225,18 @@ class ImagePhantomBase:
                  This value is not necessarily the physical size of the phantom. It is an arbitrary value.
         ssd
             The SSD of the phantom itself in mm.
+        low_contrast_method
+            The equation to use for calculating low contrast.
+        visibility_threshold
+            The threshold for whether an ROI is "seen".
         """
         self._angle_override = angle_override
         self._center_override = center_override
         self._size_override = size_override
         self._high_contrast_threshold = high_contrast_threshold
         self._low_contrast_threshold = low_contrast_threshold
+        self._low_contrast_method = low_contrast_method
+        self.visibility_threshold = visibility_threshold
         self._ssd = ssd
         self._check_inversion()
         if invert:
@@ -256,7 +262,9 @@ class ImagePhantomBase:
                                      self.phantom_radius * stng['distance from center'],
                                      self.phantom_center,
                                      self._low_contrast_threshold,
-                                     self.low_contrast_background_value)
+                                     self.low_contrast_background_value,
+                                     contrast_method=self._low_contrast_method,
+                                     visibility_threshold=self.visibility_threshold)
             lc_rois.append(roi)
         return lc_rois
 
@@ -300,20 +308,14 @@ class ImagePhantomBase:
         self.plot_analyzed_image(show=False, **kwargs)
         plt.savefig(filename, **kwargs)
 
-    def _get_canny_regions(self):
+    def _get_canny_regions(self) -> List[RegionProperties]:
         """Compute the canny edges of the image and return the connected regions found."""
-        # copy, filter, and ground the image
-        img_copy = copy.copy(self.image)
-        img_copy.filter(kind='gaussian', size=self.detection_canny_settings['sigma'])
-        img_copy.ground()
-
         # compute the canny edges with very low thresholds (detects nearly everything)
-        lo_th, hi_th = np.percentile(img_copy, self.detection_canny_settings['percentiles'])
-        c = feature.canny(img_copy, low_threshold=lo_th, high_threshold=hi_th)
+        canny_img = feature.canny(self.image, low_threshold=self.detection_canny_settings['percentiles'][0], high_threshold=self.detection_canny_settings['percentiles'][1], use_quantiles=True, sigma=self.detection_canny_settings['sigma'])
 
         # label the canny edge regions
-        labeled = measure.label(c)
-        regions = measure.regionprops(labeled, intensity_image=img_copy)
+        labeled = measure.label(canny_img)
+        regions = measure.regionprops(labeled, intensity_image=self.image)
         return regions
 
     def _create_phantom_outline_object(self) -> Tuple[Union[Rectangle, Circle], dict]:
@@ -339,7 +341,8 @@ class ImagePhantomBase:
             raise ValueError("An outline object was passed but was not a Circle or Rectangle.")
         return obj, settings
 
-    def plot_analyzed_image(self, image: bool=True, low_contrast: bool=True, high_contrast: bool=True, show: bool=True):
+    def plot_analyzed_image(self, image: bool = True, low_contrast: bool = True, high_contrast: bool = True,
+                            show: bool = True):
         """Plot the analyzed image.
 
         Parameters
@@ -376,10 +379,10 @@ class ImagePhantomBase:
             # plot the outline image
             if self.phantom_outline_object is not None:
                 outline_obj, settings = self._create_phantom_outline_object()
-                outline_obj.plot2axes(img_ax, edgecolor='g', **settings)
+                outline_obj.plot2axes(img_ax, edgecolor='b', **settings)
             # plot the low contrast background ROIs
             for roi in self.low_contrast_background_rois:
-                roi.plot2axes(img_ax, edgecolor='g')
+                roi.plot2axes(img_ax, edgecolor='b')
             # plot the low contrast ROIs
             for roi in self.low_contrast_rois:
                 roi.plot2axes(img_ax, edgecolor=roi.plot_color)
@@ -458,7 +461,7 @@ class ImagePhantomBase:
             return dataclasses.asdict(data)
         return data
 
-    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: Optional[dict]=None):
+    def publish_pdf(self, filename: str, notes: str = None, open_file: bool = False, metadata: Optional[dict] = None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -637,11 +640,6 @@ class PTWEPIDQC(ImagePhantomBase):
         'roi 1': {'distance from center': 3.85, 'angle': -148, 'roi radius': 0.3},
     }
 
-    # def _check_inversion(self):
-        # pass
-        # self.image.check_inversion_by_histogram()
-        # self.image.check_inversion()
-
     @staticmethod
     def run_demo() -> None:
         """Run the Standard Imaging QC-3 phantom analysis demonstration."""
@@ -720,6 +718,7 @@ class StandardImagingQC3(ImagePhantomBase):
         """
         return self.phantom_ski_region.major_axis_length / 14
 
+    @lru_cache()
     def _phantom_angle_calc(self) -> float:
         """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
         which angles the phantom at 45 degrees.
@@ -729,7 +728,13 @@ class StandardImagingQC3(ImagePhantomBase):
         angle : float
             The angle in degrees.
         """
-        return 45.0
+        angle = np.degrees(self.phantom_ski_region.orientation)
+        if np.isclose(angle, 45, atol=5):
+            return 45
+        elif np.isclose(angle, -45, atol=5):
+            return -45
+        else:
+            raise ValueError("The phantom angle was not near +/-45 degrees. Please adjust the phantom.")
 
 
 class StandardImagingQCkV(StandardImagingQC3):

@@ -1,4 +1,5 @@
-
+import enum
+import warnings
 from typing import Union, Tuple, Optional
 
 import numpy as np
@@ -10,7 +11,6 @@ from skimage.measure._regionprops import _RegionProperties
 
 from .decorators import lru_cache
 from .geometry import Circle, Point, Rectangle
-from .typing import NumberLike
 
 
 def bbox_center(region: _RegionProperties) -> Point:
@@ -29,6 +29,13 @@ def bbox_center(region: _RegionProperties) -> Point:
     y = abs(bbox[0] - bbox[2]) / 2 + min(bbox[0], bbox[2])
     x = abs(bbox[1] - bbox[3]) / 2 + min(bbox[1], bbox[3])
     return Point(x, y)
+
+
+class Contrast(enum.Enum):
+    """Contrast calculation technique. See :ref:`visibility`"""
+    MICHELSON = "Michelson"  #:
+    WEBER = 'Weber'  #:
+    RATIO = 'Ratio'  #:
 
 
 class DiskROI(Circle):
@@ -105,12 +112,13 @@ class LowContrastDiskROI(DiskROI):
     """A class for analyzing the low-contrast disks."""
     contrast_threshold: Optional[float]
     cnr_threshold: Optional[float]
-    background: Optional[float]
+    contrast_reference: Optional[float]
 
     def __init__(self, array: np.ndarray, angle: float, roi_radius: float, dist_from_center: float,
                  phantom_center: Union[tuple, Point], contrast_threshold: Optional[float] = None,
-                 background: Optional[float] = None,
-                 cnr_threshold: Optional[float] = None):
+                 contrast_reference: Optional[float] = None,
+                 cnr_threshold: Optional[float] = None,
+                 contrast_method: Contrast = Contrast.MICHELSON, visibility_threshold: Optional[float] = 0.1):
         """
         Parameters
         ----------
@@ -120,32 +128,59 @@ class LowContrastDiskROI(DiskROI):
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.contrast_threshold = contrast_threshold
         self.cnr_threshold = cnr_threshold
-        self.background = background
+        self.contrast_reference = contrast_reference
+        self.contrast_method = contrast_method
+        self.visibility_threshold = visibility_threshold
+
+    @property
+    def signal_to_noise(self) -> float:
+        """The signal to noise ratio."""
+        return self.pixel_value / self.std
 
     @property
     def contrast_to_noise(self) -> float:
-        """The contrast to noise ratio of the bubble: (Signal - Background)/Stdev."""
-        return abs(self.pixel_value - self.background) / self.std
+        """The contrast to noise ratio of the ROI"""
+        return self.contrast / self.std
 
     @property
     def contrast(self) -> float:
-        """The contrast of the bubble compared to background: (ROI - backg) / (ROI + backg)."""
-        return abs((self.pixel_value - self.background) / (self.pixel_value + self.background))
+        """The contrast of the bubble. Uses the contrast method passed in the constructor. See https://en.wikipedia.org/wiki/Contrast_(vision)."""
+        if self.contrast_method == Contrast.MICHELSON:
+            return abs((self.pixel_value - self.contrast_reference) / (self.pixel_value + self.contrast_reference))
+        elif self.contrast_method == Contrast.WEBER:
+            return abs(self.pixel_value - self.contrast_reference) / self.contrast_reference
+        elif self.contrast_method == Contrast.RATIO:
+            return self.pixel_value/self.contrast_reference
 
     @property
     def cnr_constant(self) -> float:
         """The contrast-to-noise value times the bubble diameter."""
+        warnings.warn("This property will be deprecated in a future release. Use .visibility instead.")
         return self.contrast_to_noise * self.diameter
+
+    @property
+    def visibility(self):
+        """The visual perception of CNR. Uses the model from A Rose: https://www.osapublishing.org/josa/abstract.cfm?uri=josa-38-2-196.
+        See also here: https://howradiologyworks.com/x-ray-cnr/.
+        Finally, a review paper here: http://xrm.phys.northwestern.edu/research/pdf_papers/1999/burgess_josaa_1999.pdf
+        Importantly, the Rose model is not applicable for high-contrast use cases."""
+        return self.contrast * np.sqrt(self.radius**2 * np.pi) / self.std
 
     @property
     def contrast_constant(self) -> float:
         """The contrast value times the bubble diameter."""
+        warnings.warn("This property will be deprecated in a future release. Use .visibility instead.")
         return self.contrast * self.diameter
 
     @property
     def passed(self) -> bool:
         """Whether the disk ROI contrast passed."""
         return self.contrast > self.contrast_threshold
+
+    @property
+    def passed_visibility(self) -> bool:
+        """Whether the disk ROI's visibility passed."""
+        return self.visibility > self.visibility_threshold
 
     @property
     def passed_contrast_constant(self) -> bool:
@@ -160,12 +195,12 @@ class LowContrastDiskROI(DiskROI):
     @property
     def plot_color(self) -> str:
         """Return one of two colors depending on if ROI passed."""
-        return 'blue' if self.passed else 'red'
+        return 'green' if self.passed_visibility else 'red'
 
     @property
     def plot_color_constant(self) -> str:
         """Return one of two colors depending on if ROI passed."""
-        return 'blue' if self.passed_contrast_constant else 'red'
+        return 'green' if self.passed_contrast_constant else 'red'
 
     @property
     def plot_color_cnr(self) -> str:

@@ -34,7 +34,7 @@ from .core.image import DicomImageStack
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, SingleProfile, Interpolation
-from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI
+from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI, Contrast
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
@@ -58,7 +58,6 @@ class ROIResult:
     Use the following attributes as normal class attributes."""
     name: str  #:
     value: float  #:
-    cnr: float  #:
     difference: float  #:
     nominal_value: float  #:
     passed: bool  #:
@@ -134,7 +133,7 @@ class CatphanResult(ResultBase):
     ctp515: Optional[CTP515Result] = None  #:
 
 
-class HUDiskROI(DiskROI):
+class HUDiskROI(LowContrastDiskROI):
     """An HU ROI object. Represents a circular area measuring either HU sample (Air, Poly, ...)
     or HU uniformity (bottom, left, ...).
     """
@@ -155,13 +154,6 @@ class HUDiskROI(DiskROI):
         self.tolerance = tolerance
         self.background_mean = background_mean
         self.background_std = background_std
-
-    @property
-    def cnr(self) -> float:
-        """The contrast-to-noise value of the HU disk"""
-        if self.background_mean is None or self.background_std is None:
-            return None
-        return 2*abs(self.pixel_value - self.background_mean) / (self.std + self.background_std)
 
     @property
     def value_diff(self) -> float:
@@ -832,8 +824,10 @@ class CTP515(CatPhanModule):
     background_roi_radius_mm = 4
     WINDOW_SIZE = 50
 
-    def __init__(self, catphan, tolerance: float, cnr_threshold: float, offset: int):
+    def __init__(self, catphan, tolerance: float, cnr_threshold: float, offset: int, contrast_method: Contrast, visibility_threshold: float):
         self.cnr_threshold = cnr_threshold
+        self.contrast_method = contrast_method
+        self.visibility_threshold = visibility_threshold
         super().__init__(catphan, tolerance=tolerance, offset=offset)
 
     def _setup_rois(self):
@@ -850,15 +844,13 @@ class CTP515(CatPhanModule):
             background_val = np.mean([self.background_rois[name+'-outer'].pixel_value, self.background_rois[name+'-inner'].pixel_value])
 
             self.rois[name] = LowContrastDiskROI(self.image, setting['angle_corrected'], setting['radius_pixels'], setting['distance_pixels'],
-                                                 self.phan_center, background=background_val, cnr_threshold=self.cnr_threshold)
-
-    def plot_rois(self, axis: plt.Axes, threshold: str='constant'):
-        super().plot_rois(axis, threshold)
+                                                 self.phan_center, contrast_reference=background_val, cnr_threshold=self.cnr_threshold,
+                                                 contrast_method=self.contrast_method, visibility_threshold=self.visibility_threshold)
 
     @property
     def rois_visible(self) -> int:
         """The number of ROIs "visible"."""
-        return sum(roi.passed_cnr_constant for roi in self.rois.values())
+        return sum(roi.passed_visibility for roi in self.rois.values())
 
     @property
     def lower_window(self) -> float:
@@ -1291,7 +1283,8 @@ class CatPhanBase:
                 pass
 
     def analyze(self, hu_tolerance: Union[int, float]=40, scaling_tolerance: Union[int, float]=1, thickness_tolerance: Union[int, float]=0.2,
-                low_contrast_tolerance: Union[int, float]=1, cnr_threshold: Union[int, float]=15, zip_after: bool=False):
+                low_contrast_tolerance: Union[int, float]=1, cnr_threshold: Union[int, float]=15, zip_after: bool=False,
+                contrast_method: Contrast = Contrast.MICHELSON, visibility_threshold: float = 0.1):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -1325,7 +1318,7 @@ class CatPhanBase:
         if self._has_module(CTP515):
             ctp515, offset = self._get_module(CTP515)
             self.ctp515 = ctp515(self, tolerance=low_contrast_tolerance, cnr_threshold=cnr_threshold,
-                                 offset=offset)
+                                 offset=offset, contrast_method=contrast_method, visibility_threshold=visibility_threshold)
         if zip_after and not self.was_from_zip:
             self._zip_images()
 
@@ -1369,7 +1362,6 @@ class CatPhanBase:
         The default return type is a dataclass."""
         hu_rois = [ROIResult(name=name,
                              value=roi.pixel_value,
-                             cnr=roi.cnr,
                              difference=roi.value_diff,
                              nominal_value=roi.nominal_val,
                              passed=roi.passed
