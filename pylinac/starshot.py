@@ -582,7 +582,7 @@ class StarProfile(CollapsedCircleProfile):
         self.filter(size=0.003, kind='gaussian')
         self.ground()
         if fwhm:
-            self.find_fwxm_peaks(x=80, threshold=min_peak_height, min_distance=min_peak_distance)
+            self.find_fwxm_peaks(threshold=min_peak_height, min_distance=min_peak_distance)
         else:
             self.find_peaks(min_peak_height, min_peak_distance)
 

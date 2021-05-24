@@ -1,5 +1,5 @@
 import copy
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Type
 import os.path as osp
 
 from .layers import FilteredFieldLayer, FilterFreeFieldLayer, Layer, PerfectBBLayer
@@ -24,7 +24,7 @@ def generate_picketfence(simulator: Simulator, field_layer: Union[FilterFreeFiel
     simulator.generate_dicom(file_out, gantry_angle=gantry_angle)
 
 
-def generate_winstonlutz(simulator: Simulator, field_layer: Layer, dir_out: str, field_size_mm=(30, 30),
+def generate_winstonlutz(simulator: Simulator, field_layer: Type[Layer], dir_out: str, field_size_mm=(30, 30),
                          final_layers: List[Layer]=None, bb_size_mm=5, offset_mm_left=0, offset_mm_up=0, offset_mm_in=0,
                          image_axes: List[Tuple[int, int, int]]=[(0, 0, 0), (90, 0, 0), (180, 0, 0), (270, 0, 0)],
                          gantry_tilt=0, gantry_sag=0) -> List[str]:
@@ -40,7 +40,7 @@ def generate_winstonlutz(simulator: Simulator, field_layer: Layer, dir_out: str,
         sim_single = copy.copy(simulator)
         sim_single.add_layer(field_layer(field_size_mm=field_size_mm, cax_offset_mm=(gantry_tilt*cos(gantry), gantry_sag*sin(gantry))))
         sim_single.add_layer(PerfectBBLayer(cax_offset_mm=(-offset_mm_in,
-                                                           -offset_mm_left*cos(gantry)-offset_mm_up*sin(gantry))))
+                                                           -offset_mm_left*cos(gantry)-offset_mm_up*sin(gantry)), bb_size_mm=bb_size_mm))
         if final_layers is not None:
             for layer in final_layers:
                 sim_single.add_layer(layer)

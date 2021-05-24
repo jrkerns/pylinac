@@ -26,24 +26,22 @@ import csv
 import enum
 import gc
 import itertools
-from io import BytesIO, BufferedReader
 import multiprocessing
 import os
 import os.path as osp
 import shutil
+from io import BytesIO, BufferedReader
 from typing import Union, List, Optional, Tuple, Iterable, Sequence, BinaryIO
 
 import argue
 import matplotlib.pyplot as plt
-from cached_property import cached_property
 import numpy as np
+from cached_property import cached_property
 
+from .core import image, io, pdf
 from .core.decorators import lru_cache
-from .settings import get_array_cmap
-from .core import image
-from .core import io
-from .core import pdf
 from .core.utilities import is_iterable, decode_binary, Structure, open_path, convert_to_enum
+from .settings import get_array_cmap
 
 
 class TreatmentType(enum.Enum):
@@ -1786,7 +1784,7 @@ class Dynalog(LogBase):
         return num_holds
 
     @classmethod
-    def from_demo(cls, exclude_beam_off: bool=True):
+    def from_demo(cls, exclude_beam_off: bool = True):
         """Load and instantiate from the demo dynalog file included with the package."""
         demo_file = io.retrieve_demo_file(url='AQA.dlg')
         io.retrieve_demo_file(url='BQA.dlg')  # also download "B" dynalog
@@ -1799,7 +1797,7 @@ class Dynalog(LogBase):
         dlog.report_basic_parameters()
         dlog.plot_summary()
 
-    def publish_pdf(self, filename: str, notes: str=None, metadata: dict=None, open_file: bool=False):
+    def publish_pdf(self, filename: str, notes: str = None, metadata: dict = None, open_file: bool = False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -1852,7 +1850,7 @@ class Dynalog(LogBase):
             open_path(filename)
 
     @staticmethod
-    def identify_other_file(first_dlg_file: str, raise_find_error: bool=True) -> str:
+    def identify_other_file(first_dlg_file: str, raise_find_error: bool = True) -> str:
         """Return the filename of the corresponding dynalog file.
 
         For example, if the A*.dlg file was passed in, return the corresponding B*.dlg filename.
@@ -2023,7 +2021,7 @@ class TrajectoryLog(LogBase):
     """
     ANON_LINE = 0
 
-    def __init__(self, filename: str, exclude_beam_off: bool=True):
+    def __init__(self, filename: Union[str, BinaryIO], exclude_beam_off: bool = True):
         super().__init__(filename, exclude_beam_off)
 
         self._read_txt_file()
@@ -2148,7 +2146,8 @@ class TrajectoryLog(LogBase):
         print("CSV file written to: " + filename)
         return filename
 
-    def publish_pdf(self, filename: str, metadata: dict=None, notes: Union[str, list]=None, open_file: bool=False):
+    def publish_pdf(self, filename: Union[str, BinaryIO], metadata: dict = None, notes: Union[str, list] = None,
+                    open_file: bool = False):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -2215,7 +2214,7 @@ class TrajectoryLog(LogBase):
         return self.header.mlc_model == 3
 
 
-def anonymize(source: str, inplace: bool=False, destination: bool=None, recursive: bool=True):
+def anonymize(source: str, inplace: bool = False, destination: bool = None, recursive: bool = True):
     """Quickly anonymize an individual log or directory of logs.
     For directories, threaded execution is performed, making this much faster (10-20x) than loading a ``MachineLogs``
     instance of the folder and using the ``.anonymize()`` method.
@@ -2296,7 +2295,7 @@ def load_log(file_or_dir: str, exclude_beam_off: bool = True, recursive: bool = 
     else:
         raise NotALogError(f"'{file_or_dir}' did not point to a valid file, directory, or ZIP archive")
 
- 
+
 def is_log(filename: str) -> bool:
     """Boolean specifying if filename is a valid log file."""
     return is_tlog(filename) or is_dlog(filename)

@@ -737,8 +737,7 @@ class MultiProfile(ProfileMixin):
 
         return valley_idxs, self.values[valley_idxs]
 
-    @argue.bounds(x=(0, 100))
-    def find_fwxm_peaks(self, x: int = 50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
+    def find_fwxm_peaks(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
                         max_number: int = None, search_region: Tuple=(0.0, 1.0), peak_sort: str = 'prominences', required_prominence=None) -> Tuple[np.ndarray, np.ndarray]:
         """Find peaks using the center of the FWXM (rather than by max value).
 
@@ -871,11 +870,10 @@ class CircleProfile(MultiProfile, Circle):
         self._map_peaks()
         return valley_idxs, valley_vals
 
-    @argue.bounds(x=(0, 100))
-    def find_fwxm_peaks(self, x: int=50, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
+    def find_fwxm_peaks(self, threshold: Union[float, int]=0.3, min_distance: Union[float, int]=0.05,
                         max_number: int=None, search_region: Tuple[float, float]=(0.0, 1.0)) -> Tuple[np.ndarray, np.ndarray]:
         """Overloads Profile to also map the peak locations to the image."""
-        peak_idxs, peak_vals = super().find_fwxm_peaks(x, threshold, min_distance, max_number,
+        peak_idxs, peak_vals = super().find_fwxm_peaks(threshold, min_distance, max_number,
                                                        search_region=search_region)
         self._map_peaks()
         return peak_idxs, peak_vals
