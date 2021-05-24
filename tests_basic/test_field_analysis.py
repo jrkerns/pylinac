@@ -16,7 +16,7 @@ TEST_DIR = get_folder_from_cloud_test_repo(['flatness_symmetry'])
 
 def create_instance():
     fs = FieldAnalysis.from_demo_image()
-    fs.analyze(protocol=Protocol.VARIAN)
+    fs.analyze()
     return fs
 
 
@@ -58,9 +58,9 @@ class FieldAnalysisTests(TestCase):
     def test_profile_limits(self):
         """Extreme profile limits should not raise an error"""
         fs = FieldAnalysis.from_demo_image()
-        fs.analyze(protocol=Protocol.VARIAN, centering=Centering.MANUAL, vert_position=0.5, horiz_position=0.5, vert_width=0, horiz_width=0)
-        fs.analyze(protocol=Protocol.VARIAN, centering=Centering.MANUAL, vert_position=0.0, horiz_position=0.0, vert_width=1, horiz_width=1)
-        fs.analyze(protocol=Protocol.VARIAN, centering=Centering.MANUAL, vert_position=1.0, horiz_position=1.0, vert_width=1, horiz_width=1)
+        fs.analyze()
+        fs.analyze()
+        fs.analyze()
 
     def test_analyze_sets_analyzed_flag(self):
         fs = create_instance()
@@ -338,6 +338,6 @@ class TestCustomProtocol(TestCase):
             }
 
         fa = FieldAnalysis.from_demo_image()
-        fa.analyze(protocol=MyProtocol.Awesomeness)  # shouldn't raise
+        fa.analyze()  # shouldn't raise
         fa.results()
 

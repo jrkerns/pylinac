@@ -198,7 +198,7 @@ class GeneralTests(Demo, TestCase):
 
     def test_fails_with_tight_tol(self):
         star = Starshot.from_demo_image()
-        star.analyze(tolerance=0.1)
+        star.analyze()
         self.assertFalse(star.passed)
 
     def test_bad_inputs_still_recovers(self):

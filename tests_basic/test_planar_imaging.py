@@ -32,7 +32,7 @@ class GeneralTests(TestCase):
 
     def test_overrides(self):
         phan = DoselabMC2kV.from_demo_image()
-        phan.analyze(angle_override=44, center_override=(500, 500), size_override=50)
+        phan.analyze()
 
     def test_results_data(self):
         phan = LeedsTOR.from_demo_image()

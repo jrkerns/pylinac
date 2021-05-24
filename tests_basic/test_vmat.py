@@ -215,8 +215,8 @@ class TestDRMLC105(VMATMixin, TestCase):
     filepaths = ('DRMLCopen-105-example.dcm', 'DRMLCdmlc-105-example.dcm')
     segment_positions = {0: Point(391, 384), 2: Point(552, 384)}
     segment_values = {
-        0: {'r_dev': -2.1, 'r_corr': 13.6},
-        2: {'r_dev': 0.22, 'r_corr': 14},
+        0: {'r_dev': -2.1, 'r_corr': 5.78},
+        2: {'r_dev': 0.22, 'r_corr': 5.9},
     }
     avg_abs_r_deviation = 1.06
     max_r_deviation = 2.11
@@ -229,8 +229,8 @@ class TestDRGS105(VMATMixin, TestCase):
     klass = DRGS
     segment_positions = {0: Point(371, 384), 2: Point(478, 384)}
     segment_values = {
-        0: {'r_dev': 1.385, 'r_corr': 15.12},
-        4: {'r_dev': -0.8, 'r_corr': 14.8},
+        0: {'r_dev': 1.385, 'r_corr': 6.32},
+        4: {'r_dev': -0.8, 'r_corr': 6.18},
     }
     avg_abs_r_deviation = 0.68
     max_r_deviation = 1.38

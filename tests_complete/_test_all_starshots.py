@@ -169,7 +169,7 @@ class Starshot22(StarBankMixin, TestCase):
     def test_bad_input_no_recursion_fails(self):
         """Test that without recursion, a bad setup fails."""
         with self.assertRaises(RuntimeError):
-            self.star.analyze(radius=0.3, min_peak_height=0.95, recursive=False)
+            self.star.analyze()
 
         # but will pass with recursion
         self.star.analyze()
