@@ -18,7 +18,7 @@ class Simulator(ABC):
 
     def add_layer(self, layer: Layer):
         """Add a layer to the image"""
-        self.image = layer.apply(self.image, self.pixel_size / self.mag_factor)
+        self.image = layer.apply(self.image, self.pixel_size, self.mag_factor)
 
     def generate_dicom(self, file_out_name: str, **kwargs):
         """Generate a DICOM file with the constructed image (via add_layer)"""
