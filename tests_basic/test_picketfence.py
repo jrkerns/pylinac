@@ -278,4 +278,4 @@ class MultipleImagesPF(PFTestMixin, TestCase):
         path1 = osp.join(TEST_DIR, 'combo-jaw.dcm')
         path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
         cls.pf = PicketFence.from_multiple_images([path1, path2], stretch_each=True)
-        cls.pf.analyze(,
+        cls.pf.analyze(sag_adjustment=cls.sag_adjustment, orientation=Orientation.LEFT_RIGHT)
