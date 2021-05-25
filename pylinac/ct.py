@@ -133,7 +133,7 @@ class CatphanResult(ResultBase):
     ctp515: Optional[CTP515Result] = None  #:
 
 
-class HUDiskROI(LowContrastDiskROI):
+class HUDiskROI(DiskROI):
     """An HU ROI object. Represents a circular area measuring either HU sample (Air, Poly, ...)
     or HU uniformity (bottom, left, ...).
     """
@@ -152,8 +152,6 @@ class HUDiskROI(LowContrastDiskROI):
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.nominal_val = nominal_value
         self.tolerance = tolerance
-        self.background_mean = background_mean
-        self.background_std = background_std
 
     @property
     def value_diff(self) -> float:
