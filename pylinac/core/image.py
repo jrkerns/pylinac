@@ -397,6 +397,10 @@ class BaseImage:
         """ Flip the image array upside down in-place. Wrapper for np.flipud()"""
         self.array = np.flipud(self.array)
 
+    def fliplr(self) -> None:
+        """ Flip the image array upside down in-place. Wrapper for np.fliplr()"""
+        self.array = np.fliplr(self.array)
+
     def invert(self) -> None:
         """Invert (imcomplement) the image."""
         orig_array = self.array
