@@ -373,6 +373,7 @@ The algorithm works like such:
 * The phantom should be at 45 degrees relative to the EPID.
 * The phantom should be centered near the CAX (<1-2cm).
 
+.. _creating_a_custom_phantom:
 
 Creating a custom phantom
 -------------------------
@@ -489,8 +490,8 @@ found most useful is to use an edge detection algorithm and find the outline of 
 Congratulations! You now have a fully-functioning custom phantom. By using the base class and the predefined attributes
 and methods, the plotting and PDF report functionality comes for free.
 
-Usage tips & tweaks
--------------------
+Usage tips, tweaks, & troubleshooting
+-------------------------------------
 
 Set the SSD of your phantom
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -567,6 +568,18 @@ do so fairly easily by overloading the current tooling:
     LeedsTOR.detection_conditions = [is_right_size_loose, is_centered]
     # proceed as normal
     myleeds = LeedsTOR(...)
+
+Wrong phantom angle
+-------------------
+
+It may sometimes be that the angle of the phantom appears incorrect, or the results appear incorrect. E.g. here
+is a QC-3 phantom:
+
+.. image:: images/bad_qc3.png
+
+The ROIs appear correct, the but the contrast and MTF do not monotonically decrease, indicating a problem. In
+this case, it is because the image acquisition rules were not followed. For the QC-3, the "1" should always point
+toward the gantry, as per the manual. When oriented this way, the results will be correct.
 
 API Documentation
 -----------------

@@ -22,7 +22,7 @@
    field_analysis
    core_modules
    image_generator
-   pylinac_core_hacking
+   topics
    troubleshooting
    contributing
    changelog

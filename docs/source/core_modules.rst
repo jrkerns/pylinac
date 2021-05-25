@@ -1,6 +1,6 @@
-==========================
-Core Modules Documentation
-==========================
+============
+Core Modules
+============
 
 The following is the API documentation for the core modules of pylinac. These can be used
 directly, or as the base for mixin classes or methods.

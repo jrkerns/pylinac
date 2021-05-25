@@ -234,6 +234,7 @@ in addition to the algorithm allowances and restrictions:
 
 * Keep your pickets away from the edges. That is, in the direction parallel to leaf motion keep the pickets at least 1-2cm from the edge.
 * If you use wide-gap pickets, try to make the spacing between pickets wider than the picket gaps. E.g. 1cm picket widths should use 2cm or more spacing between pickets.
+  This is due to the automatic inversion of the images.
 * If you use Y-jaws, leave them open 1-2 leaves more than the leaves you want to measure. For example. if you're just analyze the "central"
   leaves and set Y-jaws to something like +/-20cm, the leaves at the edge may not be caught by the algorithm
   (although see the ``edge_threshold`` parameter of ``analyze``). To avoid having to tweak the algorithm, just open the jaws a bit more.
@@ -280,6 +281,26 @@ not be centered exactly on the MLC leaves. If you want to correct for this, simp
 
     pf = PicketFence(r'C:/path/saggyPF.dcm')
     pf.analyze(sag_adjustment=0.6)
+
+Edge leaves
+^^^^^^^^^^^
+
+For some images, the leaves at the edge of the image or adjacent to the jaws may not be detected. See the image below:
+
+.. image:: images/pf_not_catching_edges.png
+
+This is caused by the algorithm filtering and can be changed through an analysis parameter. Increase the number to catch more
+edge leaves:
+
+.. code-block:: python
+
+    pf = PicketFence(...)
+    pf.analyze(..., edge_threshold=3)
+    ...
+
+This results with the edge leaves now being caught in this case. You may need to experiment with this number a few times:
+
+.. image:: images/pf_now_catching_edges.png
 
 Algorithm
 ---------
@@ -371,6 +392,8 @@ analysis, there are a few things you can do.
 * **Set the image inversion** - If you get an error like this: ``ValueError: max() arg is an empty sequence``,
   one issue may be that the image has the wrong inversion (negative values are positive, etc). Set the analyze flag ``invert``
   to ``True`` to invert the image from the automatic detection.
+  Additionally, if you're using wide pickets, the image inversion could be wrong. If the pickets are wider than the "valleys" between the pickets
+  this will almost always result in a wrong inversion.
 * **Crop the image** - For Elekta images, the 0th column is often an extreme value. For any Elekta image, it is suggested
   to crop the image. You can crop the image like so:
 

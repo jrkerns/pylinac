@@ -8,6 +8,7 @@ v 3.0.0
 
 .. warning:: Version 3.0 contains numerous breaking changes (hence the increment). Review the changelog before upgrading.
 
+
 General
 ^^^^^^^
 
@@ -15,6 +16,14 @@ General
   will return a dataclass or dictionary, which includes pretty much everything in ``results`` as well as metadata (e.g. pylinac
   version). This dictionary will be useful for APIs and referencing certain information that will be more stable across
   versions 🤞. Thanks to `@crcrewso <https://github.com/crcrewso>`_ for the suggestion.
+* Nearly all major modules can now handle file objects and streams (Dynalogs cannot yet). These may be passed as would a disk file path.
+
+  .. code-block:: python
+
+    with open("mystarshot.dcm", 'rb') as f:
+        star = Starshot(f)
+        ...
+
 * Enums have been added in numerous places to mostly replace string options. E.g. for picket fence instead of specifying "up-down"
   as the orientation literally, the user now has the option to pass an Enum:
 
@@ -34,17 +43,47 @@ General
     pf = PicketFence(...)
     pf.analyze(..., orientation='Up-Down')  # specify the orientation via a string. Works the same as above
 
-  Assuming you'd like to use the string version, how do you know the options? Go to the auto-generated documentation
+  Assuming you'd like to use the string version instead of using enums all over, how do you know the options? Go to the auto-generated documentation
   of the enum! =) E.g. :class:`~pylinac.picketfence.Orientation`.
 
   .. note::
         Relying on your IDE is a good idea. A smart one can warn you of incompatible data types.
 
+* The github repo has been "minified" by removing excess demo files and also removing the basic test files. These files are now
+  cloud-hosted and downloaded as needed. This makes ``git clone`` significantly faster since the repo size has been reduced from ~1.6GB to ~60MB.
+  Note that this does not affect the pip package since that package already had most of this excess data removed.
+* Image inversion detection has changed slightly. Some images have proper tags such as rescale slope and intercept. If
+  they do have the tags, they are applied and no inversion is applied. If they do not have the tags, an inversion is then applied. Previously,
+  the tags were applied if they were there, and nothing if not and inversion was ALWAYS applied. This should result in better inversion defaults for images
+  from different machines/platforms and fewer ``invert=True`` additions.
+* A ``CONTRAST`` enum has been added that can be used for low-contrast analysis of planar images and CBCT images. See :ref:`contrast`.
+
+  .. code-block:: python
+
+    from pylinac.core.roi import Contrast
+
+    leeds = LeedsTOR(...)
+    leeds.analyze(..., low_contrast_method = Contrast.WEBER)
+    ...
+
+    ct = CatPhan504(...)
+    ct.analyze(..., contrast_method = Contrast.MICHELSON)
+    ...
+* The algorithm for low contrast contrast constant detection has changed slightly. See :ref:`visibility`. This means the # of detected low-contrast ROIs
+  may change for cbct. You may pass in a contrast technique per above and also a visibility threshold. See the `.analyze` method of the respective class.
+* The contrast-to-noise property of the LowContrastDiskROI now uses contrast/stdev, where contrast is defined/chosen per above.
+
+
+Dependencies
+^^^^^^^^^^^^
+
+A new dependency has been added: ``cached_property``.
+
 
 Field Analysis (previously Flatness/Symmetry)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. warning:: This release introduced numerous breaking changes to this module. Existing code using the ``flatsym`` module will break.
+.. warning:: This release introduced numerous breaking changes to this module. Existing code will break.
 
 * Two classes are now offered: ``FieldAnalysis`` and ``DeviceFieldAnalysis``.
 * Many, many options were added to the :meth:`~pylinac.field_analysis.FieldAnalysis.analyze` method. See below and the documentation page for all the details.
@@ -60,6 +99,10 @@ Field Analysis (previously Flatness/Symmetry)
 * New options for :ref:`centering`, :ref:`normalization`, :ref:`edge`, and :ref:`interpolation` were introduced. Each of these can be
   granularly controlled.
 
+VMAT
+^^^^
+
+* Leveraging the new profile module, the field edge detection has been improved and can detect "wide-gap" or overlapping ROIs more robustly.
 
 Calibration
 ^^^^^^^^^^^
@@ -69,18 +112,67 @@ Calibration
 Winston-Lutz
 ^^^^^^^^^^^^
 
-* `#358 <https://github.com/jrkerns/pylinac/issues/358>`_ The user can now change the size range of the BB expected for WL.
+* The Winston-Lutz analysis has added an ``.analyze`` routine, just like all other major modules.
+* `#358 <https://github.com/jrkerns/pylinac/issues/358>`_ The user can now pass in an expected BB size. This will help analyses with smaller or very large BBs.
+* The ``WLImage`` class has been renamed to ``WinstonLutz2D``. This is to clarify usage as now documentation has been expanded to show using WL with a single image.
+
+.. note::
+
+    **Upgrade Hints**
+
+    * Replace any uses of axis constants (``GANTRY``, ``COLLIMATOR``, etc) with the enum version: ``Axis.GANTRY``, ...
+    * Add a ``<instance>.analyze(...)`` call to each ``WinstonLutz`` instantiation.
+    * Set the BB size if needed. The algorithm has a default of 5mm and is relatively forgiving (+/-2mm),
+      but for very small BBs you should set it lower than the default of 5mm. E.g. ``.analyze(bb_size_mm=3)``
+    * If using ``WLImage``, rename to ``WinstonLutz2D``. Add ``.analyze()`` calls as well as appropriate.
 
 I/O
 ^^^
 
-* An SNC Profiler file parser has been added: :class:`pylinac.core.io.SNCProfiler`.
+* An SNC Profiler file parser has been added: :class:`pylinac.core.io.SNCProfiler`. This can be used standalone,
+  but since the data is not encoded to begin with it's really about handling it as a tool for other modules. Currently,
+  this is being used in the Field Analysis module.
+
+  .. code-block:: python
+
+    from pylinac.core.io import SNCProfiler
+
+    snc = SNCProfiler("path/to/data.prs")
+    snc.data  # ndarray
+    x, y, pos, neg = snc.to_profiles()  # returns SingleProfiles
 
 Planar Imaging
 ^^^^^^^^^^^^^^
 
+* Sun Nuclear kV and MV phantoms have been added to the arsenal.
+* The PTW EPID QC phantom has been added to the arsenal.
+* The Standard Imaging QC-kV1 phantom has been added to the arsenal.
 * `#339 <https://github.com/jrkerns/pylinac/issues/339>`_ The user can now pass an SSD value for their phantoms.
   The default is 1000mm, but if you set it on your panel you can pass something like 1400mm.
+* The phantom-finding algorithm has been refactored to be more extensible. This does not affect normal users, but reduces the amount of duplicate code.
+  It also makes adding new phantoms easier.
+* Generally speaking, the phantoms should all be centered along the CAX. Previously, the phantom could be offset from the CAX.
+  Due to general difficulty in finding the phantom reliably for the majority of clinics, I am enforcing this as a restriction.
+  This shouldn't affect too many people but should make the ROI-finding algorithm better.
+* The low contrast background ROI (i.e. the base level of contrast) has been adjusted for some phantoms (QC-3 and Doselab). Previously, it
+  could either be in a "dark" region, meaning a high-attenuation area, or a "light" region, meaning a low-attenuation area.
+  This has been standardized for all phantoms to be the "light" region. A new doc page for contrast has been added to the
+  online documentation.
+* 3 more high-contrast ROIs have been added to the LeedsTOR to help get rMTFs below 50%.
+* The SI QC-3 analysis will now handle both typical orientations (gantry 0 and 90), where the "1" is pointing toward
+  the gantry. This produces two different angles. The phantom should still be angled at 45 degrees from a cardinal angle.
+
+.. note::
+
+    **Upgrade Hints**
+
+    * If you have defined any custom phantoms, read the new documentation: :ref:`creating_a_custom_phantom`.
+      Your existing code will likely NOT break but the new format is much easier for extensibility.
+    * Evaluate the new contrast values versus your existing ones for the QC3 and Doselab phantoms. Moving forward,
+      the above definition of contrast ROI-picking will be used.
+    * For the LeedsTOR, check the MTF of an existing image. Since adding more high-contrast ROIs, the rMTF may change
+      if you were using a value below the lowest detected value. You do/will get warnings about being below the
+      minimum MTF if you already do so.
 
 Picket Fence
 ^^^^^^^^^^^^
@@ -97,6 +189,20 @@ Overall, most code shouldn't need to change from v2.5. From v2.4 or below, the w
 * A ``fwxm`` parameter has been added to ``analyze``. This is to allow the user to set the FWXM height to use for the MLC kiss profile.
 * A ``results_data`` method has been added. See General above.
 * The colored rectangular overlay has been reduced in size slightly.
+
+CBCT
+^^^^
+
+* The number of ROIs visible has changed. See the General section and :ref:`visibility`.
+* ROI colors for low contrast ROIs that are "seen" have changed from blue to green to match other modules.
+
+.. note::
+
+    **Upgrade Hints**
+
+    * Change/check the contrast method of `.analyze()`.
+    * Change/check the visibility threshold of `.analyze()`.
+    * Verify the # of low contrast ROIs "seen".
 
 v 2.5.0
 -------

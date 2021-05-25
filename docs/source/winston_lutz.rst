@@ -78,7 +78,7 @@ IEC 61217 coordinate space. Colloquial descriptions are as if standing at the fo
 Typical Use
 -----------
 
-Analyzing a Winston-Lutz test is as simple as loading in your images. So, let's import the class:
+Analyzing a Winston-Lutz test is simple. First, let's import the class:
 
 .. code-block:: python
 
@@ -97,7 +97,13 @@ You can also load a ZIP archive with the images in it:
 
     wl = WinstonLutz.from_zip('path/to/wl.zip')
 
-And that's it! Once loaded you can view images, print the results, or publish a PDF report:
+Now, analyze it:
+
+.. code-block:: python
+
+    wl.analyze(bb_size_mm=5)
+
+And that's it! You can now view images, print the results, or publish a PDF report:
 
 .. code-block:: python
 
@@ -170,6 +176,27 @@ Each image can be plotted and otherwise accessed easily:
     # get 2D x/y vector of an image
     wl.images[4].cax2bb_vector  # this is a Vector with a .x and .y attribute. Note that x and y are in respect to the image, not the fixed room coordinates.
 
+Analyzing a single image
+------------------------
+
+You may optionally analyze a single image if that is your preference. Obviously, no 3D computations are performed.
+
+.. note::
+
+   This is the same class used under the hood for the ``WinstonLutz`` images, so any attribute you currently use with something
+   like ``wl.images[2].cax2bb_vector`` will work for the below with a direct call: ``wl2d.cax2bb_vector``.
+
+.. code-block:: python
+
+    from pylinac import WinstonLutz2D
+
+    wl2d = WinstonLutz2D("my/path/...")
+    wl2d.analyze(bb_size_mm=4)  # same as WinstonLutz class
+    wl2d.plot()
+    ...
+
+This class does not have all the methods that ``WinstonLutz`` has for mostly obvious reasons and lower likelihood of being used directly.
+
 Using File Names
 ----------------
 
@@ -205,15 +232,15 @@ Using the filenames within the code is done by passing the ``use_filenames=True`
 Changing BB detection size
 --------------------------
 
-To change the size of BB pylinac is expecting you can override the constants in the module like so:
+To change the size of BB pylinac is expecting you can pass the size to the analyze method:
 
 .. code-block:: python
 
     import pylinac
 
-    # set BB sizes
-    pylinac.winston_lutz.MAX_BB_SIZE = 10  # mm
-    pylinac.winston_lutz.MIN_BB_SIZE = 3  # mm
+    wl = WinstonLutz(...)
+    wl.analyze(bb_size_mm=3)
+    ...
 
 Image types & output definitions
 --------------------------------
