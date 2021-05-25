@@ -944,7 +944,7 @@ class LeedsTOR(ImagePhantomBase):
             The angle in degrees
         """
         start_angle_deg = self._determine_start_angle_for_circle_profile()
-        circle = self._circle_profile_for_phantom_angle(start_angle_deg)
+        circle = self._circle_profile_for_phantom_angle(start_angle_deg, is_ccw=True)
         peak_idx, _ = circle.find_fwxm_peaks(threshold=0.6, max_number=1)
 
         shift_percent = peak_idx[0] / len(circle.values)
@@ -1005,8 +1005,11 @@ class LeedsTOR(ImagePhantomBase):
         _, first_set = circle.find_peaks(search_region=(0.05, 0.45), threshold=0, min_distance=0.025, max_number=9)
         _, second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0, min_distance=0.025, max_number=9)
         self._is_ccw = max(first_set) > max(second_set)
+        if not self._is_ccw:
+            self.image.fliplr()
+            del self.phantom_ski_region  # clear the property to calculate it again since we flipped it
 
-    def _circle_profile_for_phantom_angle(self, start_angle_deg: float) -> CollapsedCircleProfile:
+    def _circle_profile_for_phantom_angle(self, start_angle_deg: float, is_ccw: bool = False) -> CollapsedCircleProfile:
         """Create a circular profile centered at phantom origin
 
         Parameters
@@ -1024,7 +1027,7 @@ class LeedsTOR(ImagePhantomBase):
             self.phantom_radius * 0.79,
             self.image.array,
             width_ratio=0.04,
-            ccw=self._is_ccw,
+            ccw=is_ccw,
             start_angle=np.deg2rad(start_angle_deg),
         )
         circle.ground()
