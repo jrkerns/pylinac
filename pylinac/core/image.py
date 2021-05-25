@@ -699,8 +699,10 @@ class DicomImage(BaseImage):
         self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
         # read a second time to get pixel data
-        if isinstance(path, (BytesIO, BufferedReader)):
+        try:
             path.seek(0)
+        except AttributeError:
+            pass
         ds = retrieve_dicom_file(path)
         if dtype is not None:
             self.array = ds.pixel_array.astype(dtype)
