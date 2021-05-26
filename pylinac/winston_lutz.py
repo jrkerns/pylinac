@@ -53,6 +53,17 @@ class Axis(enum.Enum):
 
 
 @dataclass
+class WinstonLutz2DResult(ResultBase):
+    variable_axis: str  #:
+    cax2epid_vector: Vector  #:
+    cax2epid_distance: float  #:
+    cax2bb_distance: float  #:
+    cax2bb_vector: Vector  #:
+    bb_location: Point  #:
+    field_cax: Point  #:
+
+
+@dataclass
 class WinstonLutzResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -658,6 +669,9 @@ class WinstonLutz:
 
 class WinstonLutz2D(image.LinacDicomImage):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
+    bb: Point
+    field_cax: Point
+    _rad_field_bounding_box: list
 
     def __init__(self, file: str, use_filenames: bool = False):
         """
@@ -671,6 +685,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         """
         super().__init__(file, use_filenames=use_filenames)
         self.file = osp.basename(file)
+        self._is_analyzed = False
 
     def analyze(self, bb_size_mm: float = 5) -> None:
         """Analyze the image."""
@@ -679,8 +694,9 @@ class WinstonLutz2D(image.LinacDicomImage):
         self._clean_edges()
         self.ground()
         self.normalize()
-        self.field_cax, self.rad_field_bounding_box = self._find_field_centroid()
+        self.field_cax, self._rad_field_bounding_box = self._find_field_centroid()
         self.bb = self._find_bb(bb_size_mm)
+        self._is_analyzed = True
 
     def __repr__(self):
         return f"WLImage(G={self.gantry_angle:.1f}, B={self.collimator_angle:.1f}, P={self.couch_angle:.1f})"
@@ -857,8 +873,8 @@ class WinstonLutz2D(image.LinacDicomImage):
         ax.plot(self.field_cax.x, self.field_cax.y, 'gs', ms=8)
         ax.plot(self.bb.x, self.bb.y, 'ro', ms=8)
         ax.plot(self.epid.x, self.epid.y, 'b+', ms=8)
-        ax.set_ylim([self.rad_field_bounding_box[0], self.rad_field_bounding_box[1]])
-        ax.set_xlim([self.rad_field_bounding_box[2], self.rad_field_bounding_box[3]])
+        ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[1]])
+        ax.set_xlim([self._rad_field_bounding_box[2], self._rad_field_bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
         ax.set_title('\n'.join(wrap(self.file, 30)), fontsize=10)
@@ -900,6 +916,25 @@ class WinstonLutz2D(image.LinacDicomImage):
             return Axis.GB_COMBO
         else:
             return Axis.GBP_COMBO
+
+    def results_data(self, as_dict=False) -> Union[WinstonLutz2DResult, dict]:
+        """Present the results data and metadata as a dataclass or dict.
+        The default return type is a dataclass."""
+        if not self._is_analyzed:
+            raise ValueError("The image is not analyzed. Use .analyze() first.")
+
+        data = WinstonLutz2DResult(
+                variable_axis=self.variable_axis.value,
+                cax2bb_vector=self.cax2bb_vector,
+                cax2epid_vector=self.cax2epid_vector,
+                cax2bb_distance=self.cax2bb_distance,
+                cax2epid_distance=self.cax2epid_distance,
+                bb_location=self.bb,
+                field_cax=self.field_cax,
+        )
+        if as_dict:
+            return dataclasses.asdict(data)
+        return data
 
 
 def is_symmetric(logical_array: np.ndarray) -> bool:
