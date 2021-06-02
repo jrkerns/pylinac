@@ -360,6 +360,7 @@ class PylinacGUI(Frame):
                 wl = winston_lutz.WinstonLutz.from_zip(self.wl_file.get())
                 fname = self.wl_file.get().replace('.zip', '.pdf')
             fname = utilities.file_exists(fname)
+            wl.analyze()
             wl.publish_pdf(fname)
             self.wl_pdf.set(fname)
             utilities.open_path(fname)
