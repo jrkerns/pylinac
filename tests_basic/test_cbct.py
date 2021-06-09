@@ -239,7 +239,7 @@ class CatPhanDemo(CatPhanMixin, TestCase):
     unif_values = {'Center': 17, 'Left': 10, 'Right': 0, 'Top': 6, 'Bottom': 6}
     mtf_values = {50: 0.56}
     avg_line_length = 49.92
-    lowcon_visible = 3
+    lowcon_visible = 5
     slice_thickness = 2.5
 
     @classmethod
@@ -293,3 +293,4 @@ class CatPhan604Test(CatPhanMixin, TestCase):
     hu_values = {'Poly': -47, 'Acrylic': 105, 'Delrin': 338, 'Air': -981, 'Teflon': 942, 'PMP': -194, 'LDPE': -105, '50% Bone': 771, '20% Bone': 263}
     unif_values = {'Center': -3, 'Left': 0, 'Right': 0, 'Top': 0, 'Bottom': 0}
     mtf_values = {50: 0.43}
+    lowcon_visible = 3
