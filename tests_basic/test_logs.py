@@ -313,6 +313,7 @@ class TestIndividualLogBase(LocationMixin):
     num_beamholds = 0
     num_moving_leaves = 0
     treatment_type = ''
+    cloud_dir = 'mlc_logs'
     static_axes = []
     moving_axes = []
     leaf_move_status = {'moving': tuple(), 'static': tuple()}
@@ -393,11 +394,12 @@ class TestIndividualTrajectoryLog(TestIndividualLogBase):
 
     def test_subbeam_fluences_unequal_to_cumulative(self):
         # as raised in #154
-        cumulative_fluence = self.log.fluence.actual.calc_map()
-        subbeam_fluences = [subbeam.fluence.actual.calc_map() for subbeam in self.log.subbeams]
-        if len(self.log.subbeams) > 0:
-            for subbeam_fluence in subbeam_fluences:
-                self.assertFalse(np.array_equal(subbeam_fluence, cumulative_fluence))
+        if self.num_subbeams > 1:
+            cumulative_fluence = self.log.fluence.actual.calc_map()
+            subbeam_fluences = [subbeam.fluence.actual.calc_map() for subbeam in self.log.subbeams]
+            if len(self.log.subbeams) > 0:
+                for subbeam_fluence in subbeam_fluences:
+                    self.assertFalse(np.array_equal(subbeam_fluence, cumulative_fluence))
 
     def test_header(self):
         """Test a few header values; depends on log type."""
@@ -419,6 +421,27 @@ class TestIndividualTrajectoryLog(TestIndividualLogBase):
     def test_num_beamholds(self):
         """Test the number of times the beam was held in the log."""
         self.assertEqual(self.log.num_beamholds, self.num_beamholds)
+
+
+class TestTrajectoryLogV4(TestIndividualTrajectoryLog, TestCase):
+    version = 4.0
+    file_path = ['tlogs', 'v4_log.bin']
+    header = 'VOSTL'
+    header_size = 1024
+    sampling_interval = 20
+    num_axes = 16
+    mu_delivered = 100
+    num_snapshots = 506
+    axis_scale = 1
+    num_subbeams = 1
+    treatment_type = TreatmentType.STATIC_IMRT.value
+    is_truncated = 0
+    mlc_model = 2
+    first_subbeam_data = {'gantry_angle': 180, 'collimator_angle': 270, 'jaw_x1': 10, 'jaw_x2': 10, 'jaw_y1': 10, 'jaw_y2': 10}
+    plan_name = '4DC Treatment'
+
+    def test_metadata(self):
+        self.assertEqual(self.log.header.metadata.plan_name, self.plan_name)
 
 
 class TestIndividualDynalog(TestIndividualLogBase):

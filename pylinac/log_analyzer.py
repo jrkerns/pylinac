@@ -8,7 +8,7 @@ info, and which info is analyzed is up to the user.
 
 Features:
 
-* **Analyze Dynalogs or Trajectory logs** - Either platform is supported. Tlog versions 2.1 and 3.0 are supported.
+* **Analyze Dynalogs or Trajectory logs** - Either platform is supported. Tlog versions 2.1, 3.0, and 4.0 are supported.
 * **Read in both .bin and .txt Trajectory log files** - Read in the machine data from both .bin and .txt files to get all the information recorded.
   See the :attr:`~pylinac.log_analyzer.MachineLog.txt` attribute.
 * **Save Trajectory log data to CSV** - The Trajectory log binary data format does not allow for easy export of data. Pylinac lets you do
@@ -77,7 +77,7 @@ class Graph(enum.Enum):
 class MachineLogs(list):
     """Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
 
-    def __init__(self, folder: str, recursive: bool=True):
+    def __init__(self, folder: str, recursive: bool = True):
         """
         Parameters
         ----------
@@ -132,7 +132,7 @@ class MachineLogs(list):
         """The number of Trajectory logs currently loaded."""
         return sum(isinstance(log, Dynalog) for log in self)
 
-    def load_folder(self, directory: str, recursive: bool=True):
+    def load_folder(self, directory: str, recursive: bool = True):
         """Load log files from a directory and append to existing list.
 
         Parameters
@@ -175,7 +175,7 @@ class MachineLogs(list):
         print(f"Average gamma: {self.avg_gamma():3.2f}")
         print(f"Average gamma pass percent: {self.avg_gamma_pct():3.1f}")
 
-    def append(self, obj, recursive: bool=True):
+    def append(self, obj, recursive: bool = True) -> None:
         """Append a log. Overloads list method.
 
         Parameters
@@ -200,7 +200,8 @@ class MachineLogs(list):
         else:
             raise TypeError("Can only append MachineLog or string pointing to a log or log directory.")
 
-    def avg_gamma(self, doseTA: Union[int, float]=1, distTA: Union[int, float]=1, threshold: Union[int, float]=0.1, resolution: Union[int, float]=0.1) -> float:
+    def avg_gamma(self, doseTA: Union[int, float] = 1, distTA: Union[int, float] = 1,
+                  threshold: Union[int, float] = 0.1, resolution: Union[int, float] = 0.1) -> float:
         """Calculate and return the average gamma of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
@@ -213,7 +214,8 @@ class MachineLogs(list):
         print('')
         return gamma_list.mean()
 
-    def avg_gamma_pct(self, doseTA: Union[int, float]=1, distTA: Union[int, float]=1, threshold: Union[int, float]=0.1, resolution: Union[int, float]=0.1) -> float:
+    def avg_gamma_pct(self, doseTA: Union[int, float] = 1, distTA: Union[int, float] = 1,
+                      threshold: Union[int, float] = 0.1, resolution: Union[int, float] = 0.1) -> float:
         """Calculate and return the average gamma pass percent of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
         self._check_empty()
@@ -248,7 +250,7 @@ class MachineLogs(list):
             print('\nNo files written. Either no logs are loaded or all logs were dynalogs.')
         return files
 
-    def anonymize(self, inplace: bool=False, suffix: Optional[str]=None):
+    def anonymize(self, inplace: bool = False, suffix: Optional[str] = None):
         """Save anonymized versions of the logs.
 
         For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
@@ -293,7 +295,8 @@ class Axis:
     ----------
     Parameters are Attributes
     """
-    def __init__(self, actual: np.ndarray, expected: Optional[np.ndarray]=None):
+
+    def __init__(self, actual: np.ndarray, expected: Optional[np.ndarray] = None):
         """
         Parameters
         ----------
@@ -416,7 +419,7 @@ class FluenceBase:
     resolution = -1
     FLUENCE_TYPE = ''  # must be specified by subclass
 
-    def __init__(self, mlc_struct=None, mu_axis: Axis=None, jaw_struct=None):
+    def __init__(self, mlc_struct=None, mu_axis: Axis = None, jaw_struct=None):
         """
         Parameters
         ----------
@@ -429,7 +432,7 @@ class FluenceBase:
         self._mu = mu_axis
         self._jaws = jaw_struct
 
-    def is_map_calced(self, raise_error: bool=False) -> bool:
+    def is_map_calced(self, raise_error: bool = False) -> bool:
         """Return a boolean specifying whether the fluence has been calculated."""
         calced = hasattr(self.array, 'size')
         if (not calced) and (raise_error is True):
@@ -438,7 +441,7 @@ class FluenceBase:
             return calced
 
     @lru_cache(maxsize=1)
-    def calc_map(self, resolution: float=0.1, equal_aspect: bool=False) -> np.ndarray:
+    def calc_map(self, resolution: float = 0.1, equal_aspect: bool = False) -> np.ndarray:
         """Calculate a fluence pixel map.
 
         Image calculation is done by adding fluence snapshot by snapshot, and leaf pair by leaf pair.
@@ -545,7 +548,7 @@ class FluenceBase:
 
         return fluence
 
-    def plot_map(self, show: bool=True) -> None:
+    def plot_map(self, show: bool = True) -> None:
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         self.is_map_calced(raise_error=True)
         plt.clf()
@@ -624,9 +627,9 @@ class GammaFluence(FluenceBase):
 
         Parameters
         ----------
-        DoseTA : int, float
+        doseTA : int, float
             Dose-to-agreement in percent; e.g. 2 is 2%.
-        DistTA : int, float
+        distTA : int, float
             Distance-to-agreement in mm.
         threshold : int, float
             The dose threshold percentage of the maximum dose, below which is not analyzed.
@@ -669,14 +672,14 @@ class GammaFluence(FluenceBase):
         self.array = gamma_map
         return gamma_map
 
-    def plot_map(self, show: bool=True):
+    def plot_map(self, show: bool = True):
         """Plot the fluence; the fluence (pixel map) must have been calculated first."""
         self.is_map_calced(raise_error=True)
         plt.imshow(self.array, aspect='auto', vmax=1, cmap=get_array_cmap())
         plt.colorbar()
         plt.show()
 
-    def histogram(self, bins: Optional[list]=None) -> Tuple[np.ndarray, np.ndarray]:
+    def histogram(self, bins: Optional[list] = None) -> Tuple[np.ndarray, np.ndarray]:
         """Return a histogram array and bin edge array of the gamma map values.
 
         Parameters
@@ -698,7 +701,7 @@ class GammaFluence(FluenceBase):
         return hist_arr, bin_edges
 
     @argue.options(scale=('log', 'linear'))
-    def plot_histogram(self, scale: str='log', bins: Optional[list]=None, show: bool=True) -> None:
+    def plot_histogram(self, scale: str = 'log', bins: Optional[list] = None, show: bool = True) -> None:
         """Plot a histogram of the gamma map values.
 
         Parameters
@@ -718,7 +721,7 @@ class GammaFluence(FluenceBase):
             plt.show()
 
     @argue.options(scale=('log', 'linear'))
-    def save_histogram(self, filename: str, scale: str='log', bins: Optional[list]=None, **kwargs) -> None:
+    def save_histogram(self, filename: str, scale: str = 'log', bins: Optional[list] = None, **kwargs) -> None:
         """Save the histogram plot to file."""
         self.plot_histogram(scale, bins, show=False)
         plt.savefig(filename, **kwargs)
@@ -742,7 +745,8 @@ class FluenceStruct:
     gamma : :class:`~pylinac.log_analyzer.GammaFluence`
         The gamma structure regarding the actual and expected fluences.
     """
-    def __init__(self, mlc_struct=None, mu_axis: Axis=None, jaw_struct=None):
+
+    def __init__(self, mlc_struct=None, mu_axis: Axis = None, jaw_struct=None):
         self.actual = ActualFluence(mlc_struct, mu_axis, jaw_struct)
         self.expected = ExpectedFluence(mlc_struct, mu_axis, jaw_struct)
         self.gamma = GammaFluence(self.actual, self.expected, mlc_struct)
@@ -750,7 +754,9 @@ class FluenceStruct:
 
 class MLC:
     """The MLC class holds MLC information and retrieves relevant data about the MLCs and positions."""
-    def __init__(self, log_type, snapshot_idx: Optional[np.ndarray]=None, jaw_struct=None, hdmlc: bool=False, subbeams=None):
+
+    def __init__(self, log_type, snapshot_idx: Optional[np.ndarray] = None, jaw_struct = None, hdmlc: bool = False,
+                 subbeams = None):
         """
         Parameters
         ----------
@@ -897,7 +903,7 @@ class MLC:
         """Return an array enumerated over all the leaves."""
         return np.array(range(1, len(self.leaf_axes) + 1))
 
-    def get_RMS_avg(self, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool=False):
+    def get_RMS_avg(self, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool = False):
         """Return the overall average RMS of given leaves.
 
         Parameters
@@ -945,7 +951,8 @@ class MLC:
         else:
             return rms
 
-    def get_RMS_percentile(self, percentile: Union[int, float]=95, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool=False):
+    def get_RMS_percentile(self, percentile: Union[int, float] = 95, bank: MLCBank = MLCBank.BOTH,
+                           only_moving_leaves: bool = False):
         """Return the n-th percentile value of RMS for the given leaves.
 
         Parameters
@@ -987,7 +994,7 @@ class MLC:
             raise TypeError("Input must be iterable, or specify an MLC bank")
         return self.create_RMS_array(np.array(leaves_or_bank))
 
-    def get_leaves(self, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool=False) -> list:
+    def get_leaves(self, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool = False) -> list:
         """Return a list of leaves that match the given conditions.
 
         Parameters
@@ -1015,7 +1022,8 @@ class MLC:
 
         return leaves
 
-    def get_error_percentile(self, percentile: Union[int, float]=95, bank: MLCBank = MLCBank.BOTH, only_moving_leaves: bool=False) -> float:
+    def get_error_percentile(self, percentile: Union[int, float] = 95, bank: MLCBank = MLCBank.BOTH,
+                             only_moving_leaves: bool = False) -> float:
         """Calculate the n-th percentile error of the leaf error.
 
         Parameters
@@ -1040,7 +1048,7 @@ class MLC:
         abs_error = np.abs(error_array)
         return np.percentile(abs_error, percentile)
 
-    def create_error_array(self, leaves: Sequence[int], absolute: bool=True) -> np.ndarray:
+    def create_error_array(self, leaves: Sequence[int], absolute: bool = True) -> np.ndarray:
         """Create and return an error array of only the leaves specified.
 
         Parameters
@@ -1096,7 +1104,7 @@ class MLC:
         return mlc_error
 
     @argue.options(dtype=('actual', 'expected'))
-    def _snapshot_array(self, dtype: str='actual') -> np.ndarray:
+    def _snapshot_array(self, dtype: str = 'actual') -> np.ndarray:
         """Return an array of the snapshot data of all leaves."""
         arr = np.zeros((self.num_leaves, self.num_snapshots))
         # construct numpy array for easy array calculation
@@ -1143,7 +1151,8 @@ class MLC:
         return mlc_position < y1_position or mlc_position - thickness > y2_position
 
     @argue.options(dtype=('actual', 'expected'))
-    def get_snapshot_values(self, bank_or_leaf: Union[MLCBank, Iterable] = MLCBank.BOTH, dtype: str='actual') -> np.ndarray:
+    def get_snapshot_values(self, bank_or_leaf: Union[MLCBank, Iterable] = MLCBank.BOTH,
+                            dtype: str = 'actual') -> np.ndarray:
         """Retrieve the snapshot data of the given MLC bank or leaf/leaves
 
         Parameters
@@ -1169,7 +1178,7 @@ class MLC:
         arr = self._snapshot_array(dtype)
         return arr[leaves, :]
 
-    def plot_mlc_error_hist(self, show: bool=True) -> None:
+    def plot_mlc_error_hist(self, show: bool = True) -> None:
         """Plot an MLC error histogram."""
         plt.hist(self._abs_error_all_leaves.flatten())
         if show:
@@ -1180,7 +1189,7 @@ class MLC:
         self.plot_mlc_error_hist(show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_rms_by_leaf(self, show: bool=True) -> None:
+    def plot_rms_by_leaf(self, show: bool = True) -> None:
         """Plot RMSs by leaf."""
         plt.clf()
         plt.bar(np.arange(len(self.get_RMS(MLCBank.BOTH)))[::-1], self.get_RMS(MLCBank.BOTH), align='center')
@@ -1363,7 +1372,7 @@ class LogBase:
     """Base class for the Dynalog and TrajectoryLog classes. Should not be called directly."""
     ANON_LINE = -1
 
-    def __init__(self, filename: str, exclude_beam_off: bool=True):
+    def __init__(self, filename: str, exclude_beam_off: bool = True):
         if is_log(filename):
             self.filename = filename
             self.exclude_beam_off = exclude_beam_off
@@ -1371,12 +1380,12 @@ class LogBase:
             raise IOError(f"{filename} was not a valid log file")
 
     @classmethod
-    def from_url(cls, url: str, exclude_beam_off: bool=True):
+    def from_url(cls, url: str, exclude_beam_off: bool = True):
         """Instantiate a log from a URL."""
         filename = io.get_url(url)
         return cls(filename, exclude_beam_off)
 
-    def plot_summary(self, show: bool=True):
+    def plot_summary(self, show: bool = True):
         """Plot actual & expected fluence, gamma map, gamma histogram,
             MLC error histogram, and MLC RMS histogram.
         """
@@ -1415,7 +1424,7 @@ class LogBase:
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    def plot_subimage(self, img: Image, ax: plt.Axes=None, show: bool=True, fontsize: int=10):
+    def plot_subimage(self, img: Image, ax: plt.Axes = None, show: bool = True, fontsize: int = 10):
         """Plot a subimage."""
         img = convert_to_enum(img, Image)
         if ax is None:
@@ -1441,7 +1450,8 @@ class LogBase:
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    def plot_subgraph(self, graph: Graph, ax: plt.Axes=None, show: bool=True, fontsize: int=10, labelsize: int=8):
+    def plot_subgraph(self, graph: Graph, ax: plt.Axes = None, show: bool = True, fontsize: int = 10,
+                      labelsize: int = 8):
         graph = convert_to_enum(graph, Graph)
         if ax is None:
             ax = plt.subplot()
@@ -1463,12 +1473,12 @@ class LogBase:
         if show:
             plt.show()
 
-    def save_subgraph(self, filename: str, graph: Graph, fontsize: int=10, labelsize: int=8, **kwargs):
+    def save_subgraph(self, filename: str, graph: Graph, fontsize: int = 10, labelsize: int = 8, **kwargs):
         self.plot_subgraph(graph, show=False, fontsize=fontsize, labelsize=labelsize)
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    def report_basic_parameters(self, printout: bool=True) -> str:
+    def report_basic_parameters(self, printout: bool = True) -> str:
         """Print the common parameters analyzed when investigating machine logs:
 
         - Log type
@@ -1529,7 +1539,7 @@ class LogBase:
                             "Place an underscore between the patient ID and the rest of the filename and try again.")
         return under_index
 
-    def anonymize(self, inplace: bool=False, destination: Optional[str]=None, suffix: Optional[str]=None) -> list:
+    def anonymize(self, inplace: bool = False, destination: Optional[str] = None, suffix: Optional[str] = None) -> list:
         """Save an anonymized version of the log.
 
         For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
@@ -1722,7 +1732,7 @@ class Dynalog(LogBase):
     ANON_LINE = 1
     HEADER_LINE_LENGTH = 6
 
-    def __init__(self, filename, exclude_beam_off=True):
+    def __init__(self, filename, exclude_beam_off: bool = True):
         super().__init__(filename, exclude_beam_off)
         if not is_dlog(self.filename):
             raise NotADynalogError(f"{self.filename} was not a valid Dynalog file")
@@ -2006,7 +2016,32 @@ class TrajectoryLogHeader:
         self.is_truncated = decode_binary(f, int)
         self.num_snapshots = decode_binary(f, int)
         # the section after MLC model is reserved. Cursor is moved to the end of this reserved section.
-        self.mlc_model = decode_binary(f, int, cursor_shift=1024 - (64 + self.num_axes * 8))
+        if self.version >= 4.0:
+            self.mlc_model = decode_binary(f, int)
+            self.metadata = Metadata(f, self.num_axes)
+        else:
+            self.mlc_model = decode_binary(f, int, cursor_shift=1024 - (64 + self.num_axes * 8))
+
+
+class Metadata:
+    """Metadata field for Trajectory logs v4.0+.
+
+    .. warning::
+          The TrueBeam log file spec says that there is a reserved section of the same size as v3.0 following this section.
+          That is NOT TRUE. It is actually offset by the size of the metadata; meaning 1024 - (64 + num_axes * 8) - 745.
+    """
+
+    def __init__(self, stream: BinaryIO, num_axes: int):
+        # structure lengths are NOT predetermined (why?!) so we read it all and split it up
+        full_data = decode_binary(stream, str, 745, cursor_shift=1024 - (64 + (num_axes * 8))-745)  # see docstring
+        fields = full_data.split("\r\n")
+        self.patient_id: str = fields[0].split("\t")[1]
+        self.plan_name: str = fields[1].split("\t")[1]
+        self.sop_instance_uid: str = fields[2].split("\t")[1]
+        self.mu_planned: float = float(fields[3].split("\t")[1])
+        self.mu_remaining: float = float(fields[4].split("\t")[1])
+        self.energy: str = fields[5].split("\t")[1]
+        self.beam_name: str = fields[6].split("\t")[1]
 
 
 class TrajectoryLog(LogBase):
@@ -2084,7 +2119,7 @@ class TrajectoryLog(LogBase):
                         self.txt[items[0].strip()] = items[1].strip()
 
     @classmethod
-    def from_demo(cls, exclude_beam_off: bool=True):
+    def from_demo(cls, exclude_beam_off: bool = True):
         """Load and instantiate from the demo trajetory log file included with the package."""
         demo_file = io.retrieve_demo_file(url='Tlog.bin')
         return cls(demo_file, exclude_beam_off)
@@ -2096,7 +2131,7 @@ class TrajectoryLog(LogBase):
         tlog.report_basic_parameters()
         tlog.plot_summary()
 
-    def to_csv(self, filename: Optional[str]=None) -> str:
+    def to_csv(self, filename: Optional[str] = None) -> str:
         """Write the log to a CSV file.
 
         Parameters
@@ -2350,7 +2385,7 @@ def write_array(writer, description, value, unit=None):
         writer.writerow(arr2write)
 
 
-def _get_log_filenames(directory: str, recursive: bool=True) -> list:
+def _get_log_filenames(directory: str, recursive: bool = True) -> list:
     """Extract the names of real log files from a directory."""
     tlogs = io.retrieve_filenames(directory, is_tlog, recursive=recursive)
     dlogs = io.retrieve_filenames(directory, is_dlog, recursive=recursive)
