@@ -365,5 +365,5 @@ API Documentation
 .. autoclass:: pylinac.winston_lutz.ImageManager
     :members:
 
-.. autoclass:: pylinac.winston_lutz.WLImage
+.. autoclass:: pylinac.winston_lutz.WinstonLutz2D
     :members:
