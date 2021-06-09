@@ -45,7 +45,7 @@ class PerfectConeLayer(Layer):
 
     def _create_perfect_field(self, image, pixel_size, mag_factor):
         cone_size_pix = ((self.cone_size_mm / 2) / pixel_size) * mag_factor
-        cax_offset_pix = [x / pixel_size + (shape / 2 - 0.5) for x, shape in zip(self.cax_offset_mm, image.shape)]
+        cax_offset_pix = [x * mag_factor / pixel_size + (shape / 2 - 0.5) for x, shape in zip(self.cax_offset_mm, image.shape)]
         rr, cc = draw.disk(cax_offset_pix, cone_size_pix, shape=image.shape)
         rr = np.round(rr).astype(np.int)
         cc = np.round(cc).astype(np.int)
