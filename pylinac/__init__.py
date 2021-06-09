@@ -1,7 +1,7 @@
 
 import sys
 
-__version__ = '3.0a'
+__version__ = '3.0rc1'
 __version_info__ = (3, 0, 0, 0)
 
 # check python version

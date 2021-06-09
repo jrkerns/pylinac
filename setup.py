@@ -1,9 +1,10 @@
 from setuptools import setup, find_packages
 
+# anti-patterns be damned; Python should come up with a better system
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-__version__ = '3.0a'
+from pylinac import __version__
 
 
 setup(

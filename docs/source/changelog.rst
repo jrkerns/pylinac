@@ -112,6 +112,7 @@ Calibration
 Winston-Lutz
 ^^^^^^^^^^^^
 
+* `#366 <https://github.com/jrkerns/pylinac/issues/366>`_ `#333 <https://github.com/jrkerns/pylinac/issues/333>`_ The analysis will fail if the BB is not detected within 20mm of the center of the field. This should help artifacts from being detected.
 * The Winston-Lutz analysis has added an ``.analyze`` routine, just like all other major modules.
 * `#358 <https://github.com/jrkerns/pylinac/issues/358>`_ The user can now pass in an expected BB size. This will help analyses with smaller or very large BBs.
 * The ``WLImage`` class has been renamed to ``WinstonLutz2D``. This is to clarify usage as now documentation has been expanded to show using WL with a single image.
@@ -203,6 +204,11 @@ CBCT
     * Change/check the contrast method of `.analyze()`.
     * Change/check the visibility threshold of `.analyze()`.
     * Verify the # of low contrast ROIs "seen".
+
+Machine logs
+^^^^^^^^^^^^
+
+* `#161 <https://github.com/jrkerns/pylinac/issues/161>`_ Trajectory logs v4.0 are now supported
 
 v 2.5.0
 -------
