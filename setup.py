@@ -18,7 +18,10 @@ setup(
     author='James Kerns',
     author_email='jkerns100@gmail.com',
     description='A toolkit for performing TG-142 QA-related tasks on a linear accelerator',
+    long_description=open('README.rst').read(),
+    long_description_content_type='text/x-rst',
     install_requires=required,
+    python_requires='>=3.6',
     license='MIT',
     test_suite='test_basic',
     classifiers=[
