@@ -540,7 +540,7 @@ These are the classes a typical user may interface with.
 .. autoclass:: pylinac.log_analyzer.MLCBank
     :members:
 
-.. autoclass:: pylinac.log_analyzer.Image
+.. autoclass:: pylinac.log_analyzer.Fluence
     :members:
 
 .. autoclass:: pylinac.log_analyzer.TreatmentType
@@ -550,6 +550,9 @@ Supporting Classes
 ^^^^^^^^^^^^^^^^^^
 
 You generally won't have to interface with these unless you're doing advanced behavior.
+
+.. autoclass:: pylinac.log_analyzer.Metadata
+    :members:
 
 .. autoclass:: pylinac.log_analyzer.Axis
     :members:

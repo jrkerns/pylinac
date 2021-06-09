@@ -62,7 +62,7 @@ class MLCBank(enum.Enum):
     BOTH = 'both'  #:
 
 
-class Image(enum.Enum):
+class Fluence(enum.Enum):
     ACTUAL = 'actual'  #:
     EXPECTED = 'expected'  #:
     GAMMA = 'gamma'  #:
@@ -427,14 +427,14 @@ class FluenceBase:
         mu_axis : BeamAxis
         jaw_struct : Jaw_Struct
         """
-        self.array = object
+        self.array: np.ndarray = np.empty((0, 0))
         self._mlc = mlc_struct
         self._mu = mu_axis
         self._jaws = jaw_struct
 
     def is_map_calced(self, raise_error: bool = False) -> bool:
         """Return a boolean specifying whether the fluence has been calculated."""
-        calced = hasattr(self.array, 'size')
+        calced = self.array.size > 0
         if (not calced) and (raise_error is True):
             raise ValueError("Map has not yet been calculated. Use .calc_map() with desired parameters first.")
         else:
@@ -610,11 +610,11 @@ class GammaFluence(FluenceBase):
         mlc_struct : MLC_Struct
             The MLC structure, so fluence can be calculated from leaf positions.
         """
-        self.array = object
-        self.passfail_array = object
-        self._actual_fluence = actual_fluence
-        self._expected_fluence = expected_fluence
-        self._mlc = mlc_struct
+        self.array: np.ndarray = np.empty((0, 0))
+        self.passfail_array: np.ndarray
+        self._actual_fluence: ActualFluence = actual_fluence
+        self._expected_fluence: ExpectedFluence = expected_fluence
+        self._mlc: MLC = mlc_struct
 
     @lru_cache(maxsize=1)
     def calc_map(self, doseTA: Union[int, float] = 1, distTA: Union[int, float] = 1, threshold: Union[int, float] = 0.1,
@@ -783,7 +783,7 @@ class MLC:
         self.subbeams = subbeams
 
     @classmethod
-    def from_dlog(cls, dlog, jaws, snapshot_data: np.ndarray, snapshot_idx: np.ndarray):
+    def from_dlog(cls, dlog, jaws, snapshot_data: np.ndarray, snapshot_idx: Union[list, np.ndarray]):
         """Construct an MLC structure from a Dynalog"""
         mlc = MLC(Dynalog, snapshot_idx, jaws)
         for leaf in range(1, (dlog.header.num_mlc_leaves // 2) + 1):
@@ -1393,15 +1393,15 @@ class LogBase:
 
         # plot the actual fluence
         ax = plt.subplot(2, 3, 1)
-        self.plot_subimage('actual', ax, show=False)
+        self.plot_subfluence(Fluence.ACTUAL, ax, show=False)
 
         # plot the expected fluence
         ax = plt.subplot(2, 3, 2)
-        self.plot_subimage(Image.EXPECTED, ax, show=False)
+        self.plot_subfluence(Fluence.EXPECTED, ax, show=False)
 
         # plot the gamma map
         ax = plt.subplot(2, 3, 3)
-        self.plot_subimage(Image.GAMMA, ax, show=False)
+        self.plot_subfluence(Fluence.GAMMA, ax, show=False)
 
         # plot the gamma histogram
         ax = plt.subplot(2, 3, 4)
@@ -1424,17 +1424,17 @@ class LogBase:
         plt.savefig(filename, **kwargs)
         plt.close()
 
-    def plot_subimage(self, img: Image, ax: plt.Axes = None, show: bool = True, fontsize: int = 10):
+    def plot_subfluence(self, img: Fluence, ax: plt.Axes = None, show: bool = True, fontsize: int = 10):
         """Plot a subimage."""
-        img = convert_to_enum(img, Image)
+        img = convert_to_enum(img, Fluence)
         if ax is None:
             ax = plt.subplot()
         ax.tick_params(axis='both', labelsize=8)
-        if img in (Image.ACTUAL, Image.EXPECTED):
+        if img in (Fluence.ACTUAL, Fluence.EXPECTED):
             title = img.value.capitalize() + ' Image'
             plt.imshow(getattr(self.fluence, img.value).array.astype(np.float32), aspect='auto', interpolation='none',
                        cmap=get_array_cmap())
-        elif img == Image.GAMMA:
+        elif img == Fluence.GAMMA:
             plt.imshow(getattr(self.fluence, img.value).array.astype(np.float32), aspect='auto', interpolation='none', vmax=1,
                        cmap=get_array_cmap())
             plt.colorbar(ax=ax)
@@ -1444,9 +1444,9 @@ class LogBase:
         if show:
             plt.show()
 
-    def save_subimage(self, filename: str, img: Image, fontsize: int, **kwargs):
+    def save_subimage(self, filename: Union[str, BinaryIO], img: Fluence, fontsize: int, **kwargs):
         """Save a subimage to file"""
-        self.plot_subimage(img, show=False, fontsize=fontsize)
+        self.plot_subfluence(img, show=False, fontsize=fontsize)
         plt.savefig(filename, **kwargs)
         plt.close()
 
@@ -1473,7 +1473,7 @@ class LogBase:
         if show:
             plt.show()
 
-    def save_subgraph(self, filename: str, graph: Graph, fontsize: int = 10, labelsize: int = 8, **kwargs):
+    def save_subgraph(self, filename: Union[str, BinaryIO], graph: Graph, fontsize: int = 10, labelsize: int = 8, **kwargs):
         self.plot_subgraph(graph, show=False, fontsize=fontsize, labelsize=labelsize)
         plt.savefig(filename, **kwargs)
         plt.close()
@@ -2216,7 +2216,7 @@ class TrajectoryLog(LogBase):
                             f'Gamma average: {self.fluence.gamma.avg_gamma:2.2f}',
                             ],
                         location=(10, 25.5))
-        for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), (Image.ACTUAL, Image.EXPECTED, Image.GAMMA, ''))):
+        for idx, (x, y, graph) in enumerate(zip((2, 11, 2, 11), (14, 14, 6, 6), (Fluence.ACTUAL, Fluence.EXPECTED, Fluence.GAMMA, ''))):
             data = BytesIO()
             if graph != '':
                 self.save_subimage(data, graph, fontsize=20)
