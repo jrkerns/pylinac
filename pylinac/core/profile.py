@@ -916,7 +916,7 @@ class CircleProfile(MultiProfile, Circle):
             axes.scatter(x_locs, y_locs, s=40, marker='x', c=edgecolor)
 
     @staticmethod
-    def _ensure_array_size(array: np.ndarray, min_width: int, min_height: int) -> None:
+    def _ensure_array_size(array: np.ndarray, min_width: float, min_height: float) -> None:
             """Ensure the array size of inputs are greater than the minimums."""
             height = array.shape[0]
             width = array.shape[1]
@@ -932,7 +932,7 @@ class CollapsedCircleProfile(CircleProfile):
     num_profiles: int
 
     @argue.bounds(width_ratio=(0, 1))
-    def __init__(self, center: Point, radius: NumberLike, image_array: np.ndarray, start_angle: int=0,
+    def __init__(self, center: Point, radius: NumberLike, image_array: Union[np.ndarray, 'ArrayImage'], start_angle: int=0,
                  ccw: bool=True, sampling_ratio: float=1.0, width_ratio: float=0.1, num_profiles: int=20):
         """
         Parameters

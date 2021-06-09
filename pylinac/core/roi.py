@@ -11,6 +11,7 @@ from skimage.measure._regionprops import _RegionProperties
 
 from .decorators import lru_cache
 from .geometry import Circle, Point, Rectangle
+from .image import ArrayImage
 
 
 def bbox_center(region: _RegionProperties) -> Point:
@@ -68,16 +69,16 @@ class DiskROI(Circle):
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
     @cached_property
-    def pixel_value(self) -> np.ndarray:
+    def pixel_value(self) -> float:
         """The median pixel value of the ROI."""
         masked_img = self.circle_mask()
-        return np.nanmedian(masked_img)
+        return float(np.nanmedian(masked_img))
 
     @cached_property
-    def std(self) -> np.ndarray:
+    def std(self) -> float:
         """The standard deviation of the pixel values."""
         masked_img = self.circle_mask()
-        return np.nanstd(masked_img)
+        return float(np.nanstd(masked_img))
 
     @lru_cache()
     def circle_mask(self) -> np.ndarray:
@@ -114,7 +115,7 @@ class LowContrastDiskROI(DiskROI):
     cnr_threshold: Optional[float]
     contrast_reference: Optional[float]
 
-    def __init__(self, array: np.ndarray, angle: float, roi_radius: float, dist_from_center: float,
+    def __init__(self, array: Union[np.ndarray, ArrayImage], angle: float, roi_radius: float, dist_from_center: float,
                  phantom_center: Union[tuple, Point], contrast_threshold: Optional[float] = None,
                  contrast_reference: Optional[float] = None,
                  cnr_threshold: Optional[float] = None,

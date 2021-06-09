@@ -18,26 +18,25 @@ import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from os import path as osp
-from typing import Optional, Union, Dict, Tuple, Sequence, List, BinaryIO
+from typing import Optional, Union, Dict, Tuple, Sequence, List, BinaryIO, Type
 
 import argue
-from cached_property import cached_property
 import matplotlib.pyplot as plt
 import numpy as np
+from cached_property import cached_property
 from py_linq import Enumerable
 from scipy import ndimage
 from skimage import filters, measure, segmentation
 
 from .core import image, pdf
 from .core.geometry import Point, Line
-from .core.image import DicomImageStack
+from .core.image import DicomImageStack, ArrayImage
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, SingleProfile, Interpolation
 from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI, Contrast
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
-
 
 AIR = -1000
 PMP = -196
@@ -81,7 +80,7 @@ class CTP404Result:
 
     hu_linearity_passed: bool  #:
     hu_tolerance: float  #:
-    hu_rois: List[ROIResult]  #:
+    hu_rois: Dict[str, ROIResult]  #:
 
 
 @dataclass
@@ -137,16 +136,16 @@ class HUDiskROI(DiskROI):
     """An HU ROI object. Represents a circular area measuring either HU sample (Air, Poly, ...)
     or HU uniformity (bottom, left, ...).
     """
-    def __init__(self, array: np.ndarray, angle: float, roi_radius: float, dist_from_center: float,
-                 phantom_center: Union[tuple, Point], nominal_value: Optional[int] = None,
-                 tolerance: Optional[int] = None,
+    def __init__(self, array: Union[np.ndarray, ArrayImage], angle: float, roi_radius: float, dist_from_center: float,
+                 phantom_center: Union[tuple, Point], nominal_value: Optional[float] = None,
+                 tolerance: Optional[float] = None,
                  background_mean: Optional[float]=None, background_std: Optional[float]=None):
         """
         Parameters
         ----------
-        nominal_value : int
+        nominal_value
             The nominal pixel value of the HU ROI.
-        tolerance : int
+        tolerance
             The roi pixel value tolerance.
         """
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
@@ -265,14 +264,7 @@ class CatPhanModule(Slice):
     rois: dict = {}  # dicts of HUDiskROIs
     background_rois: dict = {}  # dict of HUDiskROIs; possibly empty
 
-    def __init__(self, catphan, tolerance: float, offset: int=0):
-        """
-        Parameters
-        ----------
-        catphan
-        tolerance : float
-        offset : int, float
-        """
+    def __init__(self, catphan, tolerance: Optional[float], offset: int = 0):
         self.model = ''
         self._offset = offset
         self.origin_slice = catphan.origin_slice
@@ -280,8 +272,8 @@ class CatPhanModule(Slice):
         self.slice_thickness = catphan.dicom_stack.metadata.SliceThickness
         self.catphan_roll = catphan.catphan_roll
         self.mm_per_pixel = catphan.mm_per_pixel
-        self.rois: Dict[HUDiskROI] = {}  # dicts of HUDiskROIs
-        self.background_rois = {}  # dict of HUDiskROIs; possibly empty
+        self.rois: Dict[str, HUDiskROI] = {}
+        self.background_rois: Dict[str, HUDiskROI] = {}
         Slice.__init__(self, catphan, combine_method=self.combine_method, num_slices=self.num_slices)
         self._convert_units_in_settings()
         self.preprocess(catphan)
@@ -517,7 +509,7 @@ class CTP404CP504(CatPhanModule):
 
     @property
     def avg_line_length(self) -> float:
-        return np.mean([line.length_mm for line in self.lines.values()])
+        return float(np.mean([line.length_mm for line in self.lines.values()]))
 
     @property
     def passed_geometry(self) -> bool:
@@ -719,7 +711,7 @@ class CTP528CP504(CatPhanModule):
         circle_profile.ground()
         return circle_profile
 
-    def plot_mtf(self, axis: Optional[plt.Axes]=None) -> Tuple:
+    def plot_mtf(self, axis: Optional[plt.Axes] = None) -> Tuple:
         """Plot the Relative MTF.
 
         Parameters
@@ -839,7 +831,7 @@ class CTP515(CatPhanModule):
                                                                      self.background_roi_radius_mm / self.mm_per_pixel,
                                                                      setting['distance_pixels'] * self.background_roi_dist_ratio,
                                                                      self.phan_center)
-            background_val = np.mean([self.background_rois[name+'-outer'].pixel_value, self.background_rois[name+'-inner'].pixel_value])
+            background_val = float(np.mean([self.background_rois[name+'-outer'].pixel_value, self.background_rois[name+'-inner'].pixel_value]))
 
             self.rois[name] = LowContrastDiskROI(self.image, setting['angle_corrected'], setting['radius_pixels'], setting['distance_pixels'],
                                                  self.phan_center, contrast_reference=background_val, cnr_threshold=self.cnr_threshold,
@@ -1057,7 +1049,7 @@ class CatPhanBase:
         if show:
             plt.show()
 
-    def save_analyzed_subimage(self, filename: str, subimage: str='hu', **kwargs):
+    def save_analyzed_subimage(self, filename: Union[str, BinaryIO], subimage: str='hu', **kwargs):
         """Save a component image to file.
 
         Parameters
@@ -1130,11 +1122,11 @@ class CatPhanBase:
         if not hu_slices:
             raise ValueError("No slices were found that resembled the HU linearity module")
         hu_slices = np.array(hu_slices)
-        c = int(round(np.median(hu_slices)))
+        c = int(round(float(np.median(hu_slices))))
         ln = len(hu_slices)
         # drop slices that are way far from median
         hu_slices = hu_slices[((c + ln/2) >= hu_slices) & (hu_slices >= (c - ln/2))]
-        center_hu_slice = int(round(np.median(hu_slices)))
+        center_hu_slice = int(round(float(np.median(hu_slices))))
         if self._is_within_image_extent(center_hu_slice):
             #print(center_hu_slice)
             return center_hu_slice
@@ -1187,7 +1179,8 @@ class CatPhanBase:
         phan_area = np.pi*(self.catphan_radius_mm**2)
         return phan_area/(self.mm_per_pixel**2)
 
-    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: Optional[dict]=None) -> None:
+    def publish_pdf(self, filename: str, notes: str = None, open_file: bool = False,
+                    metadata: Optional[dict] = None) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -1320,10 +1313,10 @@ class CatPhanBase:
         if zip_after and not self.was_from_zip:
             self._zip_images()
 
-    def _has_module(self, module_of_interest: CatPhanModule) -> bool:
+    def _has_module(self, module_of_interest: Type[CatPhanModule]) -> bool:
         return any(issubclass(module, module_of_interest) for module in self.modules.keys())
 
-    def _get_module(self, module_of_interest: CatPhanModule, raise_empty: bool=False) -> Tuple[CatPhanModule, int]:
+    def _get_module(self, module_of_interest: Type[CatPhanModule], raise_empty: bool = False) -> Tuple[Type[CatPhanModule], int]:
         """Grab the module that is, or is a subclass of, the module of interest. This allows users to subclass a CTP module and pass that in."""
         for module, values in self.modules.items():
             if issubclass(module, module_of_interest):
@@ -1343,9 +1336,9 @@ class CatPhanBase:
                   f'Slice Thickness Passed? {self.ctp404.passed_thickness}\n')
         if self._has_module(CTP486):
             add = (f'Uniformity ROIs: {self.ctp486.roi_vals_as_str}\n'
-                  f'Uniformity index: {self.ctp486.uniformity_index:2.3f}\n'
-                  f'Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}\n'
-                  f'Uniformity Passed?: {self.ctp486.overall_passed}\n')
+                   f'Uniformity index: {self.ctp486.uniformity_index:2.3f}\n'
+                   f'Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}\n'
+                   f'Uniformity Passed?: {self.ctp486.overall_passed}\n')
             string += add
         if self._has_module(CTP528CP504):
             add = (f'MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}\n')
@@ -1358,12 +1351,12 @@ class CatPhanBase:
     def results_data(self, as_dict=False) -> Union[CatphanResult, dict]:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
-        hu_rois = [ROIResult(name=name,
+        hu_rois = {name: ROIResult(name=name,
                              value=roi.pixel_value,
                              difference=roi.value_diff,
                              nominal_value=roi.nominal_val,
                              passed=roi.passed
-                             ) for name, roi in self.ctp404.rois.items()]
+                             ) for name, roi in self.ctp404.rois.items()}
         ctp404_result = CTP404Result(
                 offset=self.ctp404._offset,
                 low_contrast_visibility=self.ctp404.lcv,

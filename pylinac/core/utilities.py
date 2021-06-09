@@ -1,17 +1,17 @@
 """Utility functions for pylinac."""
-from dataclasses import dataclass, field
-from enum import Enum
-from collections import Iterable
 import decimal
 import os
 import os.path as osp
-import subprocess
 import struct
-from typing import Union, Sequence, Type
+import subprocess
+from collections import Iterable
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+from typing import Union, Sequence, Type, BinaryIO
 
-import pydicom
 import numpy as np
+import pydicom
 
 from .typing import NumberLike
 from .. import __version__
@@ -122,16 +122,17 @@ class Structure:
         self.__dict__.update(**kwargs)
 
 
-def decode_binary(file, dtype: Union[Type[int], Type[float], Type[str]], num_values: int=1, cursor_shift: int=0) -> Union[int, float, str]:
+def decode_binary(file: BinaryIO, dtype: Union[Type[int], Type[float], Type[str]], num_values: int = 1, cursor_shift: int = 0) -> \
+                    Union[int, float, str, np.ndarray]:
     """Read in a raw binary file and convert it to given data types.
 
     Parameters
     ----------
-    file : file object
+    file
         The open file object.
-    dtype : int, float, str
-        The expected data type to return. If int or float, will return numpy array.
-    num_values : int
+    dtype
+        The expected data type to return. If int or float and num_values > 1, will return numpy array.
+    num_values
         The expected number of dtype to return
 
         .. note:: This is not the same as the number of bytes.
