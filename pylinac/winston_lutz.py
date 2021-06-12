@@ -32,11 +32,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage, optimize, linalg
 from skimage import measure
+from skimage.measure import label
 from skimage.measure._regionprops import RegionProperties
+from skimage.morphology import remove_small_objects, remove_small_holes
 
 from .core import image, pdf
 from .core.decorators import lru_cache
 from .core.geometry import Point, Line, Vector, cos, sin
+from .core.image import ArrayImage
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import bounding_box
 from .core.utilities import is_close, open_path, ResultBase, convert_to_enum
@@ -122,6 +125,7 @@ class ImageManager(list):
 class WinstonLutz:
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
     images: ImageManager  #:
+    _find_field: bool
 
     def __init__(self, directory: str, use_filenames: bool = False):
         """
@@ -181,16 +185,19 @@ class WinstonLutz:
         print(wl.results())
         wl.plot_summary()
 
-    def analyze(self, bb_size_mm: float = 5):
+    def analyze(self, bb_size_mm: float = 5, find_field: bool = True):
         """Analyze the WL images.
 
         Parameters
         ----------
         bb_size_mm
             The expected size of the BB in mm. The actual size of the BB can be +/-2mm from the passed value.
+        find_field
+            Whether to find the radiation field. Set this to False if performing a fully-open field such as a kV WL.
         """
+        self._find_field = find_field
         for img in self.images:
-            img.analyze(bb_size_mm)
+            img.analyze(bb_size_mm, find_field=find_field)
         self._is_analyzed = True
 
     @lru_cache()
@@ -378,11 +385,14 @@ class WinstonLutz:
             Whether to show the image.
         """
         title = f'In-plane {axis.value} displacement'
+
         if axis == Axis.EPID:
             attr = 'cax2epid_vector'
             axis = Axis.GANTRY
         else:
             attr = 'cax2bb_vector'
+        if not self._find_field:
+            attr = 'epid2bb_vector'
         # get axis images, angles, and shifts
         imgs = [image for image in self.images if image.variable_axis in (axis, Axis.REFERENCE)]
         angles = [getattr(image, '{}_angle'.format(axis.value.lower())) for image in imgs]
@@ -436,19 +446,22 @@ class WinstonLutz:
             epid_ys = [img.epid.y for img in images[1:]]
             ax.plot(epid_xs, epid_ys, 'b+', ms=8)
             # get CAX positions
-            xs = [img.field_cax.x for img in images[1:]]
-            ys = [img.field_cax.y for img in images[1:]]
-            marker = 'gs'
+            if self._find_field:
+                xs = [img.field_cax.x for img in images[1:]]
+                ys = [img.field_cax.y for img in images[1:]]
+                marker = 'gs'
         else:
             # get BB positions
             xs = [img.bb.x for img in images[1:]]
             ys = [img.bb.y for img in images[1:]]
             marker = 'ro'
-        ax.plot(xs, ys, marker, ms=8)
+        if self._find_field:
+            ax.plot(xs, ys, marker, ms=8)
         # set labels
         ax.set_title(axis.value + ' wobble')
         ax.set_xlabel(axis.value + ' positions superimposed')
-        ax.set_ylabel(axis.value + f" iso size: {getattr(self, axis.value.lower() + '_iso_size'):3.2f}mm")
+        if self._find_field:
+            ax.set_ylabel(axis.value + f" iso size: {getattr(self, axis.value.lower() + '_iso_size'):3.2f}mm")
         if show:
             plt.show()
 
@@ -498,7 +511,7 @@ class WinstonLutz:
             plot_image(wl_image, mpl_axis)
 
         # set titles
-        fig.suptitle(f"{axis} images", fontsize=14, y=1)
+        fig.suptitle(f"{axis.value} images", fontsize=14, y=1)
         plt.tight_layout()
         if show:
             plt.show()
@@ -522,8 +535,9 @@ class WinstonLutz:
             raise ValueError("The set is not analyzed. Use .analyze() first.")
         plt.figure(figsize=(11, 9))
         grid = (3, 6)
-        gantry_sag_ax = plt.subplot2grid(grid, (0, 0), colspan=3)
-        self._plot_deviation(Axis.GANTRY, gantry_sag_ax, show=False)
+        if self._find_field:
+            gantry_sag_ax = plt.subplot2grid(grid, (0, 0), colspan=3)
+            self._plot_deviation(Axis.GANTRY, gantry_sag_ax, show=False)
         epid_sag_ax = plt.subplot2grid(grid, (0, 3), colspan=3)
         self._plot_deviation(Axis.EPID, epid_sag_ax, show=False)
         if self._get_images((Axis.COLLIMATOR, Axis.REFERENCE))[0] > 1:
@@ -671,6 +685,7 @@ class WinstonLutz2D(image.LinacDicomImage):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
     bb: Point
     field_cax: Point
+    _find_field: bool
     _rad_field_bounding_box: list
 
     def __init__(self, file: str, use_filenames: bool = False):
@@ -687,14 +702,15 @@ class WinstonLutz2D(image.LinacDicomImage):
         self.file = osp.basename(file)
         self._is_analyzed = False
 
-    def analyze(self, bb_size_mm: float = 5) -> None:
+    def analyze(self, bb_size_mm: float = 5, find_field=True) -> None:
         """Analyze the image."""
-        self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
         self._clean_edges()
         self.ground()
         self.normalize()
-        self.field_cax, self._rad_field_bounding_box = self._find_field_centroid()
+        self._find_field = find_field
+        if find_field:
+            self.field_cax, self._rad_field_bounding_box = self._find_field_centroid()
         self.bb = self._find_bb(bb_size_mm)
         self._is_analyzed = True
 
@@ -749,7 +765,8 @@ class WinstonLutz2D(image.LinacDicomImage):
         return p, edges
 
     def _find_bb(self, bb_size: float) -> Point:
-        """Find the BB within the radiation field. Iteratively searches for a circle-like object
+        """Find the BB within the radiation field. Crops down the image to the central 30x30mm square.
+        Iteratively searches for a circle-like object
         by lowering a low-pass threshold value until found.
 
         Returns
@@ -757,46 +774,51 @@ class WinstonLutz2D(image.LinacDicomImage):
         Point
             The weighted-pixel value location of the BB.
         """
-        # get initial starting conditions
-        hmin, hmax = np.percentile(self.array, [5, 99.99])
-        spread = hmax - hmin
-        max_thresh = hmax
-        lower_thresh = hmax - spread / 1.5
+        # crop to the central region to avoid edge values influencing histogram values
+        centered_box_side_pixels = 15 * self.dpmm
+        left, right = int(self.shape[1]/2 - centered_box_side_pixels), int(self.shape[1]/2 + centered_box_side_pixels)
+        bottom, top = int(self.shape[0] / 2 - centered_box_side_pixels), int(self.shape[0] / 2 + centered_box_side_pixels)
+        central_array = self.array[bottom:top, left:right]
+
+        # create an intensity image; this is used later to weight the BB center based on pixel value
+        intensity_image = ArrayImage(central_array)
+        intensity_image.invert()
+
         # search for the BB by iteratively lowering the low-pass threshold value until the BB is found.
+        spread = central_array.max() - central_array.min()
+        threshold = central_array.max()
         found = False
         while not found:
             try:
-                binary_arr = np.logical_and((max_thresh > self), (self >= lower_thresh))
+                # this is an inversion threshold; values less than the threshold are set to positive values; this makes the BB show up as positive
+                binary_arr = (central_array < threshold)
+                min_size_1mm_circle = np.pi * self.dpmm
+                array = remove_small_objects(binary_arr, min_size=min_size_1mm_circle)
+                max_size_bb = np.pi * bb_size * self.dpmm
+                array = remove_small_holes(array, area_threshold=max_size_bb)
                 # use below for debugging
-                # plt.imshow(binary_arr)
+                # plt.imshow(array)
                 # plt.show()
-                labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
-                roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
-                bw_bb_img = np.where(labeled_arr == np.argsort(roi_sizes)[-3], 1, 0)  # we pick the 3rd largest one because the largest is the background, 2nd is rad field, 3rd is the BB
-                bw_bb_img = ndimage.binary_fill_holes(bw_bb_img).astype(int)  # fill holes for low energy beams like 2.5MV
-                bb_regionprops = measure.regionprops(bw_bb_img)[0]
-
-                if not is_round(bb_regionprops):
-                    raise ValueError
-                if not is_modest_size(bw_bb_img, self.dpmm, bb_size):
-                    raise ValueError
-                if not is_symmetric(bw_bb_img):
-                    raise ValueError
-                if not is_near_center(bb_regionprops, self.dpmm, bw_bb_img.shape):
+                labeled_arr = label(array)
+                bb_regionprops = measure.regionprops(labeled_arr, intensity_image=intensity_image)
+                # look for the BB in the regionprops
+                for region in bb_regionprops:
+                    if is_round(region) and is_modest_size(region, self.dpmm, bb_size) and is_symmetric(region):
+                        found = True
+                        break
+                if not found:
                     raise ValueError
             except (IndexError, ValueError):
-                max_thresh -= 0.03 * spread
-                if max_thresh < hmin:
+                threshold -= 0.03 * spread
+                if threshold < central_array.min():
                     raise ValueError("Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images.")
             else:
                 found = True
 
         # determine the center of mass of the BB
-        inv_img = image.load(self.array)
-        # we invert so BB intensity increases w/ attenuation
-        inv_img.check_inversion_by_histogram(percentiles=(99.99, 50, 0.01))
-        bb_rprops = measure.regionprops(bw_bb_img, intensity_image=inv_img)[0]
-        return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
+        # restore the centroid position to the full image coordinates
+        x, y = region.weighted_centroid[1] + left, region.weighted_centroid[0] + bottom
+        return Point(x, y)
 
     @property
     def epid(self) -> Point:
@@ -836,26 +858,45 @@ class WinstonLutz2D(image.LinacDicomImage):
             return 180 - super().couch_angle
 
     @property
+    def epid2bb_distance(self) -> Vector:
+        """The distance from the BB to the EPID center in mm."""
+        return self.epid.distance_to(self.bb)
+
+    @property
+    def epid2bb_vector(self) -> Vector:
+        """The distance from the BB to the EPID center in mm."""
+        dist = (self.bb - self.epid) / self.dpmm
+        return Vector(dist.x, dist.y, dist.z)
+
+    @property
     def cax2bb_vector(self) -> Vector:
         """The vector in mm from the CAX to the BB."""
+        if not self._find_field:
+            raise AnalysisError("Field-only was set to True; any property or method involving the field CAX is forbidden.")
         dist = (self.bb - self.field_cax) / self.dpmm
         return Vector(dist.x, dist.y, dist.z)
 
     @property
     def cax2bb_distance(self) -> float:
         """The scalar distance in mm from the CAX to the BB."""
+        if not self._find_field:
+            raise AnalysisError("Field-only was set to True; any property or method involving the field CAX is forbidden.")
         dist = self.field_cax.distance_to(self.bb)
         return dist / self.dpmm
 
     @property
     def cax2epid_vector(self) -> Vector:
         """The vector in mm from the CAX to the EPID center pixel"""
+        if not self._find_field:
+            raise AnalysisError("Field-only was set to True; any property or method involving the field CAX is forbidden.")
         dist = (self.epid - self.field_cax) / self.dpmm
         return Vector(dist.x, dist.y, dist.z)
 
     @property
     def cax2epid_distance(self) -> float:
         """The scalar distance in mm from the CAX to the EPID center pixel"""
+        if not self._find_field:
+            raise AnalysisError("Field-only was set to True; any property or method involving the field CAX is forbidden.")
         return self.field_cax.distance_to(self.epid) / self.dpmm
 
     def plot(self, ax: Optional[plt.Axes] = None, show: bool = True, clear_fig: bool = False):
@@ -872,16 +913,22 @@ class WinstonLutz2D(image.LinacDicomImage):
             Whether to clear the figure first before drawing.
         """
         ax = super().plot(ax=ax, show=False, clear_fig=clear_fig)
-        ax.plot(self.field_cax.x, self.field_cax.y, 'gs', ms=8)
+        if self._find_field:
+            ax.plot(self.field_cax.x, self.field_cax.y, 'gs', ms=8)
         ax.plot(self.bb.x, self.bb.y, 'ro', ms=8)
-        ax.plot(self.epid.x, self.epid.y, 'b+', ms=8)
-        ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[1]])
-        ax.set_xlim([self._rad_field_bounding_box[2], self._rad_field_bounding_box[3]])
+        ax.axvline(self.epid.x, color='b', linewidth=0.5)
+        ax.axhline(self.epid.y, color='b', linewidth=0.5)
+        if self._find_field:
+            ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[1]])
+            ax.set_xlim([self._rad_field_bounding_box[2], self._rad_field_bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
         ax.set_title('\n'.join(wrap(self.file, 30)), fontsize=10)
         ax.set_xlabel(f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}")
-        ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
+        if self._find_field:
+            ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
+        else:
+            ax.set_ylabel(f"EPID to BB: {self.epid2bb_distance:3.2f}mm")
         if show:
             plt.show()
         return ax
@@ -919,7 +966,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         else:
             return Axis.GBP_COMBO
 
-    def results_data(self, as_dict=False) -> Union[WinstonLutz2DResult, dict]:
+    def results_data(self, as_dict: bool = False) -> Union[WinstonLutz2DResult, dict]:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
@@ -939,9 +986,9 @@ class WinstonLutz2D(image.LinacDicomImage):
         return data
 
 
-def is_symmetric(logical_array: np.ndarray) -> bool:
+def is_symmetric(region: RegionProperties) -> bool:
     """Whether the binary object's dimensions are symmetric, i.e. a perfect circle. Used to find the BB."""
-    ymin, ymax, xmin, xmax = bounding_box(logical_array)
+    ymin, xmin, ymax, xmax = region.bbox
     y = abs(ymax - ymin)
     x = abs(xmax - xmin)
     if x > max(y * 1.05, y + 3) or x < min(y * 0.95, y - 3):
@@ -964,14 +1011,12 @@ def is_near_center(region: RegionProperties, dpmm: float, shape: Tuple[float, fl
     return is_bb_x_centered and is_bb_y_centered
 
 
-def is_modest_size(logical_array: np.ndarray, dpmm: float, bb_size: float) -> bool:
+def is_modest_size(region: RegionProperties, dpmm: float, bb_size: float) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
-    bb_area = np.sum(logical_array) / (dpmm ** 2)
+    bb_area = region.filled_area / (dpmm ** 2)
     bb_size = max((bb_size, 2.1))
-    expected_bb_area = np.pi * (bb_size/2)**2
     larger_bb_area = np.pi * ((bb_size+2)/2)**2
     smaller_bb_area = np.pi * ((bb_size-2)/2)**2
-    # return bool(np.isclose(bb_area, expected_bb_area, rtol=0.6))
     return smaller_bb_area < bb_area < larger_bb_area
 
 
@@ -980,3 +1025,7 @@ def is_round(region: RegionProperties) -> bool:
     expected_fill_ratio = np.pi / 4  # area of a circle inside a square
     actual_fill_ratio = region.filled_area / region.bbox_area
     return expected_fill_ratio * 1.2 > actual_fill_ratio > expected_fill_ratio * 0.8
+
+
+class AnalysisError(Exception):
+    pass
