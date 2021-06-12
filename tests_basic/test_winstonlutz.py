@@ -10,8 +10,8 @@ import pylinac
 from pylinac import WinstonLutz
 from pylinac.winston_lutz import Axis, WinstonLutzResult
 from pylinac.core.geometry import Vector, vector_is_close
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
-
+from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo, \
+    get_file_from_cloud_test_repo
 
 TEST_DIR = get_folder_from_cloud_test_repo(['Winston-Lutz'])
 
@@ -107,6 +107,13 @@ class GeneralTests(TestCase):
         data_dict = self.wl.results_data(as_dict=True)
         self.assertIn('pylinac_version', data_dict)
         self.assertEqual(data_dict['gantry_3d_iso_diameter_mm'], self.wl.gantry_iso_size)
+
+    def test_bb_too_far_away_fails(self):
+        """BB is >20mm from CAX"""
+        file = get_file_from_cloud_test_repo([TEST_DIR, 'bb_too_far_away.zip'])
+        wl = WinstonLutz.from_zip(file)
+        with self.assertRaises(ValueError):
+            wl.analyze()
 
 
 class TestPublishPDF(TestCase):
