@@ -782,6 +782,8 @@ class WinstonLutz2D(image.LinacDicomImage):
                     raise ValueError
                 if not is_symmetric(bw_bb_img):
                     raise ValueError
+                if not is_near_center(bb_regionprops, self.dpmm, bw_bb_img.shape):
+                    raise ValueError
             except (IndexError, ValueError):
                 max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
@@ -945,6 +947,21 @@ def is_symmetric(logical_array: np.ndarray) -> bool:
     if x > max(y * 1.05, y + 3) or x < min(y * 0.95, y - 3):
         return False
     return True
+
+
+def is_near_center(region: RegionProperties, dpmm: float, shape: Tuple[float, float]) -> bool:
+    """Whether the bb is <2cm from the center of the field"""
+    extent_limit_mm = 20
+    bottom, left, top, right = region.bbox
+    bb_center_x = left + (right - left) / 2
+    bb_center_y = bottom + (top - bottom) / 2
+    x_lo_limit = shape[1]/2 - dpmm * extent_limit_mm
+    x_hi_limit = shape[1]/2 + dpmm * extent_limit_mm
+    is_bb_x_centered = x_lo_limit < bb_center_x < x_hi_limit
+    y_lo_limit = shape[0]/2 - dpmm * extent_limit_mm
+    y_hi_limit = shape[0]/2 + dpmm * extent_limit_mm
+    is_bb_y_centered = y_lo_limit < bb_center_y < y_hi_limit
+    return is_bb_x_centered and is_bb_y_centered
 
 
 def is_modest_size(logical_array: np.ndarray, dpmm: float, bb_size: float) -> bool:
