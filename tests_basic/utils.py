@@ -9,27 +9,37 @@ from tempfile import TemporaryDirectory
 from typing import List
 from urllib.request import urlopen
 
-import boto3
-
 from pylinac.core import image
 from pylinac.core.io import get_url
 
 
 def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
-    s3 = boto3.resource('s3')
-    my_bucket = s3.Bucket('pylinac')
+    # access GCP
+    from google.cloud import storage
+    storage_client = storage.Client()
 
-    for s3_object in my_bucket.objects.all():
-        # Need to split s3_object.key into path and file name, else it will give error file not found.
-        path, filename = osp.split(s3_object.key)
-        if (path == 'test_files/' + '/'.join(folder)) and filename != '':
-            # make folder if need be
-            dest_folder = osp.join(osp.dirname(__file__), 'test_files', *folder)
-            if not osp.isdir(dest_folder):
-                os.makedirs(dest_folder)
-            # download file
-            dest_path = osp.join(osp.dirname(__file__), s3_object.key)
-            my_bucket.download_file(s3_object.key, dest_path)
+    # get the folder data
+    blobs = list(storage_client.list_blobs("pylinac_test_files"))
+    blobs = [blob for blob in blobs if all(f+'%2F' in blob.path for f in folder)]
+
+    # make root folder if need be
+    dest_folder = osp.join(osp.dirname(__file__), 'test_files', *folder)
+    if not osp.isdir(dest_folder):
+        os.makedirs(dest_folder)
+
+    # make subfolders if need be
+    subdirs = [b.name.split('/')[1:-2] for b in blobs if len(b.name.split('/')) > 2]
+    dest_sub_folders = [osp.join(osp.dirname(__file__), 'test_files', *folder, *f) for f in subdirs]
+    for sdir in dest_sub_folders:
+        if not osp.isdir(sdir):
+            os.makedirs(sdir)
+
+    for blob in blobs:
+        # download file
+        path = osp.join(dest_folder, blob.name.split('/')[-1])
+        if not os.path.exists(path):
+            blob.download_to_filename(path)
+
     return osp.join(osp.dirname(__file__), 'test_files', *folder)
 
 
