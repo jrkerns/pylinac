@@ -20,7 +20,7 @@ def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
 
     # get the folder data
     blobs = list(storage_client.list_blobs("pylinac_test_files"))
-    blobs = [blob for blob in blobs if all(f+'%2F' in blob.path for f in folder)]
+    blobs = [blob for blob in blobs if all(f in blob.name.split('/') and blob.name.split("/")[1] != '' for f in folder)]
 
     # make root folder if need be
     dest_folder = osp.join(osp.dirname(__file__), 'test_files', *folder)
