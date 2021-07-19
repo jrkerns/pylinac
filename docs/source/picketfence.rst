@@ -18,18 +18,18 @@ formed by one MLC pair at one picket. Thus, one picket fence image may have anyw
 formed by as few as 10 MLC pairs up to all 60 pairs.
 
 Pylinac presents the analyzed image in such a way that allows for quick assessment; additionally, all elements atop
-the image can optionally be turned off. Pylinac by default will plot the image, the determined MLC positions, two
-"guard rails", and a semi-transparent overlay over the entire MLC pair region. The guard rails are two lines parallel
-to the fitted picket, offset by the tolerance passed to :func:`~pylinac.picketfence.PicketFence.analyze`. Thus, if a tolerance of 0.5 mm is passed, each
+the image can optionally be turned off. Pylinac by default will plot the image, the determined MLC positions,
+"guard rails", and a semi-transparent overlay of the MLC error magnitude and translucent boxes over failed leaves. The guard rails are two lines parallel
+to the fitted picket or side of the picket, offset by the tolerance passed to :func:`~pylinac.picketfence.PicketFence.analyze`. Thus, if a tolerance of 0.5 mm is passed, each
 guard rail is 0.5 mm to the left and right of the invisible picket. Ideally, MLC positions will all be within these guard rails,
-i.e. within tolerance, and will be colored blue. If they are outside the tolerance they are turned red.
+i.e. within tolerance, and will be colored blue. If they are outside the tolerance they are turned red with a larger box overlaid for easy identification.
 If an "action tolerance" is also passed to :func:`~pylinac.picketfence.PicketFence.analyze`, MLC positions that are below tolerance but above the action
 tolerance are turned magenta.
 
 Additionally, pylinac provides a semi-transparent colored overlay so that an "all clear"
 or a "pair(s) failed" status is easily seen and not inadvertently overlooked. If any MLC position is outside the action
-tolerance or the absolute tolerance, the entire MLC pair area is colored the corresponding color. In this way, not
-every position needs be looked at. If all rows are green, then all positions passed.
+tolerance or the absolute tolerance, the MLC pair/leaf area is colored the corresponding color. In this way, not
+every position needs be looked at.
 
 Running the Demo
 ----------------
@@ -156,6 +156,38 @@ The minimum needed to get going is to:
 
       pf.publish_pdf('mypf.pdf')
 
+Analyzing individual leaves
+---------------------------
+
+Historically, MLC pairs were evaluated together; i.e. the center of the picket was determined and compared to the idealized picket.
+In v3.0+, an option to analyze each leaf of the MLC kiss was added. This will create 2 pickets per gap, one on either side and compare
+the measurements of each leaf. For backwards compatibility, this option is opt-in. This option also requires a few more parameters
+to be passed. To analyze individual leaves:
+
+.. code-block:: python
+
+    from pylinac import PicketFence
+    pf = PicketFence(...)
+    pf.analyze(..., separate_leaves=True, nominal_gap_mm=2, dlg_mm=1.5)
+    ...
+
+The gap and DLG values should be self-explanatory. They are required since the expected position is no longer at the center of the MLC kiss, but
+offset to the side and depends on the set gap and DLG.
+
+Plotting a histogram
+--------------------
+
+As of v3.0, you may plot a histogram of the error data like so:
+
+
+.. plot::
+  :include-source: true
+
+  from pylinac import PicketFence
+  pf = PicketFence.from_demo_image()
+  pf.analyze()
+  pf.plot_histogram()
+
 Using a Machine Log
 -------------------
 
@@ -233,10 +265,9 @@ The following are general tips on getting good images that pylinac will analyze 
 in addition to the algorithm allowances and restrictions:
 
 * Keep your pickets away from the edges. That is, in the direction parallel to leaf motion keep the pickets at least 1-2cm from the edge.
-* If you use wide-gap pickets, try to make the spacing between pickets wider than the picket gaps. E.g. 1cm picket widths should use 2cm or more spacing between pickets.
-  This is due to the automatic inversion of the images.
-* If you use Y-jaws, leave them open 1-2 leaves more than the leaves you want to measure. For example. if you're just analyze the "central"
-  leaves and set Y-jaws to something like +/-20cm, the leaves at the edge may not be caught by the algorithm
+* If you use wide-gap pickets, give a reasonable amount of space between the pickets. I.e. don't have <10mm between pickets.
+* If you use Y-jaws, leave them open 1-2 leaves more than the leaves you want to measure. For example. if you just want to analyze the "central"
+  leaves and set Y-jaws to +/-10cm, the leaves at the edge may not be caught by the algorithm
   (although see the ``edge_threshold`` parameter of ``analyze``). To avoid having to tweak the algorithm, just open the jaws a bit more.
 * Don't put anything else in the beam path. This might sound obvious, but I'm continually surprised at the types of images people try to use/take.
   No, pylinac cannot account for the MV phantom you left on the couch when you took your PF image.
