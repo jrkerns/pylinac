@@ -284,6 +284,19 @@ class PicketFence:
         return float(np.mean([abs(sorted_pickets[idx].dist2cax - sorted_pickets[idx + 1].dist2cax) for idx in
                         range(len(sorted_pickets) - 1)]))
 
+    def plot_leaf_profile(self, leaf: Union[str, int], picket: int):
+        """Plot the leaf profile of a given leaf pair parallel to leaf motion."""
+        mlc_meas = Enumerable(self.mlc_meas).single(lambda m: leaf in m.full_leaf_nums and m.picket_num == picket)
+        ax = mlc_meas.plot_detailed_profile()
+        ax.set_title(f"MLC profile Leaf: {leaf}, Picket: {picket}")
+        for lg, rg, m in zip(self.pickets[picket].left_guard_separated, self.pickets[picket].right_guard_separated, mlc_meas.marker_lines):
+            g_val = lg(m.point1.y)
+            rg_val = rg(m.point1.y)
+            ax.axvline(g_val, color='green', label="Guard rail")
+            ax.axvline(rg_val, color='green', label="Guard rail")
+        ax.legend()
+        plt.show()
+
     def _load_log(self, log: str) -> None:
         """Load a machine log that corresponds to the picket fence delivery.
 
@@ -317,7 +330,7 @@ class PicketFence:
                 orientation: Optional[Union[Orientation, str]] = None, invert: bool = False, leaf_analysis_width_ratio: float = 0.4,
                 picket_spacing: Optional[float] = None, height_threshold: float = 0.5, edge_threshold: float = 1.5,
                 peak_sort: str = 'peak_heights', required_prominence: float = 0.2, fwxm: int = 50,
-                separate_leaves: bool = False, nominal_gap_mm: float = 1, dlg_mm: float = 1.5) -> None:
+                separate_leaves: bool = False, nominal_gap_mm: float = 3) -> None:
         """Analyze the picket fence image.
 
         Parameters
@@ -385,10 +398,8 @@ class PicketFence:
             Whether to analyze leaves individually (each tip) or as a set (combined, center of the picket). False is
             the default for backwards compatibility.
         nominal_gap_mm
-            The gap of the pickets in mm as set by the DICOM plan. Only used when separate leaves is True.
-        dlg_mm
-            The DLG value of the energy. Combined with the nominal gap, this calculates where the leaf tips should be.
-            Only used when separate leaves is True.
+            The expected gap of the pickets in mm. Only used when separate leaves is True. Due to the DLG and EPID
+            scattering, this value will have to be determined by you with a known good delivery.
         """
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
@@ -432,7 +443,7 @@ class PicketFence:
                                                   leaf_num=leaf_num, approx_peak_val=picket_peak_val,
                                                   image_window=window, image=self.image, fwxm=fwxm,
                                                   separate_leaves=separate_leaves, nominal_gap_mm=nominal_gap_mm,
-                                                  dlg_mm=dlg_mm))
+                                                  ))
         if not self.mlc_meas:
             raise ValueError("No MLC measurements were found. This may be due to an incorrect inversion. Try setting invert=True. Or, you may have passed an incorrect orientation.")
 
@@ -456,7 +467,7 @@ class PicketFence:
         for picket_num, _ in enumerate(peak_idxs):
             self.pickets.append(Picket([m for m in self.mlc_meas if m.picket_num == picket_num],
                                        log_fits=self._log_fits, orientation=self.orientation,
-                                       image=self.image, tolerance=tolerance, dlg=dlg_mm, nominal_gap=nominal_gap_mm,
+                                       image=self.image, tolerance=tolerance, nominal_gap=nominal_gap_mm,
                                        separate_leaves=separate_leaves))
 
         self._is_analyzed = True
@@ -740,7 +751,7 @@ class MLCValue:
     def __init__(self, picket_num: int, approx_idx: int, leaf_width: float, leaf_center: float, picket_spacing: float, orientation: Orientation,
                  leaf_analysis_width_ratio: float, tolerance: float, action_tolerance: Optional[float], leaf_num: int,
                  approx_peak_val: float, image_window: np.ndarray, image: PFDicomImage, fwxm: int, separate_leaves: bool, nominal_gap_mm: float,
-                 dlg_mm: float):
+                 ):
         """Representation of an MLC kiss or of each MLC about a kiss."""
         self._approximate_idx = approx_idx
         self.picket_num = picket_num
@@ -760,7 +771,7 @@ class MLCValue:
         self._action_tolerance: float = action_tolerance
         self._separate_leaves = separate_leaves
         self._nominal_gap_mm = nominal_gap_mm
-        self._dlg_mm = dlg_mm
+        self.profile: SingleProfile
         self.position = self.get_peak_positions()
         self._fit = None
 
@@ -788,6 +799,7 @@ class MLCValue:
         interpolation_factor = 100
         prof = SingleProfile(pix_vals, interpolation=Interpolation.LINEAR, interpolation_factor=interpolation_factor)
         fwxm = prof.fwxm_data(self._fwxm)
+        self.profile = prof
         if self._separate_leaves:
             left = fwxm['left index (exact)']/interpolation_factor + max(self._approximate_idx - self._spacing / 2, 0)
             right = fwxm['right index (exact)'] / interpolation_factor + max(self._approximate_idx - self._spacing / 2, 0)
@@ -819,6 +831,38 @@ class MLCValue:
         return colors
 
     @property
+    def picket_positions(self) -> Sequence[float]:
+        """The position(s) of the pickets in mm"""
+        picket_pos = []
+        for line, sign in zip(self.marker_lines, (-1, 1)):
+            if self._orientation == Orientation.UP_DOWN:
+                picket = self._fit(line.center.y)
+            else:
+                picket = self._fit(line.center.x)
+            if self._separate_leaves:  # offset the picket position by the DLG and nominal gap
+                mag_factor = self._image.sid / 1000
+                picket += sign * self._nominal_gap_mm * mag_factor / 2 * self._image.dpmm
+            picket_pos.append(picket / self._image.dpmm)
+        return picket_pos
+
+    def plot_detailed_profile(self) -> plt.Axes:
+        if self._orientation == Orientation.UP_DOWN:
+            pix_vals = np.median(self._image_window, axis=0)
+        else:
+            pix_vals = np.median(self._image_window, axis=1)
+        offset_pixels = max(self._approximate_idx - self._spacing / 2, 0)
+        x_values = np.array(range(len(pix_vals))) + offset_pixels
+
+        fig, ax = plt.subplots()
+        ax.plot(x_values, pix_vals)
+        # ax.vlines(x=data['center index (exact)']/self.profile._interpolation_factor + offset_pixels, ymin=data['peak_props']['peak_heights'][0] - data['peak_props']['prominences'][0], ymax=data['peak_props']['peak_heights'][0], color='magenta', label='Peak center')
+        for picket_pos in self.picket_positions:
+            ax.axvline(x=picket_pos * self._image.dpmm, label="Fitted picket location", color='black')
+        for pos, bg_color in zip(self.get_peak_positions(), self.bg_color):
+            ax.axvline(pos, color=bg_color, label="Measured MLC position")
+        return ax
+
+    @property
     def error(self) -> Sequence[float]:
         """The error (difference) of the MLC measurement and the picket fit.
         If using individual leaf analysis, returns both errors otherwise return one."""
@@ -832,7 +876,7 @@ class MLCValue:
                 mlc_pos = line.center.y
             if self._separate_leaves:  # offset the picket position by the DLG and nominal gap
                 mag_factor = self._image.sid / 1000
-                picket_pos += sign * (self._dlg_mm + self._nominal_gap_mm) * mag_factor / 2 * self._image.dpmm
+                picket_pos += sign * self._nominal_gap_mm * mag_factor / 2 * self._image.dpmm
             errors.append((mlc_pos - picket_pos) / self._image.dpmm)
         return errors
 
@@ -888,7 +932,7 @@ class Picket:
 
     def __init__(self, mlc_measurements: List[MLCValue], log_fits, orientation: Orientation,
                  image: PFDicomImage, tolerance: float, separate_leaves: bool,
-                 nominal_gap: float, dlg: float):
+                 nominal_gap: float):
         self.mlc_meas: List[MLCValue] = mlc_measurements
         self.log_fits = log_fits
         self.tolerance = tolerance
@@ -896,7 +940,6 @@ class Picket:
         self.image = image
         self._separate_leaves = separate_leaves
         self._nominal_gap = nominal_gap
-        self._dlg = dlg
         self.fit = self.get_fit()
         for m in self.mlc_meas:
             m._fit = self.fit
@@ -938,7 +981,7 @@ class Picket:
         return (getattr(self.image.center, axis) - getattr(p1, axis)) / self.image.dpmm
 
     @property
-    def left_guard_separated(self) -> Iterable[np.poly1d]:
+    def left_guard_separated(self) -> Sequence[np.poly1d]:
         """The line representing the left-sided guard rails.
         When not doing separate analysis, the left and right rails will overlap."""
         l_fit = np.copy(self.fit)
@@ -948,8 +991,8 @@ class Picket:
         else:
             other_fit = copy.copy(l_fit)
             mag_factor = self.image.sid / 1000
-            l_fit[-1] += (self._dlg + self._nominal_gap)*mag_factor/2 * self.image.dpmm
-            other_fit[-1] -= (self._dlg + self._nominal_gap)*mag_factor/2 * self.image.dpmm
+            l_fit[-1] += self._nominal_gap*mag_factor/2 * self.image.dpmm
+            other_fit[-1] -= self._nominal_gap*mag_factor/2 * self.image.dpmm
             return [np.poly1d(l_fit), np.poly1d(other_fit)]
 
     @property
@@ -962,8 +1005,8 @@ class Picket:
         else:
             other_fit = copy.copy(r_fit)
             mag_factor = self.image.sid / 1000
-            r_fit[-1] -= (self._dlg + self._nominal_gap)*mag_factor / 2 * self.image.dpmm
-            other_fit[-1] += (self._dlg + self._nominal_gap)*mag_factor / 2 * self.image.dpmm
+            r_fit[-1] -= self._nominal_gap*mag_factor / 2 * self.image.dpmm
+            other_fit[-1] += self._nominal_gap*mag_factor / 2 * self.image.dpmm
             return [np.poly1d(r_fit), np.poly1d(other_fit)]
 
     def add_guards_to_axes(self, axis: plt.Axes, color: str = 'g') -> None:
