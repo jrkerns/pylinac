@@ -240,16 +240,16 @@ class Profiler6FFF(DeviceAnalysisBase, TestCase):
     horiz_flatness = 14.6
     horiz_symmetry = 0.5
     vert_position = 0.6
-    vert_field_size = 255.8
-    horiz_field_size = 246.0
-    cax_to_top = 128.3
-    cax_to_left = 122.7
-    cax_to_right = 123.3
-    cax_to_bottom = 127.4
+    vert_field_size = 251.8
+    horiz_field_size = 242.0
+    cax_to_top = 126.3
+    cax_to_left = 120.7
+    cax_to_right = 121.3
+    cax_to_bottom = 125.6
     penum_top = 6.1
-    penum_bottom = 6.9
+    penum_bottom = 6.6
     penum_right = 5.8
-    penum_left = 6.4
+    penum_left = 6.1
     top_slope = 0.3
     bottom_slope = -0.3
     left_slope = 0.3
@@ -322,7 +322,7 @@ class FlatSym18X(FieldAnalysisBase, TestCase):
     cax_to_right = 50.3
     cax_to_bottom = 49.5
     penum_top = 3.7
-    penum_bottom = 3.4
+    penum_bottom = 3.7
     penum_right = 3.0
     penum_left = 3.0
 
