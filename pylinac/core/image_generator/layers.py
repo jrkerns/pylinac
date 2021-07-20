@@ -85,11 +85,11 @@ class PerfectFieldLayer(Layer):
         self.alpha = alpha
 
     def _create_perfect_field(self, image, pixel_size, mag_factor):
-        field_size_pix = [even_round(f * mag_factor / pixel_size) for f in self.field_size_mm]
+        field_size_pix = [even_round(f * mag_factor**2 / pixel_size) for f in self.field_size_mm]
         cax_offset_mm_mag = [v*mag_factor for v in self.cax_offset_mm]
-        field_start = [x / pixel_size + (shape / 2) - field_size / 2 for x, shape, field_size in
+        field_start = [round(x / pixel_size + (shape / 2) - field_size / 2) for x, shape, field_size in
                        zip(cax_offset_mm_mag, image.shape, field_size_pix)]
-        field_end = [x / pixel_size + (shape / 2) + field_size / 2 - 1 for x, shape, field_size in
+        field_end = [round(x / pixel_size + (shape / 2) + field_size / 2 - 1) for x, shape, field_size in
                      zip(cax_offset_mm_mag, image.shape, field_size_pix)]
         # -1 due to skimage implementation of [start:(end+1)]
         rr, cc = draw.rectangle(field_start, end=field_end, shape=image.shape)

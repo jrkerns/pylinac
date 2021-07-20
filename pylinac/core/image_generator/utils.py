@@ -1,23 +1,35 @@
 import copy
-from typing import Union, List, Tuple, Type
+from typing import Union, List, Tuple, Type, Optional, Sequence
 import os.path as osp
 
-from .layers import FilteredFieldLayer, FilterFreeFieldLayer, Layer, PerfectBBLayer
+from .layers import FilteredFieldLayer, FilterFreeFieldLayer, Layer, PerfectBBLayer, PerfectFieldLayer
 from .simulators import Simulator
 from ..geometry import cos, sin
+from ...picketfence import Orientation
 
 
-def generate_picketfence(simulator: Simulator, field_layer: Union[FilterFreeFieldLayer, FilteredFieldLayer],
+def generate_picketfence(simulator: Simulator, field_layer: Type[Union[FilterFreeFieldLayer, FilteredFieldLayer, PerfectFieldLayer]],
                          file_out: str,
                          final_layers: List[Layer] = None,
                          pickets: int = 11, picket_spacing_mm: float = 20, picket_width_mm: int = 2,
-                         picket_height_mm=300, gantry_angle=0) -> None:
+                         picket_height_mm: int = 300, gantry_angle: int = 0, orientation=Orientation.UP_DOWN,
+                         picket_offset_error: Optional[Sequence] = None) -> None:
     """Create a mock picket fence image"""
     picket_pos_mm = range(-int((pickets - 1) * picket_spacing_mm / 2),
                           int((pickets - 1) * picket_spacing_mm / 2) + 1,
                           picket_spacing_mm)
-    for pos in picket_pos_mm:
-        simulator.add_layer(field_layer((picket_height_mm, picket_width_mm), cax_offset_mm=(0, pos)))
+    for idx, pos in enumerate(picket_pos_mm):
+        if picket_offset_error is not None:
+            if len(picket_offset_error) != pickets:
+                raise ValueError("The length of the error array must be the same as the number of pickets.")
+            pos += picket_offset_error[idx]
+        if orientation == orientation.UP_DOWN:
+            position = (0, pos)
+            layout = (picket_height_mm, picket_width_mm)
+        else:
+            position = (pos, 0)
+            layout = (picket_width_mm, picket_height_mm)
+        simulator.add_layer(field_layer(layout, cax_offset_mm=position))
     if final_layers is not None:
         for layer in final_layers:
             simulator.add_layer(layer)
