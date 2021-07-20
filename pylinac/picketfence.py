@@ -242,17 +242,32 @@ class PicketFence:
     @property
     def max_error(self) -> float:
         """Return the maximum error found."""
-        return float(np.max(self._flattened_errors()))
+        return float(np.max(np.abs(self._flattened_errors())))
 
     @property
     def max_error_picket(self) -> int:
         """Return the picket number where the maximum error occurred."""
-        return sorted([m for m in self.mlc_meas], key=lambda x: max(x.error))[0].picket_num
+        return Enumerable(self.mlc_meas)\
+            .order_by_descending(lambda m: np.max(np.abs(m.error)))\
+            .select(lambda m: m.picket_num)\
+            .first()
 
     @property
     def max_error_leaf(self) -> int:
         """Return the leaf that had the maximum error."""
-        return sorted([m for m in self.mlc_meas], key=lambda x: max(x.error))[0].leaf_num
+        if not self.separate_leaves:
+            return Enumerable(self.mlc_meas)\
+                .order_by_descending(lambda m: np.max(np.abs(m.error)))\
+                .select(lambda m: m.full_leaf_nums)\
+                .first()
+        else:
+            max_meas = Enumerable(self.mlc_meas) \
+                .order_by_descending(lambda m: np.max(np.abs(m.error)))\
+                .first()
+            if abs(max_meas.error[0]) > abs(max_meas.error[1]):
+                return max_meas.full_leaf_nums[0]
+            else:
+                return max_meas.full_leaf_nums[1]
 
     def _flattened_errors(self) -> List[float]:
         return Enumerable(self.mlc_meas).select_many(lambda m: m.error).to_list()
@@ -261,11 +276,13 @@ class PicketFence:
         """A list of the failed leaves. Either the leaf number or the bank+leaf number if using separate leaves."""
         if not self._is_analyzed:
             raise ValueError("It appears the PF image has not been analyzed yet. Use .analyze() first.")
-        return Enumerable(self.mlc_meas)\
-            .where(lambda m: not all(m.passed))\
-            .select_many(lambda m: m.full_leaf_nums)\
+        failing_sets = Enumerable(self.mlc_meas).where(lambda m: not all(m.passed))
+        if not self.separate_leaves:
+            return failing_sets.select(lambda m: m.leaf_num)\
             .distinct()\
             .to_list()
+        else:
+            return failing_sets.select_many(lambda m: [m.full_leaf_nums[idx] for idx, passed in enumerate(m.passed) if not passed]).distinct().to_list()
 
     @property
     def abs_median_error(self) -> float:
@@ -285,7 +302,16 @@ class PicketFence:
                         range(len(sorted_pickets) - 1)]))
 
     def plot_leaf_profile(self, leaf: Union[str, int], picket: int):
-        """Plot the leaf profile of a given leaf pair parallel to leaf motion."""
+        """Plot the leaf profile of a given leaf pair parallel to leaf motion.
+
+        Parameters
+        ----------
+        leaf
+            The leaf to plot. If ``separate_leaves`` is True, this will be a string like "A15" or "B33".
+            If ``separate_leaves`` is False, this must be an int, like ``15`` or ``33``.
+        picket
+            An int of the picket number. Pickets start from the 0-side of an image. E.g. for left-right PFs, this would start on the left; for up-down this would start at the bottom.
+        """
         mlc_meas = Enumerable(self.mlc_meas).single(lambda m: leaf in m.full_leaf_nums and m.picket_num == picket)
         ax = mlc_meas.plot_detailed_profile()
         ax.set_title(f"MLC profile Leaf: {leaf}, Picket: {picket}")
@@ -424,6 +450,9 @@ class PicketFence:
         leaf_prof = MultiProfile(leaf_prof)
         peak_idxs, peak_vals = leaf_prof.find_fwxm_peaks(min_distance=0.02, threshold=height_threshold, max_number=num_pickets,
                                                          peak_sort=peak_sort, required_prominence=required_prominence)
+        if len(peak_idxs) == 0:
+            raise ValueError("No pickets were found. This can mean either an incorrect orientation or incorrect inversion. "
+                             "Try passing the correct orientation; if that fails, also set invert=True.")
         # get picket spacing if not set by user
         if picket_spacing is None:
             picket_spacing = np.median(np.diff(np.sort(peak_idxs)))
@@ -590,7 +619,7 @@ class PicketFence:
         error_stdev = []
         error_vals = []
         for leaf_num in set([m.leaf_num for m in self.mlc_meas]):
-            error_vals.append(np.mean([m.error for m in self.mlc_meas if m.leaf_num == leaf_num]))
+            error_vals.append(np.mean([np.abs(m.error) for m in self.mlc_meas if m.leaf_num == leaf_num]))
             error_stdev.append(np.std([m.error for m in self.mlc_meas if m.leaf_num == leaf_num]))
 
         # plot the leaf errors as a bar plot
@@ -602,14 +631,14 @@ class PicketFence:
             if self.action_tolerance is not None:
                 axtop.axvline(self.action_tolerance, color='m', linewidth=3)
             # reset xlims to comfortably include the max error or tolerance value
-            axtop.set_xlim([0, max([max(error_vals), self.tolerance]) + 0.1])
+            axtop.set_xlim([0, max([max(error_vals)+max(error_stdev), self.tolerance]) + 0.1])
         else:
             axtop.bar(pos, error_vals, yerr=error_stdev, width=self.leaf_analysis_width * 2, alpha=0.4, align='center')
             # plot the tolerance line(s)
             axtop.axhline(self.tolerance, color='r', linewidth=3)
             if self.action_tolerance is not None:
                 axtop.axhline(self.action_tolerance, color='m', linewidth=3)
-            axtop.set_ylim([0, max([max(error_vals), self.tolerance]) + 0.1])
+            axtop.set_ylim([0, max([max(error_vals)+max(error_stdev), self.tolerance]) + 0.1])
 
         axtop.grid(True)
         axtop.set_title("Average Error (mm)")
@@ -732,8 +761,8 @@ class PicketFence:
         # find "range" of 80 to 90th percentiles
         row_sum = np.sum(temp_image, 0)
         col_sum = np.sum(temp_image, 1)
-        row80, row90 = np.percentile(row_sum, [85, 95])
-        col80, col90 = np.percentile(col_sum, [85, 95])
+        row80, row90 = np.percentile(row_sum, [85, 99])
+        col80, col90 = np.percentile(col_sum, [85, 99])
         row_range = row90 - row80
         col_range = col90 - col80
 

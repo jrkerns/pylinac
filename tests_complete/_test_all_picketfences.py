@@ -209,6 +209,8 @@ class AS1200HD(PFBankMixin, TestCase):
     max_error = 0.05
     abs_median_error = 0.02
     num_pickets = 10
+    required_prominence = 0.1  # TODO: incoroprate these
+    height_threshold = 0.4
     pass_num_pickets = True
 
 
