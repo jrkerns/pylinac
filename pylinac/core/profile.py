@@ -249,10 +249,10 @@ class SingleProfile(ProfileMixin):
             return f(new_x), new_dpmm, new_x
         elif interp_method == Interpolation.SPLINE:
             if dpmm is not None:
-                samples = int(round(len(x_indices)/(dpmm*interpolation_resolution)))
+                samples = int(round((len(x_indices)-1)/(dpmm*interpolation_resolution)))
                 new_dpmm = 1 / interpolation_resolution
             else:
-                samples = int(round(len(x_indices)*interpolation_factor))
+                samples = int(round((len(x_indices)-1)*interpolation_factor))
                 new_dpmm = None
             f = interp1d(x_indices, values, kind='cubic')
             new_x = np.linspace(0, len(x_indices)-1, num=samples)
