@@ -18,7 +18,7 @@ within_5 = partial(TestCase().assertAlmostEqual, delta=5)
 within_1 = partial(TestCase().assertAlmostEqual, delta=1)
 
 
-class TestLoadingBase:
+class LoadingBase:
     demo_name = ''
     klass: Union[Type[DRGS], Type[DRMLC]]
 
@@ -93,12 +93,12 @@ class TestLoadingBase:
         self.assertEqual(data_dict['max_deviation_percent'], instance.max_r_deviation)
 
 
-class TestDRGSLoading(TestLoadingBase, TestCase):
+class TestDRGSLoading(LoadingBase, TestCase):
     demo_name = 'drgs.zip'
     klass = DRGS
 
 
-class TestDRMLCLoading(TestLoadingBase, TestCase):
+class TestDRMLCLoading(LoadingBase, TestCase):
     demo_name = 'drmlc.zip'
     klass = DRMLC
 

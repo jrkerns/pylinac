@@ -1,4 +1,3 @@
-import copy
 import io
 import os.path as osp
 import tempfile

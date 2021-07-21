@@ -2,11 +2,11 @@ import os.path as osp
 from unittest import TestCase
 
 from pylinac.log_analyzer import VMAT, IMAGING, STATIC_IMRT, DYNAMIC_IMRT
-from tests_basic.test_logs import TestIndividualLogBase
+from tests_basic.test_logs import IndividualLogBase
 from tests_basic import TEST_BANK_DIR
 
 
-class LogBankBase(TestIndividualLogBase):
+class LogBankBase(IndividualLogBase):
     dir_location = osp.join(TEST_BANK_DIR, 'Machine logs')
 
 
