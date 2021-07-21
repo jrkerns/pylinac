@@ -26,6 +26,46 @@ pipelines:
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/test_planar_imaging.py
+          - step:
+              name: Run DLG Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_dlg.py
+          - step:
+              name: Run Field Analysis Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_field_analysis.py
+          - step:
+              name: Run Machine Logs Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_logs.py
+          - step:
+              name: Run Picket Fence Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_picketfence.py
+          - step:
+              name: Run Starshot Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_starshot.py
+          - step:
+              name: Run TG-51/TRS-398 Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py
+          - step:
+              name: Run VMAT Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_vmat.py
+          - step:
+              name: Run Winston-Lutz Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_winstonlutz.py
 
   branches:
     master:
