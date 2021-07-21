@@ -71,6 +71,7 @@ class PlanarPhantomMixin(LocationMixin):
     @classmethod
     def tearDownClass(cls):
         plt.close('all')
+        del cls.instance
 
     def test_analyze(self):
         self.instance.analyze(ssd=self.ssd, invert=self.invert)
