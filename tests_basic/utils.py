@@ -1,3 +1,4 @@
+import base64
 import concurrent.futures
 from io import BytesIO, StringIO
 import multiprocessing
@@ -5,6 +6,7 @@ import os
 import os.path as osp
 import pprint
 import time
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List
 from urllib.request import urlopen
@@ -16,7 +18,14 @@ from pylinac.core.io import get_url
 def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
     # access GCP
     from google.cloud import storage
-    storage_client = storage.Client()
+    credentials_file = Path(__file__).parent.parent / 'GCP_creds.json'
+    # check if the credentials file is available (local dev)
+    # if not, load from the env var (test pipeline)
+    if not credentials_file.is_file():
+        with open(credentials_file, 'wb') as f:
+            creds = base64.b64decode(os.environ.get("GOOGLE_CREDENTIALS"))
+            f.write(creds)
+    storage_client = storage.Client.from_service_account_json(str(credentials_file))
 
     # get the folder data
     blobs = list(storage_client.list_blobs("pylinac_test_files"))

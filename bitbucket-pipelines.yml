@@ -1,0 +1,25 @@
+image: python:3.9
+
+pipelines:
+
+  pull-requests:
+    '**':
+      - step:
+          name: Run Tests
+          caches:
+            - pip
+          script:
+            - apt-get update
+            - pip install -r requirements-dev.txt
+            - pytest
+
+  branches:
+    master:
+      - step:
+          name: Run Tests
+          caches:
+            - pip
+          script:
+            - apt-get update
+            - pip install -r requirements-dev.txt
+            - pytest
