@@ -5,13 +5,21 @@ pipelines:
   pull-requests:
     '**':
       - step:
-          name: Run Tests
+          name: Set up Env
           caches:
             - pip
           script:
             - apt-get update
             - pip install -r requirements-dev.txt
-            - pytest
+      - parallel:
+          - step:
+              name: Run CBCT Tests
+              script:
+                - pytest tests_basic/test_cbct.py
+          - step:
+              name: Run Planar Imaging Tests
+              script:
+                - pytest tests_basic/test_planar_imaging.py
 
   branches:
     master:
