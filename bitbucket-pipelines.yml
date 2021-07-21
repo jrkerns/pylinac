@@ -10,15 +10,21 @@ pipelines:
             - pip
           script:
             - apt-get update
+            - python -m venv venv
+            - source venv/bin/activate
             - pip install -r requirements-dev.txt
+          artifacts:
+            - venv/**
       - parallel:
           - step:
               name: Run CBCT Tests
               script:
+                - source venv/bin/activate
                 - pytest tests_basic/test_cbct.py
           - step:
               name: Run Planar Imaging Tests
               script:
+                - source venv/bin/activate
                 - pytest tests_basic/test_planar_imaging.py
 
   branches:
