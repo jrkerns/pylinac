@@ -1,21 +1,19 @@
 import io
-from unittest import TestCase
-from pathlib import Path
 import os.path as osp
+from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
-from pylinac.ct import CTP404CP504, CTP404CP503, CTP515, CTP528CP503, CTP528CP504, CatphanResult
 from pylinac.core.geometry import Point
+from pylinac.ct import CTP404CP504, CTP404CP503, CTP528CP503, CTP528CP504, CatphanResult
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
-
 
 TEST_DIR = get_folder_from_cloud_test_repo(['CBCT'])
 
 
-class CBCTLoading(LoadingTestBase, TestCase):
+class TestCBCTLoading(LoadingTestBase, TestCase):
     klass = CatPhan504
     constructor_input = ['CBCT', 'Pelvis']
     demo_load_method = 'from_demo_images'
@@ -23,7 +21,7 @@ class CBCTLoading(LoadingTestBase, TestCase):
     zip = ['CBCT', 'CBCT_4.zip']
 
 
-class GeneralTests(TestCase):
+class TestGeneral(TestCase):
     """Test general things when using cbct module."""
 
     def setUp(self):
@@ -74,7 +72,7 @@ class GeneralTests(TestCase):
         self.assertAlmostEqual(data.ctp528.start_angle_radians, np.pi, delta=0.02)
 
 
-class CustomPhantom(TestCase):
+class TestCustomPhantom(TestCase):
 
     def test_removing_module(self):
         class CatPhan504Modified(CatPhan504):
@@ -107,7 +105,7 @@ class CustomPhantom(TestCase):
         ct.plot_analyzed_image()
 
 
-class DemoTests(TestCase):
+class TestDemos(TestCase):
 
     def test_504(self):
         CatPhan504.run_demo()
@@ -122,7 +120,7 @@ class DemoTests(TestCase):
         CatPhan604.run_demo()
 
 
-class PlottingSaving(TestCase):
+class TestPlottingSaving(TestCase):
 
     @classmethod
     def setUpClass(cls):

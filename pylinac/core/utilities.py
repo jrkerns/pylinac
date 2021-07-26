@@ -4,7 +4,7 @@ import os
 import os.path as osp
 import struct
 import subprocess
-from collections import Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum

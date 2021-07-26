@@ -1,0 +1,79 @@
+image: python:3.9
+
+pipelines:
+
+  pull-requests:
+    '**':
+      - step:
+          name: Set up Env
+          caches:
+            - pip
+          script:
+            - apt-get update
+            - python -m venv venv
+            - source venv/bin/activate
+            - pip install -r requirements-dev.txt
+          artifacts:
+            - venv/**
+      - parallel:
+          - step:
+              name: Run CBCT Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_cbct.py
+          - step:
+              name: Run Planar Imaging Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_planar_imaging.py
+          - step:
+              name: Run DLG Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_dlg.py
+          - step:
+              name: Run Field Analysis Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_field_analysis.py
+          - step:
+              name: Run Machine Logs Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_logs.py
+          - step:
+              name: Run Picket Fence Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_picketfence.py
+          - step:
+              name: Run Starshot Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_starshot.py
+          - step:
+              name: Run TG-51/TRS-398 Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py
+          - step:
+              name: Run VMAT Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_vmat.py
+          - step:
+              name: Run Winston-Lutz Tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/test_winstonlutz.py
+
+  branches:
+    master:
+      - step:
+          name: Run Tests
+          caches:
+            - pip
+          script:
+            - apt-get update
+            - pip install -r requirements-dev.txt
+            - pytest

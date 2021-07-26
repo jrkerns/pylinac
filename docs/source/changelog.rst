@@ -152,7 +152,7 @@ Planar Imaging
   The default is 1000mm, but if you set it on your panel you can pass something like 1400mm.
 * The phantom-finding algorithm has been refactored to be more extensible. This does not affect normal users, but reduces the amount of duplicate code.
   It also makes adding new phantoms easier.
-* Generally speaking, the phantoms should all be centered along the CAX. Previously, the phantom could be offset from the CAX.
+* Generally speaking, the phantoms should all be roughly centered along the CAX. Previously, the phantom could be offset from the CAX.
   Due to general difficulty in finding the phantom reliably for the majority of clinics, I am enforcing this as a restriction.
   This shouldn't affect too many people but should make the ROI-finding algorithm better.
 * The low contrast background ROI (i.e. the base level of contrast) has been adjusted for some phantoms (QC-3 and Doselab). Previously, it

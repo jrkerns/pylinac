@@ -94,7 +94,7 @@ class TestFunctions(TestCase):
             self.assertAlmostEqual(tg51.kq_electron(chamber=chamber, r_50=r_50), kq, delta=0.001)
 
 
-class TestTG51Base:
+class TG51Base:
     temperature = 22
     pressure = 760
     chamber = '30013'
@@ -119,7 +119,7 @@ class TestTG51Base:
             self.tg51.publish_pdf('testtg51.pdf', open_file=True)
 
 
-class TestTG51Photon(TestTG51Base):
+class TG51Photon(TG51Base):
     energy = 6
     measured_pdd = 66
     lead_foil = None
@@ -147,7 +147,7 @@ class TestTG51Photon(TestTG51Base):
         print('Ptp', self.tg51.p_tp)
 
 
-class TestTG51ElectronLegacy(TestTG51Base):
+class TG51ElectronLegacy(TG51Base):
     k_ecal = None
     i_50 = 7.5
     dose_mu_dref = 1.000
@@ -170,7 +170,7 @@ class TestTG51ElectronLegacy(TestTG51Base):
         self.assertAlmostEqual(self.dose_mu_dref, self.tg51.dose_mu_dref, delta=0.0005)
 
 
-class TestTG51ElectronModern(TestTG51Base):
+class TG51ElectronModern(TG51Base):
     i_50 = 7.5
     dose_mu_dref = 1.000
     tissue_correction = 1.0
@@ -191,7 +191,7 @@ class TestTG51ElectronModern(TestTG51Base):
         self.assertAlmostEqual(self.dose_mu_dref, self.tg51.dose_mu_dref, delta=0.0005)
 
 
-class MDA_TB2_2015_15x(TestTG51Photon, TestCase):
+class MDA_TB2_2015_15x(TG51Photon, TestCase):
     energy = 15
     temperature = 20.5
     pressure = tg51.mmHg2kPa(760)
@@ -206,7 +206,7 @@ class MDA_TB2_2015_15x(TestTG51Photon, TestCase):
     dose_mu_dmax = 1.007
 
 
-class MDA_TB1_2015_10x(TestTG51Photon, TestCase):
+class MDA_TB1_2015_10x(TG51Photon, TestCase):
     energy = 10
     temperature = 21
     pressure = tg51.mmHg2kPa(763)
@@ -222,7 +222,7 @@ class MDA_TB1_2015_10x(TestTG51Photon, TestCase):
     # print_data = True
 
 
-class ACB5_2011_6x(TestTG51Photon, TestCase):
+class ACB5_2011_6x(TG51Photon, TestCase):
     temperature = 22
     pressure = tg51.mmHg2kPa(751.2)
     nd_w = 5.450
@@ -236,7 +236,7 @@ class ACB5_2011_6x(TestTG51Photon, TestCase):
     dose_mu_dmax = 1.0064
 
 
-class ACB5_2012_6X(TestTG51Photon, TestCase):
+class ACB5_2012_6X(TG51Photon, TestCase):
     temperature = 21.7
     pressure = tg51.mmHg2kPa(757.2)
     nd_w = 5.446
@@ -250,7 +250,7 @@ class ACB5_2012_6X(TestTG51Photon, TestCase):
     dose_mu_dmax = 1.0159
 
 
-class ACB5_2012_18X(TestTG51Photon, TestCase):
+class ACB5_2012_18X(TG51Photon, TestCase):
     temperature = 21.7
     pressure = tg51.mmHg2kPa(757.2)
     nd_w = 5.446
@@ -266,7 +266,7 @@ class ACB5_2012_18X(TestTG51Photon, TestCase):
     dose_mu_dmax = 1.011
 
 
-class IMMCTB_6FFF(TestTG51Photon, TestCase):
+class IMMCTB_6FFF(TG51Photon, TestCase):
     energy = 6
     fff = True
     temperature = 22.5
@@ -283,7 +283,7 @@ class IMMCTB_6FFF(TestTG51Photon, TestCase):
     # print_data = True
 
 
-class IMMCTB_10FFF(TestTG51Photon, TestCase):
+class IMMCTB_10FFF(TG51Photon, TestCase):
     energy = 10
     fff = True
     temperature = 22.4
@@ -301,7 +301,7 @@ class IMMCTB_10FFF(TestTG51Photon, TestCase):
     # open_pdf = True
 
 
-class IMMCTB_15X(TestTG51Photon, TestCase):
+class IMMCTB_15X(TG51Photon, TestCase):
     energy = 15
     temperature = 22.4
     pressure = tg51.mmHg2kPa(748.1)
@@ -318,7 +318,7 @@ class IMMCTB_15X(TestTG51Photon, TestCase):
     # open_pdf = True
 
 
-class IMMC_TB_6E(TestTG51ElectronLegacy, TestCase):
+class IMMC_TB_6E(TG51ElectronLegacy, TestCase):
     energy = 6
     cone = '15x15'
     mu = 100
@@ -339,7 +339,7 @@ class IMMC_TB_6E(TestTG51ElectronLegacy, TestCase):
     # open_pdf = True
 
 
-class IMMC_TB_9E(TestTG51ElectronLegacy, TestCase):
+class IMMC_TB_9E(TG51ElectronLegacy, TestCase):
     energy = 9
     cone = '15x15'
     mu = 100
@@ -359,7 +359,7 @@ class IMMC_TB_9E(TestTG51ElectronLegacy, TestCase):
     dose_mu_dmax = 1.006
 
 
-class IMMC_TB_12E(TestTG51ElectronLegacy, TestCase):
+class IMMC_TB_12E(TG51ElectronLegacy, TestCase):
     energy = 12
     cone = '15x15'
     mu = 100
@@ -379,7 +379,7 @@ class IMMC_TB_12E(TestTG51ElectronLegacy, TestCase):
     dose_mu_dmax = 1.0068
 
 
-class IMMC_TB_20E(TestTG51ElectronLegacy, TestCase):
+class IMMC_TB_20E(TG51ElectronLegacy, TestCase):
     energy = 20
     cone = '15x15'
     mu = 100
@@ -399,7 +399,7 @@ class IMMC_TB_20E(TestTG51ElectronLegacy, TestCase):
     # open_pdf = True
 
 
-class IMMC_TB_20E_Modern(TestTG51ElectronModern, TestCase):
+class IMMC_TB_20E_Modern(TG51ElectronModern, TestCase):
     energy = 20
     cone = '15x15'
     mu = 100

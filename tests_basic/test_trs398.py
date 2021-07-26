@@ -44,7 +44,7 @@ class TestFunctions(TestCase):
             self.assertAlmostEqual(trs398.kq_electron(chamber=model, r_50=r_50), kq, delta=0.001)
 
 
-class TestTRS398Base:
+class TRS398Base:
     temp = float
     press = float
     chamber = '30013'
@@ -79,7 +79,7 @@ class TestTRS398Base:
         print('Ptp', self.trs398.k_tp)
 
 
-class TestTRS398Photon(TestTRS398Base):
+class TRS398Photon(TRS398Base):
     energy = 6
     setup_condition = 'SSD'
     # clinical_pdd_zref = None
@@ -102,7 +102,7 @@ class TestTRS398Photon(TestTRS398Base):
             self.print_results()
 
 
-class TestTRS398Electron(TestTRS398Base):
+class TRS398Electron(TRS398Base):
     energy = None
     k_ecal = None
     i_50 = 7.5
@@ -118,7 +118,7 @@ class TestTRS398Electron(TestTRS398Base):
                                     mu=self.mu, tissue_correction=self.tissue_correction, cone=self.cone)
 
 
-class MDA_TB2_2015_15x(TestTRS398Photon, TestCase):
+class MDA_TB2_2015_15x(TRS398Photon, TestCase):
     energy = 15
     temp = 20.5
     press = trs398.mmHg2kPa(760)
@@ -133,7 +133,7 @@ class MDA_TB2_2015_15x(TestTRS398Photon, TestCase):
     tpr2010 = 0.762
 
 
-class MDA_TB1_2015_10x(TestTRS398Photon, TestCase):
+class MDA_TB1_2015_10x(TRS398Photon, TestCase):
     energy = 10
     temp = 21
     press = trs398.mmHg2kPa(763)
@@ -150,7 +150,7 @@ class MDA_TB1_2015_10x(TestTRS398Photon, TestCase):
     # print_data = True
 
 
-class ACB5_2011_6x(TestTRS398Photon, TestCase):
+class ACB5_2011_6x(TRS398Photon, TestCase):
     temp = 22
     press = trs398.mmHg2kPa(751.2)
     nd_w = 5.450
@@ -172,7 +172,7 @@ class ACB5_2011_6x(TestTRS398Photon, TestCase):
         self.assertAlmostEqual(self.trs398.dose_mu_zref_adjusted, 0.668, delta=0.0005)
 
 
-class ACB5_2012_6X(TestTRS398Photon, TestCase):
+class ACB5_2012_6X(TRS398Photon, TestCase):
     temp = 21.7
     press = trs398.mmHg2kPa(757.2)
     nd_w = 5.446
@@ -186,7 +186,7 @@ class ACB5_2012_6X(TestTRS398Photon, TestCase):
     dose_mu_zmax = 1.0159
 
 
-class ACB5_2012_18X(TestTRS398Photon, TestCase):
+class ACB5_2012_18X(TRS398Photon, TestCase):
     energy = 18
     temp = 21.7
     press = trs398.mmHg2kPa(757.2)
@@ -201,7 +201,7 @@ class ACB5_2012_18X(TestTRS398Photon, TestCase):
     dose_mu_zmax = 1.0125
 
 
-class IMMCTB_6FFF(TestTRS398Photon, TestCase):
+class IMMCTB_6FFF(TRS398Photon, TestCase):
     energy = 6
     fff = True
     temp = 22.5
@@ -218,7 +218,7 @@ class IMMCTB_6FFF(TestTRS398Photon, TestCase):
     print_data = True
 
 
-class IMMCTB_10FFF(TestTRS398Photon, TestCase):
+class IMMCTB_10FFF(TRS398Photon, TestCase):
     energy = 10
     fff = True
     temp = 22.4
@@ -235,7 +235,7 @@ class IMMCTB_10FFF(TestTRS398Photon, TestCase):
     # open_pdf = True
 
 
-class IMMCTB_15X(TestTRS398Photon, TestCase):
+class IMMCTB_15X(TRS398Photon, TestCase):
     energy = 15
     temp = 22.4
     press = trs398.mmHg2kPa(748.1)
@@ -252,7 +252,7 @@ class IMMCTB_15X(TestTRS398Photon, TestCase):
     # open_pdf = True
 
 
-class IMMC_TB_20E(TestTRS398Electron, TestCase):
+class IMMC_TB_20E(TRS398Electron, TestCase):
     energy = 20
     cone = '15x15'
     mu = 100

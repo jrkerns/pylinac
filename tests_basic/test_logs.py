@@ -101,7 +101,7 @@ class TestPublishPDF(TestCase):
             self.tlog.publish_pdf(t, notes=['stuff', 'to', 'list'])
 
 
-class TestLogPlottingSavingMixin:
+class LogPlottingSavingMixin:
     """Test the plotting methods and plot saving methods."""
 
     def test_plot_axes(self):
@@ -209,7 +209,7 @@ class TestLoadLog(TestCase):
             load_log(invalid_path)
 
 
-class TestLogBase:
+class LogBase:
     klass = object
 
     def setUp(self):
@@ -243,7 +243,7 @@ class TestLogBase:
             self.assertTrue('inplace' in file)
 
 
-class TestTrajectoryLog(TestLogPlottingSavingMixin, LoadingTestBase, TestLogBase, TestCase):
+class TestTrajectoryLog(LogPlottingSavingMixin, LoadingTestBase, LogBase, TestCase):
     klass = TrajectoryLog
     demo_load_method = 'from_demo'
     url = 'Tlog.bin'
@@ -278,7 +278,7 @@ class TestTrajectoryLog(TestLogPlottingSavingMixin, LoadingTestBase, TestLogBase
         self.assertIsNone(log.txt)
 
 
-class TestDynalog(TestLogPlottingSavingMixin, LoadingTestBase, TestLogBase, TestCase):
+class TestDynalog(LogPlottingSavingMixin, LoadingTestBase, LogBase, TestCase):
     klass = Dynalog
     demo_load_method = 'from_demo'
     anon_file = 'A1234_patientid.dlg'
@@ -306,7 +306,7 @@ class TestDynalog(TestLogPlottingSavingMixin, LoadingTestBase, TestLogBase, Test
         self.assertRaises(ValueError, Dynalog, bad_name_dlg)
 
 
-class TestIndividualLogBase(LocationMixin):
+class IndividualLogBase(LocationMixin):
     """Mixin to use when testing a single machine log; must be mixed with unittest.TestCase."""
     num_mlc_leaves = 120
     num_snapshots = 0
@@ -373,7 +373,7 @@ class TestIndividualLogBase(LocationMixin):
             self.log.publish_pdf(temp)
 
 
-class TestIndividualTrajectoryLog(TestIndividualLogBase):
+class IndividualTrajectoryLog(IndividualLogBase):
     version = 2.1  # or 3.0
     header = 'VOSTL'
     header_size = 1024
@@ -423,7 +423,7 @@ class TestIndividualTrajectoryLog(TestIndividualLogBase):
         self.assertEqual(self.log.num_beamholds, self.num_beamholds)
 
 
-class TestTrajectoryLogV4(TestIndividualTrajectoryLog, TestCase):
+class TestTrajectoryLogV4(IndividualTrajectoryLog, TestCase):
     version = 4.0
     file_path = ['tlogs', 'v4_log.bin']
     header = 'VOSTL'
@@ -444,7 +444,7 @@ class TestTrajectoryLogV4(TestIndividualTrajectoryLog, TestCase):
         self.assertEqual(self.log.header.metadata.plan_name, self.plan_name)
 
 
-class TestIndividualDynalog(TestIndividualLogBase):
+class IndividualDynalog(IndividualLogBase):
     tolerance = 102
     clinac_scale = 1
     mu_delivered = 25000
@@ -459,7 +459,7 @@ class TestIndividualDynalog(TestIndividualLogBase):
         self.assertEqual(self.log.num_beamholds, self.num_beamholds)
 
 
-class TestDynalogDemo(TestIndividualDynalog, TestCase):
+class TestDynalogDemo(IndividualDynalog, TestCase):
     """Tests of the dynalog demo."""
     treatment_type = TreatmentType.DYNAMIC_IMRT.value
     num_beamholds = 20
@@ -482,7 +482,7 @@ class TestDynalogDemo(TestIndividualDynalog, TestCase):
         self.assertTrue(np.array_equal(demo_fluence, reference_fluence))
 
 
-class TestTrajectoryLogDemo(TestIndividualTrajectoryLog, TestCase):
+class TestTrajectoryLogDemo(IndividualTrajectoryLog, TestCase):
     """Tests for the demo trajectory log."""
     num_snapshots = 5200  # excluded: 1021
     num_subbeams = 2

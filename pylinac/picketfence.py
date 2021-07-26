@@ -17,7 +17,7 @@ import enum
 import io
 import os.path as osp
 import warnings
-from collections import Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import cycle
 from tempfile import TemporaryDirectory

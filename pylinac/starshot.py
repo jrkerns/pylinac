@@ -301,7 +301,7 @@ class Starshot:
             """Calculate the maximum distance to any line from the given point."""
             return max(line.distance_to(Point(p[0], p[1])) for line in lines)
 
-        res = optimize.minimize(distance, sp.as_array(), args=(self.lines,), method='Nelder-Mead', options={'ftol': 0.001})
+        res = optimize.minimize(distance, sp.as_array(), args=(self.lines,), method='Nelder-Mead', options={'fatol': 0.001})
         # res = optimize.least_squares(distance, sp.as_array(), args=(self.lines,), ftol=0.001)
 
         self.wobble.radius = res.fun

@@ -226,12 +226,12 @@ class SNCProfiler:
         data_columns
             The range of columns that the data is in. Usually, there are some columns before and after the real data.
         """
-        with open(path) as f:
+        with open(path, encoding='cp437') as f:
             raw_data = f.read().splitlines()
             self.detectors = raw_data[detector_row].split('\t')[data_columns]
-            self.bias = np.array(raw_data[bias_row].split('\t')[data_columns]).astype(np.float)
-            self.calibration = np.array(raw_data[calibration_row].split('\t')[data_columns]).astype(np.float)
-            self.data = np.array(raw_data[data_row].split('\t')[data_columns]).astype(np.float)
+            self.bias = np.array(raw_data[bias_row].split('\t')[data_columns]).astype(float)
+            self.calibration = np.array(raw_data[calibration_row].split('\t')[data_columns]).astype(float)
+            self.data = np.array(raw_data[data_row].split('\t')[data_columns]).astype(float)
             self.timetic = float(raw_data[bias_row].split('\t')[2])
             self.integrated_dose = self.calibration * (self.data - self.bias * self.timetic)
 
