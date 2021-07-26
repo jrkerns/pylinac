@@ -80,7 +80,7 @@ class DiskROI(Circle):
         masked_img = self.circle_mask()
         return float(np.nanstd(masked_img))
 
-    @lru_cache(maxsize=1)
+    @lru_cache()
     def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
         # http://scikit-image.org/docs/dev/auto_examples/plot_camera_numpy.html

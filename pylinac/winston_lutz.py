@@ -193,7 +193,7 @@ class WinstonLutz:
             img.analyze(bb_size_mm)
         self._is_analyzed = True
 
-    @lru_cache(maxsize=1)
+    @lru_cache()
     def _minimize_axis(self, axes: Union[Axis, Tuple[Axis, ...]] = (Axis.GANTRY,)):
         """Return the minimization result of the given axis."""
         if isinstance(axes, Axis):

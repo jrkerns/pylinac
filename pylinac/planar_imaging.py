@@ -718,7 +718,7 @@ class StandardImagingQC3(ImagePhantomBase):
         """
         return self.phantom_ski_region.major_axis_length / 14
 
-    @lru_cache(maxsize=1)
+    @lru_cache()
     def _phantom_angle_calc(self) -> float:
         """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
         which angles the phantom at 45 degrees.
@@ -930,7 +930,7 @@ class LeedsTOR(ImagePhantomBase):
         leeds.analyze()
         leeds.plot_analyzed_image()
 
-    @lru_cache(maxsize=1)
+    @lru_cache()
     def _phantom_angle_calc(self) -> float:
         """Determine the angle of the phantom.
 

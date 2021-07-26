@@ -112,7 +112,7 @@ class LocationMixin:
     @classmethod
     def get_filename(cls):
         """Return the canonical path to the file."""
-        if cls.dir_location is '':
+        if cls.dir_location == '':
             return get_file_from_cloud_test_repo([cls.cloud_dir, *cls.file_path])
         else:
             return osp.join(cls.dir_location, *cls.file_path)

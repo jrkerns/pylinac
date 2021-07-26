@@ -1263,7 +1263,7 @@ class CatPhanBase:
 
     def _zip_images(self) -> None:
         """Compress the raw images into a ZIP archive and remove the uncompressed images."""
-        zip_name = f'{osp.dirname(self.dicom_stack[0].path)}\CBCT - {self.dicom_stack[0].date_created(format="%A, %I-%M-%S, %B %d, %Y")}.zip'
+        zip_name = fr'{osp.dirname(self.dicom_stack[0].path)}\CBCT - {self.dicom_stack[0].date_created(format="%A, %I-%M-%S, %B %d, %Y")}.zip'
         with zipfile.ZipFile(zip_name, 'w', compression=zipfile.ZIP_DEFLATED) as zfile:
             for image in self.dicom_stack:
                 zfile.write(image.path, arcname=osp.basename(image.path))
