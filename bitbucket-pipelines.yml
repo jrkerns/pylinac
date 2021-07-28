@@ -136,4 +136,4 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push --mirror --all git@github.com:jrkerns/pylinac.git
+            - git push --all git@github.com:jrkerns/pylinac.git
