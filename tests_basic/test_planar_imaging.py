@@ -113,6 +113,7 @@ class LeedsCCW(PlanarPhantomMixin, TestCase):
 
 class Leeds45Deg(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
+    invert = True  # inverted in v3.0 due to changed default inversion behavior
     mtf_50 = 1.9
     ssd = 1500
     file_path = ['Leeds-45deg.dcm']
