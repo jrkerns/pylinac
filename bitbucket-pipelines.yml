@@ -68,6 +68,13 @@ pipelines:
                 - pytest tests_basic/test_winstonlutz.py
 
   branches:
+    release*:
+      - step:
+          name: Push to Github
+          clone:
+            depth: full
+          script:
+            - git push --mirror git@github.com:jrkerns/pylinac.git
     master:
       - step:
           name: Set up Env
@@ -136,4 +143,4 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push --all git@github.com:jrkerns/pylinac.git
+            - git push --mirror git@github.com:jrkerns/pylinac.git
