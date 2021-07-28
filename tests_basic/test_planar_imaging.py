@@ -67,14 +67,12 @@ class PlanarPhantomMixin(LocationMixin):
             cls.instance = cls.klass.from_demo_image()
         else:
             cls.instance = cls.klass(cls.get_filename())
+        cls.instance.analyze(ssd=cls.ssd, invert=cls.invert)
 
     @classmethod
     def tearDownClass(cls):
         plt.close('all')
         del cls.instance
-
-    def test_analyze(self):
-        self.instance.analyze(ssd=self.ssd, invert=self.invert)
 
     def test_plotting(self):
         self.instance.plot_analyzed_image()
@@ -89,8 +87,7 @@ class PlanarPhantomMixin(LocationMixin):
         save_file(self.instance.publish_pdf)
 
     def test_mtf(self):
-        if self.instance.mtf is not None:
-            self.instance.analyze(ssd=self.ssd, invert=self.invert)
+        if self.mtf_50 is not None:
             self.assertAlmostEqual(self.mtf_50, self.instance.mtf.relative_resolution(50), delta=0.3)
 
     def test_results(self):
