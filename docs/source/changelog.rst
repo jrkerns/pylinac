@@ -74,6 +74,15 @@ General
 * The contrast-to-noise property of the LowContrastDiskROI now uses contrast/stdev, where contrast is defined/chosen per above.
 
 
+.. note::
+
+    **Upgrade Hints**
+
+    Besides the above notes, due to the modified method of loading images and inversion, other downstream modules may be affected.
+    This means that some images that needed ``invert=True`` before may not need it, and some images that previously worked
+    may need an ``invert=True``. So generally, if the image fails when it passed with previous versions, try adding/removing forced inversion
+    first.
+
 Dependencies
 ^^^^^^^^^^^^
 
