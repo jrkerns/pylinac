@@ -132,7 +132,8 @@ pipelines:
                 - source venv/bin/activate
                 - pytest tests_basic/test_winstonlutz.py
       - step:
+          name: Push to Github
           clone:
             depth: full
           script:
-            - git push --mirror git@github.com:jrkerns/pylinac.git
+            - git push --mirror --all git@github.com:jrkerns/pylinac.git
