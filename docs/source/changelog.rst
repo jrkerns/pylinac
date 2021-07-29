@@ -55,7 +55,7 @@ General
 * Image inversion detection has changed slightly. Some images have proper tags such as rescale slope and intercept. If
   they do have the tags, they are applied and no inversion is applied. If they do not have the tags, an inversion is then applied. Previously,
   the tags were applied if they were there, and nothing if not and inversion was ALWAYS applied. This should result in better inversion defaults for images
-  from different machines/platforms and fewer ``invert=True`` additions.
+  from different machines/platforms and fewer ``invert=True`` additions. See :ref:`image_loading`.
 * A ``CONTRAST`` enum has been added that can be used for low-contrast analysis of planar images and CBCT images. See :ref:`contrast`.
 
   .. code-block:: python
@@ -72,16 +72,19 @@ General
 * The algorithm for low contrast contrast constant detection has changed slightly. See :ref:`visibility`. This means the # of detected low-contrast ROIs
   may change for cbct. You may pass in a contrast technique per above and also a visibility threshold. See the `.analyze` method of the respective class.
 * The contrast-to-noise property of the LowContrastDiskROI now uses contrast/stdev, where contrast is defined/chosen per above.
-
+* `#270 <https://github.com/jrkerns/pylinac/issues/270>`_ Pylinac had a memory leak that was apparent when running on a server. This was caused by old instances being held in memory from
+  and incorrect usage of the ``lru_cache``. This has been fixed.
+* Documentation about topics has been added :ref:`topics`.
+* Documentation benchmarking several algorithms has been added. See the "Benchmarking the Algorithm" section for vmat, winston-lutz, and starshot modules.
 
 .. note::
 
     **Upgrade Hints**
 
-    Besides the above notes, due to the modified method of loading images and inversion, other downstream modules may be affected.
+    Besides the above notes and any module-specific steps, due to the modified method of loading images and inversion, other downstream modules may be affected.
     This means that some images that needed ``invert=True`` before may not need it, and some images that previously worked
     may need an ``invert=True``. So generally, if the image fails when it passed with previous versions, try adding/removing forced inversion
-    first.
+    first. This should only be an issue for older images. Images generated on new linac platforms should be handled just fine.
 
 Dependencies
 ^^^^^^^^^^^^
