@@ -1,7 +1,9 @@
 import copy
-from typing import Union, List, Tuple, Type
+import os
 import os.path as osp
+from typing import Union, List, Tuple, Type
 
+from . import FilterFreeConeLayer, PerfectConeLayer
 from .layers import FilteredFieldLayer, FilterFreeFieldLayer, Layer, PerfectBBLayer
 from .simulators import Simulator
 from ..geometry import cos, sin
@@ -35,6 +37,10 @@ def generate_winstonlutz(simulator: Simulator, field_layer: Type[Layer], dir_out
     image_axes
         List of axes for the images. Sequence is (Gantry, Coll, Couch).
     """
+    if not osp.isdir(dir_out):
+        os.mkdir(dir_out)
+    for pdir, _, files in os.walk(dir_out):
+        [os.remove(osp.join(pdir, f)) for f in files]
     file_names = []
     for (gantry, coll, couch) in image_axes:
         sim_single = copy.copy(simulator)
@@ -50,7 +56,7 @@ def generate_winstonlutz(simulator: Simulator, field_layer: Type[Layer], dir_out
     return file_names
 
 
-def generate_winstonlutz_cone(simulator: Simulator, cone_layer: Layer, dir_out: str, cone_size_mm=17.5,
+def generate_winstonlutz_cone(simulator: Simulator, cone_layer: Union[Type[FilterFreeConeLayer], Type[PerfectConeLayer]], dir_out: str, cone_size_mm=17.5,
                          final_layers: List[Layer]=None, bb_size_mm=5, offset_mm_left=0, offset_mm_up=0, offset_mm_in=0,
                          image_axes: List[Tuple[int, int, int]]=[(0, 0, 0), (90, 0, 0), (180, 0, 0), (270, 0, 0)],
                          gantry_tilt=0, gantry_sag=0) -> List[str]:
@@ -61,6 +67,10 @@ def generate_winstonlutz_cone(simulator: Simulator, cone_layer: Layer, dir_out: 
     image_axes
         List of axes for the images. Sequence is (Gantry, Coll, Couch).
     """
+    if not osp.isdir(dir_out):
+        os.mkdir(dir_out)
+    for pdir, _, files in os.walk(dir_out):
+        [os.remove(osp.join(pdir, f)) for f in files]
     file_names = []
     for (gantry, coll, couch) in image_axes:
         sim_single = copy.copy(simulator)

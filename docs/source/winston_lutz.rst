@@ -352,6 +352,234 @@ The algorithm works like such:
 .. _Du et al: http://scitation.aip.org/content/aapm/journal/medphys/37/5/10.1118/1.3397452
 .. _Low et al: https://aapm.onlinelibrary.wiley.com/doi/abs/10.1118/1.597475
 
+
+Benchmarking the Algorithm
+--------------------------
+
+With the image generator module we can create test images to test the WL algorithm on known results. This is useful to isolate what is or isn't working
+if the algorithm doesn't work on a given image and when commissioning pylinac. It is common, especially with the WL module,
+to question the accuracy of the algorithm. Since no linac is perfect and the results are sub-millimeter, discerning what
+is true error vs algorithmic error can be difficult. The image generator module is a perfect solution since it can remove or reproduce the former error.
+
+Perfect Delivery
+^^^^^^^^^^^^^^^^
+
+Let's delivery a set of perfect images. This should result in near-0 deviations and isocenter size. The utility
+function used here will produce 4 images at the 4 cardinal gantry angles with all other axes at 0, with a BB of 4mm diameter,
+and a field size of 4x4cm:
+
+.. plot::
+
+    import pylinac
+    from pylinac.core.image_generator import (
+        GaussianFilterLayer,
+        FilteredFieldLayer,
+        AS1200Image,
+        RandomNoiseLayer,
+        generate_winstonlutz,
+    )
+
+    wl_dir = 'wl_dir'
+    generate_winstonlutz(
+        AS1200Image(),
+        FilteredFieldLayer,
+        dir_out=wl_dir,
+        final_layers=[GaussianFilterLayer(),],
+        bb_size_mm=4,
+        field_size_mm=(40, 40),
+    )
+
+    wl = pylinac.WinstonLutz(wl_dir)
+    wl.analyze(bb_size_mm=4)
+    wl.plot_images()
+
+which has an output of::
+
+    Winston-Lutz Analysis
+    =================================
+    Number of images: 4
+    Maximum 2D CAX->BB distance: 0.00mm
+    Median 2D CAX->BB distance: 0.00mm
+    Shift to iso: facing gantry, move BB: RIGHT 0.00mm; IN 0.00mm; UP 0.00mm
+    Gantry 3D isocenter diameter: 0.00mm (4/4 images considered)
+    Maximum Gantry RMS deviation (mm): 0.00mm
+    Maximum EPID RMS deviation (mm): 0.00mm
+    Gantry+Collimator 3D isocenter diameter: 0.00mm (4/4 images considered)
+    Collimator 2D isocenter diameter: 0.00mm (1/4 images considered)
+    Maximum Collimator RMS deviation (mm): 0.00
+    Couch 2D isocenter diameter: 0.00mm (1/4 images considered)
+    Maximum Couch RMS deviation (mm): 0.00
+
+As shown, we have perfect results.
+
+Offset BB
+^^^^^^^^^
+
+Let's now offset the BB by 1mm to the left:
+
+.. plot::
+
+    import pylinac
+    from pylinac.core.image_generator import (
+        GaussianFilterLayer,
+        FilteredFieldLayer,
+        AS1200Image,
+        RandomNoiseLayer,
+        generate_winstonlutz,
+    )
+
+    wl_dir = 'wl_dir'
+    generate_winstonlutz(
+        AS1200Image(),
+        FilteredFieldLayer,
+        dir_out=wl_dir,
+        final_layers=[GaussianFilterLayer(),],
+        bb_size_mm=4,
+        field_size_mm=(40, 40),
+        offset_mm_left=1,
+    )
+
+    wl = pylinac.WinstonLutz(wl_dir)
+    wl.analyze(bb_size_mm=4)
+    wl.plot_images()
+
+with an output of::
+
+    Winston-Lutz Analysis
+    =================================
+    Number of images: 4
+    Maximum 2D CAX->BB distance: 1.01mm
+    Median 2D CAX->BB distance: 0.50mm
+    Shift to iso: facing gantry, move BB: RIGHT 1.01mm; IN 0.00mm; UP 0.00mm
+    Gantry 3D isocenter diameter: 0.00mm (4/4 images considered)
+    Maximum Gantry RMS deviation (mm): 1.01mm
+    Maximum EPID RMS deviation (mm): 0.00mm
+    Gantry+Collimator 3D isocenter diameter: 0.00mm (4/4 images considered)
+    Collimator 2D isocenter diameter: 0.00mm (1/4 images considered)
+    Maximum Collimator RMS deviation (mm): 0.00
+    Couch 2D isocenter diameter: 0.00mm (1/4 images considered)
+    Maximum Couch RMS deviation (mm): 0.00
+
+We have correctly found that the max distance is 1mm and the required shift to iso is 1mm to the right (since we placed the bb to the left).
+
+Gantry Tilt
+^^^^^^^^^^^
+
+We can simulate gantry tilt, where at 0 and 180 the gantry tilts forward and backward respectively. We use a realistic value of
+1mm. Note that everything else is perfect:
+
+.. plot::
+
+    import pylinac
+    from pylinac.core.image_generator import (
+        GaussianFilterLayer,
+        FilteredFieldLayer,
+        AS1200Image,
+        RandomNoiseLayer,
+        generate_winstonlutz,
+    )
+
+    wl_dir = 'wl_dir'
+    generate_winstonlutz(
+        AS1200Image(),
+        FilteredFieldLayer,
+        dir_out=wl_dir,
+        final_layers=[GaussianFilterLayer(),],
+        bb_size_mm=4,
+        field_size_mm=(40, 40),
+        gantry_tilt=1,
+    )
+
+    wl = pylinac.WinstonLutz(wl_dir)
+    wl.analyze(bb_size_mm=4)
+    wl.plot_images()
+
+with output of::
+
+    Winston-Lutz Analysis
+    =================================
+    Number of images: 4
+    Maximum 2D CAX->BB distance: 0.90mm
+    Median 2D CAX->BB distance: 0.45mm
+    Shift to iso: facing gantry, move BB: LEFT 0.00mm; IN 0.00mm; UP 0.00mm
+    Gantry 3D isocenter diameter: 1.79mm (4/4 images considered)
+    Maximum Gantry RMS deviation (mm): 0.90mm
+    Maximum EPID RMS deviation (mm): 0.90mm
+    Gantry+Collimator 3D isocenter diameter: 1.79mm (4/4 images considered)
+    Collimator 2D isocenter diameter: 0.00mm (1/4 images considered)
+    Maximum Collimator RMS deviation (mm): 0.00
+    Couch 2D isocenter diameter: 0.00mm (1/4 images considered)
+    Maximum Couch RMS deviation (mm): 0.00
+
+Note that since the tilt is symmetric the shift to iso is 0 despite our non-zero median distance.
+I.e. we are at iso, the iso just isn't perfect and we are thus at the best possible position.
+
+
+Perfect Multi-Axis
+^^^^^^^^^^^^^^^^^^
+
+We can also vary the axis data for the images produced. Below we create a typical multi-axis WL with varying gantry, collimator, and couch
+(cardinal values for axis of interest with all other axes at 0):
+
+.. plot::
+
+    import pylinac
+    from pylinac.core.image_generator import (
+        GaussianFilterLayer,
+        FilteredFieldLayer,
+        AS1200Image,
+        RandomNoiseLayer,
+        generate_winstonlutz,
+    )
+
+    wl_dir = 'wl_dir'
+    generate_winstonlutz(
+        AS1200Image(),
+        FilteredFieldLayer,
+        dir_out=wl_dir,
+        final_layers=[GaussianFilterLayer(),],
+        bb_size_mm=4,
+        field_size_mm=(40, 40),
+        image_axes=[(0, 0, 0), (0, 90, 0), (0, 270, 0),
+                    (90, 0, 0), (180, 0, 0), (270, 0, 0),
+                    (0, 0, 90), (0, 0, 270)]
+    )
+
+    wl = pylinac.WinstonLutz(wl_dir)
+    wl.analyze(bb_size_mm=4)
+    wl.plot_images()
+
+Perfect Cone
+^^^^^^^^^^^^
+
+We can also look at simulated cone WL images. Here we use the 17.5mm cone:
+
+.. plot::
+
+    import pylinac
+    from pylinac.core.image_generator import (
+        GaussianFilterLayer,
+        FilteredFieldLayer,
+        AS1200Image,
+        RandomNoiseLayer,
+        generate_winstonlutz, generate_winstonlutz_cone, FilterFreeConeLayer,
+    )
+
+    wl_dir = 'wl_dir'
+    generate_winstonlutz_cone(
+        AS1200Image(),
+        FilterFreeConeLayer,
+        dir_out=wl_dir,
+        final_layers=[GaussianFilterLayer(),],
+        bb_size_mm=4,
+        cone_size_mm=17.5,
+    )
+
+    wl = pylinac.WinstonLutz(wl_dir)
+    wl.analyze(bb_size_mm=4)
+    wl.plot_images()
+
+
 API Documentation
 -----------------
 

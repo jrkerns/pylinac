@@ -180,6 +180,129 @@ analysis, there are a few things you can do.
 * **Set `invert` to True** - While right most of the time, it's possible the inversion checker got it wrong. This would
   look like peak locations in the "valley" regions of the image. If so, pass `invert=True` to the `analyze` method.
 
+Benchmarking the Algorithm
+--------------------------
+
+
+With the image generator module we can create test images to test the starshot algorithm on known results. This is useful to isolate what is or isn't working
+if the algorithm doesn't work on a given image and when commissioning pylinac.
+
+Perfect shot
+^^^^^^^^^^^^
+
+.. note::
+
+    Due to the rounding of pixel positions of the star lines an absolutely perfect (0.0000mm wobble) is not achievable. The uncertainty of the algorithm is ~0.05mm.
+
+Let's create a perfect irradiation of a starshot pattern:
+
+.. plot::
+
+    from scipy import ndimage
+
+    import pylinac
+    from pylinac.core.image_generator import GaussianFilterLayer, FilteredFieldLayer, AS1200Image, RandomNoiseLayer
+
+
+    star_path = 'perfect_starshot.dcm'
+    as1200 = AS1200Image()
+    for _ in range(6):
+        as1200.add_layer(FilteredFieldLayer((270, 5), alpha=0.5))
+        as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=3))
+    as1200.generate_dicom(file_out_name=star_path)
+
+    # analyze it
+    star = pylinac.Starshot(star_path)
+    star.analyze()
+    print(star.results())
+    star.plot_analyzed_image()
+
+with an output of::
+
+    Result: PASS
+
+    The minimum circle that touches all the star lines has a diameter of 0.045 mm.
+
+    The center of the minimum circle is at 639.5, 639.5
+
+Note that there is still an identified wobble of ~0.045mm due to pixel position rounding of the generated image star lines.
+The center of the star is dead on at 639.5 (AS1200 image of shape 1278 and going to the middle of the pixel).
+
+We can also evaluate the effect of changing the radius:
+
+.. plot::
+
+    from scipy import ndimage
+
+    import pylinac
+    from pylinac.core.image_generator import GaussianFilterLayer, FilteredFieldLayer, AS1200Image, RandomNoiseLayer
+
+
+    star_path = 'perfect_starshot.dcm'
+    as1200 = AS1200Image()
+    for _ in range(6):
+        as1200.add_layer(FilteredFieldLayer((270, 5), alpha=0.5))
+        as1200.image = ndimage.rotate(as1200.image, 30, reshape=False, mode='nearest')
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=3))
+    as1200.generate_dicom(file_out_name=star_path)
+
+    # analyze it
+    star = pylinac.Starshot(star_path)
+    star.analyze(radius=0.6)  # radius changed
+    print(star.results())
+    star.plot_analyzed_image()
+
+which results in::
+
+    Result: PASS
+
+    The minimum circle that touches all the star lines has a diameter of 0.036 mm.
+
+    The center of the minimum circle is at 639.5, 639.5
+
+The center hasn't moved but we do have a diameter of ~0.03mm now. Again, this is a limitation of both the algorithm and image generation.
+
+Offset
+^^^^^^
+
+We can also generate an offset starshot:
+
+.. note::
+
+    This image is completely generated and depending on the angle and number of spokes, this result may change due to the fragility of rotating the image.
+
+.. plot::
+
+    from scipy import ndimage
+
+    import pylinac
+    from pylinac.core.image_generator import GaussianFilterLayer, FilteredFieldLayer, AS1200Image, RandomNoiseLayer
+
+
+    star_path = 'offset_starshot.dcm'
+    as1200 = AS1200Image()
+    for _ in range(6):
+        as1200.add_layer(FilteredFieldLayer((270, 5), alpha=0.5, cax_offset_mm=(1, 1)))
+        as1200.image = ndimage.rotate(as1200.image, 60, reshape=False, mode='nearest')
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=3))
+    as1200.generate_dicom(file_out_name=star_path)
+
+    # analyze it
+    star = pylinac.Starshot(star_path)
+    star.analyze()
+    print(star.results())
+    star.plot_analyzed_image()
+
+with an output of::
+
+    Result: FAIL
+
+    The minimum circle that touches all the star lines has a diameter of 1.035 mm.
+
+    The center of the minimum circle is at 637.8, 633.3
+
+Note that we still have the 0.035mm error from the algorithm uncertainty but that we have caught the 1mm offset appropriately.
 
 .. _star_apidoc:
 
