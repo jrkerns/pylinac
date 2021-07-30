@@ -123,12 +123,11 @@ class CloudFileMixin:
     @classmethod
     def get_filename(cls) -> str:
         """Return the canonical path to the file on disk. Download if it doesn't exist."""
-        p = Path(*cls.dir_path).is_absolute()
         full_path = Path(LOCAL_TEST_DIR, *cls.dir_path, cls.file_name)
         if full_path.is_file():
             return str(full_path)
         else:
-            return get_file_from_cloud_test_repo([cls.dir_path, *cls.file_name])
+            return get_file_from_cloud_test_repo([*cls.dir_path, cls.file_name])
 
 
 class LoadingTestBase:
