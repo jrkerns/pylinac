@@ -1,5 +1,6 @@
 import copy
 import io
+import unittest
 from unittest import TestCase
 
 import numpy as np
@@ -177,6 +178,7 @@ class TestBaseImage(TestCase):
         self.assertNotEqual(orig_val, zeroed_val)
         self.assertEqual(zeroed_val, 0)
 
+    @unittest.skip("Skip until overhaul of gamma method to true gamma")
     def test_gamma(self):
         array = np.arange(49).reshape((7,7))
         ref_img = image.load(array, dpi=1)
@@ -274,6 +276,7 @@ class TestDicomStack(TestCase):
         # test zip
         dstack = DicomImageStack.from_zip(self.stack_location)
 
+    @unittest.skip("Wait until better error checking is implemented")
     def test_mixed_studies(self):
         mixed_study_zip = get_file_from_cloud_test_repo(['CBCT', 'mixed_studies.zip'])
         with self.assertRaises(ValueError):

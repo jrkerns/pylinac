@@ -2,7 +2,7 @@
 import unittest
 
 from pylinac.core.geometry import *
-from tests_basic.utils import test_point_equality
+from tests_basic.utils import point_equality_validation
 
 
 class TestPoint(unittest.TestCase):
@@ -155,7 +155,7 @@ class TestRectangle(unittest.TestCase):
         rect = Rectangle(width=self.width, height=self.height, center=self.center)
         self.assertEqual(rect.width, self.width)
         self.assertEqual(rect.height, self.height)
-        test_point_equality(rect.center, self.center)
+        point_equality_validation(rect.center, self.center)
 
         rect_as_int = Rectangle(width=self.width, height=self.height, center=self.center, as_int=True)
         self.assertEqual(rect_as_int.width, 7)
@@ -163,9 +163,9 @@ class TestRectangle(unittest.TestCase):
 
     def test_corners(self):
         rect = Rectangle(width=self.width, height=self.height, center=self.center)
-        test_point_equality(rect.bl_corner, self.bl_corner)
-        test_point_equality(rect.br_corner, self.br_corner)
-        test_point_equality(rect.tr_corner, self.tr_corner)
-        test_point_equality(rect.tl_corner, self.tl_corner)
+        point_equality_validation(rect.bl_corner, self.bl_corner)
+        point_equality_validation(rect.br_corner, self.br_corner)
+        point_equality_validation(rect.tr_corner, self.tr_corner)
+        point_equality_validation(rect.tl_corner, self.tl_corner)
 
 

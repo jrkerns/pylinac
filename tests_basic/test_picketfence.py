@@ -7,9 +7,9 @@ from unittest import TestCase
 import matplotlib.pyplot as plt
 
 from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
+from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_file_from_cloud_test_repo
 
-TEST_DIR = get_folder_from_cloud_test_repo(['picket_fence'])
+TEST_DIR = 'picket_fence'
 
 
 class TestLoading(LoadingTestBase, TestCase):
@@ -21,13 +21,13 @@ class TestLoading(LoadingTestBase, TestCase):
         PicketFence(self.get_constructor_input(), filter=3)  # shouldn't raise
 
     def test_load_with_log(self):
-        log_file = osp.join(TEST_DIR, 'PF_log.bin')
-        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        log_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF_log.bin'])
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF.dcm'])
         pf = PicketFence(pf_file, log=log_file)
         pf.analyze()
 
     def test_load_from_file_object(self):
-        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF.dcm'])
         ref_pf = PicketFence(pf_file)
         ref_pf.analyze()
         with open(pf_file, 'rb') as f:
@@ -37,7 +37,7 @@ class TestLoading(LoadingTestBase, TestCase):
         self.assertEqual(pf.percent_passing, ref_pf.percent_passing)
 
     def test_load_from_stream(self):
-        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF.dcm'])
         ref_pf = PicketFence(pf_file)
         ref_pf.analyze()
         with open(pf_file, 'rb') as f:
@@ -76,7 +76,7 @@ class GeneralTests(TestCase):
         self.assertIn('pylinac_version', data_dict)
 
     def test_no_measurements_suggests_inversion(self):
-        file_loc = osp.join(TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm')
+        file_loc = get_file_from_cloud_test_repo([TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm'])
         pf = PicketFence(file_loc)
         with self.assertRaises(ValueError):
             pf.analyze(invert=False)
@@ -95,7 +95,7 @@ class GeneralTests(TestCase):
         mlc_setup = MLCArrangement(leaf_arrangement=[(10, 10), (40, 5), (10, 10)])
 
         # pass it in to the mlc parameter
-        path = osp.join(TEST_DIR, 'AS500_PF.dcm')
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'AS500_PF.dcm'])
         pf = PicketFence(path, mlc=mlc_setup)
 
         # shouldn't raise
@@ -107,7 +107,7 @@ class GeneralTests(TestCase):
         mlc_setup = 'Millennium'
 
         # pass it in to the mlc parameter
-        path = osp.join(TEST_DIR, 'AS500_PF.dcm')
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'AS500_PF.dcm'])
         pf = PicketFence(path, mlc=mlc_setup)
 
         # shouldn't raise
@@ -139,9 +139,9 @@ class TestPlottingSaving(TestCase):
         save_file(self.pf_updown.save_analyzed_image)
 
 
-class PFTestMixin(LocationMixin):
+class PFTestMixin(CloudFileMixin):
     """Base Mixin for testing a picketfence image."""
-    cloud_dir = 'picket_fence'
+    dir_path = ['picket_fence']
     picket_orientation = Orientation.UP_DOWN
     mlc = 'Millennium'
     num_pickets = 10
@@ -159,7 +159,7 @@ class PFTestMixin(LocationMixin):
     def get_logfile(cls):
         """Return the canonical path to the log file."""
         if cls.log is not None:
-            return osp.join(cls.dir_location, *cls.log)
+            return osp.join(*cls.dir_path, *cls.log)
 
     @classmethod
     def setUpClass(cls):
@@ -202,6 +202,10 @@ class PFDemo(PFTestMixin, TestCase):
         cls.pf = PicketFence.from_demo_image()
         cls.pf.analyze(sag_adjustment=cls.sag_adjustment)
 
+    @classmethod
+    def tearDownClass(cls):
+        pass  # override delete behavior
+
     def test_demo_lower_tolerance(self):
         pf = PicketFence.from_demo_image()
         pf.analyze(0.15, action_tolerance=0.05)
@@ -210,7 +214,7 @@ class PFDemo(PFTestMixin, TestCase):
 
 
 class WideGapSimulation(PFTestMixin, TestCase):
-    file_path = ['noisy-wide-gap-pf.dcm']
+    file_name = 'noisy-wide-gap-pf.dcm'
     max_error = 0.11
     invert = True
     abs_median_error = 0.06
@@ -219,7 +223,7 @@ class WideGapSimulation(PFTestMixin, TestCase):
 
 
 class FFFWideGapSimulation(PFTestMixin, TestCase):
-    file_path = ['noisy-FFF-wide-gap-pf.dcm']
+    file_name = 'noisy-FFF-wide-gap-pf.dcm'
     max_error = 0.17
     invert = True
     abs_median_error = 0.06
@@ -229,13 +233,13 @@ class FFFWideGapSimulation(PFTestMixin, TestCase):
 
 class AS1200(PFTestMixin, TestCase):
     """Tests for the AS1200 image."""
-    file_path = ['AS1200.dcm']
+    file_name = 'AS1200.dcm'
     max_error = 0.08
     abs_median_error = 0.02
 
 
 class ClinacWeirdBackground(PFTestMixin, TestCase):
-    file_path = ['Clinac-weird-background.dcm']
+    file_name = 'Clinac-weird-background.dcm'
     max_error = 0.12
     abs_median_error = 0.02
     num_pickets = 5
@@ -243,7 +247,7 @@ class ClinacWeirdBackground(PFTestMixin, TestCase):
 
 
 class ElektaCloseEdges(PFTestMixin, TestCase):
-    file_path = ['PF,-Elekta,-pickets-near-edges.dcm']
+    file_name = 'PF,-Elekta,-pickets-near-edges.dcm'
     max_error = 0.23
     abs_median_error = 0.07
     num_pickets = 9
@@ -251,7 +255,7 @@ class ElektaCloseEdges(PFTestMixin, TestCase):
 
 
 class ElektaCloseEdgesRot90(PFTestMixin, TestCase):
-    file_path = ['PF,-Elekta,-pickets-near-edges.dcm']
+    file_name = 'PF,-Elekta,-pickets-near-edges.dcm'
     max_error = 0.23
     abs_median_error = 0.07
     num_pickets = 9
@@ -272,10 +276,11 @@ class MultipleImagesPF(PFTestMixin, TestCase):
     picket_orientation = Orientation.LEFT_RIGHT
     num_pickets = 5
     mean_picket_spacing = 30
+    delete_file = False
 
     @classmethod
     def setUpClass(cls):
-        path1 = osp.join(TEST_DIR, 'combo-jaw.dcm')
-        path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
+        path1 = get_file_from_cloud_test_repo([TEST_DIR, 'combo-jaw.dcm'])
+        path2 = get_file_from_cloud_test_repo([TEST_DIR, 'combo-mlc.dcm'])
         cls.pf = PicketFence.from_multiple_images([path1, path2], stretch_each=True)
         cls.pf.analyze(sag_adjustment=cls.sag_adjustment, orientation=Orientation.LEFT_RIGHT)

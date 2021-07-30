@@ -66,6 +66,11 @@ pipelines:
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/test_winstonlutz.py
+          - step:
+              name: Run core module tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/core
 
   branches:
     release*:
@@ -138,6 +143,11 @@ pipelines:
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/test_winstonlutz.py
+          - step:
+              name: Run core module tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/core
       - step:
           name: Push to Github
           clone:

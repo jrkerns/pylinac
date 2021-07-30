@@ -1,5 +1,4 @@
 import io
-import os.path as osp
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
@@ -8,9 +7,7 @@ import numpy as np
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
 from pylinac.ct import CTP404CP504, CTP404CP503, CTP528CP503, CTP528CP504, CatphanResult
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
-
-TEST_DIR = get_folder_from_cloud_test_repo(['CBCT'])
+from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_file_from_cloud_test_repo
 
 
 class TestCBCTLoading(LoadingTestBase, TestCase):
@@ -28,7 +25,7 @@ class TestGeneral(TestCase):
         self.cbct = CatPhan504.from_demo_images()
 
     def test_load_from_stream(self):
-        path = osp.join(TEST_DIR, 'CBCT_4.zip')
+        path = get_file_from_cloud_test_repo(['CBCT', 'CBCT_4.zip'])
         ref_cbct = CatPhan504.from_zip(path)
         with open(path, 'rb') as f:
             s = io.BytesIO(f.read())
@@ -38,7 +35,7 @@ class TestGeneral(TestCase):
         self.assertEqual(cbct.origin_slice, ref_cbct.origin_slice)
 
     def test_load_from_file_object(self):
-        path = osp.join(TEST_DIR, 'CBCT_4.zip')
+        path = get_file_from_cloud_test_repo(['CBCT', 'CBCT_4.zip'])
         ref_cbct = CatPhan504.from_zip(path)
         with open(path, 'rb') as f:
             cbct = CatPhan504.from_zip(f)
@@ -149,14 +146,13 @@ class TestPlottingSaving(TestCase):
             self.cbct.plot_analyzed_subimage('sr')
 
 
-class CatPhanMixin(LocationMixin):
+class CatPhanMixin(CloudFileMixin):
     """A mixin to use for testing Varian CBCT scans; does not inherit from TestCase as it would be run
         otherwise."""
     catphan = CatPhan504
     check_uid = True
     origin_slice = 0
-    file_path = []
-    cloud_dir = 'CBCT'
+    dir_path = ['CBCT']
     hu_tolerance = 40
     scaling_tolerance = 1
     zip = True
@@ -184,6 +180,7 @@ class CatPhanMixin(LocationMixin):
     def tearDownClass(cls):
         # somewhere there is a memory leak if ``cbct`` isn't deleted.
         delattr(cls, 'cbct')
+        super().tearDownClass()
 
     def test_slice_thickness(self):
         """Test the slice thickness."""
@@ -239,6 +236,7 @@ class CatPhanDemo(CatPhanMixin, TestCase):
     avg_line_length = 49.92
     lowcon_visible = 5
     slice_thickness = 2.5
+    delete_file = False
 
     @classmethod
     def setUpClass(cls):
@@ -248,7 +246,7 @@ class CatPhanDemo(CatPhanMixin, TestCase):
 
 class CatPhan4(CatPhanMixin, TestCase):
     """A Varian CBCT dataset"""
-    file_path = ['CBCT_4.zip']
+    file_name = 'CBCT_4.zip'
     expected_roll = -2.57
     origin_slice = 31
     hu_values = {'Poly': -33, 'Acrylic': 119, 'Delrin': 335, 'Air': -979, 'Teflon': 970, 'PMP': -185, 'LDPE': -94}
@@ -261,7 +259,7 @@ class CatPhan4(CatPhanMixin, TestCase):
 class Elekta2(CatPhanMixin, TestCase):
     """An Elekta CBCT dataset"""
     catphan = CatPhan503
-    file_path = ['Elekta_2.zip']
+    file_name = 'Elekta_2.zip'
     origin_slice = 162
     hu_values = {'Poly': -319, 'Acrylic': -224, 'Delrin': -91, 'Air': -863, 'Teflon': 253, 'PMP': -399, 'LDPE': -350}
     unif_values = {'Center': -285, 'Left': -279, 'Right': -278, 'Top': -279, 'Bottom': -279}
@@ -272,7 +270,7 @@ class Elekta2(CatPhanMixin, TestCase):
 class CatPhan600_2(CatPhanMixin, TestCase):
     """An Elekta CBCT dataset"""
     catphan = CatPhan600
-    file_path = ['zzCAT201602.zip']
+    file_name = 'zzCAT201602.zip'
     expected_roll = -0.64
     origin_slice = 34
     hu_values = {'Poly': -29, 'Acrylic': 123, 'Delrin': 336, 'Air': -932, 'Teflon': 897, 'PMP': -164, 'LDPE': -80}
@@ -286,7 +284,7 @@ class CatPhan600_2(CatPhanMixin, TestCase):
 
 class CatPhan604Test(CatPhanMixin, TestCase):
     catphan = CatPhan604
-    file_path = ['CBCTCatPhan604.zip']
+    file_name = 'CBCTCatPhan604.zip'
     origin_slice = 45
     hu_values = {'Poly': -47, 'Acrylic': 105, 'Delrin': 338, 'Air': -981, 'Teflon': 942, 'PMP': -194, 'LDPE': -105, '50% Bone': 771, '20% Bone': 263}
     unif_values = {'Center': -3, 'Left': 0, 'Right': 0, 'Top': 0, 'Bottom': 0}

@@ -1,23 +1,33 @@
 import base64
 import concurrent.futures
-from io import BytesIO, StringIO
+import contextlib
 import multiprocessing
 import os
 import os.path as osp
 import pprint
 import time
-from pathlib import Path
+from io import BytesIO, StringIO
+from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
-from typing import List
+from typing import List, Sequence
 from urllib.request import urlopen
 
+from google.cloud import storage
+
 from pylinac.core import image
-from pylinac.core.io import get_url
+from tests_basic import DELETE_FILES
+
+GCP_BUCKET_NAME = 'pylinac_test_files'
+LOCAL_TEST_DIR = 'test_files'
+
+# make the local test dir if it doesn't exist
+if not osp.isdir(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR)):
+    os.mkdir(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR))
 
 
-def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
+@contextlib.contextmanager
+def access_gcp() -> storage.Client:
     # access GCP
-    from google.cloud import storage
     credentials_file = Path(__file__).parent.parent / 'GCP_creds.json'
     # check if the credentials file is available (local dev)
     # if not, load from the env var (test pipeline)
@@ -25,44 +35,59 @@ def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
         with open(credentials_file, 'wb') as f:
             creds = base64.b64decode(os.environ.get("GOOGLE_CREDENTIALS"))
             f.write(creds)
-    storage_client = storage.Client.from_service_account_json(str(credentials_file))
+    client = storage.Client.from_service_account_json(str(credentials_file))
+    try:
+        yield client
+    finally:
+        del client
 
-    # get the folder data
-    blobs = list(storage_client.list_blobs("pylinac_test_files"))
-    blobs = [blob for blob in blobs if all(f in blob.name.split('/') and blob.name.split("/")[1] != '' for f in folder)]
 
-    # make root folder if need be
-    dest_folder = osp.join(osp.dirname(__file__), 'test_files', *folder)
-    if not osp.isdir(dest_folder):
-        os.makedirs(dest_folder)
+def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
+    """Get a folder from GCP"""
+    with access_gcp() as storage_client:
 
-    # make subfolders if need be
-    subdirs = [b.name.split('/')[1:-2] for b in blobs if len(b.name.split('/')) > 2]
-    dest_sub_folders = [osp.join(osp.dirname(__file__), 'test_files', *folder, *f) for f in subdirs]
-    for sdir in dest_sub_folders:
-        if not osp.isdir(sdir):
-            os.makedirs(sdir)
+        # get the folder data
+        blobs = list(storage_client.list_blobs(GCP_BUCKET_NAME))
+        blobs = [blob for blob in blobs if all(f in blob.name.split('/') and blob.name.split("/")[1] != '' for f in folder)]
 
-    for blob in blobs:
-        # download file
-        path = osp.join(dest_folder, blob.name.split('/')[-1])
-        if not os.path.exists(path):
-            blob.download_to_filename(path)
+        # make root folder if need be
+        dest_folder = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
+        if not osp.isdir(dest_folder):
+            os.makedirs(dest_folder)
 
-    return osp.join(osp.dirname(__file__), 'test_files', *folder)
+        # make subfolders if need be
+        subdirs = [b.name.split('/')[1:-2] for b in blobs if len(b.name.split('/')) > 2]
+        dest_sub_folders = [osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder, *f) for f in subdirs]
+        for sdir in dest_sub_folders:
+            if not osp.isdir(sdir):
+                os.makedirs(sdir)
+
+        for blob in blobs:
+            # download file
+            path = osp.join(dest_folder, blob.name.split('/')[-1])
+            if not os.path.exists(path):
+                blob.download_to_filename(path)
+
+        return osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
 
 
 def get_file_from_cloud_test_repo(path: List[str]) -> str:
-    root_url = 'https://s3.amazonaws.com/pylinac/test_files/'
-    full_url = root_url + '/'.join(list(path))
+    """Get a single file from GCP storage. Returns the path to disk it was downloaded to"""
+    local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
+    if osp.isfile(local_filename):
+        return local_filename
+    with access_gcp() as client:
+        bucket = client.bucket(GCP_BUCKET_NAME)
+        blob = bucket.blob(str(PurePosixPath(*path)))  # posix because google storage is on unix and won't find path w/ windows path
+        # make any necessary subdirs leading up to the file
+        if len(path) > 1:
+            for idx in range(1, len(path)):
+                local_dir = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path[:idx])
+                if not osp.isdir(local_dir):
+                    os.mkdir(local_dir)
 
-    demo_file = osp.join(osp.dirname(__file__), 'test_files', *path)
-    if not osp.isfile(demo_file):
-        demo_dir = osp.dirname(demo_file)
-        if not osp.exists(demo_dir):
-            os.makedirs(demo_dir)
-        get_url(full_url, destination=demo_file)
-    return demo_file
+        blob.download_to_filename(local_filename)
+        return local_filename
 
 
 def has_www_connection():
@@ -89,14 +114,14 @@ def save_file(method, *args, as_file_object=None, **kwargs):
             method(t, *args, **kwargs)
 
 
-def test_point_equality(point1, point2):
+def point_equality_validation(point1, point2):
     if point1.x != point2.x:
         raise ValueError("{} does not equal {}".format(point1.x, point2.x))
     if point1.y != point2.y:
         raise ValueError("{} does not equal {}".format(point1.y, point2.y))
 
 
-class LocationMixin:
+class CloudFileMixin:
     """A mixin that provides attrs and a method to get the absolute location of the
     file using syntax.
 
@@ -105,17 +130,23 @@ class LocationMixin:
     0. Override ``dir_location`` with the directory of the destination.
     1. Override ``file_path`` with a list that contains the subfolder(s) and file name.
     """
-    dir_location = ''
-    file_path = []
-    cloud_dir: str
+    file_name: str
+    dir_path: Sequence[str]
+    delete_file = True
 
     @classmethod
-    def get_filename(cls):
-        """Return the canonical path to the file."""
-        if cls.dir_location == '':
-            return get_file_from_cloud_test_repo([cls.cloud_dir, *cls.file_path])
+    def get_filename(cls) -> str:
+        """Return the canonical path to the file on disk. Download if it doesn't exist."""
+        full_path = Path(LOCAL_TEST_DIR, *cls.dir_path, cls.file_name)
+        if full_path.is_file():
+            return str(full_path)
         else:
-            return osp.join(cls.dir_location, *cls.file_path)
+            return get_file_from_cloud_test_repo([*cls.dir_path, cls.file_name])
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.delete_file and DELETE_FILES:
+            os.remove(cls.get_filename())
 
 
 class LoadingTestBase:
