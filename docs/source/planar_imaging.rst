@@ -238,6 +238,12 @@ The Standard Imaging phantom has a specific setup as recommended by the manufact
 degrees, with the "1" pointed toward the gantry stand and centered along the CAX. For best results when using pylinac,
 open the jaws to fully cover the EPID, or at least give 1-2cm flash around the phantom edges.
 
+.. warning::
+
+    If using the acrylic jig that comes with the phantom, place a spacer of at least a few mm between the jig and the phantom.
+    E.g. a slice of foam on each angled edge. This is because the edge detection of the phantom may fail at certain
+    energies with the phantom abutted to the acrylic jig.
+
 Algorithm
 ^^^^^^^^^
 

@@ -301,7 +301,7 @@ Analysis
 
 * **Determine HU linearity** -- The HU module (CTP404) contains several materials with different HU values. Using
   hardcoded angles (corrected for roll) and radius from the center of the phantom, circular ROIs are sampled which
-  correspond to the HU material regions. The mean pixel value of the ROI is the stated HU value. Nominal HU values
+  correspond to the HU material regions. The median pixel value of the ROI is the stated HU value. Nominal HU values
   are taken as the mean of the range given in the manual(s):
 
   .. image:: images/catphan_densities.png
@@ -323,7 +323,7 @@ Analysis
   a "detectability" score. ROIs above the score are said to be "seen", while those below are not seen. Only the 1.0% supra-slice ROIs
   are examined. Two background ROIs are sampled on either side of the ROI contrast set. The score for a given ROI is
   calculated like so :math:`\frac{ROI_{pixel} - background}{ROI_{stdev}} * ROI_{diameter}`, where :math:`ROI_{pixel}` is the
-  mean pixel value of the ROI, :math:`background` is the mean pixel value of the two background ROIs, and :math:`ROI_{diameter}`
+  median pixel value of the ROI, :math:`background` is the median pixel value of the two background ROIs, and :math:`ROI_{diameter}`
   is the diamter of the ROI in mm. The default detectability score is 10.
 * **Calculate Slice Thickness** -- Slice thickness is measured by determining the FWHM of the wire ramps in the CTP404 module.
   A profile of the area around each wire ramp is taken, and the FWHM is determined from the profile. Based on testing, the FWHM
