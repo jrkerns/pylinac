@@ -276,6 +276,7 @@ class MultipleImagesPF(PFTestMixin, TestCase):
     picket_orientation = Orientation.LEFT_RIGHT
     num_pickets = 5
     mean_picket_spacing = 30
+    delete_file = False
 
     @classmethod
     def setUpClass(cls):

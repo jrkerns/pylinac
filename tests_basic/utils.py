@@ -79,10 +79,13 @@ def get_file_from_cloud_test_repo(path: List[str]) -> str:
     with access_gcp() as client:
         bucket = client.bucket(GCP_BUCKET_NAME)
         blob = bucket.blob(str(PurePosixPath(*path)))  # posix because google storage is on unix and won't find path w/ windows path
+        # make any necessary subdirs leading up to the file
         if len(path) > 1:
-            local_dir = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path[:-1])
-            if not osp.isdir(local_dir):
-                os.mkdir(local_dir)
+            for idx in range(1, len(path)):
+                local_dir = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path[:idx])
+                if not osp.isdir(local_dir):
+                    os.mkdir(local_dir)
+
         blob.download_to_filename(local_filename)
         return local_filename
 
