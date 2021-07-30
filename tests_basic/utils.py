@@ -15,7 +15,7 @@ from urllib.request import urlopen
 from google.cloud import storage
 
 from pylinac.core import image
-
+from tests_basic import DELETE_FILES
 
 GCP_BUCKET_NAME = 'pylinac_test_files'
 LOCAL_TEST_DIR = 'test_files'
@@ -69,10 +69,16 @@ def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
 
 def get_file_from_cloud_test_repo(path: List[str]) -> str:
     """Get a single file from GCP storage. Returns the path to disk it was downloaded to"""
+    local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
+    if osp.isfile(local_filename):
+        return local_filename
     with access_gcp() as client:
         bucket = client.bucket(GCP_BUCKET_NAME)
         blob = bucket.blob(str(PurePosixPath(*path)))  # posix because google storage is on unix and won't find path w/ windows path
-        local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
+        if len(path) > 1:
+            local_dir = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path[:-1])
+            if not osp.isdir(local_dir):
+                os.mkdir(local_dir)
         blob.download_to_filename(local_filename)
         return local_filename
 
@@ -128,6 +134,11 @@ class CloudFileMixin:
             return str(full_path)
         else:
             return get_file_from_cloud_test_repo([*cls.dir_path, cls.file_name])
+
+    @classmethod
+    def tearDownClass(cls):
+        if DELETE_FILES:
+            os.remove(cls.get_filename())
 
 
 class LoadingTestBase:

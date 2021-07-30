@@ -1,5 +1,4 @@
 import io
-import os.path as osp
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
@@ -8,9 +7,7 @@ import numpy as np
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
 from pylinac.ct import CTP404CP504, CTP404CP503, CTP528CP503, CTP528CP504, CatphanResult
-from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_folder_from_cloud_test_repo
-
-TEST_DIR = get_folder_from_cloud_test_repo(['CBCT'])
+from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_file_from_cloud_test_repo
 
 
 class TestCBCTLoading(LoadingTestBase, TestCase):
@@ -28,7 +25,7 @@ class TestGeneral(TestCase):
         self.cbct = CatPhan504.from_demo_images()
 
     def test_load_from_stream(self):
-        path = osp.join(TEST_DIR, 'CBCT_4.zip')
+        path = get_file_from_cloud_test_repo(['CBCT', 'CBCT_4.zip'])
         ref_cbct = CatPhan504.from_zip(path)
         with open(path, 'rb') as f:
             s = io.BytesIO(f.read())
@@ -38,7 +35,7 @@ class TestGeneral(TestCase):
         self.assertEqual(cbct.origin_slice, ref_cbct.origin_slice)
 
     def test_load_from_file_object(self):
-        path = osp.join(TEST_DIR, 'CBCT_4.zip')
+        path = get_file_from_cloud_test_repo(['CBCT', 'CBCT_4.zip'])
         ref_cbct = CatPhan504.from_zip(path)
         with open(path, 'rb') as f:
             cbct = CatPhan504.from_zip(f)
@@ -183,6 +180,7 @@ class CatPhanMixin(CloudFileMixin):
     def tearDownClass(cls):
         # somewhere there is a memory leak if ``cbct`` isn't deleted.
         delattr(cls, 'cbct')
+        super().tearDownClass()
 
     def test_slice_thickness(self):
         """Test the slice thickness."""

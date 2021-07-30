@@ -9,9 +9,9 @@ from pylinac.core.io import retrieve_demo_file
 from pylinac.core.profile import Edge, Normalization, Interpolation
 from pylinac.field_analysis import FieldAnalysis, Protocol, DeviceFieldAnalysis, Device, Centering, \
     symmetry_point_difference, flatness_dose_difference, plot_flatness, plot_symmetry_point_difference, FieldResults
-from tests_basic.utils import has_www_connection, CloudFileMixin, save_file, get_folder_from_cloud_test_repo
+from tests_basic.utils import has_www_connection, CloudFileMixin, save_file, get_file_from_cloud_test_repo
 
-TEST_DIR = get_folder_from_cloud_test_repo(['flatness_symmetry'])
+TEST_DIR = 'flatness_symmetry'
 
 
 def create_instance():
@@ -23,7 +23,7 @@ def create_instance():
 class FieldAnalysisTests(TestCase):
 
     def test_load_from_file_object(self):
-        path = osp.join(TEST_DIR, '6x-auto-bulb-2.dcm')
+        path = get_file_from_cloud_test_repo([TEST_DIR, '6x-auto-bulb-2.dcm'])
         ref_fa = FieldAnalysis(path)
         ref_fa.analyze()
         with open(path, 'rb') as f:
@@ -33,7 +33,7 @@ class FieldAnalysisTests(TestCase):
         self.assertEqual(fa.image.shape, ref_fa.image.shape)
 
     def test_load_from_stream(self):
-        path = osp.join(TEST_DIR, '6x-auto-bulb-2.dcm')
+        path = get_file_from_cloud_test_repo([TEST_DIR, '6x-auto-bulb-2.dcm'])
         ref_fa = FieldAnalysis(path)
         ref_fa.analyze()
         with open(path, 'rb') as f:

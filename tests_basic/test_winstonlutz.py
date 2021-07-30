@@ -12,7 +12,7 @@ from pylinac.core.geometry import Vector, vector_is_close
 from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_folder_from_cloud_test_repo, \
     get_file_from_cloud_test_repo
 
-TEST_DIR = get_folder_from_cloud_test_repo(['Winston-Lutz'])
+TEST_DIR = 'Winston-Lutz'
 
 
 class TestWLLoading(LoadingTestBase, TestCase):
@@ -30,7 +30,7 @@ class TestWLLoading(LoadingTestBase, TestCase):
             WinstonLutz(r'nonexistant/dir')
 
     def test_load_from_file_object(self):
-        path = osp.join(TEST_DIR, 'noisy_WL_30x5.zip')
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'noisy_WL_30x5.zip'])
         ref_w = WinstonLutz.from_zip(path)
         ref_w.analyze()
         with open(path, 'rb') as f:
@@ -40,7 +40,7 @@ class TestWLLoading(LoadingTestBase, TestCase):
         self.assertEqual(w.gantry_iso_size, ref_w.gantry_iso_size)
 
     def test_load_from_stream(self):
-        path = osp.join(TEST_DIR, 'noisy_WL_30x5.zip')
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'noisy_WL_30x5.zip'])
         ref_w = WinstonLutz.from_zip(path)
         ref_w.analyze()
         with open(path, 'rb') as f:
@@ -156,7 +156,7 @@ class TestPlottingSaving(TestCase):
 
     def test_plot_wo_all_axes(self):
         # test that analyzing images w/o gantry images doesn't fail
-        wl_zip = osp.join(TEST_DIR, 'Naming.zip')
+        wl_zip = get_file_from_cloud_test_repo([TEST_DIR, 'Naming.zip'])
         wl = WinstonLutz.from_zip(wl_zip, use_filenames=True)
         wl.analyze()
         wl.plot_summary()  # shouldn't raise
@@ -350,7 +350,7 @@ class WLBadFilenames(TestCase):
 
     def test_bad_filenames(self):
         # tests_basic that using filenames with incorrect syntax will fail
-        wl_dir = osp.join(TEST_DIR, 'Bad-Names.zip')
+        wl_dir = get_file_from_cloud_test_repo([TEST_DIR, 'Bad-Names.zip'])
         with self.assertRaises(ValueError):
             wl = WinstonLutz.from_zip(wl_dir, use_filenames=True)
             wl.analyze()
