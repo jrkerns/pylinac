@@ -243,9 +243,9 @@ Tips & Tricks
 * The ``Perfect...Layer`` s do not apply any energy correction as above.
 
 * Use ``alpha`` to adjust the intensity of the layer. E.g. the BB layer has a default alpha of -0.5 to simulate attenuation.
-  This will "subtract" out up to half of the possible dose range existing on the image thus far
-  (e.g. an open image of alpha 1.0 will be reduced to 0.5 after a BB is layered). If you want to simulate a thick material like
-  tungsten you can adjust the alpha to be lower (more attenuation). An alpha of 1 means full radiation, no attenuation (like an open field)
+  This will subtract out up to half of the possible dose range existing on the image thus far
+  (e.g. an open image of alpha 1.0 will be reduced to 0.5 after a BB is layered with alpha=-0.5). If you want to simulate a thick material like
+  tungsten you can adjust the alpha to be lower (more attenuation). An alpha of 1 means full radiation, no attenuation (like an open field).
 
 * Generally speaking, don't apply more than one ``GaussianFilterLayer`` since they are additive. A good rule is to apply one filter at the
   end of your layering.
@@ -308,3 +308,4 @@ Helpers
 
 .. autofunction:: pylinac.core.image_generator.utils.generate_winstonlutz
 
+.. autofunction:: pylinac.core.image_generator.utils.generate_winstonlutz_cone

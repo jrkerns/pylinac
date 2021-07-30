@@ -1,22 +1,30 @@
-from abc import abstractmethod, ABC
+from abc import ABC
+from typing import Tuple
 
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
-from typing import Tuple
 
 from pylinac.core.image_generator.layers import Layer
 
 
 class Simulator(ABC):
+    """Abstract class for an image simulator"""
     pixel_size: float
     shape: Tuple[int, int]
 
-    def __init__(self, sid=1500):
+    def __init__(self, sid: float = 1500):
+        """
+
+        Parameters
+        ----------
+        sid
+            Source to image distance in mm.
+        """
         self.image = np.zeros(self.shape, np.uint16)
         self.sid = sid
         self.mag_factor = sid / 1000
 
-    def add_layer(self, layer: Layer):
+    def add_layer(self, layer: Layer) -> None:
         """Add a layer to the image"""
         self.image = layer.apply(self.image, self.pixel_size, self.mag_factor)
 
@@ -31,7 +39,7 @@ class AS500Image(Simulator):
     shape: Tuple[int, int] = (384, 512)
 
     def generate_dicom(self, file_out_name: str, gantry_angle: float = 0.0, coll_angle: float = 0.0,
-                       table_angle: float = 0.0):
+                       table_angle: float = 0.0) -> None:
         # make image look like an EPID with flipped data (dose->low)
         flipped_image = -self.image + self.image.max() + self.image.min()
 
@@ -99,7 +107,7 @@ class AS1000Image(Simulator):
     shape: Tuple[int, int] = (768, 1024)
 
     def generate_dicom(self, file_out_name: str, gantry_angle: float = 0.0, coll_angle: float = 0.0,
-                       table_angle: float = 0.0):
+                       table_angle: float = 0.0) -> None:
         # make image look like an EPID with flipped data (dose->low)
         flipped_image = -self.image + self.image.max() + self.image.min()
 
@@ -177,7 +185,7 @@ class AS1200Image(Simulator):
     shape: Tuple[int, int] = (1280, 1280)
 
     def generate_dicom(self, file_out_name: str, gantry_angle: float = 0.0, coll_angle: float = 0.0,
-                       table_angle: float = 0.0):
+                       table_angle: float = 0.0) -> None:
         file_meta = FileMetaDataset()
         file_meta.FileMetaInformationGroupLength = 196
         file_meta.FileMetaInformationVersion = b'\x00\x01'
