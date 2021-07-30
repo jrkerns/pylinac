@@ -10,7 +10,7 @@ import numpy as np
 from pylinac.core.geometry import Point
 from pylinac import Starshot
 from pylinac.starshot import StarshotResults
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_file_from_cloud_test_repo, \
+from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_file_from_cloud_test_repo, \
     get_folder_from_cloud_test_repo
 
 plt.close('all')
@@ -60,10 +60,10 @@ class TestPlottingSaving(TestCase):
         save_file(self.star.save_analyzed_subimage, as_file_object='b')
 
 
-class StarMixin(LocationMixin):
+class StarMixin(CloudFileMixin):
     """Mixin for testing a starshot image."""
     # dir_location = TEST_DIR
-    cloud_dir = 'Starshot'
+    dir_path = ['Starshot']
     is_dir = False  # whether the starshot is a single file (False) or directory of images to combine (True)
     wobble_diameter_mm = 0
     wobble_center = Point()
@@ -148,13 +148,13 @@ class Multiples(StarMixin, TestCase):
     wobble_center = Point(254, 192)
     wobble_diameter_mm = 0.7
     wobble_tolerance = 0.2
-    file_path = ['set']
+    dir_path = ['Starshot', 'set']
     is_dir = True
 
     @classmethod
     def get_filename(cls):
         """Return the canonical path to the file."""
-        return get_folder_from_cloud_test_repo([cls.cloud_dir, *cls.file_path])
+        return get_folder_from_cloud_test_repo([*cls.dir_path])
 
     def test_loading_from_zip(self):
         img_zip = get_file_from_cloud_test_repo(['Starshot', 'set.zip'])
@@ -164,7 +164,7 @@ class Multiples(StarMixin, TestCase):
 
 
 class Starshot1(StarMixin, TestCase):
-    file_path = ['Starshot-1.tif']
+    file_name = 'Starshot-1.tif'
     wobble_center = Point(508, 683)
     wobble_diameter_mm = 0.23
     num_rad_lines = 4
@@ -172,7 +172,7 @@ class Starshot1(StarMixin, TestCase):
 
 
 class StarshotPerfect30Deg(StarMixin, TestCase):
-    file_path = ['Starshot-30-deg-perfect.dcm']
+    file_name = 'Starshot-30-deg-perfect.dcm'
     wobble_center = Point(639.5, 639.5)
     wobble_diameter_mm = 0.0
     num_rad_lines = 6
@@ -183,7 +183,7 @@ class Starshot1FWHM(Starshot1):
 
 
 class CRStarshot(StarMixin, TestCase):
-    file_path = ['CR-Starshot.dcm']
+    file_name = 'CR-Starshot.dcm'
     wobble_center = Point(1030.5, 1253.6)
     wobble_diameter_mm = 0.3
     num_rad_lines = 6

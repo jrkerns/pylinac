@@ -9,7 +9,7 @@ from pylinac.core.io import retrieve_demo_file
 from pylinac.core.profile import Edge, Normalization, Interpolation
 from pylinac.field_analysis import FieldAnalysis, Protocol, DeviceFieldAnalysis, Device, Centering, \
     symmetry_point_difference, flatness_dose_difference, plot_flatness, plot_symmetry_point_difference, FieldResults
-from tests_basic.utils import has_www_connection, LocationMixin, save_file, get_folder_from_cloud_test_repo
+from tests_basic.utils import has_www_connection, CloudFileMixin, save_file, get_folder_from_cloud_test_repo
 
 TEST_DIR = get_folder_from_cloud_test_repo(['flatness_symmetry'])
 
@@ -105,8 +105,8 @@ class FieldAnalysisTests(TestCase):
             fs.publish_pdf('dummy.pdf')
 
 
-class FieldAnalysisBase(LocationMixin):
-    dir_location = TEST_DIR
+class FieldAnalysisBase(CloudFileMixin):
+    dir_location = ['flatness_symmetry']
     sym_tolerance = 0.05
     flat_tolerance = 0.05
     apply_smoothing = None
@@ -233,7 +233,7 @@ class DeviceAnalysisBase(FieldAnalysisBase):
 
 
 class Profiler6FFF(DeviceAnalysisBase, TestCase):
-    file_path = ['6fff.prm']
+    file_name = '6fff.prm'
     is_FFF = True
     vert_flatness = 14.35
     vert_symmetry = -0.9
@@ -286,7 +286,7 @@ class FlatSymWideDemo(FlatSymDemo, TestCase):
 
 
 class FlatSym6X(FieldAnalysisBase, TestCase):
-    file_path = ['6x-auto-bulb-2.dcm']
+    file_name = '6x-auto-bulb-2.dcm'
     # independently verified
     horiz_width = 0.01
     vert_width = 0.01
@@ -307,7 +307,7 @@ class FlatSym6X(FieldAnalysisBase, TestCase):
 
 
 class FlatSym18X(FieldAnalysisBase, TestCase):
-    file_path = ['18x-auto-bulb2.dcm']
+    file_name = '18x-auto-bulb2.dcm'
     # independently verified
     horiz_width = 0.01
     vert_width = 0.01

@@ -9,7 +9,7 @@ import pylinac
 from pylinac import WinstonLutz
 from pylinac.winston_lutz import Axis, WinstonLutzResult
 from pylinac.core.geometry import Vector, vector_is_close
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo, \
+from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_folder_from_cloud_test_repo, \
     get_file_from_cloud_test_repo
 
 TEST_DIR = get_folder_from_cloud_test_repo(['Winston-Lutz'])
@@ -162,8 +162,8 @@ class TestPlottingSaving(TestCase):
         wl.plot_summary()  # shouldn't raise
 
 
-class WinstonLutzMixin(LocationMixin):
-    cloud_dir = 'Winston-Lutz'
+class WinstonLutzMixin(CloudFileMixin):
+    dir_path = ['Winston-Lutz']
     num_images = 0
     zip = True
     bb_size = 5
@@ -244,7 +244,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
 
 class WLPerfect30x8(WinstonLutzMixin, TestCase):
     """30x30mm field, 8mm BB"""
-    file_path = ['perfect_WL_30x8.zip']
+    file_name = 'perfect_WL_30x8.zip'
     num_images = 4
     gantry_iso_size = 0
     collimator_iso_size = 0
@@ -257,7 +257,7 @@ class WLPerfect30x8(WinstonLutzMixin, TestCase):
 
 class WLPerfect30x2(WinstonLutzMixin, TestCase):
     """30x30mm field, 2mm BB"""
-    file_path = ['perfect_WL_30x2mm.zip']
+    file_name = 'perfect_WL_30x2mm.zip'
     num_images = 4
     gantry_iso_size = 0
     collimator_iso_size = 0
@@ -271,7 +271,7 @@ class WLPerfect30x2(WinstonLutzMixin, TestCase):
 
 class WLPerfect10x4(WinstonLutzMixin, TestCase):
     """10x10mm field, 4mm BB"""
-    file_path = ['perfect_WL_10x4.zip']
+    file_name = 'perfect_WL_10x4.zip'
     num_images = 4
     gantry_iso_size = 0
     collimator_iso_size = 0
@@ -284,7 +284,7 @@ class WLPerfect10x4(WinstonLutzMixin, TestCase):
 
 class WLNoisy30x5(WinstonLutzMixin, TestCase):
     """30x30mm field, 5mm BB. S&P noise added"""
-    file_path = ['noisy_WL_30x5.zip']
+    file_name = 'noisy_WL_30x5.zip'
     num_images = 4
     gantry_iso_size = 0.08
     collimator_iso_size = 0
@@ -297,7 +297,7 @@ class WLNoisy30x5(WinstonLutzMixin, TestCase):
 
 class WLLateral3mm(WinstonLutzMixin, TestCase):
     # verified independently
-    file_path = ['lat3mm.zip']
+    file_name = 'lat3mm.zip'
     num_images = 4
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.8
@@ -307,7 +307,7 @@ class WLLateral3mm(WinstonLutzMixin, TestCase):
 
 class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
     # verified independently
-    file_path = ['lng3mm.zip']
+    file_name = 'lng3mm.zip'
     num_images = 4
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.9
@@ -316,7 +316,7 @@ class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
 
 
 class WLVertical3mm(WinstonLutzMixin, TestCase):
-    file_path = ['vrt3mm.zip']
+    file_name = 'vrt3mm.zip'
     num_images = 4
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.8
@@ -326,7 +326,7 @@ class WLVertical3mm(WinstonLutzMixin, TestCase):
 
 
 class WLDontUseFileNames(WinstonLutzMixin, TestCase):
-    file_path = ['Naming.zip']
+    file_name = 'Naming.zip'
     num_images = 4
     gantry_iso_size = 0.3
     cax2bb_max_distance = 0.9
@@ -336,7 +336,7 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
 
 
 class WLUseFileNames(WinstonLutzMixin, TestCase):
-    file_path = ['Naming.zip']
+    file_name = 'Naming.zip'
     use_filenames = True
     num_images = 4
     collimator_iso_size = 1.2

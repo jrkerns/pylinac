@@ -9,7 +9,7 @@ import numpy as np
 
 from pylinac.log_analyzer import MachineLogs, TreatmentType, \
     anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError, NotALogError
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_file_from_cloud_test_repo, \
+from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_file_from_cloud_test_repo, \
     get_folder_from_cloud_test_repo
 
 TEST_DIR = get_folder_from_cloud_test_repo(['mlc_logs'])
@@ -306,14 +306,14 @@ class TestDynalog(LogPlottingSavingMixin, LoadingTestBase, LogBase, TestCase):
         self.assertRaises(ValueError, Dynalog, bad_name_dlg)
 
 
-class IndividualLogBase(LocationMixin):
+class IndividualLogBase(CloudFileMixin):
     """Mixin to use when testing a single machine log; must be mixed with unittest.TestCase."""
     num_mlc_leaves = 120
     num_snapshots = 0
     num_beamholds = 0
     num_moving_leaves = 0
     treatment_type = ''
-    cloud_dir = 'mlc_logs'
+    dir_path = ['mlc_logs']
     static_axes = []
     moving_axes = []
     leaf_move_status = {'moving': tuple(), 'static': tuple()}
@@ -425,7 +425,8 @@ class IndividualTrajectoryLog(IndividualLogBase):
 
 class TestTrajectoryLogV4(IndividualTrajectoryLog, TestCase):
     version = 4.0
-    file_path = ['tlogs', 'v4_log.bin']
+    dir_path = ['mlc_logs', 'tlogs']
+    file_name = 'v4_log.bin'
     header = 'VOSTL'
     header_size = 1024
     sampling_interval = 20

@@ -1,6 +1,7 @@
 import io
 import os.path as osp
 import unittest
+from typing import Callable
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ import numpy as np
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC
-from tests_basic.utils import save_file, LocationMixin, get_folder_from_cloud_test_repo
+from tests_basic.utils import save_file, CloudFileMixin, get_folder_from_cloud_test_repo
 
 TEST_DIR = get_folder_from_cloud_test_repo(['planar_imaging'])
 
@@ -54,16 +55,17 @@ class GeneralTests(TestCase):
         self.assertEqual(len(data_dict), 8)
 
 
-class PlanarPhantomMixin(LocationMixin):
-    klass = object
-    dir_location = TEST_DIR
+class PlanarPhantomMixin(CloudFileMixin):
+    klass: Callable
+    dir_path = ['planar_imaging']
     mtf_50 = None
     invert = False
     ssd = 1000
+    file_name = None
 
     @classmethod
     def setUpClass(cls):
-        if not cls.file_path:
+        if not cls.file_name:
             cls.instance = cls.klass.from_demo_image()
         else:
             cls.instance = cls.klass(cls.get_filename())
@@ -105,7 +107,7 @@ class LeedsDemo(PlanarPhantomMixin, TestCase):
 class LeedsCCW(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.5
-    file_path = ['Leeds_ccw.dcm']
+    file_name = 'Leeds_ccw.dcm'
 
 
 class Leeds45Deg(PlanarPhantomMixin, TestCase):
@@ -113,14 +115,14 @@ class Leeds45Deg(PlanarPhantomMixin, TestCase):
     invert = True  # inverted in v3.0 due to changed default inversion behavior
     mtf_50 = 1.9
     ssd = 1500
-    file_path = ['Leeds-45deg.dcm']
+    file_name = 'Leeds-45deg.dcm'
 
 
 class LeedsDirtyEdges(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.3
     ssd = 1000
-    file_path = ['Leeds-dirty-edges.dcm']
+    file_name = 'Leeds-dirty-edges.dcm'
 
 
 @unittest.skip("Phantom appears distorted. MTF locations are different than other phantoms")
@@ -128,7 +130,7 @@ class LeedsClosedBlades(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.3
     ssd = 1500
-    file_path = ['Leeds-closed-blades.dcm']
+    file_name = 'Leeds-closed-blades.dcm'
 
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
@@ -141,13 +143,13 @@ class SIQC3Demo(PlanarPhantomMixin, TestCase):
 
 class SIQC3_1(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
-    file_path = ['QC3-2.5MV.dcm']
+    file_name = 'QC3-2.5MV.dcm'
     mtf_50 = 1.19
 
 
 class SIQC3_2(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
-    file_path = ['QC3-2.5MV-2.dcm']
+    file_name = 'QC3-2.5MV-2.dcm'
     mtf_50 = 1.16
 
     def test_wrong_ssd_fails(self):

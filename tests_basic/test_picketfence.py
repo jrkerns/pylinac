@@ -7,7 +7,7 @@ from unittest import TestCase
 import matplotlib.pyplot as plt
 
 from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
+from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_folder_from_cloud_test_repo
 
 TEST_DIR = get_folder_from_cloud_test_repo(['picket_fence'])
 
@@ -139,9 +139,9 @@ class TestPlottingSaving(TestCase):
         save_file(self.pf_updown.save_analyzed_image)
 
 
-class PFTestMixin(LocationMixin):
+class PFTestMixin(CloudFileMixin):
     """Base Mixin for testing a picketfence image."""
-    cloud_dir = 'picket_fence'
+    dir_path = ['picket_fence']
     picket_orientation = Orientation.UP_DOWN
     mlc = 'Millennium'
     num_pickets = 10
@@ -159,7 +159,7 @@ class PFTestMixin(LocationMixin):
     def get_logfile(cls):
         """Return the canonical path to the log file."""
         if cls.log is not None:
-            return osp.join(cls.dir_location, *cls.log)
+            return osp.join(*cls.dir_path, *cls.log)
 
     @classmethod
     def setUpClass(cls):
@@ -210,7 +210,7 @@ class PFDemo(PFTestMixin, TestCase):
 
 
 class WideGapSimulation(PFTestMixin, TestCase):
-    file_path = ['noisy-wide-gap-pf.dcm']
+    file_name = 'noisy-wide-gap-pf.dcm'
     max_error = 0.11
     invert = True
     abs_median_error = 0.06
@@ -219,7 +219,7 @@ class WideGapSimulation(PFTestMixin, TestCase):
 
 
 class FFFWideGapSimulation(PFTestMixin, TestCase):
-    file_path = ['noisy-FFF-wide-gap-pf.dcm']
+    file_name = 'noisy-FFF-wide-gap-pf.dcm'
     max_error = 0.17
     invert = True
     abs_median_error = 0.06
@@ -229,13 +229,13 @@ class FFFWideGapSimulation(PFTestMixin, TestCase):
 
 class AS1200(PFTestMixin, TestCase):
     """Tests for the AS1200 image."""
-    file_path = ['AS1200.dcm']
+    file_name = 'AS1200.dcm'
     max_error = 0.08
     abs_median_error = 0.02
 
 
 class ClinacWeirdBackground(PFTestMixin, TestCase):
-    file_path = ['Clinac-weird-background.dcm']
+    file_name = 'Clinac-weird-background.dcm'
     max_error = 0.12
     abs_median_error = 0.02
     num_pickets = 5
@@ -243,7 +243,7 @@ class ClinacWeirdBackground(PFTestMixin, TestCase):
 
 
 class ElektaCloseEdges(PFTestMixin, TestCase):
-    file_path = ['PF,-Elekta,-pickets-near-edges.dcm']
+    file_name = 'PF,-Elekta,-pickets-near-edges.dcm'
     max_error = 0.23
     abs_median_error = 0.07
     num_pickets = 9
@@ -251,7 +251,7 @@ class ElektaCloseEdges(PFTestMixin, TestCase):
 
 
 class ElektaCloseEdgesRot90(PFTestMixin, TestCase):
-    file_path = ['PF,-Elekta,-pickets-near-edges.dcm']
+    file_name = 'PF,-Elekta,-pickets-near-edges.dcm'
     max_error = 0.23
     abs_median_error = 0.07
     num_pickets = 9
