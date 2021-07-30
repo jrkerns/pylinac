@@ -7,9 +7,9 @@ from unittest import TestCase
 import matplotlib.pyplot as plt
 
 from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement
-from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_folder_from_cloud_test_repo
+from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_file_from_cloud_test_repo
 
-TEST_DIR = get_folder_from_cloud_test_repo(['picket_fence'])
+TEST_DIR = 'picket_fence'
 
 
 class TestLoading(LoadingTestBase, TestCase):
@@ -21,13 +21,13 @@ class TestLoading(LoadingTestBase, TestCase):
         PicketFence(self.get_constructor_input(), filter=3)  # shouldn't raise
 
     def test_load_with_log(self):
-        log_file = osp.join(TEST_DIR, 'PF_log.bin')
-        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        log_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF_log.bin'])
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF.dcm'])
         pf = PicketFence(pf_file, log=log_file)
         pf.analyze()
 
     def test_load_from_file_object(self):
-        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF.dcm'])
         ref_pf = PicketFence(pf_file)
         ref_pf.analyze()
         with open(pf_file, 'rb') as f:
@@ -37,7 +37,7 @@ class TestLoading(LoadingTestBase, TestCase):
         self.assertEqual(pf.percent_passing, ref_pf.percent_passing)
 
     def test_load_from_stream(self):
-        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF.dcm'])
         ref_pf = PicketFence(pf_file)
         ref_pf.analyze()
         with open(pf_file, 'rb') as f:
@@ -76,7 +76,7 @@ class GeneralTests(TestCase):
         self.assertIn('pylinac_version', data_dict)
 
     def test_no_measurements_suggests_inversion(self):
-        file_loc = osp.join(TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm')
+        file_loc = get_file_from_cloud_test_repo([TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm'])
         pf = PicketFence(file_loc)
         with self.assertRaises(ValueError):
             pf.analyze(invert=False)
@@ -95,7 +95,7 @@ class GeneralTests(TestCase):
         mlc_setup = MLCArrangement(leaf_arrangement=[(10, 10), (40, 5), (10, 10)])
 
         # pass it in to the mlc parameter
-        path = osp.join(TEST_DIR, 'AS500_PF.dcm')
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'AS500_PF.dcm'])
         pf = PicketFence(path, mlc=mlc_setup)
 
         # shouldn't raise
@@ -107,7 +107,7 @@ class GeneralTests(TestCase):
         mlc_setup = 'Millennium'
 
         # pass it in to the mlc parameter
-        path = osp.join(TEST_DIR, 'AS500_PF.dcm')
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'AS500_PF.dcm'])
         pf = PicketFence(path, mlc=mlc_setup)
 
         # shouldn't raise
@@ -202,6 +202,10 @@ class PFDemo(PFTestMixin, TestCase):
         cls.pf = PicketFence.from_demo_image()
         cls.pf.analyze(sag_adjustment=cls.sag_adjustment)
 
+    @classmethod
+    def tearDownClass(cls):
+        pass  # override delete behavior
+
     def test_demo_lower_tolerance(self):
         pf = PicketFence.from_demo_image()
         pf.analyze(0.15, action_tolerance=0.05)
@@ -275,7 +279,7 @@ class MultipleImagesPF(PFTestMixin, TestCase):
 
     @classmethod
     def setUpClass(cls):
-        path1 = osp.join(TEST_DIR, 'combo-jaw.dcm')
-        path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
+        path1 = get_file_from_cloud_test_repo([TEST_DIR, 'combo-jaw.dcm'])
+        path2 = get_file_from_cloud_test_repo([TEST_DIR, 'combo-mlc.dcm'])
         cls.pf = PicketFence.from_multiple_images([path1, path2], stretch_each=True)
         cls.pf.analyze(sag_adjustment=cls.sag_adjustment, orientation=Orientation.LEFT_RIGHT)

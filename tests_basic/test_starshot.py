@@ -136,6 +136,7 @@ class Demo(StarMixin, TestCase):
     num_rad_lines = 4
     wobble_tolerance = 0.15
     # independently verified: 0.24-0.26mm
+    delete_file = False
 
     @classmethod
     def construct_star(cls):
@@ -150,6 +151,7 @@ class Multiples(StarMixin, TestCase):
     wobble_tolerance = 0.2
     dir_path = ['Starshot', 'set']
     is_dir = True
+    delete_file = False
 
     @classmethod
     def get_filename(cls):

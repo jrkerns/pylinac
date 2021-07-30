@@ -235,6 +235,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
     epid_deviation = 1.3
     axis_of_rotation = {0: Axis.REFERENCE}
     bb_shift_vector = Vector(x=0.4, y=-0.4, z=-0.2)
+    delete_file = False
 
     @classmethod
     def setUpClass(cls):

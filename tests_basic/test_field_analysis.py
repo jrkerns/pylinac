@@ -106,7 +106,7 @@ class FieldAnalysisTests(TestCase):
 
 
 class FieldAnalysisBase(CloudFileMixin):
-    dir_location = ['flatness_symmetry']
+    dir_path = ['flatness_symmetry']
     sym_tolerance = 0.05
     flat_tolerance = 0.05
     apply_smoothing = None

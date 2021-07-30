@@ -236,6 +236,7 @@ class CatPhanDemo(CatPhanMixin, TestCase):
     avg_line_length = 49.92
     lowcon_visible = 5
     slice_thickness = 2.5
+    delete_file = False
 
     @classmethod
     def setUpClass(cls):

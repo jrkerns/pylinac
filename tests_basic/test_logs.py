@@ -470,6 +470,7 @@ class TestDynalogDemo(IndividualDynalog, TestCase):
     average_gamma = 0.47
     percent_pass_gamma = 91
     leaf_move_status = {'moving': (9, 3), 'static': (8, )}
+    delete_file = False
 
     @classmethod
     def setUpClass(cls):
@@ -498,6 +499,7 @@ class TestTrajectoryLogDemo(IndividualTrajectoryLog, TestCase):
     mu_delivered = 183
     first_subbeam_data = {'gantry_angle': 310, 'collimator_angle': 180, 'jaw_x1': 3.7, 'jaw_x2': 3.4, 'jaw_y1': 3.8,
                           'jaw_y2': 3.9}
+    delete_file = False
 
     @classmethod
     def setUpClass(cls):

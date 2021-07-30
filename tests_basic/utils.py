@@ -20,6 +20,10 @@ from tests_basic import DELETE_FILES
 GCP_BUCKET_NAME = 'pylinac_test_files'
 LOCAL_TEST_DIR = 'test_files'
 
+# make the local test dir if it doesn't exist
+if not osp.isdir(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR)):
+    os.mkdir(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR))
+
 
 @contextlib.contextmanager
 def access_gcp() -> storage.Client:
@@ -125,6 +129,7 @@ class CloudFileMixin:
     """
     file_name: str
     dir_path: Sequence[str]
+    delete_file = True
 
     @classmethod
     def get_filename(cls) -> str:
@@ -137,7 +142,7 @@ class CloudFileMixin:
 
     @classmethod
     def tearDownClass(cls):
-        if DELETE_FILES:
+        if cls.delete_file and DELETE_FILES:
             os.remove(cls.get_filename())
 
 
