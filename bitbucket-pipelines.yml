@@ -136,6 +136,11 @@ pipelines:
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/test_winstonlutz.py
+          - step:
+              name: Run core module tests
+              script:
+                - source venv/bin/activate
+                - pytest tests_basic/core
       - step:
           clone:
             depth: full
