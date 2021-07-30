@@ -364,7 +364,7 @@ is true error vs algorithmic error can be difficult. The image generator module 
 Perfect Delivery
 ^^^^^^^^^^^^^^^^
 
-Let's delivery a set of perfect images. This should result in near-0 deviations and isocenter size. The utility
+Let's deliver a set of perfect images. This should result in near-0 deviations and isocenter size. The utility
 function used here will produce 4 images at the 4 cardinal gantry angles with all other axes at 0, with a BB of 4mm diameter,
 and a field size of 4x4cm:
 
