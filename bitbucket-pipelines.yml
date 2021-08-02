@@ -95,6 +95,7 @@ pipelines:
       - parallel:
           - step:
               name: Run CBCT Tests
+              size: 2x
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/test_cbct.py

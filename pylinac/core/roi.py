@@ -84,7 +84,7 @@ class DiskROI(Circle):
     def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
         # http://scikit-image.org/docs/dev/auto_examples/plot_camera_numpy.html
-        masked_array = np.copy(self._array).astype(np.float)
+        masked_array = np.copy(self._array).astype(float)
         l_x, l_y = self._array.shape[0], self._array.shape[1]
         X, Y = np.ogrid[:l_x, :l_y]
         outer_disk_mask = (X - self.center.y) ** 2 + (Y - self.center.x) ** 2 > self.radius ** 2

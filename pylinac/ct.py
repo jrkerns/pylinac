@@ -238,7 +238,7 @@ class Slice:
             If any of the above conditions are not met.
         """
         # convert the slice to binary and label ROIs
-        edges = filters.scharr(self.image.as_type(np.float))
+        edges = filters.scharr(self.image.as_type(float))
         if np.max(edges) < 0.1:
             raise ValueError("Unable to locate Catphan")
         larr, regionprops, num_roi = get_regions(self, fill_holes=True, threshold='mean')
@@ -1511,10 +1511,10 @@ def get_regions(slice_or_arr: Union[Slice, np.ndarray], fill_holes: bool=False, 
     elif threshold == 'mean':
         thresmeth = np.mean
     if isinstance(slice_or_arr, Slice):
-        edges = filters.scharr(slice_or_arr.image.array.astype(np.float))
+        edges = filters.scharr(slice_or_arr.image.array.astype(float))
         center = slice_or_arr.image.center
     elif isinstance(slice_or_arr, np.ndarray):
-        edges = filters.scharr(slice_or_arr.astype(np.float))
+        edges = filters.scharr(slice_or_arr.astype(float))
         center = (int(edges.shape[1]/2), int(edges.shape[0]/2))
     edges = filters.gaussian(edges, sigma=1)
     if isinstance(slice_or_arr, Slice):
