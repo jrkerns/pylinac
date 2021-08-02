@@ -498,7 +498,7 @@ class WinstonLutz:
             plot_image(wl_image, mpl_axis)
 
         # set titles
-        fig.suptitle(f"{axis} images", fontsize=14, y=1)
+        fig.suptitle(f"{axis.value} images", fontsize=14, y=1)
         plt.tight_layout()
         if show:
             plt.show()
