@@ -466,9 +466,9 @@ class FluenceBase:
          """
         height = MLC_FOV_HEIGHT_MM if not self._mlc.hdmlc else HDMLC_FOV_HEIGHT_MM
         if equal_aspect:
-            fluence = np.zeros((int(height/resolution), int(MLC_FOV_WIDTH_MM/resolution)), dtype=np.float)
+            fluence = np.zeros((int(height/resolution), int(MLC_FOV_WIDTH_MM/resolution)), dtype=float)
         else:
-            fluence = np.zeros((self._mlc.num_pairs, int(MLC_FOV_WIDTH_MM / resolution)), dtype=np.float)
+            fluence = np.zeros((self._mlc.num_pairs, int(MLC_FOV_WIDTH_MM / resolution)), dtype=float)
 
         self.array = fluence
         self.resolution = resolution

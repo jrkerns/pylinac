@@ -17,7 +17,7 @@ from .typing import NumberLike
 from .. import __version__
 
 
-def convert_to_enum(value: Union[str, Type[Enum]], enum: Type[Enum]):
+def convert_to_enum(value: Union[str, Type[Enum]], enum: Type[Enum]) -> Enum:
     return enum(value) if isinstance(value, str) else value
 
 
