@@ -16,6 +16,14 @@ pipelines:
   pull-requests:
     '**':
       - step:
+          name: Get Build Stats
+          script:
+            - pipe: atlassian/bitbucket-build-statistics:0.2.1
+              variables:
+                BITBUCKET_USERNAME: $BITBUCKET_USERNAME
+                BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
+                REPO_LIST: 'pylinac radtrack harbinger kraken manticore'
+      - step:
           name: Set up Env
           caches:
             - pip
@@ -82,12 +90,6 @@ pipelines:
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/core
-          - step:
-              script:
-                - pipe: atlassian/bitbucket-build-statistics:0.2.1
-                  variables:
-                    BITBUCKET_USERNAME: $BITBUCKET_USERNAME
-                    BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
 
   branches:
     release*:
@@ -96,7 +98,7 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push git@github.com:jrkerns/pylinac.git --all
+            - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
     master:
       - step:
           name: Set up Env
@@ -170,4 +172,4 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push git@github.com:jrkerns/pylinac.git --all
+            - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
