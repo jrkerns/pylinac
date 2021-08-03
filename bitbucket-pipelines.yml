@@ -18,7 +18,6 @@ pipelines:
       - parallel:
           - step:
               name: Run CBCT Tests
-              size: 2x
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/test_cbct.py
@@ -80,7 +79,7 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push --mirror git@github.com:jrkerns/pylinac.git
+            - git push git@github.com:jrkerns/pylinac.git --tags
     master:
       - step:
           name: Set up Env
@@ -96,7 +95,6 @@ pipelines:
       - parallel:
           - step:
               name: Run CBCT Tests
-              size: 2x
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/test_cbct.py
@@ -155,4 +153,4 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push --mirror git@github.com:jrkerns/pylinac.git
+            - git push git@github.com:jrkerns/pylinac.git --tags
