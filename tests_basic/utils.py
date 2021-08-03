@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import os.path as osp
 import pprint
+import shutil
 import time
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
@@ -163,7 +164,11 @@ class CloudFileMixin:
     @classmethod
     def tearDownClass(cls):
         if cls.delete_file and DELETE_FILES:
-            os.remove(cls.get_filename())
+            file = cls.get_filename()
+            if osp.isfile(file):
+                os.remove(file)
+            elif osp.isdir(file):
+                shutil.rmtree(file)
 
 
 class MixinTesterBase:

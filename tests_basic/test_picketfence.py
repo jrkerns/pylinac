@@ -478,26 +478,26 @@ class AS1200ExtendedSIDVMAT(PFTestMixin, TestCase):
     abs_median_error = 0.06
 
 
-@expectedFailure  # too dirty
-class AS1200HD(PFTestMixin, TestCase):
-    """Tests for the AS1200 image."""
-    file_name = 'AS1200-HD.dcm'
-    mlc = 'HD'
-    max_error = 0.05
-    abs_median_error = 0.02
-    num_pickets = 10
-    pass_num_pickets = True
+# @expectedFailure  # too dirty
+# class AS1200HD(PFTestMixin, TestCase):
+#     """Tests for the AS1200 image."""
+#     file_name = 'AS1200-HD.dcm'
+#     mlc = 'HD'
+#     max_error = 0.05
+#     abs_median_error = 0.02
+#     num_pickets = 10
+#     pass_num_pickets = True
 
 
-@expectedFailure  # terribly dirty image with artifacts all over.
-class AS1200HDTranslated(PFTestMixin, TestCase):
-    """Tests for the AS1200 image."""
-    file_name = 'AS1200-HD-translated.dcm'
-    mlc = 'HD'
-    max_error = 0.15
-    abs_median_error = 0.02
-    num_pickets = 10
-    pass_num_pickets = True
+# @expectedFailure  # terribly dirty image with artifacts all over.
+# class AS1200HDTranslated(PFTestMixin, TestCase):
+#     """Tests for the AS1200 image."""
+#     file_name = 'AS1200-HD-translated.dcm'
+#     mlc = 'HD'
+#     max_error = 0.15
+#     abs_median_error = 0.02
+#     num_pickets = 10
+#     pass_num_pickets = True
 
 
 class ChicagoNoError(PFTestMixin, TestCase):
