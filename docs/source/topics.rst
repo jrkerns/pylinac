@@ -1,11 +1,11 @@
 
-.. _topics::
+.. _topics:
 
 ======
 Topics
 ======
 
-.. _image_loading::
+.. _image_loading:
 
 Images
 ------
@@ -86,7 +86,7 @@ The high contrast calculation uses the Michelson contrast, aka visibility. See h
 
 where :math:`I = {1, ..., n}` line pair ROIs.
 
-.. _low_contrast_topic::
+.. _low_contrast_topic:
 
 Low contrast
 ^^^^^^^^^^^^
@@ -145,7 +145,7 @@ The contrast to noise ratio (CNR) is defined as follows:
 
 where contrast is an option from the low contrast methods.
 
-.. _mtf_topic::
+.. _mtf_topic:
 
 Modulation Transfer Function (MTF)
 ----------------------------------

@@ -72,10 +72,11 @@ General
 * The algorithm for low contrast contrast constant detection has changed slightly. See :ref:`visibility`. This means the # of detected low-contrast ROIs
   may change for cbct. You may pass in a contrast technique per above and also a visibility threshold. See the `.analyze` method of the respective class.
 * The contrast-to-noise property of the LowContrastDiskROI now uses contrast/stdev, where contrast is defined/chosen per above.
+* Several LowContrastDiskROI properties have been deprecated such as ``contrast_constant``. Use ``visibility`` instead. The old properties still work but come with a deprecation warning and will be removed in a future release.
 * `#270 <https://github.com/jrkerns/pylinac/issues/270>`_ Pylinac had a memory leak that was apparent when running on a server. This was caused by old instances being held in memory from
   and incorrect usage of the ``lru_cache``. This has been fixed.
 * Documentation about topics has been added :ref:`topics`.
-* Documentation benchmarking several algorithms has been added. See the "Benchmarking the Algorithm" section for vmat, winston-lutz, and starshot modules.
+* Documentation benchmarking several algorithms has been added. See the "Benchmarking the Algorithm" section for vmat, winston-lutz, and starshot modules. Picket fence will come soon.
 
 .. note::
 
@@ -95,7 +96,7 @@ A new dependency has been added: ``cached_property``.
 Field Analysis (previously Flatness/Symmetry)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. warning:: This release introduced numerous breaking changes to this module. Existing code will break.
+.. danger:: This release introduced numerous breaking changes to this module. Existing code will break.
 
 * Two classes are now offered: ``FieldAnalysis`` and ``DeviceFieldAnalysis``.
 * Many, many options were added to the :meth:`~pylinac.field_analysis.FieldAnalysis.analyze` method. See below and the documentation page for all the details.
