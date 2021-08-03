@@ -4,7 +4,7 @@ import os
 import os.path as osp
 import struct
 import subprocess
-from collections import Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -17,7 +17,7 @@ from .typing import NumberLike
 from .. import __version__
 
 
-def convert_to_enum(value: Union[str, Type[Enum]], enum: Type[Enum]):
+def convert_to_enum(value: Union[str, Type[Enum]], enum: Type[Enum]) -> Enum:
     return enum(value) if isinstance(value, str) else value
 
 

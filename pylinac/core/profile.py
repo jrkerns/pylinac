@@ -623,7 +623,7 @@ class SingleProfile(ProfileMixin):
         if calculation == 'mean':
             return field_values['field values'].mean()
         elif calculation == 'median':
-            return np.median(field_values['field values'])
+            return float(np.median(field_values['field values']))
         elif calculation == 'max':
             return field_values['field values'].max()
         elif calculation == 'min':

@@ -161,7 +161,6 @@ Continuing from above:
     data_dict['test_type']
     ...
 
-
 Algorithm
 ---------
 
@@ -213,6 +212,143 @@ The algorithm works like such:
 * **Test if segments pass tolerance** -- Each segment is checked to see if it was within the specified tolerance. If any samples
   fail, the whole test is considered failing.
 
+Benchmarking the Algorithm
+--------------------------
+
+With the image generator module we can create test images to test the VMAT algorithm on known results. This is useful to isolate what is or isn't working
+if the algorithm doesn't work on a given image and when commissioning pylinac.
+
+.. note::
+
+    The below examples are for the DRMLC test but can equally be applied to the DRGS tests as well.
+
+Perfect Fields
+^^^^^^^^^^^^^^
+
+In this example, we generate a perfectly flat set of images.
+
+The script will generate the files, but you can also download them here:
+:download:`perfect_open_drmlc.dcm <files/perfect_open_drmlc.dcm>` :download:`perfect_dmlc_drmlc.dcm <files/perfect_dmlc_drmlc.dcm>`.
+
+.. plot::
+
+    import pylinac
+    from pylinac.core.image_generator import GaussianFilterLayer, PerfectFieldLayer, AS1200Image
+
+    # open image
+    open_path = 'perfect_open_drmlc.dcm'
+    as1200 = AS1200Image()
+    as1200.add_layer(PerfectFieldLayer(field_size_mm=(150, 110), cax_offset_mm=(0, 5)))
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
+    as1200.generate_dicom(file_out_name=open_path)
+
+    # DMLC image
+    dmlc_path = 'perfect_dmlc_drmlc.dcm'
+    as1200 = AS1200Image()
+    for offset in (-40, -10, 20, 50):
+        as1200.add_layer(PerfectFieldLayer((150, 20), cax_offset_mm=(0, offset)))
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
+    as1200.generate_dicom(file_out_name=dmlc_path)
+
+    # analyze it
+    vmat = pylinac.DRMLC(image_paths=(open_path, dmlc_path))
+    vmat.analyze()
+    print(vmat.results())
+    vmat.plot_analyzed_image()
+
+with output::
+
+    Dose Rate & MLC Speed
+    Test Results (Tol. +/-1.5%): PASS
+    Max Deviation: 0.0%
+    Absolute Mean Deviation: 0.0%
+
+Noisy, Realistic
+^^^^^^^^^^^^^^^^
+
+We now add a horn effect and random noise to the data:
+
+.. plot::
+
+    import pylinac
+    from pylinac.core.image_generator import GaussianFilterLayer, FilteredFieldLayer, AS1200Image, RandomNoiseLayer
+
+    # open image
+    open_path = 'noisy_open_drmlc.dcm'
+    as1200 = AS1200Image()
+    as1200.add_layer(FilteredFieldLayer(field_size_mm=(150, 110), cax_offset_mm=(0, 5)))
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
+    as1200.add_layer(RandomNoiseLayer(sigma=0.03))
+    as1200.generate_dicom(file_out_name=open_path)
+
+    # DMLC image
+    dmlc_path = 'noisy_dmlc_drmlc.dcm'
+    as1200 = AS1200Image()
+    for offset in (-40, -10, 20, 50):
+        as1200.add_layer(FilteredFieldLayer((150, 20), cax_offset_mm=(0, offset)))
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
+    as1200.add_layer(RandomNoiseLayer(sigma=0.03))
+    as1200.generate_dicom(file_out_name=dmlc_path)
+
+    # analyze it
+    vmat = pylinac.DRMLC(image_paths=(open_path, dmlc_path))
+    vmat.analyze()
+    print(vmat.results())
+    vmat.plot_analyzed_image()
+
+with output::
+
+    Dose Rate & MLC Speed
+    Test Results (Tol. +/-1.5%): PASS
+    Max Deviation: 0.0332%
+    Absolute Mean Deviation: 0.0257%
+
+Erroneous data
+^^^^^^^^^^^^^^
+
+Let's now get devious and randomly adjust the height of each ROI (effectively changing the apparent MLC speed):
+
+.. note::
+
+    Due to the purposely random nature shown below, this exact result is likely not reproducible, nor was it intended to be.
+    To get reproducible behavior, use numpy with a seed value.
+
+.. plot::
+
+    import random
+
+    import pylinac
+    from pylinac.core.image_generator import GaussianFilterLayer, FilteredFieldLayer, AS1200Image, RandomNoiseLayer
+
+    # open image
+    open_path = 'noisy_open_drmlc.dcm'
+    as1200 = AS1200Image()
+    as1200.add_layer(FilteredFieldLayer(field_size_mm=(150, 110), cax_offset_mm=(0, 5)))
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
+    as1200.add_layer(RandomNoiseLayer(sigma=0.03))
+    as1200.generate_dicom(file_out_name=open_path)
+
+    # DMLC image
+    dmlc_path = 'noisy_dmlc_drmlc.dcm'
+    as1200 = AS1200Image()
+    for offset in (-40, -10, 20, 50):
+        as1200.add_layer(FilteredFieldLayer((150, 20), cax_offset_mm=(0, offset), alpha=random.uniform(0.93, 1)))
+    as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
+    as1200.add_layer(RandomNoiseLayer(sigma=0.03))
+    as1200.generate_dicom(file_out_name=dmlc_path)
+
+    # analyze it
+    vmat = pylinac.DRMLC(image_paths=(open_path, dmlc_path))
+    vmat.analyze()
+    print(vmat.results())
+    vmat.plot_analyzed_image()
+
+with an output of::
+
+    Dose Rate & MLC Speed
+    Test Results (Tol. +/-1.5%): FAIL
+    Max Deviation: 2.12%
+    Absolute Mean Deviation: 1.13%
 
 API Documentation
 -----------------

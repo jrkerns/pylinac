@@ -84,7 +84,7 @@ class DiskROI(Circle):
     def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
         # http://scikit-image.org/docs/dev/auto_examples/plot_camera_numpy.html
-        masked_array = np.copy(self._array).astype(np.float)
+        masked_array = np.copy(self._array).astype(float)
         l_x, l_y = self._array.shape[0], self._array.shape[1]
         X, Y = np.ogrid[:l_x, :l_y]
         outer_disk_mask = (X - self.center.y) ** 2 + (Y - self.center.x) ** 2 > self.radius ** 2
@@ -156,7 +156,7 @@ class LowContrastDiskROI(DiskROI):
     @property
     def cnr_constant(self) -> float:
         """The contrast-to-noise value times the bubble diameter."""
-        warnings.warn("This property will be deprecated in a future release. Use .visibility instead.")
+        DeprecationWarning("The 'cnr_constant' property will be deprecated in a future release. Use .visibility instead.")
         return self.contrast_to_noise * self.diameter
 
     @property
@@ -170,7 +170,7 @@ class LowContrastDiskROI(DiskROI):
     @property
     def contrast_constant(self) -> float:
         """The contrast value times the bubble diameter."""
-        warnings.warn("This property will be deprecated in a future release. Use .visibility instead.")
+        DeprecationWarning("The 'contrast_constant' property will be deprecated in a future release. Use .visibility instead.")
         return self.contrast * self.diameter
 
     @property

@@ -2,32 +2,33 @@ import io
 import os
 import os.path as osp
 import tempfile
-from unittest import TestCase
+from unittest import TestCase, skip, expectedFailure
 
 import matplotlib.pyplot as plt
 
 from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement
-from tests_basic.utils import save_file, LoadingTestBase, LocationMixin, get_folder_from_cloud_test_repo
+from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo, InitTesterMixin, \
+    FromURLTesterMixin, FromDemoImageTesterMixin
 
-TEST_DIR = get_folder_from_cloud_test_repo(['picket_fence'])
+TEST_DIR = 'picket_fence'
 
 
-class TestLoading(LoadingTestBase, TestCase):
+class TestInstantiation(TestCase, InitTesterMixin, FromURLTesterMixin, FromDemoImageTesterMixin):
     klass = PicketFence
-    constructor_input = ['picket_fence', 'AS500_PF.dcm']
+    init_file = ['picket_fence', 'AS500_PF.dcm']
     url = 'EPID-PF-LR.dcm'
 
     def test_filter_on_load(self):
-        PicketFence(self.get_constructor_input(), filter=3)  # shouldn't raise
+        PicketFence(self.full_init_file, filter=3)  # shouldn't raise
 
     def test_load_with_log(self):
-        log_file = osp.join(TEST_DIR, 'PF_log.bin')
-        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        log_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF_log.bin'])
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF.dcm'])
         pf = PicketFence(pf_file, log=log_file)
         pf.analyze()
 
     def test_load_from_file_object(self):
-        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF.dcm'])
         ref_pf = PicketFence(pf_file)
         ref_pf.analyze()
         with open(pf_file, 'rb') as f:
@@ -37,7 +38,7 @@ class TestLoading(LoadingTestBase, TestCase):
         self.assertEqual(pf.percent_passing, ref_pf.percent_passing)
 
     def test_load_from_stream(self):
-        pf_file = osp.join(TEST_DIR, 'PF.dcm')
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, 'PF.dcm'])
         ref_pf = PicketFence(pf_file)
         ref_pf.analyze()
         with open(pf_file, 'rb') as f:
@@ -47,8 +48,32 @@ class TestLoading(LoadingTestBase, TestCase):
         self.assertIsInstance(pf, PicketFence)
         self.assertEqual(pf.percent_passing, ref_pf.percent_passing)
 
+    def test_custom_MLC_arrangement(self):
+        mlc_setup = MLCArrangement(leaf_arrangement=[(10, 10), (40, 5), (10, 10)])
 
-class GeneralTests(TestCase):
+        # pass it in to the mlc parameter
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'AS500_PF.dcm'])
+        pf = PicketFence(path, mlc=mlc_setup)
+
+        # shouldn't raise
+        pf.analyze()
+        pf.results()
+        pf.results_data()
+
+    def test_mlc_string(self):
+        mlc_setup = 'Millennium'
+
+        # pass it in to the mlc parameter
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'AS500_PF.dcm'])
+        pf = PicketFence(path, mlc=mlc_setup)
+
+        # shouldn't raise
+        pf.analyze()
+        pf.results()
+        pf.results_data()
+
+
+class TestAnalyze(TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -61,22 +86,8 @@ class GeneralTests(TestCase):
     def test_demo(self):
         PicketFence.run_demo()
 
-    def test_publish_pdf(self):
-        with tempfile.NamedTemporaryFile(delete=False) as t:
-            self.pf.publish_pdf(t.name, notes='stuff', metadata={'Unit': 'TB1'})
-        os.remove(t.name)
-
-    def test_results_data(self):
-        data = self.pf.results_data()
-        self.assertIsInstance(data, PFResult)
-        self.assertEqual(data.max_error_mm, self.pf.max_error)
-
-        data_dict = self.pf.results_data(as_dict=True)
-        self.assertIsInstance(data_dict, dict)
-        self.assertIn('pylinac_version', data_dict)
-
     def test_no_measurements_suggests_inversion(self):
-        file_loc = osp.join(TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm')
+        file_loc = get_file_from_cloud_test_repo([TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm'])
         pf = PicketFence(file_loc)
         with self.assertRaises(ValueError):
             pf.analyze(invert=False)
@@ -91,32 +102,8 @@ class GeneralTests(TestCase):
         pf = PicketFence.from_demo_image()
         pf.analyze(orientation="Left-Right")
 
-    def test_custom_MLC_arrangement(self):
-        mlc_setup = MLCArrangement(leaf_arrangement=[(10, 10), (40, 5), (10, 10)])
 
-        # pass it in to the mlc parameter
-        path = osp.join(TEST_DIR, 'AS500_PF.dcm')
-        pf = PicketFence(path, mlc=mlc_setup)
-
-        # shouldn't raise
-        pf.analyze()
-        pf.results()
-        pf.results_data()
-
-    def test_mlc_string(self):
-        mlc_setup = 'Millennium'
-
-        # pass it in to the mlc parameter
-        path = osp.join(TEST_DIR, 'AS500_PF.dcm')
-        pf = PicketFence(path, mlc=mlc_setup)
-
-        # shouldn't raise
-        pf.analyze()
-        pf.results()
-        pf.results_data()
-
-
-class TestPlottingSaving(TestCase):
+class TestOutputs(TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -138,10 +125,24 @@ class TestPlottingSaving(TestCase):
         save_file(self.pf.save_analyzed_image)
         save_file(self.pf_updown.save_analyzed_image)
 
+    def test_publish_pdf(self):
+        with tempfile.NamedTemporaryFile(delete=False) as t:
+            self.pf.publish_pdf(t.name, notes='stuff', metadata={'Unit': 'TB1'})
+        os.remove(t.name)
 
-class PFTestMixin(LocationMixin):
+    def test_results_data(self):
+        data = self.pf.results_data()
+        self.assertIsInstance(data, PFResult)
+        self.assertEqual(data.max_error_mm, self.pf.max_error)
+
+        data_dict = self.pf.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+        self.assertIn('pylinac_version', data_dict)
+
+
+class PFTestMixin(CloudFileMixin):
     """Base Mixin for testing a picketfence image."""
-    cloud_dir = 'picket_fence'
+    dir_path = ['picket_fence']
     picket_orientation = Orientation.UP_DOWN
     mlc = 'Millennium'
     num_pickets = 10
@@ -159,7 +160,7 @@ class PFTestMixin(LocationMixin):
     def get_logfile(cls):
         """Return the canonical path to the log file."""
         if cls.log is not None:
-            return osp.join(cls.dir_location, *cls.log)
+            return osp.join(*cls.dir_path, *cls.log)
 
     @classmethod
     def setUpClass(cls):
@@ -202,6 +203,10 @@ class PFDemo(PFTestMixin, TestCase):
         cls.pf = PicketFence.from_demo_image()
         cls.pf.analyze(sag_adjustment=cls.sag_adjustment)
 
+    @classmethod
+    def tearDownClass(cls):
+        pass  # override delete behavior
+
     def test_demo_lower_tolerance(self):
         pf = PicketFence.from_demo_image()
         pf.analyze(0.15, action_tolerance=0.05)
@@ -210,7 +215,7 @@ class PFDemo(PFTestMixin, TestCase):
 
 
 class WideGapSimulation(PFTestMixin, TestCase):
-    file_path = ['noisy-wide-gap-pf.dcm']
+    file_name = 'noisy-wide-gap-pf.dcm'
     max_error = 0.11
     invert = True
     abs_median_error = 0.06
@@ -219,7 +224,7 @@ class WideGapSimulation(PFTestMixin, TestCase):
 
 
 class FFFWideGapSimulation(PFTestMixin, TestCase):
-    file_path = ['noisy-FFF-wide-gap-pf.dcm']
+    file_name = 'noisy-FFF-wide-gap-pf.dcm'
     max_error = 0.17
     invert = True
     abs_median_error = 0.06
@@ -229,13 +234,13 @@ class FFFWideGapSimulation(PFTestMixin, TestCase):
 
 class AS1200(PFTestMixin, TestCase):
     """Tests for the AS1200 image."""
-    file_path = ['AS1200.dcm']
+    file_name = 'AS1200.dcm'
     max_error = 0.08
     abs_median_error = 0.02
 
 
 class ClinacWeirdBackground(PFTestMixin, TestCase):
-    file_path = ['Clinac-weird-background.dcm']
+    file_name = 'Clinac-weird-background.dcm'
     max_error = 0.12
     abs_median_error = 0.02
     num_pickets = 5
@@ -243,7 +248,7 @@ class ClinacWeirdBackground(PFTestMixin, TestCase):
 
 
 class ElektaCloseEdges(PFTestMixin, TestCase):
-    file_path = ['PF,-Elekta,-pickets-near-edges.dcm']
+    file_name = 'PF,-Elekta,-pickets-near-edges.dcm'
     max_error = 0.23
     abs_median_error = 0.07
     num_pickets = 9
@@ -251,7 +256,7 @@ class ElektaCloseEdges(PFTestMixin, TestCase):
 
 
 class ElektaCloseEdgesRot90(PFTestMixin, TestCase):
-    file_path = ['PF,-Elekta,-pickets-near-edges.dcm']
+    file_name = 'PF,-Elekta,-pickets-near-edges.dcm'
     max_error = 0.23
     abs_median_error = 0.07
     num_pickets = 9
@@ -272,10 +277,252 @@ class MultipleImagesPF(PFTestMixin, TestCase):
     picket_orientation = Orientation.LEFT_RIGHT
     num_pickets = 5
     mean_picket_spacing = 30
+    delete_file = False
 
     @classmethod
     def setUpClass(cls):
-        path1 = osp.join(TEST_DIR, 'combo-jaw.dcm')
-        path2 = osp.join(TEST_DIR, 'combo-mlc.dcm')
+        path1 = get_file_from_cloud_test_repo([TEST_DIR, 'combo-jaw.dcm'])
+        path2 = get_file_from_cloud_test_repo([TEST_DIR, 'combo-mlc.dcm'])
         cls.pf = PicketFence.from_multiple_images([path1, path2], stretch_each=True)
         cls.pf.analyze(sag_adjustment=cls.sag_adjustment, orientation=Orientation.LEFT_RIGHT)
+
+
+class AS500(PFTestMixin, TestCase):
+    """Tests for the AS500 image."""
+    file_name = 'AS500_PF.dcm'
+    max_error = 0.15
+    abs_median_error = 0.04
+
+
+class AS5002(PFTestMixin, TestCase):
+    """Tests for the AS500#2 image."""
+    file_name = 'AS500#2.dcm'
+    max_error = 0.12
+    abs_median_error = 0.03
+
+
+class AS5003(PFTestMixin, TestCase):
+    """Tests for the AS500#3 image."""
+    file_name = 'AS500#3.dcm'
+    max_error = 0.16
+    abs_median_error = 0.03
+
+
+class AS5004(PFTestMixin, TestCase):
+    """Tests for the AS500#4 image."""
+    file_name = 'AS500#4.dcm'
+    max_error = 0.28
+    abs_median_error = 0.06
+
+
+class AS5005(PFTestMixin, TestCase):
+    """Tests for the AS500#4 image."""
+    file_name = 'AS500#5.dcm'
+    max_error = 0.23
+    abs_median_error = 0.04
+
+
+class AS5006(PFTestMixin, TestCase):
+    """Tests for the AS500#4 image."""
+    file_name = 'AS500#6.dcm'
+    picket_orientation = Orientation.LEFT_RIGHT
+    max_error = 0.23
+    abs_median_error = 0.06
+
+
+class AS5007(PFTestMixin, TestCase):
+    """Tests for the AS500#4 image."""
+    file_name = 'AS500#7.dcm'
+    max_error = 0.24
+    abs_median_error = 0.05
+
+
+class AS5008(PFTestMixin, TestCase):
+    """Tests for the AS500#4 image."""
+    file_name = 'AS500#8.dcm'
+    max_error = 0.2
+    abs_median_error = 0.04
+
+
+class AS5009(PFTestMixin, TestCase):
+    """Tests for the AS500#4 image."""
+    file_name = 'AS500#9.dcm'
+    max_error = 0.24
+    abs_median_error = 0.04
+
+
+class AS50010(PFTestMixin, TestCase):
+    """Tests for the AS500#4 image."""
+    file_name = 'AS500#10.dcm'
+    picket_orientation = Orientation.LEFT_RIGHT
+    max_error = 0.24
+    abs_median_error = 0.05
+
+
+class AS500error(PFTestMixin, TestCase):
+    """Tests for the AS500#2 image."""
+    file_name = 'AS500-error.dcm'
+    num_pickets = 6
+    percent_passing = 99
+    max_error = 0.55
+    abs_median_error = 0.07
+    passes = False
+    mean_picket_spacing = 20
+
+
+class AS1000(PFTestMixin, TestCase):
+    """Tests for the AS1000 image."""
+    file_name = 'AS1000_PF.dcm'
+    max_error = 0.29
+    abs_median_error = 0.06
+
+
+class AS1000_2(PFTestMixin, TestCase):
+    """Tests for the AS1000 image."""
+    file_name = 'AS1000#2.dcm'
+    max_error = 0.24
+    abs_median_error = 0.07
+
+
+class AS1000_3(PFTestMixin, TestCase):
+    """Tests for the AS1000 image."""
+    file_name = 'AS1000#3.dcm'
+    max_error = 0.13
+    abs_median_error = 0.05
+
+
+class AS1000_4(PFTestMixin, TestCase):
+    """Tests for the AS1000 image."""
+    file_name = 'AS1000#4.dcm'
+    picket_orientation = Orientation.LEFT_RIGHT
+    max_error = 0.18
+    abs_median_error = 0.05
+
+
+class AS1000_90(PFTestMixin, TestCase):
+    """Tests for the AS1000 image."""
+    file_name = 'AS1000-90.dcm'
+    picket_orientation = Orientation.LEFT_RIGHT
+    max_error = 0.23
+    abs_median_error = 0.05
+
+
+class AS1000HDSmall(PFTestMixin, TestCase):
+    """Tests for the AS1000 image."""
+    file_name = 'AS1000-HD-small.dcm'
+    mlc = 'HD'
+    max_error = 0.05
+    abs_median_error = 0.05
+
+
+class AS1000HDFull(PFTestMixin, TestCase):
+    """Tests for the AS1000 image with a smaller pattern (only inner leaves)."""
+    file_name = 'AS1000-HD-full.dcm'
+    mlc = 'HD'
+    max_error = 0.2
+    abs_median_error = 0.06
+
+
+class AS1000HDFullVMAT(PFTestMixin, TestCase):
+    """Tests for the AS1000 image with a smaller pattern (only inner leaves)."""
+    file_name = 'AS1000-HD-full-VMAT.dcm'
+    mlc = 'HD'
+    max_error = 0.2
+    abs_median_error = 0.08
+
+
+@skip  # says file isn't real DICOM TODO: Figure out why not real DICOM
+class AS1000HDFullError(PFTestMixin, TestCase):
+    """Tests for the AS1000 image with a few errors introduced."""
+    file_name = 'AS1000-HD-full-error.dcm'
+    mlc = 'HD'
+    num_pickets = 6
+    abs_median_error = 0.03
+    max_error = 0.39
+
+    def test_lower_tolerance_fails(self):
+        """This image has an introduced error; this should catch with a reasonable tolerance."""
+        pf = PicketFence(self.file_path)
+        pf.analyze(tolerance=0.3, hdmlc=self.hdmlc)
+        self.assertFalse(pf.passed)
+
+
+class AS1200(PFTestMixin, TestCase):
+    """Tests for the AS1200 image."""
+    file_name = 'AS1200.dcm'
+    max_error = 0.08
+    abs_median_error = 0.02
+
+
+class AS1200Error(PFTestMixin, TestCase):
+    """Tests for the AS1200 image."""
+    file_name = 'AS1200-error.dcm'
+    num_pickets = 6
+    max_error = 0.48
+    abs_median_error = 0.05
+    sag_adjustment = -1.2
+    mean_picket_spacing = 20
+
+
+class AS1200ExtendedSID(PFTestMixin, TestCase):
+    """Tests for the AS1200 image."""
+    file_name = 'AS1200-ExtendedSID.dcm'
+    max_error = 0.12
+    abs_median_error = 0.04
+
+
+class AS1200ExtendedSIDVMAT(PFTestMixin, TestCase):
+    """Tests for the AS1200 image."""
+    file_name = 'AS1200-ExtendedSID-VMAT.dcm'
+    max_error = 0.18
+    abs_median_error = 0.06
+
+
+# @expectedFailure  # too dirty
+# class AS1200HD(PFTestMixin, TestCase):
+#     """Tests for the AS1200 image."""
+#     file_name = 'AS1200-HD.dcm'
+#     mlc = 'HD'
+#     max_error = 0.05
+#     abs_median_error = 0.02
+#     num_pickets = 10
+#     pass_num_pickets = True
+
+
+# @expectedFailure  # terribly dirty image with artifacts all over.
+# class AS1200HDTranslated(PFTestMixin, TestCase):
+#     """Tests for the AS1200 image."""
+#     file_name = 'AS1200-HD-translated.dcm'
+#     mlc = 'HD'
+#     max_error = 0.15
+#     abs_median_error = 0.02
+#     num_pickets = 10
+#     pass_num_pickets = True
+
+
+class ChicagoNoError(PFTestMixin, TestCase):
+    dir_path = [TEST_DIR, 'Chicago']
+    file_name = 'PF no error.dcm'
+    # log = ['Chicago', 'PF no error tlog.bin']
+    mlc = 'HD'
+    max_error = 0.24
+
+
+class ChicagoError(PFTestMixin, TestCase):
+    dir_path = [TEST_DIR, 'Chicago']
+    file_name = 'PF point2mm error.dcm'
+    # log = ['Chicago', 'PF point2mm tlog.bin']
+    mlc = 'HD'
+    max_error = 0.3
+
+
+@skip
+class CharlestonRA(PFTestMixin, TestCase):
+    file_name = ['Charleston', 'TB1', 'July2016', 'RA.dcm']
+    max_error = 0.17
+
+
+@skip
+class CharlestonG0(PFTestMixin, TestCase):
+    file_name = ['Charleston', 'TB1', 'July2016', 'G0.dcm']
+    max_error = 0.1

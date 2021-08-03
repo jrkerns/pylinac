@@ -55,7 +55,7 @@ General
 * Image inversion detection has changed slightly. Some images have proper tags such as rescale slope and intercept. If
   they do have the tags, they are applied and no inversion is applied. If they do not have the tags, an inversion is then applied. Previously,
   the tags were applied if they were there, and nothing if not and inversion was ALWAYS applied. This should result in better inversion defaults for images
-  from different machines/platforms and fewer ``invert=True`` additions.
+  from different machines/platforms and fewer ``invert=True`` additions. See :ref:`image_loading`.
 * A ``CONTRAST`` enum has been added that can be used for low-contrast analysis of planar images and CBCT images. See :ref:`contrast`.
 
   .. code-block:: python
@@ -72,7 +72,19 @@ General
 * The algorithm for low contrast contrast constant detection has changed slightly. See :ref:`visibility`. This means the # of detected low-contrast ROIs
   may change for cbct. You may pass in a contrast technique per above and also a visibility threshold. See the `.analyze` method of the respective class.
 * The contrast-to-noise property of the LowContrastDiskROI now uses contrast/stdev, where contrast is defined/chosen per above.
+* `#270 <https://github.com/jrkerns/pylinac/issues/270>`_ Pylinac had a memory leak that was apparent when running on a server. This was caused by old instances being held in memory from
+  and incorrect usage of the ``lru_cache``. This has been fixed.
+* Documentation about topics has been added :ref:`topics`.
+* Documentation benchmarking several algorithms has been added. See the "Benchmarking the Algorithm" section for vmat, winston-lutz, and starshot modules.
 
+.. note::
+
+    **Upgrade Hints**
+
+    Besides the above notes and any module-specific steps, due to the modified method of loading images and inversion, other downstream modules may be affected.
+    This means that some images that needed ``invert=True`` before may not need it, and some images that previously worked
+    may need an ``invert=True``. So generally, if the image fails when it passed with previous versions, try adding/removing forced inversion
+    first. This should only be an issue for older images. Images generated on new linac platforms should be handled just fine.
 
 Dependencies
 ^^^^^^^^^^^^
@@ -152,7 +164,7 @@ Planar Imaging
   The default is 1000mm, but if you set it on your panel you can pass something like 1400mm.
 * The phantom-finding algorithm has been refactored to be more extensible. This does not affect normal users, but reduces the amount of duplicate code.
   It also makes adding new phantoms easier.
-* Generally speaking, the phantoms should all be centered along the CAX. Previously, the phantom could be offset from the CAX.
+* Generally speaking, the phantoms should all be roughly centered along the CAX. Previously, the phantom could be offset from the CAX.
   Due to general difficulty in finding the phantom reliably for the majority of clinics, I am enforcing this as a restriction.
   This shouldn't affect too many people but should make the ROI-finding algorithm better.
 * The low contrast background ROI (i.e. the base level of contrast) has been adjusted for some phantoms (QC-3 and Doselab). Previously, it
@@ -194,7 +206,15 @@ Overall, most code shouldn't need to change from v2.5. From v2.4 or below, the w
 CBCT
 ^^^^
 
-* The number of ROIs visible has changed. See the General section and :ref:`visibility`.
+* A ``contrast`` parameter was added to analyze. This uses an Enum and has 3 options; see :ref:`low_contrast_topic`.
+* A ``visibility_threshold`` parameter was added and is a replacement for ``cnr_threshold``.
+  See the General section and :ref:`visibility`. Compared to ``cnr_threshold``, the default value will give approximately
+  the same results for # of low-contrast ROIs "seen". About 30% of the test datasets had a different # detected, but
+  the detected vs expected number were either too high or too low, so there was no single value to perfectly replace the
+  default ``cnr_threshold`` value.
+* With the above, the contrast calculations have been standardized. Compared to previously, the contrast and contrast-to-noise
+  now use the same equation for contrast. Previously, contrast was using the Michelson equation and contrast-to-noise was using the Weber
+  definition. Now, contrast is always calculated with the definition given during instantiation.
 * ROI colors for low contrast ROIs that are "seen" have changed from blue to green to match other modules.
 
 .. note::

@@ -1,54 +1,115 @@
+import base64
 import concurrent.futures
-from io import BytesIO, StringIO
+import contextlib
 import multiprocessing
 import os
 import os.path as osp
 import pprint
+import shutil
 import time
+from io import BytesIO, StringIO
+from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
-from typing import List
+from typing import List, Sequence, Callable
 from urllib.request import urlopen
 
-import boto3
+from google.cloud import storage
+from py_linq import Enumerable
 
 from pylinac.core import image
-from pylinac.core.io import get_url
+from tests_basic import DELETE_FILES
+
+GCP_BUCKET_NAME = "pylinac_test_files"
+LOCAL_TEST_DIR = "test_files"
+
+# make the local test dir if it doesn't exist
+if not osp.isdir(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR)):
+    os.mkdir(osp.join(osp.dirname(__file__), LOCAL_TEST_DIR))
+
+
+@contextlib.contextmanager
+def access_gcp() -> storage.Client:
+    # access GCP
+    credentials_file = Path(__file__).parent.parent / "GCP_creds.json"
+    # check if the credentials file is available (local dev)
+    # if not, load from the env var (test pipeline)
+    if not credentials_file.is_file():
+        with open(credentials_file, "wb") as f:
+            creds = base64.b64decode(os.environ.get("GOOGLE_CREDENTIALS"))
+            f.write(creds)
+    client = storage.Client.from_service_account_json(str(credentials_file))
+    try:
+        yield client
+    finally:
+        del client
 
 
 def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
-    s3 = boto3.resource('s3')
-    my_bucket = s3.Bucket('pylinac')
+    """Get a folder from GCP"""
+    with access_gcp() as storage_client:
 
-    for s3_object in my_bucket.objects.all():
-        # Need to split s3_object.key into path and file name, else it will give error file not found.
-        path, filename = osp.split(s3_object.key)
-        if (path == 'test_files/' + '/'.join(folder)) and filename != '':
-            # make folder if need be
-            dest_folder = osp.join(osp.dirname(__file__), 'test_files', *folder)
-            if not osp.isdir(dest_folder):
-                os.makedirs(dest_folder)
+        # get the folder data
+        all_blobs = list(storage_client.list_blobs(GCP_BUCKET_NAME))
+        blobs = (
+            Enumerable(all_blobs)
+            .where(lambda b: len(b.name.split("/")) >= len(folder))
+            .where(lambda b: b.name.split("/")[1] != "")
+            .where(
+                lambda b: all(
+                    f in b.name.split("/")[idx] for idx, f in enumerate(folder)
+                )
+            )
+            .to_list()
+        )
+
+        # make root folder if need be
+        dest_folder = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
+        if not osp.isdir(dest_folder):
+            os.makedirs(dest_folder)
+
+        # make subfolders if need be
+        subdirs = [b.name.split("/")[1:-2] for b in blobs if len(b.name.split("/")) > 2]
+        dest_sub_folders = [
+            osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder, *f)
+            for f in subdirs
+        ]
+        for sdir in dest_sub_folders:
+            if not osp.isdir(sdir):
+                os.makedirs(sdir)
+
+        for blob in blobs:
             # download file
-            dest_path = osp.join(osp.dirname(__file__), s3_object.key)
-            my_bucket.download_file(s3_object.key, dest_path)
-    return osp.join(osp.dirname(__file__), 'test_files', *folder)
+            path = osp.join(dest_folder, blob.name.split("/")[-1])
+            if not os.path.exists(path):
+                blob.download_to_filename(path)
+
+        return osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
 
 
-def get_file_from_cloud_test_repo(path: List[str]) -> str:
-    root_url = 'https://s3.amazonaws.com/pylinac/test_files/'
-    full_url = root_url + '/'.join(list(path))
+def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
+    """Get a single file from GCP storage. Returns the path to disk it was downloaded to"""
+    local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
+    if osp.isfile(local_filename) and not force:
+        return local_filename
+    with access_gcp() as client:
+        bucket = client.bucket(GCP_BUCKET_NAME)
+        blob = bucket.blob(
+            str(PurePosixPath(*path))
+        )  # posix because google storage is on unix and won't find path w/ windows path
+        # make any necessary subdirs leading up to the file
+        if len(path) > 1:
+            for idx in range(1, len(path)):
+                local_dir = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path[:idx])
+                if not osp.isdir(local_dir):
+                    os.mkdir(local_dir)
 
-    demo_file = osp.join(osp.dirname(__file__), 'test_files', *path)
-    if not osp.isfile(demo_file):
-        demo_dir = osp.dirname(demo_file)
-        if not osp.exists(demo_dir):
-            os.makedirs(demo_dir)
-        get_url(full_url, destination=demo_file)
-    return demo_file
+        blob.download_to_filename(local_filename)
+        return local_filename
 
 
 def has_www_connection():
     try:
-        with urlopen('http://www.google.com') as r:
+        with urlopen("http://www.google.com") as r:
             return r.status == 200
     except:
         return False
@@ -59,25 +120,25 @@ def save_file(method, *args, as_file_object=None, **kwargs):
     Also deletes the file after checking for existence."""
     if as_file_object is None:  # regular file
         with TemporaryDirectory() as tmpdir:
-            tmpfile = osp.join(tmpdir, 'myfile')
+            tmpfile = osp.join(tmpdir, "myfile")
             method(tmpfile, *args, **kwargs)
     else:
-        if 'b' in as_file_object:
+        if "b" in as_file_object:
             temp = BytesIO
-        elif 's' in as_file_object:
+        elif "s" in as_file_object:
             temp = StringIO
         with temp() as t:
             method(t, *args, **kwargs)
 
 
-def test_point_equality(point1, point2):
+def point_equality_validation(point1, point2):
     if point1.x != point2.x:
         raise ValueError("{} does not equal {}".format(point1.x, point2.x))
     if point1.y != point2.y:
         raise ValueError("{} does not equal {}".format(point1.y, point2.y))
 
 
-class LocationMixin:
+class CloudFileMixin:
     """A mixin that provides attrs and a method to get the absolute location of the
     file using syntax.
 
@@ -86,63 +147,79 @@ class LocationMixin:
     0. Override ``dir_location`` with the directory of the destination.
     1. Override ``file_path`` with a list that contains the subfolder(s) and file name.
     """
-    dir_location = ''
-    file_path = []
-    cloud_dir: str
+
+    file_name: str
+    dir_path: Sequence[str]
+    delete_file = True
 
     @classmethod
-    def get_filename(cls):
-        """Return the canonical path to the file."""
-        if cls.dir_location is '':
-            return get_file_from_cloud_test_repo([cls.cloud_dir, *cls.file_path])
+    def get_filename(cls) -> str:
+        """Return the canonical path to the file on disk. Download if it doesn't exist."""
+        full_path = Path(LOCAL_TEST_DIR, *cls.dir_path, cls.file_name).absolute()
+        if full_path.is_file():
+            return str(full_path)
         else:
-            return osp.join(cls.dir_location, *cls.file_path)
+            return get_file_from_cloud_test_repo([*cls.dir_path, cls.file_name])
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.delete_file and DELETE_FILES:
+            file = cls.get_filename()
+            if osp.isfile(file):
+                os.remove(file)
+            elif osp.isdir(file):
+                shutil.rmtree(file)
 
 
-class LoadingTestBase:
-    """This class can be used as a base for a module's loading test class."""
-    klass = object
-    constructor_input: List[str] = None
-    demo_load_method = 'from_demo_image'
-    url: str = None
-    zip: List[str] = None
-    kwargs = {}
+class MixinTesterBase:
+    klass = Callable
+
+
+class FromZipTesterMixin(MixinTesterBase):
+    zip: List[str]
+    zip_kwargs: dict = {}
+
+    def test_from_zip(self):
+        file = get_file_from_cloud_test_repo(self.zip)
+        inst = self.klass.from_zip(file, **self.zip_kwargs)
+        self.assertIsInstance(inst, self.klass)
+
+
+class FromDemoImageTesterMixin(MixinTesterBase):
+    demo_load_method: str = "from_demo_image"
+
+    def test_from_demo(self):
+        inst = getattr(self.klass, self.demo_load_method)()
+        self.assertIsInstance(inst, self.klass)
+
+
+class InitTesterMixin(MixinTesterBase):
+    init_file: List[str]
+    init_kwargs: dict = {}
+    is_folder = False
+
+    @property
+    def full_init_file(self) -> str:
+        if self.is_folder:
+            return get_folder_from_cloud_test_repo(self.init_file)
+        else:
+            return get_file_from_cloud_test_repo(self.init_file)
+
+    def test_init(self):
+        inst = self.klass(self.full_init_file, **self.init_kwargs)
+        self.assertIsInstance(inst, self.klass)
+
+
+class FromURLTesterMixin(MixinTesterBase):
+    url: str
+    url_kwargs: dict = {}
 
     @property
     def full_url(self):
-        return 'https://s3.amazonaws.com/pylinac/' + self.url
-
-    def get_constructor_input(self) -> str:
-        # download files if need be
-        if self.constructor_input is not None:
-            if osp.splitext(self.constructor_input[-1])[1] == '':  # i.e. a folder
-                input_folder = osp.join(osp.dirname(__file__), 'test_files', *self.constructor_input)
-                if not osp.isdir(input_folder):
-                    get_folder_from_cloud_test_repo(self.constructor_input)
-                return input_folder
-            else:
-                file = get_file_from_cloud_test_repo(self.constructor_input)
-                return file
-        else:
-            return ''
-
-    def test_constructor(self):
-        # download files if need be
-        if self.constructor_input is not None:
-            self.klass(self.get_constructor_input(), **self.kwargs)
-
-    def test_from_demo(self):
-        if self.demo_load_method is not None:
-            getattr(self.klass, self.demo_load_method)()
+        return r"https://storage.googleapis.com/pylinac_demo_files/" + self.url
 
     def test_from_url(self):
-        if self.url is not None:
-            self.klass.from_url(self.full_url, **self.kwargs)
-
-    def test_from_zip(self):
-        if self.zip is not None:
-            file = get_file_from_cloud_test_repo(self.zip)
-            self.klass.from_zip(file, **self.kwargs)
+        self.klass.from_url(self.full_url, **self.url_kwargs)
 
 
 class DataBankMixin:
@@ -160,9 +237,12 @@ class DataBankMixin:
     Some test runs, seemingly due to the executor, bog down when running a very large number of files. By opening a new executor at
     every directory, memory leaks are minimized.
     """
-    DATA_BANK_DIR = osp.abspath(osp.join(osp.abspath(__file__), '..', '..', '..', 'pylinac test files'))
+
+    DATA_BANK_DIR = osp.abspath(
+        osp.join(osp.abspath(__file__), "..", "..", "..", "pylinac test files")
+    )
     DATA_DIR = []
-    executor = 'ProcessPoolExecutor'
+    executor = "ProcessPoolExecutor"
     workers = multiprocessing.cpu_count() - 1
     print_success_path = False
     write_failures_to_file = False
@@ -193,7 +273,9 @@ class DataBankMixin:
         start = time.time()
         futures = {}
         # open an executor
-        with getattr(concurrent.futures, self.executor)(max_workers=self.workers) as exec:
+        with getattr(concurrent.futures, self.executor)(
+            max_workers=self.workers
+        ) as exec:
             # walk through datasets
             for pdir, sdir, files in os.walk(self.DATA_DIR):
                 for file in files:
@@ -206,7 +288,7 @@ class DataBankMixin:
             # return results
             for test_num, future in enumerate(concurrent.futures.as_completed(futures)):
                 stuff_to_print = [test_num, future.result()]
-                if future.result() == 'Success':
+                if future.result() == "Success":
                     passes += 1
                     if self.print_success_path:
                         stuff_to_print.append(futures[future])
@@ -215,11 +297,17 @@ class DataBankMixin:
                 print(*stuff_to_print)
 
         end = time.time() - start
-        print('Processing of {} files took {:3.1f}s ({:3.2f}s/item). {} passed; {} failed.'.format(test_num, end, end/test_num, passes, len(fails)))
+        print(
+            "Processing of {} files took {:3.1f}s ({:3.2f}s/item). {} passed; {} failed.".format(
+                test_num, end, end / test_num, passes, len(fails)
+            )
+        )
         if len(fails) > 0:
             pprint.pprint("Failures: {}".format(fails))
             if self.write_failures_to_file:
-                with open('failures_{}.txt'.format(osp.basename(self.DATA_DIR)), mode='w') as f:
+                with open(
+                    "failures_{}.txt".format(osp.basename(self.DATA_DIR)), mode="w"
+                ) as f:
                     for file in fails:
-                        f.write(file + '\n')
+                        f.write(file + "\n")
                 print("Failures written to file")

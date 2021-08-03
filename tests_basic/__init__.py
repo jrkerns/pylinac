@@ -1,3 +1,4 @@
+import os
 import os.path as osp
 import unittest
 
@@ -8,6 +9,7 @@ TEST_BANK_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..', 'pylinac
 
 matplotlib.use('Agg')
 
+DELETE_FILES = bool(os.environ.get("DELETE_FILES", default=False))
 
 def run_tests(directory, pattern='test*.py'):
     # import a runner to run tests_basic

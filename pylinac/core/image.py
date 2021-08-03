@@ -83,7 +83,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, Imag
 
     # resize images to be of the same shape
     zoom_factor = image1.shape[1] / image2.shape[1]
-    image2_array = ndimage.interpolation.zoom(image2.as_type(np.float), zoom_factor)
+    image2_array = ndimage.interpolation.zoom(image2.as_type(float), zoom_factor)
     image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
 
     return image1, image2
@@ -131,7 +131,7 @@ def load(path: Union[str, ImageLike, np.ndarray, BinaryIO], **kwargs) -> ImageLi
     Load an image from a file and then apply a filter::
 
         >>> from pylinac.core.image import load
-        >>> my_image = "C:\QA\image.tif"
+        >>> my_image = r"C:\QA\image.tif"
         >>> img = load(my_image)  # returns a FileImage
         >>> img.filter(5)
 
@@ -153,7 +153,7 @@ def load(path: Union[str, ImageLike, np.ndarray, BinaryIO], **kwargs) -> ImageLi
         raise TypeError(f"The argument `{path}` was not found to be a valid DICOM file, Image file, or array")
 
 
-def load_url(url: str, progress_bar: bool=True, **kwargs) -> ImageLike:
+def load_url(url: str, progress_bar: bool = True, **kwargs) -> ImageLike:
     """Load an image from a URL.
 
     Parameters
@@ -171,7 +171,7 @@ def load_url(url: str, progress_bar: bool=True, **kwargs) -> ImageLike:
 
 
 @argue.options(method=('mean', 'max', 'sum'))
-def load_multiples(image_file_list: List, method: str='mean', stretch_each: bool=True, **kwargs) -> ImageLike:
+def load_multiples(image_file_list: Sequence, method: str = 'mean', stretch_each: bool = True, **kwargs) -> ImageLike:
     """Combine multiple image files into one superimposed image.
 
     Parameters
@@ -836,7 +836,7 @@ class LinacDicomImage(DicomImage):
                 axis_found = True
             # if it is, then make sure it follows the naming convention of <axis###>
             else:
-                match = re.search('(?<={})\d+'.format(axis_str.lower()), filename.lower())
+                match = re.search(r'(?<={})\d+'.format(axis_str.lower()), filename.lower())
                 if match is None:
                     raise ValueError(
                             f"The filename contains '{axis_str}' but could not read a number following it. Use the format '...{axis_str}<#>...'")
@@ -912,7 +912,7 @@ class FileImage(BaseImage):
         return dpi
 
     @property
-    def dpmm(self) -> float:
+    def dpmm(self) -> Optional[float]:
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
         try:

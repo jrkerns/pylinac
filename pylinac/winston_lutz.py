@@ -498,7 +498,7 @@ class WinstonLutz:
             plot_image(wl_image, mpl_axis)
 
         # set titles
-        fig.suptitle(f"{axis} images", fontsize=14, y=1)
+        fig.suptitle(f"{axis.value} images", fontsize=14, y=1)
         plt.tight_layout()
         if show:
             plt.show()
@@ -516,11 +516,12 @@ class WinstonLutz:
         self.plot_images(axis=axis, show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_summary(self, show: bool = True):
+    def plot_summary(self, show: bool = True, fig_size: Optional[tuple] = None):
         """Plot a summary figure showing the gantry sag and wobble plots of the three axes."""
         if not self._is_analyzed:
             raise ValueError("The set is not analyzed. Use .analyze() first.")
-        plt.figure(figsize=(11, 9))
+        figsize = (11, 9) if fig_size is None else fig_size
+        plt.figure(figsize=figsize)
         grid = (3, 6)
         gantry_sag_ax = plt.subplot2grid(grid, (0, 0), colspan=3)
         self._plot_deviation(Axis.GANTRY, gantry_sag_ax, show=False)
@@ -543,7 +544,7 @@ class WinstonLutz:
 
     def save_summary(self, filename: Union[str, BinaryIO], **kwargs):
         """Save the summary image."""
-        self.plot_summary(show=False)
+        self.plot_summary(show=False, fig_size=kwargs.pop('fig_size', None))
         plt.tight_layout()
         plt.savefig(filename, **kwargs)
 
@@ -644,7 +645,7 @@ class WinstonLutz:
         canvas.add_text(text=text, location=(7, 25.5))
         # draw summary image on 1st page
         data = io.BytesIO()
-        self.save_summary(data, figsize=(8, 8))
+        self.save_summary(data, fig_size=(8, 8))
         canvas.add_image(image_data=data, location=(2, 3), dimensions=(16, 16))
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
@@ -654,7 +655,7 @@ class WinstonLutz:
             if self._contains_axis_images(ax):
                 canvas.add_new_page()
                 data = io.BytesIO()
-                self.save_images(data, axis=ax, figsize=(10, 10))
+                self.save_images(data, axis=ax)
                 canvas.add_image(data, location=(2, 7), dimensions=(18, 18))
 
         canvas.finish()
