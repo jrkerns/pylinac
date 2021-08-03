@@ -79,7 +79,7 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push git@github.com:jrkerns/pylinac.git --all --tags
+            - git push git@github.com:jrkerns/pylinac.git --all
     master:
       - step:
           name: Set up Env
@@ -153,4 +153,4 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push git@github.com:jrkerns/pylinac.git --tags --all
+            - git push git@github.com:jrkerns/pylinac.git --all
