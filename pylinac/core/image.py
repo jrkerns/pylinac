@@ -153,7 +153,7 @@ def load(path: Union[str, ImageLike, np.ndarray, BinaryIO], **kwargs) -> ImageLi
         raise TypeError(f"The argument `{path}` was not found to be a valid DICOM file, Image file, or array")
 
 
-def load_url(url: str, progress_bar: bool=True, **kwargs) -> ImageLike:
+def load_url(url: str, progress_bar: bool = True, **kwargs) -> ImageLike:
     """Load an image from a URL.
 
     Parameters
@@ -171,7 +171,7 @@ def load_url(url: str, progress_bar: bool=True, **kwargs) -> ImageLike:
 
 
 @argue.options(method=('mean', 'max', 'sum'))
-def load_multiples(image_file_list: List, method: str='mean', stretch_each: bool=True, **kwargs) -> ImageLike:
+def load_multiples(image_file_list: Sequence, method: str = 'mean', stretch_each: bool = True, **kwargs) -> ImageLike:
     """Combine multiple image files into one superimposed image.
 
     Parameters
@@ -912,7 +912,7 @@ class FileImage(BaseImage):
         return dpi
 
     @property
-    def dpmm(self) -> float:
+    def dpmm(self) -> Optional[float]:
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
         try:

@@ -14,7 +14,7 @@ import enum
 import typing
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Union, List, Tuple, Sequence, Optional
+from typing import Union, List, Tuple, Sequence, Optional, BinaryIO
 
 import argue
 import matplotlib.pyplot as plt
@@ -71,7 +71,7 @@ class VMATBase:
     segments: List
     _tolerance: float
 
-    def __init__(self, image_paths: Sequence[Union[str, BytesIO]]):
+    def __init__(self, image_paths: Sequence[Union[str, BinaryIO]]):
         """
         Parameters
         ----------
