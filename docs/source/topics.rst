@@ -36,16 +36,16 @@ Assigned pixel values now have the following logic:
 
 If the image has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_,
 `Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052`_ and the `Pixel Intensity Relationship Sign <https://dicom.innolitics.com/ciods/rt-image/rt-image/00281041>`_
-attributes, all of them are applied with a simple linear correction: :math:`P_corrected = Sign * Slope * P_raw + Intercept`
+attributes, all of them are applied with a simple linear correction: :math:`P_{corrected} = Sign * Slope * P_P{raw} + Intercept`
 Images from newer linac platforms appear more likely to have this attribute.
 
 If the image only has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_ and
 `Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052`_ but not the relationship tag then it is applied as:
-:math:`P_corrected = Slope * P_raw + Intercept`. This is the most common scenario encountered to date.
+:math:`P_{corrected} = Slope * P_{raw} + Intercept`. This is the most common scenario encountered to date.
 
 .. note:: It is possible that the slope has a negative value which is implicitly applying a relationship and would be equivalent to the first case, however, older images often have a simple positive slope relationship.
 
-If the image does not have these two tags, then an imcompliment is applied: :math:`new_array = -old_array + max(old_array) + min(old_array)`.
+If the image does not have these two tags, then an imcompliment is applied: :math:`new array = -old array + max(old array) + min(old array)`.
 Very old images will likely reach this condition.
 
 .. note::
@@ -145,6 +145,7 @@ The contrast to noise ratio (CNR) is defined as follows:
 
 where contrast is an option from the low contrast methods.
 
+.. _mtf_topic::
 
 Modulation Transfer Function (MTF)
 ----------------------------------
@@ -153,14 +154,14 @@ The MTF is used in CBCT and planar imaging metrics to describe high-contrast cha
 An excellent introduction is here: https://www.edmundoptics.com/knowledge-center/application-notes/optics/introduction-to-modulation-transfer-function/
 In pylinac, MTF is calculated using equation 3 of the above reference:
 
-.. math:: contrast = \frac{I_max - I_min}{I_max + I_min}
+.. math:: contrast = \frac{I_{max} - I_{min}}{I_{max} + I_{min}}
 
 Then, all the contrasts are normalized to the largest one, resulting in a normalized MTF or rMTF (relative).
 Pylinac only reports rMTF values. This is the first of two inputs. The other is the line pair spacing. The spacing
 is usually provided by the phantom manufacturer. The rMTF is the plotted against the line pair/mm values. Also from
 this data the MTF at a certain percentage (e.g. 50%) can be determined in units of lp/mm.
 
-However, it's important to know what :math:`I_max` and :math:`I_min` means here. For a line pair set, each bar and space-between
+However, it's important to know what :math:`I_{max}` and :math:`I_{min}` means here. For a line pair set, each bar and space-between
 is one contrast value. Thus, one contrast value is calculated for each bar/space combo. For phantoms with areas of the
 same spacing (e.g. the Leeds), all bars and spaces are the same and thus we can use an area-based ROI for the input to
 the contrast equation.
