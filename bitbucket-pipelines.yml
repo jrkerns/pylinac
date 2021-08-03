@@ -2,6 +2,17 @@ image: python:3.9
 
 pipelines:
 
+  custom:
+    pypi:
+      - step:
+          name: Push to PYPI
+          script:
+            - pipe: atlassian/pypi-publish:0.3.1
+              variables:
+                PYPI_USERNAME: $PYPI_USERNAME
+                PYPI_PASSWORD: $PYPI_PASSWORD
+                DISTRIBUTIONS: 'bdist_wheel'
+
   pull-requests:
     '**':
       - step:
@@ -71,6 +82,12 @@ pipelines:
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/core
+          - step:
+              script:
+                - pipe: atlassian/bitbucket-build-statistics:0.2.1
+                  variables:
+                    BITBUCKET_USERNAME: $BITBUCKET_USERNAME
+                    BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
 
   branches:
     release*:
