@@ -1,5 +1,4 @@
 import io
-import os.path as osp
 import unittest
 from typing import Callable
 from unittest import TestCase
@@ -9,22 +8,22 @@ import numpy as np
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC
-from tests_basic.utils import save_file, CloudFileMixin, get_folder_from_cloud_test_repo
+from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo
 
-TEST_DIR = get_folder_from_cloud_test_repo(['planar_imaging'])
+TEST_DIR = 'planar_imaging'
 
 
 class GeneralTests(TestCase):
 
     def test_from_file_object(self):
-        path = osp.join(TEST_DIR, 'Leeds_ccw.dcm')
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'Leeds_ccw.dcm'])
         with open(path, 'rb') as f:
             phan = LeedsTOR(f)
             phan.analyze()
         self.assertIsInstance(phan, LeedsTOR)
 
     def test_from_stream(self):
-        path = osp.join(TEST_DIR, 'Leeds_ccw.dcm')
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'Leeds_ccw.dcm'])
         with open(path, 'rb') as f:
             s = io.BytesIO(f.read())
             phan = LeedsTOR(s)

@@ -1,5 +1,4 @@
 import io
-import os.path as osp
 import tempfile
 from unittest import TestCase
 
@@ -7,15 +6,15 @@ import matplotlib.pyplot as plt
 
 import pylinac
 from pylinac import WinstonLutz
-from pylinac.winston_lutz import Axis, WinstonLutzResult
 from pylinac.core.geometry import Vector, vector_is_close
-from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_folder_from_cloud_test_repo, \
-    get_file_from_cloud_test_repo
+from pylinac.winston_lutz import Axis, WinstonLutzResult
+from tests_basic.utils import save_file, CloudFileMixin, get_folder_from_cloud_test_repo, \
+    get_file_from_cloud_test_repo, FromDemoImageTesterMixin, FromURLTesterMixin
 
 TEST_DIR = 'Winston-Lutz'
 
 
-class TestWLLoading(LoadingTestBase, TestCase):
+class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
     klass = WinstonLutz
     demo_load_method = 'from_demo_images'
     url = 'winston_lutz.zip'

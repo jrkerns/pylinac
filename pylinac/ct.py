@@ -325,14 +325,10 @@ class CatPhanModule(Slice):
                                         self.phan_center, nominal_value, self.tolerance,
                                         background_mean=background_mean, background_std=background_std)
 
-    # TODO: better define threshold
-    def plot_rois(self, axis: plt.Axes, threshold=None) -> None:
+    def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis."""
         for roi in self.rois.values():
-            if not threshold:
-                roi.plot2axes(axis, edgecolor=roi.plot_color)
-            else:
-                roi.plot2axes(axis, edgecolor=roi.plot_color_cnr)
+            roi.plot2axes(axis, edgecolor=roi.plot_color)
         for roi in self.background_rois.values():
             roi.plot2axes(axis, edgecolor='blue')
 
@@ -1275,7 +1271,7 @@ class CatPhanBase:
 
     def analyze(self, hu_tolerance: Union[int, float]=40, scaling_tolerance: Union[int, float]=1, thickness_tolerance: Union[int, float]=0.2,
                 low_contrast_tolerance: Union[int, float]=1, cnr_threshold: Union[int, float]=15, zip_after: bool=False,
-                contrast_method: Contrast = Contrast.MICHELSON, visibility_threshold: float = 0.1):
+                contrast_method: Contrast = Contrast.MICHELSON, visibility_threshold: float = 0.15):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -1292,10 +1288,19 @@ class CatPhanBase:
         low_contrast_tolerance : int
             The number of low-contrast bubbles needed to be "seen" to pass.
         cnr_threshold : float, int
+
+            .. deprecated:: 3.0
+                Use visibility parameter instead.
+
             The threshold for "detecting" low-contrast image. See RTD for calculation info.
         zip_after : bool
             If the CT images were not compressed before analysis and this is set to true, pylinac will compress
             the analyzed images into a ZIP archive.
+        contrast_method
+            The contrast equation to use. See :ref:`low_contrast_topic`.
+        visibility_threshold
+            The threshold for detecting low-contrast ROIs. Use instead of ``cnr_threshold``. Follows the Rose equation.
+            See :ref:`visibility`.
         """
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
         self.ctp404 = ctp404(self, offset=offset, hu_tolerance=hu_tolerance, thickness_tolerance=thickness_tolerance,
