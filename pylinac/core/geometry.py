@@ -35,7 +35,7 @@ class Point:
     _attr_list: List[str] = ['x', 'y', 'z', 'idx', 'value']
     _coord_list: List[str] = ['x', 'y', 'z']
 
-    def __init__(self, x: NumberLike=0, y: NumberLike=0, z: NumberLike=0, idx: Optional[int]=None,
+    def __init__(self, x: Union[NumberLike, tuple, 'Point'] = 0, y: NumberLike = 0, z: NumberLike = 0, idx: Optional[int]=None,
                  value: Optional[NumberLike]=None, as_int: bool=False):
         """
         Parameters

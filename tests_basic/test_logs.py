@@ -9,10 +9,10 @@ import numpy as np
 
 from pylinac.log_analyzer import MachineLogs, TreatmentType, \
     anonymize, TrajectoryLog, Dynalog, load_log, DynalogMatchError, NotADynalogError, NotALogError
-from tests_basic.utils import save_file, LoadingTestBase, CloudFileMixin, get_file_from_cloud_test_repo, \
-    get_folder_from_cloud_test_repo
+from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo, \
+    get_folder_from_cloud_test_repo, FromDemoImageTesterMixin, FromURLTesterMixin
 
-TEST_DIR = get_folder_from_cloud_test_repo(['mlc_logs'])
+TEST_DIR = 'mlc_logs'
 ANONYMOUS_SOURCE_FOLDER = get_folder_from_cloud_test_repo(['mlc_logs', '_anonbase'])
 ANONYMOUS_DEST_FOLDER = get_folder_from_cloud_test_repo(['mlc_logs', 'anonymous'])
 
@@ -243,7 +243,7 @@ class LogBase:
             self.assertTrue('inplace' in file)
 
 
-class TestTrajectoryLog(LogPlottingSavingMixin, LoadingTestBase, LogBase, TestCase):
+class TestTrajectoryLog(LogPlottingSavingMixin, LogBase, TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
     klass = TrajectoryLog
     demo_load_method = 'from_demo'
     url = 'Tlog.bin'
@@ -278,7 +278,7 @@ class TestTrajectoryLog(LogPlottingSavingMixin, LoadingTestBase, LogBase, TestCa
         self.assertIsNone(log.txt)
 
 
-class TestDynalog(LogPlottingSavingMixin, LoadingTestBase, LogBase, TestCase):
+class TestDynalog(LogPlottingSavingMixin, LogBase, TestCase, FromDemoImageTesterMixin):
     klass = Dynalog
     demo_load_method = 'from_demo'
     anon_file = 'A1234_patientid.dlg'

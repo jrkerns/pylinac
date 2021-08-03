@@ -206,7 +206,15 @@ Overall, most code shouldn't need to change from v2.5. From v2.4 or below, the w
 CBCT
 ^^^^
 
-* The number of ROIs visible has changed. See the General section and :ref:`visibility`.
+* A ``contrast`` parameter was added to analyze. This uses an Enum and has 3 options; see :ref:`low_contrast_topic`.
+* A ``visibility_threshold`` parameter was added and is a replacement for ``cnr_threshold``.
+  See the General section and :ref:`visibility`. Compared to ``cnr_threshold``, the default value will give approximately
+  the same results for # of low-contrast ROIs "seen". About 30% of the test datasets had a different # detected, but
+  the detected vs expected number were either too high or too low, so there was no single value to perfectly replace the
+  default ``cnr_threshold`` value.
+* With the above, the contrast calculations have been standardized. Compared to previously, the contrast and contrast-to-noise
+  now use the same equation for contrast. Previously, contrast was using the Michelson equation and contrast-to-noise was using the Weber
+  definition. Now, contrast is always calculated with the definition given during instantiation.
 * ROI colors for low contrast ROIs that are "seen" have changed from blue to green to match other modules.
 
 .. note::

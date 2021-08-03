@@ -1,45 +1,33 @@
 import io
 from functools import partial
-from os import path as osp
 from typing import Union, Type, Iterable
 from unittest import TestCase
 
-from pylinac.core.geometry import Point
-from pylinac.core.io import retrieve_demo_file
 from pylinac import DRGS, DRMLC
+from pylinac.core.geometry import Point
 from pylinac.vmat import VMATResult
+from tests_basic.utils import save_file, get_file_from_cloud_test_repo, FromURLTesterMixin, \
+    FromDemoImageTesterMixin
 
-from tests_basic.utils import save_file, has_www_connection, get_file_from_cloud_test_repo, \
-    get_folder_from_cloud_test_repo
-
-TEST_DIR = get_folder_from_cloud_test_repo(['VMAT'])
+TEST_DIR = 'VMAT'
 
 within_5 = partial(TestCase().assertAlmostEqual, delta=5)
 within_1 = partial(TestCase().assertAlmostEqual, delta=1)
 
 
-class LoadingBase:
-    demo_name = ''
+class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
+    demo_load_method = 'from_demo_images'
     klass: Union[Type[DRGS], Type[DRMLC]]
 
-    def test_demo_is_reachable(self):
-        if has_www_connection():
-            file = retrieve_demo_file(url=self.demo_name)
-            self.assertTrue(osp.isfile(file))
-
-    def test_can_load_demo(self):
-        instance = self.klass.from_demo_images()
-        self.assertIsInstance(instance, self.klass)
-
     def test_normal_instantiation(self):
-        one = osp.join(TEST_DIR, 'no_test_or_image_type_1.dcm')
-        two = osp.join(TEST_DIR, 'no_test_or_image_type_2.dcm')
+        one = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_1.dcm'])
+        two = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_2.dcm'])
         instance = self.klass(image_paths=(one, two))
         self.assertIsInstance(instance, self.klass)
 
     def test_from_stream(self):
-        one = osp.join(TEST_DIR, 'no_test_or_image_type_1.dcm')
-        two = osp.join(TEST_DIR, 'no_test_or_image_type_2.dcm')
+        one = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_1.dcm'])
+        two = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_2.dcm'])
         with open(one, 'rb') as s1, open(two, 'rb') as s2:
             s11 = io.BytesIO(s1.read())
             s22 = io.BytesIO(s2.read())
@@ -48,16 +36,11 @@ class LoadingBase:
         self.assertIsInstance(instance, self.klass)
 
     def test_from_file_object(self):
-        one = osp.join(TEST_DIR, 'no_test_or_image_type_1.dcm')
-        two = osp.join(TEST_DIR, 'no_test_or_image_type_2.dcm')
+        one = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_1.dcm'])
+        two = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_2.dcm'])
         with open(one, 'rb') as s1, open(two, 'rb') as s2:
             instance = self.klass(image_paths=(s1, s2))
             instance.analyze()
-        self.assertIsInstance(instance, self.klass)
-
-    def test_from_url(self):
-        url = f'https://s3.amazonaws.com/pylinac/{self.demo_name}'
-        instance = self.klass.from_url(url=url)
         self.assertIsInstance(instance, self.klass)
 
     def test_passing_3_images_fails(self):
@@ -94,18 +77,18 @@ class LoadingBase:
 
 
 class TestDRGSLoading(LoadingBase, TestCase):
-    demo_name = 'drgs.zip'
+    url = 'drgs.zip'
     klass = DRGS
 
 
 class TestDRMLCLoading(LoadingBase, TestCase):
-    demo_name = 'drmlc.zip'
+    url = 'drmlc.zip'
     klass = DRMLC
 
 
 class VMATMixin:
     klass = object
-    filepaths = Union[str, Iterable[str]]
+    filepaths = Iterable[str]
     is_zip = False
     segment_positions = {1: Point(100, 200)}
     segment_values = {
@@ -121,9 +104,9 @@ class VMATMixin:
     @classmethod
     def absolute_path(cls):
         if cls.is_zip:
-            path = osp.join(TEST_DIR, *cls.filepaths)
+            path = get_file_from_cloud_test_repo([TEST_DIR, *cls.filepaths])
         else:
-            path = [osp.join(TEST_DIR, path) for path in cls.filepaths]
+            path = [get_file_from_cloud_test_repo([TEST_DIR, path]) for path in cls.filepaths]
         return path
 
     def setUp(self):

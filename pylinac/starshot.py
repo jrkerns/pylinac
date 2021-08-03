@@ -29,6 +29,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import optimize
+from typing.io import IO
 
 from .core import image, pdf
 from .core.geometry import Point, Line, Circle
@@ -176,7 +177,7 @@ class Starshot:
 
     @argue.bounds(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
     def analyze(self, radius: float = 0.85, min_peak_height: float = 0.25, tolerance: float = 1.0,
-                start_point: Point = None, fwhm: bool = True, recursive: bool = True, invert: bool = False):
+                start_point: Optional[Union[Point, tuple]] = None, fwhm: bool = True, recursive: bool = True, invert: bool = False):
         """Analyze the starshot image.
 
         Analyze finds the minimum radius and center of a circle that touches all the lines
@@ -428,7 +429,7 @@ class Starshot:
         self.plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
-    def publish_pdf(self, filename: str, notes: Union[str, List[str]]=None, open_file: bool=False, metadata: Optional[dict]=None):
+    def publish_pdf(self, filename: Union[str, IO], notes: Optional[Union[str, List[str]]]=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters

@@ -124,7 +124,7 @@ def retrieve_filenames(directory: str, func: Callable=None, recursive: bool=True
     return filenames
 
 
-def retrieve_demo_file(url: str) -> str:
+def retrieve_demo_file(url: str, force: bool = False) -> str:
     """Retrieve the demo file either by getting it from file or from a URL.
 
     If the file is already on disk it returns the file name. If the file isn't
@@ -136,12 +136,12 @@ def retrieve_demo_file(url: str) -> str:
     url : str
         The suffix to the url (location within the S3 bucket) pointing to the demo file.
     """
-    true_url = 'https://s3.amazonaws.com/pylinac/' + url
+    true_url = r'https://storage.googleapis.com/pylinac_demo_files/' + url
     demo_file = osp.join(osp.dirname(osp.dirname(__file__)), 'demo_files', url)
-    if not osp.isfile(demo_file):
-        demo_dir = osp.dirname(demo_file)
-        if not osp.exists(demo_dir):
-            os.makedirs(demo_dir)
+    demo_dir = osp.dirname(demo_file)
+    if not osp.exists(demo_dir):
+        os.makedirs(demo_dir)
+    if force or not osp.isfile(demo_file):
         get_url(true_url, destination=demo_file)
     return demo_file
 

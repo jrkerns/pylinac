@@ -54,6 +54,22 @@ Winston-Lutz analyses require these steps:
 * The MLC field should be symmetric.
 * The BB should be <2cm from the isocenter.
 
+Axis Values
+^^^^^^^^^^^
+
+Pylinac uses the :ref:`image_types` definition to bin images. Regardless of the axis values, pylinac will calculate some
+values like max/median BB->CAX distance. Other values such as gantry iso size will only use Reference and Gantry image types
+as defined in the linked section. We recommend reviewing the analysis definitions and acquiring images according to the
+values you are interested in. Some examples are below. Note that these are not mutually exclusive:
+
+* Simple max distance to BB: Any axis values; any combination of axis values are allowed.
+* Gantry iso size: Gantry value can be any; all other axes must be 0.
+* Collimator iso size: Collimator value can be any; all other axes must be 0.
+
+If, e.g., all axis values are combinations of axes then gantry iso size will not be calculated. Further, the ``plot_analyzed_image``
+method assumes Gantry, Collimator, and/or Couch image sets. If only combinations are passed, this image will be empty.
+A good practice is also to acquire a reference image if possible, meaning all axes at 0.
+
 .. _coordinate_space:
 
 Coordinate Space
@@ -241,6 +257,8 @@ To change the size of BB pylinac is expecting you can pass the size to the analy
     wl = WinstonLutz(...)
     wl.analyze(bb_size_mm=3)
     ...
+
+.. _wl_image_types::
 
 Image types & output definitions
 --------------------------------
