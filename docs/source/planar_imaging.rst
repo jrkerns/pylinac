@@ -171,11 +171,9 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. For each contrast ROI, both it and a background ROI are sampled. From here, the contrast can be known:
-  :math:`Contrast_{ROI} = \frac{ROI_{val} - ROI_{background}}{ROI_{val} + ROI_{background}}`.
+  be known. From here, the contrast can be known; see :ref:`contrast`.
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
-  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated:
-  :math:`MTF_{ROI} = \frac{ROI_{max} - ROI_{min}}{ROI_{max} + ROI_{min}}`.
+  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated. See :ref:`mtf_topic`.
 
 **Post-Analysis**
 
@@ -275,11 +273,9 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. For each contrast ROI, both it and a background ROI are sampled. From here, the contrast can be known:
-  :math:`Contrast_{ROI} = \frac{ROI_{val} - ROI_{background}}{ROI_{val} + ROI_{background}}`.
+  be known. From here, the contrast can be known; see :ref:`contrast`.
 * **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
-  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated:
-  :math:`MTF_{ROI} = \frac{ROI_{max} - ROI_{min}}{ROI_{max} + ROI_{min}}`.
+  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated. See :ref:`mtf_topic`.
 
 **Post-Analysis**
 
@@ -338,8 +334,7 @@ The algorithm works like such:
 **Analysis**
 
 * **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
-  be known. For each contrast ROI, both it and a background ROI are sampled. From here, the contrast can be known:
-  :math:`Contrast_{ROI} = \frac{ROI_{val} - ROI_{background}}{ROI_{val} + ROI_{background}}`.
+  be known. From here, the contrast can be known; see :ref:`contrast`.
 
 **Post-Analysis**
 
@@ -546,7 +541,7 @@ To calculate a specific MTF value, i.e. the frequency at a given MTF%:
 
     dl = DoselabMC2kV(...)
     dl.analyze(...)
-    print(dl.mtf.relative_resolution_at(x=50))  # 50% rMTF
+    print(dl.mtf.relative_resolution(x=50))  # 50% rMTF
 
 Get/View the contrast of a low-contrast ROI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -2,6 +2,17 @@ image: python:3.9
 
 pipelines:
 
+  custom:
+    pypi:
+      - step:
+          name: Push to PYPI
+          script:
+            - pipe: atlassian/pypi-publish:0.3.1
+              variables:
+                PYPI_USERNAME: $PYPI_USERNAME
+                PYPI_PASSWORD: $PYPI_PASSWORD
+                DISTRIBUTIONS: 'bdist_wheel'
+
   pull-requests:
     '**':
       - step:
@@ -18,7 +29,6 @@ pipelines:
       - parallel:
           - step:
               name: Run CBCT Tests
-              size: 2x
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/test_cbct.py
@@ -80,7 +90,7 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push --mirror git@github.com:jrkerns/pylinac.git
+            - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
     master:
       - step:
           name: Set up Env
@@ -96,7 +106,6 @@ pipelines:
       - parallel:
           - step:
               name: Run CBCT Tests
-              size: 2x
               script:
                 - source venv/bin/activate
                 - pytest tests_basic/test_cbct.py
@@ -155,4 +164,4 @@ pipelines:
           clone:
             depth: full
           script:
-            - git push --mirror git@github.com:jrkerns/pylinac.git
+            - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
