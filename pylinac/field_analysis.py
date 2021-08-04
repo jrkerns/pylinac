@@ -195,12 +195,14 @@ class FieldResults(ResultBase):
 
     Use the following attributes as normal class attributes.
 
-    In addition to the below attrs, custom protocol data will also be attached as
+    In addition to the below attrs, custom protocol data will also be attached under the
+    ``protocol_results`` attr as a dictionary with keys like so:
     ``<protocol name>_vertical`` and ``<protocol name>_horizontal`` for each protocol item.
 
     E.g. a protocol item of ``symmetry`` will result in ``symmetry_vertical`` and ``symmetry_horizontal``.
     """
     protocol: Protocol  #:
+    protocol_results: dict  #:
     centering_method: Centering  #:
     normalization_method: Normalization  #:
     interpolation_method: Interpolation  #:
@@ -596,10 +598,8 @@ class FieldAnalysis:
                             centering_method=getattr(self._centering, 'value', None),
                             normalization_method=self.horiz_profile._norm_method.value,
                             interpolation_method=self.horiz_profile._interp_method.value,
-                            edge_detection_method=self.horiz_profile._edge_method.value)
-        # add custom data
-        for key, value in self._extra_results.items():
-            setattr(data, key, value)
+                            edge_detection_method=self.horiz_profile._edge_method.value,
+                            protocol_results=self._extra_results)
         if as_dict:
             return dataclasses.asdict(data)
         return data

@@ -76,9 +76,11 @@ class FieldAnalysisTests(TestCase):
         data = fs.results_data()
         self.assertIsInstance(data, FieldResults)
         self.assertEqual(data.field_size_vertical_mm, fs._results['field_size_vertical_mm'])
+        self.assertEqual(data.protocol_results['flatness_vertical'], fs._extra_results['flatness_vertical'])
 
         data_dict = fs.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
+        self.assertEqual(data_dict['protocol_results']['flatness_vertical'], fs._extra_results['flatness_vertical'])
 
     def test_results_fails_if_not_analyzed(self):
         fs = FieldAnalysis.from_demo_image()
