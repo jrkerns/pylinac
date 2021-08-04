@@ -734,6 +734,7 @@ class FieldAnalysis:
         else:
             vert_ax.legend(lines, labels, loc='best',)
         plt.suptitle("Field Profile Analysis")
+        plt.tight_layout()
         if show:
             plt.show()
 
