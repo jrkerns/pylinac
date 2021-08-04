@@ -5,8 +5,20 @@ pipelines:
   custom:
     pypi:
       - step:
+            name: Set up Env
+            caches:
+              - pip
+            script:
+              - apt-get update
+              - python -m venv venv
+              - source venv/bin/activate
+              - pip install -r requirements-dev.txt
+            artifacts:
+              - venv/**
+      - step:
           name: Push to PYPI
           script:
+            - source venv/bin/activate
             - pipe: atlassian/pypi-publish:0.3.1
               variables:
                 PYPI_USERNAME: $PYPI_USERNAME
