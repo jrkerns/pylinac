@@ -57,7 +57,7 @@ Winston-Lutz analyses require these steps:
 Axis Values
 ^^^^^^^^^^^
 
-Pylinac uses the :ref:`image_types` definition to bin images. Regardless of the axis values, pylinac will calculate some
+Pylinac uses the :ref:`wl_image_types` definition to bin images. Regardless of the axis values, pylinac will calculate some
 values like max/median BB->CAX distance. Other values such as gantry iso size will only use Reference and Gantry image types
 as defined in the linked section. We recommend reviewing the analysis definitions and acquiring images according to the
 values you are interested in. Some examples are below. Note that these are not mutually exclusive:
@@ -258,7 +258,7 @@ To change the size of BB pylinac is expecting you can pass the size to the analy
     wl.analyze(bb_size_mm=3)
     ...
 
-.. _wl_image_types::
+.. _wl_image_types:
 
 Image types & output definitions
 --------------------------------

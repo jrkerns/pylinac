@@ -188,7 +188,7 @@ class SingleProfile(ProfileMixin):
         ground
             Whether to ground the profile (set min value to 0). Helpful most of the time.
         interpolation_resolution_mm
-            The resolution that the interpolation will scale to. *Only used if dpmm is passed and interpolation is set*.
+            The resolution that the interpolation will scale to. **Only used if dpmm is passed and interpolation is set**.
             E.g. if the dpmm is 0.5 and the resolution is set to 0.1mm the data will be interpolated to have a new dpmm of 10 (1/0.1).
         interpolation_factor
             The factor to multiply the data by. **Only used if interpolation is used and dpmm is NOT passed**. E.g. 10
@@ -201,15 +201,15 @@ class SingleProfile(ProfileMixin):
             50% height. In fact, for FFF beams it shouldn't be. Inflection methods are better for FFF and other unusual
             beam shapes.
         edge_smoothing_ratio
-            *Only applies to INFLECTION_DERIVATIVE and INFLECTION_HILL.*
+            **Only applies to INFLECTION_DERIVATIVE and INFLECTION_HILL.**
 
             The ratio of the length of the values to use as the sigma for a Gaussian filter applied before searching for
             the inflection. E.g. 0.005 with a profile of 1000 points will result in a sigma of 5.
             This helps make the inflection point detection more robust to noise. Increase for noisy data.
         hill_window_ratio
             The ratio of the field size to use as the window to fit the Hill function. E.g. 0.2 will using a window
-            centered about each edge with a width of 20% the size of the field width. *Only applies when the edge
-            detection is ``INFLECTION_HILL`` *.
+            centered about each edge with a width of 20% the size of the field width. **Only applies when the edge
+            detection is INFLECTION_HILL**.
         """
         self._interp_method = interpolation
         self._interpolation_res = interpolation_resolution_mm

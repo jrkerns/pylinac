@@ -8,7 +8,7 @@ from pylinac.core.exceptions import NotAnalyzed
 from pylinac.core.io import retrieve_demo_file
 from pylinac.core.profile import Edge, Normalization, Interpolation
 from pylinac.field_analysis import FieldAnalysis, Protocol, DeviceFieldAnalysis, Device, Centering, \
-    symmetry_point_difference, flatness_dose_difference, plot_flatness, plot_symmetry_point_difference, FieldResults
+    symmetry_point_difference, flatness_dose_difference, plot_flatness, plot_symmetry_point_difference, FieldResult
 from tests_basic.utils import has_www_connection, CloudFileMixin, save_file, get_file_from_cloud_test_repo
 
 TEST_DIR = 'flatness_symmetry'
@@ -45,7 +45,7 @@ class FieldAnalysisTests(TestCase):
 
     def test_demo_is_reachable(self):
         if has_www_connection():
-            file = retrieve_demo_file(url='flatsym_demo.dcm')
+            file = retrieve_demo_file(url='flatsym_demo.dcm', force=True)
             self.assertTrue(osp.isfile(file))
 
     def test_demo_loads_properly(self):
@@ -74,11 +74,13 @@ class FieldAnalysisTests(TestCase):
         fs = create_instance()
         fs.analyze()
         data = fs.results_data()
-        self.assertIsInstance(data, FieldResults)
+        self.assertIsInstance(data, FieldResult)
         self.assertEqual(data.field_size_vertical_mm, fs._results['field_size_vertical_mm'])
+        self.assertEqual(data.protocol_results['flatness_vertical'], fs._extra_results['flatness_vertical'])
 
         data_dict = fs.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
+        self.assertEqual(data_dict['protocol_results']['flatness_vertical'], fs._extra_results['flatness_vertical'])
 
     def test_results_fails_if_not_analyzed(self):
         fs = FieldAnalysis.from_demo_image()
@@ -103,6 +105,10 @@ class FieldAnalysisTests(TestCase):
         fs = FieldAnalysis.from_demo_image()
         with self.assertRaises(NotAnalyzed):
             fs.publish_pdf('dummy.pdf')
+
+    def test_save_analyzed_image(self):
+        fa = create_instance()
+        save_file(fa.plot_analyzed_image)
 
 
 class FieldAnalysisBase(CloudFileMixin):
@@ -205,16 +211,16 @@ class FieldAnalysisBase(CloudFileMixin):
         self.assertAlmostEqual(self.fs.results_data().field_size_vertical_mm, self.vert_field_size, delta=1)
 
     def test_vert_symmetry(self):
-        self.assertAlmostEqual(self.fs.results_data().symmetry_vertical, self.vert_symmetry, delta=self.sym_tolerance)
+        self.assertAlmostEqual(self.fs.results_data().protocol_results['symmetry_vertical'], self.vert_symmetry, delta=self.sym_tolerance)
 
     def test_horiz_symmetry(self):
-        self.assertAlmostEqual(self.fs.results_data().symmetry_horizontal, self.horiz_symmetry, delta=self.sym_tolerance)
+        self.assertAlmostEqual(self.fs.results_data().protocol_results['symmetry_horizontal'], self.horiz_symmetry, delta=self.sym_tolerance)
 
     def test_vert_flatness(self):
-        self.assertAlmostEqual(self.fs.results_data().flatness_vertical, self.vert_flatness, delta=self.flat_tolerance)
+        self.assertAlmostEqual(self.fs.results_data().protocol_results['flatness_vertical'], self.vert_flatness, delta=self.flat_tolerance)
 
     def test_horiz_flatness(self):
-        self.assertAlmostEqual(self.fs.results_data().flatness_horizontal, self.horiz_flatness, delta=self.flat_tolerance)
+        self.assertAlmostEqual(self.fs.results_data().protocol_results['flatness_horizontal'], self.horiz_flatness, delta=self.flat_tolerance)
 
 
 class DeviceAnalysisBase(FieldAnalysisBase):

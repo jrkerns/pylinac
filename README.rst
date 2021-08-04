@@ -117,9 +117,7 @@ Below are the high-level tools currently available:
 
             # TRS-398 is very similar and just as easy!
 
-* `Planar Phantom Analysis (Leeds TOR, StandardImaging QC-3, Las Vegas, Doselab MC2 (kV & MV)) <http://pylinac.readthedocs.org/en/stable/planar_imaging.html>`_ -
-   The planar imaging module analyzes 2D phantoms. Currently the LeedsTOR kV phantom, Standard Imaging QC-3 MV phantom, Las Vegas phantom, Doselab MC2 (kV and MV) are supported,
-   and more phantoms are in the works!
+* `Planar Phantom Analysis (Leeds TOR, StandardImaging QC-3 & QC-kV, Las Vegas, Doselab MC2 (kV & MV), SNC kV & MV, PTW EPID QC) <http://pylinac.readthedocs.org/en/stable/planar_imaging.html>`_ -
 
    Features:
 

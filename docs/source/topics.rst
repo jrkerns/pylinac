@@ -35,12 +35,12 @@ this has changed in v3.0.
 Assigned pixel values now have the following logic:
 
 If the image has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_,
-`Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052`_ and the `Pixel Intensity Relationship Sign <https://dicom.innolitics.com/ciods/rt-image/rt-image/00281041>`_
+`Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052>`_ and the `Pixel Intensity Relationship Sign <https://dicom.innolitics.com/ciods/rt-image/rt-image/00281041>`_
 attributes, all of them are applied with a simple linear correction: :math:`P_{corrected} = Sign * Slope * P_P{raw} + Intercept`
 Images from newer linac platforms appear more likely to have this attribute.
 
 If the image only has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_ and
-`Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052`_ but not the relationship tag then it is applied as:
+`Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052>`_ but not the relationship tag then it is applied as:
 :math:`P_{corrected} = Slope * P_{raw} + Intercept`. This is the most common scenario encountered to date.
 
 .. note:: It is possible that the slope has a negative value which is implicitly applying a relationship and would be equivalent to the first case, however, older images often have a simple positive slope relationship.

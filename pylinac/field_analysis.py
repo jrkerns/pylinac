@@ -6,6 +6,7 @@ import warnings
 from dataclasses import dataclass
 from enum import Enum
 from math import floor, ceil
+from pathlib import Path
 from typing import Union, Optional, Tuple, BinaryIO
 
 import matplotlib.pyplot as plt
@@ -189,18 +190,20 @@ class Centering(Enum):
 
 
 @dataclass
-class FieldResults(ResultBase):
+class FieldResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes.
 
-    In addition to the below attrs, custom protocol data will also be attached as
+    In addition to the below attrs, custom protocol data will also be attached under the
+    ``protocol_results`` attr as a dictionary with keys like so:
     ``<protocol name>_vertical`` and ``<protocol name>_horizontal`` for each protocol item.
 
     E.g. a protocol item of ``symmetry`` will result in ``symmetry_vertical`` and ``symmetry_horizontal``.
     """
     protocol: Protocol  #:
+    protocol_results: dict  #:
     centering_method: Centering  #:
     normalization_method: Normalization  #:
     interpolation_method: Interpolation  #:
@@ -589,17 +592,15 @@ class FieldAnalysis:
             results = '\n'.join(result for result in results)
         return results
 
-    def results_data(self, as_dict: bool = False) -> Union[FieldResults, dict]:
+    def results_data(self, as_dict: bool = False) -> Union[FieldResult, dict]:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
-        data = FieldResults(**self._results, protocol=self._protocol.name,
-                            centering_method=getattr(self._centering, 'value', None),
-                            normalization_method=self.horiz_profile._norm_method.value,
-                            interpolation_method=self.horiz_profile._interp_method.value,
-                            edge_detection_method=self.horiz_profile._edge_method.value)
-        # add custom data
-        for key, value in self._extra_results.items():
-            setattr(data, key, value)
+        data = FieldResult(**self._results, protocol=self._protocol.name,
+                           centering_method=getattr(self._centering, 'value', None),
+                           normalization_method=self.horiz_profile._norm_method.value,
+                           interpolation_method=self.horiz_profile._interp_method.value,
+                           edge_detection_method=self.horiz_profile._edge_method.value,
+                           protocol_results=self._extra_results)
         if as_dict:
             return dataclasses.asdict(data)
         return data
@@ -733,8 +734,14 @@ class FieldAnalysis:
         else:
             vert_ax.legend(lines, labels, loc='best',)
         plt.suptitle("Field Profile Analysis")
+        plt.tight_layout()
         if show:
             plt.show()
+
+    def save_analyzed_image(self, filename: Union[str, Path], grid: bool = True, **kwargs):
+        """Save the analyzed image to disk. Kwargs are passed to plt.savefig()"""
+        self.plot_analyzed_image(show=False, grid=grid)
+        plt.savefig(str(filename), **kwargs)
 
     def _plot_image(self, axis: plt.Axes = None, title: str = '') -> None:
         """Plot the image and profile extraction overlay"""
@@ -912,7 +919,7 @@ class DeviceFieldAnalysis(FieldAnalysis):
         self._dpmm = 1/device.value['detector spacing (mm)']
 
     @classmethod
-    def from_demo_image(cls) -> None:
+    def from_demo_image(cls):
         """Load the demo image into an instance."""
         demo_file = retrieve_demo_file(url='6fff.prm')
         return cls(demo_file, device=Device.PROFILER)
