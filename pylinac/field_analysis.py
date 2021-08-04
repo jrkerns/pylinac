@@ -189,7 +189,7 @@ class Centering(Enum):
 
 
 @dataclass
-class FieldResults(ResultBase):
+class FieldResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
@@ -591,15 +591,15 @@ class FieldAnalysis:
             results = '\n'.join(result for result in results)
         return results
 
-    def results_data(self, as_dict: bool = False) -> Union[FieldResults, dict]:
+    def results_data(self, as_dict: bool = False) -> Union[FieldResult, dict]:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
-        data = FieldResults(**self._results, protocol=self._protocol.name,
-                            centering_method=getattr(self._centering, 'value', None),
-                            normalization_method=self.horiz_profile._norm_method.value,
-                            interpolation_method=self.horiz_profile._interp_method.value,
-                            edge_detection_method=self.horiz_profile._edge_method.value,
-                            protocol_results=self._extra_results)
+        data = FieldResult(**self._results, protocol=self._protocol.name,
+                           centering_method=getattr(self._centering, 'value', None),
+                           normalization_method=self.horiz_profile._norm_method.value,
+                           interpolation_method=self.horiz_profile._interp_method.value,
+                           edge_detection_method=self.horiz_profile._edge_method.value,
+                           protocol_results=self._extra_results)
         if as_dict:
             return dataclasses.asdict(data)
         return data
@@ -912,7 +912,7 @@ class DeviceFieldAnalysis(FieldAnalysis):
         self._dpmm = 1/device.value['detector spacing (mm)']
 
     @classmethod
-    def from_demo_image(cls) -> None:
+    def from_demo_image(cls):
         """Load the demo image into an instance."""
         demo_file = retrieve_demo_file(url='6fff.prm')
         return cls(demo_file, device=Device.PROFILER)

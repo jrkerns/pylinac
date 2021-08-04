@@ -675,6 +675,47 @@ When printing results for an FFF beam there will be a section like so::
     Left slope: 0.295%/mm
     Right slope: -0.296%/mm
 
+Accessing data
+--------------
+
+.. versionchanged:: 3.0
+
+Using the module in your own scripts? While the analysis results can be printed out,
+if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.field_analysis.FieldAnalysis.results_data` method
+which returns a :class:`~pylinac.field_analysis.FieldResult` instance.
+
+.. note::
+    While the pylinac tooling may change under the hood, this object should remain largely the same and/or expand.
+    Thus, using this is more stable than accessing attrs directly.
+
+You can access most data you get from ``results()``:
+
+.. code-block:: python
+
+fa = FieldAnalysis...
+fa.analyze(...)
+data = fa.results_data()
+
+data.top_penumbra_mm
+data.beam_center_to_left_mm
+
+You may also access protocol data in the ``protocol_results`` dictionary. These results must be in a dictionary because
+the protocol names and fields are dynamic and not known a priori.
+
+.. code-block:: python
+
+data.protocol_results['flatness_vertical']
+data.protocol_results['symmetry_horizontal']
+
+The keys of this dict are defined by the protocol names. Using the example from the :ref:`custom_protocols` section,
+we would access that custom protocol data as:
+
+.. code-block:: python
+
+data.protocol_results['my flatness_vertical']
+data.protocol_results['my flatness_horizontal']
+
+because the protocol name was ``my flatness``.
 
 Algorithm
 ---------
@@ -713,7 +754,7 @@ These are the classes a typical user may interface with.
 .. autoclass:: pylinac.field_analysis.FieldAnalysis
     :members:
 
-.. autoclass:: pylinac.field_analysis.FieldResults
+.. autoclass:: pylinac.field_analysis.FieldResult
     :members:
 
 .. autoclass:: pylinac.field_analysis.DeviceFieldAnalysis

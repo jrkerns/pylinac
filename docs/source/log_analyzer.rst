@@ -520,10 +520,8 @@ Main classes
 These are the classes a typical user may interface with.
 
 .. autofunction:: pylinac.log_analyzer.load_log
-    :members:
 
 .. autofunction:: pylinac.log_analyzer.anonymize
-    :members:
 
 .. autoclass:: pylinac.log_analyzer.Dynalog
     :members:
