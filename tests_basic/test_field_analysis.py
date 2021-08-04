@@ -45,7 +45,7 @@ class FieldAnalysisTests(TestCase):
 
     def test_demo_is_reachable(self):
         if has_www_connection():
-            file = retrieve_demo_file(url='flatsym_demo.dcm')
+            file = retrieve_demo_file(url='flatsym_demo.dcm', force=True)
             self.assertTrue(osp.isfile(file))
 
     def test_demo_loads_properly(self):
@@ -103,6 +103,10 @@ class FieldAnalysisTests(TestCase):
         fs = FieldAnalysis.from_demo_image()
         with self.assertRaises(NotAnalyzed):
             fs.publish_pdf('dummy.pdf')
+
+    def test_save_analyzed_image(self):
+        fa = create_instance()
+        save_file(fa.plot_analyzed_image)
 
 
 class FieldAnalysisBase(CloudFileMixin):

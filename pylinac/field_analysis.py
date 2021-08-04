@@ -6,6 +6,7 @@ import warnings
 from dataclasses import dataclass
 from enum import Enum
 from math import floor, ceil
+from pathlib import Path
 from typing import Union, Optional, Tuple, BinaryIO
 
 import matplotlib.pyplot as plt
@@ -733,8 +734,14 @@ class FieldAnalysis:
         else:
             vert_ax.legend(lines, labels, loc='best',)
         plt.suptitle("Field Profile Analysis")
+        plt.tight_layout()
         if show:
             plt.show()
+
+    def save_analyzed_image(self, filename: Union[str, Path], grid: bool = True, **kwargs):
+        """Save the analyzed image to disk. Kwargs are passed to plt.savefig()"""
+        self.plot_analyzed_image(show=False, grid=grid)
+        plt.savefig(str(filename), **kwargs)
 
     def _plot_image(self, axis: plt.Axes = None, title: str = '') -> None:
         """Plot the image and profile extraction overlay"""
