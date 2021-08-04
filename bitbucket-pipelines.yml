@@ -16,14 +16,6 @@ pipelines:
   pull-requests:
     '**':
       - step:
-          name: Get Build Stats
-          script:
-            - pipe: atlassian/bitbucket-build-statistics:0.2.1
-              variables:
-                BITBUCKET_USERNAME: $BITBUCKET_USERNAME
-                BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
-                REPO_LIST: 'pylinac radtrack harbinger kraken manticore'
-      - step:
           name: Set up Env
           caches:
             - pip
