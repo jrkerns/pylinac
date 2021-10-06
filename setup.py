@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-from pylinac import __version__
+from pylinac.version import __version__
 
 
 setup(
