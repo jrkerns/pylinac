@@ -34,3 +34,4 @@ setup(
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Software Development :: Libraries"]
 )
+
