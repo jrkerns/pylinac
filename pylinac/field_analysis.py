@@ -12,7 +12,7 @@ from typing import Union, Optional, Tuple, BinaryIO
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pylinac.core.utilities import open_path, ResultBase
+from pylinac.core.utilities import open_path, ResultBase, convert_to_enum
 from .core import image, pdf
 from .core.exceptions import NotAnalyzed
 from .core.geometry import Rectangle
@@ -440,17 +440,18 @@ class FieldAnalysis:
                  slope_exclusion_ratio, vert_position, vert_width, centering, hill_window_ratio):
         self._protocol = protocol
         self._penumbra = penumbra
-        self._centering = centering
+        self._centering = convert_to_enum(centering, Centering)
         self._is_FFF: bool = is_FFF
-        self._edge_detection = edge_detection_method
+        self._edge_detection = convert_to_enum(edge_detection_method, Edge)
         self._in_field_ratio = in_field_ratio
         self._slope_exclusion_ratio = slope_exclusion_ratio
         self._hill_window_ratio = hill_window_ratio
-        self._interpolation_method = interpolation
+        self._interpolation_method = convert_to_enum(interpolation, Interpolation)
+        self._normalization_method = convert_to_enum(normalization_method, Normalization)
         self._extract_profiles(horiz_position, horiz_width, interpolation_resolution_mm, vert_position, vert_width,
-                               edge_detection_method, edge_smoothing_ratio, ground, interpolation,
+                               self._edge_detection, edge_smoothing_ratio, ground, self._interpolation_method,
                                interpolation_resolution_mm,
-                               normalization_method, centering, hill_window_ratio)
+                               self._normalization_method, self._centering, hill_window_ratio)
         self._results = {}
         # calculate common field info
         v_pen = self.vert_profile.penumbra(penumbra[0], penumbra[1])
