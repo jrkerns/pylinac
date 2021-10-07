@@ -110,6 +110,19 @@ class FieldAnalysisTests(TestCase):
         fa = create_instance()
         save_file(fa.plot_analyzed_image)
 
+    def test_string_type_works_for_centering_interpolation_etc(self):
+        fa = FieldAnalysis.from_demo_image()
+        fa.analyze(interpolation='Linear', centering="Beam center", normalization_method='Beam center', edge_detection_method='FWHM')
+        fa2 = FieldAnalysis.from_demo_image()
+        fa2.analyze(interpolation=Interpolation.LINEAR, centering=Centering.BEAM_CENTER, normalization_method=Normalization.BEAM_CENTER, edge_detection_method=Edge.FWHM)
+        self.assertEqual(fa.results_data().interpolation_method, fa2.results_data().interpolation_method)
+        self.assertEqual(fa.results_data().field_size_vertical_mm, fa2.results_data().field_size_vertical_mm)
+
+    def test_invalid_string_of_enum_fails(self):
+        fa = FieldAnalysis.from_demo_image()
+        with self.assertRaises(ValueError):
+            fa.analyze(interpolation='limmerick')
+
 
 class FieldAnalysisBase(CloudFileMixin):
     dir_path = ['flatness_symmetry']
