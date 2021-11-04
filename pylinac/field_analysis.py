@@ -739,10 +739,12 @@ class FieldAnalysis:
         if show:
             plt.show()
 
-    def save_analyzed_image(self, filename: Union[str, Path], grid: bool = True, **kwargs):
+    def save_analyzed_image(self, filename: Union[str, Path, BinaryIO], grid: bool = True, **kwargs):
         """Save the analyzed image to disk. Kwargs are passed to plt.savefig()"""
         self.plot_analyzed_image(show=False, grid=grid)
-        plt.savefig(str(filename), **kwargs)
+        if isinstance(filename, Path):
+            filename = str(filename)
+        plt.savefig(filename, **kwargs)
 
     def _plot_image(self, axis: plt.Axes = None, title: str = '') -> None:
         """Plot the image and profile extraction overlay"""

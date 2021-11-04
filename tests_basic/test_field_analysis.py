@@ -109,6 +109,9 @@ class FieldAnalysisTests(TestCase):
     def test_save_analyzed_image(self):
         fa = create_instance()
         save_file(fa.plot_analyzed_image)
+        # binaryio should also work
+        img = io.BytesIO()
+        fa.save_analyzed_image(img)
 
     def test_string_type_works_for_centering_interpolation_etc(self):
         fa = FieldAnalysis.from_demo_image()
