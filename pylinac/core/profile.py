@@ -16,6 +16,7 @@ from scipy.stats import linregress
 from .geometry import Point, Circle
 from .hill import Hill
 from .typing import NumberLike
+from .utilities import convert_to_enum
 
 # for Hill fits of 2D device data the # of points can be small.
 # This results in optimization warnings about the variance of the fit (the variance isn't of concern for us for that particular item)
@@ -168,12 +169,12 @@ class SingleProfile(ProfileMixin):
     """
 
     def __init__(self, values: np.ndarray, dpmm: float = None,
-                 interpolation: Interpolation = Interpolation.LINEAR,
+                 interpolation: Union[Interpolation, str, None] = Interpolation.LINEAR,
                  ground: bool = True,
                  interpolation_resolution_mm: float = 0.1,
                  interpolation_factor: float = 10,
-                 normalization_method: Normalization = Normalization.BEAM_CENTER,
-                 edge_detection_method: Edge = Edge.FWHM,
+                 normalization_method: Union[Normalization, str] = Normalization.BEAM_CENTER,
+                 edge_detection_method: Union[Edge, str] = Edge.FWHM,
                  edge_smoothing_ratio: float = 0.003,
                  hill_window_ratio: float = 0.1):
         """
@@ -211,23 +212,23 @@ class SingleProfile(ProfileMixin):
             centered about each edge with a width of 20% the size of the field width. **Only applies when the edge
             detection is INFLECTION_HILL**.
         """
-        self._interp_method = interpolation
+        self._interp_method = convert_to_enum(interpolation, Interpolation)
         self._interpolation_res = interpolation_resolution_mm
         self._interpolation_factor = interpolation_factor
-        self._norm_method = normalization_method
-        self._edge_method = edge_detection_method
+        self._norm_method = convert_to_enum(normalization_method, Normalization)
+        self._edge_method = convert_to_enum(edge_detection_method, Edge)
         self._edge_smoothing_ratio = edge_smoothing_ratio
         self._hill_window_ratio = hill_window_ratio
         self.values = values  # set initial data so we can do things like find beam center
         self.dpmm = dpmm
         fitted_values, new_dpmm, x_indices = self._interpolate(values, dpmm, interpolation_resolution_mm,
-                                                               interpolation_factor, interpolation)
+                                                               interpolation_factor, self._interp_method)
         self.dpmm = new_dpmm  # update as needed
         self.values = fitted_values
         self.x_indices = x_indices
         if ground:
             fitted_values -= fitted_values.min()
-        norm_values = self._normalize(fitted_values, normalization_method)
+        norm_values = self._normalize(fitted_values, self._norm_method)
         self.values = norm_values  # update values
 
     @staticmethod

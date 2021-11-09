@@ -1,6 +1,7 @@
 import unittest
 import os.path as osp
 
+from pylinac import Interpolation
 from pylinac.core.utilities import *
 
 
@@ -26,3 +27,9 @@ class TestUtilities(unittest.TestCase):
         noniters = (5,)
         for iter in noniters:
             self.assertFalse(is_iterable(iter))
+
+    def test_convert_to_enum(self):
+        self.assertEqual(Interpolation.LINEAR, convert_to_enum('Linear', Interpolation))
+        self.assertEqual(Interpolation.LINEAR, convert_to_enum(Interpolation.LINEAR, Interpolation))
+        with self.assertRaises(ValueError):
+            convert_to_enum('baffled', Interpolation)

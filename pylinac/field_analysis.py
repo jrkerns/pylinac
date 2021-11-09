@@ -1004,7 +1004,7 @@ class DeviceFieldAnalysis(FieldAnalysis):
         """
         self._analyze(edge_detection_method, edge_smoothing_ratio, ground, None, None, in_field_ratio, interpolation,
                       interpolation_resolution_mm, is_FFF, kwargs, normalization_method, penumbra, protocol,
-                      slope_exclusion_ratio, None, None, None, hill_window_ratio)
+                      slope_exclusion_ratio, None, None, Centering.MANUAL, hill_window_ratio)
 
     def _extract_profiles(self, horiz_position, horiz_width, interpolation_resolution_mm, vert_position, vert_width,
                           edge_detection_method, edge_smoothing_ratio, ground, interpolation,
