@@ -1,4 +1,6 @@
 import io
+import os
+import os.path as osp
 from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
@@ -6,6 +8,7 @@ import numpy as np
 
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
+from pylinac.core.io import TemporaryZipDirectory
 from pylinac.ct import CTP404CP504, CTP404CP503, CTP528CP503, CTP528CP504, CatphanResult
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo, InitTesterMixin, \
     FromDemoImageTesterMixin, FromURLTesterMixin, FromZipTesterMixin
@@ -21,6 +24,18 @@ class TestInstantiation(TestCase, InitTesterMixin, FromDemoImageTesterMixin, Fro
     zip = [TEST_DIR, 'CBCT_4.zip']
     is_folder = True
 
+    def test_load_from_list_of_paths(self):
+        # shouldn't raise
+        with TemporaryZipDirectory(get_file_from_cloud_test_repo(self.zip)) as zfolder:
+            paths = [osp.join(zfolder, f) for f in os.listdir(zfolder)]
+            CatPhan504(paths)
+
+    def test_load_from_list_of_streams(self):
+        # shouldn't raise
+        with TemporaryZipDirectory(get_file_from_cloud_test_repo(self.zip)) as zfolder:
+            paths = [osp.join(zfolder, f) for f in os.listdir(zfolder)]
+            paths = [io.BytesIO(open(p, 'rb').read()) for p in paths]
+            CatPhan504(paths)
 
 class TestGeneral(TestCase):
     """Test general things when using cbct module."""

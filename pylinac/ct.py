@@ -18,6 +18,7 @@ import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from os import path as osp
+from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Sequence, List, BinaryIO, Type
 
 import argue
@@ -873,11 +874,11 @@ class CatPhanBase:
     localization_radius: Union[int, float] = 59
     was_from_zip: bool = False
 
-    def __init__(self, folderpath: str, check_uid: bool=True):
+    def __init__(self, folderpath: Union[str, Sequence], check_uid: bool = True):
         """
         Parameters
         ----------
-        folderpath : str
+        folderpath : str or list of strings
             String that points to the CBCT image folder location.
         check_uid : bool
             Whether to enforce raising an error if more than one UID is found in the dataset.
@@ -891,8 +892,9 @@ class CatPhanBase:
         """
         self.origin_slice = 0
         self.catphan_roll = 0
-        if not osp.isdir(folderpath):
-            raise NotADirectoryError("Path given was not a Directory/Folder")
+        if isinstance(folderpath, (str, Path)):
+            if not osp.isdir(folderpath):
+                raise NotADirectoryError("Path given was not a Directory/Folder")
         self.dicom_stack = image.DicomImageStack(folderpath, check_uid=check_uid)
         self.localize()
 
