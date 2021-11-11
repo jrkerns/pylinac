@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pylinac
 from pylinac import WinstonLutz
 from pylinac.core.geometry import Vector, vector_is_close
-from pylinac.winston_lutz import Axis, WinstonLutzResult
+from pylinac.winston_lutz import Axis, WinstonLutzResult, WinstonLutz2D
 from tests_basic.utils import save_file, CloudFileMixin, get_folder_from_cloud_test_repo, \
     get_file_from_cloud_test_repo, FromDemoImageTesterMixin, FromURLTesterMixin
 
@@ -48,6 +48,17 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
             w.analyze()
         self.assertIsInstance(w, WinstonLutz)
         self.assertEqual(w.gantry_iso_size, ref_w.gantry_iso_size)
+
+    def test_load_2d_from_stream(self):
+        path = get_file_from_cloud_test_repo(['Winston-Lutz', 'lutz', '1_image', 'gantry0.dcm'])
+        ref_w = WinstonLutz2D(path)
+        ref_w.analyze()
+        with open(path, 'rb') as f:
+            s = io.BytesIO(f.read())
+            w = WinstonLutz2D(s)
+            w.analyze()
+        self.assertIsInstance(w, WinstonLutz2D)
+        self.assertEqual(w.bb, ref_w.bb)
 
 
 class GeneralTests(TestCase):

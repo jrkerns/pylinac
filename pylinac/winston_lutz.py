@@ -674,7 +674,7 @@ class WinstonLutz2D(image.LinacDicomImage):
     field_cax: Point
     _rad_field_bounding_box: list
 
-    def __init__(self, file: str, use_filenames: bool = False):
+    def __init__(self, file: Union[str, BinaryIO], use_filenames: bool = False):
         """
         Parameters
         ----------
@@ -685,7 +685,6 @@ class WinstonLutz2D(image.LinacDicomImage):
             Useful for Elekta machines that do not include that info in the DICOM data.
         """
         super().__init__(file, use_filenames=use_filenames)
-        self.file = osp.basename(file)
         self._is_analyzed = False
 
     def analyze(self, bb_size_mm: float = 5) -> None:
@@ -880,7 +879,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         ax.set_xlim([self._rad_field_bounding_box[2], self._rad_field_bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
-        ax.set_title('\n'.join(wrap(self.file, 30)), fontsize=10)
+        ax.set_title('\n'.join(wrap(self.path, 30)), fontsize=10)
         ax.set_xlabel(f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}")
         ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
         if show:

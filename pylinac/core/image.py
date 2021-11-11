@@ -266,6 +266,10 @@ class BaseImage:
         else:
             self.source = STREAM_TYPE
             path.seek(0)
+            try:
+                self.path = str(pathlib.Path(path.name))
+            except AttributeError:
+                self.path = ''
 
     @property
     def truncated_path(self) -> str:

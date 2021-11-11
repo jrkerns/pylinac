@@ -1,5 +1,6 @@
 import copy
 import io
+import tempfile
 import unittest
 from unittest import TestCase
 
@@ -53,6 +54,17 @@ class TestLoaders(TestCase):
             p = io.BytesIO(f.read())
             img = image.load(p)
         self.assertIsInstance(img, FileImage)
+        self.assertEqual(img.path, '')
+        self.assertEqual(img.center, img_ref.center)
+
+    def test_load_file_from_temp_file(self):
+        img_ref = image.load(tif_path)
+        tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp.write(open(tif_path, 'rb').read())
+        img = image.load(tmp)
+        self.assertIsInstance(img, FileImage)
+        self.assertIsInstance(img.path, str)
+        self.assertGreater(len(img.path), 10)  # has temp name
         self.assertEqual(img.center, img_ref.center)
 
     def test_load_file_from_file_object(self):
