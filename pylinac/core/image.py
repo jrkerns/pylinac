@@ -2,7 +2,7 @@
 import copy
 import io
 import pathlib
-from collections import Counter
+from collections import Counter, Iterable
 from datetime import datetime
 from io import BytesIO, BufferedReader
 import re
@@ -1009,13 +1009,18 @@ class DicomImageStack:
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
         self.images = []
+        paths = []
         # load in images in their received order
-        for pdir, sdir, files in os.walk(folder):
-            for file in files:
-                path = osp.join(pdir, file)
-                if self.is_CT_slice(path):
-                    img = DicomImage(path, dtype=dtype)
-                    self.images.append(img)
+        if isinstance(folder, (list, tuple)):
+            paths = folder
+        elif osp.isdir(folder):
+            for pdir, sdir, files in os.walk(folder):
+                for file in files:
+                    paths.append(osp.join(pdir, file))
+        for path in paths:
+            if self.is_CT_slice(path):
+                img = DicomImage(path, dtype=dtype)
+                self.images.append(img)
 
         # check that at least 1 image was loaded
         if len(self.images) < 1:

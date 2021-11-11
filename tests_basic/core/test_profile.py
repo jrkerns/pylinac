@@ -1,5 +1,4 @@
 from unittest import TestCase
-import os.path as osp
 
 import numpy as np
 import scipy.signal as sps
@@ -33,6 +32,10 @@ class SingleProfileTests(TestCase):
 
         # apply max norm
         p = SingleProfile(array, normalization_method=Normalization.MAX, interpolation=Interpolation.NONE)
+        self.assertEqual(1.0, p.values.max())
+
+        # passing parameter as str
+        p = SingleProfile(array, normalization_method='Max', interpolation=Interpolation.NONE)
         self.assertEqual(1.0, p.values.max())
 
         # make sure interpolation doesn't affect the norm
@@ -77,6 +80,10 @@ class SingleProfileTests(TestCase):
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.NONE)
         self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)]))
 
+        # interp as str
+        p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=None)
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)]))
+
         # linear interp
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR, interpolation_factor=10)
         self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10)
@@ -98,8 +105,6 @@ class SingleProfileTests(TestCase):
         self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*field.pixel_size/0.1)
         # right dpmm
         self.assertEqual(p.dpmm, 10)
-
-
 
 
 class MultiProfileTestMixin:

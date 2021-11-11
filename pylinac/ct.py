@@ -18,6 +18,7 @@ import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from os import path as osp
+from pathlib import Path
 from typing import Optional, Union, Dict, Tuple, Sequence, List, BinaryIO, Type
 
 import argue
@@ -35,7 +36,7 @@ from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, SingleProfile, Interpolation
 from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI, Contrast
-from .core.utilities import ResultBase
+from .core.utilities import ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
 
 AIR = -1000
@@ -873,11 +874,11 @@ class CatPhanBase:
     localization_radius: Union[int, float] = 59
     was_from_zip: bool = False
 
-    def __init__(self, folderpath: str, check_uid: bool=True):
+    def __init__(self, folderpath: Union[str, Sequence], check_uid: bool = True):
         """
         Parameters
         ----------
-        folderpath : str
+        folderpath : str or list of strings
             String that points to the CBCT image folder location.
         check_uid : bool
             Whether to enforce raising an error if more than one UID is found in the dataset.
@@ -891,8 +892,9 @@ class CatPhanBase:
         """
         self.origin_slice = 0
         self.catphan_roll = 0
-        if not osp.isdir(folderpath):
-            raise NotADirectoryError("Path given was not a Directory/Folder")
+        if isinstance(folderpath, (str, Path)):
+            if not osp.isdir(folderpath):
+                raise NotADirectoryError("Path given was not a Directory/Folder")
         self.dicom_stack = image.DicomImageStack(folderpath, check_uid=check_uid)
         self.localize()
 
@@ -1271,7 +1273,7 @@ class CatPhanBase:
 
     def analyze(self, hu_tolerance: Union[int, float]=40, scaling_tolerance: Union[int, float]=1, thickness_tolerance: Union[int, float]=0.2,
                 low_contrast_tolerance: Union[int, float]=1, cnr_threshold: Union[int, float]=15, zip_after: bool=False,
-                contrast_method: Contrast = Contrast.MICHELSON, visibility_threshold: float = 0.15):
+                contrast_method: Union[Contrast, str] = Contrast.MICHELSON, visibility_threshold: float = 0.15):
         """Single-method full analysis of CBCT DICOM files.
 
         Parameters
@@ -1313,6 +1315,7 @@ class CatPhanBase:
             self.ctp528 = ctp528(self, offset=offset, tolerance=None)
         if self._has_module(CTP515):
             ctp515, offset = self._get_module(CTP515)
+            contrast_method = convert_to_enum(contrast_method, Contrast)
             self.ctp515 = ctp515(self, tolerance=low_contrast_tolerance, cnr_threshold=cnr_threshold,
                                  offset=offset, contrast_method=contrast_method, visibility_threshold=visibility_threshold)
         if zip_after and not self.was_from_zip:
