@@ -113,7 +113,7 @@ class FieldAnalysisTests(TestCase):
         img = io.BytesIO()
         fa.save_analyzed_image(img)
 
-    def test_string_type_works_for_centering_interpolation_etc(self):
+    def test_string_type_works_for_centering_interpolation_normalization_edge(self):
         fa = FieldAnalysis.from_demo_image()
         fa.analyze(interpolation='Linear', centering="Beam center", normalization_method='Beam center', edge_detection_method='FWHM')
         fa2 = FieldAnalysis.from_demo_image()

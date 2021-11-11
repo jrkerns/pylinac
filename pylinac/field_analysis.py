@@ -184,7 +184,7 @@ class Protocol(Enum):
 
 class Centering(Enum):
     """See :ref:`centering`"""
-    MANUAL = 'manual'  #:
+    MANUAL = 'Manual'  #:
     BEAM_CENTER = 'Beam center'  #:
     GEOMETRIC_CENTER = 'Geometric center'  #:
 
@@ -325,8 +325,8 @@ class FieldAnalysis:
                                           edge_smoothing_ratio=edge_smoothing_ratio,
                                           hill_window_ratio=hill_window_ratio)
 
-    def analyze(self, protocol: Enum = Protocol.VARIAN,
-                centering: Centering = Centering.BEAM_CENTER,
+    def analyze(self, protocol: Protocol = Protocol.VARIAN,
+                centering: Union[Centering, str] = Centering.BEAM_CENTER,
                 vert_position: float = 0.5, horiz_position: float = 0.5,
                 vert_width: float = 0, horiz_width: float = 0,
                 in_field_ratio: float = 0.8,
@@ -334,10 +334,10 @@ class FieldAnalysis:
                 invert: bool = False,
                 is_FFF: bool = False,
                 penumbra: Tuple[float, float] = (20, 80),
-                interpolation: Interpolation = Interpolation.LINEAR, interpolation_resolution_mm: float = 0.1,
+                interpolation: Union[Interpolation, str, None] = Interpolation.LINEAR, interpolation_resolution_mm: float = 0.1,
                 ground: bool = True,
-                normalization_method: Normalization = Normalization.BEAM_CENTER,
-                edge_detection_method: Edge = Edge.INFLECTION_DERIVATIVE,
+                normalization_method: Union[Normalization, str] = Normalization.BEAM_CENTER,
+                edge_detection_method: Union[Edge, str] = Edge.INFLECTION_DERIVATIVE,
                 edge_smoothing_ratio: float = 0.003,
                 hill_window_ratio: float = 0.15,
                 **kwargs) -> None:
@@ -430,6 +430,10 @@ class FieldAnalysis:
             warnings.warn("Using FWHM for an FFF beam is not advised. Consider using INFLECTION_DERIVATIVE or INFLECTION_HILL")
         if invert:
             self.image.invert()
+        edge_detection_method = convert_to_enum(edge_detection_method, Edge)
+        interpolation = convert_to_enum(interpolation, Interpolation)
+        normalization_method = convert_to_enum(normalization_method, Normalization)
+        centering = convert_to_enum(centering, Centering)
 
         self._analyze(edge_detection_method, edge_smoothing_ratio, ground, horiz_position, horiz_width, in_field_ratio,
                       interpolation, interpolation_resolution_mm, is_FFF, kwargs, normalization_method, penumbra,

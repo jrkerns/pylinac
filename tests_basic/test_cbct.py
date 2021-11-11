@@ -37,6 +37,7 @@ class TestInstantiation(TestCase, InitTesterMixin, FromDemoImageTesterMixin, Fro
             paths = [io.BytesIO(open(p, 'rb').read()) for p in paths]
             CatPhan504(paths)
 
+
 class TestGeneral(TestCase):
     """Test general things when using cbct module."""
 
@@ -86,6 +87,11 @@ class TestGeneral(TestCase):
 
         # check the additional modules got added
         self.assertAlmostEqual(data.ctp528.start_angle_radians, np.pi, delta=0.02)
+
+    def test_contrast_str(self):
+        # shouldn't raise
+        self.cbct.analyze(contrast_method='Michelson')
+        self.cbct.results_data()
 
 
 class TestCustomPhantom(TestCase):
