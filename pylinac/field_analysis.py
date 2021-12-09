@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from math import floor, ceil
 from pathlib import Path
-from typing import Union, Optional, Tuple, BinaryIO
+from typing import Union, Optional, Tuple, BinaryIO, Sequence, List, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -688,7 +688,7 @@ class FieldAnalysis:
         if open_file:
             open_path(filename)
 
-    def plot_analyzed_image(self, show: bool = True, grid: bool = True):
+    def plot_analyzed_image(self, show: bool = True, grid: bool = True, split_plots: bool = False) -> Tuple[List[plt.Figure], List[str]]:
         """Plot the analyzed image. Shows parameters such as flatness & symmetry.
 
         Parameters
@@ -697,18 +697,34 @@ class FieldAnalysis:
             Whether to show the plot when called.
         grid
             Whether to show a grid on the profile plots
+        split_plots : bool
+            Whether to plot the image and profiles on individual figures. Useful for saving individual plots.
         """
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
         # set up axes
         plt.ioff()
-        if not self._from_device:
-            image_ax = plt.subplot2grid((2, 2), (0, 1))
-            vert_ax = plt.subplot2grid((2, 2), (1, 1))
-            horiz_ax = plt.subplot2grid((2, 2), (0, 0))
+        figs = []
+        names = []
+        if split_plots:
+            if not self._from_device:
+                im_fig, image_ax = plt.subplots(1)
+                figs.append(im_fig)
+                names.append('_image')
+            v_fig, vert_ax = plt.subplots(1)
+            figs.append(v_fig)
+            names.append('_vertical')
+            h_fig, horiz_ax = plt.subplots(1)
+            figs.append(h_fig)
+            names.append('_horizontal')
         else:
-            vert_ax = plt.subplot2grid((1, 2), (0, 1))
-            horiz_ax = plt.subplot2grid((1, 2), (0, 0))
+            if not self._from_device:
+                image_ax = plt.subplot2grid((2, 2), (0, 1))
+                vert_ax = plt.subplot2grid((2, 2), (1, 1))
+                horiz_ax = plt.subplot2grid((2, 2), (0, 0))
+            else:
+                vert_ax = plt.subplot2grid((1, 2), (0, 1))
+                horiz_ax = plt.subplot2grid((1, 2), (0, 0))
 
         # plot image and profile lines
         if not self._from_device:
@@ -730,25 +746,63 @@ class FieldAnalysis:
                 lines.append(line)
                 labels.append(label)
         if not self._from_device:
-            legend_ax = plt.subplot2grid((2, 2), (1, 0))
-            legend_ax.legend(lines, labels, loc="center")
-            legend_ax.axis('off')
-
-            _remove_ticklabels(legend_ax)
-
+            if split_plots:
+                for ax in (vert_ax, horiz_ax):
+                    ax.legend(lines, labels, loc="center")
+                    ax.axis('off')
+                    _remove_ticklabels(ax)
+            else:
+                legend_ax = plt.subplot2grid((2, 2), (1, 0))
+                legend_ax.legend(lines, labels, loc="center")
+                legend_ax.axis('off')
+                _remove_ticklabels(legend_ax)
         else:
             vert_ax.legend(lines, labels, loc='best',)
-        plt.suptitle("Field Profile Analysis")
-        plt.tight_layout()
+        if not split_plots:
+            plt.suptitle("Field Profile Analysis")
+            plt.tight_layout()
+        else:
+            for fig in figs:
+                fig.tight_layout()
         if show:
             plt.show()
+        return figs, names
 
-    def save_analyzed_image(self, filename: Union[str, Path, BinaryIO], grid: bool = True, **kwargs):
-        """Save the analyzed image to disk. Kwargs are passed to plt.savefig()"""
-        self.plot_analyzed_image(show=False, grid=grid)
+    def save_analyzed_image(self, filename: Union[None, str, Path, BinaryIO] = None, split_plots: bool = False, to_streams: bool = False, **kwargs) -> Optional[Union[List[str], Dict[str, BinaryIO]]]:
+        """Save the analyzed image to disk or to stream. Kwargs are passed to plt.savefig()
+
+        Parameters
+        ----------
+        split_plots: bool
+            If split_plots is True, multiple files will be created that append a name. E.g. `my_file.png` will become `my_file_image.png`, `my_file_vertical.png`, etc.
+            If to_streams is False, a list of new filenames will be returned
+        to_streams: bool
+            This only matters if split_plots is True. If both of these are true, multiple streams will be created and returned as a dict.
+        """
+        if filename is None and to_streams is False:
+            raise ValueError("Must pass in a filename unless saving to streams.")
+        figs, names = self.plot_analyzed_image(show=False, split_plots=split_plots, **kwargs)
         if isinstance(filename, Path):
             filename = str(filename)
-        plt.savefig(filename, **kwargs)
+        for key in ('grid', 'show'):
+            kwargs.pop(key, None)
+        if not split_plots:
+            plt.savefig(filename, **kwargs)
+        else:
+            # append names to filename if it's file-like
+            if not to_streams:
+                filenames = []
+                f, ext = osp.splitext(filename)
+                for name in names:
+                    filenames.append(f + name + ext)
+            else:  # it's a stream buffer
+                filenames = [io.BytesIO() for _ in names]
+            for fig, name in zip(figs, filenames):
+                fig.savefig(name, **kwargs)
+            if to_streams:
+                return {name: stream for name, stream in zip(names, filenames)}
+            if split_plots:
+                return filenames
 
     def _plot_image(self, axis: plt.Axes = None, title: str = '') -> None:
         """Plot the image and profile extraction overlay"""

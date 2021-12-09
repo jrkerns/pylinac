@@ -97,6 +97,34 @@ class FieldAnalysisTests(TestCase):
         with self.assertRaises(NotAnalyzed):
             fs.plot_analyzed_image()
 
+    def test_multiple_plots(self):
+        fs = FieldAnalysis.from_demo_image()
+        fs.analyze()
+        figs, names = fs.plot_analyzed_image(split_plots=True)
+        self.assertEqual(len(figs), 3)
+        files = fs.save_analyzed_image(filename='a.png', split_plots=True)
+        names = ('a_image.png', 'a_vertical.png', 'a_horizontal.png')
+        for name in names:
+            self.assertIn(name, files)
+
+        # regular single plot produces one image/file
+        figs, names = fs.plot_analyzed_image()
+        self.assertEqual(len(figs), 0)
+        name = 'b.png'
+        fs.save_analyzed_image('b.png')
+        self.assertTrue(osp.isfile(name))
+
+        # stream buffer shouldn't fail
+        with io.BytesIO() as tmp:
+            fs.save_analyzed_image(tmp)
+
+        # to streams should return streams
+        streams = fs.save_analyzed_image(split_plots=True, to_streams=True)
+        self.assertEqual(len(streams.keys()), 3)
+
+        with self.assertRaises(ValueError):
+            fs.save_analyzed_image()  # no filename and no streams is an error
+
     def test_pdf_gets_generated(self):
         fs = create_instance()
         save_file(fs.publish_pdf)
