@@ -20,9 +20,10 @@ Features:
 """
 import dataclasses
 import io
+import os.path as osp
 import warnings
 from dataclasses import dataclass
-from typing import Optional, List, Tuple, Union, BinaryIO, Callable
+from typing import Optional, List, Tuple, Union, BinaryIO, Callable, Sequence, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -295,18 +296,42 @@ class ImagePhantomBase:
             hc_rois.append(roi)
         return hc_rois
 
-    def save_analyzed_image(self, filename: str, **kwargs):
-        """Save the analyzed image to a file.
+    def save_analyzed_image(self, filename: Union[None, str, BinaryIO] = None, split_plots: bool = False, to_streams: bool = False, **kwargs) -> Optional[Union[Dict[str, BinaryIO], List[str]]]:
+        """Save the analyzed image to disk or to stream. Kwargs are passed to plt.savefig()
 
         Parameters
         ----------
-        filename : str
-            The location and filename to save to.
-        kwargs
-            Keyword arguments are passed to plt.savefig().
+        filename : None, str, stream
+            A string representing where to save the file to. If split_plots and to_streams are both true, leave as None as newly-created streams are returned.
+        split_plots: bool
+            If split_plots is True, multiple files will be created that append a name. E.g. `my_file.png` will become `my_file_image.png`, `my_file_mtf.png`, etc.
+            If to_streams is False, a list of new filenames will be returned
+        to_streams: bool
+            This only matters if split_plots is True. If both of these are true, multiple streams will be created and returned as a dict.
         """
-        self.plot_analyzed_image(show=False, **kwargs)
-        plt.savefig(filename, **kwargs)
+        if filename is None and to_streams is False:
+            raise ValueError("Must pass in a filename unless saving to streams.")
+        figs, names = self.plot_analyzed_image(show=False, split_plots=split_plots, **kwargs)
+        # remove plot keywords as savefig complains about extra kwargs
+        for key in ('image', 'low_contrast', 'high_contrast', 'show',):
+            kwargs.pop(key, None)
+        if not split_plots:
+            plt.savefig(filename, **kwargs)
+        else:
+        # append names to filename if it's file-like
+            if not to_streams:
+                filenames = []
+                f, ext = osp.splitext(filename)
+                for name in names:
+                    filenames.append(f + '_' + name + ext)
+            else:  # it's a stream buffer
+                filenames = [io.BytesIO() for _ in names]
+            for fig, name in zip(figs, filenames):
+                fig.savefig(name, **kwargs)
+            if to_streams:
+                return {name: stream for name, stream in zip(names, filenames)}
+            if split_plots:
+                return filenames
 
     def _get_canny_regions(self) -> List[RegionProperties]:
         """Compute the canny edges of the image and return the connected regions found."""
@@ -342,7 +367,7 @@ class ImagePhantomBase:
         return obj, settings
 
     def plot_analyzed_image(self, image: bool = True, low_contrast: bool = True, high_contrast: bool = True,
-                            show: bool = True):
+                            show: bool = True, split_plots: bool = False) -> Tuple[List[plt.Figure], List[str]]:
         """Plot the analyzed image.
 
         Parameters
@@ -355,6 +380,8 @@ class ImagePhantomBase:
             Show the high contrast values plot.
         show : bool
             Whether to actually show the image when called.
+        split_plots : bool
+            Whether to split the resulting image into individual plots. Useful for saving images into individual files.
         """
         plot_low_contrast = low_contrast and any(self.low_contrast_rois)
         plot_high_contrast = high_contrast and any(self.high_contrast_rois)
@@ -363,8 +390,17 @@ class ImagePhantomBase:
             warnings.warn("Nothing was plotted because either all parameters were false or there were no actual high/low ROIs")
             return
         # set up axes and make axes iterable
-        fig, axes = plt.subplots(1, num_plots)
-        fig.subplots_adjust(wspace=0.4)
+        figs = []
+        names = []
+        if split_plots:
+            axes = []
+            for n in range(num_plots):
+                fig, axis = plt.subplots(1)
+                figs.append(fig)
+                axes.append(axis)
+        else:
+            fig, axes = plt.subplots(1, num_plots)
+            fig.subplots_adjust(wspace=0.4)
         if num_plots < 2:
             axes = (axes,)
         axes = iter(axes)
@@ -372,6 +408,7 @@ class ImagePhantomBase:
         # plot the marked image
         if image:
             img_ax = next(axes)
+            names.append('image')
             self.image.plot(ax=img_ax, show=False)
             img_ax.axis('off')
             img_ax.set_title(f'{self.common_name} Phantom Analysis')
@@ -395,15 +432,18 @@ class ImagePhantomBase:
         # plot the low contrast value graph
         if plot_low_contrast:
             lowcon_ax = next(axes)
+            names.append('low_contrast')
             self._plot_lowcontrast_graph(lowcon_ax)
 
         # plot the high contrast MTF graph
         if plot_high_contrast:
             hicon_ax = next(axes)
+            names.append('high_contrast')
             self._plot_highcontrast_graph(hicon_ax)
 
         if show:
             plt.show()
+        return figs, names
 
     def _plot_lowcontrast_graph(self, axes: plt.Axes):
         """Plot the low contrast ROIs to an axes."""

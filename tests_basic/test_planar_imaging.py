@@ -1,4 +1,5 @@
 import io
+import os.path as osp
 import unittest
 from typing import Callable
 from unittest import TestCase
@@ -52,6 +53,33 @@ class GeneralTests(TestCase):
 
         data_dict = phan.results_data(as_dict=True)
         self.assertEqual(len(data_dict), 8)
+
+    def test_multiple_plots(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        figs, names = phan.plot_analyzed_image(split_plots=True)
+        self.assertEqual(len(figs), 3)
+        files = phan.save_analyzed_image(filename='a.png', split_plots=True)
+        names = ('a_image.png', 'a_low_contrast.png', 'a_high_contrast.png')
+        for name in names:
+            self.assertIn(name, files)
+
+        # regular single plot produces one image/file
+        figs, names = phan.plot_analyzed_image()
+        self.assertEqual(len(figs), 0)
+        name = 'b.png'
+        phan.save_analyzed_image('b.png')
+        self.assertTrue(osp.isfile(name))
+
+        # stream buffer shouldn't fail
+        with io.BytesIO() as tmp:
+            phan.save_analyzed_image(tmp)
+
+        # to streams should return streams
+        streams = phan.save_analyzed_image(split_plots=True, to_streams=True)
+        self.assertEqual(len(streams.keys()), 3)
+        with self.assertRaises(ValueError):
+            phan.save_analyzed_image()  # no filename and no streams is an error
 
 
 class PlanarPhantomMixin(CloudFileMixin):
