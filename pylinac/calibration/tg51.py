@@ -19,12 +19,12 @@ from ..core.utilities import Structure, open_path
 
 MIN_TEMP = 15
 MAX_TEMP = 35
-MIN_PRESSURE = 90
+MIN_PRESSURE = 85
 MAX_PRESSURE = 115
 MIN_PION = 1
 MAX_PION = 1.05
 MIN_PTP = 0.9
-MAX_PTP = 1.1
+MAX_PTP = 1.3
 MIN_PELEC = 0.98
 MAX_PELEC = 1.02
 MIN_PPOL = 0.98
