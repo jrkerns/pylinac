@@ -1,10 +1,9 @@
 """
 The TG-51 module contains a number of helper functions and classes that can calculate parameters for performing the
 TG-51 absolute linac dose calibration although there are some modifications from the original TG-51. The modifications 
-include updated kQ and kecal values from Muir and Rodgers' set of papers.
+include updated kQ and kecal values from Muir and Rogers' set of papers.
 Functions include all relevant calculations for TG-51 including PDDx, kQ,
-Dref, and chamber reading corrections. Where Muir & Rodgers' values/equations are used they are specified in the documentation.
-
+Dref, and chamber reading corrections. Where Muir & Rogers' values/equations are used they are specified in the documentation.
 Classes include photon and electron calibrations using cylindrical chambers. Pass all the relevant raw measurements
 and the class will compute all corrections and corrected readings and dose at 10cm and dmax/dref.
 """
@@ -14,9 +13,22 @@ from typing import Optional
 import argue
 import numpy as np
 
+from ..core.pdf import PylinacCanvas
 from ..core.typing import NumberLike, NumberOrArray
 from ..core.utilities import Structure, open_path
-from ..core.pdf import PylinacCanvas
+
+MIN_TEMP = 15
+MAX_TEMP = 35
+MIN_PRESSURE = 90
+MAX_PRESSURE = 115
+MIN_PION = 1
+MAX_PION = 1.05
+MIN_PTP = 0.9
+MAX_PTP = 1.1
+MIN_PELEC = 0.98
+MAX_PELEC = 1.02
+MIN_PPOL = 0.98
+MAX_PPOL = 1.02
 
 
 KQ_PHOTONS = {
@@ -117,31 +129,31 @@ def tpr2010_from_pdd2010(*, pdd2010: float) -> float:
     return 1.2661*pdd2010 - 0.0595
 
 
-@argue.bounds(temp=(17, 27), message="Temperature {:2.2f} out of range. Did you use Fahrenheit? Consider using the utility function fahrenheit2celsius()")
-@argue.bounds(press=(91,  111), message="Pressure {:2.2f} out of range. Did you use kPa? Consider using the utility functions mmHg2kPa() or mbar2kPa()")
 def p_tp(*, temp: NumberLike, press: NumberLike) -> float:
     """Calculate the temperature & pressure correction.
-
     Parameters
     ----------
     temp : float (17-27)
         The temperature in degrees Celsius.
     press : float (91-111)
-        The value of pressure in kPa. Can be converted from mmHg and mbar; see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
+        The value of pressure in kPa. Can be converted from mmHg and mbar;
+        see :func:`~pylinac.calibration.tg51.mmHg2kPa` and :func:`~pylinac.calibration.tg51.mbar2kPa`.
     """
-    return ((273.2+temp)/295.2)*(101.33/press)
+    argue.verify_bounds(temp, bounds=(MIN_TEMP, MAX_TEMP),
+                        message="Temperature {:2.2f} out of range. Did you use Fahrenheit? Consider using the utility function fahrenheit2celsius()")
+    argue.verify_bounds(press, bounds=(MIN_PRESSURE, MAX_PRESSURE),
+                        message="Pressure {:2.2f} out of range. Did you use kPa? Consider using the utility functions mmHg2kPa() or mbar2kPa()")
+    return ((273.2 + temp) / 295.2)*(101.33/press)
 
 
 def p_pol(*, m_reference: NumberOrArray, m_opposite: NumberOrArray) -> float:
     """Calculate the polarity correction.
-
     Parameters
     ----------
     m_reference : number, array
         The readings of the ion chamber at the reference polarity and voltage.
     m_opposite : number, array
         The readings of the ion chamber at the polarity opposite the reference. The sign does not make a difference.
-
     Raises
     ------
     BoundsError if calculated Ppol is >1% from 1.0.
@@ -149,13 +161,12 @@ def p_pol(*, m_reference: NumberOrArray, m_opposite: NumberOrArray) -> float:
     mref_avg = np.mean(m_reference)
     mopp_avg = np.mean(m_opposite)
     polarity = (abs(mref_avg) + abs(mopp_avg))/abs(2*mref_avg)
-    argue.verify_bounds(polarity, bounds=(0.99, 1.01), message="Polarity correction {:2.2f} out of range (+/-2%). Verify inputs")
+    argue.verify_bounds(polarity, bounds=(MIN_PPOL, MAX_PPOL), message="Polarity correction {:2.2f} out of range (+/-2%). Verify inputs")
     return float(polarity)
 
 
 def p_ion(*, voltage_reference: int, voltage_reduced: int, m_reference: NumberOrArray, m_reduced: NumberOrArray) -> float:
     """Calculate the ion chamber collection correction.
-
     Parameters
     ----------
     voltage_reference : int
@@ -166,38 +177,35 @@ def p_ion(*, voltage_reference: int, voltage_reduced: int, m_reference: NumberOr
         The readings of the ion chamber at the "high" voltage.
     m_reduced : float, iterable
         The readings of the ion chamber at the "low" voltage.
-
     Raises
     ------
     BoundsError if calculated Pion is outside the range 1.00-1.05.
     """
     ion = (1 - voltage_reference / voltage_reduced) / (np.mean(m_reference) / np.mean(m_reduced) - voltage_reference / voltage_reduced)
-    argue.verify_bounds(ion, bounds=(1, 1.05), message="Pion out of range (1.00-1.05). Check inputs or chamber")
+    argue.verify_bounds(ion, bounds=(MIN_PION, MAX_PION), message="Pion out of range (1.00-1.05). Check inputs or chamber")
     return float(ion)
 
 
-@argue.bounds(i_50=argue.POSITIVE, message="i50 should be positive")
 def d_ref(*, i_50: float) -> float:
     """Calculate the dref of an electron beam based on the I50 depth.
-
     Parameters
     ----------
     i_50 : float
         The value of I50 in cm.
     """
+    argue.verify_bounds(i_50, bounds=argue.POSITIVE, message="i50 should be positive")
     r50 = r_50(i_50=i_50)
     return 0.6*r50-0.1
 
 
-@argue.bounds(i_50=argue.POSITIVE, message="i50 should be positive")
 def r_50(*, i_50: float) -> float:
     """Calculate the R50 depth of an electron beam based on the I50 depth.
-
     Parameters
     ----------
     i_50 : float
         The value of I50 in cm.
     """
+    argue.verify_bounds(i_50, bounds=argue.POSITIVE, message="i50 should be positive")
     if i_50 < 10:
         r50 = 1.029 * i_50 - 0.06
     else:
@@ -205,21 +213,19 @@ def r_50(*, i_50: float) -> float:
     return r50
 
 
-@argue.bounds(r_50=(2, 9))
 def kp_r50(*, r_50: float) -> float:
     """Calculate k'R50 for Farmer-like chambers.
-
     Parameters
     ----------
     r_50 : float (2-9)
         The R50 value in cm.
     """
+    argue.verify_bounds(r_50, bounds=(2, 9))
     return 0.9905+0.071*np.exp(-r_50/3.67)
 
 
 def pq_gr(*, m_dref_plus: NumberOrArray, m_dref: NumberOrArray) -> float:
     """Calculate PQ_gradient for a cylindrical chamber.
-
     Parameters
     ----------
     m_dref_plus : float, iterable
@@ -230,10 +236,8 @@ def pq_gr(*, m_dref_plus: NumberOrArray, m_dref: NumberOrArray) -> float:
     return float(np.mean(m_dref_plus) / np.mean(m_dref))
 
 
-@argue.bounds(p_ion=(1, 1.05), p_tp=(0.92, 1.08), p_elec=(0.98, 1.02), p_pol=(0.98, 1.02))
 def m_corrected(*, p_ion: float, p_tp: float, p_elec: float, p_pol: float, m_reference: NumberOrArray) -> float:
     """Calculate M_corrected, the ion chamber reading with all corrections applied.
-
     Parameters
     ----------
     p_ion : float (1.00-1.05)
@@ -246,11 +250,14 @@ def m_corrected(*, p_ion: float, p_tp: float, p_elec: float, p_pol: float, m_ref
         The polarity correction.
     m_reference : float, iterable
         The raw ion chamber reading(s).
-
     Returns
     -------
     float
     """
+    argue.verify_bounds(p_ion, bounds=(MIN_PION, MAX_PION))
+    argue.verify_bounds(p_tp, bounds=(MIN_PTP, MAX_PTP))
+    argue.verify_bounds(p_elec, bounds=(MIN_PELEC, MAX_PELEC))
+    argue.verify_bounds(p_pol, bounds=(MIN_PPOL, MAX_PPOL))
     return float(p_ion*p_tp*p_elec*p_pol*np.mean(m_reference))
 
 
@@ -258,7 +265,6 @@ def m_corrected(*, p_ion: float, p_tp: float, p_elec: float, p_pol: float, m_ref
 @argue.options(lead_foil=LEAD_OPTIONS.values())
 def pddx(*, pdd: float, energy: int, lead_foil: Optional[str]=None) -> float:
     """Calculate PDDx based on the PDD.
-
     Parameters
     ----------
     pdd : {>62.7, <89.0}
@@ -294,17 +300,14 @@ def pddx(*, pdd: float, energy: int, lead_foil: Optional[str]=None) -> float:
 def kq_photon_pddx(*, chamber: str, pddx: float) -> float:
     """Calculate kQ based on the chamber and clinical measurements of PDD(10)x. This will calculate kQ for photons
     for *CYLINDRICAL* chambers only.
-
     Parameters
     ----------
     chamber : str
         The chamber of the chamber. Valid values are those listed in
-        Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
+        Table III of Muir and Rogers and Table I of the TG-51 Addendum.
     pddx : {>63.0, <86.0}
         The **PHOTON-ONLY** PDD measurement at 10cm depth for a 10x10cm2 field.
-
         .. note:: Use the :func:`~pylinac.calibration.tg51.pddx` function to convert PDD to PDDx as needed.
-
         .. note:: Muir and Rogers state limits of 0.627 - 0.861. The TG-51 addendum states them as 0.63 and 0.86.
                   The TG-51 addendum limits are used here.
     """
@@ -317,15 +320,13 @@ def kq_photon_pddx(*, chamber: str, pddx: float) -> float:
 def kq_photon_tpr(*, chamber: str, tpr: float) -> float:
     """Calculate kQ based on the chamber and clinical measurements of TPR20,10. This will calculate kQ for photons
     for *CYLINDRICAL* chambers only.
-
     Parameters
     ----------
     chamber : str
         The chamber of the chamber. Valid values are those listed in
-        Table III of Muir and Rodgers and Table I of the TG-51 Addendum.
+        Table III of Muir and Rogers and Table I of the TG-51 Addendum.
     tpr : {>0.630, <0.860}
         The TPR(20,10) value.
-
         .. note::
          Use the :func:`~pylinac.calibration.tg51.tpr2010_from_pdd2010` function to convert from PDD without needing to take TPR measurements.
     """
@@ -336,13 +337,12 @@ def kq_photon_tpr(*, chamber: str, tpr: float) -> float:
 @argue.options(chamber=KQ_ELECTRONS.keys())
 def kq_electron(*, chamber: str, r_50: float) -> float:
     """Calculate kQ based on the chamber and clinical measurements. This will calculate kQ for electrons
-    for *CYLINDRICAL* chambers only according to Muir & Rodgers.
-
+    for *CYLINDRICAL* chambers only according to Muir & Rogers.
     Parameters
     ----------
     chamber : str
         The chamber of the chamber. Valid values are those listed in
-        Tables VI and VII of Muir and Rodgers 2014.
+        Tables VI and VII of Muir and Rogers 2014.
     r_50 : float
         The R50 value in cm of an electron beam.
     """
@@ -390,7 +390,6 @@ class TG51Base(Structure):
 
 class TG51Photon(TG51Base):
     """Class for calculating absolute dose to water using a cylindrical chamber in a photon beam.
-
     Parameters
     ----------
     institution : str
@@ -503,7 +502,6 @@ class TG51Photon(TG51Base):
     def publish_pdf(self, filename: str, notes: Optional[list]=None, open_file: bool=False,
                     metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
-
         Parameters
         ----------
         filename : str, file-like object
@@ -583,7 +581,6 @@ class TG51Photon(TG51Base):
 
 class TG51ElectronLegacy(TG51Base):
     """Class for calculating absolute dose to water using a cylindrical chamber in an electron beam.
-
     Parameters
     ----------
     institution : str
@@ -703,7 +700,6 @@ class TG51ElectronLegacy(TG51Base):
     def publish_pdf(self, filename: str, notes: Optional[list]=None, open_file: bool=False,
                     metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
-
         Parameters
         ----------
         filename : str, file-like object
@@ -786,13 +782,11 @@ class TG51ElectronLegacy(TG51Base):
 
 class TG51ElectronModern(TG51Base):
     """Class for calculating absolute dose to water using a cylindrical chamber in an electron beam.
-
     .. warning::
-        This class uses the values of Muir & Rodgers. These values are likely to be included in the new TG-51
+        This class uses the values of Muir & Rogers. These values are likely to be included in the new TG-51
         addendum, but are not official. The results can be up to 1% different. Physicists should use their own
         judgement when deciding which class to use. To use a manual kecal value, Pgradient and the classic TG-51 equations use
         the :class:`~pylinac.calibration.tg51.TG51ElectronLegacy` class.
-
     Parameters
     ----------
     institution : str
@@ -879,7 +873,7 @@ class TG51ElectronModern(TG51Base):
 
     @property
     def kq(self) -> float:
-        """The kQ value using the updated Muir & Rodgers values from their 2014 paper, equation 11, or classically
+        """The kQ value using the updated Muir & Rogers values from their 2014 paper, equation 11, or classically
         if kecal is passed."""
         return kq_electron(chamber=self.chamber, r_50=self.r_50)
 
@@ -906,7 +900,6 @@ class TG51ElectronModern(TG51Base):
     def publish_pdf(self, filename: str, notes: Optional[list]=None, open_file: bool=False,
                     metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis and quantitative results.
-
         Parameters
         ----------
         filename : str, file-like object
