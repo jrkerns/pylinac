@@ -3,6 +3,28 @@
 Changelog
 =========
 
+v 3.1.0
+-------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Analysis can now be done on kV images where the blades are open. I.e. for testing the kV imaging vs EPID. See next point.
+
+  .. note::
+        This will not test things like gantry/coll/couch iso size. With kV open blades we only have 2 pieces of
+        data: the BB and EPID. The error of the kVs and kVD are intertwined in this scenario.
+* A new parameter ``find_field`` has been added to ``analyze``. This will omit the field-finding part of the algorithm.
+  Useful for kV WL sets.
+
+Picket Fence
+^^^^^^^^^^^^
+
+* Individual leaf errors (on each side of the picket) can now be analyzed. A slew of new parameters were introduced to
+  add this and related information needed to compute this. For backwards-compatibility this is set to False. See the
+  picket fence documentation <insert ref to section> and analyze parameter descriptions <ref to analyze>
+* Algorithm benchmarking has been added to the PF docs.
+
 v 3.0.0
 -------
 
