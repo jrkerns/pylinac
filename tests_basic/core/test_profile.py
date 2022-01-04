@@ -86,23 +86,23 @@ class SingleProfileTests(TestCase):
 
         # linear interp
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR, interpolation_factor=10)
-        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10)
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10-10)
 
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
                           dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
         # right length
-        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*field.pixel_size/0.1)
+        self.assertEqual(len(p.values), 2996)
         # right dpmm
         self.assertEqual(p.dpmm, 10)
 
         # spline interp
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.SPLINE, interpolation_factor=10)
-        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10)
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10-10)
 
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.SPLINE,
                           dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
         # right length
-        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*field.pixel_size/0.1)
+        self.assertEqual(len(p.values), 2996)
         # right dpmm
         self.assertEqual(p.dpmm, 10)
 

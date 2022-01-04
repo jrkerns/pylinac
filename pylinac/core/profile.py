@@ -240,20 +240,20 @@ class SingleProfile(ProfileMixin):
             return values, dpmm, x_indices  # do nothing
         elif interp_method == Interpolation.LINEAR:
             if dpmm is not None:
-                samples = int(round(len(x_indices)/(dpmm*interpolation_resolution)))
+                samples = int(round((len(x_indices)-1)/(dpmm*interpolation_resolution)))
                 new_dpmm = 1/interpolation_resolution
             else:
-                samples = int(round(len(x_indices)*interpolation_factor))
+                samples = int(round((len(x_indices)-1)*interpolation_factor))
                 new_dpmm = None
-            f = interp1d(x_indices, values, kind='linear', bounds_error=False)
+            f = interp1d(x_indices, values, kind='linear', bounds_error=True)
             new_x = np.linspace(0, len(x_indices)-1, num=samples)
             return f(new_x), new_dpmm, new_x
         elif interp_method == Interpolation.SPLINE:
             if dpmm is not None:
-                samples = int(round(len(x_indices)/(dpmm*interpolation_resolution)))
+                samples = int(round((len(x_indices)-1)/(dpmm*interpolation_resolution)))
                 new_dpmm = 1 / interpolation_resolution
             else:
-                samples = int(round(len(x_indices)*interpolation_factor))
+                samples = int(round((len(x_indices)-1)*interpolation_factor))
                 new_dpmm = None
             f = interp1d(x_indices, values, kind='cubic')
             new_x = np.linspace(0, len(x_indices)-1, num=samples)
@@ -330,7 +330,8 @@ class SingleProfile(ProfileMixin):
                 'right index (rounded)': int(round(right_idx)),
                 'right value (@rounded)': self.values[int(round(right_idx))],
                 'field values': self.values[int(round(left_idx)):
-                                            int(round(right_idx))]}
+                                            int(round(right_idx))],
+                'peak_props': peak_props}
         if self.dpmm:
             data['width (exact) mm'] = data['width (exact)'] / self.dpmm
             data['left distance (exact) mm'] = abs(data['center index (exact)'] - data['left index (exact)']) / self.dpmm
