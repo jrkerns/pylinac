@@ -131,17 +131,17 @@ class PerfectFieldLayer(Layer):
         self, image: np.ndarray, pixel_size: float, mag_factor: float
     ) -> Tuple[np.ndarray, ...]:
         field_size_pix = [
-            even_round(f * mag_factor / pixel_size) for f in self.field_size_mm
+            even_round(f * mag_factor**2 / pixel_size) for f in self.field_size_mm
         ]
         cax_offset_mm_mag = [v * mag_factor for v in self.cax_offset_mm]
         field_start = [
-            x / pixel_size + (shape / 2) - field_size / 2
+            round(x / pixel_size + (shape / 2) - field_size / 2)
             for x, shape, field_size in zip(
                 cax_offset_mm_mag, image.shape, field_size_pix
             )
         ]
         field_end = [
-            x / pixel_size + (shape / 2) + field_size / 2 - 1
+            round(x / pixel_size + (shape / 2) + field_size / 2 - 1)
             for x, shape, field_size in zip(
                 cax_offset_mm_mag, image.shape, field_size_pix
             )

@@ -18,18 +18,18 @@ formed by one MLC pair at one picket. Thus, one picket fence image may have anyw
 formed by as few as 10 MLC pairs up to all 60 pairs.
 
 Pylinac presents the analyzed image in such a way that allows for quick assessment; additionally, all elements atop
-the image can optionally be turned off. Pylinac by default will plot the image, the determined MLC positions, two
-"guard rails", and a semi-transparent overlay over the entire MLC pair region. The guard rails are two lines parallel
-to the fitted picket, offset by the tolerance passed to :func:`~pylinac.picketfence.PicketFence.analyze`. Thus, if a tolerance of 0.5 mm is passed, each
+the image can optionally be turned off. Pylinac by default will plot the image, the determined MLC positions,
+"guard rails", and a semi-transparent overlay of the MLC error magnitude and translucent boxes over failed leaves. The guard rails are two lines parallel
+to the fitted picket or side of the picket, offset by the tolerance passed to :func:`~pylinac.picketfence.PicketFence.analyze`. Thus, if a tolerance of 0.5 mm is passed, each
 guard rail is 0.5 mm to the left and right of the invisible picket. Ideally, MLC positions will all be within these guard rails,
-i.e. within tolerance, and will be colored blue. If they are outside the tolerance they are turned red.
+i.e. within tolerance, and will be colored blue. If they are outside the tolerance they are turned red with a larger box overlaid for easy identification.
 If an "action tolerance" is also passed to :func:`~pylinac.picketfence.PicketFence.analyze`, MLC positions that are below tolerance but above the action
 tolerance are turned magenta.
 
 Additionally, pylinac provides a semi-transparent colored overlay so that an "all clear"
 or a "pair(s) failed" status is easily seen and not inadvertently overlooked. If any MLC position is outside the action
-tolerance or the absolute tolerance, the entire MLC pair area is colored the corresponding color. In this way, not
-every position needs be looked at. If all rows are green, then all positions passed.
+tolerance or the absolute tolerance, the MLC pair/leaf area is colored the corresponding color. In this way, not
+every position needs be looked at.
 
 Running the Demo
 ----------------
@@ -156,6 +156,52 @@ The minimum needed to get going is to:
 
       pf.publish_pdf('mypf.pdf')
 
+Analyzing individual leaves
+---------------------------
+
+Historically, MLC pairs were evaluated together; i.e. the center of the picket was determined and compared to the idealized picket.
+In v3.0+, an option to analyze each leaf of the MLC kiss was added. This will create 2 pickets per gap, one on either side and compare
+the measurements of each leaf. For backwards compatibility, this option is opt-in. This option also requires a nominal gap value
+to be passed. To analyze individual leaves:
+
+.. code-block:: python
+
+    from pylinac import PicketFence
+    pf = PicketFence(...)
+    pf.analyze(..., separate_leaves=True, nominal_gap_mm=2)
+    ...
+
+The gap value is the combined values of the planned gap, MLC DLG, and EPID scatter effects. This is required since the expected position is no longer at the center of the MLC kiss, but
+offset to the side and depends on the above effects. You will likely have to determine this for yourself given the
+different MLCs and EPID combinations make a dynamic computation difficult.
+
+Plotting a histogram
+--------------------
+
+As of v3.0, you may plot a histogram of the error data like so:
+
+
+.. plot::
+  :include-source: true
+
+  from pylinac import PicketFence
+  pf = PicketFence.from_demo_image()
+  pf.analyze()
+  pf.plot_histogram()
+
+Plotting a leaf profile
+-----------------------
+
+As of v3.0, you may plot an individual leaf profile like so:
+
+.. plot::
+  :include-source: true
+
+  from pylinac import PicketFence
+  pf = PicketFence.from_demo_image()
+  pf.analyze()
+  pf.plot_leaf_profile(leaf=15, picket=2)
+
 Using a Machine Log
 -------------------
 
@@ -233,10 +279,9 @@ The following are general tips on getting good images that pylinac will analyze 
 in addition to the algorithm allowances and restrictions:
 
 * Keep your pickets away from the edges. That is, in the direction parallel to leaf motion keep the pickets at least 1-2cm from the edge.
-* If you use wide-gap pickets, try to make the spacing between pickets wider than the picket gaps. E.g. 1cm picket widths should use 2cm or more spacing between pickets.
-  This is due to the automatic inversion of the images.
-* If you use Y-jaws, leave them open 1-2 leaves more than the leaves you want to measure. For example. if you're just analyze the "central"
-  leaves and set Y-jaws to something like +/-20cm, the leaves at the edge may not be caught by the algorithm
+* If you use wide-gap pickets, give a reasonable amount of space between the pickets. I.e. don't have <10mm between pickets.
+* If you use Y-jaws, leave them open 1-2 leaves more than the leaves you want to measure. For example. if you just want to analyze the "central"
+  leaves and set Y-jaws to +/-10cm, the leaves at the edge may not be caught by the algorithm
   (although see the ``edge_threshold`` parameter of ``analyze``). To avoid having to tweak the algorithm, just open the jaws a bit more.
 * Don't put anything else in the beam path. This might sound obvious, but I'm continually surprised at the types of images people try to use/take.
   No, pylinac cannot account for the MV phantom you left on the couch when you took your PF image.
@@ -301,6 +346,283 @@ edge leaves:
 This results with the edge leaves now being caught in this case. You may need to experiment with this number a few times:
 
 .. image:: images/pf_now_catching_edges.png
+
+Benchmarking the algorithm
+--------------------------
+
+With the image generator module we can create test images to test the picket fence algorithm on known results. This is useful to isolate what is or isn't working
+if the algorithm doesn't work on a given image and when commissioning pylinac.
+
+.. note::
+
+    Some results here are not perfect. This is because the image generator module cannot necessarily generate pickets of exactly a given gap.
+    The pickets are simulated by setting the pixel values. A gap is rounded to the closest pixel equivalent of the desired gap size; this may not be perfectly symmetric.
+    This affects the error when doing separate leaf analysis and also when evaluating the distance from the CAX.
+    Further, many of these have small amounts of random noise applied on purpose.
+
+Perfect Up-Down Image
+^^^^^^^^^^^^^^^^^^^^^
+
+Below, we generate a DICOM image with slits representing pickets. Several realistic side-effects are not here (such as tongue and groove),
+but this is perfect for testing. Think of this as the equivalent of measuring a 10x10cm field on the linac vs TPS dose before moving on to VMAT plans.
+
+The script will generate the file, but you can also download it here: :download:`perfect_up_down.dcm <files/perfect_up_down.dcm>`.
+
+.. plot::
+   :include-source: true
+
+    import pylinac
+    from pylinac.core.image_generator import generate_picketfence, GaussianFilterLayer, PerfectFieldLayer, RandomNoiseLayer, AS1200Image
+    from pylinac.picketfence import Orientation
+
+    # the file name to write the DICOM image to disk to
+    pf_file = "perfect_.dcm"
+    # create a PF image with 5 pickets with 40mm spacing between them and 3mm gap. Also applies a gaussian filter to simulate the leaf edges.
+    generate_picketfence(
+        simulator=AS1200Image(sid=1000),
+        field_layer=PerfectFieldLayer,
+        file_out=pf_file,
+        final_layers=[
+            GaussianFilterLayer(sigma_mm=1),
+        ],
+        pickets=5,
+        picket_spacing_mm=40,
+        picket_width_mm=3,
+        orientation=Orientation.UP_DOWN,
+    )
+    # load it just like any other
+    pf = pylinac.PicketFence(pf_file)
+    pf.analyze(separate_leaves=False, nominal_gap_mm=4)
+    print(pf.results_data())
+    pf.plot_analyzed_image()
+
+As you can see, the error is zero, the pickets are perfectly straight up and down, and everything looks good.
+
+Perfect Left-Right
+^^^^^^^^^^^^^^^^^^
+
+Generated file: :download:`perfect_left_right.dcm <files/perfect_left_right.dcm>`.
+
+.. plot::
+   :include-source: true
+
+    import pylinac
+    from pylinac.core.image_generator import generate_picketfence, GaussianFilterLayer, PerfectFieldLayer, RandomNoiseLayer, AS1200Image
+    from pylinac.picketfence import Orientation
+
+    pf_file = "perfect_left_right.dcm"
+    generate_picketfence(
+        simulator=AS1200Image(sid=1000),
+        field_layer=PerfectFieldLayer,
+        file_out=pf_file,
+        final_layers=[
+            GaussianFilterLayer(sigma_mm=1),
+        ],
+        pickets=5,
+        picket_spacing_mm=40,
+        picket_width_mm=3,
+        orientation=Orientation.LEFT_RIGHT,
+    )
+
+    pf = pylinac.PicketFence(pf_file)
+    pf.analyze(separate_leaves=False, nominal_gap_mm=4)
+    print(pf.results_data())
+    pf.plot_analyzed_image()
+
+Noisy, Wide-gap Image
+^^^^^^^^^^^^^^^^^^^^^
+
+Generated file: :download:`noisy_wide_gap_up_down.dcm <files/noisy_wide_gap_up_down.dcm>`.
+
+.. plot::
+   :include-source: true
+
+    import pylinac
+    from pylinac.core.image_generator import generate_picketfence, GaussianFilterLayer, PerfectFieldLayer, RandomNoiseLayer, AS1200Image
+    from pylinac.picketfence import Orientation
+
+    pf_file = "noisy_wide_gap_up_down.dcm"
+    generate_picketfence(
+        simulator=AS1200Image(sid=1500),
+        field_layer=PerfectFieldLayer,  # this applies a non-uniform intensity about the CAX, simulating the horn effect
+        file_out=pf_file,
+        final_layers=[
+            GaussianFilterLayer(sigma_mm=1),
+            RandomNoiseLayer(sigma=0.03)  # add salt & pepper noise
+        ],
+        pickets=10,
+        picket_spacing_mm=20,
+        picket_width_mm=10,  # wide-ish gap
+        orientation=Orientation.UP_DOWN,
+    )
+
+    pf = pylinac.PicketFence(pf_file)
+    pf.analyze()
+    print(pf.results_data())
+    pf.plot_analyzed_image()
+
+Individual Leaf Analysis
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Let's now analyze individual leaves using the ``separate_leaves`` parameter. This uses the same image base as
+above; note that the analysis is different.
+
+Generated file: :download:`separated_wide_gap_up_down.dcm <files/separated_wide_gap_up_down.dcm>`.
+
+.. plot::
+    :include-source: true
+
+    import pylinac
+    from pylinac.core.image_generator import generate_picketfence, GaussianFilterLayer, PerfectFieldLayer, RandomNoiseLayer, AS1200Image
+    from pylinac.picketfence import Orientation
+
+    pf_file = "separated_wide_gap_up_down.dcm"
+    generate_picketfence(
+        simulator=AS1200Image(sid=1500),
+        field_layer=PerfectFieldLayer,  # this applies a non-uniform intensity about the CAX, simulating the horn effect
+        file_out=pf_file,
+        final_layers=[
+            GaussianFilterLayer(sigma_mm=1),
+            RandomNoiseLayer(sigma=0.03)  # add salt & pepper noise
+        ],
+        pickets=10,
+        picket_spacing_mm=20,
+        picket_width_mm=10,  # wide-ish gap
+        orientation=Orientation.UP_DOWN,
+    )
+
+    pf = pylinac.PicketFence(pf_file)
+    pf.analyze(separate_leaves=True, nominal_gap_mm=10)
+    print(pf.results())
+    print(pf.results_data())
+    pf.plot_analyzed_image()
+
+Note that this image has an error of ~0.1mm. This is due to the rounding of pixel values when generating the picket.
+I.e. it's not always possible to generate an exactly 10mm gap, but instead is rounded to the nearest pixel equivalent of 10mm.
+
+Rotated
+^^^^^^^
+
+Let's analyze a slightly rotated image of 2 degrees. Recall that pylinac is limited to ~5 degrees of rotation (depending on picket size).
+
+The image generator doesn't do the rotation, but is applied later after loading.
+
+Generated file: :download:`rotated_up_down.dcm <files/rotated_up_down.dcm>`.
+
+.. plot::
+    :include-source: true
+
+    import pylinac
+    from pylinac.core.image_generator import generate_picketfence, GaussianFilterLayer, PerfectFieldLayer, RandomNoiseLayer, AS1200Image
+    from pylinac.picketfence import Orientation
+
+    pf_file = "rotated_up_down.dcm"
+    generate_picketfence(
+        simulator=AS1200Image(sid=1500),
+        field_layer=PerfectFieldLayer,  # this applies a non-uniform intensity about the CAX, simulating the horn effect
+        file_out=pf_file,
+        final_layers=[
+            GaussianFilterLayer(sigma_mm=1),
+            RandomNoiseLayer(sigma=0.01)  # add salt & pepper noise
+        ],
+        pickets=10,
+        picket_spacing_mm=20,
+        picket_width_mm=5,
+        orientation=Orientation.UP_DOWN,
+    )
+
+    pf = pylinac.PicketFence(pf_file)
+    # here's where we rotate
+    pf.image.array = ndimage.rotate(pf.image, -2, reshape=False, mode='nearest')
+    pf.analyze(separate_leaves=False, nominal_gap_mm=5)
+    print(pf.results())
+    print(pf.results_data())
+    pf.plot_analyzed_image()
+
+Offset pickets
+^^^^^^^^^^^^^^
+
+In this example, we offset the pickets to simulate an error where the picket was delivered at the wrong x-distance.
+Lots of physicists cite this as a possibility (or expect their QA software to catch it) but I've never seen it.
+If you have let me know!
+
+Generated file: :download:`offset_picket.dcm <files/offset_picket.dcm>`.
+
+.. plot::
+   :include-source: true
+
+    import pylinac
+    from pylinac.core.image_generator import generate_picketfence, GaussianFilterLayer, PerfectFieldLayer, RandomNoiseLayer, AS1200Image
+    from pylinac.picketfence import Orientation
+
+    pf_file = "offsetpicket.dcm"
+    generate_picketfence(
+        simulator=AS1200Image(sid=1500),
+        field_layer=PerfectFieldLayer,  # this applies a non-uniform intensity about the CAX, simulating the horn effect
+        file_out=pf_file,
+        final_layers=[
+            GaussianFilterLayer(sigma_mm=1),
+            RandomNoiseLayer(sigma=0.01)  # add salt & pepper noise
+        ],
+        pickets=5,
+        picket_spacing_mm=20,
+        picket_width_mm=5,
+        picket_offset_error=[-5, 0, 0, 2, 0],  # array of errors; length must match the number of pickets
+        orientation=Orientation.UP_DOWN,
+    )
+
+    pf = pylinac.PicketFence(pf_file)
+    pf.analyze()
+    print(pf.results())
+    print(pf.results_data())
+    pf.plot_analyzed_image()
+
+Which produces the following output::
+
+    ...
+    Picket offsets from CAX (mm): 45.0 19.9 0.0 -22.0 -40.1
+    ...
+
+The results still show passing. However, note the printed picket offsets from the CAX. The first picket is off by 5mm
+and the 4th is off by 2mm (as we introduced).
+
+Erroneous leaves
+^^^^^^^^^^^^^^^^
+
+In this example we introduce errors simulating leaves opening farther than they should.
+
+Generated file: :download:`erroneous_leaves.dcm <files/erroneous_leaves.dcm>`.
+
+.. plot::
+    :include-source: true
+
+    import pylinac
+    from pylinac.core.image_generator import generate_picketfence, GaussianFilterLayer, PerfectFieldLayer, RandomNoiseLayer, AS1200Image
+    from pylinac.picketfence import Orientation
+
+    pf_file = "erroneous_leaves.dcm"
+    generate_picketfence(
+            simulator=AS1200Image(sid=1000),
+            field_layer=PerfectFieldLayer,  # this applies a non-uniform intensity about the CAX, simulating the horn effect
+            file_out=pf_file,
+            final_layers=[
+                PerfectFieldLayer(field_size_mm=(5, 10), cax_offset_mm=(2.5, 90)),  # a 10mm gap centered over the picket
+                PerfectFieldLayer(field_size_mm=(5, 5), cax_offset_mm=(12.5, -87.5)),  # a 2.5mm extra opening of one leaf
+                PerfectFieldLayer(field_size_mm=(5, 5), cax_offset_mm=(22.5, -49)),  # a 1mm extra opening of one leaf
+                GaussianFilterLayer(sigma_mm=1),
+                RandomNoiseLayer(sigma=0.03)  # add salt & pepper noise
+            ],
+            pickets=10,
+            picket_spacing_mm=20,
+            picket_width_mm=5,  # wide-ish gap
+            orientation=Orientation.UP_DOWN,
+    )
+
+    pf = pylinac.PicketFence(pf_file)
+    pf.analyze(separate_leaves=True, nominal_gap_mm=5)
+    print(pf.results())
+    print(pf.results_data())
+    pf.plot_analyzed_image()
 
 Algorithm
 ---------
