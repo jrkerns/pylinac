@@ -35,6 +35,12 @@ CBCT
 
 * The catphan module can now accept a list of paths on instantiation. E.g. ``Catphan504([path1, path2, path3, ...])``.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The :meth:`~pylinac.winston_lutz.WinstonLutz.plot_summary` method now allows you to pass a figure size.
+* With the above, :meth:`~pylinac.winston_lutz.WinstonLutz.save_summary` also allows you pass the figure size.
+
 
 v 3.0.0
 -------
