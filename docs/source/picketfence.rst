@@ -281,7 +281,7 @@ The following are general tips on getting good images that pylinac will analyze 
 in addition to the algorithm allowances and restrictions:
 
 * Keep your pickets away from the edges. That is, in the direction parallel to leaf motion keep the pickets at least 1-2cm from the edge.
-* If you use wide-gap pickets, give a reasonable amount of space between the pickets. I.e. don't have <10mm between pickets.
+* If you use wide-gap pickets, give a reasonable amount of space between the pickets and keep the gap wider than the picket. I.e. don't have 5mm spacing between 20mm pickets.
 * If you use Y-jaws, leave them open 1-2 leaves more than the leaves you want to measure. For example. if you just want to analyze the "central"
   leaves and set Y-jaws to +/-10cm, the leaves at the edge may not be caught by the algorithm
   (although see the ``edge_threshold`` parameter of ``analyze``). To avoid having to tweak the algorithm, just open the jaws a bit more.
@@ -514,6 +514,8 @@ Generated file: :download:`rotated_up_down.dcm <files/rotated_up_down.dcm>`.
 .. plot::
     :include-source: true
 
+    from scipy import ndimage
+
     import pylinac
     from pylinac.core.image_generator import generate_picketfence, GaussianFilterLayer, PerfectFieldLayer, RandomNoiseLayer, AS1200Image
     from pylinac.picketfence import Orientation
@@ -681,6 +683,11 @@ Troubleshooting
 First, check the general :ref:`general_troubleshooting` section. Specific to the picket fence
 analysis, there are a few things you can do.
 
+* **Set the image inversion** - If you get an error like this: ``ValueError: max() arg is an empty sequence``,
+  one issue may be that the image has the wrong inversion (negative values are positive, etc). Set the analyze flag ``invert``
+  to ``True`` to invert the image from the automatic detection.
+  Additionally, if you're using wide pickets, the image inversion could be wrong. If the pickets are wider than the "valleys" between the pickets
+  this will almost always result in a wrong inversion.
 * **Crop the edges** - This is far and away the most common problem. Elekta is notorious for having
   noisy/bad edges. Pass a larger value into the constructor:
 
@@ -713,11 +720,6 @@ analysis, there are a few things you can do.
 
 * **Set the number of pickets** - If pylinac is catching too many pickets you can set
   the number of pickets to find with :meth:`~pylinac.picketfence.PicketFence.analyze`.
-* **Set the image inversion** - If you get an error like this: ``ValueError: max() arg is an empty sequence``,
-  one issue may be that the image has the wrong inversion (negative values are positive, etc). Set the analyze flag ``invert``
-  to ``True`` to invert the image from the automatic detection.
-  Additionally, if you're using wide pickets, the image inversion could be wrong. If the pickets are wider than the "valleys" between the pickets
-  this will almost always result in a wrong inversion.
 * **Crop the image** - For Elekta images, the 0th column is often an extreme value. For any Elekta image, it is suggested
   to crop the image. You can crop the image like so:
 

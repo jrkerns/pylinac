@@ -103,6 +103,7 @@ class TestAnalyze(TestCase):
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo([TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm'])
         pf = PicketFence(file_loc)
+        pf.image.invert()
         with self.assertRaises(ValueError):
             pf.analyze(invert=False)
 
@@ -343,7 +344,6 @@ class PFDemo(PFTestMixin, TestCase):
 class WideGapSimulation(PFTestMixin, TestCase):
     file_name = 'noisy-wide-gap-pf.dcm'
     max_error = 0.11
-    invert = True
     abs_median_error = 0.06
     num_pickets = 7
     mean_picket_spacing = 30
@@ -360,7 +360,6 @@ class WideGapSimulationSeparate(WideGapSimulation):
 class FFFWideGapSimulation(PFTestMixin, TestCase):
     file_name = 'noisy-FFF-wide-gap-pf.dcm'
     max_error = 0.17
-    invert = True
     abs_median_error = 0.06
     num_pickets = 7
     mean_picket_spacing = 30
@@ -379,6 +378,7 @@ class ClinacWeirdBackground(PFTestMixin, TestCase):
     abs_median_error = 0.02
     num_pickets = 5
     mean_picket_spacing = 50
+    invert = True
 
 
 class ElektaCloseEdges(PFTestMixin, TestCase):

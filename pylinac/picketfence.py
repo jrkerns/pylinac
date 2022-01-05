@@ -110,7 +110,7 @@ class PFDicomImage(image.LinacDicomImage):
         # self.invert()  # EPID images are always inverted; rather than check inversion, just flip it.
         self._check_for_noise()
         # Possibly revert/change the below if inversion detection doesn't work so well
-        self.check_inversion_by_histogram()
+        self.check_inversion(box_size=10, position=(0.01, 0.01))
 
     def _check_for_noise(self) -> None:
         """Check if the image has extreme noise (dead pixel, etc) by comparing

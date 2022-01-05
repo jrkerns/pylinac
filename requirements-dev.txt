@@ -2,3 +2,4 @@
 pytest-xdist
 google-cloud-storage
 sphinx-autobuild
+twine
