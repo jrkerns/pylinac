@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-__version__ = '3.1.0a'
+__version__ = '3.1.0a1'
 
 
 setup(
