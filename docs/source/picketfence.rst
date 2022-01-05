@@ -1,3 +1,5 @@
+.. _picket-fence:
+
 ============
 Picket Fence
 ============
