@@ -244,6 +244,24 @@ class TestPlottingSaving(TestCase):
         self.assertIsInstance(data_dict, dict)
         self.assertIn('pylinac_version', data_dict)
 
+    def test_plot_histogram(self):
+        self.pf.plot_histogram()
+
+    def test_save_histogram(self):
+        # to disk
+        save_file(self.pf.save_histogram)
+        # to binary stream
+        save_file(self.pf.save_histogram, as_file_object='b')
+
+    def test_plot_leaf_profile(self):
+        self.pf.plot_leaf_profile(20, 3)
+
+    def test_save_leaf_profile(self):
+        # to disk
+        save_file(self.pf.save_leaf_profile, 20, 3)
+        # to binary stream
+        save_file(self.pf.save_leaf_profile, 20, 3, as_file_object='b')
+
 
 class PFTestMixin(CloudFileMixin):
     """Base Mixin for testing a picketfence image."""

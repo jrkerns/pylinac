@@ -17,8 +17,10 @@ import dataclasses
 import enum
 import io
 import os.path as osp
+import textwrap
 import warnings
 from dataclasses import dataclass
+from io import BytesIO
 from itertools import cycle
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -304,7 +306,7 @@ class PicketFence:
         return float(np.mean([abs(sorted_pickets[idx].dist2cax - sorted_pickets[idx + 1].dist2cax) for idx in
                         range(len(sorted_pickets) - 1)]))
 
-    def plot_leaf_profile(self, leaf: Union[str, int], picket: int):
+    def plot_leaf_profile(self, leaf: Union[str, int], picket: int, show: bool = True):
         """Plot the leaf profile of a given leaf pair parallel to leaf motion.
 
         Parameters
@@ -324,7 +326,15 @@ class PicketFence:
             ax.axvline(g_val, color='green', label="Guard rail")
             ax.axvline(rg_val, color='green', label="Guard rail")
         ax.legend()
-        plt.show()
+        if show:
+            plt.show()
+
+    def save_leaf_profile(self, filename: Union[str, Path, BinaryIO], leaf: Union[str, int], picket: int, **kwargs):
+        """Save the leaf profile plot to disk or stream. See plot_leaf_profile for parameter hints. Kwargs are passed to matplotlib.savefig()"""
+        self.plot_leaf_profile(leaf, picket, show=False)
+        plt.savefig(filename, **kwargs)
+        if not isinstance(filename, BytesIO):
+            print(f"Picket fence leaf profile saved to: {osp.abspath(filename)}")
 
     def _load_log(self, log: str) -> None:
         """Load a machine log that corresponds to the picket fence delivery.
@@ -686,7 +696,7 @@ class PicketFence:
             return dataclasses.asdict(data)
         return data
 
-    def publish_pdf(self, filename: Union[str, io.BytesIO], notes: str = None, open_file: bool = False, metadata: dict = None) -> None:
+    def publish_pdf(self, filename: Union[str, io.BytesIO], notes: str = None, open_file: bool = False, metadata: dict = None, bins: int = 10) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -710,7 +720,7 @@ class PicketFence:
         canvas = pdf.PylinacCanvas(filename, page_title="Picket Fence Analysis", metadata=metadata)
         data = io.BytesIO()
         self.save_analyzed_image(data, leaf_error_subplot=True)
-        canvas.add_image(data, location=(3, 8), dimensions=(12, 12))
+        canvas.add_image(data, location=(3, 8), dimensions=(15, 15))
         text = [
             'Picket Fence results:',
             f'Magnification factor (SID/SAD): {self.image.metadata.RTImageSID / self.image.metadata.RadiationMachineSAD:2.2f}',
@@ -719,8 +729,9 @@ class PicketFence:
             f'Absolute median error (mm): {self.abs_median_error:2.3f}',
             f'Mean picket spacing (mm): {self.mean_picket_spacing:2.1f}',
             f'Maximum error (mm): {self.max_error:2.3f} on Picket {self.max_error_picket}, Leaf {self.max_error_leaf}',
-            f"Failing leaves: {self.failed_leaves()}"
         ]
+        if self.failed_leaves():
+            text += textwrap.wrap(f"Failing leaves: {self.failed_leaves()}")
         text.append(f'Gantry Angle: {self.image.gantry_angle:2.2f}')
         text.append(f'Collimator Angle: {self.image.collimator_angle:2.2f}')
         canvas.add_text(text=text, location=(10, 25.5))
@@ -728,6 +739,10 @@ class PicketFence:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 5))
 
+        canvas.add_new_page()
+        hist = io.BytesIO()
+        self.save_histogram(hist, bins)
+        canvas.add_image(hist, location=(3, 8), dimensions=(15, 15))
         canvas.finish()
 
         if open_file:
@@ -749,6 +764,13 @@ class PicketFence:
         ax.hist(errors, bins=bins)
         if show:
             plt.show()
+
+    def save_histogram(self, filename: [str, Path, BinaryIO], bins: int = 10, **kwargs) -> None:
+        """Save a histogram of the leaf errors"""
+        self.plot_histogram(bins, show=False)
+        plt.savefig(filename, **kwargs)
+        if not isinstance(filename, BytesIO):
+            print(f"Picket fence histogram saved to: {osp.abspath(filename)}")
 
     @cached_property
     def orientation(self) -> Orientation:

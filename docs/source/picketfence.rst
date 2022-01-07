@@ -173,9 +173,78 @@ to be passed. To analyze individual leaves:
     pf.analyze(..., separate_leaves=True, nominal_gap_mm=2)
     ...
 
+.. note::
+
+    Don't forget that you will always need to pass a correct ``nominal_gap_mm`` value when analyzing separated leaves.
+    A good starting point is the nominal gap (e.g. 2mm in the DICOM plan) + DLG.
+
 The gap value is the combined values of the planned gap, MLC DLG, and EPID scatter effects. This is required since the expected position is no longer at the center of the MLC kiss, but
 offset to the side and depends on the above effects. You will likely have to determine this for yourself given the
 different MLCs and EPID combinations make a dynamic computation difficult.
+
+Individual leaf detection vs combined
+-------------------------------------
+
+Despite the above, I personally (JK) don't like the individual leaf analysis approach. I have found the combined method
+more robust (in terms of analysis). The biggest problem with individual leaf analysis
+is that the expected leaf width is not just simply the DICOM separation and must be empirically determined.
+I will describe some of the issues the PF test is meant to or can solve w/r/t
+individual analysis vs combined.
+
+* **One leaf error**: When one single leaf has an error. This is the quintessential example for PF.
+
+  .. figure:: images/oneleaferror.png
+    :class: with-shadow
+
+    Combined analysis
+
+  .. figure:: images/oneleafseparate.png
+    :class: with-shadow
+
+    Separate analysis
+
+  Assuming the opposite leaf has no error (see other issues below), the error of a combined analysis is half of the error of the leaf.
+  Over against the argument that it is important to test each leaf, the simple answer is that using a tolerance of
+  half the acceptable error will catch this. I.e. a tolerance of 0.1mm will catch an erroneous leaf up of 0.2mm or more.
+
+* **Both leaves offset (unilateral)**: When both leaves are offset to one side.
+
+  .. figure:: images/offset_leaves_combined.png
+    :class: with-shadow
+
+    Combined analysis
+
+  .. figure:: images/offset_leaves_separate.png
+    :class: with-shadow
+
+    Separate analysis with the same tolerance
+
+  As the images show, both analyses detect the problem. This makes sense given that the error was the same direction for both leaves.
+
+* **Both leaves offset (mirrored)**: When both leaves have an offset error, but in opposite directions.
+  This is the only drawback to the combined method.
+
+  .. figure:: images/mirrored_offset_combined.png
+    :class: with-shadow
+
+    Combined analysis
+
+  .. figure:: images/mirrored_offset_separate.png
+    :class: with-shadow
+
+    Separate analysis
+
+  Clearly, the separate analysis is advantageous here in terms of detecting the error. The chance of MLC
+  leaves being off by the same amount in opposite directions seems extraordinarily rare. The more likely
+  error would be that the picket width for all leaves is too wide or too narrow. Such a scenario would be easily
+  caught with a DLG test.
+
+  To be clear, I'm not against individual leaf analysis, but my anecdotal experience leans toward combined analysis
+  being more robust. Combined with other QA typically performed, I don't think the medical physics community is
+  all out of whack because they use the combined method vs individual analysis. Use what works for you but realize
+  the strengths of each. Finally, remember that physician contours vary a lot, sometimes by a factor or more. This
+  dwarfs any 0.1mm error of the leaf that we might squabble about. For the scenarios you actually need that 0.1mm,
+  such as SRS, the patient plan QA is the most important factor in determining whether a problem exists.
 
 Plotting a histogram
 --------------------
