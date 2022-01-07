@@ -3,6 +3,45 @@
 Changelog
 =========
 
+v 3.1.0
+-------
+
+Picket Fence
+^^^^^^^^^^^^
+
+* Individual leaf errors (on each side of the picket) can now be analyzed. New parameters were introduced to
+  add this and related information needed to compute this. For backwards-compatibility this is set to False. See the
+  :ref:`picket fence documentation <picket-fence>` and :meth:`~pylinac.picketfence.PicketFence.analyze` parameter descriptions,
+  specifically the ``separate_leaves`` and ``nominal_gap_mm`` parameters.
+* Algorithm benchmarking has been added to the PF docs.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* Plots can now be separated. Use ``.plot_analyzed_image(... split_plots=True)``. This will now show multiple matplotlib plots.
+* You may save analyzed images to individual files.
+  I.e. when splitting per above each plot will be saved to a separate file. See :meth:`~pylinac.planar_imaging.LeedsTOR.save_analyzed_image`.
+  This will return the filenames on disk.
+* Finally, you may save split plots to stream using ``to_streams``. This will return a dictionary of the plot name (image, low contrast, ...) and stream.
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* The plotting behavior described above for planar imaging is also true now for field analysis.
+* Passing a string for centering, interpolation, edge and normalization methods is now an option. E.g. ``<field analysis instance>.analyze(..., centering='manual', ...)``.
+
+CBCT
+^^^^
+
+* The catphan module can now accept a list of paths on instantiation. E.g. ``Catphan504([path1, path2, path3, ...])``.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The :meth:`~pylinac.winston_lutz.WinstonLutz.plot_summary` method now allows you to pass a figure size.
+* With the above, :meth:`~pylinac.winston_lutz.WinstonLutz.save_summary` also allows you pass the figure size.
+
+
 v 3.0.0
 -------
 

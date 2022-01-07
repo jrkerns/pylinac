@@ -103,6 +103,7 @@ class TestAnalyze(TestCase):
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo([TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm'])
         pf = PicketFence(file_loc)
+        pf.image.invert()
         with self.assertRaises(ValueError):
             pf.analyze(invert=False)
 
@@ -243,6 +244,24 @@ class TestPlottingSaving(TestCase):
         self.assertIsInstance(data_dict, dict)
         self.assertIn('pylinac_version', data_dict)
 
+    def test_plot_histogram(self):
+        self.pf.plot_histogram()
+
+    def test_save_histogram(self):
+        # to disk
+        save_file(self.pf.save_histogram)
+        # to binary stream
+        save_file(self.pf.save_histogram, as_file_object='b')
+
+    def test_plot_leaf_profile(self):
+        self.pf.plot_leaf_profile(20, 3)
+
+    def test_save_leaf_profile(self):
+        # to disk
+        save_file(self.pf.save_leaf_profile, 20, 3)
+        # to binary stream
+        save_file(self.pf.save_leaf_profile, 20, 3, as_file_object='b')
+
 
 class PFTestMixin(CloudFileMixin):
     """Base Mixin for testing a picketfence image."""
@@ -343,7 +362,6 @@ class PFDemo(PFTestMixin, TestCase):
 class WideGapSimulation(PFTestMixin, TestCase):
     file_name = 'noisy-wide-gap-pf.dcm'
     max_error = 0.11
-    invert = True
     abs_median_error = 0.06
     num_pickets = 7
     mean_picket_spacing = 30
@@ -360,7 +378,6 @@ class WideGapSimulationSeparate(WideGapSimulation):
 class FFFWideGapSimulation(PFTestMixin, TestCase):
     file_name = 'noisy-FFF-wide-gap-pf.dcm'
     max_error = 0.17
-    invert = True
     abs_median_error = 0.06
     num_pickets = 7
     mean_picket_spacing = 30
@@ -379,6 +396,7 @@ class ClinacWeirdBackground(PFTestMixin, TestCase):
     abs_median_error = 0.02
     num_pickets = 5
     mean_picket_spacing = 50
+    invert = True
 
 
 class ElektaCloseEdges(PFTestMixin, TestCase):
