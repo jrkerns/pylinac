@@ -3,6 +3,11 @@
 Changelog
 =========
 
+v 2.5.2
+-------
+
+* The SI QC3 phantom can now be at 150cm distance. Previously, only 100 and 140cm were allowed.
+
 v 2.5.1
 -------
 

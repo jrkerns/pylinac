@@ -590,8 +590,9 @@ class StandardImagingQC3(ImagePhantomBase):
                 continue
             is_at_iso = np.isclose(region.bbox_area, phantom_size_pix, rtol=0.07)
             is_at_140cm = np.isclose(region.bbox_area, phantom_size_pix/(1.4**2), rtol=0.07)
+            is_at_150cm = np.isclose(region.bbox_area, phantom_size_pix / (1.5**2), rtol=0.07)
             centered = np.allclose(region.centroid, img_center, rtol=0.1)
-            if (is_at_iso or is_at_140cm) and centered:
+            if (is_at_iso or is_at_140cm or is_at_150cm) and centered:
                 blobs.append(phantom_idx)
 
         if not blobs:
