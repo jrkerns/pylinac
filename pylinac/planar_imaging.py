@@ -580,17 +580,18 @@ class StandardImagingQC3(ImagePhantomBase):
     def phantom_ski_region(self) -> RegionProperties:
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions()
+        sorted_regions = sorted(regions, key=lambda r: r.bbox_area, reverse=True)
         blobs = []
         phantom_bbox_size_mm2 = 176**2  # phantom is 115 x 134 mm2. At 45degrees that's 176 x 176mm
         fudge_factor = 0.95  # in practice, the detected size is a little bit smaller
         phantom_size_pix = phantom_bbox_size_mm2 * (self.image.dpmm ** 2) * fudge_factor
         img_center = (self.image.center.y, self.image.center.x)
-        for phantom_idx, region in enumerate(regions):
+        for phantom_idx, region in enumerate(sorted_regions):
             if region.bbox_area < 1000:
                 continue
             is_at_iso = np.isclose(region.bbox_area, phantom_size_pix, rtol=0.07)
-            is_at_140cm = np.isclose(region.bbox_area, phantom_size_pix/(1.4**2), rtol=0.07)
-            is_at_150cm = np.isclose(region.bbox_area, phantom_size_pix / (1.5**2), rtol=0.07)
+            is_at_140cm = np.isclose(region.bbox_area, phantom_size_pix/(1.35**2), rtol=0.07)
+            is_at_150cm = np.isclose(region.bbox_area, phantom_size_pix / (1.45**2), rtol=0.07)
             centered = np.allclose(region.centroid, img_center, rtol=0.1)
             if (is_at_iso or is_at_140cm or is_at_150cm) and centered:
                 blobs.append(phantom_idx)
@@ -599,10 +600,10 @@ class StandardImagingQC3(ImagePhantomBase):
             raise ValueError("Unable to find the QC-3 phantom in the image.")
 
         # find the biggest ROI and call that the phantom outline
-        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[-1]
+        big_roi_idx = np.argsort([sorted_regions[phan].major_axis_length for phan in blobs])[-1]
         phantom_idx = blobs[big_roi_idx]
 
-        return regions[phantom_idx]
+        return sorted_regions[phantom_idx]
 
     def _phantom_radius_calc(self) -> float:
         """The radius of the phantom in pixels; the value itself doesn't matter, it's just
