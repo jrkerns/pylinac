@@ -93,6 +93,7 @@ class CTP486Result:
     uniformity_index: float  #:
     integral_non_uniformity: float  #:
     passed: bool  #:
+    rois: Dict[str, ROIResult]  #:
 
 
 @dataclass
@@ -1390,10 +1391,17 @@ class CatPhanBase:
 
         # CTP 486 Uniformity stuff
         if self._has_module(CTP486):
+            ctp486_rois = {name: ROIResult(name=name,
+                                       value=roi.pixel_value,
+                                       difference=roi.value_diff,
+                                       nominal_value=roi.nominal_val,
+                                       passed=roi.passed
+                                       ) for name, roi in self.ctp486.rois.items()}
             data.ctp486 = CTP486Result(
                     passed=self.ctp486.overall_passed,
                     uniformity_index=self.ctp486.uniformity_index,
                     integral_non_uniformity=self.ctp486.integral_non_uniformity,
+                    rois=ctp486_rois,
             )
 
         # CTP 528 stuff
