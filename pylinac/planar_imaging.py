@@ -119,7 +119,7 @@ class ImagePhantomBase:
     detection_canny_settings = {'sigma': 2, 'percentiles': (0.001, 0.01)}
     phantom_bbox_size_mm2: float
 
-    def __init__(self, filepath: Union[str, BinaryIO], normalize: bool = True):
+    def __init__(self, filepath: Union[str, BinaryIO], normalize: bool = True, image_kwargs: Optional[dict] = None):
         """
         Parameters
         ----------
@@ -128,8 +128,11 @@ class ImagePhantomBase:
         normalize: bool
             Whether to "ground" and normalize the image. This can affect contrast measurements, but for
             backwards compatibility this is True. You may want to set this to False if trying to compare with other software.
+        image_kwargs : dict
+            Keywords passed to the image load function; this would include things like DPI or SID if applicable
         """
-        self.image = image.load(filepath)
+        img_kwargs = image_kwargs or {}
+        self.image = image.load(filepath, **img_kwargs)
         if normalize:
             self.image.ground()
             self.image.normalize()

@@ -243,7 +243,7 @@ class FieldAnalysis:
     """Class for analyzing the various parameters of a radiation image, most commonly an open image from a linac.
     """
 
-    def __init__(self, path: Union[str, BinaryIO], filter: Optional[int] = None):
+    def __init__(self, path: Union[str, BinaryIO], filter: Optional[int] = None, image_kwargs: Optional[dict] = None):
         """
 
 
@@ -256,7 +256,8 @@ class FieldAnalysis:
             Default is None for backwards compatibility.
         """
         self._path: str = path
-        self.image: image.ImageLike = image.load(path)  #:
+        img_kwargs = image_kwargs or {}
+        self.image: image.ImageLike = image.load(path, **img_kwargs)  #:
         if filter:
             self.image.filter(size=filter)
         self.vert_profile: SingleProfile  #:

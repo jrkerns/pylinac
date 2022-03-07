@@ -6,6 +6,7 @@ from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
 
+from pylinac.core import image
 from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo, InitTesterMixin, \
     FromURLTesterMixin, FromDemoImageTesterMixin
@@ -71,6 +72,22 @@ class TestInstantiation(TestCase, InitTesterMixin, FromURLTesterMixin, FromDemoI
         pf.analyze()
         pf.results()
         pf.results_data()
+
+    def test_image_kwargs(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'AS500_PF.dcm'])
+
+        # do normal analysis
+        phan = PicketFence(path)
+        phan.analyze()
+        offset = phan.results_data().offsets_from_cax_mm[0]
+
+        # pass kwarg; use same dpi as image; CAX offset should be the same, would be different with different DPI
+        img = image.load(path)
+        phan = PicketFence(path, image_kwargs={'dpi': img.dpi})
+        phan.analyze()
+        offset_manual_dpi = phan.results_data().offsets_from_cax_mm[0]
+
+        self.assertEqual(offset, offset_manual_dpi)
 
 
 class TestAnalyze(TestCase):

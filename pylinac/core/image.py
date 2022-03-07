@@ -795,8 +795,8 @@ class LinacDicomImage(DicomImage):
 
     _use_filenames: bool
 
-    def __init__(self, path: str, use_filenames: bool=False):
-        super().__init__(path)
+    def __init__(self, path: str, use_filenames: bool = False, **kwargs):
+        super().__init__(path, **kwargs)
         self._use_filenames = use_filenames
 
     @property

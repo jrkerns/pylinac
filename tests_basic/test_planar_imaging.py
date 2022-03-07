@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
+from pylinac.core import image
 from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo
 
@@ -80,6 +81,22 @@ class GeneralTests(TestCase):
         self.assertEqual(len(streams.keys()), 3)
         with self.assertRaises(ValueError):
             phan.save_analyzed_image()  # no filename and no streams is an error
+
+    def test_passing_image_kwargs(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'Leeds_ccw.dcm'])
+
+        # do normal analysis
+        phan = LeedsTOR(path)
+        phan.analyze()
+        x = phan.results_data().phantom_center_x_y[0]
+
+        # pass kwarg; use same dpi as image; results should be the same.
+        img = image.load(path)
+        phan = LeedsTOR(path, image_kwargs={'dpi': img.dpi})
+        phan.analyze()
+        x_manual_dpi = phan.results_data().phantom_center_x_y[0]
+
+        self.assertEqual(x, x_manual_dpi)
 
 
 class PlanarPhantomMixin(CloudFileMixin):

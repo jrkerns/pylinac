@@ -6,6 +6,21 @@ Changelog
 v 3.1.0
 -------
 
+General
+^^^^^^^
+
+* For the picket fence, field analysis, and planar imaging modules, image keyword args can now be passed in.
+  This is helpful for images that don't have even basic tags like DPI/DPMM or SID. The keyword args that can be
+  passed are those consumed by :func:`~pylinac.core.image.load`.
+
+  .. code-block:: python
+
+    from pylinac import PicketFence
+    path = ...  # very sad image that has no DICOM tags for DPI or SID
+    pf = PicketFence(path, image_kwargs={'dpi': 184, 'sid': 1500})
+    pf.analyze()
+    ...
+
 Picket Fence
 ^^^^^^^^^^^^
 
