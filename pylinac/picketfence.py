@@ -146,7 +146,7 @@ class PicketFence:
     """
 
     def __init__(self, filename: Union[str, Path, BinaryIO], filter: Optional[int] = None, log: Optional[str] = None,
-                 use_filename: bool = False, mlc: Union[MLC, MLCArrangement, str] = MLC.MILLENNIUM, crop_mm: int = 3):
+                 use_filename: bool = False, mlc: Union[MLC, MLCArrangement, str] = MLC.MILLENNIUM, crop_mm: int = 3, image_kwargs: Optional[dict] = None):
         """
         Parameters
         ----------
@@ -179,7 +179,8 @@ class PicketFence:
         image: PFDicomImage  #:
 
         if filename is not None:
-            self.image = PFDicomImage(filename, use_filenames=use_filename, crop_mm=crop_mm)
+            img_kwargs = image_kwargs or {}
+            self.image = PFDicomImage(filename, use_filenames=use_filename, crop_mm=crop_mm, **img_kwargs)
             if isinstance(filter, int):
                 self.image.filter(size=filter)
             self.image.ground()
@@ -201,10 +202,10 @@ class PicketFence:
             return [member.value['arrangement'] for name, member in MLC.__members__.items() if member.value['name'] == value][0]
 
     @classmethod
-    def from_url(cls, url: str, filter: int = None):
+    def from_url(cls, url: str, filter: int = None, image_kwargs: Optional[dict] = None):
         """Instantiate from a URL."""
         filename = get_url(url, progress_bar=True)
-        return cls(filename, filter=filter)
+        return cls(filename, filter=filter, image_kwargs=image_kwargs)
 
     @classmethod
     def from_demo_image(cls, filter: int = None):

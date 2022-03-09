@@ -4,6 +4,7 @@ import io
 import os.path as osp
 from unittest import TestCase
 
+from pylinac.core import image
 from pylinac.core.exceptions import NotAnalyzed
 from pylinac.core.io import retrieve_demo_file
 from pylinac.core.profile import Edge, Normalization, Interpolation
@@ -153,6 +154,21 @@ class FieldAnalysisTests(TestCase):
         fa = FieldAnalysis.from_demo_image()
         with self.assertRaises(ValueError):
             fa.analyze(interpolation='limmerick')
+
+    def test_image_kwargs(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, '6x-auto-bulb-2.dcm'])
+
+        ref_fa = FieldAnalysis(path)
+        ref_fa.analyze()
+        vert_ref = ref_fa.results_data().field_size_vertical_mm
+
+        # pass kwarg; use same dpi as image; CAX offset should be the same, would be different with different DPI
+        img = image.load(path)
+        fa = FieldAnalysis(path, image_kwargs={'dpi': img.dpi})
+        fa.analyze()
+        vert_manual = fa.results_data().field_size_vertical_mm
+
+        self.assertEqual(vert_ref, vert_manual)
 
 
 class FieldAnalysisBase(CloudFileMixin):
