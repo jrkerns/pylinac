@@ -14,7 +14,7 @@ from pylinac.core.utilities import clear_data_files, assign2machine
 from pylinac.field_analysis import FieldAnalysis, DeviceFieldAnalysis, Protocol, Device, Edge, \
     Interpolation, Normalization, Centering
 from pylinac.planar_imaging import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV, \
-    StandardImagingQCkV, PTWEPIDQC, SNCMV, SNCkV
+    StandardImagingQCkV, PTWEPIDQC, SNCMV, SNCkV, StandardImagingFC2
 from pylinac.log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
 from pylinac.picketfence import PicketFence  # must be after log analyzer
 from pylinac.starshot import Starshot

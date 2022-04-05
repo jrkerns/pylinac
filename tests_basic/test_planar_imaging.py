@@ -6,10 +6,11 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from pylinac.core import image
-from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC
+from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC, StandardImagingFC2
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo
 
 TEST_DIR = 'planar_imaging'
@@ -269,3 +270,102 @@ class PTWEPIDDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         PTWEPIDQC.run_demo()
+
+
+class FC2Mixin(PlanarPhantomMixin):
+    klass = StandardImagingFC2
+    dir_path = ['planar_imaging', 'SI FC2']
+    field_size_x_mm = 150
+    field_size_y_mm = 150
+    field_epid_offset_x_mm = 0
+    field_epid_offset_y_mm = 0
+    field_bb_offset_x_mm = 0
+    field_bb_offset_y_mm = 0
+    fwxm = 50
+
+    @classmethod
+    def setUpClass(cls):
+        if not cls.file_name:
+            cls.instance = cls.klass.from_demo_image()
+        else:
+            cls.instance = cls.klass(cls.get_filename())
+        cls.instance.analyze(invert=cls.invert, fwxm=cls.fwxm)
+
+    def test_plotting(self):
+        self.instance.plot_analyzed_image()
+
+    def test_field_size(self):
+        results_data = self.instance.results_data()
+        assert results_data.field_size_x_mm == pytest.approx(self.field_size_x_mm, abs=0.3)
+        assert results_data.field_size_y_mm == pytest.approx(self.field_size_y_mm, abs=0.3)
+        assert results_data.field_epid_offset_x_mm == pytest.approx(self.field_epid_offset_x_mm, abs=0.2)
+        assert results_data.field_epid_offset_y_mm == pytest.approx(self.field_epid_offset_y_mm, abs=0.2)
+        assert results_data.field_bb_offset_x_mm == pytest.approx(self.field_bb_offset_x_mm, abs=0.2)
+        assert results_data.field_bb_offset_y_mm == pytest.approx(self.field_bb_offset_y_mm, abs=0.2)
+
+
+class FC2Demo(FC2Mixin, TestCase):
+    klass = StandardImagingFC2
+    field_size_x_mm = 148.5
+    field_size_y_mm = 149.1
+    field_epid_offset_x_mm = -0.7
+    field_epid_offset_y_mm = 0.3
+    field_bb_offset_x_mm = -1.2
+    field_bb_offset_y_mm = 1.2
+
+    def test_demo(self):
+        StandardImagingFC2.run_demo()
+
+
+class FC210x10_10FFF(FC2Mixin, TestCase):
+    file_name = 'FC-2-10x10-10fff.dcm'
+    klass = StandardImagingFC2
+    field_size_x_mm = 98.7
+    field_size_y_mm = 99.3
+    field_epid_offset_x_mm = 0.2
+    field_bb_offset_y_mm = 0.8
+
+
+class FC210x10_10X(FC2Mixin, TestCase):
+    file_name = 'FC-2-10x10-10x.dcm'
+    klass = StandardImagingFC2
+    field_size_x_mm = 99.3
+    field_size_y_mm = 99.6
+    field_epid_offset_y_mm = 0.2
+    field_epid_offset_x_mm = -0.5
+    field_bb_offset_y_mm = 1.1
+    field_bb_offset_x_mm = -0.8
+
+
+class FC210x10_15X(FC2Mixin, TestCase):
+    file_name = 'FC-2-10x10-15x.dcm'
+    klass = StandardImagingFC2
+    field_size_x_mm = 99.3
+    field_size_y_mm = 99.6
+    field_epid_offset_y_mm = 0.1
+    field_epid_offset_x_mm = -0.5
+    field_bb_offset_y_mm = 1.1
+    field_bb_offset_x_mm = -0.8
+
+
+class FC215x15_10X(FC2Mixin, TestCase):
+    file_name = 'FC-2-15x15-10X.dcm'
+    klass = StandardImagingFC2
+    field_size_y_mm = 149.2
+    field_size_x_mm = 149.2
+    field_epid_offset_y_mm = 0.1
+    field_epid_offset_x_mm = -0.5
+    field_bb_offset_y_mm = 1.1
+    field_bb_offset_x_mm = -0.8
+
+
+class FC215x15_10FFF(FC2Mixin, TestCase):
+    file_name = 'FC-2-15x15-10XFFF.dcm'
+    fwxm = 30
+    klass = StandardImagingFC2
+    field_size_y_mm = 149.5
+    field_size_x_mm = 149.6
+    field_epid_offset_y_mm = -0.1
+    field_epid_offset_x_mm = 0.2
+    field_bb_offset_y_mm = 0.8
+    field_bb_offset_x_mm = -0.1

@@ -353,7 +353,7 @@ Image Acquisition
 The Doselab phantom has a recommended position as stated on the phantom. Pylinac will however account for
 shifts and inversions. Best practices for the Doselab phantom:
 
-* Keep the phantom from a couch edge or any rails.
+* Keep the phantom away from a couch edge or any rails.
 * Center the phantom along the CAX.
 
 Algorithm
@@ -373,6 +373,77 @@ The algorithm works like such:
 * The phantom must not be touching any image edges.
 * The phantom should be at 45 degrees relative to the EPID.
 * The phantom should be centered near the CAX (<1-2cm).
+
+
+Standard Imaging FC-2
+---------------------
+
+The FC-2 phantom is for testing light/radiation coincidence.
+
+.. note:: A phantom is not actually needed for light/radiation coincidence. Just use your graph paper after doing mechanicals to do an open image. 😉
+
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The FC-2 phantom should be placed on the couch at 100cm SSD.
+
+* Keep the phantom away from a couch edge or any rails.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
+* The phantom should be centered near the CAX (<1cm).
+* The phantom should be +/- 1cm from 100cm SSD.
+
+**Pre-Analysis**
+
+* **Determine BB set to use** -- There are two sets of BBs, one for 10x10cm and another for 15x15cm. To
+  get the maximum accuracy, the larger set is used if a 15x15cm field is irradiated. The field size is
+  determined and if it's >14cm then the algorithm will look for the larger set. Otherwise, it will look for the smaller 4.
+
+**Analysis**
+
+* **Get BB centroid** -- Once the BB set is chosen, image windows look for the BBs in a 1x1cm square. Once it finds them,
+  the centroid of all 4 BBs is calculated.
+* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
+  A 5mm strip is averaged and used to reduce noise.
+
+**Post-Analysis**
+
+* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
+  The field size is also reported.
+
+Customizing behavior
+^^^^^^^^^^^^^^^^^^^^
+
+The BB window as well as the expected BB positions, and field strip size can be overridden like so:
+
+.. code-block:: python
+
+    from pylinac import StandardImagingFC2
+
+    class MySIFC2(StandardImagingFC2):
+        bb_sampling_box_size_mm = 20  # look at a 20x20mm window for the BB at the expected position
+        # change the 10x10 BB expected positions. This is in mm relative to the CAX.
+        bb_positions_10x10 = {'TL': [-30, -30], 'BL': [-30, 30], 'TR': [30, -30], 'BR': [30, 30]}
+        bb_positions_15x15 = ... # same as above
+        field_strip_width_mm = 10  # 10mm strip in x and y to determine field size
+
+    # use as normal
+    fc2 = MySIFC2(...)
 
 .. _creating_a_custom_phantom:
 
@@ -610,4 +681,7 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.PTWEPIDQC
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.StandardImagingFC2
     :inherited-members:
