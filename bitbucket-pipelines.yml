@@ -1,4 +1,118 @@
-image: python:3.9
+image:
+   name: us-central1-docker.pkg.dev/radmachine/pylinac/base-pipe-image:latest
+   username: _json_key
+   password: '$GCR_JSON_KEY'
+
+
+definitions:
+  steps:
+    - step: &push-to-github
+        name: Push to Github
+        clone:
+          depth: full
+        script:
+          - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
+    - step: &cbct-tests
+        name: Run CBCT Tests
+        script:
+          - pytest tests_basic/test_cbct.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_cbct.py"
+              - "pylinac/ct.py"
+    - step: &planar-tests
+        name: Run Planar Imaging Tests
+        script:
+          - pytest tests_basic/test_planar_imaging.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_planar_imaging.py"
+              - "pylinac/planar_imaging.py"
+    - step: &field-analysis-tests
+        name: Run Field Analysis Tests
+        script:
+          - pytest tests_basic/test_field_analysis.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_field_analysis.py"
+              - "pylinac/field_analysis.py"
+    - step: &machine-log-tests
+        name: Run Machine Logs Tests
+        script:
+          - pytest tests_basic/test_logs.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_lost.py"
+              - "pylinac/log_analyzer.py"
+    - step: &picket-fence-tests
+        name: Run Picket Fence Tests
+        script:
+          - pytest tests_basic/test_picketfence.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_picketfence.py"
+              - "pylinac/picketfence.py"
+    - step: &starshot-tests
+        name: Run Starshot Tests
+        script:
+          - pytest tests_basic/test_starshot.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_starshot.py"
+              - "pylinac/starshot.py"
+    - step: &calibration-tests
+        name: Run TG-51/TRS-398 Tests
+        script:
+          - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_tg51.py"
+              - "tests_basic/test_trs398.py"
+              - "pylinac/vmat.py"
+    - step: &vmat-tests
+        name: Run VMAT Tests
+        script:
+          - pytest tests_basic/test_vmat.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_vmat.py"
+              - "pylinac/vmat.py"
+    - step: &winston-lutz-tests
+        name: Run Winston-Lutz Tests
+        script:
+          - pytest tests_basic/test_winstonlutz.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_winstonlutz.py"
+              - "pylinac/winston_lutz.py"
+    - step: &core-module-tests
+        name: Run core module tests
+        script:
+          - pytest tests_basic/core
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/core/**"
+
 
 pipelines:
 
@@ -27,153 +141,31 @@ pipelines:
 
   pull-requests:
     '**':
-      - step:
-          name: Set up Env
-          caches:
-            - pip
-          script:
-            - apt-get update
-            - python -m venv venv
-            - source venv/bin/activate
-            - pip install -r requirements-dev.txt
-          artifacts:
-            - venv/**
       - parallel:
-          - step:
-              name: Run CBCT Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_cbct.py
-          - step:
-              name: Run Planar Imaging Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_planar_imaging.py
-          - step:
-              name: Run DLG Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_dlg.py
-          - step:
-              name: Run Field Analysis Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_field_analysis.py
-          - step:
-              name: Run Machine Logs Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_logs.py
-          - step:
-              name: Run Picket Fence Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_picketfence.py
-          - step:
-              name: Run Starshot Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_starshot.py
-          - step:
-              name: Run TG-51/TRS-398 Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py
-          - step:
-              name: Run VMAT Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_vmat.py
-          - step:
-              name: Run Winston-Lutz Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_winstonlutz.py
-          - step:
-              name: Run core module tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/core
+          - step: *cbct-tests
+          - step: *planar-tests
+          - step: *field-analysis-tests
+          - step: *machine-log-tests
+          - step: *picket-fence-tests
+          - step: *starshot-tests
+          - step: *calibration-tests
+          - step: *vmat-tests
+          - step: *winston-lutz-tests
+          - step: *core-module-tests
 
   branches:
     release*:
-      - step:
-          name: Push to Github
-          clone:
-            depth: full
-          script:
-            - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
+      - step: *push-to-github
     master:
-      - step:
-          name: Set up Env
-          caches:
-            - pip
-          script:
-            - apt-get update
-            - python -m venv venv
-            - source venv/bin/activate
-            - pip install -r requirements-dev.txt
-          artifacts:
-            - venv/**
       - parallel:
-          - step:
-              name: Run CBCT Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_cbct.py
-          - step:
-              name: Run Planar Imaging Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_planar_imaging.py
-          - step:
-              name: Run DLG Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_dlg.py
-          - step:
-              name: Run Field Analysis Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_field_analysis.py
-          - step:
-              name: Run Machine Logs Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_logs.py
-          - step:
-              name: Run Picket Fence Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_picketfence.py
-          - step:
-              name: Run Starshot Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_starshot.py
-          - step:
-              name: Run TG-51/TRS-398 Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py
-          - step:
-              name: Run VMAT Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_vmat.py
-          - step:
-              name: Run Winston-Lutz Tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/test_winstonlutz.py
-          - step:
-              name: Run core module tests
-              script:
-                - source venv/bin/activate
-                - pytest tests_basic/core
-      - step:
-          name: Push to Github
-          clone:
-            depth: full
-          script:
-            - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
+          - step: *cbct-tests
+          - step: *planar-tests
+          - step: *field-analysis-tests
+          - step: *machine-log-tests
+          - step: *picket-fence-tests
+          - step: *starshot-tests
+          - step: *calibration-tests
+          - step: *vmat-tests
+          - step: *winston-lutz-tests
+          - step: *core-module-tests
+      - step: *push-to-github
