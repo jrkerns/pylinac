@@ -676,11 +676,13 @@ class FieldAnalysis:
         self._save_plot(self._plot_horiz, stream)
         canvas.add_image(stream, location=(-4, 1), dimensions=(28, 12))
 
-        # draw image on last page
-        canvas.add_new_page()
-        stream = io.BytesIO()
-        self._save_plot(self._plot_image, stream, title="Image")
-        canvas.add_image(stream, location=(1, 2), dimensions=(18, 20))
+        # draw image on last page if it's an EPID image. Skip if a device as there's no image
+        if not hasattr(self, 'device'):
+            canvas.add_new_page()
+            stream = io.BytesIO()
+            self._save_plot(self._plot_image, stream, title="Image")
+            canvas.add_image(stream, location=(1, 2), dimensions=(18, 20))
+
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 5))
@@ -905,7 +907,8 @@ class FieldAnalysis:
     @staticmethod
     def _save_plot(func, filename: Union[str, io.BytesIO], **kwargs) -> None:
         func(**kwargs)
-        # plt.tight_layout(1.2)
+        # figure headers appear cut off on the PDF without a tight layout
+        plt.tight_layout()
         plt.savefig(filename)
 
     def _plot_penumbra(self, profile: SingleProfile, axis: plt.Axes = None) -> None:
