@@ -80,6 +80,8 @@ class PFTestMixin(LocationMixin):
     passes = True
     log = None
     mean_picket_spacing = 15
+    max_error_picket = None
+    max_error_leaf = None
 
     @classmethod
     def get_logfile(cls):
@@ -116,12 +118,22 @@ class PFTestMixin(LocationMixin):
     def test_picket_spacing(self):
         self.assertAlmostEqual(self.pf.mean_picket_spacing, self.mean_picket_spacing, delta=0.5)
 
+    def test_max_picket(self):
+        if self.max_error_picket:
+            self.assertEqual(self.pf.max_error_picket, self.max_error_picket)
+
+    def test_max_leaf(self):
+        if self.max_error_leaf:
+            self.assertEqual(self.pf.max_error_leaf, self.max_error_leaf)
+
 
 class PFDemo(PFTestMixin, TestCase):
     """Tests specifically for the EPID demo image."""
     picket_orientation = LEFT_RIGHT
     max_error = 0.217
     abs_median_error = 0.06
+    max_error_picket = 1
+    max_error_leaf = 44
 
     @classmethod
     def setUpClass(cls):

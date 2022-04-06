@@ -210,12 +210,12 @@ class PicketFence:
     @property
     def max_error_picket(self) -> int:
         """Return the picket number where the maximum error occurred."""
-        return sorted([m for m in self.mlc_meas], key=lambda x: x.error)[0].picket_num
+        return sorted([m for m in self.mlc_meas], key=lambda x: x.error, reverse=True)[0].picket_num
 
     @property
     def max_error_leaf(self) -> int:
         """Return the leaf that had the maximum error."""
-        return sorted([m for m in self.mlc_meas], key=lambda x: x.error)[0].leaf_num
+        return sorted([m for m in self.mlc_meas], key=lambda x: x.error, reverse=True)[0].leaf_num
 
     @property
     def abs_median_error(self) -> float:
