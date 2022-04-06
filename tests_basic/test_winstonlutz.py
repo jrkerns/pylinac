@@ -160,6 +160,18 @@ class TestPlottingSaving(TestCase):
         self.wl.plot_images(axis=Axis.GB_COMBO)
         self.wl.plot_images(axis=Axis.GBP_COMBO)
 
+    def test_save_to_stream(self):
+        items = self.wl.save_images_to_stream()
+        assert isinstance(items, dict)
+        assert str(self.wl.images[0]) in items.keys()
+        assert len(items) == 15
+
+    def test_plot_split_plots(self):
+        figs, names = self.wl.plot_images(show=False, split=True)
+        assert isinstance(figs[0], plt.Figure)
+        assert isinstance(names[0], str)
+        assert len(figs) == 9
+
     def test_save(self):
         save_file(self.wl.save_summary)
         save_file(self.wl.save_images)
