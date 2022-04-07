@@ -298,6 +298,8 @@ class PFTestMixin(CloudFileMixin):
     separate_leaves = False
     nominal_gap_mm = 1
     mlc_skew = 0
+    max_error_picket = None
+    max_error_leaf = None
 
     @classmethod
     def get_logfile(cls):
@@ -352,6 +354,14 @@ class PFTestMixin(CloudFileMixin):
     def test_mlc_skew(self):
         self.assertAlmostEqual(self.pf.mlc_skew(), self.mlc_skew, delta=0.3)
 
+    def test_max_picket(self):
+        if self.max_error_picket:
+            self.assertEqual(self.pf.max_error_picket, self.max_error_picket)
+
+    def test_max_leaf(self):
+        if self.max_error_leaf:
+            self.assertIn(self.max_error_leaf, self.pf.max_error_leaf)
+
 
 class PFDemo(PFTestMixin, TestCase):
     """Tests specifically for the EPID demo image."""
@@ -359,6 +369,8 @@ class PFDemo(PFTestMixin, TestCase):
     picket_orientation = Orientation.UP_DOWN
     max_error = 0.08
     abs_median_error = 0.06
+    max_error_picket = 0
+    max_error_leaf = 31
 
     @classmethod
     def setUpClass(cls):
