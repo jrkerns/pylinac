@@ -106,6 +106,7 @@ class PlanarPhantomMixin(CloudFileMixin):
     invert = False
     ssd = 1000
     file_name = None
+    rois_seen = None
 
     @classmethod
     def setUpClass(cls):
@@ -135,6 +136,10 @@ class PlanarPhantomMixin(CloudFileMixin):
     def test_mtf(self):
         if self.mtf_50 is not None:
             self.assertAlmostEqual(self.mtf_50, self.instance.mtf.relative_resolution(50), delta=0.3)
+
+    def test_rois_seen(self):
+        if self.rois_seen is not None:
+            self.assertEqual(self.rois_seen, self.instance.results_data().num_contrast_rois_seen)
 
     def test_results(self):
         self.assertIsInstance(self.instance.results(), str)
@@ -223,6 +228,7 @@ class LasVegasTestMixin(PlanarPhantomMixin):
 
 
 class LasVegasDemo(LasVegasTestMixin, TestCase):
+    rois_seen = 12
 
     def test_demo(self):
         LasVegas.run_demo()  # shouldn't raise

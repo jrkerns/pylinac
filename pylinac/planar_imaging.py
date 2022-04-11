@@ -448,6 +448,7 @@ class ImagePhantomBase:
             names.append('high_contrast')
             self._plot_highcontrast_graph(hicon_ax)
 
+        plt.tight_layout()
         if show:
             plt.show()
         return figs, names
@@ -848,9 +849,13 @@ class LasVegas(ImagePhantomBase):
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 0.62, 'height ratio': 0.62}}
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.107, 'angle': 0.5, 'roi radius': 0.020},
+        'roi 1': {'distance from center': 0.24, 'angle': 0, 'roi radius': 0.03},
+        'roi 2': {'distance from center': 0.24, 'angle': 90, 'roi radius': 0.03},
+        'roi 3': {'distance from center': 0.24, 'angle': 180, 'roi radius': 0.03},
+        'roi 4': {'distance from center': 0.24, 'angle': 270, 'roi radius': 0.03},
     }
     low_contrast_roi_settings = {
+        'roi 1': {'distance from center': 0.107, 'angle': 0.5, 'roi radius': 0.028},
         'roi 2': {'distance from center': 0.141, 'angle': 39.5, 'roi radius': 0.028},
         'roi 3': {'distance from center': 0.205, 'angle': 58, 'roi radius': 0.028},
         'roi 4': {'distance from center': 0.179, 'angle': -76.5, 'roi radius': 0.016},
@@ -913,6 +918,54 @@ class LasVegas(ImagePhantomBase):
 
     def _phantom_angle_calc(self) -> float:
         return 0.0
+
+    def _plot_lowcontrast_graph(self, axes: plt.Axes):
+        """Plot the low contrast ROIs to an axes, including visibility"""
+        # plot contrast
+        line1, = axes.plot([roi.contrast for roi in self.low_contrast_rois], marker='o', color='m', label='Contrast')
+        axes.axhline(self._low_contrast_threshold, color='m')
+        axes.grid(True)
+        axes.set_title('Low-frequency Contrast')
+        axes.set_xlabel('ROI #')
+        axes.set_ylabel('Contrast')
+        # plot CNR
+        axes2 = axes.twinx()
+        axes2.set_ylabel('CNR')
+        line2, = axes2.plot([roi.contrast_to_noise for roi in self.low_contrast_rois], marker='^', label='CNR')
+        # plot visibility; here's what different from the base method
+        axes3 = axes.twinx()
+        axes3.set_ylabel('Visibility')
+        line3, = axes3.plot([roi.visibility for roi in self.low_contrast_rois], marker='*', color='blue', label='Visibility')
+        axes3.axhline(self.visibility_threshold, color='blue')
+        axes3.spines.right.set_position(("axes", 1.2))
+
+        axes.legend(handles=[line1, line2, line3])
+
+    def results(self) -> str:
+        """Return the results of the analysis. Overridden because ROIs seen is based on visibility, not CNR"""
+        text = [f'{self.common_name} results:',
+                f'File: {self.image.truncated_path}'
+        ]
+        text += [
+                f'Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}',
+                f'Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}',
+                f'# Low contrast ROIs "seen": {sum(roi.passed_visibility for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
+        ]
+        text = '\n'.join(text)
+        return text
+
+    def results_data(self, as_dict=False) -> Union[PlanarResult, dict]:
+        """Overridden because ROIs seen is based on visibility, not CNR"""
+        data = PlanarResult(
+                analysis_type=self.common_name,
+                median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
+                median_cnr=np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]),
+                num_contrast_rois_seen=sum(roi.passed_visibility for roi in self.low_contrast_rois),
+                phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y)
+        )
+        if as_dict:
+            return dataclasses.asdict(data)
+        return data
 
 
 class PTWEPIDQC(ImagePhantomBase):
