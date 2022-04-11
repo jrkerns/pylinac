@@ -1,8 +1,7 @@
 import io
 import os.path as osp
-import unittest
 from typing import Callable
-from unittest import TestCase
+from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -170,12 +169,19 @@ class LeedsDirtyEdges(PlanarPhantomMixin, TestCase):
     file_name = 'Leeds-dirty-edges.dcm'
 
 
-@unittest.skip("Phantom appears distorted. MTF locations are different than other phantoms")
+@skip("Phantom appears distorted. MTF locations are different than other phantoms")
 class LeedsClosedBlades(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.3
     ssd = 1500
     file_name = 'Leeds-closed-blades.dcm'
+
+
+class LeedsACB1(PlanarPhantomMixin, TestCase):
+    klass = LeedsTOR
+    dir_path = ['planar_imaging', 'ACB 1']
+    file_path = '1.dcm'
+    mtf_50 = 1.4
 
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
@@ -216,12 +222,28 @@ class LasVegasTestMixin(PlanarPhantomMixin):
         self.assertAlmostEqual(self.instance.phantom_angle, self.phantom_angle, delta=1)
 
 
-class LasVegasDemo(PlanarPhantomMixin, TestCase):
-    klass = LasVegas
-    phantom_angle = 0
+class LasVegasDemo(LasVegasTestMixin, TestCase):
 
     def test_demo(self):
         LasVegas.run_demo()  # shouldn't raise
+
+
+@skip("Non-cardinal angles no longer supported. If support is re-added these can be reactivated")
+class LasVegas10deg(LasVegasTestMixin, TestCase):
+    file_path = ['TrueBeam 1 - 2364', '2.5MV LV HQ 10deg - ImageRT_2016-10-6 20-12-58.dcm']
+    phantom_angle = 290
+
+
+@skip("Non-cardinal angles no longer supported. If support is re-added these can be reactivated")
+class LasVegasrotated(LasVegasTestMixin, TestCase):
+    file_path = ['TrueBeam 1 - 2364', '2.5MV LV HQ side2 - ImageRT_2016-10-6 20-43-3.dcm']
+    phantom_angle = 284
+
+
+@skip("Non-cardinal angles no longer supported. If support is re-added these can be reactivated")
+class LasVegasTB1(LasVegasTestMixin, TestCase):
+    file_path = ['TrueBeam 1 - 2364', '6MV LasVegas HQ 0deg - ImageRT_2016-10-6 20-10-17.dcm']
+    phantom_angle = 284.5
 
 
 class DoselabMVDemo(PlanarPhantomMixin, TestCase):

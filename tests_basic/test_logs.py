@@ -15,6 +15,7 @@ from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_tes
 TEST_DIR = 'mlc_logs'
 ANONYMOUS_SOURCE_FOLDER = get_folder_from_cloud_test_repo(['mlc_logs', '_anonbase'])
 ANONYMOUS_DEST_FOLDER = get_folder_from_cloud_test_repo(['mlc_logs', 'anonymous'])
+get_folder_from_cloud_test_repo(['mlc_logs', 'dlogs', 'Bay Area iX'])
 
 
 class TestAnonymizeFunction(TestCase):
@@ -374,6 +375,7 @@ class IndividualLogBase(CloudFileMixin):
 
 
 class IndividualTrajectoryLog(IndividualLogBase):
+    dir_path = ['mlc_logs', 'tlogs']
     version = 2.1  # or 3.0
     header = 'VOSTL'
     header_size = 1024
@@ -450,6 +452,7 @@ class IndividualDynalog(IndividualLogBase):
     clinac_scale = 1
     mu_delivered = 25000
     version = 'B'
+    dir_path = ['mlc_logs', 'dlogs']
 
     def test_num_snapshots(self):
         """Test the number of snapshots in the log."""
@@ -622,3 +625,134 @@ class TestMachineLogs(TestCase):
             to_remove = [file for file in files if 'suffixed' in file]
             for file in to_remove:
                 os.remove(osp.join(pdir, file))
+
+
+class One(IndividualTrajectoryLog, TestCase):
+    file_name = 'Anonymous_4DC Treatment_A_TX_20120928131920.bin'
+    treatment_type = TreatmentType.STATIC_IMRT.value
+    num_subbeams = 1
+    mu_delivered = 209
+    num_snapshots = 1098
+    first_subbeam_data = {'gantry_angle': 185, 'collimator_angle': 180, 'jaw_y1': 10.5}
+
+
+class Two(IndividualTrajectoryLog, TestCase):
+    file_name = ['Anonymous_4DC Treatment_A1_TX_20120928132942.bin']
+    treatment_type = TreatmentType.DYNAMIC_IMRT.value
+    num_subbeams = 10
+    mu_delivered = 681
+    num_beamholds = 142
+    num_snapshots = 28268
+    first_subbeam_data = {'gantry_angle': 340, 'collimator_angle': 180, 'jaw_y1': 10.8}
+
+
+class DynalogArc(IndividualDynalog, TestCase):
+    file_name = ['Katy iX', 'A20120712122417_Anonymous.dlg']
+    treatment_type = TreatmentType.VMAT.value
+    version = 'B'
+    tolerance = 510
+    average_gamma = 0.06
+    mu_delivered = 25000
+    num_snapshots = 1151
+    average_rms = 0.16
+    maximum_rms = 0.205
+
+
+class Four(IndividualTrajectoryLog, TestCase):
+    file_name = ['Chicago', 'T-Log HDMLC', 'anonymized_4DC Treatment_1.1_TX_20151015093202.bin']
+    num_snapshots = 6356
+    version = 3
+    treatment_type = TreatmentType.DYNAMIC_IMRT.value
+    num_subbeams = 2
+    num_axes = 16
+    mu_delivered = 535
+    num_beamholds = 2
+    mlc_model = 3
+    first_subbeam_data = {'gantry_angle': 178.9, 'jaw_x2': 5.2}
+
+
+class CBCTSetup(IndividualTrajectoryLog, TestCase):
+    file_name = ['Chicago', 'T-Log HDMLC', 'anonymized_4DC Treatment_KVCBCT_Setup_20151015090308.bin']
+    num_snapshots = 1238
+    version = 3
+    treatment_type = TreatmentType.IMAGING.value
+    num_subbeams = 1
+    num_axes = 16
+    mu_delivered = 0
+    num_beamholds = 0
+    mlc_model = 3
+    first_subbeam_data = {}
+
+    def test_publish_pdf(self):
+        pass
+
+
+class KVSetup(IndividualTrajectoryLog, TestCase):
+    file_name = ['Chicago', 'T-Log HDMLC', 'anonymized_4DC Treatment_KVKV_SetupPair_20151015130741.bin']
+    num_snapshots = 185
+    version = 3
+    treatment_type = TreatmentType.IMAGING.value
+    mlc_model = 3
+    num_subbeams = 1
+    num_axes = 16
+    mu_delivered = 0
+    num_beamholds = 0
+    first_subbeam_data = {}
+
+    def test_publish_pdf(self):
+        pass
+
+
+class DoubleExposure(IndividualTrajectoryLog, TestCase):
+    file_name = ['Chicago', 'T-Log HDMLC', 'anonymized_4DC Treatment_Planned_Double_Exposure_ADHOC_20151015140943.bin']
+    num_snapshots = 750
+    version = 3
+    treatment_type = TreatmentType.IMAGING.value
+    mlc_model = 3
+    average_gamma = 0
+    num_subbeams = 2
+    num_axes = 16
+    mu_delivered = 2
+    num_beamholds = 4
+    first_subbeam_data = {'gantry_angle': 180, 'jaw_x2': 4}
+
+    def test_publish_pdf(self):
+        pass
+
+
+class Five(IndividualTrajectoryLog, TestCase):
+    file_name = ['Chicago', 'T-Log Mil120', 'anonymized_4DC Treatment_1.1_TX_20151015102651.bin']
+    num_snapshots = 10728
+    version = 3
+    num_subbeams = 3
+    treatment_type = TreatmentType.DYNAMIC_IMRT.value
+    num_axes = 16
+    mu_delivered = 428
+    num_beamholds = 3
+    first_subbeam_data = {'gantry_angle': 176.7, 'jaw_x2': 8.2}
+
+
+class OpenPort(IndividualTrajectoryLog, TestCase):
+    file_name = ['Chicago', 'T-Log Mil120', 'anonymized_4DC Treatment_Planned_Open_Port_Image_ADHOC_20151015131101.bin']
+    num_snapshots = 72
+    version = 3
+    treatment_type = TreatmentType.IMAGING.value
+    num_subbeams = 1
+    num_axes = 16
+    mu_delivered = 1
+    num_beamholds = 3
+    first_subbeam_data = {'gantry_angle': 180, 'jaw_x2': 6}
+
+    def test_publish_pdf(self):
+        pass
+
+
+class Six(IndividualDynalog, TestCase):
+    file_name = ['Bay Area iX', 'A20121212123129_Anonymous.dlg']
+    treatment_type = TreatmentType.VMAT.value
+    num_snapshots = 1150
+    average_rms = 0.11
+    maximum_rms = 0.14
+    num_axes = 16
+    average_gamma = 0.03
+
