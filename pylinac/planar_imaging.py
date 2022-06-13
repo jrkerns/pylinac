@@ -343,11 +343,11 @@ class ImagePhantomBase:
     def _get_canny_regions(self) -> List[RegionProperties]:
         """Compute the canny edges of the image and return the connected regions found."""
         # compute the canny edges with very low thresholds (detects nearly everything)
-        canny_img = feature.canny(self.image, low_threshold=self.detection_canny_settings['percentiles'][0], high_threshold=self.detection_canny_settings['percentiles'][1], use_quantiles=True, sigma=self.detection_canny_settings['sigma'])
+        canny_img = feature.canny(self.image.array, low_threshold=self.detection_canny_settings['percentiles'][0], high_threshold=self.detection_canny_settings['percentiles'][1], use_quantiles=True, sigma=self.detection_canny_settings['sigma'])
 
         # label the canny edge regions
         labeled = measure.label(canny_img)
-        regions = measure.regionprops(labeled, intensity_image=self.image)
+        regions = measure.regionprops(labeled, intensity_image=self.image.array)
         return regions
 
     def _create_phantom_outline_object(self) -> Tuple[Union[Rectangle, Circle], dict]:
