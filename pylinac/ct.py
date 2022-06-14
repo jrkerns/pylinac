@@ -940,13 +940,15 @@ class CatPhanBase:
         obj.was_from_zip = True
         return obj
 
-    def plot_analyzed_image(self, show: bool=True) -> None:
-        """Plot the images used in the calculate and summary data.
+    def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> None:
+        """Plot the images used in the calculation and summary data.
 
         Parameters
         ----------
         show : bool
             Whether to plot the image or not.
+        plt_kwargs : dict
+            Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
         def plot(ctp_module, axis, vmin=None, vmax=None):
             axis.imshow(ctp_module.image.array, cmap=get_dicom_cmap(), vmin=vmin, vmax=vmax)
@@ -956,6 +958,7 @@ class CatPhanBase:
             axis.axis('off')
 
         # set up grid and axes
+        plt.figure(**plt_kwargs)
         grid_size = (2, 4)
         hu_ax = plt.subplot2grid(grid_size, (0, 1))
         plot(self.ctp404, hu_ax)

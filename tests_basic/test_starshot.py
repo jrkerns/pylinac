@@ -235,6 +235,17 @@ class GeneralTests(Demo, TestCase):
         data_dict = self.star.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
 
+    def test_set_figure_size(self):
+        self.star.plot_analyzed_image(figsize=(7, 11))
+        fig = plt.gcf()
+        self.assertEqual(fig.bbox_inches.height, 11)
+        self.assertEqual(fig.bbox_inches.width, 7)
+
+    def test_set_figure_size_subimage(self):
+        self.star.plot_analyzed_subimage(figsize=(7, 11))
+        fig = plt.gcf()
+        self.assertEqual(fig.bbox_inches.height, 11)
+        self.assertEqual(fig.bbox_inches.width, 7)
 
 class Starshot2(StarMixin, TestCase):
     file_name = 'Starshot#2.tif'

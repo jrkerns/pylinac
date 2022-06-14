@@ -254,7 +254,7 @@ class VMATBase:
         """Return the value of the maximum R_deviation segment."""
         return np.max(np.abs(self.r_devs))
 
-    def plot_analyzed_image(self, show: bool=True):
+    def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
         """Plot the analyzed images. Shows the open and dmlc images with the segments drawn; also plots the median
         profiles of the two images for visual comparison.
 
@@ -262,8 +262,10 @@ class VMATBase:
         ----------
         show : bool
             Whether to actually show the image.
+        plt_kwargs : dict
+            Keyword args passed to the plt.subplots() method. Allows one to set things like figure size.
         """
-        fig, axes = plt.subplots(ncols=3, sharex=True)
+        fig, axes = plt.subplots(ncols=3, sharex=True, **plt_kwargs)
         subimages = (ImageType.OPEN, ImageType.DMLC, ImageType.PROFILE)
         titles = ('Open', 'DMLC', 'Median Profiles')
         for subimage, axis, title in zip(subimages, axes, titles):

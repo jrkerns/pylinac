@@ -55,6 +55,21 @@ class GeneralTests(TestCase):
         data_dict = phan.results_data(as_dict=True)
         self.assertEqual(len(data_dict), 8)
 
+    def test_set_figure_size(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        phan.plot_analyzed_image(figsize=(7, 11))
+        fig = plt.gcf()
+        self.assertEqual(fig.bbox_inches.height, 11)
+        self.assertEqual(fig.bbox_inches.width, 7)
+
+    def test_set_figure_size_splot_plots(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        figs, _ = phan.plot_analyzed_image(figsize=(7, 11), split_plots=True)
+        self.assertEqual(figs[0].bbox_inches.height, 11)
+        self.assertEqual(figs[0].bbox_inches.width, 7)
+
     def test_multiple_plots(self):
         phan = LeedsTOR.from_demo_image()
         phan.analyze()

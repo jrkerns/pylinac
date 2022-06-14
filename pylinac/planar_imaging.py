@@ -374,7 +374,7 @@ class ImagePhantomBase:
         return obj, settings
 
     def plot_analyzed_image(self, image: bool = True, low_contrast: bool = True, high_contrast: bool = True,
-                            show: bool = True, split_plots: bool = False) -> Tuple[List[plt.Figure], List[str]]:
+                            show: bool = True, split_plots: bool = False, **plt_kwargs: dict) -> Tuple[List[plt.Figure], List[str]]:
         """Plot the analyzed image.
 
         Parameters
@@ -389,6 +389,8 @@ class ImagePhantomBase:
             Whether to actually show the image when called.
         split_plots : bool
             Whether to split the resulting image into individual plots. Useful for saving images into individual files.
+        plt_kwargs : dict
+            Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
         plot_low_contrast = low_contrast and any(self.low_contrast_rois)
         plot_high_contrast = high_contrast and any(self.high_contrast_rois)
@@ -402,11 +404,11 @@ class ImagePhantomBase:
         if split_plots:
             axes = []
             for n in range(num_plots):
-                fig, axis = plt.subplots(1)
+                fig, axis = plt.subplots(1, **plt_kwargs)
                 figs.append(fig)
                 axes.append(axis)
         else:
-            fig, axes = plt.subplots(1, num_plots)
+            fig, axes = plt.subplots(1, num_plots, **plt_kwargs)
             fig.subplots_adjust(wspace=0.4)
         if num_plots < 2:
             axes = (axes,)

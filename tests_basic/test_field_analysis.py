@@ -4,6 +4,8 @@ import io
 import os.path as osp
 from unittest import TestCase
 
+from matplotlib import pyplot as plt
+
 from pylinac.core import image
 from pylinac.core.exceptions import NotAnalyzed
 from pylinac.core.io import retrieve_demo_file
@@ -97,6 +99,19 @@ class FieldAnalysisTests(TestCase):
         fs = FieldAnalysis.from_demo_image()
         with self.assertRaises(NotAnalyzed):
             fs.plot_analyzed_image()
+
+    def test_set_figure_size(self):
+        fs = create_instance()
+        fs.plot_analyzed_image(figsize=(7, 11))
+        fig = plt.gcf()
+        self.assertEqual(fig.bbox_inches.height, 11)
+        self.assertEqual(fig.bbox_inches.width, 7)
+
+    def test_set_figure_size_splot_plots(self):
+        fs = create_instance()
+        figs, _ = fs.plot_analyzed_image(figsize=(7, 11), split_plots=True)
+        self.assertEqual(figs[0].bbox_inches.height, 11)
+        self.assertEqual(figs[0].bbox_inches.width, 7)
 
     def test_multiple_plots(self):
         fs = FieldAnalysis.from_demo_image()

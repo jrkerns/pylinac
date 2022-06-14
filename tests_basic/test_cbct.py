@@ -170,6 +170,12 @@ class TestPlottingSaving(TestCase):
         with self.assertRaises(ValueError):
             self.cbct.plot_analyzed_subimage('sr')
 
+    def test_set_figure_size(self):
+        self.cbct.plot_analyzed_image(figsize=(8, 13))
+        fig = plt.gcf()
+        self.assertEqual(fig.bbox_inches.height, 13)
+        self.assertEqual(fig.bbox_inches.width, 8)
+
 
 class CatPhanMixin(CloudFileMixin):
     """A mixin to use for testing Varian CBCT scans; does not inherit from TestCase as it would be run
