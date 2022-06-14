@@ -1021,8 +1021,8 @@ class PTWEPIDQC(ImagePhantomBase):
         return self.phantom_ski_region.major_axis_length / 14
 
     def _phantom_angle_calc(self) -> float:
-        """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
-        which angles the phantom at 45 degrees.
+        """The angle of the phantom. This assumes the user has placed the phantom with the high-contrast line pairs at the top
+        and low contrast at the bottom at a fixed rotation of 0 degrees.
 
         Returns
         -------

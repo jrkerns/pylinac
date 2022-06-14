@@ -169,7 +169,7 @@ The algorithm works like such:
 
 **Pre-Analysis**
 
-* **Determine phantom location** -- The Leeds phantom is found by performing a canny edge detection
+* **Determine phantom location** -- The Leeds phantom is found by performing a Canny edge detection
   algorithm to the image. The thin structures found are sifted by finding appropriately-sized ROIs.
   This may include the outer phantom edge and the metal ring just inside. The average central position
   of the circular ROIs is set as the phantom center.
@@ -236,6 +236,64 @@ Again, pass ``invert=True`` to the ``analyze`` method. This is the same image bu
 
 .. image:: images/leeds_offset_corrected.png
 
+
+PTW EPID QC Phantom
+-------------------
+
+The PTW EPID QC phantom is an MV imaging quality assurance phantom and has high and low contrast regions,
+just as the Leeds phantom, but with different geometric configurations.
+
+.. _epid-qc_image_acquisition:
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The EPID QC phantom appears to have a specific setup as recommended by the manufacturer. The phantom
+should have the high-contrast line pairs at the top of the image and low contrast at the bottom. The
+rotation is not automatically determined, so you should take care when setting up the phantom to be
+well-positioned.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+* The images can be acquired with the phantom at any SSD.
+
+**Restrictions**
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom must be at 0 degrees.
+* The phantom must not be touching any image edges.
+* The phantom should have the high-contrast linen pair regions toward the gantry stand/top.
+* The phantom should be centered near the CAX (<1-2cm).
+
+**Pre-Analysis**
+
+* **Determine phantom location** -- A Canny edge search is performed on the image. Connected edges that
+  are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
+  axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
+* **Determine phantom radius** -- The major axis length of the ROI determined above serves as the
+  phantom radius.
+
+**Analysis**
+
+* **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
+  be known. From here, the contrast can be known; see :ref:`contrast`.
+* **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
+  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated. See :ref:`mtf_topic`.
+
+**Post-Analysis**
+
+* **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
+  value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+
 Standard Imaging QC-3 Phantom
 -----------------------------
 
@@ -279,7 +337,7 @@ The algorithm works like such:
 
 **Pre-Analysis**
 
-* **Determine phantom location** -- A canny edge search is performed on the image. Connected edges that
+* **Determine phantom location** -- A Canny edge search is performed on the image. Connected edges that
   are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
   axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
 * **Determine phantom radius and angle** -- The major axis length of the ROI determined above serves as the
@@ -340,7 +398,7 @@ The algorithm works like such:
 
 **Pre-Analysis**
 
-* **Determine phantom location** -- A canny edge search is performed on the image. Connected edges that
+* **Determine phantom location** -- A Canny edge search is performed on the image. Connected edges that
   are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
   axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
 * **Determine phantom radius and angle** -- The major axis length of the ROI determined above serves as the
