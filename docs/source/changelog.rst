@@ -7,6 +7,9 @@ v 2.5.2
 -------
 
 * The SI QC3 phantom can now be at 150cm distance. Previously, only 100 and 140cm were allowed.
+* Off-center Catphans may give incorrect slice thickness as the sampled ROIs had inverted row/col orders.
+  The degree to which this may affect results depends on how far off-center the scan was. >5mm may result in significant differences.
+* The scikit-image requirement was pinned to be <0.19, which raises an error.
 
 v 2.5.1
 -------

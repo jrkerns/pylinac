@@ -8,7 +8,7 @@ from pylinac.ct import CTP404CP504, CTP404CP503, CTP515, CTP528CP503, CTP528CP50
 from pylinac.core.geometry import Point
 from tests_basic.utils import save_file, LoadingTestBase, LocationMixin
 
-TEST_DIR = Path('./test_files/CBCT')
+TEST_DIR = Path(__file__).parent / 'test_files_25' / 'CBCT'
 
 
 class CBCTLoading(LoadingTestBase, TestCase):
