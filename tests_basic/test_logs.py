@@ -374,11 +374,12 @@ class TestIndividualTrajectoryLog(TestIndividualLogBase):
 
     def test_subbeam_fluences_unequal_to_cumulative(self):
         # as raised in #154
-        cumulative_fluence = self.log.fluence.actual.calc_map()
-        subbeam_fluences = [subbeam.fluence.actual.calc_map() for subbeam in self.log.subbeams]
-        if len(self.log.subbeams) > 0:
-            for subbeam_fluence in subbeam_fluences:
-                self.assertFalse(np.array_equal(subbeam_fluence, cumulative_fluence))
+        if self.num_subbeams > 1 and self.treatment_type != TreatmentType.IMAGING.value:
+            cumulative_fluence = self.log.fluence.actual.calc_map()
+            subbeam_fluences = [subbeam.fluence.actual.calc_map() for subbeam in self.log.subbeams]
+            if len(self.log.subbeams) > 0:
+                for subbeam_fluence in subbeam_fluences:
+                    self.assertFalse(np.array_equal(subbeam_fluence, cumulative_fluence))
 
     def test_header(self):
         """Test a few header values; depends on log type."""
