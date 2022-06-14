@@ -10,6 +10,21 @@ Overview
 .. automodule:: pylinac.planar_imaging
     :no-members:
 
+Feature table
+-------------
+
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| Feature/Phantom  | Doselab MC2 (MV)   | Doselab MC2 (kV)   | Las Vegas | Leeds TOR | PTW EPID QC | SNC MV  | SNC kV   | SI QC-3 (MV)            | SI QC kV                |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| Can be inverted? | No                 | No                 | L/R       | Yes       | No          | No      | No       | No                      | No                      |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| SSD setting      | Manual             | Manual             | Manual    | Manual    | Manual      | Manual  | Manual   | Manual                  | Manual                  |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| Auto-centering   | Yes                | Yes                | Yes       | Yes       | Yes         | Yes     | Yes      | Yes                     | Yes                     |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| Auto-rotation    | Semi (+/-5 from 0) | Semi (+/-5 from 0) | No (0)    | Yes       | No (0)      | No (45) | No (135) | Semi (+/-5 from 45/135) | Semi (+/-5 from 45/135) |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+
 .. _typical_planar_usage:
 
 Typical module usage
@@ -374,6 +389,76 @@ The algorithm works like such:
 * The phantom should be at 45 degrees relative to the EPID.
 * The phantom should be centered near the CAX (<1-2cm).
 
+**Pre-Analysis**
+
+* **Determine phantom location** -- A canny edge search is performed on the image. Connected edges that
+  are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
+  axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
+* **Determine phantom radius and angle** -- The major axis length of the ROI determined above serves as the
+  phantom radius. The orientation of the edge ROI serves as the phantom angle.
+
+**Analysis**
+
+* **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
+  be known. From here, the contrast can be known; see :ref:`contrast`.
+
+**Post-Analysis**
+
+* **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
+  value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+
+SNC MV & kV
+-----------
+
+The SNC MV and kV phantoms are for kV & MV image quality testing and includes low and high contrast regions of varying contrast.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The SNC phantoms typically use the angled setup jig. Best practices for the Doselab phantom:
+
+* Keep the phantom away from a couch edge or any rails.
+* Center the phantom along the CAX.
+* Use the angled setup jig.
+* For the MV phantom, have the longer side point inferiorly (i.e. **away** from the stand).
+* For the kV phantom, have the longer side point superiorly (i.e. **toward** the stand).
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom must not be touching any image edges.
+* The phantom should be at 45 degrees relative to the EPID.
+* The phantom should be centered near the CAX (<1-2cm).
+
+**Pre-Analysis**
+
+* **Determine phantom location** -- A canny edge search is performed on the image. Connected edges that
+  are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
+  axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
+* **Determine phantom radius** -- The major axis length of the ROI determined above serves as the
+  phantom radius.
+
+**Analysis**
+
+* **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
+  be known. From here, the contrast can be known; see :ref:`contrast`.
+
+**Post-Analysis**
+
+* **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
+  value is compared to the threshold. The plot colors correspond to the pass/fail status.
 
 Standard Imaging FC-2
 ---------------------
