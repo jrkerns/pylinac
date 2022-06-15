@@ -3,6 +3,17 @@
 Changelog
 =========
 
+v 3.0.2
+-------
+
+* Fixed an issue where publishing a PDF of the field analysis of a device would fail.
+  This is because th device has no true image to show. The image is skipped in the PDF.
+* The picket fence results were incorrectly labeling the max-error picket. It was instead the
+  min-error picket. This did not affect the maximum error reported, just the picket labeling.
+* #1464 - Off-center Catphans may give incorrect slice thickness as the sampled ROIs had inverted row/col orders.
+  The degree to which this may affect results depends on how far off-center the scan was. >5mm may result in significant differences.
+* The scikit-image requirement was pinned to be <0.19, which was raising an error.
+
 v 3.0.0
 -------
 
