@@ -1,7 +1,7 @@
 
 import sys
 
-from pylinac.version import __version__, __version_info__
+from pylinac.version import __version__
 
 # check python version
 if sys.version_info[0] < 3 or sys.version_info[1] < 6:
