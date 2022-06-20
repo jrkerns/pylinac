@@ -16,6 +16,8 @@ TEST_DIR = 'mlc_logs'
 ANONYMOUS_SOURCE_FOLDER = get_folder_from_cloud_test_repo(['mlc_logs', '_anonbase'])
 ANONYMOUS_DEST_FOLDER = get_folder_from_cloud_test_repo(['mlc_logs', 'anonymous'])
 get_folder_from_cloud_test_repo(['mlc_logs', 'dlogs', 'Bay Area iX'])
+get_folder_from_cloud_test_repo(['mlc_logs', 'dlogs', 'Katy iX'])
+get_folder_from_cloud_test_repo(['mlc_logs', 'tlogs', 'Chicago'])
 
 
 class TestAnonymizeFunction(TestCase):
@@ -396,7 +398,7 @@ class IndividualTrajectoryLog(IndividualLogBase):
 
     def test_subbeam_fluences_unequal_to_cumulative(self):
         # as raised in #154
-        if self.num_subbeams > 1:
+        if self.num_subbeams > 1 and self.treatment_type != TreatmentType.IMAGING.value:
             cumulative_fluence = self.log.fluence.actual.calc_map()
             subbeam_fluences = [subbeam.fluence.actual.calc_map() for subbeam in self.log.subbeams]
             if len(self.log.subbeams) > 0:

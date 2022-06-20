@@ -467,7 +467,7 @@ class CBCT3(CatPhan504Mixin, TestCase):
     mtf_values = {50: 0.33}
     avg_line_length = 49.9
     lowcon_visible = 1
-    slice_thickness = 0.3
+    slice_thickness = 2.4
 
 # CBCT4 is in the regular test_cbct.py file
 
@@ -680,7 +680,7 @@ class AGElekta2(CatPhan503Mixin, TestCase):
     unif_values = {'Center': 707, 'Left': 758, 'Right': 748, 'Top': 750, 'Bottom': 758}
     mtf_values = {50: 0.22}
     avg_line_length = 50.2
-    slice_thickness = 0.5
+    slice_thickness = 1
 
 
 class Elekta4(CatPhan503Mixin, TestCase):
