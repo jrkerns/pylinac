@@ -802,7 +802,11 @@ class MLC:
             mlc.add_leaf_axis(axis, leaf_num=leaf+dlog.header.num_mlc_leaves // 2)
 
         # scale dynalog leaf positions from the physical plane to the isocenter plane and from 100ths of mm to cm.
-        dynalog_leaf_conversion = 1.96614  # MLC physical plane scaling factor to iso (100cm SAD) plane
+        # MLC physical plane scaling factor to iso (100cm SAD) plane
+        # the below value was changed from 1.96614, which I believe I determined by dividing the
+        # MLC distance to iso based on old schematics. In any event, the new value is from a
+        # *ahem* credible source: Varian MLC Maintenance guide, pg 135.
+        dynalog_leaf_conversion = 1.96078
         for leaf in range(1, mlc.num_leaves + 1):
             mlc.leaf_axes[leaf].actual *= dynalog_leaf_conversion / 1000
             mlc.leaf_axes[leaf].expected *= dynalog_leaf_conversion / 1000

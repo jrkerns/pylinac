@@ -473,7 +473,7 @@ class TestDynalogDemo(IndividualDynalog, TestCase):
     average_rms = 0.04
     maximum_rms = 0.07
     average_gamma = 0.47
-    percent_pass_gamma = 91
+    percent_pass_gamma = 91.2
     leaf_move_status = {'moving': (9, 3), 'static': (8, )}
     delete_file = False
 
