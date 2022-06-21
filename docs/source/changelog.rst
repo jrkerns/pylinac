@@ -9,7 +9,7 @@ v 3.1.0
 General
 ^^^^^^^
 
-* For the picket fence, field analysis, and planar imaging modules, image keyword args can now be passed in.
+* For the picket fence, field analysis, and planar imaging modules, image keyword args can now be passed on instantiation.
   This is helpful for images that don't have even basic tags like DPI/DPMM or SID. The keyword args that can be
   passed are those consumed by :func:`~pylinac.core.image.load`.
 
@@ -20,6 +20,20 @@ General
     pf = PicketFence(path, image_kwargs={'dpi': 184, 'sid': 1500})
     pf.analyze()
     ...
+
+* Matplotlib keyword args can now be passed to most modules that save a figure, allowing the user to specify the figure
+  size and other parameters
+
+  .. code-block:: python
+
+    from pylinac import LeedsTOR
+
+    leeds = LeedsTOR.from_demo_image()
+    leeds.analyze()
+    leeds.plot_analyzed_image(..., figsize=(10, 10))  # figsize is passed to matplotlib to generate a figure of said size
+
+* Pylinac is now compatible with scikit-image 0.19
+
 
 Picket Fence
 ^^^^^^^^^^^^
@@ -33,6 +47,10 @@ Picket Fence
 Planar Imaging
 ^^^^^^^^^^^^^^
 
+* The Standard Imaging FC-2 light/rad phantom is now able to be analyzed.
+* The Las Vegas contrast analysis has been reverted to pre-3.0 behavior. This is because there is no reference position like there is for other phantoms.
+  Mistakenly, the "reference" was set to the first ROI, but because visibility is dependent on both ROI size and contrast for Las Vegas, the background ROIs outside
+  the milled disc areas have been restored.
 * Plots can now be separated. Use ``.plot_analyzed_image(... split_plots=True)``. This will now show multiple matplotlib plots.
 * You may save analyzed images to individual files.
   I.e. when splitting per above each plot will be saved to a separate file. See :meth:`~pylinac.planar_imaging.LeedsTOR.save_analyzed_image`.
@@ -56,6 +74,21 @@ Winston-Lutz
 * The :meth:`~pylinac.winston_lutz.WinstonLutz.plot_summary` method now allows you to pass a figure size.
 * With the above, :meth:`~pylinac.winston_lutz.WinstonLutz.save_summary` also allows you pass the figure size.
 
+Bug Fixes
+^^^^^^^^^
+
+* #1464 - Off-center CBCT could give faulty slice thickness numbers. The row/col were inverted for the sampling, meaning
+  the left ROI was really sampling the top ROI and vic versa. For an on-center catphan, this would not change the results.
+  Results appear to only have changed if the catphan was 5+ mm off-center. The change of outcome for offsets large than
+  this are indeterminate but likely you weren't getting good results to begin with under that scenario, so it should
+  only improve.
+* #405 - The picket fence ``results()`` were reporting the wrong picket for the maximum error. It was selecting from a wrongly-ordered
+  list, instead giving the picket with the **least** error. Note that the maximum error value was not incorrect, only the reported picket.
+* PDF generation for field analysis with a device (i.e. SNC Profiler data) would fail as there was no true image.
+  The PDF generation simply skips the image plotting for devices now.
+* #416 - The CBCT docs now correctly state that the slice thickness is based on all the wire profiles, not just the longest two.
+* #408 - The Dynalog isoplane correction factor was changed from 1.99614 to 1.96078 to match Varian documentation. This should have a
+  difference of <0.3% of positioning error and should not affect gamma (since the errors canceled out) but would affect comparison to a TPS fluence.
 
 v 3.0.0
 -------
