@@ -681,11 +681,11 @@ class StandardImagingFC2(ImagePhantomBase):
         sample_width = self.field_strip_width_mm/2 * self.image.dpmm
         # sample the strip (nominally 5mm) centered about the image center. Average the strip to reduce noise.
         x_bounds = (int(self.image.center.x - sample_width), int(self.image.center.x + sample_width))
-        x_img = np.mean(self.image[:, x_bounds[0]:x_bounds[1]], 1)
-        x_prof = SingleProfile(x_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm)
-        y_bounds = (int(self.image.center.y - sample_width), int(self.image.center.y + sample_width))
-        y_img = np.mean(self.image[y_bounds[0]:y_bounds[1], :], 0)
+        y_img = np.mean(self.image[:, x_bounds[0]:x_bounds[1]], 1)
         y_prof = SingleProfile(y_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm)
+        y_bounds = (int(self.image.center.y - sample_width), int(self.image.center.y + sample_width))
+        x_img = np.mean(self.image[y_bounds[0]:y_bounds[1], :], 0)
+        x_prof = SingleProfile(x_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm)
         x = x_prof.fwxm_data(x=fwxm)['center index (exact)']
         y = y_prof.fwxm_data(x=fwxm)['center index (exact)']
         field_width_x = x_prof.fwxm_data(x=fwxm)['width (exact) mm']

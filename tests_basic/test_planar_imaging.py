@@ -348,13 +348,12 @@ class FC2Mixin(PlanarPhantomMixin):
 
 
 class FC2Demo(FC2Mixin, TestCase):
-    klass = StandardImagingFC2
-    field_size_x_mm = 148.5
-    field_size_y_mm = 149.1
-    field_epid_offset_x_mm = -0.7
-    field_epid_offset_y_mm = 0.3
-    field_bb_offset_x_mm = -1.2
-    field_bb_offset_y_mm = 1.2
+    field_size_y_mm = 148.5
+    field_size_x_mm = 149.1
+    field_epid_offset_y_mm = -0.7
+    field_epid_offset_x_mm = 0.3
+    field_bb_offset_x_mm = -0.1
+    field_bb_offset_y_mm = 0.2
 
     def test_demo(self):
         StandardImagingFC2.run_demo()
@@ -362,53 +361,90 @@ class FC2Demo(FC2Mixin, TestCase):
 
 class FC210x10_10FFF(FC2Mixin, TestCase):
     file_name = 'FC-2-10x10-10fff.dcm'
-    klass = StandardImagingFC2
-    field_size_x_mm = 98.7
-    field_size_y_mm = 99.3
-    field_epid_offset_x_mm = 0.2
+    field_size_y_mm = 98.7
+    field_size_x_mm = 99.3
+    field_epid_offset_x_mm = 0
+    field_epid_offset_y_mm = 0.3
     field_bb_offset_y_mm = 0.8
+    field_bb_offset_x_mm = -0.3
 
 
 class FC210x10_10X(FC2Mixin, TestCase):
     file_name = 'FC-2-10x10-10x.dcm'
-    klass = StandardImagingFC2
-    field_size_x_mm = 99.3
-    field_size_y_mm = 99.6
-    field_epid_offset_y_mm = 0.2
-    field_epid_offset_x_mm = -0.5
-    field_bb_offset_y_mm = 1.1
-    field_bb_offset_x_mm = -0.8
+    field_size_y_mm = 99.3
+    field_size_x_mm = 99.6
+    field_epid_offset_x_mm = 0.2
+    field_epid_offset_y_mm = -0.5
+    field_bb_offset_y_mm = 0.4
+    field_bb_offset_x_mm = -0.1
 
 
 class FC210x10_15X(FC2Mixin, TestCase):
     file_name = 'FC-2-10x10-15x.dcm'
-    klass = StandardImagingFC2
-    field_size_x_mm = 99.3
-    field_size_y_mm = 99.6
-    field_epid_offset_y_mm = 0.1
-    field_epid_offset_x_mm = -0.5
-    field_bb_offset_y_mm = 1.1
-    field_bb_offset_x_mm = -0.8
+    field_size_y_mm = 99.3
+    field_size_x_mm = 99.6
+    field_epid_offset_x_mm = 0.1
+    field_epid_offset_y_mm = -0.5
+    field_bb_offset_y_mm = 0.5
+    field_bb_offset_x_mm = -0.2
 
 
 class FC215x15_10X(FC2Mixin, TestCase):
     file_name = 'FC-2-15x15-10X.dcm'
-    klass = StandardImagingFC2
-    field_size_y_mm = 149.2
     field_size_x_mm = 149.2
-    field_epid_offset_y_mm = 0.1
-    field_epid_offset_x_mm = -0.5
-    field_bb_offset_y_mm = 1.1
-    field_bb_offset_x_mm = -0.8
+    field_size_y_mm = 149.2
+    field_epid_offset_x_mm = 0.1
+    field_epid_offset_y_mm = -0.5
+    field_bb_offset_y_mm = 0.5
+    field_bb_offset_x_mm = -0.2
 
 
 class FC215x15_10FFF(FC2Mixin, TestCase):
     file_name = 'FC-2-15x15-10XFFF.dcm'
     fwxm = 30
-    klass = StandardImagingFC2
-    field_size_y_mm = 149.5
-    field_size_x_mm = 149.6
-    field_epid_offset_y_mm = -0.1
+    field_size_x_mm = 149.5
+    field_size_y_mm = 149.6
+    field_epid_offset_x_mm = -0.1
+    field_epid_offset_y_mm = 0.2
+    field_bb_offset_y_mm = 1.0
+    field_bb_offset_x_mm = -0.3
+
+
+class FC2Yoda(FC2Mixin, TestCase):
+    file_name = 'FC-2-Yoda.dcm'
+    field_size_y_mm = 148.2
+    field_size_x_mm = 149.2
+    field_epid_offset_y_mm = -1
     field_epid_offset_x_mm = 0.2
-    field_bb_offset_y_mm = 0.8
-    field_bb_offset_x_mm = -0.1
+    field_bb_offset_y_mm = -1
+    field_bb_offset_x_mm = 0.5
+
+
+class FC2Perfect(FC2Mixin, TestCase):
+    file_name = 'fc2-perfect.dcm'
+    field_size_y_mm = 120.3
+    field_size_x_mm = 120.3
+    field_epid_offset_y_mm = 0
+    field_epid_offset_x_mm = 0
+    field_bb_offset_y_mm = 0
+    field_bb_offset_x_mm = 0
+
+
+class FC2FieldDown1mm(FC2Mixin, TestCase):
+    file_name = 'fc2-down1mm.dcm'
+    field_size_y_mm = 120.3
+    field_size_x_mm = 120.3
+    field_epid_offset_y_mm = -1.0
+    field_epid_offset_x_mm = 0
+    field_bb_offset_y_mm = -1.0
+    field_bb_offset_x_mm = 0
+
+
+class FC2BBDownRight1mm(FC2Mixin, TestCase):
+    file_name = 'fc2-bbdownright1mm.dcm'
+    field_size_y_mm = 120.3
+    field_size_x_mm = 120.3
+    field_epid_offset_y_mm = 0
+    field_epid_offset_x_mm = 0
+    field_bb_offset_y_mm = 1
+    field_bb_offset_x_mm = 1
