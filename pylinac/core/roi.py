@@ -249,4 +249,4 @@ class RectangleROI(Rectangle):
     @cached_property
     def pixel_array(self) -> np.ndarray:
         """The pixel array within the ROI."""
-        return self._array[self.bl_corner.x:self.tr_corner.x, self.bl_corner.y:self.tr_corner.y]
+        return self._array[self.bl_corner.y:self.tr_corner.y, self.bl_corner.x:self.tr_corner.x]

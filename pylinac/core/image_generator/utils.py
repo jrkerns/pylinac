@@ -3,49 +3,124 @@ import os
 import os.path as osp
 from typing import Sequence, Union, List, Tuple, Type, Optional
 
-from .layers import FilteredFieldLayer, FilterFreeFieldLayer, Layer, PerfectBBLayer, PerfectFieldLayer, \
-    FilterFreeConeLayer, PerfectConeLayer
+from . import GaussianFilterLayer
+from .layers import (
+    FilteredFieldLayer,
+    FilterFreeFieldLayer,
+    Layer,
+    PerfectBBLayer,
+    PerfectFieldLayer,
+    FilterFreeConeLayer,
+    PerfectConeLayer,
+)
 from .simulators import Simulator
 from ..geometry import cos, sin
 from ...picketfence import Orientation
 
 
-def generate_picketfence(simulator: Simulator, field_layer: Type[Union[FilterFreeFieldLayer, FilteredFieldLayer, PerfectFieldLayer]],
-                         file_out: str,
-                         final_layers: List[Layer] = None,
-                         pickets: int = 11, picket_spacing_mm: float = 20, picket_width_mm: int = 2,
-                         picket_height_mm: int = 300, gantry_angle: int = 0, orientation=Orientation.UP_DOWN,
-                         picket_offset_error: Optional[Sequence] = None) -> None:
+def generate_lightrad(
+    file_out: str,
+    simulator: Simulator,
+    field_layer: Type[
+        Union[FilterFreeFieldLayer, FilteredFieldLayer, PerfectFieldLayer]
+    ],
+    field_size_mm: (float, float) = (150, 150),
+    cax_offset_mm: (float, float) = (0, 0),
+    final_layers: List[Layer] = [
+        GaussianFilterLayer(),
+    ],
+    bb_size_mm: float = 3,
+    bb_positions: Tuple[Tuple[float, float], ...] = (
+        (-40, -40),
+        (-40, 40),
+        (40, -40),
+        (40, 40),
+        (-65, -65),
+        (-65, 65),
+        (65, -65),
+        (65, 65),
+    ),
+) -> None:
+    """Create a mock light/rad image with BBs.
+
+    Parameters
+    ----------
+    simulator
+        The image simulator
+    field_layer
+        The primary field layer
+    file_out
+        The name of the file to save the DICOM file to.
+    final_layers
+        Optional layers to apply at the end of the procedure. Useful for noise or blurring.
+    bb_size_mm
+        The size of the phantom BBs
+    bb_positions
+        The position of the BBs relative to the CAX.
+    """
+    # open field layer
+    simulator.add_layer(
+        field_layer(field_size_mm=field_size_mm, cax_offset_mm=cax_offset_mm)
+    )
+    # bbs
+    for bb in bb_positions:
+        simulator.add_layer(PerfectBBLayer(bb_size_mm=bb_size_mm, cax_offset_mm=bb))
+
+    if final_layers is not None:
+        for layer in final_layers:
+            simulator.add_layer(layer)
+    simulator.generate_dicom(file_out)
+
+
+def generate_picketfence(
+    simulator: Simulator,
+    field_layer: Type[
+        Union[FilterFreeFieldLayer, FilteredFieldLayer, PerfectFieldLayer]
+    ],
+    file_out: str,
+    final_layers: List[Layer] = None,
+    pickets: int = 11,
+    picket_spacing_mm: float = 20,
+    picket_width_mm: int = 2,
+    picket_height_mm: int = 300,
+    gantry_angle: int = 0,
+    orientation=Orientation.UP_DOWN,
+    picket_offset_error: Optional[Sequence] = None,
+) -> None:
     """Create a mock picket fence image. Will always be up-down.
 
-        Parameters
-        ----------
-        simulator
-            The image simulator
-        field_layer
-            The primary field layer
-        file_out
-            The name of the file to save the DICOM file to.
-        final_layers
-            Optional layers to apply at the end of the procedure. Useful for noise or blurring.
-        pickets
-            The number of pickets
-        picket_spacing_mm
-            The space between pickets
-        picket_width_mm
-            Picket width parallel to leaf motion
-        picket_height_mm
-            Picket height parallel to leaf motion
-        gantry_angle
-            Gantry angle; sets the DICOM tag.
-        """
-    picket_pos_mm = range(-int((pickets - 1) * picket_spacing_mm / 2),
-                          int((pickets - 1) * picket_spacing_mm / 2) + 1,
-                          picket_spacing_mm)
+    Parameters
+    ----------
+    simulator
+        The image simulator
+    field_layer
+        The primary field layer
+    file_out
+        The name of the file to save the DICOM file to.
+    final_layers
+        Optional layers to apply at the end of the procedure. Useful for noise or blurring.
+    pickets
+        The number of pickets
+    picket_spacing_mm
+        The space between pickets
+    picket_width_mm
+        Picket width parallel to leaf motion
+    picket_height_mm
+        Picket height parallel to leaf motion
+    gantry_angle
+        Gantry angle; sets the DICOM tag.
+    """
+    picket_pos_mm = range(
+        -int((pickets - 1) * picket_spacing_mm / 2),
+        int((pickets - 1) * picket_spacing_mm / 2) + 1,
+        picket_spacing_mm,
+    )
     for idx, pos in enumerate(picket_pos_mm):
         if picket_offset_error is not None:
             if len(picket_offset_error) != pickets:
-                raise ValueError("The length of the error array must be the same as the number of pickets.")
+                raise ValueError(
+                    "The length of the error array must be the same as the number of pickets."
+                )
             pos += picket_offset_error[idx]
         if orientation == orientation.UP_DOWN:
             position = (0, pos)

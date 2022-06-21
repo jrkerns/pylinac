@@ -274,10 +274,11 @@ class BaseImage:
     @property
     def truncated_path(self) -> str:
         if self.source == FILE_TYPE:
-            if len(self.path) > PATH_TRUNCATION_LENGTH:
-                return self.path[:PATH_TRUNCATION_LENGTH // 2] + '...' + self.path[-PATH_TRUNCATION_LENGTH // 2:]
+            path = str(self.path)
+            if len(path) > PATH_TRUNCATION_LENGTH:
+                return path[:PATH_TRUNCATION_LENGTH // 2] + '...' + path[-PATH_TRUNCATION_LENGTH // 2:]
             else:
-                return self.path
+                return path
         else:
             return ''  # was from stream, no path
 
@@ -1023,7 +1024,7 @@ class DicomImageStack:
                 for file in files:
                     paths.append(osp.join(pdir, file))
         for path in paths:
-            if self.is_CT_slice(path):
+            if self.is_image_slice(path):
                 img = DicomImage(path, dtype=dtype)
                 self.images.append(img)
 
@@ -1053,11 +1054,11 @@ class DicomImageStack:
         return obj
 
     @staticmethod
-    def is_CT_slice(file: str) -> bool:
+    def is_image_slice(file: str) -> bool:
         """Test if the file is a CT Image storage DICOM file."""
         try:
             ds = pydicom.dcmread(file, force=True, stop_before_pixels=True)
-            return ds.SOPClassUID.name == 'CT Image Storage'
+            return 'Image Storage' in ds.SOPClassUID.name
         except (InvalidDicomError, AttributeError, MemoryError):
             return False
 

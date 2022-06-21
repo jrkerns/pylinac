@@ -39,6 +39,12 @@ from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI, Contrast
 from .core.utilities import ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
 
+# The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
+# and represents the fact that the wire is at an oblique angle (23°), making it appear
+# longer than it is if it were normal or perpendicular to the z (imaging) axis. This ratio
+# fixes the length to represent it as if it were perpendicular to the imaging axis.
+RAMP_ANGLE_RATIO = 0.42
+
 AIR = -1000
 PMP = -196
 LDPE = -104
@@ -503,7 +509,7 @@ class CTP404CP504(CatPhanModule):
     @property
     def meas_slice_thickness(self) -> float:
         """The average slice thickness for the 4 wire measurements in mm."""
-        return np.mean(sorted(roi.wire_fwhm*self.mm_per_pixel*0.42 for roi in self.thickness_rois.values()))/(1+2*self.pad)
+        return np.mean(sorted(roi.wire_fwhm * self.mm_per_pixel * RAMP_ANGLE_RATIO for roi in self.thickness_rois.values())) / (1 + 2 * self.pad)
 
     @property
     def avg_line_length(self) -> float:
@@ -940,13 +946,15 @@ class CatPhanBase:
         obj.was_from_zip = True
         return obj
 
-    def plot_analyzed_image(self, show: bool=True) -> None:
-        """Plot the images used in the calculate and summary data.
+    def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> None:
+        """Plot the images used in the calculation and summary data.
 
         Parameters
         ----------
         show : bool
             Whether to plot the image or not.
+        plt_kwargs : dict
+            Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
         def plot(ctp_module, axis, vmin=None, vmax=None):
             axis.imshow(ctp_module.image.array, cmap=get_dicom_cmap(), vmin=vmin, vmax=vmax)
@@ -956,6 +964,7 @@ class CatPhanBase:
             axis.axis('off')
 
         # set up grid and axes
+        plt.figure(**plt_kwargs)
         grid_size = (2, 4)
         hu_ax = plt.subplot2grid(grid_size, (0, 1))
         plot(self.ctp404, hu_ax)

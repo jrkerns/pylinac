@@ -18,12 +18,14 @@ Features:
 * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
   as you see fit.
 """
+import copy
 import dataclasses
 import io
 import os.path as osp
 import warnings
 from dataclasses import dataclass
-from typing import Optional, List, Tuple, Union, BinaryIO, Callable, Sequence, Dict
+from pathlib import Path
+from typing import Optional, List, Tuple, Union, BinaryIO, Callable, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,14 +33,16 @@ from cached_property import cached_property
 from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
+from . import Interpolation
 from .core import image, pdf, geometry
 from .core.decorators import lru_cache
-from .core.geometry import Point, Rectangle, Circle
+from .core.geometry import Point, Rectangle, Circle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import CollapsedCircleProfile
+from .core.profile import CollapsedCircleProfile, SingleProfile
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, bbox_center, Contrast
 from .core.utilities import open_path, ResultBase
+from .ct import get_regions
 
 
 @dataclass
@@ -119,7 +123,7 @@ class ImagePhantomBase:
     detection_canny_settings = {'sigma': 2, 'percentiles': (0.001, 0.01)}
     phantom_bbox_size_mm2: float
 
-    def __init__(self, filepath: Union[str, BinaryIO], normalize: bool = True, image_kwargs: Optional[dict] = None):
+    def __init__(self, filepath: Union[str, BinaryIO, Path], normalize: bool = True, image_kwargs: Optional[dict] = None):
         """
         Parameters
         ----------
@@ -339,11 +343,11 @@ class ImagePhantomBase:
     def _get_canny_regions(self) -> List[RegionProperties]:
         """Compute the canny edges of the image and return the connected regions found."""
         # compute the canny edges with very low thresholds (detects nearly everything)
-        canny_img = feature.canny(self.image, low_threshold=self.detection_canny_settings['percentiles'][0], high_threshold=self.detection_canny_settings['percentiles'][1], use_quantiles=True, sigma=self.detection_canny_settings['sigma'])
+        canny_img = feature.canny(self.image.array, low_threshold=self.detection_canny_settings['percentiles'][0], high_threshold=self.detection_canny_settings['percentiles'][1], use_quantiles=True, sigma=self.detection_canny_settings['sigma'])
 
         # label the canny edge regions
         labeled = measure.label(canny_img)
-        regions = measure.regionprops(labeled, intensity_image=self.image)
+        regions = measure.regionprops(labeled, intensity_image=self.image.array)
         return regions
 
     def _create_phantom_outline_object(self) -> Tuple[Union[Rectangle, Circle], dict]:
@@ -370,7 +374,7 @@ class ImagePhantomBase:
         return obj, settings
 
     def plot_analyzed_image(self, image: bool = True, low_contrast: bool = True, high_contrast: bool = True,
-                            show: bool = True, split_plots: bool = False) -> Tuple[List[plt.Figure], List[str]]:
+                            show: bool = True, split_plots: bool = False, **plt_kwargs: dict) -> Tuple[List[plt.Figure], List[str]]:
         """Plot the analyzed image.
 
         Parameters
@@ -385,6 +389,8 @@ class ImagePhantomBase:
             Whether to actually show the image when called.
         split_plots : bool
             Whether to split the resulting image into individual plots. Useful for saving images into individual files.
+        plt_kwargs : dict
+            Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
         plot_low_contrast = low_contrast and any(self.low_contrast_rois)
         plot_high_contrast = high_contrast and any(self.high_contrast_rois)
@@ -398,11 +404,11 @@ class ImagePhantomBase:
         if split_plots:
             axes = []
             for n in range(num_plots):
-                fig, axis = plt.subplots(1)
+                fig, axis = plt.subplots(1, **plt_kwargs)
                 figs.append(fig)
                 axes.append(axis)
         else:
-            fig, axes = plt.subplots(1, num_plots)
+            fig, axes = plt.subplots(1, num_plots, **plt_kwargs)
             fig.subplots_adjust(wspace=0.4)
         if num_plots < 2:
             axes = (axes,)
@@ -444,6 +450,7 @@ class ImagePhantomBase:
             names.append('high_contrast')
             self._plot_highcontrast_graph(hicon_ax)
 
+        plt.tight_layout()
         if show:
             plt.show()
         return figs, names
@@ -576,6 +583,267 @@ class ImagePhantomBase:
         pass
 
 
+@dataclass
+class LightRadResult(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+    field_size_x_mm: float  #:
+    field_size_y_mm: float  #:
+    field_epid_offset_x_mm: float  #:
+    field_epid_offset_y_mm: float  #:
+    field_bb_offset_x_mm: float  #:
+    field_bb_offset_y_mm: float  #:
+
+
+class StandardImagingFC2(ImagePhantomBase):
+    common_name = 'SI FC-2'
+    _demo_filename = 'fc2.dcm'
+    # these positions are the offset in mm from the center of the image to the nominal position of the BBs
+    bb_positions_10x10 = {'TL': [-40, -40], 'BL': [-40, 40], 'TR': [40, -40], 'BR': [40, 40]}
+    bb_positions_15x15 = {'TL': [-65, -65], 'BL': [-65, 65], 'TR': [65, -65], 'BR': [65, 65]}
+    bb_sampling_box_size_mm = 10
+    field_strip_width_mm = 5
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Standard Imaging FC-2 phantom analysis demonstration."""
+        fc2 = StandardImagingFC2.from_demo_image()
+        fc2.analyze()
+        fc2.plot_analyzed_image()
+
+    def analyze(self, invert: bool = False, fwxm: int = 50) -> None:
+        """Analyze the FC-2 phantom to find the BBs and the open field and compare to each other as well as the EPID.
+
+        Parameters
+        ----------
+        invert : bool
+            Whether to force-invert the image from the auto-detected inversion.
+        fwxm : int
+            The FWXM value to use to detect the field. For flattened fields, the default of 50 should be fine.
+            For FFF fields, consider using a lower value such as 25-30.
+        """
+        self._check_inversion()
+        if invert:
+            self.image.invert()
+        self.bb_center = self._find_overall_bb_centroid(fwxm=fwxm)
+        self.field_center, self.field_width_x, self.field_width_y = self._find_field_info(fwxm=fwxm)
+        self.epid_center = self.image.center
+
+    def results(self, as_list: bool = False) -> Union[str, list]:
+        """Return the results of the analysis."""
+        text = [f'{self.common_name} results:',
+                f'File: {self.image.truncated_path}',
+                f"The detected inplane field size was {self.field_width_y:2.1f}mm",
+                f"The detected crossplane field size was {self.field_width_x:2.1f}mm",
+                f"The inplane field was {self.field_epid_offset_mm.y:2.1f}mm from the EPID CAX",
+                f"The crossplane field was {self.field_epid_offset_mm.x:2.1f}mm from the EPID CAX",
+                f"The inplane field was {self.field_bb_offset_mm.y:2.1f}mm from the BB inplane center",
+                f"The crossplane field was {self.field_bb_offset_mm.x:2.1f}mm from the BB crossplane center"
+        ]
+        if as_list:
+            return text
+        else:
+            text = '\n'.join(text)
+            return text
+
+    @property
+    def field_epid_offset_mm(self) -> Vector:
+        """Field offset from CAX using vector difference"""
+        return (self.epid_center.as_vector() - self.field_center.as_vector()) / self.image.dpmm
+
+    @property
+    def field_bb_offset_mm(self) -> Vector:
+        """Field offset from BB centroid using vector difference"""
+        return (self.bb_center.as_vector() - self.field_center.as_vector()) / self.image.dpmm
+
+    def results_data(self, as_dict: bool = False) -> Union[LightRadResult, dict]:
+        """Return the results as a dict or dataclass"""
+        data = LightRadResult(
+                field_size_x_mm=self.field_width_x,
+                field_size_y_mm=self.field_width_y,
+                field_epid_offset_x_mm=self.field_epid_offset_mm.x,
+                field_epid_offset_y_mm=self.field_epid_offset_mm.y,
+                field_bb_offset_x_mm=self.field_bb_offset_mm.x,
+                field_bb_offset_y_mm=self.field_bb_offset_mm.y
+        )
+        if as_dict:
+            return dataclasses.asdict(data)
+        return data
+
+    def _check_inversion(self):
+        """Perform a normal corner-check inversion. Since these are always 10x10 or 15x15 fields it seems unlikely the corners will be exposed."""
+        self.image.check_inversion()
+
+    def _find_field_info(self, fwxm: int) -> (Point, float, float):
+        """Determine the center and field widths of the detected field by sampling a strip through the center of the image in inplane and crossplane"""
+        sample_width = self.field_strip_width_mm/2 * self.image.dpmm
+        # sample the strip (nominally 5mm) centered about the image center. Average the strip to reduce noise.
+        x_bounds = (int(self.image.center.x - sample_width), int(self.image.center.x + sample_width))
+        y_img = np.mean(self.image[:, x_bounds[0]:x_bounds[1]], 1)
+        y_prof = SingleProfile(y_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm)
+        y_bounds = (int(self.image.center.y - sample_width), int(self.image.center.y + sample_width))
+        x_img = np.mean(self.image[y_bounds[0]:y_bounds[1], :], 0)
+        x_prof = SingleProfile(x_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm)
+        x = x_prof.fwxm_data(x=fwxm)['center index (exact)']
+        y = y_prof.fwxm_data(x=fwxm)['center index (exact)']
+        field_width_x = x_prof.fwxm_data(x=fwxm)['width (exact) mm']
+        field_width_y = y_prof.fwxm_data(x=fwxm)['width (exact) mm']
+        return Point(x=x, y=y), field_width_x, field_width_y
+
+    def _find_overall_bb_centroid(self, fwxm: int) -> Point:
+        """Determine the geometric center of the 4 BBs"""
+        self.bb_centers = bb_centers = self._detect_bb_centers(fwxm)
+        central_x = np.mean([p.x for p in bb_centers.values()])
+        central_y = np.mean([p.y for p in bb_centers.values()])
+        return Point(x=central_x, y=central_y)
+
+    def _detect_bb_centers(self, fwxm: int) -> dict:
+        """Sample a 10x10mm square about each BB to detect it. Adjustable using self.bb_sampling_box_size_mm"""
+        bb_positions = {}
+        nominal_positions = self._determine_bb_set(fwxm=fwxm)
+        dpmm = self.image.dpmm
+        sample_box_size = self.bb_sampling_box_size_mm/2 * dpmm
+        # invert the image so that the BB marks increase in intensity
+        inverted_img = copy.copy(self.image)
+        inverted_img.invert()
+        # sample the square, use skimage to find the ROI weighted centroid of the BBs
+        for key, position in nominal_positions.items():
+            x_bounds = (int(self.image.center.x + (position[0]*dpmm) - sample_box_size), int(self.image.center.x + (position[0]*dpmm)+sample_box_size))
+            y_bounds = (int(self.image.center.y + (position[1] * dpmm) - sample_box_size), int(self.image.center.y + (position[1] * dpmm) + sample_box_size))
+            bb_sample = image.load(inverted_img[y_bounds[0]:y_bounds[1], x_bounds[0]:x_bounds[1]])
+            bb_sample.ground()
+            _, rprops, num_roi = get_regions(bb_sample.array, fill_holes=True, clear_borders=False)
+            if num_roi < 1:
+                raise ValueError("Did not find the BB in the expected location")
+            center_roi = take_centermost_roi(rprops, bb_sample.array.shape)
+            # due to the sloping field values, the centroid is usually a better representation.
+            # the weighted centroid will bias towards the center of the field. Even though this isn't technically a problem,
+            # I know people will complain it's not aligned with the BB.
+            bb_positions[key] = Point(x=center_roi.centroid[1] + x_bounds[0], y=center_roi.centroid[0] + y_bounds[0])
+        return bb_positions
+
+    def _determine_bb_set(self, fwxm: int) -> dict:
+        """This finds the approximate field size to determine whether to check for the 10x10 BBs or the 15x15. Returns the BB positions"""
+        x_prof = SingleProfile(self.image[int(self.image.center.y), :], dpmm=self.image.dpmm)
+        y_prof = SingleProfile(self.image[:, int(self.image.center.x)], dpmm=self.image.dpmm)
+        x_width = x_prof.fwxm_data(x=fwxm)['width (exact) mm']
+        y_width = y_prof.fwxm_data(x=fwxm)['width (exact) mm']
+        if not np.allclose(x_width, y_width, atol=10):
+            raise ValueError(f"The detected y and x field sizes were too different from one another. They should be within 1cm from each other. Detected field sizes: x={x_width}, y={y_width}")
+        if x_width > 140:
+            return self.bb_positions_15x15
+        else:
+            return self.bb_positions_10x10
+
+    def plot_analyzed_image(self, show: bool = True, **kwargs) -> Tuple[List[plt.Figure], List[str]]:
+        """Plot the analyzed image.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to actually show the image when called.
+        """
+        figs = []
+        names = []
+        fig, axes = plt.subplots(1)
+        figs.append(fig)
+        names.append('image')
+        self.image.plot(ax=axes, show=False, **kwargs)
+        axes.axis('off')
+        axes.set_title(f'{self.common_name} Phantom Analysis')
+
+        # plot the bb marks
+        bb_xs = [bb.x for bb in self.bb_centers.values()]
+        bb_ys = [bb.y for bb in self.bb_centers.values()]
+        axes.plot(bb_xs, bb_ys, 'go')
+
+        # plot the bb center as small lines
+        axes.axhline(y=self.bb_center.y, color='g', xmin=0.25, xmax=0.75, label='BB Centroid')
+        axes.axvline(x=self.bb_center.x, color='g', ymin=0.25, ymax=0.75)
+
+        # plot the epid center as image-sized lines
+        axes.axhline(y=self.epid_center.y, color='b', label='EPID Center')
+        axes.axvline(x=self.epid_center.x, color='b')
+
+        # plot the field center as field-sized lines
+        axes.axhline(y=self.field_center.y, xmin=0.15, xmax=0.85, color='red', label="Field Center")
+        axes.axvline(x=self.field_center.x, ymin=0.15, ymax=0.85, color='red')
+
+        axes.legend()
+
+        if show:
+            plt.show()
+        return figs, names
+
+    def save_analyzed_image(self, filename: Union[None, str, BinaryIO] = None, to_streams: bool = False, **kwargs) -> Optional[Union[Dict[str, BinaryIO], List[str]]]:
+        """Save the analyzed image to disk or to stream. Kwargs are passed to plt.savefig()
+
+        Parameters
+        ----------
+        filename : None, str, stream
+            A string representing where to save the file to. If split_plots and to_streams are both true, leave as None as newly-created streams are returned.
+        to_streams: bool
+            This only matters if split_plots is True. If both of these are true, multiple streams will be created and returned as a dict.
+        """
+        if filename is None and to_streams is False:
+            raise ValueError("Must pass in a filename unless saving to streams.")
+        figs, names = self.plot_analyzed_image(show=False, **kwargs)
+        if not to_streams:
+            plt.savefig(filename, **kwargs)
+        else:
+        # append names to filename if it's file-like
+            if not to_streams:
+                filenames = []
+                f, ext = osp.splitext(filename)
+                for name in names:
+                    filenames.append(f + '_' + name + ext)
+            else:  # it's a stream buffer
+                filenames = [io.BytesIO() for _ in names]
+            for fig, name in zip(figs, filenames):
+                fig.savefig(name, **kwargs)
+            if to_streams:
+                return {name: stream for name, stream in zip(names, filenames)}
+
+    def publish_pdf(self, filename: str, notes: str = None, open_file: bool = False, metadata: Optional[dict] = None):
+        """Publish (print) a PDF containing the analysis, images, and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
+        """
+        canvas = pdf.PylinacCanvas(filename, page_title=f'{self.common_name} Phantom Analysis', metadata=metadata)
+
+        # write the text/numerical values
+        text = self.results(as_list=True)
+        canvas.add_text(text=text, location=(1.5, 25), font_size=14)
+        if notes is not None:
+            canvas.add_text(text="Notes:", location=(1, 5.5), font_size=12)
+            canvas.add_text(text=notes, location=(1, 5))
+
+        data = io.BytesIO()
+        self.save_analyzed_image(data)
+        canvas.add_image(data, location=(1, 3.5), dimensions=(19, 19))
+
+        canvas.finish()
+        if open_file:
+            open_path(filename)
+
+
 class LasVegas(ImagePhantomBase):
     _demo_filename = 'lasvegas.dcm'
     common_name = 'Las Vegas'
@@ -583,9 +851,13 @@ class LasVegas(ImagePhantomBase):
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {'Rectangle': {'width ratio': 0.62, 'height ratio': 0.62}}
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.107, 'angle': 0.5, 'roi radius': 0.020},
+        'roi 1': {'distance from center': 0.24, 'angle': 0, 'roi radius': 0.03},
+        'roi 2': {'distance from center': 0.24, 'angle': 90, 'roi radius': 0.03},
+        'roi 3': {'distance from center': 0.24, 'angle': 180, 'roi radius': 0.03},
+        'roi 4': {'distance from center': 0.24, 'angle': 270, 'roi radius': 0.03},
     }
     low_contrast_roi_settings = {
+        'roi 1': {'distance from center': 0.107, 'angle': 0.5, 'roi radius': 0.028},
         'roi 2': {'distance from center': 0.141, 'angle': 39.5, 'roi radius': 0.028},
         'roi 3': {'distance from center': 0.205, 'angle': 58, 'roi radius': 0.028},
         'roi 4': {'distance from center': 0.179, 'angle': -76.5, 'roi radius': 0.016},
@@ -649,6 +921,54 @@ class LasVegas(ImagePhantomBase):
     def _phantom_angle_calc(self) -> float:
         return 0.0
 
+    def _plot_lowcontrast_graph(self, axes: plt.Axes):
+        """Plot the low contrast ROIs to an axes, including visibility"""
+        # plot contrast
+        line1, = axes.plot([roi.contrast for roi in self.low_contrast_rois], marker='o', color='m', label='Contrast')
+        axes.axhline(self._low_contrast_threshold, color='m')
+        axes.grid(True)
+        axes.set_title('Low-frequency Contrast')
+        axes.set_xlabel('ROI #')
+        axes.set_ylabel('Contrast')
+        # plot CNR
+        axes2 = axes.twinx()
+        axes2.set_ylabel('CNR')
+        line2, = axes2.plot([roi.contrast_to_noise for roi in self.low_contrast_rois], marker='^', label='CNR')
+        # plot visibility; here's what different from the base method
+        axes3 = axes.twinx()
+        axes3.set_ylabel('Visibility')
+        line3, = axes3.plot([roi.visibility for roi in self.low_contrast_rois], marker='*', color='blue', label='Visibility')
+        axes3.axhline(self.visibility_threshold, color='blue')
+        axes3.spines.right.set_position(("axes", 1.2))
+
+        axes.legend(handles=[line1, line2, line3])
+
+    def results(self) -> str:
+        """Return the results of the analysis. Overridden because ROIs seen is based on visibility, not CNR"""
+        text = [f'{self.common_name} results:',
+                f'File: {self.image.truncated_path}'
+        ]
+        text += [
+                f'Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}',
+                f'Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}',
+                f'# Low contrast ROIs "seen": {sum(roi.passed_visibility for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
+        ]
+        text = '\n'.join(text)
+        return text
+
+    def results_data(self, as_dict=False) -> Union[PlanarResult, dict]:
+        """Overridden because ROIs seen is based on visibility, not CNR"""
+        data = PlanarResult(
+                analysis_type=self.common_name,
+                median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
+                median_cnr=np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]),
+                num_contrast_rois_seen=sum(roi.passed_visibility for roi in self.low_contrast_rois),
+                phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y)
+        )
+        if as_dict:
+            return dataclasses.asdict(data)
+        return data
+
 
 class PTWEPIDQC(ImagePhantomBase):
     _demo_filename = 'PTW-EPID-QC.dcm'
@@ -701,8 +1021,8 @@ class PTWEPIDQC(ImagePhantomBase):
         return self.phantom_ski_region.major_axis_length / 14
 
     def _phantom_angle_calc(self) -> float:
-        """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
-        which angles the phantom at 45 degrees.
+        """The angle of the phantom. This assumes the user has placed the phantom with the high-contrast line pairs at the top
+        and low contrast at the bottom at a fixed rotation of 0 degrees.
 
         Returns
         -------
@@ -1150,3 +1470,10 @@ class DoselabMC2MV(DoselabMC2kV):
         leeds = DoselabMC2MV.from_demo_image()
         leeds.analyze()
         leeds.plot_analyzed_image()
+
+
+def take_centermost_roi(rprops: List[RegionProperties], image_shape: Tuple[int, int]):
+    """Return the ROI that is closest to the center."""
+    larger_rois = [rprop for rprop in rprops if rprop.area > 20 and rprop.eccentricity < 0.9]  # drop stray pixel ROIs and line-like ROIs
+    center_roi = sorted(larger_rois, key=lambda p: abs(p.centroid[0] - image_shape[0]/2) + abs(p.centroid[1] - image_shape[1]/2))[0]
+    return center_roi

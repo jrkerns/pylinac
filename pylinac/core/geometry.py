@@ -91,6 +91,9 @@ class Point:
         else:
             return np.array([getattr(self, item) for item in self._attr_list if (getattr(self, item) is not None)])
 
+    def as_vector(self) -> "Vector":
+        return Vector(x=self.x, y=self.y, z=self.z)
+
     def __repr__(self):
         return f"Point(x={self.x:3.2f}, y={self.y:3.2f}, z={self.z:3.2f})"
 
@@ -118,10 +121,9 @@ class Point:
     def __truediv__(self, other):
         for attr in self._attr_list:
             val = getattr(self, attr)
-            try:
+            # sometimes not all attrs are defined (like index or value and only x,y,z). Skip dividing those.
+            if val is not None:
                 setattr(self, attr, val/other)
-            except TypeError:
-                pass
         return self
 
 
@@ -201,17 +203,23 @@ class Vector:
             p = Point(thing)
             return math.sqrt((self.x - p.x)**2 + (self.y - p.y)**2 + (self.z - p.z)**2)
 
-    def __sub__(self, other):
+    def __sub__(self, other: "Vector"):
         new_x = self.x - other.x
         new_y = self.y - other.y
         new_z = self.z - other.z
         return Vector(x=new_x, y=new_y, z=new_z)
 
-    def __add__(self, other):
+    def __add__(self, other: "Vector"):
         new_x = self.x + other.x
         new_y = self.y + other.y
         new_z = self.z + other.z
         return Vector(x=new_x, y=new_y, z=new_z)
+
+    def __truediv__(self, other: float):
+        for attr in ('x', 'y', 'z'):
+            val = getattr(self, attr)
+            setattr(self, attr, val/other)
+        return self
 
 
 def vector_is_close(vector1: Vector, vector2: Vector, delta: float=0.1) -> bool:

@@ -3,6 +3,8 @@ from functools import partial
 from typing import Union, Type, Iterable
 from unittest import TestCase
 
+from matplotlib import pyplot as plt
+
 from pylinac import DRGS, DRMLC
 from pylinac.core.geometry import Point
 from pylinac.vmat import VMATResult
@@ -172,6 +174,12 @@ class TestDRGSDemo(VMATMixin, TestCase):
     def test_demo(self):
         """Run the demo; no errors should arise."""
         self.vmat.run_demo()
+
+    def test_set_figure_size(self):
+        self.vmat.plot_analyzed_image(figsize=(7, 11))
+        fig = plt.gcf()
+        self.assertEqual(fig.bbox_inches.height, 11)
+        self.assertEqual(fig.bbox_inches.width, 7)
 
 
 class TestDRMLCDemo(VMATMixin, TestCase):

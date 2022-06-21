@@ -10,7 +10,7 @@ import time
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
-from typing import List, Sequence, Callable
+from typing import List, Sequence, Callable, Union
 from urllib.request import urlopen
 
 from google.cloud import storage
@@ -148,18 +148,24 @@ class CloudFileMixin:
     1. Override ``file_path`` with a list that contains the subfolder(s) and file name.
     """
 
-    file_name: str
+    file_name: Union[str, Sequence[str]]
     dir_path: Sequence[str]
     delete_file = True
 
     @classmethod
     def get_filename(cls) -> str:
         """Return the canonical path to the file on disk. Download if it doesn't exist."""
-        full_path = Path(LOCAL_TEST_DIR, *cls.dir_path, cls.file_name).absolute()
+        if isinstance(cls.file_name, (list, tuple)):
+            full_path = Path(LOCAL_TEST_DIR, *cls.dir_path, *cls.file_name).absolute()
+        else:
+            full_path = Path(LOCAL_TEST_DIR, *cls.dir_path, cls.file_name).absolute()
         if full_path.is_file():
             return str(full_path)
         else:
-            return get_file_from_cloud_test_repo([*cls.dir_path, cls.file_name])
+            if isinstance(cls.file_name, (list, tuple)):
+                return get_file_from_cloud_test_repo([*cls.dir_path, *cls.file_name])
+            else:
+                return get_file_from_cloud_test_repo([*cls.dir_path, cls.file_name])
 
     @classmethod
     def tearDownClass(cls):

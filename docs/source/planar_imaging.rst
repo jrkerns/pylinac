@@ -10,6 +10,21 @@ Overview
 .. automodule:: pylinac.planar_imaging
     :no-members:
 
+Feature table
+-------------
+
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| Feature/Phantom  | Doselab MC2 (MV)   | Doselab MC2 (kV)   | Las Vegas | Leeds TOR | PTW EPID QC | SNC MV  | SNC kV   | SI QC-3 (MV)            | SI QC kV                |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| Can be inverted? | No                 | No                 | L/R       | Yes       | No          | No      | No       | No                      | No                      |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| SSD setting      | Manual             | Manual             | Manual    | Manual    | Manual      | Manual  | Manual   | Manual                  | Manual                  |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| Auto-centering   | Yes                | Yes                | Yes       | Yes       | Yes         | Yes     | Yes      | Yes                     | Yes                     |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+| Auto-rotation    | Semi (+/-5 from 0) | Semi (+/-5 from 0) | No (0)    | Yes       | No (0)      | No (45) | No (135) | Semi (+/-5 from 45/135) | Semi (+/-5 from 45/135) |
++------------------+--------------------+--------------------+-----------+-----------+-------------+---------+----------+-------------------------+-------------------------+
+
 .. _typical_planar_usage:
 
 Typical module usage
@@ -154,7 +169,7 @@ The algorithm works like such:
 
 **Pre-Analysis**
 
-* **Determine phantom location** -- The Leeds phantom is found by performing a canny edge detection
+* **Determine phantom location** -- The Leeds phantom is found by performing a Canny edge detection
   algorithm to the image. The thin structures found are sifted by finding appropriately-sized ROIs.
   This may include the outer phantom edge and the metal ring just inside. The average central position
   of the circular ROIs is set as the phantom center.
@@ -221,6 +236,64 @@ Again, pass ``invert=True`` to the ``analyze`` method. This is the same image bu
 
 .. image:: images/leeds_offset_corrected.png
 
+
+PTW EPID QC Phantom
+-------------------
+
+The PTW EPID QC phantom is an MV imaging quality assurance phantom and has high and low contrast regions,
+just as the Leeds phantom, but with different geometric configurations.
+
+.. _epid-qc_image_acquisition:
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The EPID QC phantom appears to have a specific setup as recommended by the manufacturer. The phantom
+should have the high-contrast line pairs at the top of the image and low contrast at the bottom. The
+rotation is not automatically determined, so you should take care when setting up the phantom to be
+well-positioned.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+* The images can be acquired with the phantom at any SSD.
+
+**Restrictions**
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom must be at 0 degrees.
+* The phantom must not be touching any image edges.
+* The phantom should have the high-contrast linen pair regions toward the gantry stand/top.
+* The phantom should be centered near the CAX (<1-2cm).
+
+**Pre-Analysis**
+
+* **Determine phantom location** -- A Canny edge search is performed on the image. Connected edges that
+  are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
+  axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
+* **Determine phantom radius** -- The major axis length of the ROI determined above serves as the
+  phantom radius.
+
+**Analysis**
+
+* **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
+  be known. From here, the contrast can be known; see :ref:`contrast`.
+* **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
+  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated. See :ref:`mtf_topic`.
+
+**Post-Analysis**
+
+* **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
+  value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+
 Standard Imaging QC-3 Phantom
 -----------------------------
 
@@ -264,7 +337,7 @@ The algorithm works like such:
 
 **Pre-Analysis**
 
-* **Determine phantom location** -- A canny edge search is performed on the image. Connected edges that
+* **Determine phantom location** -- A Canny edge search is performed on the image. Connected edges that
   are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
   axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
 * **Determine phantom radius and angle** -- The major axis length of the ROI determined above serves as the
@@ -325,7 +398,7 @@ The algorithm works like such:
 
 **Pre-Analysis**
 
-* **Determine phantom location** -- A canny edge search is performed on the image. Connected edges that
+* **Determine phantom location** -- A Canny edge search is performed on the image. Connected edges that
   are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
   axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
 * **Determine phantom radius and angle** -- The major axis length of the ROI determined above serves as the
@@ -353,7 +426,7 @@ Image Acquisition
 The Doselab phantom has a recommended position as stated on the phantom. Pylinac will however account for
 shifts and inversions. Best practices for the Doselab phantom:
 
-* Keep the phantom from a couch edge or any rails.
+* Keep the phantom away from a couch edge or any rails.
 * Center the phantom along the CAX.
 
 Algorithm
@@ -373,6 +446,147 @@ The algorithm works like such:
 * The phantom must not be touching any image edges.
 * The phantom should be at 45 degrees relative to the EPID.
 * The phantom should be centered near the CAX (<1-2cm).
+
+**Pre-Analysis**
+
+* **Determine phantom location** -- A canny edge search is performed on the image. Connected edges that
+  are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
+  axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
+* **Determine phantom radius and angle** -- The major axis length of the ROI determined above serves as the
+  phantom radius. The orientation of the edge ROI serves as the phantom angle.
+
+**Analysis**
+
+* **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
+  be known. From here, the contrast can be known; see :ref:`contrast`.
+
+**Post-Analysis**
+
+* **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
+  value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+
+SNC MV & kV
+-----------
+
+The SNC MV and kV phantoms are for kV & MV image quality testing and includes low and high contrast regions of varying contrast.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The SNC phantoms typically use the angled setup jig. Best practices for the Doselab phantom:
+
+* Keep the phantom away from a couch edge or any rails.
+* Center the phantom along the CAX.
+* Use the angled setup jig.
+* For the MV phantom, have the longer side point inferiorly (i.e. **away** from the stand).
+* For the kV phantom, have the longer side point superiorly (i.e. **toward** the stand).
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom must not be touching any image edges.
+* The phantom should be at 45 degrees relative to the EPID.
+* The phantom should be centered near the CAX (<1-2cm).
+
+**Pre-Analysis**
+
+* **Determine phantom location** -- A canny edge search is performed on the image. Connected edges that
+  are semi-round and angled are thought to possibly be the phantom. Of the ROIs, the one with the longest
+  axis is said to be the phantom edge. The center of the bounding box of the ROI is set as the phantom center.
+* **Determine phantom radius** -- The major axis length of the ROI determined above serves as the
+  phantom radius.
+
+**Analysis**
+
+* **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
+  be known. From here, the contrast can be known; see :ref:`contrast`.
+
+**Post-Analysis**
+
+* **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
+  value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
+Standard Imaging FC-2
+---------------------
+
+The FC-2 phantom is for testing light/radiation coincidence.
+
+.. note:: A phantom is not actually needed for light/radiation coincidence. Just use your graph paper after doing mechanicals to do an open image. 😉
+
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The FC-2 phantom should be placed on the couch at 100cm SSD.
+
+* Keep the phantom away from a couch edge or any rails.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
+* The phantom should be centered near the CAX (<1cm).
+* The phantom should be +/- 1cm from 100cm SSD.
+
+**Pre-Analysis**
+
+* **Determine BB set to use** -- There are two sets of BBs, one for 10x10cm and another for 15x15cm. To
+  get the maximum accuracy, the larger set is used if a 15x15cm field is irradiated. The field size is
+  determined and if it's >14cm then the algorithm will look for the larger set. Otherwise, it will look for the smaller 4.
+
+**Analysis**
+
+* **Get BB centroid** -- Once the BB set is chosen, image windows look for the BBs in a 1x1cm square. Once it finds them,
+  the centroid of all 4 BBs is calculated.
+* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
+  A 5mm strip is averaged and used to reduce noise.
+
+**Post-Analysis**
+
+* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
+  The field size is also reported.
+
+Customizing behavior
+^^^^^^^^^^^^^^^^^^^^
+
+The BB window as well as the expected BB positions, and field strip size can be overridden like so:
+
+.. code-block:: python
+
+    from pylinac import StandardImagingFC2
+
+    class MySIFC2(StandardImagingFC2):
+        bb_sampling_box_size_mm = 20  # look at a 20x20mm window for the BB at the expected position
+        # change the 10x10 BB expected positions. This is in mm relative to the CAX.
+        bb_positions_10x10 = {'TL': [-30, -30], 'BL': [-30, 30], 'TR': [30, -30], 'BR': [30, 30]}
+        bb_positions_15x15 = ... # same as above
+        field_strip_width_mm = 10  # 10mm strip in x and y to determine field size
+
+    # use as normal
+    fc2 = MySIFC2(...)
 
 .. _creating_a_custom_phantom:
 
@@ -610,4 +824,7 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.PTWEPIDQC
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.StandardImagingFC2
     :inherited-members:

@@ -346,15 +346,17 @@ class Starshot:
             return dataclasses.asdict(data)
         return data
 
-    def plot_analyzed_image(self, show: bool=True):
+    def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
         """Draw the star lines, profile circle, and wobble circle on a matplotlib figure.
 
         Parameters
         ----------
         show : bool
             Whether to actually show the image.
+        plt_kwargs : dict
+            Keyword args passed to the plt.subplots() method. Allows one to set things like figure size.
         """
-        fig, axes = plt.subplots(ncols=2)
+        fig, axes = plt.subplots(ncols=2, **plt_kwargs)
         subimages = ('whole', 'wobble')
         titles = ('Analyzed Image', 'Wobble Circle')
 
@@ -366,7 +368,7 @@ class Starshot:
         if show:
             plt.show()
 
-    def plot_analyzed_subimage(self, subimage: str='wobble', ax: Optional[plt.Axes]=None, show: bool=True):
+    def plot_analyzed_subimage(self, subimage: str = 'wobble', ax: Optional[plt.Axes] = None, show: bool = True, **plt_kwargs: dict):
         """Plot a subimage of the starshot analysis. Current options are the zoomed out image and the zoomed in image.
 
         Parameters
@@ -376,9 +378,13 @@ class Starshot:
             Any other string will show the zoomed out plot.
         ax : None, matplotlib Axes
             If None (default), will create a new figure to plot on, otherwise plot to the passed axes.
+        show : bool
+            Whether to actually show the image.
+        plt_kwargs : dict
+            Keyword args passed to the plt.figure() method. Allows one to set things like figure size. Only used if ax is not passed.
         """
         if ax is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(**plt_kwargs)
         # show analyzed image
         ax.imshow(self.image.array, cmap=get_dicom_cmap())
         self.lines.plot(ax)
@@ -406,7 +412,6 @@ class Starshot:
         filename : str, IO stream
             The filename to save as. Format is deduced from string extention, if there is one. E.g. 'mystar.png' will
             produce a PNG image.
-
         kwargs
             All other kwargs are passed to plt.savefig().
         """

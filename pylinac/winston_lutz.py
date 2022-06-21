@@ -25,7 +25,7 @@ import os.path as osp
 from dataclasses import dataclass
 from itertools import zip_longest
 from textwrap import wrap
-from typing import Union, List, Tuple, Optional, BinaryIO, Iterable
+from typing import Union, List, Tuple, Optional, BinaryIO, Iterable, Dict
 
 import argue
 import matplotlib.pyplot as plt
@@ -317,7 +317,7 @@ class WinstonLutz:
 
         Parameters
         ----------
-        axis : ('Gantry', 'Collimator', 'Couch', 'Epid', 'GB Combo',  'GBP Combo'}
+        axis : ('Gantry', 'Collimator', 'Couch', 'Epid', 'GB Combo',  'GBP Combo')
             The axis desired.
         value : {'all', 'range'}
             Whether to return all the RMS values from all images for that axis, or only return the maximum range of
@@ -452,7 +452,7 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    def plot_images(self, axis: Axis = Axis.GANTRY, show: bool = True):
+    def plot_images(self, axis: Axis = Axis.GANTRY, show: bool = True, split: bool = False, **kwargs) -> (List[plt.Figure], List[str]):
         """Plot a grid of all the images acquired.
 
         Four columns are plotted with the titles showing which axis that column represents.
@@ -462,6 +462,8 @@ class WinstonLutz:
         axis : {'Gantry', 'Collimator', 'Couch', 'GB Combo', 'GBP Combo', 'All'}
         show : bool
             Whether to show the image.
+        split : bool
+            Whether to show/plot the images individually or as one large figure.
         """
         axis = convert_to_enum(axis, Axis)
         if not self._is_analyzed:
@@ -487,21 +489,42 @@ class WinstonLutz:
         elif axis == Axis.GBP_COMBO:
             images = self.images
 
-        # create plots
-        max_num_images = math.ceil(len(images)/4)
-        dpi = 72
-        width_px = 1080
-        width_in = width_px/dpi
-        height_in = (width_in / 4) * max_num_images
-        fig, axes = plt.subplots(nrows=max_num_images, ncols=4, figsize=(width_in, height_in))
-        for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
-            plot_image(wl_image, mpl_axis)
+        # set the figsize if it wasn't passed
+        if not kwargs.get('figsize'):
+            dpi = 72
+            width_px = 1080
+            width_in = width_px/dpi
+            if not split:
+                max_num_images = math.ceil(len(images) / 4)
+                height_in = (width_in / 4) * max_num_images
+            else:
+                height_in = width_in = 3
+            kwargs['figsize'] = (width_in, height_in)
 
-        # set titles
-        fig.suptitle(f"{axis.value} images", fontsize=14, y=1)
-        plt.tight_layout()
+        figs = []
+        names = []
+        # create plots
+        if not split:
+            fig, axes = plt.subplots(nrows=max_num_images, ncols=4, **kwargs)
+            for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
+                plot_image(wl_image, mpl_axis)
+
+            # set titles
+            fig.suptitle(f"{axis.value} images", fontsize=14, y=1)
+            fig.tight_layout()
+            figs.append(fig)
+            names.append('image')
+        else:
+            for wl_image in images:
+                fig, axes = plt.subplots(**kwargs)
+                plot_image(wl_image, axes)
+                figs.append(fig)
+                names.append(str(wl_image))
+
         if show:
             plt.show()
+
+        return figs, names
 
     def save_images(self, filename: Union[str, BinaryIO], axis: Axis = Axis.GANTRY, **kwargs):
         """Save the figure of `plot_images()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
@@ -515,6 +538,14 @@ class WinstonLutz:
         """
         self.plot_images(axis=axis, show=False)
         plt.savefig(filename, **kwargs)
+
+    def save_images_to_stream(self, **kwargs) -> Dict[str, io.BytesIO]:
+        """Save the individual image plots to stream"""
+        figs, names = self.plot_images(axis=Axis.GBP_COMBO, show=False, split=True)  # all images
+        streams = [io.BytesIO() for _ in figs]
+        for fig, stream in zip(figs, streams):
+            fig.savefig(stream, **kwargs)
+        return {name: stream for name, stream in zip(names, streams)}
 
     def plot_summary(self, show: bool = True, fig_size: Optional[tuple] = None):
         """Plot a summary figure showing the gantry sag and wobble plots of the three axes."""
@@ -874,7 +905,8 @@ class WinstonLutz2D(image.LinacDicomImage):
         ax = super().plot(ax=ax, show=False, clear_fig=clear_fig)
         ax.plot(self.field_cax.x, self.field_cax.y, 'gs', ms=8)
         ax.plot(self.bb.x, self.bb.y, 'ro', ms=8)
-        ax.plot(self.epid.x, self.epid.y, 'b+', ms=8)
+        ax.axvline(x=self.epid.x, color='b')
+        ax.axhline(y=self.epid.y, color='b')
         ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[1]])
         ax.set_xlim([self._rad_field_bounding_box[2], self._rad_field_bounding_box[3]])
         ax.set_yticklabels([])

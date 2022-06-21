@@ -676,11 +676,13 @@ class FieldAnalysis:
         self._save_plot(self._plot_horiz, stream)
         canvas.add_image(stream, location=(-4, 1), dimensions=(28, 12))
 
-        # draw image on last page
-        canvas.add_new_page()
-        stream = io.BytesIO()
-        self._save_plot(self._plot_image, stream, title="Image")
-        canvas.add_image(stream, location=(1, 2), dimensions=(18, 20))
+        # draw image on last page if it's an EPID image. Skip if a device as there's no image
+        if not hasattr(self, 'device'):
+            canvas.add_new_page()
+            stream = io.BytesIO()
+            self._save_plot(self._plot_image, stream, title="Image")
+            canvas.add_image(stream, location=(1, 2), dimensions=(18, 20))
+
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 5))
@@ -689,7 +691,7 @@ class FieldAnalysis:
         if open_file:
             open_path(filename)
 
-    def plot_analyzed_image(self, show: bool = True, grid: bool = True, split_plots: bool = False) -> Tuple[List[plt.Figure], List[str]]:
+    def plot_analyzed_image(self, show: bool = True, grid: bool = True, split_plots: bool = False, **plt_kwargs) -> Tuple[List[plt.Figure], List[str]]:
         """Plot the analyzed image. Shows parameters such as flatness & symmetry.
 
         Parameters
@@ -700,6 +702,8 @@ class FieldAnalysis:
             Whether to show a grid on the profile plots
         split_plots : bool
             Whether to plot the image and profiles on individual figures. Useful for saving individual plots.
+        plt_kwargs : dict
+            Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
         if not self._is_analyzed:
             raise NotAnalyzed("Image is not analyzed yet. Use analyze() first.")
@@ -709,16 +713,17 @@ class FieldAnalysis:
         names = []
         if split_plots:
             if not self._from_device:
-                im_fig, image_ax = plt.subplots(1)
+                im_fig, image_ax = plt.subplots(1, **plt_kwargs)
                 figs.append(im_fig)
                 names.append('_image')
-            v_fig, vert_ax = plt.subplots(1)
+            v_fig, vert_ax = plt.subplots(1, **plt_kwargs)
             figs.append(v_fig)
             names.append('_vertical')
-            h_fig, horiz_ax = plt.subplots(1)
+            h_fig, horiz_ax = plt.subplots(1, **plt_kwargs)
             figs.append(h_fig)
             names.append('_horizontal')
         else:
+            plt.figure(**plt_kwargs)
             if not self._from_device:
                 image_ax = plt.subplot2grid((2, 2), (0, 1))
                 vert_ax = plt.subplot2grid((2, 2), (1, 1))
@@ -905,7 +910,8 @@ class FieldAnalysis:
     @staticmethod
     def _save_plot(func, filename: Union[str, io.BytesIO], **kwargs) -> None:
         func(**kwargs)
-        # plt.tight_layout(1.2)
+        # figure headers appear cut off on the PDF without a tight layout
+        plt.tight_layout()
         plt.savefig(filename)
 
     def _plot_penumbra(self, profile: SingleProfile, axis: plt.Axes = None) -> None:

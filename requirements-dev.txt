@@ -1,4 +1,7 @@
 -r requirements.txt
+pytest
+bump2version
+nox
 pytest-xdist
 google-cloud-storage
 sphinx-autobuild

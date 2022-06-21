@@ -1,15 +1,15 @@
 import io
 import os.path as osp
-import unittest
 from typing import Callable
-from unittest import TestCase
+from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from pylinac.core import image
-from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC
+from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC, StandardImagingFC2
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo
 
 TEST_DIR = 'planar_imaging'
@@ -54,6 +54,21 @@ class GeneralTests(TestCase):
 
         data_dict = phan.results_data(as_dict=True)
         self.assertEqual(len(data_dict), 8)
+
+    def test_set_figure_size(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        phan.plot_analyzed_image(figsize=(7, 11))
+        fig = plt.gcf()
+        self.assertEqual(fig.bbox_inches.height, 11)
+        self.assertEqual(fig.bbox_inches.width, 7)
+
+    def test_set_figure_size_splot_plots(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        figs, _ = phan.plot_analyzed_image(figsize=(7, 11), split_plots=True)
+        self.assertEqual(figs[0].bbox_inches.height, 11)
+        self.assertEqual(figs[0].bbox_inches.width, 7)
 
     def test_multiple_plots(self):
         phan = LeedsTOR.from_demo_image()
@@ -106,6 +121,7 @@ class PlanarPhantomMixin(CloudFileMixin):
     invert = False
     ssd = 1000
     file_name = None
+    rois_seen = None
 
     @classmethod
     def setUpClass(cls):
@@ -135,6 +151,10 @@ class PlanarPhantomMixin(CloudFileMixin):
     def test_mtf(self):
         if self.mtf_50 is not None:
             self.assertAlmostEqual(self.mtf_50, self.instance.mtf.relative_resolution(50), delta=0.3)
+
+    def test_rois_seen(self):
+        if self.rois_seen is not None:
+            self.assertEqual(self.rois_seen, self.instance.results_data().num_contrast_rois_seen)
 
     def test_results(self):
         self.assertIsInstance(self.instance.results(), str)
@@ -169,12 +189,19 @@ class LeedsDirtyEdges(PlanarPhantomMixin, TestCase):
     file_name = 'Leeds-dirty-edges.dcm'
 
 
-@unittest.skip("Phantom appears distorted. MTF locations are different than other phantoms")
+@skip("Phantom appears distorted. MTF locations are different than other phantoms")
 class LeedsClosedBlades(PlanarPhantomMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.3
     ssd = 1500
     file_name = 'Leeds-closed-blades.dcm'
+
+
+class LeedsACB1(PlanarPhantomMixin, TestCase):
+    klass = LeedsTOR
+    dir_path = ['planar_imaging', 'ACB 1']
+    file_path = '1.dcm'
+    mtf_50 = 1.4
 
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
@@ -215,12 +242,29 @@ class LasVegasTestMixin(PlanarPhantomMixin):
         self.assertAlmostEqual(self.instance.phantom_angle, self.phantom_angle, delta=1)
 
 
-class LasVegasDemo(PlanarPhantomMixin, TestCase):
-    klass = LasVegas
-    phantom_angle = 0
+class LasVegasDemo(LasVegasTestMixin, TestCase):
+    rois_seen = 12
 
     def test_demo(self):
         LasVegas.run_demo()  # shouldn't raise
+
+
+@skip("Non-cardinal angles no longer supported. If support is re-added these can be reactivated")
+class LasVegas10deg(LasVegasTestMixin, TestCase):
+    file_path = ['TrueBeam 1 - 2364', '2.5MV LV HQ 10deg - ImageRT_2016-10-6 20-12-58.dcm']
+    phantom_angle = 290
+
+
+@skip("Non-cardinal angles no longer supported. If support is re-added these can be reactivated")
+class LasVegasrotated(LasVegasTestMixin, TestCase):
+    file_path = ['TrueBeam 1 - 2364', '2.5MV LV HQ side2 - ImageRT_2016-10-6 20-43-3.dcm']
+    phantom_angle = 284
+
+
+@skip("Non-cardinal angles no longer supported. If support is re-added these can be reactivated")
+class LasVegasTB1(LasVegasTestMixin, TestCase):
+    file_path = ['TrueBeam 1 - 2364', '6MV LasVegas HQ 0deg - ImageRT_2016-10-6 20-10-17.dcm']
+    phantom_angle = 284.5
 
 
 class DoselabMVDemo(PlanarPhantomMixin, TestCase):
@@ -269,3 +313,138 @@ class PTWEPIDDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         PTWEPIDQC.run_demo()
+
+
+class FC2Mixin(PlanarPhantomMixin):
+    klass = StandardImagingFC2
+    dir_path = ['planar_imaging', 'SI FC2']
+    field_size_x_mm = 150
+    field_size_y_mm = 150
+    field_epid_offset_x_mm = 0
+    field_epid_offset_y_mm = 0
+    field_bb_offset_x_mm = 0
+    field_bb_offset_y_mm = 0
+    fwxm = 50
+
+    @classmethod
+    def setUpClass(cls):
+        if not cls.file_name:
+            cls.instance = cls.klass.from_demo_image()
+        else:
+            cls.instance = cls.klass(cls.get_filename())
+        cls.instance.analyze(invert=cls.invert, fwxm=cls.fwxm)
+
+    def test_plotting(self):
+        self.instance.plot_analyzed_image()
+
+    def test_field_size(self):
+        results_data = self.instance.results_data()
+        assert results_data.field_size_x_mm == pytest.approx(self.field_size_x_mm, abs=0.3)
+        assert results_data.field_size_y_mm == pytest.approx(self.field_size_y_mm, abs=0.3)
+        assert results_data.field_epid_offset_x_mm == pytest.approx(self.field_epid_offset_x_mm, abs=0.2)
+        assert results_data.field_epid_offset_y_mm == pytest.approx(self.field_epid_offset_y_mm, abs=0.2)
+        assert results_data.field_bb_offset_x_mm == pytest.approx(self.field_bb_offset_x_mm, abs=0.2)
+        assert results_data.field_bb_offset_y_mm == pytest.approx(self.field_bb_offset_y_mm, abs=0.2)
+
+
+class FC2Demo(FC2Mixin, TestCase):
+    field_size_y_mm = 148.5
+    field_size_x_mm = 149.1
+    field_epid_offset_y_mm = -0.7
+    field_epid_offset_x_mm = 0.3
+    field_bb_offset_x_mm = -0.1
+    field_bb_offset_y_mm = 0.2
+
+    def test_demo(self):
+        StandardImagingFC2.run_demo()
+
+
+class FC210x10_10FFF(FC2Mixin, TestCase):
+    file_name = 'FC-2-10x10-10fff.dcm'
+    field_size_y_mm = 98.7
+    field_size_x_mm = 99.3
+    field_epid_offset_x_mm = 0
+    field_epid_offset_y_mm = 0.3
+    field_bb_offset_y_mm = 0.8
+    field_bb_offset_x_mm = -0.3
+
+
+class FC210x10_10X(FC2Mixin, TestCase):
+    file_name = 'FC-2-10x10-10x.dcm'
+    field_size_y_mm = 99.3
+    field_size_x_mm = 99.6
+    field_epid_offset_x_mm = 0.2
+    field_epid_offset_y_mm = -0.5
+    field_bb_offset_y_mm = 0.4
+    field_bb_offset_x_mm = -0.1
+
+
+class FC210x10_15X(FC2Mixin, TestCase):
+    file_name = 'FC-2-10x10-15x.dcm'
+    field_size_y_mm = 99.3
+    field_size_x_mm = 99.6
+    field_epid_offset_x_mm = 0.1
+    field_epid_offset_y_mm = -0.5
+    field_bb_offset_y_mm = 0.5
+    field_bb_offset_x_mm = -0.2
+
+
+class FC215x15_10X(FC2Mixin, TestCase):
+    file_name = 'FC-2-15x15-10X.dcm'
+    field_size_x_mm = 149.2
+    field_size_y_mm = 149.2
+    field_epid_offset_x_mm = 0.1
+    field_epid_offset_y_mm = -0.5
+    field_bb_offset_y_mm = 0.5
+    field_bb_offset_x_mm = -0.2
+
+
+class FC215x15_10FFF(FC2Mixin, TestCase):
+    file_name = 'FC-2-15x15-10XFFF.dcm'
+    fwxm = 30
+    field_size_x_mm = 149.5
+    field_size_y_mm = 149.6
+    field_epid_offset_x_mm = -0.1
+    field_epid_offset_y_mm = 0.2
+    field_bb_offset_y_mm = 1.0
+    field_bb_offset_x_mm = -0.3
+
+
+class FC2Yoda(FC2Mixin, TestCase):
+    file_name = 'FC-2-Yoda.dcm'
+    field_size_y_mm = 148.2
+    field_size_x_mm = 149.2
+    field_epid_offset_y_mm = -1
+    field_epid_offset_x_mm = 0.2
+    field_bb_offset_y_mm = -1
+    field_bb_offset_x_mm = 0.5
+
+
+class FC2Perfect(FC2Mixin, TestCase):
+    file_name = 'fc2-perfect.dcm'
+    field_size_y_mm = 120.3
+    field_size_x_mm = 120.3
+    field_epid_offset_y_mm = 0
+    field_epid_offset_x_mm = 0
+    field_bb_offset_y_mm = 0
+    field_bb_offset_x_mm = 0
+
+
+class FC2FieldDown1mm(FC2Mixin, TestCase):
+    file_name = 'fc2-down1mm.dcm'
+    field_size_y_mm = 120.3
+    field_size_x_mm = 120.3
+    field_epid_offset_y_mm = -1.0
+    field_epid_offset_x_mm = 0
+    field_bb_offset_y_mm = -1.0
+    field_bb_offset_x_mm = 0
+
+
+class FC2BBDownRight1mm(FC2Mixin, TestCase):
+    file_name = 'fc2-bbdownright1mm.dcm'
+    field_size_y_mm = 120.3
+    field_size_x_mm = 120.3
+    field_epid_offset_y_mm = 0
+    field_epid_offset_x_mm = 0
+    field_bb_offset_y_mm = 1
+    field_bb_offset_x_mm = 1
