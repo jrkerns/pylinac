@@ -39,6 +39,12 @@ from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI, Contrast
 from .core.utilities import ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
 
+# The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
+# and represents the fact that the wire is at an oblique angle (23°), making it appear
+# longer than it is if it were normal or perpendicular to the z (imaging) axis. This ratio
+# fixes the length to represent it as if it were perpendicular to the imaging axis.
+RAMP_ANGLE_RATIO = 0.42
+
 AIR = -1000
 PMP = -196
 LDPE = -104
@@ -503,7 +509,7 @@ class CTP404CP504(CatPhanModule):
     @property
     def meas_slice_thickness(self) -> float:
         """The average slice thickness for the 4 wire measurements in mm."""
-        return np.mean(sorted(roi.wire_fwhm*self.mm_per_pixel*0.42 for roi in self.thickness_rois.values()))/(1+2*self.pad)
+        return np.mean(sorted(roi.wire_fwhm * self.mm_per_pixel * RAMP_ANGLE_RATIO for roi in self.thickness_rois.values())) / (1 + 2 * self.pad)
 
     @property
     def avg_line_length(self) -> float:

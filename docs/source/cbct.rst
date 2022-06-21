@@ -323,9 +323,8 @@ Analysis
   a "detectability" score. ROIs above the score are said to be "seen", while those below are not seen. Only the 1.0% supra-slice ROIs
   are examined. Two background ROIs are sampled on either side of the ROI contrast set. See :ref:`visibility` for equation details.
 * **Calculate Slice Thickness** -- Slice thickness is measured by determining the FWHM of the wire ramps in the CTP404 module.
-  A profile of the area around each wire ramp is taken, and the FWHM is determined from the profile. Based on testing, the FWHM
-  is not always perfectly detected and may not "catch" the profile, giving an undervalued representation. Thus, the
-  two longest profiles are averaged and the value is converted from pixels to mm and multiplied by 0.42.
+  A profile of the area around each wire ramp is taken, and the FWHM is determined from the profile.
+  The profiles are averaged and the value is converted from pixels to mm and multiplied by 0.42 (Catphan manual "Scan Slice Geometry" section).
 
 
 Post-Analysis
