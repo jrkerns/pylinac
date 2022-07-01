@@ -15,6 +15,7 @@
    starshot_docs
    vmat_docs
    cbct
+   acr
    log_analyzer
    picketfence
    winston_lutz

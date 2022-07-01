@@ -115,13 +115,16 @@ def has_www_connection():
         return False
 
 
-def save_file(method, *args, as_file_object=None, **kwargs):
+def save_file(method, *args, as_file_object=None, to_single_file=True, **kwargs):
     """Save a file using the passed method and assert it exists after saving.
     Also deletes the file after checking for existence."""
     if as_file_object is None:  # regular file
         with TemporaryDirectory() as tmpdir:
-            tmpfile = osp.join(tmpdir, "myfile")
-            method(tmpfile, *args, **kwargs)
+            if to_single_file:
+                tmpfile = osp.join(tmpdir, "myfile")
+                method(tmpfile, *args, **kwargs)
+            else:
+                method(tmpdir, *args, **kwargs)
     else:
         if "b" in as_file_object:
             temp = BytesIO

@@ -1,8 +1,9 @@
 import warnings
-from typing import Sequence
+from typing import Sequence, Optional, Tuple
 
 import argue
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 
 from pylinac.core.roi import HighContrastDiskROI
@@ -63,3 +64,21 @@ class MTF:
         minimums = [roi.min for roi in diskset]
         return cls(spacings, maximums, minimums)
 
+    def plot(self, axis: Optional[plt.Axes] = None, grid: bool = True, x_label: str = "Line pairs / mm",
+             y_label: str = 'Relative MTF', title: str = 'RMTF', margins: float = 0.05, marker: str = 'o') -> Tuple:
+        """Plot the Relative MTF.
+
+        Parameters
+        ----------
+        axis : None, matplotlib.Axes
+            The axis to plot the MTF on. If None, will create a new figure.
+        """
+        if axis is None:
+            fig, axis = plt.subplots()
+        points = axis.plot(list(self.norm_mtfs.keys()), list(self.norm_mtfs.values()), marker=marker)
+        axis.margins(margins)
+        axis.grid(grid)
+        axis.set_xlabel(x_label)
+        axis.set_ylabel(y_label)
+        axis.set_title(title)
+        return points

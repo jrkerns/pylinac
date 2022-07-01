@@ -17,11 +17,11 @@ import webbrowser
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime
+from io import BytesIO
 from os import path as osp
 from pathlib import Path
-from typing import Optional, Union, Dict, Tuple, Sequence, List, BinaryIO, Type
+from typing import Optional, Union, Dict, Tuple, Sequence, List, BinaryIO, Type, Callable, Literal
 
-import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from cached_property import cached_property
@@ -147,7 +147,7 @@ class HUDiskROI(DiskROI):
     def __init__(self, array: Union[np.ndarray, ArrayImage], angle: float, roi_radius: float, dist_from_center: float,
                  phantom_center: Union[tuple, Point], nominal_value: Optional[float] = None,
                  tolerance: Optional[float] = None,
-                 background_mean: Optional[float]=None, background_std: Optional[float]=None):
+                 background_mean: Optional[float] = None, background_std: Optional[float] = None):
         """
         Parameters
         ----------
@@ -168,7 +168,10 @@ class HUDiskROI(DiskROI):
     @property
     def passed(self) -> bool:
         """Boolean specifying if ROI pixel value was within tolerance of the nominal value."""
-        return abs(self.value_diff) <= self.tolerance
+        if self.tolerance:
+            return abs(self.value_diff) <= self.tolerance
+        else:
+            return True
 
     @property
     def plot_color(self) -> str:
@@ -201,8 +204,7 @@ class ThicknessROI(RectangleROI):
 class Slice:
     """Base class for analyzing specific slices of a CBCT dicom set."""
 
-    @argue.options(combine_method=('mean', 'max'))
-    def __init__(self, catphan, slice_num: Optional[int]=None, combine: bool=True, combine_method: str='mean', num_slices: int=0):
+    def __init__(self, catphan, slice_num: Optional[int] = None, combine: bool = True, combine_method: Literal['mean', 'max'] = 'mean', num_slices: int = 0, clear_borders: bool = True):
         """
         Parameters
         ----------
@@ -226,6 +228,7 @@ class Slice:
         self.image = image.load(array)
         self.catphan_size = catphan.catphan_size
         self.mm_per_pixel = catphan.mm_per_pixel
+        self.clear_borders = clear_borders
 
     @property
     def __getitem__(self, item):
@@ -249,7 +252,7 @@ class Slice:
         edges = filters.scharr(self.image.as_type(float))
         if np.max(edges) < 0.1:
             raise ValueError("Unable to locate Catphan")
-        larr, regionprops, num_roi = get_regions(self, fill_holes=True, threshold='mean')
+        larr, regionprops, num_roi = get_regions(self, fill_holes=True, threshold='mean', clear_borders=self.clear_borders)
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
             raise ValueError("Unable to locate the CatPhan")
@@ -261,8 +264,8 @@ class Slice:
 
 
 class CatPhanModule(Slice):
-    """Base class for a CTP module.
-    """
+    """Base class for a CTP module."""
+    common_name: str = ''
     combine_method: str = 'mean'
     num_slices: int = 0
     roi_settings: dict = {}
@@ -271,8 +274,10 @@ class CatPhanModule(Slice):
     roi_radius_mm = float
     rois: dict = {}  # dicts of HUDiskROIs
     background_rois: dict = {}  # dict of HUDiskROIs; possibly empty
+    window_min: Optional[int] = None  # plt visualization
+    window_max: Optional[int] = None  # plt visualization
 
-    def __init__(self, catphan, tolerance: Optional[float], offset: int = 0):
+    def __init__(self, catphan, tolerance: Optional[float] = None, offset: int = 0, clear_borders: bool = True):
         self.model = ''
         self._offset = offset
         self.origin_slice = catphan.origin_slice
@@ -282,7 +287,7 @@ class CatPhanModule(Slice):
         self.mm_per_pixel = catphan.mm_per_pixel
         self.rois: Dict[str, HUDiskROI] = {}
         self.background_rois: Dict[str, HUDiskROI] = {}
-        Slice.__init__(self, catphan, combine_method=self.combine_method, num_slices=self.num_slices)
+        Slice.__init__(self, catphan, combine_method=self.combine_method, num_slices=self.num_slices, clear_borders=clear_borders)
         self._convert_units_in_settings()
         self.preprocess(catphan)
         self._setup_rois()
@@ -339,6 +344,14 @@ class CatPhanModule(Slice):
             roi.plot2axes(axis, edgecolor=roi.plot_color)
         for roi in self.background_rois.values():
             roi.plot2axes(axis, edgecolor='blue')
+
+    def plot(self, axis: plt.Axes):
+        """Plot the image along with ROIs to an axis"""
+        axis.imshow(self.image.array, cmap=get_dicom_cmap(), vmin=self.window_min, vmax=self.window_max)
+        self.plot_rois(axis)
+        axis.autoscale(tight=True)
+        axis.set_title(self.common_name)
+        axis.axis('off')
 
     @property
     def roi_vals_as_str(self) -> str:
@@ -453,7 +466,7 @@ class CTP404CP504(CatPhanModule):
         """The low-contrast visibility"""
         return 2 * abs(self.rois['LDPE'].pixel_value - self.rois['Poly'].pixel_value) / (self.rois['LDPE'].std + self.rois['Poly'].std)
 
-    def plot_linearity(self, axis: Optional[plt.Axes]=None, plot_delta: bool=True) -> tuple:
+    def plot_linearity(self, axis: Optional[plt.Axes] = None, plot_delta: bool = True) -> tuple:
         """Plot the HU linearity values to an axis.
 
         Parameters
@@ -577,7 +590,7 @@ class CTP486(CatPhanModule):
         'Center': {'value': nominal_value, 'angle': 0, 'distance': 0, 'radius': roi_radius_mm},
     }
 
-    def plot_profiles(self, axis: plt.Axes=None) -> None:
+    def plot_profiles(self, axis: Optional[plt.Axes] = None) -> None:
         """Plot the horizontal and vertical profiles of the Uniformity slice.
 
         Parameters
@@ -715,24 +728,6 @@ class CTP528CP504(CatPhanModule):
         circle_profile.ground()
         return circle_profile
 
-    def plot_mtf(self, axis: Optional[plt.Axes] = None) -> Tuple:
-        """Plot the Relative MTF.
-
-        Parameters
-        ----------
-        axis : None, matplotlib.Axes
-            The axis to plot the MTF on. If None, will create a new figure.
-        """
-        if axis is None:
-            fig, axis = plt.subplots()
-        points = axis.plot(list(self.mtf.norm_mtfs.keys()), list(self.mtf.norm_mtfs.values()), marker='o')
-        axis.margins(0.05)
-        axis.grid(True)
-        axis.set_xlabel('Line pairs / mm')
-        axis.set_ylabel("Relative MTF")
-        axis.set_title('RMTF')
-        return points
-
 
 class CTP528CP604(CTP528CP504):
     """Alias for namespace consistency."""
@@ -847,12 +842,12 @@ class CTP515(CatPhanModule):
         return sum(roi.passed_visibility for roi in self.rois.values())
 
     @property
-    def lower_window(self) -> float:
+    def window_min(self) -> float:
         """Lower bound of CT window/leveling to show on the plotted image. Improves apparent contrast."""
         return Enumerable(self.background_rois.values()).min(lambda r: r.pixel_value) - self.WINDOW_SIZE
 
     @property
-    def upper_window(self) -> float:
+    def window_max(self) -> float:
         """Upper bound of CT window/leveling to show on the plotted image. Improves apparent contrast"""
         return Enumerable(self.rois.values()).max(lambda r: r.pixel_value) + self.WINDOW_SIZE
 
@@ -880,12 +875,14 @@ class CatPhanBase:
     air_bubble_radius_mm: Union[int, float] = 7
     localization_radius: Union[int, float] = 59
     was_from_zip: bool = False
+    min_num_images = 39
+    clear_borders: bool = True
 
-    def __init__(self, folderpath: Union[str, Sequence], check_uid: bool = True):
+    def __init__(self, folderpath: Union[str, Sequence[str], Path, Sequence[Path], Sequence[BytesIO]], check_uid: bool = True):
         """
         Parameters
         ----------
-        folderpath : str or list of strings
+        folderpath : str, list of strings, or Path to folder
             String that points to the CBCT image folder location.
         check_uid : bool
             Whether to enforce raising an error if more than one UID is found in the dataset.
@@ -902,7 +899,7 @@ class CatPhanBase:
         if isinstance(folderpath, (str, Path)):
             if not osp.isdir(folderpath):
                 raise NotADirectoryError("Path given was not a Directory/Folder")
-        self.dicom_stack = image.DicomImageStack(folderpath, check_uid=check_uid)
+        self.dicom_stack = image.DicomImageStack(folderpath, check_uid=check_uid, min_number=self.min_num_images)
         self.localize()
 
     @classmethod
@@ -912,7 +909,7 @@ class CatPhanBase:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_url(cls, url: str, check_uid: bool=True):
+    def from_url(cls, url: str, check_uid: bool = True):
         """Instantiate a CBCT object from a URL pointing to a .zip object.
 
         Parameters
@@ -926,7 +923,7 @@ class CatPhanBase:
         return cls.from_zip(filename, check_uid=check_uid)
 
     @classmethod
-    def from_zip(cls, zip_file: Union[str, zipfile.ZipFile, BinaryIO], check_uid: bool=True):
+    def from_zip(cls, zip_file: Union[str, zipfile.ZipFile, BinaryIO], check_uid: bool = True):
         """Construct a CBCT object and pass the zip file.
 
         Parameters
@@ -956,40 +953,34 @@ class CatPhanBase:
         plt_kwargs : dict
             Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
         """
-        def plot(ctp_module, axis, vmin=None, vmax=None):
-            axis.imshow(ctp_module.image.array, cmap=get_dicom_cmap(), vmin=vmin, vmax=vmax)
-            ctp_module.plot_rois(axis)
-            axis.autoscale(tight=True)
-            axis.set_title(ctp_module.common_name)
-            axis.axis('off')
 
         # set up grid and axes
         plt.figure(**plt_kwargs)
         grid_size = (2, 4)
         hu_ax = plt.subplot2grid(grid_size, (0, 1))
-        plot(self.ctp404, hu_ax)
+        self.ctp404.plot(hu_ax)
         hu_lin_ax = plt.subplot2grid(grid_size, (0, 2))
         self.ctp404.plot_linearity(hu_lin_ax)
         if self._has_module(CTP486):
             unif_ax = plt.subplot2grid(grid_size, (0, 0))
-            plot(self.ctp486, unif_ax)
+            self.ctp486.plot(unif_ax)
             unif_prof_ax = plt.subplot2grid(grid_size, (1, 2), colspan=2)
             self.ctp486.plot_profiles(unif_prof_ax)
         if self._has_module(CTP528CP504):
             sr_ax = plt.subplot2grid(grid_size, (1, 0))
-            plot(self.ctp528, sr_ax)
+            self.ctp528.plot(sr_ax)
             mtf_ax = plt.subplot2grid(grid_size, (0, 3))
-            self.ctp528.plot_mtf(mtf_ax)
+            self.ctp528.mtf.plot(mtf_ax)
         if self._has_module(CTP515):
             locon_ax = plt.subplot2grid(grid_size, (1, 1))
-            plot(self.ctp515, locon_ax, vmin=self.ctp515.lower_window, vmax=self.ctp515.upper_window)
+            self.ctp515.plot(locon_ax)
 
         # finish up
         plt.tight_layout()
         if show:
             plt.show()
 
-    def save_analyzed_image(self, filename: str, **kwargs) -> None:
+    def save_analyzed_image(self, filename: Union[str, Path], **kwargs) -> None:
         """Save the analyzed summary plot.
 
         Parameters
@@ -1002,7 +993,7 @@ class CatPhanBase:
         self.plot_analyzed_image(show=False)
         plt.savefig(filename, **kwargs)
 
-    def plot_analyzed_subimage(self, subimage: str='hu', delta: bool=True, show: bool=True) -> None:
+    def plot_analyzed_subimage(self, subimage: Literal['hu', 'un', 'sp', 'mtf', 'lin', 'prof'] = 'hu', delta: bool = True, show: bool = True) -> None:
         """Plot a specific component of the CBCT analysis.
 
         Parameters
@@ -1023,41 +1014,37 @@ class CatPhanBase:
             Whether to actually show the plot.
         """
         subimage = subimage.lower()
-        plt.clf()
+        fig, ax = plt.subplots()
         plt.axis('off')
 
         if 'hu' in subimage:  # HU, GEO & thickness objects
-            plt.imshow(self.ctp404.image.array, cmap=get_dicom_cmap())
-            self.ctp404.plot_rois(plt.gca())
+            self.ctp404.plot(ax)
             plt.autoscale(tight=True)
         elif 'un' in subimage:  # uniformity
-            plt.imshow(self.ctp486.image.array, cmap=get_dicom_cmap())
-            self.ctp486.plot_rois(plt.gca())
+            self.ctp486.plot(ax)
             plt.autoscale(tight=True)
         elif 'sp' in subimage:  # SR objects
-            plt.imshow(self.ctp528.image.array, cmap=get_dicom_cmap())
-            self.ctp528.plot_rois(plt.gca())
+            self.ctp528.plot(ax)
             plt.autoscale(tight=True)
         elif 'mtf' in subimage:
             plt.axis('on')
-            self.ctp528.plot_mtf(plt.gca())
+            self.ctp528.mtf.plot(ax)
         elif 'lc' in subimage:
-            plt.imshow(self.ctp515.image.array, cmap=get_dicom_cmap(), vmin=self.ctp515.lower_window, vmax=self.ctp515.upper_window)
-            self.ctp515.plot_rois(plt.gca())
+            self.ctp515.plot(ax)
             plt.autoscale(tight=True)
         elif 'lin' in subimage:
             plt.axis('on')
-            self.ctp404.plot_linearity(plt.gca(), delta)
+            self.ctp404.plot_linearity(ax, delta)
         elif 'prof' in subimage:
             plt.axis('on')
-            self.ctp486.plot_profiles(plt.gca())
+            self.ctp486.plot_profiles(ax)
         else:
             raise ValueError(f"Subimage parameter {subimage} not understood")
 
         if show:
             plt.show()
 
-    def save_analyzed_subimage(self, filename: Union[str, BinaryIO], subimage: str='hu', **kwargs):
+    def save_analyzed_subimage(self, filename: Union[str, BinaryIO], subimage: Literal['hu', 'un', 'sp', 'mtf', 'lin', 'prof'] = 'hu', **kwargs):
         """Save a component image to file.
 
         Parameters
@@ -1109,7 +1096,7 @@ class CatPhanBase:
         """
         hu_slices = []
         for image_number in range(0, self.num_images, 2):
-            slice = Slice(self, image_number, combine=False)
+            slice = Slice(self, image_number, combine=False, clear_borders=self.clear_borders)
             #print(image_number)
             # slice.image.plot()
             try:
@@ -1139,10 +1126,15 @@ class CatPhanBase:
             #print(center_hu_slice)
             return center_hu_slice
 
-    def find_phantom_roll(self) -> float:
+    def find_phantom_roll(self, func: Optional[Callable] = None) -> float:
         """Determine the "roll" of the phantom.
 
         This algorithm uses the two air bubbles in the HU slice and the resulting angle between them.
+
+        Parameters
+        ----------
+        func
+            A callable to sort the air ROIs.
 
         Returns
         -------
@@ -1160,7 +1152,8 @@ class CatPhanBase:
         larr, regions, _ = get_regions(slice)
         # find appropriate ROIs and grab the two most centrally positioned ones
         hu_bubbles = [r for r in regions if (is_right_area(r) and is_right_eccentricity(r))]
-        central_bubbles = sorted(hu_bubbles, key=lambda x: abs(x.centroid[1] - slice.phan_center.x))[:2]
+        func = func or (lambda x: abs(x.centroid[1] - slice.phan_center.x))
+        central_bubbles = sorted(hu_bubbles, key=func)[:2]
         sorted_bubbles = sorted(central_bubbles, key=lambda x: x.centroid[0])  # top, bottom
         y_dist = sorted_bubbles[1].centroid[0] - sorted_bubbles[0].centroid[0]
         x_dist = sorted_bubbles[1].centroid[1] - sorted_bubbles[0].centroid[1]
@@ -1187,7 +1180,7 @@ class CatPhanBase:
         phan_area = np.pi*(self.catphan_radius_mm**2)
         return phan_area/(self.mm_per_pixel**2)
 
-    def publish_pdf(self, filename: str, notes: str = None, open_file: bool = False,
+    def publish_pdf(self, filename: Union[str, Path], notes: Optional[str] = None, open_file: bool = False,
                     metadata: Optional[dict] = None) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1366,7 +1359,7 @@ class CatPhanBase:
             string += add
         return string
 
-    def results_data(self, as_dict=False) -> Union[CatphanResult, dict]:
+    def results_data(self, as_dict: bool = False) -> Union[CatphanResult, dict]:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         hu_rois = {name: ROIResult(name=name,
@@ -1520,7 +1513,7 @@ class CatPhan600(CatPhanBase):
     }
 
     @staticmethod
-    def run_demo(show: bool=True):
+    def run_demo(show: bool = True):
         """Run the CatPhan 600 demo."""
         cbct = CatPhan600.from_demo_images()
         cbct.analyze()
@@ -1528,8 +1521,7 @@ class CatPhan600(CatPhanBase):
         cbct.plot_analyzed_image(show)
 
 
-@argue.options(threshold=('otsu', 'mean'))
-def get_regions(slice_or_arr: Union[Slice, np.ndarray], fill_holes: bool=False, clear_borders: bool=True, threshold: str='otsu') -> Tuple[np.ndarray, list, int]:
+def get_regions(slice_or_arr: Union[Slice, np.ndarray], fill_holes: bool = False, clear_borders: bool = True, threshold: Literal['otsu', 'mean'] = 'otsu') -> Tuple[np.ndarray, list, int]:
     """Get the skimage regions of a black & white image."""
     if threshold == 'otsu':
         thresmeth = filters.threshold_otsu
@@ -1559,8 +1551,7 @@ def get_regions(slice_or_arr: Union[Slice, np.ndarray], fill_holes: bool=False, 
     return labeled_arr, regionprops, num_roi
 
 
-@argue.options(mode=('mean', 'median', 'max'))
-def combine_surrounding_slices(dicomstack: DicomImageStack, nominal_slice_num: int, slices_plusminus: int=1, mode: str='mean') -> np.ndarray:
+def combine_surrounding_slices(dicomstack: DicomImageStack, nominal_slice_num: int, slices_plusminus: int = 1, mode: Literal['mean', 'max', 'median'] = 'mean') -> np.ndarray:
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
 
     Parameters

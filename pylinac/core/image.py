@@ -2,7 +2,7 @@
 import copy
 import io
 import pathlib
-from collections import Counter, Iterable
+from collections import Counter
 from datetime import datetime
 from io import BytesIO, BufferedReader
 import re
@@ -1004,7 +1004,7 @@ class DicomImageStack:
     """
     images: List
 
-    def __init__(self, folder: str, dtype=None, min_number: int=39, check_uid: bool=True):
+    def __init__(self, folder: Union[str, pathlib.Path], dtype=None, min_number: int = 39, check_uid: bool = True):
         """Load a folder with DICOM CT images.
 
         Parameters
