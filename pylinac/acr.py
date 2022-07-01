@@ -1,22 +1,35 @@
 import dataclasses
 import io
+import math
+import textwrap
 import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import Union, List, Dict, Optional
+from typing import Union, List, Dict, Optional, Tuple
 
+import numpy as np
 from matplotlib import pyplot as plt
+from scipy import ndimage
 
 from pylinac.core import pdf
+from pylinac.core.geometry import Line, Point
 from pylinac.core.mtf import MTF
-from pylinac.core.roi import HighContrastDiskROI
+from pylinac.core.profile import SingleProfile, Interpolation
+from pylinac.core.roi import HighContrastDiskROI, RectangleROI
 from pylinac.core.utilities import ResultBase
-from pylinac.ct import CatPhanBase, CatPhanModule
+from pylinac.ct import CatPhanBase, CatPhanModule, ThicknessROI, Slice, get_regions
 
-UNIFORMITY_MODULE_OFFSET_MM = 70
-SPATIAL_RESOLUTION_MODULE_OFFSET_MM = 100
-LOW_CONTRAST_MODULE_OFFSET_MM = 30
+# CT
+CT_UNIFORMITY_MODULE_OFFSET_MM = 70
+CT_SPATIAL_RESOLUTION_MODULE_OFFSET_MM = 100
+CT_LOW_CONTRAST_MODULE_OFFSET_MM = 30
+
+# MR
+MR_SLICE11_MODULE_OFFSET_MM = 100
+MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM = 40
+MR_UNIFORMITY_MODULE_OFFSET_MM = 60
+
 
 
 class CTModule(CatPhanModule):
@@ -160,7 +173,7 @@ class SpatialResolutionModule(CatPhanModule):
     def plot_rois(self, axis: plt.Axes) -> None:
         """Plot the ROIs to the axis. Override to set the color"""
         for roi, mtf in zip(self.rois.values(), self.mtf.norm_mtfs.values()):
-            roi.plot2axes(axis, edgecolor='g')
+            roi.plot2axes(axis, edgecolor="g")
 
 
 @dataclass
@@ -227,7 +240,7 @@ class ACRCTResult(ResultBase):
     spatial_resolution_module: SpatialResolutionModuleOutput  #:
 
 
-class CT464(CatPhanBase):
+class ACRCT(CatPhanBase):
     _model = "ACR CT 464"
     catphan_radius_mm = 100
     air_bubble_radius_mm = 18
@@ -248,16 +261,18 @@ class CT464(CatPhanBase):
 
     def analyze(self) -> None:
         """Analyze the ACR CT phantom"""
-        self.ct_calibration_module = self.ct_calibration_module(self, offset=0, clear_borders=self.clear_borders)
+        self.ct_calibration_module = self.ct_calibration_module(
+            self, offset=0, clear_borders=self.clear_borders
+        )
         self.uniformity_module = self.uniformity_module(
-            self, offset=UNIFORMITY_MODULE_OFFSET_MM, clear_borders=self.clear_borders
+            self, offset=CT_UNIFORMITY_MODULE_OFFSET_MM, clear_borders=self.clear_borders
         )
         self.spatial_resolution_module = self.spatial_resolution_module(
             self,
-            offset=SPATIAL_RESOLUTION_MODULE_OFFSET_MM, clear_borders=self.clear_borders
+            offset=CT_SPATIAL_RESOLUTION_MODULE_OFFSET_MM, clear_borders=self.clear_borders
         )
         self.low_contrast_module = self.low_contrast_module(
-            self, offset=LOW_CONTRAST_MODULE_OFFSET_MM, clear_borders=self.clear_borders
+            self, offset=CT_LOW_CONTRAST_MODULE_OFFSET_MM, clear_borders=self.clear_borders
         )
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
@@ -290,7 +305,9 @@ class CT464(CatPhanBase):
             plt.show()
         return fig
 
-    def save_analyzed_image(self, filename: Union[str, Path, BytesIO], **plt_kwargs) -> None:
+    def save_analyzed_image(
+        self, filename: Union[str, Path, BytesIO], **plt_kwargs
+    ) -> None:
         """Save the analyzed image to disk or stream
 
         Parameters
@@ -315,16 +332,19 @@ class CT464(CatPhanBase):
         """
         figs = {}
         # plot the images
-        modules = {'hu': self.ct_calibration_module, 'uniformity': self.uniformity_module,
-                   'spatial resolution': self.spatial_resolution_module,
-                   'low contrast': self.low_contrast_module}
+        modules = {
+            "hu": self.ct_calibration_module,
+            "uniformity": self.uniformity_module,
+            "spatial resolution": self.spatial_resolution_module,
+            "low contrast": self.low_contrast_module,
+        }
         for key, module in modules.items():
             fig, ax = plt.subplots(**plt_kwargs)
             module.plot(ax)
             figs[key] = fig
         # plot the one-off MTF image
         fig, ax = plt.subplots(**plt_kwargs)
-        figs['mtf'] = fig
+        figs["mtf"] = fig
         self.spatial_resolution_module.mtf.plot(ax)
         plt.tight_layout()
 
@@ -332,7 +352,12 @@ class CT464(CatPhanBase):
             plt.show()
         return figs
 
-    def save_images(self, directory: Optional[Union[Path, str]] = None, to_stream: bool = False, **plt_kwargs) -> List[Union[Path, BytesIO]]:
+    def save_images(
+        self,
+        directory: Optional[Union[Path, str]] = None,
+        to_stream: bool = False,
+        **plt_kwargs,
+    ) -> List[Union[Path, BytesIO]]:
         """Save separate images to disk or stream.
 
         Parameters
@@ -351,7 +376,7 @@ class CT464(CatPhanBase):
                 path = io.BytesIO()
             else:
                 destination = Path(directory) or Path.cwd()
-                path = (destination / name).with_suffix('.png').absolute()
+                path = (destination / name).with_suffix(".png").absolute()
             fig.savefig(path)
             paths.append(path)
         return paths
@@ -393,7 +418,7 @@ class CT464(CatPhanBase):
                 },
             ),
             uniformity_module=UniformityModuleOutput(
-                offset=70,
+                offset=CT_UNIFORMITY_MODULE_OFFSET_MM,
                 roi_distance_from_center_mm=self.uniformity_module.roi_dist_mm,
                 roi_radius_mm=self.uniformity_module.roi_radius_mm,
                 roi_settings=self.uniformity_module.roi_settings,
@@ -404,7 +429,7 @@ class CT464(CatPhanBase):
                 center_roi_stdev=self.uniformity_module.rois["Center"].std,
             ),
             spatial_resolution_module=SpatialResolutionModuleOutput(
-                offset=0,
+                offset=CT_SPATIAL_RESOLUTION_MODULE_OFFSET_MM,
                 roi_distance_from_center_mm=self.spatial_resolution_module.roi_dist_mm,
                 roi_radius_mm=self.spatial_resolution_module.roi_radius_mm,
                 roi_settings=self.spatial_resolution_module.roi_settings,
@@ -415,7 +440,7 @@ class CT464(CatPhanBase):
                 lpmm_to_rmtf=self.spatial_resolution_module.mtf.norm_mtfs,
             ),
             low_contrast_module=LowContrastModuleOutput(
-                offset=0,
+                offset=CT_LOW_CONTRAST_MODULE_OFFSET_MM,
                 roi_distance_from_center_mm=self.low_contrast_module.roi_dist_mm,
                 roi_radius_mm=self.low_contrast_module.roi_radius_mm,
                 roi_settings=self.low_contrast_module.roi_settings,
@@ -430,8 +455,13 @@ class CT464(CatPhanBase):
             return dataclasses.asdict(data)
         return data
 
-    def publish_pdf(self, filename: Union[str, Path], notes: Optional[str] = None, open_file: bool = False,
-                    metadata: Optional[dict] = None) -> None:
+    def publish_pdf(
+        self,
+        filename: Union[str, Path],
+        notes: Optional[str] = None,
+        open_file: bool = False,
+        metadata: Optional[dict] = None,
+    ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
         Parameters
@@ -451,22 +481,24 @@ class CT464(CatPhanBase):
             Unit: TrueBeam
             --------------
         """
-        analysis_title = f'{self._model} Analysis'
+        analysis_title = f"{self._model} Analysis"
         texts = [
-            ' - ACR CT 464 Results - ',
-             f'HU Linearity ROIs: {self.ct_calibration_module.roi_vals_as_str}',
-             f'Low contrast visibility: {self.low_contrast_module.cnr():2.2f}',
-             f'Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}',
+            " - ACR CT 464 Results - ",
+            f"HU Linearity ROIs: {self.ct_calibration_module.roi_vals_as_str}",
+            f"Low contrast visibility: {self.low_contrast_module.cnr():2.2f}",
+            f"Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}",
         ]
         analysis_images = self.save_images(to_stream=True)
 
-        canvas = pdf.PylinacCanvas(filename, page_title=analysis_title, metadata=metadata)
+        canvas = pdf.PylinacCanvas(
+            filename, page_title=analysis_title, metadata=metadata
+        )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 4))
 
         for idx, text in enumerate(texts):
-            canvas.add_text(text=text, location=(1.5, 23-idx*0.5))
+            canvas.add_text(text=text, location=(1.5, 23 - idx * 0.5))
         for page, img in enumerate(analysis_images):
             canvas.add_new_page()
             canvas.add_image(img, location=(1, 5), dimensions=(18, 18))
@@ -474,3 +506,677 @@ class CT464(CatPhanBase):
 
         if open_file:
             webbrowser.open(filename)
+
+
+class MRSlice11PositionModule(CatPhanModule):
+    common_name = "Slice Position, Slice 11"
+    roi_settings = {
+        "Left": {"width": 2, "height": 25, "distance": 65, "angle": 2.5},
+        "Right": {"width": 2, "height": 25, "distance": 65, "angle": -2.5},
+    }
+    rois: dict = {}
+
+    def _setup_rois(self) -> None:
+        for name, setting in self.roi_settings.items():
+            # angle is +90 because pointing right is 0, and these rois move downward, not rightward
+            self.rois[name] = ThicknessROI(
+                self.image,
+                setting["width_pixels"],
+                setting["height_pixels"],
+                self.catphan_roll - 90 + setting["angle"],
+                setting["distance_pixels"],
+                self.phan_center,
+            )
+
+    @property
+    def bar_difference_mm(self) -> float:
+        """The difference in height between the two angled bars"""
+        left_array = self.rois["Left"].long_profile.values
+        left_mid_height = (left_array.max() - left_array.min()) / 2 + left_array.min()
+        left_idx = find_nearest_idx(left_array, left_mid_height)
+        right_array = self.rois["Right"].long_profile.values
+        right_mid_height = (
+            right_array.max() - right_array.min()
+        ) / 2 + right_array.min()
+        right_idx = find_nearest_idx(right_array, right_mid_height)
+        return (right_idx - left_idx) * self.mm_per_pixel
+
+    @property
+    def slice_shift_mm(self) -> float:
+        """The effective shift in phantom position in the S/I direction. Because bars are at 45 degrees, the shift is half the bar difference"""
+        return self.bar_difference_mm / 2
+
+
+@dataclass
+class MRSlice11ModuleOutput:
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+
+    offset: int
+    roi_settings: dict
+    rois: dict
+    bar_difference_mm: float
+    slice_shift_mm: float
+
+
+class MRSlice1Module(CatPhanModule):
+    common_name = "Slice 1 (Thickness, Offset, Resolution)"
+    slice_lines: dict[str, Line]
+    thickness_rois: dict[str, ThicknessROI] = {}
+    thickness_roi_settings = {
+        "Top": {"width": 100, "height": 3.5, "distance": -3},
+        "Bottom": {"width": 100, "height": 3.5, "distance": 2.5},
+    }
+    roi_settings = {
+        "Row Reference": {"radius": 9, "distance": 58, "angle": 135, "lp/mm": 0},
+        "Col Reference": {"radius": 9, "distance": 58, "angle": 135, "lp/mm": 0},
+        "Row 1.1": {"radius": 3, "distance": 41, "angle": 115, "lp/mm": 1 / 1.1},
+        "Col 1.1": {"radius": 3, "distance": 45, "angle": 103, "lp/mm": 1 / 1.1},
+        "Row 1.0": {"radius": 3, "distance": 37.5, "angle": 81, "lp/mm": 1.0},
+        "Col 1.0": {"radius": 3, "distance": 45, "angle": 74, "lp/mm": 1.0},
+        "Row 0.9": {"radius": 2, "distance": 47.5, "angle": 52, "lp/mm": 1 / 0.9},
+        "Col 0.9": {"radius": 2, "distance": 56, "angle": 51, "lp/mm": 1 / 0.9},
+    }
+    position_roi_settings = {
+        "Left": {"width": 2, "height": 25, "distance": 65, "angle": 2.5},
+        "Right": {"width": 2, "height": 25, "distance": 65, "angle": -2.5},
+    }
+    position_rois: dict = {}
+    rois: Dict[str, HighContrastDiskROI]
+    spacings = [0, 1 / 1.1, 1, 1 / 0.9]
+
+    def _setup_rois(self) -> None:
+        # thickness
+        for name, setting in self.thickness_roi_settings.items():
+            # angle is +90 because pointing right is 0, and these rois move downward, not rightward
+            self.thickness_rois[name] = ThicknessROI(
+                self.image,
+                setting["width_pixels"],
+                setting["height_pixels"],
+                self.catphan_roll + 90,
+                setting["distance_pixels"],
+                self.phan_center,
+            )
+        # spatial res
+        for name, setting in self.roi_settings.items():
+            self.rois[name] = HighContrastDiskROI(
+                self.image,
+                setting["angle_corrected"],
+                setting["radius_pixels"],
+                setting["distance_pixels"],
+                self.phan_center,
+                contrast_threshold=1.0,  # fixed to 1 so everything passes. We aren't evaluating pass/fail here
+            )
+        # slice position
+        for name, setting in self.position_roi_settings.items():
+            # angle is +90 because pointing right is 0, and these rois move downward, not rightward
+            self.position_rois[name] = ThicknessROI(
+                self.image,
+                setting["width_pixels"],
+                setting["height_pixels"],
+                self.catphan_roll - 90 + setting["angle"],
+                setting["distance_pixels"],
+                self.phan_center,
+            )
+
+    def plot_rois(self, axis: plt.Axes) -> None:
+        for roi in self.position_rois.values():
+            roi.plot2axes(axis, edgecolor="blue")
+        for roi in self.thickness_rois.values():
+            roi.plot2axes(axis, edgecolor="blue")
+        for roi, mtf in zip(self.rois.values(), self.rois.values()):
+            roi.plot2axes(axis, edgecolor="g")
+
+    @property
+    def bar_difference_mm(self) -> float:
+        """The difference in height between the two angled bars"""
+        left_array = self.position_rois["Left"].long_profile.values
+        left_mid_height = (left_array.max() - left_array.min()) / 2 + left_array.min()
+        left_idx = find_nearest_idx(left_array, left_mid_height)
+        right_array = self.position_rois["Right"].long_profile.values
+        right_mid_height = (
+            right_array.max() - right_array.min()
+        ) / 2 + right_array.min()
+        right_idx = find_nearest_idx(right_array, right_mid_height)
+        return (right_idx - left_idx) * self.mm_per_pixel
+
+    @property
+    def slice_shift_mm(self) -> float:
+        """The effective shift in phantom position in the S/I direction. Because bars are at 45 degrees, the shift is half the bar difference"""
+        return self.bar_difference_mm / 2
+
+    @property
+    def measured_slice_thickness_mm(self) -> float:
+        """The slice thickness as determined by the two angled ROIs in the center of Slice 1"""
+        top = self.thickness_rois["Top"].wire_fwhm * self.mm_per_pixel
+        bottom = self.thickness_rois["Bottom"].wire_fwhm * self.mm_per_pixel
+        return 0.2 * (top * bottom) / (top + bottom)
+
+    @property
+    def row_mtf(self) -> MTF:
+        """The MTF of the spatial resolution module looking at the row-wise ROIs"""
+        return MTF.from_high_contrast_diskset(
+            spacings=self.spacings,
+            diskset=list(roi for name, roi in self.rois.items() if "Row" in name),
+        )
+
+    @property
+    def col_mtf(self) -> MTF:
+        """The MTF of the spatial resolution module looking at the column-wise ROIs"""
+        return MTF.from_high_contrast_diskset(
+            spacings=self.spacings,
+            diskset=list(roi for name, roi in self.rois.items() if "Col" in name),
+        )
+
+
+@dataclass
+class MRSlice1ModuleOutput:
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+
+    offset: int
+    roi_settings: dict
+    rois: dict
+    bar_difference_mm: float
+    slice_shift_mm: float
+    measured_slice_thickness_mm: float
+    row_mtf_50: float
+    col_mtf_50: float
+
+
+class MRUniformityModule(CatPhanModule):
+    """Class for analysis of the Uniformity slice of the CTP module. Measures 5 ROIs around the slice that
+    should all be close to the same value.
+    """
+
+    common_name = "Signal Uniformity"
+    roi_settings = {
+        "Center": {
+            "angle": 90,
+            "distance": 5,
+            "radius": 80,
+        },  # 80 radius ~= 200cm2, per the manual
+    }
+    ghost_roi_settings = {
+        # size of ~900mm2 per the manual
+        "Top": {"angle": -90, "distance": 110, "width": 60, "height": 15},
+        "Bottom": {"angle": 90, "distance": 110, "width": 60, "height": 15},
+        "Left": {"angle": 180, "distance": 110, "width": 15, "height": 60},
+        "Right": {"angle": 0, "distance": 110, "width": 15, "height": 60},
+    }
+    ghost_rois: dict = {}
+
+    def __init__(self, catphan, offset):
+        self.tesla = float(catphan.dicom_stack.metadata.MagneticFieldStrength)
+        super().__init__(catphan, tolerance=None, offset=offset)
+
+    def _setup_rois(self) -> None:
+        super()._setup_rois()
+        for name, roi in self.ghost_roi_settings.items():
+            self.ghost_rois[name] = RectangleROI(
+                self.image,
+                roi["width_pixels"],
+                roi["height_pixels"],
+                roi["angle"] + self.catphan_roll,
+                roi["distance_pixels"],
+                self.phan_center,
+            )
+
+    def plot_rois(self, axis: plt.Axes) -> None:
+        super().plot_rois(axis)
+        for roi in self.ghost_rois.values():
+            roi.plot2axes(axis, edgecolor="yellow")
+
+    @property
+    def percent_image_uniformity(self) -> float:
+        """PIU value calculated via section 5.3 of the manual"""
+        piu_high = np.percentile(self.rois["Center"].pixel_values, 99)
+        piu_low = np.percentile(self.rois["Center"].pixel_values, 1)
+        return 100 * (1 - ((piu_high - piu_low) / (piu_high + piu_low)))
+
+    @property
+    def piu_passed(self) -> bool:
+        """Section 5.4"""
+        if self.tesla < 3:
+            return self.percent_image_uniformity > 85
+        else:
+            return self.percent_image_uniformity > 80
+
+    @property
+    def ghosting_ratio(self) -> float:
+        """Ghosting ratio of section 6.3 of the manual"""
+        top = self.ghost_rois["Top"].pixel_value
+        bottom = self.ghost_rois["Bottom"].pixel_value
+        left = self.ghost_rois["Left"].pixel_value
+        right = self.ghost_rois["Right"].pixel_value
+        return abs(
+            ((top + bottom) - (left + right)) / (2 * self.rois["Center"].pixel_value)
+        )
+
+    @property
+    def psg(self) -> float:
+        """Percent Signal Ghosting"""
+        return self.ghosting_ratio * 100
+
+    @property
+    def psg_passed(self) -> bool:
+        """Whether the PSG is within tolerance"""
+        return self.psg < 3.0
+
+
+@dataclass
+class MRUniformityModuleOutput:
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+
+    offset: int
+    roi_settings: dict
+    rois: dict
+    ghost_roi_settings: dict
+    ghose_rois: dict
+    psg: float
+    ghosting_ratio: float
+    piu_passed: bool
+    piu: float
+
+
+class GeometricDistortionModule(CatPhanModule):
+    """Class for analysis of the Uniformity slice of the CTP module. Measures 5 ROIs around the slice that
+    should all be close to the same value.
+    """
+
+    common_name = "Geometric Distortion"
+    profiles: dict
+
+    def _setup_rois(self) -> None:
+        self.profiles = {}
+        bin_image = self.image.as_binary(threshold=np.percentile(self.image, 60))
+        bin_image = ndimage.binary_fill_holes(bin_image).astype(float)
+        # calculate horizontal
+        data = bin_image[int(self.phan_center.y), :]
+        prof = SingleProfile(
+            data, interpolation=Interpolation.NONE, dpmm=1 / self.mm_per_pixel
+        )
+        fwhm = prof.fwxm_data()
+        line = Line(
+            Point(fwhm["left index (rounded)"], self.phan_center.y),
+            Point(fwhm["right index (rounded)"], self.phan_center.y),
+        )
+        self.profiles["horizontal"] = {
+            "width (mm)": fwhm["width (exact) mm"],
+            "line": line,
+        }
+        # calculate vertical
+        data = bin_image[:, int(self.phan_center.x)]
+        prof = SingleProfile(
+            data, interpolation=Interpolation.NONE, dpmm=1 / self.mm_per_pixel
+        )
+        fwhm = prof.fwxm_data()
+        line = Line(
+            Point(self.phan_center.x, fwhm["left index (rounded)"]),
+            Point(self.phan_center.x, fwhm["right index (rounded)"]),
+        )
+        self.profiles["vertical"] = {
+            "width (mm)": fwhm["width (exact) mm"],
+            "line": line,
+        }
+        # calculate negative diagonal
+        # calculate slope equation intercept
+        # b = y - (+1)x
+        b = self.phan_center.y - self.phan_center.x
+        xs = np.arange(0, self.image.shape[1])
+        ys = xs + b
+        coords = ndimage.map_coordinates(bin_image, [ys, xs], order=1, mode="mirror")
+        # pixels are now diagonal and thus spacing between pixels is now the hypotenuse
+        prof = SingleProfile(
+            coords,
+            interpolation=Interpolation.NONE,
+            dpmm=1 / (self.mm_per_pixel * math.sqrt(2)),
+        )
+        fwhm = prof.fwxm_data()
+        line = Line(
+            Point(xs[fwhm["left index (rounded)"]], ys[fwhm["left index (rounded)"]]),
+            Point(xs[fwhm["right index (rounded)"]], ys[fwhm["right index (rounded)"]]),
+        )
+        self.profiles["negative diagonal"] = {
+            "width (mm)": fwhm["width (exact) mm"],
+            "line": line,
+        }
+        # calculate positive diagonal
+        # calculate slope equation intercept
+        # b = y - (-1)x
+        b = self.phan_center.y + self.phan_center.x
+        ys = -xs + b
+        coords = ndimage.map_coordinates(bin_image, [ys, xs], order=1, mode="mirror")
+        prof = SingleProfile(
+            coords,
+            interpolation=Interpolation.NONE,
+            dpmm=1 / (self.mm_per_pixel * math.sqrt(2)),
+        )
+        fwhm = prof.fwxm_data()
+        line = Line(
+            Point(xs[fwhm["left index (rounded)"]], ys[fwhm["left index (rounded)"]]),
+            Point(xs[fwhm["right index (rounded)"]], ys[fwhm["right index (rounded)"]]),
+        )
+        self.profiles["positive diagonal"] = {
+            "width (mm)": fwhm["width (exact) mm"],
+            "line": line,
+        }
+
+    def plot_rois(self, axis: plt.Axes):
+        for name, profile_data in self.profiles.items():
+            profile_data["line"].plot2axes(axis, width=2, color="blue")
+
+    def distances(self) -> dict:
+        """The measurements of the phantom size for all 4 lines in mm"""
+        return {name: f"{p['width (mm)']:2.2f}mm" for name, p in self.profiles.items()}
+
+
+@dataclass
+class MRGeometricDistortionModuleOutput:
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+
+    offset: int
+    profiles: dict
+    distances: dict
+
+
+@dataclass
+class ACRMRIResult(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+
+    phantom_model: str  #:
+    phantom_roll_deg: float  #:
+    origin_slice: int  #:
+    num_images: int  #:
+    slice1: MRSlice1ModuleOutput  #:
+    slice11: MRSlice11ModuleOutput  #:
+    uniformity_module: MRUniformityModuleOutput  #:
+    geometric_distortion_module: MRGeometricDistortionModuleOutput  #:
+
+
+class ACRMRILarge(CatPhanBase):
+    _model = "ACR MRI Large"
+    catphan_radius_mm = 100
+    min_num_images = 4
+    air_bubble_radius_mm = 20
+
+    def plot_analyzed_subimage(self, *args, **kwargs):
+        raise NotImplementedError("Use `plot_images`")
+
+    def save_analyzed_subimage(self, *args, **kwargs):
+        raise NotImplementedError("Use `save_images`")
+
+    def localize(self) -> None:
+        self.origin_slice = 1
+        self.catphan_roll = self.find_phantom_roll()
+
+    def find_phantom_roll(self) -> float:
+        """Determine the "roll" of the phantom. This algorithm uses the circular left-upper hole on slice 1 as the reference
+
+        Returns
+        -------
+        float : the angle of the phantom in **degrees**.
+        """
+        # get edges and make ROIs from it
+        slice = Slice(self, self.origin_slice)
+        larr, regions, _ = get_regions(slice)
+        try:
+            # find appropriate ROIs and grab the two most centrally positioned ones
+            circle_bubbles = [
+                r
+                for r in regions
+                if (self._is_right_area(r) and self._is_right_eccentricity(r))
+            ]
+            exact_size = np.pi * ((self.air_bubble_radius_mm / self.mm_per_pixel) ** 2)
+            most_similar_bubble = sorted(
+                circle_bubbles, key=lambda r: abs(r.filled_area - exact_size)
+            )[0]
+            y_dist = most_similar_bubble.centroid[0] - slice.phan_center.y
+            x_dist = most_similar_bubble.centroid[1] - slice.phan_center.x
+            phan_roll = np.arctan2(y_dist, x_dist)
+            corrected_roll = (
+                np.rad2deg(phan_roll) + 135
+            )  # bubble is at top-left. perfect placement is -135
+            return corrected_roll
+        except:
+            raise RuntimeError(
+                "Could not determine the roll of the phantom. Ensure the 20mm top-left circle is visible on Slice 1"
+            )
+
+    def analyze(self) -> None:
+        """Analyze the ACR CT phantom"""
+        self.slice1 = MRSlice1Module(self, offset=0)
+        self.geometric_distortion = GeometricDistortionModule(
+            self, offset=MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM
+        )
+        self.uniformity_module = MRUniformityModule(
+            self, offset=MR_UNIFORMITY_MODULE_OFFSET_MM
+        )
+        self.slice11 = MRSlice11PositionModule(self, offset=MR_SLICE11_MODULE_OFFSET_MM)
+
+    def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
+        """Plot the analyzed image
+
+        Parameters
+        ----------
+        show
+            Whether to show the image.
+        plt_kwargs
+            Keywords to pass to matplotlib for figure customization.
+        """
+        # set up grid and axes
+        fig = plt.figure(**plt_kwargs)
+        grid_size = (2, 3)
+        slice1_ax = plt.subplot2grid(grid_size, (0, 0))
+        self.slice1.plot(slice1_ax)
+        geom_ax = plt.subplot2grid(grid_size, (0, 1))
+        self.geometric_distortion.plot(geom_ax)
+        unif_ax = plt.subplot2grid(grid_size, (0, 2))
+        self.uniformity_module.plot(unif_ax)
+        position_ax = plt.subplot2grid(grid_size, (1, 0))
+        self.slice11.plot(position_ax)
+
+        spatial_res_graph = plt.subplot2grid(grid_size, (1, 1))
+        self.slice1.row_mtf.plot(spatial_res_graph, label="Row-wise rMTF")
+        self.slice1.col_mtf.plot(spatial_res_graph, label="Column-wise rMTF")
+        spatial_res_graph.legend()
+
+        # finish up
+        plt.tight_layout()
+        if show:
+            plt.show()
+        return fig
+
+    def plot_images(self, show: bool = True, **plt_kwargs) -> Dict[str, plt.Figure]:
+        """Plot all the individual images separately
+
+        Parameters
+        ----------
+        show
+            Whether to show the images.
+        plt_kwargs
+            Keywords to pass to matplotlib for figure customization.
+        """
+        figs = {}
+        # plot the images
+        modules = {
+            "geometric": self.geometric_distortion,
+            "slice 1": self.slice1,
+            "signal uniformity": self.uniformity_module,
+            "slice 11": self.slice11,
+        }
+        for key, module in modules.items():
+            fig, ax = plt.subplots(**plt_kwargs)
+            module.plot(ax)
+            figs[key] = fig
+        # plot rMTF
+        fig, ax = plt.subplots(**plt_kwargs)
+        self.slice1.row_mtf.plot(ax, label="Row-wise rMTF")
+        self.slice1.col_mtf.plot(ax, label="Column-wise rMTF")
+        ax.legend()
+        figs["rMTF"] = fig
+
+        if show:
+            plt.show()
+        return figs
+
+    def save_images(
+        self,
+        directory: Optional[Union[Path, str]] = None,
+        to_stream: bool = False,
+        **plt_kwargs,
+    ) -> List[Union[Path, BytesIO]]:
+        """Save separate images to disk or stream.
+
+        Parameters
+        ----------
+        directory
+            The directory to write the images to. If None, will use current working directory
+        to_stream
+            Whether to write to stream or disk. If True, will return streams. Directory is ignored in that scenario.
+        plt_kwargs
+            Keywords to pass to matplotlib for figure customization.
+        """
+        figs = self.plot_images(show=False, **plt_kwargs)
+        paths = []
+        for name, fig in figs.items():
+            if to_stream:
+                path = io.BytesIO()
+            else:
+                destination = Path(directory) or Path.cwd()
+                path = (destination / name).with_suffix(".png").absolute()
+            fig.savefig(path)
+            paths.append(path)
+        return paths
+
+    def publish_pdf(
+        self,
+        filename: Union[str, Path],
+        notes: Optional[str] = None,
+        open_file: bool = False,
+        metadata: Optional[dict] = None,
+    ) -> None:
+        """Publish (print) a PDF containing the analysis and quantitative results.
+
+        Parameters
+        ----------
+        filename : (str, file-like object}
+            The file to write the results to.
+        notes : str, list of strings
+            Text; if str, prints single line.
+            If list of strings, each list item is printed on its own line.
+        open_file : bool
+            Whether to open the file using the default program after creation.
+        metadata : dict
+            Extra data to be passed and shown in the PDF. The key and value will be shown with a colon.
+            E.g. passing {'Author': 'James', 'Unit': 'TrueBeam'} would result in text in the PDF like:
+            --------------
+            Author: James
+            Unit: TrueBeam
+            --------------
+        """
+        analysis_title = f"{self._model} Analysis"
+        analysis_images = self.save_images(to_stream=True)
+
+        canvas = pdf.PylinacCanvas(
+            filename, page_title=analysis_title, metadata=metadata
+        )
+        if notes is not None:
+            canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
+            canvas.add_text(text=notes, location=(1, 4))
+
+        shortened_texts = [
+            textwrap.wrap(r, width=110) for r in self.results(as_str=False)
+        ]
+        idx = 0
+        for items in enumerate(shortened_texts):
+            for text in items:
+                canvas.add_text(text=text, location=(1.5, 25 - idx * 0.5))
+                idx += 1
+        for page, img in enumerate(analysis_images):
+            canvas.add_new_page()
+            canvas.add_image(img, location=(1, 5), dimensions=(18, 18))
+        canvas.finish()
+
+        if open_file:
+            webbrowser.open(filename)
+
+    def results(self, as_str: bool = True) -> Union[str, Tuple]:
+        """Return the results of the analysis as a string. Use with print()."""
+        string = (
+            f" - {self._model} Results - ",
+            f"Geometric Distortions: {self.geometric_distortion.distances()}",
+            f"Slice Thickness: {self.slice1.slice_thickness:2.2f}mm",
+            f"Slice 1 S/I Position shift: {self.slice1.slice_shift_mm:2.2f}mm",
+            f"Slice 11 S/I Position shift: {self.slice11.slice_shift_mm:2.2f}mm",
+            f"Uniformity PIU: {self.uniformity_module.percent_image_uniformity:2.2f}",
+            f"Percent-signal ghosting: {self.uniformity_module.psg:2.2f}%",
+            f'Uniformity Center ROI standard deviation: {self.uniformity_module.rois["Center"].std:2.2f}',
+            f"Row-wise MTF 50% (lp/mm): {self.slice1.row_mtf.relative_resolution(50):2.2f}",
+            f"Column-wise MTF 50% (lp/mm): {self.slice1.col_mtf.relative_resolution(50):2.2f}",
+        )
+        if as_str:
+            return "\n".join(string)
+        else:
+            return string
+
+    def results_data(self, as_dict: bool = False) -> Union[ACRMRIResult, dict]:
+        data = ACRMRIResult(
+            phantom_model=self._model,
+            phantom_roll_deg=self.catphan_roll,
+            origin_slice=self.origin_slice,
+            num_images=self.num_images,
+            slice1=MRSlice1ModuleOutput(
+                offset=0,
+                roi_settings=self.slice1.roi_settings,
+                rois=self.slice1.rois,
+                bar_difference_mm=self.slice1.bar_difference_mm,
+                slice_shift_mm=self.slice1.slice_shift_mm,
+                measured_slice_thickness_mm=self.slice1.measured_slice_thickness_mm,
+                row_mtf_50=self.slice1.row_mtf.relative_resolution(50),
+                col_mtf_50=self.slice1.col_mtf.relative_resolution(50),
+            ),
+            slice11=MRSlice11ModuleOutput(
+                offset=MR_SLICE11_MODULE_OFFSET_MM,
+                bar_difference_mm=self.slice11.bar_difference_mm,
+                slice_shift_mm=self.slice11.slice_shift_mm,
+                rois=self.slice11.rois,
+                roi_settings=self.slice11.roi_settings,
+            ),
+            geometric_distortion_module=MRGeometricDistortionModuleOutput(
+                offset=MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM,
+                profiles=self.geometric_distortion.profiles,
+                distances=self.geometric_distortion.distances(),
+            ),
+            uniformity_module=MRUniformityModuleOutput(
+                offset=0,
+                roi_settings=self.uniformity_module.roi_settings,
+                rois=self.uniformity_module.rois,
+                ghost_roi_settings=self.uniformity_module.ghost_roi_settings,
+                ghose_rois=self.uniformity_module.ghost_rois,
+                psg=self.uniformity_module.psg,
+                ghosting_ratio=self.uniformity_module.ghosting_ratio,
+                piu=self.uniformity_module.percent_image_uniformity,
+                piu_passed=self.uniformity_module.piu_passed,
+            ),
+        )
+        if as_dict:
+            return dataclasses.asdict(data)
+        return data
+
+
+def find_nearest_idx(array: np.ndarray, value: float):
+    return (np.abs(array - value)).argmin()

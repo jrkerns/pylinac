@@ -28,6 +28,7 @@ from cached_property import cached_property
 from py_linq import Enumerable
 from scipy import ndimage
 from skimage import filters, measure, segmentation
+from skimage.measure._regionprops import RegionProperties
 
 from .core import image, pdf
 from .core.geometry import Point, Line
@@ -293,14 +294,20 @@ class CatPhanModule(Slice):
         self._setup_rois()
 
     def _convert_units_in_settings(self) -> None:
-        for roi, settings in self.roi_settings.items():
-            self.roi_settings[roi]['distance_pixels'] = settings['distance'] / self.mm_per_pixel
-            self.roi_settings[roi]['angle_corrected'] = settings['angle'] + self.catphan_roll
-            self.roi_settings[roi]['radius_pixels'] = settings['radius'] / self.mm_per_pixel
-        for roi, settings in self.background_roi_settings.items():
-            self.background_roi_settings[roi]['distance_pixels'] = settings['distance'] / self.mm_per_pixel
-            self.background_roi_settings[roi]['angle_corrected'] = settings['angle'] + self.catphan_roll
-            self.background_roi_settings[roi]['radius_pixels'] = settings['radius'] / self.mm_per_pixel
+        setting_groups = [getattr(self, attr) for attr in dir(self) if attr.endswith('roi_settings')]
+        for roi_settings in setting_groups:
+            for roi, settings in roi_settings.items():
+                if isinstance(settings, dict):
+                    if settings.get('distance') is not None:
+                        settings['distance_pixels'] = settings['distance'] / self.mm_per_pixel
+                    if settings.get('angle') is not None:
+                        settings['angle_corrected'] = settings['angle'] + self.catphan_roll
+                    if settings.get('radius') is not None:
+                        settings['radius_pixels'] = settings['radius'] / self.mm_per_pixel
+                    if settings.get('width') is not None:
+                        settings['width_pixels'] = settings['width'] / self.mm_per_pixel
+                    if settings.get('height') is not None:
+                        settings['height_pixels'] = settings['height'] / self.mm_per_pixel
 
     def preprocess(self, catphan):
         """A preprocessing step before analyzing the CTP module.
@@ -416,14 +423,6 @@ class CTP404CP504(CatPhanModule):
         self.thickness_rois = {}
         self.lines = {}
         super().__init__(catphan, tolerance=hu_tolerance, offset=offset)
-
-    def _convert_units_in_settings(self):
-        super()._convert_units_in_settings()
-        for roi, settings in self.thickness_roi_settings.items():
-            self.thickness_roi_settings[roi]['width_pixels'] = settings['width'] / self.mm_per_pixel
-            self.thickness_roi_settings[roi]['height_pixels'] = settings['height'] / self.mm_per_pixel
-            self.thickness_roi_settings[roi]['angle_corrected'] = settings['angle'] + self.catphan_roll
-            self.thickness_roi_settings[roi]['distance_pixels'] = settings['distance'] / self.mm_per_pixel
 
     def preprocess(self, catphan) -> None:
         # for the thickness analysis image, combine thin slices or just use one slice if slices are thick
@@ -1126,6 +1125,13 @@ class CatPhanBase:
             #print(center_hu_slice)
             return center_hu_slice
 
+    def _is_right_area(self, region: RegionProperties):
+        thresh = np.pi * ((self.air_bubble_radius_mm / self.mm_per_pixel) ** 2)
+        return thresh * 2 > region.filled_area > thresh / 2
+
+    def _is_right_eccentricity(self, region: RegionProperties):
+        return region.eccentricity < 0.5
+
     def find_phantom_roll(self, func: Optional[Callable] = None) -> float:
         """Determine the "roll" of the phantom.
 
@@ -1140,18 +1146,11 @@ class CatPhanBase:
         -------
         float : the angle of the phantom in **degrees**.
         """
-        def is_right_area(region):
-            thresh = np.pi * ((self.air_bubble_radius_mm / self.mm_per_pixel) ** 2)
-            return thresh * 2 > region.filled_area > thresh / 2
-
-        def is_right_eccentricity(region):
-            return region.eccentricity < 0.5
-
         # get edges and make ROIs from it
         slice = Slice(self, self.origin_slice)
         larr, regions, _ = get_regions(slice)
         # find appropriate ROIs and grab the two most centrally positioned ones
-        hu_bubbles = [r for r in regions if (is_right_area(r) and is_right_eccentricity(r))]
+        hu_bubbles = [r for r in regions if (self._is_right_area(r) and self._is_right_eccentricity(r))]
         func = func or (lambda x: abs(x.centroid[1] - slice.phan_center.x))
         central_bubbles = sorted(hu_bubbles, key=func)[:2]
         sorted_bubbles = sorted(central_bubbles, key=lambda x: x.centroid[0])  # top, bottom

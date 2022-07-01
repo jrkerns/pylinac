@@ -65,7 +65,7 @@ class MTF:
         return cls(spacings, maximums, minimums)
 
     def plot(self, axis: Optional[plt.Axes] = None, grid: bool = True, x_label: str = "Line pairs / mm",
-             y_label: str = 'Relative MTF', title: str = 'RMTF', margins: float = 0.05, marker: str = 'o') -> Tuple:
+             y_label: str = 'Relative MTF', title: str = 'RMTF', margins: float = 0.05, marker: str = 'o', label: str = 'rMTF') -> Tuple:
         """Plot the Relative MTF.
 
         Parameters
@@ -75,7 +75,7 @@ class MTF:
         """
         if axis is None:
             fig, axis = plt.subplots()
-        points = axis.plot(list(self.norm_mtfs.keys()), list(self.norm_mtfs.values()), marker=marker)
+        points = axis.plot(list(self.norm_mtfs.keys()), list(self.norm_mtfs.values()), marker=marker, label=label)
         axis.margins(margins)
         axis.grid(grid)
         axis.set_xlabel(x_label)

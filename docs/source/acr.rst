@@ -7,28 +7,35 @@ Overview
 --------
 
 The ACR module provides routines for automatically
-analyzing DICOM images of the ACR CT 464 phantom.
+analyzing DICOM images of the ACR CT 464 phantom and Large MR phantom.
 It can load a folder or zip file of images, correcting for
 translational and rotational offsets.
 
 Phantom reference information is drawn from the
-`ACR solution article <https://accreditationsupport.acr.org/support/solutions/articles/11000053945-overview-of-the-ct-phantom>`_
+`ACR CT solution article <https://accreditationsupport.acr.org/support/solutions/articles/11000053945-overview-of-the-ct-phantom>`_
 and the analysis is drawn from the
-`ACR testing article <https://accreditationsupport.acr.org/support/solutions/articles/11000056197-acr-ct-phantom-scanning-instructions>`_.
+`ACR CT testing article <https://accreditationsupport.acr.org/support/solutions/articles/11000056197-acr-ct-phantom-scanning-instructions>`_.
+MR analysis is drawn from the `ACR Guidance document <https://www.acraccreditation.org/-/media/ACRAccreditation/Documents/MRI/LargePhantomGuidance.pdf?la=en>`_.
+
+.. warning::
+
+    Due to the rectangular ROIs on the MRI phantom analysis,
+    rotational errors should be <= 1 degree. Translational errors are still
+    accounted for however for any reasonable amount.
 
 Typical Use
 -----------
 
-ACR CT analysis follows a similar pattern of load/analyze/output as the rest of the library.
-Unlike the CatPhan analysis, customization is not a goal, as the phantom and analysis
+The ACR CT and MR analyses follows a similar pattern of load/analyze/output as the rest of the library.
+Unlike the CatPhan analysis, customization is not a goal, as the phantoms and analyses
 are much more well-defined. I.e. there's less of a use case for custom phantoms in this
-scenario.
+scenario. CT is mostly used here but is interchangeable with the MRI class.
 
 To use the ACR analysis, import the class:
 
 .. code-block:: python
 
-    from pylinac import CT464
+    from pylinac import ACRCT, ACRMRILarge
 
 And then load, analyze, and view the results:
 
@@ -37,14 +44,16 @@ And then load, analyze, and view the results:
   .. code-block:: python
 
     acr_ct_folder = r"C:/CT/ACR/Sept 2021"
-    ct = CT464(acr_ct_folder)
+    ct = ACRCT(acr_ct_folder)
+    acr_mri_folder = r"C:/MRI/ACR/Sept 2021"
+    mri = ACRMRILarge(acr_mri_folder)
 
   or load from zip:
 
   .. code-block:: python
 
     acr_ct_zip = r"C:/CT/ACR/Sept 2021.zip"
-    ct = CT464.from_zip(acr_ct_zip)
+    ct = ACRCT.from_zip(acr_ct_zip)
 
 * **Analyze** -- Analyze the dataset:
 
@@ -76,33 +85,29 @@ Advanced Use
 Using ``results_data``
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Using the acr module in your own scripts? While the analysis results can be printed out,
-if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.acr.CT464.results_data` method
-which returns a :class:`~pylinac.acr.ACRCTResult` instance.
-
-.. note::
-    While the pylinac tooling may change under the hood, this object should remain largely the same and/or expand.
-    Thus, using this is more stable than accessing attrs directly.
+Using the ACR module in your own scripts? While the analysis results can be printed out,
+if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.acr.ACRCT.results_data` method
+which returns a :class:`~pylinac.acr.ACRCTResult` instance. For MRI this is :meth:`~pylinac.acr.ACRMRILarge.results_data` method
+and :class:`~pylinac.acr.ACRMRILargeResult` respectively.
 
 Continuing from above:
 
 .. code-block:: python
 
-    data = mycbct.results_data()
-    data.catphan_model
-    data.ctp404.measured_slice_thickness_mm
+    data = ct.results_data()
+    data.ct_module.roi_radius_mm
     # and more
 
     # return as a dict
-    data_dict = mycbct.results_data(as_dict=True)
-    data_dict['ctp404']['measured_slice_thickness_mm']
+    data_dict = ct.results_data(as_dict=True)
+    data_dict['ct_module']['roi_radius_mm']
     ...
 
  API Documentation
 ------------------
 
 
-.. autoclass:: pylinac.acr.CT464
+.. autoclass:: pylinac.acr.ACRCT
     :inherited-members:
     :members:
 
@@ -123,5 +128,30 @@ Continuing from above:
     :members:
 
 .. autoclass:: pylinac.acr.LowContrastModuleOutput
+    :inherited-members:
+    :members:
+
+
+.. autoclass:: pylinac.acr.ACRMRILarge
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.acr.ACRMRIResult
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.acr.MRSlice11ModuleOutput
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.acr.MRSlice1ModuleOutput
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.acr.MRUniformityModuleOutput
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.acr.MRGeometricDistortionModuleOutput
     :inherited-members:
     :members:

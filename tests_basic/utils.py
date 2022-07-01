@@ -1,6 +1,7 @@
 import base64
 import concurrent.futures
 import contextlib
+import hashlib
 import multiprocessing
 import os
 import os.path as osp
@@ -90,6 +91,7 @@ def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
     """Get a single file from GCP storage. Returns the path to disk it was downloaded to"""
     local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
     if osp.isfile(local_filename) and not force:
+        print(f"Local file found: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}")
         return local_filename
     with access_gcp() as client:
         bucket = client.bucket(GCP_BUCKET_NAME)
@@ -104,6 +106,7 @@ def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
                     os.mkdir(local_dir)
 
         blob.download_to_filename(local_filename)
+        print(f"Downloaded from GCP: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}")
         return local_filename
 
 

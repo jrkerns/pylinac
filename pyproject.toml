@@ -29,7 +29,10 @@ classifiers=[
 
 [tool.poetry.dependencies]
 python = "^3.6.1"
-scikit-image = ">=0.17"
+scikit-image = [
+    {version = "<=0.17.2", python = "<=3.6"},
+    {version = ">=0.17.3", python = "^3.7"}
+]
 numpy = ">=0.16"
 scipy = ">=1.1"
 tqdm = ">=3.8"

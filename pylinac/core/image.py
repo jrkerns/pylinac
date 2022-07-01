@@ -8,7 +8,7 @@ from io import BytesIO, BufferedReader
 import re
 import os.path as osp
 import os
-from typing import Union, Sequence, List, Any, Tuple, Optional, BinaryIO
+from typing import Union, Sequence, List, Any, Tuple, Optional, BinaryIO, Literal
 
 import pydicom
 from pydicom.errors import InvalidDicomError
@@ -721,10 +721,14 @@ class DicomImage(BaseImage):
         has_all_rescale_tags = hasattr(self.metadata, 'RescaleSlope') and hasattr(self.metadata, 'RescaleIntercept') and hasattr(self.metadata, 'PixelIntensityRelationshipSign')
         has_some_rescale_tags = hasattr(self.metadata, 'RescaleSlope') and hasattr(self.metadata, 'RescaleIntercept')
         is_ct_storage = self.metadata.SOPClassUID.name == 'CT Image Storage'
+        is_mr_storage = self.metadata.SOPClassUID.name == 'MR Image Storage'
         if has_all_rescale_tags:
             self.array = ((self.metadata.RescaleSlope*self.array) + self.metadata.RescaleIntercept)*self.metadata.PixelIntensityRelationshipSign
         elif is_ct_storage or has_some_rescale_tags:
             self.array = (self.metadata.RescaleSlope * self.array) + self.metadata.RescaleIntercept
+        elif is_mr_storage:
+            # signal is usually correct as-is, no inversion needed
+            pass
         else:
             # invert it
             orig_array = self.array
@@ -1002,7 +1006,7 @@ class DicomImageStack:
     Load as a certain data type
     >>> dcm_stack_uint32 = image.DicomImageStack(img_folder, dtype=np.uint32)
     """
-    images: List
+    images: List[ImageLike]
 
     def __init__(self, folder: Union[str, pathlib.Path], dtype=None, min_number: int = 39, check_uid: bool = True):
         """Load a folder with DICOM CT images.
@@ -1069,7 +1073,7 @@ class DicomImageStack:
             raise ValueError("The minimum number images from the same study were not found")
         return [i for i in self.images if i.metadata.SeriesInstanceUID == most_common_uid[0]]
 
-    def plot(self, slice: int=0) -> None:
+    def plot(self, slice: int = 0) -> None:
         """Plot a slice of the DICOM dataset.
 
         Parameters
@@ -1078,6 +1082,10 @@ class DicomImageStack:
             The slice to plot.
         """
         self.images[slice].plot()
+
+    def roll(self, direction: Literal['x', 'y'], amount: int):
+        for img in self.images:
+            img.roll(direction, amount)
 
     @property
     def metadata(self) -> pydicom.FileDataset:

@@ -22,6 +22,19 @@ definitions:
               - "pylinac/core/**"
               - "tests_basic/test_cbct.py"
               - "pylinac/ct.py"
+    - step: &acr-tests
+        name: Run ACR CT/MRI Tests
+        script:
+          - pip install -r requirements-ram.txt
+          - pip freeze
+          - pytest tests_basic/test_acr.py
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_acr.py"
+              - "pylinac/ct.py"
+              - "pylinac/acr.py"
     - step: &planar-tests
         name: Run Planar Imaging Tests
         script:
@@ -165,6 +178,7 @@ pipelines:
     '**':
       - parallel:
           - step: *cbct-tests
+          - step: *acr-tests
           - step: *planar-tests
           - step: *dlg-tests
           - step: *field-analysis-tests
@@ -182,6 +196,7 @@ pipelines:
     master:
       - parallel:
           - step: *cbct-tests
+          - step: *acr-tests
           - step: *planar-tests
           - step: *dlg-tests
           - step: *field-analysis-tests

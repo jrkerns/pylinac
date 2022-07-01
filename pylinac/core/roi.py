@@ -69,6 +69,11 @@ class DiskROI(Circle):
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
     @cached_property
+    def pixel_values(self) -> np.ndarray:
+        masked_img = self.circle_mask()
+        return self._array[~np.isnan(masked_img)]
+
+    @cached_property
     def pixel_value(self) -> float:
         """The median pixel value of the ROI."""
         masked_img = self.circle_mask()
@@ -223,6 +228,9 @@ class HighContrastDiskROI(DiskROI):
         super().__init__(array, angle, roi_radius, dist_from_center, phantom_center)
         self.contrast_threshold = contrast_threshold
 
+    def __repr__(self):
+        return f"High-Contrast Disk; max pixel: {self.max}, min pixel: {self.min}"
+
     @cached_property
     def max(self) -> np.ndarray:
         """The max pixel value of the ROI."""
@@ -246,7 +254,24 @@ class RectangleROI(Rectangle):
         super().__init__(width, height, center, as_int=True)
         self._array = array
 
+    def __repr__(self):
+        return f"Rectangle ROI @ {self.center}; mean pixel: {self.pixel_value}"
+
+    # @classmethod
+    # def from_regionprop(cls, regionprop: _RegionProperties, phan_center: Point):
+    #     width = regionprop.bbox[3] - regionprop.bbox[1]
+    #     height = regionprop.bbox[2] - regionprop.bbox[0]
+    #     angle = np.rad2deg(np.arctan2((regionprop.centroid[0] - phan_center.y), (regionprop.centroid[1] - phan_center.x)))
+    #     distance = phan_center.distance_to(Point(regionprop.centroid[1], regionprop.centroid[0]))
+    #     return cls(regionprop.intensity_image, width=width, height=height,
+    #                angle=angle, dist_from_center=distance, phantom_center=phan_center)
+
     @cached_property
     def pixel_array(self) -> np.ndarray:
         """The pixel array within the ROI."""
         return self._array[self.bl_corner.y:self.tr_corner.y, self.bl_corner.x:self.tr_corner.x]
+
+    @cached_property
+    def pixel_value(self) -> float:
+        """The pixel array within the ROI."""
+        return float(np.mean(self.pixel_array))
