@@ -213,10 +213,11 @@ You may optionally analyze a single image if that is your preference. Obviously,
 
 This class does not have all the methods that ``WinstonLutz`` has for mostly obvious reasons and lower likelihood of being used directly.
 
-Using File Names
-----------------
+Passing in Axis values
+----------------------
 
-If your linac EPID images do not include axis information (such as Elekta) you can specify it in the file name.
+If your linac EPID images do not include axis information (such as Elekta) there are two ways to pass the data in.
+First, you can specify it in the file name.
 Any and all of the three axes can be defined. If one is not defined and is not in the DICOM tags, it will default to 0.
 The syntax to define the axes: "<*>gantry0<*>coll0<*>couch0<*>". There can be any text before, after, or in between each axis definition.
 However, the axes numerical value **must** immediately follow the axis name. Axis names are also fixed. The following examples
@@ -244,6 +245,21 @@ Using the filenames within the code is done by passing the ``use_filenames=True`
 .. note:: If using filenames any relevant axes must be defined, otherwise they will default to zero. For example,
           if the acquisition was at gantry=45, coll=15, couch=0 then the filename must include both the gantry and collimator
           in the name (<...gantry45...coll15....dcm>). For this example, the couch need not be defined since it is 0.
+
+The other way of inputting axis information is passing the `axis_mapping` parameter to the constructor. This is a
+dictionary with the filenames as keys and a tuple of ints for the gantry, coll, and couch:
+
+.. code-block:: python
+
+    directory = 'path/to/wl/dir'
+    mapping = {'file1.dcm': (0, 0, 0), 'file2.dcm': (90, 315, 45), ...}
+    wl = WinstonLutz(directory=directory, axis_mapping=mapping)
+    # analyze as normal
+    wl.analyze(...)
+
+.. note::
+
+    The filenames should be local to the directory. In the above example the full paths would be `path/to/wl/dir/file1.dcm`, and `path/to/wl/dir/file2.dcm`.
 
 Changing BB detection size
 --------------------------

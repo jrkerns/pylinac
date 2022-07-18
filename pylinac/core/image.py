@@ -801,23 +801,35 @@ class LinacDicomImage(DicomImage):
     _use_filenames: bool
 
     def __init__(self, path: str, use_filenames: bool = False, **kwargs):
+        self._gantry = kwargs.pop('gantry', None)
+        self._coll = kwargs.pop('coll', None)
+        self._couch = kwargs.pop('couch', None)
         super().__init__(path, **kwargs)
         self._use_filenames = use_filenames
 
     @property
     def gantry_angle(self) -> float:
         """Gantry angle of the irradiation."""
-        return self._get_axis_value(self.gantry_keyword.lower(), 'GantryAngle')
+        if self._gantry is not None:
+            return self._gantry
+        else:
+            return self._get_axis_value(self.gantry_keyword.lower(), 'GantryAngle')
 
     @property
     def collimator_angle(self) -> float:
         """Collimator angle of the irradiation."""
-        return self._get_axis_value(self.collimator_keyword.lower(), 'BeamLimitingDeviceAngle')
+        if self._coll is not None:
+            return self._coll
+        else:
+            return self._get_axis_value(self.collimator_keyword.lower(), 'BeamLimitingDeviceAngle')
 
     @property
     def couch_angle(self) -> float:
         """Couch angle of the irradiation."""
-        return self._get_axis_value(self.couch_keyword.lower(), 'PatientSupportAngle')
+        if self._couch is not None:
+            return self._couch
+        else:
+            return self._get_axis_value(self.couch_keyword.lower(), 'PatientSupportAngle')
 
     def _get_axis_value(self, axis_str: str, axis_dcm_attr: str) -> float:
         """Retrieve the value of the axis. This will first look in the file name for the value.

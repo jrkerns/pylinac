@@ -1,20 +1,23 @@
 import copy
 import io
+import shutil
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
 
 from pylinac.core.geometry import Point
 from pylinac.core import image
-from pylinac.core.image import DicomImage, ArrayImage, FileImage, DicomImageStack
+from pylinac.core.image import DicomImage, ArrayImage, FileImage, DicomImageStack, LinacDicomImage
 from pylinac.core.io import TemporaryZipDirectory
 from tests_basic.utils import save_file, get_file_from_cloud_test_repo
 
 tif_path = get_file_from_cloud_test_repo(['Starshot', 'Starshot-1.tif'])
 png_path = get_file_from_cloud_test_repo(['Starshot', 'Starshot-1.png'])
 dcm_path = get_file_from_cloud_test_repo(['VMAT', 'DRGSdmlc-105-example.dcm'])
+as500_path = get_file_from_cloud_test_repo(['picket_fence', 'AS500#5.dcm'])
 dcm_url = 'https://s3.amazonaws.com/pylinac/EPID-PF-LR.dcm'
 
 
@@ -228,6 +231,27 @@ class TestDicomImage(TestCase):
 
     def test_save(self):
         save_file(self.dcm.save)
+
+
+class TestLinacDicomImage(TestCase):
+
+    def test_normal_image(self):
+        img = LinacDicomImage(as500_path, use_filenames=False)
+        self.assertEqual(img.gantry_angle, 0)
+
+    def test_passing_axis_info_through_filename(self):
+        new_name = as500_path.replace('AS500#5', 'AS500Gantry78Coll13Couch44')
+        shutil.copy(as500_path, new_name)
+        img = LinacDicomImage(new_name, use_filenames=True)
+        self.assertEqual(img.gantry_angle, 78)
+        self.assertEqual(img.collimator_angle, 13)
+        self.assertEqual(img.couch_angle, 44)
+
+    def test_passing_axis_info_directly(self):
+        img = LinacDicomImage(as500_path, use_filenames=False, gantry=24, coll=60, couch=8)
+        self.assertEqual(img.gantry_angle, 24)
+        self.assertEqual(img.collimator_angle, 60)
+        self.assertEqual(img.couch_angle, 8)
 
 
 class TestFileImage(TestCase):

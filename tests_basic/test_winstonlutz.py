@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import pylinac
 from pylinac import WinstonLutz
 from pylinac.core.geometry import Vector, vector_is_close
+from pylinac.core.io import TemporaryZipDirectory
 from pylinac.winston_lutz import Axis, WinstonLutzResult, WinstonLutz2D
 from tests_basic.utils import save_file, CloudFileMixin, get_folder_from_cloud_test_repo, \
     get_file_from_cloud_test_repo, FromDemoImageTesterMixin, FromURLTesterMixin
@@ -18,6 +19,20 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
     klass = WinstonLutz
     demo_load_method = 'from_demo_images'
     url = 'winston_lutz.zip'
+
+    def test_loading_from_config_mapping(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'noisy_WL_30x5.zip'])
+        with TemporaryZipDirectory(path) as z:
+            config = {'WL G=0, C=0, P=0; Field=(30, 30)mm; BB=5mm @ left=0, in=0, up=0; Gantry tilt=0, Gantry sag=0.dcm': (11, 12, 13),
+                      'WL G=90, C=0, P=0; Field=(30, 30)mm; BB=5mm @ left=0, in=0, up=0; Gantry tilt=0, Gantry sag=0.dcm': (21, 22, 23),
+                      'WL G=180, C=0, P=0; Field=(30, 30)mm; BB=5mm @ left=0, in=0, up=0; Gantry tilt=0, Gantry sag=0.dcm': (31, 32, 33),
+                      'WL G=270, C=0, P=0; Field=(30, 30)mm; BB=5mm @ left=0, in=0, up=0; Gantry tilt=0, Gantry sag=0.dcm': (41, 42, 43),
+                      }
+            wl = WinstonLutz(z, axis_mapping=config)
+        wl.analyze()
+        self.assertEqual(wl.images[0].gantry_angle, 11)
+        self.assertEqual(wl.images[2].collimator_angle, 32)
+        self.assertEqual(wl.images[3].couch_angle, 43)
 
     def test_loading_1_image_fails(self):
         with self.assertRaises(ValueError):

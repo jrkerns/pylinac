@@ -24,6 +24,7 @@ import math
 import os.path as osp
 from dataclasses import dataclass
 from itertools import zip_longest
+from pathlib import Path
 from textwrap import wrap
 from typing import Union, List, Tuple, Optional, BinaryIO, Iterable, Dict
 
@@ -88,52 +89,43 @@ class WinstonLutzResult(ResultBase):
     max_couch_rms_deviation_mm: float  #:
 
 
-class ImageManager(list):
-    """Manages the images of a Winston-Lutz test."""
-    def __init__(self, directory: str, use_filenames: bool):
+class WinstonLutz:
+    """Class for performing a Winston-Lutz test of the radiation isocenter."""
+    images: list  #:
+
+    def __init__(self, directory: Union[str, list[str], Path], use_filenames: bool = False, axis_mapping: Optional[dict[str, (int, int, int)]] = None):
         """
         Parameters
         ----------
-        directory : str
-            The path to the images.
+        directory : str, list[str]
+            Path to the directory of the Winston-Lutz EPID images or a list of the image paths
         use_filenames: bool
             Whether to try to use the file name to determine axis values.
             Useful for Elekta machines that do not include that info in the DICOM data.
+        axis_mapping: dict
+            An optional way of instatiating by passing each file along with the axis values.
+            Structure should be <filename>: (<gantry>, <coll>, <couch>).
         """
-        super().__init__()
-        if isinstance(directory, list):
+        self.images = []
+        if axis_mapping:
+            for filename, (gantry, coll, couch) in axis_mapping.items():
+                self.images.append(WinstonLutz2D(Path(directory) / filename, use_filenames=False, gantry=gantry, coll=coll, couch=couch))
+        elif isinstance(directory, list):
             for file in directory:
                 if is_dicom_image(file):
                     img = WinstonLutz2D(file, use_filenames)
-                    self.append(img)
+                    self.images.append(img)
         elif not osp.isdir(directory):
             raise ValueError("Invalid directory passed. Check the correct method and file was used.")
         else:
             image_files = image.retrieve_image_files(directory)
             for file in image_files:
                 img = WinstonLutz2D(file, use_filenames)
-                self.append(img)
-        if len(self) < 2:
-            raise ValueError("<2 valid WL images were found in the folder/file. Ensure you chose the correct folder/file for analysis")
-        # reorder list based on increasing gantry angle, collimator angle, then couch angle
-        self.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
-
-
-class WinstonLutz:
-    """Class for performing a Winston-Lutz test of the radiation isocenter."""
-    images: ImageManager  #:
-
-    def __init__(self, directory: str, use_filenames: bool = False):
-        """
-        Parameters
-        ----------
-        directory : str
-            Path to the directory of the Winston-Lutz EPID images.
-        use_filenames: bool
-            Whether to try to use the file name to determine axis values.
-            Useful for Elekta machines that do not include that info in the DICOM data.
-        """
-        self.images = ImageManager(directory, use_filenames)
+                self.images.append(img)
+        if len(self.images) < 2:
+            raise ValueError(
+                "<2 valid WL images were found in the folder/file or passed. Ensure you chose the correct folder/file for analysis.")
+        self.images.sort(key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle))
         self._is_analyzed = False
 
     @classmethod
@@ -705,7 +697,7 @@ class WinstonLutz2D(image.LinacDicomImage):
     field_cax: Point
     _rad_field_bounding_box: list
 
-    def __init__(self, file: Union[str, BinaryIO], use_filenames: bool = False):
+    def __init__(self, file: Union[str, BinaryIO, Path], use_filenames: bool = False, **kwargs):
         """
         Parameters
         ----------
@@ -715,7 +707,7 @@ class WinstonLutz2D(image.LinacDicomImage):
             Whether to try to use the file name to determine axis values.
             Useful for Elekta machines that do not include that info in the DICOM data.
         """
-        super().__init__(file, use_filenames=use_filenames)
+        super().__init__(file, use_filenames=use_filenames, **kwargs)
         self._is_analyzed = False
 
     def analyze(self, bb_size_mm: float = 5) -> None:
@@ -911,7 +903,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         ax.set_xlim([self._rad_field_bounding_box[2], self._rad_field_bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
-        ax.set_title('\n'.join(wrap(self.path, 30)), fontsize=10)
+        ax.set_title('\n'.join(wrap(str(self.path), 30)), fontsize=10)
         ax.set_xlabel(f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}")
         ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
         if show:
