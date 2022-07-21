@@ -2,7 +2,7 @@
 import copy
 import io
 import pathlib
-from collections import Counter, Iterable
+from collections import Counter
 from datetime import datetime
 from io import BytesIO, BufferedReader
 import re
