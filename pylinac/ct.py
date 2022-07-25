@@ -1,7 +1,10 @@
-"""The CatPhan module automatically analyzes DICOM images of a CatPhan 504, 503, or 600 acquired when doing CBCT or CT quality assurance.
+"""The CT module automatically analyzes DICOM images of a CatPhan 504, 503, 600, Quart DVT, or ACR phantoms acquired when doing CBCT or CT quality assurance.
 It can load a folder or zip file that the images are in and automatically correct for translational and rotational errors.
 It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF),
 the HU uniformity (CTP486), and Low Contrast (CTP515) on the corresponding slices.
+
+For ACR and Quart phantoms, the equivalent sections are analyzed where applicable even though each module does not have an explicit name.
+Where intuitive similarities between the phantoms exist, the library usage is the same.
 
 Features:
 
@@ -604,8 +607,8 @@ class CTP486(CatPhanModule):
         axis.plot(horiz_data, 'g', label='Horizontal')
         axis.plot(vert_data, 'b', label='Vertical')
         axis.autoscale(tight=True)
-        axis.axhline(self.tolerance, color='r', linewidth=3)
-        axis.axhline(-self.tolerance, color='r', linewidth=3)
+        axis.axhline(self.nominal_value + self.tolerance, color='r', linewidth=3)
+        axis.axhline(self.nominal_value - self.tolerance, color='r', linewidth=3)
         axis.grid(True)
         axis.set_ylabel("HU")
         axis.legend(loc=8, fontsize='small', title="")

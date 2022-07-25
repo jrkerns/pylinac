@@ -16,6 +16,7 @@
    vmat_docs
    cbct
    acr
+   quart
    log_analyzer
    picketfence
    winston_lutz

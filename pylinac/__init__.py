@@ -13,6 +13,7 @@ from pylinac.core import decorators, geometry, image, io, mask, profile, roi, ut
 # alphabetized modules
 from pylinac.acr import ACRCT, ACRMRILarge
 from pylinac.ct import CatPhan504, CatPhan600, CatPhan503, CatPhan604
+from pylinac.quart import QuartDVT
 from pylinac.core.utilities import clear_data_files, assign2machine
 from pylinac.field_analysis import FieldAnalysis, DeviceFieldAnalysis, Protocol, Device, Edge, \
     Interpolation, Normalization, Centering

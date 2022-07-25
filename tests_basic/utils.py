@@ -106,6 +106,7 @@ def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
                     os.mkdir(local_dir)
 
         blob.download_to_filename(local_filename)
+        time.sleep(2)
         print(f"Downloaded from GCP: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}")
         return local_filename
 

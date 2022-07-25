@@ -6,6 +6,14 @@ ACR Phantoms
 Overview
 --------
 
+.. versionadded:: 3.2
+
+.. warning::
+
+    These algorithms have only a limited amount of testing data and results should be scrutinized.
+    Further, the algorithm is more likely to change in the future when a more robust test suite is built up.
+    If you'd like to submit data, enter it `here <https://forms.gle/RBR5ubFvjogE9iC67>`_.
+
 The ACR module provides routines for automatically
 analyzing DICOM images of the ACR CT 464 phantom and Large MR phantom.
 It can load a folder or zip file of images, correcting for

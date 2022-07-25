@@ -15,19 +15,30 @@ definitions:
     - step: &cbct-tests
         name: Run CBCT Tests
         script:
-          - pytest tests_basic/test_cbct.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_cbct.py -n 1 --cov=pylinac.cbct
         condition:
           changesets:
             includePaths:
               - "pylinac/core/**"
               - "tests_basic/test_cbct.py"
               - "pylinac/ct.py"
+    - step: &quart-tests
+        name: Run Quart Tests
+        script:
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_quart.py -n 1 --cov=pylinac.quart
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_quart.py"
+              - "pylinac/quart.py"
     - step: &acr-tests
         name: Run ACR CT/MRI Tests
         script:
-          - pip install -r requirements-ram.txt
-          - pip freeze
-          - pytest tests_basic/test_acr.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_acr.py -n 1 --cov=pylinac.acr
         condition:
           changesets:
             includePaths:
@@ -38,7 +49,8 @@ definitions:
     - step: &planar-tests
         name: Run Planar Imaging Tests
         script:
-          - pytest tests_basic/test_planar_imaging.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_planar_imaging.py -n 1
         condition:
           changesets:
             includePaths:
@@ -48,7 +60,8 @@ definitions:
     - step: &dlg-tests
         name: Run DLG Tests
         script:
-          - pytest tests_basic/test_dlg.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_dlg.py -n 1
         condition:
           changesets:
             includePaths:
@@ -58,7 +71,8 @@ definitions:
     - step: &field-analysis-tests
         name: Run Field Analysis Tests
         script:
-          - pytest tests_basic/test_field_analysis.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_field_analysis.py -n 1
         condition:
           changesets:
             includePaths:
@@ -68,7 +82,8 @@ definitions:
     - step: &machine-log-tests
         name: Run Machine Logs Tests
         script:
-          - pytest tests_basic/test_logs.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_logs.py -n 1
         condition:
           changesets:
             includePaths:
@@ -78,7 +93,8 @@ definitions:
     - step: &picket-fence-tests
         name: Run Picket Fence Tests
         script:
-          - pytest tests_basic/test_picketfence.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_picketfence.py -n 1
         condition:
           changesets:
             includePaths:
@@ -88,7 +104,8 @@ definitions:
     - step: &starshot-tests
         name: Run Starshot Tests
         script:
-          - pytest tests_basic/test_starshot.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_starshot.py -n 1
         condition:
           changesets:
             includePaths:
@@ -98,7 +115,8 @@ definitions:
     - step: &calibration-tests
         name: Run TG-51/TRS-398 Tests
         script:
-          - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py -n 1
         condition:
           changesets:
             includePaths:
@@ -109,7 +127,8 @@ definitions:
     - step: &vmat-tests
         name: Run VMAT Tests
         script:
-          - pytest tests_basic/test_vmat.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_vmat.py -n 1
         condition:
           changesets:
             includePaths:
@@ -119,7 +138,8 @@ definitions:
     - step: &winston-lutz-tests
         name: Run Winston-Lutz Tests
         script:
-          - pytest tests_basic/test_winstonlutz.py
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/test_winstonlutz.py -n 1
         condition:
           changesets:
             includePaths:
@@ -129,7 +149,8 @@ definitions:
     - step: &core-module-tests
         name: Run core module tests
         script:
-          - pytest tests_basic/core
+          - pip install -r requirements-dev.txt
+          - pytest tests_basic/core -n 1
         condition:
           changesets:
             includePaths:
@@ -179,6 +200,7 @@ pipelines:
       - parallel:
           - step: *cbct-tests
           - step: *acr-tests
+          - step: *quart-tests
           - step: *planar-tests
           - step: *dlg-tests
           - step: *field-analysis-tests
@@ -197,6 +219,7 @@ pipelines:
       - parallel:
           - step: *cbct-tests
           - step: *acr-tests
+          - step: *quart-tests
           - step: *planar-tests
           - step: *dlg-tests
           - step: *field-analysis-tests

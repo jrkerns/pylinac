@@ -1,7 +1,7 @@
 Pylinac
 =======
 
-.. image:: https://s3.amazonaws.com/pylinac/Pylinac+Full.png
+.. image:: https://storage.googleapis.com/pylinac_demo_files/Pylinac_Full_cropped.png
     :width: 100%
     :target: https://github.com/jrkerns/pylinac
     :align: center
@@ -238,11 +238,11 @@ Below are the high-level tools currently available:
         drgs.plot_analyzed_image()  # shows a matplotlib figure
         drgs.publish_pdf('mydrgs.pdf')  # generate a PDF report
 
-* `CT & CBCT QA <http://pylinac.readthedocs.org/en/stable/cbct_docs.html>`_ -
-    The CBCT module automatically analyzes DICOM images of a CatPhan 504, 503, or 600 acquired when doing CT or CBCT quality assurance. It can load a folder or zip file that
+* `CatPhan, Quart, ACR phantom QA <http://pylinac.readthedocs.org/en/stable/cbct_docs.html>`_ -
+    The CBCT module automatically analyzes DICOM images of a CatPhan 504, 503, 600, 604, Quart DVT, and ACR CT/MR acquired when doing CT, CBCT, or MR quality assurance. It can load a folder or zip file that
     the images are in and automatically correct for phantom setup in 6 axes.
-    It can analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
-    uniformity (CTP486) on the corresponding slice.
+    CatPhans analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
+    uniformity (CTP486) on the corresponding slice. Quart and ACR analyze similar metrics where possible.
 
     Features:
 
@@ -256,7 +256,7 @@ Below are the high-level tools currently available:
 
     .. code-block:: python
 
-        from pylinac import CatPhan504, CatPhan503, CatPhan600, CatPhan604
+        from pylinac import CatPhan504, CatPhan503, CatPhan600, CatPhan604, QuartDVT, ACRCT, ACRMRILarge
 
         # for this example, we'll use the CatPhan504
         cbct = CatPhan504("my/cbct_image_folder")
@@ -361,4 +361,4 @@ Contributing
 
 Contributions to pylinac can be many. The most useful things a non-programmer can contribute are images to analyze and bug reports. If
 you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, upload them privately
-`here <https://www.dropbox.com/request/YKRu4AmuPsXu55uQq761>`_.
+`here <https://forms.gle/RBR5ubFvjogE9iC67>`_.
