@@ -9,7 +9,8 @@ import pytest
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from pylinac.core import image
-from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC, StandardImagingFC2
+from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC, StandardImagingFC2, \
+    IMTLRad
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo
 
 TEST_DIR = 'planar_imaging'
@@ -448,3 +449,60 @@ class FC2BBDownRight1mm(FC2Mixin, TestCase):
     field_epid_offset_x_mm = 0
     field_bb_offset_y_mm = 1
     field_bb_offset_x_mm = 1
+
+
+class IMTLRadMixin(FC2Mixin):
+    klass = IMTLRad
+    dir_path = ['planar_imaging', 'IMT_L-Rad']
+
+
+class IMTLRadDemo(IMTLRadMixin, TestCase):
+    field_size_y_mm = 210.8
+    field_size_x_mm = 210.5
+    field_epid_offset_x_mm = 1.3
+    field_epid_offset_y_mm = 0
+    field_bb_offset_y_mm = 0.8
+    field_bb_offset_x_mm = -0.6
+
+    def test_demo(self):
+        IMTLRad.run_demo()
+
+
+class IMTLRad21x21(IMTLRadMixin, TestCase):
+    file_name = 'RTIMAGE_11_1.dcm'
+    field_size_y_mm = 210.8
+    field_size_x_mm = 210.5
+    field_epid_offset_x_mm = 1.3
+    field_epid_offset_y_mm = 0
+    field_bb_offset_y_mm = 0.8
+    field_bb_offset_x_mm = -0.6
+
+
+class IMTLRad21x21_2(IMTLRadMixin, TestCase):
+    file_name = 'RTIMAGE_11_2.dcm'
+    field_size_y_mm = 210.9
+    field_size_x_mm = 210.7
+    field_epid_offset_x_mm = 1.4
+    field_epid_offset_y_mm = -0.3
+    field_bb_offset_y_mm = 0.4
+    field_bb_offset_x_mm = -0.7
+
+
+class IMTLRadPerfect(IMTLRadMixin, TestCase):
+    file_name = 'perfect_imt.dcm'
+    field_size_y_mm = 150
+    field_size_x_mm = 150
+    field_epid_offset_x_mm = 0
+    field_epid_offset_y_mm = 0
+    field_bb_offset_y_mm = 0
+    field_bb_offset_x_mm = 0
+
+
+class IMTLRadOffset(IMTLRadMixin, TestCase):
+    file_name = 'offset_imt.dcm'
+    field_size_y_mm = 150
+    field_size_x_mm = 150
+    field_epid_offset_x_mm = 0
+    field_epid_offset_y_mm = 0
+    field_bb_offset_y_mm = 1.6  # should be 2 but rounding due to pixel snapping
+    field_bb_offset_x_mm = 0

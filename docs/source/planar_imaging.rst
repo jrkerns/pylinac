@@ -588,6 +588,50 @@ The BB window as well as the expected BB positions, and field strip size can be 
     # use as normal
     fc2 = MySIFC2(...)
 
+
+IMT L-Rad
+---------
+
+The IMT L-Rad phantom is for testing light/radiation coincidence. Unlike the FC-2 phantom, the L-Rad's BBs are
+all the way at the edge of the phantom. This means for any size below 20x20cm those BBs can't be seen. Even at
+20x20, the field edge partially obscures the BBs. For this reason, we only use the central BB for detection.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The L-Rad phantom should be placed on the couch at 100cm SSD.
+
+* Keep the phantom away from a couch edge or any rails.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
+* The phantom should be centered near the CAX (<3mm).
+
+**Analysis**
+
+* **Get BB centroid** -- An image window looks for the central BB in a 1.2x1.2cm square. Once it finds it,
+  the centroid is calculated.
+* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
+  A 5mm strip is averaged and used to reduce noise.
+
+**Post-Analysis**
+
+* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
+  The field size is also reported.
+
 .. _creating_a_custom_phantom:
 
 Creating a custom phantom
@@ -827,4 +871,7 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.StandardImagingFC2
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.IMTLRad
     :inherited-members:

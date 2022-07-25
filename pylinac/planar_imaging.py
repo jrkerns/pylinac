@@ -844,6 +844,17 @@ class StandardImagingFC2(ImagePhantomBase):
             open_path(filename)
 
 
+class IMTLRad(StandardImagingFC2):
+    common_name = "IMT L-Rad"
+    _demo_filename = "imtlrad.dcm"
+    center_only_bb = {'Center': [0, 0]}
+    bb_sampling_box_size_mm = 12
+    field_strip_width_mm = 5
+
+    def _determine_bb_set(self, fwxm: int) -> dict:
+        return self.center_only_bb
+
+
 class LasVegas(ImagePhantomBase):
     _demo_filename = 'lasvegas.dcm'
     common_name = 'Las Vegas'

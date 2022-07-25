@@ -3,6 +3,15 @@
 Changelog
 =========
 
+v 3.2.0
+-------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The IMT L-Rad light/rad phantom is now able to be analyzed.
+
+
 v 3.1.0
 -------
 

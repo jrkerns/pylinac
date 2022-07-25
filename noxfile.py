@@ -7,9 +7,6 @@ def run_tests(session):
     session.run("pytest", '-n', '5')
 
 
-@nox.session(reuse_venv=False)
+@nox.session(python=False)
 def serve_docs(session):
-    session.install('sphinx')
-    session.install('sphinx-autobuild')
-    session.install('matplotlib')
     session.run("sphinx-autobuild", "docs/source", "docs/build", "--port", "8777")
