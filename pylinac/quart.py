@@ -14,7 +14,7 @@ from pylinac.core import pdf
 from pylinac.core.geometry import Line, Point
 from pylinac.core.profile import SingleProfile, Interpolation
 from pylinac.core.utilities import ResultBase
-from pylinac.ct import CTP404CP504, AIR, ThicknessROI, CTP486, CatPhanModule, CatPhanBase
+from pylinac.ct import CTP404CP504, AIR, ThicknessROI, CTP486, CatPhanModule, CatPhanBase, rois_to_results
 
 UNIFORMITY_OFFSET_MM = -45
 GEOMETRY_OFFSET_MM = 45
@@ -284,19 +284,19 @@ class QuartDVT(CatPhanBase):
                 uniformity_module=QuartUniformityModuleOutput(
                         offset=UNIFORMITY_OFFSET_MM,
                         roi_settings=self.uniformity_module.roi_settings,
-                        rois=self.uniformity_module.rois,
+                        rois=rois_to_results(self.uniformity_module.rois),
                         passed=self.uniformity_module.overall_passed
                 ),
                 geometric_module=QuartGeometryModuleOutput(
                         offset=GEOMETRY_OFFSET_MM,
                         roi_settings=self.geometry_module.roi_settings,
-                        rois=self.geometry_module.rois,
+                        rois=rois_to_results(self.geometry_module.rois),
                         distances=self.geometry_module.distances()
                 ),
                 hu_module=QuartHUModuleOutput(
                         offset=0,
                         roi_settings=self.hu_module.roi_settings,
-                        rois=self.hu_module.rois,
+                        rois=rois_to_results(self.hu_module.rois),
                         measured_slice_thickness_mm=self.hu_module.meas_slice_thickness,
                         signal_to_noise=self.hu_module.signal_to_noise,
                         contrast_to_noise=self.hu_module.contrast_to_noise

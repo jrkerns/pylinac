@@ -68,6 +68,7 @@ class ROIResult:
     Use the following attributes as normal class attributes."""
     name: str  #:
     value: float  #:
+    stdev: float  #:
     difference: float  #:
     nominal_value: float  #:
     passed: bool  #:
@@ -91,7 +92,7 @@ class CTP404Result:
 
     hu_linearity_passed: bool  #:
     hu_tolerance: float  #:
-    hu_rois: Dict[str, ROIResult]  #:
+    hu_rois: dict  #:
 
 
 @dataclass
@@ -103,7 +104,7 @@ class CTP486Result:
     uniformity_index: float  #:
     integral_non_uniformity: float  #:
     passed: bool  #:
-    rois: Dict[str, ROIResult]  #:
+    rois: dict  #:
 
 
 @dataclass
@@ -1364,12 +1365,6 @@ class CatPhanBase:
     def results_data(self, as_dict: bool = False) -> Union[CatphanResult, dict]:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
-        hu_rois = {name: ROIResult(name=name,
-                             value=roi.pixel_value,
-                             difference=roi.value_diff,
-                             nominal_value=roi.nominal_val,
-                             passed=roi.passed
-                             ) for name, roi in self.ctp404.rois.items()}
         ctp404_result = CTP404Result(
                 offset=self.ctp404._offset,
                 low_contrast_visibility=self.ctp404.lcv,
@@ -1383,7 +1378,7 @@ class CatPhanBase:
 
                 hu_linearity_passed=self.ctp404.passed_hu,
                 hu_tolerance=self.ctp404.hu_tolerance,
-                hu_rois=hu_rois
+                hu_rois=rois_to_results(self.ctp404.rois)
         )
         data = CatphanResult(
                 catphan_model=self._model,
@@ -1395,17 +1390,11 @@ class CatPhanBase:
 
         # CTP 486 Uniformity stuff
         if self._has_module(CTP486):
-            ctp486_rois = {name: ROIResult(name=name,
-                                       value=roi.pixel_value,
-                                       difference=roi.value_diff,
-                                       nominal_value=roi.nominal_val,
-                                       passed=roi.passed
-                                       ) for name, roi in self.ctp486.rois.items()}
             data.ctp486 = CTP486Result(
                     passed=self.ctp486.overall_passed,
                     uniformity_index=self.ctp486.uniformity_index,
                     integral_non_uniformity=self.ctp486.integral_non_uniformity,
-                    rois=ctp486_rois,
+                    rois=rois_to_results(self.ctp486.rois),
             )
 
         # CTP 528 stuff
@@ -1582,3 +1571,18 @@ def combine_surrounding_slices(dicomstack: DicomImageStack, nominal_slice_num: i
     else:
         combined_array = np.max(array_stack, 2)
     return combined_array
+
+
+def rois_to_results(dict_mapping: Dict[str, HUDiskROI]) -> dict[str, ROIResult]:
+    """Converts a dict of HUDiskROIs to a dict of ROIResults. This is for dumping to simple data formats for results_data and RadMachine"""
+    flat_dict = {}
+    for name, roi in dict_mapping.items():
+        flat_dict[name] = ROIResult(
+            name=name,
+            value=roi.pixel_value,
+            stdev=roi.std,
+            difference=roi.value_diff,
+            nominal_value=roi.nominal_val,
+            passed=roi.passed,
+        )
+    return flat_dict
