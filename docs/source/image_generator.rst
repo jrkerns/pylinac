@@ -132,7 +132,7 @@ Winston-Lutz FFF Cone Field with Noise
     as1200.add_layer(FilterFreeConeLayer(50))
     as1200.add_layer(PerfectBBLayer(bb_size_mm=5))
     as1200.add_layer(GaussianFilterLayer(sigma_mm=2))
-    as1200.add_layer(RandomNoiseLayer(sigma=2000))
+    as1200.add_layer(RandomNoiseLayer(sigma=0.02))
     # plot the generated image
     plt.imshow(as1200.image)
 
