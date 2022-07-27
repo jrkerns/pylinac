@@ -18,7 +18,7 @@ from .core.utilities import clear_data_files, assign2machine
 from .field_analysis import FieldAnalysis, DeviceFieldAnalysis, Protocol, Device, Edge, \
     Interpolation, Normalization, Centering
 from .planar_imaging import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV, \
-    StandardImagingQCkV, PTWEPIDQC, SNCMV, SNCkV, StandardImagingFC2
+    StandardImagingQCkV, PTWEPIDQC, SNCMV, SNCkV, StandardImagingFC2, IMTLRad
 from .log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
 from .picketfence import PicketFence  # must be after log analyzer
 from .starshot import Starshot
