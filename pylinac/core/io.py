@@ -12,7 +12,7 @@ import numpy as np
 import pydicom
 from tqdm import tqdm
 
-from pylinac.core.profile import SingleProfile
+from .profile import SingleProfile
 
 
 def is_dicom(file: str) -> bool:

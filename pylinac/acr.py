@@ -12,13 +12,13 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy import ndimage
 
-from pylinac.core import pdf
-from pylinac.core.geometry import Line, Point
-from pylinac.core.mtf import MTF
-from pylinac.core.profile import SingleProfile, Interpolation
-from pylinac.core.roi import HighContrastDiskROI, RectangleROI
-from pylinac.core.utilities import ResultBase
-from pylinac.ct import CatPhanBase, CatPhanModule, ThicknessROI, Slice, get_regions
+from .core import pdf
+from .core.geometry import Line, Point
+from .core.mtf import MTF
+from .core.profile import SingleProfile, Interpolation
+from .core.roi import HighContrastDiskROI, RectangleROI
+from .core.utilities import ResultBase
+from .ct import CatPhanBase, CatPhanModule, ThicknessROI, Slice, get_regions
 
 # CT
 CT_UNIFORMITY_MODULE_OFFSET_MM = 70

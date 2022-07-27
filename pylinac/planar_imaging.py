@@ -33,13 +33,12 @@ from cached_property import cached_property
 from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
-from . import Interpolation
 from .core import image, pdf, geometry
 from .core.decorators import lru_cache
 from .core.geometry import Point, Rectangle, Circle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import CollapsedCircleProfile, SingleProfile
+from .core.profile import Interpolation, CollapsedCircleProfile, SingleProfile
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, bbox_center, Contrast
 from .core.utilities import open_path, ResultBase
 from .ct import get_regions

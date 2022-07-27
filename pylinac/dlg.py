@@ -5,10 +5,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import stats
 
-from pylinac import Normalization
-from pylinac.core import image
-from pylinac.core.profile import SingleProfile, find_peaks
-from pylinac.picketfence import MLCArrangement, MLC
+from .core.profile import Normalization
+from .core import image
+from .core.profile import SingleProfile, find_peaks
+from .picketfence import MLCArrangement, MLC
 
 
 class DLG:

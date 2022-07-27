@@ -12,7 +12,7 @@ from typing import Union, Optional, Tuple, BinaryIO, Sequence, List, Dict
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pylinac.core.utilities import open_path, ResultBase, convert_to_enum
+from .core.utilities import open_path, ResultBase, convert_to_enum
 from .core import image, pdf
 from .core.exceptions import NotAnalyzed
 from .core.geometry import Rectangle

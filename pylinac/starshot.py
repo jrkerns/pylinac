@@ -29,7 +29,6 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import optimize
-from typing.io import IO
 
 from .core import image, pdf
 from .core.geometry import Point, Line, Circle
@@ -434,7 +433,7 @@ class Starshot:
         self.plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
-    def publish_pdf(self, filename: Union[str, IO], notes: Optional[Union[str, List[str]]]=None, open_file: bool=False, metadata: Optional[dict]=None):
+    def publish_pdf(self, filename: Union[str, BinaryIO], notes: Optional[Union[str, List[str]]]=None, open_file: bool=False, metadata: Optional[dict]=None):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters

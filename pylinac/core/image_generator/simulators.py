@@ -4,7 +4,7 @@ from typing import Tuple
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
 
-from pylinac.core.image_generator.layers import Layer
+from .layers import Layer
 
 
 class Simulator(ABC):

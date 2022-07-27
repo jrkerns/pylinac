@@ -10,11 +10,11 @@ import numpy as np
 import scipy.ndimage
 from matplotlib import pyplot as plt
 
-from pylinac.core import pdf
-from pylinac.core.geometry import Line, Point
-from pylinac.core.profile import SingleProfile, Interpolation
-from pylinac.core.utilities import ResultBase
-from pylinac.ct import CTP404CP504, AIR, ThicknessROI, CTP486, CatPhanModule, CatPhanBase, rois_to_results
+from .core import pdf
+from .core.geometry import Line, Point
+from .core.profile import SingleProfile, Interpolation
+from .core.utilities import ResultBase
+from .ct import CTP404CP504, AIR, ThicknessROI, CTP486, CatPhanModule, CatPhanBase, rois_to_results
 
 UNIFORMITY_OFFSET_MM = -45
 GEOMETRY_OFFSET_MM = 45

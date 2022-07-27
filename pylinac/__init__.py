@@ -9,20 +9,20 @@ if sys.version_info[0] < 3 or sys.version_info[1] < 6:
 
 # import shortcuts
 # core first
-from pylinac.core import decorators, geometry, image, io, mask, profile, roi, utilities
+from .core import decorators, geometry, image, io, mask, profile, roi, utilities
 # alphabetized modules
-from pylinac.acr import ACRCT, ACRMRILarge
-from pylinac.ct import CatPhan504, CatPhan600, CatPhan503, CatPhan604
-from pylinac.quart import QuartDVT
-from pylinac.core.utilities import clear_data_files, assign2machine
-from pylinac.field_analysis import FieldAnalysis, DeviceFieldAnalysis, Protocol, Device, Edge, \
+from .acr import ACRCT, ACRMRILarge
+from .ct import CatPhan504, CatPhan600, CatPhan503, CatPhan604
+from .quart import QuartDVT
+from .core.utilities import clear_data_files, assign2machine
+from .field_analysis import FieldAnalysis, DeviceFieldAnalysis, Protocol, Device, Edge, \
     Interpolation, Normalization, Centering
-from pylinac.planar_imaging import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV, \
+from .planar_imaging import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV, \
     StandardImagingQCkV, PTWEPIDQC, SNCMV, SNCkV, StandardImagingFC2
-from pylinac.log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
-from pylinac.picketfence import PicketFence  # must be after log analyzer
-from pylinac.starshot import Starshot
-from pylinac.vmat import DRMLC, DRGS
-from pylinac.winston_lutz import WinstonLutz
-from pylinac.calibration import tg51, trs398
+from .log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
+from .picketfence import PicketFence  # must be after log analyzer
+from .starshot import Starshot
+from .vmat import DRMLC, DRGS
+from .winston_lutz import WinstonLutz
+from .calibration import tg51, trs398
 
