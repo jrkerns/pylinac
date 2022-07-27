@@ -208,6 +208,7 @@ class LeedsACB1(PlanarPhantomMixin, TestCase):
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     mtf_50 = 0.53
+    rois_seen = 5
 
     def test_demo(self):
         StandardImagingQC3.run_demo()  # shouldn't raise
@@ -217,12 +218,14 @@ class SIQC3_1(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     file_name = 'QC3-2.5MV.dcm'
     mtf_50 = 1.19
+    rois_seen = 5
 
 
 class SIQC3_2(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     file_name = 'QC3-2.5MV-2.dcm'
     mtf_50 = 1.16
+    rois_seen = 5
 
     def test_wrong_ssd_fails(self):
         self.instance = self.klass(self.get_filename())
@@ -303,6 +306,7 @@ class SNCMVDemo(PlanarPhantomMixin, TestCase):
 class SIQCkVDemo(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQCkV
     mtf_50 = 1.81
+    rois_seen = 5
 
     def test_demo(self):
         StandardImagingQCkV.run_demo()

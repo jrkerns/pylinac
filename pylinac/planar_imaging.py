@@ -1124,12 +1124,11 @@ class StandardImagingQCkV(StandardImagingQC3):
         'roi 5': {'distance from center': 0, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 2.46},
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 2, 'angle': 90, 'roi radius': 0.5},
-        'roi 2': {'distance from center': 2, 'angle': -90, 'roi radius': 0.5},
-        'roi 3': {'distance from center': 2.4, 'angle': 55, 'roi radius': 0.5},
-        'roi 4': {'distance from center': 2.4, 'angle': -55, 'roi radius': 0.5},
-        'roi 5': {'distance from center': 2.4, 'angle': 128, 'roi radius': 0.5},
-        'roi 6': {'distance from center': 2.4, 'angle': -128, 'roi radius': 0.5},
+        'roi 1': {'distance from center': 2, 'angle': -90, 'roi radius': 0.5},
+        'roi 2': {'distance from center': 2.4, 'angle': 55, 'roi radius': 0.5},
+        'roi 3': {'distance from center': 2.4, 'angle': -55, 'roi radius': 0.5},
+        'roi 4': {'distance from center': 2.4, 'angle': 128, 'roi radius': 0.5},
+        'roi 5': {'distance from center': 2.4, 'angle': -128, 'roi radius': 0.5},
     }
     low_contrast_background_roi_settings = {
         'roi 1': {'distance from center': 2, 'angle': 90, 'roi radius': 0.5},

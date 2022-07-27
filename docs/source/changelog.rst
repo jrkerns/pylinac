@@ -10,6 +10,9 @@ Planar Imaging
 ^^^^^^^^^^^^^^
 
 * The IMT L-Rad light/rad phantom is now able to be analyzed.
+* The SI QCkV phantom was accidentally analyzing the reference/background ROI. This resulted in a contrast of 0 for the first ROI all the time.
+  This has been removed from the results. Calculations using the average contrast will be affected. Existing ROI analysis values are not affected,
+  but will be off by one if accessing the roi directly. I.e. "roi 3" is now "roi 2", etc as the reference ROI was originally "roi 1".
 
 
 v 3.1.0
