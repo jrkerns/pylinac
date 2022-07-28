@@ -18,7 +18,7 @@ from scipy import ndimage
 import scipy.ndimage.filters as spf
 from skimage.transform import resize
 
-from .utilities import is_close, minmax_scale
+from .utilities import is_close
 from .decorators import type_accept, value_accept
 from .geometry import Point
 from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image, retrieve_dicom_file
@@ -32,16 +32,6 @@ IMAGE = 'Image'
 MM_PER_INCH = 25.4
 
 ImageLike = Union['DicomImage', 'ArrayImage', 'FileImage', 'LinacDicomImage']
-
-
-def prepare_for_classification(path: str):
-    """Load and resize the image and return as flattened numpy array. Used when converting an image into
-    a classification feature dataset"""
-    img = load(path, dtype=np.float32)
-    img.array = np.rot90(img.array)
-    resized_img = resize(img.array, output_shape=(100, 100)).flatten()
-    rescaled_img = minmax_scale(resized_img)
-    return rescaled_img
 
 
 def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, ImageLike]:
