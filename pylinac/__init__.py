@@ -20,6 +20,3 @@ from .starshot import Starshot
 from .vmat import DRMLC, DRGS
 from .winston_lutz import WinstonLutz
 from . import calibration
-
-from .watcher import process
-from .py_gui import gui  # must be after everything since it imports it all
