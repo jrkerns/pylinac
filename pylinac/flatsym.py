@@ -5,11 +5,11 @@ from typing import Tuple, Union
 
 import matplotlib.pyplot as plt
 
-from pylinac.core.utilities import open_path
 from .core.exceptions import NotAnalyzed
 from .core.io import retrieve_demo_file
 from .core import image
 from .core.profile import SingleProfile
+from .core.utilities import open_path
 from .core import pdf
 from .settings import get_dicom_cmap
 

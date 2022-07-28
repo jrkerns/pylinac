@@ -26,8 +26,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 from numpy.core._multiarray_umath import ndarray
 
-from pylinac.core.typing import NumberLike
-from pylinac.core.utilities import open_path
+from .core.typing import NumberLike
+from .core.utilities import open_path
 from .core import image
 from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url, retrieve_demo_file
