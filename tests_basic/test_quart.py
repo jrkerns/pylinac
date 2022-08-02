@@ -78,6 +78,10 @@ class TestPlottingSaving(TestCase):
         """Test that saving an image does something."""
         save_file(self.quart.plot_images)
 
+    def test_pdf(self):
+        # shouldn't raise
+        self.quart.publish_pdf(io.BytesIO())
+
     def test_save_images(self):
         """Test that saving an image does something."""
         save_file(self.quart.save_images, to_single_file=False)

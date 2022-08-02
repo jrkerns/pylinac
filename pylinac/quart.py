@@ -412,7 +412,7 @@ class QuartDVT(CatPhanBase):
             for text in items:
                 canvas.add_text(text=text, location=(1.5, 25 - idx * 0.5))
                 idx += 1
-        for page, img in enumerate(analysis_images):
+        for page, img in enumerate(analysis_images.values()):
             canvas.add_new_page()
             canvas.add_image(img, location=(1, 5), dimensions=(18, 18))
         canvas.finish()
