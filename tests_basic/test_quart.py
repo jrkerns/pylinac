@@ -82,6 +82,11 @@ class TestPlottingSaving(TestCase):
         """Test that saving an image does something."""
         save_file(self.quart.save_images, to_single_file=False)
 
+    def test_save_as_stream(self):
+        stream_dict = self.quart.save_images(to_stream=True)
+        self.assertIsInstance(stream_dict, dict)
+        self.assertIsInstance(stream_dict['HU linearity'], io.BytesIO)
+
     def test_subimages_errors(self):
         """We don't use subimages here. easier to pass as a list of figs"""
         with self.assertRaises(NotImplementedError):
@@ -163,8 +168,8 @@ class QuartHeadOffset(QuartDVTMixin, TestCase):
     slice_thickness = 1.9
     horiz_dist = 159.3
     vert_dist = 159.6
-    snr = 45
-    cnr = 6.9
+    snr = 50
+    cnr = 6.45
     hu_values = {'Poly': POLY, 'Acrylic': 126, 'Air': -999, 'Teflon': 981}
     unif_values = {'Center': 114, 'Left': 114, 'Right': 136, 'Top': 125, 'Bottom': 127}
 
@@ -201,3 +206,15 @@ class QuartHeadRotated(QuartDVTMixin, TestCase):
             img.array = ndimage.rotate(img.array, angle=3, mode='nearest')
         cls.quart.localize()
         cls.quart.analyze()
+
+
+class QuartPelvis(QuartDVTMixin, TestCase):
+    file_name = 'Pelvis_Quart.zip'
+    phantom_roll = 0.2
+    slice_thickness = 1.9
+    snr = 172
+    cnr = 28.3
+    horiz_dist = 159.3
+    vert_dist = 159.6
+    hu_values = {'Poly': -29, 'Acrylic': 140, 'Air': -1000, 'Teflon': 989}
+    unif_values = {'Center': 120, 'Left': 132, 'Right': 142, 'Top': 136, 'Bottom': 137}

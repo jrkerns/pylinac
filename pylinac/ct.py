@@ -880,6 +880,7 @@ class CatPhanBase:
     was_from_zip: bool = False
     min_num_images = 39
     clear_borders: bool = True
+    hu_origin_slice_variance = 400  # the HU variance required on the origin slice
 
     def __init__(self, folderpath: Union[str, Sequence[str], Path, Sequence[Path], Sequence[BytesIO]], check_uid: bool = True):
         """
@@ -1114,7 +1115,7 @@ class CatPhanBase:
                 median = np.median(prof)
                 middle_variation = np.percentile(prof, 80) - np.percentile(prof, 20)
                 variation_limit = max(100, self.dicom_stack.metadata.SliceThickness*-100+300)
-                if (low_end < median - 400) and (high_end > median + 400) and (middle_variation < variation_limit):
+                if (low_end < median - self.hu_origin_slice_variance) and (high_end > median + self.hu_origin_slice_variance) and (middle_variation < variation_limit):
                     hu_slices.append(image_number)
 
         if not hu_slices:

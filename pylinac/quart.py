@@ -208,6 +208,7 @@ class QuartDVT(CatPhanBase):
     """
     _demo_url = 'quart.zip'
     _model = 'Quart DVT'
+    hu_origin_slice_variance = 300
     catphan_radius_mm = 80
     hu_module: QuartHUModule
     uniformity_module: QuartUniformityModule
@@ -338,7 +339,7 @@ class QuartDVT(CatPhanBase):
         directory: Optional[Union[Path, str]] = None,
         to_stream: bool = False,
         **plt_kwargs,
-    ) -> List[Union[Path, BytesIO]]:
+    ) -> Union[List[Path], Dict[str, BytesIO]]:
         """Save separate images to disk or stream.
 
         Parameters
@@ -352,6 +353,7 @@ class QuartDVT(CatPhanBase):
         """
         figs = self.plot_images(show=False, **plt_kwargs)
         paths = []
+        streams = {}
         for name, fig in figs.items():
             if to_stream:
                 path = io.BytesIO()
@@ -360,7 +362,11 @@ class QuartDVT(CatPhanBase):
                 path = (destination / name).with_suffix(".png").absolute()
             fig.savefig(path)
             paths.append(path)
-        return paths
+            streams[name] = path
+        if to_stream:
+            return streams
+        else:
+            return paths
 
     def publish_pdf(
         self,
