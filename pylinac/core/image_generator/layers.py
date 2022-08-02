@@ -64,7 +64,7 @@ class PerfectConeLayer(Layer):
     def _create_perfect_field(
         self, image: np.ndarray, pixel_size: float, mag_factor: float
     ) -> Tuple[np.ndarray, ...]:
-        cone_size_pix = ((self.cone_size_mm / 2) / pixel_size) * mag_factor ** 2
+        cone_size_pix = ((self.cone_size_mm / 2) / pixel_size) * mag_factor**2
         cax_offset_pix = [
             x * mag_factor / pixel_size + (shape / 2 - 0.5)
             for x, shape in zip(self.cax_offset_mm, image.shape)

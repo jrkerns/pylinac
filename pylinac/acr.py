@@ -31,7 +31,6 @@ MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM = 40
 MR_UNIFORMITY_MODULE_OFFSET_MM = 60
 
 
-
 class CTModule(CatPhanModule):
     attr_name = "ct_calibration_module"
     roi_dist_mm = 63
@@ -265,14 +264,19 @@ class ACRCT(CatPhanBase):
             self, offset=0, clear_borders=self.clear_borders
         )
         self.uniformity_module = self.uniformity_module(
-            self, offset=CT_UNIFORMITY_MODULE_OFFSET_MM, clear_borders=self.clear_borders
+            self,
+            offset=CT_UNIFORMITY_MODULE_OFFSET_MM,
+            clear_borders=self.clear_borders,
         )
         self.spatial_resolution_module = self.spatial_resolution_module(
             self,
-            offset=CT_SPATIAL_RESOLUTION_MODULE_OFFSET_MM, clear_borders=self.clear_borders
+            offset=CT_SPATIAL_RESOLUTION_MODULE_OFFSET_MM,
+            clear_borders=self.clear_borders,
         )
         self.low_contrast_module = self.low_contrast_module(
-            self, offset=CT_LOW_CONTRAST_MODULE_OFFSET_MM, clear_borders=self.clear_borders
+            self,
+            offset=CT_LOW_CONTRAST_MODULE_OFFSET_MM,
+            clear_borders=self.clear_borders,
         )
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:

@@ -14,7 +14,15 @@ from .core import pdf
 from .core.geometry import Line, Point
 from .core.profile import SingleProfile, Interpolation
 from .core.utilities import ResultBase
-from .ct import CTP404CP504, AIR, ThicknessROI, CTP486, CatPhanModule, CatPhanBase, rois_to_results
+from .ct import (
+    CTP404CP504,
+    AIR,
+    ThicknessROI,
+    CTP486,
+    CatPhanModule,
+    CatPhanBase,
+    rois_to_results,
+)
 
 UNIFORMITY_OFFSET_MM = -45
 GEOMETRY_OFFSET_MM = 45
@@ -84,18 +92,48 @@ class QuartHUModule(CTP404CP504):
     roi_dist_mm = 52.5
     roi_radius_mm = 6
     roi_settings = {
-        'Air': {'value': AIR, 'angle': -90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Poly': {'value': POLY, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Acrylic': {'value': ACRYLIC, 'angle': 45, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Teflon': {'value': TEFLON, 'angle': 180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
+        "Air": {
+            "value": AIR,
+            "angle": -90,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Poly": {
+            "value": POLY,
+            "angle": 0,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Acrylic": {
+            "value": ACRYLIC,
+            "angle": 45,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Teflon": {
+            "value": TEFLON,
+            "angle": 180,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
     }
     background_roi_settings = {}
     thickness_roi_height = 25
     thickness_roi_width = 15
     thickness_roi_distance_mm = 32
     thickness_roi_settings = {
-        'Bottom': {'angle': 90, 'width': thickness_roi_height, 'height': thickness_roi_width, 'distance': thickness_roi_distance_mm},
-        'Top': {'angle': -90, 'width': thickness_roi_height, 'height': thickness_roi_width, 'distance': thickness_roi_distance_mm},
+        "Bottom": {
+            "angle": 90,
+            "width": thickness_roi_height,
+            "height": thickness_roi_width,
+            "distance": thickness_roi_distance_mm,
+        },
+        "Top": {
+            "angle": -90,
+            "width": thickness_roi_height,
+            "height": thickness_roi_width,
+            "distance": thickness_roi_distance_mm,
+        },
     }
 
     def _setup_geometry_rois(self) -> None:
@@ -106,15 +144,25 @@ class QuartHUModule(CTP404CP504):
         """We invert the thickness ROIs because they are air gaps, not high-density wires"""
         self.thickness_image.invert()
         for name, setting in self.thickness_roi_settings.items():
-            self.thickness_rois[name] = ThicknessROI(self.thickness_image, setting['width_pixels'],
-                                                     setting['height_pixels'], setting['angle_corrected'],
-                                                     setting['distance_pixels'], self.phan_center)
+            self.thickness_rois[name] = ThicknessROI(
+                self.thickness_image,
+                setting["width_pixels"],
+                setting["height_pixels"],
+                setting["angle_corrected"],
+                setting["distance_pixels"],
+                self.phan_center,
+            )
 
     @property
     def meas_slice_thickness(self) -> float:
         """The average slice thickness for the 4 wire measurements in mm."""
         INCLINATION_CORRECTION = 0.577  # per manual; tan(30)
-        return np.mean(sorted(roi.wire_fwhm * self.mm_per_pixel * INCLINATION_CORRECTION for roi in self.thickness_rois.values())) / (1 + 2 * self.pad)
+        return np.mean(
+            sorted(
+                roi.wire_fwhm * self.mm_per_pixel * INCLINATION_CORRECTION
+                for roi in self.thickness_rois.values()
+            )
+        ) / (1 + 2 * self.pad)
 
     @property
     def signal_to_noise(self) -> float:
@@ -122,7 +170,7 @@ class QuartHUModule(CTP404CP504):
         SNR = (HU + 1000) / sigma,
         where HU is the mean HU of a chosen insert and sigma is the stdev of the HU insert.
         We choose to use the Polystyrene as the target HU insert"""
-        return (self.rois['Poly'].pixel_value + 1000) / self.rois['Poly'].std
+        return (self.rois["Poly"].pixel_value + 1000) / self.rois["Poly"].std
 
     @property
     def contrast_to_noise(self) -> float:
@@ -131,23 +179,52 @@ class QuartHUModule(CTP404CP504):
         where HU_target is the mean HU of a chosen insert, HU_background is the mean HU of the background insert
         and sigma is the stdev of the HU background.
         We choose to use the Polystyrene as the target HU insert and Acrylic (base phantom material) as the background"""
-        return abs(self.rois['Poly'].pixel_value - self.rois['Acrylic'].pixel_value) / self.rois['Acrylic'].std
+        return (
+            abs(self.rois["Poly"].pixel_value - self.rois["Acrylic"].pixel_value)
+            / self.rois["Acrylic"].std
+        )
 
 
 class QuartUniformityModule(CTP486):
     """Class for analysis of the Uniformity slice of the CTP module. Measures 5 ROIs around the slice that
     should all be close to the same value.
     """
-    common_name = 'HU Uniformity'
+
+    common_name = "HU Uniformity"
     roi_dist_mm = 53
     roi_radius_mm = 10
     nominal_value = 120
     roi_settings = {
-        'Top': {'value': nominal_value, 'angle': -90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Right': {'value': nominal_value, 'angle': 0, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Bottom': {'value': nominal_value, 'angle': 90, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Left': {'value': nominal_value, 'angle': 180, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-        'Center': {'value': nominal_value, 'angle': 0, 'distance': 0, 'radius': roi_radius_mm},
+        "Top": {
+            "value": nominal_value,
+            "angle": -90,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Right": {
+            "value": nominal_value,
+            "angle": 0,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Bottom": {
+            "value": nominal_value,
+            "angle": 90,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Left": {
+            "value": nominal_value,
+            "angle": 180,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Center": {
+            "value": nominal_value,
+            "angle": 0,
+            "distance": 0,
+            "radius": roi_radius_mm,
+        },
     }
 
 
@@ -155,13 +232,16 @@ class QuartGeometryModule(CatPhanModule):
     """Class for analysis of the Uniformity slice of the CTP module. Measures 5 ROIs around the slice that
     should all be close to the same value.
     """
+
     attr_name = "geometry_module"
     common_name = "Geometric Distortion"
     profiles: dict
 
     def _setup_rois(self) -> None:
         self.profiles = {}
-        img = self.image.array.copy()  # we copy so we don't overwrite the existing image pixels
+        img = (
+            self.image.array.copy()
+        )  # we copy so we don't overwrite the existing image pixels
         img = scipy.ndimage.median_filter(img, size=3)
         img = img - img.min()  # ground the profile
         # calculate horizontal
@@ -199,15 +279,16 @@ class QuartGeometryModule(CatPhanModule):
 
     def distances(self) -> dict[str, float]:
         """The measurements of the phantom size for the two lines in mm"""
-        return {f"{name} mm": p['width (mm)'] for name, p in self.profiles.items()}
+        return {f"{name} mm": p["width (mm)"] for name, p in self.profiles.items()}
 
 
 class QuartDVT(CatPhanBase):
     """A class for loading and analyzing CT DICOM files of a Quart phantom that comes with the Halcyon.
     Analyzes: HU Uniformity, Image Scaling & HU Linearity.
     """
-    _demo_url = 'quart.zip'
-    _model = 'Quart DVT'
+
+    _demo_url = "quart.zip"
+    _model = "Quart DVT"
     hu_origin_slice_variance = 300
     catphan_radius_mm = 80
     hu_module: QuartHUModule
@@ -222,11 +303,26 @@ class QuartDVT(CatPhanBase):
         print(quart.results())
         quart.plot_analyzed_image(show)
 
-    def analyze(self, hu_tolerance: Union[int, float]=40, scaling_tolerance: Union[int, float]=1, thickness_tolerance: Union[int, float]=0.2,
-                cnr_threshold: Union[int, float]=5):
-        self.hu_module = QuartHUModule(self, offset=0, hu_tolerance=hu_tolerance, thickness_tolerance=thickness_tolerance, scaling_tolerance=scaling_tolerance)
-        self.uniformity_module = QuartUniformityModule(self, offset=UNIFORMITY_OFFSET_MM, tolerance=hu_tolerance)
-        self.geometry_module = QuartGeometryModule(self, tolerance=3, offset=GEOMETRY_OFFSET_MM)
+    def analyze(
+        self,
+        hu_tolerance: Union[int, float] = 40,
+        scaling_tolerance: Union[int, float] = 1,
+        thickness_tolerance: Union[int, float] = 0.2,
+        cnr_threshold: Union[int, float] = 5,
+    ):
+        self.hu_module = QuartHUModule(
+            self,
+            offset=0,
+            hu_tolerance=hu_tolerance,
+            thickness_tolerance=thickness_tolerance,
+            scaling_tolerance=scaling_tolerance,
+        )
+        self.uniformity_module = QuartUniformityModule(
+            self, offset=UNIFORMITY_OFFSET_MM, tolerance=hu_tolerance
+        )
+        self.geometry_module = QuartGeometryModule(
+            self, tolerance=3, offset=GEOMETRY_OFFSET_MM
+        )
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> None:
         """Plot the images used in the calculation and summary data.
@@ -262,46 +358,48 @@ class QuartDVT(CatPhanBase):
 
     def results(self, as_str: bool = True) -> Union[str, tuple[str, ...]]:
         """Return the results of the analysis as a string. Use with print()."""
-        items = (f'\n - {self._model} QA Test - \n',
-                  f'HU Linearity ROIs: {self.hu_module.roi_vals_as_str}\n',
-                  f'HU Passed?: {self.hu_module.passed_hu}\n',
-                  f'Measured Slice Thickness (mm): {self.hu_module.meas_slice_thickness:2.3f}\n',
-                  f'Slice Thickness Passed? {self.hu_module.passed_thickness}\n',
-                  f'Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}\n',
-                  f'Uniformity Passed?: {self.uniformity_module.overall_passed}\n',
-                  f"Geometric width: {self.geometry_module.distances()}")
+        items = (
+            f"\n - {self._model} QA Test - \n",
+            f"HU Linearity ROIs: {self.hu_module.roi_vals_as_str}\n",
+            f"HU Passed?: {self.hu_module.passed_hu}\n",
+            f"Measured Slice Thickness (mm): {self.hu_module.meas_slice_thickness:2.3f}\n",
+            f"Slice Thickness Passed? {self.hu_module.passed_thickness}\n",
+            f"Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}\n",
+            f"Uniformity Passed?: {self.uniformity_module.overall_passed}\n",
+            f"Geometric width: {self.geometry_module.distances()}",
+        )
         if as_str:
-            return '\n'.join(items)
+            return "\n".join(items)
         else:
             return items
 
     def results_data(self, as_dict: bool = False) -> Union[QuartDVTResult, dict]:
         """Return results in a data structure for more programmatic use."""
         data = QuartDVTResult(
-                phantom_model=self._model,
-                phantom_roll_deg=self.catphan_roll,
-                origin_slice=self.origin_slice,
-                num_images=self.num_images,
-                uniformity_module=QuartUniformityModuleOutput(
-                        offset=UNIFORMITY_OFFSET_MM,
-                        roi_settings=self.uniformity_module.roi_settings,
-                        rois=rois_to_results(self.uniformity_module.rois),
-                        passed=self.uniformity_module.overall_passed
-                ),
-                geometric_module=QuartGeometryModuleOutput(
-                        offset=GEOMETRY_OFFSET_MM,
-                        roi_settings=self.geometry_module.roi_settings,
-                        rois=rois_to_results(self.geometry_module.rois),
-                        distances=self.geometry_module.distances()
-                ),
-                hu_module=QuartHUModuleOutput(
-                        offset=0,
-                        roi_settings=self.hu_module.roi_settings,
-                        rois=rois_to_results(self.hu_module.rois),
-                        measured_slice_thickness_mm=self.hu_module.meas_slice_thickness,
-                        signal_to_noise=self.hu_module.signal_to_noise,
-                        contrast_to_noise=self.hu_module.contrast_to_noise
-                )
+            phantom_model=self._model,
+            phantom_roll_deg=self.catphan_roll,
+            origin_slice=self.origin_slice,
+            num_images=self.num_images,
+            uniformity_module=QuartUniformityModuleOutput(
+                offset=UNIFORMITY_OFFSET_MM,
+                roi_settings=self.uniformity_module.roi_settings,
+                rois=rois_to_results(self.uniformity_module.rois),
+                passed=self.uniformity_module.overall_passed,
+            ),
+            geometric_module=QuartGeometryModuleOutput(
+                offset=GEOMETRY_OFFSET_MM,
+                roi_settings=self.geometry_module.roi_settings,
+                rois=rois_to_results(self.geometry_module.rois),
+                distances=self.geometry_module.distances(),
+            ),
+            hu_module=QuartHUModuleOutput(
+                offset=0,
+                roi_settings=self.hu_module.roi_settings,
+                rois=rois_to_results(self.hu_module.rois),
+                measured_slice_thickness_mm=self.hu_module.meas_slice_thickness,
+                signal_to_noise=self.hu_module.signal_to_noise,
+                contrast_to_noise=self.hu_module.contrast_to_noise,
+            ),
         )
         if as_dict:
             return dataclasses.asdict(data)

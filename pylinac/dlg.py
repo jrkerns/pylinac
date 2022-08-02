@@ -12,7 +12,7 @@ from .picketfence import MLCArrangement, MLC
 
 
 class DLG:
-    """Analyze a machine's dosimetric leaf gap by looking at profiles with various amounts of overlap. This is NOT the 
+    """Analyze a machine's dosimetric leaf gap by looking at profiles with various amounts of overlap. This is NOT the
     same procedure as the sweeping gaps as provided by Varian, although the determined value should be similar."""
 
     def __init__(self, path):
@@ -22,7 +22,9 @@ class DLG:
         self.planned_dlg_per_leaf: list = []
         self._lin_fit = None
 
-    def analyze(self, gaps: Sequence, mlc: MLC, y_field_size: float = 100, profile_width=10):
+    def analyze(
+        self, gaps: Sequence, mlc: MLC, y_field_size: float = 100, profile_width=10
+    ):
         """Analyze an EPID image with varying MLC overlaps to determine the DLG.
 
         Parameters
@@ -44,7 +46,7 @@ class DLG:
         """
         measured_dlg_per_leaf = []
         planned_dlg_per_leaf = []
-        mlc = mlc.value['arrangement']
+        mlc = mlc.value["arrangement"]
         g = list(gaps)
         g.sort()
         profile_width_px = round(self.image.dpmm * profile_width)
@@ -58,9 +60,16 @@ class DLG:
                 top = ceil(mid_height + center_px + width_px)
                 bottom = floor(mid_height + center_px - width_px)
                 # sample the window and take the average perpendicular to MLC motion
-                window = self.image[bottom:top, int(mid_width - profile_width_px):int(mid_width + profile_width_px)]
+                window = self.image[
+                    bottom:top,
+                    int(mid_width - profile_width_px) : int(
+                        mid_width + profile_width_px
+                    ),
+                ]
                 width = self._determine_measured_gap(window.mean(axis=0))
-                planned_dlg_per_leaf.append(self._get_dlg_offset(y_field_size, center, g))
+                planned_dlg_per_leaf.append(
+                    self._get_dlg_offset(y_field_size, center, g)
+                )
                 measured_dlg_per_leaf.append(width)
         # fit the data to a line and determine the DLG from the 0 intercept
         lin_fit = stats.linregress(planned_dlg_per_leaf, measured_dlg_per_leaf)
@@ -74,10 +83,14 @@ class DLG:
         """Plot the measured DLG values across the planned gaps"""
         if not self.measured_dlg_per_leaf:
             raise ValueError("Analyze the image before plotting with .analyze()")
-        plt.plot(self.planned_dlg_per_leaf, self.measured_dlg_per_leaf, 'gx')
-        plt.plot(self.planned_dlg_per_leaf,
-                 self._lin_fit.intercept + self._lin_fit.slope * np.array(self.planned_dlg_per_leaf), 'r',
-                 label='fitted line')
+        plt.plot(self.planned_dlg_per_leaf, self.measured_dlg_per_leaf, "gx")
+        plt.plot(
+            self.planned_dlg_per_leaf,
+            self._lin_fit.intercept
+            + self._lin_fit.slope * np.array(self.planned_dlg_per_leaf),
+            "r",
+            label="fitted line",
+        )
         plt.title(f"Measured DLG: {self.measured_dlg:2.3f}mm")
         plt.grid()
         if show:
@@ -103,6 +116,6 @@ class DLG:
             prof.invert()
         _, props = find_peaks(prof.values, max_number=1)
         if mid_value < profile.mean():
-            return -props['prominences'][0]
+            return -props["prominences"][0]
         else:
-            return props['prominences'][0]
+            return props["prominences"][0]

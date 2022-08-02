@@ -21,21 +21,27 @@ import argue
 
 from .utilities import is_close
 from .geometry import Point
-from .io import get_url, TemporaryZipDirectory, retrieve_filenames, is_dicom_image, retrieve_dicom_file
+from .io import (
+    get_url,
+    TemporaryZipDirectory,
+    retrieve_filenames,
+    is_dicom_image,
+    retrieve_dicom_file,
+)
 from .profile import stretch as stretcharray
 from .typing import NumberLike
 from ..settings import get_dicom_cmap, PATH_TRUNCATION_LENGTH
 
-ARRAY = 'Array'
-DICOM = 'DICOM'
-IMAGE = 'Image'
+ARRAY = "Array"
+DICOM = "DICOM"
+IMAGE = "Image"
 
-FILE_TYPE = 'file'
-STREAM_TYPE = 'stream'
+FILE_TYPE = "file"
+STREAM_TYPE = "stream"
 
 MM_PER_INCH = 25.4
 
-ImageLike = Union['DicomImage', 'ArrayImage', 'FileImage', 'LinacDicomImage']
+ImageLike = Union["DicomImage", "ArrayImage", "FileImage", "LinacDicomImage"]
 
 
 def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, ImageLike]:
@@ -70,7 +76,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, Imag
     else:
         img = image1
     pixel_height_diff = abs(int(round(-physical_height_diff * img.dpmm / 2)))
-    img.remove_edges(pixel_height_diff, edges=('top', 'bottom'))
+    img.remove_edges(pixel_height_diff, edges=("top", "bottom"))
 
     # ...crop width
     physical_width_diff = image1.physical_shape[1] - image2.physical_shape[1]
@@ -78,8 +84,8 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, Imag
         img = image1
     else:
         img = image2
-    pixel_width_diff = abs(int(round(physical_width_diff*img.dpmm/2)))
-    img.remove_edges(pixel_width_diff, edges=('left', 'right'))
+    pixel_width_diff = abs(int(round(physical_width_diff * img.dpmm / 2)))
+    img.remove_edges(pixel_width_diff, edges=("left", "right"))
 
     # resize images to be of the same shape
     zoom_factor = image1.shape[1] / image2.shape[1]
@@ -150,7 +156,9 @@ def load(path: Union[str, ImageLike, np.ndarray, BinaryIO], **kwargs) -> ImageLi
     elif _is_image_file(path):
         return FileImage(path, **kwargs)
     else:
-        raise TypeError(f"The argument `{path}` was not found to be a valid DICOM file, Image file, or array")
+        raise TypeError(
+            f"The argument `{path}` was not found to be a valid DICOM file, Image file, or array"
+        )
 
 
 def load_url(url: str, progress_bar: bool = True, **kwargs) -> ImageLike:
@@ -170,8 +178,10 @@ def load_url(url: str, progress_bar: bool = True, **kwargs) -> ImageLike:
     return load(filename, **kwargs)
 
 
-@argue.options(method=('mean', 'max', 'sum'))
-def load_multiples(image_file_list: Sequence, method: str = 'mean', stretch_each: bool = True, **kwargs) -> ImageLike:
+@argue.options(method=("mean", "max", "sum"))
+def load_multiples(
+    image_file_list: Sequence, method: str = "mean", stretch_each: bool = True, **kwargs
+) -> ImageLike:
     """Combine multiple image files into one superimposed image.
 
     Parameters
@@ -202,15 +212,15 @@ def load_multiples(image_file_list: Sequence, method: str = 'mean', stretch_each
         if img.shape != first_img.shape:
             raise ValueError("Images were not the same shape")
         if stretch_each:
-            img.array = stretcharray(img.array, fill_dtype=kwargs.get('dtype'))
+            img.array = stretcharray(img.array, fill_dtype=kwargs.get("dtype"))
 
     # stack and combine arrays
     new_array = np.dstack(tuple(img.array for img in img_list))
-    if method == 'mean':
+    if method == "mean":
         combined_arr = np.mean(new_array, axis=2)
-    elif method == 'max':
+    elif method == "max":
         combined_arr = np.max(new_array, axis=2)
-    elif method == 'sum':
+    elif method == "sum":
         combined_arr = np.sum(new_array, axis=2)
 
     # replace array of first object and return
@@ -248,7 +258,9 @@ class BaseImage:
         The actual image pixel array.
     """
 
-    def __init__(self, path: Union[str, BytesIO, ImageLike, np.ndarray, BufferedReader]):
+    def __init__(
+        self, path: Union[str, BytesIO, ImageLike, np.ndarray, BufferedReader]
+    ):
         """
         Parameters
         ----------
@@ -258,7 +270,9 @@ class BaseImage:
         source: Union[FILE_TYPE, STREAM_TYPE]
 
         if isinstance(path, (str, pathlib.Path)) and not osp.isfile(path):
-            raise FileExistsError(f"File `{path}` does not exist. Verify the file path name.")
+            raise FileExistsError(
+                f"File `{path}` does not exist. Verify the file path name."
+            )
         elif isinstance(path, (str, pathlib.Path)) and osp.isfile(path):
             self.path = path
             self.base_path = osp.basename(path)
@@ -269,27 +283,36 @@ class BaseImage:
             try:
                 self.path = str(pathlib.Path(path.name))
             except AttributeError:
-                self.path = ''
+                self.path = ""
 
     @property
-    def truncated_path(self) -> str:
+    def truncated_path(
+        self,
+    ) -> str:  # TODO: Use textwrap or pull out into util function
         if self.source == FILE_TYPE:
             path = str(self.path)
             if len(path) > PATH_TRUNCATION_LENGTH:
-                return path[:PATH_TRUNCATION_LENGTH // 2] + '...' + path[-PATH_TRUNCATION_LENGTH // 2:]
+                return (
+                    path[: PATH_TRUNCATION_LENGTH // 2]
+                    + "..."
+                    + path[-PATH_TRUNCATION_LENGTH // 2 :]
+                )
             else:
                 return path
         else:
-            return ''  # was from stream, no path
+            return ""  # was from stream, no path
 
     @classmethod
-    def from_multiples(cls, filelist: List[str], method: str='mean', stretch: bool=True, **kwargs) -> ImageLike:
+    def from_multiples(
+        cls, filelist: List[str], method: str = "mean", stretch: bool = True, **kwargs
+    ) -> ImageLike:
         """Load an instance from multiple image items. See :func:`~pylinac.core.image.load_multiples`."""
         return load_multiples(filelist, method, stretch, **kwargs)
 
     @property
     def center(self) -> Point:
         """Return the center position of the image array as a Point."""
+        # TODO: Use center for even, offset 0.5 for odd.
         x_center = (self.shape[1] / 2) - 0.5
         y_center = (self.shape[0] / 2) - 0.5
         return Point(x_center, y_center)
@@ -299,10 +322,14 @@ class BaseImage:
         """The physical size of the image in mm."""
         return self.shape[0] / self.dpmm, self.shape[1] / self.dpmm
 
-    def date_created(self, format: str="%A, %B %d, %Y") -> str:
+    def date_created(self, format: str = "%A, %B %d, %Y") -> str:
         date = None
         try:
-            date = datetime.strptime(self.metadata.InstanceCreationDate+str(round(float(self.metadata.InstanceCreationTime))), "%Y%m%d%H%M%S")
+            date = datetime.strptime(
+                self.metadata.InstanceCreationDate
+                + str(round(float(self.metadata.InstanceCreationTime))),
+                "%Y%m%d%H%M%S",
+            )
             date = date.strftime(format)
         except (AttributeError, ValueError):
             try:
@@ -314,10 +341,12 @@ class BaseImage:
             try:
                 date = datetime.fromtimestamp(osp.getctime(self.path)).strftime(format)
             except AttributeError:
-                date = 'Unknown'
+                date = "Unknown"
         return date
 
-    def plot(self, ax: plt.Axes=None, show: bool=True, clear_fig: bool=False, **kwargs) -> plt.Axes:
+    def plot(
+        self, ax: plt.Axes = None, show: bool = True, clear_fig: bool = False, **kwargs
+    ) -> plt.Axes:
         """Plot the image.
 
         Parameters
@@ -338,8 +367,8 @@ class BaseImage:
             plt.show()
         return ax
 
-    @argue.options(kind=('median', 'gaussian'))
-    def filter(self, size: Union[float, int]=0.05, kind: str='median') -> None:
+    @argue.options(kind=("median", "gaussian"))
+    def filter(self, size: Union[float, int] = 0.05, kind: str = "median") -> None:
         """Filter the profile.
 
         Parameters
@@ -359,12 +388,16 @@ class BaseImage:
             else:
                 raise TypeError("Float was passed but was not between 0 and 1")
 
-        if kind == 'median':
+        if kind == "median":
             self.array = ndimage.median_filter(self.array, size=size)
-        elif kind == 'gaussian':
+        elif kind == "gaussian":
             self.array = ndimage.gaussian_filter(self.array, sigma=size)
 
-    def crop(self, pixels: int=15, edges: Tuple[str, ...]=('top', 'bottom', 'left', 'right')) -> None:
+    def crop(
+        self,
+        pixels: int = 15,
+        edges: Tuple[str, ...] = ("top", "bottom", "left", "right"),
+    ) -> None:
         """Removes pixels on all edges of the image in-place.
 
         Parameters
@@ -376,16 +409,20 @@ class BaseImage:
         """
         if pixels < 0:
             raise ValueError("Pixels to remove must be a positive number")
-        if 'top' in edges:
+        if "top" in edges:
             self.array = self.array[pixels:, :]
-        if 'bottom' in edges:
+        if "bottom" in edges:
             self.array = self.array[:-pixels, :]
-        if 'left' in edges:
+        if "left" in edges:
             self.array = self.array[:, pixels:]
-        if 'right' in edges:
+        if "right" in edges:
             self.array = self.array[:, :-pixels]
 
-    def remove_edges(self, pixels: int=15, edges: Tuple[str, ...]=('top', 'bottom', 'left', 'right')) -> None:
+    def remove_edges(
+        self,
+        pixels: int = 15,
+        edges: Tuple[str, ...] = ("top", "bottom", "left", "right"),
+    ) -> None:
         """Removes pixels on all edges of the image in-place.
 
         Parameters
@@ -395,15 +432,17 @@ class BaseImage:
         edges : tuple
             Which edges to remove from. Can be any combination of the four edges.
         """
-        DeprecationWarning("`remove_edges` is deprecated and will be removed in a future version. Use `crop` instead")
+        DeprecationWarning(
+            "`remove_edges` is deprecated and will be removed in a future version. Use `crop` instead"
+        )
         self.crop(pixels=pixels, edges=edges)
 
     def flipud(self) -> None:
-        """ Flip the image array upside down in-place. Wrapper for np.flipud()"""
+        """Flip the image array upside down in-place. Wrapper for np.flipud()"""
         self.array = np.flipud(self.array)
 
     def fliplr(self) -> None:
-        """ Flip the image array upside down in-place. Wrapper for np.fliplr()"""
+        """Flip the image array upside down in-place. Wrapper for np.fliplr()"""
         self.array = np.fliplr(self.array)
 
     def invert(self) -> None:
@@ -411,7 +450,7 @@ class BaseImage:
         orig_array = self.array
         self.array = -orig_array + orig_array.max() + orig_array.min()
 
-    def roll(self, direction: str='x', amount: int=1) -> None:
+    def roll(self, direction: str = "x", amount: int = 1) -> None:
         """Roll the image array around in-place. Wrapper for np.roll().
 
         Parameters
@@ -421,15 +460,15 @@ class BaseImage:
         amount : int
             The amount of elements to roll over.
         """
-        axis = 1 if direction == 'x' else 0
+        axis = 1 if direction == "x" else 0
         self.array = np.roll(self.array, amount, axis=axis)
 
-    def rot90(self, n: int=1) -> None:
+    def rot90(self, n: int = 1) -> None:
         """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW."""
         self.array = np.rot90(self.array, n)
 
-    @argue.options(kind=('high', 'low'))
-    def threshold(self, threshold: int, kind: str='high') -> None:
+    @argue.options(kind=("high", "low"))
+    def threshold(self, threshold: int, kind: str = "high") -> None:
         """Apply a high- or low-pass threshold filter.
 
         Parameters
@@ -441,7 +480,7 @@ class BaseImage:
             Remaining points are set to 0.
             If ``low``, will apply a low-pass threshold.
         """
-        if kind == 'high':
+        if kind == "high":
             self.array = np.where(self.array >= threshold, self, 0)
         else:
             self.array = np.where(self.array <= threshold, self, 0)
@@ -499,7 +538,7 @@ class BaseImage:
         self.array -= min_val
         return min_val
 
-    def normalize(self, norm_val: Union[str, NumberLike]='max') -> None:
+    def normalize(self, norm_val: Union[str, NumberLike] = "max") -> None:
         """Normalize the image values to the given value.
 
         Parameters
@@ -508,13 +547,15 @@ class BaseImage:
             If a string, must be 'max', which normalizes the values to the maximum value.
             If a number, normalizes all values to that number.
         """
-        if norm_val == 'max':
+        if norm_val == "max":
             val = self.array.max()
         else:
             val = norm_val
         self.array = self.array / val
 
-    def check_inversion(self, box_size: int=20, position: Sequence=(0.0, 0.0)) -> None:
+    def check_inversion(
+        self, box_size: int = 20, position: Sequence = (0.0, 0.0)
+    ) -> None:
         """Check the image for inversion by sampling the 4 image corners.
         If the average value of the four corners is above the average pixel value, then it is very likely inverted.
 
@@ -525,12 +566,20 @@ class BaseImage:
         position : 2-element sequence
             The location of the sampling boxes.
         """
-        row_pos = max(int(position[0]*self.array.shape[0]), 1)
-        col_pos = max(int(position[1]*self.array.shape[1]), 1)
-        lt_upper = self.array[row_pos: row_pos+box_size, col_pos: col_pos+box_size]
-        rt_upper = self.array[row_pos: row_pos+box_size, -col_pos-box_size: -col_pos]
-        lt_lower = self.array[-row_pos-box_size:-row_pos, col_pos: col_pos+box_size]
-        rt_lower = self.array[-row_pos-box_size:-row_pos, -col_pos-box_size:-col_pos]
+        row_pos = max(int(position[0] * self.array.shape[0]), 1)
+        col_pos = max(int(position[1] * self.array.shape[1]), 1)
+        lt_upper = self.array[
+            row_pos : row_pos + box_size, col_pos : col_pos + box_size
+        ]
+        rt_upper = self.array[
+            row_pos : row_pos + box_size, -col_pos - box_size : -col_pos
+        ]
+        lt_lower = self.array[
+            -row_pos - box_size : -row_pos, col_pos : col_pos + box_size
+        ]
+        rt_lower = self.array[
+            -row_pos - box_size : -row_pos, -col_pos - box_size : -col_pos
+        ]
         avg = np.mean((lt_upper, lt_lower, rt_upper, rt_lower))
         if avg > np.mean(self.array.flatten()):
             self.invert()
@@ -559,8 +608,15 @@ class BaseImage:
         return was_inverted
 
     @argue.bounds(threshold=(0.0, 1.0))
-    def gamma(self, comparison_image: ImageLike, doseTA: NumberLike=1, distTA: NumberLike=1,
-              threshold: NumberLike=0.1, ground: bool=True, normalize: bool=True) -> np.ndarray:
+    def gamma(
+        self,
+        comparison_image: ImageLike,
+        doseTA: NumberLike = 1,
+        distTA: NumberLike = 1,
+        threshold: NumberLike = 0.1,
+        ground: bool = True,
+        normalize: bool = True,
+    ) -> np.ndarray:
         """Calculate the gamma between the current image (reference) and a comparison image.
 
         .. versionadded:: 1.2
@@ -598,11 +654,15 @@ class BaseImage:
         """
         # error checking
         if not is_close(self.dpi, comparison_image.dpi, delta=0.1):
-            raise AttributeError(f"The image DPIs to not match: {self.dpi:.2f} vs. {comparison_image.dpi:.2f}")
+            raise AttributeError(
+                f"The image DPIs to not match: {self.dpi:.2f} vs. {comparison_image.dpi:.2f}"
+            )
         same_x = is_close(self.shape[1], comparison_image.shape[1], delta=1.1)
         same_y = is_close(self.shape[0], comparison_image.shape[0], delta=1.1)
         if not (same_x and same_y):
-            raise AttributeError(f"The images are not the same size: {self.shape} vs. {comparison_image.shape}")
+            raise AttributeError(
+                f"The images are not the same size: {self.shape} vs. {comparison_image.shape}"
+            )
 
         # set up reference and comparison images
         ref_img = ArrayImage(copy.copy(self.array))
@@ -631,7 +691,9 @@ class BaseImage:
 
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
         subtracted_img = np.abs(comp_img - ref_img)
-        denominator = np.sqrt(((doseTA / 100.0) ** 2) + ((distTA_pixels ** 2) * (grad_img ** 2)))
+        denominator = np.sqrt(
+            ((doseTA / 100.0) ** 2) + ((distTA_pixels**2) * (grad_img**2))
+        )
         gamma_map = subtracted_img / denominator
 
         return gamma_map
@@ -680,11 +742,19 @@ class DicomImage(BaseImage):
     metadata : pydicom Dataset
         The dataset of the file as returned by pydicom without pixel data.
     """
+
     metadata: pydicom.FileDataset
     _sid = NumberLike
     _dpi = NumberLike
 
-    def __init__(self, path: Union[str, BytesIO, BufferedReader], *, dtype=None, dpi: NumberLike=None, sid: NumberLike=None):
+    def __init__(
+        self,
+        path: Union[str, BytesIO, BufferedReader],
+        *,
+        dtype=None,
+        dpi: NumberLike = None,
+        sid: NumberLike = None,
+    ):
         """
         Parameters
         ----------
@@ -718,14 +788,25 @@ class DicomImage(BaseImage):
         else:
             self.array = ds.pixel_array.copy()
         # convert values to HU or CU: real_values = slope * raw + intercept
-        has_all_rescale_tags = hasattr(self.metadata, 'RescaleSlope') and hasattr(self.metadata, 'RescaleIntercept') and hasattr(self.metadata, 'PixelIntensityRelationshipSign')
-        has_some_rescale_tags = hasattr(self.metadata, 'RescaleSlope') and hasattr(self.metadata, 'RescaleIntercept')
-        is_ct_storage = self.metadata.SOPClassUID.name == 'CT Image Storage'
-        is_mr_storage = self.metadata.SOPClassUID.name == 'MR Image Storage'
+        has_all_rescale_tags = (
+            hasattr(self.metadata, "RescaleSlope")
+            and hasattr(self.metadata, "RescaleIntercept")
+            and hasattr(self.metadata, "PixelIntensityRelationshipSign")
+        )
+        has_some_rescale_tags = hasattr(self.metadata, "RescaleSlope") and hasattr(
+            self.metadata, "RescaleIntercept"
+        )
+        is_ct_storage = self.metadata.SOPClassUID.name == "CT Image Storage"
+        is_mr_storage = self.metadata.SOPClassUID.name == "MR Image Storage"
         if has_all_rescale_tags:
-            self.array = ((self.metadata.RescaleSlope*self.array) + self.metadata.RescaleIntercept)*self.metadata.PixelIntensityRelationshipSign
+            self.array = (
+                (self.metadata.RescaleSlope * self.array)
+                + self.metadata.RescaleIntercept
+            ) * self.metadata.PixelIntensityRelationshipSign
         elif is_ct_storage or has_some_rescale_tags:
-            self.array = (self.metadata.RescaleSlope * self.array) + self.metadata.RescaleIntercept
+            self.array = (
+                self.metadata.RescaleSlope * self.array
+            ) + self.metadata.RescaleIntercept
         elif is_mr_storage:
             # signal is usually correct as-is, no inversion needed
             pass
@@ -741,8 +822,10 @@ class DicomImage(BaseImage):
         -------
         A string pointing to the new filename.
         """
-        if self.metadata.SOPClassUID.name == 'CT Image Storage':
-            self.array = (self.array - int(self.metadata.RescaleIntercept)) / int(self.metadata.RescaleSlope)
+        if self.metadata.SOPClassUID.name == "CT Image Storage":
+            self.array = (self.array - int(self.metadata.RescaleIntercept)) / int(
+                self.metadata.RescaleSlope
+            )
         self.metadata.PixelData = self.array.astype(self._original_dtype).tobytes()
         self.metadata.save_as(filename)
         return filename
@@ -768,7 +851,7 @@ class DicomImage(BaseImage):
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
         dpmm = None
-        for tag in ('PixelSpacing', 'ImagePlanePixelSpacing'):
+        for tag in ("PixelSpacing", "ImagePlanePixelSpacing"):
             mmpd = self.metadata.get(tag)
             if mmpd is not None:
                 dpmm = 1 / mmpd[0]
@@ -794,16 +877,17 @@ class DicomImage(BaseImage):
 
 class LinacDicomImage(DicomImage):
     """DICOM image taken on a linac. Also allows passing of gantry/coll/couch values via the filename."""
-    gantry_keyword = 'Gantry'
-    collimator_keyword = 'Coll'
-    couch_keyword = 'Couch'
+
+    gantry_keyword = "Gantry"
+    collimator_keyword = "Coll"
+    couch_keyword = "Couch"
 
     _use_filenames: bool
 
     def __init__(self, path: str, use_filenames: bool = False, **kwargs):
-        self._gantry = kwargs.pop('gantry', None)
-        self._coll = kwargs.pop('coll', None)
-        self._couch = kwargs.pop('couch', None)
+        self._gantry = kwargs.pop("gantry", None)
+        self._coll = kwargs.pop("coll", None)
+        self._couch = kwargs.pop("couch", None)
         super().__init__(path, **kwargs)
         self._use_filenames = use_filenames
 
@@ -813,7 +897,7 @@ class LinacDicomImage(DicomImage):
         if self._gantry is not None:
             return self._gantry
         else:
-            return self._get_axis_value(self.gantry_keyword.lower(), 'GantryAngle')
+            return self._get_axis_value(self.gantry_keyword.lower(), "GantryAngle")
 
     @property
     def collimator_angle(self) -> float:
@@ -821,7 +905,9 @@ class LinacDicomImage(DicomImage):
         if self._coll is not None:
             return self._coll
         else:
-            return self._get_axis_value(self.collimator_keyword.lower(), 'BeamLimitingDeviceAngle')
+            return self._get_axis_value(
+                self.collimator_keyword.lower(), "BeamLimitingDeviceAngle"
+            )
 
     @property
     def couch_angle(self) -> float:
@@ -829,7 +915,9 @@ class LinacDicomImage(DicomImage):
         if self._couch is not None:
             return self._couch
         else:
-            return self._get_axis_value(self.couch_keyword.lower(), 'PatientSupportAngle')
+            return self._get_axis_value(
+                self.couch_keyword.lower(), "PatientSupportAngle"
+            )
 
     def _get_axis_value(self, axis_str: str, axis_dcm_attr: str) -> float:
         """Retrieve the value of the axis. This will first look in the file name for the value.
@@ -858,10 +946,13 @@ class LinacDicomImage(DicomImage):
                 axis_found = True
             # if it is, then make sure it follows the naming convention of <axis###>
             else:
-                match = re.search(r'(?<={})\d+'.format(axis_str.lower()), filename.lower())
+                match = re.search(
+                    r"(?<={})\d+".format(axis_str.lower()), filename.lower()
+                )
                 if match is None:
                     raise ValueError(
-                            f"The filename contains '{axis_str}' but could not read a number following it. Use the format '...{axis_str}<#>...'")
+                        f"The filename contains '{axis_str}' but could not read a number following it. Use the format '...{axis_str}<#>...'"
+                    )
                 else:
                     axis = float(match.group())
                     axis_found = True
@@ -889,7 +980,9 @@ class FileImage(BaseImage):
         The SID value as passed in upon construction.
     """
 
-    def __init__(self, path: str, *, dpi: NumberLike=None, sid: NumberLike=None, dtype=None):
+    def __init__(
+        self, path: str, *, dpi: NumberLike = None, sid: NumberLike = None, dtype=None
+    ):
         """
         Parameters
         ----------
@@ -908,8 +1001,8 @@ class FileImage(BaseImage):
         super().__init__(path)
         pil_image = pImage.open(path)
         # convert to gray if need be
-        if pil_image.mode not in ('F', 'L', '1'):
-            pil_image = pil_image.convert('F')
+        if pil_image.mode not in ("F", "L", "1"):
+            pil_image = pil_image.convert("F")
         self.info = pil_image.info
         if dtype is not None:
             self.array = np.array(pil_image, dtype=dtype)
@@ -922,7 +1015,7 @@ class FileImage(BaseImage):
     def dpi(self) -> float:
         """The dots-per-inch of the image, defined at isocenter."""
         dpi = None
-        for key in ('dpi', 'resolution'):
+        for key in ("dpi", "resolution"):
             dpi = self.info.get(key)
             if dpi is not None:
                 dpi = float(dpi[0])
@@ -946,7 +1039,14 @@ class FileImage(BaseImage):
 class ArrayImage(BaseImage):
     """An image constructed solely from a numpy array."""
 
-    def __init__(self, array: np.array, *, dpi: NumberLike=None, sid: NumberLike=None, dtype=None):
+    def __init__(
+        self,
+        array: np.array,
+        *,
+        dpi: NumberLike = None,
+        sid: NumberLike = None,
+        dtype=None,
+    ):
         """
         Parameters
         ----------
@@ -1018,9 +1118,16 @@ class DicomImageStack:
     Load as a certain data type
     >>> dcm_stack_uint32 = image.DicomImageStack(img_folder, dtype=np.uint32)
     """
+
     images: List[ImageLike]
 
-    def __init__(self, folder: Union[str, pathlib.Path], dtype=None, min_number: int = 39, check_uid: bool = True):
+    def __init__(
+        self,
+        folder: Union[str, pathlib.Path],
+        dtype=None,
+        min_number: int = 39,
+        check_uid: bool = True,
+    ):
         """Load a folder with DICOM CT images.
 
         Parameters
@@ -1046,7 +1153,9 @@ class DicomImageStack:
 
         # check that at least 1 image was loaded
         if len(self.images) < 1:
-            raise FileNotFoundError(f"No files were found in the specified location: {folder}")
+            raise FileNotFoundError(
+                f"No files were found in the specified location: {folder}"
+            )
 
         # error checking
         if check_uid:
@@ -1074,16 +1183,22 @@ class DicomImageStack:
         """Test if the file is a CT Image storage DICOM file."""
         try:
             ds = pydicom.dcmread(file, force=True, stop_before_pixels=True)
-            return 'Image Storage' in ds.SOPClassUID.name
+            return "Image Storage" in ds.SOPClassUID.name
         except (InvalidDicomError, AttributeError, MemoryError):
             return False
 
     def _check_number_and_get_common_uid_imgs(self, min_number: int) -> List:
         """Check that all the images are from the same study."""
-        most_common_uid = Counter(i.metadata.SeriesInstanceUID for i in self.images).most_common(1)[0]
+        most_common_uid = Counter(
+            i.metadata.SeriesInstanceUID for i in self.images
+        ).most_common(1)[0]
         if most_common_uid[1] < min_number:
-            raise ValueError("The minimum number images from the same study were not found")
-        return [i for i in self.images if i.metadata.SeriesInstanceUID == most_common_uid[0]]
+            raise ValueError(
+                "The minimum number images from the same study were not found"
+            )
+        return [
+            i for i in self.images if i.metadata.SeriesInstanceUID == most_common_uid[0]
+        ]
 
     def plot(self, slice: int = 0) -> None:
         """Plot a slice of the DICOM dataset.
@@ -1095,7 +1210,7 @@ class DicomImageStack:
         """
         self.images[slice].plot()
 
-    def roll(self, direction: Literal['x', 'y'], amount: int):
+    def roll(self, direction: Literal["x", "y"], amount: int):
         for img in self.images:
             img.roll(direction, amount)
 

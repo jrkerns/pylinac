@@ -27,4 +27,4 @@ def square_ratio(array: np.array) -> float:
     ymin, ymax, xmin, xmax = bounding_box(array)
     y = abs(ymax - ymin)
     x = abs(xmax - xmin)
-    return y/x
+    return y / x

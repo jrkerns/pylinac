@@ -12,7 +12,12 @@ from .roi import HighContrastDiskROI
 class MTF:
     """This class will calculate relative MTF"""
 
-    def __init__(self, lp_spacings: Sequence[float], lp_maximums: Sequence[float], lp_minimums: Sequence[float]):
+    def __init__(
+        self,
+        lp_spacings: Sequence[float],
+        lp_maximums: Sequence[float],
+        lp_minimums: Sequence[float],
+    ):
         """
 
         Parameters
@@ -34,13 +39,17 @@ class MTF:
         # sort according to spacings
         self.mtfs = {k: v for k, v in sorted(self.mtfs.items(), key=lambda x: x[0])}
         for key, value in self.mtfs.items():
-            self.norm_mtfs[key] = value / self.mtfs[lp_spacings[0]]  # normalize to first region
+            self.norm_mtfs[key] = (
+                value / self.mtfs[lp_spacings[0]]
+            )  # normalize to first region
 
         # check that the MTF drops monotonically by measuring the deltas between MTFs
         # if the delta is increasing it means the MTF rose on a subsequent value
         max_delta = np.max(np.diff(list(self.norm_mtfs.values())))
         if max_delta > 0:
-            warnings.warn("The MTF does not drop monotonically; be sure the ROIs are correctly aligned.")
+            warnings.warn(
+                "The MTF does not drop monotonically; be sure the ROIs are correctly aligned."
+            )
 
     @argue.bounds(x=(0, 100))
     def relative_resolution(self, x=50) -> float:
@@ -51,21 +60,38 @@ class MTF:
         x : float
             The percentage of the rMTF to determine the line pair value. Must be between 0 and 100.
         """
-        f = interp1d(list(self.norm_mtfs.values()), list(self.norm_mtfs.keys()), fill_value='extrapolate')
+        f = interp1d(
+            list(self.norm_mtfs.values()),
+            list(self.norm_mtfs.keys()),
+            fill_value="extrapolate",
+        )
         mtf = f(x / 100)
         if mtf > max(self.spacings):
-            warnings.warn(f"MTF resolution wasn't calculated for {x}% that was asked for. The value returned is an extrapolation. Use a higher % MTF to get a non-interpolated value.")
+            warnings.warn(
+                f"MTF resolution wasn't calculated for {x}% that was asked for. The value returned is an extrapolation. Use a higher % MTF to get a non-interpolated value."
+            )
         return float(mtf)
 
     @classmethod
-    def from_high_contrast_diskset(cls, spacings: Sequence[float], diskset: Sequence[HighContrastDiskROI]):
+    def from_high_contrast_diskset(
+        cls, spacings: Sequence[float], diskset: Sequence[HighContrastDiskROI]
+    ):
         """Construct the MTF using high contrast disks from the ROI module."""
         maximums = [roi.max for roi in diskset]
         minimums = [roi.min for roi in diskset]
         return cls(spacings, maximums, minimums)
 
-    def plot(self, axis: Optional[plt.Axes] = None, grid: bool = True, x_label: str = "Line pairs / mm",
-             y_label: str = 'Relative MTF', title: str = 'RMTF', margins: float = 0.05, marker: str = 'o', label: str = 'rMTF') -> Tuple:
+    def plot(
+        self,
+        axis: Optional[plt.Axes] = None,
+        grid: bool = True,
+        x_label: str = "Line pairs / mm",
+        y_label: str = "Relative MTF",
+        title: str = "RMTF",
+        margins: float = 0.05,
+        marker: str = "o",
+        label: str = "rMTF",
+    ) -> Tuple:
         """Plot the Relative MTF.
 
         Parameters
@@ -75,7 +101,12 @@ class MTF:
         """
         if axis is None:
             fig, axis = plt.subplots()
-        points = axis.plot(list(self.norm_mtfs.keys()), list(self.norm_mtfs.values()), marker=marker, label=label)
+        points = axis.plot(
+            list(self.norm_mtfs.keys()),
+            list(self.norm_mtfs.values()),
+            marker=marker,
+            label=label,
+        )
         axis.margins(margins)
         axis.grid(grid)
         axis.set_xlabel(x_label)

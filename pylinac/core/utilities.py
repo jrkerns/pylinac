@@ -37,7 +37,7 @@ class ResultBase:
 
 def clear_data_files():
     """Delete all demo files, image classifiers, etc from the demo folder"""
-    demo_folder = osp.join(osp.dirname(osp.dirname(__file__)), 'demo_files')
+    demo_folder = osp.join(osp.dirname(osp.dirname(__file__)), "demo_files")
     if osp.isdir(demo_folder):
         for file in os.listdir(demo_folder):
             full_file = osp.join(demo_folder, file)
@@ -66,7 +66,9 @@ def assign2machine(source_file: str, machine_file: str):
     dcm_source.save_as(source_file)
 
 
-def is_close(val: NumberLike, target: Union[NumberLike, Sequence], delta: NumberLike=1):
+def is_close(
+    val: NumberLike, target: Union[NumberLike, Sequence], delta: NumberLike = 1
+):
     """Return whether the value is near the target value(s).
 
     Parameters
@@ -92,10 +94,10 @@ def is_close(val: NumberLike, target: Union[NumberLike, Sequence], delta: Number
     return False
 
 
-def simple_round(number: NumberLike, decimals: int=0) -> float:
+def simple_round(number: NumberLike, decimals: int = 0) -> float:
     """Round a number to the given number of decimals. Fixes small floating number errors."""
-    num = int(round(number * 10 ** decimals))
-    num /= 10 ** decimals
+    num = int(round(number * 10**decimals))
+    num /= 10**decimals
     return num
 
 
@@ -119,6 +121,7 @@ def is_iterable(object) -> bool:
 
 class Structure:
     """A simple structure that assigns the arguments to the object."""
+
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
 
@@ -126,8 +129,12 @@ class Structure:
         self.__dict__.update(**kwargs)
 
 
-def decode_binary(file: BinaryIO, dtype: Union[Type[int], Type[float], Type[str]], num_values: int = 1, cursor_shift: int = 0) -> \
-                    Union[int, float, str, np.ndarray]:
+def decode_binary(
+    file: BinaryIO,
+    dtype: Union[Type[int], Type[float], Type[str]],
+    num_values: int = 1,
+    cursor_shift: int = 0,
+) -> Union[int, float, str, np.ndarray]:
     """Read in a raw binary file and convert it to given data types.
 
     Parameters
@@ -152,15 +159,15 @@ def decode_binary(file: BinaryIO, dtype: Union[Type[int], Type[float], Type[str]
         if type(f) is not str:  # in py3 fc will be bytes
             output = output.decode()
         # strip the padding ("\x00")
-        output = output.strip('\x00')
+        output = output.strip("\x00")
     elif dtype == int:
-        ssize = struct.calcsize('i') * num_values
-        output = np.asarray(struct.unpack('i' * num_values, f.read(ssize)))
+        ssize = struct.calcsize("i") * num_values
+        output = np.asarray(struct.unpack("i" * num_values, f.read(ssize)))
         if len(output) == 1:
             output = int(output)
     elif dtype == float:
-        ssize = struct.calcsize('f') * num_values
-        output = np.asarray(struct.unpack('f' * num_values, f.read(ssize)))
+        ssize = struct.calcsize("f") * num_values
+        output = np.asarray(struct.unpack("f" * num_values, f.read(ssize)))
         if len(output) == 1:
             output = float(output)
     else:
@@ -175,11 +182,11 @@ def decode_binary(file: BinaryIO, dtype: Union[Type[int], Type[float], Type[str]
 def open_path(path: str) -> None:
     """Open the specified path in the system default viewer."""
 
-    if os.name == 'darwin':
+    if os.name == "darwin":
         launcher = "open"
-    elif os.name == 'posix':
+    elif os.name == "posix":
         launcher = "xdg-open"
-    elif os.name == 'nt':
+    elif os.name == "nt":
         launcher = "explorer"
     subprocess.call([launcher, path])
 

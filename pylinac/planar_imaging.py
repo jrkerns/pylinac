@@ -50,6 +50,7 @@ class PlanarResult(ResultBase):
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
+
     analysis_type: str  #:
     median_contrast: float  #:
     median_cnr: float  #:
@@ -59,7 +60,10 @@ class PlanarResult(ResultBase):
 
 
 def _middle_of_bbox_region(region: RegionProperties) -> Tuple:
-    return ((region.bbox[2] - region.bbox[0]) / 2 + region.bbox[0], (region.bbox[3] - region.bbox[1]) / 2 + region.bbox[1])
+    return (
+        (region.bbox[2] - region.bbox[0]) / 2 + region.bbox[0],
+        (region.bbox[3] - region.bbox[1]) / 2 + region.bbox[1],
+    )
 
 
 def is_centered(region: RegionProperties, instance: object, rtol=0.3) -> bool:
@@ -71,7 +75,13 @@ def is_centered(region: RegionProperties, instance: object, rtol=0.3) -> bool:
 
 def is_right_size(region: RegionProperties, instance: object, rtol=0.1) -> bool:
     """Whether the region is close to the expected size of the phantom, given the SSD and physical phantom size."""
-    return bool(np.isclose(region.bbox_area, instance.phantom_bbox_size_px / (instance._ssd / 1000)**2, rtol=rtol))
+    return bool(
+        np.isclose(
+            region.bbox_area,
+            instance.phantom_bbox_size_px / (instance._ssd / 1000) ** 2,
+            rtol=rtol,
+        )
+    )
 
 
 class ImagePhantomBase:
@@ -108,6 +118,7 @@ class ImagePhantomBase:
         This is the expected size of the **BOUNDING BOX** of the phantom. Additionally, it is usually smaller than the
         physical bounding box because we sometimes detect an inner ring/square. Usually x0.9-1.0 of the physical size.
     """
+
     _demo_filename: str
     common_name: str
     high_contrast_roi_settings = {}
@@ -119,10 +130,15 @@ class ImagePhantomBase:
     low_contrast_background_value = None
     phantom_outline_object = None
     detection_conditions: [List[Callable]] = [is_centered, is_right_size]
-    detection_canny_settings = {'sigma': 2, 'percentiles': (0.001, 0.01)}
+    detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
 
-    def __init__(self, filepath: Union[str, BinaryIO, Path], normalize: bool = True, image_kwargs: Optional[dict] = None):
+    def __init__(
+        self,
+        filepath: Union[str, BinaryIO, Path],
+        normalize: bool = True,
+        image_kwargs: Optional[dict] = None,
+    ):
         """
         Parameters
         ----------
@@ -173,7 +189,7 @@ class ImagePhantomBase:
     @property
     def phantom_bbox_size_px(self) -> float:
         """The phantom bounding box size in pixels^2."""
-        return self.phantom_bbox_size_mm2 * (self.image.dpmm ** 2)
+        return self.phantom_bbox_size_mm2 * (self.image.dpmm**2)
 
     @cached_property
     def phantom_ski_region(self) -> RegionProperties:
@@ -182,12 +198,16 @@ class ImagePhantomBase:
         # search through all the canny ROIs to see which ones pass the detection conditions
         blobs = []
         for phantom_idx, region in enumerate(regions):
-            conditions_met = [condition(region, self) for condition in self.detection_conditions]
+            conditions_met = [
+                condition(region, self) for condition in self.detection_conditions
+            ]
             if all(conditions_met):
                 blobs.append(phantom_idx)
 
         if not blobs:
-            raise ValueError("Unable to find the phantom in the image. Potential solutions: check the SSD was passed correctly, check that the phantom isn't at the edge of the field, check that the phantom is centered along the CAX.")
+            raise ValueError(
+                "Unable to find the phantom in the image. Potential solutions: check the SSD was passed correctly, check that the phantom isn't at the edge of the field, check that the phantom is centered along the CAX."
+            )
 
         # take the smallest ROI and call that the phantom outline
         big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[0]
@@ -195,11 +215,18 @@ class ImagePhantomBase:
 
         return regions[phantom_idx]
 
-    def analyze(self, low_contrast_threshold: float = 0.05, high_contrast_threshold: float = 0.5, invert: bool = False,
-                angle_override: Optional[float] = None,
-                center_override: Optional[tuple] = None, size_override: Optional[float] = None,
-                ssd: float = 1000, low_contrast_method: Contrast = Contrast.MICHELSON,
-                visibility_threshold: float = 100) -> None:
+    def analyze(
+        self,
+        low_contrast_threshold: float = 0.05,
+        high_contrast_threshold: float = 0.5,
+        invert: bool = False,
+        angle_override: Optional[float] = None,
+        center_override: Optional[tuple] = None,
+        size_override: Optional[float] = None,
+        ssd: float = 1000,
+        low_contrast_method: Contrast = Contrast.MICHELSON,
+        visibility_threshold: float = 100,
+    ) -> None:
         """Analyze the phantom using the provided thresholds and settings.
 
         Parameters
@@ -252,10 +279,17 @@ class ImagePhantomBase:
         if self.high_contrast_roi_settings:
             self.high_contrast_rois = self._sample_high_contrast_rois()
             # generate rMTF
-            spacings = [roi['lp/mm'] for roi in self.high_contrast_roi_settings.values()]
-            self.mtf = MTF.from_high_contrast_diskset(diskset=self.high_contrast_rois, spacings=spacings)
+            spacings = [
+                roi["lp/mm"] for roi in self.high_contrast_roi_settings.values()
+            ]
+            self.mtf = MTF.from_high_contrast_diskset(
+                diskset=self.high_contrast_rois, spacings=spacings
+            )
         if self.low_contrast_background_roi_settings:
-            self.low_contrast_background_rois, self.low_contrast_background_value = self._sample_low_contrast_background_rois()
+            (
+                self.low_contrast_background_rois,
+                self.low_contrast_background_value,
+            ) = self._sample_low_contrast_background_rois()
         if self.low_contrast_roi_settings:
             self.low_contrast_rois = self._sample_low_contrast_rois()
 
@@ -263,28 +297,34 @@ class ImagePhantomBase:
         """Sample the low-contrast sample regions for calculating contrast values."""
         lc_rois = []
         for stng in self.low_contrast_roi_settings.values():
-            roi = LowContrastDiskROI(self.image,
-                                     self.phantom_angle + stng['angle'],
-                                     self.phantom_radius * stng['roi radius'],
-                                     self.phantom_radius * stng['distance from center'],
-                                     self.phantom_center,
-                                     self._low_contrast_threshold,
-                                     self.low_contrast_background_value,
-                                     contrast_method=self._low_contrast_method,
-                                     visibility_threshold=self.visibility_threshold)
+            roi = LowContrastDiskROI(
+                self.image,
+                self.phantom_angle + stng["angle"],
+                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["distance from center"],
+                self.phantom_center,
+                self._low_contrast_threshold,
+                self.low_contrast_background_value,
+                contrast_method=self._low_contrast_method,
+                visibility_threshold=self.visibility_threshold,
+            )
             lc_rois.append(roi)
         return lc_rois
 
-    def _sample_low_contrast_background_rois(self) -> Tuple[List[LowContrastDiskROI], float]:
+    def _sample_low_contrast_background_rois(
+        self,
+    ) -> Tuple[List[LowContrastDiskROI], float]:
         """Sample the low-contrast background regions for calculating contrast values."""
         bg_rois = []
         for stng in self.low_contrast_background_roi_settings.values():
-            roi = LowContrastDiskROI(self.image,
-                                     self.phantom_angle + stng['angle'],
-                                     self.phantom_radius * stng['roi radius'],
-                                     self.phantom_radius * stng['distance from center'],
-                                     self.phantom_center,
-                                     self._low_contrast_threshold)
+            roi = LowContrastDiskROI(
+                self.image,
+                self.phantom_angle + stng["angle"],
+                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["distance from center"],
+                self.phantom_center,
+                self._low_contrast_threshold,
+            )
             bg_rois.append(roi)
         avg_bg = np.mean([roi.pixel_value for roi in bg_rois])
         return bg_rois, avg_bg
@@ -293,16 +333,24 @@ class ImagePhantomBase:
         """Sample the high-contrast line pair regions."""
         hc_rois = []
         for stng in self.high_contrast_roi_settings.values():
-            roi = HighContrastDiskROI(self.image,
-                                      self.phantom_angle + stng['angle'],
-                                      self.phantom_radius * stng['roi radius'],
-                                      self.phantom_radius * stng['distance from center'],
-                                      self.phantom_center,
-                                      self._high_contrast_threshold)
+            roi = HighContrastDiskROI(
+                self.image,
+                self.phantom_angle + stng["angle"],
+                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["distance from center"],
+                self.phantom_center,
+                self._high_contrast_threshold,
+            )
             hc_rois.append(roi)
         return hc_rois
 
-    def save_analyzed_image(self, filename: Union[None, str, BinaryIO] = None, split_plots: bool = False, to_streams: bool = False, **kwargs) -> Optional[Union[Dict[str, BinaryIO], List[str]]]:
+    def save_analyzed_image(
+        self,
+        filename: Union[None, str, BinaryIO] = None,
+        split_plots: bool = False,
+        to_streams: bool = False,
+        **kwargs,
+    ) -> Optional[Union[Dict[str, BinaryIO], List[str]]]:
         """Save the analyzed image to disk or to stream. Kwargs are passed to plt.savefig()
 
         Parameters
@@ -317,19 +365,26 @@ class ImagePhantomBase:
         """
         if filename is None and to_streams is False:
             raise ValueError("Must pass in a filename unless saving to streams.")
-        figs, names = self.plot_analyzed_image(show=False, split_plots=split_plots, **kwargs)
+        figs, names = self.plot_analyzed_image(
+            show=False, split_plots=split_plots, **kwargs
+        )
         # remove plot keywords as savefig complains about extra kwargs
-        for key in ('image', 'low_contrast', 'high_contrast', 'show',):
+        for key in (
+            "image",
+            "low_contrast",
+            "high_contrast",
+            "show",
+        ):
             kwargs.pop(key, None)
         if not split_plots:
             plt.savefig(filename, **kwargs)
         else:
-        # append names to filename if it's file-like
+            # append names to filename if it's file-like
             if not to_streams:
                 filenames = []
                 f, ext = osp.splitext(filename)
                 for name in names:
-                    filenames.append(f + '_' + name + ext)
+                    filenames.append(f + "_" + name + ext)
             else:  # it's a stream buffer
                 filenames = [io.BytesIO() for _ in names]
             for fig, name in zip(figs, filenames):
@@ -342,7 +397,13 @@ class ImagePhantomBase:
     def _get_canny_regions(self) -> List[RegionProperties]:
         """Compute the canny edges of the image and return the connected regions found."""
         # compute the canny edges with very low thresholds (detects nearly everything)
-        canny_img = feature.canny(self.image.array, low_threshold=self.detection_canny_settings['percentiles'][0], high_threshold=self.detection_canny_settings['percentiles'][1], use_quantiles=True, sigma=self.detection_canny_settings['sigma'])
+        canny_img = feature.canny(
+            self.image.array,
+            low_threshold=self.detection_canny_settings["percentiles"][0],
+            high_threshold=self.detection_canny_settings["percentiles"][1],
+            use_quantiles=True,
+            sigma=self.detection_canny_settings["sigma"],
+        )
 
         # label the canny edge regions
         labeled = measure.label(canny_img)
@@ -354,26 +415,43 @@ class ImagePhantomBase:
         outline_type = list(self.phantom_outline_object)[0]
         outline_settings = list(self.phantom_outline_object.values())[0]
         settings = {}
-        if outline_type == 'Rectangle':
-            side_a = self.phantom_radius*outline_settings['width ratio']
-            side_b = self.phantom_radius*outline_settings['height ratio']
-            half_hyp = np.sqrt(side_a**2 + side_b**2)/2
-            internal_angle = ia = np.rad2deg(np.arctan(side_b/side_a))
-            new_x = self.phantom_center.x + half_hyp*(geometry.cos(ia)-geometry.cos(ia+self.phantom_angle))
-            new_y = self.phantom_center.y + half_hyp*(geometry.sin(ia)-geometry.sin(ia+self.phantom_angle))
-            obj = Rectangle(width=self.phantom_radius*outline_settings['width ratio'],
-                            height=self.phantom_radius*outline_settings['height ratio'],
-                            center=Point(new_x, new_y))
-            settings['angle'] = self.phantom_angle
-        elif outline_type == 'Circle':
-            obj = Circle(center_point=self.phantom_center,
-                         radius=self.phantom_radius*outline_settings['radius ratio'])
+        if outline_type == "Rectangle":
+            side_a = self.phantom_radius * outline_settings["width ratio"]
+            side_b = self.phantom_radius * outline_settings["height ratio"]
+            half_hyp = np.sqrt(side_a**2 + side_b**2) / 2
+            internal_angle = ia = np.rad2deg(np.arctan(side_b / side_a))
+            new_x = self.phantom_center.x + half_hyp * (
+                geometry.cos(ia) - geometry.cos(ia + self.phantom_angle)
+            )
+            new_y = self.phantom_center.y + half_hyp * (
+                geometry.sin(ia) - geometry.sin(ia + self.phantom_angle)
+            )
+            obj = Rectangle(
+                width=self.phantom_radius * outline_settings["width ratio"],
+                height=self.phantom_radius * outline_settings["height ratio"],
+                center=Point(new_x, new_y),
+            )
+            settings["angle"] = self.phantom_angle
+        elif outline_type == "Circle":
+            obj = Circle(
+                center_point=self.phantom_center,
+                radius=self.phantom_radius * outline_settings["radius ratio"],
+            )
         else:
-            raise ValueError("An outline object was passed but was not a Circle or Rectangle.")
+            raise ValueError(
+                "An outline object was passed but was not a Circle or Rectangle."
+            )
         return obj, settings
 
-    def plot_analyzed_image(self, image: bool = True, low_contrast: bool = True, high_contrast: bool = True,
-                            show: bool = True, split_plots: bool = False, **plt_kwargs: dict) -> Tuple[List[plt.Figure], List[str]]:
+    def plot_analyzed_image(
+        self,
+        image: bool = True,
+        low_contrast: bool = True,
+        high_contrast: bool = True,
+        show: bool = True,
+        split_plots: bool = False,
+        **plt_kwargs: dict,
+    ) -> Tuple[List[plt.Figure], List[str]]:
         """Plot the analyzed image.
 
         Parameters
@@ -395,7 +473,9 @@ class ImagePhantomBase:
         plot_high_contrast = high_contrast and any(self.high_contrast_rois)
         num_plots = sum((image, plot_low_contrast, plot_high_contrast))
         if num_plots < 1:
-            warnings.warn("Nothing was plotted because either all parameters were false or there were no actual high/low ROIs")
+            warnings.warn(
+                "Nothing was plotted because either all parameters were false or there were no actual high/low ROIs"
+            )
             return
         # set up axes and make axes iterable
         figs = []
@@ -416,37 +496,39 @@ class ImagePhantomBase:
         # plot the marked image
         if image:
             img_ax = next(axes)
-            names.append('image')
+            names.append("image")
             self.image.plot(ax=img_ax, show=False)
-            img_ax.axis('off')
-            img_ax.set_title(f'{self.common_name} Phantom Analysis')
+            img_ax.axis("off")
+            img_ax.set_title(f"{self.common_name} Phantom Analysis")
 
             # plot the outline image
             if self.phantom_outline_object is not None:
                 outline_obj, settings = self._create_phantom_outline_object()
-                outline_obj.plot2axes(img_ax, edgecolor='b', **settings)
+                outline_obj.plot2axes(img_ax, edgecolor="b", **settings)
             # plot the low contrast background ROIs
             for roi in self.low_contrast_background_rois:
-                roi.plot2axes(img_ax, edgecolor='b')
+                roi.plot2axes(img_ax, edgecolor="b")
             # plot the low contrast ROIs
             for roi in self.low_contrast_rois:
                 roi.plot2axes(img_ax, edgecolor=roi.plot_color)
             # plot the high-contrast ROIs along w/ pass/fail coloration
             if self.high_contrast_rois:
-                for (roi, mtf) in zip(self.high_contrast_rois, self.mtf.norm_mtfs.values()):
-                    color = 'b' if mtf > self._high_contrast_threshold else 'r'
+                for (roi, mtf) in zip(
+                    self.high_contrast_rois, self.mtf.norm_mtfs.values()
+                ):
+                    color = "b" if mtf > self._high_contrast_threshold else "r"
                     roi.plot2axes(img_ax, edgecolor=color)
 
         # plot the low contrast value graph
         if plot_low_contrast:
             lowcon_ax = next(axes)
-            names.append('low_contrast')
+            names.append("low_contrast")
             self._plot_lowcontrast_graph(lowcon_ax)
 
         # plot the high contrast MTF graph
         if plot_high_contrast:
             hicon_ax = next(axes)
-            names.append('high_contrast')
+            names.append("high_contrast")
             self._plot_highcontrast_graph(hicon_ax)
 
         plt.tight_layout()
@@ -456,61 +538,79 @@ class ImagePhantomBase:
 
     def _plot_lowcontrast_graph(self, axes: plt.Axes):
         """Plot the low contrast ROIs to an axes."""
-        line1, = axes.plot([roi.contrast for roi in self.low_contrast_rois], marker='o', color='m', label='Contrast')
-        axes.axhline(self._low_contrast_threshold, color='m')
+        (line1,) = axes.plot(
+            [roi.contrast for roi in self.low_contrast_rois],
+            marker="o",
+            color="m",
+            label="Contrast",
+        )
+        axes.axhline(self._low_contrast_threshold, color="m")
         axes.grid(True)
-        axes.set_title('Low-frequency Contrast')
-        axes.set_xlabel('ROI #')
-        axes.set_ylabel('Contrast')
+        axes.set_title("Low-frequency Contrast")
+        axes.set_xlabel("ROI #")
+        axes.set_ylabel("Contrast")
         axes2 = axes.twinx()
-        line2, = axes2.plot([roi.contrast_to_noise for roi in self.low_contrast_rois], marker='^', label='CNR')
-        axes2.set_ylabel('CNR')
+        (line2,) = axes2.plot(
+            [roi.contrast_to_noise for roi in self.low_contrast_rois],
+            marker="^",
+            label="CNR",
+        )
+        axes2.set_ylabel("CNR")
         axes.legend(handles=[line1, line2])
 
     def _plot_highcontrast_graph(self, axes: plt.Axes):
         """Plot the high contrast ROIs to an axes."""
-        axes.plot(self.mtf.spacings, list(self.mtf.norm_mtfs.values()), marker='*')
-        axes.axhline(self._high_contrast_threshold, color='k')
+        axes.plot(self.mtf.spacings, list(self.mtf.norm_mtfs.values()), marker="*")
+        axes.axhline(self._high_contrast_threshold, color="k")
         axes.grid(True)
-        axes.set_title('High-frequency rMTF')
-        axes.set_xlabel('Line pairs / mm')
-        axes.set_ylabel('relative MTF')
+        axes.set_title("High-frequency rMTF")
+        axes.set_xlabel("Line pairs / mm")
+        axes.set_ylabel("relative MTF")
 
     def results(self) -> str:
-        """Return the results of the analysis. """
-        text = [f'{self.common_name} results:',
-                f'File: {self.image.truncated_path}'
-        ]
+        """Return the results of the analysis."""
+        text = [f"{self.common_name} results:", f"File: {self.image.truncated_path}"]
         if self.low_contrast_rois:
             text += [
-                    f'Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}',
-                    f'Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}',
-                    f'# Low contrast ROIs "seen": {sum(roi.passed for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
+                f"Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}",
+                f"Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}",
+                f'# Low contrast ROIs "seen": {sum(roi.passed for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
             ]
         if self.high_contrast_rois:
-            text += [f'MTF 80% (lp/mm): {self.mtf.relative_resolution(80):2.2f}',
-                     f'MTF 50% (lp/mm): {self.mtf.relative_resolution(50):2.2f}',
-                     f'MTF 30% (lp/mm): {self.mtf.relative_resolution(30):2.2f}',
+            text += [
+                f"MTF 80% (lp/mm): {self.mtf.relative_resolution(80):2.2f}",
+                f"MTF 50% (lp/mm): {self.mtf.relative_resolution(50):2.2f}",
+                f"MTF 30% (lp/mm): {self.mtf.relative_resolution(30):2.2f}",
             ]
-        text = '\n'.join(text)
+        text = "\n".join(text)
         return text
 
     def results_data(self, as_dict=False) -> Union[PlanarResult, dict]:
         data = PlanarResult(
-                analysis_type=self.common_name,
-                median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
-                median_cnr=np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]),
-                num_contrast_rois_seen=sum(roi.passed for roi in self.low_contrast_rois),
-                phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y)
+            analysis_type=self.common_name,
+            median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
+            median_cnr=np.median(
+                [roi.contrast_to_noise for roi in self.low_contrast_rois]
+            ),
+            num_contrast_rois_seen=sum(roi.passed for roi in self.low_contrast_rois),
+            phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
         )
 
         if self.mtf is not None:
-            data.mtf_lp_mm = [{p: self.mtf.relative_resolution(p)} for p in (80, 50, 30)]
+            data.mtf_lp_mm = [
+                {p: self.mtf.relative_resolution(p)} for p in (80, 50, 30)
+            ]
         if as_dict:
             return dataclasses.asdict(data)
         return data
 
-    def publish_pdf(self, filename: str, notes: str = None, open_file: bool = False, metadata: Optional[dict] = None):
+    def publish_pdf(
+        self,
+        filename: str,
+        notes: str = None,
+        open_file: bool = False,
+        metadata: Optional[dict] = None,
+    ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -530,7 +630,11 @@ class ImagePhantomBase:
             Unit: TrueBeam
             --------------
         """
-        canvas = pdf.PylinacCanvas(filename, page_title=f'{self.common_name} Phantom Analysis', metadata=metadata)
+        canvas = pdf.PylinacCanvas(
+            filename,
+            page_title=f"{self.common_name} Phantom Analysis",
+            metadata=metadata,
+        )
 
         # write the text/numerical values
         text = self.results()
@@ -541,19 +645,25 @@ class ImagePhantomBase:
 
         # plot the image
         data = io.BytesIO()
-        self.save_analyzed_image(data, image=True, low_contrast=False, high_contrast=False)
+        self.save_analyzed_image(
+            data, image=True, low_contrast=False, high_contrast=False
+        )
         canvas.add_image(data, location=(1, 3.5), dimensions=(19, 19))
         # plot the high contrast
         if self.high_contrast_rois:
             canvas.add_new_page()
             data = io.BytesIO()
-            self.save_analyzed_image(data, image=False, low_contrast=False, high_contrast=True)
+            self.save_analyzed_image(
+                data, image=False, low_contrast=False, high_contrast=True
+            )
             canvas.add_image(data, location=(1, 7), dimensions=(19, 19))
         # plot the low contrast
         if self.low_contrast_rois:
             canvas.add_new_page()
             data = io.BytesIO()
-            self.save_analyzed_image(data, image=False, low_contrast=True, high_contrast=False)
+            self.save_analyzed_image(
+                data, image=False, low_contrast=True, high_contrast=False
+            )
             canvas.add_image(data, location=(1, 7), dimensions=(19, 19))
 
         canvas.finish()
@@ -562,15 +672,27 @@ class ImagePhantomBase:
 
     @property
     def phantom_center(self) -> Point:
-        return Point(self._center_override) if self._center_override is not None else self._phantom_center_calc()
+        return (
+            Point(self._center_override)
+            if self._center_override is not None
+            else self._phantom_center_calc()
+        )
 
     @property
     def phantom_radius(self) -> float:
-        return self._size_override if self._size_override is not None else self._phantom_radius_calc()
+        return (
+            self._size_override
+            if self._size_override is not None
+            else self._phantom_radius_calc()
+        )
 
     @property
     def phantom_angle(self) -> float:
-        return self._angle_override if self._angle_override is not None else self._phantom_angle_calc()
+        return (
+            self._angle_override
+            if self._angle_override is not None
+            else self._phantom_angle_calc()
+        )
 
     def _phantom_center_calc(self):
         return bbox_center(self.phantom_ski_region)
@@ -588,6 +710,7 @@ class LightRadResult(ResultBase):
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
+
     field_size_x_mm: float  #:
     field_size_y_mm: float  #:
     field_epid_offset_x_mm: float  #:
@@ -597,11 +720,21 @@ class LightRadResult(ResultBase):
 
 
 class StandardImagingFC2(ImagePhantomBase):
-    common_name = 'SI FC-2'
-    _demo_filename = 'fc2.dcm'
+    common_name = "SI FC-2"
+    _demo_filename = "fc2.dcm"
     # these positions are the offset in mm from the center of the image to the nominal position of the BBs
-    bb_positions_10x10 = {'TL': [-40, -40], 'BL': [-40, 40], 'TR': [40, -40], 'BR': [40, 40]}
-    bb_positions_15x15 = {'TL': [-65, -65], 'BL': [-65, 65], 'TR': [65, -65], 'BR': [65, 65]}
+    bb_positions_10x10 = {
+        "TL": [-40, -40],
+        "BL": [-40, 40],
+        "TR": [40, -40],
+        "BR": [40, 40],
+    }
+    bb_positions_15x15 = {
+        "TL": [-65, -65],
+        "BL": [-65, 65],
+        "TR": [65, -65],
+        "BR": [65, 65],
+    }
     bb_sampling_box_size_mm = 10
     field_strip_width_mm = 5
 
@@ -627,45 +760,54 @@ class StandardImagingFC2(ImagePhantomBase):
         if invert:
             self.image.invert()
         self.bb_center = self._find_overall_bb_centroid(fwxm=fwxm)
-        self.field_center, self.field_width_x, self.field_width_y = self._find_field_info(fwxm=fwxm)
+        (
+            self.field_center,
+            self.field_width_x,
+            self.field_width_y,
+        ) = self._find_field_info(fwxm=fwxm)
         self.epid_center = self.image.center
 
     def results(self, as_list: bool = False) -> Union[str, list]:
         """Return the results of the analysis."""
-        text = [f'{self.common_name} results:',
-                f'File: {self.image.truncated_path}',
-                f"The detected inplane field size was {self.field_width_y:2.1f}mm",
-                f"The detected crossplane field size was {self.field_width_x:2.1f}mm",
-                f"The inplane field was {self.field_epid_offset_mm.y:2.1f}mm from the EPID CAX",
-                f"The crossplane field was {self.field_epid_offset_mm.x:2.1f}mm from the EPID CAX",
-                f"The inplane field was {self.field_bb_offset_mm.y:2.1f}mm from the BB inplane center",
-                f"The crossplane field was {self.field_bb_offset_mm.x:2.1f}mm from the BB crossplane center"
+        text = [
+            f"{self.common_name} results:",
+            f"File: {self.image.truncated_path}",
+            f"The detected inplane field size was {self.field_width_y:2.1f}mm",
+            f"The detected crossplane field size was {self.field_width_x:2.1f}mm",
+            f"The inplane field was {self.field_epid_offset_mm.y:2.1f}mm from the EPID CAX",
+            f"The crossplane field was {self.field_epid_offset_mm.x:2.1f}mm from the EPID CAX",
+            f"The inplane field was {self.field_bb_offset_mm.y:2.1f}mm from the BB inplane center",
+            f"The crossplane field was {self.field_bb_offset_mm.x:2.1f}mm from the BB crossplane center",
         ]
         if as_list:
             return text
         else:
-            text = '\n'.join(text)
+            text = "\n".join(text)
             return text
 
     @property
     def field_epid_offset_mm(self) -> Vector:
         """Field offset from CAX using vector difference"""
-        return (self.epid_center.as_vector() - self.field_center.as_vector()) / self.image.dpmm
+        return (
+            self.epid_center.as_vector() - self.field_center.as_vector()
+        ) / self.image.dpmm
 
     @property
     def field_bb_offset_mm(self) -> Vector:
         """Field offset from BB centroid using vector difference"""
-        return (self.bb_center.as_vector() - self.field_center.as_vector()) / self.image.dpmm
+        return (
+            self.bb_center.as_vector() - self.field_center.as_vector()
+        ) / self.image.dpmm
 
     def results_data(self, as_dict: bool = False) -> Union[LightRadResult, dict]:
         """Return the results as a dict or dataclass"""
         data = LightRadResult(
-                field_size_x_mm=self.field_width_x,
-                field_size_y_mm=self.field_width_y,
-                field_epid_offset_x_mm=self.field_epid_offset_mm.x,
-                field_epid_offset_y_mm=self.field_epid_offset_mm.y,
-                field_bb_offset_x_mm=self.field_bb_offset_mm.x,
-                field_bb_offset_y_mm=self.field_bb_offset_mm.y
+            field_size_x_mm=self.field_width_x,
+            field_size_y_mm=self.field_width_y,
+            field_epid_offset_x_mm=self.field_epid_offset_mm.x,
+            field_epid_offset_y_mm=self.field_epid_offset_mm.y,
+            field_bb_offset_x_mm=self.field_bb_offset_mm.x,
+            field_bb_offset_y_mm=self.field_bb_offset_mm.y,
         )
         if as_dict:
             return dataclasses.asdict(data)
@@ -677,18 +819,28 @@ class StandardImagingFC2(ImagePhantomBase):
 
     def _find_field_info(self, fwxm: int) -> (Point, float, float):
         """Determine the center and field widths of the detected field by sampling a strip through the center of the image in inplane and crossplane"""
-        sample_width = self.field_strip_width_mm/2 * self.image.dpmm
+        sample_width = self.field_strip_width_mm / 2 * self.image.dpmm
         # sample the strip (nominally 5mm) centered about the image center. Average the strip to reduce noise.
-        x_bounds = (int(self.image.center.x - sample_width), int(self.image.center.x + sample_width))
-        y_img = np.mean(self.image[:, x_bounds[0]:x_bounds[1]], 1)
-        y_prof = SingleProfile(y_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm)
-        y_bounds = (int(self.image.center.y - sample_width), int(self.image.center.y + sample_width))
-        x_img = np.mean(self.image[y_bounds[0]:y_bounds[1], :], 0)
-        x_prof = SingleProfile(x_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm)
-        x = x_prof.fwxm_data(x=fwxm)['center index (exact)']
-        y = y_prof.fwxm_data(x=fwxm)['center index (exact)']
-        field_width_x = x_prof.fwxm_data(x=fwxm)['width (exact) mm']
-        field_width_y = y_prof.fwxm_data(x=fwxm)['width (exact) mm']
+        x_bounds = (
+            int(self.image.center.x - sample_width),
+            int(self.image.center.x + sample_width),
+        )
+        y_img = np.mean(self.image[:, x_bounds[0] : x_bounds[1]], 1)
+        y_prof = SingleProfile(
+            y_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm
+        )
+        y_bounds = (
+            int(self.image.center.y - sample_width),
+            int(self.image.center.y + sample_width),
+        )
+        x_img = np.mean(self.image[y_bounds[0] : y_bounds[1], :], 0)
+        x_prof = SingleProfile(
+            x_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm
+        )
+        x = x_prof.fwxm_data(x=fwxm)["center index (exact)"]
+        y = y_prof.fwxm_data(x=fwxm)["center index (exact)"]
+        field_width_x = x_prof.fwxm_data(x=fwxm)["width (exact) mm"]
+        field_width_y = y_prof.fwxm_data(x=fwxm)["width (exact) mm"]
         return Point(x=x, y=y), field_width_x, field_width_y
 
     def _find_overall_bb_centroid(self, fwxm: int) -> Point:
@@ -703,40 +855,61 @@ class StandardImagingFC2(ImagePhantomBase):
         bb_positions = {}
         nominal_positions = self._determine_bb_set(fwxm=fwxm)
         dpmm = self.image.dpmm
-        sample_box_size = self.bb_sampling_box_size_mm/2 * dpmm
+        sample_box_size = self.bb_sampling_box_size_mm / 2 * dpmm
         # invert the image so that the BB marks increase in intensity
         inverted_img = copy.copy(self.image)
         inverted_img.invert()
         # sample the square, use skimage to find the ROI weighted centroid of the BBs
         for key, position in nominal_positions.items():
-            x_bounds = (int(self.image.center.x + (position[0]*dpmm) - sample_box_size), int(self.image.center.x + (position[0]*dpmm)+sample_box_size))
-            y_bounds = (int(self.image.center.y + (position[1] * dpmm) - sample_box_size), int(self.image.center.y + (position[1] * dpmm) + sample_box_size))
-            bb_sample = image.load(inverted_img[y_bounds[0]:y_bounds[1], x_bounds[0]:x_bounds[1]])
+            x_bounds = (
+                int(self.image.center.x + (position[0] * dpmm) - sample_box_size),
+                int(self.image.center.x + (position[0] * dpmm) + sample_box_size),
+            )
+            y_bounds = (
+                int(self.image.center.y + (position[1] * dpmm) - sample_box_size),
+                int(self.image.center.y + (position[1] * dpmm) + sample_box_size),
+            )
+            bb_sample = image.load(
+                inverted_img[y_bounds[0] : y_bounds[1], x_bounds[0] : x_bounds[1]]
+            )
             bb_sample.ground()
-            _, rprops, num_roi = get_regions(bb_sample.array, fill_holes=True, clear_borders=False)
+            _, rprops, num_roi = get_regions(
+                bb_sample.array, fill_holes=True, clear_borders=False
+            )
             if num_roi < 1:
                 raise ValueError("Did not find the BB in the expected location")
             center_roi = take_centermost_roi(rprops, bb_sample.array.shape)
             # due to the sloping field values, the centroid is usually a better representation.
             # the weighted centroid will bias towards the center of the field. Even though this isn't technically a problem,
             # I know people will complain it's not aligned with the BB.
-            bb_positions[key] = Point(x=center_roi.centroid[1] + x_bounds[0], y=center_roi.centroid[0] + y_bounds[0])
+            bb_positions[key] = Point(
+                x=center_roi.centroid[1] + x_bounds[0],
+                y=center_roi.centroid[0] + y_bounds[0],
+            )
         return bb_positions
 
     def _determine_bb_set(self, fwxm: int) -> dict:
         """This finds the approximate field size to determine whether to check for the 10x10 BBs or the 15x15. Returns the BB positions"""
-        x_prof = SingleProfile(self.image[int(self.image.center.y), :], dpmm=self.image.dpmm)
-        y_prof = SingleProfile(self.image[:, int(self.image.center.x)], dpmm=self.image.dpmm)
-        x_width = x_prof.fwxm_data(x=fwxm)['width (exact) mm']
-        y_width = y_prof.fwxm_data(x=fwxm)['width (exact) mm']
+        x_prof = SingleProfile(
+            self.image[int(self.image.center.y), :], dpmm=self.image.dpmm
+        )
+        y_prof = SingleProfile(
+            self.image[:, int(self.image.center.x)], dpmm=self.image.dpmm
+        )
+        x_width = x_prof.fwxm_data(x=fwxm)["width (exact) mm"]
+        y_width = y_prof.fwxm_data(x=fwxm)["width (exact) mm"]
         if not np.allclose(x_width, y_width, atol=10):
-            raise ValueError(f"The detected y and x field sizes were too different from one another. They should be within 1cm from each other. Detected field sizes: x={x_width}, y={y_width}")
+            raise ValueError(
+                f"The detected y and x field sizes were too different from one another. They should be within 1cm from each other. Detected field sizes: x={x_width}, y={y_width}"
+            )
         if x_width > 140:
             return self.bb_positions_15x15
         else:
             return self.bb_positions_10x10
 
-    def plot_analyzed_image(self, show: bool = True, **kwargs) -> Tuple[List[plt.Figure], List[str]]:
+    def plot_analyzed_image(
+        self, show: bool = True, **kwargs
+    ) -> Tuple[List[plt.Figure], List[str]]:
         """Plot the analyzed image.
 
         Parameters
@@ -748,27 +921,35 @@ class StandardImagingFC2(ImagePhantomBase):
         names = []
         fig, axes = plt.subplots(1)
         figs.append(fig)
-        names.append('image')
+        names.append("image")
         self.image.plot(ax=axes, show=False, **kwargs)
-        axes.axis('off')
-        axes.set_title(f'{self.common_name} Phantom Analysis')
+        axes.axis("off")
+        axes.set_title(f"{self.common_name} Phantom Analysis")
 
         # plot the bb marks
         bb_xs = [bb.x for bb in self.bb_centers.values()]
         bb_ys = [bb.y for bb in self.bb_centers.values()]
-        axes.plot(bb_xs, bb_ys, 'go')
+        axes.plot(bb_xs, bb_ys, "go")
 
         # plot the bb center as small lines
-        axes.axhline(y=self.bb_center.y, color='g', xmin=0.25, xmax=0.75, label='BB Centroid')
-        axes.axvline(x=self.bb_center.x, color='g', ymin=0.25, ymax=0.75)
+        axes.axhline(
+            y=self.bb_center.y, color="g", xmin=0.25, xmax=0.75, label="BB Centroid"
+        )
+        axes.axvline(x=self.bb_center.x, color="g", ymin=0.25, ymax=0.75)
 
         # plot the epid center as image-sized lines
-        axes.axhline(y=self.epid_center.y, color='b', label='EPID Center')
-        axes.axvline(x=self.epid_center.x, color='b')
+        axes.axhline(y=self.epid_center.y, color="b", label="EPID Center")
+        axes.axvline(x=self.epid_center.x, color="b")
 
         # plot the field center as field-sized lines
-        axes.axhline(y=self.field_center.y, xmin=0.15, xmax=0.85, color='red', label="Field Center")
-        axes.axvline(x=self.field_center.x, ymin=0.15, ymax=0.85, color='red')
+        axes.axhline(
+            y=self.field_center.y,
+            xmin=0.15,
+            xmax=0.85,
+            color="red",
+            label="Field Center",
+        )
+        axes.axvline(x=self.field_center.x, ymin=0.15, ymax=0.85, color="red")
 
         axes.legend()
 
@@ -776,7 +957,12 @@ class StandardImagingFC2(ImagePhantomBase):
             plt.show()
         return figs, names
 
-    def save_analyzed_image(self, filename: Union[None, str, BinaryIO] = None, to_streams: bool = False, **kwargs) -> Optional[Union[Dict[str, BinaryIO], List[str]]]:
+    def save_analyzed_image(
+        self,
+        filename: Union[None, str, BinaryIO] = None,
+        to_streams: bool = False,
+        **kwargs,
+    ) -> Optional[Union[Dict[str, BinaryIO], List[str]]]:
         """Save the analyzed image to disk or to stream. Kwargs are passed to plt.savefig()
 
         Parameters
@@ -792,12 +978,12 @@ class StandardImagingFC2(ImagePhantomBase):
         if not to_streams:
             plt.savefig(filename, **kwargs)
         else:
-        # append names to filename if it's file-like
+            # append names to filename if it's file-like
             if not to_streams:
                 filenames = []
                 f, ext = osp.splitext(filename)
                 for name in names:
-                    filenames.append(f + '_' + name + ext)
+                    filenames.append(f + "_" + name + ext)
             else:  # it's a stream buffer
                 filenames = [io.BytesIO() for _ in names]
             for fig, name in zip(figs, filenames):
@@ -805,7 +991,13 @@ class StandardImagingFC2(ImagePhantomBase):
             if to_streams:
                 return {name: stream for name, stream in zip(names, filenames)}
 
-    def publish_pdf(self, filename: str, notes: str = None, open_file: bool = False, metadata: Optional[dict] = None):
+    def publish_pdf(
+        self,
+        filename: str,
+        notes: str = None,
+        open_file: bool = False,
+        metadata: Optional[dict] = None,
+    ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -825,7 +1017,11 @@ class StandardImagingFC2(ImagePhantomBase):
             Unit: TrueBeam
             --------------
         """
-        canvas = pdf.PylinacCanvas(filename, page_title=f'{self.common_name} Phantom Analysis', metadata=metadata)
+        canvas = pdf.PylinacCanvas(
+            filename,
+            page_title=f"{self.common_name} Phantom Analysis",
+            metadata=metadata,
+        )
 
         # write the text/numerical values
         text = self.results(as_list=True)
@@ -846,7 +1042,7 @@ class StandardImagingFC2(ImagePhantomBase):
 class IMTLRad(StandardImagingFC2):
     common_name = "IMT L-Rad"
     _demo_filename = "imtlrad.dcm"
-    center_only_bb = {'Center': [0, 0]}
+    center_only_bb = {"Center": [0, 0]}
     bb_sampling_box_size_mm = 12
     field_strip_width_mm = 5
 
@@ -855,38 +1051,46 @@ class IMTLRad(StandardImagingFC2):
 
 
 class LasVegas(ImagePhantomBase):
-    _demo_filename = 'lasvegas.dcm'
-    common_name = 'Las Vegas'
+    _demo_filename = "lasvegas.dcm"
+    common_name = "Las Vegas"
     phantom_bbox_size_mm2 = 20260
     detection_conditions = [is_centered, is_right_size]
-    phantom_outline_object = {'Rectangle': {'width ratio': 0.62, 'height ratio': 0.62}}
+    phantom_outline_object = {"Rectangle": {"width ratio": 0.62, "height ratio": 0.62}}
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.24, 'angle': 0, 'roi radius': 0.03},
-        'roi 2': {'distance from center': 0.24, 'angle': 90, 'roi radius': 0.03},
-        'roi 3': {'distance from center': 0.24, 'angle': 180, 'roi radius': 0.03},
-        'roi 4': {'distance from center': 0.24, 'angle': 270, 'roi radius': 0.03},
+        "roi 1": {"distance from center": 0.24, "angle": 0, "roi radius": 0.03},
+        "roi 2": {"distance from center": 0.24, "angle": 90, "roi radius": 0.03},
+        "roi 3": {"distance from center": 0.24, "angle": 180, "roi radius": 0.03},
+        "roi 4": {"distance from center": 0.24, "angle": 270, "roi radius": 0.03},
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 0.107, 'angle': 0.5, 'roi radius': 0.028},
-        'roi 2': {'distance from center': 0.141, 'angle': 39.5, 'roi radius': 0.028},
-        'roi 3': {'distance from center': 0.205, 'angle': 58, 'roi radius': 0.028},
-        'roi 4': {'distance from center': 0.179, 'angle': -76.5, 'roi radius': 0.016},
-        'roi 5': {'distance from center': 0.095, 'angle': -63.5, 'roi radius': 0.016},
-        'roi 6': {'distance from center': 0.042, 'angle': 0.5, 'roi radius': 0.016},
-        'roi 7': {'distance from center': 0.097, 'angle': 65.5, 'roi radius': 0.016},
-        'roi 8': {'distance from center': 0.178, 'angle': 76.5, 'roi radius': 0.016},
-        'roi 9': {'distance from center': 0.174, 'angle': -97.5, 'roi radius': 0.012},
-        'roi 10': {'distance from center': 0.088, 'angle': -105.5, 'roi radius': 0.012},
-        'roi 11': {'distance from center': 0.024, 'angle': -183.5, 'roi radius': 0.012},
-        'roi 12': {'distance from center': 0.091, 'angle': 105.5, 'roi radius': 0.012},
-        'roi 13': {'distance from center': 0.179, 'angle': 97.5, 'roi radius': 0.012},
-        'roi 14': {'distance from center': 0.189, 'angle': -113.5, 'roi radius': 0.007},
-        'roi 15': {'distance from center': 0.113, 'angle': -131.5, 'roi radius': 0.007},
-        'roi 16': {'distance from center': 0.0745, 'angle': -181.5, 'roi radius': 0.007},
-        'roi 17': {'distance from center': 0.115, 'angle': 130, 'roi radius': 0.007},
-        'roi 18': {'distance from center': 0.191, 'angle': 113, 'roi radius': 0.007},
-        'roi 19': {'distance from center': 0.2085, 'angle': -124.6, 'roi radius': 0.003},
-        'roi 20': {'distance from center': 0.146, 'angle': -144.3, 'roi radius': 0.003},
+        "roi 1": {"distance from center": 0.107, "angle": 0.5, "roi radius": 0.028},
+        "roi 2": {"distance from center": 0.141, "angle": 39.5, "roi radius": 0.028},
+        "roi 3": {"distance from center": 0.205, "angle": 58, "roi radius": 0.028},
+        "roi 4": {"distance from center": 0.179, "angle": -76.5, "roi radius": 0.016},
+        "roi 5": {"distance from center": 0.095, "angle": -63.5, "roi radius": 0.016},
+        "roi 6": {"distance from center": 0.042, "angle": 0.5, "roi radius": 0.016},
+        "roi 7": {"distance from center": 0.097, "angle": 65.5, "roi radius": 0.016},
+        "roi 8": {"distance from center": 0.178, "angle": 76.5, "roi radius": 0.016},
+        "roi 9": {"distance from center": 0.174, "angle": -97.5, "roi radius": 0.012},
+        "roi 10": {"distance from center": 0.088, "angle": -105.5, "roi radius": 0.012},
+        "roi 11": {"distance from center": 0.024, "angle": -183.5, "roi radius": 0.012},
+        "roi 12": {"distance from center": 0.091, "angle": 105.5, "roi radius": 0.012},
+        "roi 13": {"distance from center": 0.179, "angle": 97.5, "roi radius": 0.012},
+        "roi 14": {"distance from center": 0.189, "angle": -113.5, "roi radius": 0.007},
+        "roi 15": {"distance from center": 0.113, "angle": -131.5, "roi radius": 0.007},
+        "roi 16": {
+            "distance from center": 0.0745,
+            "angle": -181.5,
+            "roi radius": 0.007,
+        },
+        "roi 17": {"distance from center": 0.115, "angle": 130, "roi radius": 0.007},
+        "roi 18": {"distance from center": 0.191, "angle": 113, "roi radius": 0.007},
+        "roi 19": {
+            "distance from center": 0.2085,
+            "angle": -124.6,
+            "roi radius": 0.003,
+        },
+        "roi 20": {"distance from center": 0.146, "angle": -144.3, "roi radius": 0.003},
     }
 
     @staticmethod
@@ -902,9 +1106,11 @@ class LasVegas(ImagePhantomBase):
     def _check_inversion(self):
         """Check the inversion by using the histogram of the phantom region"""
         roi = self.phantom_ski_region
-        phantom_array = self.image.array[roi.bbox[0]:roi.bbox[2], roi.bbox[1]:roi.bbox[3]]
+        phantom_array = self.image.array[
+            roi.bbox[0] : roi.bbox[2], roi.bbox[1] : roi.bbox[3]
+        ]
         phantom_sub_image = image.load(phantom_array)
-        phantom_sub_image.crop(int(phantom_sub_image.shape[0]*0.1))
+        phantom_sub_image.crop(int(phantom_sub_image.shape[0] * 0.1))
         p5 = np.percentile(phantom_sub_image, 0.5)
         p50 = np.percentile(phantom_sub_image, 50)
         p95 = np.percentile(phantom_sub_image, 99.5)
@@ -915,11 +1121,17 @@ class LasVegas(ImagePhantomBase):
 
     def _check_direction(self) -> None:
         """Check that the phantom is facing the right direction and if not perform a left-right flip of the array."""
-        circle = CollapsedCircleProfile(self.phantom_center, self.phantom_radius * 0.175, self.image, ccw=False,
-                                        width_ratio=0.16, num_profiles=5)
+        circle = CollapsedCircleProfile(
+            self.phantom_center,
+            self.phantom_radius * 0.175,
+            self.image,
+            ccw=False,
+            width_ratio=0.16,
+            num_profiles=5,
+        )
         roll_amount = np.where(circle.values == circle.values.min())[0][0]
         circle.roll(roll_amount)
-        circle.filter(size=0.015, kind='median')
+        circle.filter(size=0.015, kind="median")
         valley_idxs, _ = circle.find_peaks(max_number=2)
         if valley_idxs[0] > valley_idxs[1]:
             self.image.array = np.fliplr(self.image.array)
@@ -934,46 +1146,62 @@ class LasVegas(ImagePhantomBase):
     def _plot_lowcontrast_graph(self, axes: plt.Axes):
         """Plot the low contrast ROIs to an axes, including visibility"""
         # plot contrast
-        line1, = axes.plot([roi.contrast for roi in self.low_contrast_rois], marker='o', color='m', label='Contrast')
-        axes.axhline(self._low_contrast_threshold, color='m')
+        (line1,) = axes.plot(
+            [roi.contrast for roi in self.low_contrast_rois],
+            marker="o",
+            color="m",
+            label="Contrast",
+        )
+        axes.axhline(self._low_contrast_threshold, color="m")
         axes.grid(True)
-        axes.set_title('Low-frequency Contrast')
-        axes.set_xlabel('ROI #')
-        axes.set_ylabel('Contrast')
+        axes.set_title("Low-frequency Contrast")
+        axes.set_xlabel("ROI #")
+        axes.set_ylabel("Contrast")
         # plot CNR
         axes2 = axes.twinx()
-        axes2.set_ylabel('CNR')
-        line2, = axes2.plot([roi.contrast_to_noise for roi in self.low_contrast_rois], marker='^', label='CNR')
+        axes2.set_ylabel("CNR")
+        (line2,) = axes2.plot(
+            [roi.contrast_to_noise for roi in self.low_contrast_rois],
+            marker="^",
+            label="CNR",
+        )
         # plot visibility; here's what different from the base method
         axes3 = axes.twinx()
-        axes3.set_ylabel('Visibility')
-        line3, = axes3.plot([roi.visibility for roi in self.low_contrast_rois], marker='*', color='blue', label='Visibility')
-        axes3.axhline(self.visibility_threshold, color='blue')
+        axes3.set_ylabel("Visibility")
+        (line3,) = axes3.plot(
+            [roi.visibility for roi in self.low_contrast_rois],
+            marker="*",
+            color="blue",
+            label="Visibility",
+        )
+        axes3.axhline(self.visibility_threshold, color="blue")
         axes3.spines.right.set_position(("axes", 1.2))
 
         axes.legend(handles=[line1, line2, line3])
 
     def results(self) -> str:
         """Return the results of the analysis. Overridden because ROIs seen is based on visibility, not CNR"""
-        text = [f'{self.common_name} results:',
-                f'File: {self.image.truncated_path}'
-        ]
+        text = [f"{self.common_name} results:", f"File: {self.image.truncated_path}"]
         text += [
-                f'Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}',
-                f'Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}',
-                f'# Low contrast ROIs "seen": {sum(roi.passed_visibility for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
+            f"Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}",
+            f"Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}",
+            f'# Low contrast ROIs "seen": {sum(roi.passed_visibility for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
         ]
-        text = '\n'.join(text)
+        text = "\n".join(text)
         return text
 
     def results_data(self, as_dict=False) -> Union[PlanarResult, dict]:
         """Overridden because ROIs seen is based on visibility, not CNR"""
         data = PlanarResult(
-                analysis_type=self.common_name,
-                median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
-                median_cnr=np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]),
-                num_contrast_rois_seen=sum(roi.passed_visibility for roi in self.low_contrast_rois),
-                phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y)
+            analysis_type=self.common_name,
+            median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
+            median_cnr=np.median(
+                [roi.contrast_to_noise for roi in self.low_contrast_rois]
+            ),
+            num_contrast_rois_seen=sum(
+                roi.passed_visibility for roi in self.low_contrast_rois
+            ),
+            phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
         )
         if as_dict:
             return dataclasses.asdict(data)
@@ -981,36 +1209,71 @@ class LasVegas(ImagePhantomBase):
 
 
 class PTWEPIDQC(ImagePhantomBase):
-    _demo_filename = 'PTW-EPID-QC.dcm'
-    common_name = 'PTW EPID QC'
+    _demo_filename = "PTW-EPID-QC.dcm"
+    common_name = "PTW EPID QC"
     phantom_bbox_size_mm2 = 250**2
     detection_conditions = [is_centered, is_right_size]
-    detection_canny_settings = {'sigma': 4, 'percentiles': (0.001, 0.01)}
-    phantom_outline_object = {'Rectangle': {'width ratio': 8.55, 'height ratio': 8.55}}
+    detection_canny_settings = {"sigma": 4, "percentiles": (0.001, 0.01)}
+    phantom_outline_object = {"Rectangle": {"width ratio": 8.55, "height ratio": 8.55}}
     high_contrast_roi_settings = {
         # angled rois
-        'roi 1': {'distance from center': 1.5, 'angle': -135, 'roi radius': 0.35, 'lp/mm': 0.15},
-        'roi 2': {'distance from center': 3.1, 'angle': -109, 'roi radius': 0.35, 'lp/mm': 0.21},
-        'roi 3': {'distance from center': 3.2, 'angle': -60, 'roi radius': 0.3, 'lp/mm': 0.27},
-        'roi 4': {'distance from center': 1.9, 'angle': -60, 'roi radius': 0.25, 'lp/mm': 0.33},
+        "roi 1": {
+            "distance from center": 1.5,
+            "angle": -135,
+            "roi radius": 0.35,
+            "lp/mm": 0.15,
+        },
+        "roi 2": {
+            "distance from center": 3.1,
+            "angle": -109,
+            "roi radius": 0.35,
+            "lp/mm": 0.21,
+        },
+        "roi 3": {
+            "distance from center": 3.2,
+            "angle": -60,
+            "roi radius": 0.3,
+            "lp/mm": 0.27,
+        },
+        "roi 4": {
+            "distance from center": 1.9,
+            "angle": -60,
+            "roi radius": 0.25,
+            "lp/mm": 0.33,
+        },
         # vertical rois
-        'roi 5': {'distance from center': 3.6, 'angle': -90, 'roi radius': 0.18, 'lp/mm': 0.5},
-        'roi 6': {'distance from center': 2.9, 'angle': -90, 'roi radius': 0.08, 'lp/mm': 2},
-        'roi 7': {'distance from center': 2.2, 'angle': -90, 'roi radius': 0.04, 'lp/mm': 3},
+        "roi 5": {
+            "distance from center": 3.6,
+            "angle": -90,
+            "roi radius": 0.18,
+            "lp/mm": 0.5,
+        },
+        "roi 6": {
+            "distance from center": 2.9,
+            "angle": -90,
+            "roi radius": 0.08,
+            "lp/mm": 2,
+        },
+        "roi 7": {
+            "distance from center": 2.2,
+            "angle": -90,
+            "roi radius": 0.04,
+            "lp/mm": 3,
+        },
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 3.87, 'angle': 31, 'roi radius': 0.3},
-        'roi 2': {'distance from center': 3.48, 'angle': 17, 'roi radius': 0.3},
-        'roi 3': {'distance from center': 3.3, 'angle': 0, 'roi radius': 0.3},
-        'roi 4': {'distance from center': 3.48, 'angle': -17, 'roi radius': 0.3},
-        'roi 5': {'distance from center': 3.87, 'angle': -31, 'roi radius': 0.3},
-        'roi 6': {'distance from center': 3.87, 'angle': 180-31, 'roi radius': 0.3},
-        'roi 7': {'distance from center': 3.48, 'angle': 180 - 17, 'roi radius': 0.3},
-        'roi 8': {'distance from center': 3.3, 'angle': 180, 'roi radius': 0.3},
-        'roi 9': {'distance from center': 3.48, 'angle': 180 + 17, 'roi radius': 0.3},
+        "roi 1": {"distance from center": 3.87, "angle": 31, "roi radius": 0.3},
+        "roi 2": {"distance from center": 3.48, "angle": 17, "roi radius": 0.3},
+        "roi 3": {"distance from center": 3.3, "angle": 0, "roi radius": 0.3},
+        "roi 4": {"distance from center": 3.48, "angle": -17, "roi radius": 0.3},
+        "roi 5": {"distance from center": 3.87, "angle": -31, "roi radius": 0.3},
+        "roi 6": {"distance from center": 3.87, "angle": 180 - 31, "roi radius": 0.3},
+        "roi 7": {"distance from center": 3.48, "angle": 180 - 17, "roi radius": 0.3},
+        "roi 8": {"distance from center": 3.3, "angle": 180, "roi radius": 0.3},
+        "roi 9": {"distance from center": 3.48, "angle": 180 + 17, "roi radius": 0.3},
     }
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 3.85, 'angle': -148, 'roi radius': 0.3},
+        "roi 1": {"distance from center": 3.85, "angle": -148, "roi radius": 0.3},
     }
 
     @staticmethod
@@ -1043,27 +1306,52 @@ class PTWEPIDQC(ImagePhantomBase):
 
 
 class StandardImagingQC3(ImagePhantomBase):
-    _demo_filename = 'qc3.dcm'
-    common_name = 'SI QC-3'
+    _demo_filename = "qc3.dcm"
+    common_name = "SI QC-3"
     phantom_bbox_size_mm2 = 168**2
     detection_conditions = [is_centered, is_right_size]
-    phantom_outline_object = {'Rectangle': {'width ratio': 7.5, 'height ratio': 6}}
+    phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 6}}
     high_contrast_roi_settings = {
-        'roi 1': {'distance from center': 2.8, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.1},
-        'roi 2': {'distance from center': -2.8, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.2},
-        'roi 3': {'distance from center': 1.45, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.25},
-        'roi 4': {'distance from center': -1.45, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.45},
-        'roi 5': {'distance from center': 0, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.76},
+        "roi 1": {
+            "distance from center": 2.8,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 0.1,
+        },
+        "roi 2": {
+            "distance from center": -2.8,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 0.2,
+        },
+        "roi 3": {
+            "distance from center": 1.45,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 0.25,
+        },
+        "roi 4": {
+            "distance from center": -1.45,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 0.45,
+        },
+        "roi 5": {
+            "distance from center": 0,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 0.76,
+        },
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 2, 'angle': -90, 'roi radius': 0.5},
-        'roi 2': {'distance from center': 2.4, 'angle': 55, 'roi radius': 0.5},
-        'roi 3': {'distance from center': 2.4, 'angle': -55, 'roi radius': 0.5},
-        'roi 4': {'distance from center': 2.4, 'angle': 128, 'roi radius': 0.5},
-        'roi 5': {'distance from center': 2.4, 'angle': -128, 'roi radius': 0.5},
+        "roi 1": {"distance from center": 2, "angle": -90, "roi radius": 0.5},
+        "roi 2": {"distance from center": 2.4, "angle": 55, "roi radius": 0.5},
+        "roi 3": {"distance from center": 2.4, "angle": -55, "roi radius": 0.5},
+        "roi 4": {"distance from center": 2.4, "angle": 128, "roi radius": 0.5},
+        "roi 5": {"distance from center": 2.4, "angle": -128, "roi radius": 0.5},
     }
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 2, 'angle': 90, 'roi radius': 0.5},
+        "roi 1": {"distance from center": 2, "angle": 90, "roi radius": 0.5},
     }
 
     @classmethod
@@ -1107,31 +1395,58 @@ class StandardImagingQC3(ImagePhantomBase):
         elif np.isclose(angle, -45, atol=5):
             return -45
         else:
-            raise ValueError("The phantom angle was not near +/-45 degrees. Please adjust the phantom.")
+            raise ValueError(
+                "The phantom angle was not near +/-45 degrees. Please adjust the phantom."
+            )
 
 
 class StandardImagingQCkV(StandardImagingQC3):
-    _demo_filename = 'SI-QC-kV.dcm'
-    common_name = 'SI QC-kV'
+    _demo_filename = "SI-QC-kV.dcm"
+    common_name = "SI QC-kV"
     phantom_bbox_size_mm2 = 142**2
     detection_conditions = [is_centered, is_right_size]
-    phantom_outline_object = {'Rectangle': {'width ratio': 7.8, 'height ratio': 6.4}}
+    phantom_outline_object = {"Rectangle": {"width ratio": 7.8, "height ratio": 6.4}}
     high_contrast_roi_settings = {
-        'roi 1': {'distance from center': 2.8, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.66},
-        'roi 2': {'distance from center': -2.8, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 0.98},
-        'roi 3': {'distance from center': 1.45, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 1.50},
-        'roi 4': {'distance from center': -1.45, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 2.00},
-        'roi 5': {'distance from center': 0, 'angle': 0, 'roi radius': 0.5, 'lp/mm': 2.46},
+        "roi 1": {
+            "distance from center": 2.8,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 0.66,
+        },
+        "roi 2": {
+            "distance from center": -2.8,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 0.98,
+        },
+        "roi 3": {
+            "distance from center": 1.45,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 1.50,
+        },
+        "roi 4": {
+            "distance from center": -1.45,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 2.00,
+        },
+        "roi 5": {
+            "distance from center": 0,
+            "angle": 0,
+            "roi radius": 0.5,
+            "lp/mm": 2.46,
+        },
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 2, 'angle': -90, 'roi radius': 0.5},
-        'roi 2': {'distance from center': 2.4, 'angle': 55, 'roi radius': 0.5},
-        'roi 3': {'distance from center': 2.4, 'angle': -55, 'roi radius': 0.5},
-        'roi 4': {'distance from center': 2.4, 'angle': 128, 'roi radius': 0.5},
-        'roi 5': {'distance from center': 2.4, 'angle': -128, 'roi radius': 0.5},
+        "roi 1": {"distance from center": 2, "angle": -90, "roi radius": 0.5},
+        "roi 2": {"distance from center": 2.4, "angle": 55, "roi radius": 0.5},
+        "roi 3": {"distance from center": 2.4, "angle": -55, "roi radius": 0.5},
+        "roi 4": {"distance from center": 2.4, "angle": 128, "roi radius": 0.5},
+        "roi 5": {"distance from center": 2.4, "angle": -128, "roi radius": 0.5},
     }
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 2, 'angle': 90, 'roi radius': 0.5},
+        "roi 1": {"distance from center": 2, "angle": 90, "roi radius": 0.5},
     }
 
     @staticmethod
@@ -1153,26 +1468,46 @@ class StandardImagingQCkV(StandardImagingQC3):
 
 
 class SNCkV(ImagePhantomBase):
-    _demo_filename = 'SNC-kV.dcm'
-    common_name = 'SNC kV-QA'
-    phantom_bbox_size_mm2 = 134 ** 2
+    _demo_filename = "SNC-kV.dcm"
+    common_name = "SNC kV-QA"
+    phantom_bbox_size_mm2 = 134**2
     detection_conditions = [is_centered, is_right_size]
-    phantom_outline_object = {'Rectangle': {'width ratio': 7.7, 'height ratio': 5.6}}
+    phantom_outline_object = {"Rectangle": {"width ratio": 7.7, "height ratio": 5.6}}
     high_contrast_roi_settings = {
-        'roi 1': {'distance from center': 1.8, 'angle': 0, 'roi radius': 0.7, 'lp/mm': 0.6},
-        'roi 2': {'distance from center': -1.8, 'angle': 90, 'roi radius': 0.7, 'lp/mm': 1.2},
-        'roi 3': {'distance from center': -1.8, 'angle': 0, 'roi radius': 0.7, 'lp/mm': 1.8},
-        'roi 4': {'distance from center': 1.8, 'angle': 90, 'roi radius': 0.7, 'lp/mm': 2.4},
+        "roi 1": {
+            "distance from center": 1.8,
+            "angle": 0,
+            "roi radius": 0.7,
+            "lp/mm": 0.6,
+        },
+        "roi 2": {
+            "distance from center": -1.8,
+            "angle": 90,
+            "roi radius": 0.7,
+            "lp/mm": 1.2,
+        },
+        "roi 3": {
+            "distance from center": -1.8,
+            "angle": 0,
+            "roi radius": 0.7,
+            "lp/mm": 1.8,
+        },
+        "roi 4": {
+            "distance from center": 1.8,
+            "angle": 90,
+            "roi radius": 0.7,
+            "lp/mm": 2.4,
+        },
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 2.6, 'angle': -45, 'roi radius': 0.6},
-        'roi 2': {'distance from center': 2.6, 'angle': -135, 'roi radius': 0.6},
-        'roi 3': {'distance from center': 2.6, 'angle': 45, 'roi radius': 0.6},
-        'roi 4': {'distance from center': 2.6, 'angle': 135, 'roi radius': 0.6},
+        "roi 1": {"distance from center": 2.6, "angle": -45, "roi radius": 0.6},
+        "roi 2": {"distance from center": 2.6, "angle": -135, "roi radius": 0.6},
+        "roi 3": {"distance from center": 2.6, "angle": 45, "roi radius": 0.6},
+        "roi 4": {"distance from center": 2.6, "angle": 135, "roi radius": 0.6},
     }
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.5, 'angle': 90, 'roi radius': 0.25},
-        'roi 2': {'distance from center': 0.5, 'angle': -90, 'roi radius': 0.25},
+        "roi 1": {"distance from center": 0.5, "angle": 90, "roi radius": 0.25},
+        "roi 2": {"distance from center": 0.5, "angle": -90, "roi radius": 0.25},
     }
 
     @staticmethod
@@ -1205,26 +1540,46 @@ class SNCkV(ImagePhantomBase):
 
 
 class SNCMV(SNCkV):
-    _demo_filename = 'SNC-MV.dcm'
-    common_name = 'SNC MV-QA'
-    phantom_bbox_size_mm2 = 118 ** 2
+    _demo_filename = "SNC-MV.dcm"
+    common_name = "SNC MV-QA"
+    phantom_bbox_size_mm2 = 118**2
     detection_conditions = [is_centered, is_right_size]
-    phantom_outline_object = {'Rectangle': {'width ratio': 7.5, 'height ratio': 7.5}}
+    phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 7.5}}
     high_contrast_roi_settings = {
-        'roi 1': {'distance from center': -2.3, 'angle': 0, 'roi radius': 0.8, 'lp/mm': 0.1},
-        'roi 2': {'distance from center': 2.3, 'angle': 90, 'roi radius': 0.8, 'lp/mm': 0.2},
-        'roi 3': {'distance from center': 2.3, 'angle': 0, 'roi radius': 0.8, 'lp/mm': 0.5},
-        'roi 4': {'distance from center': -2.3, 'angle': 90, 'roi radius': 0.8, 'lp/mm': 1.0},
+        "roi 1": {
+            "distance from center": -2.3,
+            "angle": 0,
+            "roi radius": 0.8,
+            "lp/mm": 0.1,
+        },
+        "roi 2": {
+            "distance from center": 2.3,
+            "angle": 90,
+            "roi radius": 0.8,
+            "lp/mm": 0.2,
+        },
+        "roi 3": {
+            "distance from center": 2.3,
+            "angle": 0,
+            "roi radius": 0.8,
+            "lp/mm": 0.5,
+        },
+        "roi 4": {
+            "distance from center": -2.3,
+            "angle": 90,
+            "roi radius": 0.8,
+            "lp/mm": 1.0,
+        },
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 3.4, 'angle': -45, 'roi radius': 0.7},
-        'roi 2': {'distance from center': 3.4, 'angle': 45, 'roi radius': 0.7},
-        'roi 3': {'distance from center': 3.4, 'angle': 135, 'roi radius': 0.7},
-        'roi 4': {'distance from center': 3.4, 'angle': -135, 'roi radius': 0.7},
+        "roi 1": {"distance from center": 3.4, "angle": -45, "roi radius": 0.7},
+        "roi 2": {"distance from center": 3.4, "angle": 45, "roi radius": 0.7},
+        "roi 3": {"distance from center": 3.4, "angle": 135, "roi radius": 0.7},
+        "roi 4": {"distance from center": 3.4, "angle": -135, "roi radius": 0.7},
     }
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.7, 'angle': 0, 'roi radius': 0.2},
-        'roi 2': {'distance from center': -0.7, 'angle': 0, 'roi radius': 0.2},
+        "roi 1": {"distance from center": 0.7, "angle": 0, "roi radius": 0.2},
+        "roi 2": {"distance from center": -0.7, "angle": 0, "roi radius": 0.2},
     }
 
     @staticmethod
@@ -1247,52 +1602,112 @@ class SNCMV(SNCkV):
 
 
 class LeedsTOR(ImagePhantomBase):
-    _demo_filename = 'leeds.dcm'
-    common_name = 'Leeds'
+    _demo_filename = "leeds.dcm"
+    common_name = "Leeds"
     phantom_bbox_size_mm2 = 148**2
     _is_ccw = False
-    phantom_outline_object = {'Circle': {'radius ratio': 0.97}}
+    phantom_outline_object = {"Circle": {"radius ratio": 0.97}}
     high_contrast_roi_settings = {
-        'roi 1': {'distance from center': 0.3, 'angle': 54.8, 'roi radius': 0.04, 'lp/mm': 0.5},
-        'roi 2': {'distance from center': 0.187, 'angle': 25.1, 'roi radius': 0.04, 'lp/mm': 0.56},
-        'roi 3': {'distance from center': 0.187, 'angle': -27.5, 'roi radius': 0.04, 'lp/mm': 0.63},
-        'roi 4': {'distance from center': 0.252, 'angle': 79.7, 'roi radius': 0.03, 'lp/mm': 0.71},
-        'roi 5': {'distance from center': 0.092, 'angle': 63.4, 'roi radius': 0.03, 'lp/mm': 0.8},
-        'roi 6': {'distance from center': 0.094, 'angle': -65, 'roi radius': 0.02, 'lp/mm': 0.9},
-        'roi 7': {'distance from center': 0.252, 'angle': -263, 'roi radius': 0.02, 'lp/mm': 1.0},
-        'roi 8': {'distance from center': 0.094, 'angle': -246, 'roi radius': 0.018, 'lp/mm': 1.12},
-        'roi 9': {'distance from center': 0.0958, 'angle': -117, 'roi radius': 0.018, 'lp/mm': 1.25},
-        'roi 10': {'distance from center': 0.27, 'angle': 112.5, 'roi radius': 0.015, 'lp/mm': 1.4},
-        'roi 11': {'distance from center': 0.13, 'angle': 145, 'roi radius': 0.015, 'lp/mm': 1.6},
-        'roi 12': {'distance from center': 0.135, 'angle': -142, 'roi radius': 0.011, 'lp/mm': 1.8},
+        "roi 1": {
+            "distance from center": 0.3,
+            "angle": 54.8,
+            "roi radius": 0.04,
+            "lp/mm": 0.5,
+        },
+        "roi 2": {
+            "distance from center": 0.187,
+            "angle": 25.1,
+            "roi radius": 0.04,
+            "lp/mm": 0.56,
+        },
+        "roi 3": {
+            "distance from center": 0.187,
+            "angle": -27.5,
+            "roi radius": 0.04,
+            "lp/mm": 0.63,
+        },
+        "roi 4": {
+            "distance from center": 0.252,
+            "angle": 79.7,
+            "roi radius": 0.03,
+            "lp/mm": 0.71,
+        },
+        "roi 5": {
+            "distance from center": 0.092,
+            "angle": 63.4,
+            "roi radius": 0.03,
+            "lp/mm": 0.8,
+        },
+        "roi 6": {
+            "distance from center": 0.094,
+            "angle": -65,
+            "roi radius": 0.02,
+            "lp/mm": 0.9,
+        },
+        "roi 7": {
+            "distance from center": 0.252,
+            "angle": -263,
+            "roi radius": 0.02,
+            "lp/mm": 1.0,
+        },
+        "roi 8": {
+            "distance from center": 0.094,
+            "angle": -246,
+            "roi radius": 0.018,
+            "lp/mm": 1.12,
+        },
+        "roi 9": {
+            "distance from center": 0.0958,
+            "angle": -117,
+            "roi radius": 0.018,
+            "lp/mm": 1.25,
+        },
+        "roi 10": {
+            "distance from center": 0.27,
+            "angle": 112.5,
+            "roi radius": 0.015,
+            "lp/mm": 1.4,
+        },
+        "roi 11": {
+            "distance from center": 0.13,
+            "angle": 145,
+            "roi radius": 0.015,
+            "lp/mm": 1.6,
+        },
+        "roi 12": {
+            "distance from center": 0.135,
+            "angle": -142,
+            "roi radius": 0.011,
+            "lp/mm": 1.8,
+        },
     }
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.65, 'angle': 30, 'roi radius': 0.025},
-        'roi 2': {'distance from center': 0.65, 'angle': 120, 'roi radius': 0.025},
-        'roi 3': {'distance from center': 0.65, 'angle': 210, 'roi radius': 0.025},
-        'roi 4': {'distance from center': 0.65, 'angle': 300, 'roi radius': 0.025},
+        "roi 1": {"distance from center": 0.65, "angle": 30, "roi radius": 0.025},
+        "roi 2": {"distance from center": 0.65, "angle": 120, "roi radius": 0.025},
+        "roi 3": {"distance from center": 0.65, "angle": 210, "roi radius": 0.025},
+        "roi 4": {"distance from center": 0.65, "angle": 300, "roi radius": 0.025},
     }
     low_contrast_roi_settings = {
         # set 1
-        'roi 1': {'distance from center': 0.785, 'angle': 30, 'roi radius': 0.025},
-        'roi 2': {'distance from center': 0.785, 'angle': 45, 'roi radius': 0.025},
-        'roi 3': {'distance from center': 0.785, 'angle': 60, 'roi radius': 0.025},
-        'roi 4': {'distance from center': 0.785, 'angle': 75, 'roi radius': 0.025},
-        'roi 5': {'distance from center': 0.785, 'angle': 90, 'roi radius': 0.025},
-        'roi 6': {'distance from center': 0.785, 'angle': 105, 'roi radius': 0.025},
-        'roi 7': {'distance from center': 0.785, 'angle': 120, 'roi radius': 0.025},
-        'roi 8': {'distance from center': 0.785, 'angle': 135, 'roi radius': 0.025},
-        'roi 9': {'distance from center': 0.785, 'angle': 150, 'roi radius': 0.025},
+        "roi 1": {"distance from center": 0.785, "angle": 30, "roi radius": 0.025},
+        "roi 2": {"distance from center": 0.785, "angle": 45, "roi radius": 0.025},
+        "roi 3": {"distance from center": 0.785, "angle": 60, "roi radius": 0.025},
+        "roi 4": {"distance from center": 0.785, "angle": 75, "roi radius": 0.025},
+        "roi 5": {"distance from center": 0.785, "angle": 90, "roi radius": 0.025},
+        "roi 6": {"distance from center": 0.785, "angle": 105, "roi radius": 0.025},
+        "roi 7": {"distance from center": 0.785, "angle": 120, "roi radius": 0.025},
+        "roi 8": {"distance from center": 0.785, "angle": 135, "roi radius": 0.025},
+        "roi 9": {"distance from center": 0.785, "angle": 150, "roi radius": 0.025},
         # set 2
-        'roi 10': {'distance from center': 0.785, 'angle': 210, 'roi radius': 0.025},
-        'roi 11': {'distance from center': 0.785, 'angle': 225, 'roi radius': 0.025},
-        'roi 12': {'distance from center': 0.785, 'angle': 240, 'roi radius': 0.025},
-        'roi 13': {'distance from center': 0.785, 'angle': 255, 'roi radius': 0.025},
-        'roi 14': {'distance from center': 0.785, 'angle': 270, 'roi radius': 0.025},
-        'roi 15': {'distance from center': 0.785, 'angle': 285, 'roi radius': 0.025},
-        'roi 16': {'distance from center': 0.785, 'angle': 300, 'roi radius': 0.025},
-        'roi 17': {'distance from center': 0.785, 'angle': 315, 'roi radius': 0.025},
-        'roi 18': {'distance from center': 0.785, 'angle': 330, 'roi radius': 0.025},
+        "roi 10": {"distance from center": 0.785, "angle": 210, "roi radius": 0.025},
+        "roi 11": {"distance from center": 0.785, "angle": 225, "roi radius": 0.025},
+        "roi 12": {"distance from center": 0.785, "angle": 240, "roi radius": 0.025},
+        "roi 13": {"distance from center": 0.785, "angle": 255, "roi radius": 0.025},
+        "roi 14": {"distance from center": 0.785, "angle": 270, "roi radius": 0.025},
+        "roi 15": {"distance from center": 0.785, "angle": 285, "roi radius": 0.025},
+        "roi 16": {"distance from center": 0.785, "angle": 300, "roi radius": 0.025},
+        "roi 17": {"distance from center": 0.785, "angle": 315, "roi radius": 0.025},
+        "roi 18": {"distance from center": 0.785, "angle": 330, "roi radius": 0.025},
     }
 
     @staticmethod
@@ -1321,7 +1736,7 @@ class LeedsTOR(ImagePhantomBase):
 
         shift_percent = peak_idx[0] / len(circle.values)
         shift_radians = shift_percent * 2 * np.pi
-        shift_radians_corrected = 2*np.pi - shift_radians
+        shift_radians_corrected = 2 * np.pi - shift_radians
 
         angle = np.degrees(shift_radians_corrected) + start_angle_deg
         return angle
@@ -1363,7 +1778,7 @@ class LeedsTOR(ImagePhantomBase):
         circle = self._circle_profile_for_phantom_angle(0)
         peak_idxs, _ = circle.find_fwxm_peaks(threshold=0.6, max_number=4)
         on_left_half = [x < len(circle.values) / 2 for x in peak_idxs]
-        aligned_to_zero_deg = not(all(on_left_half) or not any(on_left_half))
+        aligned_to_zero_deg = not (all(on_left_half) or not any(on_left_half))
         return 90 if aligned_to_zero_deg else 0
 
     def _preprocess(self) -> None:
@@ -1374,14 +1789,22 @@ class LeedsTOR(ImagePhantomBase):
         circle = self._circle_profile_for_phantom_angle(0)
         peak_idx, _ = circle.find_fwxm_peaks(threshold=0.6, max_number=1)
         circle.values = np.roll(circle.values, -peak_idx[0])
-        _, first_set = circle.find_peaks(search_region=(0.05, 0.45), threshold=0, min_distance=0.025, max_number=9)
-        _, second_set = circle.find_peaks(search_region=(0.55, 0.95), threshold=0, min_distance=0.025, max_number=9)
+        _, first_set = circle.find_peaks(
+            search_region=(0.05, 0.45), threshold=0, min_distance=0.025, max_number=9
+        )
+        _, second_set = circle.find_peaks(
+            search_region=(0.55, 0.95), threshold=0, min_distance=0.025, max_number=9
+        )
         self._is_ccw = max(first_set) > max(second_set)
         if not self._is_ccw:
             self.image.fliplr()
-            del self.phantom_ski_region  # clear the property to calculate it again since we flipped it
+            del (
+                self.phantom_ski_region
+            )  # clear the property to calculate it again since we flipped it
 
-    def _circle_profile_for_phantom_angle(self, start_angle_deg: float, is_ccw: bool = False) -> CollapsedCircleProfile:
+    def _circle_profile_for_phantom_angle(
+        self, start_angle_deg: float, is_ccw: bool = False
+    ) -> CollapsedCircleProfile:
         """Create a circular profile centered at phantom origin
 
         Parameters
@@ -1410,27 +1833,47 @@ class LeedsTOR(ImagePhantomBase):
 
 class DoselabMC2kV(ImagePhantomBase):
     common_name = "Doselab MC2 kV"
-    _demo_filename = 'Doselab_kV.dcm'
+    _demo_filename = "Doselab_kV.dcm"
     phantom_bbox_size_mm2 = 26300
     detection_conditions = [is_right_size]
-    phantom_outline_object = {'Rectangle': {'width ratio': 0.55, 'height ratio': 0.63}}
+    phantom_outline_object = {"Rectangle": {"width ratio": 0.55, "height ratio": 0.63}}
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.27, 'angle': 48.5, 'roi radius': 0.025},
+        "roi 1": {"distance from center": 0.27, "angle": 48.5, "roi radius": 0.025},
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 0.27, 'angle': -48.5, 'roi radius': 0.025},
-        'roi 2': {'distance from center': 0.225, 'angle': -65, 'roi radius': 0.025},
-        'roi 3': {'distance from center': 0.205, 'angle': -88.5, 'roi radius': 0.025},
-        'roi 4': {'distance from center': 0.22, 'angle': -110, 'roi radius': 0.025},
-        'roi 5': {'distance from center': 0.22, 'angle': 110, 'roi radius': 0.025},
-        'roi 6': {'distance from center': 0.205, 'angle': 88.5, 'roi radius': 0.025},
-        'roi 7': {'distance from center': 0.225, 'angle': 65, 'roi radius': 0.025},
+        "roi 1": {"distance from center": 0.27, "angle": -48.5, "roi radius": 0.025},
+        "roi 2": {"distance from center": 0.225, "angle": -65, "roi radius": 0.025},
+        "roi 3": {"distance from center": 0.205, "angle": -88.5, "roi radius": 0.025},
+        "roi 4": {"distance from center": 0.22, "angle": -110, "roi radius": 0.025},
+        "roi 5": {"distance from center": 0.22, "angle": 110, "roi radius": 0.025},
+        "roi 6": {"distance from center": 0.205, "angle": 88.5, "roi radius": 0.025},
+        "roi 7": {"distance from center": 0.225, "angle": 65, "roi radius": 0.025},
     }
     high_contrast_roi_settings = {
-        'roi 1': {'distance from center': 0.17, 'angle': -20, 'roi radius': 0.013, 'lp/mm': 0.6},
-        'roi 2': {'distance from center': 0.16, 'angle': -2, 'roi radius': 0.007, 'lp/mm': 1.2},
-        'roi 3': {'distance from center': 0.164, 'angle': 12.8, 'roi radius': 0.005, 'lp/mm': 1.8},
-        'roi 4': {'distance from center': 0.175, 'angle': 24.7, 'roi radius': 0.0035, 'lp/mm': 2.4},
+        "roi 1": {
+            "distance from center": 0.17,
+            "angle": -20,
+            "roi radius": 0.013,
+            "lp/mm": 0.6,
+        },
+        "roi 2": {
+            "distance from center": 0.16,
+            "angle": -2,
+            "roi radius": 0.007,
+            "lp/mm": 1.2,
+        },
+        "roi 3": {
+            "distance from center": 0.164,
+            "angle": 12.8,
+            "roi radius": 0.005,
+            "lp/mm": 1.8,
+        },
+        "roi 4": {
+            "distance from center": 0.175,
+            "angle": 24.7,
+            "roi radius": 0.0035,
+            "lp/mm": 2.4,
+        },
     }
 
     @staticmethod
@@ -1447,30 +1890,52 @@ class DoselabMC2kV(ImagePhantomBase):
         roi = self.phantom_ski_region
         angle = np.degrees(roi.orientation) + 90
         if not np.isclose(angle, 45, atol=5):
-            raise ValueError("Angles not close enough to the ideal 45 degrees. Check phantom setup or override angle.")
+            raise ValueError(
+                "Angles not close enough to the ideal 45 degrees. Check phantom setup or override angle."
+            )
         return angle
 
 
 class DoselabMC2MV(DoselabMC2kV):
-    common_name = 'Doselab MC2 MV'
-    _demo_filename = 'Doselab_MV.dcm'
+    common_name = "Doselab MC2 MV"
+    _demo_filename = "Doselab_MV.dcm"
     low_contrast_background_roi_settings = {
-        'roi 1': {'distance from center': 0.27, 'angle': 48.5, 'roi radius': 0.025},
+        "roi 1": {"distance from center": 0.27, "angle": 48.5, "roi radius": 0.025},
     }
     low_contrast_roi_settings = {
-        'roi 1': {'distance from center': 0.27, 'angle': -48.5, 'roi radius': 0.025},
-        'roi 2': {'distance from center': 0.225, 'angle': -65, 'roi radius': 0.025},
-        'roi 3': {'distance from center': 0.205, 'angle': -88.5, 'roi radius': 0.025},
-        'roi 4': {'distance from center': 0.22, 'angle': -110, 'roi radius': 0.025},
-        'roi 5': {'distance from center': 0.22, 'angle': 110, 'roi radius': 0.025},
-        'roi 6': {'distance from center': 0.205, 'angle': 88.5, 'roi radius': 0.025},
-        'roi 7': {'distance from center': 0.225, 'angle': 65, 'roi radius': 0.025},
+        "roi 1": {"distance from center": 0.27, "angle": -48.5, "roi radius": 0.025},
+        "roi 2": {"distance from center": 0.225, "angle": -65, "roi radius": 0.025},
+        "roi 3": {"distance from center": 0.205, "angle": -88.5, "roi radius": 0.025},
+        "roi 4": {"distance from center": 0.22, "angle": -110, "roi radius": 0.025},
+        "roi 5": {"distance from center": 0.22, "angle": 110, "roi radius": 0.025},
+        "roi 6": {"distance from center": 0.205, "angle": 88.5, "roi radius": 0.025},
+        "roi 7": {"distance from center": 0.225, "angle": 65, "roi radius": 0.025},
     }
     high_contrast_roi_settings = {
-        'roi 1': {'distance from center': 0.23, 'angle': -135.3, 'roi radius': 0.012, 'lp/mm': 0.1},
-        'roi 2': {'distance from center': 0.173, 'angle': 161, 'roi radius': 0.012, 'lp/mm': 0.2},
-        'roi 3': {'distance from center': 0.237, 'angle': 133, 'roi radius': 0.012, 'lp/mm': 0.4},
-        'roi 4': {'distance from center': 0.298, 'angle': 122.9, 'roi radius': 0.01, 'lp/mm': 0.8},
+        "roi 1": {
+            "distance from center": 0.23,
+            "angle": -135.3,
+            "roi radius": 0.012,
+            "lp/mm": 0.1,
+        },
+        "roi 2": {
+            "distance from center": 0.173,
+            "angle": 161,
+            "roi radius": 0.012,
+            "lp/mm": 0.2,
+        },
+        "roi 3": {
+            "distance from center": 0.237,
+            "angle": 133,
+            "roi radius": 0.012,
+            "lp/mm": 0.4,
+        },
+        "roi 4": {
+            "distance from center": 0.298,
+            "angle": 122.9,
+            "roi radius": 0.01,
+            "lp/mm": 0.8,
+        },
     }
 
     @staticmethod
@@ -1483,6 +1948,12 @@ class DoselabMC2MV(DoselabMC2kV):
 
 def take_centermost_roi(rprops: List[RegionProperties], image_shape: Tuple[int, int]):
     """Return the ROI that is closest to the center."""
-    larger_rois = [rprop for rprop in rprops if rprop.area > 20 and rprop.eccentricity < 0.9]  # drop stray pixel ROIs and line-like ROIs
-    center_roi = sorted(larger_rois, key=lambda p: abs(p.centroid[0] - image_shape[0]/2) + abs(p.centroid[1] - image_shape[1]/2))[0]
+    larger_rois = [
+        rprop for rprop in rprops if rprop.area > 20 and rprop.eccentricity < 0.9
+    ]  # drop stray pixel ROIs and line-like ROIs
+    center_roi = sorted(
+        larger_rois,
+        key=lambda p: abs(p.centroid[0] - image_shape[0] / 2)
+        + abs(p.centroid[1] - image_shape[1] / 2),
+    )[0]
     return center_roi

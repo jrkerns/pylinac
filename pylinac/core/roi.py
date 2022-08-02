@@ -34,15 +34,23 @@ def bbox_center(region: _RegionProperties) -> Point:
 
 class Contrast(enum.Enum):
     """Contrast calculation technique. See :ref:`visibility`"""
+
     MICHELSON = "Michelson"  #:
-    WEBER = 'Weber'  #:
-    RATIO = 'Ratio'  #:
+    WEBER = "Weber"  #:
+    RATIO = "Ratio"  #:
 
 
 class DiskROI(Circle):
     """An class representing a disk-shaped Region of Interest."""
-    def __init__(self, array: np.ndarray, angle: Union[float, int], roi_radius: Union[float, int],
-                 dist_from_center: Union[float, int], phantom_center: Union[Tuple, Point]):
+
+    def __init__(
+        self,
+        array: np.ndarray,
+        angle: Union[float, int],
+        roi_radius: Union[float, int],
+        dist_from_center: Union[float, int],
+        phantom_center: Union[Tuple, Point],
+    ):
         """
         Parameters
         ----------
@@ -62,7 +70,11 @@ class DiskROI(Circle):
         self._array = array
 
     @staticmethod
-    def _get_shifted_center(angle: Union[float, int], dist_from_center: Union[float, int], phantom_center: Point) -> Point:
+    def _get_shifted_center(
+        angle: Union[float, int],
+        dist_from_center: Union[float, int],
+        phantom_center: Point,
+    ) -> Point:
         """The center of the ROI; corrects for phantom dislocation and roll."""
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
@@ -92,11 +104,15 @@ class DiskROI(Circle):
         masked_array = np.copy(self._array).astype(float)
         l_x, l_y = self._array.shape[0], self._array.shape[1]
         X, Y = np.ogrid[:l_x, :l_y]
-        outer_disk_mask = (X - self.center.y) ** 2 + (Y - self.center.x) ** 2 > self.radius ** 2
+        outer_disk_mask = (X - self.center.y) ** 2 + (
+            Y - self.center.x
+        ) ** 2 > self.radius**2
         masked_array[outer_disk_mask] = np.NaN
         return masked_array
 
-    def plot2axes(self, axes=None, edgecolor: str='black', fill: bool=False) -> None:
+    def plot2axes(
+        self, axes=None, edgecolor: str = "black", fill: bool = False
+    ) -> None:
         """Plot the Circle on the axes.
 
         Parameters
@@ -111,20 +127,36 @@ class DiskROI(Circle):
         if axes is None:
             fig, axes = plt.subplots()
             axes.imshow(self._array)
-        axes.add_patch(mpl_Circle((self.center.x, self.center.y), edgecolor=edgecolor, radius=self.radius, fill=fill))
+        axes.add_patch(
+            mpl_Circle(
+                (self.center.x, self.center.y),
+                edgecolor=edgecolor,
+                radius=self.radius,
+                fill=fill,
+            )
+        )
 
 
 class LowContrastDiskROI(DiskROI):
     """A class for analyzing the low-contrast disks."""
+
     contrast_threshold: Optional[float]
     cnr_threshold: Optional[float]
     contrast_reference: Optional[float]
 
-    def __init__(self, array: Union[np.ndarray, ArrayImage], angle: float, roi_radius: float, dist_from_center: float,
-                 phantom_center: Union[tuple, Point], contrast_threshold: Optional[float] = None,
-                 contrast_reference: Optional[float] = None,
-                 cnr_threshold: Optional[float] = None,
-                 contrast_method: Contrast = Contrast.MICHELSON, visibility_threshold: Optional[float] = 0.1):
+    def __init__(
+        self,
+        array: Union[np.ndarray, ArrayImage],
+        angle: float,
+        roi_radius: float,
+        dist_from_center: float,
+        phantom_center: Union[tuple, Point],
+        contrast_threshold: Optional[float] = None,
+        contrast_reference: Optional[float] = None,
+        cnr_threshold: Optional[float] = None,
+        contrast_method: Contrast = Contrast.MICHELSON,
+        visibility_threshold: Optional[float] = 0.1,
+    ):
         """
         Parameters
         ----------
@@ -152,16 +184,24 @@ class LowContrastDiskROI(DiskROI):
     def contrast(self) -> float:
         """The contrast of the bubble. Uses the contrast method passed in the constructor. See https://en.wikipedia.org/wiki/Contrast_(vision)."""
         if self.contrast_method == Contrast.MICHELSON:
-            return abs((self.pixel_value - self.contrast_reference) / (self.pixel_value + self.contrast_reference))
+            return abs(
+                (self.pixel_value - self.contrast_reference)
+                / (self.pixel_value + self.contrast_reference)
+            )
         elif self.contrast_method == Contrast.WEBER:
-            return abs(self.pixel_value - self.contrast_reference) / self.contrast_reference
+            return (
+                abs(self.pixel_value - self.contrast_reference)
+                / self.contrast_reference
+            )
         elif self.contrast_method == Contrast.RATIO:
-            return self.pixel_value/self.contrast_reference
+            return self.pixel_value / self.contrast_reference
 
     @property
     def cnr_constant(self) -> float:
         """The contrast-to-noise value times the bubble diameter."""
-        DeprecationWarning("The 'cnr_constant' property will be deprecated in a future release. Use .visibility instead.")
+        DeprecationWarning(
+            "The 'cnr_constant' property will be deprecated in a future release. Use .visibility instead."
+        )
         return self.contrast_to_noise * self.diameter
 
     @property
@@ -175,7 +215,9 @@ class LowContrastDiskROI(DiskROI):
     @property
     def contrast_constant(self) -> float:
         """The contrast value times the bubble diameter."""
-        DeprecationWarning("The 'contrast_constant' property will be deprecated in a future release. Use .visibility instead.")
+        DeprecationWarning(
+            "The 'contrast_constant' property will be deprecated in a future release. Use .visibility instead."
+        )
         return self.contrast * self.diameter
 
     @property
@@ -201,24 +243,33 @@ class LowContrastDiskROI(DiskROI):
     @property
     def plot_color(self) -> str:
         """Return one of two colors depending on if ROI passed."""
-        return 'green' if self.passed_visibility else 'red'
+        return "green" if self.passed_visibility else "red"
 
     @property
     def plot_color_constant(self) -> str:
         """Return one of two colors depending on if ROI passed."""
-        return 'green' if self.passed_contrast_constant else 'red'
+        return "green" if self.passed_contrast_constant else "red"
 
     @property
     def plot_color_cnr(self) -> str:
         """Return one of two colors depending on if ROI passed."""
-        return 'green' if self.passed_cnr_constant else 'red'
+        return "green" if self.passed_cnr_constant else "red"
 
 
 class HighContrastDiskROI(DiskROI):
     """A class for analyzing the high-contrast disks."""
+
     contrast_threshold: Optional[float]
 
-    def __init__(self, array: np.ndarray, angle: float, roi_radius: float, dist_from_center: float, phantom_center: Union[tuple, Point], contrast_threshold: float):
+    def __init__(
+        self,
+        array: np.ndarray,
+        angle: float,
+        roi_radius: float,
+        dist_from_center: float,
+        phantom_center: Union[tuple, Point],
+        contrast_threshold: float,
+    ):
         """
         Parameters
         ----------
@@ -269,7 +320,9 @@ class RectangleROI(Rectangle):
     @cached_property
     def pixel_array(self) -> np.ndarray:
         """The pixel array within the ROI."""
-        return self._array[self.bl_corner.y:self.tr_corner.y, self.bl_corner.x:self.tr_corner.x]
+        return self._array[
+            self.bl_corner.y : self.tr_corner.y, self.bl_corner.x : self.tr_corner.x
+        ]
 
     @cached_property
     def pixel_value(self) -> float:

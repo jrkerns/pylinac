@@ -32,14 +32,16 @@ from .settings import get_dicom_cmap
 
 class ImageType(enum.Enum):
     """The image type options"""
-    DMLC = 'dmlc'  #:
-    OPEN = 'open'  #:
-    PROFILE = 'profile'  #:
+
+    DMLC = "dmlc"  #:
+    OPEN = "open"  #:
+    PROFILE = "profile"  #:
 
 
 @dataclass
 class SegmentResult:
     """An individual segment/ROI result"""
+
     passed: bool  #:
     x_position_mm: float  #:
     r_corr: float  #:
@@ -53,6 +55,7 @@ class VMATResult(ResultBase):
     It is a dataclass under the hood and thus comes with all the dunder magic.
 
     Use the following attributes as normal class attributes."""
+
     test_type: str  #:
     tolerance_percent: float  #:
     max_deviation_percent: float  #:
@@ -118,7 +121,9 @@ class VMATBase:
         return cls.from_zip(demo_file)
 
     @argue.bounds(tolerance=(0, 8))
-    def analyze(self, tolerance: Union[float, int] = 1.5, segment_size_mm: Tuple = (5, 100)):
+    def analyze(
+        self, tolerance: Union[float, int] = 1.5, segment_size_mm: Tuple = (5, 100)
+    ):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
         Parameters
@@ -129,7 +134,7 @@ class VMATBase:
         segment_size_mm : tuple(int, int)
             The (width, height) of the ROI segments in mm.
         """
-        self._tolerance = tolerance/100
+        self._tolerance = tolerance / 100
 
         """Analysis"""
         points = self._calculate_segment_centers()
@@ -138,7 +143,9 @@ class VMATBase:
         self._construct_segments(points)
 
     @staticmethod
-    def _load_images(image_paths: Sequence[Union[str, BytesIO]]) -> Tuple[ImageLike, ImageLike]:
+    def _load_images(
+        image_paths: Sequence[Union[str, BytesIO]]
+    ) -> Tuple[ImageLike, ImageLike]:
         image1 = image.load(image_paths[0])
         image2 = image.load(image_paths[1])
         image1.ground()
@@ -146,7 +153,9 @@ class VMATBase:
         return image1, image2
 
     @staticmethod
-    def _check_img_inversion(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, ImageLike]:
+    def _check_img_inversion(
+        image1: ImageLike, image2: ImageLike
+    ) -> Tuple[ImageLike, ImageLike]:
         """Check that the images are correctly inverted."""
         for image in [image1, image2]:
             image.check_inversion()
@@ -155,8 +164,8 @@ class VMATBase:
     def _identify_images(self, image1: ImageLike, image2: ImageLike):
         """Identify which image is the DMLC and which is the open field."""
         profile1, profile2 = self._median_profiles((image1, image2))
-        field_profile1 = profile1.field_data()['field values']
-        field_profile2 = profile2.field_data()['field values']
+        field_profile1 = profile1.field_data()["field values"]
+        field_profile2 = profile2.field_data()["field values"]
         if np.std(field_profile1) > np.std(field_profile2):
             self.dmlc_image = image1
             self.open_image = image2
@@ -173,13 +182,13 @@ class VMATBase:
             The results string showing the overall result and deviation statistics by segment.
         """
         if self.passed:
-            passfail_str = 'PASS'
+            passfail_str = "PASS"
         else:
-            passfail_str = 'FAIL'
+            passfail_str = "FAIL"
 
-        string = f'{self._result_header}\nTest Results (Tol. +/-{self._tolerance*100:2.2}%): {passfail_str}\n'
+        string = f"{self._result_header}\nTest Results (Tol. +/-{self._tolerance*100:2.2}%): {passfail_str}\n"
 
-        string += f'Max Deviation: {self.max_r_deviation:2.3}%\nAbsolute Mean Deviation: {self.avg_abs_r_deviation:2.3}%'
+        string += f"Max Deviation: {self.max_r_deviation:2.3}%\nAbsolute Mean Deviation: {self.avg_abs_r_deviation:2.3}%"
         return string
 
     def results_data(self, as_dict=False) -> Union[VMATResult, dict]:
@@ -187,18 +196,22 @@ class VMATBase:
         The default return type is a dataclass."""
         segment_data = []
         for idx, segment in enumerate(self.segments):
-            segment_data.append(SegmentResult(passed=segment.passed,
-                                              r_corr=segment.r_corr,
-                                              r_dev=segment.r_dev,
-                                              center_x_y=segment.center.as_array(),
-                                              x_position_mm=self.SEGMENT_X_POSITIONS_MM[idx]))
+            segment_data.append(
+                SegmentResult(
+                    passed=segment.passed,
+                    r_corr=segment.r_corr,
+                    r_dev=segment.r_dev,
+                    center_x_y=segment.center.as_array(),
+                    x_position_mm=self.SEGMENT_X_POSITIONS_MM[idx],
+                )
+            )
         data = VMATResult(
-                test_type=self._result_header,
-                tolerance_percent=self._tolerance*100,
-                max_deviation_percent=self.max_r_deviation,
-                abs_mean_deviation=self.avg_abs_r_deviation,
-                passed=self.passed,
-                segment_data=segment_data,
+            test_type=self._result_header,
+            tolerance_percent=self._tolerance * 100,
+            max_deviation_percent=self.max_r_deviation,
+            abs_mean_deviation=self.avg_abs_r_deviation,
+            passed=self.passed,
+            segment_data=segment_data,
         )
 
         if as_dict:
@@ -209,7 +222,7 @@ class VMATBase:
         """Construct the center points of the segments based on the field center and known x-offsets."""
         points = []
         dmlc_prof, _ = self._median_profiles((self.dmlc_image, self.open_image))
-        x_field_center = dmlc_prof.beam_center()['index (rounded)']
+        x_field_center = dmlc_prof.beam_center()["index (rounded)"]
         for x_offset_mm in self.SEGMENT_X_POSITIONS_MM:
             y = self.open_image.center.y
             x_offset_pixels = x_offset_mm * self.open_image.dpmm
@@ -267,18 +280,20 @@ class VMATBase:
         """
         fig, axes = plt.subplots(ncols=3, sharex=True, **plt_kwargs)
         subimages = (ImageType.OPEN, ImageType.DMLC, ImageType.PROFILE)
-        titles = ('Open', 'DMLC', 'Median Profiles')
+        titles = ("Open", "DMLC", "Median Profiles")
         for subimage, axis, title in zip(subimages, axes, titles):
             self._plot_analyzed_subimage(subimage=subimage, ax=axis, show=False)
             axis.set_title(title)
-        axis.set_ylabel('Normalized Response')
-        axis.legend(loc='lower center')
+        axis.set_ylabel("Normalized Response")
+        axis.legend(loc="lower center")
 
         if show:
             plt.tight_layout(h_pad=1.5)
             plt.show()
 
-    def _save_analyzed_subimage(self, filename: Union[str, BytesIO], subimage: ImageType, **kwargs):
+    def _save_analyzed_subimage(
+        self, filename: Union[str, BytesIO], subimage: ImageType, **kwargs
+    ):
         """Save the analyzed images as a png file.
 
         Parameters
@@ -291,7 +306,9 @@ class VMATBase:
         self._plot_analyzed_subimage(subimage=subimage, show=False)
         plt.savefig(filename, **kwargs)
 
-    def _plot_analyzed_subimage(self, subimage: ImageType, show: bool=True, ax: Optional[plt.Axes]=None):
+    def _plot_analyzed_subimage(
+        self, subimage: ImageType, show: bool = True, ax: Optional[plt.Axes] = None
+    ):
         """Plot an individual piece of the VMAT analysis.
 
         Parameters
@@ -316,16 +333,18 @@ class VMATBase:
             ax.imshow(img, cmap=get_dicom_cmap())
             self._draw_segments(ax)
             plt.sca(ax)
-            plt.axis('off')
+            plt.axis("off")
             plt.tight_layout()
 
         # plot profile
         elif subimage == ImageType.PROFILE:
-            dmlc_prof, open_prof = self._median_profiles((self.dmlc_image, self.open_image))
-            ax.plot(dmlc_prof.values, label='DMLC')
-            ax.plot(open_prof.values, label='Open')
-            ax.autoscale(axis='x', tight=True)
-            ax.legend(loc=8, fontsize='large')
+            dmlc_prof, open_prof = self._median_profiles(
+                (self.dmlc_image, self.open_image)
+            )
+            ax.plot(dmlc_prof.values, label="DMLC")
+            ax.plot(open_prof.values, label="Open")
+            ax.autoscale(axis="x", tight=True)
+            ax.legend(loc=8, fontsize="large")
             ax.grid()
 
         if show:
@@ -346,9 +365,17 @@ class VMATBase:
     @staticmethod
     def _median_profiles(images) -> Tuple[SingleProfile, SingleProfile]:
         """Return two median profiles from the open and dmlc image. For visual comparison."""
-        profile1 = SingleProfile(np.mean(images[0], axis=0), interpolation=Interpolation.NONE, edge_detection_method=Edge.INFLECTION_DERIVATIVE)
+        profile1 = SingleProfile(
+            np.mean(images[0], axis=0),
+            interpolation=Interpolation.NONE,
+            edge_detection_method=Edge.INFLECTION_DERIVATIVE,
+        )
         profile1.stretch()
-        profile2 = SingleProfile(np.mean(images[1], axis=0), interpolation=Interpolation.NONE, edge_detection_method=Edge.INFLECTION_DERIVATIVE)
+        profile2 = SingleProfile(
+            np.mean(images[1], axis=0),
+            interpolation=Interpolation.NONE,
+            edge_detection_method=Edge.INFLECTION_DERIVATIVE,
+        )
         profile2.stretch()
 
         # normalize the profiles to approximately the same value
@@ -359,7 +386,13 @@ class VMATBase:
 
         return profile1, profile2
 
-    def publish_pdf(self, filename: str, notes: str=None, open_file: bool=False, metadata: Optional[dict]=None):
+    def publish_pdf(
+        self,
+        filename: str,
+        notes: str = None,
+        open_file: bool = False,
+        metadata: Optional[dict] = None,
+    ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
         Parameters
@@ -379,23 +412,33 @@ class VMATBase:
             Unit: TrueBeam
             --------------
         """
-        canvas = PylinacCanvas(filename=filename, page_title=f"{self._result_short_header} VMAT Analysis", metadata=metadata)
-        for y, x, width, img in zip((9, 9, -2), (1, 11, 3), (9, 9, 14), (ImageType.OPEN, ImageType.DMLC, ImageType.PROFILE)):
+        canvas = PylinacCanvas(
+            filename=filename,
+            page_title=f"{self._result_short_header} VMAT Analysis",
+            metadata=metadata,
+        )
+        for y, x, width, img in zip(
+            (9, 9, -2),
+            (1, 11, 3),
+            (9, 9, 14),
+            (ImageType.OPEN, ImageType.DMLC, ImageType.PROFILE),
+        ):
             data = BytesIO()
             self._save_analyzed_subimage(data, subimage=img)
             canvas.add_image(data, location=(x, y), dimensions=(width, 18))
             # canvas.add_text(text=f"{img} Image", location=(x + 2, y + 10), font_size=18)
-        canvas.add_text(text='Open Image', location=(4, 22), font_size=18)
-        canvas.add_text(text=f'{self.open_image.base_path}', location=(4, 21.5))
-        canvas.add_text(text='DMLC Image', location=(14, 22), font_size=18)
-        canvas.add_text(text=f'{self.dmlc_image.base_path}', location=(14, 21.5))
-        canvas.add_text(text='Median profiles', location=(8, 12), font_size=18)
-        text = [f'{self._result_header} VMAT results:',
-                f'Source-to-Image Distance (mm): {self.open_image.sid:2.0f}',
-                f'Tolerance (%): {self._tolerance*100:2.1f}',
-                f'Absolute mean deviation (%): {self.avg_abs_r_deviation:2.2f}',
-                f'Maximum deviation (%): {self.max_r_deviation:2.2f}',
-                ]
+        canvas.add_text(text="Open Image", location=(4, 22), font_size=18)
+        canvas.add_text(text=f"{self.open_image.base_path}", location=(4, 21.5))
+        canvas.add_text(text="DMLC Image", location=(14, 22), font_size=18)
+        canvas.add_text(text=f"{self.dmlc_image.base_path}", location=(14, 21.5))
+        canvas.add_text(text="Median profiles", location=(8, 12), font_size=18)
+        text = [
+            f"{self._result_header} VMAT results:",
+            f"Source-to-Image Distance (mm): {self.open_image.sid:2.0f}",
+            f"Tolerance (%): {self._tolerance*100:2.1f}",
+            f"Absolute mean deviation (%): {self.avg_abs_r_deviation:2.2f}",
+            f"Maximum deviation (%): {self.max_r_deviation:2.2f}",
+        ]
         canvas.add_text(text=text, location=(10, 25.5))
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
@@ -409,9 +452,10 @@ class VMATBase:
 
 class DRGS(VMATBase):
     """Class representing a Dose-Rate, Gantry-speed VMAT test. Will accept, analyze, and return the results."""
-    _url_suffix = 'drgs.zip'
-    _result_header = 'Dose Rate & Gantry Speed'
-    _result_short_header = 'DR/GS'
+
+    _url_suffix = "drgs.zip"
+    _result_header = "Dose Rate & Gantry Speed"
+    _result_short_header = "DR/GS"
     SEGMENT_X_POSITIONS_MM = (-60, -40, -20, 0, 20, 40, 60)
 
     @staticmethod
@@ -425,9 +469,10 @@ class DRGS(VMATBase):
 
 class DRMLC(VMATBase):
     """Class representing a Dose-Rate, MLC speed VMAT test. Will accept, analyze, and return the results."""
-    _url_suffix = 'drmlc.zip'
-    _result_header = 'Dose Rate & MLC Speed'
-    _result_short_header = 'DR/MLCS'
+
+    _url_suffix = "drmlc.zip"
+    _result_header = "Dose Rate & MLC Speed"
+    _result_short_header = "DR/MLCS"
     SEGMENT_X_POSITIONS_MM = (-45, -15, 15, 45)
 
     @staticmethod
@@ -454,12 +499,18 @@ class Segment(Rectangle):
     passed : boolean
         Specifies where the segment reading deviation was under tolerance.
     """
+
     # width of the segment (i.e. parallel to MLC motion) in pixels under reference conditions
     _nominal_width_mm: int
     _nominal_height_mm: int
 
-    def __init__(self, center_point: Point, open_image: image.DicomImage, dmlc_image: image.DicomImage,
-                 tolerance: Union[float, int]):
+    def __init__(
+        self,
+        center_point: Point,
+        open_image: image.DicomImage,
+        dmlc_image: image.DicomImage,
+        tolerance: Union[float, int],
+    ):
         self.r_dev: float = 0.0  # is assigned after all segments constructed
         self._tolerance = tolerance
         self._open_image = open_image
@@ -471,10 +522,14 @@ class Segment(Rectangle):
     @property
     def r_corr(self) -> float:
         """Return the ratio of the mean pixel values of DMLC/OPEN images."""
-        dmlc_value = self._dmlc_image.array[self.bl_corner.y:self.bl_corner.y + self.height,
-                     self.bl_corner.x: self.bl_corner.x + self.width].mean()
-        open_value = self._open_image.array[self.bl_corner.y:self.bl_corner.y + self.height,
-                     self.bl_corner.x: self.bl_corner.x + self.width].mean()
+        dmlc_value = self._dmlc_image.array[
+            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.bl_corner.x : self.bl_corner.x + self.width,
+        ].mean()
+        open_value = self._open_image.array[
+            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.bl_corner.x : self.bl_corner.x + self.width,
+        ].mean()
         ratio = (dmlc_value / open_value) * 100
         return ratio
 
@@ -485,4 +540,4 @@ class Segment(Rectangle):
 
     def get_bg_color(self) -> str:
         """Get the background color of the segment when plotted, based on the pass/fail status."""
-        return 'blue' if self.passed else 'red'
+        return "blue" if self.passed else "red"

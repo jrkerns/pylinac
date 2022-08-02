@@ -32,7 +32,7 @@ def is_dicom(file: str) -> bool:
     pydicom.filereader.read_preamble
     pydicom.filereader.read_partial
     """
-    with open(file, 'rb') as fp:
+    with open(file, "rb") as fp:
         fp.read(0x80)
         prefix = fp.read(4)
         return prefix == b"DICM"
@@ -54,7 +54,7 @@ def is_dicom_image(file: str) -> bool:
     result = False
     try:
         img = pydicom.dcmread(file, force=True)
-        if 'TransferSyntaxUID' not in img.file_meta:
+        if "TransferSyntaxUID" not in img.file_meta:
             img.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
         img.pixel_array
         result = True
@@ -72,7 +72,7 @@ def retrieve_dicom_file(file: str) -> pydicom.FileDataset:
         The path to the file.
     """
     img = pydicom.dcmread(file, force=True)
-    if 'TransferSyntaxUID' not in img.file_meta:
+    if "TransferSyntaxUID" not in img.file_meta:
         img.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
     return img
 
@@ -84,6 +84,7 @@ def is_zipfile(file: str) -> bool:
 
 class TemporaryZipDirectory(TemporaryDirectory):
     """Creates a temporary directory that unpacks a ZIP archive."""
+
     def __init__(self, zfile):
         """
         Parameters
@@ -96,7 +97,9 @@ class TemporaryZipDirectory(TemporaryDirectory):
         zfiles.extractall(path=self.name)
 
 
-def retrieve_filenames(directory: str, func: Callable=None, recursive: bool=True, **kwargs) -> List[str]:
+def retrieve_filenames(
+    directory: str, func: Callable = None, recursive: bool = True, **kwargs
+) -> List[str]:
     """Retrieve file names in a directory.
 
     Parameters
@@ -136,8 +139,8 @@ def retrieve_demo_file(url: str, force: bool = False) -> str:
     url : str
         The suffix to the url (location within the S3 bucket) pointing to the demo file.
     """
-    true_url = r'https://storage.googleapis.com/pylinac_demo_files/' + url
-    demo_file = osp.join(osp.dirname(osp.dirname(__file__)), 'demo_files', url)
+    true_url = r"https://storage.googleapis.com/pylinac_demo_files/" + url
+    demo_file = osp.join(osp.dirname(osp.dirname(__file__)), "demo_files", url)
     demo_dir = osp.dirname(demo_file)
     if not osp.exists(demo_dir):
         os.makedirs(demo_dir)
@@ -164,7 +167,7 @@ def is_url(url: str) -> bool:
         return False
 
 
-def get_url(url: str, destination: str=None, progress_bar: bool=True) -> str:
+def get_url(url: str, destination: str = None, progress_bar: bool = True) -> str:
     """Download a URL to a local file.
 
     Parameters
@@ -195,12 +198,17 @@ def get_url(url: str, destination: str=None, progress_bar: bool=True) -> str:
             if b > 0:
                 t.update((b - last_b[0]) * bsize)
             last_b[0] = b
+
         return inner
 
     try:
         if progress_bar:
-            with tqdm(unit='B', unit_scale=True, miniters=1, desc=url.split('/')[-1]) as t:
-                filename, _ = urlretrieve(url, filename=destination, reporthook=my_hook(t))
+            with tqdm(
+                unit="B", unit_scale=True, miniters=1, desc=url.split("/")[-1]
+            ) as t:
+                filename, _ = urlretrieve(
+                    url, filename=destination, reporthook=my_hook(t)
+                )
         else:
             filename, _ = urlretrieve(url, filename=destination)
     except (HTTPError, URLError, ValueError) as e:
@@ -212,8 +220,15 @@ def get_url(url: str, destination: str=None, progress_bar: bool=True) -> str:
 class SNCProfiler:
     """Load a file from a Sun Nuclear Profiler device. This accepts .prs files."""
 
-    def __init__(self, path: str, detector_row: int = 106, bias_row: int = 107, calibration_row: int = 108,
-                 data_row: int = -1, data_columns: slice = slice(5, 259)):
+    def __init__(
+        self,
+        path: str,
+        detector_row: int = 106,
+        bias_row: int = 107,
+        calibration_row: int = 108,
+        data_row: int = -1,
+        data_columns: slice = slice(5, 259),
+    ):
         """
         Parameters
         ----------
@@ -226,16 +241,26 @@ class SNCProfiler:
         data_columns
             The range of columns that the data is in. Usually, there are some columns before and after the real data.
         """
-        with open(path, encoding='cp437') as f:
+        with open(path, encoding="cp437") as f:
             raw_data = f.read().splitlines()
-            self.detectors = raw_data[detector_row].split('\t')[data_columns]
-            self.bias = np.array(raw_data[bias_row].split('\t')[data_columns]).astype(float)
-            self.calibration = np.array(raw_data[calibration_row].split('\t')[data_columns]).astype(float)
-            self.data = np.array(raw_data[data_row].split('\t')[data_columns]).astype(float)
-            self.timetic = float(raw_data[bias_row].split('\t')[2])
-            self.integrated_dose = self.calibration * (self.data - self.bias * self.timetic)
+            self.detectors = raw_data[detector_row].split("\t")[data_columns]
+            self.bias = np.array(raw_data[bias_row].split("\t")[data_columns]).astype(
+                float
+            )
+            self.calibration = np.array(
+                raw_data[calibration_row].split("\t")[data_columns]
+            ).astype(float)
+            self.data = np.array(raw_data[data_row].split("\t")[data_columns]).astype(
+                float
+            )
+            self.timetic = float(raw_data[bias_row].split("\t")[2])
+            self.integrated_dose = self.calibration * (
+                self.data - self.bias * self.timetic
+            )
 
-    def to_profiles(self, n_detectors_row: int = 63, **kwargs) -> Tuple[SingleProfile, SingleProfile, SingleProfile, SingleProfile]:
+    def to_profiles(
+        self, n_detectors_row: int = 63, **kwargs
+    ) -> Tuple[SingleProfile, SingleProfile, SingleProfile, SingleProfile]:
         """Convert the SNC data to SingleProfiles. These can be analyzed directly or passed to other modules like flat/sym.
 
         Parameters
@@ -244,8 +269,15 @@ class SNCProfiler:
             The number of detectors in a given row. Note that they Y profile includes 2 extra detectors from the other 3.
         """
         x_prof = SingleProfile(self.integrated_dose[:n_detectors_row], **kwargs)
-        y_prof = SingleProfile(self.integrated_dose[n_detectors_row:2*n_detectors_row+2], **kwargs)
-        pos_prof = SingleProfile(self.integrated_dose[2*n_detectors_row+2:3*n_detectors_row+2], **kwargs)
-        neg_prof = SingleProfile(self.integrated_dose[3*n_detectors_row+2:4*n_detectors_row+2], **kwargs)
+        y_prof = SingleProfile(
+            self.integrated_dose[n_detectors_row : 2 * n_detectors_row + 2], **kwargs
+        )
+        pos_prof = SingleProfile(
+            self.integrated_dose[2 * n_detectors_row + 2 : 3 * n_detectors_row + 2],
+            **kwargs
+        )
+        neg_prof = SingleProfile(
+            self.integrated_dose[3 * n_detectors_row + 2 : 4 * n_detectors_row + 2],
+            **kwargs
+        )
         return x_prof, y_prof, pos_prof, neg_prof
-
