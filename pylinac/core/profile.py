@@ -1,5 +1,6 @@
 """Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
 import enum
+import math
 import warnings
 from typing import Union, Tuple, Sequence, List, Optional
 
@@ -21,6 +22,53 @@ from .utilities import convert_to_enum
 # for Hill fits of 2D device data the # of points can be small.
 # This results in optimization warnings about the variance of the fit (the variance isn't of concern for us for that particular item)
 warnings.simplefilter("ignore", OptimizeWarning)
+
+
+def gamma_1d(reference: np.ndarray, evaluation: np.ndarray, dose_to_agreement: float = 1, distance_to_agreement: int = 1, gamma_cap_value: float = 2, global_dose: bool = True) -> np.ndarray:
+    """Perform a 1D gamma of two 1D profiles/arrays. This does NOT check lengths or 
+    spatial consistency. It performs an element-by-element evaluation. It is the responsibility
+    of the caller to ensure the reference and evaluation have comparable spatial resolution.
+
+    The algorithm follows Table I of D. Low's 2004 paper: Evaluation of the gamma dose distribution comparison method: https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.1598711
+
+    Parameters
+    ----------
+    
+    reference
+        The reference profile.
+    evaluation
+        The evaluation profile. 
+    dose_to_agreement
+        The dose to agreement in %. E.g. 1 is 1% of global reference max dose.
+    distance_to_agreement
+        The distance to agreement in **elements**. E.g. if the value is 4 this means 4 elements from the reference point under calculation.
+        Must be >0
+    gamma_cap_value
+        The value to cap the gamma at. E.g. a gamma of 5.3 will get capped to 2. Useful for displaying data with a consistent range.
+    global_dose
+        Whether to evaluate the dose to agreement threshold based on the global max or the dose point under evaluation.
+    """
+    if reference.ndim != 1 or evaluation.ndim != 1:
+        raise ValueError(f"Reference and evaluation arrays must be 1D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}")
+    # convert dose to agreement to % of global max; ignored later if local dose
+    dose_ta = dose_to_agreement / 100 * reference.max()
+    # pad eval array on both edges so our search does not go out of bounds
+    eval_padded = np.pad(evaluation, distance_to_agreement, mode='edge')
+    # iterate over each reference element, computing distance value and dose value
+    gamma = []
+    for r_idx, ref_point in enumerate(reference):
+        capital_gammas = []
+        # we search at the same indices in eval_padded, but remember eval_padded has extra indices on each edge,
+        # so this is actually searching from -DTA to +DTA because r_idx in eval_padded is off by distance_to_agreement.
+        for e_idx, eval_point in enumerate(eval_padded[r_idx:r_idx + 2*distance_to_agreement + 1]):
+            dist = abs(e_idx - distance_to_agreement)
+            dose = eval_point - ref_point
+            if not global_dose:
+                dose_ta = dose_to_agreement / 100 * ref_point
+            capital_gamma = math.sqrt(dist**2/distance_to_agreement**2 + dose**2/dose_ta**2)
+            capital_gammas.append(capital_gamma)
+        gamma.append(min(min(capital_gammas), gamma_cap_value))
+    return np.asarray(gamma)
 
 
 def stretch(array: np.ndarray, min: int=0, max: int=1, fill_dtype: Optional[np.dtype]=None) -> np.ndarray:

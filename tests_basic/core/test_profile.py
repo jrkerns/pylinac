@@ -6,7 +6,7 @@ import scipy.signal as sps
 from pylinac.core import image
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import SingleProfile, MultiProfile, CircleProfile, CollapsedCircleProfile, Normalization, \
-    Interpolation
+    Interpolation, gamma_1d
 from tests_basic.utils import get_file_from_cloud_test_repo
 
 
@@ -18,6 +18,86 @@ def generate_open_field(field_size=(100, 100), sigma=2, center=(0, 0)) -> Simula
     as1000.add_layer(FilteredFieldLayer(field_size_mm=field_size, cax_offset_mm=center))  # create a 50x50mm square field
     as1000.add_layer(GaussianFilterLayer(sigma_mm=sigma))  # add an image-wide gaussian to simulate penumbra/scatter
     return as1000
+
+
+class TestGamma1D(TestCase):
+
+    def test_same_profile_is_0_gamma(self):
+        ref = eval = np.ones(5)
+        gamma = gamma_1d(reference=ref, evaluation=eval)
+        self.assertEqual(max(gamma), 0)
+        self.assertEqual(min(gamma), 0)
+        self.assertEqual(len(gamma), 5)
+
+        # test a high measurement value
+        ref = eval = np.ones(5) * 50
+        gamma = gamma_1d(reference=ref, evaluation=eval)
+        self.assertEqual(max(gamma), 0)
+        self.assertEqual(min(gamma), 0)
+        self.assertEqual(len(gamma), 5)
+
+    def test_gamma_perfectly_at_1(self):
+        # offset a profile exactly by the dose to agreement
+        ref = np.ones(5)
+        eval = np.ones(5) * 1.01
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=1)
+        self.assertAlmostEqual(max(gamma), 1, delta=0.001)
+        self.assertAlmostEqual(min(gamma), 1, delta=0.001)
+
+        # test same but eval is LOWER than ref
+        ref = np.ones(5)
+        eval = np.ones(5) * 0.99
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=1)
+        self.assertAlmostEqual(max(gamma), 1, delta=0.001)
+        self.assertAlmostEqual(min(gamma), 1, delta=0.001)
+
+    def test_gamma_half(self):
+        # offset a profile by half the dose to agreement to ensure it's 0.5
+        ref = np.ones(5)
+        eval = np.ones(5) / 1.005
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=1)
+        self.assertAlmostEqual(max(gamma), 0.5, delta=0.01)
+        self.assertAlmostEqual(min(gamma), 0.5, delta=0.01)
+
+    def test_gamma_some_on_some_off(self):
+        ref = np.ones(5)
+        eval = np.asarray((1.03, 1.03, 1, 1, 1))
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=1, distance_to_agreement=1, gamma_cap_value=5)
+        self.assertAlmostEqual(gamma[0], 3, delta=0.01)  # fully off by 3
+        self.assertAlmostEqual(gamma[1], 1, delta=0.01)  # dose at next pixel matches (dose=0, dist=1)
+        self.assertAlmostEqual(gamma[-1], 0, delta=0.01)  # gamma at end is perfect
+
+        # check inverted pattern is mirrored (checks off-by-one errors)
+        ref = np.ones(5)
+        eval = np.asarray((1, 1, 1, 1.03, 1.03))
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=1, distance_to_agreement=1, gamma_cap_value=5)
+        self.assertAlmostEqual(gamma[0], 0, delta=0.01)
+        self.assertAlmostEqual(gamma[-2], 1, delta=0.01)
+        self.assertAlmostEqual(gamma[-1], 3, delta=0.01)
+
+    def test_localized_dose(self):
+        ref = np.array((100, 1, 1, 1, 1))
+        eval = np.asarray((103, 1.03, 1, 1, 1))
+        # with global, element 2 is easily under gamma 1 since DTA there is 3
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=3, distance_to_agreement=1, gamma_cap_value=5)
+        self.assertAlmostEqual(gamma[0], 1, delta=0.01)  # fully off by 3
+        self.assertAlmostEqual(gamma[1], 0.01, delta=0.01)  # dose at next pixel matches (dose=0, dist=1)
+        self.assertAlmostEqual(gamma[-1], 0, delta=0.01)  # gamma at end is perfect
+
+
+    def test_gamma_cap(self):
+        # cap to the value
+        ref = np.ones(5)
+        eval = np.ones(5) * 10
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=1, gamma_cap_value=2)
+        self.assertEqual(max(gamma), 2)
+        self.assertEqual(min(gamma), 2)
+
+    def test_non_1d_array(self):
+        ref = np.ones(5)
+        eval = np.ones((5, 5))
+        with self.assertRaises(ValueError):
+            gamma_1d(reference=ref, evaluation=eval)
 
 
 class SingleProfileTests(TestCase):
