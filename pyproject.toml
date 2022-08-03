@@ -60,7 +60,6 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 testpaths = "tests_basic"
 python_files = "test_*.py"
-addopts = "-n auto --cov=pylinac --cov-report term --junitxml=./test-reports/pytest_results.xml"
 
 [tool.coverage.run]
 source = [

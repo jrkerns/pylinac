@@ -16,7 +16,7 @@ definitions:
         name: Run CBCT Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_cbct.py -n 1 --cov=pylinac.cbct
+          - pytest tests_basic/test_cbct.py -n 1 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -27,7 +27,7 @@ definitions:
         name: Run Quart Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_quart.py -n 1 --cov=pylinac.quart
+          - pytest tests_basic/test_quart.py -n 1 --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -38,7 +38,7 @@ definitions:
         name: Run ACR CT/MRI Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_acr.py -n 1 --cov=pylinac.acr
+          - pytest tests_basic/test_acr.py -n 1 --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -50,7 +50,7 @@ definitions:
         name: Run Planar Imaging Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_planar_imaging.py -n 1
+          - pytest tests_basic/test_planar_imaging.py -n 2 --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -61,7 +61,7 @@ definitions:
         name: Run DLG Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_dlg.py -n 1
+          - pytest tests_basic/test_dlg.py -n auto --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -72,7 +72,7 @@ definitions:
         name: Run Field Analysis Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_field_analysis.py -n 1
+          - pytest tests_basic/test_field_analysis.py -n 2 --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -83,7 +83,7 @@ definitions:
         name: Run Machine Logs Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_logs.py -n 1
+          - pytest tests_basic/test_logs.py -n 2 --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -94,7 +94,7 @@ definitions:
         name: Run Picket Fence Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_picketfence.py -n 1
+          - pytest tests_basic/test_picketfence.py -n 2 --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -105,7 +105,7 @@ definitions:
         name: Run Starshot Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_starshot.py -n 1
+          - pytest tests_basic/test_starshot.py -n 2 --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -116,7 +116,7 @@ definitions:
         name: Run TG-51/TRS-398 Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py -n 1
+          - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py -n auto --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -128,7 +128,7 @@ definitions:
         name: Run VMAT Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_vmat.py -n 1
+          - pytest tests_basic/test_vmat.py -n 2 --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -139,7 +139,7 @@ definitions:
         name: Run Winston-Lutz Tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/test_winstonlutz.py -n 1
+          - pytest tests_basic/test_winstonlutz.py -n 1 --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
@@ -150,7 +150,7 @@ definitions:
         name: Run core module tests
         script:
           - pip install -r requirements-dev.txt
-          - pytest tests_basic/core -n 1
+          - pytest tests_basic/core -n 2 --cov-report term --junitxml=./test-reports/pytest_results.xml
         condition:
           changesets:
             includePaths:
