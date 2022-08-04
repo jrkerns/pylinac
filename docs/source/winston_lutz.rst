@@ -213,6 +213,8 @@ You may optionally analyze a single image if that is your preference. Obviously,
 
 This class does not have all the methods that ``WinstonLutz`` has for mostly obvious reasons and lower likelihood of being used directly.
 
+.. _passing-in-axis-values:
+
 Passing in Axis values
 ----------------------
 
@@ -623,9 +625,6 @@ API Documentation
 .. autoclass:: pylinac.winston_lutz.WinstonLutzResult
     :members:
     :inherited-members:
-
-.. autoclass:: pylinac.winston_lutz.ImageManager
-    :members:
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutz2D
     :members:

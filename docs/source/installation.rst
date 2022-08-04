@@ -20,11 +20,6 @@ Great! To get started install via pip:
 
     Installing from source (``setup.py install``) is possible but not recommended as downloading the source includes numerous sizable test files.
 
-.. note::
-
-    Although ``pip`` should work, the dependencies can sometimes give problems. A workaround is to install the dependencies via
-    ``conda``, then install pylinac via pip since pylinac itself is pure python.
-
 .. _dependencies:
 
 Dependencies

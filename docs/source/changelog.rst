@@ -6,14 +6,36 @@ Changelog
 v 3.2.0
 -------
 
+General
+^^^^^^^
+
+* The codebase as been `blackened <https://github.com/psf/black>`_. This does not affect functionality but will change code line numbers when comparing to previous versions.
+* All internal imports have been converted to relative imports. This does not change functionality but does mean that the pylinac repo can now be easily forked and included
+  as a package in RadMachine. This would typically be done to use a pinned version as the embedded pylinac in RadMachine is updated regularly.
+* Pylinac has dropped support for Python 3.6, following the `security support timetable <https://endoflife.date/python>`_. 3.7 support will drop in the next version after June 2023.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 
-* The IMT L-Rad light/rad phantom is now able to be analyzed.
+* The IMT L-Rad light/rad phantom is now able to be analyzed. It is part of the planar imaging module. Docs are :ref:`here <imt_lrad>`.
 * The SI QCkV phantom was accidentally analyzing the reference/background ROI. This resulted in a contrast of 0 for the first ROI all the time.
   This has been removed from the results. Calculations using the average contrast will be affected. Existing ROI analysis values are not affected,
   but will be off by one if accessing the roi directly. I.e. "roi 3" is now "roi 2", etc as the reference ROI was originally "roi 1".
 
+CT
+^^
+
+* The Quart phantom can now be analyzed. Docs are :ref:`here <quart>`.
+* The ACR CT and ACR MRI Large phantom can now be analyzed. These should be considered experimental and subject to breaking changes in future versions until substantial
+  data/tests can be had. Docs are :ref:`here <acr>`.
+* The catphan and quart classes have a new attribute: ``hu_origin_slice_variance``. This allows users to override the acceptable variance used to find the
+  HU linearity module. Existing functionality is not changed.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Axis data can now be passed in as a dictionary. This is mostly for Elekta users. This is an alternative to renaming files. See the updated section on :ref:`passing in data <passing-in-axis-values>`.
+* The ``ImageManager`` class has been removed. The functionality has been absorbed into the existing classes.
 
 v 3.1.0
 -------

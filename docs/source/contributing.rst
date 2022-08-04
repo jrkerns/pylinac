@@ -1,4 +1,4 @@
-.. _contributer_guide:
+.. _contributor_guide:
 
 ============
 Contributing
@@ -15,7 +15,7 @@ Submitting files
 ----------------
 
 Another easy way to improve pylinac is to submit QA files for the testing repository. Files are treated anonymously and are
-added to the test suite so that the package will become more robust. You can submit files `here <https://www.dropbox.com/request/YKRu4AmuPsXu55uQq761>`_.
+added to the test suite so that the package will become more robust. You can submit files `here <https://forms.gle/sfrDXL3XhHsyiKeJ7>`_.
 
 Suggesting ideas
 ----------------

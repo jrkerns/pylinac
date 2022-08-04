@@ -1,6 +1,10 @@
+.. _quart:
+
 =====
 Quart
 =====
+
+.. versionadded:: 3.2
 
 Overview
 --------

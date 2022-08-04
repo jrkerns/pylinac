@@ -588,9 +588,12 @@ The BB window as well as the expected BB positions, and field strip size can be 
     # use as normal
     fc2 = MySIFC2(...)
 
+.. _imt_lrad:
 
 IMT L-Rad
 ---------
+
+.. versionadded:: 3.2
 
 The IMT L-Rad phantom is for testing light/radiation coincidence. Unlike the FC-2 phantom, the L-Rad's BBs are
 all the way at the edge of the phantom. This means for any size below 20x20cm those BBs can't be seen. Even at

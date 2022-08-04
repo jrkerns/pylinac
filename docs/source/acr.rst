@@ -1,3 +1,4 @@
+.. _acr:
 
 ============
 ACR Phantoms
@@ -111,8 +112,8 @@ Continuing from above:
     data_dict['ct_module']['roi_radius_mm']
     ...
 
- API Documentation
-------------------
+API Documentation
+-----------------
 
 
 .. autoclass:: pylinac.acr.ACRCT
