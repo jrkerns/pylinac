@@ -1,6 +1,7 @@
 """This module holds classes for image loading and manipulation."""
 import copy
 import io
+import math
 import pathlib
 from collections import Counter
 from datetime import datetime
@@ -18,6 +19,7 @@ from PIL import Image as pImage
 from scipy import ndimage
 import scipy.ndimage.filters as spf
 import argue
+from skimage.draw import disk
 
 from .utilities import is_close
 from .geometry import Point
@@ -1228,3 +1230,77 @@ class DicomImageStack:
 
     def __len__(self):
         return len(self.images)
+
+
+def gamma_2d(reference: np.ndarray, evaluation: np.ndarray, dose_to_agreement=1, distance_to_agreement=1, gamma_cap_value=2, global_dose=True, dose_threshold=5, fill_value=np.nan) -> np.ndarray:
+    """Compute a 2D gamma of two 2D numpy arrays. This does NOT do size or spatial resolution checking.
+    It performs an element-by-element evaluation. It is the responsibility
+    of the caller to ensure the reference and evaluation have comparable spatial resolution.
+
+    The algorithm follows Table I of D. Low's 2004 paper: Evaluation of the gamma dose distribution comparison method: https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.1598711
+
+    This is similar to the gamma_1d function for profiles, except we must search a 2D grid around the reference point.
+
+    Parameters
+    ----------
+    reference
+        The reference 2D array.
+    evaluation
+        The evaluation 2D array.
+    dose_to_agreement
+        The dose to agreement in %. E.g. 1 is 1% of global reference max dose.
+    distance_to_agreement
+        The distance to agreement in **elements**. E.g. if the value is 4 this means 4 elements from the reference point under calculation.
+        Must be >0
+    gamma_cap_value
+        The value to cap the gamma at. E.g. a gamma of 5.3 will get capped to 2. Useful for displaying data with a consistent range.
+    global_dose
+        Whether to evaluate the dose to agreement threshold based on the global max or the dose point under evaluation.
+    dose_threshold
+        The dose threshold as a number between 0 and 100 of the % of max dose under which a gamma is not calculated.
+        This is not affected by the global/local dose normalization and the threshold value is evaluated against the global max dose, period.
+    fill_value
+        The value to give pixels that were not calculated because they were under the dose threshold. Default
+        is NaN, but another option would be 0. If NaN, allows the user to calculate mean/median gamma over just the
+        evaluated portion and not be skewed by 0's that should not be considered.
+    """
+    if reference.ndim != 2 or evaluation.ndim != 2:
+        raise ValueError(
+            f"Reference and evaluation arrays must be 2D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}"
+        )
+    threshold = reference.max() / 100 * dose_threshold
+    # convert dose to agreement to % of global max; ignored later if local dose
+    dose_ta = dose_to_agreement / 100 * reference.max()
+    # pad eval array on both edges so our search does not go out of bounds
+    eval_padded = np.pad(evaluation, distance_to_agreement, mode="edge")
+    # iterate over each reference element, computing distance value and dose value
+    gamma = np.zeros(reference.shape)
+    for row_idx, row in enumerate(reference):
+        for col_idx, ref_point in enumerate(row):
+            # skip if below dose threshold
+            if ref_point < threshold:
+                gamma[row_idx, col_idx] = fill_value
+                continue
+            # use scikit-image to compute the indices of a disk around the reference point
+            # we can then compute gamma over the eval points at these indices
+            # unlike the 1D computation, we have to search at an index offset by the distance to agreement
+            # we use DTA+1 in disk because it looks like the results are exclusive of edges.
+            # https://scikit-image.org/docs/stable/api/skimage.draw.html#disk
+            rs, cs = disk((row_idx+distance_to_agreement, col_idx+distance_to_agreement), distance_to_agreement+1)
+
+            capital_gammas = []
+            for r, c in zip(rs, cs):
+                eval_point = eval_padded[r, c]
+                # for the distance, we compare the ref row/col to the eval padded matrix
+                # but remember the padded array is padded by DTA, so to compare distances, we
+                # have to cancel the offset we used for dose purposes.
+                dist = math.dist((row_idx, col_idx), (r-distance_to_agreement, c-distance_to_agreement))
+                dose = eval_point - ref_point
+                if not global_dose:
+                    dose_ta = dose_to_agreement / 100 * ref_point
+                capital_gamma = math.sqrt(
+                    dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
+                )
+                capital_gammas.append(capital_gamma)
+            gamma[row_idx, col_idx] = (min(np.nanmin(capital_gammas), gamma_cap_value))
+    return np.asarray(gamma)

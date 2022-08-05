@@ -79,11 +79,10 @@ class TestGamma1D(TestCase):
         ref = np.array((100, 1, 1, 1, 1))
         eval = np.asarray((103, 1.03, 1, 1, 1))
         # with global, element 2 is easily under gamma 1 since DTA there is 3
-        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=3, distance_to_agreement=1, gamma_cap_value=5)
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=3, distance_to_agreement=1, gamma_cap_value=5, global_dose=False)
         self.assertAlmostEqual(gamma[0], 1, delta=0.01)  # fully off by 3
-        self.assertAlmostEqual(gamma[1], 0.01, delta=0.01)  # dose at next pixel matches (dose=0, dist=1)
+        self.assertAlmostEqual(gamma[1], 1, delta=0.01)  # dose here is also off by 3% relative dose
         self.assertAlmostEqual(gamma[-1], 0, delta=0.01)  # gamma at end is perfect
-
 
     def test_gamma_cap(self):
         # cap to the value
