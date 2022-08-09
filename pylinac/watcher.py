@@ -14,16 +14,15 @@ import shutil
 import time
 import zipfile
 
-import yagmail
 import yaml
 
-from pylinac.core.decorators import value_accept
-from pylinac.core.io import retrieve_demo_file, is_dicom_image
-from pylinac.core.image import prepare_for_classification, DicomImage
+from .core.decorators import value_accept
+from .core.io import retrieve_demo_file, is_dicom_image
+from .core.image import DicomImage
 # from pylinac.core import schedule
 
-from pylinac import DRMLC, DRGS, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log, LasVegas
-from pylinac.log_analyzer import IMAGING
+from . import DRMLC, DRGS, Starshot, PicketFence, WinstonLutz, LeedsTOR, StandardImagingQC3, load_log, LasVegas
+from .log_analyzer import IMAGING
 
 logger = logging.getLogger("pylinac")
 
@@ -148,12 +147,6 @@ class AnalyzeMixin:
         statement = statement.format(name, current_time, osp.dirname(self.full_path))
         # send the email
         contents = [statement] + attachments
-        recipients = [recipient for recipient in self.config['email']['recipients']]
-        yagserver = yagmail.SMTP(self.config['email']['sender'], self.config['email']['sender-password'])
-        yagserver.send(to=recipients,
-                       subject=self.config['email']['subject'],
-                       contents=contents)
-        logger.info("An email was sent to the recipients with the results")
 
     def publish_pdf(self):
         self.instance.publish_pdf(self.pdf_filename, unit=self.config['general']['unit'])
