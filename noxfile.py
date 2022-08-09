@@ -10,3 +10,8 @@ def run_tests(session):
 @nox.session(python=False)
 def serve_docs(session):
     session.run("sphinx-autobuild", "docs/source", "docs/build", "--port", "8777")
+
+
+@nox.session(python=False)
+def build_docs(session):
+    session.run("sphinx-build", "docs/source", "docs/build")

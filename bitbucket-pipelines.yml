@@ -6,6 +6,15 @@ image:
 
 definitions:
   steps:
+    - step: &build-docs
+        name: Build Docs
+        script:
+          - pip install nox
+          - nox -s build_docs
+        condition:
+          changesets:
+            includePaths:
+              - "docs/**"
     - step: &push-to-github
         name: Push to Github
         clone:
@@ -198,6 +207,7 @@ pipelines:
   pull-requests:
     '**':
       - parallel:
+          - step: *build-docs
           - step: *cbct-tests
           - step: *acr-tests
           - step: *quart-tests
@@ -217,6 +227,7 @@ pipelines:
       - step: *push-to-github
     master:
       - parallel:
+          - step: *build-docs
           - step: *cbct-tests
           - step: *acr-tests
           - step: *quart-tests
