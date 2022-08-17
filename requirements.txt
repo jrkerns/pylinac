@@ -8,5 +8,4 @@ tqdm >= 3.8
 reportlab >= 3.3
 argue
 py-linq
-dataclasses>=0.8; python_version < '3.7'
 cached-property~=1.5.2

@@ -28,11 +28,8 @@ classifiers=[
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6.1"
-scikit-image = [
-    {version = "<=0.17.2", python = "<=3.6"},
-    {version = ">=0.17.3", python = "^3.7"}
-]
+python = "^3.7.10"
+scikit-image = ">=0.17.3"
 numpy = ">=0.16"
 scipy = ">=1.1"
 tqdm = ">=3.8"
@@ -43,7 +40,6 @@ cached-property = "~1.5.2"
 reportlab = ">=3.3"
 pydicom = ">=2.0"
 matplotlib = ">=2.0"
-dataclasses = {version = "^0.8", python = "<3.7"}
 
 [tool.poetry.dev-dependencies]
 pytest = {version = "^7.1.2", python = ">=3.7,<4.0"}

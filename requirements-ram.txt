@@ -57,3 +57,8 @@ urllib3==1.26.9
 virtualenv==20.14.1
 webencodings==0.5.1
 zipp==3.8.0
+pytest-xdist==2.5.0
+google-cloud-storage
+sphinx
+sphinx-autobuild
+pytest-cov==3.0.0

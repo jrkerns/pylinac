@@ -5,7 +5,7 @@ import argue
 
 
 def noop(value: float) -> float:
-    """Don't do anything"""
+    """Don't do anything."""
     return value
 
 
