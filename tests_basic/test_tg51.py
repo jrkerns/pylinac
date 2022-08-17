@@ -66,7 +66,7 @@ class TestFunctions(TestCase):
     def test_pddx(self):
         pdds = (66.4, 70.5, 72.8, 73.3, 76.7, 77.1, 77.1, 79.3)
         energies = (6, 10, 10, 10, 15, 15, 15, 18)
-        pddxs = (66.4, 70.5, 72.8, 72.87, 77.18, 77.57, 78.27, 80.47)
+        pddxs = (66.4, 70.5, 72.8, 73.3, 77.18, 77.57, 78.27, 80.47)
         foils = (None, '30cm', '50cm', None, None, '50cm', '30cm', None)
         for pdd, energy, pddx, foil in zip(pdds, energies, pddxs, foils):
             self.assertAlmostEqual(tg51.pddx(pdd=pdd, energy=energy, lead_foil=foil), pddx, delta=0.01)
@@ -217,8 +217,8 @@ class MDA_TB1_2015_10x(TG51Photon, TestCase):
     m_reduced = 27.635
     measured_pdd10 = 73.42
     clinical_pdd10 = 73.5
-    dose_mu_10 = 0.734
-    dose_mu_dmax = 0.999
+    dose_mu_10 = 0.733
+    dose_mu_dmax = 0.998
     # print_data = True
 
 

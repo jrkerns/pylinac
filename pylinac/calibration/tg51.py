@@ -570,7 +570,12 @@ def pddx(*, pdd: float, energy: int, lead_foil: Optional[str] = None) -> float:
         return pdd
     elif energy >= 10:
         if lead_foil is None:
-            return 1.267 * pdd - 20
+            if pdd <= 75:
+                return pdd
+            elif 75 < pdd <= 89:
+                return 1.267 * pdd - 20
+            else:
+                raise ValueError(f"PDD value of {pdd} was outside the bound of 89%")
         elif lead_foil == LEAD_OPTIONS["50cm"]:
             if pdd < 73:
                 return pdd

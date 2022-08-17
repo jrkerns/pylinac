@@ -3,6 +3,16 @@
 Changelog
 =========
 
+v 3.3.0
+-------
+
+Bug Fixes
+^^^^^^^^^
+
+* #1705 - PDDx for measurements with no lead and PDD < 75 would calculate using the interim equation of 1.267*pdd - 20.
+  This should return the PDD if the PDD<75. This will result in ~0.3% difference for 10MV with PDD just under 75. Depending
+  on the chamber you're using, this could result in a difference of kQ by ~0.0005.
+
 v 3.2.0
 -------
 

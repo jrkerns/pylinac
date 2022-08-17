@@ -108,7 +108,8 @@ Equation definitions are as follows:
   .. math::
       \begin{cases}
           PDD(10) & energy < 10 \\
-          1.267*PDD(10)-20.0 & 75\leq PDD(10)\leq 89 \\
+          PDD(10) & no lead, energy >= 10, PDD(10) <75 \\
+          1.267*PDD(10)-20.0 & no lead, 75\leq PDD(10)\leq 89 \\
           PDD(10)_{Pb} & lead@50cm, PDD(10)_{Pb} < 73 \\
           (0.8905+0.00150*PDD(10)_{Pb})*PDD(10)_{Pb} & lead@50cm, PDD(10)_{Pb} \geq 73 \\
           PDD(10)_{Pb} & lead@30cm, PDD(10)_{Pb} < 71 \\
