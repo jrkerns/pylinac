@@ -76,13 +76,31 @@ class TestGamma1D(TestCase):
         self.assertAlmostEqual(gamma[-1], 3, delta=0.01)
 
     def test_localized_dose(self):
-        ref = np.array((100, 1, 1, 1, 1))
-        eval = np.asarray((103, 1.03, 1, 1, 1))
-        # with global, element 2 is easily under gamma 1 since DTA there is 3
+        ref = eval = np.array((100, 1, 1, 1, 1))
         gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=3, distance_to_agreement=1, gamma_cap_value=5, global_dose=False)
-        self.assertAlmostEqual(gamma[0], 1, delta=0.01)  # fully off by 3
-        self.assertAlmostEqual(gamma[1], 1, delta=0.01)  # dose here is also off by 3% relative dose
-        self.assertAlmostEqual(gamma[-1], 0, delta=0.01)  # gamma at end is perfect
+        self.assertAlmostEqual(gamma[0], 0, delta=0.01)
+        self.assertTrue(np.isnan(gamma[-2]))
+        self.assertTrue(np.isnan(gamma[-1]))
+
+    def test_threshold(self):
+        ref = np.zeros(5)
+        ref[0] = 1
+        eval = ref
+        # only one point should be computed as rest are under default threshold
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=3, distance_to_agreement=1, gamma_cap_value=5, global_dose=False, dose_threshold=5)
+        self.assertAlmostEqual(gamma[0], 0, delta=0.01)
+        self.assertTrue(np.isnan(gamma[-2]))
+        self.assertTrue(np.isnan(gamma[-1]))
+
+    def test_fill_value(self):
+        ref = np.zeros(5)
+        ref[0] = 1
+        eval = ref
+        # only one point should be computed as rest are under default threshold
+        gamma = gamma_1d(reference=ref, evaluation=eval, dose_to_agreement=3, distance_to_agreement=1, gamma_cap_value=5, global_dose=False, dose_threshold=5, fill_value=0.666)
+        self.assertAlmostEqual(gamma[0], 0, delta=0.01)
+        self.assertAlmostEqual(gamma[-2], 0.666, delta=0.01)
+        self.assertAlmostEqual(gamma[-1], 0.666, delta=0.01)
 
     def test_gamma_cap(self):
         # cap to the value

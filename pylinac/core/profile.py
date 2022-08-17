@@ -31,6 +31,8 @@ def gamma_1d(
     distance_to_agreement: int = 1,
     gamma_cap_value: float = 2,
     global_dose: bool = True,
+    dose_threshold: float = 5,
+    fill_value: float = np.nan
 ) -> np.ndarray:
     """Perform a 1D gamma of two 1D profiles/arrays. This does NOT check lengths or
     spatial consistency. It performs an element-by-element evaluation. It is the responsibility
@@ -54,11 +56,19 @@ def gamma_1d(
         The value to cap the gamma at. E.g. a gamma of 5.3 will get capped to 2. Useful for displaying data with a consistent range.
     global_dose
         Whether to evaluate the dose to agreement threshold based on the global max or the dose point under evaluation.
+    dose_threshold
+        The dose threshold as a number between 0 and 100 of the % of max dose under which a gamma is not calculated.
+        This is not affected by the global/local dose normalization and the threshold value is evaluated against the global max dose, period.
+    fill_value
+        The value to give pixels that were not calculated because they were under the dose threshold. Default
+        is NaN, but another option would be 0. If NaN, allows the user to calculate mean/median gamma over just the
+        evaluated portion and not be skewed by 0's that should not be considered.
     """
     if reference.ndim != 1 or evaluation.ndim != 1:
         raise ValueError(
             f"Reference and evaluation arrays must be 1D. Got reference: {reference.ndim} and evaluation: {evaluation.ndim}"
         )
+    threshold = reference.max() / 100 * dose_threshold
     # convert dose to agreement to % of global max; ignored later if local dose
     dose_ta = dose_to_agreement / 100 * reference.max()
     # pad eval array on both edges so our search does not go out of bounds
@@ -66,11 +76,15 @@ def gamma_1d(
     # iterate over each reference element, computing distance value and dose value
     gamma = []
     for r_idx, ref_point in enumerate(reference):
-        capital_gammas = []
+        # skip if below dose threshold
+        if ref_point < threshold:
+            gamma.append(fill_value)
+            continue
         # we search at the same indices in eval_padded, but remember eval_padded has extra indices on each edge,
         # so this is actually searching from -DTA to +DTA because r_idx in eval_padded is off by distance_to_agreement.
+        capital_gammas = []
         for e_idx, eval_point in enumerate(
-            eval_padded[r_idx : r_idx + 2 * distance_to_agreement + 1]
+            eval_padded[r_idx: r_idx + 2 * distance_to_agreement + 1]
         ):
             dist = abs(e_idx - distance_to_agreement)
             dose = eval_point - ref_point
