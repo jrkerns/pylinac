@@ -523,8 +523,6 @@ Standard Imaging FC-2
 
 The FC-2 phantom is for testing light/radiation coincidence.
 
-.. note:: A phantom is not actually needed for light/radiation coincidence. Just use your graph paper after doing mechanicals to do an open image. 😉
-
 
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
@@ -627,6 +625,57 @@ The algorithm works like such:
 
 * **Get BB centroid** -- An image window looks for the central BB in a 1.2x1.2cm square. Once it finds it,
   the centroid is calculated.
+* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
+  A 5mm strip is averaged and used to reduce noise.
+
+**Post-Analysis**
+
+* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
+  The field size is also reported.
+
+.. _snc-fsqa:
+
+SNC FSQA
+--------
+
+.. versionadded:: 3.3
+
+The SNC FSQA phantom is for light/radiation coincidence. It contains markers which guide the physicist on how to
+position the light field for either a 10x10 or 15x15cm field. There is also an offset BB 4cm at the top right
+of the image. Because of both :ref:`the philosophy <light-rad-philosophy>` of pylinac on light/rad and also because pylinac is a library and not a GUI,
+there is no interaction to find the edge markers. Instead, we use the one offset BB and then offset that point back
+4cm in each direction to get a "virtual center". This center is compared to the field center and EPID center.
+The expectation is that the physicist set up their field to the markers using the light field at the time of acquisition.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The FSQA phantom should be placed on the couch at 100cm SSD.
+
+* Keep the phantom away from a couch edge or any rails.
+* Keep the phantom as close to 0 degrees rotation as possible.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom should be at 0 degrees relative to the EPID.
+* The phantom should be roughly centered along the CAX (<3mm).
+
+**Analysis**
+
+* **Get BB centroid** -- An image window looks for the top-right offset BB in a 1.2x1.2cm square. Once it finds it,
+  a "virtual center" centroid is calculated by shifting the detected BB location by 4cm in each direction.
 * **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
   A 5mm strip is averaged and used to reduce noise.
 
@@ -843,6 +892,26 @@ The ROIs appear correct, the but the contrast and MTF do not monotonically decre
 this case, it is because the image acquisition rules were not followed. For the QC-3, the "1" should always point
 toward the gantry, as per the manual. When oriented this way, the results will be correct.
 
+.. _light-rad-philosophy:
+
+Light/Radiation philosophy
+--------------------------
+
+Pylinac (or rather the author) has an opinionated philosophy about light vs radiation that affects the way
+light/radiation analysis is performed. In our opinion, light/rad **using a phantom** is antiquated as
+EPIDs are robust enough nowadays to be quite reliable, at least for Varian machines. By using something as simple
+as graph paper after mechanical measurements, a light field can be set and a simple open field delivered. This
+open field size and CAX offset can be compared to the nominal values set by the physicist at the time of acquisition.
+
+Short of using CCD cameras or specialty equipment like phosphorus, there is no true way to know the light field measurement.
+All we have is what the physicist set up to. If the physicist sets up to a nominal size like 10x10, then a radiation
+field measurement can be compared to that rather simply with common field analysis. E.g if the measured field size was 10.1x10.6mm
+then the error between light and rad is 0.1 and 0.6mm respectively. The CAX offset follows the same logic.
+
+You may disagree, but this is here for the purposes of explaining our philosophy and why light/rad does (or does not do) what it does.
+
+We provide these light/rad routines because customers ask for them, not because we recommend them.
+
 API Documentation
 -----------------
 
@@ -877,4 +946,7 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.IMTLRad
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.SNCFSQA
     :inherited-members:

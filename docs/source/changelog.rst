@@ -6,6 +6,11 @@ Changelog
 v 3.3.0
 -------
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The SNC FSQA light/rad phantom is now able to be analyzed. Docs can be found here: :ref:`snc-fsqa`.
+
 Bug Fixes
 ^^^^^^^^^
 

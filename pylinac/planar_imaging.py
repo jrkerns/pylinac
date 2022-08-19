@@ -928,9 +928,8 @@ class StandardImagingFC2(ImagePhantomBase):
         axes.set_title(f"{self.common_name} Phantom Analysis")
 
         # plot the bb marks
-        bb_xs = [bb.x for bb in self.bb_centers.values()]
-        bb_ys = [bb.y for bb in self.bb_centers.values()]
-        axes.plot(bb_xs, bb_ys, "go")
+        for name, data in self.bb_centers.items():
+            axes.plot(data.x, data.y, "go", label=name)
 
         # plot the bb center as small lines
         axes.axhline(
@@ -1041,6 +1040,7 @@ class StandardImagingFC2(ImagePhantomBase):
 
 
 class IMTLRad(StandardImagingFC2):
+    """The IMT light/rad phantom: https://www.imtqa.com/products/l-rad"""
     common_name = "IMT L-Rad"
     _demo_filename = "imtlrad.dcm"
     center_only_bb = {"Center": [0, 0]}
@@ -1049,6 +1049,32 @@ class IMTLRad(StandardImagingFC2):
 
     def _determine_bb_set(self, fwxm: int) -> dict:
         return self.center_only_bb
+
+
+class SNCFSQA(StandardImagingFC2):
+    """SNC light/rad phantom. See the 'FSQA' phantom and specs: https://www.sunnuclear.com/products/suncheck-machine.
+
+    Unlike other light/rad phantoms, this does not have at least a centered BB. The edge markers are in the penumbra
+    and thus detecting them is difficult. We thus detect the one offset marker in the top right of the image.
+    This is offset by 4cm in each direction. We can then assume that the phantom center is -4cm from this point,
+    creating a 'virtual center' so we have an apples-to-apples comparison.
+    """
+    common_name = "SNC FSQA"
+    _demo_filename = "FSQA_15x15.dcm"
+    center_only_bb = {"TR": [40, -40]}
+    bb_sampling_box_size_mm = 12
+    field_strip_width_mm = 5
+
+    def _determine_bb_set(self, fwxm: int) -> dict:
+        return self.center_only_bb
+
+    def _find_overall_bb_centroid(self, fwxm: int) -> Point:
+        """Determine the geometric center of the 4 BBs"""
+        # detect the upper right BB
+        self.bb_centers = self._detect_bb_centers(fwxm)
+        # add another virtual bb at the center of the phantom, knowing it's offset by 4cm in each direction
+        self.bb_centers['Virtual Center'] = self.bb_centers['TR'] - Point(40*self.image.dpmm, -40*self.image.dpmm)
+        return self.bb_centers['Virtual Center']
 
 
 class LasVegas(ImagePhantomBase):

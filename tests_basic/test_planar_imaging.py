@@ -10,7 +10,7 @@ import pytest
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from pylinac.core import image
 from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC, StandardImagingFC2, \
-    IMTLRad
+    IMTLRad, SNCFSQA
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo
 
 TEST_DIR = 'planar_imaging'
@@ -580,3 +580,31 @@ class IMTLRadOffset(IMTLRadMixin, TestCase):
     field_epid_offset_y_mm = 0
     field_bb_offset_y_mm = 1.6  # should be 2 but rounding due to pixel snapping
     field_bb_offset_x_mm = 0
+
+
+class SNCFSQAMixin(FC2Mixin):
+    klass = SNCFSQA
+    dir_path = ['planar_imaging', 'SNC FSQA']
+
+
+class SNCFSQADemo(SNCFSQAMixin, TestCase):
+    # The 6x 15x15 file in the test repo is the same as the demo
+    field_size_y_mm = 149
+    field_size_x_mm = 150.4
+    field_epid_offset_x_mm = 0.7
+    field_epid_offset_y_mm = 0.3
+    field_bb_offset_y_mm = -0.1
+    field_bb_offset_x_mm = -0.4
+
+    def test_demo(self):
+        SNCFSQA.run_demo()
+
+
+class SNCFSQA10x10(SNCFSQAMixin, TestCase):
+    file_name = '6x_FSQA_10x10.dcm'
+    field_size_y_mm = 99.6
+    field_size_x_mm = 100.2
+    field_epid_offset_x_mm = 0.7
+    field_epid_offset_y_mm = -0.1
+    field_bb_offset_y_mm = -0.2
+    field_bb_offset_x_mm = -0.5
