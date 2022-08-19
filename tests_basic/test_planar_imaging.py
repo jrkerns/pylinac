@@ -121,6 +121,8 @@ class PlanarPhantomMixin(CloudFileMixin):
     mtf_50 = None
     invert = False
     ssd = 1000
+    median_contrast = None
+    median_cnr = None
     file_name = None
     rois_seen = None
 
@@ -156,6 +158,14 @@ class PlanarPhantomMixin(CloudFileMixin):
     def test_rois_seen(self):
         if self.rois_seen is not None:
             self.assertEqual(self.rois_seen, self.instance.results_data().num_contrast_rois_seen)
+
+    def test_median_contrast(self):
+        if self.median_contrast is not None:
+            self.assertAlmostEqual(self.median_contrast, self.instance.results_data().median_contrast, delta=0.03)
+
+    def test_median_cnr(self):
+        if self.median_cnr is not None:
+            self.assertAlmostEqual(self.median_cnr, self.instance.results_data().median_cnr, delta=0.1)
 
     def test_results(self):
         self.assertIsInstance(self.instance.results(), str)
@@ -318,6 +328,66 @@ class PTWEPIDDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         PTWEPIDQC.run_demo()
+
+
+class PTWEPIDQC1(PlanarPhantomMixin, TestCase):
+    klass = PTWEPIDQC
+    mtf_50 = 0.79
+    rois_seen = 9
+    median_contrast = 0.26
+    median_cnr = 40.9
+    dir_path = ['planar_imaging', 'PTW-EPID']
+    file_name = 'PTW EPID QC Phantom.dcm'
+
+
+class PTWEPID15MV(PlanarPhantomMixin, TestCase):
+    klass = PTWEPIDQC
+    mtf_50 = 0.79
+    rois_seen = 8
+    median_contrast = 0.17
+    median_cnr = 26.7
+    dir_path = ['planar_imaging', 'PTW-EPID']
+    file_name = 'PTW-EPID-15MV.dcm'
+
+
+class PTWEPID6xHigh(PlanarPhantomMixin, TestCase):
+    klass = PTWEPIDQC
+    mtf_50 = 0.79
+    rois_seen = 9
+    median_contrast = 0.28
+    median_cnr = 72.1
+    dir_path = ['planar_imaging', 'PTW-EPID']
+    file_name = 'QA EPI 6x High.dcm'
+
+
+class PTWEPID6xHighQuality(PlanarPhantomMixin, TestCase):
+    klass = PTWEPIDQC
+    mtf_50 = 0.79
+    rois_seen = 9
+    median_contrast = 0.254
+    median_cnr = 37.9
+    dir_path = ['planar_imaging', 'PTW-EPID']
+    file_name = 'TB1_PTW_EPID_Phan 6x_HighQuality.dcm'
+
+
+class PTWEPIDTB3(PlanarPhantomMixin, TestCase):
+    klass = PTWEPIDQC
+    mtf_50 = 0.79
+    rois_seen = 9
+    median_contrast = 0.31
+    median_cnr = 43.2
+    dir_path = ['planar_imaging', 'PTW-EPID']
+    file_name = 'TB3_PTW_EPID_Phan.dcm'
+
+
+class PTWEPIDTB4(PlanarPhantomMixin, TestCase):
+    klass = PTWEPIDQC
+    mtf_50 = 0.79
+    rois_seen = 9
+    median_contrast = 0.30
+    median_cnr = 39.1
+    dir_path = ['planar_imaging', 'PTW-EPID']
+    file_name = 'TB4 PTW_EPID_phan.dcm'
 
 
 class FC2Mixin(PlanarPhantomMixin):

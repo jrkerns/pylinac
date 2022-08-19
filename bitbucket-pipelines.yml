@@ -3,15 +3,6 @@ image: python:3.9-slim
 
 definitions:
   steps:
-    - step: &build-docs
-        name: Build Docs
-        script:
-          - pip install nox
-          - nox -s build_docs
-        condition:
-          changesets:
-            includePaths:
-              - "docs/**"
     - step: &set-up-env
         name: Set up Env
         caches:
@@ -30,6 +21,15 @@ definitions:
           depth: full
         script:
           - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
+    - step: &build-docs
+        name: Build Docs
+        script:
+          - source venv/bin/activate
+          - nox -s build_docs
+        condition:
+          changesets:
+            includePaths:
+              - "docs/**"
     - step: &cbct-tests
         name: Run CBCT Tests
         script:

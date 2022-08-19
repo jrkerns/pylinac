@@ -60,5 +60,6 @@ zipp==3.8.0
 pytest-xdist==2.5.0
 google-cloud-storage
 sphinx
+sphinx-rtd-theme
 sphinx-autobuild
 pytest-cov==3.0.0

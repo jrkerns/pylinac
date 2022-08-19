@@ -21,6 +21,7 @@ Features:
 import copy
 import dataclasses
 import io
+import math
 import os.path as osp
 import warnings
 from dataclasses import dataclass
@@ -116,7 +117,7 @@ class ImagePhantomBase:
         E.g. is_at_center().
     phantom_bbox_size_mm2: float
         This is the expected size of the **BOUNDING BOX** of the phantom. Additionally, it is usually smaller than the
-        physical bounding box because we sometimes detect an inner ring/square. Usually x0.9-1.0 of the physical size.
+        physical bounding box because we sometimes detect an inner ring/square. Typically, x0.9-1.0 of the physical size.
     """
 
     _demo_filename: str
@@ -209,8 +210,8 @@ class ImagePhantomBase:
                 "Unable to find the phantom in the image. Potential solutions: check the SSD was passed correctly, check that the phantom isn't at the edge of the field, check that the phantom is centered along the CAX."
             )
 
-        # take the smallest ROI and call that the phantom outline
-        big_roi_idx = np.argsort([regions[phan].major_axis_length for phan in blobs])[0]
+        # take the biggest ROI and call that the phantom outline
+        big_roi_idx = np.argsort([regions[phan].area_bbox for phan in blobs])[-1]
         phantom_idx = blobs[big_roi_idx]
 
         return regions[phantom_idx]
@@ -1138,7 +1139,7 @@ class LasVegas(ImagePhantomBase):
             self._phantom_ski_region = None
 
     def _phantom_radius_calc(self) -> float:
-        return self.phantom_ski_region.major_axis_length
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 1.626
 
     def _phantom_angle_calc(self) -> float:
         return 0.0
@@ -1230,7 +1231,7 @@ class PTWEPIDQC(ImagePhantomBase):
             "lp/mm": 0.21,
         },
         "roi 3": {
-            "distance from center": 3.2,
+            "distance from center": 3.4,
             "angle": -60,
             "roi radius": 0.3,
             "lp/mm": 0.27,
@@ -1243,7 +1244,7 @@ class PTWEPIDQC(ImagePhantomBase):
         },
         # vertical rois
         "roi 5": {
-            "distance from center": 3.6,
+            "distance from center": 3.68,
             "angle": -90,
             "roi radius": 0.18,
             "lp/mm": 0.5,
@@ -1291,7 +1292,7 @@ class PTWEPIDQC(ImagePhantomBase):
         -------
         radius : float
         """
-        return self.phantom_ski_region.major_axis_length / 14
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.116
 
     def _phantom_angle_calc(self) -> float:
         """The angle of the phantom. This assumes the user has placed the phantom with the high-contrast line pairs at the top
@@ -1377,7 +1378,7 @@ class StandardImagingQC3(ImagePhantomBase):
         -------
         radius : float
         """
-        return self.phantom_ski_region.major_axis_length / 14
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.0896
 
     @lru_cache()
     def _phantom_angle_calc(self) -> float:
@@ -1464,7 +1465,7 @@ class StandardImagingQCkV(StandardImagingQC3):
         -------
         radius : float
         """
-        return self.phantom_ski_region.major_axis_length / 12.5
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.0989
 
 
 class SNCkV(ImagePhantomBase):
@@ -1525,7 +1526,7 @@ class SNCkV(ImagePhantomBase):
         -------
         radius : float
         """
-        return self.phantom_ski_region.major_axis_length / 12
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.1071
 
     def _phantom_angle_calc(self) -> float:
         """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
@@ -1753,7 +1754,7 @@ class LeedsTOR(ImagePhantomBase):
             The radius of the phantom in pixels. The actual value is not important; it is used for scaling the
             distances to the low and high contrast ROIs.
         """
-        return self.phantom_ski_region.major_axis_length / 2.73
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.515
 
     def _determine_start_angle_for_circle_profile(self) -> float:
         """Determine an appropriate angle for starting the circular profile
@@ -1884,7 +1885,7 @@ class DoselabMC2kV(ImagePhantomBase):
         leeds.plot_analyzed_image()
 
     def _phantom_radius_calc(self) -> float:
-        return self.phantom_ski_region.major_axis_length
+        return math.sqrt(self.phantom_ski_region.area_bbox) * 1.214
 
     def _phantom_angle_calc(self) -> float:
         roi = self.phantom_ski_region

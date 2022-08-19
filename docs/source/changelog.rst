@@ -12,6 +12,10 @@ Bug Fixes
 * #1705 - PDDx for measurements with no lead and PDD < 75 would calculate using the interim equation of 1.267*pdd - 20.
   This should return the PDD if the PDD<75. This will result in ~0.3% difference for 10MV with PDD just under 75. Depending
   on the chamber you're using, this could result in a difference of kQ by ~0.0005.
+* The planar imaging detection routines have slightly improved robustness. This was caused by using scikit-image's
+  ``major_axis_length`` property, which is somewhat more finicky than other properties. The detection now uses the ``area_bbox``
+  property which appears to curb some edge-case phantom analyses. This should not affect results for images that are already
+  detected properly.
 
 v 3.2.0
 -------
