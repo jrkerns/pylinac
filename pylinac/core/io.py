@@ -3,8 +3,9 @@ import os
 import os.path as osp
 import struct
 import zipfile
+from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Union, BinaryIO, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import urlretrieve, urlopen
 
@@ -15,7 +16,7 @@ from tqdm import tqdm
 from .profile import SingleProfile
 
 
-def is_dicom(file: str) -> bool:
+def is_dicom(file: Union[str, Path]) -> bool:
     """Boolean specifying if file is a proper DICOM file.
 
     This function is a pared down version of read_preamble meant for a fast return.
@@ -38,7 +39,7 @@ def is_dicom(file: str) -> bool:
         return prefix == b"DICM"
 
 
-def is_dicom_image(file: str) -> bool:
+def is_dicom_image(file: Union[str, Path, BinaryIO]) -> bool:
     """Boolean specifying if file is a proper DICOM file with a image
 
     Parameters
@@ -63,7 +64,7 @@ def is_dicom_image(file: str) -> bool:
     return result
 
 
-def retrieve_dicom_file(file: str) -> pydicom.FileDataset:
+def retrieve_dicom_file(file: Union[str, Path, BinaryIO]) -> pydicom.FileDataset:
     """Read and return the DICOM dataset.
 
     Parameters
@@ -71,21 +72,16 @@ def retrieve_dicom_file(file: str) -> pydicom.FileDataset:
     file : str
         The path to the file.
     """
-    img = pydicom.dcmread(file, force=True)
-    if "TransferSyntaxUID" not in img.file_meta:
-        img.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
-    return img
-
-
-def is_zipfile(file: str) -> bool:
-    """Wrapper function for detecting if file is a true ZIP archive"""
-    return zipfile.is_zipfile(file)
+    ds = pydicom.dcmread(file, force=True)
+    if "TransferSyntaxUID" not in ds.file_meta:
+        ds.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+    return ds
 
 
 class TemporaryZipDirectory(TemporaryDirectory):
-    """Creates a temporary directory that unpacks a ZIP archive."""
+    """Creates a temporary directory that unpacks a ZIP archive. Shockingly useful"""
 
-    def __init__(self, zfile):
+    def __init__(self, zfile: Union[str, Path, BinaryIO]):
         """
         Parameters
         ----------
@@ -98,7 +94,7 @@ class TemporaryZipDirectory(TemporaryDirectory):
 
 
 def retrieve_filenames(
-    directory: str, func: Callable = None, recursive: bool = True, **kwargs
+    directory: Union[str, Path], func: Optional[Callable] = None, recursive: bool = True, **kwargs
 ) -> List[str]:
     """Retrieve file names in a directory.
 
@@ -127,7 +123,7 @@ def retrieve_filenames(
     return filenames
 
 
-def retrieve_demo_file(url: str, force: bool = False) -> str:
+def retrieve_demo_file(name: str, force: bool = False) -> Path:
     """Retrieve the demo file either by getting it from file or from a URL.
 
     If the file is already on disk it returns the file name. If the file isn't
@@ -136,17 +132,18 @@ def retrieve_demo_file(url: str, force: bool = False) -> str:
 
     Parameters
     ----------
-    url : str
+    name : str
         The suffix to the url (location within the S3 bucket) pointing to the demo file.
     """
-    true_url = r"https://storage.googleapis.com/pylinac_demo_files/" + url
-    demo_file = osp.join(osp.dirname(osp.dirname(__file__)), "demo_files", url)
-    demo_dir = osp.dirname(demo_file)
-    if not osp.exists(demo_dir):
+    true_url = r"https://storage.googleapis.com/pylinac_demo_files/" + name
+    demo_path = Path(__file__).parent.parent / "demo_files" / name
+    # demo_file = osp.join(osp.dirname(osp.dirname(__file__)), "demo_files", name)
+    demo_dir = demo_path.parent
+    if not demo_dir.exists():
         os.makedirs(demo_dir)
-    if force or not osp.isfile(demo_file):
-        get_url(true_url, destination=demo_file)
-    return demo_file
+    if force or not demo_path.exists():
+        get_url(true_url, destination=demo_path)
+    return demo_path
 
 
 def is_url(url: str) -> bool:
@@ -167,7 +164,7 @@ def is_url(url: str) -> bool:
         return False
 
 
-def get_url(url: str, destination: str = None, progress_bar: bool = True) -> str:
+def get_url(url: str, destination: Union[str, Path, None] = None, progress_bar: bool = True) -> str:
     """Download a URL to a local file.
 
     Parameters

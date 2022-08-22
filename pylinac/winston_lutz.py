@@ -22,6 +22,7 @@ import enum
 import io
 import math
 import os.path as osp
+import webbrowser
 from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
@@ -40,7 +41,7 @@ from .core.decorators import lru_cache
 from .core.geometry import Point, Line, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import bounding_box
-from .core.utilities import is_close, open_path, ResultBase, convert_to_enum
+from .core.utilities import is_close, ResultBase, convert_to_enum
 
 
 class Axis(enum.Enum):
@@ -97,9 +98,9 @@ class WinstonLutz:
 
     def __init__(
         self,
-        directory: Union[str, list[str], Path],
+        directory: Union[str, List[str], Path],
         use_filenames: bool = False,
-        axis_mapping: Optional[dict[str, (int, int, int)]] = None,
+        axis_mapping: Optional[Dict[str, Tuple[int, int, int]]] = None,
     ):
         """
         Parameters
@@ -151,7 +152,7 @@ class WinstonLutz:
     @classmethod
     def from_demo_images(cls):
         """Instantiate using the demo images."""
-        demo_file = retrieve_demo_file(url="winston_lutz.zip")
+        demo_file = retrieve_demo_file(name="winston_lutz.zip")
         return cls.from_zip(demo_file)
 
     @classmethod
@@ -794,7 +795,7 @@ class WinstonLutz:
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
     def _contains_axis_images(self, axis: Axis = Axis.GANTRY) -> bool:
         """Return whether or not the set of WL images contains images pertaining to a given axis"""
@@ -860,7 +861,7 @@ class WinstonLutz2D(image.LinacDicomImage):
 
         safety_stop = np.min(self.shape) / 10
         while has_noise(self, window_size) and safety_stop > 0:
-            self.remove_edges(window_size)
+            self.crop(window_size)
             safety_stop -= 1
 
     def _find_field_centroid(self) -> Tuple[Point, List]:

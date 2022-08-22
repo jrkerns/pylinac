@@ -19,6 +19,7 @@ import io
 import os.path as osp
 import textwrap
 import warnings
+import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
 from itertools import cycle
@@ -36,7 +37,7 @@ from .core import image, pdf
 from .core.geometry import Line, Rectangle, Point
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import MultiProfile, SingleProfile, Interpolation
-from .core.utilities import open_path, ResultBase, convert_to_enum
+from .core.utilities import ResultBase, convert_to_enum
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
 
@@ -246,7 +247,7 @@ class PicketFence:
     @classmethod
     def from_demo_image(cls, filter: int = None):
         """Construct a PicketFence instance using the demo image."""
-        demo_file = retrieve_demo_file(url="AS1200.dcm")
+        demo_file = retrieve_demo_file(name="AS1200.dcm")
         return cls(demo_file, filter=filter)
 
     @classmethod
@@ -975,7 +976,7 @@ class PicketFence:
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
     def mlc_skew(self) -> float:
         """Apparent rotation in degrees of the MLC. This could be conflated with the EPID skew, so be careful when interpreting this value."""

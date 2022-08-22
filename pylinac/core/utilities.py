@@ -1,9 +1,7 @@
 """Utility functions for pylinac."""
-import decimal
 import os
 import os.path as osp
 import struct
-import subprocess
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -13,7 +11,6 @@ from typing import Union, Sequence, Type, BinaryIO
 import numpy as np
 import pydicom
 
-from .typing import NumberLike
 from .. import __version__
 
 
@@ -67,7 +64,7 @@ def assign2machine(source_file: str, machine_file: str):
 
 
 def is_close(
-    val: NumberLike, target: Union[NumberLike, Sequence], delta: NumberLike = 1
+    val: float, target: Union[float, Sequence], delta: float = 1
 ):
     """Return whether the value is near the target value(s).
 
@@ -94,24 +91,11 @@ def is_close(
     return False
 
 
-def simple_round(number: NumberLike, decimals: int = 0) -> float:
+def simple_round(number: float, decimals: int = 0) -> float:
     """Round a number to the given number of decimals. Fixes small floating number errors."""
     num = int(round(number * 10**decimals))
     num /= 10**decimals
     return num
-
-
-def isnumeric(object) -> bool:
-    """Check whether the passed object is numeric in any sense."""
-    return isinstance(object, (int, float, decimal.Decimal, np.number))
-
-
-def is_float_like(number) -> bool:
-    return isinstance(number, (float, np.float, np.float16, np.float32, np.float64))
-
-
-def is_int_like(number) -> bool:
-    return isinstance(number, (int, np.int, np.int16, np.int32, np.int64, np.int8))
 
 
 def is_iterable(object) -> bool:
@@ -177,24 +161,3 @@ def decode_binary(
     if cursor_shift:
         f.seek(cursor_shift, 1)
     return output
-
-
-def open_path(path: str) -> None:
-    """Open the specified path in the system default viewer."""
-
-    if os.name == "darwin":
-        launcher = "open"
-    elif os.name == "posix":
-        launcher = "xdg-open"
-    elif os.name == "nt":
-        launcher = "explorer"
-    subprocess.call([launcher, path])
-
-
-def file_exists(filename: str) -> str:
-    """Check if the file exists and if it does add a timestamp"""
-    if osp.exists(filename):
-        filename, ext = osp.splitext(filename)
-        mytime = datetime.now().strftime("%Y%m%d%H%M%S")
-        filename = filename + mytime + ext
-    return filename

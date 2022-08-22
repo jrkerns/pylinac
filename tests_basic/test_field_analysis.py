@@ -48,7 +48,7 @@ class FieldAnalysisTests(TestCase):
 
     def test_demo_is_reachable(self):
         if has_www_connection():
-            file = retrieve_demo_file(url='flatsym_demo.dcm', force=True)
+            file = retrieve_demo_file(name='flatsym_demo.dcm', force=True)
             self.assertTrue(osp.isfile(file))
 
     def test_demo_loads_properly(self):
@@ -360,7 +360,7 @@ class FlatSymDemo(FieldAnalysisBase, TestCase):
 
     @classmethod
     def get_filename(cls):
-        return retrieve_demo_file(url='flatsym_demo.dcm')
+        return retrieve_demo_file(name='flatsym_demo.dcm')
 
 
 class FlatSymWideDemo(FlatSymDemo, TestCase):

@@ -12,6 +12,7 @@ Features:
 import dataclasses
 import enum
 import typing
+import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Union, List, Tuple, Sequence, Optional, BinaryIO
@@ -26,7 +27,7 @@ from .core.image import ImageLike
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import SingleProfile, Interpolation, Edge
-from .core.utilities import open_path, ResultBase
+from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
 
@@ -117,7 +118,7 @@ class VMATBase:
     @classmethod
     def from_demo_images(cls):
         """Construct a VMAT instance using the demo images."""
-        demo_file = retrieve_demo_file(url=cls._url_suffix)
+        demo_file = retrieve_demo_file(name=cls._url_suffix)
         return cls.from_zip(demo_file)
 
     @argue.bounds(tolerance=(0, 8))
@@ -447,7 +448,7 @@ class VMATBase:
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
 
 class DRGS(VMATBase):

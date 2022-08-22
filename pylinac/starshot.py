@@ -22,6 +22,7 @@ Features:
 import copy
 import dataclasses
 import io
+import webbrowser
 from dataclasses import dataclass
 from typing import Union, List, Optional, Tuple, BinaryIO
 
@@ -34,7 +35,7 @@ from .core import image, pdf
 from .core.geometry import Point, Line, Circle
 from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
 from .core.profile import SingleProfile, CollapsedCircleProfile, Interpolation
-from .core.utilities import open_path, ResultBase
+from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
 
@@ -116,7 +117,7 @@ class Starshot:
     @classmethod
     def from_demo_image(cls):
         """Construct a Starshot instance and load the demo image."""
-        demo_file = retrieve_demo_file(url="starshot.tif")
+        demo_file = retrieve_demo_file(name="starshot.tif")
         return cls(demo_file, sid=1000)
 
     @classmethod
@@ -539,7 +540,7 @@ class Starshot:
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
     @staticmethod
     def run_demo():

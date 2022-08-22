@@ -1,28 +1,28 @@
 """Module for classes that represent common geometric objects or patterns."""
-from itertools import zip_longest
+from __future__ import annotations
+
 import math
+from itertools import zip_longest
 from typing import Union, Optional, List, Iterable, Tuple
 
-import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle as mpl_Circle
-from matplotlib.patches import Rectangle as mpl_Rectangle
+import numpy as np
+from matplotlib.patches import Circle as mpl_Circle, Rectangle as mpl_Rectangle
 
 from .utilities import is_iterable
-from .typing import NumberLike
 
 
-def tan(degrees: NumberLike) -> float:
+def tan(degrees: float) -> float:
     """Calculate the tangent of the given degrees."""
     return math.tan(math.radians(degrees))
 
 
-def cos(degrees: NumberLike) -> float:
+def cos(degrees: float) -> float:
     """Calculate the cosine of the given degrees."""
     return math.cos(math.radians(degrees))
 
 
-def sin(degrees: NumberLike) -> float:
+def sin(degrees: float) -> float:
     """Calculate the sine of the given degrees."""
     return math.sin(math.radians(degrees))
 
@@ -30,19 +30,19 @@ def sin(degrees: NumberLike) -> float:
 class Point:
     """A geometric point with x, y, and z coordinates/attributes."""
 
-    z: Union[int, float]
-    y: Union[int, float]
-    x: Union[int, float]
+    z: float
+    y: float
+    x: float
     _attr_list: List[str] = ["x", "y", "z", "idx", "value"]
     _coord_list: List[str] = ["x", "y", "z"]
 
     def __init__(
         self,
-        x: Union[NumberLike, tuple, "Point"] = 0,
-        y: NumberLike = 0,
-        z: NumberLike = 0,
+        x: Union[float, tuple, Point] = 0,
+        y: float = 0,
+        z: float = 0,
         idx: Optional[int] = None,
-        value: Optional[NumberLike] = None,
+        value: Optional[float] = None,
         as_int: bool = False,
     ):
         """
@@ -207,11 +207,11 @@ class Circle:
 class Vector:
     """A vector with x, y, and z coordinates."""
 
-    x: NumberLike
-    y: NumberLike
-    z: NumberLike
+    x: float
+    y: float
+    z: float
 
-    def __init__(self, x: NumberLike = 0, y: NumberLike = 0, z: NumberLike = 0):
+    def __init__(self, x: float = 0, y: float = 0, z: float = 0):
         self.x = x
         self.y = y
         self.z = z
@@ -221,7 +221,7 @@ class Vector:
 
     def as_scalar(self) -> float:
         """Return the scalar equivalent of the vector."""
-        return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+        return math.sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2)
 
     def distance_to(self, thing: Union[Circle, Point]) -> float:
         """Calculate the distance to the given point.
@@ -366,9 +366,7 @@ class Line:
         denominator = np.sqrt(np.sum(np.power(lp2 - lp1, 2)))
         return numerator / denominator
 
-    def plot2axes(
-        self, axes: plt.Axes, width: NumberLike = 1, color: str = "w"
-    ) -> None:
+    def plot2axes(self, axes: plt.Axes, width: float = 1, color: str = "w") -> None:
         """Plot the line to an axes.
 
         Parameters

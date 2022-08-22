@@ -567,8 +567,8 @@ class MRSlice11ModuleOutput:
 
 class MRSlice1Module(CatPhanModule):
     common_name = "Slice 1 (Thickness, Offset, Resolution)"
-    slice_lines: dict[str, Line]
-    thickness_rois: dict[str, ThicknessROI] = {}
+    slice_lines: Dict[str, Line]
+    thickness_rois: Dict[str, ThicknessROI] = {}
     thickness_roi_settings = {
         "Top": {"width": 100, "height": 3.5, "distance": -3},
         "Bottom": {"width": 100, "height": 3.5, "distance": 2.5},

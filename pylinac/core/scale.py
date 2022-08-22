@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Tuple
 
 import argue
 
@@ -35,7 +34,7 @@ def inv_shift_and_mirror_360(value: float) -> float:
 
 
 class MachineScale(Enum):
-    """Possible machine scales. Used for specifying input and and output scales for conversion.
+    """Possible machine scales. Used for specifying input and output scales for conversion.
     The enum keys are conversion functions for each axis relative to IEC 61217"""
 
     IEC61217 = {
@@ -78,7 +77,7 @@ def convert(
     gantry: float,
     collimator: float,
     rotation: float,
-) -> Tuple[float, float, float]:
+) -> (float, float, float):
     """Convert from one coordinate scale to another. Returns gantry, collimator, rotation."""
     # convert to IEC61217 since everything is defined relative to it
     g = input_scale.value["gantry_to_iec"](gantry)

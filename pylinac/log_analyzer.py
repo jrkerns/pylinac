@@ -30,6 +30,8 @@ import multiprocessing
 import os
 import os.path as osp
 import shutil
+import webbrowser
+import zipfile
 from io import BytesIO, BufferedReader
 from typing import Union, List, Optional, Tuple, Iterable, Sequence, BinaryIO
 
@@ -44,7 +46,6 @@ from .core.utilities import (
     is_iterable,
     decode_binary,
     Structure,
-    open_path,
     convert_to_enum,
 )
 from .settings import get_array_cmap
@@ -2050,8 +2051,8 @@ class Dynalog(LogBase):
     @classmethod
     def from_demo(cls, exclude_beam_off: bool = True):
         """Load and instantiate from the demo dynalog file included with the package."""
-        demo_file = io.retrieve_demo_file(url="AQA.dlg")
-        io.retrieve_demo_file(url="BQA.dlg")  # also download "B" dynalog
+        demo_file = io.retrieve_demo_file(name="AQA.dlg")
+        io.retrieve_demo_file(name="BQA.dlg")  # also download "B" dynalog
         return cls(demo_file, exclude_beam_off)
 
     @staticmethod
@@ -2125,7 +2126,7 @@ class Dynalog(LogBase):
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
     @staticmethod
     def identify_other_file(first_dlg_file: str, raise_find_error: bool = True) -> str:
@@ -2392,8 +2393,8 @@ class TrajectoryLog(LogBase):
     def _read_txt_file(self) -> None:
         """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
         self.txt = None
-        if ".bin" in self.filename:  # files downloaded via URL may not have .bin ending
-            txt_filename = self.filename.replace(".bin", ".txt")
+        if ".bin" in str(self.filename):  # files downloaded via URL may not have .bin ending
+            txt_filename = str(self.filename).replace(".bin", ".txt")
             if osp.isfile(txt_filename):
                 self.txt = {}
                 with open(txt_filename) as txtfile:
@@ -2406,7 +2407,7 @@ class TrajectoryLog(LogBase):
     @classmethod
     def from_demo(cls, exclude_beam_off: bool = True):
         """Load and instantiate from the demo trajetory log file included with the package."""
-        demo_file = io.retrieve_demo_file(url="Tlog.bin")
+        demo_file = io.retrieve_demo_file(name="Tlog.bin")
         return cls(demo_file, exclude_beam_off)
 
     @staticmethod
@@ -2592,7 +2593,7 @@ class TrajectoryLog(LogBase):
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
     @property
     def num_beamholds(self) -> int:
@@ -2683,7 +2684,7 @@ def load_log(
     if io.is_url(file_or_dir):
         file_or_dir = io.get_url(file_or_dir)
     if osp.isfile(file_or_dir):
-        if io.is_zipfile(file_or_dir):
+        if zipfile.is_zipfile(file_or_dir):
             return MachineLogs.from_zip(file_or_dir)
         if not is_log(file_or_dir):
             raise NotALogError("Not a valid log")

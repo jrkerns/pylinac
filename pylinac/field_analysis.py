@@ -3,22 +3,23 @@ import dataclasses
 import io
 import os.path as osp
 import warnings
+import webbrowser
 from dataclasses import dataclass
 from enum import Enum
 from math import floor, ceil
 from pathlib import Path
-from typing import Union, Optional, Tuple, BinaryIO, Sequence, List, Dict
+from typing import Union, Optional, Tuple, BinaryIO, List, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .core.utilities import open_path, ResultBase, convert_to_enum
 from .core import image, pdf
 from .core.exceptions import NotAnalyzed
 from .core.geometry import Rectangle
 from .core.hill import Hill
 from .core.io import retrieve_demo_file, SNCProfiler
 from .core.profile import SingleProfile, Edge, Interpolation, Normalization
+from .core.utilities import ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
 
 
@@ -341,7 +342,7 @@ class FieldAnalysis:
     @classmethod
     def from_demo_image(cls):
         """Load the demo image into an instance."""
-        demo_file = retrieve_demo_file(url="flatsym_demo.dcm")
+        demo_file = retrieve_demo_file(name="flatsym_demo.dcm")
         return cls(demo_file)
 
     @staticmethod
@@ -940,7 +941,7 @@ class FieldAnalysis:
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
     def plot_analyzed_image(
         self,
@@ -1313,7 +1314,7 @@ class DeviceFieldAnalysis(FieldAnalysis):
     @classmethod
     def from_demo_image(cls):
         """Load the demo image into an instance."""
-        demo_file = retrieve_demo_file(url="6fff.prm")
+        demo_file = retrieve_demo_file(name="6fff.prm")
         return cls(demo_file, device=Device.PROFILER)
 
     @staticmethod

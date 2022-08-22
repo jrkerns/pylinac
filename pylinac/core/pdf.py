@@ -10,7 +10,6 @@ from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
 
-from .typing import NumberLike
 from .. import __version__
 
 
@@ -73,7 +72,7 @@ class PylinacCanvas:
     def add_text(
         self,
         text: Union[str, List[str]],
-        location: Tuple[NumberLike, NumberLike],
+        location: (float, float),
         font_size: int = 10,
     ) -> None:
         """Generic text drawing function.

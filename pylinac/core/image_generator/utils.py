@@ -30,7 +30,7 @@ def generate_lightrad(
         GaussianFilterLayer(),
     ],
     bb_size_mm: float = 3,
-    bb_positions: Tuple[Tuple[float, float], ...] = (
+    bb_positions: ((float, float), ...) = (
         (-40, -40),
         (-40, 40),
         (40, -40),
@@ -84,7 +84,7 @@ def generate_picketfence(
     picket_width_mm: int = 2,
     picket_height_mm: int = 300,
     gantry_angle: int = 0,
-    orientation=Orientation.UP_DOWN,
+    orientation: Orientation = Orientation.UP_DOWN,
     picket_offset_error: Optional[Sequence] = None,
 ) -> None:
     """Create a mock picket fence image. Will always be up-down.
@@ -145,12 +145,12 @@ def generate_winstonlutz(
     offset_mm_left: float = 0,
     offset_mm_up: float = 0,
     offset_mm_in: float = 0,
-    image_axes: List[Tuple[int, int, int]] = [
+    image_axes: ((int, int, int), ...) = (
         (0, 0, 0),
         (90, 0, 0),
         (180, 0, 0),
         (270, 0, 0),
-    ],
+    ),
     gantry_tilt: float = 0,
     gantry_sag: float = 0,
     clean_dir: bool = True,
@@ -233,12 +233,12 @@ def generate_winstonlutz_cone(
     offset_mm_left: float = 0,
     offset_mm_up: float = 0,
     offset_mm_in: float = 0,
-    image_axes: List[Tuple[int, int, int]] = [
+    image_axes: ((int, int, int), ...) = (
         (0, 0, 0),
         (90, 0, 0),
         (180, 0, 0),
         (270, 0, 0),
-    ],
+    ),
     gantry_tilt: float = 0,
     gantry_sag: float = 0,
     clean_dir: bool = True,

@@ -1,12 +1,11 @@
 from abc import abstractmethod, ABC
-from typing import Tuple
 
 import numpy as np
 from skimage import draw, filters
 
 
-def clip_add(image1: np.ndarray, image2: np.ndarray, dtype: np.dtype = np.uint16):
-    """Clip the image to the dtype extrema. Otherwise the bits will flip."""
+def clip_add(image1: np.ndarray, image2: np.ndarray, dtype: np.dtype = np.uint16) -> np.ndarray:
+    """Clip the image to the dtype extrema. Otherwise, the bits will flip."""
     return np.clip(image1 + image2, np.iinfo(dtype).min, np.iinfo(dtype).max).astype(
         dtype
     )
@@ -48,7 +47,7 @@ class PerfectConeLayer(Layer):
     def __init__(
         self,
         cone_size_mm: float = 10,
-        cax_offset_mm: Tuple[float, float] = (0, 0),
+        cax_offset_mm: (float, float) = (0, 0),
         alpha: float = 1.0,
     ):
         self.cone_size_mm = cone_size_mm
@@ -63,15 +62,15 @@ class PerfectConeLayer(Layer):
 
     def _create_perfect_field(
         self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> Tuple[np.ndarray, ...]:
+    ) -> (np.ndarray, ...):
         cone_size_pix = ((self.cone_size_mm / 2) / pixel_size) * mag_factor**2
-        cax_offset_pix = [
+        cax_offset_pix = tuple(
             x * mag_factor / pixel_size + (shape / 2 - 0.5)
             for x, shape in zip(self.cax_offset_mm, image.shape)
-        ]
+        )
         rr, cc = draw.disk(cax_offset_pix, cone_size_pix, shape=image.shape)
-        rr = np.round(rr).astype(np.int)
-        cc = np.round(cc).astype(np.int)
+        rr = np.round(rr).astype(int)
+        cc = np.round(cc).astype(int)
         temp_array = np.zeros(image.shape)
         temp_array[rr, cc] = int(np.iinfo(image.dtype).max * self.alpha)
         image = clip_add(image, temp_array)
@@ -84,7 +83,7 @@ class FilterFreeConeLayer(PerfectConeLayer):
     def __init__(
         self,
         cone_size_mm: float = 10,
-        cax_offset_mm: Tuple[float, float] = (0, 0),
+        cax_offset_mm: (float, float) = (0, 0),
         alpha: float = 1.0,
         filter_magnitude: float = 0.4,
         filter_sigma_mm: float = 80,
@@ -119,8 +118,8 @@ class PerfectFieldLayer(Layer):
 
     def __init__(
         self,
-        field_size_mm: Tuple[float, float] = (10, 10),
-        cax_offset_mm: Tuple[float, float] = (0, 0),
+        field_size_mm: (float, float) = (10, 10),
+        cax_offset_mm: (float, float) = (0, 0),
         alpha: float = 1.0,
     ):
         self.field_size_mm = field_size_mm
@@ -129,7 +128,7 @@ class PerfectFieldLayer(Layer):
 
     def _create_perfect_field(
         self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> Tuple[np.ndarray, ...]:
+    ) -> (np.ndarray, ...):
         field_size_pix = [
             even_round(f * mag_factor**2 / pixel_size) for f in self.field_size_mm
         ]
@@ -148,8 +147,8 @@ class PerfectFieldLayer(Layer):
         ]
         # -1 due to skimage implementation of [start:(end+1)]
         rr, cc = draw.rectangle(field_start, end=field_end, shape=image.shape)
-        rr = np.round(rr).astype(np.int)
-        cc = np.round(cc).astype(np.int)
+        rr = np.round(rr).astype(int)
+        cc = np.round(cc).astype(int)
         temp_array = np.zeros(image.shape)
         temp_array[rr, cc] = int(np.iinfo(image.dtype).max * self.alpha)
         image = clip_add(image, temp_array)
@@ -167,8 +166,8 @@ class FilteredFieldLayer(PerfectFieldLayer):
 
     def __init__(
         self,
-        field_size_mm: Tuple[float, float] = (10, 10),
-        cax_offset_mm: Tuple[float, float] = (0, 0),
+        field_size_mm: (float, float) = (10, 10),
+        cax_offset_mm: (float, float) = (0, 0),
         alpha: float = 1.0,
         gaussian_height: float = 0.03,
         gaussian_sigma_mm: float = 32,
@@ -202,8 +201,8 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
 
     def __init__(
         self,
-        field_size_mm: Tuple[float, float] = (10, 10),
-        cax_offset_mm: Tuple[float, float] = (0, 0),
+        field_size_mm: (float, float) = (10, 10),
+        cax_offset_mm: (float, float) = (0, 0),
         alpha: float = 1.0,
         gaussian_height: float = 0.4,
         gaussian_sigma_mm: float = 80,
@@ -237,7 +236,7 @@ class PerfectBBLayer(PerfectConeLayer):
     def __init__(
         self,
         bb_size_mm: float = 5,
-        cax_offset_mm: Tuple[float, float] = (0, 0),
+        cax_offset_mm: (float, float) = (0, 0),
         alpha: float = -0.5,
     ):
         super().__init__(

@@ -3,7 +3,7 @@ import weakref
 
 
 def lru_cache(*lru_args, **lru_kwargs):
-    """https://stackoverflow.com/a/33672499"""
+    """Method-safe LRU cache; https://stackoverflow.com/a/33672499"""
 
     def decorator(func):
         @functools.wraps(func)

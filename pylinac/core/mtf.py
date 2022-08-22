@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import warnings
 from typing import Sequence, Optional, Tuple
 
@@ -19,7 +21,6 @@ class MTF:
         lp_minimums: Sequence[float],
     ):
         """
-
         Parameters
         ----------
         lp_spacings : sequence of floats
@@ -52,7 +53,7 @@ class MTF:
             )
 
     @argue.bounds(x=(0, 100))
-    def relative_resolution(self, x=50) -> float:
+    def relative_resolution(self, x: float = 50) -> float:
         """Return the line pair value at the given rMTF resolution value.
 
         Parameters
@@ -75,7 +76,7 @@ class MTF:
     @classmethod
     def from_high_contrast_diskset(
         cls, spacings: Sequence[float], diskset: Sequence[HighContrastDiskROI]
-    ):
+    ) -> MTF:
         """Construct the MTF using high contrast disks from the ROI module."""
         maximums = [roi.max for roi in diskset]
         minimums = [roi.min for roi in diskset]

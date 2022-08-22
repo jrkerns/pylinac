@@ -1,12 +1,10 @@
 import enum
-import warnings
 from typing import Union, Tuple, Optional
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from cached_property import cached_property
 from matplotlib.patches import Circle as mpl_Circle
-
 from skimage.measure._regionprops import _RegionProperties
 
 from .decorators import lru_cache
@@ -46,9 +44,9 @@ class DiskROI(Circle):
     def __init__(
         self,
         array: np.ndarray,
-        angle: Union[float, int],
-        roi_radius: Union[float, int],
-        dist_from_center: Union[float, int],
+        angle: float,
+        roi_radius: float,
+        dist_from_center: float,
         phantom_center: Union[Tuple, Point],
     ):
         """
@@ -71,8 +69,8 @@ class DiskROI(Circle):
 
     @staticmethod
     def _get_shifted_center(
-        angle: Union[float, int],
-        dist_from_center: Union[float, int],
+        angle: float,
+        dist_from_center: float,
         phantom_center: Point,
     ) -> Point:
         """The center of the ROI; corrects for phantom dislocation and roll."""
@@ -101,6 +99,7 @@ class DiskROI(Circle):
     def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
         # http://scikit-image.org/docs/dev/auto_examples/plot_camera_numpy.html
+        # TODO: Replace with scikit-image draw function
         masked_array = np.copy(self._array).astype(float)
         l_x, l_y = self._array.shape[0], self._array.shape[1]
         X, Y = np.ogrid[:l_x, :l_y]
@@ -111,7 +110,7 @@ class DiskROI(Circle):
         return masked_array
 
     def plot2axes(
-        self, axes=None, edgecolor: str = "black", fill: bool = False
+        self, axes: Optional[plt.Axes] = None, edgecolor: str = "black", fill: bool = False
     ) -> None:
         """Plot the Circle on the axes.
 
@@ -205,7 +204,7 @@ class LowContrastDiskROI(DiskROI):
         return self.contrast_to_noise * self.diameter
 
     @property
-    def visibility(self):
+    def visibility(self) -> float:
         """The visual perception of CNR. Uses the model from A Rose: https://www.osapublishing.org/josa/abstract.cfm?uri=josa-38-2-196.
         See also here: https://howradiologyworks.com/x-ray-cnr/.
         Finally, a review paper here: http://xrm.phys.northwestern.edu/research/pdf_papers/1999/burgess_josaa_1999.pdf
@@ -308,6 +307,7 @@ class RectangleROI(Rectangle):
     def __repr__(self):
         return f"Rectangle ROI @ {self.center}; mean pixel: {self.pixel_value}"
 
+    # TODO: See if I could use this somewhere
     # @classmethod
     # def from_regionprop(cls, regionprop: _RegionProperties, phan_center: Point):
     #     width = regionprop.bbox[3] - regionprop.bbox[1]

@@ -1,5 +1,4 @@
 from abc import ABC
-from typing import Tuple
 
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
@@ -11,7 +10,7 @@ class Simulator(ABC):
     """Abstract class for an image simulator"""
 
     pixel_size: float
-    shape: Tuple[int, int]
+    shape: (int, int)
 
     def __init__(self, sid: float = 1500):
         """
@@ -40,7 +39,7 @@ class AS500Image(Simulator):
     """Simulates an AS500 EPID image."""
 
     pixel_size: float = 0.78125
-    shape: Tuple[int, int] = (384, 512)
+    shape: (int, int) = (384, 512)
 
     def generate_dicom(
         self,
@@ -116,7 +115,7 @@ class AS1000Image(Simulator):
     """Simulates an AS1000 EPID image."""
 
     pixel_size: float = 0.390625
-    shape: Tuple[int, int] = (768, 1024)
+    shape: (int, int) = (768, 1024)
 
     def generate_dicom(
         self,
@@ -202,7 +201,7 @@ class AS1200Image(Simulator):
     """Simulates an AS1200 EPID image."""
 
     pixel_size: float = 0.336
-    shape: Tuple[int, int] = (1280, 1280)
+    shape: (int, int) = (1280, 1280)
 
     def generate_dicom(
         self,

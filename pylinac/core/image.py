@@ -2,26 +2,25 @@
 import copy
 import io
 import math
-import pathlib
+import os
+import os.path as osp
+import re
 from collections import Counter
 from datetime import datetime
 from io import BytesIO, BufferedReader
-import re
-import os.path as osp
-import os
-from typing import Union, Sequence, List, Any, Tuple, Optional, BinaryIO, Literal
+from pathlib import Path
+from typing import Union, Sequence, List, Any, Tuple, Optional, BinaryIO
 
-import pydicom
-from pydicom.errors import InvalidDicomError
+import argue
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image as pImage
-from scipy import ndimage
+import pydicom
 import scipy.ndimage.filters as spf
-import argue
+from PIL import Image as pImage
+from pydicom.errors import InvalidDicomError
+from scipy import ndimage
 from skimage.draw import disk
 
-from .utilities import is_close
 from .geometry import Point
 from .io import (
     get_url,
@@ -31,7 +30,7 @@ from .io import (
     retrieve_dicom_file,
 )
 from .profile import stretch as stretcharray
-from .typing import NumberLike
+from .utilities import is_close
 from ..settings import get_dicom_cmap, PATH_TRUNCATION_LENGTH
 
 ARRAY = "Array"
@@ -78,7 +77,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, Imag
     else:
         img = image1
     pixel_height_diff = abs(int(round(-physical_height_diff * img.dpmm / 2)))
-    img.remove_edges(pixel_height_diff, edges=("top", "bottom"))
+    img.crop(pixel_height_diff, edges=("top", "bottom"))
 
     # ...crop width
     physical_width_diff = image1.physical_shape[1] - image2.physical_shape[1]
@@ -87,7 +86,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, Imag
     else:
         img = image2
     pixel_width_diff = abs(int(round(physical_width_diff * img.dpmm / 2)))
-    img.remove_edges(pixel_width_diff, edges=("left", "right"))
+    img.crop(pixel_width_diff, edges=("left", "right"))
 
     # resize images to be of the same shape
     zoom_factor = image1.shape[1] / image2.shape[1]
@@ -118,7 +117,9 @@ def retrieve_image_files(path: str) -> List[str]:
     return retrieve_filenames(directory=path, func=is_image)
 
 
-def load(path: Union[str, ImageLike, np.ndarray, BinaryIO], **kwargs) -> ImageLike:
+def load(
+    path: Union[str, Path, ImageLike, np.ndarray, BinaryIO], **kwargs
+) -> ImageLike:
     """Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
     Parameters
@@ -180,9 +181,11 @@ def load_url(url: str, progress_bar: bool = True, **kwargs) -> ImageLike:
     return load(filename, **kwargs)
 
 
-@argue.options(method=("mean", "max", "sum"))
 def load_multiples(
-    image_file_list: Sequence, method: str = "mean", stretch_each: bool = True, **kwargs
+    image_file_list: Sequence,
+    method: str = "mean",
+    stretch_each: bool = True,
+    **kwargs,
 ) -> ImageLike:
     """Combine multiple image files into one superimposed image.
 
@@ -230,12 +233,12 @@ def load_multiples(
     return first_img
 
 
-def _is_dicom(path: Union[str, io.BytesIO, ImageLike, np.ndarray]) -> bool:
+def _is_dicom(path: Union[str, Path, io.BytesIO, ImageLike, np.ndarray]) -> bool:
     """Whether the file is a readable DICOM file via pydicom."""
     return is_dicom_image(file=path)
 
 
-def _is_image_file(path: str) -> bool:
+def _is_image_file(path: Union[str, Path]) -> bool:
     """Whether the file is a readable image file via Pillow."""
     try:
         pImage.open(path)
@@ -261,7 +264,7 @@ class BaseImage:
     """
 
     def __init__(
-        self, path: Union[str, BytesIO, ImageLike, np.ndarray, BufferedReader]
+        self, path: Union[str, Path, BytesIO, ImageLike, np.ndarray, BufferedReader]
     ):
         """
         Parameters
@@ -271,11 +274,11 @@ class BaseImage:
         """
         source: Union[FILE_TYPE, STREAM_TYPE]
 
-        if isinstance(path, (str, pathlib.Path)) and not osp.isfile(path):
+        if isinstance(path, (str, Path)) and not osp.isfile(path):
             raise FileExistsError(
                 f"File `{path}` does not exist. Verify the file path name."
             )
-        elif isinstance(path, (str, pathlib.Path)) and osp.isfile(path):
+        elif isinstance(path, (str, Path)) and osp.isfile(path):
             self.path = path
             self.base_path = osp.basename(path)
             self.source = FILE_TYPE
@@ -283,7 +286,7 @@ class BaseImage:
             self.source = STREAM_TYPE
             path.seek(0)
             try:
-                self.path = str(pathlib.Path(path.name))
+                self.path = str(Path(path.name))
             except AttributeError:
                 self.path = ""
 
@@ -306,25 +309,30 @@ class BaseImage:
 
     @classmethod
     def from_multiples(
-        cls, filelist: List[str], method: str = "mean", stretch: bool = True, **kwargs
+        cls,
+        filelist: List[str],
+        method: str = "mean",
+        stretch: bool = True,
+        **kwargs,
     ) -> ImageLike:
         """Load an instance from multiple image items. See :func:`~pylinac.core.image.load_multiples`."""
         return load_multiples(filelist, method, stretch, **kwargs)
 
     @property
     def center(self) -> Point:
-        """Return the center position of the image array as a Point."""
-        # TODO: Use center for even, offset 0.5 for odd.
+        """Return the center position of the image array as a Point.
+        Even-length arrays will return the midpoint between central two indices. Odd will return the central index."""
         x_center = (self.shape[1] / 2) - 0.5
         y_center = (self.shape[0] / 2) - 0.5
         return Point(x_center, y_center)
 
     @property
-    def physical_shape(self) -> Tuple[float, float]:
+    def physical_shape(self) -> (float, float):
         """The physical size of the image in mm."""
         return self.shape[0] / self.dpmm, self.shape[1] / self.dpmm
 
     def date_created(self, format: str = "%A, %B %d, %Y") -> str:
+        """The date the file was created. Tries DICOM data before falling back on OS timestamp"""
         date = None
         try:
             date = datetime.strptime(
@@ -359,6 +367,8 @@ class BaseImage:
             Whether to actually show the image. Set to false when plotting multiple items.
         clear_fig : bool
             Whether to clear the prior items on the figure before plotting.
+        kwargs
+            kwargs passed to plt.imshow()
         """
         if ax is None:
             fig, ax = plt.subplots()
@@ -369,9 +379,12 @@ class BaseImage:
             plt.show()
         return ax
 
-    @argue.options(kind=("median", "gaussian"))
-    def filter(self, size: Union[float, int] = 0.05, kind: str = "median") -> None:
-        """Filter the profile.
+    def filter(
+        self,
+        size: Union[float, int] = 0.05,
+        kind: str = "median",
+    ) -> None:
+        """Filter the profile in place.
 
         Parameters
         ----------
@@ -420,25 +433,6 @@ class BaseImage:
         if "right" in edges:
             self.array = self.array[:, :-pixels]
 
-    def remove_edges(
-        self,
-        pixels: int = 15,
-        edges: Tuple[str, ...] = ("top", "bottom", "left", "right"),
-    ) -> None:
-        """Removes pixels on all edges of the image in-place.
-
-        Parameters
-        ----------
-        pixels : int
-            Number of pixels to cut off all sides of the image.
-        edges : tuple
-            Which edges to remove from. Can be any combination of the four edges.
-        """
-        DeprecationWarning(
-            "`remove_edges` is deprecated and will be removed in a future version. Use `crop` instead"
-        )
-        self.crop(pixels=pixels, edges=edges)
-
     def flipud(self) -> None:
         """Flip the image array upside down in-place. Wrapper for np.flipud()"""
         self.array = np.flipud(self.array)
@@ -466,11 +460,12 @@ class BaseImage:
         self.array = np.roll(self.array, amount, axis=axis)
 
     def rot90(self, n: int = 1) -> None:
-        """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW."""
+        """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW n times."""
         self.array = np.rot90(self.array, n)
 
-    @argue.options(kind=("high", "low"))
-    def threshold(self, threshold: int, kind: str = "high") -> None:
+    def threshold(
+        self, threshold: float, kind: str = "high"
+    ) -> None:
         """Apply a high- or low-pass threshold filter.
 
         Parameters
@@ -503,7 +498,7 @@ class BaseImage:
         return ArrayImage(array)
 
     def dist2edge_min(self, point: Union[Point, Tuple]) -> float:
-        """Calculates minimum distance from given point to image edges.
+        """Calculates distance from given point to the closest edge.
 
         Parameters
         ----------
@@ -525,7 +520,7 @@ class BaseImage:
         return min(disttoedge)
 
     def ground(self) -> float:
-        """Ground the profile such that the lowest value is 0.
+        """Ground the profile in place such that the lowest value is 0.
 
         .. note::
             This will also "ground" profiles that are negative or partially-negative.
@@ -540,8 +535,8 @@ class BaseImage:
         self.array -= min_val
         return min_val
 
-    def normalize(self, norm_val: Union[str, NumberLike] = "max") -> None:
-        """Normalize the image values to the given value.
+    def normalize(self, norm_val: Union[str, float] = "max") -> None:
+        """Normalize the image values in place to the given value.
 
         Parameters
         ----------
@@ -556,7 +551,7 @@ class BaseImage:
         self.array = self.array / val
 
     def check_inversion(
-        self, box_size: int = 20, position: Sequence = (0.0, 0.0)
+        self, box_size: int = 20, position: (float, float) = (0.0, 0.0)
     ) -> None:
         """Check the image for inversion by sampling the 4 image corners.
         If the average value of the four corners is above the average pixel value, then it is very likely inverted.
@@ -586,7 +581,9 @@ class BaseImage:
         if avg > np.mean(self.array.flatten()):
             self.invert()
 
-    def check_inversion_by_histogram(self, percentiles=(5, 50, 95)) -> bool:
+    def check_inversion_by_histogram(
+        self, percentiles: (float, float, float) = (5, 50, 95)
+    ) -> bool:
         """Check the inversion of the image using histogram analysis. The assumption is that the image
         is mostly background-like values and that there is a relatively small amount of dose getting to the image
         (e.g. a picket fence image). This function looks at the distance from one percentile to another to determine
@@ -597,14 +594,18 @@ class BaseImage:
         percentiles : 3-element tuple
             The 3 percentiles to compare. Default is (5, 50, 95). Recommend using (x, 50, y). To invert the other way
             (where pixel value is *decreasing* with dose, reverse the percentiles, e.g. (95, 50, 5).
+
+        Returns
+        -------
+        bool: Whether an inversion was performed.
         """
         was_inverted = False
-        p5 = np.percentile(self.array, percentiles[0])
-        p50 = np.percentile(self.array, percentiles[1])
-        p95 = np.percentile(self.array, percentiles[2])
-        dist_to_5 = abs(p50 - p5)
-        dist_to_95 = abs(p50 - p95)
-        if dist_to_5 > dist_to_95:
+        p_low = np.percentile(self.array, percentiles[0])
+        p_mid = np.percentile(self.array, percentiles[1])
+        p_high = np.percentile(self.array, percentiles[2])
+        mid_to_low = abs(p_mid - p_low)
+        mid_to_high = abs(p_mid - p_high)
+        if mid_to_low > mid_to_high:
             was_inverted = True
             self.invert()
         return was_inverted
@@ -613,9 +614,9 @@ class BaseImage:
     def gamma(
         self,
         comparison_image: ImageLike,
-        doseTA: NumberLike = 1,
-        distTA: NumberLike = 1,
-        threshold: NumberLike = 0.1,
+        doseTA: float = 1,
+        distTA: float = 1,
+        threshold: float = 0.1,
         ground: bool = True,
         normalize: bool = True,
     ) -> np.ndarray:
@@ -694,17 +695,17 @@ class BaseImage:
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
         subtracted_img = np.abs(comp_img - ref_img)
         denominator = np.sqrt(
-            ((doseTA / 100.0) ** 2) + ((distTA_pixels**2) * (grad_img**2))
+            ((doseTA / 100.0) ** 2) + ((distTA_pixels ** 2) * (grad_img ** 2))
         )
         gamma_map = subtracted_img / denominator
 
         return gamma_map
 
-    def as_type(self, dtype) -> np.ndarray:
+    def as_type(self, dtype: np.dtype) -> np.ndarray:
         return self.array.astype(dtype)
 
     @property
-    def shape(self) -> Tuple[int, int]:
+    def shape(self) -> (int, int):
         return self.array.shape
 
     @property
@@ -746,16 +747,16 @@ class DicomImage(BaseImage):
     """
 
     metadata: pydicom.FileDataset
-    _sid = NumberLike
-    _dpi = NumberLike
+    _sid: float
+    _dpi: float
 
     def __init__(
         self,
-        path: Union[str, BytesIO, BufferedReader],
+        path: Union[str, Path, BytesIO, BufferedReader],
         *,
         dtype=None,
-        dpi: NumberLike = None,
-        sid: NumberLike = None,
+        dpi: float = None,
+        sid: float = None,
     ):
         """
         Parameters
@@ -817,7 +818,7 @@ class DicomImage(BaseImage):
             orig_array = self.array
             self.array = -orig_array + orig_array.max() + orig_array.min()
 
-    def save(self, filename: str) -> str:
+    def save(self, filename: Union[str, Path]) -> Union[str, Path]:
         """Save the image instance back out to a .dcm file.
 
         Returns
@@ -833,7 +834,7 @@ class DicomImage(BaseImage):
         return filename
 
     @property
-    def sid(self) -> NumberLike:
+    def sid(self) -> float:
         """The Source-to-Image in mm."""
         try:
             return float(self.metadata.RTImageSID)
@@ -841,7 +842,7 @@ class DicomImage(BaseImage):
             return self._sid
 
     @property
-    def dpi(self) -> NumberLike:
+    def dpi(self) -> float:
         """The dots-per-inch of the image, defined at isocenter."""
         try:
             return self.dpmm * MM_PER_INCH
@@ -849,7 +850,7 @@ class DicomImage(BaseImage):
             return self._dpi
 
     @property
-    def dpmm(self) -> NumberLike:
+    def dpmm(self) -> float:
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
         dpmm = None
@@ -886,7 +887,7 @@ class LinacDicomImage(DicomImage):
 
     _use_filenames: bool
 
-    def __init__(self, path: str, use_filenames: bool = False, **kwargs):
+    def __init__(self, path: Union[str, Path], use_filenames: bool = False, **kwargs):
         self._gantry = kwargs.pop("gantry", None)
         self._coll = kwargs.pop("coll", None)
         self._couch = kwargs.pop("couch", None)
@@ -899,7 +900,7 @@ class LinacDicomImage(DicomImage):
         if self._gantry is not None:
             return self._gantry
         else:
-            return self._get_axis_value(self.gantry_keyword.lower(), "GantryAngle")
+            return self._get_axis_value(self.gantry_keyword, "GantryAngle")
 
     @property
     def collimator_angle(self) -> float:
@@ -908,7 +909,7 @@ class LinacDicomImage(DicomImage):
             return self._coll
         else:
             return self._get_axis_value(
-                self.collimator_keyword.lower(), "BeamLimitingDeviceAngle"
+                self.collimator_keyword, "BeamLimitingDeviceAngle"
             )
 
     @property
@@ -917,9 +918,7 @@ class LinacDicomImage(DicomImage):
         if self._couch is not None:
             return self._couch
         else:
-            return self._get_axis_value(
-                self.couch_keyword.lower(), "PatientSupportAngle"
-            )
+            return self._get_axis_value(self.couch_keyword, "PatientSupportAngle")
 
     def _get_axis_value(self, axis_str: str, axis_dcm_attr: str) -> float:
         """Retrieve the value of the axis. This will first look in the file name for the value.
@@ -983,7 +982,12 @@ class FileImage(BaseImage):
     """
 
     def __init__(
-        self, path: str, *, dpi: NumberLike = None, sid: NumberLike = None, dtype=None
+        self,
+        path: Union[str, Path, BinaryIO],
+        *,
+        dpi: Optional[float] = None,
+        sid: Optional[float] = None,
+        dtype: Optional[np.dtype] = None,
     ):
         """
         Parameters
@@ -1045,8 +1049,8 @@ class ArrayImage(BaseImage):
         self,
         array: np.array,
         *,
-        dpi: NumberLike = None,
-        sid: NumberLike = None,
+        dpi: float = None,
+        sid: float = None,
         dtype=None,
     ):
         """
@@ -1125,8 +1129,8 @@ class DicomImageStack:
 
     def __init__(
         self,
-        folder: Union[str, pathlib.Path],
-        dtype=None,
+        folder: Union[str, Path],
+        dtype: Optional[np.dtype] = None,
         min_number: int = 39,
         check_uid: bool = True,
     ):
@@ -1166,7 +1170,7 @@ class DicomImageStack:
         self.images.sort(key=lambda x: x.metadata.ImagePositionPatient[-1])
 
     @classmethod
-    def from_zip(cls, zip_path: str, dtype=None):
+    def from_zip(cls, zip_path: Union[str, Path], dtype: Optional[np.dtype] = None):
         """Load a DICOM ZIP archive.
 
         Parameters
@@ -1181,7 +1185,7 @@ class DicomImageStack:
         return obj
 
     @staticmethod
-    def is_image_slice(file: str) -> bool:
+    def is_image_slice(file: Union[str, Path]) -> bool:
         """Test if the file is a CT Image storage DICOM file."""
         try:
             ds = pydicom.dcmread(file, force=True, stop_before_pixels=True)
@@ -1212,7 +1216,7 @@ class DicomImageStack:
         """
         self.images[slice].plot()
 
-    def roll(self, direction: Literal["x", "y"], amount: int):
+    def roll(self, direction: str, amount: int):
         for img in self.images:
             img.roll(direction, amount)
 
@@ -1232,7 +1236,16 @@ class DicomImageStack:
         return len(self.images)
 
 
-def gamma_2d(reference: np.ndarray, evaluation: np.ndarray, dose_to_agreement=1, distance_to_agreement=1, gamma_cap_value=2, global_dose=True, dose_threshold=5, fill_value=np.nan) -> np.ndarray:
+def gamma_2d(
+    reference: np.ndarray,
+    evaluation: np.ndarray,
+    dose_to_agreement: float = 1,
+    distance_to_agreement: int = 1,
+    gamma_cap_value: float = 2,
+    global_dose: bool = True,
+    dose_threshold: float = 5,
+    fill_value: float = np.nan,
+) -> np.ndarray:
     """Compute a 2D gamma of two 2D numpy arrays. This does NOT do size or spatial resolution checking.
     It performs an element-by-element evaluation. It is the responsibility
     of the caller to ensure the reference and evaluation have comparable spatial resolution.
@@ -1286,7 +1299,10 @@ def gamma_2d(reference: np.ndarray, evaluation: np.ndarray, dose_to_agreement=1,
             # unlike the 1D computation, we have to search at an index offset by the distance to agreement
             # we use DTA+1 in disk because it looks like the results are exclusive of edges.
             # https://scikit-image.org/docs/stable/api/skimage.draw.html#disk
-            rs, cs = disk((row_idx+distance_to_agreement, col_idx+distance_to_agreement), distance_to_agreement+1)
+            rs, cs = disk(
+                (row_idx + distance_to_agreement, col_idx + distance_to_agreement),
+                distance_to_agreement + 1,
+            )
 
             capital_gammas = []
             for r, c in zip(rs, cs):
@@ -1294,13 +1310,16 @@ def gamma_2d(reference: np.ndarray, evaluation: np.ndarray, dose_to_agreement=1,
                 # for the distance, we compare the ref row/col to the eval padded matrix
                 # but remember the padded array is padded by DTA, so to compare distances, we
                 # have to cancel the offset we used for dose purposes.
-                dist = math.dist((row_idx, col_idx), (r-distance_to_agreement, c-distance_to_agreement))
+                dist = math.dist(
+                    (row_idx, col_idx),
+                    (r - distance_to_agreement, c - distance_to_agreement),
+                )
                 dose = eval_point - ref_point
                 if not global_dose:
                     dose_ta = dose_to_agreement / 100 * ref_point
                 capital_gamma = math.sqrt(
-                    dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
+                    dist ** 2 / distance_to_agreement ** 2 + dose ** 2 / dose_ta ** 2
                 )
                 capital_gammas.append(capital_gamma)
-            gamma[row_idx, col_idx] = (min(np.nanmin(capital_gammas), gamma_cap_value))
+            gamma[row_idx, col_idx] = min(np.nanmin(capital_gammas), gamma_cap_value)
     return np.asarray(gamma)

@@ -24,6 +24,7 @@ import io
 import math
 import os.path as osp
 import warnings
+import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, List, Tuple, Union, BinaryIO, Callable, Dict
@@ -41,7 +42,7 @@ from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import Interpolation, CollapsedCircleProfile, SingleProfile
 from .core.roi import LowContrastDiskROI, HighContrastDiskROI, bbox_center, Contrast
-from .core.utilities import open_path, ResultBase
+from .core.utilities import ResultBase
 from .ct import get_regions
 
 
@@ -167,7 +168,7 @@ class ImagePhantomBase:
     @classmethod
     def from_demo_image(cls):
         """Instantiate and load the demo image."""
-        demo_file = retrieve_demo_file(url=cls._demo_filename)
+        demo_file = retrieve_demo_file(name=cls._demo_filename)
         return cls(demo_file)
 
     @classmethod
@@ -669,7 +670,7 @@ class ImagePhantomBase:
 
         canvas.finish()
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
     @property
     def phantom_center(self) -> Point:
@@ -1036,7 +1037,7 @@ class StandardImagingFC2(ImagePhantomBase):
 
         canvas.finish()
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
 
 class IMTLRad(StandardImagingFC2):
@@ -1384,7 +1385,7 @@ class StandardImagingQC3(ImagePhantomBase):
     @classmethod
     def from_demo_image(cls):
         """Instantiate and load the demo image."""
-        demo_file = retrieve_demo_file(url=cls._demo_filename)
+        demo_file = retrieve_demo_file(name=cls._demo_filename)
         inst = cls(demo_file)
         inst.image.invert()
         return inst

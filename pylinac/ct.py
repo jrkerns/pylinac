@@ -33,7 +33,6 @@ from typing import (
     BinaryIO,
     Type,
     Callable,
-    Literal,
 )
 
 import matplotlib.pyplot as plt
@@ -242,7 +241,7 @@ class Slice:
         catphan,
         slice_num: Optional[int] = None,
         combine: bool = True,
-        combine_method: Literal["mean", "max"] = "mean",
+        combine_method: str = "mean",
         num_slices: int = 0,
         clear_borders: bool = True,
     ):
@@ -1411,7 +1410,7 @@ class CatPhanBase:
     @classmethod
     def from_demo_images(cls):
         """Construct a CBCT object from the demo images."""
-        demo_file = retrieve_demo_file(url=cls._demo_url)
+        demo_file = retrieve_demo_file(name=cls._demo_url)
         return cls.from_zip(demo_file)
 
     @classmethod
@@ -1503,7 +1502,7 @@ class CatPhanBase:
 
     def plot_analyzed_subimage(
         self,
-        subimage: Literal["hu", "un", "sp", "mtf", "lin", "prof"] = "hu",
+        subimage: str = "hu",
         delta: bool = True,
         show: bool = True,
     ) -> None:
@@ -1560,7 +1559,7 @@ class CatPhanBase:
     def save_analyzed_subimage(
         self,
         filename: Union[str, BinaryIO],
-        subimage: Literal["hu", "un", "sp", "mtf", "lin", "prof"] = "hu",
+        subimage: str = "hu",
         **kwargs,
     ):
         """Save a component image to file.
@@ -2110,7 +2109,7 @@ def get_regions(
     slice_or_arr: Union[Slice, np.ndarray],
     fill_holes: bool = False,
     clear_borders: bool = True,
-    threshold: Literal["otsu", "mean"] = "otsu",
+    threshold: str = "otsu",
 ) -> Tuple[np.ndarray, list, int]:
     """Get the skimage regions of a black & white image."""
     if threshold == "otsu":
@@ -2147,7 +2146,7 @@ def combine_surrounding_slices(
     dicomstack: DicomImageStack,
     nominal_slice_num: int,
     slices_plusminus: int = 1,
-    mode: Literal["mean", "max", "median"] = "mean",
+    mode: str = "mean",
 ) -> np.ndarray:
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
 
@@ -2181,7 +2180,7 @@ def combine_surrounding_slices(
     return combined_array
 
 
-def rois_to_results(dict_mapping: Dict[str, HUDiskROI]) -> dict[str, ROIResult]:
+def rois_to_results(dict_mapping: Dict[str, HUDiskROI]) -> Dict[str, ROIResult]:
     """Converts a dict of HUDiskROIs to a dict of ROIResults. This is for dumping to simple data formats for results_data and RadMachine"""
     flat_dict = {}
     for name, roi in dict_mapping.items():

@@ -4,7 +4,7 @@ import textwrap
 import webbrowser
 from io import BytesIO
 from pathlib import Path
-from typing import Union, Dict, Optional, List
+from typing import Union, Dict, Optional, List, Tuple
 
 import numpy as np
 import scipy.ndimage
@@ -277,7 +277,7 @@ class QuartGeometryModule(CatPhanModule):
         for name, profile_data in self.profiles.items():
             profile_data["line"].plot2axes(axis, width=2, color="blue")
 
-    def distances(self) -> dict[str, float]:
+    def distances(self) -> Dict[str, float]:
         """The measurements of the phantom size for the two lines in mm"""
         return {f"{name} mm": p["width (mm)"] for name, p in self.profiles.items()}
 
@@ -356,7 +356,7 @@ class QuartDVT(CatPhanBase):
     def plot_analyzed_subimage(self, *args, **kwargs) -> None:
         raise NotImplementedError()
 
-    def results(self, as_str: bool = True) -> Union[str, tuple[str, ...]]:
+    def results(self, as_str: bool = True) -> Union[str, Tuple[str, ...]]:
         """Return the results of the analysis as a string. Use with print()."""
         items = (
             f"\n - {self._model} QA Test - \n",

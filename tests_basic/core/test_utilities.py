@@ -1,22 +1,10 @@
 import unittest
-import os.path as osp
 
 from pylinac import Interpolation
 from pylinac.core.utilities import *
 
 
 class TestUtilities(unittest.TestCase):
-
-    def test_isnumeric(self):
-        # test numerics
-        numerics = (5, 3.2, np.array((5,6))[0])
-        for number in numerics:
-            self.assertTrue(isnumeric(number))
-
-        # test non-numerics
-        notnumerics = ('5', np.array((5,6)))
-        for notnumeric in notnumerics:
-            self.assertFalse(isnumeric(notnumeric))
 
     def test_is_iterable(self):
         # test iterables

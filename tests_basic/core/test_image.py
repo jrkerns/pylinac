@@ -112,12 +112,12 @@ class TestBaseImage(TestCase):
         array = np.arange(42).reshape(6, 7)
         self.arr = image.load(array)
 
-    def test_remove_edges(self):
+    def test_crop(self):
         """Remove the edges from a pixel array."""
         crop = 15
         orig_shape = self.img.shape
         orig_dpi = self.img.dpi
-        self.img.remove_edges(crop)
+        self.img.crop(crop)
         new_shape = self.img.shape
         new_dpi = self.img.dpi
         self.assertEqual(new_shape[0]+crop*2, orig_shape[0])

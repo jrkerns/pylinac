@@ -8,6 +8,7 @@ Dref, and chamber reading corrections. Where Muir & Rogers' values/equations are
 Classes include photon and electron calibrations using cylindrical chambers. Pass all the relevant raw measurements
 and the class will compute all corrections and corrected readings and dose at 10cm and dmax/dref.
 """
+import webbrowser
 from datetime import datetime
 from typing import Optional
 
@@ -15,8 +16,8 @@ import argue
 import numpy as np
 
 from ..core.pdf import PylinacCanvas
-from ..core.typing import NumberLike, NumberOrArray
-from ..core.utilities import Structure, open_path
+from ..core.typing import NumberOrArray
+from ..core.utilities import Structure
 
 MIN_TEMP = 15
 MAX_TEMP = 35
@@ -376,7 +377,7 @@ def tpr2010_from_pdd2010(*, pdd2010: float) -> float:
     return 1.2661 * pdd2010 - 0.0595
 
 
-def p_tp(*, temp: NumberLike, press: NumberLike) -> float:
+def p_tp(*, temp: float, press: float) -> float:
     """Calculate the temperature & pressure correction.
 
     Parameters
@@ -756,8 +757,8 @@ class TG51Photon(TG51Base):
         physicist: str = "",
         unit: str,
         measurement_date: str = "",
-        temp: NumberLike,
-        press: NumberLike,
+        temp: float,
+        press: float,
         chamber: str,
         n_dw: float,
         p_elec: float,
@@ -932,7 +933,7 @@ class TG51Photon(TG51Base):
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
 
 class TG51ElectronLegacy(TG51Base):
@@ -988,8 +989,8 @@ class TG51ElectronLegacy(TG51Base):
         unit: str = "",
         measurement_date: str = "",
         energy: int,
-        temp: NumberLike,
-        press: NumberLike,
+        temp: float,
+        press: float,
         chamber: str,
         k_ecal: float,
         n_dw: float,
@@ -1180,7 +1181,7 @@ class TG51ElectronLegacy(TG51Base):
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
 
 class TG51ElectronModern(TG51Base):
@@ -1242,8 +1243,8 @@ class TG51ElectronModern(TG51Base):
         unit: str = "",
         measurement_date: str = "",
         energy: int,
-        temp: NumberLike,
-        press: NumberLike,
+        temp: float,
+        press: float,
         chamber: str,
         n_dw: float,
         electrometer: str = "",
@@ -1416,4 +1417,4 @@ class TG51ElectronModern(TG51Base):
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)

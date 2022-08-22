@@ -1,6 +1,7 @@
+import webbrowser
 from abc import ABC
 from datetime import datetime
-from typing import Union, List, Optional
+from typing import Union, Optional
 
 import argue
 import numpy as np
@@ -21,9 +22,8 @@ from .tg51 import (
     MAX_PION,
 )  # make available to module
 from ..core.pdf import PylinacCanvas
-from ..core.utilities import is_close, Structure, open_path
 from ..core.typing import NumberOrArray
-
+from ..core.utilities import is_close, Structure
 
 V1_V2_FITS = {
     2.0: {"a0": 2.337, "a1": -3.636, "a2": 2.299},
@@ -608,7 +608,7 @@ def k_s(
         bounds=(MIN_PION, MAX_PION),
         message="Ks is out of bounds. Verify inputs or check chamber",
     )
-    return float(a["a0"] + a["a1"] * m_ratio + a["a2"] * (m_ratio**2))
+    return float(a["a0"] + a["a1"] * m_ratio + a["a2"] * (m_ratio ** 2))
 
 
 def _verify_voltage_ratio_is_valid(voltage_ratio):
@@ -993,7 +993,7 @@ class TRS398Photon(TRS398Base):
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)
 
 
 class TRS398Electron(TRS398Base):
@@ -1203,4 +1203,4 @@ class TRS398Electron(TRS398Base):
         canvas.finish()
 
         if open_file:
-            open_path(filename)
+            webbrowser.open(filename)

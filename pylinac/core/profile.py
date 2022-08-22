@@ -16,7 +16,6 @@ from scipy.stats import linregress
 
 from .geometry import Point, Circle
 from .hill import Hill
-from .typing import NumberLike
 from .utilities import convert_to_enum
 
 # for Hill fits of 2D device data the # of points can be small.
@@ -146,7 +145,7 @@ class ProfileMixin:
         orig_array = self.values
         self.values = -orig_array + orig_array.max() + orig_array.min()
 
-    def normalize(self, norm_val: Union[str, NumberLike] = "max") -> None:
+    def normalize(self, norm_val: Union[str, float] = "max") -> None:
         """Normalize the profile to the given value.
 
         Parameters
@@ -161,7 +160,7 @@ class ProfileMixin:
             val = norm_val
         self.values /= val
 
-    def stretch(self, min: NumberLike = 0, max: NumberLike = 1) -> None:
+    def stretch(self, min: float = 0, max: float = 1) -> None:
         """'Stretch' the profile to the min and max parameter values.
 
         Parameters
@@ -186,7 +185,7 @@ class ProfileMixin:
         return min_val
 
     @argue.options(kind=("median", "gaussian"))
-    def filter(self, size: NumberLike = 0.05, kind: str = "median") -> None:
+    def filter(self, size: float = 0.05, kind: str = "median") -> None:
         """Filter the profile.
 
         Parameters
@@ -1082,7 +1081,7 @@ class CircleProfile(MultiProfile, Circle):
     def __init__(
         self,
         center: Point,
-        radius: NumberLike,
+        radius: float,
         image_array: np.ndarray,
         start_angle: Union[float, int] = 0,
         ccw: bool = True,
@@ -1279,7 +1278,7 @@ class CollapsedCircleProfile(CircleProfile):
     def __init__(
         self,
         center: Point,
-        radius: NumberLike,
+        radius: float,
         image_array: Union[np.ndarray, "ArrayImage"],
         start_angle: int = 0,
         ccw: bool = True,
@@ -1460,11 +1459,11 @@ def find_peaks(
 
 
 def _parse_peak_args(
-    peak_separation: NumberLike,
+    peak_separation: float,
     search_region: Tuple[float, float],
-    threshold: NumberLike,
+    threshold: float,
     values: np.ndarray,
-) -> Tuple[NumberLike, int, NumberLike, np.ndarray]:
+) -> Tuple[float, int, float, np.ndarray]:
     """Converts arguments as needed. E.g. converting a ratio to actual values"""
     # set threshold as % if between 0 and 1
     val_range = values.max() - values.min()
