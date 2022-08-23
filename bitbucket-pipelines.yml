@@ -20,6 +20,7 @@ definitions:
         clone:
           depth: full
         script:
+          - apt install git
           - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
     - step: &build-docs
         name: Build Docs
