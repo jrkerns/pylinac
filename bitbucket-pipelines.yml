@@ -21,7 +21,7 @@ definitions:
           depth: full
         script:
           - apt update
-          - apt install git
+          - apt install git -y
           - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
     - step: &build-docs
         name: Build Docs
