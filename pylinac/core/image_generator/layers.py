@@ -214,7 +214,7 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
     def apply(
         self, image: np.ndarray, pixel_size: float, mag_factor: float
     ) -> np.ndarray:
-        image, rr, cc = self._create_perfect_field(image, pixel_size)
+        image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
         n = gaussian2d(
             rr,

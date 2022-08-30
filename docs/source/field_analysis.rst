@@ -7,7 +7,7 @@ Field Analysis
 Overview
 --------
 
-The field analysis module (``pylinac.field_analysis``) allows a physicist to analyze metrics from an EPID or 2D device array
+The field analysis module (``pylinac.field_analysis``) allows a physicist to analyze metrics from an EPID
 to measure penumbra, field width, etc. Additionally, protocols can be used which can calculate flatness & symmetry.
 The module is very flexible, allowing users to choose different types of interpolation, normalization, centering, etc.
 Users can also creat custom protocols to perform other types of field analysis within the main pylinac flow.
@@ -22,8 +22,7 @@ which include edge fitting for FFF fields as well as a "top" calculation for the
     E.g. the "top" calculation in NCS-33 is over the central 5cm.
     Pylinac simply uses a field width ratio which may or may not be 5cm.
 
-The module contains two main classes :class:`~pylinac.field_analysis.FieldAnalysis` which is used for EPID images and
-:class:`~pylinac.field_analysis.DeviceFieldAnalysis` which is used for 2D device arrays.
+The module's main class is :class:`~pylinac.field_analysis.FieldAnalysis` which is used for EPID images.
 
 Running the Demo
 ----------------
@@ -563,62 +562,6 @@ The parameter will then be passed to the custom functions:
           numerous helpful data for you such as the field edges, minimum/maximum value within the field, and much more.
           Read the SingleProfile documentation before creating a custom algorithm.
 
-.. _loading_device_data:
-
-Loading Device Data
--------------------
-
-The field analysis module can load data from a 2D device array. Currently, only the SNC Profiler is supported, but this will expand over time.
-The ``DeviceFieldAnalysis`` class and associated ``Device`` class will handle the loading and parsing of the file as well as spatial resolution information.
-
-To load a Profiler dataset:
-
-.. code-block:: python
-
-    from pylinac import DeviceFieldAnalysis, Device
-
-    fa = DeviceFieldAnalysis(path='my/path/to/6x.prs', device=Device.PROFILER)
-    # proceed as normal
-    fa.analyze(...)
-
-
-.. note::
-
-    While largely the same as the ``FieldAnalysis`` class, the ``DeviceFieldAnalysis``'s ``analyze`` signature is different. Specifically,
-    you cannot pass a vert/horiz position or width (since it's not an image) nor can you pass a centering option.
-    The table below shows the differences. Any parameter not shown is the same between the two.
-
-    .. list-table:: Default differences
-        :header-rows: 1
-
-        * - parameter
-          - FieldAnalysis
-          - DeviceFieldAnalysis
-        * - vert_position
-          - 0.5
-          - N/A
-        * - horiz_position
-          - 0.5
-          - N/A
-        * - vert_width
-          - 0.5
-          - N/A
-        * - horiz_width
-          - 0.5
-          - N/A
-        * - centering
-          - Beam center
-          - N/A
-        * - interpolation
-          - Linear
-          - None
-        * - normalization_method
-          - Beam center
-          - Geometric center
-        * - edge_detection_method
-          - Inflection derivative
-          - Inflection Hill
-
 .. _fff_fields:
 
 FFF fields
@@ -755,9 +698,6 @@ These are the classes a typical user may interface with.
     :members:
 
 .. autoclass:: pylinac.field_analysis.FieldResult
-    :members:
-
-.. autoclass:: pylinac.field_analysis.DeviceFieldAnalysis
     :members:
 
 .. autoclass:: pylinac.field_analysis.Device

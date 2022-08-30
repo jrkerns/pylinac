@@ -183,25 +183,101 @@ class SingleProfileTests(TestCase):
 
         # linear interp
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR, interpolation_factor=10)
-        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10-10)
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10)
 
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
                           dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
         # right length
-        self.assertEqual(len(p.values), 2996)
-        # right dpmm
-        self.assertEqual(p.dpmm, 10)
+        self.assertEqual(len(p.values), 3000)
+        # dpmm is still the same
+        self.assertEqual(p.dpmm, 1/field.pixel_size)
 
         # spline interp
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.SPLINE, interpolation_factor=10)
-        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10-10)
+        self.assertEqual(len(p.values), len(field.image[:, int(field.shape[1] / 2)])*10)
 
         p = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.SPLINE,
                           dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
         # right length
-        self.assertEqual(len(p.values), 2996)
-        # right dpmm
-        self.assertEqual(p.dpmm, 10)
+        self.assertEqual(len(p.values), 3000)
+        # dpmm is still the same
+        self.assertEqual(p.dpmm, 1/field.pixel_size)
+
+    def test_resample(self):
+        # test resampling doubles the length of the values
+        field = generate_open_field()
+        profile = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
+                          dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
+        resampled_profile = profile.resample(interpolation_resolution_mm=0.05)
+        self.assertEqual(len(profile.values), len(resampled_profile.values)/2)
+        self.assertIsInstance(resampled_profile, SingleProfile)
+        original_data = profile.fwxm_data()
+        resampled_data = resampled_profile.fwxm_data()
+        self.assertAlmostEqual(original_data['width (exact)'], resampled_data['width (exact)'], delta=0.001)
+
+        # test resampling via factor
+        field = generate_open_field()
+        profile = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
+                          dpmm=None, interpolation_factor=10)
+        resampled_profile = profile.resample(interpolation_factor=5)  # 5x resolution as first profile
+        self.assertEqual(len(profile), len(resampled_profile)/5)
+        self.assertIsInstance(resampled_profile, SingleProfile)
+        original_data = profile.fwxm_data()
+        resampled_data = resampled_profile.fwxm_data()
+        self.assertAlmostEqual(original_data['width (exact)'], resampled_data['width (exact)'], delta=0.001)
+
+    def test_gamma_perfect(self):
+        # centered field
+        field = generate_open_field()
+        reference = evaluation = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
+                          dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
+        gamma = reference.gamma(evaluation)
+        self.assertIsInstance(gamma, np.ndarray)
+        self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
+        self.assertAlmostEqual(np.nanmean(gamma), 0, delta=0.0003)  # it's 0 because it's the same profile +/- presicion error
+
+    def test_gamma_perfect_downsampled(self):
+        # centered field
+        field = generate_open_field()
+        reference = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
+                          dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
+        # downsample eval profile. We will upsample inside gamma and it should be pretty close to the original
+        evaluation = reference.resample(interpolation_resolution_mm=0.2)
+        gamma = reference.gamma(evaluation)
+        self.assertIsInstance(gamma, np.ndarray)
+        self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
+        self.assertLess(np.nanmean(gamma), 0.002)  # there are small errors introduced by down/up sampled but they're very small
+
+    def test_gamma_perfect_upsampled(self):
+        # centered field
+        field = generate_open_field()
+        reference = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
+                          dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
+        # upsample eval profile. We will downsample inside gamma and it should be pretty close to the original
+        evaluation = reference.resample(interpolation_resolution_mm=0.05)
+        gamma = reference.gamma(evaluation)
+        self.assertIsInstance(gamma, np.ndarray)
+        self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
+        self.assertLess(np.nanmean(gamma), 0.002)  # there are small errors introduced by down/up sampled but they're very small
+
+    def test_gamma_unequal_samples(self):
+        # centered field
+        field = generate_open_field()
+        reference = SingleProfile(field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
+                          dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
+        evaluation = SingleProfile(field.image[:-50, int(field.shape[1] / 2)], interpolation=Interpolation.LINEAR,
+                          dpmm=1/field.pixel_size, interpolation_resolution_mm=0.1)
+        gamma = reference.gamma(evaluation)
+        self.assertIsInstance(gamma, np.ndarray)
+        self.assertEqual(len(gamma), len(reference.values))
+        self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
+        self.assertAlmostEqual(np.nanmean(gamma), 0, delta=0.001)  # it's 0 because it's the same profile +/- presicion error
+
+    def test_gamma_no_dpmm(self):
+        field = generate_open_field()
+        reference = evaluation = SingleProfile(field.image[:, int(field.shape[1] / 2)], dpmm=None)
+        with self.assertRaises(ValueError):
+            reference.gamma(evaluation)
 
 
 class MultiProfileTestMixin:

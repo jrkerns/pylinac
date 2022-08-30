@@ -1115,16 +1115,16 @@ class MLCValue:
         fwxm = prof.fwxm_data(self._fwxm)
         self.profile = prof
         if self._separate_leaves:
-            left = fwxm["left index (exact)"] / interpolation_factor + max(
+            left = fwxm["left index (exact)"] + max(
                 self._approximate_idx - self._spacing / 2, 0
             )
-            right = fwxm["right index (exact)"] / interpolation_factor + max(
+            right = fwxm["right index (exact)"] + max(
                 self._approximate_idx - self._spacing / 2, 0
             )
             return left, right
         else:
             return (
-                fwxm["center index (exact)"] / interpolation_factor
+                fwxm["center index (exact)"]
                 + max(self._approximate_idx - self._spacing / 2, 0),
             )  # crop to left edge if need be
 

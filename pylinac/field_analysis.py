@@ -130,14 +130,14 @@ def _plot_sym_common(
     idx = np.argmax(sym_values)
     axis.plot(
         field["left index (rounded)"] + idx,
-        profile.values[field["left index (rounded)"] + idx],
+        profile._y_original_to_interp(field["left index (rounded)"] + idx),
         "*",
         color="red",
         label="Symmetry max",
     )
     axis.plot(
         field["right index (rounded)"] - idx,
-        profile.values[field["right index (rounded)"] - idx],
+        profile._y_original_to_interp(field["right index (rounded)"] - idx),
         "*",
         color="red",
     )
@@ -362,13 +362,11 @@ class FieldAnalysis:
         if centering == Centering.GEOMETRIC_CENTER:
             # horiz and vert appear switched, but it's because the center of the vert profile
             # is where to take the horizontal profile and vic versa
-            horiz_ratio = v_prof.geometric_center()["index (exact)"] / len(
-                v_prof.values
-            )
-            vert_ratio = h_prof.geometric_center()["index (exact)"] / len(h_prof.values)
+            horiz_ratio = v_prof.geometric_center()["index (exact)"] / self.image.shape[0]
+            vert_ratio = h_prof.geometric_center()["index (exact)"] / self.image.shape[1]
         elif centering == Centering.BEAM_CENTER:
-            horiz_ratio = v_prof.beam_center()["index (exact)"] / len(v_prof.values)
-            vert_ratio = h_prof.beam_center()["index (exact)"] / len(h_prof.values)
+            horiz_ratio = v_prof.beam_center()["index (exact)"] / self.image.shape[0]
+            vert_ratio = h_prof.beam_center()["index (exact)"] / self.image.shape[1]
         return vert_ratio, horiz_ratio
 
     def _extract_profiles(
@@ -1125,14 +1123,12 @@ class FieldAnalysis:
         else:
             axis.set_xlabel("pixels")
             markers = "b"
-        axis.plot(self.vert_profile.values, markers, label="Profile")
+        axis.plot(self.vert_profile.x_indices, self.vert_profile.values, markers, label="Profile")
         axis.set_ylabel("Normalized Response")
 
         # plot second axis w/ physical distance
         sec_y = axis.twiny()
-        physical_distance = (
-            np.array(range(int(len(self.vert_profile.values)))) / self.vert_profile.dpmm
-        )
+        physical_distance = self.vert_profile.x_indices / self.vert_profile.dpmm
         sec_y.plot(physical_distance, self.vert_profile.values, markers)
         sec_y.set_xlabel("mm")
 
@@ -1162,15 +1158,12 @@ class FieldAnalysis:
         else:
             axis.set_xlabel("pixels")
             markers = "b"
-        axis.plot(self.horiz_profile.values, markers, label="Profile")
+        axis.plot(self.horiz_profile.x_indices, self.horiz_profile.values, markers, label="Profile")
         axis.set_ylabel("Normalized Response")
 
         # plot second axis w/ physical distance
         sec_y = axis.twiny()
-        physical_distance = (
-            np.array(range(int(len(self.horiz_profile.values))))
-            / self.horiz_profile.dpmm
-        )
+        physical_distance = self.horiz_profile.x_indices / self.horiz_profile.dpmm
         sec_y.plot(physical_distance, self.horiz_profile.values, markers)
         sec_y.set_xlabel("mm")
 

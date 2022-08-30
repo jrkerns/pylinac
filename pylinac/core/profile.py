@@ -1,4 +1,6 @@
 """Module of objects that resemble or contain a profile, i.e. a 1 or 2-D f(x) representation."""
+from __future__ import annotations
+
 import enum
 import math
 import warnings
@@ -31,7 +33,7 @@ def gamma_1d(
     gamma_cap_value: float = 2,
     global_dose: bool = True,
     dose_threshold: float = 5,
-    fill_value: float = np.nan
+    fill_value: float = np.nan,
 ) -> np.ndarray:
     """Perform a 1D gamma of two 1D profiles/arrays. This does NOT check lengths or
     spatial consistency. It performs an element-by-element evaluation. It is the responsibility
@@ -83,14 +85,14 @@ def gamma_1d(
         # so this is actually searching from -DTA to +DTA because r_idx in eval_padded is off by distance_to_agreement.
         capital_gammas = []
         for e_idx, eval_point in enumerate(
-            eval_padded[r_idx: r_idx + 2 * distance_to_agreement + 1]
+            eval_padded[r_idx : r_idx + 2 * distance_to_agreement + 1]
         ):
             dist = abs(e_idx - distance_to_agreement)
             dose = eval_point - ref_point
             if not global_dose:
                 dose_ta = dose_to_agreement / 100 * ref_point
             capital_gamma = math.sqrt(
-                dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
+                dist ** 2 / distance_to_agreement ** 2 + dose ** 2 / dose_ta ** 2
             )
             capital_gammas.append(capital_gamma)
         gamma.append(min(min(capital_gammas), gamma_cap_value))
@@ -260,6 +262,7 @@ class SingleProfile(ProfileMixin):
         edge_detection_method: Union[Edge, str] = Edge.FWHM,
         edge_smoothing_ratio: float = 0.003,
         hill_window_ratio: float = 0.1,
+        x_values: Optional[np.ndarray] = None,
     ):
         """
         Parameters
@@ -295,6 +298,8 @@ class SingleProfile(ProfileMixin):
             The ratio of the field size to use as the window to fit the Hill function. E.g. 0.2 will using a window
             centered about each edge with a width of 20% the size of the field width. **Only applies when the edge
             detection is INFLECTION_HILL**.
+        x_values
+            The x-values of the profile, if any. If None, will generate a simple range(len(values)).
         """
         self._interp_method = convert_to_enum(interpolation, Interpolation)
         self._interpolation_res = interpolation_resolution_mm
@@ -309,55 +314,124 @@ class SingleProfile(ProfileMixin):
         self.dpmm = dpmm
         fitted_values, new_dpmm, x_indices = self._interpolate(
             values,
+            x_values,
             dpmm,
             interpolation_resolution_mm,
             interpolation_factor,
             self._interp_method,
         )
-        self.dpmm = new_dpmm  # update as needed
         self.values = fitted_values
         self.x_indices = x_indices
+        self._x_interp1d = interp1d(list(range(len(x_indices))), x_indices)
+        self._ground = ground
         if ground:
             fitted_values -= fitted_values.min()
+        self._y_interp1d = interp1d(
+            x_indices, fitted_values, bounds_error=False, fill_value="extrapolate"
+        )
         norm_values = self._normalize(fitted_values, self._norm_method)
         self.values = norm_values  # update values
+        self._y_interp1d = interp1d(
+            x_indices, norm_values, bounds_error=False, fill_value="extrapolate"
+        )
+
+    def _x_interp_to_original(
+        self, location: Union[float, np.ndarray]
+    ) -> Union[float, np.ndarray]:
+        """Get the x-value of the (possibly) interpolated profile. The input value is in the original
+        value range. E.g. a profile with x-range of 0-10 is interpolated to 10x. Asking for the location at 99 would scale back to 9.9.
+        We need this function because peak finding is independent of the x-values. I.e. peaks are found and reported according
+        to the (0, len(x_values)) range. If the x-values are interpolated we need to get back to the original x-value."""
+        x = self._x_interp1d(location)
+        if isinstance(location, (float, int)) or location.size == 1:
+            return float(x)
+        return x
+
+    def _y_original_to_interp(
+        self, location: Union[float, np.ndarray]
+    ) -> Union[float, np.ndarray]:
+        """Get the interpolated y-value of the profile. This is a corollary to the _x_interp... function"""
+        y = self._y_interp1d(location)
+        if isinstance(location, (float, int)) or location.size == 1:
+            return float(y)
+        return y
+
+    def resample(
+        self, interpolation_factor: int = 10, interpolation_resolution_mm: float = 0.1
+    ) -> SingleProfile:
+        """Resample the profile at a new resolution. Returns a new profile"""
+        # we have to set the dpmm to what it currently is after interpolating to resample.
+        if self.dpmm:
+            dpmm = 1 / self._interpolation_res
+        else:
+            dpmm = None
+        return SingleProfile(
+            values=self.values,
+            x_values=self.x_indices,
+            dpmm=dpmm,
+            interpolation=self._interp_method,
+            ground=self._ground,
+            interpolation_resolution_mm=interpolation_resolution_mm,
+            interpolation_factor=interpolation_factor,
+            normalization_method=self._norm_method,
+            edge_detection_method=self._edge_method,
+            edge_smoothing_ratio=self._edge_smoothing_ratio,
+            hill_window_ratio=self._hill_window_ratio,
+        )
 
     @staticmethod
     def _interpolate(
         values,
+        x_values,
         dpmm,
         interpolation_resolution,
         interpolation_factor,
         interp_method: Interpolation,
     ) -> (np.ndarray, float, float, float):
         """Fit the data to the passed interpolation method. Will also calculate the new values to correct the measurements such as dpmm"""
-        x_indices = list(range(len(values)))
+        if x_values is None:
+            x_values = np.array(range(len(values)))
         if interp_method == Interpolation.NONE:
-            return values, dpmm, x_indices  # do nothing
-        elif interp_method == Interpolation.LINEAR:
+            return values, dpmm, x_values  # do nothing
+        else:
             if dpmm is not None:
-                samples = int(
-                    round((len(x_indices) - 1) / (dpmm * interpolation_resolution))
-                )
+                samples = int(round(len(x_values) / (dpmm * interpolation_resolution)))
                 new_dpmm = 1 / interpolation_resolution
             else:
-                samples = int(round((len(x_indices) - 1) * interpolation_factor))
+                samples = int(round(len(x_values) * interpolation_factor))
                 new_dpmm = None
-            f = interp1d(x_indices, values, kind="linear", bounds_error=True)
-            new_x = np.linspace(0, len(x_indices) - 1, num=samples)
-            return f(new_x), new_dpmm, new_x
-        elif interp_method == Interpolation.SPLINE:
-            if dpmm is not None:
-                samples = int(
-                    round((len(x_indices) - 1) / (dpmm * interpolation_resolution))
-                )
-                new_dpmm = 1 / interpolation_resolution
-            else:
-                samples = int(round((len(x_indices) - 1) * interpolation_factor))
-                new_dpmm = None
-            f = interp1d(x_indices, values, kind="cubic")
-            new_x = np.linspace(0, len(x_indices) - 1, num=samples)
-            return f(new_x), new_dpmm, new_x
+            # Warning: BMF ahead
+            # the problem is that if we upsample, the left and right ends are not equally sampled.
+            # E.g. upsampling a 3-pixel array (0, 1, 2) by 10 normally results in ~20 elements. You
+            # interpolate between 0 and 1, and 1 and 2.
+            # The first issue is that you do not have a simple X proportion of
+            # elements (3 * 10 = 30 but we get 20). Additionally, if these are pixels they have a
+            # finite, physical size and technically those values are at the center of the pixels.
+            # Thus, you actually need to sample beyond the left and right edges. In the
+            # above case you'd really need to sample from approximately -0.5 to 2.5 to get ~10 pixels
+            # for each original pixel. We also need to offset the x-values to be back to 0 again from -0.5.
+            # We solve this by offsetting the new x-values by a proportion of the sampling ratio.
+            # A ratio of 1 (identical sampling) should not have any offset and return the same values
+            # As the ratio goes up, we approach the limit of 0.5 pixels. This follows a proportional relationship
+            # with the ratio.
+            resampling_factor = samples / len(values)
+            offset = 0.5 - 1 / (2 * resampling_factor)
+            if interp_method == Interpolation.LINEAR:
+                kind = "linear"
+            elif interp_method == Interpolation.SPLINE:
+                kind = "cubic"
+            f = interp1d(
+                x_values,
+                values,
+                kind=kind,
+                bounds_error=False,
+                fill_value="extrapolate",
+            )
+            new_x = np.linspace(
+                x_values[0] - offset, x_values[-1] + offset, num=samples
+            )
+            new_y = f(new_x)
+            return new_y, new_dpmm, new_x
 
     def _normalize(self, values, method: Normalization) -> np.ndarray:
         """Normalize the data given a method."""
@@ -383,7 +457,7 @@ class SingleProfile(ProfileMixin):
         else:  # plen is odd and we have a central detector
             cax = values[int((plen - 1) / 2)]
         plen = (plen - 1) / 2.0
-        return {"index (exact)": plen, "value (exact)": cax}
+        return {"index (exact)": self._x_interp_to_original(plen), "value (exact)": cax}
 
     def geometric_center(self) -> dict:
         """The geometric center (i.e. the device center)"""
@@ -407,7 +481,7 @@ class SingleProfile(ProfileMixin):
             return {
                 "index (rounded)": int(round(mid_point)),
                 "index (exact)": mid_point,
-                "value (@rounded)": self.values[int(round(mid_point))],
+                "value (@rounded)": self._y_original_to_interp(int(round(mid_point))),
             }
 
     @argue.bounds(x=(0, 100))
@@ -421,25 +495,32 @@ class SingleProfile(ProfileMixin):
             i.e. FWHM.
         """
         _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
-        left_idx = peak_props["left_ips"][0]
-        right_idx = peak_props["right_ips"][0]
-        fwxm_center_idx = (
-            peak_props["right_ips"][0] - peak_props["left_ips"][0]
-        ) / 2 + peak_props["left_ips"][0]
+        left_idx = float(self._x_interp_to_original(peak_props["left_ips"][0]))
+        right_idx = float(self._x_interp_to_original(peak_props["right_ips"][0]))
+        width = right_idx - left_idx
+        fwxm_center_idx = (right_idx - left_idx) / 2 + left_idx
 
         data = {
-            "width (exact)": peak_props["widths"][0],
-            "width (rounded)": int(round(right_idx)) - int(round(left_idx)),
+            "width (exact)": width,
+            "width (rounded)": int(round(width)),
             "center index (rounded)": int(round(fwxm_center_idx)),
             "center index (exact)": fwxm_center_idx,
-            "center value (@rounded)": self.values[int(round(fwxm_center_idx))],
+            "center value (@rounded)": float(
+                self._y_original_to_interp(int(round(fwxm_center_idx)))
+            ),
             "left index (exact)": left_idx,
             "left index (rounded)": int(round(left_idx)),
-            "left value (@rounded)": self.values[int(round(left_idx))],
+            "left value (@rounded)": float(
+                self._y_original_to_interp(int(round(left_idx)))
+            ),
             "right index (exact)": right_idx,
             "right index (rounded)": int(round(right_idx)),
-            "right value (@rounded)": self.values[int(round(right_idx))],
-            "field values": self.values[int(round(left_idx)) : int(round(right_idx))],
+            "right value (@rounded)": float(
+                self._y_original_to_interp(int(round(right_idx)))
+            ),
+            "field values": self._y_original_to_interp(
+                self.x_indices[int(round(left_idx)) : int(round(right_idx))]
+            ),
             "peak_props": peak_props,
         }
         if self.dpmm:
@@ -507,24 +588,24 @@ class SingleProfile(ProfileMixin):
         inner_right_idx_r = int(round(inner_right_idx))
         left_fit = linregress(
             range(field_left_idx_r, inner_left_idx_r),
-            self.values[field_left_idx_r:inner_left_idx_r],
+            self._y_original_to_interp(np.arange(field_left_idx_r, inner_left_idx_r)),
         )
         right_fit = linregress(
             range(inner_right_idx_r, field_right_idx_r),
-            self.values[inner_right_idx_r:field_right_idx_r],
+            self._y_original_to_interp(np.arange(inner_right_idx_r, field_right_idx_r)),
         )
 
         # top calc
         fit_params = np.polyfit(
             range(inner_left_idx_r, inner_right_idx_r),
-            self.values[inner_left_idx_r:inner_right_idx_r],
+            self._y_original_to_interp(np.arange(inner_left_idx_r, inner_right_idx_r)),
             deg=2,
         )
         width = abs(inner_right_idx_r - inner_left_idx_r)
 
         def poly_func(x):
             # return the negative since we're MINIMIZING and want the top value
-            return -(fit_params[0] * (x**2) + fit_params[1] * x + fit_params[2])
+            return -(fit_params[0] * (x ** 2) + fit_params[1] * x + fit_params[2])
 
         # minimize the polynomial function
         min_f = minimize(
@@ -539,13 +620,15 @@ class SingleProfile(ProfileMixin):
             "width (exact)": field_width,
             "beam center index (exact)": beam_center_idx,
             "beam center index (rounded)": beam_center_idx_r,
-            "beam center value (@rounded)": self.values[int(round(beam_center_idx))],
+            "beam center value (@rounded)": self._y_original_to_interp(
+                round(beam_center_idx)
+            ),
             "cax index (exact)": cax_idx,
             "cax index (rounded)": cax_idx_r,
-            "cax value (@rounded)": self.values[int(round(cax_idx))],
+            "cax value (@rounded)": self._y_original_to_interp(round(cax_idx)),
             "left index (exact)": field_left_idx,
             "left index (rounded)": field_left_idx_r,
-            "left value (@rounded)": self.values[int(round(field_left_idx))],
+            "left value (@rounded)": self._y_original_to_interp(round(field_left_idx)),
             "left slope": left_fit.slope,
             "left intercept": left_fit.intercept,
             "right slope": right_fit.slope,
@@ -560,10 +643,12 @@ class SingleProfile(ProfileMixin):
             "top params": fit_params,
             "right index (exact)": field_right_idx,
             "right index (rounded)": field_right_idx_r,
-            "right value (@rounded)": self.values[int(round(field_right_idx))],
-            "field values": self.values[
-                int(round(field_left_idx)) : int(round(field_right_idx))
-            ],
+            "right value (@rounded)": self._y_original_to_interp(
+                round(field_right_idx)
+            ),
+            "field values": self._y_original_to_interp(
+                np.arange(int(round(field_left_idx)), int(round(field_right_idx)))
+            ),
         }
         if self.dpmm:
             data["width (exact) mm"] = data["width (exact)"] / self.dpmm
@@ -622,18 +707,22 @@ class SingleProfile(ProfileMixin):
         )
         (peak_idxs, _) = MultiProfile(d1).find_peaks(threshold=0.8)
         (valley_idxs, _) = MultiProfile(d1).find_valleys(threshold=0.8)
-        left_idx = peak_idxs[0]  # left-most index
-        right_idx = valley_idxs[-1]  # right-most index
+        left_idx = self._x_interp_to_original(peak_idxs[0])  # left-most index
+        right_idx = self._x_interp_to_original(valley_idxs[-1])  # right-most index
         if self._edge_method == Edge.INFLECTION_DERIVATIVE:
             data = {
-                "left index (rounded)": left_idx,
+                "left index (rounded)": int(round(left_idx)),
                 "left index (exact)": left_idx,
-                "right index (rounded)": right_idx,
+                "right index (rounded)": int(round(right_idx)),
                 "right index (exact)": right_idx,
-                "left value (@rounded)": self.values[int(round(left_idx))],
-                "left value (@exact)": self.values[int(round(left_idx))],
-                "right value (@rounded)": self.values[int(round(right_idx))],
-                "right value (@exact)": self.values[int(round(right_idx))],
+                "left value (@rounded)": self._y_original_to_interp(
+                    int(round(left_idx))
+                ),
+                "left value (@exact)": self._y_original_to_interp(left_idx),
+                "right value (@rounded)": self._y_original_to_interp(
+                    int(round(right_idx))
+                ),
+                "right value (@exact)": self._y_original_to_interp(right_idx),
             }
             return data
         else:  # Hill
@@ -653,7 +742,7 @@ class SingleProfile(ProfileMixin):
                     if x >= 0
                 ]
             )
-            y_data = self.values[x_data]
+            y_data = self._y_original_to_interp(x_data)
             # y_data = self.values[left_idx - penum_half_window: left_idx + penum_half_window]
             left_hill = Hill.fit(x_data, y_data)
             left_infl = left_hill.inflection_idx()
@@ -668,7 +757,7 @@ class SingleProfile(ProfileMixin):
                     if x < len(d1)
                 ]
             )
-            y_data = self.values[x_data]
+            y_data = self._y_original_to_interp(x_data)
             right_hill = Hill.fit(x_data, y_data)
             right_infl = right_hill.inflection_idx()
 
@@ -746,13 +835,33 @@ class SingleProfile(ProfileMixin):
             return data
         elif self._edge_method == Edge.INFLECTION_DERIVATIVE:
             infl_data = self.inflection_data()
-            lower_left_value = infl_data["left value (@rounded)"] * lower / 50 * 100
-            upper_left_value = infl_data["left value (@rounded)"] * upper / 50 * 100
-            upper_left_data = self.fwxm_data(x=upper_left_value)
-            lower_left_data = self.fwxm_data(x=lower_left_value)
+            lower_left_percent = max(
+                infl_data["left value (@exact)"] / self.values.max() * lower / 50 * 100,
+                1,
+            )
+            upper_left_percent = min(
+                infl_data["left value (@exact)"] / self.values.max() * upper / 50 * 100,
+                99,
+            )
+            upper_left_data = self.fwxm_data(x=upper_left_percent)
+            lower_left_data = self.fwxm_data(x=lower_left_percent)
 
-            lower_right_value = infl_data["right value (@exact)"] * lower / 50 * 100
-            upper_right_value = infl_data["right value (@exact)"] * upper / 50 * 100
+            lower_right_value = max(
+                infl_data["right value (@exact)"]
+                / self.values.max()
+                * lower
+                / 50
+                * 100,
+                1,
+            )
+            upper_right_value = min(
+                infl_data["right value (@exact)"]
+                / self.values.max()
+                * upper
+                / 50
+                * 100,
+                99,
+            )
             upper_right_data = self.fwxm_data(x=upper_right_value)
             lower_right_data = self.fwxm_data(x=lower_right_value)
 
@@ -765,16 +874,18 @@ class SingleProfile(ProfileMixin):
                 f"right {upper}% index (exact)": upper_right_data[
                     "right index (exact)"
                 ],
-                "left values": self.values[
-                    lower_left_data["left index (rounded)"] : upper_left_data[
-                        "left index (rounded)"
-                    ]
-                ],
-                "right values": self.values[
-                    upper_right_data["right index (rounded)"] : lower_right_data[
-                        "right index (rounded)"
-                    ]
-                ],
+                "left values": self._y_original_to_interp(
+                    np.arange(
+                        lower_left_data["left index (rounded)"],
+                        upper_left_data["left index (rounded)"],
+                    )
+                ),
+                "right values": self._y_original_to_interp(
+                    np.arange(
+                        upper_right_data["right index (rounded)"],
+                        lower_right_data["right index (rounded)"],
+                    )
+                ),
                 f"left penumbra width (exact)": abs(
                     upper_left_data["left index (exact)"]
                     - lower_left_data["left index (exact)"]
@@ -797,10 +908,10 @@ class SingleProfile(ProfileMixin):
             left_hill = Hill.from_params(infl_data["left Hill params"])
             right_hill = Hill.from_params(infl_data["right Hill params"])
 
-            lower_left_value = infl_data["left value (@exact)"] * lower / 50
-            lower_left_index = left_hill.x(lower_left_value)
-            upper_left_value = infl_data["left value (@exact)"] * upper / 50
-            upper_left_index = left_hill.x(upper_left_value)
+            lower_left_percent = infl_data["left value (@exact)"] * lower / 50
+            lower_left_index = left_hill.x(lower_left_percent)
+            upper_left_percent = infl_data["left value (@exact)"] * upper / 50
+            upper_left_index = left_hill.x(upper_left_percent)
 
             lower_right_value = infl_data["right value (@exact)"] * lower / 50
             lower_right_index = right_hill.x(lower_right_value)
@@ -809,9 +920,9 @@ class SingleProfile(ProfileMixin):
 
             data = {
                 f"left {lower}% index (exact)": lower_left_index,
-                f"left {lower}% value (exact)": lower_left_value,
+                f"left {lower}% value (exact)": lower_left_percent,
                 f"left {upper}% index (exact)": upper_left_index,
-                f"left {upper}% value (exact)": upper_left_value,
+                f"left {upper}% value (exact)": upper_left_percent,
                 f"right {lower}% index (exact)": lower_right_index,
                 f"right {lower}% value (exact)": lower_right_value,
                 f"right {upper}% index (exact)": upper_right_index,
@@ -875,10 +986,78 @@ class SingleProfile(ProfileMixin):
         elif calculation == "min":
             return field_values["field values"].min()
 
-    def plot(self) -> None:
+    def gamma(
+        self,
+        evaluation_profile: SingleProfile,
+        distance_to_agreement: float = 1,
+        dose_to_agreement: float = 1,
+        gamma_cap_value: float = 2,
+        dose_threshold: float = 5,
+        global_dose: bool = True,
+        fill_value: float = np.nan,
+    ) -> np.ndarray:
+        """Calculate a 1D gamma. The passed profile is the evaluation profile. The instance calling this method is the reference profile.
+        This profile must have the `dpmm` value given at instantiation so that physical spacing can be evaluated.
+        The evaluation profile is resampled to be the same resolution as the reference profile.
+
+        .. note::
+
+            The difference between this method and the `gamma_1d` function is that 1) this is computed on Profile instances and 2)
+            this validates the physical spacing of the profiles.
+
+        Parameters
+        ----------
+        evaluation_profile
+            The evaluation profile. This profile must have the `dpmm` value given at instantiation so that physical spacing can be evaluated.
+        distance_to_agreement
+            Distance in **mm** to search
+        dose_to_agreement
+            Dose in % of either global or local reference dose
+        gamma_cap_value
+            The value to cap the gamma at. E.g. a gamma of 5.3 will get capped to 2. Useful for displaying data with a consistent range.
+        global_dose
+            Whether to evaluate the dose to agreement threshold based on the global max or the dose point under evaluation.
+        dose_threshold
+            The dose threshold as a number between 0 and 100 of the % of max dose under which a gamma is not calculated.
+            This is not affected by the global/local dose normalization and the threshold value is evaluated against the global max dose, period.
+        fill_value
+            The value to give pixels that were not calculated because they were under the dose threshold. Default
+            is NaN, but another option would be 0. If NaN, allows the user to calculate mean/median gamma over just the
+            evaluated portion and not be skewed by 0's that should not be considered.
+        """
+        if not self.dpmm or not evaluation_profile.dpmm:
+            raise ValueError(
+                "At least one profile does not have the dpmm attribute. Physical spacing cannot be determined. Set it before performing gamma analysis."
+            )
+        distance_to_agreement_px = int(round(distance_to_agreement * self.dpmm))
+        # resample eval profile to be same resolution as reference
+        resampled_evaluation = evaluation_profile.resample(
+            interpolation_resolution_mm=self._interpolation_res
+        )
+        if len(resampled_evaluation.values) != len(self.values):
+            warnings.warn(
+                f"The number of elements in the reference and evaluation differ. Ref: {len(self.values)}, Eval: {len(resampled_evaluation.values)}"
+            )
+        # now that we've resampled, it's still possible that the x-values of the two profiles differ.
+        # E.g. we may be at -0.475 and -0.37 for the first index depending on the amount of interpolation.
+        # we thus need to evaluate the evaluation profile at the exact same x-indices as the reference.
+        eval_at_ref_points = resampled_evaluation._y_original_to_interp(self.x_indices)
+        return gamma_1d(
+            reference=self.values,
+            evaluation=eval_at_ref_points,
+            dose_to_agreement=dose_to_agreement,
+            distance_to_agreement=distance_to_agreement_px,
+            gamma_cap_value=gamma_cap_value,
+            global_dose=global_dose,
+            dose_threshold=dose_threshold,
+            fill_value=fill_value,
+        )
+
+    def plot(self, show: bool = True) -> None:
         """Plot the profile."""
-        plt.plot(self.values)
-        plt.show()
+        plt.plot(self.x_indices, self.values)
+        if show:
+            plt.show()
 
 
 class MultiProfile(ProfileMixin):

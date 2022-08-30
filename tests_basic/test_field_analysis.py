@@ -301,49 +301,75 @@ class FieldAnalysisBase(CloudFileMixin):
         self.assertAlmostEqual(self.fs.results_data().protocol_results['flatness_horizontal'], self.horiz_flatness, delta=self.flat_tolerance)
 
 
-class DeviceAnalysisBase(FieldAnalysisBase):
+class NormalOpenField(FieldAnalysisBase, TestCase):
+    """Typical field w/ horns"""
+    file_name = 'flat_open_15x15.dcm'
+    edge_detection_method = Edge.FWHM
+    vert_flatness = 1.25
+    vert_symmetry = 0
+    horiz_flatness = 1.25
+    horiz_symmetry = 0
+    vert_field_size = 150
+    horiz_field_size = 150
+    cax_to_top = 75
+    cax_to_left = 75
+    cax_to_right = 75
+    cax_to_bottom = 75
+    penum_top = 3.3
+    penum_bottom = 3.3
+    penum_right = 3.3
+    penum_left = 3.3
+
+
+class PerfectOpenField(FieldAnalysisBase, TestCase):
+    """Completely flat field"""
+    file_name = 'perfect_open_15x15.dcm'
+    edge_detection_method = Edge.FWHM
+    vert_flatness = 0
+    vert_symmetry = 0
+    horiz_flatness = 0
+    horiz_symmetry = 0
+    vert_field_size = 150
+    horiz_field_size = 150
+    cax_to_top = 75
+    cax_to_left = 75
+    cax_to_right = 75
+    cax_to_bottom = 75
+    penum_top = 3.3
+    penum_bottom = 3.3
+    penum_right = 3.3
+    penum_left = 3.3
+
+
+class FFFOpenField(FieldAnalysisBase, TestCase):
+    """FFF field. Note the same field size and penumbra as a flat beam"""
+    file_name = 'fff_open_15x15.dcm'
+    edge_detection_method = Edge.INFLECTION_DERIVATIVE
+    vert_flatness = 5.2
+    vert_symmetry = -0.22  # this is true. I have some small bug with the FFF generator that makes the profile not 100% symmetric.
+    horiz_flatness = 5.2
+    horiz_symmetry = -0.22  # ditto
+    vert_field_size = 150
+    horiz_field_size = 150
+    cax_to_top = 75
+    cax_to_left = 75
+    cax_to_right = 75
+    cax_to_bottom = 75
+    penum_top = 3.3
+    penum_bottom = 3.3
+    penum_right = 3.3
+    penum_left = 3.3
+
+
+class FFFOpenFieldHill(FFFOpenField, TestCase):
+    """FFF field using Hill inflection. Note all values are the same. I.e. analysis is equivalent"""
     edge_detection_method = Edge.INFLECTION_HILL
-
-    @classmethod
-    def setUpClass(cls):
-        cls.fs = DeviceFieldAnalysis(cls.get_filename(), device=Device.PROFILER)
-        cls.fs.analyze(protocol=cls.protocol,
-                       in_field_ratio=cls.in_field_ratio,
-                       slope_exclusion_ratio=cls.slope_exclusion_ratio, is_FFF=cls.is_FFF,
-                       penumbra=cls.penumbra, interpolation=cls.interpolation_method, edge_detection_method=cls.edge_detection_method,
-                       )
-        if cls.print_results:
-            print(cls.fs.results())
-
-
-class Profiler6FFF(DeviceAnalysisBase, TestCase):
-    file_name = '6fff.prm'
-    is_FFF = True
-    vert_flatness = 14.35
-    vert_symmetry = -0.9
-    horiz_flatness = 14.6
-    horiz_symmetry = 0.5
-    vert_position = 0.6
-    vert_field_size = 251.8
-    horiz_field_size = 242.0
-    cax_to_top = 126.3
-    cax_to_left = 120.7
-    cax_to_right = 121.3
-    cax_to_bottom = 125.6
-    penum_top = 6.1
-    penum_bottom = 6.6
-    penum_right = 5.8
-    penum_left = 6.1
-    top_slope = 0.3
-    bottom_slope = -0.3
-    left_slope = 0.3
-    right_slope = -0.3
 
 
 class FlatSymDemo(FieldAnalysisBase, TestCase):
     # independently verified
     vert_flatness = 1.7
-    vert_symmetry = -2.6
+    vert_symmetry = -2.65
     horiz_flatness = 1.85
     horiz_symmetry = -2.99
     vert_position = 0.6
@@ -353,7 +379,7 @@ class FlatSymDemo(FieldAnalysisBase, TestCase):
     cax_to_left = 60.4
     cax_to_right = 80.5
     cax_to_bottom = 100.5
-    penum_top = 3.9
+    penum_top = 3.5
     penum_bottom = 2.8
     penum_right = 3.0
     penum_left = 2.7
@@ -367,6 +393,7 @@ class FlatSymWideDemo(FlatSymDemo, TestCase):
     vert_width = 0.025
     horiz_width = 0.025
     vert_flatness = 1.6
+    vert_symmetry = -2.7
 
 
 class FlatSym6X(FieldAnalysisBase, TestCase):
@@ -377,7 +404,7 @@ class FlatSym6X(FieldAnalysisBase, TestCase):
     vert_flatness = 1.45
     vert_symmetry = -0.4
     horiz_flatness = 1.4
-    horiz_symmetry = -0.4
+    horiz_symmetry = -0.45
     vert_field_size = 99.5
     horiz_field_size = 99.5
     cax_to_top = 49.9
@@ -385,7 +412,7 @@ class FlatSym6X(FieldAnalysisBase, TestCase):
     cax_to_right = 50.3
     cax_to_bottom = 49.6
     penum_top = 3.0
-    penum_bottom = 3.0
+    penum_bottom = 3.3
     penum_right = 2.5
     penum_left = 2.8
 
@@ -406,9 +433,9 @@ class FlatSym18X(FieldAnalysisBase, TestCase):
     cax_to_right = 50.3
     cax_to_bottom = 49.5
     penum_top = 3.7
-    penum_bottom = 3.7
+    penum_bottom = 3.4
     penum_right = 3.0
-    penum_left = 3.0
+    penum_left = 3.4
 
 
 class TestCustomProtocol(TestCase):

@@ -6,6 +6,20 @@ Changelog
 v 3.3.0
 -------
 
+Core
+^^^^
+
+* 1D gamma evaluation between two profiles can now be performed via the new :func:`~pylinac.core.profile.SingleProfile.gamma` function.
+* Resampling of ``SingleProfile``s can now be done with the :func:`~pylinac.core.profile.SingleProfile.resample` function.
+  This allows the user to resample a profile after it's already been created to achieve a specific interpolation resolution.
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* The ``DeviceFieldAnalysis`` class has been removed. Only the SNC Profiler was supported and even then it didn't work very well.
+  Further, RadMachine is utilizing profile/file parsing that will be brought to pylinac. This new generalized scan parsing
+  will eventually restore similar behavior, but for now it is deprecated. Sorry ☹
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 
@@ -21,6 +35,18 @@ Bug Fixes
   ``major_axis_length`` property, which is somewhat more finicky than other properties. The detection now uses the ``area_bbox``
   property which appears to curb some edge-case phantom analyses. This should not affect results for images that are already
   detected properly.
+* Linear and Spline interpolation for ``SingleProfile`` contained an error in how it was interpolating data (it wasn't) at the very edges.
+  The problem is that if we upsample, the left and right ends are not equally sampled.
+  E.g. upsampling a 3-pixel array (0, 1, 2) by 10 normally results in ~20 elements. You interpolate between 0 and 1, and 1 and 2.
+  The first issue is that you do not have a simple X proportion of elements (3 * 10 = 30 but we get 20).
+  Additionally, if these are pixels they have a finite, physical size and technically those values are at the center of the pixels.
+  Thus, you actually need to sample beyond the left and right edges. In the above case you'd really need to sample from
+  approximately -0.5 to 2.5 to get ~10 pixels for each original pixel. We also need to offset the x-values to be back to 0 again from -0.5.
+  We solve this by offsetting the new x-values by a proportion of the sampling ratio.
+  A ratio of 1 (identical sampling) should not have any offset and return the same values.
+  As the ratio goes up, we approach the limit of 0.5 pixels. This follows a proportional relationship with the ratio.
+  The end result actually does not change much in the way of measurement results as nearly every previously-existing tests passed.
+  2 out of ~50 field analysis tests had a slightly different penumbra measurement and 1 had a slightly changed vert symmetry.
 
 v 3.2.0
 -------
