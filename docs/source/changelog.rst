@@ -3,6 +3,16 @@
 Changelog
 =========
 
+v 3.4.0
+-------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The :func:`~pylinac.winston_lutz.WinstonLutz.cax2bb_distance` method can now accept ``mean`` for the metric.
+* The :func:`~pylinac.winston_lutz.WinstonLutz.cax2epid_distance` method can now accept ``mean`` for the metric.
+* The :func:`~pylinac.winston_lutz.WinstonLutz.results_data` now includes the mean CAX->BB distance and mean CAX->EPID distance.
+
 v 3.3.0
 -------
 

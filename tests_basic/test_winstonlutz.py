@@ -209,6 +209,7 @@ class WinstonLutzMixin(CloudFileMixin):
     couch_iso_size = 0
     cax2bb_max_distance = 0
     cax2bb_median_distance = 0
+    cax2bb_mean_distance = 0
     epid_deviation = None
     bb_shift_vector = Vector()  # vector to place BB at iso
     axis_of_rotation = {0: Axis.REFERENCE}  # fill with as many {image#: known_axis_of_rotation} pairs as desired
@@ -254,6 +255,9 @@ class WinstonLutzMixin(CloudFileMixin):
     def test_bb_median_distance(self):
         self.assertAlmostEqual(self.wl.cax2bb_distance(metric='median'), self.cax2bb_median_distance, delta=0.1)
 
+    def test_bb_mean_distance(self):
+        self.assertAlmostEqual(self.wl.cax2bb_distance(metric='mean'), self.cax2bb_mean_distance, delta=0.1)
+
     def test_bb_shift_vector(self):
         self.assertTrue(vector_is_close(self.wl.bb_shift_vector, self.bb_shift_vector, delta=0.15), msg="The vector {} is not sufficiently close to vector {}".format(self.wl.bb_shift_vector, self.bb_shift_vector))
 
@@ -269,6 +273,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
     couch_iso_size = 2.3
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.7
+    cax2bb_mean_distance = 0.6
     epid_deviation = 1.3
     axis_of_rotation = {0: Axis.REFERENCE}
     bb_shift_vector = Vector(x=0.4, y=-0.4, z=-0.2)
@@ -340,6 +345,7 @@ class WLLateral3mm(WinstonLutzMixin, TestCase):
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.8
     cax2bb_median_distance = 2.3
+    cax2bb_mean_distance = 2.3
     bb_shift_vector = Vector(x=-3.6, y=0.5, z=0.6)
 
 
@@ -350,6 +356,7 @@ class WLLongitudinal3mm(WinstonLutzMixin, TestCase):
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.9
     cax2bb_median_distance = 3.7
+    cax2bb_mean_distance = 3.7
     bb_shift_vector = Vector(x=-0.63, y=3.6, z=0.6)
 
 
@@ -359,6 +366,7 @@ class WLVertical3mm(WinstonLutzMixin, TestCase):
     gantry_iso_size = 0.5
     cax2bb_max_distance = 3.8
     cax2bb_median_distance = 2.3
+    cax2bb_mean_distance = 2.3
     bb_shift_vector = Vector(x=-0.5, y=0.5, z=3.6)
     print_results = True
 
@@ -369,6 +377,7 @@ class WLDontUseFileNames(WinstonLutzMixin, TestCase):
     gantry_iso_size = 0.3
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
+    cax2bb_mean_distance = 0.8
     bb_shift_vector = Vector(x=-0.4, y=0.6, z=0.6)
     axis_of_rotation = {0: Axis.REFERENCE, 1: Axis.GANTRY, 2: Axis.GANTRY, 3: Axis.GANTRY}
 
@@ -380,6 +389,7 @@ class WLUseFileNames(WinstonLutzMixin, TestCase):
     collimator_iso_size = 1.2
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.8
+    cax2bb_mean_distance = 0.8
     bb_shift_vector = Vector(y=0.6)
     axis_of_rotation = {0: Axis.COLLIMATOR, 1: Axis.COLLIMATOR, 2: Axis.COLLIMATOR, 3: Axis.COLLIMATOR}
 
@@ -403,6 +413,7 @@ class KatyiX0(WinstonLutzMixin, TestCase):
     couch_iso_size = 1.3
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.8
+    cax2bb_mean_distance = 0.7
     bb_shift_vector = Vector(x=-0.5, y=0.4, z=-0.5)
     print_results = True
 
@@ -415,6 +426,7 @@ class KatyiX1(WinstonLutzMixin, TestCase):
     couch_iso_size = 0.6
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.3
+    cax2bb_mean_distance = 0.4
     bb_shift_vector = Vector(x=0.3, y=-0.2, z=0.3)
 
 
@@ -426,6 +438,7 @@ class KatyiX2(WinstonLutzMixin, TestCase):
     couch_iso_size = 1.5
     cax2bb_max_distance = 1.1
     cax2bb_median_distance = 0.5
+    cax2bb_mean_distance = 0.6
     bb_shift_vector = Vector(x=0.4, y=-0.1, z=0.1)
 
 
@@ -437,6 +450,7 @@ class KatyiX3(WinstonLutzMixin, TestCase):
     couch_iso_size = 1.8
     cax2bb_max_distance = 1.25
     cax2bb_median_distance = 0.8
+    cax2bb_mean_distance = 0.75
     bb_shift_vector = Vector(x=-0.3, y=0.4, z=-0.5)
 
 
@@ -448,6 +462,7 @@ class KatyTB0(WinstonLutzMixin, TestCase):
     couch_iso_size = 1.3
     cax2bb_max_distance = 1.07
     cax2bb_median_distance = 0.8
+    cax2bb_mean_distance = 0.8
     bb_shift_vector = Vector(x=-0.7, y=-0.1, z=-0.2)
 
 
@@ -459,6 +474,7 @@ class KatyTB1(WinstonLutzMixin, TestCase):
     couch_iso_size = 1.1
     cax2bb_max_distance = 1
     cax2bb_median_distance = 0.7
+    cax2bb_mean_distance = 0.6
     bb_shift_vector = Vector(x=-0.6, y=-0.2)
 
 
@@ -470,6 +486,7 @@ class KatyTB2(WinstonLutzMixin, TestCase):
     couch_iso_size = 0.7
     cax2bb_max_distance = 1.1
     cax2bb_median_distance = 0.4
+    cax2bb_mean_distance = 0.5
     bb_shift_vector = Vector(x=0.0, y=-0.2, z=-0.6)
 
 
@@ -482,6 +499,7 @@ class ChicagoTBFinal(WinstonLutzMixin, TestCase):
     couch_iso_size = 0.3
     cax2bb_max_distance = 0.5
     cax2bb_median_distance = 0.3
+    cax2bb_mean_distance = 0.3
     bb_shift_vector = Vector(y=0.1)
 
 
@@ -493,6 +511,7 @@ class ChicagoTB52915(WinstonLutzMixin, TestCase):
     couch_iso_size = 0.3
     cax2bb_max_distance = 0.5
     cax2bb_median_distance = 0.3
+    cax2bb_mean_distance = 0.3
     bb_shift_vector = Vector(z=0.2)
 
 
@@ -501,6 +520,7 @@ class TrueBeam3120213(WinstonLutzMixin, TestCase):
     num_images = 26
     cax2bb_max_distance = 0.9
     cax2bb_median_distance = 0.35
+    cax2bb_mean_distance = 0.4
     gantry_iso_size = 1.1
     collimator_iso_size = 0.7
     couch_iso_size = 0.7
@@ -515,6 +535,7 @@ class SugarLandiX2015(WinstonLutzMixin, TestCase):
     couch_iso_size = 1.3
     cax2bb_max_distance = 1.67
     cax2bb_median_distance = 1.05
+    cax2bb_mean_distance = 1.1
     bb_shift_vector = Vector(x=0.4, y=-0.7, z=0.1)
 
 
@@ -526,6 +547,7 @@ class BayAreaiX0(WinstonLutzMixin, TestCase):
     couch_iso_size = 2.3
     cax2bb_max_distance = 1.25
     cax2bb_median_distance = 0.6
+    cax2bb_mean_distance = 0.6
     bb_shift_vector = Vector(x=0.3, y=-0.4, z=-0.2)
 
 
@@ -536,6 +558,7 @@ class DAmoursElektaOffset(WinstonLutzMixin, TestCase):
     gantry_iso_size = 1.1
     cax2bb_max_distance = 17.5
     cax2bb_median_distance = 14.3
+    cax2bb_mean_distance = 13.8
     bb_shift_vector = Vector(x=10.2, y=-9.2, z=-11.1)  # independently verified
 
 
@@ -546,6 +569,7 @@ class DAmoursElektaXOffset(WinstonLutzMixin, TestCase):
     gantry_iso_size = 1.1
     cax2bb_max_distance = 9.5
     cax2bb_median_distance = 6.9
+    cax2bb_mean_distance = 6
     bb_shift_vector = Vector(x=-9.5, y=0.3, z=0.1)  # independently verified
 
 
@@ -558,6 +582,7 @@ class DAmoursElektaCentered(WinstonLutzMixin, TestCase):
     couch_iso_size = None
     cax2bb_max_distance = 0.8
     cax2bb_median_distance = 0.5
+    cax2bb_mean_distance = 0.6
     bb_shift_vector = Vector(y=0.4)
 
 
@@ -570,4 +595,5 @@ class DeBr6XElekta(WinstonLutzMixin, TestCase):
     couch_iso_size = None
     cax2bb_max_distance = 1.0
     cax2bb_median_distance = 0.7
+    cax2bb_mean_distance = 0.6
     bb_shift_vector = Vector(x=0.4, y=-0.2)

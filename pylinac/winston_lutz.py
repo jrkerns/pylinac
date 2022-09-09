@@ -79,8 +79,10 @@ class WinstonLutzResult(ResultBase):
     num_total_images: int  #:
     max_2d_cax_to_bb_mm: float  #:
     median_2d_cax_to_bb_mm: float  #:
+    mean_2d_cax_to_bb_mm: float  #:
     max_2d_cax_to_epid_mm: float  #:
     median_2d_cax_to_epid_mm: float  #:
+    mean_2d_cax_to_epid_mm: float  #:
     gantry_3d_iso_diameter_mm: float  #:
     max_gantry_rms_deviation_mm: float  #:
     max_epid_rms_deviation_mm: float  #:
@@ -378,33 +380,37 @@ class WinstonLutz:
             rms = max(rms) - min(rms)
         return rms
 
-    @argue.options(metric=("max", "median"))
+    @argue.options(metric=("max", "median", "mean"))
     def cax2bb_distance(self, metric: str = "max") -> float:
         """The distance in mm between the CAX and BB for all images according to the given metric.
 
         Parameters
         ----------
-        metric : {'max', 'median'}
+        metric : {'max', 'median', 'mean'}
             The metric of distance to use.
         """
         if metric == "max":
             return max(image.cax2bb_distance for image in self.images)
         elif metric == "median":
-            return np.median([image.cax2bb_distance for image in self.images])
+            return float(np.median([image.cax2bb_distance for image in self.images]))
+        elif metric == "mean":
+            return float(np.mean([image.cax2bb_distance for image in self.images]))
 
-    @argue.options(metric=("max", "median"))
+    @argue.options(metric=("max", "median", "mean"))
     def cax2epid_distance(self, metric: str = "max") -> float:
         """The distance in mm between the CAX and EPID center pixel for all images according to the given metric.
 
         Parameters
         ----------
-        metric : {'max', 'median'}
+        metric : {'max', 'median', 'mean'}
             The metric of distance to use.
         """
         if metric == "max":
             return max(image.cax2epid_distance for image in self.images)
         elif metric == "median":
-            return np.median([image.cax2epid_distance for image in self.images])
+            return float(np.median([image.cax2epid_distance for image in self.images]))
+        elif metric == "mean":
+            return float(np.mean([image.cax2epid_distance for image in self.images]))
 
     def _plot_deviation(
         self, axis: Axis, ax: Optional[plt.Axes] = None, show: bool = True
@@ -721,8 +727,10 @@ class WinstonLutz:
             num_couch_images=num_couch_imgs,
             max_2d_cax_to_bb_mm=self.cax2bb_distance("max"),
             median_2d_cax_to_bb_mm=self.cax2bb_distance("median"),
+            mean_2d_cax_to_bb_mm=self.cax2bb_distance("mean"),
             max_2d_cax_to_epid_mm=self.cax2epid_distance("max"),
             median_2d_cax_to_epid_mm=self.cax2epid_distance("median"),
+            mean_2d_cax_to_epid_mm=self.cax2epid_distance("mean"),
             coll_2d_iso_diameter_mm=self.collimator_iso_size,
             couch_2d_iso_diameter_mm=self.couch_iso_size,
             gantry_3d_iso_diameter_mm=self.gantry_iso_size,
