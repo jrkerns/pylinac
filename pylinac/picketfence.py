@@ -980,7 +980,7 @@ class PicketFence:
 
     def mlc_skew(self) -> float:
         """Apparent rotation in degrees of the MLC. This could be conflated with the EPID skew, so be careful when interpreting this value."""
-        return Enumerable(self.pickets).avg(lambda p: np.rad2deg(np.arctan(p.fit.c[0])))
+        return float(np.mean([p.skew() for p in self.pickets]))
 
     def plot_histogram(self, bins: int = 10, show: bool = True) -> None:
         """Plot a histogram of the leaf errors"""
@@ -1333,6 +1333,10 @@ class Picket:
         else:
             fit = np.polyfit(y, x, 1)
         return np.poly1d(fit)
+
+    def skew(self) -> float:
+        """The slope/skew of the picket"""
+        return float(np.rad2deg(self.fit.coefficients[0]))
 
     @property
     def dist2cax(self) -> float:

@@ -5,6 +5,7 @@ import tempfile
 from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
+from scipy import ndimage
 
 from pylinac.core import image
 from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement
@@ -386,6 +387,56 @@ class PFDemo(PFTestMixin, TestCase):
         pf.analyze(0.15, action_tolerance=0.05)
         pf.plot_analyzed_image()
         self.assertAlmostEqual(pf.percent_passing, 100, delta=1)
+
+
+class PerfectSimulation(PFTestMixin, TestCase):
+    file_name = 'perfect-pf.dcm'
+    max_error = 0
+    abs_median_error = 0
+    num_pickets = 5
+    mean_picket_spacing = 20
+
+
+class Rotated2Simulation(PFTestMixin, TestCase):
+    file_name = 'perfect-pf.dcm'
+    max_error = 0
+    abs_median_error = 0
+    num_pickets = 5
+    mean_picket_spacing = 20
+    mlc_skew = 2
+
+    @classmethod
+    def setUpClass(cls):
+        # rotate image before analyzing to simulate skew
+        cls.pf = PicketFence(cls.get_filename(), log=cls.get_logfile())
+        cls.pf.image.array = ndimage.rotate(cls.pf.image, 2, reshape=False, mode='nearest')
+        cls.pf.analyze(
+            sag_adjustment=cls.sag_adjustment,
+            invert=cls.invert,
+            separate_leaves=cls.separate_leaves,
+            nominal_gap_mm=cls.nominal_gap_mm,
+        )
+
+
+class RotatedMinus2Simulation(PFTestMixin, TestCase):
+    file_name = 'perfect-pf.dcm'
+    max_error = 0
+    abs_median_error = 0
+    num_pickets = 5
+    mean_picket_spacing = 20
+    mlc_skew = -2
+
+    @classmethod
+    def setUpClass(cls):
+        # rotate image before analyzing to simulate skew
+        cls.pf = PicketFence(cls.get_filename(), log=cls.get_logfile())
+        cls.pf.image.array = ndimage.rotate(cls.pf.image, -2, reshape=False, mode='nearest')
+        cls.pf.analyze(
+            sag_adjustment=cls.sag_adjustment,
+            invert=cls.invert,
+            separate_leaves=cls.separate_leaves,
+            nominal_gap_mm=cls.nominal_gap_mm,
+        )
 
 
 class WideGapSimulation(PFTestMixin, TestCase):

@@ -6,6 +6,11 @@ Changelog
 v 3.4.0
 -------
 
+Picket Fence
+^^^^^^^^^^^^
+
+* There is now a :func:`~pylinac.picket_fence.Picket.skew` method, returning the skew of each picket.
+
 Winston-Lutz
 ^^^^^^^^^^^^
 
