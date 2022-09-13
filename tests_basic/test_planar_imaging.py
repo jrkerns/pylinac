@@ -6,11 +6,12 @@ from unittest import TestCase, skip
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from scipy.ndimage import rotate
 
 from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 from pylinac.core import image
 from pylinac.planar_imaging import PlanarResult, SNCkV, SNCMV, StandardImagingQCkV, PTWEPIDQC, StandardImagingFC2, \
-    IMTLRad, SNCFSQA
+    IMTLRad, SNCFSQA, LeedsTORBlue
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo
 
 TEST_DIR = 'planar_imaging'
@@ -132,7 +133,12 @@ class PlanarPhantomMixin(CloudFileMixin):
             cls.instance = cls.klass.from_demo_image()
         else:
             cls.instance = cls.klass(cls.get_filename())
+        cls.preprocess(cls.instance)
         cls.instance.analyze(ssd=cls.ssd, invert=cls.invert)
+
+    @classmethod
+    def preprocess(cls, instance):
+        pass
 
     @classmethod
     def tearDownClass(cls):
@@ -198,6 +204,26 @@ class LeedsDirtyEdges(PlanarPhantomMixin, TestCase):
     mtf_50 = 1.3
     ssd = 1000
     file_name = 'Leeds-dirty-edges.dcm'
+
+
+class LeedsBlue(PlanarPhantomMixin, TestCase):
+    klass = LeedsTORBlue
+    dir_path = ['planar_imaging', 'Leeds']
+    mtf_50 = 1.5
+    ssd = 1450
+    file_name = 'Leeds_Blue.dcm'
+
+
+class LeedsBlueRotated(PlanarPhantomMixin, TestCase):
+    klass = LeedsTORBlue
+    dir_path = ['planar_imaging', 'Leeds']
+    mtf_50 = 1.5
+    ssd = 1450
+    file_name = 'Leeds_Blue.dcm'
+
+    @classmethod
+    def preprocess(cls, instance):
+        instance.image.array = rotate(instance.image.array, angle=180, mode='mirror', order=0)
 
 
 @skip("Phantom appears distorted. MTF locations are different than other phantoms")

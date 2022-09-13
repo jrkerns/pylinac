@@ -1859,6 +1859,117 @@ class LeedsTOR(ImagePhantomBase):
         return circle
 
 
+class LeedsTORBlue(LeedsTOR):
+    """The Leeds TOR (Blue) is for analyzing older Leeds phantoms which have slightly offset ROIs compared to the newer, red-ring variant."""
+    common_name = "Leeds (Blue)"
+    high_contrast_roi_settings = {
+        "roi 1": {
+            "distance from center": 0.3,
+            "angle": 54.8,
+            "roi radius": 0.04,
+            "lp/mm": 0.5,
+        },
+        "roi 2": {
+            "distance from center": 0.187,
+            "angle": 25.1,
+            "roi radius": 0.04,
+            "lp/mm": 0.56,
+        },
+        "roi 3": {
+            "distance from center": 0.187,
+            "angle": -27.5,
+            "roi radius": 0.04,
+            "lp/mm": 0.63,
+        },
+        "roi 4": {
+            "distance from center": 0.252,
+            "angle": 79.7,
+            "roi radius": 0.03,
+            "lp/mm": 0.71,
+        },
+        "roi 5": {
+            "distance from center": 0.092,
+            "angle": 63.4,
+            "roi radius": 0.03,
+            "lp/mm": 0.8,
+        },
+        "roi 6": {
+            "distance from center": 0.094,
+            "angle": -65,
+            "roi radius": 0.02,
+            "lp/mm": 0.9,
+        },
+        "roi 7": {
+            "distance from center": 0.252,
+            "angle": -260,
+            "roi radius": 0.02,
+            "lp/mm": 1.0,
+        },
+        "roi 8": {
+            "distance from center": 0.094,
+            "angle": -240,
+            "roi radius": 0.018,
+            "lp/mm": 1.12,
+        },
+        "roi 9": {
+            "distance from center": 0.0958,
+            "angle": -120,
+            "roi radius": 0.018,
+            "lp/mm": 1.25,
+        },
+        "roi 10": {
+            "distance from center": 0.27,
+            "angle": 115,
+            "roi radius": 0.015,
+            "lp/mm": 1.4,
+        },
+        "roi 11": {
+            "distance from center": 0.13,
+            "angle": 150,
+            "roi radius": 0.011,
+            "lp/mm": 1.6,
+        },
+        "roi 12": {
+            "distance from center": 0.135,
+            "angle": -150,
+            "roi radius": 0.011,
+            "lp/mm": 1.8,
+        },
+    }
+    low_contrast_background_roi_settings = {
+        "roi 1": {"distance from center": 0.6, "angle": 30, "roi radius": 0.025},
+        "roi 2": {"distance from center": 0.6, "angle": 120, "roi radius": 0.025},
+        "roi 3": {"distance from center": 0.6, "angle": 210, "roi radius": 0.025},
+        "roi 4": {"distance from center": 0.6, "angle": 300, "roi radius": 0.025},
+    }
+    low_contrast_roi_settings = {
+        # set 1
+        "roi 1": {"distance from center": 0.83, "angle": 30, "roi radius": 0.025},
+        "roi 2": {"distance from center": 0.83, "angle": 45, "roi radius": 0.025},
+        "roi 3": {"distance from center": 0.83, "angle": 60, "roi radius": 0.025},
+        "roi 4": {"distance from center": 0.83, "angle": 75, "roi radius": 0.025},
+        "roi 5": {"distance from center": 0.83, "angle": 90, "roi radius": 0.025},
+        "roi 6": {"distance from center": 0.83, "angle": 105, "roi radius": 0.025},
+        "roi 7": {"distance from center": 0.83, "angle": 120, "roi radius": 0.025},
+        "roi 8": {"distance from center": 0.83, "angle": 135, "roi radius": 0.025},
+        "roi 9": {"distance from center": 0.83, "angle": 150, "roi radius": 0.025},
+        # set 2
+        "roi 10": {"distance from center": 0.83, "angle": 210, "roi radius": 0.025},
+        "roi 11": {"distance from center": 0.83, "angle": 225, "roi radius": 0.025},
+        "roi 12": {"distance from center": 0.83, "angle": 240, "roi radius": 0.025},
+        "roi 13": {"distance from center": 0.83, "angle": 255, "roi radius": 0.025},
+        "roi 14": {"distance from center": 0.83, "angle": 270, "roi radius": 0.025},
+        "roi 15": {"distance from center": 0.83, "angle": 285, "roi radius": 0.025},
+        "roi 16": {"distance from center": 0.83, "angle": 300, "roi radius": 0.025},
+        "roi 17": {"distance from center": 0.83, "angle": 315, "roi radius": 0.025},
+        "roi 18": {"distance from center": 0.83, "angle": 330, "roi radius": 0.025},
+    }
+
+    @classmethod
+    def from_demo_image(cls):
+        raise NotImplementedError("There is no demo file for this analysis")
+
+
 class DoselabMC2kV(ImagePhantomBase):
     common_name = "Doselab MC2 kV"
     _demo_filename = "Doselab_kV.dcm"

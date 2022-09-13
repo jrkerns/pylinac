@@ -135,6 +135,12 @@ Leeds TOR Phantom
 The Leeds phantom is used to measure image quality metrics for the kV imager of a linac. It contains both
 high and low contrast ROIs.
 
+.. note::
+
+    There are two phantom analysis routines. The :class:`~pylinac.planar_imaging.LeedsTOR` class is for newer phantoms that have a red ring
+    on the outside. Older Leeds phantoms may have a blue label containing the serial number and model on the back. Use the
+    :class:`~pylinac.planar_imaging.LeedsTORBlue` class for these phantoms. The difference is small ROI location shifts.
+
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
 
@@ -916,6 +922,9 @@ API Documentation
 -----------------
 
 .. autoclass:: pylinac.planar_imaging.LeedsTOR
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.LeedsTORBlue
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.StandardImagingQC3

@@ -40,6 +40,7 @@ from .planar_imaging import (
     StandardImagingFC2,
     IMTLRad,
     SNCFSQA,
+    LeedsTORBlue,
 )
 from .log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
 from .picketfence import PicketFence  # must be after log analyzer

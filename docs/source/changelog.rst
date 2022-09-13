@@ -11,6 +11,11 @@ Picket Fence
 
 * There is now a :func:`~pylinac.picket_fence.Picket.skew` method, returning the skew of each picket.
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* A new class for analyzing older Leeds phantoms that have a blue label on the back (vs the red ring) has been added: :class:`~pylinac.planar_imaging.LeedsTORBlue`
+
 Winston-Lutz
 ^^^^^^^^^^^^
 
