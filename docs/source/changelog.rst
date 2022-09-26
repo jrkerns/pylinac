@@ -23,6 +23,19 @@ Winston-Lutz
 * The :func:`~pylinac.winston_lutz.WinstonLutz.cax2epid_distance` method can now accept ``mean`` for the metric.
 * The :func:`~pylinac.winston_lutz.WinstonLutz.results_data` now includes the mean CAX->BB distance and mean CAX->EPID distance.
 
+CT
+^^
+
+* The :class:`~pylinac.ct.CatPhan600` detection has changed to use the bottom Air ROI and the Teflon ROI (just to the right of bottom air ROI).
+  This is because the top air ROI can sometimes (and purposefully) contains a water vial. When inserted, the water vial makes angle
+  detection untenable using this ROI. The result should be <0.5 degrees difference from previous versions, however, it was never 0.
+  The only result this should affect (other than the angle) is the very small ROI low-contrast detection values, as it was found that
+  even with a few tenths of degrees, a single pixel or two would be included or excluded compared to the previous algorithm.
+  This is really a reflection of the sensitivity of the noise, which should likely use a global noise value instead of the local noise.
+* Related to above, the same class now will have an extra ROI "Vial" with an expected value of 0. However, if the detected ROI
+  is closer in value to air than water, the ROI will not be evaluated. This gives backwards-compatibility with existing scans
+  that don't use the vial. I.e. if you don't use the water vial nothing should be different.
+
 v 3.3.0
 -------
 

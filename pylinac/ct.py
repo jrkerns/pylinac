@@ -68,6 +68,7 @@ DELRIN = 365
 TEFLON = 1000
 BONE_20 = 237
 BONE_50 = 725
+WATER = 0
 
 
 @dataclass
@@ -789,7 +790,19 @@ class CTP404CP600(CTP404CP504):
             "distance": roi_dist_mm,
             "radius": roi_radius_mm,
         },
+        "Vial": {
+            "value": WATER,
+            "angle": -90,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm-1,  # the vial sits inside the ROI and needs some clearance
+        },
     }
+
+    def _setup_rois(self) -> None:
+        """For the 600, the top ROI is an optional water vial slot. If the HU is near water we leave it, otherwise we remove it so as not to flag false failures"""
+        super()._setup_rois()
+        if self.rois['Vial'].pixel_value < -500:  # closer to air than water
+            self.rois.pop('Vial')
 
 
 class CTP404CP604(CTP404CP504):
@@ -2103,6 +2116,17 @@ class CatPhan600(CatPhanBase):
         cbct.analyze()
         print(cbct.results())
         cbct.plot_analyzed_image(show)
+
+    def find_phantom_roll(self, func: Optional[Callable] = None) -> float:
+        """With the CatPhan 600, we have to consider that the top air ROI
+        has a water vial in it (see pg 12 of the manual). If so, the top air ROI won't be detected.
+        Rather, the default algorithm will find the bottom air ROI and teflon to the left.
+        It may also find the top air ROI if the water vial isn't there.
+        We use the below lambda to select the bottom air and teflon ROIs consistently.
+        These two ROIs are at 75 degrees from cardinal. We thus offset the default outcome by 75.
+        """
+        angle = super().find_phantom_roll(lambda x: -x.centroid[0])
+        return angle + 75
 
 
 def get_regions(
