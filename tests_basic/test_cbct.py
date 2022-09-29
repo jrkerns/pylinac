@@ -313,6 +313,25 @@ class CatPhan600_2(CatPhanMixin, TestCase):
     lowcon_visible = 2  # changed w/ visibility refactor in v3.0
 
 
+class CatPhan600WaterVial(CatPhanMixin, TestCase):
+    """Scan with the water vial in place"""
+    catphan = CatPhan600
+    dir_path = ['CBCT', 'CatPhan_600']
+    file_name = 'Catphan600_water_vial.zip'
+    expected_roll = -0.25
+    origin_slice = 96
+    hu_values = {'Poly': -55, 'Acrylic': 115, 'Delrin': 339, 'Air': -1000, 'Teflon': 960, 'PMP': -200, 'LDPE': -123, 'Vial': 17}
+    hu_passed = False
+    unif_values = {'Center': -20, 'Left': -10, 'Right': -13, 'Top': -3, 'Bottom': -12}
+    mtf_values = {50: 0.58}
+    avg_line_length = 50.07
+    slice_thickness = 2.1
+    lowcon_visible = 1
+
+    def test_vial_roi(self):
+        self.assertIn('Vial', self.cbct.ctp404.rois)
+
+
 class CatPhan604Test(CatPhanMixin, TestCase):
     catphan = CatPhan604
     file_name = 'CBCTCatPhan604.zip'
@@ -733,14 +752,17 @@ class UNC120kV(CatPhan503Mixin, TestCase):
 
 class CatPhan600_1(CatPhan600Mixin, TestCase):
     file_name = 'zzCAT201601.zip'
-    expected_roll = -0.66
+    expected_roll = -1.1
     origin_slice = 158
     hu_values = {'Poly': -31, 'Acrylic': 124, 'Delrin': 344, 'Air': -958, 'Teflon': 921, 'PMP': -173, 'LDPE': -87}
     unif_values = {'Center': 14, 'Left': 14, 'Right': 13, 'Top': 14, 'Bottom': 12}
     mtf_values = {50: 0.22}
     avg_line_length = 50.1
     slice_thickness = 1.25
-    lowcon_visible = 4  # changed w/ visibility refactor in v3.0
+    lowcon_visible = 1  # after roll adjustment 1 more pixel is included, pulling down contrast detection
+
+    def test_no_vial_roi(self):
+        self.assertNotIn('Vial', self.cbct.ctp404.rois)
 
 
 class TOHPhilips2mm(CatPhan504Mixin, TestCase):

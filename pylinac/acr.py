@@ -242,7 +242,7 @@ class ACRCTResult(ResultBase):
 class ACRCT(CatPhanBase):
     _model = "ACR CT 464"
     catphan_radius_mm = 100
-    air_bubble_radius_mm = 18
+    air_bubble_radius_mm = 14
     min_num_images = 4
     localization_radius = 70
     results: dict
