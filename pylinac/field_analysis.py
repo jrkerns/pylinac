@@ -362,8 +362,12 @@ class FieldAnalysis:
         if centering == Centering.GEOMETRIC_CENTER:
             # horiz and vert appear switched, but it's because the center of the vert profile
             # is where to take the horizontal profile and vic versa
-            horiz_ratio = v_prof.geometric_center()["index (exact)"] / self.image.shape[0]
-            vert_ratio = h_prof.geometric_center()["index (exact)"] / self.image.shape[1]
+            horiz_ratio = (
+                v_prof.geometric_center()["index (exact)"] / self.image.shape[0]
+            )
+            vert_ratio = (
+                h_prof.geometric_center()["index (exact)"] / self.image.shape[1]
+            )
         elif centering == Centering.BEAM_CENTER:
             horiz_ratio = v_prof.beam_center()["index (exact)"] / self.image.shape[0]
             vert_ratio = h_prof.beam_center()["index (exact)"] / self.image.shape[1]
@@ -971,13 +975,13 @@ class FieldAnalysis:
             if not self._from_device:
                 im_fig, image_ax = plt.subplots(1, **plt_kwargs)
                 figs.append(im_fig)
-                names.append("_image")
+                names.append("Image")
             v_fig, vert_ax = plt.subplots(1, **plt_kwargs)
             figs.append(v_fig)
-            names.append("_vertical")
+            names.append("Vertical Profile")
             h_fig, horiz_ax = plt.subplots(1, **plt_kwargs)
             figs.append(h_fig)
-            names.append("_horizontal")
+            names.append("Horizontal Profile")
         else:
             plt.figure(**plt_kwargs)
             if not self._from_device:
@@ -1011,13 +1015,10 @@ class FieldAnalysis:
             if split_plots:
                 for ax in (vert_ax, horiz_ax):
                     ax.legend(lines, labels, loc="center")
-                    ax.axis("off")
-                    _remove_ticklabels(ax)
             else:
                 legend_ax = plt.subplot2grid((2, 2), (1, 0))
                 legend_ax.legend(lines, labels, loc="center")
                 legend_ax.axis("off")
-                _remove_ticklabels(legend_ax)
         else:
             vert_ax.legend(
                 lines,
@@ -1123,7 +1124,12 @@ class FieldAnalysis:
         else:
             axis.set_xlabel("pixels")
             markers = "b"
-        axis.plot(self.vert_profile.x_indices, self.vert_profile.values, markers, label="Profile")
+        axis.plot(
+            self.vert_profile.x_indices,
+            self.vert_profile.values,
+            markers,
+            label="Profile",
+        )
         axis.set_ylabel("Normalized Response")
 
         # plot second axis w/ physical distance
@@ -1158,7 +1164,12 @@ class FieldAnalysis:
         else:
             axis.set_xlabel("pixels")
             markers = "b"
-        axis.plot(self.horiz_profile.x_indices, self.horiz_profile.values, markers, label="Profile")
+        axis.plot(
+            self.horiz_profile.x_indices,
+            self.horiz_profile.values,
+            markers,
+            label="Profile",
+        )
         axis.set_ylabel("Normalized Response")
 
         # plot second axis w/ physical distance
