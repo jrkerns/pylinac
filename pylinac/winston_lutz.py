@@ -113,7 +113,7 @@ class WinstonLutz:
             Whether to try to use the file name to determine axis values.
             Useful for Elekta machines that do not include that info in the DICOM data.
         axis_mapping: dict
-            An optional way of instatiating by passing each file along with the axis values.
+            An optional way of instantiating by passing each file along with the axis values.
             Structure should be <filename>: (<gantry>, <coll>, <couch>).
         """
         self.images = []
@@ -158,7 +158,12 @@ class WinstonLutz:
         return cls.from_zip(demo_file)
 
     @classmethod
-    def from_zip(cls, zfile: Union[str, BinaryIO], use_filenames: bool = False):
+    def from_zip(
+        cls,
+        zfile: Union[str, BinaryIO],
+        use_filenames: bool = False,
+        axis_mapping: Optional[Dict[str, Tuple[int, int, int]]] = None,
+    ):
         """Instantiate from a zip file rather than a directory.
 
         Parameters
@@ -168,9 +173,12 @@ class WinstonLutz:
         use_filenames : bool
             Whether to interpret axis angles using the filenames.
             Set to true for Elekta machines where the gantry/coll/couch data is not in the DICOM metadata.
+        axis_mapping: dict
+            An optional way of instantiating by passing each file along with the axis values.
+            Structure should be <filename>: (<gantry>, <coll>, <couch>).
         """
         with TemporaryZipDirectory(zfile) as tmpz:
-            obj = cls(tmpz, use_filenames=use_filenames)
+            obj = cls(tmpz, use_filenames=use_filenames, axis_mapping=axis_mapping)
         return obj
 
     @classmethod
