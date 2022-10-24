@@ -794,15 +794,16 @@ class CTP404CP600(CTP404CP504):
             "value": WATER,
             "angle": -90,
             "distance": roi_dist_mm,
-            "radius": roi_radius_mm-1,  # the vial sits inside the ROI and needs some clearance
+            "radius": roi_radius_mm
+            - 1,  # the vial sits inside the ROI and needs some clearance
         },
     }
 
     def _setup_rois(self) -> None:
         """For the 600, the top ROI is an optional water vial slot. If the HU is near water we leave it, otherwise we remove it so as not to flag false failures"""
         super()._setup_rois()
-        if self.rois['Vial'].pixel_value < -500:  # closer to air than water
-            self.rois.pop('Vial')
+        if self.rois["Vial"].pixel_value < -500:  # closer to air than water
+            self.rois.pop("Vial")
 
 
 class CTP404CP604(CTP404CP504):
@@ -1518,7 +1519,7 @@ class CatPhanBase:
         subimage: str = "hu",
         delta: bool = True,
         show: bool = True,
-    ) -> None:
+    ) -> Optional[plt.Figure]:
         """Plot a specific component of the CBCT analysis.
 
         Parameters
@@ -1530,6 +1531,7 @@ class CatPhanBase:
             * ``hu`` draws the HU linearity image.
             * ``un`` draws the HU uniformity image.
             * ``sp`` draws the Spatial Resolution image.
+            * ``lc`` draws the Low Contrast image (if applicable).
             * ``mtf`` draws the RMTF plot.
             * ``lin`` draws the HU linearity values. Used with ``delta``.
             * ``prof`` draws the HU uniformity profiles.
@@ -1555,8 +1557,11 @@ class CatPhanBase:
             plt.axis("on")
             self.ctp528.mtf.plot(ax)
         elif "lc" in subimage:
-            self.ctp515.plot(ax)
-            plt.autoscale(tight=True)
+            if self._has_module(CTP515):
+                self.ctp515.plot(ax)
+                plt.autoscale(tight=True)
+            else:
+                return
         elif "lin" in subimage:
             plt.axis("on")
             self.ctp404.plot_linearity(ax, delta)
@@ -1568,13 +1573,14 @@ class CatPhanBase:
 
         if show:
             plt.show()
+        return fig
 
     def save_analyzed_subimage(
         self,
         filename: Union[str, BinaryIO],
         subimage: str = "hu",
         **kwargs,
-    ):
+    ) -> Optional[plt.Figure]:
         """Save a component image to file.
 
         Parameters
@@ -1584,10 +1590,12 @@ class CatPhanBase:
         subimage : str
             See :meth:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
         """
-        self.plot_analyzed_subimage(subimage, show=False)
-        plt.savefig(filename, **kwargs)
-        if isinstance(filename, str):
-            print(f"CatPhan subimage figure saved to {osp.abspath(filename)}")
+        fig = self.plot_analyzed_subimage(subimage, show=False)
+        if fig:  # no fig if we plot low contrast
+            plt.savefig(filename, **kwargs)
+            if isinstance(filename, str):
+                print(f"CatPhan subimage figure saved to {osp.abspath(filename)}")
+            return fig
 
     def _results(self) -> None:
         """Helper function to spit out values that will be tested."""
