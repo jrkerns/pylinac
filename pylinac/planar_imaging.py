@@ -1042,6 +1042,7 @@ class StandardImagingFC2(ImagePhantomBase):
 
 class IMTLRad(StandardImagingFC2):
     """The IMT light/rad phantom: https://www.imtqa.com/products/l-rad"""
+
     common_name = "IMT L-Rad"
     _demo_filename = "imtlrad.dcm"
     center_only_bb = {"Center": [0, 0]}
@@ -1060,6 +1061,7 @@ class SNCFSQA(StandardImagingFC2):
     This is offset by 4cm in each direction. We can then assume that the phantom center is -4cm from this point,
     creating a 'virtual center' so we have an apples-to-apples comparison.
     """
+
     common_name = "SNC FSQA"
     _demo_filename = "FSQA_15x15.dcm"
     center_only_bb = {"TR": [40, -40]}
@@ -1074,8 +1076,10 @@ class SNCFSQA(StandardImagingFC2):
         # detect the upper right BB
         self.bb_centers = self._detect_bb_centers(fwxm)
         # add another virtual bb at the center of the phantom, knowing it's offset by 4cm in each direction
-        self.bb_centers['Virtual Center'] = self.bb_centers['TR'] - Point(40*self.image.dpmm, -40*self.image.dpmm)
-        return self.bb_centers['Virtual Center']
+        self.bb_centers["Virtual Center"] = self.bb_centers["TR"] - Point(
+            40 * self.image.dpmm, -40 * self.image.dpmm
+        )
+        return self.bb_centers["Virtual Center"]
 
 
 class LasVegas(ImagePhantomBase):
@@ -1629,6 +1633,51 @@ class SNCMV(SNCkV):
         return 45
 
 
+class SNCMV12510(SNCMV):
+    """The older SNC MV QA phantom w/ model number 1251000"""
+
+    _demo_filename = "SNC_MV_12510.dcm"
+    common_name = "SNC MV-QA (12510)"
+    phantom_bbox_size_mm2 = 136**2
+    phantom_outline_object = {"Rectangle": {"width ratio": 7.3, "height ratio": 6.2}}
+    high_contrast_roi_settings = {
+        "roi 1": {
+            "distance from center": -1.7,
+            "angle": 0,
+            "roi radius": 0.7,
+            "lp/mm": 0.1,
+        },
+        "roi 2": {
+            "distance from center": 2.0,
+            "angle": 80,
+            "roi radius": 0.7,
+            "lp/mm": 0.2,
+        },
+        "roi 3": {
+            "distance from center": 2.4,
+            "angle": 0,
+            "roi radius": 0.7,
+            "lp/mm": 0.5,
+        },
+        "roi 4": {
+            "distance from center": -2.0,
+            "angle": 100,
+            "roi radius": 0.7,
+            "lp/mm": 1.0,
+        },
+    }
+    low_contrast_roi_settings = {
+        "roi 1": {"distance from center": 3.1, "angle": -40, "roi radius": 0.7},
+        "roi 2": {"distance from center": 3.1, "angle": 40, "roi radius": 0.7},
+        "roi 3": {"distance from center": 2.5, "angle": 130, "roi radius": 0.7},
+        "roi 4": {"distance from center": 2.5, "angle": -130, "roi radius": 0.7},
+    }
+    low_contrast_background_roi_settings = {
+        "roi 1": {"distance from center": 1.0, "angle": 0, "roi radius": 0.2},
+        "roi 2": {"distance from center": -0.2, "angle": 0, "roi radius": 0.2},
+    }
+
+
 class LeedsTOR(ImagePhantomBase):
     _demo_filename = "leeds.dcm"
     common_name = "Leeds"
@@ -1861,6 +1910,7 @@ class LeedsTOR(ImagePhantomBase):
 
 class LeedsTORBlue(LeedsTOR):
     """The Leeds TOR (Blue) is for analyzing older Leeds phantoms which have slightly offset ROIs compared to the newer, red-ring variant."""
+
     common_name = "Leeds (Blue)"
     high_contrast_roi_settings = {
         "roi 1": {

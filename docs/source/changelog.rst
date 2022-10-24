@@ -3,6 +3,15 @@
 Changelog
 =========
 
+v 3.5.0
+-------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* Older SNC MV phantoms (observed as model #1251000) can now be analyzed as :ref:`~pylinac.planar_imaging.SNCMV12510`.
+  They have a slightly different size and ROI locations but appears to be functionally the same.
+
 v 3.4.0
 -------
 
