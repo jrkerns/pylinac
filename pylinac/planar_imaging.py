@@ -212,7 +212,7 @@ class ImagePhantomBase:
             )
 
         # take the biggest ROI and call that the phantom outline
-        big_roi_idx = np.argsort([regions[phan].area_bbox for phan in blobs])[-1]
+        big_roi_idx = np.argsort([regions[phan].bbox_area for phan in blobs])[-1]
         phantom_idx = blobs[big_roi_idx]
 
         return regions[phantom_idx]
@@ -1170,7 +1170,7 @@ class LasVegas(ImagePhantomBase):
             self._phantom_ski_region = None
 
     def _phantom_radius_calc(self) -> float:
-        return math.sqrt(self.phantom_ski_region.area_bbox) * 1.626
+        return math.sqrt(self.phantom_ski_region.bbox_area) * 1.626
 
     def _phantom_angle_calc(self) -> float:
         return 0.0
@@ -1323,7 +1323,7 @@ class PTWEPIDQC(ImagePhantomBase):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.116
+        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.116
 
     def _phantom_angle_calc(self) -> float:
         """The angle of the phantom. This assumes the user has placed the phantom with the high-contrast line pairs at the top
@@ -1409,7 +1409,7 @@ class StandardImagingQC3(ImagePhantomBase):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.0896
+        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.0896
 
     @lru_cache()
     def _phantom_angle_calc(self) -> float:
@@ -1496,7 +1496,7 @@ class StandardImagingQCkV(StandardImagingQC3):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.0989
+        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.0989
 
 
 class SNCkV(ImagePhantomBase):
@@ -1557,7 +1557,7 @@ class SNCkV(ImagePhantomBase):
         -------
         radius : float
         """
-        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.1071
+        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.1071
 
     def _phantom_angle_calc(self) -> float:
         """The angle of the phantom. This assumes the user is using the stand that comes with the phantom,
@@ -1830,7 +1830,7 @@ class LeedsTOR(ImagePhantomBase):
             The radius of the phantom in pixels. The actual value is not important; it is used for scaling the
             distances to the low and high contrast ROIs.
         """
-        return math.sqrt(self.phantom_ski_region.area_bbox) * 0.515
+        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.515
 
     def _determine_start_angle_for_circle_profile(self) -> float:
         """Determine an appropriate angle for starting the circular profile
@@ -2073,7 +2073,7 @@ class DoselabMC2kV(ImagePhantomBase):
         leeds.plot_analyzed_image()
 
     def _phantom_radius_calc(self) -> float:
-        return math.sqrt(self.phantom_ski_region.area_bbox) * 1.214
+        return math.sqrt(self.phantom_ski_region.bbox_area) * 1.214
 
     def _phantom_angle_calc(self) -> float:
         roi = self.phantom_ski_region
