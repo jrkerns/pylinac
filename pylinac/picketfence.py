@@ -17,7 +17,6 @@ import dataclasses
 import enum
 import io
 import os.path as osp
-import textwrap
 import warnings
 import webbrowser
 from dataclasses import dataclass
@@ -883,19 +882,25 @@ class PicketFence:
         if isinstance(filename, str):
             print(f"Picket fence image saved to: {osp.abspath(filename)}")
 
-    def results(self) -> str:
+    def results(self, as_list: bool = False) -> str:
         """Return results of analysis. Use with print()."""
-        pass_pct = self.percent_passing
-        offsets = " ".join("{:.1f}".format(pk.dist2cax) for pk in self.pickets)
-        string = (
-            f"Picket Fence Results: \n{pass_pct:2.1f}% "
-            f"Passed\nMedian Error: {self.abs_median_error:2.3f}mm \n"
-            f"Mean picket spacing: {self.mean_picket_spacing:2.1f}mm \n"
-            f"Picket offsets from CAX (mm): {offsets}\n"
-            f"Max Error: {self.max_error:2.3f}mm on Picket: {self.max_error_picket}, Leaf: {self.max_error_leaf}\n"
-            f"Failing leaves: {self.failed_leaves()}"
-        )
-        return string
+        offsets = " ".join(f"{pk.dist2cax:.1f}" for pk in self.pickets)
+        results = [
+            f"Picket Fence Results:",
+            f"Gantry Angle (\N{DEGREE SIGN}): {self.image.gantry_angle:2.1f}",
+            f"Collimator Angle (\N{DEGREE SIGN}): {self.image.collimator_angle:2.1f}",
+            f"Tolerance (mm): {self.tolerance}",
+            f"Leaves passing (%): {self.percent_passing:2.1f}",
+            f"Absolute median error (mm): {self.abs_median_error:2.3f}mm",
+            f"Mean picket spacing (mm): {self.mean_picket_spacing:2.1f}mmn",
+            f"Picket offsets from CAX (mm): {offsets}",
+            f"Max Error: {self.max_error:2.3f}mm on Picket: {self.max_error_picket}, Leaf: {self.max_error_leaf}",
+        ]
+        if self.failed_leaves():
+            results.append(f"Failing leaves: {self.failed_leaves()}")
+        if not as_list:
+            results = "\n".join(results)
+        return results
 
     def results_data(self, as_dict=False) -> Union[PFResult, dict]:
         """Present the results data and metadata as a dataclass, dict, or tuple.
@@ -951,20 +956,7 @@ class PicketFence:
         data = io.BytesIO()
         self.save_analyzed_image(data, leaf_error_subplot=True)
         canvas.add_image(data, location=(3, 8), dimensions=(15, 15))
-        text = [
-            "Picket Fence results:",
-            f"Magnification factor (SID/SAD): {self.image.metadata.RTImageSID / self.image.metadata.RadiationMachineSAD:2.2f}",
-            f"Tolerance (mm): {self.tolerance}",
-            f"Leaves passing (%): {self.percent_passing:2.1f}",
-            f"Absolute median error (mm): {self.abs_median_error:2.3f}",
-            f"Mean picket spacing (mm): {self.mean_picket_spacing:2.1f}",
-            f"Maximum error (mm): {self.max_error:2.3f} on Picket {self.max_error_picket}, Leaf {self.max_error_leaf}",
-        ]
-        if self.failed_leaves():
-            text += textwrap.wrap(f"Failing leaves: {self.failed_leaves()}")
-        text.append(f"Gantry Angle: {self.image.gantry_angle:2.2f}")
-        text.append(f"Collimator Angle: {self.image.collimator_angle:2.2f}")
-        canvas.add_text(text=text, location=(10, 25.5))
+        canvas.add_text(text=self.results(as_list=True), location=(1.5, 25), font_size=14)
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 5))

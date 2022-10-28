@@ -365,20 +365,23 @@ class Starshot:
         """Return a pass/fail string."""
         return "PASS" if self.passed else "FAIL"
 
-    def results(self) -> str:
+    def results(self, as_list: bool = False) -> Union[str, list[str]]:
         """Return the results of the analysis.
 
-        Returns
-        -------
-        string
-            A string with a statement of the minimum circle.
+        Parameters
+        ----------
+        as_list : bool
+            Whether to return as a list of strings vs single string. Pretty much for internal usage.
         """
-        string = (
-            f"\nResult: {self._passfail_str} \n\n"
-            + f"The minimum circle that touches all the star lines has a diameter of {self.wobble.radius_mm*2:2.3f} mm. \n\n"
-            + f"The center of the minimum circle is at {self.wobble.center.x:3.1f}, {self.wobble.center.y:3.1f}"
-        )
-        return string
+        results = [
+            " - Starshot Results - ",
+            f"Result: {self._passfail_str}",
+            f"The minimum circle that touches all the star lines has a diameter of {self.wobble.radius_mm*2:2.3f} mm.",
+            f"The center of the minimum circle is at {self.wobble.center.x:3.1f}, {self.wobble.center.y:3.1f}",
+        ]
+        if not as_list:
+            results = '\n'.join(results)
+        return results
 
     def results_data(self, as_dict: bool = False) -> Union[StarshotResults, dict]:
         """Present the results data and metadata as a dataclass or dict.

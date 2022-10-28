@@ -7,8 +7,8 @@ from unittest import TestCase
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pylinac.core.geometry import Point
 from pylinac import Starshot
+from pylinac.core.geometry import Point
 from pylinac.starshot import StarshotResults
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo, \
     get_folder_from_cloud_test_repo, FromURLTesterMixin
@@ -226,6 +226,14 @@ class GeneralTests(Demo, TestCase):
     def test_publish_pdf(self):
         with tempfile.TemporaryFile() as t:
             self.star.publish_pdf(t, notes='stuff', metadata={"Unit": 'TB1'})
+
+    def test_results(self):
+        data = self.star.results()
+        self.assertIsInstance(data, str)
+
+        data = self.star.results(as_list=True)
+        self.assertIsInstance(data, list)
+        self.assertIsInstance(data[0], str)
 
     def test_results_data(self):
         data = self.star.results_data()

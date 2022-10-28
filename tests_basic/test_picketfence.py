@@ -253,6 +253,14 @@ class TestPlottingSaving(TestCase):
             self.pf.publish_pdf(t.name, notes='stuff', metadata={'Unit': 'TB1'})
         os.remove(t.name)
 
+    def test_results(self):
+        data = self.pf.results()
+        self.assertIsInstance(data, str)
+
+        data = self.pf.results(as_list=True)
+        self.assertIsInstance(data, list)
+        self.assertIsInstance(data[0], str)
+
     def test_results_data(self):
         data = self.pf.results_data()
         self.assertIsInstance(data, PFResult)

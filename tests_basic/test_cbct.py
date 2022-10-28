@@ -96,6 +96,17 @@ class TestGeneral(TestCase):
             self.cbct.ctp404.phan_center.y, known_phan_center.y, delta=0.7
         )
 
+    def test_results(self):
+        self.cbct.analyze()
+        data = self.cbct.results()
+        self.assertIsInstance(data, str)
+
+        data_list = self.cbct.results(as_list=True)
+        self.assertIsInstance(data_list, list)
+        self.assertIsInstance(data_list[0], list)
+        self.assertIsInstance(data_list[0][0], str)
+        self.assertEqual(len(data_list), 4)
+
     def test_results_data(self):
         self.cbct.analyze()
         data = self.cbct.results_data()

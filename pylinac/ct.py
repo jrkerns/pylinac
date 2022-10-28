@@ -15,6 +15,7 @@ Features:
 """
 import dataclasses
 import io
+import itertools
 import os
 import webbrowser
 import zipfile
@@ -1769,47 +1770,16 @@ class CatPhanBase:
             --------------
         """
         analysis_title = f"CatPhan {self._model} Analysis"
-        module_texts = [
-            [
-                " - CTP404 Results - ",
-                f"HU Linearity tolerance: {self.ctp404.hu_tolerance}",
-                f"HU Linearity ROIs: {self.ctp404.roi_vals_as_str}",
-                f"Geometric node spacing (mm): {self.ctp404.avg_line_length:2.2f}",
-                f"Slice thickness (mm): {self.ctp404.meas_slice_thickness:2.2f}",
-                f"Low contrast visibility: {self.ctp404.lcv:2.2f}",
-            ],
-        ]
         module_images = [("hu", "lin")]
         if self._has_module(CTP528CP504):
-            add = [
-                " - CTP528 Results - ",
-                f"MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}",
-                f"MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}",
-                f"MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}",
-            ]
-            module_texts.append(add)
             module_images.append(("sp", "mtf"))
         if self._has_module(CTP486):
-            add = [
-                " - CTP486 Results - ",
-                f"Uniformity tolerance: {self.ctp486.tolerance}",
-                f"Uniformity ROIs: {self.ctp486.roi_vals_as_str}",
-                f"Uniformity Index: {self.ctp486.uniformity_index:2.2f}",
-                f"Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}",
-            ]
-            module_texts.append(add)
             module_images.append(("un", "prof"))
         if self._has_module(CTP515):
-            add = [
-                " - CTP515 Results - ",
-                f"CNR threshold: {self.ctp515.cnr_threshold}",
-                f'Low contrast ROIs "seen": {self.ctp515.rois_visible}',
-            ]
-            module_texts.append(add)
             module_images.append(("lc", None))
 
         self._publish_pdf(
-            filename, metadata, notes, analysis_title, module_texts, module_images
+            filename, metadata, notes, analysis_title, self.results(as_list=True), module_images
         )
         if open_file:
             webbrowser.open(filename)
@@ -1944,33 +1914,54 @@ class CatPhanBase:
                 f"Tried to find the {module_of_interest} or a subclass of it. Did you override `modules` and not pass this module in?"
             )
 
-    def results(self) -> str:
-        """Return the results of the analysis as a string. Use with print()."""
-        string = (
-            f"\n - CatPhan {self._model} QA Test - \n"
-            f"HU Linearity ROIs: {self.ctp404.roi_vals_as_str}\n"
-            f"HU Passed?: {self.ctp404.passed_hu}\n"
-            f"Low contrast visibility: {self.ctp404.lcv:2.2f}\n"
-            f"Geometric Line Average (mm): {self.ctp404.avg_line_length:2.2f}\n"
-            f"Geometry Passed?: {self.ctp404.passed_geometry}\n"
-            f"Measured Slice Thickness (mm): {self.ctp404.meas_slice_thickness:2.3f}\n"
-            f"Slice Thickness Passed? {self.ctp404.passed_thickness}\n"
-        )
+    def results(self, as_list: bool = False) -> Union[str, list[list[str]]]:
+        """Return the results of the analysis as a string. Use with print().
+
+        Parameters
+        ----------
+        as_list : bool
+            Whether to return as a list of list of strings vs single string. Pretty much for internal usage.
+        """
+        results = []
+        result = [
+            f" - CBCT/CT {self._model} QA Test - ",
+            " - CTP 404 Results - ",
+            f"HU Linearity tolerance: {self.ctp404.hu_tolerance}",
+            f"HU Linearity ROIs: {self.ctp404.roi_vals_as_str}",
+            f"HU Passed?: {self.ctp404.passed_hu}",
+            f"Low contrast visibility: {self.ctp404.lcv:2.2f}",
+            f"Geometric Line Average (mm): {self.ctp404.avg_line_length:2.2f}",
+            f"Geometry Passed?: {self.ctp404.passed_geometry}",
+            f"Measured Slice Thickness (mm): {self.ctp404.meas_slice_thickness:2.3f}",
+            f"Slice Thickness Passed? {self.ctp404.passed_thickness}",
+        ]
+        results.append(result)
         if self._has_module(CTP486):
-            add = (
-                f"Uniformity ROIs: {self.ctp486.roi_vals_as_str}\n"
-                f"Uniformity index: {self.ctp486.uniformity_index:2.3f}\n"
-                f"Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}\n"
-                f"Uniformity Passed?: {self.ctp486.overall_passed}\n"
-            )
-            string += add
+            ctp486_result = [
+                " - CTP486 Results - ",
+                f"Uniformity tolerance: {self.ctp486.tolerance}",
+                f"Uniformity ROIs: {self.ctp486.roi_vals_as_str}",
+                f"Uniformity index: {self.ctp486.uniformity_index:2.3f}",
+                f"Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}",
+                f"Uniformity Passed?: {self.ctp486.overall_passed}",
+            ]
+            results.append(ctp486_result)
         if self._has_module(CTP528CP504):
-            add = f"MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}\n"
-            string += add
+            ctp528_result = [                " - CTP528 Results - ",
+                f"MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}",
+                f"MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}",
+                f"MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}",]
+            results.append(ctp528_result)
         if self._has_module(CTP515):
-            add = f'Low contrast ROIs "seen": {self.ctp515.rois_visible}\n'
-            string += add
-        return string
+            ctp515_result = [                " - CTP515 Results - ",
+                f"CNR threshold: {self.ctp515.cnr_threshold}",
+                f'Low contrast ROIs "seen": {self.ctp515.rois_visible}',]
+            results.append(ctp515_result)
+        if not as_list:
+            result = '\n'.join(itertools.chain(*results))
+        else:
+            result = results
+        return result
 
     def results_data(self, as_dict: bool = False) -> Union[CatphanResult, dict]:
         """Present the results data and metadata as a dataclass or dict.

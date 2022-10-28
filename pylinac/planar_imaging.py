@@ -569,8 +569,14 @@ class ImagePhantomBase:
         axes.set_xlabel("Line pairs / mm")
         axes.set_ylabel("relative MTF")
 
-    def results(self) -> str:
-        """Return the results of the analysis."""
+    def results(self, as_list: bool = False) -> Union[str, list[str]]:
+        """Return the results of the analysis.
+
+        Parameters
+        ----------
+        as_list : bool
+            Whether to return as a list of strings vs single string. Pretty much for internal usage.
+        """
         text = [f"{self.common_name} results:", f"File: {self.image.truncated_path}"]
         if self.low_contrast_rois:
             text += [
@@ -584,7 +590,8 @@ class ImagePhantomBase:
                 f"MTF 50% (lp/mm): {self.mtf.relative_resolution(50):2.2f}",
                 f"MTF 30% (lp/mm): {self.mtf.relative_resolution(30):2.2f}",
             ]
-        text = "\n".join(text)
+        if not as_list:
+            text = "\n".join(text)
         return text
 
     def results_data(self, as_dict=False) -> Union[PlanarResult, dict]:
@@ -639,7 +646,7 @@ class ImagePhantomBase:
         )
 
         # write the text/numerical values
-        text = self.results()
+        text = self.results(as_list=True)
         canvas.add_text(text=text, location=(1.5, 25), font_size=14)
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=12)
@@ -769,7 +776,7 @@ class StandardImagingFC2(ImagePhantomBase):
         ) = self._find_field_info(fwxm=fwxm)
         self.epid_center = self.image.center
 
-    def results(self, as_list: bool = False) -> Union[str, list]:
+    def results(self, as_list: bool = False) -> Union[str, list[str]]:
         """Return the results of the analysis."""
         text = [
             f"{self.common_name} results:",
@@ -1211,18 +1218,25 @@ class LasVegas(ImagePhantomBase):
 
         axes.legend(handles=[line1, line2, line3])
 
-    def results(self) -> str:
-        """Return the results of the analysis. Overridden because ROIs seen is based on visibility, not CNR"""
+    def results(self, as_list: bool = False) -> Union[str, list[str]]:
+        """Return the results of the analysis. Overridden because ROIs seen is based on visibility, not CNR.
+
+        Parameters
+        ----------
+        as_list : bool
+            Whether to return as a list of strings vs single string. Pretty much for internal usage.
+        """
         text = [f"{self.common_name} results:", f"File: {self.image.truncated_path}"]
         text += [
             f"Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}",
             f"Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}",
             f'# Low contrast ROIs "seen": {sum(roi.passed_visibility for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
         ]
-        text = "\n".join(text)
+        if not as_list:
+            text = "\n".join(text)
         return text
 
-    def results_data(self, as_dict=False) -> Union[PlanarResult, dict]:
+    def results_data(self, as_dict: bool = False) -> Union[PlanarResult, dict]:
         """Overridden because ROIs seen is based on visibility, not CNR"""
         data = PlanarResult(
             analysis_type=self.common_name,

@@ -47,6 +47,16 @@ class GeneralTests(TestCase):
         phan = DoselabMC2kV.from_demo_image()
         phan.analyze()
 
+    def test_results(self):
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        data = phan.results()
+        self.assertIsInstance(data, str)
+
+        data_list = phan.results(as_list=True)
+        self.assertIsInstance(data_list, list)
+        self.assertEqual(len(data_list), 8)
+
     def test_results_data(self):
         phan = LeedsTOR.from_demo_image()
         phan.analyze()

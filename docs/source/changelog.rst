@@ -12,10 +12,10 @@ Planar Imaging
 * Older SNC MV phantoms (observed as model #1251000) can now be analyzed as :ref:`~pylinac.planar_imaging.SNCMV12510`.
   They have a slightly different size and ROI locations but appears to be functionally the same.
 
-
 Bug Fixes
 ^^^^^^^^^
 
+* The PDFs from planar imaging analyses would have the text collapsed to one line. This has been fixed.
 * The planar imaging module was starting to use scikit-image attributes that were introduced in 0.19 inadvertently.
   This has been fixed. For previous versions, update scikit-image to v0.19 or higher.
 
