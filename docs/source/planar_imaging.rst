@@ -36,7 +36,7 @@ Feature table
 +------------------+------------------+-------------+----------------+---------------------------+
 | SI QC kV         | No               | Manual      | Yes            | Semi (+/-5 from 45/135)   |
 +------------------+------------------+-------------+----------------+---------------------------+
-| IBA Primus L     | No               | Manual      | Yes (+/-2cm)   | Semi (+/-5 from 0,90,270) |
+| IBA Primus A     | No               | Manual      | Yes (+/-2cm)   | Semi (+/-5 from 0,90,270) |
 +------------------+------------------+-------------+----------------+---------------------------+
 
 .. _typical_planar_usage:
@@ -1028,7 +1028,7 @@ API Documentation
 .. autoclass:: pylinac.planar_imaging.PTWEPIDQC
     :inherited-members:
 
-.. autoclass:: pylinac.planar_imaging.IBAPrimusL
+.. autoclass:: pylinac.planar_imaging.IBAPrimusA
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.StandardImagingFC2

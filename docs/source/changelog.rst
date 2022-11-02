@@ -11,7 +11,7 @@ Planar Imaging
 
 * Older SNC MV phantoms (observed as model #1251000) can now be analyzed with the new :class:`~pylinac.planar_imaging.SNCMV12510`.
   They have a slightly different size and ROI locations but appears to be functionally the same.
-* The :ref:`IBA Primus L phantom <iba_primus_l>` is now supported.
+* The :ref:`IBA Primus A phantom <iba_primus_a>` is now supported.
 * Planar image analyses now take into account the image SAD; previously this was assumed to always be 1000mm. This only affects
   users with non-standard SADs such as proton gantries. Linac-based users should see no difference.
 * Most planar phantoms will now show an "x" marker on the analyzed image showing the detected center of the phantom. This can help in
