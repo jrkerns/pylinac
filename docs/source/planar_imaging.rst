@@ -13,29 +13,31 @@ Overview
 Feature table
 -------------
 
-+------------------+------------------+-------------+----------------+-------------------------+
-| Feature/Phantom  | Can be inverted? | SSD setting | Auto-centering | Auto-rotation           |
-+------------------+------------------+-------------+----------------+-------------------------+
-| Doselab MC2 (MV) | No               | Manual      | Yes            | Semi (+/-5 from 0)      |
-+------------------+------------------+-------------+----------------+-------------------------+
-| Doselab MC2 (kV) | No               | Manual      | Yes            | Semi (+/-5 from 0)      |
-+------------------+------------------+-------------+----------------+-------------------------+
-| Las Vegas        | L/R              | Manual      | Yes            | No (0)                  |
-+------------------+------------------+-------------+----------------+-------------------------+
-| Leeds TOR        | Yes              | Manual      | Yes            | Yes                     |
-+------------------+------------------+-------------+----------------+-------------------------+
-| PTW EPID QC      | No               | Manual      | Yes            | No (0)                  |
-+------------------+------------------+-------------+----------------+-------------------------+
-| SNC MV           | No               | Manual      | Yes            | No (45)                 |
-+------------------+------------------+-------------+----------------+-------------------------+
-| SNC MV (12510)   | No               | Manual      | Yes            | No (45)                 |
-+------------------+------------------+-------------+----------------+-------------------------+
-| SNC kV           | No               | Manual      | Yes            | No (135)                |
-+------------------+------------------+-------------+----------------+-------------------------+
-| SI QC-3 (MV)     | No               | Manual      | Yes            | Semi (+/-5 from 45/135) |
-+------------------+------------------+-------------+----------------+-------------------------+
-| SI QC kV         | No               | Manual      | Yes            | Semi (+/-5 from 45/135) |
-+------------------+------------------+-------------+----------------+-------------------------+
++------------------+------------------+-------------+----------------+---------------------------+
+| Feature/Phantom  | Can be inverted? | SSD setting | Auto-centering | Auto-rotation             |
++------------------+------------------+-------------+----------------+---------------------------+
+| Doselab MC2 (MV) | No               | Manual      | Yes            | Semi (+/-5 from 0)        |
++------------------+------------------+-------------+----------------+---------------------------+
+| Doselab MC2 (kV) | No               | Manual      | Yes            | Semi (+/-5 from 0)        |
++------------------+------------------+-------------+----------------+---------------------------+
+| Las Vegas        | L/R              | Manual      | Yes            | No (0)                    |
++------------------+------------------+-------------+----------------+---------------------------+
+| Leeds TOR        | Yes              | Manual      | Yes            | Yes                       |
++------------------+------------------+-------------+----------------+---------------------------+
+| PTW EPID QC      | No               | Manual      | Yes            | No (0)                    |
++------------------+------------------+-------------+----------------+---------------------------+
+| SNC MV           | No               | Manual      | Yes            | No (45)                   |
++------------------+------------------+-------------+----------------+---------------------------+
+| SNC MV (12510)   | No               | Manual      | Yes            | No (45)                   |
++------------------+------------------+-------------+----------------+---------------------------+
+| SNC kV           | No               | Manual      | Yes            | No (135)                  |
++------------------+------------------+-------------+----------------+---------------------------+
+| SI QC-3 (MV)     | No               | Manual      | Yes            | Semi (+/-5 from 45/135)   |
++------------------+------------------+-------------+----------------+---------------------------+
+| SI QC kV         | No               | Manual      | Yes            | Semi (+/-5 from 45/135)   |
++------------------+------------------+-------------+----------------+---------------------------+
+| IBA Primus L     | No               | Manual      | Yes (+/-2cm)   | Semi (+/-5 from 0,90,270) |
++------------------+------------------+-------------+----------------+---------------------------+
 
 .. _typical_planar_usage:
 
@@ -536,6 +538,66 @@ The algorithm works like such:
 * **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
   value is compared to the threshold. The plot colors correspond to the pass/fail status.
 
+.. _iba_primus_a:
+
+IBA Primus A
+------------
+
+The IBA Primus A phantom is used for kV image analysis and includes low and high contrast regions of varying contrast.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+Lay the phantom on the couch with the wedge step circle facing the top/gun and high-res square facing the bottom/target.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom must not be touching any image edges.
+* The phantom should be at 0, 90, or 270 +/-5 degrees relative to the EPID where 0 is facing the gun.
+* The dynamic wedge steps should be facing the gun side; the high-resolution square should be facing the target side.
+* The phantom should be centered near the CAX (<2cm).
+
+**Pre-Analysis**
+
+* **Determine phantom location** -- A Canny edge search is performed on the image. The ROI that approximates
+  the size of the central crosshair of the phantom and is nearly at the center of the image is used as the phantom
+  center location
+* **Determine phantom radius** -- The size of the above crosshair ROI is used as the basis for the phantom radius.
+* **Fine-tune phantom angle** -- The phantom angle is assumed to be around 0 (wedge steps facing gun), but fine-tuning
+  is performed so that sensitive ROIs like MTF can be had with high accuracy. This is performed by taking a circular
+  profile about the phantom at the radius of the wedge steps. The two areas of highest gradient will be at the first
+  and last wedge steps. The center between these two points is the angle at which the phantom is "pointing" and will
+  be used as the updated angle.
+
+  .. warning::
+
+    If the gradients cannot be found or if the determined angle is >5 degrees (caused by
+    bad inversion, e.g.) a warning will be printed to the console and a default of 0 will be used.
+
+**Analysis**
+
+* **Calculate low contrast** -- Because the phantom center and angle are known, the angles to the ROIs can also
+  be known. From here, the contrast can be known; see :ref:`contrast`.
+* **Calculate high contrast** -- Again, because the phantom position and angle are known, offsets are applied
+  to sample the high contrast line pair regions. For each sample, the relative MTF is calculated. See :ref:`mtf_topic`.
+
+**Post-Analysis**
+
+* **Determine passing low and high contrast ROIs** -- For each low and high contrast region, the determined
+  value is compared to the threshold. The plot colors correspond to the pass/fail status.
+
 Standard Imaging FC-2
 ---------------------
 
@@ -964,6 +1026,9 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.PTWEPIDQC
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.IBAPrimusL
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.StandardImagingFC2

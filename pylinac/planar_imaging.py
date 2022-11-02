@@ -32,6 +32,8 @@ from typing import Optional, List, Tuple, Union, BinaryIO, Callable, Dict
 import matplotlib.pyplot as plt
 import numpy as np
 from cached_property import cached_property
+from py_linq import Enumerable
+from scipy.ndimage import median_filter
 from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
@@ -41,7 +43,13 @@ from .core.geometry import Point, Rectangle, Circle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import Interpolation, CollapsedCircleProfile, SingleProfile
-from .core.roi import LowContrastDiskROI, HighContrastDiskROI, bbox_center, Contrast
+from .core.roi import (
+    LowContrastDiskROI,
+    HighContrastDiskROI,
+    bbox_center,
+    Contrast,
+    DiskROI,
+)
 from .core.utilities import ResultBase
 from .ct import get_regions
 
@@ -68,6 +76,13 @@ def _middle_of_bbox_region(region: RegionProperties) -> Tuple:
     )
 
 
+def is_square(region: RegionProperties, instance: object, rtol=0.2) -> bool:
+    """Whether the region has symmetric height and width"""
+    height = region.bbox[2] - region.bbox[0]
+    width = region.bbox[3] - region.bbox[1]
+    return math.isclose(height / width, 1, rel_tol=rtol)
+
+
 def is_centered(region: RegionProperties, instance: object, rtol=0.3) -> bool:
     """Whether the region is centered on the image"""
     img_center = (instance.image.center.y, instance.image.center.x)
@@ -80,7 +95,7 @@ def is_right_size(region: RegionProperties, instance: object, rtol=0.1) -> bool:
     return bool(
         np.isclose(
             region.bbox_area,
-            instance.phantom_bbox_size_px / (instance._ssd / 1000) ** 2,
+            instance.phantom_bbox_size_px,
             rtol=rtol,
         )
     )
@@ -188,18 +203,43 @@ class ImagePhantomBase:
     def _check_inversion(self):
         pass
 
+    def window_floor(self) -> Optional[float]:
+        """The value to use as the minimum when displaying the image (see https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.imshow.html)
+        Helps show contrast of images, specifically if there is an open background"""
+        return
+
+    def window_ceiling(self) -> Optional[float]:
+        """The value to use as the maximum when displaying the image. Helps show contrast of images, specifically if there is an open background"""
+        return
+
+    @property
+    def magnification_factor(self) -> float:
+        """The mag factor of the image based on SSD vs SAD"""
+        return self.image.sad / self._ssd
+
     @property
     def phantom_bbox_size_px(self) -> float:
-        """The phantom bounding box size in pixels^2."""
-        return self.phantom_bbox_size_mm2 * (self.image.dpmm**2)
+        """The phantom bounding box size in pixels^2 at the isoplane."""
+        return (
+            self.phantom_bbox_size_mm2
+            * (self.image.dpmm ** 2)
+            * (self.magnification_factor ** 2)
+        )
 
     @cached_property
     def phantom_ski_region(self) -> RegionProperties:
         """The skimage region of the phantom outline."""
         regions = self._get_canny_regions()
+        sorted_regions = (
+            Enumerable(regions)
+            .where(lambda r: r.area_bbox > 100)
+            .order_by_descending(lambda r: r.area_bbox)
+            .to_list()
+        )
+        # sorted_regions = sorted(regions, key=lambda r: r.area_bbox, reverse=True)
         # search through all the canny ROIs to see which ones pass the detection conditions
         blobs = []
-        for phantom_idx, region in enumerate(regions):
+        for phantom_idx, region in enumerate(sorted_regions):
             conditions_met = [
                 condition(region, self) for condition in self.detection_conditions
             ]
@@ -212,10 +252,10 @@ class ImagePhantomBase:
             )
 
         # take the biggest ROI and call that the phantom outline
-        big_roi_idx = np.argsort([regions[phan].bbox_area for phan in blobs])[-1]
+        big_roi_idx = np.argsort([sorted_regions[phan].bbox_area for phan in blobs])[-1]
         phantom_idx = blobs[big_roi_idx]
 
-        return regions[phantom_idx]
+        return sorted_regions[phantom_idx]
 
     def analyze(
         self,
@@ -420,7 +460,7 @@ class ImagePhantomBase:
         if outline_type == "Rectangle":
             side_a = self.phantom_radius * outline_settings["width ratio"]
             side_b = self.phantom_radius * outline_settings["height ratio"]
-            half_hyp = np.sqrt(side_a**2 + side_b**2) / 2
+            half_hyp = np.sqrt(side_a ** 2 + side_b ** 2) / 2
             internal_angle = ia = np.rad2deg(np.arctan(side_b / side_a))
             new_x = self.phantom_center.x + half_hyp * (
                 geometry.cos(ia) - geometry.cos(ia + self.phantom_angle)
@@ -499,7 +539,12 @@ class ImagePhantomBase:
         if image:
             img_ax = next(axes)
             names.append("image")
-            self.image.plot(ax=img_ax, show=False)
+            self.image.plot(
+                ax=img_ax,
+                show=False,
+                vmin=self.window_floor(),
+                vmax=self.window_ceiling(),
+            )
             img_ax.axis("off")
             img_ax.set_title(f"{self.common_name} Phantom Analysis")
 
@@ -520,6 +565,8 @@ class ImagePhantomBase:
                 ):
                     color = "b" if mtf > self._high_contrast_threshold else "r"
                     roi.plot2axes(img_ax, edgecolor=color)
+            # plot the center of the detected ROI; used for qualitative eval of detection algorithm
+            img_ax.scatter(x=self.phantom_center.x, y=self.phantom_center.y, marker="x")
 
         # plot the low contrast value graph
         if plot_low_contrast:
@@ -1257,7 +1304,7 @@ class LasVegas(ImagePhantomBase):
 class PTWEPIDQC(ImagePhantomBase):
     _demo_filename = "PTW-EPID-QC.dcm"
     common_name = "PTW EPID QC"
-    phantom_bbox_size_mm2 = 250**2
+    phantom_bbox_size_mm2 = 250 ** 2
     detection_conditions = [is_centered, is_right_size]
     detection_canny_settings = {"sigma": 4, "percentiles": (0.001, 0.01)}
     phantom_outline_object = {"Rectangle": {"width ratio": 8.55, "height ratio": 8.55}}
@@ -1351,10 +1398,209 @@ class PTWEPIDQC(ImagePhantomBase):
         return 0
 
 
+class IBAPrimusA(ImagePhantomBase):
+    common_name = "IBA Primus A"
+    _demo_filename = "iba_primus.dcm"
+    phantom_bbox_size_mm2 = (
+        15 ** 2
+    )  # with the Primus, we only search for the central crosshair
+    detection_conditions = [is_centered, is_right_size, is_square]
+    phantom_outline_object = {
+        "Rectangle": {"width ratio": 10.75, "height ratio": 10.75}
+    }
+    high_contrast_roi_settings = {
+        "roi 1": {
+            "distance from center": 5.19,
+            "angle": 86.65,
+            "roi radius": 0.12,
+            "lp/mm": 0.6,
+        },
+        "roi 2": {
+            "distance from center": 4.92,
+            "angle": 89.5,
+            "roi radius": 0.1,
+            "lp/mm": 0.7,
+        },
+        "roi 3": {
+            "distance from center": 4.68,
+            "angle": 92.3,
+            "roi radius": 0.09,
+            "lp/mm": 0.8,
+        },
+        "roi 4": {
+            "distance from center": 4.45,
+            "angle": 95.4,
+            "roi radius": 0.08,
+            "lp/mm": 0.9,
+        },
+        "roi 5": {
+            "distance from center": 4.23,
+            "angle": 99.5,
+            "roi radius": 0.07,
+            "lp/mm": 1,
+        },
+        "roi 6": {
+            "distance from center": 4.07,
+            "angle": 102.7,
+            "roi radius": 0.06,
+            "lp/mm": 1.2,
+        },
+        "roi 7": {
+            "distance from center": 3.92,
+            "angle": 105.73,
+            "roi radius": 0.05,
+            "lp/mm": 1.4,
+        },
+        "roi 8": {
+            "distance from center": 3.82,
+            "angle": 108.65,
+            "roi radius": 0.04,
+            "lp/mm": 1.6,
+        },
+        "roi 9": {
+            "distance from center": 4.59,
+            "angle": 74.4,
+            "roi radius": 0.04,
+            "lp/mm": 1.8,
+        },
+        "roi 10": {
+            "distance from center": 4.4,
+            "angle": 76.2,
+            "roi radius": 0.035,
+            "lp/mm": 2.0,
+        },
+        "roi 11": {
+            "distance from center": 4.19,
+            "angle": 77.77,
+            "roi radius": 0.03,
+            "lp/mm": 2.2,
+        },
+        "roi 12": {
+            "distance from center": 4,
+            "angle": 79.6,
+            "roi radius": 0.03,
+            "lp/mm": 2.5,
+        },
+        "roi 13": {
+            "distance from center": 3.67,
+            "angle": 83.1,
+            "roi radius": 0.025,
+            "lp/mm": 2.8,
+        },
+    }
+    low_contrast_roi_settings = {
+        "roi 1": {"distance from center": 3.95, "angle": 19, "roi radius": 0.15},
+        "roi 2": {"distance from center": 3.95, "angle": 5, "roi radius": 0.15},
+        "roi 3": {"distance from center": 3.95, "angle": -9, "roi radius": 0.15},
+        "roi 4": {"distance from center": 3.95, "angle": -23, "roi radius": 0.15},
+        "roi 5": {"distance from center": 3.95, "angle": -37, "roi radius": 0.15},
+        "roi 6": {"distance from center": 3.95, "angle": -51, "roi radius": 0.15},
+        "roi 7": {"distance from center": 3.95, "angle": -65, "roi radius": 0.15},
+        "roi 8": {"distance from center": 3.95, "angle": -79, "roi radius": 0.15},
+        "roi 9": {"distance from center": 3.95, "angle": -107, "roi radius": 0.15},
+        "roi 10": {"distance from center": 3.95, "angle": -121, "roi radius": 0.15},
+        "roi 11": {"distance from center": 3.95, "angle": -135, "roi radius": 0.15},
+        "roi 12": {"distance from center": 3.95, "angle": -149, "roi radius": 0.15},
+        "roi 13": {"distance from center": 3.95, "angle": -163, "roi radius": 0.15},
+        "roi 14": {"distance from center": 3.95, "angle": -177, "roi radius": 0.15},
+        "roi 15": {"distance from center": 3.95, "angle": -191, "roi radius": 0.15},
+    }
+    low_contrast_background_roi_settings = {
+        "roi 1": {"distance from center": 3.95, "angle": -205, "roi radius": 0.15},
+    }
+
+    def _check_inversion(self):
+        """The center region (crosshair) should be less intense than an area adjacent to it."""
+        crosshair_disk = DiskROI(
+            self.image.array,
+            angle=0,
+            roi_radius=self.phantom_radius / 2,
+            dist_from_center=0,
+            phantom_center=self.phantom_center,
+        )
+        adjacent_disk = DiskROI(
+            self.image.array,
+            angle=0,
+            roi_radius=self.phantom_radius / 2,
+            dist_from_center=self.phantom_radius,
+            phantom_center=self.phantom_center,
+        )
+        if crosshair_disk.pixel_value < adjacent_disk.pixel_value:
+            self.image.invert()
+
+    def _wl_spread(self):
+        """window/level spread based on low contrast ROI pixel values"""
+        pixel_values = [roi.pixel_value for roi in self.low_contrast_rois]
+        return abs(max(pixel_values) - min(pixel_values))
+
+    def window_floor(self) -> Optional[float]:
+        return (
+            min(roi.pixel_value for roi in self.low_contrast_rois) - self._wl_spread()
+        )
+
+    def window_ceiling(self) -> Optional[float]:
+        return (
+            max(roi.pixel_value for roi in self.low_contrast_rois) + self._wl_spread()
+        )
+
+    @cached_property
+    def phantom_angle(self) -> float:
+        """Cache this; calculating the angle is expensive"""
+        return super().phantom_angle
+
+    def _phantom_angle_calc(self) -> float:
+        """Fine-tune the angle by finding the two ends of the dynamic wedge steps and correcting"""
+        prof = CollapsedCircleProfile(
+            center=self.phantom_center,
+            radius=self.phantom_radius * 4.37,
+            image_array=self.image,
+            start_angle=-np.pi / 2,
+        )
+        # get the points of max delta
+        delta_array = np.argsort(np.diff(median_filter(prof.values, size=5)))
+        # unfortunately, there may be several pixels of max gradient adjacent; we take the first
+        # point and the next point that is not near the first
+        first = delta_array[0]
+        second = None
+        one_degree = delta_array.size / 360
+        for idx in delta_array:
+            if first + one_degree < idx or idx < first - one_degree:
+                second = idx
+                break
+        if not second:
+            warnings.warn(
+                "The phantom angle was not able to be fine-tuned; a default of 0 is being used instead. Ensure the image is not rotated."
+            )
+            return 0
+        # now figure out the angle from the two deltas using the midpoint
+        # perfect set up is when the midpoint is at 0.5. Use diff from that to get offset angle
+        angle = (0.5 - ((second - first) / 2 + first) / prof.values.size) * 360
+        near_cardinal = (-95 < angle < -85) or (85 < angle < 95) or (-5 < angle < 5)
+        if near_cardinal:
+            return angle
+        else:
+            # something is wrong; image likely rotated
+            warnings.warn(
+                "The phantom angle was not able to be fine-tuned; a default of 0 is being used instead. Ensure the image is not rotated."
+            )
+            return 0
+
+    def _phantom_radius_calc(self):
+        return math.sqrt(self.phantom_ski_region.area_bbox)
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Standard Imaging QC-3 phantom analysis demonstration."""
+        primus = IBAPrimusA.from_demo_image()
+        primus.analyze(ssd=1395)
+        print(primus.results())
+        primus.plot_analyzed_image()
+
+
 class StandardImagingQC3(ImagePhantomBase):
     _demo_filename = "qc3.dcm"
     common_name = "SI QC-3"
-    phantom_bbox_size_mm2 = 168**2
+    phantom_bbox_size_mm2 = 168 ** 2
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 6}}
     high_contrast_roi_settings = {
@@ -1449,7 +1695,7 @@ class StandardImagingQC3(ImagePhantomBase):
 class StandardImagingQCkV(StandardImagingQC3):
     _demo_filename = "SI-QC-kV.dcm"
     common_name = "SI QC-kV"
-    phantom_bbox_size_mm2 = 142**2
+    phantom_bbox_size_mm2 = 142 ** 2
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.8, "height ratio": 6.4}}
     high_contrast_roi_settings = {
@@ -1516,7 +1762,7 @@ class StandardImagingQCkV(StandardImagingQC3):
 class SNCkV(ImagePhantomBase):
     _demo_filename = "SNC-kV.dcm"
     common_name = "SNC kV-QA"
-    phantom_bbox_size_mm2 = 134**2
+    phantom_bbox_size_mm2 = 134 ** 2
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.7, "height ratio": 5.6}}
     high_contrast_roi_settings = {
@@ -1588,7 +1834,7 @@ class SNCkV(ImagePhantomBase):
 class SNCMV(SNCkV):
     _demo_filename = "SNC-MV.dcm"
     common_name = "SNC MV-QA"
-    phantom_bbox_size_mm2 = 118**2
+    phantom_bbox_size_mm2 = 118 ** 2
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 7.5}}
     high_contrast_roi_settings = {
@@ -1652,7 +1898,7 @@ class SNCMV12510(SNCMV):
 
     _demo_filename = "SNC_MV_12510.dcm"
     common_name = "SNC MV-QA (12510)"
-    phantom_bbox_size_mm2 = 136**2
+    phantom_bbox_size_mm2 = 136 ** 2
     phantom_outline_object = {"Rectangle": {"width ratio": 7.3, "height ratio": 6.2}}
     high_contrast_roi_settings = {
         "roi 1": {
@@ -1695,7 +1941,7 @@ class SNCMV12510(SNCMV):
 class LeedsTOR(ImagePhantomBase):
     _demo_filename = "leeds.dcm"
     common_name = "Leeds"
-    phantom_bbox_size_mm2 = 148**2
+    phantom_bbox_size_mm2 = 148 ** 2
     _is_ccw = False
     phantom_outline_object = {"Circle": {"radius ratio": 0.97}}
     high_contrast_roi_settings = {

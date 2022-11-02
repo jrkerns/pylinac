@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from scipy.ndimage import rotate
 
-from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
+from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV, IBAPrimusA
 from pylinac.core import image
 from pylinac.planar_imaging import (
     PlanarResult,
@@ -204,7 +204,7 @@ class PlanarPhantomMixin(CloudFileMixin):
     def test_median_cnr(self):
         if self.median_cnr is not None:
             self.assertAlmostEqual(
-                self.median_cnr, self.instance.results_data().median_cnr, delta=0.1
+                self.median_cnr, self.instance.results_data().median_cnr, delta=0.01*self.median_cnr
             )
 
     def test_results(self):
@@ -405,6 +405,68 @@ class SNCMV12510_6MV2(PlanarPhantomMixin, TestCase):
     mtf_50 = 0.85
     dir_path = ["planar_imaging", "SNC MV Old"]
     file_name = "SNC_MV_Old2.dcm"
+
+
+class IBAPrimusDemo(PlanarPhantomMixin, TestCase):
+    klass = IBAPrimusA
+    dir_path = ["planar_imaging", "PrimusL"]
+    file_name = "Demo.dcm"
+    mtf_50 = 1.66
+    ssd = 1395
+    median_cnr = 1084.4
+    median_contrast = 0.62
+
+    def test_demo(self):
+        IBAPrimusA.run_demo()
+
+
+class IBAPrimusBasic(IBAPrimusDemo):
+    # same as demo but no test_demo method; this is inherited so no need to call test_demo a lot
+
+    def test_demo(self):
+        pass
+
+
+class IBAPrimusDemo0(IBAPrimusBasic):
+    """Rotate image to 0 (pointing towards gun) to ensure it still analyzes and results are similar"""
+
+    @classmethod
+    def preprocess(cls, instance):
+        instance.image.rot90()
+
+
+class IBAPrimusShifted(IBAPrimusBasic):
+    """Shift the image slightly to ensure we can handle slightly offset phantom placements"""
+
+    @classmethod
+    def preprocess(cls, instance):
+        instance.image.array = np.roll(instance.image.array, shift=50)
+
+
+class IBAPrimusDemoMinus90(IBAPrimusBasic):
+    """Rotate image to -90 (pointing left in BEV) to ensure it still analyzes and results are similar"""
+
+    @classmethod
+    def preprocess(cls, instance):
+        instance.image.rot90(2)
+
+
+class IBAPrimusDemoBadInversion(IBAPrimusBasic):
+    """Force a bad inversion and ensure recovery"""
+
+    @classmethod
+    def preprocess(cls, instance):
+        instance.image.invert()
+
+
+class IBAPrimusFarSSD(PlanarPhantomMixin, TestCase):
+    klass = IBAPrimusA
+    dir_path = ["planar_imaging", "PrimusL"]
+    file_name = "Primus_farSSD.dcm"
+    mtf_50 = 2.33
+    ssd = 2790
+    median_cnr = 3990
+    median_contrast = 0.6
 
 
 class SIQCkVDemo(PlanarPhantomMixin, TestCase):

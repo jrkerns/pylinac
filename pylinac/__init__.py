@@ -42,6 +42,7 @@ from .planar_imaging import (
     SNCFSQA,
     LeedsTORBlue,
     SNCMV12510,
+    IBAPrimusA
 )
 from .log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
 from .picketfence import PicketFence  # must be after log analyzer

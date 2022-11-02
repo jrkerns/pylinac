@@ -9,8 +9,22 @@ v 3.5.0
 Planar Imaging
 ^^^^^^^^^^^^^^
 
-* Older SNC MV phantoms (observed as model #1251000) can now be analyzed as :ref:`~pylinac.planar_imaging.SNCMV12510`.
+* Older SNC MV phantoms (observed as model #1251000) can now be analyzed with the new :class:`~pylinac.planar_imaging.SNCMV12510`.
   They have a slightly different size and ROI locations but appears to be functionally the same.
+* The :ref:`IBA Primus L phantom <iba_primus_l>` is now supported.
+* Planar image analyses now take into account the image SAD; previously this was assumed to always be 1000mm. This only affects
+  users with non-standard SADs such as proton gantries. Linac-based users should see no difference.
+* Most planar phantoms will now show an "x" marker on the analyzed image showing the detected center of the phantom. This can help in
+  evaluating the algorithm's accuracy in phantom detection.
+* Two methods, ``window_floor`` and ``window_ceiling``, were added to the image analysis classes. This
+  lets the user define the min and max values of display for plotting the image. These are convenience functions
+  only and currently only affect the Primus phantom, but will likely be adopted for the other phantoms.
+
+Core
+^^^^
+
+* A source-to-axis ``sad`` property was added to the ``DicomImage`` class. This property looks up the "RadiationMachineSAD" tag. This was added because non-1000mm SADs are being encountered.
+* The ``dpmm`` property now takes into account the SAD (see above). Previously, the SAD was assumed to be 1000mm. For Linac users there will be no visible change.
 
 Bug Fixes
 ^^^^^^^^^

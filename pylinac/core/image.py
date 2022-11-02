@@ -749,6 +749,7 @@ class DicomImage(BaseImage):
     metadata: pydicom.FileDataset
     _sid: float
     _dpi: float
+    _sad: float
 
     def __init__(
         self,
@@ -757,6 +758,7 @@ class DicomImage(BaseImage):
         dtype=None,
         dpi: float = None,
         sid: float = None,
+        sad: float = 1000,
     ):
         """
         Parameters
@@ -777,6 +779,7 @@ class DicomImage(BaseImage):
         super().__init__(path)
         self._sid = sid
         self._dpi = dpi
+        self._sad = sad
         # read the file once to get just the DICOM metadata
         self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
@@ -838,8 +841,16 @@ class DicomImage(BaseImage):
         """The Source-to-Image in mm."""
         try:
             return float(self.metadata.RTImageSID)
-        except:
+        except (AttributeError, ValueError, TypeError):
             return self._sid
+
+    @property
+    def sad(self) -> float:
+        """The source to axis (iso) in mm"""
+        try:
+            return float(self.metadata.RadiationMachineSAD)
+        except (AttributeError, ValueError, TypeError):
+            return self._sad
 
     @property
     def dpi(self) -> float:
@@ -860,7 +871,7 @@ class DicomImage(BaseImage):
                 dpmm = 1 / mmpd[0]
                 break
         if dpmm is not None and self.sid is not None:
-            dpmm *= self.sid / 1000
+            dpmm *= self.sid / self.sad
         elif dpmm is None and self._dpi is not None:
             dpmm = self._dpi / MM_PER_INCH
         return dpmm
@@ -872,7 +883,7 @@ class DicomImage(BaseImage):
         try:
             x = self.center.x - self.metadata.XRayImageReceptorTranslation[0]
             y = self.center.y - self.metadata.XRayImageReceptorTranslation[1]
-        except AttributeError:
+        except (AttributeError, ValueError, TypeError):
             return self.center
         else:
             return Point(x, y)
