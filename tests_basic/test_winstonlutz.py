@@ -700,3 +700,17 @@ class DeBr6XElekta(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.7
     cax2bb_mean_distance = 0.6
     bb_shift_vector = Vector(x=0.4, y=-0.2)
+
+
+class LargeFieldCouchPresent(WinstonLutzMixin, TestCase):
+    """A very large field where the couch is present"""
+
+    file_name = ["large_field_couch_present.zip"]
+    num_images = 4
+    gantry_iso_size = 0.8
+    collimator_iso_size = None
+    couch_iso_size = None
+    cax2bb_max_distance = 1.3
+    cax2bb_median_distance = 1
+    cax2bb_mean_distance = 1
+    bb_shift_vector = Vector(x=0.5, y=-0.7, z=0.8)

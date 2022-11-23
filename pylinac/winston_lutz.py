@@ -451,7 +451,7 @@ class WinstonLutz:
         ]
         xz_sag = np.array([getattr(img, attr).x for img in imgs])
         y_sag = np.array([getattr(img, attr).y for img in imgs])
-        rms = np.sqrt(xz_sag**2 + y_sag**2)
+        rms = np.sqrt(xz_sag ** 2 + y_sag ** 2)
 
         # plot the axis deviation
         if ax is None:
@@ -927,37 +927,32 @@ class WinstonLutz2D(image.LinacDicomImage):
                 # plt.imshow(binary_arr)
                 # plt.show()
                 labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
-                roi_sizes, bin_edges = np.histogram(labeled_arr, bins=num_roi + 1)
-                bw_bb_img = np.where(
-                    labeled_arr == np.argsort(roi_sizes)[-3], 1, 0
-                )  # we pick the 3rd largest one because the largest is the background, 2nd is rad field, 3rd is the BB
-                bw_bb_img = ndimage.binary_fill_holes(bw_bb_img).astype(
-                    int
-                )  # fill holes for low energy beams like 2.5MV
-                bb_regionprops = measure.regionprops(bw_bb_img)[0]
-
-                if not is_round(bb_regionprops):
+                regions = measure.regionprops(labeled_arr)
+                conditions_met = [
+                    matches_all_conditions(region, self.dpmm, bb_size, binary_arr.shape)
+                    for region in regions
+                ]
+                if not any(conditions_met):
                     raise ValueError
-                if not is_modest_size(bw_bb_img, self.dpmm, bb_size):
-                    raise ValueError
-                if not is_symmetric(bw_bb_img):
-                    raise ValueError
-                if not is_near_center(bb_regionprops, self.dpmm, bw_bb_img.shape):
-                    raise ValueError
+                else:
+                    region_idx = [
+                        idx for idx, value in enumerate(conditions_met) if value
+                    ][0]
+                    found = True
             except (IndexError, ValueError):
                 max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
                     raise ValueError(
                         "Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images."
                     )
-            else:
-                found = True
 
         # determine the center of mass of the BB
         inv_img = image.load(self.array)
         # we invert so BB intensity increases w/ attenuation
         inv_img.check_inversion_by_histogram(percentiles=(99.99, 50, 0.01))
-        bb_rprops = measure.regionprops(bw_bb_img, intensity_image=inv_img)[0]
+        bb_rprops = measure.regionprops(labeled_arr, intensity_image=inv_img)[
+            region_idx
+        ]
         return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
 
     @property
@@ -1114,9 +1109,9 @@ class WinstonLutz2D(image.LinacDicomImage):
         return data
 
 
-def is_symmetric(logical_array: np.ndarray) -> bool:
+def is_symmetric(region: RegionProperties) -> bool:
     """Whether the binary object's dimensions are symmetric, i.e. a perfect circle. Used to find the BB."""
-    ymin, ymax, xmin, xmax = bounding_box(logical_array)
+    ymin, xmin, ymax, xmax = region.bbox
     y = abs(ymax - ymin)
     x = abs(xmax - xmin)
     if x > max(y * 1.05, y + 3) or x < min(y * 0.95, y - 3):
@@ -1141,9 +1136,9 @@ def is_near_center(
     return is_bb_x_centered and is_bb_y_centered
 
 
-def is_modest_size(logical_array: np.ndarray, dpmm: float, bb_size: float) -> bool:
+def is_modest_size(region: RegionProperties, dpmm: float, bb_size: float) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
-    bb_area = np.sum(logical_array) / (dpmm**2)
+    bb_area = region.area_filled / (dpmm ** 2)
     bb_size = max((bb_size, 2.1))
     expected_bb_area = np.pi * (bb_size / 2) ** 2
     larger_bb_area = np.pi * ((bb_size + 2) / 2) ** 2
@@ -1157,3 +1152,12 @@ def is_round(region: RegionProperties) -> bool:
     expected_fill_ratio = np.pi / 4  # area of a circle inside a square
     actual_fill_ratio = region.filled_area / region.bbox_area
     return expected_fill_ratio * 1.2 > actual_fill_ratio > expected_fill_ratio * 0.8
+
+
+def matches_all_conditions(region, dpmm, bb_size, img_shape):
+    return (
+        is_round(region)
+        and is_symmetric(region)
+        and is_near_center(region, dpmm, img_shape)
+        and is_modest_size(region, dpmm, bb_size)
+    )

@@ -3,6 +3,15 @@
 Changelog
 =========
 
+v 3.6.0
+-------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The BB-finding algorithm has been hardened and can now find the BB even in the presence of artifacts such as the couch. This most often applies
+  when very large fields are used. A side effect is that the BB-finding algorithm is also now faster and reduces analysis time up to 50%.
+
 v 3.5.0
 -------
 
