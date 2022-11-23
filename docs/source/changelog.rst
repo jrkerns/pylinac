@@ -12,6 +12,20 @@ Winston-Lutz
 * The BB-finding algorithm has been hardened and can now find the BB even in the presence of artifacts such as the couch. This most often applies
   when very large fields are used. A side effect is that the BB-finding algorithm is also now faster and reduces analysis time up to 50%.
 
+Catphan
+^^^^^^^
+
+* The Catphan 600 MTF algorithm had a bug of not using the correct "windows" of peaks/valleys when finding the MTF.
+  Each CatPhan model's high-resolution pairs are at slightly different angles. The 600 was inadvertently using the 504's
+  window positions. This has been updated to use the correct windows. The problem can be visualized below, where
+  the red lines show each MTF resolution window previously, vs the green which is
+  the updated window. The result is that MTF will now be lower than previously because the old windows were sometimes including a peak of the previous line pair,
+  causing the apparent MTF value to be higher than it really was.
+
+  .. warning:: MTF values for the CatPhan 600 will now be ~15% lower than previously due to this bug fix.
+
+  .. figure:: images/new_mtf_positions.png
+
 v 3.5.0
 -------
 

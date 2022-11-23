@@ -1147,7 +1147,81 @@ class CTP528CP604(CTP528CP504):
 class CTP528CP600(CTP528CP504):
     start_angle = np.pi - 0.1
     ccw = False
-    boundaries = (0, 0.116, 0.182, 0.244, 0.294, 0.344, 0.396, 0.443, 0.488)
+    boundaries = (0, 0.127, 0.195, 0.255, 0.304, 0.354, 0.405, 0.453, 0.496)
+    roi_settings = {
+        "region 1": {
+            "start": boundaries[0],
+            "end": boundaries[1],
+            "num peaks": 2,
+            "num valleys": 1,
+            "peak spacing": 0.021,
+            "gap size (cm)": 0.5,
+            "lp/mm": 0.1,
+        },
+        "region 2": {
+            "start": boundaries[1],
+            "end": boundaries[2],
+            "num peaks": 3,
+            "num valleys": 2,
+            "peak spacing": 0.01,
+            "gap size (cm)": 0.25,
+            "lp/mm": 0.2,
+        },
+        "region 3": {
+            "start": boundaries[2],
+            "end": boundaries[3],
+            "num peaks": 4,
+            "num valleys": 3,
+            "peak spacing": 0.006,
+            "gap size (cm)": 0.167,
+            "lp/mm": 0.3,
+        },
+        "region 4": {
+            "start": boundaries[3],
+            "end": boundaries[4],
+            "num peaks": 4,
+            "num valleys": 3,
+            "peak spacing": 0.00557,
+            "gap size (cm)": 0.125,
+            "lp/mm": 0.4,
+        },
+        "region 5": {
+            "start": boundaries[4],
+            "end": boundaries[5],
+            "num peaks": 4,
+            "num valleys": 3,
+            "peak spacing": 0.004777,
+            "gap size (cm)": 0.1,
+            "lp/mm": 0.5,
+        },
+        "region 6": {
+            "start": boundaries[5],
+            "end": boundaries[6],
+            "num peaks": 5,
+            "num valleys": 4,
+            "peak spacing": 0.00398,
+            "gap size (cm)": 0.083,
+            "lp/mm": 0.6,
+        },
+        "region 7": {
+            "start": boundaries[6],
+            "end": boundaries[7],
+            "num peaks": 5,
+            "num valleys": 4,
+            "peak spacing": 0.00358,
+            "gap size (cm)": 0.071,
+            "lp/mm": 0.7,
+        },
+        "region 8": {
+            "start": boundaries[7],
+            "end": boundaries[8],
+            "num peaks": 5,
+            "num valleys": 4,
+            "peak spacing": 0.0027866,
+            "gap size (cm)": 0.063,
+            "lp/mm": 0.8,
+        },
+    }
 
 
 class CTP528CP503(CTP528CP504):

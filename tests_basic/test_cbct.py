@@ -367,12 +367,14 @@ class Elekta2(CatPhanMixin, TestCase):
 
     def test_plot_low_contrast_is_none(self):
         """There is no low contrast section to plot so ensure it doesn't"""
-        self.assertIsNone(self.cbct.plot_analyzed_subimage('lc'))
+        self.assertIsNone(self.cbct.plot_analyzed_subimage("lc"))
 
     def test_save_low_contrast_is_none(self):
         """There is no low contrast section to plot so ensure it doesn't"""
         with io.BytesIO() as bio:
-            self.assertIsNone(self.cbct.save_analyzed_subimage(filename=bio, subimage='lc'))
+            self.assertIsNone(
+                self.cbct.save_analyzed_subimage(filename=bio, subimage="lc")
+            )
 
 
 class CatPhan600_2(CatPhanMixin, TestCase):
@@ -419,6 +421,35 @@ class CatPhan600WaterVial(CatPhanMixin, TestCase):
     }
     hu_passed = False
     unif_values = {"Center": -20, "Left": -10, "Right": -13, "Top": -3, "Bottom": -12}
+    mtf_values = {50: 0.49}
+    avg_line_length = 50.07
+    slice_thickness = 2.1
+    lowcon_visible = 1
+
+    def test_vial_roi(self):
+        self.assertIn("Vial", self.cbct.ctp404.rois)
+
+
+class CatPhan600WaterVial2(CatPhanMixin, TestCase):
+    """Scan with the water vial in place. This broke the MTF algo previously."""
+
+    catphan = CatPhan600
+    dir_path = ["CBCT", "CatPhan_600"]
+    file_name = "Catphan_600_mtf.zip"
+    expected_roll = -0.25
+    origin_slice = 104
+    hu_values = {
+        "Poly": -15,
+        "Acrylic": 166,
+        "Delrin": 400,
+        "Air": -1000,
+        "Teflon": 1108,
+        "PMP": -186,
+        "LDPE": -95,
+        "Vial": 63,
+    }
+    hu_passed = False
+    unif_values = {"Center": 14, "Left": 4, "Right": 8, "Top": 24, "Bottom": 10}
     mtf_values = {50: 0.58}
     avg_line_length = 50.07
     slice_thickness = 2.1
@@ -642,12 +673,15 @@ class CBCT1(CatPhan504Mixin, TestCase):
 
     def test_plot_low_contrast(self):
         """There is no low contrast section to plot so ensure it doesn't"""
-        self.assertIsInstance(self.cbct.plot_analyzed_subimage('lc'), plt.Figure)
+        self.assertIsInstance(self.cbct.plot_analyzed_subimage("lc"), plt.Figure)
 
     def test_save_low_contrast(self):
         """There is no low contrast section to plot so ensure it doesn't"""
         with io.BytesIO() as bio:
-            self.assertIsInstance(self.cbct.save_analyzed_subimage(filename=bio, subimage='lc'), plt.Figure)
+            self.assertIsInstance(
+                self.cbct.save_analyzed_subimage(filename=bio, subimage="lc"),
+                plt.Figure,
+            )
 
 
 class CBCT2(CatPhan504Mixin, TestCase):
