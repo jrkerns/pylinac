@@ -6,6 +6,17 @@ Changelog
 v 3.6.0
 -------
 
+Picket Fence
+^^^^^^^^^^^^
+
+* The :attr:`~pylinac.picketfence.PicketFence.max_error_leaf` property will now return an int, where previously it returned a single-element list for classic/combined analysis.
+  I.e. doing ``<pf>.max_error_leaf`` used to return something like ``[42]`` but now returns ``42``. The signature type has also been updated to reflect this.
+  This change allows the user to do this: ``<pf>.plot_leaf_profile(leaf=<pf>.max_error_leaf, picket=<pf>.max_error_picket)``. Previously, this would fail
+  because the ``max_error_leaf`` was a list and the user would have to do ``...leaf=<pf>.max_error_leaf[0]...``.
+
+  .. note:: Users that perform "separate" analysis are unaffected (``.analyse(... separate_leaves=True``).
+
+
 Winston-Lutz
 ^^^^^^^^^^^^
 

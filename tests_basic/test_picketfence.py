@@ -369,7 +369,7 @@ class PFTestMixin(CloudFileMixin):
 
     def test_max_leaf(self):
         if self.max_error_leaf:
-            self.assertIn(self.max_error_leaf, self.pf.max_error_leaf)
+            self.assertEqual(self.max_error_leaf, self.pf.max_error_leaf)
 
 
 class PFDemo(PFTestMixin, TestCase):
