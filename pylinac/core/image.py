@@ -833,6 +833,8 @@ class DicomImage(BaseImage):
                 self.metadata.RescaleSlope
             )
         self.metadata.PixelData = self.array.astype(self._original_dtype).tobytes()
+        self.metadata.Columns = self.array.shape[1]
+        self.metadata.Rows = self.array.shape[0]
         self.metadata.save_as(filename)
         return filename
 

@@ -3,13 +3,12 @@ import io
 import shutil
 import tempfile
 import unittest
-from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
 
-from pylinac.core.geometry import Point
 from pylinac.core import image
+from pylinac.core.geometry import Point
 from pylinac.core.image import DicomImage, ArrayImage, FileImage, DicomImageStack, LinacDicomImage, gamma_2d
 from pylinac.core.io import TemporaryZipDirectory
 from tests_basic.utils import save_file, get_file_from_cloud_test_repo
@@ -215,7 +214,7 @@ class TestDicomImage(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.dcm = image.load(dcm_path)
+        cls.dcm: DicomImage = image.load(dcm_path)
 
     def test_sid(self):
         self.assertEqual(self.dcm.sid, 1050)
@@ -231,6 +230,17 @@ class TestDicomImage(TestCase):
 
     def test_save(self):
         save_file(self.dcm.save)
+
+    def test_manipulation_still_saves_correctly(self):
+        dcm = image.load(dcm_path)
+        original_shape = dcm.shape
+        dcm.crop(15)
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
+            dcm.save(tf.name)
+            # shouldn't raise
+            dcm_cropped = image.load(tf.name)
+        self.assertEqual(original_shape[0]-30, dcm_cropped.shape[0])  # 15 from each side = 2 * 15 = 30
+        self.assertEqual(original_shape[1]-30, dcm_cropped.shape[1])  # 15 from each side = 2 * 15 = 30
 
 
 class TestLinacDicomImage(TestCase):
