@@ -6,6 +6,23 @@ Changelog
 v 3.6.0
 -------
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* Planar analyses had a discrepancy in the number of low-contrast ROIs "seen" in the plot vs what was given in the numerical results. This is because the numeric results were still using the
+  older method of contrast analysis, which does not take into account the ROI size. The plot uses the newer method of :ref:`visibility`. The quantitative results have been
+  changed to use the visibility.
+
+  .. warning::
+
+        Your detected ROIs may be different moving forward, although the visibility default value in the :meth:`~pylinac.planar_imaging.LeedsTOR.analyze` method was chosen to be as close as possible
+        to the existing contrast results, meaning that the ROIs should be similar out of the gate. If you'd like to still use the older metric it is still available:
+
+        .. code-block:: python
+
+           num_rois_simple_contrast = sum(roi.passed for roi in <my_planar_phantom>.low_contrast_rois)
+
+
 Picket Fence
 ^^^^^^^^^^^^
 

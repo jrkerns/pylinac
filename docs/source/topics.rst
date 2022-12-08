@@ -125,15 +125,15 @@ defined here as:
 
 .. math:: Visibility(I) = Contrast(I) * \sqrt{Area(I) * DQE(I)} = Contrast(I) * \frac{\sqrt{\pi * I_{radius}^2}}{I_{std}}
 
-where contrast is an option from the low contrast methods.
+where contrast is an option from the :ref:`low contrast methods <low_contrast_topic>` and :math:`\pi * I_{radius}^2` is the area of the ROI, which is assumed to be circular.
 
 .. note::
-     What is meant by "noise" is unclear in the literature. Technically, it was meant to be the detective quantum efficiency.
-     For simplicity and easy of understanding, the standard deviation works.
+     What is meant by "noise" is unclear in the literature. Technically, it was meant to be the detective quantum efficiency (DQE).
+     For simplicity and ease of understanding, the standard deviation works.
 
 .. note::
     Pylinac ROIs are smaller than that actual size of the contrast ROI on the phantom. Uncertainty in the phantom detection
-    algorithm means that the ROIs must be smaller to allow tolerance in the algorithm. Thus, visibility is a very specific
+    algorithm means that the ROIs must be smaller to allow a small localization tolerance in the algorithm. Thus, visibility is a very specific
     number that depends on the size of the **sampling** ROI.
 
 Contrast-to-noise ratio

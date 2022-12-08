@@ -629,7 +629,7 @@ class ImagePhantomBase:
             text += [
                 f"Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}",
                 f"Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}",
-                f'# Low contrast ROIs "seen": {sum(roi.passed for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
+                f'# Low contrast ROIs "seen": {sum(roi.passed_visibility for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
             ]
         if self.high_contrast_rois:
             text += [
@@ -648,7 +648,7 @@ class ImagePhantomBase:
             median_cnr=np.median(
                 [roi.contrast_to_noise for roi in self.low_contrast_rois]
             ),
-            num_contrast_rois_seen=sum(roi.passed for roi in self.low_contrast_rois),
+            num_contrast_rois_seen=sum(roi.passed_visibility for roi in self.low_contrast_rois),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
         )
 

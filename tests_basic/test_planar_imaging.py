@@ -499,7 +499,7 @@ class PTWEPIDQC1(PlanarPhantomMixin, TestCase):
 class PTWEPID15MV(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
     mtf_50 = 0.79
-    rois_seen = 8
+    rois_seen = 9
     median_contrast = 0.17
     median_cnr = 26.7
     dir_path = ["planar_imaging", "PTW-EPID"]
