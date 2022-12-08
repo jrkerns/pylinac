@@ -90,6 +90,25 @@ IEC 61217 coordinate space. Colloquial descriptions are as if standing at the fo
 * **Y-axis** - Superior-Inferior, or in-out, with sup/in being positive.
 * **Z-axis** - Anterior-Posterior, or up-down, with up/anterior being positive.
 
+.. _passing-a-coordinate-system:
+
+Passing a coordinate system
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.6
+
+It is possible to pass in your machine's coordinate scale/system to the analyze parameter like so:
+
+.. code-block:: python
+
+    from pylinac.winston_lutz import WinstonLutz, MachineScale
+
+    wl = WinstonLutz(...)
+    wl.analyze(..., machine_scale=MachineScale.VARIAN_IEC)
+    ...
+
+This will change the BB shift vector and shift instructions accordingly. If you don't use the shift vector or instructions
+then you won't need to worry about this parameter.
 
 Typical Use
 -----------
@@ -332,9 +351,9 @@ This method is used to determine the shift instructions. Specifically, equations
     If doing research, it is very important to note that Low implicitly used the "Varian" coordinate system.
     This is an old coordinate system and any new Varian linac actually uses IEC 61217. However, because the
     gantry and couch definitions are different, the matrix definitions are technically incorrect when using
-    IEC 61217. Pylinac assumes the images are in IEC 61217 scale and will internally convert it to varian scale
-    to be able to use Low's equations. The gantry is also reversed in Varian scale, but this can be compensated
-    by simply reversing the sign of the Z axis.
+    IEC 61217. By default, Pylinac assumes the images are in IEC 61217 scale and will internally convert it to varian scale
+    to be able to use Low's equations.
+    To use a different scale use the ``machine_scale`` parameter, shown here :ref:`passing-a-coordinate-system`.
 
 The algorithm works like such:
 

@@ -17,6 +17,8 @@ Features:
 * **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
   such information in the DICOM tags. E.g. "myWL_gantry45_coll0_couch315.dcm".
 """
+from __future__ import annotations
+
 import dataclasses
 import enum
 import io
@@ -41,6 +43,7 @@ from .core.decorators import lru_cache
 from .core.geometry import Point, Line, Vector, cos, sin
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
 from .core.mask import bounding_box
+from .core.scale import MachineScale, convert
 from .core.utilities import is_close, ResultBase, convert_to_enum
 
 
@@ -96,7 +99,8 @@ class WinstonLutzResult(ResultBase):
 class WinstonLutz:
     """Class for performing a Winston-Lutz test of the radiation isocenter."""
 
-    images: list  #:
+    images: list[WinstonLutz2D]  #:
+    machine_scale: MachineScale
 
     def __init__(
         self,
@@ -200,18 +204,23 @@ class WinstonLutz:
     def run_demo():
         """Run the Winston-Lutz demo, which loads the demo files, prints results, and plots a summary image."""
         wl = WinstonLutz.from_demo_images()
-        wl.analyze()
+        wl.analyze(machine_scale=MachineScale.VARIAN_IEC)
         print(wl.results())
         wl.plot_summary()
 
-    def analyze(self, bb_size_mm: float = 5):
+    def analyze(
+        self, bb_size_mm: float = 5, machine_scale: MachineScale = MachineScale.IEC61217
+    ):
         """Analyze the WL images.
 
         Parameters
         ----------
         bb_size_mm
             The expected size of the BB in mm. The actual size of the BB can be +/-2mm from the passed value.
+        machine_scale
+            The scale of the machine. Shift vectors depend on this value.
         """
+        self.machine_scale = machine_scale
         for img in self.images:
             img.analyze(bb_size_mm)
         self._is_analyzed = True
@@ -313,12 +322,19 @@ class WinstonLutz:
         A = np.empty([2 * len(self.images), 3])
         epsilon = np.empty([2 * len(self.images), 1])
         for idx, img in enumerate(self.images):
-            g = img.gantry_angle
-            c = img.couch_angle_varian_scale
+            # convert from input scale to Varian scale
+            # Low's paper assumes Varian scale input and this is easier than changing the actual signs in the equation which have a non-intuitive relationship
+            gantry, _, couch = convert(
+                input_scale=self.machine_scale,
+                output_scale=MachineScale.VARIAN_STANDARD,
+                gantry=img.gantry_angle,
+                collimator=img.collimator_angle,
+                rotation=img.couch_angle,
+            )
             A[2 * idx : 2 * idx + 2, :] = np.array(
                 [
-                    [-cos(c), -sin(c), 0],
-                    [-cos(g) * sin(c), cos(g) * cos(c), -sin(g)],
+                    [-cos(couch), -sin(couch), 0],
+                    [-cos(gantry) * sin(couch), cos(gantry) * cos(couch), -sin(gantry)],
                 ]
             )  # equation 6 (minus delta)
             epsilon[2 * idx : 2 * idx + 2] = np.array(
@@ -327,7 +343,8 @@ class WinstonLutz:
 
         B = linalg.pinv(A)
         delta = B.dot(epsilon)  # equation 9
-        return Vector(x=delta[1][0], y=-delta[0][0], z=-delta[2][0])
+        # we use the negative for all values because it's from the iso POV -> linac not the linac -> iso POV
+        return Vector(x=-delta[1][0], y=-delta[0][0], z=-delta[2][0])
 
     def bb_shift_instructions(
         self,
@@ -990,15 +1007,6 @@ class WinstonLutz2D(image.LinacDicomImage):
         p2.z = self.cax2bb_vector.y
         l = Line(p1, p2)
         return l
-
-    @property
-    def couch_angle_varian_scale(self) -> float:
-        """The couch angle converted from IEC 61217 scale to "Varian" scale. Note that any new Varian machine uses 61217."""
-        #  convert to Varian scale per Low paper scale
-        if super().couch_angle > 250:
-            return 2 * 270 - super().couch_angle
-        else:
-            return 180 - super().couch_angle
 
     @property
     def cax2bb_vector(self) -> Vector:

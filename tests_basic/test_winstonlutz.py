@@ -8,6 +8,7 @@ import pylinac
 from pylinac import WinstonLutz
 from pylinac.core.geometry import Vector, vector_is_close
 from pylinac.core.io import TemporaryZipDirectory
+from pylinac.core.scale import MachineScale
 from pylinac.winston_lutz import Axis, WinstonLutzResult, WinstonLutz2D
 from tests_basic.utils import (
     save_file,
@@ -137,7 +138,7 @@ class GeneralTests(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.wl = WinstonLutz.from_demo_images()
-        cls.wl.analyze()
+        cls.wl.analyze(machine_scale=MachineScale.VARIAN_IEC)
 
     def test_run_demo(self):
         WinstonLutz.run_demo()  # shouldn't raise
@@ -273,6 +274,7 @@ class WinstonLutzMixin(CloudFileMixin):
     cax2bb_mean_distance = 0
     epid_deviation = None
     bb_shift_vector = Vector()  # vector to place BB at iso
+    machine_scale = MachineScale.IEC61217
     axis_of_rotation = {
         0: Axis.REFERENCE
     }  # fill with as many {image#: known_axis_of_rotation} pairs as desired
@@ -286,7 +288,7 @@ class WinstonLutzMixin(CloudFileMixin):
             cls.wl = WinstonLutz.from_zip(filename, use_filenames=cls.use_filenames)
         else:
             cls.wl = WinstonLutz(filename, use_filenames=cls.use_filenames)
-        cls.wl.analyze(bb_size_mm=cls.bb_size)
+        cls.wl.analyze(bb_size_mm=cls.bb_size, machine_scale=cls.machine_scale)
         if cls.print_results:
             print(cls.wl.results())
             print(cls.wl.bb_shift_vector)
@@ -368,7 +370,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         cls.wl = WinstonLutz.from_demo_images()
-        cls.wl.analyze()
+        cls.wl.analyze(machine_scale=MachineScale.VARIAN_IEC)
 
 
 class WLPerfect30x8(WinstonLutzMixin, TestCase):
@@ -513,6 +515,7 @@ class KatyiX0(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.7
+    machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.5, y=0.4, z=-0.5)
     print_results = True
 
@@ -538,6 +541,7 @@ class KatyiX2(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.1
     cax2bb_median_distance = 0.5
     cax2bb_mean_distance = 0.6
+    machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=0.4, y=-0.1, z=0.1)
 
 
@@ -550,6 +554,7 @@ class KatyiX3(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.25
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.75
+    machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.3, y=0.4, z=-0.5)
 
 
@@ -562,6 +567,7 @@ class KatyTB0(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.07
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.8
+    machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.7, y=-0.1, z=-0.2)
 
 
@@ -574,6 +580,7 @@ class KatyTB1(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1
     cax2bb_median_distance = 0.7
     cax2bb_mean_distance = 0.6
+    machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.6, y=-0.2)
 
 
@@ -635,6 +642,7 @@ class SugarLandiX2015(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.67
     cax2bb_median_distance = 1.05
     cax2bb_mean_distance = 1.1
+    machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=0.4, y=-0.7, z=0.1)
 
 
@@ -647,6 +655,7 @@ class BayAreaiX0(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.25
     cax2bb_median_distance = 0.6
     cax2bb_mean_distance = 0.6
+    machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=0.3, y=-0.4, z=-0.2)
 
 

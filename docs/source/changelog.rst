@@ -22,6 +22,11 @@ Winston-Lutz
 
 * The BB-finding algorithm has been hardened and can now find the BB even in the presence of artifacts such as the couch. This most often applies
   when very large fields are used. A side effect is that the BB-finding algorithm is also now faster and reduces analysis time up to 50%.
+* The machine coordinate system/scale can now be given as a parameter. This will affect the BB shift vector and shift instructions.
+  The default scale is IEC61217, which was the implicit default previously and is thus backwards-consistent. A small
+  section has been added here: :ref:`passing-a-coordinate-system`.
+* Due to the above change, there is no need for the ``couch_angle_varian_scale`` property of the ``WinstonLutz2D`` class.
+  It has been removed to reduce confusion. Use the new feature above if you had been using/overriding this property.
 
 Catphan
 ^^^^^^^
