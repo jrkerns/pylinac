@@ -635,28 +635,28 @@ You can access most data you get from ``results()``:
 
 .. code-block:: python
 
-fa = FieldAnalysis...
-fa.analyze(...)
-data = fa.results_data()
+    fa = FieldAnalysis...
+    fa.analyze(...)
+    data = fa.results_data()
 
-data.top_penumbra_mm
-data.beam_center_to_left_mm
+    data.top_penumbra_mm
+    data.beam_center_to_left_mm
 
 You may also access protocol data in the ``protocol_results`` dictionary. These results must be in a dictionary because
 the protocol names and fields are dynamic and not known a priori.
 
 .. code-block:: python
 
-data.protocol_results['flatness_vertical']
-data.protocol_results['symmetry_horizontal']
+    data.protocol_results['flatness_vertical']
+    data.protocol_results['symmetry_horizontal']
 
 The keys of this dict are defined by the protocol names. Using the example from the :ref:`custom_protocols` section,
 we would access that custom protocol data as:
 
 .. code-block:: python
 
-data.protocol_results['my flatness_vertical']
-data.protocol_results['my flatness_horizontal']
+    data.protocol_results['my flatness_vertical']
+    data.protocol_results['my flatness_horizontal']
 
 because the protocol name was ``my flatness``.
 
@@ -682,7 +682,7 @@ notekeeping.
 
 **Analysis**
 
-* *Extract profiles* - With the positions given, profiles are extracted and analyzed according to the method specified (see
+* **Extract profiles** - With the positions given, profiles are extracted and analyzed according to the method specified (see
   :ref:`analysis_definitions`). For symmetry calculations that operate around the CAX, the CAX must first be determined, which is
   the center of the FWHM of the profile.
 
