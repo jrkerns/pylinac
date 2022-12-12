@@ -856,14 +856,14 @@ class WinstonLutz2D(image.LinacDicomImage):
         """
         super().__init__(file, use_filenames=use_filenames, **kwargs)
         self._is_analyzed = False
-
-    def analyze(self, bb_size_mm: float = 5) -> None:
-        """Analyze the image."""
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
         self._clean_edges()
         self.ground()
         self.normalize()
+
+    def analyze(self, bb_size_mm: float = 5) -> None:
+        """Analyze the image."""
         self.field_cax, self._rad_field_bounding_box = self._find_field_centroid()
         self.bb = self._find_bb(bb_size_mm)
         self._is_analyzed = True

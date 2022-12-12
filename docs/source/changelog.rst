@@ -44,6 +44,8 @@ Winston-Lutz
   section has been added here: :ref:`passing-a-coordinate-system`.
 * Due to the above change, there is no need for the ``couch_angle_varian_scale`` property of the ``WinstonLutz2D`` class.
   It has been removed to reduce confusion. Use the new feature above if you had been using/overriding this property.
+* A bug was fixed where repeating analysis would give different results. This was because the image pre-processing was being
+  performed each time `.analyze()` was called. This only applies if you perform `.analyze()` more than once on the same instance.
 
 Catphan
 ^^^^^^^

@@ -1,3 +1,4 @@
+import copy
 import io
 import tempfile
 from unittest import TestCase
@@ -362,6 +363,7 @@ class WLDemo(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.2
     cax2bb_median_distance = 0.7
     cax2bb_mean_distance = 0.6
+    machine_scale = MachineScale.VARIAN_IEC
     epid_deviation = 1.3
     axis_of_rotation = {0: Axis.REFERENCE}
     bb_shift_vector = Vector(x=0.4, y=-0.4, z=-0.2)
@@ -370,7 +372,22 @@ class WLDemo(WinstonLutzMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         cls.wl = WinstonLutz.from_demo_images()
-        cls.wl.analyze(machine_scale=MachineScale.VARIAN_IEC)
+        cls.wl.analyze(machine_scale=cls.machine_scale)
+
+    def test_different_scale_has_different_shift(self):
+        assert "RIGHT" in self.wl.bb_shift_instructions()
+        assert self.wl.bb_shift_vector.x > 0.1
+        new_wl = WinstonLutz.from_demo_images()
+        new_wl.analyze(machine_scale=MachineScale.IEC61217)
+        assert new_wl.bb_shift_vector.x < 0.1
+        assert "LEFT" in new_wl.bb_shift_instructions()
+
+    def test_multiple_analyses_gives_same_result(self):
+        original_vector = copy.copy(self.wl.bb_shift_vector)
+        # re-analyze w/ same settings
+        self.wl.analyze(machine_scale=self.machine_scale)
+        new_vector = self.wl.bb_shift_vector
+        assert vector_is_close(original_vector, new_vector, delta=0.05)
 
 
 class WLPerfect30x8(WinstonLutzMixin, TestCase):
