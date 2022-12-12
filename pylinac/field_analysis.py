@@ -15,10 +15,11 @@ import numpy as np
 
 from .core import image, pdf
 from .core.exceptions import NotAnalyzed
-from .core.geometry import Rectangle
+from .core.geometry import Rectangle, Point
 from .core.hill import Hill
 from .core.io import retrieve_demo_file, SNCProfiler
 from .core.profile import SingleProfile, Edge, Interpolation, Normalization
+from .core.roi import RectangleROI
 from .core.utilities import ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
 
@@ -306,6 +307,10 @@ class FieldResult(ResultBase):
     bottom_penumbra_percent_mm: float = 0  #:
     left_penumbra_percent_mm: float = 0  #:
     right_penumbra_percent_mm: float = 0  #:
+    central_roi_mean: float = 0  #:
+    central_roi_max: float = 0  #:
+    central_roi_std: float = 0  #:
+    central_roi_min: float = 0  #:
 
 
 class FieldAnalysis:
@@ -618,6 +623,23 @@ class FieldAnalysis:
             hill_window_ratio,
         )
         self._results = {}
+
+        # calculate the central ROI data within the vert and horiz windows
+        if not self._from_device:
+            width = max(abs(self._left_v_index - self._right_v_index), 2)
+            height = max(abs(self._upper_h_index - self._lower_h_index), 2)
+            center = Point(
+                width / 2 + self._left_v_index, height / 2 + self._upper_h_index
+            )
+            self.central_roi = RectangleROI(
+                array=self.image.array,
+                width=width,
+                height=height,
+                phantom_center=center,
+                angle=0,
+                dist_from_center=0,
+            )
+
         # calculate common field info
         v_pen = self.vert_profile.penumbra(penumbra[0], penumbra[1])
         h_pen = self.horiz_profile.penumbra(penumbra[0], penumbra[1])
@@ -769,6 +791,15 @@ class FieldAnalysis:
             f"CAX -> Right edge: {self._results['cax_to_right_mm']:3.1f}mm",
             "",
         ]
+        if not self._from_device:
+            results += [
+                "Central ROI stats:",
+                f"Mean: {self.central_roi.mean}",
+                f"Max: {self.central_roi.max}",
+                f"Min: {self.central_roi.min}",
+                f"Standard deviation: {self.central_roi.std}",
+                "",
+            ]
         if self._is_FFF:
             results += [
                 "'Top' vertical distance from CAX: {:3.1f}mm".format(
@@ -819,6 +850,10 @@ class FieldAnalysis:
             interpolation_method=self.horiz_profile._interp_method.value,
             edge_detection_method=self.horiz_profile._edge_method.value,
             protocol_results=self._extra_results,
+            central_roi_max=self.central_roi.max,
+            central_roi_mean=self.central_roi.mean,
+            central_roi_min=self.central_roi.min,
+            central_roi_std=self.central_roi.std,
         )
         if as_dict:
             return dataclasses.asdict(data)
@@ -1100,7 +1135,7 @@ class FieldAnalysis:
 
         # horizontal line/rect
         width_h = abs(self._upper_h_index - self._lower_h_index)
-        center_h = (self.image.shape[1] / 2, width / 2 + self._upper_h_index)
+        center_h = (self.image.shape[1] / 2, width_h / 2 + self._upper_h_index)
         r = Rectangle(width=self.image.shape[1], height=width_h, center=center_h)
         r.plot2axes(axis, edgecolor="b", fill=True, alpha=0.2, facecolor="b")
 
@@ -1278,7 +1313,7 @@ class FieldAnalysis:
             1000,
         )
         y_model = (
-            data["top params"][0] * x_model**2
+            data["top params"][0] * x_model ** 2
             + data["top params"][1] * x_model
             + data["top params"][2]
         )

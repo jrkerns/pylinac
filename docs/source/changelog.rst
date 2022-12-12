@@ -59,6 +59,43 @@ Catphan
 
   .. figure:: images/new_mtf_positions.png
 
+Field Analysis
+^^^^^^^^^^^^^^
+
+* A visual bug was fixed with the blue ROI display. The horizontal ROI was being offset slightly based on the vertical
+  width. This only applied when the width of the horizontal and vertical parameters were different and
+  is completely visual. No quantitative results are affected.
+* The statistics from the central area within the horizontal and vertical windows is now reported.
+  I.e. the stats from the pixel values within the overlap of vertical window and horizontal window
+  are now available like so:
+
+  .. code-block:: python
+
+    fa = FieldAnalysis(...)
+    fa.analyze(...)
+    results = fa.results_data()
+    results.central_roi_max
+    results.central_roi_mean
+    ...
+
+  The stats are also available directly from the FieldAnalysis instance:
+
+  .. code-block:: python
+
+    fa = FieldAnalysis(...)
+    fa.analyze(...)
+    fa.central_roi.mean
+    fa.central_roi.max
+    ...
+
+  If the width is 0 for both parameters a 2x2 matrix is sampled around the central pixel.
+
+Core
+^^^^
+
+* The :class:`~pylinac.core.roi.RectangleROI` class now has additional statistical results available computed from the pixel array:
+  ``.mean``, ``.std``, ``.min``, ``.max``.
+
 v 3.5.0
 -------
 

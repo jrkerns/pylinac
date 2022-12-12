@@ -161,6 +161,13 @@ class TestRectangle(unittest.TestCase):
         self.assertEqual(rect_as_int.width, 7)
         self.assertEqual(rect_as_int.height, 4)
 
+    def test_negative_values_error(self):
+        with self.assertRaises(ValueError):
+            Rectangle(width=-30, height=30, center=self.center)
+
+        with self.assertRaises(ValueError):
+            Rectangle(width=30, height=-3, center=self.center)
+
     def test_corners(self):
         rect = Rectangle(width=self.width, height=self.height, center=self.center)
         point_equality_validation(rect.bl_corner, self.bl_corner)

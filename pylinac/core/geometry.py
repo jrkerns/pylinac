@@ -5,6 +5,7 @@ import math
 from itertools import zip_longest
 from typing import Union, Optional, List, Iterable, Tuple
 
+import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle, Rectangle as mpl_Rectangle
@@ -403,14 +404,16 @@ class Rectangle:
         Parameters
         ----------
         width : number
-            Width of the rectangle.
+            Width of the rectangle. Must be positive
         height : number
-            Height of the rectangle.
+            Height of the rectangle. Must be positive.
         center : Point, iterable, optional
             Center point of rectangle.
         as_int : bool
             If False (default), inputs are left as-is. If True, all inputs are converted to integers.
         """
+        argue.verify_bounds(width, argue.POSITIVE)
+        argue.verify_bounds(height, argue.POSITIVE)
         if as_int:
             self.width = int(np.round(width))
             self.height = int(np.round(height))

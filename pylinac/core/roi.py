@@ -301,6 +301,11 @@ class RectangleROI(Rectangle):
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
         x_shift = np.cos(np.deg2rad(angle)) * dist_from_center
         center = Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
+        # the ROI must be 'real', i.e. >= 2x2 matrix
+        if width < 2:
+            raise ValueError(f"The width must be >= 2. Given {width}")
+        if height < 2:
+            raise ValueError(f"The height must be >= 2. Given {height}")
         super().__init__(width, height, center, as_int=True)
         self._array = array
 
@@ -328,3 +333,23 @@ class RectangleROI(Rectangle):
     def pixel_value(self) -> float:
         """The pixel array within the ROI."""
         return float(np.mean(self.pixel_array))
+
+    @cached_property
+    def mean(self) -> float:
+        """The mean value within the ROI."""
+        return float(np.mean(self.pixel_array))
+
+    @cached_property
+    def std(self) -> float:
+        """The std within the ROI."""
+        return float(np.std(self.pixel_array))
+
+    @cached_property
+    def min(self) -> float:
+        """The min value within the ROI."""
+        return float(np.min(self.pixel_array))
+
+    @cached_property
+    def max(self) -> float:
+        """The max value within the ROI."""
+        return float(np.max(self.pixel_array))
