@@ -917,7 +917,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         edges[1] += 10
         edges[2] -= 10
         edges[3] += 10
-        coords = ndimage.measurements.center_of_mass(filled_img)
+        coords = ndimage.center_of_mass(filled_img)
         p = Point(x=coords[-1], y=coords[0])
         return p, edges
 
@@ -943,7 +943,7 @@ class WinstonLutz2D(image.LinacDicomImage):
                 # use below for debugging
                 # plt.imshow(binary_arr)
                 # plt.show()
-                labeled_arr, num_roi = ndimage.measurements.label(binary_arr)
+                labeled_arr, num_roi = ndimage.label(binary_arr)
                 regions = measure.regionprops(labeled_arr)
                 conditions_met = [
                     matches_all_conditions(region, self.dpmm, bb_size, binary_arr.shape)
