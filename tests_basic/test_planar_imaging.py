@@ -377,6 +377,8 @@ class DoselabkVDemo(PlanarPhantomMixin, TestCase):
 class SNCkVDemo(PlanarPhantomMixin, TestCase):
     klass = SNCkV
     mtf_50 = 1.76
+    median_contrast = 0.17
+    median_cnr = 69.4
 
     def test_demo(self):
         SNCkV.run_demo()
@@ -384,10 +386,12 @@ class SNCkVDemo(PlanarPhantomMixin, TestCase):
 
 class SNCMVDemo(PlanarPhantomMixin, TestCase):
     klass = SNCMV
+    median_cnr = 81
+    median_contrast = 0.21
     mtf_50 = 0.43
 
     def test_demo(self):
-        SNCkV.run_demo()
+        SNCMV.run_demo()
 
 
 class SNCMV12510_6MV1(PlanarPhantomMixin, TestCase):
