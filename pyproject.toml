@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pylinac"
-version = "3.5.0"
+version = "3.5.1"
 description = "A toolkit for performing TG-142 QA-related tasks on a linear accelerator"
 authors = ["James Kerns <jkerns100@gmail.com>"]
 license = "MIT"

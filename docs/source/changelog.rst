@@ -3,6 +3,11 @@
 Changelog
 =========
 
+v 3.5.1
+-------
+
+* Fixed a bug with the SNC MV phantom analysis where the ROI scaling for the entire phantom was slightly over-sized.
+
 v 3.5.0
 -------
 
