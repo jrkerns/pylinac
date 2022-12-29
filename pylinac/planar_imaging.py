@@ -1910,6 +1910,16 @@ class SNCMV(SNCkV):
         """
         return 45
 
+    def _phantom_radius_calc(self) -> float:
+        """The radius of the phantom in pixels; the value itself doesn't matter, it's just
+        used for relative distances to ROIs.
+
+        Returns
+        -------
+        radius : float
+        """
+        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.095
+
 
 class SNCMV12510(SNCMV):
     """The older SNC MV QA phantom w/ model number 1251000"""
