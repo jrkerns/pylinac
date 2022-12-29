@@ -3,6 +3,14 @@
 Changelog
 =========
 
+v 3.7.0
+-------
+
+Picket Fence
+^^^^^^^^^^^^
+
+* The ``max_error_picket`` and ``max_error_leaf`` have been added to the results returned from ``<pf>.results_data()``.
+
 v 3.6.0
 -------
 
