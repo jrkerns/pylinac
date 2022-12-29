@@ -276,44 +276,60 @@ class Slice:
         self.catphan_size = catphan.catphan_size
         self.mm_per_pixel = catphan.mm_per_pixel
         self.clear_borders = clear_borders
+        if catphan._phantom_center_func:
+            self._phantom_center_func = catphan._phantom_center_func
 
     @property
     def __getitem__(self, item):
         return self.image.array[item]
 
     @cached_property
-    def phan_center(self) -> Point:
-        """Determine the location of the center of the phantom.
+    def phantom_roi(self) -> RegionProperties:
+        """Get the Scikit-Image ROI of the phantom
 
         The image is analyzed to see if:
         1) the CatPhan is even in the image (if there were any ROIs detected)
         2) an ROI is within the size criteria of the catphan
         3) the ROI area that is filled compared to the bounding box area is close to that of a circle
-
-        Raises
-        ------
-        ValueError
-            If any of the above conditions are not met.
         """
         # convert the slice to binary and label ROIs
         edges = filters.scharr(self.image.as_type(float))
         if np.max(edges) < 0.1:
-            raise ValueError("Unable to locate Catphan")
+            raise ValueError(
+                "No edges were found in the image that look like the phantom"
+            )
         larr, regionprops, num_roi = get_regions(
             self, fill_holes=True, threshold="mean", clear_borders=self.clear_borders
         )
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
-            raise ValueError("Unable to locate the CatPhan")
+            raise ValueError(
+                f"The number of ROIs detected {num_roi} was not the number expected (1)"
+            )
         catphan_region = sorted(
             regionprops, key=lambda x: np.abs(x.filled_area - self.catphan_size)
         )[0]
-        if (self.catphan_size * 1.2 < catphan_region.filled_area) or (
-            catphan_region.filled_area < self.catphan_size / 1.2
+        if (self.catphan_size * 1.3 < catphan_region.filled_area) or (
+            catphan_region.filled_area < self.catphan_size / 1.3
         ):
-            raise ValueError("Unable to locate Catphan")
-        center_pixel = catphan_region.centroid
-        return Point(center_pixel[1], center_pixel[0])
+            raise ValueError("Unable to find ROI of expected size of the phantom")
+        return catphan_region
+
+    def is_phantom_in_view(self) -> bool:
+        """Whether the phantom appears to be within the slice."""
+        try:
+            self.phantom_roi
+            return True
+        except ValueError:
+            return False
+
+    @property
+    def phan_center(self) -> Optional[Point]:
+        """Determine the location of the center of the phantom."""
+        if self.is_phantom_in_view():
+            x = self._phantom_center_func[0](self.slice_num)
+            y = self._phantom_center_func[1](self.slice_num)
+            return Point(x=x, y=y)
 
 
 class CatPhanModule(Slice):
@@ -1465,6 +1481,7 @@ class CatPhanBase:
     min_num_images = 39
     clear_borders: bool = True
     hu_origin_slice_variance = 400  # the HU variance required on the origin slice
+    _phantom_center_func: Optional[Tuple[Callable, Callable]] = None
 
     def __init__(
         self,
@@ -1685,8 +1702,42 @@ class CatPhanBase:
 
     def localize(self) -> None:
         """Find the slice number of the catphan's HU linearity module and roll angle"""
+        self._phantom_center_func = self.find_phantom_axis()
         self.origin_slice = self.find_origin_slice()
         self.catphan_roll = self.find_phantom_roll()
+
+    def find_phantom_axis(self) -> (Callable, Callable):
+        """We fit all the center locations of the phantom across all slices to a 1D poly function instead of finding them individually for robustness.
+
+        Normally, each slice would be evaluated individually, but the RadMachine jig gets in the way of
+        detecting the HU module (🤦‍♂️). To work around that in a backwards-compatible way we instead
+        look at all the slices and if the phantom was detected, capture the phantom center.
+        ALL the centers are then fitted to a 1D poly function and passed to the individual slices.
+        This way, even if one slice is messed up (such as because of the phantom jig), the poly function
+        is robust to give the real center based on all the other properly-located positions on the other slices."""
+        z = []
+        center_x = []
+        center_y = []
+        for idx, img in enumerate(self.dicom_stack):
+            slice = Slice(self, slice_num=idx)
+            if slice.is_phantom_in_view():
+                roi = slice.phantom_roi
+                z.append(idx)
+                center_y.append(roi.centroid[0])
+                center_x.append(roi.centroid[1])
+        # clip within percentiles to exclude any crazy values
+        zs = np.array(z)
+        center_xs = np.array(center_x)
+        center_ys = np.array(center_y)
+        p30, p70 = np.percentile(center_x, [30, 70])
+        x_idxs = np.argwhere((p30 < center_xs) & (center_xs < p70))
+        p30, p70 = np.percentile(center_y, [30, 70])
+        y_idxs = np.argwhere((p30 < center_ys) & (center_ys < p70))
+        common_idxs = np.intersect1d(x_idxs, y_idxs)
+        # fit to 1D polynomials; inspiration: https://stackoverflow.com/a/45351484
+        fit_zx = np.poly1d(np.polyfit(zs[common_idxs], center_xs[common_idxs], deg=1))
+        fit_zy = np.poly1d(np.polyfit(zs[common_idxs], center_ys[common_idxs], deg=1))
+        return fit_zx, fit_zy
 
     @property
     def mm_per_pixel(self) -> float:
@@ -1714,13 +1765,9 @@ class CatPhanBase:
             )
             # print(image_number)
             # slice.image.plot()
-            try:
-                center = slice.phan_center
-            except ValueError:  # a slice without the phantom in view
-                pass
-            else:
+            if slice.is_phantom_in_view():
                 circle_prof = CollapsedCircleProfile(
-                    center,
+                    slice.phan_center,
                     radius=self.localization_radius / self.mm_per_pixel,
                     image_array=slice.image,
                     width_ratio=0.05,
@@ -1814,8 +1861,8 @@ class CatPhanBase:
     @property
     def catphan_size(self) -> float:
         """The expected size of the phantom in pixels, based on a 20cm wide phantom."""
-        phan_area = np.pi * (self.catphan_radius_mm**2)
-        return phan_area / (self.mm_per_pixel**2)
+        phan_area = np.pi * (self.catphan_radius_mm ** 2)
+        return phan_area / (self.mm_per_pixel ** 2)
 
     def publish_pdf(
         self,
@@ -1853,7 +1900,12 @@ class CatPhanBase:
             module_images.append(("lc", None))
 
         self._publish_pdf(
-            filename, metadata, notes, analysis_title, self.results(as_list=True), module_images
+            filename,
+            metadata,
+            notes,
+            analysis_title,
+            self.results(as_list=True),
+            module_images,
         )
         if open_file:
             webbrowser.open(filename)
@@ -2021,18 +2073,22 @@ class CatPhanBase:
             ]
             results.append(ctp486_result)
         if self._has_module(CTP528CP504):
-            ctp528_result = [                " - CTP528 Results - ",
+            ctp528_result = [
+                " - CTP528 Results - ",
                 f"MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}",
                 f"MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}",
-                f"MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}",]
+                f"MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}",
+            ]
             results.append(ctp528_result)
         if self._has_module(CTP515):
-            ctp515_result = [                " - CTP515 Results - ",
+            ctp515_result = [
+                " - CTP515 Results - ",
                 f"CNR threshold: {self.ctp515.cnr_threshold}",
-                f'Low contrast ROIs "seen": {self.ctp515.rois_visible}',]
+                f'Low contrast ROIs "seen": {self.ctp515.rois_visible}',
+            ]
             results.append(ctp515_result)
         if not as_list:
-            result = '\n'.join(itertools.chain(*results))
+            result = "\n".join(itertools.chain(*results))
         else:
             result = results
         return result
