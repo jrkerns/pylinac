@@ -295,13 +295,17 @@ class Slice:
         # convert the slice to binary and label ROIs
         edges = filters.scharr(self.image.as_type(float))
         if np.max(edges) < 0.1:
-            raise ValueError("No edges were found in the image that look like the phantom")
+            raise ValueError(
+                "No edges were found in the image that look like the phantom"
+            )
         larr, regionprops, num_roi = get_regions(
             self, fill_holes=True, threshold="mean", clear_borders=self.clear_borders
         )
         # check that there is at least 1 ROI
         if num_roi < 1 or num_roi is None:
-            raise ValueError(f"The number of ROIs detected {num_roi} was not the number expected (1)")
+            raise ValueError(
+                f"The number of ROIs detected {num_roi} was not the number expected (1)"
+            )
         catphan_region = sorted(
             regionprops, key=lambda x: np.abs(x.filled_area - self.catphan_size)
         )[0]
@@ -1725,10 +1729,10 @@ class CatPhanBase:
         zs = np.array(z)
         center_xs = np.array(center_x)
         center_ys = np.array(center_y)
-        p10, p70 = np.percentile(center_x, [30, 70])
-        x_idxs = np.argwhere((p10 < center_xs) & (center_xs < p70))
-        p10, p70 = np.percentile(center_y, [30, 70])
-        y_idxs = np.argwhere((p10 < center_ys) & (center_ys < p70))
+        p30, p70 = np.percentile(center_x, [30, 70])
+        x_idxs = np.argwhere((p30 < center_xs) & (center_xs < p70))
+        p30, p70 = np.percentile(center_y, [30, 70])
+        y_idxs = np.argwhere((p30 < center_ys) & (center_ys < p70))
         common_idxs = np.intersect1d(x_idxs, y_idxs)
         # fit to 1D polynomials; inspiration: https://stackoverflow.com/a/45351484
         fit_zx = np.poly1d(np.polyfit(zs[common_idxs], center_xs[common_idxs], deg=1))
@@ -1763,11 +1767,11 @@ class CatPhanBase:
             # slice.image.plot()
             if slice.is_phantom_in_view():
                 circle_prof = CollapsedCircleProfile(
-                        slice.phan_center,
-                        radius=self.localization_radius / self.mm_per_pixel,
-                        image_array=slice.image,
-                        width_ratio=0.05,
-                        num_profiles=5,
+                    slice.phan_center,
+                    radius=self.localization_radius / self.mm_per_pixel,
+                    image_array=slice.image,
+                    width_ratio=0.05,
+                    num_profiles=5,
                 )
                 prof = circle_prof.values
                 # determine if the profile contains both low and high values and that most values are the same
@@ -1775,12 +1779,12 @@ class CatPhanBase:
                 median = np.median(prof)
                 middle_variation = np.percentile(prof, 80) - np.percentile(prof, 20)
                 variation_limit = max(
-                        100, self.dicom_stack.metadata.SliceThickness * -100 + 300
+                    100, self.dicom_stack.metadata.SliceThickness * -100 + 300
                 )
                 if (
-                        (low_end < median - self.hu_origin_slice_variance)
-                        and (high_end > median + self.hu_origin_slice_variance)
-                        and (middle_variation < variation_limit)
+                    (low_end < median - self.hu_origin_slice_variance)
+                    and (high_end > median + self.hu_origin_slice_variance)
+                    and (middle_variation < variation_limit)
                 ):
                     hu_slices.append(image_number)
 
@@ -1857,8 +1861,8 @@ class CatPhanBase:
     @property
     def catphan_size(self) -> float:
         """The expected size of the phantom in pixels, based on a 20cm wide phantom."""
-        phan_area = np.pi * (self.catphan_radius_mm**2)
-        return phan_area / (self.mm_per_pixel**2)
+        phan_area = np.pi * (self.catphan_radius_mm ** 2)
+        return phan_area / (self.mm_per_pixel ** 2)
 
     def publish_pdf(
         self,
@@ -1896,7 +1900,12 @@ class CatPhanBase:
             module_images.append(("lc", None))
 
         self._publish_pdf(
-            filename, metadata, notes, analysis_title, self.results(as_list=True), module_images
+            filename,
+            metadata,
+            notes,
+            analysis_title,
+            self.results(as_list=True),
+            module_images,
         )
         if open_file:
             webbrowser.open(filename)
@@ -2064,18 +2073,22 @@ class CatPhanBase:
             ]
             results.append(ctp486_result)
         if self._has_module(CTP528CP504):
-            ctp528_result = [                " - CTP528 Results - ",
+            ctp528_result = [
+                " - CTP528 Results - ",
                 f"MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}",
                 f"MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}",
-                f"MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}",]
+                f"MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}",
+            ]
             results.append(ctp528_result)
         if self._has_module(CTP515):
-            ctp515_result = [                " - CTP515 Results - ",
+            ctp515_result = [
+                " - CTP515 Results - ",
                 f"CNR threshold: {self.ctp515.cnr_threshold}",
-                f'Low contrast ROIs "seen": {self.ctp515.rois_visible}',]
+                f'Low contrast ROIs "seen": {self.ctp515.rois_visible}',
+            ]
             results.append(ctp515_result)
         if not as_list:
-            result = '\n'.join(itertools.chain(*results))
+            result = "\n".join(itertools.chain(*results))
         else:
             result = results
         return result
