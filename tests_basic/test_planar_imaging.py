@@ -29,14 +29,14 @@ TEST_DIR = "planar_imaging"
 
 class GeneralTests(TestCase):
     def test_from_file_object(self):
-        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds_ccw.dcm"])
+        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
         with open(path, "rb") as f:
             phan = LeedsTOR(f)
             phan.analyze()
         self.assertIsInstance(phan, LeedsTOR)
 
     def test_from_stream(self):
-        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds_ccw.dcm"])
+        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
         with open(path, "rb") as f:
             s = io.BytesIO(f.read())
             phan = LeedsTOR(s)
@@ -211,46 +211,45 @@ class PlanarPhantomMixin(CloudFileMixin):
         self.assertIsInstance(self.instance.results(), str)
 
 
-class LeedsDemo(PlanarPhantomMixin, TestCase):
+class LeedsMixin(PlanarPhantomMixin):
     klass = LeedsTOR
+    dir_path = ['planar_imaging', 'Leeds']
+
+
+class LeedsDemo(LeedsMixin, TestCase):
     mtf_50 = 1.5
 
     def test_demo(self):
         LeedsTOR.run_demo()  # shouldn't raise
 
 
-class LeedsCCW(PlanarPhantomMixin, TestCase):
-    klass = LeedsTOR
+class LeedsCCW(LeedsMixin, TestCase):
     mtf_50 = 1.5
     file_name = "Leeds_ccw.dcm"
 
 
-class Leeds45Deg(PlanarPhantomMixin, TestCase):
-    klass = LeedsTOR
+class Leeds45Deg(LeedsMixin, TestCase):
     invert = True  # inverted in v3.0 due to changed default inversion behavior
     mtf_50 = 1.9
     ssd = 1500
     file_name = "Leeds-45deg.dcm"
 
 
-class LeedsDirtyEdges(PlanarPhantomMixin, TestCase):
-    klass = LeedsTOR
+class LeedsDirtyEdges(LeedsMixin, TestCase):
     mtf_50 = 1.3
     ssd = 1000
     file_name = "Leeds-dirty-edges.dcm"
 
 
-class LeedsBlue(PlanarPhantomMixin, TestCase):
+class LeedsBlue(LeedsMixin, TestCase):
     klass = LeedsTORBlue
-    dir_path = ["planar_imaging", "Leeds"]
     mtf_50 = 1.5
     ssd = 1450
     file_name = "Leeds_Blue.dcm"
 
 
-class LeedsBlueRotated(PlanarPhantomMixin, TestCase):
+class LeedsBlueRotated(LeedsMixin, TestCase):
     klass = LeedsTORBlue
-    dir_path = ["planar_imaging", "Leeds"]
     mtf_50 = 1.5
     ssd = 1450
     file_name = "Leeds_Blue.dcm"
@@ -263,16 +262,14 @@ class LeedsBlueRotated(PlanarPhantomMixin, TestCase):
 
 
 @skip("Phantom appears distorted. MTF locations are different than other phantoms")
-class LeedsClosedBlades(PlanarPhantomMixin, TestCase):
-    klass = LeedsTOR
+class LeedsClosedBlades(LeedsMixin, TestCase):
     mtf_50 = 1.3
     ssd = 1500
     file_name = "Leeds-closed-blades.dcm"
 
 
-class LeedsACB1(PlanarPhantomMixin, TestCase):
-    klass = LeedsTOR
-    dir_path = ["planar_imaging", "ACB 1"]
+class LeedsACB1(LeedsMixin, TestCase):
+    dir_path = ["planar_imaging", "Leeds", "ACB 1"]
     file_path = "1.dcm"
     mtf_50 = 1.4
 
