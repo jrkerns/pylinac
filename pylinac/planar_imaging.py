@@ -648,7 +648,9 @@ class ImagePhantomBase:
             median_cnr=np.median(
                 [roi.contrast_to_noise for roi in self.low_contrast_rois]
             ),
-            num_contrast_rois_seen=sum(roi.passed_visibility for roi in self.low_contrast_rois),
+            num_contrast_rois_seen=sum(
+                roi.passed_visibility for roi in self.low_contrast_rois
+            ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
         )
 
@@ -1397,6 +1399,16 @@ class PTWEPIDQC(ImagePhantomBase):
         """
         return 0
 
+    def _check_inversion(self):
+        """The pixels inside the phantom should be mostly bright/high. If not, invert"""
+        roi = self.phantom_ski_region
+        phantom_array = self.image.array[
+                        roi.bbox[0]: roi.bbox[2], roi.bbox[1]: roi.bbox[3]
+                        ]
+        p5, p50, p95 = np.percentile(phantom_array, [2, 50, 98])
+        if abs(p50 - p5) < abs(p50 - p95):
+            self.image.invert()
+
 
 class IBAPrimusA(ImagePhantomBase):
     common_name = "IBA Primus A"
@@ -1828,7 +1840,13 @@ class SNCkV(ImagePhantomBase):
         angle : float
             The angle in degrees.
         """
-        return 135
+        angle = np.degrees(self.phantom_ski_region.orientation) + 180
+        if np.isclose(angle, 135, atol=5):
+            return angle
+        else:
+            raise ValueError(
+                "The phantom angle was not near 135 degrees per manufacturer recommendations. Please adjust the phantom."
+            )
 
 
 class SNCMV(SNCkV):
@@ -2166,6 +2184,14 @@ class LeedsTOR(ImagePhantomBase):
         circle.filter(size=0.01)
         circle.invert()
         return circle
+
+    def _check_inversion(self):
+        """We recycle the circle profile used for angle detection to determine the correct inversion
+        The profile is mostly even except the bright lead area. If the lead area is darker than the mean, it's inverted."""
+        circle = self._circle_profile_for_phantom_angle(start_angle_deg=0)
+        p2, p50, p98 = np.percentile(circle.values, [2, 50, 98])
+        if abs(p50 - p98) < abs(p50 - p2):
+            self.image.invert()
 
 
 class LeedsTORBlue(LeedsTOR):

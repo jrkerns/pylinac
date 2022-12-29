@@ -6,6 +6,24 @@ Changelog
 v 3.7.0
 -------
 
+Picket Fence
+^^^^^^^^^^^^
+
+* The ``max_error_picket`` and ``max_error_leaf`` have been added to the results returned from ``<pf>.results_data()``.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* Inversion detection for the Leeds and PTW EPID QC phantoms have been improved.
+
+  .. warning::
+
+        If you are passing ``invert=True`` to the analyze method for these phantoms double check the outcome.
+        There is a good chance that parameter can be removed.
+
+* An angle check has been added to the SNC kV phantom. Previously, the angle was hardcoded at 135 degrees per the manufacturer recommendation.
+  It now checks the detected angle. If the value is 135+/-5 degrees the detected angle is passed, otherwise an error is thrown.
+
 CBCT
 ^^^^
 

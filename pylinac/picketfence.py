@@ -111,6 +111,8 @@ class PFResult(ResultBase):
     number_of_pickets: int  #:
     absolute_median_error_mm: float  #:
     max_error_mm: float  #:
+    max_error_picket: int  #:
+    max_error_leaf: Union[str, int]  #:
     mean_picket_spacing_mm: float  #:
     offsets_from_cax_mm: List[float]  #:
     passed: bool  #:
@@ -913,6 +915,8 @@ class PicketFence:
             number_of_pickets=self.num_pickets,
             absolute_median_error_mm=self.abs_median_error,
             max_error_mm=self.max_error,
+            max_error_picket=self.max_error_picket,
+            max_error_leaf=self.max_error_leaf,
             mean_picket_spacing_mm=self.mean_picket_spacing,
             offsets_from_cax_mm=[pk.dist2cax for pk in self.pickets],
             passed=self.passed,

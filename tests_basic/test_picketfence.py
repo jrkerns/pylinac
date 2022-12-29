@@ -113,10 +113,12 @@ class TestAnalyze(TestCase):
         data = self.pf.results_data()
         self.assertIsInstance(data, PFResult)
         self.assertEqual(data.max_error_mm, self.pf.max_error)
+        self.assertEqual(data.max_error_leaf, self.pf.max_error_leaf)
 
         data_dict = self.pf.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
         self.assertIn("pylinac_version", data_dict)
+        self.assertEqual(len(data_dict), 15)
 
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo([TEST_DIR, 'noisy-FFF-wide-gap-pf.dcm'])

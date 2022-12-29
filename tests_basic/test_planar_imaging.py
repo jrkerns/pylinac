@@ -29,14 +29,14 @@ TEST_DIR = "planar_imaging"
 
 class GeneralTests(TestCase):
     def test_from_file_object(self):
-        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds_ccw.dcm"])
+        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
         with open(path, "rb") as f:
             phan = LeedsTOR(f)
             phan.analyze()
         self.assertIsInstance(phan, LeedsTOR)
 
     def test_from_stream(self):
-        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds_ccw.dcm"])
+        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
         with open(path, "rb") as f:
             s = io.BytesIO(f.read())
             phan = LeedsTOR(s)
@@ -122,7 +122,7 @@ class GeneralTests(TestCase):
             phan.save_analyzed_image()  # no filename and no streams is an error
 
     def test_passing_image_kwargs(self):
-        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds_ccw.dcm"])
+        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
 
         # do normal analysis
         phan = LeedsTOR(path)
@@ -151,12 +151,16 @@ class PlanarPhantomMixin(CloudFileMixin):
 
     @classmethod
     def setUpClass(cls):
-        if not cls.file_name:
-            cls.instance = cls.klass.from_demo_image()
-        else:
-            cls.instance = cls.klass(cls.get_filename())
+        cls.instance = cls.create_instance()
         cls.preprocess(cls.instance)
         cls.instance.analyze(ssd=cls.ssd, invert=cls.invert)
+
+    @classmethod
+    def create_instance(cls):
+        if not cls.file_name:
+            return cls.klass.from_demo_image()
+        else:
+            return cls.klass(cls.get_filename())
 
     @classmethod
     def preprocess(cls, instance):
@@ -166,6 +170,16 @@ class PlanarPhantomMixin(CloudFileMixin):
     def tearDownClass(cls):
         plt.close("all")
         del cls.instance
+
+    def test_bad_inversion_recovers(self):
+        instance = self.create_instance()
+        instance.image.invert()
+        instance.analyze(ssd=self.ssd, invert=self.invert)
+        # check that the MTF is the expected value. This is a surrogate for the angle being wrong
+        if self.mtf_50:
+            self.assertAlmostEqual(
+                    self.mtf_50, instance.mtf.relative_resolution(50), delta=0.3
+            )
 
     def test_plotting(self):
         self.instance.plot_analyzed_image()
@@ -211,46 +225,47 @@ class PlanarPhantomMixin(CloudFileMixin):
         self.assertIsInstance(self.instance.results(), str)
 
 
-class LeedsDemo(PlanarPhantomMixin, TestCase):
+class LeedsMixin(PlanarPhantomMixin):
     klass = LeedsTOR
+    dir_path = ["planar_imaging", "Leeds"]
+
+
+class LeedsDemo(LeedsMixin, TestCase):
     mtf_50 = 1.5
 
     def test_demo(self):
         LeedsTOR.run_demo()  # shouldn't raise
 
 
-class LeedsCCW(PlanarPhantomMixin, TestCase):
+class LeedsCCW(LeedsMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.5
     file_name = "Leeds_ccw.dcm"
 
 
-class Leeds45Deg(PlanarPhantomMixin, TestCase):
+class Leeds45Deg(LeedsMixin, TestCase):
     klass = LeedsTOR
-    invert = True  # inverted in v3.0 due to changed default inversion behavior
     mtf_50 = 1.9
     ssd = 1500
     file_name = "Leeds-45deg.dcm"
 
 
-class LeedsDirtyEdges(PlanarPhantomMixin, TestCase):
+class LeedsDirtyEdges(LeedsMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.3
     ssd = 1000
     file_name = "Leeds-dirty-edges.dcm"
 
 
-class LeedsBlue(PlanarPhantomMixin, TestCase):
+class LeedsBlue(LeedsMixin, TestCase):
     klass = LeedsTORBlue
-    dir_path = ["planar_imaging", "Leeds"]
     mtf_50 = 1.5
     ssd = 1450
     file_name = "Leeds_Blue.dcm"
 
 
-class LeedsBlueRotated(PlanarPhantomMixin, TestCase):
+class LeedsBlueRotated(LeedsMixin, TestCase):
     klass = LeedsTORBlue
-    dir_path = ["planar_imaging", "Leeds"]
     mtf_50 = 1.5
     ssd = 1450
     file_name = "Leeds_Blue.dcm"
@@ -263,17 +278,23 @@ class LeedsBlueRotated(PlanarPhantomMixin, TestCase):
 
 
 @skip("Phantom appears distorted. MTF locations are different than other phantoms")
-class LeedsClosedBlades(PlanarPhantomMixin, TestCase):
+class LeedsClosedBlades(LeedsMixin, TestCase):
     klass = LeedsTOR
     mtf_50 = 1.3
     ssd = 1500
     file_name = "Leeds-closed-blades.dcm"
 
 
-class LeedsACB1(PlanarPhantomMixin, TestCase):
+class LeedsACB1(LeedsMixin, TestCase):
     klass = LeedsTOR
-    dir_path = ["planar_imaging", "ACB 1"]
+    dir_path = ["planar_imaging", 'Leeds', "ACB 1"]
     file_path = "1.dcm"
+    mtf_50 = 1.4
+
+
+class LeedsBadInversion(LeedsMixin, TestCase):
+    """Radmachine image where inversion was bad. pylinac should be able to correct"""
+    file_path = "Leeds bad inversion.dcm"
     mtf_50 = 1.4
 
 
@@ -559,11 +580,12 @@ class FC2Mixin(PlanarPhantomMixin):
 
     @classmethod
     def setUpClass(cls):
-        if not cls.file_name:
-            cls.instance = cls.klass.from_demo_image()
-        else:
-            cls.instance = cls.klass(cls.get_filename())
+        cls.instance = cls.create_instance()
         cls.instance.analyze(invert=cls.invert, fwxm=cls.fwxm)
+
+    def test_bad_inversion_recovers(self):
+        # no inversion issues w/ this phantom
+        pass
 
     def test_plotting(self):
         self.instance.plot_analyzed_image()
