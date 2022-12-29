@@ -1347,3 +1347,23 @@ class CatPhan604Som(CatPhan604Mixin, TestCase):
     mtf_values = {50: 0.35}
     lowcon_visible = 3  # changed w/ visibility refactor in v3.0
     slice_thickness = 1
+
+
+class CatPhan604wJig(CatPhan604Mixin, TestCase):
+    file_name = "Catphan604-with-jig.zip"
+    origin_slice = 43
+    avg_line_length = 49.9
+    hu_values = {
+        "Poly": -19,
+        "Acrylic": 130,
+        "Delrin": 371,
+        "Air": -999,
+        "Teflon": 967,
+        "PMP": -179,
+        "LDPE": -85,
+        "50% Bone": 717,
+        "20% Bone": 246,
+    }
+    unif_values = {"Center": 6, "Left": 4, "Right": 13, "Top": 10, "Bottom": 7}
+    mtf_values = {50: 0.28}
+    lowcon_visible = 1
