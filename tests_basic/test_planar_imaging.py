@@ -122,7 +122,7 @@ class GeneralTests(TestCase):
             phan.save_analyzed_image()  # no filename and no streams is an error
 
     def test_passing_image_kwargs(self):
-        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds_ccw.dcm"])
+        path = get_file_from_cloud_test_repo([TEST_DIR, "Leeds", "Leeds_ccw.dcm"])
 
         # do normal analysis
         phan = LeedsTOR(path)
