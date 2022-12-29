@@ -286,6 +286,12 @@ class LeedsACB1(LeedsMixin, TestCase):
     file_path = "1.dcm"
     mtf_50 = 1.4
 
+    
+class LeedsBadInversion(LeedsMixin, TestCase):
+    """Radmachine image where inversion was bad. pylinac should be able to correct"""
+    file_path = "Leeds bad inversion.dcm"
+    mtf_50 = 1.4
+
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
