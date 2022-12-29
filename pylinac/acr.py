@@ -570,8 +570,8 @@ class MRSlice1Module(CatPhanModule):
     slice_lines: Dict[str, Line]
     thickness_rois: Dict[str, ThicknessROI] = {}
     thickness_roi_settings = {
-        "Top": {"width": 100, "height": 3.5, "distance": -3},
-        "Bottom": {"width": 100, "height": 3.5, "distance": 2.5},
+        "Top": {"width": 100, "height": 3, "distance": -3},
+        "Bottom": {"width": 100, "height": 3, "distance": 2.5},
     }
     roi_settings = {
         "Row Reference": {"radius": 9, "distance": 58, "angle": 135, "lp/mm": 0},
@@ -925,6 +925,7 @@ class ACRMRILarge(CatPhanBase):
 
     def localize(self) -> None:
         self.origin_slice = 1
+        self._phantom_center_func = self.find_phantom_axis()
         self.catphan_roll = self.find_phantom_roll()
 
     def find_phantom_roll(self) -> float:
