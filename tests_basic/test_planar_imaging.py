@@ -227,7 +227,7 @@ class PlanarPhantomMixin(CloudFileMixin):
 
 class LeedsMixin(PlanarPhantomMixin):
     klass = LeedsTOR
-    dir_path = ["planar_imaging", "Leeds"]
+    dir_path = ['planar_imaging', 'Leeds']
 
 
 class LeedsDemo(LeedsMixin, TestCase):
@@ -238,20 +238,17 @@ class LeedsDemo(LeedsMixin, TestCase):
 
 
 class LeedsCCW(LeedsMixin, TestCase):
-    klass = LeedsTOR
     mtf_50 = 1.5
     file_name = "Leeds_ccw.dcm"
 
 
 class Leeds45Deg(LeedsMixin, TestCase):
-    klass = LeedsTOR
     mtf_50 = 1.9
     ssd = 1500
     file_name = "Leeds-45deg.dcm"
 
 
 class LeedsDirtyEdges(LeedsMixin, TestCase):
-    klass = LeedsTOR
     mtf_50 = 1.3
     ssd = 1000
     file_name = "Leeds-dirty-edges.dcm"
@@ -279,22 +276,14 @@ class LeedsBlueRotated(LeedsMixin, TestCase):
 
 @skip("Phantom appears distorted. MTF locations are different than other phantoms")
 class LeedsClosedBlades(LeedsMixin, TestCase):
-    klass = LeedsTOR
     mtf_50 = 1.3
     ssd = 1500
     file_name = "Leeds-closed-blades.dcm"
 
 
 class LeedsACB1(LeedsMixin, TestCase):
-    klass = LeedsTOR
-    dir_path = ["planar_imaging", 'Leeds', "ACB 1"]
+    dir_path = ["planar_imaging", "Leeds", "ACB 1"]
     file_path = "1.dcm"
-    mtf_50 = 1.4
-
-
-class LeedsBadInversion(LeedsMixin, TestCase):
-    """Radmachine image where inversion was bad. pylinac should be able to correct"""
-    file_path = "Leeds bad inversion.dcm"
     mtf_50 = 1.4
 
 
@@ -398,6 +387,8 @@ class DoselabkVDemo(PlanarPhantomMixin, TestCase):
 class SNCkVDemo(PlanarPhantomMixin, TestCase):
     klass = SNCkV
     mtf_50 = 1.76
+    median_contrast = 0.17
+    median_cnr = 69.4
 
     def test_demo(self):
         SNCkV.run_demo()
@@ -405,10 +396,12 @@ class SNCkVDemo(PlanarPhantomMixin, TestCase):
 
 class SNCMVDemo(PlanarPhantomMixin, TestCase):
     klass = SNCMV
+    median_cnr = 81
+    median_contrast = 0.21
     mtf_50 = 0.43
 
     def test_demo(self):
-        SNCkV.run_demo()
+        SNCMV.run_demo()
 
 
 class SNCMV12510_6MV1(PlanarPhantomMixin, TestCase):
