@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 
 from pylinac.core import image
-from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement
+from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement, MLC
 from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo, InitTesterMixin, \
     FromURLTesterMixin, FromDemoImageTesterMixin
 
@@ -61,6 +61,15 @@ class TestInstantiation(TestCase, InitTesterMixin, FromURLTesterMixin, FromDemoI
         pf.analyze()
         pf.results()
         pf.results_data()
+
+    def test_all_mlc_arrangements(self):
+        """This isn't really testing the MLCs so much as a constancy check to ensure they haven't changed."""
+        path = get_file_from_cloud_test_repo([TEST_DIR, 'AS500_PF.dcm'])
+        expected_max_error = [0.13, 0.18, 0.16, 0.14, 0.06, 0.14, 0.14]
+        for max_error, mlc in zip(expected_max_error, MLC):
+            pf = PicketFence(path, mlc=mlc)
+            pf.analyze()
+            self.assertAlmostEqual(pf.max_error, max_error, delta=0.01)
 
     def test_mlc_string(self):
         mlc_setup = 'Millennium'

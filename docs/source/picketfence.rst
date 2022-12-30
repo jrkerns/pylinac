@@ -313,9 +313,9 @@ Use a specific preset config:
 
 .. code-block:: python
 
-    from pylinac.picketfence import PicketFence, MLCs
+    from pylinac.picketfence import PicketFence, MLC
 
-    pf = PicketFence(pf_img, mlc=MLC.Millennium)
+    pf = PicketFence(pf_img, mlc=MLC.MILLENNIUM)
 
 The built-in presets can be seen in attrs of the :class:`~pylinac.picketfence.MLC` class.
 

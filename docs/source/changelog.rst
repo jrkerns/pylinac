@@ -10,6 +10,7 @@ Picket Fence
 ^^^^^^^^^^^^
 
 * The ``max_error_picket`` and ``max_error_leaf`` have been added to the results returned from ``<pf>.results_data()``.
+* Elekta MLC options have been added to the :class:`~pylinac.picketfence.MLC` enum.
 
 Planar Imaging
 ^^^^^^^^^^^^^^

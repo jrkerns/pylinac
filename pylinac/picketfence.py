@@ -88,6 +88,18 @@ class MLC(enum.Enum):
         "name": "HD Millennium",
         "arrangement": MLCArrangement([(10, 5), (40, 2.5), (10, 5)]),
     }  #:
+    BMOD = {
+        "name": "B Mod",
+        "arrangement": MLCArrangement([(40, 4)]),
+    }  #:
+    AGILITY = {
+        "name": "Agility",
+        "arrangement": MLCArrangement([(80, 5)]),
+    }  #:
+    MLCI = {
+        "name": "MLCi",
+        "arrangement": MLCArrangement([(40, 10)]),
+    }  #:
     HALCYON_DISTAL = {
         "name": "Halcyon distal",
         "arrangement": MLCArrangement([(60, 5)], offset=2.5),
