@@ -777,6 +777,7 @@ class WinstonLutz:
         notes: Optional[Union[str, List[str]]] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
+        logo: Optional[Union[Path, str]] = None
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -796,12 +797,14 @@ class WinstonLutz:
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         if not self._is_analyzed:
             raise ValueError("The set is not analyzed. Use .analyze() first.")
         plt.ioff()
         title = "Winston-Lutz Analysis"
-        canvas = pdf.PylinacCanvas(filename, page_title=title, metadata=metadata)
+        canvas = pdf.PylinacCanvas(filename, page_title=title, metadata=metadata, logo=logo)
         text = self.results(as_list=True)
         canvas.add_text(text=text, location=(7, 25.5))
         # draw summary image on 1st page

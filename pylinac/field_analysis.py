@@ -915,6 +915,7 @@ class FieldAnalysis:
         notes: Union[str, list] = None,
         open_file: bool = False,
         metadata: dict = None,
+        logo: Optional[Union[Path, str]] = None
     ) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -934,6 +935,8 @@ class FieldAnalysis:
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         plt.ioff()
         if not self._is_analyzed:

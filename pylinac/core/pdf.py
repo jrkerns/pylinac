@@ -1,14 +1,14 @@
 """Module for constructing and interacting with PDF reports for Pylinac."""
-from datetime import datetime
-from typing import List, Union, Sequence, Tuple
 import io
-import os.path as osp
+from datetime import datetime
+from pathlib import Path
+from typing import List, Union, Sequence, Optional
 
 from PIL import Image
-from reportlab.pdfgen.canvas import Canvas
-from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen.canvas import Canvas
 
 from .. import __version__
 
@@ -21,11 +21,13 @@ class PylinacCanvas:
         font: str = "Helvetica",
         metadata: dict = None,
         metadata_location: tuple = (2, 25.5),
+        logo: Optional[Union[Path, str]] = None
     ):
         self.canvas = Canvas(filename, pagesize=A4)
         self._font = font
         self._title = page_title
         self._metadata = metadata
+        self._logo = logo
         self._metadata_location = metadata_location
         self._generate_pylinac_template_theme()
         self._add_metadata()
@@ -46,12 +48,12 @@ class PylinacCanvas:
 
     def _generate_pylinac_template_theme(self) -> None:
         # draw logo and header separation line
+        if self._logo is None:
+            logo = Path(__file__).parent.parent / 'files' / 'Pylinac Full cropped.png'
+        else:
+            logo = self._logo
         self.canvas.drawImage(
-            osp.join(
-                osp.dirname(osp.dirname(osp.abspath(__file__))),
-                "files",
-                "Pylinac Full cropped.png",
-            ),
+            logo,
             1 * cm,
             26.5 * cm,
             width=5 * cm,

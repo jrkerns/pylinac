@@ -472,6 +472,7 @@ class QuartDVT(CatPhanBase):
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
+        logo: Optional[Union[Path, str]] = None
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -491,12 +492,14 @@ class QuartDVT(CatPhanBase):
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         analysis_title = f"{self._model} Analysis"
         analysis_images = self.save_images(to_stream=True)
 
         canvas = pdf.PylinacCanvas(
-            filename, page_title=analysis_title, metadata=metadata
+            filename, page_title=analysis_title, metadata=metadata, logo=logo
         )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)

@@ -15,6 +15,7 @@ import typing
 import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
+from pathlib import Path
 from typing import Union, List, Tuple, Sequence, Optional, BinaryIO
 
 import argue
@@ -393,6 +394,7 @@ class VMATBase:
         notes: str = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
+        logo: Optional[Union[Path, str]] = None
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -412,11 +414,14 @@ class VMATBase:
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         canvas = PylinacCanvas(
             filename=filename,
             page_title=f"{self._result_short_header} VMAT Analysis",
             metadata=metadata,
+            logo=logo
         )
         for y, x, width, img in zip(
             (9, 9, -2),

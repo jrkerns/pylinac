@@ -668,6 +668,7 @@ class ImagePhantomBase:
         notes: str = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
+        logo: Optional[Union[Path, str]] = None
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -687,11 +688,14 @@ class ImagePhantomBase:
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         canvas = pdf.PylinacCanvas(
             filename,
             page_title=f"{self.common_name} Phantom Analysis",
             metadata=metadata,
+            logo=logo
         )
 
         # write the text/numerical values
@@ -1054,6 +1058,7 @@ class StandardImagingFC2(ImagePhantomBase):
         notes: str = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
+        logo: Optional[Union[Path, str]] = None
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -1073,11 +1078,14 @@ class StandardImagingFC2(ImagePhantomBase):
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         canvas = pdf.PylinacCanvas(
             filename,
             page_title=f"{self.common_name} Phantom Analysis",
             metadata=metadata,
+            logo=logo
         )
 
         # write the text/numerical values

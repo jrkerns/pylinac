@@ -465,6 +465,7 @@ class ACRCT(CatPhanBase):
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
+        logo: Optional[Union[Path, str]] = None
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -484,6 +485,8 @@ class ACRCT(CatPhanBase):
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         analysis_title = f"{self._model} Analysis"
         texts = [
@@ -495,7 +498,7 @@ class ACRCT(CatPhanBase):
         analysis_images = self.save_images(to_stream=True)
 
         canvas = pdf.PylinacCanvas(
-            filename, page_title=analysis_title, metadata=metadata
+            filename, page_title=analysis_title, metadata=metadata, logo=logo
         )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
@@ -1073,6 +1076,7 @@ class ACRMRILarge(CatPhanBase):
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
+        logo: Optional[Union[Path, str]] = None
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1092,6 +1096,8 @@ class ACRMRILarge(CatPhanBase):
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         analysis_title = f"{self._model} Analysis"
         analysis_images = self.save_images(to_stream=True)
@@ -1125,6 +1131,7 @@ class ACRMRILarge(CatPhanBase):
             f" - {self._model} Results - ",
             f"Geometric Distortions: {self.geometric_distortion.distances()}",
             f"Slice Thickness: {self.slice1.slice_thickness:2.2f}mm",
+            f"Measured Slice Thickness: {self.slice1.measured_slice_thickness_mm:2.2f}mm",
             f"Slice 1 S/I Position shift: {self.slice1.slice_shift_mm:2.2f}mm",
             f"Slice 11 S/I Position shift: {self.slice11.slice_shift_mm:2.2f}mm",
             f"Uniformity PIU: {self.uniformity_module.percent_image_uniformity:2.2f}",
