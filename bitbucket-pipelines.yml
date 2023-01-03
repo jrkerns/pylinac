@@ -54,6 +54,7 @@ definitions:
               - "pylinac/core/**"
               - "tests_basic/test_quart.py"
               - "pylinac/quart.py"
+              - "pylinac/ct.py"
     - step: &acr-tests
         name: Run ACR CT/MRI Tests
         script:

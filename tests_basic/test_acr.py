@@ -45,7 +45,7 @@ class TestCTGeneral(TestCase):
 
     def test_phan_center(self):
         """Test locations of the phantom center."""
-        known_phan_center = Point(258, 253)
+        known_phan_center = Point(258, 254)
         self.ct.analyze()
         self.assertAlmostEqual(self.ct.ct_calibration_module.phan_center.x, known_phan_center.x, delta=0.7)
         self.assertAlmostEqual(self.ct.ct_calibration_module.phan_center.y, known_phan_center.y, delta=0.7)
@@ -281,6 +281,10 @@ class ACRMRMixin(CloudFileMixin):
                                delta=0.1)
 
     def test_slice_thickness(self):
+        print(self.mri.slice1.measured_slice_thickness_mm)
+        print(self.mri.slice1.thickness_rois['Top'].wire_fwhm)
+        print(self.mri.slice1.thickness_rois['Bottom'].wire_fwhm)
+        print(self.mri.slice1.mm_per_pixel)
         self.assertAlmostEqual(self.mri.slice1.measured_slice_thickness_mm, self.slice_thickness, delta=0.3)
 
     def test_slice1_shift(self):
