@@ -1870,6 +1870,7 @@ class CatPhanBase:
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
+        logo: Optional[Union[Path, str]] = None
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1889,6 +1890,8 @@ class CatPhanBase:
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         analysis_title = f"CatPhan {self._model} Analysis"
         module_images = [("hu", "lin")]
@@ -1906,6 +1909,7 @@ class CatPhanBase:
             analysis_title,
             self.results(as_list=True),
             module_images,
+            logo
         )
         if open_file:
             webbrowser.open(filename)
@@ -1918,6 +1922,7 @@ class CatPhanBase:
         analysis_title: str,
         texts: Sequence[str],
         imgs: Sequence[Tuple[str, str]],
+        logo: Optional[Union[Path, str]] = None
     ):
         try:
             date = datetime.strptime(
@@ -1926,7 +1931,7 @@ class CatPhanBase:
         except:
             date = "Unknown"
         canvas = pdf.PylinacCanvas(
-            filename, page_title=analysis_title, metadata=metadata
+            filename, page_title=analysis_title, metadata=metadata, logo=logo
         )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)

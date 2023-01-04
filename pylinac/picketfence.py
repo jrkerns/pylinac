@@ -946,6 +946,7 @@ class PicketFence:
         open_file: bool = False,
         metadata: dict = None,
         bins: int = 10,
+        logo: Optional[Union[Path, str]] = None
     ) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -965,10 +966,14 @@ class PicketFence:
             Author: James
             Unit: TrueBeam
             --------------
+        bins: int
+            Number of bins to show for the histogram
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         plt.ioff()
         canvas = pdf.PylinacCanvas(
-            filename, page_title="Picket Fence Analysis", metadata=metadata
+            filename, page_title="Picket Fence Analysis", metadata=metadata, logo=logo
         )
         data = io.BytesIO()
         self.save_analyzed_image(data, leaf_error_subplot=True)

@@ -33,6 +33,7 @@ import shutil
 import webbrowser
 import zipfile
 from io import BytesIO, BufferedReader
+from pathlib import Path
 from typing import Union, List, Optional, Tuple, Iterable, Sequence, BinaryIO
 
 import argue
@@ -2068,6 +2069,7 @@ class Dynalog(LogBase):
         notes: str = None,
         metadata: dict = None,
         open_file: bool = False,
+        logo: Optional[Union[Path, str]] = None
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -2087,10 +2089,12 @@ class Dynalog(LogBase):
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         self.fluence.gamma.calc_map()
         canvas = pdf.PylinacCanvas(
-            filename, page_title="Dynalog Analysis", metadata=metadata
+            filename, page_title="Dynalog Analysis", metadata=metadata, logo=logo
         )
         canvas.add_text(
             text=[
@@ -2527,6 +2531,7 @@ class TrajectoryLog(LogBase):
         metadata: dict = None,
         notes: Union[str, list] = None,
         open_file: bool = False,
+        logo: Optional[Union[Path, str]] = None
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -2546,6 +2551,8 @@ class TrajectoryLog(LogBase):
             Author: James
             Unit: TrueBeam
             --------------
+        logo: Path, str
+            A custom logo to use in the PDF report. If nothing is passed, the default pylinac logo is used.
         """
         if self.treatment_type == TreatmentType.IMAGING.value:
             raise ValueError(
@@ -2553,7 +2560,7 @@ class TrajectoryLog(LogBase):
             )
         self.fluence.gamma.calc_map()
         canvas = pdf.PylinacCanvas(
-            filename, page_title="Trajectory Log Analysis", metadata=metadata
+            filename, page_title="Trajectory Log Analysis", metadata=metadata, logo=logo
         )
         canvas.add_text(
             text=[
