@@ -1131,7 +1131,6 @@ class ACRMRILarge(CatPhanBase):
             f" - {self._model} Results - ",
             f"Geometric Distortions: {self.geometric_distortion.distances()}",
             f"Slice Thickness: {self.slice1.slice_thickness:2.2f}mm",
-            f"Measured Slice Thickness: {self.slice1.measured_slice_thickness_mm:2.2f}mm",
             f"Slice 1 S/I Position shift: {self.slice1.slice_shift_mm:2.2f}mm",
             f"Slice 11 S/I Position shift: {self.slice11.slice_shift_mm:2.2f}mm",
             f"Uniformity PIU: {self.uniformity_module.percent_image_uniformity:2.2f}",
