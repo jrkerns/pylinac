@@ -260,6 +260,7 @@ class ACRCT(CatPhanBase):
 
     def analyze(self) -> None:
         """Analyze the ACR CT phantom"""
+        self.localize()
         self.ct_calibration_module = self.ct_calibration_module(
             self, offset=0, clear_borders=self.clear_borders
         )
@@ -963,6 +964,7 @@ class ACRMRILarge(CatPhanBase):
 
     def analyze(self) -> None:
         """Analyze the ACR CT phantom"""
+        self.localize()
         self.slice1 = MRSlice1Module(self, offset=0)
         self.geometric_distortion = GeometricDistortionModule(
             self, offset=MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM
