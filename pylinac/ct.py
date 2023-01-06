@@ -2277,8 +2277,8 @@ def get_regions(
         center = (int(edges.shape[1] / 2), int(edges.shape[0] / 2))
     edges = filters.gaussian(edges, sigma=1)
     if isinstance(slice_or_arr, Slice):
-        box_size = 110 / slice_or_arr.mm_per_pixel
-        rr, cc = draw.disk(center=(center.y, center.x), radius=box_size, shape=edges.shape)
+        radius = 110 / slice_or_arr.mm_per_pixel
+        rr, cc = draw.disk(center=(center.y, center.x), radius=radius, shape=edges.shape)
         thres = thresmeth(edges[rr, cc])
     else:
         thres = thresmeth(edges)
