@@ -1511,7 +1511,6 @@ class CatPhanBase:
         self.dicom_stack = image.DicomImageStack(
             folderpath, check_uid=check_uid, min_number=self.min_num_images
         )
-        self.localize()
 
     @classmethod
     def from_demo_images(cls):
@@ -2000,6 +1999,7 @@ class CatPhanBase:
             The threshold for detecting low-contrast ROIs. Use instead of ``cnr_threshold``. Follows the Rose equation.
             See :ref:`visibility`.
         """
+        self.localize()
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
         self.ctp404 = ctp404(
             self,
