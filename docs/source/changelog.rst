@@ -3,6 +3,15 @@
 Changelog
 =========
 
+v 3.6.3
+-------
+
+CBCT
+^^^^
+
+* Cropping a catphan dataset before analysis would result in an analysis failure.
+* Datasets that had a deep-curve couch very close to the phantom (e.g. head cradles) would fail.
+
 v 3.6.2
 -------
 
