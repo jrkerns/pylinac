@@ -41,7 +41,7 @@ import numpy as np
 from cached_property import cached_property
 from py_linq import Enumerable
 from scipy import ndimage
-from skimage import filters, measure, segmentation
+from skimage import filters, measure, segmentation, draw
 from skimage.measure._regionprops import RegionProperties
 
 from .core import image, pdf
@@ -2282,12 +2282,9 @@ def get_regions(
         center = (int(edges.shape[1] / 2), int(edges.shape[0] / 2))
     edges = filters.gaussian(edges, sigma=1)
     if isinstance(slice_or_arr, Slice):
-        box_size = 100 / slice_or_arr.mm_per_pixel
-        thres_img = edges[
-            int(center.y - box_size) : int(center.y + box_size),
-            int(center.x - box_size) : int(center.x + box_size),
-        ]
-        thres = thresmeth(thres_img)
+        radius = 110 / slice_or_arr.mm_per_pixel
+        rr, cc = draw.disk(center=(center.y, center.x), radius=radius, shape=edges.shape)
+        thres = thresmeth(edges[rr, cc])
     else:
         thres = thresmeth(edges)
     bw = edges > thres
