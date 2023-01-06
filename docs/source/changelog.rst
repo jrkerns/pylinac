@@ -46,6 +46,37 @@ CBCT
         This change is internal and should not cause issues; all tests passed without modification but there is a small possibility a dataset with
         some kind of interference will now analyze and cause detection issues.
 
+
+v 3.6.3
+-------
+
+CBCT
+^^^^
+
+* Cropping a catphan dataset before analysis would result in an analysis failure.
+* Datasets that had a deep-curve couch very close to the phantom (e.g. head cradles) would fail.
+
+v 3.6.2
+-------
+
+CBCT
+^^^^
+
+* The phantom center detection was refactored. This was because the RadMachine jig was touching the CatPhan and causing detection issues on a handful of slices.
+  Unfortunately, these few handful of slices were important to the detection algorithm as they occurred around the HU linearity module for the 604.
+  The phantom center of each slice along the Z axis (in/out) is now detected by fitting a 1D polynomial for all the slices where the phantom is detected. I.e. ``x, y = f(z)``.
+  This removes some of the error associated
+  with having something touching the phantom for just a few slices. E.g. a clinic was using BBs on the side of their Catphan for alignment which was causing
+  issues. Situations like these are more likely to be recovered from.
+  .. note::
+        This change is internal and should not cause issues; all tests passed without modification but there is a small possibility a dataset with
+        some kind of interference will now analyze and cause detection issues.
+
+v 3.6.1
+-------
+
+* Fixed a bug with the SNC MV phantom analysis where the ROI scaling for the entire phantom was slightly over-sized.
+
 v 3.6.0
 -------
 

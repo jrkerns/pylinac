@@ -60,6 +60,7 @@ class TestGeneral(TestCase):
     def test_load_from_stream(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         ref_cbct = CatPhan504.from_zip(path)
+        ref_cbct.analyze()
         with open(path, "rb") as f:
             s = io.BytesIO(f.read())
             cbct = CatPhan504.from_zip(s)
@@ -70,11 +71,20 @@ class TestGeneral(TestCase):
     def test_load_from_file_object(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         ref_cbct = CatPhan504.from_zip(path)
+        ref_cbct.analyze()
         with open(path, "rb") as f:
             cbct = CatPhan504.from_zip(f)
             cbct.analyze()
         self.assertIsInstance(cbct, CatPhan504)
         self.assertEqual(cbct.origin_slice, ref_cbct.origin_slice)
+
+    def test_crop_before_analysis(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        cbct = CatPhan504.from_zip(path)
+        for img in cbct.dicom_stack:
+            img.crop(pixels=20, edges=('bottom',))
+        # shouldn't raise
+        cbct.analyze()
 
     def test_demo(self):
         """Run the demo to make sure it works."""
@@ -1051,6 +1061,26 @@ class Katy1(CatPhan504Mixin, TestCase):
     mtf_values = {50: 0.51}
     lowcon_visible = 0  # changed w/ visibility refactor in v3.0
     slice_thickness = 2.4
+
+
+class CTWithCloseCouch(CatPhan503Mixin, TestCase):
+    """A CT where the couch is super close"""
+    file_name = "CT with close couch.zip"
+    expected_roll = 0.43
+    origin_slice = 133
+    hu_values = {
+        "Poly": -48,
+        "Acrylic": 87,
+        "Delrin": 272,
+        "Air": -809,
+        "Teflon": 789,
+        "PMP": -145,
+        "LDPE": -87,
+    }
+    unif_values = {"Center": -4, "Left": -12.5, "Right": -15, "Top": 3, "Bottom": -23}
+    mtf_values = {50: 0.44}
+    avg_line_length = 49.8
+    slice_thickness = 1.42
 
 
 class AGElekta1(CatPhan503Mixin, TestCase):
