@@ -58,6 +58,7 @@ class PylinacCanvas:
             26.5 * cm,
             width=5 * cm,
             height=3 * cm,
+            mask='auto',
             preserveAspectRatio=True,
         )
         self.canvas.line(1 * cm, 26.5 * cm, 20 * cm, 26.5 * cm)

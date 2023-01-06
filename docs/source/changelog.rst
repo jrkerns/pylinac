@@ -6,6 +6,12 @@ Changelog
 v 3.7.0
 -------
 
+General
+^^^^^^^
+
+* Logos can now be passed to any ``publish_pdf`` method to insert a custom logo (e.g. an institution logo).
+  The size of the logo as it appears on the PDF is fixed.
+
 Picket Fence
 ^^^^^^^^^^^^
 
