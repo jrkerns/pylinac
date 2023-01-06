@@ -310,6 +310,7 @@ class QuartDVT(CatPhanBase):
         thickness_tolerance: Union[int, float] = 0.2,
         cnr_threshold: Union[int, float] = 5,
     ):
+        self.localize()
         self.hu_module = QuartHUModule(
             self,
             offset=0,
