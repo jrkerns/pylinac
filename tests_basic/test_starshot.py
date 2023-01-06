@@ -10,26 +10,37 @@ import numpy as np
 from pylinac import Starshot
 from pylinac.core.geometry import Point
 from pylinac.starshot import StarshotResults
-from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo, \
-    get_folder_from_cloud_test_repo, FromURLTesterMixin
+from tests_basic.utils import (
+    save_file,
+    CloudFileMixin,
+    get_file_from_cloud_test_repo,
+    get_folder_from_cloud_test_repo,
+    FromURLTesterMixin,
+)
 
-plt.close('all')
-TEST_DIR = 'Starshot'
+plt.close("all")
+TEST_DIR = "Starshot"
 
 
 class TestStarshotLoading(TestCase, FromURLTesterMixin):
     klass = Starshot
-    url = 'starshot.tif'
-    kwargs = url_kwargs = {'dpi': 30, 'sid': 1000}
+    url = "starshot.tif"
+    kwargs = url_kwargs = {"dpi": 30, "sid": 1000}
 
     def test_load_from_file_object(self):
-        with open(get_file_from_cloud_test_repo([TEST_DIR, 'Starshot-30-deg-perfect.dcm']), 'rb') as f:
+        with open(
+            get_file_from_cloud_test_repo([TEST_DIR, "Starshot-30-deg-perfect.dcm"]),
+            "rb",
+        ) as f:
             star = Starshot(f)
             star.analyze()
         self.assertIsInstance(star, Starshot)
 
     def test_load_from_stream(self):
-        with open(get_file_from_cloud_test_repo([TEST_DIR, 'Starshot-30-deg-perfect.dcm']), 'rb') as f:
+        with open(
+            get_file_from_cloud_test_repo([TEST_DIR, "Starshot-30-deg-perfect.dcm"]),
+            "rb",
+        ) as f:
             s = io.BytesIO(f.read())
             star = Starshot(s)
             star.analyze()
@@ -44,7 +55,6 @@ class TestStarshotLoading(TestCase, FromURLTesterMixin):
 
 
 class TestPlottingSaving(TestCase):
-
     def setUp(self):
         self.star = Starshot.from_demo_image()
         self.star.analyze()
@@ -57,13 +67,14 @@ class TestPlottingSaving(TestCase):
         # save as normal file
         save_file(self.star.save_analyzed_subimage)
         # save into buffer
-        save_file(self.star.save_analyzed_subimage, as_file_object='b')
+        save_file(self.star.save_analyzed_subimage, as_file_object="b")
 
 
 class StarMixin(CloudFileMixin):
     """Mixin for testing a starshot image."""
+
     # dir_location = TEST_DIR
-    dir_path = ['Starshot']
+    dir_path = ["Starshot"]
     is_dir = False  # whether the starshot is a single file (False) or directory of images to combine (True)
     wobble_diameter_mm = 0
     wobble_center = Point()
@@ -75,13 +86,18 @@ class StarMixin(CloudFileMixin):
     test_all_radii = True
     fwxm = True
     wobble_tolerance = 0.2
-    kwargs = {'sid': 1000}
+    kwargs = {"sid": 1000}
     verbose = False
 
     @classmethod
     def setUpClass(cls):
         cls.star = cls.construct_star()
-        cls.star.analyze(recursive=cls.recursive, min_peak_height=cls.min_peak_height, fwhm=cls.fwxm, radius=cls.radius)
+        cls.star.analyze(
+            recursive=cls.recursive,
+            min_peak_height=cls.min_peak_height,
+            fwhm=cls.fwxm,
+            radius=cls.radius,
+        )
 
     @classmethod
     def construct_star(cls):
@@ -95,12 +111,23 @@ class StarMixin(CloudFileMixin):
 
     def test_passed(self):
         """Test that the demo image passed"""
-        self.star.analyze(recursive=self.recursive, min_peak_height=self.min_peak_height, fwhm=self.fwxm, radius=self.radius)
-        self.assertEqual(self.star.passed, self.passes, msg="Wobble was not within tolerance")
+        self.star.analyze(
+            recursive=self.recursive,
+            min_peak_height=self.min_peak_height,
+            fwhm=self.fwxm,
+            radius=self.radius,
+        )
+        self.assertEqual(
+            self.star.passed, self.passes, msg="Wobble was not within tolerance"
+        )
 
     def test_wobble_diameter(self):
         """Test than the wobble radius is similar to what it has been shown to be)."""
-        self.assertAlmostEqual(self.star.wobble.diameter_mm, self.wobble_diameter_mm, delta=self.wobble_tolerance)
+        self.assertAlmostEqual(
+            self.star.wobble.diameter_mm,
+            self.wobble_diameter_mm,
+            delta=self.wobble_tolerance,
+        )
 
     def test_wobble_center(self):
         """Test that the center of the wobble circle is close to what it's shown to be."""
@@ -113,8 +140,11 @@ class StarMixin(CloudFileMixin):
 
     def test_num_rad_lines(self):
         """Test than the number of radiation lines found is what is expected."""
-        self.assertEqual(len(self.star.lines), self.num_rad_lines,
-                         msg="The number of radiation lines found was not the number expected")
+        self.assertEqual(
+            len(self.star.lines),
+            self.num_rad_lines,
+            msg="The number of radiation lines found was not the number expected",
+        )
 
     def test_all_radii_give_same_wobble(self):
         """Test that the wobble stays roughly the same for all radii."""
@@ -122,15 +152,27 @@ class StarMixin(CloudFileMixin):
             star = self.construct_star()
             radii = []
             for radius in np.linspace(0.9, 0.25, 8):
-                star.analyze(radius=float(radius), min_peak_height=self.min_peak_height, recursive=self.recursive, fwhm=self.fwxm)
-                self.assertAlmostEqual(star.wobble.diameter_mm, self.wobble_diameter_mm, delta=self.wobble_tolerance)
+                star.analyze(
+                    radius=float(radius),
+                    min_peak_height=self.min_peak_height,
+                    recursive=self.recursive,
+                    fwhm=self.fwxm,
+                )
+                self.assertAlmostEqual(
+                    star.wobble.diameter_mm,
+                    self.wobble_diameter_mm,
+                    delta=self.wobble_tolerance,
+                )
                 radii.append(star.wobble.diameter_mm)
             if self.verbose:
-                print(f"Radii mean: {np.mean(radii):2.2f}, range: {np.max(radii) - np.min(radii):2.2f}")
+                print(
+                    f"Radii mean: {np.mean(radii):2.2f}, range: {np.max(radii) - np.min(radii):2.2f}"
+                )
 
 
 class Demo(StarMixin, TestCase):
     """Specific tests_basic for the demo image"""
+
     wobble_diameter_mm = 0.30
     wobble_center = Point(1270, 1437)
     num_rad_lines = 4
@@ -145,11 +187,12 @@ class Demo(StarMixin, TestCase):
 
 class Multiples(StarMixin, TestCase):
     """Test a starshot composed of multiple individual EPID images."""
+
     num_rad_lines = 9
     wobble_center = Point(254, 192)
     wobble_diameter_mm = 0.7
     wobble_tolerance = 0.2
-    dir_path = ['Starshot', 'set']
+    dir_path = ["Starshot", "set"]
     is_dir = True
     delete_file = False
 
@@ -159,14 +202,14 @@ class Multiples(StarMixin, TestCase):
         return get_folder_from_cloud_test_repo([*cls.dir_path])
 
     def test_loading_from_zip(self):
-        img_zip = get_file_from_cloud_test_repo(['Starshot', 'multiples.zip'])
+        img_zip = get_file_from_cloud_test_repo(["Starshot", "multiples.zip"])
         star = Starshot.from_zip(img_zip)
         # shouldn't raise
         star.analyze()
 
 
 class Starshot1(StarMixin, TestCase):
-    file_name = 'Starshot-1.tif'
+    file_name = "Starshot-1.tif"
     wobble_center = Point(508, 683)
     wobble_diameter_mm = 0.23
     num_rad_lines = 4
@@ -174,7 +217,7 @@ class Starshot1(StarMixin, TestCase):
 
 
 class StarshotPerfect30Deg(StarMixin, TestCase):
-    file_name = 'Starshot-30-deg-perfect.dcm'
+    file_name = "Starshot-30-deg-perfect.dcm"
     wobble_center = Point(639.5, 639.5)
     wobble_diameter_mm = 0.0
     num_rad_lines = 6
@@ -185,7 +228,7 @@ class Starshot1FWHM(Starshot1):
 
 
 class CRStarshot(StarMixin, TestCase):
-    file_name = 'CR-Starshot.dcm'
+    file_name = "CR-Starshot.dcm"
     wobble_center = Point(1030.5, 1253.6)
     wobble_diameter_mm = 0.3
     num_rad_lines = 6
@@ -193,7 +236,6 @@ class CRStarshot(StarMixin, TestCase):
 
 
 class GeneralTests(Demo, TestCase):
-
     def test_demo_runs(self):
         """Test that the demo runs without error."""
         self.star.run_demo()
@@ -225,7 +267,7 @@ class GeneralTests(Demo, TestCase):
 
     def test_publish_pdf(self):
         with tempfile.TemporaryFile() as t:
-            self.star.publish_pdf(t, notes='stuff', metadata={"Unit": 'TB1'})
+            self.star.publish_pdf(t, notes="stuff", metadata={"Unit": "TB1"})
 
     def test_results(self):
         data = self.star.results()
@@ -255,8 +297,9 @@ class GeneralTests(Demo, TestCase):
         self.assertEqual(fig.bbox_inches.height, 11)
         self.assertEqual(fig.bbox_inches.width, 7)
 
+
 class Starshot2(StarMixin, TestCase):
-    file_name = 'Starshot#2.tif'
+    file_name = "Starshot#2.tif"
     wobble_center = Point(566, 590)
     wobble_diameter_mm = 0.2
     num_rad_lines = 4
@@ -264,7 +307,7 @@ class Starshot2(StarMixin, TestCase):
 
 
 class Starshot3(StarMixin, TestCase):
-    file_name = 'Starshot#3.tif'
+    file_name = "Starshot#3.tif"
     wobble_center = Point(466, 595)
     wobble_diameter_mm = 0.32
     num_rad_lines = 6
@@ -272,7 +315,7 @@ class Starshot3(StarMixin, TestCase):
 
 
 class Starshot4(StarMixin, TestCase):
-    file_name = 'Starshot#4.tif'
+    file_name = "Starshot#4.tif"
     wobble_center = Point(446, 565)
     wobble_diameter_mm = 0.38
     num_rad_lines = 6
@@ -280,7 +323,7 @@ class Starshot4(StarMixin, TestCase):
 
 
 class Starshot5(StarMixin, TestCase):
-    file_name = 'Starshot#5.tif'
+    file_name = "Starshot#5.tif"
     wobble_center = Point(557, 580)
     wobble_diameter_mm = 0.15
     num_rad_lines = 4
@@ -290,14 +333,14 @@ class Starshot5(StarMixin, TestCase):
 
 
 class Starshot6(StarMixin, TestCase):
-    file_name = 'Starshot#6.tif'
+    file_name = "Starshot#6.tif"
     wobble_center = Point(528, 607)
     wobble_diameter_mm = 0.3
     num_rad_lines = 7
 
 
 class Starshot7(StarMixin, TestCase):
-    file_name = 'Starshot#7.tif'
+    file_name = "Starshot#7.tif"
     wobble_center = Point(469, 646)
     wobble_diameter_mm = 0.2
     num_rad_lines = 4
@@ -305,98 +348,98 @@ class Starshot7(StarMixin, TestCase):
 
 
 class Starshot8(StarMixin, TestCase):
-    file_name = 'Starshot#8.tiff'
+    file_name = "Starshot#8.tiff"
     wobble_center = Point(686, 669)
     wobble_diameter_mm = 0.35
     num_rad_lines = 5
 
 
 class Starshot9(StarMixin, TestCase):
-    file_name = 'Starshot#9.tiff'
+    file_name = "Starshot#9.tiff"
     wobble_center = Point(714, 611)
     wobble_diameter_mm = 0.3
     num_rad_lines = 5
 
 
 class Starshot10(StarMixin, TestCase):
-    file_name = 'Starshot#10.tiff'
+    file_name = "Starshot#10.tiff"
     wobble_center = Point(725, 802)
     wobble_diameter_mm = 0.65
     num_rad_lines = 5
 
 
 class Starshot11(StarMixin, TestCase):
-    file_name = 'Starshot#11.tiff'
+    file_name = "Starshot#11.tiff"
     wobble_center = Point(760, 650)
     wobble_diameter_mm = 0.6
     num_rad_lines = 4
 
 
 class Starshot12(StarMixin, TestCase):
-    file_name = 'Starshot#12.tiff'
+    file_name = "Starshot#12.tiff"
     wobble_center = Point(315, 292)
     wobble_diameter_mm = 0.88
     num_rad_lines = 4
 
 
 class Starshot13(StarMixin, TestCase):
-    file_name = 'Starshot#13.tiff'
+    file_name = "Starshot#13.tiff"
     wobble_center = Point(376, 303)
     wobble_diameter_mm = 0.2
     num_rad_lines = 4
 
 
 class Starshot14(StarMixin, TestCase):
-    file_name = 'Starshot#14.tiff'
+    file_name = "Starshot#14.tiff"
     wobble_center = Point(334, 282)
     wobble_diameter_mm = 0.55
     num_rad_lines = 4
 
 
 class Starshot15(StarMixin, TestCase):
-    file_name = 'Starshot#15.tiff'
+    file_name = "Starshot#15.tiff"
     wobble_center = Point(346, 309)
     wobble_diameter_mm = 0.6
     num_rad_lines = 4
 
 
 class Starshot16(StarMixin, TestCase):
-    file_name = 'Starshot#16.tiff'
+    file_name = "Starshot#16.tiff"
     wobble_center = Point(1444, 1452)
     wobble_diameter_mm = 0.6
     num_rad_lines = 6
 
 
 class Starshot17(StarMixin, TestCase):
-    file_name = 'Starshot#17.tiff'
+    file_name = "Starshot#17.tiff"
     wobble_center = Point(1475, 1361)
     wobble_diameter_mm = 0.44
     num_rad_lines = 6
 
 
 class Starshot18(StarMixin, TestCase):
-    file_name = 'Starshot#18.tiff'
+    file_name = "Starshot#18.tiff"
     wobble_center = Point(1516, 1214)
     wobble_diameter_mm = 0.6
     num_rad_lines = 6
 
 
 class Starshot19(StarMixin, TestCase):
-    file_name = 'Starshot#19.tiff'
+    file_name = "Starshot#19.tiff"
     wobble_center = Point(1475, 1276)
     wobble_diameter_mm = 0.6
     num_rad_lines = 6
 
 
 class Starshot20(StarMixin, TestCase):
-    file_name = 'Starshot#20.tiff'
+    file_name = "Starshot#20.tiff"
     wobble_center = Point(347, 328)
     wobble_diameter_mm = 0.75
     num_rad_lines = 4
 
 
 class Starshot21(StarMixin, TestCase):
-    file_name = 'Starshot#21.tiff'
+    file_name = "Starshot#21.tiff"
     wobble_center = Point(354, 294)
     wobble_diameter_mm = 1.1
     wobble_tolerance = 0.2
@@ -405,7 +448,7 @@ class Starshot21(StarMixin, TestCase):
 
 
 class Starshot22(StarMixin, TestCase):
-    file_name = 'Starshot#22.tiff'
+    file_name = "Starshot#22.tiff"
     wobble_center = Point(1305, 1513)
     wobble_diameter_mm = 0.9
     num_rad_lines = 9
@@ -413,28 +456,28 @@ class Starshot22(StarMixin, TestCase):
 
 
 class Starshot23(StarMixin, TestCase):
-    file_name = 'Starshot#23.tiff'
+    file_name = "Starshot#23.tiff"
     wobble_center = Point(1297, 1699)
     wobble_diameter_mm = 0.38
     num_rad_lines = 9
 
 
 class Starshot24(StarMixin, TestCase):
-    file_name = 'Starshot#24.tiff'
+    file_name = "Starshot#24.tiff"
     wobble_center = Point(1370, 1454)
     wobble_diameter_mm = 0.3
     num_rad_lines = 4
 
 
 class Starshot25(StarMixin, TestCase):
-    file_name = 'Starshot#25.tiff'
+    file_name = "Starshot#25.tiff"
     wobble_center = Point(286, 279)
     wobble_diameter_mm = 0.3
     num_rad_lines = 4
 
 
 class Starshot26(StarMixin, TestCase):
-    file_name = 'Starshot#26.tiff'
+    file_name = "Starshot#26.tiff"
     wobble_center = Point(1511, 1452)
     wobble_diameter_mm = 0.55
     num_rad_lines = 4
@@ -442,21 +485,21 @@ class Starshot26(StarMixin, TestCase):
 
 
 class Starshot27(StarMixin, TestCase):
-    file_name = 'Starshot#27.tiff'
+    file_name = "Starshot#27.tiff"
     wobble_center = Point(1105, 1306)
     wobble_diameter_mm = 0.4
     num_rad_lines = 6
 
 
 class CRStarshot(StarMixin, TestCase):
-    file_name = 'CR-Starshot.dcm'
+    file_name = "CR-Starshot.dcm"
     wobble_center = Point(1030.5, 1253.6)
     wobble_diameter_mm = 0.3
     num_rad_lines = 6
 
 
 class ChicagoSet(StarMixin, TestCase):
-    file_name = 'Chicago'
+    file_name = "Chicago"
     wobble_center = Point(638, 639.3)
     wobble_diameter_mm = 0.7
     num_rad_lines = 5

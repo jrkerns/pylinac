@@ -1,6 +1,6 @@
 """
 The TG-51 module contains a number of helper functions and classes that can calculate parameters for performing the
-TG-51 absolute linac dose calibration although there are some modifications from the original TG-51. The modifications 
+TG-51 absolute linac dose calibration although there are some modifications from the original TG-51. The modifications
 include updated kQ and kecal values from Muir and Rogers' set of papers.
 Functions include all relevant calculations for TG-51 including PDDx, kQ,
 Dref, and chamber reading corrections. Where Muir & Rogers' values/equations are used they are specified in the documentation.

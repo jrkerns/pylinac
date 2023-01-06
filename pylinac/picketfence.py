@@ -946,7 +946,7 @@ class PicketFence:
         open_file: bool = False,
         metadata: dict = None,
         bins: int = 10,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -978,7 +978,9 @@ class PicketFence:
         data = io.BytesIO()
         self.save_analyzed_image(data, leaf_error_subplot=True)
         canvas.add_image(data, location=(3, 8), dimensions=(15, 15))
-        canvas.add_text(text=self.results(as_list=True), location=(1.5, 25), font_size=14)
+        canvas.add_text(
+            text=self.results(as_list=True), location=(1.5, 25), font_size=14
+        )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 5))

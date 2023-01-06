@@ -92,7 +92,7 @@ def gamma_1d(
             if not global_dose:
                 dose_ta = dose_to_agreement / 100 * ref_point
             capital_gamma = math.sqrt(
-                dist ** 2 / distance_to_agreement ** 2 + dose ** 2 / dose_ta ** 2
+                dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
             )
             capital_gammas.append(capital_gamma)
         gamma.append(min(min(capital_gammas), gamma_cap_value))
@@ -605,7 +605,7 @@ class SingleProfile(ProfileMixin):
 
         def poly_func(x):
             # return the negative since we're MINIMIZING and want the top value
-            return -(fit_params[0] * (x ** 2) + fit_params[1] * x + fit_params[2])
+            return -(fit_params[0] * (x**2) + fit_params[1] * x + fit_params[2])
 
         # minimize the polynomial function
         min_f = minimize(

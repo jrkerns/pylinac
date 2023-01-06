@@ -1,15 +1,22 @@
 import nox
 
 
-@nox.session(python=['3.6', '3.9'], reuse_venv=False)
+@nox.session(python=["3.6", "3.9"], reuse_venv=False)
 def run_tests(session):
-    session.install('-r', 'requirements-dev.txt')
-    session.run("pytest", '-n', '5')
+    session.install("-r", "requirements-dev.txt")
+    session.run("pytest", "-n", "5")
 
 
 @nox.session(python=False)
 def serve_docs(session):
-    session.run("sphinx-autobuild", "docs/source", "docs/build", "--port", "8777", "--open-browser")
+    session.run(
+        "sphinx-autobuild",
+        "docs/source",
+        "docs/build",
+        "--port",
+        "8777",
+        "--open-browser",
+    )
 
 
 @nox.session(python=False)

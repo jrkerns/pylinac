@@ -915,7 +915,7 @@ class FieldAnalysis:
         notes: Union[str, list] = None,
         open_file: bool = False,
         metadata: dict = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -1316,7 +1316,7 @@ class FieldAnalysis:
             1000,
         )
         y_model = (
-            data["top params"][0] * x_model ** 2
+            data["top params"][0] * x_model**2
             + data["top params"][1] * x_model
             + data["top params"][2]
         )

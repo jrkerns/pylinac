@@ -1860,8 +1860,8 @@ class CatPhanBase:
     @property
     def catphan_size(self) -> float:
         """The expected size of the phantom in pixels, based on a 20cm wide phantom."""
-        phan_area = np.pi * (self.catphan_radius_mm ** 2)
-        return phan_area / (self.mm_per_pixel ** 2)
+        phan_area = np.pi * (self.catphan_radius_mm**2)
+        return phan_area / (self.mm_per_pixel**2)
 
     def publish_pdf(
         self,
@@ -1869,7 +1869,7 @@ class CatPhanBase:
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1908,7 +1908,7 @@ class CatPhanBase:
             analysis_title,
             self.results(as_list=True),
             module_images,
-            logo
+            logo,
         )
         if open_file:
             webbrowser.open(filename)
@@ -1921,7 +1921,7 @@ class CatPhanBase:
         analysis_title: str,
         texts: Sequence[str],
         imgs: Sequence[Tuple[str, str]],
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         try:
             date = datetime.strptime(
@@ -2283,7 +2283,9 @@ def get_regions(
     edges = filters.gaussian(edges, sigma=1)
     if isinstance(slice_or_arr, Slice):
         radius = 110 / slice_or_arr.mm_per_pixel
-        rr, cc = draw.disk(center=(center.y, center.x), radius=radius, shape=edges.shape)
+        rr, cc = draw.disk(
+            center=(center.y, center.x), radius=radius, shape=edges.shape
+        )
         thres = thresmeth(edges[rr, cc])
     else:
         thres = thresmeth(edges)

@@ -381,7 +381,7 @@ class Starshot:
             f"The center of the minimum circle is at {self.wobble.center.x:3.1f}, {self.wobble.center.y:3.1f}",
         ]
         if not as_list:
-            results = '\n'.join(results)
+            results = "\n".join(results)
         return results
 
     def results_data(self, as_dict: bool = False) -> Union[StarshotResults, dict]:
@@ -504,7 +504,7 @@ class Starshot:
         notes: Optional[Union[str, List[str]]] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 

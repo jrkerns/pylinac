@@ -91,7 +91,9 @@ def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
     """Get a single file from GCP storage. Returns the path to disk it was downloaded to"""
     local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
     if osp.isfile(local_filename) and not force:
-        print(f"Local file found: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}")
+        print(
+            f"Local file found: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}"
+        )
         return local_filename
     with access_gcp() as client:
         bucket = client.bucket(GCP_BUCKET_NAME)
@@ -107,7 +109,9 @@ def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
 
         blob.download_to_filename(local_filename)
         time.sleep(2)
-        print(f"Downloaded from GCP: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}")
+        print(
+            f"Downloaded from GCP: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}"
+        )
         return local_filename
 
 

@@ -8,29 +8,33 @@ from matplotlib import pyplot as plt
 from pylinac import DRGS, DRMLC
 from pylinac.core.geometry import Point
 from pylinac.vmat import VMATResult
-from tests_basic.utils import save_file, get_file_from_cloud_test_repo, FromURLTesterMixin, \
-    FromDemoImageTesterMixin
+from tests_basic.utils import (
+    save_file,
+    get_file_from_cloud_test_repo,
+    FromURLTesterMixin,
+    FromDemoImageTesterMixin,
+)
 
-TEST_DIR = 'VMAT'
+TEST_DIR = "VMAT"
 
 within_5 = partial(TestCase().assertAlmostEqual, delta=5)
 within_1 = partial(TestCase().assertAlmostEqual, delta=1)
 
 
 class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
-    demo_load_method = 'from_demo_images'
+    demo_load_method = "from_demo_images"
     klass: Union[Type[DRGS], Type[DRMLC]]
 
     def test_normal_instantiation(self):
-        one = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_1.dcm'])
-        two = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_2.dcm'])
+        one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
+        two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
         instance = self.klass(image_paths=(one, two))
         self.assertIsInstance(instance, self.klass)
 
     def test_from_stream(self):
-        one = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_1.dcm'])
-        two = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_2.dcm'])
-        with open(one, 'rb') as s1, open(two, 'rb') as s2:
+        one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
+        two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
+        with open(one, "rb") as s1, open(two, "rb") as s2:
             s11 = io.BytesIO(s1.read())
             s22 = io.BytesIO(s2.read())
             instance = self.klass(image_paths=(s11, s22))
@@ -38,9 +42,9 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         self.assertIsInstance(instance, self.klass)
 
     def test_from_file_object(self):
-        one = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_1.dcm'])
-        two = get_file_from_cloud_test_repo([TEST_DIR, 'no_test_or_image_type_2.dcm'])
-        with open(one, 'rb') as s1, open(two, 'rb') as s2:
+        one = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_1.dcm"])
+        two = get_file_from_cloud_test_repo([TEST_DIR, "no_test_or_image_type_2.dcm"])
+        with open(one, "rb") as s1, open(two, "rb") as s2:
             instance = self.klass(image_paths=(s1, s2))
             instance.analyze()
         self.assertIsInstance(instance, self.klass)
@@ -48,7 +52,7 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
     def test_passing_3_images_fails(self):
         """Test passing the wrong number of images."""
         with self.assertRaises(ValueError):
-            self.klass(image_paths=('', '', ''))
+            self.klass(image_paths=("", "", ""))
 
     def test_print_results(self):
         instance = self.klass.from_demo_images()
@@ -74,17 +78,17 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
 
         data_dict = instance.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
-        self.assertIn('pylinac_version', data_dict)
-        self.assertEqual(data_dict['max_deviation_percent'], instance.max_r_deviation)
+        self.assertIn("pylinac_version", data_dict)
+        self.assertEqual(data_dict["max_deviation_percent"], instance.max_r_deviation)
 
 
 class TestDRGSLoading(LoadingBase, TestCase):
-    url = 'drgs.zip'
+    url = "drgs.zip"
     klass = DRGS
 
 
 class TestDRMLCLoading(LoadingBase, TestCase):
-    url = 'drmlc.zip'
+    url = "drmlc.zip"
     klass = DRMLC
 
 
@@ -94,8 +98,8 @@ class VMATMixin:
     is_zip = False
     segment_positions = {1: Point(100, 200)}
     segment_values = {
-        0: {'r_dev': 0, 'r_corr': 100},
-        4: {'r_dev': 0, 'r_corr': 100},
+        0: {"r_dev": 0, "r_corr": 100},
+        4: {"r_dev": 0, "r_corr": 100},
     }
     avg_abs_r_deviation = 0
     avg_r_deviation = 0
@@ -108,7 +112,10 @@ class VMATMixin:
         if cls.is_zip:
             path = get_file_from_cloud_test_repo([TEST_DIR, *cls.filepaths])
         else:
-            path = [get_file_from_cloud_test_repo([TEST_DIR, path]) for path in cls.filepaths]
+            path = [
+                get_file_from_cloud_test_repo([TEST_DIR, path])
+                for path in cls.filepaths
+            ]
         return path
 
     def setUp(self):
@@ -119,11 +126,17 @@ class VMATMixin:
         self.vmat.analyze()
         if self.print_debug:
             print(self.vmat.results())
-            print(f"Segment 0: rdev {self.vmat.segments[0].r_dev:2.3f}, rcorr {self.vmat.segments[0].r_corr:2.3f}")
+            print(
+                f"Segment 0: rdev {self.vmat.segments[0].r_dev:2.3f}, rcorr {self.vmat.segments[0].r_corr:2.3f}"
+            )
             if self.klass == DRGS:
-                print(f"Segment 4: rdev {self.vmat.segments[4].r_dev:2.3f}, rcorr {self.vmat.segments[4].r_corr:2.3f}")
+                print(
+                    f"Segment 4: rdev {self.vmat.segments[4].r_dev:2.3f}, rcorr {self.vmat.segments[4].r_corr:2.3f}"
+                )
             else:
-                print(f"Segment 2: rdev {self.vmat.segments[2].r_dev:2.3f}, rcorr {self.vmat.segments[2].r_corr:2.3f}")
+                print(
+                    f"Segment 2: rdev {self.vmat.segments[2].r_dev:2.3f}, rcorr {self.vmat.segments[2].r_corr:2.3f}"
+                )
             print("Max dev", self.vmat.max_r_deviation)
 
     def test_overall_passed(self):
@@ -140,13 +153,19 @@ class VMATMixin:
 
     def test_segment_values(self):
         for key, value in self.segment_values.items():
-            within_1(self.vmat.segments[key].r_dev, value['r_dev'])
-            within_1(self.vmat.segments[key].r_corr, value['r_corr'])
+            within_1(self.vmat.segments[key].r_dev, value["r_dev"])
+            within_1(self.vmat.segments[key].r_corr, value["r_corr"])
 
     def test_deviations(self):
-        self.assertAlmostEqual(self.vmat.avg_abs_r_deviation, self.avg_abs_r_deviation, delta=0.05)
-        self.assertAlmostEqual(self.vmat.avg_r_deviation, self.avg_r_deviation, delta=0.02)
-        self.assertAlmostEqual(self.vmat.max_r_deviation, self.max_r_deviation, delta=0.1)
+        self.assertAlmostEqual(
+            self.vmat.avg_abs_r_deviation, self.avg_abs_r_deviation, delta=0.05
+        )
+        self.assertAlmostEqual(
+            self.vmat.avg_r_deviation, self.avg_r_deviation, delta=0.02
+        )
+        self.assertAlmostEqual(
+            self.vmat.max_r_deviation, self.max_r_deviation, delta=0.1
+        )
 
     def test_different_segment_size_is_nearly_the_same(self):
         segment_width_mm = 10
@@ -158,10 +177,11 @@ class VMATMixin:
 
 class TestDRGSDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRGS demo images."""
+
     segment_positions = {0: Point(161, 192), 4: Point(314, 192)}
     segment_values = {
-        0: {'r_dev': 0.965, 'r_corr': 6.2},
-        4: {'r_dev': -0.459, 'r_corr': 6},
+        0: {"r_dev": 0.965, "r_corr": 6.2},
+        4: {"r_dev": -0.459, "r_corr": 6},
     }
     avg_abs_r_deviation = 0.66
     max_r_deviation = 1.8
@@ -184,10 +204,11 @@ class TestDRGSDemo(VMATMixin, TestCase):
 
 class TestDRMLCDemo(VMATMixin, TestCase):
     """Tests of the result values of the DRMLC demo images."""
+
     segment_positions = {0: Point(170, 192), 2: Point(285, 192)}
     segment_values = {
-        0: {'r_dev': -0.7, 'r_corr': 5.7},
-        2: {'r_dev': -0.405, 'r_corr': 5.8},
+        0: {"r_dev": -0.7, "r_corr": 5.7},
+        2: {"r_dev": -0.405, "r_corr": 5.8},
     }
     avg_abs_r_deviation = 0.44
     max_r_deviation = 0.89
@@ -202,12 +223,16 @@ class TestDRMLCDemo(VMATMixin, TestCase):
 
 class TestDRMLC105(VMATMixin, TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
+
     klass = DRMLC
-    filepaths = ('DRMLCopen-105-example.dcm', 'DRMLCdmlc-105-example.dcm')
+    filepaths = ("DRMLCopen-105-example.dcm", "DRMLCdmlc-105-example.dcm")
     segment_positions = {0: Point(391, 384), 2: Point(552, 384)}
     segment_values = {
-        0: {'r_dev': -2.1, 'r_corr': 13.66},  # r_corr changed in v3.0 due to difference in default inversion/scaling
-        2: {'r_dev': 0.22, 'r_corr': 14},
+        0: {
+            "r_dev": -2.1,
+            "r_corr": 13.66,
+        },  # r_corr changed in v3.0 due to difference in default inversion/scaling
+        2: {"r_dev": 0.22, "r_corr": 14},
     }
     avg_abs_r_deviation = 1.06
     max_r_deviation = 2.11
@@ -216,12 +241,16 @@ class TestDRMLC105(VMATMixin, TestCase):
 
 class TestDRGS105(VMATMixin, TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
-    filepaths = ('DRGSopen-105-example.dcm', 'DRGSdmlc-105-example.dcm')
+
+    filepaths = ("DRGSopen-105-example.dcm", "DRGSdmlc-105-example.dcm")
     klass = DRGS
     segment_positions = {0: Point(371, 384), 2: Point(478, 384)}
     segment_values = {
-        0: {'r_dev': 1.385, 'r_corr': 15.11},  # r_corr changed in v3.0 due to difference in default inversion/scaling
-        4: {'r_dev': -0.8, 'r_corr': 14.8},
+        0: {
+            "r_dev": 1.385,
+            "r_corr": 15.11,
+        },  # r_corr changed in v3.0 due to difference in default inversion/scaling
+        4: {"r_dev": -0.8, "r_corr": 14.8},
     }
     avg_abs_r_deviation = 0.68
     max_r_deviation = 1.38
@@ -229,12 +258,13 @@ class TestDRGS105(VMATMixin, TestCase):
 
 class TestDRMLC2(VMATMixin, TestCase):
     """Tests of the result values of MLCS images at 105cm SID."""
-    filepaths = ('DRMLC-2_open.dcm', 'DRMLC-2_dmlc.dcm')
+
+    filepaths = ("DRMLC-2_open.dcm", "DRMLC-2_dmlc.dcm")
     klass = DRMLC
     segment_positions = {0: Point(199, 192), 2: Point(275, 192)}
     segment_values = {
-        0: {'r_dev': 0.77, 'r_corr': 6.1},
-        2: {'r_dev': -1.1, 'r_corr': 6},
+        0: {"r_dev": 0.77, "r_corr": 6.1},
+        2: {"r_dev": -1.1, "r_corr": 6},
     }
     avg_abs_r_deviation = 1.4
     max_r_deviation = 1.98
@@ -243,12 +273,13 @@ class TestDRMLC2(VMATMixin, TestCase):
 
 class TestDRGS2(VMATMixin, TestCase):
     """Tests of the result values of DRMLC images at 105cm SID."""
-    filepaths = ('DRGS-2_open.dcm', 'DRGS-2_dmlc.dcm')
+
+    filepaths = ("DRGS-2_open.dcm", "DRGS-2_dmlc.dcm")
     klass = DRGS
     segment_positions = {0: Point(191, 192), 2: Point(242, 192)}
     segment_values = {
-        0: {'r_dev': 1.5, 'r_corr': 6.4},
-        4: {'r_dev': -0.7, 'r_corr': 6.3},
+        0: {"r_dev": 1.5, "r_corr": 6.4},
+        4: {"r_dev": -0.7, "r_corr": 6.3},
     }
     avg_abs_r_deviation = 0.7
     max_r_deviation = 1.5
@@ -256,12 +287,13 @@ class TestDRGS2(VMATMixin, TestCase):
 
 class TestDRMLCWideGaps(VMATMixin, TestCase):
     """Tests of the result values of a perfect DRMLC but with very wide gaps."""
-    filepaths = ('vmat-drgs-open-wide-gaps.dcm', 'vmat-drgs-open-wide-gaps.dcm')
+
+    filepaths = ("vmat-drgs-open-wide-gaps.dcm", "vmat-drgs-open-wide-gaps.dcm")
     klass = DRMLC
     segment_positions = {0: Point(439, 640), 2: Point(707, 640)}
     segment_values = {
-        0: {'r_dev': 0, 'r_corr': 100},
-        2: {'r_dev': 0, 'r_corr': 100},
+        0: {"r_dev": 0, "r_corr": 100},
+        2: {"r_dev": 0, "r_corr": 100},
     }
     avg_abs_r_deviation = 0
     max_r_deviation = 0.0
@@ -273,12 +305,13 @@ class TestDRMLCWideGaps(VMATMixin, TestCase):
 
 class TestDRMLCOverlapGaps(VMATMixin, TestCase):
     """Tests of the result values of a perfect DRMLC but with gaps that are overlapping (e.g. from a poor DLG)."""
-    filepaths = ('vmat-drgs-open-overlap.dcm', 'vmat-drgs-open-overlap.dcm')
+
+    filepaths = ("vmat-drgs-open-overlap.dcm", "vmat-drgs-open-overlap.dcm")
     klass = DRMLC
     segment_positions = {0: Point(439, 640), 2: Point(707, 640)}
     segment_values = {
-        0: {'r_dev': 0, 'r_corr': 100},
-        2: {'r_dev': 0, 'r_corr': 100},
+        0: {"r_dev": 0, "r_corr": 100},
+        2: {"r_dev": 0, "r_corr": 100},
     }
     avg_abs_r_deviation = 0
     max_r_deviation = 0.0

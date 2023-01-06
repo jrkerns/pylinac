@@ -12,13 +12,13 @@ def run_star(path):
         mystar.analyze()
         if mystar.wobble.diameter_mm > 3:
             raise Exception("Diamater was > 3mm.")
-        return 'Success'
+        return "Success"
     except Exception as e:
-        return 'Failure: {} @ {}'.format(e, path)
+        return "Failure: {} @ {}".format(e, path)
 
 
 class StarshotBank(DataBankMixin, TestCase):
-    DATA_DIR = ['Starshots']
+    DATA_DIR = ["Starshots"]
 
     def test_all(self):
         super().test_all(run_star)

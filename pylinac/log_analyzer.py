@@ -2069,7 +2069,7 @@ class Dynalog(LogBase):
         notes: str = None,
         metadata: dict = None,
         open_file: bool = False,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -2397,7 +2397,9 @@ class TrajectoryLog(LogBase):
     def _read_txt_file(self) -> None:
         """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
         self.txt = None
-        if ".bin" in str(self.filename):  # files downloaded via URL may not have .bin ending
+        if ".bin" in str(
+            self.filename
+        ):  # files downloaded via URL may not have .bin ending
             txt_filename = str(self.filename).replace(".bin", ".txt")
             if osp.isfile(txt_filename):
                 self.txt = {}
@@ -2531,7 +2533,7 @@ class TrajectoryLog(LogBase):
         metadata: dict = None,
         notes: Union[str, list] = None,
         open_file: bool = False,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 

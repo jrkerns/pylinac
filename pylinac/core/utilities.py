@@ -63,9 +63,7 @@ def assign2machine(source_file: str, machine_file: str):
     dcm_source.save_as(source_file)
 
 
-def is_close(
-    val: float, target: Union[float, Sequence], delta: float = 1
-):
+def is_close(val: float, target: Union[float, Sequence], delta: float = 1):
     """Return whether the value is near the target value(s).
 
     Parameters

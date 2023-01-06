@@ -1,11 +1,12 @@
 -r requirements.txt
 black
-pytest
 bump2version
-nox
-pytest-xdist
-pytest-cov==3.0.0
 google-cloud-storage
+nox
+pre-commit
+pytest
+pytest-cov==3.0.0
+pytest-xdist
 sphinx
 sphinx-autobuild
 twine

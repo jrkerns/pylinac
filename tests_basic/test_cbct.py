@@ -82,7 +82,7 @@ class TestGeneral(TestCase):
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         cbct = CatPhan504.from_zip(path)
         for img in cbct.dicom_stack:
-            img.crop(pixels=20, edges=('bottom',))
+            img.crop(pixels=20, edges=("bottom",))
         # shouldn't raise
         cbct.analyze()
 
@@ -1065,6 +1065,7 @@ class Katy1(CatPhan504Mixin, TestCase):
 
 class CTWithCloseCouch(CatPhan503Mixin, TestCase):
     """A CT where the couch is super close"""
+
     file_name = "CT with close couch.zip"
     expected_roll = 0.43
     origin_slice = 133

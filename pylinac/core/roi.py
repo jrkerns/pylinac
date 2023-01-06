@@ -110,7 +110,10 @@ class DiskROI(Circle):
         return masked_array
 
     def plot2axes(
-        self, axes: Optional[plt.Axes] = None, edgecolor: str = "black", fill: bool = False
+        self,
+        axes: Optional[plt.Axes] = None,
+        edgecolor: str = "black",
+        fill: bool = False,
     ) -> None:
         """Plot the Circle on the axes.
 

@@ -16,6 +16,7 @@ docutils==0.18.1
 filelock==3.6.0
 fonttools==4.28.5
 future==0.18.2
+google-cloud-storage
 idna==3.3
 imageio==2.13.5
 importlib-metadata==4.11.4
@@ -37,6 +38,8 @@ pydicom==2.2.2
 Pygments==2.12.0
 pyparsing==3.0.6
 pytest==7.1.2
+pytest-cov==3.0.0
+pytest-xdist==2.5.0
 python-dateutil==2.8.2
 PyWavelets==1.2.0
 pywin32-ctypes==0.2.0
@@ -49,6 +52,9 @@ rich==12.4.4
 scikit-image==0.19.1
 scipy==1.7.3
 six==1.16.0
+sphinx
+sphinx-autobuild
+sphinx-rtd-theme
 tifffile==2021.11.2
 tomli==2.0.1
 tqdm==4.62.3
@@ -57,9 +63,3 @@ urllib3==1.26.9
 virtualenv==20.14.1
 webencodings==0.5.1
 zipp==3.8.0
-pytest-xdist==2.5.0
-google-cloud-storage
-sphinx
-sphinx-rtd-theme
-sphinx-autobuild
-pytest-cov==3.0.0

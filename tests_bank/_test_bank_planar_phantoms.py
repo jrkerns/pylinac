@@ -13,11 +13,11 @@ def process_phantom(phantom, path):
     try:
         phantom.analyze()
         phantom.plot_analyzed_image(show=False)
-        plt.close('all')
+        plt.close("all")
     except Exception as e:
-        return 'Failure: {} @ {}'.format(e, path)
+        return "Failure: {} @ {}".format(e, path)
     else:
-        return 'Success'
+        return "Success"
 
 
 def run_leeds(path):
@@ -27,7 +27,8 @@ def run_leeds(path):
 
 
 class TestLeedsImageBank(DataBankMixin, TestCase):
-    DATA_DIR = ['2D Image quality phantoms', 'Leeds']
+    DATA_DIR = ["2D Image quality phantoms", "Leeds"]
+
     def test_all(self):
         super().test_all(run_leeds)
 
@@ -39,7 +40,7 @@ def run_qc3(path):
 
 
 class TestQC3ImageBank(DataBankMixin, TestCase):
-    DATA_DIR = ['2D Image quality phantoms', 'SI QC-3']
+    DATA_DIR = ["2D Image quality phantoms", "SI QC-3"]
     print_success_path = True
     write_failures_to_file = True
 
@@ -54,7 +55,7 @@ def run_si_qckv(path):
 
 
 class TestQCkVImageBank(DataBankMixin, TestCase):
-    DATA_DIR = ['2D Image quality phantoms', 'SI QC-kV']
+    DATA_DIR = ["2D Image quality phantoms", "SI QC-kV"]
     print_success_path = True
     write_failures_to_file = True
 
@@ -68,8 +69,9 @@ def run_lasvegas(path):
 
 
 class TestLasVegasImageBank(DataBankMixin, TestCase):
-    DATA_DIR = ['2D Image quality phantoms', 'Las Vegas']
+    DATA_DIR = ["2D Image quality phantoms", "Las Vegas"]
     write_failures_to_file = True
+
     def test_all(self):
         super().test_all(run_lasvegas)
 
@@ -80,8 +82,9 @@ def run_ptwepid(path):
 
 
 class TestPTWEPIDBank(DataBankMixin, TestCase):
-    DATA_DIR = ['2D Image quality phantoms', 'PTW-EPID']
+    DATA_DIR = ["2D Image quality phantoms", "PTW-EPID"]
     write_failures_to_file = True
+
     def test_all(self):
         super().test_all(run_ptwepid)
 
@@ -92,7 +95,7 @@ def run_snckv(path):
 
 
 class TestSNCkVBank(DataBankMixin, TestCase):
-    DATA_DIR = ['2D Image quality phantoms', 'Sun Nuclear', 'kV']
+    DATA_DIR = ["2D Image quality phantoms", "Sun Nuclear", "kV"]
     write_failures_to_file = True
 
     def test_all(self):
@@ -105,7 +108,7 @@ def run_sncmv(path):
 
 
 class TestSNCMVBank(DataBankMixin, TestCase):
-    DATA_DIR = ['2D Image quality phantoms', 'Sun Nuclear', 'MV']
+    DATA_DIR = ["2D Image quality phantoms", "Sun Nuclear", "MV"]
     write_failures_to_file = True
 
     def test_all(self):

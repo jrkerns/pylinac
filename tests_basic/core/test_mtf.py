@@ -4,7 +4,6 @@ from pylinac.core.mtf import MTF
 
 
 class TestMTF(unittest.TestCase):
-
     def test_normal_mtf(self):
         pair_units = (0.1, 0.2, 0.3)
         maxs = (500, 300, 100)

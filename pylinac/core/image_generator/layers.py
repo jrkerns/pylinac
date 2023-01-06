@@ -4,7 +4,9 @@ import numpy as np
 from skimage import draw, filters
 
 
-def clip_add(image1: np.ndarray, image2: np.ndarray, dtype: np.dtype = np.uint16) -> np.ndarray:
+def clip_add(
+    image1: np.ndarray, image2: np.ndarray, dtype: np.dtype = np.uint16
+) -> np.ndarray:
     """Clip the image to the dtype extrema. Otherwise, the bits will flip."""
     return np.clip(image1 + image2, np.iinfo(dtype).min, np.iinfo(dtype).max).astype(
         dtype

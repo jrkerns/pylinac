@@ -394,7 +394,7 @@ class VMATBase:
         notes: str = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -421,7 +421,7 @@ class VMATBase:
             filename=filename,
             page_title=f"{self._result_short_header} VMAT Analysis",
             metadata=metadata,
-            logo=logo
+            logo=logo,
         )
         for y, x, width, img in zip(
             (9, 9, -2),

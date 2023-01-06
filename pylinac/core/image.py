@@ -463,9 +463,7 @@ class BaseImage:
         """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW n times."""
         self.array = np.rot90(self.array, n)
 
-    def threshold(
-        self, threshold: float, kind: str = "high"
-    ) -> None:
+    def threshold(self, threshold: float, kind: str = "high") -> None:
         """Apply a high- or low-pass threshold filter.
 
         Parameters
@@ -695,7 +693,7 @@ class BaseImage:
         # equation: (measurement - reference) / sqrt ( doseTA^2 + distTA^2 * image_gradient^2 )
         subtracted_img = np.abs(comp_img - ref_img)
         denominator = np.sqrt(
-            ((doseTA / 100.0) ** 2) + ((distTA_pixels ** 2) * (grad_img ** 2))
+            ((doseTA / 100.0) ** 2) + ((distTA_pixels**2) * (grad_img**2))
         )
         gamma_map = subtracted_img / denominator
 
@@ -1331,7 +1329,7 @@ def gamma_2d(
                 if not global_dose:
                     dose_ta = dose_to_agreement / 100 * ref_point
                 capital_gamma = math.sqrt(
-                    dist ** 2 / distance_to_agreement ** 2 + dose ** 2 / dose_ta ** 2
+                    dist**2 / distance_to_agreement**2 + dose**2 / dose_ta**2
                 )
                 capital_gammas.append(capital_gamma)
             gamma[row_idx, col_idx] = min(np.nanmin(capital_gammas), gamma_cap_value)

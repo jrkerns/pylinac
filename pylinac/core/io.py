@@ -94,7 +94,10 @@ class TemporaryZipDirectory(TemporaryDirectory):
 
 
 def retrieve_filenames(
-    directory: Union[str, Path], func: Optional[Callable] = None, recursive: bool = True, **kwargs
+    directory: Union[str, Path],
+    func: Optional[Callable] = None,
+    recursive: bool = True,
+    **kwargs
 ) -> List[str]:
     """Retrieve file names in a directory.
 
@@ -164,7 +167,9 @@ def is_url(url: str) -> bool:
         return False
 
 
-def get_url(url: str, destination: Union[str, Path, None] = None, progress_bar: bool = True) -> str:
+def get_url(
+    url: str, destination: Union[str, Path, None] = None, progress_bar: bool = True
+) -> str:
     """Download a URL to a local file.
 
     Parameters
@@ -265,9 +270,16 @@ class SNCProfiler:
         n_detectors_row : int
             The number of detectors in a given row. Note that they Y profile includes 2 extra detectors from the other 3.
         """
-        def copy_cax_dose(array: np.ndarray, center_detector_idx: int = 31) -> np.ndarray:
-            array = np.insert(array, center_detector_idx+1, array[center_detector_idx])
-            array = np.insert(array, center_detector_idx-1, array[center_detector_idx])
+
+        def copy_cax_dose(
+            array: np.ndarray, center_detector_idx: int = 31
+        ) -> np.ndarray:
+            array = np.insert(
+                array, center_detector_idx + 1, array[center_detector_idx]
+            )
+            array = np.insert(
+                array, center_detector_idx - 1, array[center_detector_idx]
+            )
             return array
 
         y_prof = SingleProfile(
@@ -275,13 +287,19 @@ class SNCProfiler:
         )
         # for all but the y profile, we are missing detectors to the left and right of center because the center y-detector is too wide
         # for physical spacing purposes we have to fill those values in. we use the central value.
-        x_prof = SingleProfile(copy_cax_dose(self.integrated_dose[:n_detectors_row]), **kwargs)
-        pos_prof = SingleProfile(copy_cax_dose(
-            self.integrated_dose[2 * n_detectors_row + 2 : 3 * n_detectors_row + 2]),
+        x_prof = SingleProfile(
+            copy_cax_dose(self.integrated_dose[:n_detectors_row]), **kwargs
+        )
+        pos_prof = SingleProfile(
+            copy_cax_dose(
+                self.integrated_dose[2 * n_detectors_row + 2 : 3 * n_detectors_row + 2]
+            ),
             **kwargs
         )
-        neg_prof = SingleProfile(copy_cax_dose(
-            self.integrated_dose[3 * n_detectors_row + 2 : 4 * n_detectors_row + 2]),
+        neg_prof = SingleProfile(
+            copy_cax_dose(
+                self.integrated_dose[3 * n_detectors_row + 2 : 4 * n_detectors_row + 2]
+            ),
             **kwargs
         )
         return x_prof, y_prof, pos_prof, neg_prof

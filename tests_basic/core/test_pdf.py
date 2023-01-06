@@ -31,7 +31,9 @@ class TestPDF(unittest.TestCase):
         pf.analyze()
         with tempfile.NamedTemporaryFile() as tf:
             # shouldn't raise.
-            pf.publish_pdf(tf, logo=os.path.join(os.path.dirname(__file__), "rm-logo.png"))
+            pf.publish_pdf(
+                tf, logo=os.path.join(os.path.dirname(__file__), "rm-logo.png")
+            )
 
     def test_custom_logo_path(self):
         pf = PicketFence.from_demo_image()

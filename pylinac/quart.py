@@ -473,7 +473,7 @@ class QuartDVT(CatPhanBase):
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 

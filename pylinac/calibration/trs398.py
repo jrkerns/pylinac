@@ -8,10 +8,6 @@ import numpy as np
 
 from . import tg51 as _tg51
 from .tg51 import (
-    mmHg2kPa,
-    mbar2kPa,
-    fahrenheit2celsius,
-    tpr2010_from_pdd2010,
     MIN_PTP,
     MAX_PTP,
     MIN_PELEC,
@@ -608,7 +604,7 @@ def k_s(
         bounds=(MIN_PION, MAX_PION),
         message="Ks is out of bounds. Verify inputs or check chamber",
     )
-    return float(a["a0"] + a["a1"] * m_ratio + a["a2"] * (m_ratio ** 2))
+    return float(a["a0"] + a["a1"] * m_ratio + a["a2"] * (m_ratio**2))
 
 
 def _verify_voltage_ratio_is_valid(voltage_ratio):

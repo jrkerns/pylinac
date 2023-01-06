@@ -468,7 +468,7 @@ class WinstonLutz:
         ]
         xz_sag = np.array([getattr(img, attr).x for img in imgs])
         y_sag = np.array([getattr(img, attr).y for img in imgs])
-        rms = np.sqrt(xz_sag ** 2 + y_sag ** 2)
+        rms = np.sqrt(xz_sag**2 + y_sag**2)
 
         # plot the axis deviation
         if ax is None:
@@ -777,7 +777,7 @@ class WinstonLutz:
         notes: Optional[Union[str, List[str]]] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -804,7 +804,9 @@ class WinstonLutz:
             raise ValueError("The set is not analyzed. Use .analyze() first.")
         plt.ioff()
         title = "Winston-Lutz Analysis"
-        canvas = pdf.PylinacCanvas(filename, page_title=title, metadata=metadata, logo=logo)
+        canvas = pdf.PylinacCanvas(
+            filename, page_title=title, metadata=metadata, logo=logo
+        )
         text = self.results(as_list=True)
         canvas.add_text(text=text, location=(7, 25.5))
         # draw summary image on 1st page
@@ -1149,7 +1151,7 @@ def is_near_center(
 
 def is_modest_size(region: RegionProperties, dpmm: float, bb_size: float) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
-    bb_area = region.area_filled / (dpmm ** 2)
+    bb_area = region.area_filled / (dpmm**2)
     bb_size = max((bb_size, 2.1))
     expected_bb_area = np.pi * (bb_size / 2) ** 2
     larger_bb_area = np.pi * ((bb_size + 2) / 2) ** 2
