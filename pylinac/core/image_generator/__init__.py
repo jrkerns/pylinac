@@ -1,4 +1,3 @@
-from .simulators import AS1200Image, AS500Image, AS1000Image
 from .layers import (
     PerfectBBLayer,
     PerfectConeLayer,
@@ -10,4 +9,5 @@ from .layers import (
     FilterFreeConeLayer,
     RandomNoiseLayer,
 )
-from .utils import generate_picketfence, generate_winstonlutz, generate_winstonlutz_cone
+from .simulators import AS1200Image, AS500Image, AS1000Image
+from .utils import generate_picketfence, generate_winstonlutz, generate_winstonlutz_cone, generate_winstonlutz_multi_bb

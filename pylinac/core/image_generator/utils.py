@@ -1,7 +1,8 @@
 import copy
 import os
 import os.path as osp
-from typing import Sequence, Union, List, Tuple, Type, Optional
+import random
+from typing import Sequence, Union, List, Tuple, Type, Optional, Dict
 
 from . import GaussianFilterLayer
 from .layers import (
@@ -16,6 +17,7 @@ from .layers import (
 from .simulators import Simulator
 from ..geometry import cos, sin
 from ...picketfence import Orientation
+from ...winston_lutz import bb_projection_long, bb_projection_gantry_plane
 
 
 def generate_lightrad(
@@ -200,11 +202,13 @@ def generate_winstonlutz(
                 cax_offset_mm=(gantry_tilt * cos(gantry), gantry_sag * sin(gantry)),
             )
         )
+        long_offset = bb_projection_long(offset_in=offset_mm_in, offset_up=offset_mm_up, offset_left=offset_mm_left, sad=1000, gantry=gantry)
+        gplane_offset = bb_projection_gantry_plane(offset_left=offset_mm_left, offset_up=offset_mm_up, sad=1000, gantry=gantry)
         sim_single.add_layer(
             PerfectBBLayer(
                 cax_offset_mm=(
-                    -offset_mm_in,
-                    -offset_mm_left * cos(gantry) - offset_mm_up * sin(gantry),
+                    long_offset,
+                    gplane_offset
                 ),
                 bb_size_mm=bb_size_mm,
             )
@@ -213,6 +217,108 @@ def generate_winstonlutz(
             for layer in final_layers:
                 sim_single.add_layer(layer)
         file_name = f"WL G={gantry}, C={coll}, P={couch}; Field={field_size_mm}mm; BB={bb_size_mm}mm @ left={offset_mm_left}, in={offset_mm_in}, up={offset_mm_up}; Gantry tilt={gantry_tilt}, Gantry sag={gantry_sag}.dcm"
+        sim_single.generate_dicom(
+            osp.join(dir_out, file_name),
+            gantry_angle=gantry,
+            coll_angle=coll,
+            table_angle=couch,
+        )
+        file_names.append(file_name)
+    return file_names
+
+
+def generate_winstonlutz_multi_bb(
+    simulator: Simulator,
+    field_layer: Type[Layer],
+    dir_out: str,
+    offsets: Union[List[List[float]], List[Dict[str, float]]],
+    field_size_mm: Tuple[float, float] = (30, 30),
+    final_layers: Optional[List[Layer]] = None,
+    bb_size_mm: float = 5,
+    image_axes: ((int, int, int), ...) = (
+        (0, 0, 0),
+        (90, 0, 0),
+        (180, 0, 0),
+        (270, 0, 0),
+    ),
+    gantry_tilt: float = 0,
+    gantry_sag: float = 0,
+    clean_dir: bool = True,
+    jitter_mm: float = 0
+) -> List[str]:
+    """Create a mock set of WL images, simulating gantry sag effects. Produces one image for each item in image_axes.
+    This will also generate multiple BBs on the image, one per item in `offsets`. Each offset should be a list of
+    the shifts of the BB relative to isocenter like so: [<left>, <up>, <in>] OR an arrangement from the WL module.
+
+    Parameters
+    ----------
+    simulator
+        The image simulator
+    field_layer
+        The primary field layer simulating radiation
+    dir_out
+        The directory to save the images to.
+    offsets
+        A list of lists containing the shift of the BBs from iso; each sublist should be a 3-item list/tuple of left, up, in.
+        Negative values are acceptable and will go the opposite direction.
+    field_size_mm
+        The field size of the radiation field in mm
+    final_layers
+        Layers to apply after generating the primary field and BB layer. Useful for blurring or adding noise.
+    bb_size_mm
+        The size of the BB. Must be positive.
+    image_axes
+        List of axis values for the images. Sequence is (Gantry, Coll, Couch).
+    gantry_tilt
+        The tilt of the gantry that affects the position at 0 and 180. Simulates a simple cosine function.
+    gantry_sag
+        The sag of the gantry that affects the position at gantry=90 and 270. Simulates a simple sine function.
+    clean_dir
+        Whether to clean out the output directory. Useful when iterating.
+    jitter_mm
+        The amount of jitter to add to the in/left/up location of the BB in MM.
+    """
+    if not osp.isdir(dir_out):
+        os.mkdir(dir_out)
+    if clean_dir:
+        for pdir, _, files in os.walk(dir_out):
+            [os.remove(osp.join(pdir, f)) for f in files]
+    file_names = []
+    for (gantry, coll, couch) in image_axes:
+        sim_single = copy.copy(simulator)
+        sim_single.add_layer(
+            field_layer(
+                field_size_mm=field_size_mm,
+                cax_offset_mm=(gantry_tilt * cos(gantry), gantry_sag * sin(gantry)),
+            )
+        )
+        for offset in offsets:
+            if isinstance(offset, dict):
+                offset_mm_left = offset['offset_left_mm'] + random.uniform(-jitter_mm, jitter_mm)
+                offset_mm_up = offset['offset_up_mm'] + random.uniform(-jitter_mm, jitter_mm)
+                offset_mm_in = -offset['offset_in_mm'] + random.uniform(-jitter_mm, jitter_mm)
+            else:
+                offset_mm_left = offset[0] + random.uniform(-jitter_mm, jitter_mm)
+                offset_mm_up = offset[1] + random.uniform(-jitter_mm, jitter_mm)
+                offset_mm_in = -offset[2] + random.uniform(-jitter_mm, jitter_mm)  #negative because pixels increase as we go out, so to go in we subtract
+
+            long_offset = bb_projection_long(offset_in=offset_mm_in, offset_up=offset_mm_up,
+                                             offset_left=offset_mm_left, sad=1000, gantry=gantry)
+            gplane_offset = bb_projection_gantry_plane(offset_left=offset_mm_left, offset_up=offset_mm_up,
+                                                       sad=1000, gantry=gantry)
+            sim_single.add_layer(
+                PerfectBBLayer(
+                    cax_offset_mm=(
+                        long_offset,
+                        gplane_offset,
+                    ),
+                    bb_size_mm=bb_size_mm,
+                )
+            )
+        if final_layers is not None:
+            for layer in final_layers:
+                sim_single.add_layer(layer)
+        file_name = f"WL G={gantry}, C={coll}, P={couch}; Field={field_size_mm}mm; BB={bb_size_mm}mm @ left={offset_mm_left:3.2f}, in={offset_mm_in:3.2f}, up={offset_mm_up:3.2f}; Gantry tilt={gantry_tilt}, Gantry sag={gantry_sag}.dcm"
         sim_single.generate_dicom(
             osp.join(dir_out, file_name),
             gantry_angle=gantry,

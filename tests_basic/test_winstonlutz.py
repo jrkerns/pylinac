@@ -1,16 +1,18 @@
 import copy
 import io
+import math
 import tempfile
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
 
 import pylinac
-from pylinac import WinstonLutz
-from pylinac.core.geometry import Vector, vector_is_close
+from pylinac import WinstonLutz, WinstonLutzMultiTarget
+from pylinac.core.geometry import Vector, vector_is_close, Line, Point
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.core.scale import MachineScale
-from pylinac.winston_lutz import Axis, WinstonLutzResult, WinstonLutz2D
+from pylinac.winston_lutz import Axis, WinstonLutzResult, WinstonLutz2D, bb_projection_long, bb_projection_gantry_plane, \
+    BB, bb_ray_line, BBArrangement
 from tests_basic.utils import (
     save_file,
     CloudFileMixin,
@@ -21,6 +23,315 @@ from tests_basic.utils import (
 )
 
 TEST_DIR = "Winston-Lutz"
+
+
+class TestProjection(TestCase):
+    """Test the BB isoplane projections"""
+
+    def test_longitudinal_projection(self):
+        # in coordinate space, positive is in, but in plotting space, positive is out
+        # thus, we return the opposite sign than the coordinate space
+        # dead center
+        assert bb_projection_long(offset_in=0, offset_up=0, offset_left=0, sad=1000, gantry=0) == 0
+        # up-only won't change it
+        assert bb_projection_long(offset_in=0, offset_up=30, offset_left=0, sad=1000, gantry=0) == 0
+        # long-only won't change it
+        assert bb_projection_long(offset_in=20, offset_up=0, offset_left=0, sad=1000, gantry=0) == 20
+        # left-only won't change it
+        assert bb_projection_long(offset_in=0, offset_up=0, offset_left=15, sad=1000, gantry=0) == 0
+        # in and up will make it look further away at gantry 0
+        assert math.isclose(bb_projection_long(offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0), 10.1, abs_tol=0.005)
+        # in and down will make it closer at gantry 0
+        assert math.isclose(bb_projection_long(offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=0), 9.9, abs_tol=0.005)
+        # in and up will make it look closer at gantry 180
+        assert math.isclose(bb_projection_long(offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=180), 9.9, abs_tol=0.005)
+        # in and down will make it further away at gantry 180
+        assert math.isclose(bb_projection_long(offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=180), 10.1, abs_tol=0.005)
+        # in and left will make it closer at gantry 90
+        assert math.isclose(
+            bb_projection_long(offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=90), 9.9,
+            abs_tol=0.005)
+        # in and right will make it further away at gantry 90
+        assert math.isclose(
+            bb_projection_long(offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=90), 10.1,
+            abs_tol=0.005)
+        # in and right will make it closer at gantry 270
+        assert math.isclose(
+            bb_projection_long(offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=270), 9.9,
+            abs_tol=0.005)
+        # in and left won't change at gantry 0
+        assert math.isclose(
+            bb_projection_long(offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=0), 10,
+            abs_tol=0.005)
+        # double the sad will half the effect:
+        # in and up will make it look further away at gantry 0
+        assert math.isclose(bb_projection_long(offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0), 10.1, abs_tol=0.005)
+        # out and up will make it look further away at gantry 0
+        assert math.isclose(bb_projection_long(offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=0), -10.1, abs_tol=0.005)
+        # out and up will make it look closer at gantry 180
+        assert math.isclose(bb_projection_long(offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=180), -9.9, abs_tol=0.005)
+        # out and down will make it look closer at gantry 0
+        assert math.isclose(bb_projection_long(offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=0), -9.9, abs_tol=0.005)
+        # out and down will make it look further out at gantry 180
+        assert math.isclose(bb_projection_long(offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=180), -10.1, abs_tol=0.005)
+
+    def test_gantry_plane_projection(self):
+        # left is negative, right is positive
+        # dead center
+        assert bb_projection_gantry_plane(offset_up=0, offset_left=0, sad=1000, gantry=0) == 0
+        # up-only at gantry 0 is still 0
+        assert bb_projection_gantry_plane(offset_up=10, offset_left=0, sad=1000, gantry=0) == 0
+        # up-only at gantry 90 is exactly negative the offset
+        assert bb_projection_gantry_plane(offset_up=10, offset_left=0, sad=1000, gantry=90) == -10
+        # down-only at gantry 90 is exactly the offset
+        assert bb_projection_gantry_plane(offset_up=-10, offset_left=0, sad=1000, gantry=90) == 10
+        # left-only at gantry 0 is exactly negative the offset
+        assert bb_projection_gantry_plane(offset_up=0, offset_left=10, sad=1000, gantry=0) == -10
+        # right-only at gantry 0 is exactly negative the offset
+        assert bb_projection_gantry_plane(offset_up=0, offset_left=-10, sad=1000, gantry=0) == 10
+        # left-only at gantry 180 is exactly the offset
+        assert bb_projection_gantry_plane(offset_up=0, offset_left=10, sad=1000, gantry=180) == 10
+        # left and up at gantry 0 makes the bb appear away from CAX
+        assert math.isclose(bb_projection_gantry_plane(offset_up=10, offset_left=20, sad=1000, gantry=0), -20.2, abs_tol=0.005)
+        # left and down at gantry 0 makes the bb appear closer to the CAX
+        assert math.isclose(bb_projection_gantry_plane(offset_up=-10, offset_left=20, sad=1000, gantry=0), -19.8, abs_tol=0.005)
+        # left and up at gantry 180 makes the bb appear closer to CAX
+        assert math.isclose(bb_projection_gantry_plane(offset_up=10, offset_left=20, sad=1000, gantry=180), 19.8, abs_tol=0.005)
+        # left and up at gantry 90 makes the bb appear closer to CAX
+        assert math.isclose(bb_projection_gantry_plane(offset_up=10, offset_left=20, sad=1000, gantry=90), -9.8, abs_tol=0.005)
+        # left and down at gantry 90 makes the bb appear closer to CAX
+        assert math.isclose(bb_projection_gantry_plane(offset_up=-10, offset_left=20, sad=1000, gantry=90), 9.8, abs_tol=0.005)
+        # left and down at gantry 270 makes the bb appear further from the CAX
+        assert math.isclose(bb_projection_gantry_plane(offset_up=-10, offset_left=20, sad=1000, gantry=270), -10.2, abs_tol=0.005)
+        # right and down at gantry 270 makes the bb appear closer the CAX
+        assert math.isclose(bb_projection_gantry_plane(offset_up=-10, offset_left=-20, sad=1000, gantry=270), -9.8, abs_tol=0.005)
+
+
+class TestBB(TestCase):
+
+    def test_measured_0_at_0(self):
+        """The determined BB position when the rays are about the origin should be the origin"""
+        line_g0 = Line(point1=Point(x=1000, y=0, z=0), point2=Point(x=-1000, y=0, z=0))
+        line_g90 = Line(Point(x=0, y=0, z=1000), Point(x=0, y=0, z=-1000))
+        bb = BB({}, ray_lines=[line_g0, line_g90])
+        assert bb.measured_position.x == bb.measured_position.y == bb.measured_position.z == 0
+
+    def test_measured_in_1mm(self):
+        """The determined BB position when the rays are shifted in 1mm should be 1mm"""
+        line_g0 = Line(point1=Point(x=1000, y=1, z=0), point2=Point(x=-1000, y=1, z=0))
+        line_g90 = Line(Point(x=0, y=1, z=1000), Point(x=0, y=1, z=-1000))
+        bb = BB({}, ray_lines=[line_g0, line_g90])
+        assert math.isclose(bb.measured_position.x, 0, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.y, 1, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.z, 0, abs_tol=0.001)
+
+    def test_measured_out_1mm(self):
+        """The determined BB position when the rays are shifted out"""
+        line_g0 = Line(point1=Point(x=1000, y=-1, z=0), point2=Point(x=-1000, y=-1, z=0))
+        line_g90 = Line(Point(x=0, y=-1, z=1000), Point(x=0, y=-1, z=-1000))
+        bb = BB({}, ray_lines=[line_g0, line_g90])
+        assert math.isclose(bb.measured_position.x, 0, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.y, -1, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.z, 0, abs_tol=0.001)
+
+    def test_measured_up_1mm(self):
+        """The determined BB position when the rays are shifted in 1mm should be 1mm"""
+        line_g0 = Line(point1=Point(x=0, y=0, z=1000), point2=Point(x=0, y=0, z=-1000))
+        line_g90 = Line(Point(x=-1000, y=0, z=1), Point(x=1000, y=0, z=1))
+        bb = BB({}, ray_lines=[line_g0, line_g90])
+        assert math.isclose(bb.measured_position.x, 0, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.y, 0, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.z, 1, abs_tol=0.001)
+
+    def test_measured_down_1mm(self):
+        """The determined BB position when the rays are shifted in 1mm should be 1mm"""
+        line_g0 = Line(point1=Point(x=0, y=0, z=1000), point2=Point(x=0, y=0, z=-1000))
+        line_g90 = Line(Point(x=-1000, y=0, z=-1), Point(x=1000, y=0, z=-1))
+        bb = BB({}, ray_lines=[line_g0, line_g90])
+        assert math.isclose(bb.measured_position.x, 0, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.y, 0, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.z, -1, abs_tol=0.001)
+
+    def test_measured_left_1mm(self):
+        """The determined BB position when the rays are shifted in 1mm should be 1mm"""
+        line_g0 = Line(point1=Point(x=-1, y=0, z=1000), point2=Point(x=-1, y=0, z=-1000))
+        line_g90 = Line(Point(x=-1000, y=0, z=0), Point(x=1000, y=0, z=0))
+        bb = BB({}, ray_lines=[line_g0, line_g90])
+        assert math.isclose(bb.measured_position.x, -1, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.y, 0, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.z, 0, abs_tol=0.001)
+
+    def test_measured_right_1mm(self):
+        """The determined BB position when the rays are shifted in 1mm should be 1mm"""
+        line_g0 = Line(point1=Point(x=1, y=0, z=1000), point2=Point(x=1, y=0, z=-1000))
+        line_g90 = Line(Point(x=-1000, y=0, z=0), Point(x=1000, y=0, z=0))
+        bb = BB({}, ray_lines=[line_g0, line_g90])
+        assert math.isclose(bb.measured_position.x, 1, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.y, 0, abs_tol=0.001)
+        assert math.isclose(bb.measured_position.z, 0, abs_tol=0.001)
+
+    def test_delta_0_at_0(self):
+        """The delta vector should be 0 when the measured bb and nominal position are the same"""
+        line_g0 = Line(point1=Point(x=1000, y=0, z=0), point2=Point(x=-1000, y=0, z=0))
+        line_g90 = Line(Point(x=0, y=0, z=1000), Point(x=0, y=0, z=-1000))
+        bb = BB(nominal_bb={'offset_left_mm': 0, 'offset_up_mm': 0, 'offset_in_mm': 0}, ray_lines=[line_g0, line_g90])
+        assert bb.delta_vector.x == 0
+        assert bb.delta_vector.y == 0
+        assert bb.delta_vector.z == 0
+
+    def test_delta_vector_1_at_shift_1(self):
+        """When the nominal BB is at 0 and the measured BB position is 1 it should be 1"""
+        line_g0 = Line(point1=Point(x=1000, y=1, z=0), point2=Point(x=-1000, y=1, z=0))
+        line_g90 = Line(Point(x=0, y=1, z=1000), Point(x=0, y=1, z=-1000))
+        bb = BB(nominal_bb={'offset_left_mm': 0, 'offset_up_mm': 0, 'offset_in_mm': 0}, ray_lines=[line_g0, line_g90])
+        assert math.isclose(bb.delta_vector.x, 0, abs_tol=0.001)
+        assert math.isclose(bb.delta_vector.y, 1, abs_tol=0.001)
+        assert math.isclose(bb.delta_vector.z, 0, abs_tol=0.001)
+
+    def test_delta_scalar_1_at_shift_1(self):
+        """When the nominal BB is at 0 and the measured BB position is 1 it should be 1"""
+        line_g0 = Line(point1=Point(x=1000, y=1, z=0), point2=Point(x=-1000, y=1, z=0))
+        line_g90 = Line(Point(x=0, y=1, z=1000), Point(x=0, y=1, z=-1000))
+        bb = BB(nominal_bb={'offset_left_mm': 0, 'offset_up_mm': 0, 'offset_in_mm': 0}, ray_lines=[line_g0, line_g90])
+        assert math.isclose(bb.delta_distance, 1, abs_tol=0.001)
+
+
+class TestRays(TestCase):
+    sad = 1000
+    dpmm = 1
+    image_center = Point(0, 0)
+
+    def test_g0_centered(self):
+        """A BB at iso should produce a perfect line"""
+        bb = Point(0, 0)
+        gantry = 0
+        line = bb_ray_line(bb=bb, gantry_angle=gantry, sad=self.sad, image_center=self.image_center, dpmm=self.dpmm)
+        assert line.point1.x == 0
+        assert line.point2.x == 0
+        assert math.isclose(line.point1.y, 0)
+        assert math.isclose(line.point2.y, 0)
+        assert math.isclose(line.point1.z, 1000)
+        assert math.isclose(line.point2.z, -1000)
+
+    def test_g0_out_1mm(self):
+        bb = Point(0, 1)
+        gantry = 0
+        line = bb_ray_line(bb=bb, gantry_angle=gantry, sad=self.sad, image_center=self.image_center, dpmm=self.dpmm)
+        assert line.point1.y == 0
+        assert line.point2.y == 2
+
+    def test_g0_in_1mm(self):
+        bb = Point(0, -1)
+        gantry = 0
+        line = bb_ray_line(bb=bb, gantry_angle=gantry, sad=self.sad, image_center=self.image_center, dpmm=self.dpmm)
+        assert line.point1.y == 0
+        assert line.point2.y == -2
+
+    def test_g0_left_1mm(self):
+        bb = Point(-1, 0)
+        gantry = 0
+        line = bb_ray_line(bb=bb, gantry_angle=gantry, sad=self.sad, image_center=self.image_center, dpmm=self.dpmm)
+        assert line.point1.x == 0
+        assert line.point2.x == -2
+
+    def test_g0_right_1mm(self):
+        bb = Point(1, 0)
+        gantry = 0
+        line = bb_ray_line(bb=bb, gantry_angle=gantry, sad=self.sad, image_center=self.image_center, dpmm=self.dpmm)
+        assert line.point1.x == 0
+        assert line.point2.x == 2
+
+    def test_g90_centered(self):
+        bb = Point(0, 0)
+        gantry = 90
+        line = bb_ray_line(bb=bb, gantry_angle=gantry, sad=self.sad, image_center=self.image_center, dpmm=self.dpmm)
+        assert math.isclose(line.point1.z, 0, abs_tol=0.005)
+        assert math.isclose(line.point2.z, 0, abs_tol=0.005)
+        assert math.isclose(line.point1.x, 1000, abs_tol=0.005)
+        assert math.isclose(line.point2.x, -1000, abs_tol=0.005)
+
+    def test_g90_up_1mm(self):
+        bb = Point(-1, 0)
+        gantry = 90
+        line = bb_ray_line(bb=bb, gantry_angle=gantry, sad=self.sad, image_center=self.image_center, dpmm=self.dpmm)
+        assert math.isclose(line.point1.z, 0, abs_tol=0.005)
+        assert math.isclose(line.point2.z, 2, abs_tol=0.005)
+
+    def test_g90_down_1mm(self):
+        bb = Point(1, 0)
+        gantry = 90
+        line = bb_ray_line(bb=bb, gantry_angle=gantry, sad=self.sad, image_center=self.image_center, dpmm=self.dpmm)
+        assert math.isclose(line.point1.z, 0, abs_tol=0.005)
+        assert math.isclose(line.point2.z, -2, abs_tol=0.005)
+
+    def test_g270_up_1mm(self):
+        bb = Point(1, 0)
+        gantry = 270
+        line = bb_ray_line(bb=bb, gantry_angle=gantry, sad=self.sad, image_center=self.image_center, dpmm=self.dpmm)
+        assert math.isclose(line.point1.z, 0, abs_tol=0.005)
+        assert math.isclose(line.point2.z, 2, abs_tol=0.005)
+
+
+class TestWLMultiImage(TestCase):
+
+    def test_demo_images(self):
+        wl = WinstonLutzMultiTarget.from_demo_images()
+        # shouldn't raise
+        wl.analyze(BBArrangement.SNC_MULTIMET)
+
+    def test_demo(self):
+        # shouldn't raise
+        WinstonLutzMultiTarget.run_demo()
+
+    def test_plot_locations(self):
+        wl = WinstonLutzMultiTarget.from_demo_images()
+        wl.analyze(BBArrangement.SNC_MULTIMET)
+        wl.plot_locations()
+
+    def test_publish_pdf(self):
+        wl = WinstonLutzMultiTarget.from_demo_images()
+        wl.analyze(BBArrangement.SNC_MULTIMET)
+        wl.publish_pdf('output.pdf')
+
+
+class WinstonLutzMultiTargetMixin(CloudFileMixin):
+    dir_path = ["Winston-Lutz"]
+    num_images = 0
+    zip = True
+    bb_size = 5
+    print_results = False
+    wl: WinstonLutzMultiTarget
+
+    @classmethod
+    def setUpClass(cls):
+        filename = cls.get_filename()
+        if cls.zip:
+            cls.wl = WinstonLutzMultiTarget.from_zip(filename, use_filenames=cls.use_filenames)
+        else:
+            cls.wl = WinstonLutzMultiTarget(filename, use_filenames=cls.use_filenames)
+        cls.wl.analyze(bb_size_mm=cls.bb_size, machine_scale=cls.machine_scale)
+        if cls.print_results:
+            print(cls.wl.results())
+
+    def test_number_of_images(self):
+        self.assertEqual(self.num_images, len(self.wl.images))
+
+    def test_bb_max_distance(self):
+        self.assertAlmostEqual(
+            self.wl.cax2bb_distance(metric="max"), self.cax2bb_max_distance, delta=0.15
+        )
+
+    def test_bb_median_distance(self):
+        self.assertAlmostEqual(
+            self.wl.cax2bb_distance(metric="median"),
+            self.cax2bb_median_distance,
+            delta=0.1,
+        )
+
+    def test_bb_mean_distance(self):
+        self.assertAlmostEqual(
+            self.wl.cax2bb_distance(metric="mean"), self.cax2bb_mean_distance, delta=0.1
+        )
 
 
 class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
