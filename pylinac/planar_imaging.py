@@ -1973,6 +1973,16 @@ class SNCMV12510(SNCMV):
         "roi 2": {"distance from center": -0.2, "angle": 0, "roi radius": 0.2},
     }
 
+    def _phantom_radius_calc(self) -> float:
+        """The radius of the phantom in pixels; the value itself doesn't matter, it's just
+        used for relative distances to ROIs.
+
+        Returns
+        -------
+        radius : float
+        """
+        return math.sqrt(self.phantom_ski_region.bbox_area) * 0.105
+
 
 class LeedsTOR(ImagePhantomBase):
     _demo_filename = "leeds.dcm"
