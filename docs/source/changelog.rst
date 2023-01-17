@@ -3,7 +3,7 @@
 Changelog
 =========
 
-v 3.8.0
+v 3.7.1
 -------
 
 Planar Imaging
