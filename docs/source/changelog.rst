@@ -3,6 +3,14 @@
 Changelog
 =========
 
+v 3.8.0
+-------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The SNC MV 12510 ROIs were slightly downscaled. This did not affect MTF or contrast.
+
 v 3.7.0
 -------
 
