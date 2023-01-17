@@ -9,7 +9,8 @@ v 3.8.0
 Planar Imaging
 ^^^^^^^^^^^^^^
 
-* The SNC MV 12510 ROIs were slightly downscaled. This did not affect MTF or contrast.
+* The SNC MV 12510 ROIs were slightly downscaled. This caused an issue in contrast and CNR calculation being lower than reality by ~20%.
+  It was introduced in v3.6. Users are encouraged to upgrade if using this specific phantom analysis.
 
 v 3.7.0
 -------
