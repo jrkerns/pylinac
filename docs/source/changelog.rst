@@ -14,6 +14,15 @@ General
   on the usage it will have more mainstream support in the other modules. Additional functionality such as exporting
   to other, common formats like TIFF will likely follow.
 
+v 3.7.1
+-------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The SNC MV 12510 ROIs were slightly downscaled. This caused an issue in contrast and CNR calculation being lower than reality by ~20%.
+  It was introduced in v3.6. Users are encouraged to upgrade if using this specific phantom analysis.
+
 v 3.7.0
 -------
 
