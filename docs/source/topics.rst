@@ -20,7 +20,7 @@ How data is loaded
 ^^^^^^^^^^^^^^^^^^
 
 Pylinac uses the excellent pydicom library to load DICOM images. The pydicom dataset is actually stored in pylinac images
-under the `metadata` attribute, so if want to access them, they're there.
+under the ``metadata`` attribute, so if want to access them, they're there.
 
 Pixel Data & Inversion
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -60,6 +60,81 @@ Very old images will likely reach this condition.
     However with this new logic, there may be analysis differences for those images. It is more correct to follow the tags but
     for backwards compatibility the module-specific inversion checks remain.
 
+.. _xim-images:
+
+XIM images
+----------
+
+Images ending in ``.xim`` are generally produced by a Varian TrueBeam or newer linac. They are images with additional
+tags. Unfortunately, they are written in binary into a custom format so using a typical image library will not work.
+
+The binary file specification appears to be unofficial, but it does work. You can find the spec `here <https://bitbucket.org/dmoderesearchtools/ximreader/raw/4900d324d5f28f8b6b57752cfbf4282b778a4508/XimReader/xim_readme.pdf>`__
+which comes from this repo: https://bitbucket.org/dmoderesearchtools/ximreader/src/master/
+
+.. warning::
+
+    Rant ahead.
+
+The XIM images used a custom compression format. Why they chose to use a custom format is beyond me. Moreso, the
+format they chose was that of a PNG algorithm. So, XIM images are just PNG images but with a custom lookup table
+and property tags. A TIFF format would've worked just as well. It's possible this is security by obscurity.
+
+Loading an XIM image
+^^^^^^^^^^^^^^^^^^^^
+
+To load an XIM images use the :class:`~pylinac.core.image.XIM` class:
+
+.. code-block:: python
+
+    from pylinac.core.image import XIM
+
+
+    my_xim_file = r"C:\TDS\H12345\QA\image.xim"
+    xim_img = XIM(my_xim_file)
+
+    # plot the image
+    xim_img.plot()
+
+    # see the XIM properties
+    print(xim_img.properties)
+
+Reconstructing the image pixels is relatively slow thanks to the custom compression format,
+so if you are only searching through the properties you can skip reconstructing the pixels:
+
+.. code-block:: python
+
+    from pylinac.core.image import XIM
+
+
+    my_xim_files = [r"C:\TDS\H12345\QA\image.xim", ...]
+    files_to_analyze = []
+    for file in my_xim_files:
+        # will load relatively fast
+        xim_img = XIM(file, read_pixels=False)
+        if xim_img.properties['AcquisitionMode'] == 'Highres':
+            files_to_analyze.append(file)
+
+    # now load the pixel data only for the files we're interested in
+    for file in files_to_analyze:
+        xim_img = XIM(file)
+        # image is available, do what you want
+        xim_img.plot()
+
+An XIM has all the utility methods other pylinac image do, so use this to your advantage:
+
+.. code-block:: python
+
+    from pylinac.core.image import XIM
+
+
+    my_xim_file = r"C:\TDS\H12345\QA\image.xim"
+    xim_img = XIM(my_xim_file)
+
+    # process
+    xim_img.crop(pixels=30)
+    xim_img.filter()
+    xim_img.fliplr()
+    ...
 
 .. _contrast:
 

@@ -115,7 +115,7 @@ class Structure:
 
 def decode_binary(
     file: BinaryIO,
-    dtype: Union[Type[int], Type[float], Type[str]],
+    dtype: Union[Type[int], Type[float], Type[str], str],
     num_values: int = 1,
     cursor_shift: int = 0,
 ) -> Union[int, float, str, np.ndarray]:
@@ -138,7 +138,12 @@ def decode_binary(
     """
     f = file
 
-    if dtype == str:  # if string
+    if isinstance(dtype, str):
+        s = struct.calcsize(dtype) * num_values
+        output = struct.unpack(dtype * num_values, f.read(s))
+        if len(output) == 1:
+            output = output[0]
+    elif dtype == str:  # if string
         ssize = struct.calcsize('c') * num_values
         output = struct.unpack('c' * num_values, f.read(ssize))
         # output = f.read(num_values).decode()

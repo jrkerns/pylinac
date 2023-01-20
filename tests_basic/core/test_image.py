@@ -6,10 +6,11 @@ import unittest
 from unittest import TestCase
 
 import numpy as np
+from numpy.testing import assert_array_almost_equal
 
 from pylinac.core import image
 from pylinac.core.geometry import Point
-from pylinac.core.image import DicomImage, ArrayImage, FileImage, DicomImageStack, LinacDicomImage, gamma_2d
+from pylinac.core.image import DicomImage, ArrayImage, FileImage, DicomImageStack, LinacDicomImage, gamma_2d, XIM
 from pylinac.core.io import TemporaryZipDirectory
 from tests_basic.utils import save_file, get_file_from_cloud_test_repo
 
@@ -17,7 +18,9 @@ tif_path = get_file_from_cloud_test_repo(['Starshot', 'Starshot-1.tif'])
 png_path = get_file_from_cloud_test_repo(['Starshot', 'Starshot-1.png'])
 dcm_path = get_file_from_cloud_test_repo(['VMAT', 'DRGSdmlc-105-example.dcm'])
 as500_path = get_file_from_cloud_test_repo(['picket_fence', 'AS500#5.dcm'])
-dcm_url = 'https://s3.amazonaws.com/pylinac/EPID-PF-LR.dcm'
+xim_path = get_file_from_cloud_test_repo(['ximdcmtest.xim'])
+xim_dcm_path = get_file_from_cloud_test_repo(['ximdcmtest.dcm'])
+dcm_url = 'https://storage.googleapis.com/pylinac_demo_files/EPID-PF-LR.dcm'
 
 
 class TestLoaders(TestCase):
@@ -241,6 +244,27 @@ class TestDicomImage(TestCase):
             dcm_cropped = image.load(tf.name)
         self.assertEqual(original_shape[0]-30, dcm_cropped.shape[0])  # 15 from each side = 2 * 15 = 30
         self.assertEqual(original_shape[1]-30, dcm_cropped.shape[1])  # 15 from each side = 2 * 15 = 30
+
+
+class TestXIMImage(TestCase):
+
+    def test_normal_load(self):
+        xim = XIM(xim_path)
+        self.assertIsInstance(xim.array, np.ndarray)
+        self.assertEqual(xim.array.shape, (1280, 1280))
+        self.assertIsInstance(xim.properties, dict)
+
+    def test_dont_read_pixels(self):
+        xim = XIM(xim_path, read_pixels=False)
+        with self.assertRaises(AttributeError):
+            xim.array
+        self.assertIsInstance(xim.properties, dict)
+
+    def test_equivalent_to_dcm(self):
+        """The pixel info should be the same between dicom and xim"""
+        dcm_img = DicomImage(xim_dcm_path)
+        xim_img = XIM(xim_path)
+        assert_array_almost_equal(dcm_img.array, xim_img.array)
 
 
 class TestLinacDicomImage(TestCase):

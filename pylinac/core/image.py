@@ -5,6 +5,7 @@ import math
 import os
 import os.path as osp
 import re
+import typing
 from collections import Counter
 from datetime import datetime
 from io import BytesIO, BufferedReader
@@ -30,7 +31,7 @@ from .io import (
     retrieve_dicom_file,
 )
 from .profile import stretch as stretcharray
-from .utilities import is_close
+from .utilities import is_close, decode_binary
 from ..settings import get_dicom_cmap, PATH_TRUNCATION_LENGTH
 
 ARRAY = "Array"
@@ -735,6 +736,144 @@ class BaseImage:
 
     def __getitem__(self, item):
         return self.array[item]
+
+
+class XIM(BaseImage):
+    """A class to open, read, and/or export an .xim image, Varian's custom image format which is 99.999% PNG
+
+    This had inspiration from a number of places:
+    - https://gist.github.com/1328/7da697c71f9c4ef12e1e
+    - https://medium.com/@duhroach/how-png-works-f1174e3cc7b7
+    - https://www.mathworks.com/matlabcentral/answers/419228-how-to-write-for-loop-and-execute-data
+    - https://www.w3.org/TR/PNG-Filters.html
+    - https://bitbucket.org/dmoderesearchtools/ximreader/src/master/
+    """
+    array: np.ndarray  #:
+    properties: dict  #:
+
+    def __init__(self, file_path: Union[str, Path], read_pixels: bool = True):
+        """
+        Parameters
+        ----------
+        file_path
+            The path to the file of interest.
+        read_pixels
+            Whether to read and parse the pixel information. Doing so is quite slow.
+            Set this to false if, e.g., you are searching for images only via tags or doing
+            a pre-filtering of image selection.
+        """
+        super().__init__(path=file_path)
+        with open(self.path, 'rb') as xim:
+            self.format_id = decode_binary(xim, str, 8)
+            self.format_version = decode_binary(xim, int)
+            self.img_width_px = decode_binary(xim, int)
+            self.img_height_px = decode_binary(xim, int)
+            self.bits_per_pixel = decode_binary(xim, int)
+            self.bytes_per_pixel = decode_binary(xim, int)
+            self.compression = decode_binary(xim, int)
+            if not self.compression:
+                pixel_buffer_size = decode_binary(xim, int)
+                self.pixel_buffer = decode_binary(xim, str, num_values=pixel_buffer_size)
+            else:
+                lookup_table_size = decode_binary(xim, int)
+                self.lookup_table = decode_binary(xim, 'B', num_values=lookup_table_size)
+                comp_pixel_buffer_size = decode_binary(xim, int)
+                if read_pixels:
+                    lookup_keys = self.parse_lookup_table(self.lookup_table)
+                    self.array = self.parse_compressed_bytes(xim, lookup_table=lookup_keys)
+                else:
+                    _ = decode_binary(xim, 'c', num_values=comp_pixel_buffer_size)
+                uncompressed_pixel_buffer_size = decode_binary(xim, int)
+            self.num_hist_bins = decode_binary(xim, int)
+            self.histogram = decode_binary(xim, int, num_values=self.num_hist_bins)
+            self.num_properties = decode_binary(xim, int)
+            self.properties = {}
+            for prop in range(self.num_properties):
+                name_length = decode_binary(xim, int)
+                name = decode_binary(xim, str, num_values=name_length)
+                tipe = decode_binary(xim, int)
+                if tipe == 0:  # int
+                    value = decode_binary(xim, int)
+                elif tipe == 1:  # double
+                    value = decode_binary(xim, 'd')
+                elif tipe == 2:  # string
+                    byte_length = decode_binary(xim, int)
+                    value = decode_binary(xim, str, num_values=byte_length)
+                elif tipe == 4:  # double array
+                    byte_length = decode_binary(xim, int)
+                    value = decode_binary(xim, 'd', num_values=int(byte_length / 8))  # doubles are 8 bytes
+                elif tipe == 5:  # int array
+                    byte_length = decode_binary(xim, int)
+                    value = decode_binary(xim, int, num_values=int(byte_length / 4))  # ints are 4 bytes
+                self.properties[name] = value
+
+    @staticmethod
+    def parse_lookup_table(lookup_table_bytes: np.ndarray) -> np.ndarray:
+        """The lookup table doesn't follow normal structure conventions like 1, 2, or 4 byte values. They
+        got smart and said each value is 2 bits. Yes, bits. This means each byte is actually 4 values.
+        Python only reads things as granular as bytes. To get around this the general logic is:
+
+        1) interpret the data as integers at the single byte level
+        2) convert those integers back into bit representation; e.g. 115 => 01110011. Note the representation must contain the full byte. I.e. 3 => 11 does not work.
+        3) split the binary representation into the 2-bit representations; generates 4x the number of elements. 01110011 => (01, 11, 00, 11)
+        4) Convert the 2-bit representation back into integers (01, 11, 00, 11) => (1, 3, 0, 3)
+
+        .. note::
+
+            This is ripe for optimization, but brevity and clarity won out. Options include bit-shifting (fastest)
+            and numpy.packbits/unpackbits.
+        """
+        table = []
+        for byte in lookup_table_bytes:
+            byte_repr = f"{byte:08b}"
+            for i in reversed(
+                    range(4)):  # reversed for who knows why: https://gist.github.com/1328/7da697c71f9c4ef12e1e#file-ximmer2-py-L372
+                bit_repr = byte_repr[i * 2:i * 2 + 2]
+                table.append(int(bit_repr, 2))  # convert back to an int base 2
+        return np.asarray(table, dtype=np.int8)
+
+    def parse_compressed_bytes(self, xim: typing.BinaryIO, lookup_table: np.ndarray) -> np.ndarray:
+        """Parse the compressed pixels. We have to do this pixel-by-pixel because each
+        pixel can have a different number of bytes representing it
+
+        Per the readme:
+
+        1) The first row is uncompressed
+        2) The first element of the second row is uncompressed
+        3) all other elements are represented by 1, 2, or 4 bytes of data (the annoying part)
+        4) The byte size of the element is given in the lookup table
+
+        So, we have to read in 1, 2, or 4 bytes and convert to an integer depending on
+        the lookup table, which tells us how many bytes to read in
+
+        .. note::
+
+            Optimization can help here. A few ideas:
+
+            - reading in groups of data of the same byte size. I already tried this, and I think it will work, but I couldn't get it going.
+            - reading in rows of data where no byte change occurred in that row. Similar to above.
+            - Using joblib or a processpool
+        """
+        img_height = self.img_height_px
+        img_width = self.img_width_px
+        lookup_key = {0: 'b', 1: 'h', 2: 'i'}
+        dtype = np.int8 if self.bytes_per_pixel == 1 else np.int16
+        compressed_array = a = np.zeros((img_height*img_width), dtype=dtype)
+        # first row and 1st element, 2nd row is uncompressed
+        # this SHOULD work by reading the # of bytes specified in the header. AFAICT this is a standard int (4 bytes)
+        # struct_key = {1: 'b', 2: 'h', 4: 'i'}  # not used currently but it should be in theory
+        compressed_array[:img_width+1] = decode_binary(xim, int, num_values=img_width+1)
+        # remaining elements are the difference only
+        lookup_keys = [lookup_key[lookup_table[idx]] for idx in range(len(lookup_table))]
+        for idx, lookup in zip(range(img_width+1, img_width*img_height), lookup_keys):
+            diff = decode_binary(xim, lookup)
+            left = a[idx - 1]
+            above = a[idx - img_width]
+            upper_left = a[idx - img_width - 1]
+            real_pixel_value = diff + left + above - upper_left
+            a[idx] = real_pixel_value
+        img = a.reshape((img_height, img_width))
+        return img
 
 
 class DicomImage(BaseImage):
