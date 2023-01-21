@@ -1,10 +1,12 @@
 import copy
 import io
+import json
 import shutil
 import tempfile
 import unittest
 from unittest import TestCase
 
+import PIL.Image
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
@@ -265,6 +267,35 @@ class TestXIMImage(TestCase):
         dcm_img = DicomImage(xim_dcm_path)
         xim_img = XIM(xim_path)
         assert_array_almost_equal(dcm_img.array, xim_img.array)
+
+    def test_save_png_stream(self):
+        xim = XIM(xim_path)
+        s = io.BytesIO()
+        xim.save_as(s, format='png')
+        s.seek(0)
+        pimg = PIL.Image.open(s)
+        png_array = np.asarray(pimg)
+        assert_array_almost_equal(png_array, xim.array)
+
+    def test_save_png(self):
+        xim = XIM(xim_path)
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
+            xim.save_as(tf, format='png')
+            pimg = PIL.Image.open(tf.name)
+        png_array = np.asarray(pimg)
+        assert_array_almost_equal(png_array, xim.array)
+        # make sure the properties were saved
+        assert xim.properties['AcquisitionSystemVersion'] == pimg.info['AcquisitionSystemVersion']
+        mlc_a = json.loads(pimg.info['MLCLeafsA'])
+        self.assertIsInstance(mlc_a, list)
+
+    def test_save_tiff(self):
+        xim = XIM(xim_path)
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
+            xim.save_as(tf, format='tiff')
+            pimg = PIL.Image.open(tf.name)
+        png_array = np.asarray(pimg)
+        assert_array_almost_equal(png_array, xim.array)
 
 
 class TestLinacDicomImage(TestCase):
