@@ -110,7 +110,7 @@ Supported Phantoms
 ------------------
 
 Currently, only the `MultiMet-WL <https://www.sunnuclear.com/products/multimet-wl-cube>`__ cube from SNC is supported. However, the algorithm is generalized and
-can be easily adapted to analyze other phantoms. See
+can be easily adapted to analyze other phantoms. See :ref:`custom-bb-arrangements`.
 
 Typical Use
 -----------
@@ -166,6 +166,8 @@ Changing BB detection size
 
 To change the size of BB pylinac is expecting you must change it in the BB arrangement. This
 allows phantoms with multiple BB sizes to still be analyzed.
+
+.. _custom-bb-arrangements:
 
 Custom BB Arrangements
 ----------------------

@@ -1195,7 +1195,7 @@ class BB:
     @cached_property
     def nominal_position(self) -> Point:
         """The nominal location of the BB in MM"""
-        return Point(x=-self.nominal_bb['offset_left_mm'],y=self.nominal_bb['offset_in_mm'], z=self.nominal_bb['offset_up_mm'])
+        return Point(x=-self.nominal_bb['offset_left_mm'], y=self.nominal_bb['offset_in_mm'], z=self.nominal_bb['offset_up_mm'])
 
     @cached_property
     def delta_vector(self) -> Vector:
@@ -1232,8 +1232,13 @@ class BB:
 
 class WinstonLutz2DMultiTarget(WinstonLutz2D):
     """A 2D image of a WL delivery, but where multiple BBs are in use."""
-    bbs: List[Point]
+    bbs: List[Union[Point, None]]
+    bb_expectations: List[Union[Point, None]]
     detection_conditions = [is_round, is_symmetric, is_modest_size]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.flipud()  # restore to original view; vanilla WL may need to revert
 
     def analyze(self, bb_arrangement: Iterable[dict]) -> None:
         """Analyze the image of the multi-BB setup.
@@ -1245,8 +1250,28 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
             Use the ``BBArrangement`` class as a guide.
         """
         self.field_cax, self._rad_field_bounding_box = self._find_field_centroid()
-        self.bbs = [self._find_bb(bb) for bb in bb_arrangement]
+        self.bbs = []
+        self.bb_expectations = []
+        for location in bb_arrangement:
+            try:
+                bb = self._find_bb(location)
+                self.bbs.append(bb)
+                self.bb_expectations.append(self._expected_point(location))
+            except ValueError:
+                self.bbs.append(None)
+                self.bb_expectations.append(None)
+        if len([bb for bb in self.bbs if bb is not None]) < 1:
+            raise RuntimeError("No bbs found in the image. Ensure they are not occluded and the nominal location is correct.")
         self._is_analyzed = True
+
+    def _expected_point(self, bb: dict) -> Point:
+        """Calculate the expected point position in 2D"""
+        shift_y_mm = bb_projection_long(offset_in=bb['offset_in_mm'], offset_up=bb['offset_up_mm'], offset_left=bb['offset_left_mm'], sad=self.sad, gantry=self.gantry_angle)
+        shift_x_mm = bb_projection_gantry_plane(offset_left=bb['offset_left_mm'], offset_up=bb['offset_up_mm'], sad=self.sad, gantry=self.gantry_angle)
+        # unlike vanilla WL, the field can be asymmetric, so use center of image
+        expected_y = self.epid.y - shift_y_mm * self.dpmm
+        expected_x = self.epid.x + shift_x_mm * self.dpmm
+        return Point(x=expected_x, y=expected_y)
 
     def _find_bb(self, bb_of_interest: dict) -> Point:
         """Find the specific BB based on the arrangement rather than a single one. This is in local pixel coordinates"""
@@ -1298,13 +1323,11 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         """Determine whether the given BB ROI is near where the BB is expected to be"""
         # since we are dealing with images at the isoplane we have to calculate the expected position
         # of the BB at that plane from the 3D coordinates
-        bb = bb_of_interest
-        shift_y_mm = bb_projection_long(offset_in=bb['offset_in_mm'], offset_up=bb['offset_up_mm'], offset_left=bb['offset_left_mm'], sad=self.sad, gantry=self.gantry_angle)
-        shift_x_mm = bb_projection_gantry_plane(offset_left=bb['offset_left_mm'], offset_up=bb['offset_up_mm'], sad=self.sad, gantry=self.gantry_angle)
-        expected_y = self.field_cax.y + shift_y_mm * self.dpmm
-        expected_x = self.field_cax.x + shift_x_mm * self.dpmm
-        near_y = math.isclose(expected_y, region.centroid[0], abs_tol=5*self.dpmm)
-        near_x = math.isclose(expected_x, region.centroid[1], abs_tol=5*self.dpmm)
+        if region.area < 5:
+            return False  # skip single or very small pixel regions
+        expected = self._expected_point(bb_of_interest)
+        near_y = math.isclose(expected.y, region.centroid[0], abs_tol=5*self.dpmm)
+        near_x = math.isclose(expected.x, region.centroid[1], abs_tol=5*self.dpmm)
         return near_y and near_x
 
     def results_data(self, as_dict=False) -> Union[WinstonLutz2DResult, dict]:
@@ -1328,7 +1351,8 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         ax = super(image.LinacDicomImage, self).plot(ax=ax, show=False, clear_fig=clear_fig)
         ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
         for bb in self.bbs:
-            ax.plot(bb.x, bb.y, "ro", ms=8)
+            if bb is not None:
+                ax.plot(bb.x, bb.y, "ro", ms=8)
         ax.axvline(x=self.epid.x, color="b")
         ax.axhline(y=self.epid.y, color="b")
         ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[1]])
@@ -1349,6 +1373,15 @@ class WinstonLutzMultiTarget(WinstonLutz):
     image_type = WinstonLutz2DMultiTarget
     bb_arrangement: Iterable[dict]  #:
     bbs: List[BB]  #:
+
+    def __init__(self, *args, **kwargs):
+        """We cannot yet handle non-0 couch angles so we drop them. Analysis fails otherwise"""
+        super().__init__(*args, **kwargs)
+        orig_length = len(self.images)
+        self.images = [i for i in self.images if math.isclose(i.couch_angle, 0, abs_tol=5)]
+        new_length = len(self.images)
+        if new_length != orig_length:
+            print(f"Non-zero couch angles not allowed. Dropped {orig_length-new_length} images")
 
     @classmethod
     def from_demo_images(cls):
@@ -1381,8 +1414,9 @@ class WinstonLutzMultiTarget(WinstonLutz):
         for idx, nominal_bb in enumerate(bb_arrangement):
             ray_lines = []
             for img in self.images:
-                ray_line = bb_ray_line(bb=img.bbs[idx], gantry_angle=img.gantry_angle, sad=img.sad, image_center=img.center, dpmm=img.dpmm)
-                ray_lines.append(ray_line)
+                if img.bbs[idx] is not None:
+                    ray_line = bb_ray_line(bb=img.bbs[idx], gantry_angle=img.gantry_angle, sad=img.sad, image_center=img.center, dpmm=img.dpmm)
+                    ray_lines.append(ray_line)
             self.bbs.append(BB(nominal_bb, ray_lines))
         self._is_analyzed = True
 
@@ -1395,17 +1429,50 @@ class WinstonLutzMultiTarget(WinstonLutz):
         raise NotImplementedError("Not yet implemented")
 
     @property
-    def max_bb_deviation(self) -> float:
+    def max_bb_deviation_3d(self) -> float:
         """The maximum distance from any measured BB to its nominal position"""
         return max(bb.delta_distance for bb in self.bbs)
 
     @property
-    def median_bb_deviation(self) -> float:
+    def max_bb_deviation_2d(self) -> float:
+        """The maximum distance from any measured BB to its nominal position"""
+        dists = []
+        for img in self.images:
+            for idx, bb in enumerate(img.bbs):
+                if bb is not None:
+                    exp_bb = img.bb_expectations[idx]
+                    dists.append(bb.distance_to(exp_bb))
+        return max(dists)
+
+    @property
+    def mean_bb_deviation_2d(self) -> float:
+        """The mean distance from any measured BB to its nominal position"""
+        dists = []
+        for img in self.images:
+            for idx, bb in enumerate(img.bbs):
+                if bb is not None:
+                    exp_bb = img.bb_expectations[idx]
+                    dists.append(bb.distance_to(exp_bb))
+        return statistics.mean(dists)
+
+    @property
+    def median_bb_deviation_2d(self) -> float:
+        """The median distance from any measured BB to its nominal position"""
+        dists = []
+        for img in self.images:
+            for idx, bb in enumerate(img.bbs):
+                if bb is not None:
+                    exp_bb = img.bb_expectations[idx]
+                    dists.append(bb.distance_to(exp_bb))
+        return statistics.median(dists)
+
+    @property
+    def median_bb_deviation_3d(self) -> float:
         """The median distance from any measured BB to its nominal position"""
         return statistics.median(bb.delta_distance for bb in self.bbs)
 
     @property
-    def mean_bb_deviation(self) -> float:
+    def mean_bb_deviation_3d(self) -> float:
         """The median distance from any measured BB to its nominal position"""
         return statistics.mean(bb.delta_distance for bb in self.bbs)
 
@@ -1424,15 +1491,29 @@ class WinstonLutzMultiTarget(WinstonLutz):
             "Winston-Lutz Multi-Target Analysis",
             "==================================",
             f"Number of images: {num_imgs}",
-            f"Maximum distance between nominal & measured BB locations: {self.max_bb_deviation:.2f}mm",
-            f"Median distance between nominal & measured BB locations: {self.median_bb_deviation:.2f}mm",
-            f"Mean distance between nominal & measured BB locations: {self.mean_bb_deviation:.2f}mm",
-            "BB deviations (mm)",
-            "=================="
+            f"Maximum 3D scalar distance between nominal & measured BB locations: {self.max_bb_deviation_3d:.2f}mm",
+            f"Median 3D scalar distance between nominal & measured BB locations: {self.median_bb_deviation_3d:.2f}mm",
+            f"Mean 3D scalar distance between nominal & measured BB locations: {self.mean_bb_deviation_3d:.2f}mm",
+            '',
+            "BB 3D deviations (mm); Difference (Nominal)",
+            "==========================================="
         ]
         for idx, bb in enumerate(self.bbs):
-            meas = f"BB #{idx}: Left {bb.nominal_position.x:3.2f} ({bb.delta_vector.x:3.2f}); In {bb.nominal_position.y:3.2f} ({bb.delta_vector.y:3.2f}); Up {bb.nominal_position.z:3.2f} ({bb.delta_vector.z:3.2f})"
+            meas = f"BB #{idx+1}: Left {bb.delta_vector.x:3.2f} ({bb.nominal_position.x:3.2f}); In {bb.delta_vector.y:3.2f} ({bb.nominal_position.y:3.2f}); Up {bb.delta_vector.z:3.2f} ({bb.nominal_position.z:3.2f}), Total scalar: {bb.delta_distance:3.2f}"
             result.append(meas)
+        result += [
+            '',
+            '2D distances',
+            '============',
+            f'Max 2D distance of any BB: {self.max_bb_deviation_2d:3.2f} mm',
+            f'Mean 2D distance of any BB: {self.mean_bb_deviation_2d:3.2f} mm',
+            f'Median 2D distance of any BB: {self.median_bb_deviation_2d:3.2f} mm'
+        ]
+        for idx, img in enumerate(self.images):
+            result.append(f"Image #{idx+1} ({img})")
+            for bb_idx, bb in enumerate(img.bbs):
+                if bb is not None:
+                    result.append(f"    BB #{bb_idx+1}: {img.bb_expectations[bb_idx].distance_to(bb):3.2f}")
         if not as_list:
             result = "\n".join(result)
         return result
@@ -1547,9 +1628,9 @@ def bb_ray_line(bb: Point, gantry_angle: float, sad: float, image_center: Point,
     source_x = sin(gantry_angle)*sad
     source_z = cos(gantry_angle)*sad
     source = Point(x=source_x, y=0, z=source_z)
-    # we want the line to go past the isoplane, so calculate the other point at 1.5x the SAD; when plotted
+    # we want the line to go past the isoplane, so calculate the other point at 2x the SAD; when plotted
     bb_x_mm = (bb.x - image_center.x)/dpmm
-    bb_y_mm = (bb.y - image_center.y)/dpmm
+    bb_y_mm = (image_center.y - bb.y)/dpmm
     distal = Point(x=-source_x+bb_x_mm*2*cos(gantry_angle), y=2*bb_y_mm, z=-source_z-bb_x_mm*2*sin(gantry_angle))
     return Line(source, distal)
 

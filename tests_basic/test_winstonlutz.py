@@ -109,18 +109,22 @@ class TestProjection(TestCase):
 
 class TestBB(TestCase):
 
+    @property
+    def nominal_0(self):
+        return {'offset_left_mm': 0, 'offset_up_mm': 0, 'offset_in_mm': 0, 'bb_size_mm': 5}
+
     def test_measured_0_at_0(self):
         """The determined BB position when the rays are about the origin should be the origin"""
         line_g0 = Line(point1=Point(x=1000, y=0, z=0), point2=Point(x=-1000, y=0, z=0))
         line_g90 = Line(Point(x=0, y=0, z=1000), Point(x=0, y=0, z=-1000))
-        bb = BB({}, ray_lines=[line_g0, line_g90])
+        bb = BB(self.nominal_0, ray_lines=[line_g0, line_g90])
         assert bb.measured_position.x == bb.measured_position.y == bb.measured_position.z == 0
 
     def test_measured_in_1mm(self):
         """The determined BB position when the rays are shifted in 1mm should be 1mm"""
         line_g0 = Line(point1=Point(x=1000, y=1, z=0), point2=Point(x=-1000, y=1, z=0))
         line_g90 = Line(Point(x=0, y=1, z=1000), Point(x=0, y=1, z=-1000))
-        bb = BB({}, ray_lines=[line_g0, line_g90])
+        bb = BB(self.nominal_0, ray_lines=[line_g0, line_g90])
         assert math.isclose(bb.measured_position.x, 0, abs_tol=0.001)
         assert math.isclose(bb.measured_position.y, 1, abs_tol=0.001)
         assert math.isclose(bb.measured_position.z, 0, abs_tol=0.001)
@@ -129,7 +133,7 @@ class TestBB(TestCase):
         """The determined BB position when the rays are shifted out"""
         line_g0 = Line(point1=Point(x=1000, y=-1, z=0), point2=Point(x=-1000, y=-1, z=0))
         line_g90 = Line(Point(x=0, y=-1, z=1000), Point(x=0, y=-1, z=-1000))
-        bb = BB({}, ray_lines=[line_g0, line_g90])
+        bb = BB(self.nominal_0, ray_lines=[line_g0, line_g90])
         assert math.isclose(bb.measured_position.x, 0, abs_tol=0.001)
         assert math.isclose(bb.measured_position.y, -1, abs_tol=0.001)
         assert math.isclose(bb.measured_position.z, 0, abs_tol=0.001)
@@ -138,7 +142,7 @@ class TestBB(TestCase):
         """The determined BB position when the rays are shifted in 1mm should be 1mm"""
         line_g0 = Line(point1=Point(x=0, y=0, z=1000), point2=Point(x=0, y=0, z=-1000))
         line_g90 = Line(Point(x=-1000, y=0, z=1), Point(x=1000, y=0, z=1))
-        bb = BB({}, ray_lines=[line_g0, line_g90])
+        bb = BB(self.nominal_0, ray_lines=[line_g0, line_g90])
         assert math.isclose(bb.measured_position.x, 0, abs_tol=0.001)
         assert math.isclose(bb.measured_position.y, 0, abs_tol=0.001)
         assert math.isclose(bb.measured_position.z, 1, abs_tol=0.001)
@@ -147,7 +151,7 @@ class TestBB(TestCase):
         """The determined BB position when the rays are shifted in 1mm should be 1mm"""
         line_g0 = Line(point1=Point(x=0, y=0, z=1000), point2=Point(x=0, y=0, z=-1000))
         line_g90 = Line(Point(x=-1000, y=0, z=-1), Point(x=1000, y=0, z=-1))
-        bb = BB({}, ray_lines=[line_g0, line_g90])
+        bb = BB(self.nominal_0, ray_lines=[line_g0, line_g90])
         assert math.isclose(bb.measured_position.x, 0, abs_tol=0.001)
         assert math.isclose(bb.measured_position.y, 0, abs_tol=0.001)
         assert math.isclose(bb.measured_position.z, -1, abs_tol=0.001)
@@ -156,7 +160,7 @@ class TestBB(TestCase):
         """The determined BB position when the rays are shifted in 1mm should be 1mm"""
         line_g0 = Line(point1=Point(x=-1, y=0, z=1000), point2=Point(x=-1, y=0, z=-1000))
         line_g90 = Line(Point(x=-1000, y=0, z=0), Point(x=1000, y=0, z=0))
-        bb = BB({}, ray_lines=[line_g0, line_g90])
+        bb = BB(self.nominal_0, ray_lines=[line_g0, line_g90])
         assert math.isclose(bb.measured_position.x, -1, abs_tol=0.001)
         assert math.isclose(bb.measured_position.y, 0, abs_tol=0.001)
         assert math.isclose(bb.measured_position.z, 0, abs_tol=0.001)
@@ -165,7 +169,7 @@ class TestBB(TestCase):
         """The determined BB position when the rays are shifted in 1mm should be 1mm"""
         line_g0 = Line(point1=Point(x=1, y=0, z=1000), point2=Point(x=1, y=0, z=-1000))
         line_g90 = Line(Point(x=-1000, y=0, z=0), Point(x=1000, y=0, z=0))
-        bb = BB({}, ray_lines=[line_g0, line_g90])
+        bb = BB(self.nominal_0, ray_lines=[line_g0, line_g90])
         assert math.isclose(bb.measured_position.x, 1, abs_tol=0.001)
         assert math.isclose(bb.measured_position.y, 0, abs_tol=0.001)
         assert math.isclose(bb.measured_position.z, 0, abs_tol=0.001)
