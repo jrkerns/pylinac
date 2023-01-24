@@ -134,13 +134,13 @@ class PerfectFieldLayer(Layer):
         ]
         cax_offset_mm_mag = [v * mag_factor for v in self.cax_offset_mm]
         field_start = [
-            round(x / pixel_size + (shape / 2) - field_size / 2)
+            x / pixel_size + (shape / 2) - field_size / 2
             for x, shape, field_size in zip(
                 cax_offset_mm_mag, image.shape, field_size_pix
             )
         ]
         field_end = [
-            round(x / pixel_size + (shape / 2) + field_size / 2 - 1)
+            x / pixel_size + (shape / 2) + field_size / 2 - 1
             for x, shape, field_size in zip(
                 cax_offset_mm_mag, image.shape, field_size_pix
             )

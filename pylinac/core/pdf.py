@@ -77,6 +77,7 @@ class PylinacCanvas:
         text: Union[str, List[str]],
         location: (float, float),
         font_size: int = 10,
+        font: Optional[str] = None,
     ) -> None:
         """Generic text drawing function.
 
@@ -91,9 +92,10 @@ class PylinacCanvas:
         font_size : int
             Text font size.
         """
+        font = font or self._font
         textobj = self.canvas.beginText()
         textobj.setTextOrigin(location[0] * cm, location[1] * cm)
-        textobj.setFont(self._font, int(font_size))
+        textobj.setFont(font, int(font_size))
         if isinstance(text, str):
             textobj.textLine(text)
         elif isinstance(text, list):

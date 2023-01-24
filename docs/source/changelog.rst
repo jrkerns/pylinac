@@ -46,6 +46,12 @@ CBCT
         This change is internal and should not cause issues; all tests passed without modification but there is a small possibility a dataset with
         some kind of interference will now analyze and cause detection issues.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Multi-Target, Multi-Field Winston-Lutz is now available. This means phantoms such as the SNC MultiMet can
+  be analyzed. The algorithm is generalized however, and any reasonable configuration of BBs can be analyzed,
+  meaning custom phantoms and new commercial phantoms are easy to make. Read the new section :ref:`here <multi-target-wl>`.
 
 v 3.6.3
 -------
@@ -68,7 +74,9 @@ CBCT
   This removes some of the error associated
   with having something touching the phantom for just a few slices. E.g. a clinic was using BBs on the side of their Catphan for alignment which was causing
   issues. Situations like these are more likely to be recovered from.
+
   .. note::
+
         This change is internal and should not cause issues; all tests passed without modification but there is a small possibility a dataset with
         some kind of interference will now analyze and cause detection issues.
 
