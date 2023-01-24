@@ -268,7 +268,7 @@ is true error vs algorithmic error can be difficult. The image generator module 
 
 .. note::
 
-    With the introduction of the MTWL algorithm, so to a multi-target synthetic image generator has been created.
+    With the introduction of the MTWL algorithm, so to a multi-target synthetic image generator has been created: :func:`~pylinac.core.image_generator.utils.generate_winstonlutz_multi_bb_multi_field`.
 
 .. warning::
 
