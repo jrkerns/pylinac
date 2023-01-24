@@ -158,6 +158,7 @@ definitions:
               - "pylinac/vmat.py"
     - step: &winston-lutz-tests
         name: Run Winston-Lutz Tests
+        size: 2x
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
