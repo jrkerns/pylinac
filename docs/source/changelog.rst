@@ -3,6 +3,18 @@
 Changelog
 =========
 
+v 3.8.0
+-------
+
+General
+^^^^^^^
+
+* ``.xim`` files are now able to be opened. These are Varian-specific images usually taken during MPC or in service mode.
+  Currently, it is not natively integrated into other analyses (e.g. analyzing a .xim picket-fence via ``PicketFence(...)``), but depending
+  on the usage it will have more mainstream support in the other modules. However, this will allow the user to export
+  to other, common file formats like png, jpeg, and tiff as well as access the properties of the .xim image such as
+  acquisition mode, MLC positions, etc. Read about it here: :ref:`xim-images`.
+
 v 3.7.1
 -------
 
