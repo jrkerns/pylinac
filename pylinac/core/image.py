@@ -43,6 +43,12 @@ IMAGE = "Image"
 FILE_TYPE = "file"
 STREAM_TYPE = "stream"
 
+XIM_PROP_INT = 0
+XIM_PROP_DOUBLE = 1
+XIM_PROP_STRING = 2
+XIM_PROP_DOUBLE_ARRAY = 4
+XIM_PROP_INT_ARRAY = 5
+
 MM_PER_INCH = 25.4
 
 ImageLike = Union["DicomImage", "ArrayImage", "FileImage", "LinacDicomImage"]
@@ -794,21 +800,20 @@ class XIM(BaseImage):
                 name_length = decode_binary(xim, int)
                 name = decode_binary(xim, str, num_values=name_length)
                 tipe = decode_binary(xim, int)
-                if tipe == 0:  # int
+                if tipe == XIM_PROP_INT:
                     value = decode_binary(xim, int)
-                elif tipe == 1:  # double
+                elif tipe == XIM_PROP_DOUBLE:
                     value = decode_binary(xim, 'd')
-                elif tipe == 2:  # string
-                    byte_length = decode_binary(xim, int)
-                    value = decode_binary(xim, str, num_values=byte_length)
-                elif tipe == 4:  # double array
-                    byte_length = decode_binary(xim, int)
-                    value = decode_binary(xim, 'd', num_values=int(byte_length / 8))  # doubles are 8 bytes
-                elif tipe == 5:  # int array
-                    byte_length = decode_binary(xim, int)
-                    value = decode_binary(xim, int, num_values=int(byte_length / 4))  # ints are 4 bytes
+                elif tipe == XIM_PROP_STRING:
+                    num_bytes = decode_binary(xim, int)
+                    value = decode_binary(xim, str, num_values=num_bytes)
+                elif tipe == XIM_PROP_DOUBLE_ARRAY:
+                    num_bytes = decode_binary(xim, int)
+                    value = decode_binary(xim, 'd', num_values=int(num_bytes // 8))  # doubles are 8 bytes
+                elif tipe == XIM_PROP_INT_ARRAY:
+                    num_bytes = decode_binary(xim, int)
+                    value = decode_binary(xim, int, num_values=int(num_bytes // 4))  # ints are 4 bytes
                 self.properties[name] = value
-
 
     @staticmethod
     def _parse_lookup_table(lookup_table_bytes: np.ndarray) -> np.ndarray:
