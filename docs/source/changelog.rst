@@ -15,6 +15,12 @@ General
   to other, common file formats like png, jpeg, and tiff as well as access the properties of the .xim image such as
   acquisition mode, MLC positions, etc. Read about it here: :ref:`xim-images`.
 
+Picket Fence
+^^^^^^^^^^^^
+
+* The PDF generated when the orientation was up/down would sometimes occlude the text on the report. The image placement has been
+  adjusted.
+
 v 3.7.1
 -------
 
