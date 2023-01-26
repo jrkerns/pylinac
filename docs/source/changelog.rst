@@ -15,6 +15,12 @@ General
   to other, common file formats like png, jpeg, and tiff as well as access the properties of the .xim image such as
   acquisition mode, MLC positions, etc. Read about it here: :ref:`xim-images`.
 
+Winston Lutz
+^^^^^^^^^^^^
+
+* The `results_data` for a normal WL analysis now include the details of each image as well. I.e. Each :class:`~pylinac.winston_lutz.WinstonLutzResult`
+  contains *N* :class:`~pylinac.winston_lutz.WinstonLutz2DResult`s, one for each image, under the ``image_details`` key.
+
 v 3.7.1
 -------
 
