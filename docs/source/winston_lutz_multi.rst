@@ -148,6 +148,7 @@ Analyzing a multi-target Winston-Lutz test is simple. First, let's import the cl
 .. code-block:: python
 
     from pylinac import WinstonLutzMultiTargetMultiField
+    from pylinac.winston_lutz import BBArrangement
 
 From here, you can load a directory:
 
@@ -213,7 +214,6 @@ Pass it to the algorithm like so:
 
     wl = WinstonLutzMultiTargetMultiField(...)
     wl.analyze(bb_arrangement=my_special_phantom_bbs)
-    wl.plot_locations()
     ...
 
 Algorithm

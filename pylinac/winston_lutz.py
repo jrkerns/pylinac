@@ -1574,9 +1574,10 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         """Make a plot for each BB. Each plot contains the analysis of that BB on each image
         it was found."""
         figs, names = [], []
+        figsize = kwargs.pop('figsize', None) or (8, 8)
         for bb, img_set in self.analyzed_images.items():
             rows = len(img_set) // 3 + 1
-            fig, axes = plt.subplots(nrows=rows, ncols=3, **kwargs)
+            fig, axes = plt.subplots(nrows=rows, ncols=3, figsize=figsize, **kwargs)
             for mpl_axis, wl_image in zip_longest(axes.flatten(), img_set):
                 plot_image(wl_image, mpl_axis)
 
@@ -1792,7 +1793,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             canvas.add_text(text="Notes:", location=(1, 4.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 4))
         # plot each BB's images
-        bb_streams = self.save_images_to_stream(figsize=(8, 8))
+        bb_streams = self.save_images_to_stream()
         for stream in bb_streams.values():
             canvas.add_new_page()
             canvas.add_image(stream, location=(2, 7), dimensions=(18, 18))

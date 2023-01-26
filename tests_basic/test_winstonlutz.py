@@ -129,6 +129,11 @@ class TestWLMultiImage(TestCase):
         wl.analyze(BBArrangement.DEMO)
         wl.save_images()
 
+    def test_save_images_to_stream(self):
+        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
+        wl.analyze(BBArrangement.DEMO)
+        wl.save_images_to_stream()
+
     def test_no_axis_plot(self):
         wl = WinstonLutzMultiTargetMultiField.from_demo_images()
         wl.analyze(BBArrangement.DEMO)
