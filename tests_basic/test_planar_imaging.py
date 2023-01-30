@@ -423,6 +423,8 @@ class SNCMVDemo(PlanarPhantomMixin, TestCase):
 class SNCMV12510_6MV1(PlanarPhantomMixin, TestCase):
     klass = SNCMV12510
     mtf_50 = 0.91
+    median_contrast = 0.254
+    median_cnr = 65.34
     dir_path = ["planar_imaging", "SNC MV Old"]
     file_name = "SNC_MV_Old1.dcm"
 
@@ -433,6 +435,8 @@ class SNCMV12510_6MV1(PlanarPhantomMixin, TestCase):
 class SNCMV12510_6MV2(PlanarPhantomMixin, TestCase):
     klass = SNCMV12510
     mtf_50 = 0.85
+    median_contrast = 0.255
+    median_cnr = 66.43
     dir_path = ["planar_imaging", "SNC MV Old"]
     file_name = "SNC_MV_Old2.dcm"
 

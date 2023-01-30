@@ -3,6 +3,33 @@
 Changelog
 =========
 
+v 3.8.0
+-------
+
+General
+^^^^^^^
+
+* ``.xim`` files are now able to be opened. These are Varian-specific images usually taken during MPC or in service mode.
+  Currently, it is not natively integrated into other analyses (e.g. analyzing a .xim picket-fence via ``PicketFence(...)``), but depending
+  on the usage it will have more mainstream support in the other modules. However, this will allow the user to export
+  to other, common file formats like png, jpeg, and tiff as well as access the properties of the .xim image such as
+  acquisition mode, MLC positions, etc. Read about it here: :ref:`xim-images`.
+
+Picket Fence
+^^^^^^^^^^^^
+
+* The PDF generated when the orientation was up/down would sometimes occlude the text on the report. The image placement has been
+  adjusted.
+
+v 3.7.1
+-------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The SNC MV 12510 ROIs were slightly downscaled. This caused an issue in contrast and CNR calculation being lower than reality by ~20%.
+  It was introduced in v3.6. Users are encouraged to upgrade if using this specific phantom analysis.
+
 v 3.7.0
 -------
 
