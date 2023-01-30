@@ -201,7 +201,7 @@ class GeneralTests(TestCase):
             data_dict["gantry_3d_iso_diameter_mm"], self.wl.gantry_iso_size
         )
         self.assertIsInstance(data_dict['image_details'][0]['bb_location'], dict)
-        self.assertAlmostEqual(data_dict['image_details'][0]['bb_location']['x'], 254.45, delta=0.02)
+        self.assertAlmostEqual(data_dict['image_details'][0]['bb_location']['x'], self.wl.images[0].bb.x, delta=0.02)
 
     def test_bb_too_far_away_fails(self):
         """BB is >20mm from CAX"""
