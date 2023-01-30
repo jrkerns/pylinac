@@ -24,8 +24,8 @@ Picket Fence
 Winston Lutz
 ^^^^^^^^^^^^
 
-* The `results_data` for a normal WL analysis now include the details of each image as well. I.e. Each :class:`~pylinac.winston_lutz.WinstonLutzResult`
-  contains *N* :class:`~pylinac.winston_lutz.WinstonLutz2DResult`s, one for each image, under the ``image_details`` key.
+* The :meth:`~pylinac.winston_lutz.WinstonLutz.results_data` for a normal WL analysis now include the details of each image as well. I.e. Each :class:`~pylinac.winston_lutz.WinstonLutzResult`
+  contains *N* :class:`~pylinac.winston_lutz.WinstonLutz2DResult` , one for each image, under the ``image_details`` key.
 
 v 3.7.1
 -------
