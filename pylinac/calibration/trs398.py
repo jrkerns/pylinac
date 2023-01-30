@@ -8,6 +8,10 @@ import numpy as np
 
 from . import tg51 as _tg51
 from .tg51 import (
+    mmHg2kPa,
+    mbar2kPa,
+    fahrenheit2celsius,
+    tpr2010_from_pdd2010,
     MIN_PTP,
     MAX_PTP,
     MIN_PELEC,
