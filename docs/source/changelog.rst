@@ -3,6 +3,15 @@
 Changelog
 =========
 
+v 3.7.2
+-------
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* Performing a field analysis on a very small field (a few mm) would error out. To get around this, pass a larger
+  ``slope_exclusion_ratio`` to ``analyze()``.
+
 v 3.7.1
 -------
 
