@@ -142,11 +142,11 @@ def decode_binary(
         if len(output) == 1:
             output = output[0]
     elif dtype == str:  # if string
-        ssize = struct.calcsize('c') * num_values
-        output = struct.unpack('c' * num_values, f.read(ssize))
+        ssize = struct.calcsize("c") * num_values
+        output = struct.unpack("c" * num_values, f.read(ssize))
         # output = f.read(num_values).decode()
         # strip the padding ("\x00")
-        output = ''.join(o.decode() for o in output if o != b'\x00')
+        output = "".join(o.decode() for o in output if o != b"\x00")
         # output = output.strip("\x00")
     elif dtype == int:
         ssize = struct.calcsize("i") * num_values

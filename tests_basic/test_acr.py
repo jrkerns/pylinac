@@ -302,7 +302,9 @@ class ACRMRMixin(CloudFileMixin):
         print(self.mri.slice1.thickness_rois["Top"].wire_fwhm)
         print(self.mri.slice1.thickness_rois["Bottom"].wire_fwhm)
         print(self.mri.slice1.mm_per_pixel)
-        self.assertAlmostEqual(self.mri.slice1.measured_slice_thickness_mm, self.slice_thickness, delta=0.5)
+        self.assertAlmostEqual(
+            self.mri.slice1.measured_slice_thickness_mm, self.slice_thickness, delta=0.5
+        )
 
     def test_slice1_shift(self):
         self.assertAlmostEqual(

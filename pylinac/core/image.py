@@ -754,6 +754,7 @@ class XIM(BaseImage):
     - https://www.w3.org/TR/PNG-Filters.html
     - https://bitbucket.org/dmoderesearchtools/ximreader/src/master/
     """
+
     array: np.ndarray  #:
     properties: dict  #:
 
@@ -769,7 +770,7 @@ class XIM(BaseImage):
             a pre-filtering of image selection.
         """
         super().__init__(path=file_path)
-        with open(self.path, 'rb') as xim:
+        with open(self.path, "rb") as xim:
             self.format_id = decode_binary(xim, str, 8)
             self.format_version = decode_binary(xim, int)
             self.img_width_px = decode_binary(xim, int)
@@ -779,16 +780,22 @@ class XIM(BaseImage):
             self.compression = decode_binary(xim, int)
             if not self.compression:
                 pixel_buffer_size = decode_binary(xim, int)
-                self.pixel_buffer = decode_binary(xim, str, num_values=pixel_buffer_size)
+                self.pixel_buffer = decode_binary(
+                    xim, str, num_values=pixel_buffer_size
+                )
             else:
                 lookup_table_size = decode_binary(xim, int)
-                self.lookup_table = decode_binary(xim, 'B', num_values=lookup_table_size)
+                self.lookup_table = decode_binary(
+                    xim, "B", num_values=lookup_table_size
+                )
                 comp_pixel_buffer_size = decode_binary(xim, int)
                 if read_pixels:
                     lookup_keys = self._parse_lookup_table(self.lookup_table)
-                    self.array = self._parse_compressed_bytes(xim, lookup_table=lookup_keys)
+                    self.array = self._parse_compressed_bytes(
+                        xim, lookup_table=lookup_keys
+                    )
                 else:
-                    _ = decode_binary(xim, 'c', num_values=comp_pixel_buffer_size)
+                    _ = decode_binary(xim, "c", num_values=comp_pixel_buffer_size)
                 uncompressed_pixel_buffer_size = decode_binary(xim, int)
             self.num_hist_bins = decode_binary(xim, int)
             self.histogram = decode_binary(xim, int, num_values=self.num_hist_bins)
@@ -801,16 +808,20 @@ class XIM(BaseImage):
                 if tipe == XIM_PROP_INT:
                     value = decode_binary(xim, int)
                 elif tipe == XIM_PROP_DOUBLE:
-                    value = decode_binary(xim, 'd')
+                    value = decode_binary(xim, "d")
                 elif tipe == XIM_PROP_STRING:
                     num_bytes = decode_binary(xim, int)
                     value = decode_binary(xim, str, num_values=num_bytes)
                 elif tipe == XIM_PROP_DOUBLE_ARRAY:
                     num_bytes = decode_binary(xim, int)
-                    value = decode_binary(xim, 'd', num_values=int(num_bytes // 8))  # doubles are 8 bytes
+                    value = decode_binary(
+                        xim, "d", num_values=int(num_bytes // 8)
+                    )  # doubles are 8 bytes
                 elif tipe == XIM_PROP_INT_ARRAY:
                     num_bytes = decode_binary(xim, int)
-                    value = decode_binary(xim, int, num_values=int(num_bytes // 4))  # ints are 4 bytes
+                    value = decode_binary(
+                        xim, int, num_values=int(num_bytes // 4)
+                    )  # ints are 4 bytes
                 self.properties[name] = value
 
     @staticmethod
@@ -834,15 +845,19 @@ class XIM(BaseImage):
         for byte in lookup_table_bytes:
             byte_repr = f"{byte:08b}"
             # didn't actually check these indexes but I think they're right.
-            extend([
-                int(byte_repr[6:8], 2),
-                int(byte_repr[4:6], 2),
-                int(byte_repr[2:4], 2),
-                int(byte_repr[0:2], 2),
-            ])
+            extend(
+                [
+                    int(byte_repr[6:8], 2),
+                    int(byte_repr[4:6], 2),
+                    int(byte_repr[2:4], 2),
+                    int(byte_repr[0:2], 2),
+                ]
+            )
         return np.asarray(table, dtype=np.int8)
 
-    def _parse_compressed_bytes(self, xim: typing.BinaryIO, lookup_table: np.ndarray) -> np.ndarray:
+    def _parse_compressed_bytes(
+        self, xim: typing.BinaryIO, lookup_table: np.ndarray
+    ) -> np.ndarray:
         """Parse the compressed pixels. We have to do this pixel-by-pixel because each
         pixel can have a different number of bytes representing it
 
@@ -867,12 +882,17 @@ class XIM(BaseImage):
         img_height = self.img_height_px
         img_width = self.img_width_px
         dtype = np.int8 if self.bytes_per_pixel == 1 else np.int16
-        compressed_array = a = np.zeros((img_height*img_width), dtype=dtype)
+        compressed_array = a = np.zeros((img_height * img_width), dtype=dtype)
         # first row and 1st element, 2nd row is uncompressed
         # this SHOULD work by reading the # of bytes specified in the header but AFAICT this is just a standard int (4 bytes)
-        compressed_array[:img_width+1] = decode_binary(xim, int, num_values=img_width+1)
+        compressed_array[: img_width + 1] = decode_binary(
+            xim, int, num_values=img_width + 1
+        )
         diffs = self._get_diffs(lookup_table, xim)
-        for diff, idx in zip(np.asarray(diffs, dtype=np.int16), range(img_width + 1, img_width*img_height)):
+        for diff, idx in zip(
+            np.asarray(diffs, dtype=np.int16),
+            range(img_width + 1, img_width * img_height),
+        ):
             left = a[idx - 1]
             above = a[idx - img_width]
             upper_left = a[idx - img_width - 1]
@@ -894,9 +914,9 @@ class XIM(BaseImage):
         diffs = []
         for start, stop in zip(byte_changes[:-1], byte_changes[1:]):
             if stop - start > 1:
-                diffs += decode_binary(xim, 'b', num_values=stop - start - 1)
+                diffs += decode_binary(xim, "b", num_values=stop - start - 1)
             if stop != byte_changes[-1]:
-                diffs.append(decode_binary(xim, 'h'))
+                diffs.append(decode_binary(xim, "h"))
         return diffs
 
     def save_as(self, file: str, format: Optional[str] = None) -> None:
