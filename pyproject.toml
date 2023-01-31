@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pylinac"
-version = "3.7.1"
+version = "3.7.2"
 description = "A toolkit for performing TG-142 QA-related tasks on a linear accelerator"
 authors = ["James Kerns <jkerns100@gmail.com>"]
 license = "MIT"
@@ -28,7 +28,7 @@ classifiers=[
 ]
 
 [tool.poetry.dependencies]
-python = "^3.7.10"
+python = "^3.7.20"
 scikit-image = ">=0.17.3"
 numpy = ">=0.16"
 scipy = ">=1.1"

@@ -963,7 +963,7 @@ class SingleProfile(ProfileMixin):
 
     @argue.options(calculation=("mean", "median", "max", "min", "area"))
     def field_calculation(
-        self, in_field_ratio: float = 0.8, calculation: str = "mean"
+        self, in_field_ratio: float = 0.8, calculation: str = "mean", slope_exclusion_ratio: float = 0.2
     ) -> Union[float, Tuple[float, float]]:
         """Perform an operation on the field values of the profile.
         This function is useful for determining field symmetry and flatness.
@@ -975,7 +975,7 @@ class SingleProfile(ProfileMixin):
         calculation : {'mean', 'median', 'max', 'min', 'area'}
             Calculation to perform on the field values.
         """
-        field_values = self.field_data(in_field_ratio)
+        field_values = self.field_data(in_field_ratio, slope_exclusion_ratio=slope_exclusion_ratio)
 
         if calculation == "mean":
             return field_values["field values"].mean()

@@ -27,6 +27,15 @@ Winston Lutz
 * The :meth:`~pylinac.winston_lutz.WinstonLutz.results_data` for a normal WL analysis now include the details of each image as well. I.e. Each :class:`~pylinac.winston_lutz.WinstonLutzResult`
   contains *N* :class:`~pylinac.winston_lutz.WinstonLutz2DResult` , one for each image, under the ``image_details`` key.
 
+v 3.7.2
+-------
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* Performing a field analysis on a very small field (a few mm) would error out. To get around this, pass a larger
+  ``slope_exclusion_ratio`` to ``analyze()``.
+
 v 3.7.1
 -------
 
