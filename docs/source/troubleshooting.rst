@@ -18,12 +18,10 @@ error, you can try a few simple things to fix it.
   calculating the fluence will raise an error. Such things are easy to fix.
 * Third, **Check the Troubleshooting section of the specific module** - Each module may fail in different
   ways, and also have different methods of resolution.
-* And if none of those work, **Post a question on the forum, email me, or file an issue on Github** -
+* And if none of those work, **Post a question on the forum** -
   You may have found a bug and it needs fixing!
 
-  - `Forum <https://groups.google.com/forum/#!forum/pylinac>`_
-  - `Email <mailto:jkerns100@gmail.com>`_
-  - `Issue tracker <https://github.com/jrkerns/pylinac/issues>`_
+  - `Forum <https://groups.google.com/forum/#!forum/pylinac>`__
 
 
 Loading TIFF Files

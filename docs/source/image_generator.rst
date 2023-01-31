@@ -52,7 +52,7 @@ also have a ``generate_dicom`` method for dumping the image along with mostly st
 Extending Layers & Simulators
 -----------------------------
 
-This module was meant to be extensible. That's why the structures are defined so simply. To create a custom simulator,
+This module is meant to be extensible. That's why the structures are defined so simply. To create a custom simulator,
 inherit from ``Simulator`` and define the pixel size and shape. Note that generating DICOM does not come for free:
 
 .. code-block:: python

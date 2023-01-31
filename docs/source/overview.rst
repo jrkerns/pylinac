@@ -13,42 +13,45 @@ What is pylinac?
 ----------------
 
 Pylinac (pr. "pie-linac") is a Python library to analyze the images and datasets commonly used by therapy medical physicists
-in the course of their routine linac QA. These data usually follow tests outlined by AAPM TG-142. An example would be the
+in the course of their routine QA. These data usually follow tests outlined by AAPM TG-142 and similar TGs. An example would be the
 "picket fence" test of MLCs done weekly or monthly.
 
 Pylinac will take in the image/data and can output numeric results, plots showing the analysis, or a PDF including both the
 numerical and plot data.
 
-- Pylinac consumes raw data to compute meaningful output related to common physics tests
-- Pylinac consumes raw data to present meaningful data types for further exploration
+- Pylinac consumes raw data/images to compute meaningful output related to common physics tests
+- Pylinac consumes raw data/images to present meaningful data types for further exploration
 
 What is pylinac NOT?
 --------------------
 
-.. role:: strike
-
 - Pylinac is not a database. Data outputs should be placed onto your clinic's data repository. You should use a high-quality
-  specialty application like `QAtrack+ <http://qatrackplus.com/>`_, an open source application taylor-made (bah-dum-ch) for routine physics QA.
+  specialty application like `QAtrack+ <http://qatrackplus.com/>`__, an open source application taylor-made (bah-dum-ch) for routine physics QA.
 - Pylinac is not liable for incorrect outputs. Either by inputting incorrect data, or the algorithm being incorrect,
   you should **always** validate pylinac against a known methodology (automatic or manual), just as you should
   do for any software used in your clinic.
-- Pylinac is not commercial software. It is open-source with a very lenient `MIT license <https://github.com/jrkerns/pylinac/blob/master/LICENSE.txt>`_
-  which means it can be used publicly, privately, or even used in commercial applications royalty-free.
+- Pylinac is not commercial software. It is open-source with a very lenient `MIT license <https://github.com/jrkerns/pylinac/blob/master/LICENSE.txt>`__
+  which means it can be used publicly, privately, or even used in commercial applications royalty-free. In
+  fact, it's the image analysis engine for `RadMachine <https://www.radformation.com/radmachine/radmachine>`__, where both
+  the pylinac and QATrack+ authors currently work. `Join us! <https://www.radformation.com/careers>`__
 
 Intended Audience
 -----------------
 
-Pylinac is intended to be used by physicists who know at least a bit of programming.
+Pylinac is intended to be used by physicists who know at least a bit of programming, although just the basics
+should be enough for most applications.
 
 Philosophy
 ----------
 
 Pylinac runs on a few philosophical principles:
 
+
 * A given module should only address 1 overarching task.
 * Using pylinac should require a minimal amount of code.
 * The user should have to supply as little information as necessary to run an analysis.
 * The underlying code of pylinac should be easy to understand.
+
 
 .. epigraph::
 
@@ -90,5 +93,4 @@ pylinac.
 * **Each module has similar load, analyze, and show methods and behavior** -- The normal flow of a pylinac module use is to 1) Load the data in,
   2) Analyze the data, and 3) Show the results.
 * **Most modules can be fully utilized in a few lines** -- The whole point of pylinac is to automate and simplify the process of
-  analyzing routine QA data. Thus, most routines can be written in a few lines. Each module gives a starting script
-  in its documentation.
+  analyzing routine QA data. Thus, most routines can be written in a few lines.

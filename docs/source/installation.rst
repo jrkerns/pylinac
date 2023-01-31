@@ -25,11 +25,10 @@ Great! To get started install via pip:
 Dependencies
 ------------
 
-Pylinac, as a scientific package, has fairly standard scientific dependencies (>= means at least that version or newer):
+Pylinac, as a scientific package, has fairly standard scientific dependencies (>= means at least that version or newer).
+Installing the package via ``pip`` will install these for you:
 
 .. literalinclude:: ../../requirements.txt
-
-See the numpy/scipy installation `instructions <http://docs.scipy.org/doc/numpy/user/install.html>`_ if you don't yet have them.
 
 I'm new to Python
 -----------------
@@ -37,7 +36,7 @@ I'm new to Python
 That's okay! If you're not a programmer at all you'll have a few things to do to get up and running,
 but never fear. Using pylinac requires not just the base language Python, but a few dependencies as well.
 Since most physicists don't program, or if they do it's in MATLAB, this section will help jumpstart your use of not
-just ``pylinac`` but Python in general and all its wonderful goodness! Getting started with Python takes some work to
+just pylinac but Python in general and all its wonderful goodness! Getting started with Python takes some work to
 get set up and running, but it's well worth the effort.
 
 .. _distro_stack:
@@ -84,7 +83,7 @@ is completely up to you. If you want one, here are some options:
 * `PyCharm <https://www.jetbrains.com/pycharm/>`_ - A fully-featured, rich IDE. It's arguably king of the heavyweights and *free*. At least try it.
   Here's the PyCharm `quick start guide <https://www.jetbrains.com/pycharm/quickstart/>`_.
 
-  .. image:: https://confluence.jetbrains.com/download/attachments/51188837/pyCharm3.png
+  .. image:: https://www.jetbrains.com/lp/pycharm-pro/static/5-refactoring-34f412bbb8d494a1fa4c8239eb7f0d5b.png
      :height: 400px
      :width: 600px
 
