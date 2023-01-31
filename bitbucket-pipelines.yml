@@ -181,7 +181,7 @@ definitions:
         name: Update Dev Kraken
         script:
           - apt-get update
-          - apt-get install wget
+          - apt-get install wget -y
           - source venv/bin/activate
           # Get gcloud CLI
           - wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-396.0.0-linux-x86_64.tar.gz -O gcloud_cli.tar.gz
