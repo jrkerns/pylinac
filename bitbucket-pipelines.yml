@@ -192,6 +192,7 @@ pipelines:
 
   custom:
     update-kraken:
+      - step: *set-up-env
       - step: *update-dev-kraken
     pypi:
       - step:
