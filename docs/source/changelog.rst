@@ -21,6 +21,12 @@ Picket Fence
 * The PDF generated when the orientation was up/down would sometimes occlude the text on the report. The image placement has been
   adjusted.
 
+Winston Lutz
+^^^^^^^^^^^^
+
+* The :meth:`~pylinac.winston_lutz.WinstonLutz.results_data` for a normal WL analysis now include the details of each image as well. I.e. Each :class:`~pylinac.winston_lutz.WinstonLutzResult`
+  contains *N* :class:`~pylinac.winston_lutz.WinstonLutz2DResult` , one for each image, under the ``image_details`` key.
+
 v 3.7.1
 -------
 
