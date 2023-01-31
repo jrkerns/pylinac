@@ -25,6 +25,6 @@ def update_dev_kraken(session):
     key_info = os.environ['GOOGLE_CREDENTIALS']
     with open("service_key.json", "w") as key_file:
         key_file.write(key_info)
-    session.run("gcloud", "auth", "activate-service-account", "--key-file service_key.json")
+    session.run("gcloud", "auth", "activate-service-account", "--key-file", "service_key.json")
     session.run("gcloud", "config", "set", "project", 'radmachine')
     session.run("gcloud", "builds", "triggers", "run", "kraken-build", "--branch=master")
