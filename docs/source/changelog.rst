@@ -15,6 +15,15 @@ General
   to other, common file formats like png, jpeg, and tiff as well as access the properties of the .xim image such as
   acquisition mode, MLC positions, etc. Read about it here: :ref:`xim-images`.
 
+Image Generator
+^^^^^^^^^^^^^^^
+
+* The image generator module has had tests added to increase robustness as well as docstrings for the parameters.
+* The ``RandomNoiseLayer`` has been adjusted to provide noise irrespective of the signal. Previously, the noise was
+  dependent on the intensity of the pixel. To be consistent with the intention of applying dark current, the
+  layer now adds noise consistently across the image. The default sigma value has been adjusted to be roughly the same
+  as before.
+
 Picket Fence
 ^^^^^^^^^^^^
 
