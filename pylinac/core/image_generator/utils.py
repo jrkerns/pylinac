@@ -270,7 +270,7 @@ def generate_winstonlutz_multi_bb_single_field(
     image_axes
         List of axis values for the images. Sequence is (Gantry, Coll, Couch).
     gantry_tilt
-        The tilt of the gantry that affects the position at 0 and 180. Simulates a simple cosine function.
+        The tilt of the gantry in degrees that affects the position at 0 and 180. Simulates a simple cosine function.
     gantry_sag
         The sag of the gantry that affects the position at gantry=90 and 270. Simulates a simple sine function.
     clean_dir
