@@ -184,7 +184,7 @@ definitions:
           - apt-get install wget -y
           - source venv/bin/activate
           # Get gcloud CLI
-          - wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-396.0.0-linux-x86_64.tar.gz -O gcloud_cli.tar.gz
+          - wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-416.0.0-linux-x86_64.tar.gz -O gcloud_cli.tar.gz
           - tar -xf gcloud_cli.tar.gz
           - ./google-cloud-sdk/install.sh --quiet
           - export PATH="./google-cloud-sdk/bin:$PATH"
