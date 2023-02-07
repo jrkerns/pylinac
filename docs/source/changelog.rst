@@ -36,6 +36,11 @@ Winston Lutz
 * The :meth:`~pylinac.winston_lutz.WinstonLutz.results_data` for a normal WL analysis now include the details of each image as well. I.e. Each :class:`~pylinac.winston_lutz.WinstonLutzResult`
   contains *N* :class:`~pylinac.winston_lutz.WinstonLutz2DResult` , one for each image, under the ``image_details`` key.
 
+CBCT
+^^^^
+
+* The MTF returned in ``results_data`` now includes 10-90 in steps of 10. Previously, only the 80, 50, and 30% were reported.
+
 v 3.7.2
 -------
 
