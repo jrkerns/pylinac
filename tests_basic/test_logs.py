@@ -190,7 +190,7 @@ class TestLoadLog(TestCase):
         self.assertIsInstance(load_log(tlog), TrajectoryLog)
 
     def test_url(self):
-        url = r'https://s3.amazonaws.com/pylinac/Tlog.bin'
+        url = r'https://storage.googleapis.com/pylinac_demo_files/Tlog.bin'
         self.assertIsInstance(load_log(url), TrajectoryLog)
 
     def test_dir(self):
