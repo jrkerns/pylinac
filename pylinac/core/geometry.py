@@ -18,6 +18,11 @@ def tan(degrees: float) -> float:
     return math.tan(math.radians(degrees))
 
 
+def atan(x: float, y: float) -> float:
+    """Calculate the degrees of a given x/y from the origin"""
+    return math.degrees(math.atan2(x, y))
+
+
 def cos(degrees: float) -> float:
     """Calculate the cosine of the given degrees."""
     return math.cos(math.radians(degrees))
@@ -367,7 +372,7 @@ class Line:
         denominator = np.sqrt(np.sum(np.power(lp2 - lp1, 2)))
         return numerator / denominator
 
-    def plot2axes(self, axes: plt.Axes, width: float = 1, color: str = "w") -> None:
+    def plot2axes(self, axes: plt.Axes, width: float = 1, color: str = "w", **kwargs) -> None:
         """Plot the line to an axes.
 
         Parameters
@@ -380,8 +385,10 @@ class Line:
         axes.plot(
             (self.point1.x, self.point2.x),
             (self.point1.y, self.point2.y),
+            (self.point1.z, self.point2.z),
             linewidth=width,
             color=color,
+            **kwargs
         )
 
 
