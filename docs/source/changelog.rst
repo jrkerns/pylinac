@@ -3,6 +3,14 @@
 Changelog
 =========
 
+v 3.9.0
+-------
+
+CatPhan
+^^^^^^^
+
+* ROI details have been added to the :ref:`~pylinac.ct.CTP515Result` class.
+
 v 3.8.0
 -------
 
