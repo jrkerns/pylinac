@@ -132,6 +132,7 @@ class CTP515Result:
     cnr_threshold: float  #:
     num_rois_seen: int  #:
     roi_settings: dict  #:
+    roi_results: dict  #:
 
 
 @dataclass
@@ -2147,6 +2148,7 @@ class CatPhanBase:
                 cnr_threshold=self.ctp515.cnr_threshold,
                 num_rois_seen=self.ctp515.rois_visible,
                 roi_settings=self.ctp515.roi_settings,
+                roi_results={key: roi.as_dict() for key, roi in self.ctp515.rois.items()},
             )
 
         if as_dict:
