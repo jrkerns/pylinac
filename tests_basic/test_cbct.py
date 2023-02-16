@@ -126,6 +126,9 @@ class TestGeneral(TestCase):
         # check the additional modules got added
         self.assertAlmostEqual(data.ctp528.start_angle_radians, np.pi, delta=0.02)
 
+        for p in range(10, 91, 10):
+            self.assertEqual(data.ctp528.mtf_lp_mm[p], self.cbct.ctp528.mtf.relative_resolution(p))
+
     def test_contrast_str(self):
         # shouldn't raise
         self.cbct.analyze(contrast_method="Michelson")

@@ -960,7 +960,7 @@ class CTP486(CatPhanModule):
 
     @property
     def uniformity_index(self) -> float:
-        """The Uniformity Index"""
+        """The Uniformity Index. Elstrom et al equation 2. https://www.tandfonline.com/doi/pdf/10.3109/0284186X.2011.590525"""
         center = self.rois["Center"]
         uis = [
             100 * ((roi.pixel_value - center.pixel_value) / (center.pixel_value + 1000))
@@ -971,7 +971,7 @@ class CTP486(CatPhanModule):
 
     @property
     def integral_non_uniformity(self) -> float:
-        """The Integral Non-Uniformity"""
+        """The Integral Non-Uniformity. Elstrom et al equation 1. https://www.tandfonline.com/doi/pdf/10.3109/0284186X.2011.590525"""
         maxhu = max(roi.pixel_value for roi in self.rois.values())
         minhu = min(roi.pixel_value for roi in self.rois.values())
         return (maxhu - minhu) / (maxhu + minhu + 2000)
@@ -2137,7 +2137,7 @@ class CatPhanBase:
                 roi_settings=self.ctp528.roi_settings,
                 start_angle_radians=self.ctp528.start_angle,
                 mtf_lp_mm={
-                    p: self.ctp528.mtf.relative_resolution(p) for p in (80, 50, 30)
+                    p: self.ctp528.mtf.relative_resolution(p) for p in range(10, 91, 10)
                 },
             )
 

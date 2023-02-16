@@ -540,6 +540,28 @@ class FlatSym18X(FieldAnalysisBase, TestCase):
     penum_left = 3.4
 
 
+class BBLike(FieldAnalysisBase, TestCase):
+    """BB-like image"""
+    file_name = "bb_field_analysis.dcm"
+    slope_exclusion_ratio = 0.6
+    horiz_width = 0.01
+    vert_width = 0.01
+    vert_flatness = 15.1
+    vert_symmetry = -3.74
+    horiz_flatness = 18.4
+    horiz_symmetry = -15.6
+    vert_field_size = 4.4
+    horiz_field_size = 4.5
+    cax_to_top = 1.85
+    cax_to_left = 2.75
+    cax_to_right = 1.75
+    cax_to_bottom = 2.55
+    penum_top = 2.3
+    penum_bottom = 2.2
+    penum_right = 2.3
+    penum_left = 2.2
+
+
 class TestCustomProtocol(TestCase):
     def test_custom_protocol(self):
         class MyProtocol(enum.Enum):

@@ -977,7 +977,7 @@ class PicketFence:
         )
         data = io.BytesIO()
         self.save_analyzed_image(data, leaf_error_subplot=True)
-        canvas.add_image(data, location=(3, 8), dimensions=(15, 15))
+        canvas.add_image(data, location=(3, 5), dimensions=(15, 15))
         canvas.add_text(text=self.results(as_list=True), location=(1.5, 25), font_size=14)
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)

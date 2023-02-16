@@ -47,7 +47,6 @@ As well, you can plot and save individual pieces of the analysis such as lineari
     cbct = CatPhan504.from_demo_images()
     cbct.analyze()
     cbct.plot_analyzed_subimage('linearity')
-    cbct.save_analyzed_subimage('linearity.png', subimage='linearity')
 
 Or the rMTF:
 

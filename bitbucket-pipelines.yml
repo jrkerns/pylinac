@@ -178,11 +178,25 @@ definitions:
             includePaths:
               - "pylinac/core/**"
               - "tests_basic/core/**"
-
+    - step: &update-dev-kraken
+        name: Update Dev Kraken
+        script:
+          - apt-get update
+          - apt-get install wget -y
+          - source venv/bin/activate
+          # Get gcloud CLI
+          - wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-416.0.0-linux-x86_64.tar.gz -O gcloud_cli.tar.gz
+          - tar -xf gcloud_cli.tar.gz
+          - ./google-cloud-sdk/install.sh --quiet
+          - export PATH="./google-cloud-sdk/bin:$PATH"
+          - nox -s update_dev_kraken
 
 pipelines:
 
   custom:
+    update-kraken:
+      - step: *set-up-env
+      - step: *update-dev-kraken
     pypi:
       - step:
             name: Set up Env
@@ -245,3 +259,4 @@ pipelines:
           - step: *winston-lutz-tests
           - step: *core-module-tests
       - step: *push-to-github
+      - step: *update-dev-kraken

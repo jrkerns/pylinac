@@ -3,6 +3,62 @@
 Changelog
 =========
 
+v 3.8.0
+-------
+
+General
+^^^^^^^
+
+* ``.xim`` files are now able to be opened. These are Varian-specific images usually taken during MPC or in service mode.
+  Currently, it is not natively integrated into other analyses (e.g. analyzing a .xim picket-fence via ``PicketFence(...)``), but depending
+  on the usage it will have more mainstream support in the other modules. However, this will allow the user to export
+  to other, common file formats like png, jpeg, and tiff as well as access the properties of the .xim image such as
+  acquisition mode, MLC positions, etc. Read about it here: :ref:`xim-images`.
+
+Image Generator
+^^^^^^^^^^^^^^^
+
+* The image generator module has had tests added to increase robustness as well as docstrings for the parameters.
+* The ``RandomNoiseLayer`` has been adjusted to provide noise irrespective of the signal. Previously, the noise was
+  dependent on the intensity of the pixel. To be consistent with the intention of applying dark current, the
+  layer now adds noise consistently across the image. The default sigma value has been adjusted to be roughly the same
+  as before.
+
+Picket Fence
+^^^^^^^^^^^^
+
+* The PDF generated when the orientation was up/down would sometimes occlude the text on the report. The image placement has been
+  adjusted.
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* The :meth:`~pylinac.winston_lutz.WinstonLutz.results_data` for a normal WL analysis now include the details of each image as well. I.e. Each :class:`~pylinac.winston_lutz.WinstonLutzResult`
+  contains *N* :class:`~pylinac.winston_lutz.WinstonLutz2DResult` , one for each image, under the ``image_details`` key.
+
+CBCT
+^^^^
+
+* The MTF returned in ``results_data`` now includes 10-90 in steps of 10. Previously, only the 80, 50, and 30% were reported.
+
+v 3.7.2
+-------
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* Performing a field analysis on a very small field (a few mm) would error out. To get around this, pass a larger
+  ``slope_exclusion_ratio`` to ``analyze()``.
+
+v 3.7.1
+-------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The SNC MV 12510 ROIs were slightly downscaled. This caused an issue in contrast and CNR calculation being lower than reality by ~20%.
+  It was introduced in v3.6. Users are encouraged to upgrade if using this specific phantom analysis.
+
 v 3.7.0
 -------
 

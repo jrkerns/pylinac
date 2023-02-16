@@ -181,6 +181,7 @@ class WinstonLutzResult(ResultBase):
     max_coll_rms_deviation_mm: float  #:
     couch_2d_iso_diameter_mm: float  #:
     max_couch_rms_deviation_mm: float  #:
+    image_details: List[WinstonLutz2DResult]  #:
 
 
 @dataclass
@@ -1204,6 +1205,17 @@ class WinstonLutz:
         num_coll_imgs = self._get_images(axis=(Axis.COLLIMATOR, Axis.REFERENCE))[0]
         num_couch_imgs = self._get_images(axis=(Axis.COUCH, Axis.REFERENCE))[0]
 
+        individual_image_data = [i.results_data(as_dict=as_dict) for i in self.images]
+        if as_dict:
+            # convert classes to dicts; little wonky but we have to get it through
+            # to radmachine and we want to dynamically convert classes to dicts
+            for img in individual_image_data:
+                for key, value in img.items():
+                    try:
+                        img[key] = value.__dict__
+                    except AttributeError:
+                        pass
+
         data = WinstonLutzResult(
             num_total_images=len(self.images),
             num_gantry_images=num_gantry_imgs,
@@ -1226,6 +1238,7 @@ class WinstonLutz:
             ),
             max_couch_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.COUCH)),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
+            image_details=individual_image_data
         )
         if as_dict:
             return dataclasses.asdict(data)
