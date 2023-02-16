@@ -3,6 +3,22 @@
 Changelog
 =========
 
+v 3.9.0
+-------
+
+General
+^^^^^^^
+
+* A new dependency has been added: ``tabulate``. This is a Python-only library used for the new multi-target WL module.
+  It is also a dependency of ``pandas``, which will likely be a dependency of pylinac in the future.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Multi-Target, Multi-Field Winston-Lutz is now available. This means phantoms such as the SNC MultiMet can
+  be analyzed. The algorithm is generalized however, and any reasonable configuration of BBs can be analyzed,
+  meaning custom phantoms and new commercial phantoms are easy to make. Read the new section :ref:`here <multi-target-wl>`.
+
 v 3.8.0
 -------
 
@@ -101,13 +117,6 @@ CBCT
 
         This change is internal and should not cause issues; all tests passed without modification but there is a small possibility a dataset with
         some kind of interference will now analyze and cause detection issues.
-
-Winston-Lutz
-^^^^^^^^^^^^
-
-* Multi-Target, Multi-Field Winston-Lutz is now available. This means phantoms such as the SNC MultiMet can
-  be analyzed. The algorithm is generalized however, and any reasonable configuration of BBs can be analyzed,
-  meaning custom phantoms and new commercial phantoms are easy to make. Read the new section :ref:`here <multi-target-wl>`.
 
 v 3.6.3
 -------
