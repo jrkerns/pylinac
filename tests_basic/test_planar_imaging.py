@@ -434,8 +434,8 @@ class SNCMV12510_6MV2(PlanarPhantomMixin, TestCase):
 class SNCMV12510_Jig(PlanarPhantomMixin, TestCase):
     """Phantom where the jig is touching and gets in the way of analysis"""
     klass = SNCMV12510
-    mtf_50 = 0.85
-    median_contrast = 0.255
+    mtf_50 = 0.92
+    median_contrast = 0.23
     median_cnr = 58.6
     dir_path = ["planar_imaging", "SNC MV Old"]
     file_name = "SNC_MV_jig.dcm"

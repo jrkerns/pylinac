@@ -1788,7 +1788,7 @@ class SNCkV(ImagePhantomBase):
     common_name = "SNC kV-QA"
     phantom_bbox_size_mm2 = 134 ** 2
     roi_match_condition = 'closest'
-    detection_conditions = [is_centered, is_right_size]
+    detection_conditions = [is_centered, is_right_size, is_square]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.7, "height ratio": 5.6}}
     high_contrast_roi_settings = {
         "roi 1": {
@@ -1866,7 +1866,6 @@ class SNCMV(SNCkV):
     _demo_filename = "SNC-MV.dcm"
     common_name = "SNC MV-QA"
     phantom_bbox_size_mm2 = 118 ** 2
-    detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 7.5}}
     high_contrast_roi_settings = {
         "roi 1": {
