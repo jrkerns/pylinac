@@ -309,3 +309,5 @@ Helpers
 .. autofunction:: pylinac.core.image_generator.utils.generate_winstonlutz
 
 .. autofunction:: pylinac.core.image_generator.utils.generate_winstonlutz_cone
+
+.. autofunction:: pylinac.core.image_generator.utils.generate_winstonlutz_multi_bb_multi_field
