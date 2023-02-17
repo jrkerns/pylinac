@@ -12,6 +12,11 @@ General
 * A new dependency has been added: ``tabulate``. This is a Python-only library used for the new multi-target WL module.
   It is also a dependency of ``pandas``, which will likely be a dependency of pylinac in the future.
 
+CatPhan
+^^^^^^^
+
+* ROI details have been added to the :ref:`~pylinac.ct.CTP515Result` class.
+
 Winston-Lutz
 ^^^^^^^^^^^^
 
