@@ -19,6 +19,14 @@ Winston-Lutz
   be analyzed. The algorithm is generalized however, and any reasonable configuration of BBs can be analyzed,
   meaning custom phantoms and new commercial phantoms are easy to make. Read the new section :ref:`here <multi-target-wl>`.
 
+v 3.8.1
+-------
+
+* The SNC phantoms (kV, MV, MV 12510) have had their ROI localization algorithms adjusted slightly. These phantoms
+  are commonly used with the acrylic jig. That jig is very dense and often causes issues detecting the phantom separate
+  from the phantom itself. This fix should remove the effect of the acrylic jig and allow any jig to be used, assuming
+  the central ROI area is not occluded.
+
 v 3.8.0
 -------
 
