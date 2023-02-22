@@ -15,7 +15,7 @@ distlib==0.3.4
 docutils==0.18.1
 filelock==3.6.0
 fonttools==4.28.5
-future==0.18.2
+future==0.18.3
 google-cloud-storage
 idna==3.3
 imageio==2.13.5
