@@ -5,13 +5,13 @@ import numpy as np
 from skimage import draw, filters
 
 
-def clip_add(image1: np.ndarray, image2: np.ndarray, dtype: Type[np.dtype] = np.uint16) -> np.ndarray:
+def clip_add(
+    image1: np.ndarray, image2: np.ndarray, dtype: Type[np.dtype] = np.uint16
+) -> np.ndarray:
     """Clip the image to the dtype extrema. Otherwise, the bits will flip."""
     # convert to float first so we don't flip bits initially
     combined_img = image1.astype(float) + image2.astype(float)
-    return np.clip(combined_img, np.iinfo(dtype).min, np.iinfo(dtype).max).astype(
-        dtype
-    )
+    return np.clip(combined_img, np.iinfo(dtype).min, np.iinfo(dtype).max).astype(dtype)
 
 
 def even_round(num: float) -> int:

@@ -937,7 +937,7 @@ class WinstonLutz:
         ]
         xz_sag = np.array([getattr(img, attr).x for img in imgs])
         y_sag = np.array([getattr(img, attr).y for img in imgs])
-        rms = np.sqrt(xz_sag ** 2 + y_sag ** 2)
+        rms = np.sqrt(xz_sag**2 + y_sag**2)
 
         # plot the axis deviation
         if ax is None:
@@ -1238,7 +1238,7 @@ class WinstonLutz:
             ),
             max_couch_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.COUCH)),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
-            image_details=individual_image_data
+            image_details=individual_image_data,
         )
         if as_dict:
             return dataclasses.asdict(data)
@@ -1587,7 +1587,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         """Make a plot for each BB. Each plot contains the analysis of that BB on each image
         it was found."""
         figs, names = [], []
-        figsize = kwargs.pop('figsize', None) or (8, 8)
+        figsize = kwargs.pop("figsize", None) or (8, 8)
         for bb, img_set in self.analyzed_images.items():
             rows = len(img_set) // 3 + 1
             fig, axes = plt.subplots(nrows=rows, ncols=3, figsize=figsize, **kwargs)
@@ -1603,7 +1603,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             plt.show()
         return figs, names
 
-    def save_images(self, prefix: str = '', **kwargs):
+    def save_images(self, prefix: str = "", **kwargs):
         """Save the figure of `plot_images()` to file as PNG. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
         Parameters

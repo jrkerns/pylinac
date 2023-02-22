@@ -542,6 +542,7 @@ class FlatSym18X(FieldAnalysisBase, TestCase):
 
 class BBLike(FieldAnalysisBase, TestCase):
     """BB-like image"""
+
     file_name = "bb_field_analysis.dcm"
     slope_exclusion_ratio = 0.6
     horiz_width = 0.01

@@ -149,7 +149,7 @@ class ImagePhantomBase:
     detection_conditions: [List[Callable]] = [is_centered, is_right_size]
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
-    roi_match_condition = 'max'
+    roi_match_condition = "max"
 
     def __init__(
         self,
@@ -252,11 +252,20 @@ class ImagePhantomBase:
                 "Unable to find the phantom in the image. Potential solutions: check the SSD was passed correctly, check that the phantom isn't at the edge of the field, check that the phantom is centered along the CAX."
             )
 
-        if self.roi_match_condition == 'max':
+        if self.roi_match_condition == "max":
             # take the biggest ROI and call that the phantom outline
-            best_roi_idx = np.argsort([sorted_regions[phan].bbox_area for phan in blobs])[-1]
-        elif self.roi_match_condition == 'closest':  # take the one most similar in size to known size
-            best_roi_idx = np.argsort([abs(sorted_regions[phan].bbox_area - self.phantom_bbox_size_px) for phan in blobs])[0]
+            best_roi_idx = np.argsort(
+                [sorted_regions[phan].bbox_area for phan in blobs]
+            )[-1]
+        elif (
+            self.roi_match_condition == "closest"
+        ):  # take the one most similar in size to known size
+            best_roi_idx = np.argsort(
+                [
+                    abs(sorted_regions[phan].bbox_area - self.phantom_bbox_size_px)
+                    for phan in blobs
+                ]
+            )[0]
         phantom_idx = blobs[best_roi_idx]
 
         return sorted_regions[phantom_idx]
@@ -1786,8 +1795,8 @@ class StandardImagingQCkV(StandardImagingQC3):
 class SNCkV(ImagePhantomBase):
     _demo_filename = "SNC-kV.dcm"
     common_name = "SNC kV-QA"
-    phantom_bbox_size_mm2 = 134 ** 2
-    roi_match_condition = 'closest'
+    phantom_bbox_size_mm2 = 134**2
+    roi_match_condition = "closest"
     detection_conditions = [is_centered, is_right_size, is_square]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.7, "height ratio": 5.6}}
     high_contrast_roi_settings = {
@@ -1865,7 +1874,7 @@ class SNCkV(ImagePhantomBase):
 class SNCMV(SNCkV):
     _demo_filename = "SNC-MV.dcm"
     common_name = "SNC MV-QA"
-    phantom_bbox_size_mm2 = 118 ** 2
+    phantom_bbox_size_mm2 = 118**2
     phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 7.5}}
     high_contrast_roi_settings = {
         "roi 1": {

@@ -372,7 +372,9 @@ class Line:
         denominator = np.sqrt(np.sum(np.power(lp2 - lp1, 2)))
         return numerator / denominator
 
-    def plot2axes(self, axes: plt.Axes, width: float = 1, color: str = "w", **kwargs) -> None:
+    def plot2axes(
+        self, axes: plt.Axes, width: float = 1, color: str = "w", **kwargs
+    ) -> None:
         """Plot the line to an axes.
 
         Parameters
@@ -388,7 +390,7 @@ class Line:
             (self.point1.z, self.point2.z),
             linewidth=width,
             color=color,
-            **kwargs
+            **kwargs,
         )
 
 

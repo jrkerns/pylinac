@@ -443,6 +443,7 @@ class SNCMV12510_6MV2(PlanarPhantomMixin, TestCase):
 
 class SNCMV12510_Jig(PlanarPhantomMixin, TestCase):
     """Phantom where the jig is touching and gets in the way of analysis"""
+
     klass = SNCMV12510
     mtf_50 = 0.92
     median_contrast = 0.23

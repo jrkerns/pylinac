@@ -202,14 +202,19 @@ def generate_winstonlutz(
                 cax_offset_mm=(gantry_tilt * cos(gantry), gantry_sag * sin(gantry)),
             )
         )
-        long_offset = bb_projection_long(offset_in=offset_mm_in, offset_up=offset_mm_up, offset_left=offset_mm_left, sad=1000, gantry=gantry)
-        gplane_offset = bb_projection_gantry_plane(offset_left=offset_mm_left, offset_up=offset_mm_up, sad=1000, gantry=gantry)
+        long_offset = bb_projection_long(
+            offset_in=offset_mm_in,
+            offset_up=offset_mm_up,
+            offset_left=offset_mm_left,
+            sad=1000,
+            gantry=gantry,
+        )
+        gplane_offset = bb_projection_gantry_plane(
+            offset_left=offset_mm_left, offset_up=offset_mm_up, sad=1000, gantry=gantry
+        )
         sim_single.add_layer(
             PerfectBBLayer(
-                cax_offset_mm=(
-                    long_offset,
-                    gplane_offset
-                ),
+                cax_offset_mm=(long_offset, gplane_offset),
                 bb_size_mm=bb_size_mm,
             )
         )
@@ -244,7 +249,7 @@ def generate_winstonlutz_multi_bb_single_field(
     gantry_tilt: float = 0,
     gantry_sag: float = 0,
     clean_dir: bool = True,
-    jitter_mm: float = 0
+    jitter_mm: float = 0,
 ) -> List[str]:
     """Create a mock set of WL images, simulating gantry sag effects. Produces one image for each item in image_axes.
     This will also generate multiple BBs on the image, one per item in `offsets`. Each offset should be a list of
@@ -294,18 +299,35 @@ def generate_winstonlutz_multi_bb_single_field(
         )
         for offset in offsets:
             if isinstance(offset, dict):
-                offset_mm_left = offset['offset_left_mm'] + random.uniform(-jitter_mm, jitter_mm)
-                offset_mm_up = offset['offset_up_mm'] + random.uniform(-jitter_mm, jitter_mm)
-                offset_mm_in = -offset['offset_in_mm'] + random.uniform(-jitter_mm, jitter_mm)
+                offset_mm_left = offset["offset_left_mm"] + random.uniform(
+                    -jitter_mm, jitter_mm
+                )
+                offset_mm_up = offset["offset_up_mm"] + random.uniform(
+                    -jitter_mm, jitter_mm
+                )
+                offset_mm_in = -offset["offset_in_mm"] + random.uniform(
+                    -jitter_mm, jitter_mm
+                )
             else:
                 offset_mm_left = offset[0] + random.uniform(-jitter_mm, jitter_mm)
                 offset_mm_up = offset[1] + random.uniform(-jitter_mm, jitter_mm)
-                offset_mm_in = -offset[2] + random.uniform(-jitter_mm, jitter_mm)  #negative because pixels increase as we go out, so to go in we subtract
+                offset_mm_in = -offset[2] + random.uniform(
+                    -jitter_mm, jitter_mm
+                )  # negative because pixels increase as we go out, so to go in we subtract
 
-            long_offset = bb_projection_long(offset_in=offset_mm_in, offset_up=offset_mm_up,
-                                             offset_left=offset_mm_left, sad=1000, gantry=gantry)
-            gplane_offset = bb_projection_gantry_plane(offset_left=offset_mm_left, offset_up=offset_mm_up,
-                                                       sad=1000, gantry=gantry)
+            long_offset = bb_projection_long(
+                offset_in=offset_mm_in,
+                offset_up=offset_mm_up,
+                offset_left=offset_mm_left,
+                sad=1000,
+                gantry=gantry,
+            )
+            gplane_offset = bb_projection_gantry_plane(
+                offset_left=offset_mm_left,
+                offset_up=offset_mm_up,
+                sad=1000,
+                gantry=gantry,
+            )
             sim_single.add_layer(
                 PerfectBBLayer(
                     cax_offset_mm=(
@@ -348,7 +370,7 @@ def generate_winstonlutz_multi_bb_multi_field(
     gantry_sag: float = 0,
     clean_dir: bool = True,
     jitter_mm: float = 0,
-    align_to_pixels: bool = True
+    align_to_pixels: bool = True,
 ) -> List[str]:
     """Create a mock set of WL images, simulating gantry sag effects. Produces one image for each item in image_axes.
     This will also generate multiple BBs on the image, one per item in `offsets`. Each offset should be a list of
@@ -395,12 +417,22 @@ def generate_winstonlutz_multi_bb_multi_field(
         for field_offset in field_offsets:
             offset_mm_left = field_offset[0] + random.uniform(-jitter_mm, jitter_mm)
             offset_mm_up = field_offset[1] + random.uniform(-jitter_mm, jitter_mm)
-            offset_mm_in = -field_offset[2] + random.uniform(-jitter_mm,
-                                                       jitter_mm)  # negative because pixels increase as we go out, so to go in we subtract
-            long_offset = bb_projection_long(offset_in=offset_mm_in, offset_up=offset_mm_up,
-                                             offset_left=offset_mm_left, sad=1000, gantry=gantry)
-            gplane_offset = bb_projection_gantry_plane(offset_left=offset_mm_left, offset_up=offset_mm_up,
-                                                       sad=1000, gantry=gantry)
+            offset_mm_in = -field_offset[2] + random.uniform(
+                -jitter_mm, jitter_mm
+            )  # negative because pixels increase as we go out, so to go in we subtract
+            long_offset = bb_projection_long(
+                offset_in=offset_mm_in,
+                offset_up=offset_mm_up,
+                offset_left=offset_mm_left,
+                sad=1000,
+                gantry=gantry,
+            )
+            gplane_offset = bb_projection_gantry_plane(
+                offset_left=offset_mm_left,
+                offset_up=offset_mm_up,
+                sad=1000,
+                gantry=gantry,
+            )
             long_offset += gantry_tilt * cos(gantry)
             gplane_offset += gantry_sag * sin(gantry)
             if align_to_pixels:
@@ -414,18 +446,35 @@ def generate_winstonlutz_multi_bb_multi_field(
             )
         for offset in bb_offsets:
             if isinstance(offset, dict):
-                offset_mm_left = offset['offset_left_mm'] + random.uniform(-jitter_mm, jitter_mm)
-                offset_mm_up = offset['offset_up_mm'] + random.uniform(-jitter_mm, jitter_mm)
-                offset_mm_in = -offset['offset_in_mm'] + random.uniform(-jitter_mm, jitter_mm)
+                offset_mm_left = offset["offset_left_mm"] + random.uniform(
+                    -jitter_mm, jitter_mm
+                )
+                offset_mm_up = offset["offset_up_mm"] + random.uniform(
+                    -jitter_mm, jitter_mm
+                )
+                offset_mm_in = -offset["offset_in_mm"] + random.uniform(
+                    -jitter_mm, jitter_mm
+                )
             else:
                 offset_mm_left = offset[0] + random.uniform(-jitter_mm, jitter_mm)
                 offset_mm_up = offset[1] + random.uniform(-jitter_mm, jitter_mm)
-                offset_mm_in = -offset[2] + random.uniform(-jitter_mm, jitter_mm)  #negative because pixels increase as we go out, so to go in we subtract
+                offset_mm_in = -offset[2] + random.uniform(
+                    -jitter_mm, jitter_mm
+                )  # negative because pixels increase as we go out, so to go in we subtract
 
-            long_offset = bb_projection_long(offset_in=offset_mm_in, offset_up=offset_mm_up,
-                                             offset_left=offset_mm_left, sad=1000, gantry=gantry)
-            gplane_offset = bb_projection_gantry_plane(offset_left=offset_mm_left, offset_up=offset_mm_up,
-                                                       sad=1000, gantry=gantry)
+            long_offset = bb_projection_long(
+                offset_in=offset_mm_in,
+                offset_up=offset_mm_up,
+                offset_left=offset_mm_left,
+                sad=1000,
+                gantry=gantry,
+            )
+            gplane_offset = bb_projection_gantry_plane(
+                offset_left=offset_mm_left,
+                offset_up=offset_mm_up,
+                sad=1000,
+                gantry=gantry,
+            )
             if align_to_pixels:
                 long_offset = pixel_align(sim_single.pixel_size, long_offset)
                 gplane_offset = pixel_align(sim_single.pixel_size, gplane_offset)

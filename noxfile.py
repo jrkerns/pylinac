@@ -30,11 +30,15 @@ def build_docs(session):
 @nox.session(python=False)
 def update_dev_kraken(session):
     """Run the Kraken build to update it with new pylinac changes"""
-    if Path('GCP_creds.json').exists():
-        os.environ['GCP_BUILD_CREDS'] = Path('gcp_build_creds.json').open().read()
-    key_info = os.environ['GCP_BUILD_CREDS']
+    if Path("GCP_creds.json").exists():
+        os.environ["GCP_BUILD_CREDS"] = Path("gcp_build_creds.json").open().read()
+    key_info = os.environ["GCP_BUILD_CREDS"]
     with open("service_key.json", "w") as key_file:
         key_file.write(key_info)
-    session.run("gcloud", "auth", "activate-service-account", "--key-file", "service_key.json")
-    session.run("gcloud", "config", "set", "project", 'radmachine')
-    session.run("gcloud", "builds", "triggers", "run", "kraken-build", "--branch=master")
+    session.run(
+        "gcloud", "auth", "activate-service-account", "--key-file", "service_key.json"
+    )
+    session.run("gcloud", "config", "set", "project", "radmachine")
+    session.run(
+        "gcloud", "builds", "triggers", "run", "kraken-build", "--branch=master"
+    )
