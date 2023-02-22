@@ -3,6 +3,35 @@
 Changelog
 =========
 
+v 3.9.0
+-------
+
+General
+^^^^^^^
+
+* A new dependency has been added: ``tabulate``. This is a Python-only library used for the new multi-target WL module.
+  It is also a dependency of ``pandas``, which will likely be a dependency of pylinac in the future.
+
+CatPhan
+^^^^^^^
+
+* ROI details have been added to the :ref:`~pylinac.ct.CTP515Result` class.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Multi-Target, Multi-Field Winston-Lutz is now available. This means phantoms such as the SNC MultiMet can
+  be analyzed. The algorithm is generalized however, and any reasonable configuration of BBs can be analyzed,
+  meaning custom phantoms and new commercial phantoms are easy to make. Read the new section :ref:`here <multi-target-wl>`.
+
+v 3.8.1
+-------
+
+* The SNC phantoms (kV, MV, MV 12510) have had their ROI localization algorithms adjusted slightly. These phantoms
+  are commonly used with the acrylic jig. That jig is very dense and often causes issues detecting the phantom separate
+  from the phantom itself. This fix should remove the effect of the acrylic jig and allow any jig to be used, assuming
+  the central ROI area is not occluded.
+
 v 3.8.0
 -------
 
@@ -15,11 +44,40 @@ General
   to other, common file formats like png, jpeg, and tiff as well as access the properties of the .xim image such as
   acquisition mode, MLC positions, etc. Read about it here: :ref:`xim-images`.
 
+Image Generator
+^^^^^^^^^^^^^^^
+
+* The image generator module has had tests added to increase robustness as well as docstrings for the parameters.
+* The ``RandomNoiseLayer`` has been adjusted to provide noise irrespective of the signal. Previously, the noise was
+  dependent on the intensity of the pixel. To be consistent with the intention of applying dark current, the
+  layer now adds noise consistently across the image. The default sigma value has been adjusted to be roughly the same
+  as before.
+
 Picket Fence
 ^^^^^^^^^^^^
 
 * The PDF generated when the orientation was up/down would sometimes occlude the text on the report. The image placement has been
   adjusted.
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* The :meth:`~pylinac.winston_lutz.WinstonLutz.results_data` for a normal WL analysis now include the details of each image as well. I.e. Each :class:`~pylinac.winston_lutz.WinstonLutzResult`
+  contains *N* :class:`~pylinac.winston_lutz.WinstonLutz2DResult` , one for each image, under the ``image_details`` key.
+
+CBCT
+^^^^
+
+* The MTF returned in ``results_data`` now includes 10-90 in steps of 10. Previously, only the 80, 50, and 30% were reported.
+
+v 3.7.2
+-------
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* Performing a field analysis on a very small field (a few mm) would error out. To get around this, pass a larger
+  ``slope_exclusion_ratio`` to ``analyze()``.
 
 v 3.7.1
 -------
@@ -73,7 +131,6 @@ CBCT
         This change is internal and should not cause issues; all tests passed without modification but there is a small possibility a dataset with
         some kind of interference will now analyze and cause detection issues.
 
-
 v 3.6.3
 -------
 
@@ -95,7 +152,9 @@ CBCT
   This removes some of the error associated
   with having something touching the phantom for just a few slices. E.g. a clinic was using BBs on the side of their Catphan for alignment which was causing
   issues. Situations like these are more likely to be recovered from.
+
   .. note::
+
         This change is internal and should not cause issues; all tests passed without modification but there is a small possibility a dataset with
         some kind of interference will now analyze and cause detection issues.
 

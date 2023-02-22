@@ -1,14 +1,15 @@
 from abc import abstractmethod, ABC
+from typing import Type
 
 import numpy as np
 from skimage import draw, filters
 
 
-def clip_add(
-    image1: np.ndarray, image2: np.ndarray, dtype: np.dtype = np.uint16
-) -> np.ndarray:
+def clip_add(image1: np.ndarray, image2: np.ndarray, dtype: Type[np.dtype] = np.uint16) -> np.ndarray:
     """Clip the image to the dtype extrema. Otherwise, the bits will flip."""
-    return np.clip(image1 + image2, np.iinfo(dtype).min, np.iinfo(dtype).max).astype(
+    # convert to float first so we don't flip bits initially
+    combined_img = image1.astype(float) + image2.astype(float)
+    return np.clip(combined_img, np.iinfo(dtype).min, np.iinfo(dtype).max).astype(
         dtype
     )
 
@@ -52,6 +53,17 @@ class PerfectConeLayer(Layer):
         cax_offset_mm: (float, float) = (0, 0),
         alpha: float = 1.0,
     ):
+        """
+        Parameters
+        ----------
+
+        cone_size_mm
+            Cone size in mm at the iso plane
+        cax_offset_mm
+            The offset in mm. (out, right)
+        alpha
+            The intensity of the layer. 1 is full saturation/radiation. 0 is none.
+        """
         self.cone_size_mm = cone_size_mm
         self.cax_offset_mm = cax_offset_mm
         self.alpha = alpha
@@ -89,12 +101,25 @@ class FilterFreeConeLayer(PerfectConeLayer):
         alpha: float = 1.0,
         filter_magnitude: float = 0.4,
         filter_sigma_mm: float = 80,
-        penumbra_mm: float = 2,
     ):
+        """
+        Parameters
+        ----------
+
+        cone_size_mm
+            Cone size in mm at the iso plane
+        cax_offset_mm
+            The offset in mm. (out, right)
+        alpha
+            The intensity of the layer. 1 is full saturation/radiation. 0 is none.
+        filter_magnitude
+            The magnitude of the CAX peak. Larger values result in "pointier" fields.
+        filter_sigma_mm
+            Proportional to the width of the CAX peak. Larger values produce wider curves.
+        """
         super().__init__(cone_size_mm, cax_offset_mm, alpha)
         self.filter_magnitude = filter_magnitude
         self.filter_sigma_mm = filter_sigma_mm
-        self.penumbra_mm = penumbra_mm
 
     def apply(
         self, image: np.ndarray, pixel_size: float, mag_factor: float
@@ -124,6 +149,17 @@ class PerfectFieldLayer(Layer):
         cax_offset_mm: (float, float) = (0, 0),
         alpha: float = 1.0,
     ):
+        """
+        Parameters
+        ----------
+
+        field_size_mm
+            Field size in mm at the iso plane
+        cax_offset_mm
+            The offset in mm. (out, right)
+        alpha
+            The intensity of the layer. 1 is full saturation/radiation. 0 is none.
+        """
         self.field_size_mm = field_size_mm
         self.cax_offset_mm = cax_offset_mm
         self.alpha = alpha
@@ -136,13 +172,13 @@ class PerfectFieldLayer(Layer):
         ]
         cax_offset_mm_mag = [v * mag_factor for v in self.cax_offset_mm]
         field_start = [
-            round(x / pixel_size + (shape / 2) - field_size / 2)
+            x / pixel_size + (shape / 2) - field_size / 2
             for x, shape, field_size in zip(
                 cax_offset_mm_mag, image.shape, field_size_pix
             )
         ]
         field_end = [
-            round(x / pixel_size + (shape / 2) + field_size / 2 - 1)
+            x / pixel_size + (shape / 2) + field_size / 2 - 1
             for x, shape, field_size in zip(
                 cax_offset_mm_mag, image.shape, field_size_pix
             )
@@ -174,6 +210,23 @@ class FilteredFieldLayer(PerfectFieldLayer):
         gaussian_height: float = 0.03,
         gaussian_sigma_mm: float = 32,
     ):
+        """
+        Parameters
+        ----------
+
+        field_size_mm
+            Field size in mm at the iso plane
+        cax_offset_mm
+            The offset in mm. (out, right)
+        alpha
+            The intensity of the layer. 1 is full saturation/radiation. 0 is none.
+        gaussian_height
+            The intensity of the "horns", or more accurately, the CAX dip. Proportional to the max value allowed for the data type.
+            Increase to make the horns more prominent.
+        gaussian_sigma_mm
+            The width of the "horns". A.k.a. the CAX dip width. Increase to create a wider
+            horn effect.
+        """
         super().__init__(field_size_mm, cax_offset_mm, alpha)
         self.gaussian_height = gaussian_height
         self.gaussian_sigma_mm = gaussian_sigma_mm
@@ -209,6 +262,21 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
         gaussian_height: float = 0.4,
         gaussian_sigma_mm: float = 80,
     ):
+        """
+        Parameters
+        ----------
+
+        field_size_mm
+            Field size in mm at the iso plane
+        cax_offset_mm
+            The offset in mm. (out, right)
+        alpha
+            The intensity of the layer. 1 is full saturation/radiation. 0 is none.
+        gaussian_height
+            The magnitude of the CAX peak. Larger values result in "pointier" fields.
+        gaussian_sigma_mm
+            Proportional to the width of the CAX peak. Larger values produce wider curves.
+        """
         super().__init__(
             field_size_mm, cax_offset_mm, alpha, gaussian_height, gaussian_sigma_mm
         )
@@ -264,14 +332,14 @@ class GaussianFilterLayer(Layer):
 class RandomNoiseLayer(Layer):
     """A salt and pepper noise, simulating dark current"""
 
-    def __init__(self, mean: float = 0.0, sigma: float = 0.01):
+    def __init__(self, mean: float = 0.0, sigma: float = 0.001):
         self.mean = mean
         self.sigma = sigma
 
     def apply(
         self, image: np.ndarray, pixel_size: float, mag_factor: float
     ) -> np.ndarray:
-        normalized_sigma = self.sigma * image.max()
+        normalized_sigma = self.sigma * np.iinfo(image.dtype).max
         noise = np.random.normal(self.mean, normalized_sigma, size=image.shape)
         return clip_add(image, noise, dtype=image.dtype)
 

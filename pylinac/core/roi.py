@@ -42,12 +42,12 @@ class DiskROI(Circle):
     """An class representing a disk-shaped Region of Interest."""
 
     def __init__(
-        self,
-        array: np.ndarray,
-        angle: float,
-        roi_radius: float,
-        dist_from_center: float,
-        phantom_center: Union[Tuple, Point],
+            self,
+            array: np.ndarray,
+            angle: float,
+            roi_radius: float,
+            dist_from_center: float,
+            phantom_center: Union[Tuple, Point],
     ):
         """
         Parameters
@@ -69,9 +69,9 @@ class DiskROI(Circle):
 
     @staticmethod
     def _get_shifted_center(
-        angle: float,
-        dist_from_center: float,
-        phantom_center: Point,
+            angle: float,
+            dist_from_center: float,
+            phantom_center: Point,
     ) -> Point:
         """The center of the ROI; corrects for phantom dislocation and roll."""
         y_shift = np.sin(np.deg2rad(angle)) * dist_from_center
@@ -104,16 +104,13 @@ class DiskROI(Circle):
         l_x, l_y = self._array.shape[0], self._array.shape[1]
         X, Y = np.ogrid[:l_x, :l_y]
         outer_disk_mask = (X - self.center.y) ** 2 + (
-            Y - self.center.x
-        ) ** 2 > self.radius**2
+                Y - self.center.x
+        ) ** 2 > self.radius ** 2
         masked_array[outer_disk_mask] = np.NaN
         return masked_array
 
     def plot2axes(
-        self,
-        axes: Optional[plt.Axes] = None,
-        edgecolor: str = "black",
-        fill: bool = False,
+            self, axes: Optional[plt.Axes] = None, edgecolor: str = "black", fill: bool = False
     ) -> None:
         """Plot the Circle on the axes.
 
@@ -130,12 +127,12 @@ class DiskROI(Circle):
             fig, axes = plt.subplots()
             axes.imshow(self._array)
         axes.add_patch(
-            mpl_Circle(
-                (self.center.x, self.center.y),
-                edgecolor=edgecolor,
-                radius=self.radius,
-                fill=fill,
-            )
+                mpl_Circle(
+                        (self.center.x, self.center.y),
+                        edgecolor=edgecolor,
+                        radius=self.radius,
+                        fill=fill,
+                )
         )
 
 
@@ -147,17 +144,17 @@ class LowContrastDiskROI(DiskROI):
     contrast_reference: Optional[float]
 
     def __init__(
-        self,
-        array: Union[np.ndarray, ArrayImage],
-        angle: float,
-        roi_radius: float,
-        dist_from_center: float,
-        phantom_center: Union[tuple, Point],
-        contrast_threshold: Optional[float] = None,
-        contrast_reference: Optional[float] = None,
-        cnr_threshold: Optional[float] = None,
-        contrast_method: Contrast = Contrast.MICHELSON,
-        visibility_threshold: Optional[float] = 0.1,
+            self,
+            array: Union[np.ndarray, ArrayImage],
+            angle: float,
+            roi_radius: float,
+            dist_from_center: float,
+            phantom_center: Union[tuple, Point],
+            contrast_threshold: Optional[float] = None,
+            contrast_reference: Optional[float] = None,
+            cnr_threshold: Optional[float] = None,
+            contrast_method: Contrast = Contrast.MICHELSON,
+            visibility_threshold: Optional[float] = 0.1,
     ):
         """
         Parameters
@@ -187,13 +184,13 @@ class LowContrastDiskROI(DiskROI):
         """The contrast of the bubble. Uses the contrast method passed in the constructor. See https://en.wikipedia.org/wiki/Contrast_(vision)."""
         if self.contrast_method == Contrast.MICHELSON:
             return abs(
-                (self.pixel_value - self.contrast_reference)
-                / (self.pixel_value + self.contrast_reference)
+                    (self.pixel_value - self.contrast_reference)
+                    / (self.pixel_value + self.contrast_reference)
             )
         elif self.contrast_method == Contrast.WEBER:
             return (
-                abs(self.pixel_value - self.contrast_reference)
-                / self.contrast_reference
+                    abs(self.pixel_value - self.contrast_reference)
+                    / self.contrast_reference
             )
         elif self.contrast_method == Contrast.RATIO:
             return self.pixel_value / self.contrast_reference
@@ -202,7 +199,7 @@ class LowContrastDiskROI(DiskROI):
     def cnr_constant(self) -> float:
         """The contrast-to-noise value times the bubble diameter."""
         DeprecationWarning(
-            "The 'cnr_constant' property will be deprecated in a future release. Use .visibility instead."
+                "The 'cnr_constant' property will be deprecated in a future release. Use .visibility instead."
         )
         return self.contrast_to_noise * self.diameter
 
@@ -212,13 +209,13 @@ class LowContrastDiskROI(DiskROI):
         See also here: https://howradiologyworks.com/x-ray-cnr/.
         Finally, a review paper here: http://xrm.phys.northwestern.edu/research/pdf_papers/1999/burgess_josaa_1999.pdf
         Importantly, the Rose model is not applicable for high-contrast use cases."""
-        return self.contrast * np.sqrt(self.radius**2 * np.pi) / self.std
+        return self.contrast * np.sqrt(self.radius ** 2 * np.pi) / self.std
 
     @property
     def contrast_constant(self) -> float:
         """The contrast value times the bubble diameter."""
         DeprecationWarning(
-            "The 'contrast_constant' property will be deprecated in a future release. Use .visibility instead."
+                "The 'contrast_constant' property will be deprecated in a future release. Use .visibility instead."
         )
         return self.contrast * self.diameter
 
@@ -257,6 +254,12 @@ class LowContrastDiskROI(DiskROI):
         """Return one of two colors depending on if ROI passed."""
         return "green" if self.passed_cnr_constant else "red"
 
+    def as_dict(self) -> dict:
+        """Dump important data as a dictionary. Useful when exporting a `results_data` output"""
+        return {'contrast method': self.contrast_method.value, 'visibility': self.visibility,
+                'visibility threshold': self.visibility_threshold, 'passed visibility': self.passed_visibility,
+                'contrast': self.contrast, 'cnr': self.contrast_to_noise, 'signal to noise': self.signal_to_noise}
+
 
 class HighContrastDiskROI(DiskROI):
     """A class for analyzing the high-contrast disks."""
@@ -264,13 +267,13 @@ class HighContrastDiskROI(DiskROI):
     contrast_threshold: Optional[float]
 
     def __init__(
-        self,
-        array: np.ndarray,
-        angle: float,
-        roi_radius: float,
-        dist_from_center: float,
-        phantom_center: Union[tuple, Point],
-        contrast_threshold: float,
+            self,
+            array: np.ndarray,
+            angle: float,
+            roi_radius: float,
+            dist_from_center: float,
+            phantom_center: Union[tuple, Point],
+            contrast_threshold: float,
     ):
         """
         Parameters
@@ -329,8 +332,8 @@ class RectangleROI(Rectangle):
     def pixel_array(self) -> np.ndarray:
         """The pixel array within the ROI."""
         return self._array[
-            self.bl_corner.y : self.tr_corner.y, self.bl_corner.x : self.tr_corner.x
-        ]
+               self.bl_corner.y: self.tr_corner.y, self.bl_corner.x: self.tr_corner.x
+               ]
 
     @cached_property
     def pixel_value(self) -> float:

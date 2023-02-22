@@ -20,6 +20,7 @@
    log_analyzer
    picketfence
    winston_lutz
+   winston_lutz_multi
    planar_imaging
    field_analysis
    core_modules

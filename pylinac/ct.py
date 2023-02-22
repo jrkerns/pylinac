@@ -132,6 +132,7 @@ class CTP515Result:
     cnr_threshold: float  #:
     num_rois_seen: int  #:
     roi_settings: dict  #:
+    roi_results: dict  #:
 
 
 @dataclass
@@ -2137,7 +2138,7 @@ class CatPhanBase:
                 roi_settings=self.ctp528.roi_settings,
                 start_angle_radians=self.ctp528.start_angle,
                 mtf_lp_mm={
-                    p: self.ctp528.mtf.relative_resolution(p) for p in (80, 50, 30)
+                    p: self.ctp528.mtf.relative_resolution(p) for p in range(10, 91, 10)
                 },
             )
 
@@ -2147,6 +2148,7 @@ class CatPhanBase:
                 cnr_threshold=self.ctp515.cnr_threshold,
                 num_rois_seen=self.ctp515.rois_visible,
                 roi_settings=self.ctp515.roi_settings,
+                roi_results={key: roi.as_dict() for key, roi in self.ctp515.rois.items()},
             )
 
         if as_dict:

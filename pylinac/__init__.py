@@ -48,5 +48,5 @@ from .log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
 from .picketfence import PicketFence  # must be after log analyzer
 from .starshot import Starshot
 from .vmat import DRMLC, DRGS
-from .winston_lutz import WinstonLutz
+from .winston_lutz import WinstonLutz, WinstonLutzMultiTargetMultiField
 from .calibration import tg51, trs398
