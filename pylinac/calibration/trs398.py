@@ -1,29 +1,29 @@
 import webbrowser
 from abc import ABC
 from datetime import datetime
-from typing import Union, Optional
+from typing import Optional, Union
 
 import argue
 import numpy as np
 
-from . import tg51 as _tg51
-from .tg51 import (
-    mmHg2kPa,
-    mbar2kPa,
-    fahrenheit2celsius,
-    tpr2010_from_pdd2010,
-    MIN_PTP,
-    MAX_PTP,
-    MIN_PELEC,
-    MAX_PELEC,
-    MIN_PPOL,
-    MAX_PPOL,
-    MIN_PION,
-    MAX_PION,
-)  # make available to module
 from ..core.pdf import PylinacCanvas
 from ..core.typing import NumberOrArray
-from ..core.utilities import is_close, Structure
+from ..core.utilities import Structure, is_close
+from . import tg51 as _tg51
+from .tg51 import MAX_PPOL  # make available to module
+from .tg51 import (
+    MAX_PELEC,
+    MAX_PION,
+    MAX_PTP,
+    MIN_PELEC,
+    MIN_PION,
+    MIN_PPOL,
+    MIN_PTP,
+    fahrenheit2celsius,
+    mbar2kPa,
+    mmHg2kPa,
+    tpr2010_from_pdd2010,
+)
 
 V1_V2_FITS = {
     2.0: {"a0": 2.337, "a1": -3.636, "a2": 2.299},
@@ -608,7 +608,7 @@ def k_s(
         bounds=(MIN_PION, MAX_PION),
         message="Ks is out of bounds. Verify inputs or check chamber",
     )
-    return float(a["a0"] + a["a1"] * m_ratio + a["a2"] * (m_ratio ** 2))
+    return float(a["a0"] + a["a1"] * m_ratio + a["a2"] * (m_ratio**2))
 
 
 def _verify_voltage_ratio_is_valid(voltage_ratio):
@@ -1137,7 +1137,7 @@ class TRS398Electron(TRS398Base):
             metadata is at the top of every page while notes is at the bottom of the report.
         """
         was_adjusted = "Yes" if self.output_was_adjusted else "No"
-        title = "TRS-398 Electron Report - {} MV".format(self.energy)
+        title = f"TRS-398 Electron Report - {self.energy} MV"
 
         canvas = PylinacCanvas(filename, page_title=title, metadata=metadata)
         text = [

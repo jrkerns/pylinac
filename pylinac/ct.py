@@ -25,15 +25,15 @@ from io import BytesIO
 from os import path as osp
 from pathlib import Path
 from typing import (
-    Optional,
-    Union,
-    Dict,
-    Tuple,
-    Sequence,
-    List,
     BinaryIO,
-    Type,
     Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
 )
 
 import matplotlib.pyplot as plt
@@ -41,16 +41,16 @@ import numpy as np
 from cached_property import cached_property
 from py_linq import Enumerable
 from scipy import ndimage
-from skimage import filters, measure, segmentation, draw
+from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
 
 from .core import image, pdf
-from .core.geometry import Point, Line
-from .core.image import DicomImageStack, ArrayImage
+from .core.geometry import Line, Point
+from .core.image import ArrayImage, DicomImageStack
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import CollapsedCircleProfile, SingleProfile, Interpolation
-from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI, Contrast
+from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
+from .core.roi import Contrast, DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
 
@@ -1861,8 +1861,8 @@ class CatPhanBase:
     @property
     def catphan_size(self) -> float:
         """The expected size of the phantom in pixels, based on a 20cm wide phantom."""
-        phan_area = np.pi * (self.catphan_radius_mm ** 2)
-        return phan_area / (self.mm_per_pixel ** 2)
+        phan_area = np.pi * (self.catphan_radius_mm**2)
+        return phan_area / (self.mm_per_pixel**2)
 
     def publish_pdf(
         self,
@@ -1870,7 +1870,7 @@ class CatPhanBase:
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1909,7 +1909,7 @@ class CatPhanBase:
             analysis_title,
             self.results(as_list=True),
             module_images,
-            logo
+            logo,
         )
         if open_file:
             webbrowser.open(filename)
@@ -1922,7 +1922,7 @@ class CatPhanBase:
         analysis_title: str,
         texts: Sequence[str],
         imgs: Sequence[Tuple[str, str]],
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         try:
             date = datetime.strptime(
@@ -2148,7 +2148,9 @@ class CatPhanBase:
                 cnr_threshold=self.ctp515.cnr_threshold,
                 num_rois_seen=self.ctp515.rois_visible,
                 roi_settings=self.ctp515.roi_settings,
-                roi_results={key: roi.as_dict() for key, roi in self.ctp515.rois.items()},
+                roi_results={
+                    key: roi.as_dict() for key, roi in self.ctp515.rois.items()
+                },
             )
 
         if as_dict:
@@ -2285,7 +2287,9 @@ def get_regions(
     edges = filters.gaussian(edges, sigma=1)
     if isinstance(slice_or_arr, Slice):
         radius = 110 / slice_or_arr.mm_per_pixel
-        rr, cc = draw.disk(center=(center.y, center.x), radius=radius, shape=edges.shape)
+        rr, cc = draw.disk(
+            center=(center.y, center.x), radius=radius, shape=edges.shape
+        )
         thres = thresmeth(edges[rr, cc])
     else:
         thres = thresmeth(edges)

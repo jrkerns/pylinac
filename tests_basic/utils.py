@@ -11,7 +11,7 @@ import time
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
-from typing import List, Sequence, Callable, Union
+from typing import Callable, List, Sequence, Union
 from urllib.request import urlopen
 
 from google.cloud import storage
@@ -91,7 +91,9 @@ def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
     """Get a single file from GCP storage. Returns the path to disk it was downloaded to"""
     local_filename = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *path)
     if osp.isfile(local_filename) and not force:
-        print(f"Local file found: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}")
+        print(
+            f"Local file found: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}"
+        )
         return local_filename
     with access_gcp() as client:
         bucket = client.bucket(GCP_BUCKET_NAME)
@@ -107,7 +109,9 @@ def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:
 
         blob.download_to_filename(local_filename)
         time.sleep(2)
-        print(f"Downloaded from GCP: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}")
+        print(
+            f"Downloaded from GCP: {local_filename}@{hashlib.md5(open(local_filename, 'rb').read()).hexdigest()}"
+        )
         return local_filename
 
 
@@ -140,9 +144,9 @@ def save_file(method, *args, as_file_object=None, to_single_file=True, **kwargs)
 
 def point_equality_validation(point1, point2):
     if point1.x != point2.x:
-        raise ValueError("{} does not equal {}".format(point1.x, point2.x))
+        raise ValueError(f"{point1.x} does not equal {point2.x}")
     if point1.y != point2.y:
-        raise ValueError("{} does not equal {}".format(point1.y, point2.y))
+        raise ValueError(f"{point1.y} does not equal {point2.y}")
 
 
 class CloudFileMixin:
@@ -264,7 +268,7 @@ class DataBankMixin:
     def setUpClass(cls):
         cls.DATA_DIR = osp.join(cls.DATA_BANK_DIR, *cls.DATA_DIR)
         if not osp.isdir(cls.DATA_DIR):
-            raise NotADirectoryError("Directory {} is not valid".format(cls.DATA_DIR))
+            raise NotADirectoryError(f"Directory {cls.DATA_DIR} is not valid")
 
     def file_should_be_processed(self, filepath):
         """Decision of whether file should be run. Returns boolean."""
@@ -316,11 +320,9 @@ class DataBankMixin:
             )
         )
         if len(fails) > 0:
-            pprint.pprint("Failures: {}".format(fails))
+            pprint.pprint(f"Failures: {fails}")
             if self.write_failures_to_file:
-                with open(
-                    "failures_{}.txt".format(osp.basename(self.DATA_DIR)), mode="w"
-                ) as f:
+                with open(f"failures_{osp.basename(self.DATA_DIR)}.txt", mode="w") as f:
                     for file in fails:
                         f.write(file + "\n")
                 print("Failures written to file")

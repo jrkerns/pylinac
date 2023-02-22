@@ -6,7 +6,7 @@ import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import Union, List, Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -15,10 +15,10 @@ from scipy import ndimage
 from .core import pdf
 from .core.geometry import Line, Point
 from .core.mtf import MTF
-from .core.profile import SingleProfile, Interpolation
+from .core.profile import Interpolation, SingleProfile
 from .core.roi import HighContrastDiskROI, RectangleROI
 from .core.utilities import ResultBase
-from .ct import CatPhanBase, CatPhanModule, ThicknessROI, Slice, get_regions
+from .ct import CatPhanBase, CatPhanModule, Slice, ThicknessROI, get_regions
 
 # CT
 CT_UNIFORMITY_MODULE_OFFSET_MM = 70
@@ -466,7 +466,7 @@ class ACRCT(CatPhanBase):
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1078,7 +1078,7 @@ class ACRMRILarge(CatPhanBase):
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 

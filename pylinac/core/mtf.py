@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Sequence, Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 import argue
 import numpy as np
@@ -84,7 +84,7 @@ class MTF:
 
     def plot(
         self,
-        axis: Optional[plt.Axes] = None,
+        axis: plt.Axes | None = None,
         grid: bool = True,
         x_label: str = "Line pairs / mm",
         y_label: str = "Relative MTF",
@@ -92,7 +92,7 @@ class MTF:
         margins: float = 0.05,
         marker: str = "o",
         label: str = "rMTF",
-    ) -> Tuple:
+    ) -> tuple:
         """Plot the Relative MTF.
 
         Parameters

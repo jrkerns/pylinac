@@ -6,19 +6,19 @@ import warnings
 import webbrowser
 from dataclasses import dataclass
 from enum import Enum
-from math import floor, ceil
+from math import ceil, floor
 from pathlib import Path
-from typing import Union, Optional, Tuple, BinaryIO, List, Dict
+from typing import BinaryIO, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from .core import image, pdf
 from .core.exceptions import NotAnalyzed
-from .core.geometry import Rectangle, Point
+from .core.geometry import Point, Rectangle
 from .core.hill import Hill
-from .core.io import retrieve_demo_file, SNCProfiler
-from .core.profile import SingleProfile, Edge, Interpolation, Normalization
+from .core.io import SNCProfiler, retrieve_demo_file
+from .core.profile import Edge, Interpolation, Normalization, SingleProfile
 from .core.roi import RectangleROI
 from .core.utilities import ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
@@ -30,12 +30,16 @@ def flatness_dose_difference(
     """The Varian specification for calculating flatness. See :ref:`varian_protocol`."""
     try:
         dmax = profile.field_calculation(
-            in_field_ratio=in_field_ratio, calculation="max", slope_exclusion_ratio=kwargs.get('slope_exclusion_ratio', 0.2)
+            in_field_ratio=in_field_ratio,
+            calculation="max",
+            slope_exclusion_ratio=kwargs.get("slope_exclusion_ratio", 0.2),
         )
         dmin = profile.field_calculation(
-            in_field_ratio=in_field_ratio, calculation="min", slope_exclusion_ratio=kwargs.get('slope_exclusion_ratio', 0.2)
+            in_field_ratio=in_field_ratio,
+            calculation="min",
+            slope_exclusion_ratio=kwargs.get("slope_exclusion_ratio", 0.2),
         )
-    except IOError:
+    except OSError:
         raise ValueError(
             "An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert()."
         )
@@ -64,7 +68,10 @@ def flatness_dose_ratio(
 
 def plot_flatness(instance, profile: SingleProfile, axis: plt.Axes) -> None:
     """Plot flatness parameters. Applies to both flatness dose ratio and dose difference."""
-    data = profile.field_data(in_field_ratio=instance._in_field_ratio, slope_exclusion_ratio=instance._slope_exclusion_ratio)
+    data = profile.field_data(
+        in_field_ratio=instance._in_field_ratio,
+        slope_exclusion_ratio=instance._slope_exclusion_ratio,
+    )
     axis.axhline(
         np.max(data["field values"]), color="g", linestyle="-.", label="Flatness region"
     )
@@ -78,7 +85,10 @@ def symmetry_point_difference(
 
     A negative value means the right side is higher. A positive value means the left side is higher.
     """
-    field = profile.field_data(in_field_ratio=in_field_ratio, slope_exclusion_ratio=kwargs.get('slope_exclusion_ratio', 0.2))
+    field = profile.field_data(
+        in_field_ratio=in_field_ratio,
+        slope_exclusion_ratio=kwargs.get("slope_exclusion_ratio", 0.2),
+    )
     field_values = field["field values"]
     cax_value = field["beam center value (@rounded)"]
 
@@ -114,7 +124,10 @@ def _plot_sym_common(
     label: str,
     padding: tuple,
 ) -> None:
-    field = profile.field_data(in_field_ratio=instance._in_field_ratio, slope_exclusion_ratio=instance._slope_exclusion_ratio)
+    field = profile.field_data(
+        in_field_ratio=instance._in_field_ratio,
+        slope_exclusion_ratio=instance._slope_exclusion_ratio,
+    )
     field_values = field["field values"]
     left_idx = field["left index (rounded)"]
     right_idx = field["right index (rounded)"]
@@ -169,7 +182,10 @@ def symmetry_pdq_iec(profile: SingleProfile, in_field_ratio: float, **kwargs) ->
 
     A negative value means the right side is higher. A positive value means the left side is higher.
     """
-    field = profile.field_data(in_field_ratio=in_field_ratio, slope_exclusion_ratio=kwargs.get('slope_exclusion_ratio', 0.2))
+    field = profile.field_data(
+        in_field_ratio=in_field_ratio,
+        slope_exclusion_ratio=kwargs.get("slope_exclusion_ratio", 0.2),
+    )
     field_values = field["field values"]
 
     def calc_sym(lt, rt) -> float:
@@ -192,7 +208,10 @@ def symmetry_area(profile: SingleProfile, in_field_ratio: float, **kwargs) -> fl
 
     A negative value indicates the right side is higher; a positive value indicates the left side is higher.
     """
-    data = profile.field_data(in_field_ratio=in_field_ratio, slope_exclusion_ratio=kwargs.get('slope_exclusion_ratio', 0.2))
+    data = profile.field_data(
+        in_field_ratio=in_field_ratio,
+        slope_exclusion_ratio=kwargs.get("slope_exclusion_ratio", 0.2),
+    )
     cax_idx = data["beam center index (exact)"] - data["left index (exact)"]
     area_left = np.sum(data["field values"][: floor(cax_idx)])
     area_right = np.sum(data["field values"][ceil(cax_idx) :])
@@ -202,7 +221,10 @@ def symmetry_area(profile: SingleProfile, in_field_ratio: float, **kwargs) -> fl
 
 def plot_symmetry_area(instance, profile: SingleProfile, axis: plt.Axes) -> None:
     """PLot the symmetry area."""
-    data = profile.field_data(in_field_ratio=instance._in_field_ratio, slope_exclusion_ratio=instance._slope_exclusion_ratio)
+    data = profile.field_data(
+        in_field_ratio=instance._in_field_ratio,
+        slope_exclusion_ratio=instance._slope_exclusion_ratio,
+    )
     cax_idx = data["beam center index (exact)"]
     left_idx = data["left index (rounded)"]
     right_idx = data["right index (rounded)"]
@@ -728,7 +750,7 @@ class FieldAnalysis:
 
         # calculate protocol info
         self._extra_results = {}
-        kwargs.update({'slope_exclusion_ratio': slope_exclusion_ratio})
+        kwargs.update({"slope_exclusion_ratio": slope_exclusion_ratio})
         for name, item in protocol.value.items():
             self._extra_results[f"{name}_horizontal"] = item["calc"](
                 self.horiz_profile, in_field_ratio, **kwargs
@@ -916,7 +938,7 @@ class FieldAnalysis:
         notes: Union[str, list] = None,
         open_file: bool = False,
         metadata: dict = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -1249,7 +1271,10 @@ class FieldAnalysis:
         if self._edge_detection == Edge.INFLECTION_HILL:
             # plot left side Hill fit
             fw = (
-                profile.field_data(in_field_ratio=1.0, slope_exclusion_ratio=self._slope_exclusion_ratio)["width (exact)"]
+                profile.field_data(
+                    in_field_ratio=1.0,
+                    slope_exclusion_ratio=self._slope_exclusion_ratio,
+                )["width (exact)"]
                 * self._hill_window_ratio
                 / 2
             )
@@ -1317,7 +1342,7 @@ class FieldAnalysis:
             1000,
         )
         y_model = (
-            data["top params"][0] * x_model ** 2
+            data["top params"][0] * x_model**2
             + data["top params"][1] * x_model
             + data["top params"][2]
         )

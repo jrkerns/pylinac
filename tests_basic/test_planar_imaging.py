@@ -8,21 +8,28 @@ import numpy as np
 import pytest
 from scipy.ndimage import rotate
 
-from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV, IBAPrimusA
+from pylinac import (
+    DoselabMC2kV,
+    DoselabMC2MV,
+    IBAPrimusA,
+    LasVegas,
+    LeedsTOR,
+    StandardImagingQC3,
+)
 from pylinac.core import image
 from pylinac.planar_imaging import (
+    PTWEPIDQC,
+    SNCFSQA,
+    SNCMV,
+    SNCMV12510,
+    IMTLRad,
+    LeedsTORBlue,
     PlanarResult,
     SNCkV,
-    SNCMV,
-    StandardImagingQCkV,
-    PTWEPIDQC,
     StandardImagingFC2,
-    IMTLRad,
-    SNCFSQA,
-    LeedsTORBlue,
-    SNCMV12510,
+    StandardImagingQCkV,
 )
-from tests_basic.utils import save_file, CloudFileMixin, get_file_from_cloud_test_repo
+from tests_basic.utils import CloudFileMixin, get_file_from_cloud_test_repo, save_file
 
 TEST_DIR = "planar_imaging"
 
@@ -178,7 +185,7 @@ class PlanarPhantomMixin(CloudFileMixin):
         # check that the MTF is the expected value. This is a surrogate for the angle being wrong
         if self.mtf_50:
             self.assertAlmostEqual(
-                    self.mtf_50, instance.mtf.relative_resolution(50), delta=0.3
+                self.mtf_50, instance.mtf.relative_resolution(50), delta=0.3
             )
 
     def test_plotting(self):
@@ -218,7 +225,9 @@ class PlanarPhantomMixin(CloudFileMixin):
     def test_median_cnr(self):
         if self.median_cnr is not None:
             self.assertAlmostEqual(
-                self.median_cnr, self.instance.results_data().median_cnr, delta=0.01*self.median_cnr
+                self.median_cnr,
+                self.instance.results_data().median_cnr,
+                delta=0.01 * self.median_cnr,
             )
 
     def test_results(self):
@@ -227,7 +236,7 @@ class PlanarPhantomMixin(CloudFileMixin):
 
 class LeedsMixin(PlanarPhantomMixin):
     klass = LeedsTOR
-    dir_path = ['planar_imaging', 'Leeds']
+    dir_path = ["planar_imaging", "Leeds"]
 
 
 class LeedsDemo(LeedsMixin, TestCase):
@@ -286,9 +295,10 @@ class LeedsACB1(LeedsMixin, TestCase):
     file_path = "1.dcm"
     mtf_50 = 1.4
 
-    
+
 class LeedsBadInversion(LeedsMixin, TestCase):
     """Radmachine image where inversion was bad. pylinac should be able to correct"""
+
     file_path = "Leeds bad inversion.dcm"
     mtf_50 = 1.4
 
@@ -433,6 +443,7 @@ class SNCMV12510_6MV2(PlanarPhantomMixin, TestCase):
 
 class SNCMV12510_Jig(PlanarPhantomMixin, TestCase):
     """Phantom where the jig is touching and gets in the way of analysis"""
+
     klass = SNCMV12510
     mtf_50 = 0.92
     median_contrast = 0.23

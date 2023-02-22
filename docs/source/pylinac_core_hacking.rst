@@ -37,22 +37,22 @@ First, our imports for the whole tutorial:
 .. code:: python
 
     %matplotlib inline
-    
+
     from urllib.request import urlretrieve
-    
+
     import matplotlib.pyplot as plt
     import numpy as np
-    
+
     from pylinac.core.image import Image, DicomImage, FileImage, ArrayImage
-    
+
     # pylinac demo images' URL
     PF_URL = 'https://github.com/jrkerns/pylinac/blob/master/pylinac/demo_files/picket_fence/EPID-PF-LR.dcm?raw=true'
     STAR_URL = 'https://github.com/jrkerns/pylinac/blob/master/pylinac/demo_files/starshot/starshot.tif?raw=true'
-    
+
     # local downloaded images
     PF_FILE, _ = urlretrieve(PF_URL)
     STAR_FILE, _ = urlretrieve(STAR_URL)
-    
+
     # sample numpy array
     ARR = np.arange(36).reshape((6,6))
 
@@ -123,7 +123,7 @@ example multiple collimator star shots. Just pass a list of the images:
 
     star1, _ = urlretrieve('https://github.com/jrkerns/pylinac/blob/master/tests/test_files/Starshot/set/0%20deg%20coll.dcm?raw=true')
     star2, _ = urlretrieve('https://github.com/jrkerns/pylinac/blob/master/tests/test_files/Starshot/set/120%20deg%20coll.dcm?raw=true')
-    
+
     superimposed_img = Image.load_multiples([star1, star2])
 
 While the ``load()`` method will always do smart image inference for
@@ -137,9 +137,9 @@ ArrayImage if they are known: the DPI (dots-per-inch) and SID
     dcm_img = DicomImage(PF_FILE)
     arr_img = ArrayImage(ARR, dpi=30, sid=500)
     file_img = FileImage(STAR_FILE, dpi=50, sid=1000)
-    
+
     file_img2 = Image.load(STAR_FILE, dpi=30, sid=500)
-    
+
     type(file_img) == type(file_img2)
 
 
@@ -592,9 +592,9 @@ since it contains all the types of profiles:
 .. code:: python
 
     from pylinac.core.profile import SingleProfile, MultiProfile, CircleProfile, CollapsedCircleProfile
-    
+
     STAR_URL = 'https://github.com/jrkerns/pylinac/blob/master/pylinac/demo_files/starshot/starshot.tif?raw=true'
-    
+
     star_img = Image.load_url(STAR_URL)
 
 Using a ``MultiProfile``
@@ -1124,4 +1124,3 @@ Let's find the peaks and then plot the ring to the starshot image:
 
 
 We now have a good start on a starshot algorithm!
-

@@ -9,15 +9,15 @@ import numpy as np
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
-from pylinac.ct import CTP404CP504, CTP404CP503, CTP528CP503, CTP528CP504, CatphanResult
+from pylinac.ct import CTP404CP503, CTP404CP504, CTP528CP503, CTP528CP504, CatphanResult
 from tests_basic.utils import (
-    save_file,
     CloudFileMixin,
-    get_file_from_cloud_test_repo,
-    InitTesterMixin,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
     FromZipTesterMixin,
+    InitTesterMixin,
+    get_file_from_cloud_test_repo,
+    save_file,
 )
 
 TEST_DIR = "CBCT"
@@ -82,7 +82,7 @@ class TestGeneral(TestCase):
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         cbct = CatPhan504.from_zip(path)
         for img in cbct.dicom_stack:
-            img.crop(pixels=20, edges=('bottom',))
+            img.crop(pixels=20, edges=("bottom",))
         # shouldn't raise
         cbct.analyze()
 
@@ -127,7 +127,9 @@ class TestGeneral(TestCase):
         self.assertAlmostEqual(data.ctp528.start_angle_radians, np.pi, delta=0.02)
 
         for p in range(10, 91, 10):
-            self.assertEqual(data.ctp528.mtf_lp_mm[p], self.cbct.ctp528.mtf.relative_resolution(p))
+            self.assertEqual(
+                data.ctp528.mtf_lp_mm[p], self.cbct.ctp528.mtf.relative_resolution(p)
+            )
 
     def test_contrast_str(self):
         # shouldn't raise
@@ -1068,6 +1070,7 @@ class Katy1(CatPhan504Mixin, TestCase):
 
 class CTWithCloseCouch(CatPhan503Mixin, TestCase):
     """A CT where the couch is super close"""
+
     file_name = "CT with close couch.zip"
     expected_roll = 0.43
     origin_slice = 133

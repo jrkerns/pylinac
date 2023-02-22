@@ -27,7 +27,7 @@ import warnings
 import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List, Tuple, Union, BinaryIO, Callable, Dict
+from typing import BinaryIO, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,18 +37,18 @@ from scipy.ndimage import median_filter
 from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
-from .core import image, pdf, geometry
+from .core import geometry, image, pdf
 from .core.decorators import lru_cache
-from .core.geometry import Point, Rectangle, Circle, Vector
+from .core.geometry import Circle, Point, Rectangle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import Interpolation, CollapsedCircleProfile, SingleProfile
+from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
 from .core.roi import (
-    LowContrastDiskROI,
-    HighContrastDiskROI,
-    bbox_center,
     Contrast,
     DiskROI,
+    HighContrastDiskROI,
+    LowContrastDiskROI,
+    bbox_center,
 )
 from .core.utilities import ResultBase
 from .ct import get_regions
@@ -149,7 +149,7 @@ class ImagePhantomBase:
     detection_conditions: [List[Callable]] = [is_centered, is_right_size]
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
-    roi_match_condition = 'max'
+    roi_match_condition = "max"
 
     def __init__(
         self,
@@ -223,8 +223,8 @@ class ImagePhantomBase:
         """The phantom bounding box size in pixels^2 at the isoplane."""
         return (
             self.phantom_bbox_size_mm2
-            * (self.image.dpmm ** 2)
-            * (self.magnification_factor ** 2)
+            * (self.image.dpmm**2)
+            * (self.magnification_factor**2)
         )
 
     @cached_property
@@ -252,11 +252,20 @@ class ImagePhantomBase:
                 "Unable to find the phantom in the image. Potential solutions: check the SSD was passed correctly, check that the phantom isn't at the edge of the field, check that the phantom is centered along the CAX."
             )
 
-        if self.roi_match_condition == 'max':
+        if self.roi_match_condition == "max":
             # take the biggest ROI and call that the phantom outline
-            best_roi_idx = np.argsort([sorted_regions[phan].bbox_area for phan in blobs])[-1]
-        elif self.roi_match_condition == 'closest':  # take the one most similar in size to known size
-            best_roi_idx = np.argsort([abs(sorted_regions[phan].bbox_area - self.phantom_bbox_size_px) for phan in blobs])[0]
+            best_roi_idx = np.argsort(
+                [sorted_regions[phan].bbox_area for phan in blobs]
+            )[-1]
+        elif (
+            self.roi_match_condition == "closest"
+        ):  # take the one most similar in size to known size
+            best_roi_idx = np.argsort(
+                [
+                    abs(sorted_regions[phan].bbox_area - self.phantom_bbox_size_px)
+                    for phan in blobs
+                ]
+            )[0]
         phantom_idx = blobs[best_roi_idx]
 
         return sorted_regions[phantom_idx]
@@ -464,7 +473,7 @@ class ImagePhantomBase:
         if outline_type == "Rectangle":
             side_a = self.phantom_radius * outline_settings["width ratio"]
             side_b = self.phantom_radius * outline_settings["height ratio"]
-            half_hyp = np.sqrt(side_a ** 2 + side_b ** 2) / 2
+            half_hyp = np.sqrt(side_a**2 + side_b**2) / 2
             internal_angle = ia = np.rad2deg(np.arctan(side_b / side_a))
             new_x = self.phantom_center.x + half_hyp * (
                 geometry.cos(ia) - geometry.cos(ia + self.phantom_angle)
@@ -672,7 +681,7 @@ class ImagePhantomBase:
         notes: str = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -699,7 +708,7 @@ class ImagePhantomBase:
             filename,
             page_title=f"{self.common_name} Phantom Analysis",
             metadata=metadata,
-            logo=logo
+            logo=logo,
         )
 
         # write the text/numerical values
@@ -1062,7 +1071,7 @@ class StandardImagingFC2(ImagePhantomBase):
         notes: str = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -1089,7 +1098,7 @@ class StandardImagingFC2(ImagePhantomBase):
             filename,
             page_title=f"{self.common_name} Phantom Analysis",
             metadata=metadata,
-            logo=logo
+            logo=logo,
         )
 
         # write the text/numerical values
@@ -1318,7 +1327,7 @@ class LasVegas(ImagePhantomBase):
 class PTWEPIDQC(ImagePhantomBase):
     _demo_filename = "PTW-EPID-QC.dcm"
     common_name = "PTW EPID QC"
-    phantom_bbox_size_mm2 = 250 ** 2
+    phantom_bbox_size_mm2 = 250**2
     detection_conditions = [is_centered, is_right_size]
     detection_canny_settings = {"sigma": 4, "percentiles": (0.001, 0.01)}
     phantom_outline_object = {"Rectangle": {"width ratio": 8.55, "height ratio": 8.55}}
@@ -1415,8 +1424,8 @@ class PTWEPIDQC(ImagePhantomBase):
         """The pixels inside the phantom should be mostly bright/high. If not, invert"""
         roi = self.phantom_ski_region
         phantom_array = self.image.array[
-                        roi.bbox[0]: roi.bbox[2], roi.bbox[1]: roi.bbox[3]
-                        ]
+            roi.bbox[0] : roi.bbox[2], roi.bbox[1] : roi.bbox[3]
+        ]
         p5, p50, p95 = np.percentile(phantom_array, [2, 50, 98])
         if abs(p50 - p5) < abs(p50 - p95):
             self.image.invert()
@@ -1426,7 +1435,7 @@ class IBAPrimusA(ImagePhantomBase):
     common_name = "IBA Primus A"
     _demo_filename = "iba_primus.dcm"
     phantom_bbox_size_mm2 = (
-        15 ** 2
+        15**2
     )  # with the Primus, we only search for the central crosshair
     detection_conditions = [is_centered, is_right_size, is_square]
     phantom_outline_object = {
@@ -1624,7 +1633,7 @@ class IBAPrimusA(ImagePhantomBase):
 class StandardImagingQC3(ImagePhantomBase):
     _demo_filename = "qc3.dcm"
     common_name = "SI QC-3"
-    phantom_bbox_size_mm2 = 168 ** 2
+    phantom_bbox_size_mm2 = 168**2
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 6}}
     high_contrast_roi_settings = {
@@ -1719,7 +1728,7 @@ class StandardImagingQC3(ImagePhantomBase):
 class StandardImagingQCkV(StandardImagingQC3):
     _demo_filename = "SI-QC-kV.dcm"
     common_name = "SI QC-kV"
-    phantom_bbox_size_mm2 = 142 ** 2
+    phantom_bbox_size_mm2 = 142**2
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.8, "height ratio": 6.4}}
     high_contrast_roi_settings = {
@@ -1786,8 +1795,8 @@ class StandardImagingQCkV(StandardImagingQC3):
 class SNCkV(ImagePhantomBase):
     _demo_filename = "SNC-kV.dcm"
     common_name = "SNC kV-QA"
-    phantom_bbox_size_mm2 = 134 ** 2
-    roi_match_condition = 'closest'
+    phantom_bbox_size_mm2 = 134**2
+    roi_match_condition = "closest"
     detection_conditions = [is_centered, is_right_size, is_square]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.7, "height ratio": 5.6}}
     high_contrast_roi_settings = {
@@ -1865,7 +1874,7 @@ class SNCkV(ImagePhantomBase):
 class SNCMV(SNCkV):
     _demo_filename = "SNC-MV.dcm"
     common_name = "SNC MV-QA"
-    phantom_bbox_size_mm2 = 118 ** 2
+    phantom_bbox_size_mm2 = 118**2
     phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 7.5}}
     high_contrast_roi_settings = {
         "roi 1": {
@@ -1938,7 +1947,7 @@ class SNCMV12510(SNCMV):
 
     _demo_filename = "SNC_MV_12510.dcm"
     common_name = "SNC MV-QA (12510)"
-    phantom_bbox_size_mm2 = 136 ** 2
+    phantom_bbox_size_mm2 = 136**2
     phantom_outline_object = {"Rectangle": {"width ratio": 7.3, "height ratio": 6.2}}
     high_contrast_roi_settings = {
         "roi 1": {
@@ -1991,7 +2000,7 @@ class SNCMV12510(SNCMV):
 class LeedsTOR(ImagePhantomBase):
     _demo_filename = "leeds.dcm"
     common_name = "Leeds"
-    phantom_bbox_size_mm2 = 148 ** 2
+    phantom_bbox_size_mm2 = 148**2
     _is_ccw = False
     phantom_outline_object = {"Circle": {"radius ratio": 0.97}}
     high_contrast_roi_settings = {

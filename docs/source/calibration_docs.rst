@@ -305,4 +305,3 @@ TRS-398 API Documentation
 .. autoclass:: pylinac.calibration.trs398.TRS398Photon
 
 .. autoclass:: pylinac.calibration.trs398.TRS398Electron
-

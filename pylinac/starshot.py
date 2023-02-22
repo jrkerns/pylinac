@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The Starshot module analyses a starshot image made of radiation spokes, whether gantry, collimator, MLC or couch.
 It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
@@ -25,7 +24,7 @@ import io
 import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union, List, Optional, Tuple, BinaryIO
+from typing import BinaryIO, List, Optional, Tuple, Union
 
 import argue
 import matplotlib.pyplot as plt
@@ -33,9 +32,9 @@ import numpy as np
 from scipy import optimize
 
 from .core import image, pdf
-from .core.geometry import Point, Line, Circle
-from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
-from .core.profile import SingleProfile, CollapsedCircleProfile, Interpolation
+from .core.geometry import Circle, Line, Point
+from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
+from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
@@ -381,7 +380,7 @@ class Starshot:
             f"The center of the minimum circle is at {self.wobble.center.x:3.1f}, {self.wobble.center.y:3.1f}",
         ]
         if not as_list:
-            results = '\n'.join(results)
+            results = "\n".join(results)
         return results
 
     def results_data(self, as_dict: bool = False) -> Union[StarshotResults, dict]:
@@ -504,7 +503,7 @@ class Starshot:
         notes: Optional[Union[str, List[str]]] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -683,10 +682,8 @@ class StarProfile(CollapsedCircleProfile):
 
 
 def get_peak_height():
-    for height in np.linspace(0.05, 0.95, 10):
-        yield height
+    yield from np.linspace(0.05, 0.95, 10)
 
 
 def get_radius():
-    for radius in np.linspace(0.95, 0.1, 10):
-        yield radius
+    yield from np.linspace(0.95, 0.1, 10)

@@ -12,15 +12,21 @@ from pylinac import WinstonLutz, WinstonLutzMultiTargetMultiField
 from pylinac.core.geometry import Vector, vector_is_close
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.core.scale import MachineScale
-from pylinac.winston_lutz import Axis, WinstonLutzResult, WinstonLutz2D, bb_projection_long, bb_projection_gantry_plane, \
-    BBArrangement
+from pylinac.winston_lutz import (
+    Axis,
+    BBArrangement,
+    WinstonLutz2D,
+    WinstonLutzResult,
+    bb_projection_gantry_plane,
+    bb_projection_long,
+)
 from tests_basic.utils import (
-    save_file,
     CloudFileMixin,
-    get_folder_from_cloud_test_repo,
-    get_file_from_cloud_test_repo,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
+    get_file_from_cloud_test_repo,
+    get_folder_from_cloud_test_repo,
+    save_file,
 )
 
 TEST_DIR = "Winston-Lutz"
@@ -33,83 +39,239 @@ class TestProjection(TestCase):
         # in coordinate space, positive is in, but in plotting space, positive is out
         # thus, we return the opposite sign than the coordinate space
         # dead center
-        assert bb_projection_long(offset_in=0, offset_up=0, offset_left=0, sad=1000, gantry=0) == 0
+        assert (
+            bb_projection_long(
+                offset_in=0, offset_up=0, offset_left=0, sad=1000, gantry=0
+            )
+            == 0
+        )
         # up-only won't change it
-        assert bb_projection_long(offset_in=0, offset_up=30, offset_left=0, sad=1000, gantry=0) == 0
+        assert (
+            bb_projection_long(
+                offset_in=0, offset_up=30, offset_left=0, sad=1000, gantry=0
+            )
+            == 0
+        )
         # long-only won't change it
-        assert bb_projection_long(offset_in=20, offset_up=0, offset_left=0, sad=1000, gantry=0) == 20
+        assert (
+            bb_projection_long(
+                offset_in=20, offset_up=0, offset_left=0, sad=1000, gantry=0
+            )
+            == 20
+        )
         # left-only won't change it
-        assert bb_projection_long(offset_in=0, offset_up=0, offset_left=15, sad=1000, gantry=0) == 0
+        assert (
+            bb_projection_long(
+                offset_in=0, offset_up=0, offset_left=15, sad=1000, gantry=0
+            )
+            == 0
+        )
         # in and up will make it look further away at gantry 0
-        assert math.isclose(bb_projection_long(offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0), 10.1, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_long(
+                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0
+            ),
+            10.1,
+            abs_tol=0.005,
+        )
         # in and down will make it closer at gantry 0
-        assert math.isclose(bb_projection_long(offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=0), 9.9, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_long(
+                offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=0
+            ),
+            9.9,
+            abs_tol=0.005,
+        )
         # in and up will make it look closer at gantry 180
-        assert math.isclose(bb_projection_long(offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=180), 9.9, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_long(
+                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=180
+            ),
+            9.9,
+            abs_tol=0.005,
+        )
         # in and down will make it further away at gantry 180
-        assert math.isclose(bb_projection_long(offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=180), 10.1, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_long(
+                offset_in=10, offset_up=-10, offset_left=0, sad=1000, gantry=180
+            ),
+            10.1,
+            abs_tol=0.005,
+        )
         # in and left will make it closer at gantry 90
         assert math.isclose(
-            bb_projection_long(offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=90), 9.9,
-            abs_tol=0.005)
+            bb_projection_long(
+                offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=90
+            ),
+            9.9,
+            abs_tol=0.005,
+        )
         # in and right will make it further away at gantry 90
         assert math.isclose(
-            bb_projection_long(offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=90), 10.1,
-            abs_tol=0.005)
+            bb_projection_long(
+                offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=90
+            ),
+            10.1,
+            abs_tol=0.005,
+        )
         # in and right will make it closer at gantry 270
         assert math.isclose(
-            bb_projection_long(offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=270), 9.9,
-            abs_tol=0.005)
+            bb_projection_long(
+                offset_in=10, offset_up=0, offset_left=-10, sad=1000, gantry=270
+            ),
+            9.9,
+            abs_tol=0.005,
+        )
         # in and left won't change at gantry 0
         assert math.isclose(
-            bb_projection_long(offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=0), 10,
-            abs_tol=0.005)
+            bb_projection_long(
+                offset_in=10, offset_up=0, offset_left=10, sad=1000, gantry=0
+            ),
+            10,
+            abs_tol=0.005,
+        )
         # double the sad will half the effect:
         # in and up will make it look further away at gantry 0
-        assert math.isclose(bb_projection_long(offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0), 10.1, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_long(
+                offset_in=10, offset_up=10, offset_left=0, sad=1000, gantry=0
+            ),
+            10.1,
+            abs_tol=0.005,
+        )
         # out and up will make it look further away at gantry 0
-        assert math.isclose(bb_projection_long(offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=0), -10.1, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_long(
+                offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=0
+            ),
+            -10.1,
+            abs_tol=0.005,
+        )
         # out and up will make it look closer at gantry 180
-        assert math.isclose(bb_projection_long(offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=180), -9.9, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_long(
+                offset_in=-10, offset_up=10, offset_left=0, sad=1000, gantry=180
+            ),
+            -9.9,
+            abs_tol=0.005,
+        )
         # out and down will make it look closer at gantry 0
-        assert math.isclose(bb_projection_long(offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=0), -9.9, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_long(
+                offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=0
+            ),
+            -9.9,
+            abs_tol=0.005,
+        )
         # out and down will make it look further out at gantry 180
-        assert math.isclose(bb_projection_long(offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=180), -10.1, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_long(
+                offset_in=-10, offset_up=-10, offset_left=0, sad=1000, gantry=180
+            ),
+            -10.1,
+            abs_tol=0.005,
+        )
 
     def test_gantry_plane_projection(self):
         # left is negative, right is positive
         # dead center
-        assert bb_projection_gantry_plane(offset_up=0, offset_left=0, sad=1000, gantry=0) == 0
+        assert (
+            bb_projection_gantry_plane(offset_up=0, offset_left=0, sad=1000, gantry=0)
+            == 0
+        )
         # up-only at gantry 0 is still 0
-        assert bb_projection_gantry_plane(offset_up=10, offset_left=0, sad=1000, gantry=0) == 0
+        assert (
+            bb_projection_gantry_plane(offset_up=10, offset_left=0, sad=1000, gantry=0)
+            == 0
+        )
         # up-only at gantry 90 is exactly negative the offset
-        assert bb_projection_gantry_plane(offset_up=10, offset_left=0, sad=1000, gantry=90) == -10
+        assert (
+            bb_projection_gantry_plane(offset_up=10, offset_left=0, sad=1000, gantry=90)
+            == -10
+        )
         # down-only at gantry 90 is exactly the offset
-        assert bb_projection_gantry_plane(offset_up=-10, offset_left=0, sad=1000, gantry=90) == 10
+        assert (
+            bb_projection_gantry_plane(
+                offset_up=-10, offset_left=0, sad=1000, gantry=90
+            )
+            == 10
+        )
         # left-only at gantry 0 is exactly negative the offset
-        assert bb_projection_gantry_plane(offset_up=0, offset_left=10, sad=1000, gantry=0) == -10
+        assert (
+            bb_projection_gantry_plane(offset_up=0, offset_left=10, sad=1000, gantry=0)
+            == -10
+        )
         # right-only at gantry 0 is exactly negative the offset
-        assert bb_projection_gantry_plane(offset_up=0, offset_left=-10, sad=1000, gantry=0) == 10
+        assert (
+            bb_projection_gantry_plane(offset_up=0, offset_left=-10, sad=1000, gantry=0)
+            == 10
+        )
         # left-only at gantry 180 is exactly the offset
-        assert bb_projection_gantry_plane(offset_up=0, offset_left=10, sad=1000, gantry=180) == 10
+        assert (
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=10, sad=1000, gantry=180
+            )
+            == 10
+        )
         # left and up at gantry 0 makes the bb appear away from CAX
-        assert math.isclose(bb_projection_gantry_plane(offset_up=10, offset_left=20, sad=1000, gantry=0), -20.2, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_gantry_plane(
+                offset_up=10, offset_left=20, sad=1000, gantry=0
+            ),
+            -20.2,
+            abs_tol=0.005,
+        )
         # left and down at gantry 0 makes the bb appear closer to the CAX
-        assert math.isclose(bb_projection_gantry_plane(offset_up=-10, offset_left=20, sad=1000, gantry=0), -19.8, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_gantry_plane(
+                offset_up=-10, offset_left=20, sad=1000, gantry=0
+            ),
+            -19.8,
+            abs_tol=0.005,
+        )
         # left and up at gantry 180 makes the bb appear closer to CAX
-        assert math.isclose(bb_projection_gantry_plane(offset_up=10, offset_left=20, sad=1000, gantry=180), 19.8, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_gantry_plane(
+                offset_up=10, offset_left=20, sad=1000, gantry=180
+            ),
+            19.8,
+            abs_tol=0.005,
+        )
         # left and up at gantry 90 makes the bb appear closer to CAX
-        assert math.isclose(bb_projection_gantry_plane(offset_up=10, offset_left=20, sad=1000, gantry=90), -9.8, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_gantry_plane(
+                offset_up=10, offset_left=20, sad=1000, gantry=90
+            ),
+            -9.8,
+            abs_tol=0.005,
+        )
         # left and down at gantry 90 makes the bb appear closer to CAX
-        assert math.isclose(bb_projection_gantry_plane(offset_up=-10, offset_left=20, sad=1000, gantry=90), 9.8, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_gantry_plane(
+                offset_up=-10, offset_left=20, sad=1000, gantry=90
+            ),
+            9.8,
+            abs_tol=0.005,
+        )
         # left and down at gantry 270 makes the bb appear further from the CAX
-        assert math.isclose(bb_projection_gantry_plane(offset_up=-10, offset_left=20, sad=1000, gantry=270), -10.2, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_gantry_plane(
+                offset_up=-10, offset_left=20, sad=1000, gantry=270
+            ),
+            -10.2,
+            abs_tol=0.005,
+        )
         # right and down at gantry 270 makes the bb appear closer the CAX
-        assert math.isclose(bb_projection_gantry_plane(offset_up=-10, offset_left=-20, sad=1000, gantry=270), -9.8, abs_tol=0.005)
+        assert math.isclose(
+            bb_projection_gantry_plane(
+                offset_up=-10, offset_left=-20, sad=1000, gantry=270
+            ),
+            -9.8,
+            abs_tol=0.005,
+        )
 
 
 class TestWLMultiImage(TestCase):
-
     def test_demo_images(self):
         wl = WinstonLutzMultiTargetMultiField.from_demo_images()
         # shouldn't raise
@@ -122,7 +284,7 @@ class TestWLMultiImage(TestCase):
     def test_publish_pdf(self):
         wl = WinstonLutzMultiTargetMultiField.from_demo_images()
         wl.analyze(BBArrangement.DEMO)
-        wl.publish_pdf('output.pdf')
+        wl.publish_pdf("output.pdf")
 
     def test_save_images(self):
         wl = WinstonLutzMultiTargetMultiField.from_demo_images()
@@ -192,8 +354,8 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
 
 
 class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
-    dir_path = ['Winston-Lutz', 'multi_target_multi_field']
-    file_name = 'SNC_MM_KB.zip'
+    dir_path = ["Winston-Lutz", "multi_target_multi_field"]
+    file_name = "SNC_MM_KB.zip"
     num_images = 13
     arrangement = BBArrangement.SNC_MULTIMET
     max_2d_distance = 0.78
@@ -369,7 +531,8 @@ class GeneralTests(TestCase):
             data.median_2d_cax_to_epid_mm, self.wl.cax2epid_distance("median")
         )
         self.assertEqual(
-            data.image_details[0].bb_location.x, self.wl.images[0].results_data().bb_location.x
+            data.image_details[0].bb_location.x,
+            self.wl.images[0].results_data().bb_location.x,
         )
 
     def test_results_data_as_dict(self):
@@ -378,8 +541,12 @@ class GeneralTests(TestCase):
         self.assertEqual(
             data_dict["gantry_3d_iso_diameter_mm"], self.wl.gantry_iso_size
         )
-        self.assertIsInstance(data_dict['image_details'][0]['bb_location'], dict)
-        self.assertAlmostEqual(data_dict['image_details'][0]['bb_location']['x'], self.wl.images[0].bb.x, delta=0.02)
+        self.assertIsInstance(data_dict["image_details"][0]["bb_location"], dict)
+        self.assertAlmostEqual(
+            data_dict["image_details"][0]["bb_location"]["x"],
+            self.wl.images[0].bb.x,
+            delta=0.02,
+        )
 
     def test_bb_too_far_away_fails(self):
         """BB is >20mm from CAX"""

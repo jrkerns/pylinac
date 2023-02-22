@@ -4,7 +4,7 @@ import textwrap
 import webbrowser
 from io import BytesIO
 from pathlib import Path
-from typing import Union, Dict, Optional, List, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import scipy.ndimage
@@ -12,15 +12,15 @@ from matplotlib import pyplot as plt
 
 from .core import pdf
 from .core.geometry import Line, Point
-from .core.profile import SingleProfile, Interpolation
+from .core.profile import Interpolation, SingleProfile
 from .core.utilities import ResultBase
 from .ct import (
-    CTP404CP504,
     AIR,
-    ThicknessROI,
+    CTP404CP504,
     CTP486,
-    CatPhanModule,
     CatPhanBase,
+    CatPhanModule,
+    ThicknessROI,
     rois_to_results,
 )
 
@@ -473,7 +473,7 @@ class QuartDVT(CatPhanBase):
         notes: Optional[str] = None,
         open_file: bool = False,
         metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 

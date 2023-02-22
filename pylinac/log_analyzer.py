@@ -32,9 +32,9 @@ import os.path as osp
 import shutil
 import webbrowser
 import zipfile
-from io import BytesIO, BufferedReader
+from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import Union, List, Optional, Tuple, Iterable, Sequence, BinaryIO
+from typing import BinaryIO, Iterable, List, Optional, Sequence, Tuple, Union
 
 import argue
 import matplotlib.pyplot as plt
@@ -43,12 +43,7 @@ from cached_property import cached_property
 
 from .core import image, io, pdf
 from .core.decorators import lru_cache
-from .core.utilities import (
-    is_iterable,
-    decode_binary,
-    Structure,
-    convert_to_enum,
-)
+from .core.utilities import Structure, convert_to_enum, decode_binary, is_iterable
 from .settings import get_array_cmap
 
 
@@ -86,7 +81,7 @@ class MachineLogs(list):
     """Read in machine logs from a directory. Inherits from list. Batch methods are also provided."""
 
     def __init__(self, folder: str, recursive: bool = True):
-        """
+        r"""
         Parameters
         ----------
         folder : str
@@ -1552,7 +1547,7 @@ class LogBase:
             self.filename = filename
             self.exclude_beam_off = exclude_beam_off
         else:
-            raise IOError(f"{filename} was not a valid log file")
+            raise OSError(f"{filename} was not a valid log file")
 
     @classmethod
     def from_url(cls, url: str, exclude_beam_off: bool = True):
@@ -2069,7 +2064,7 @@ class Dynalog(LogBase):
         notes: str = None,
         metadata: dict = None,
         open_file: bool = False,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -2397,7 +2392,9 @@ class TrajectoryLog(LogBase):
     def _read_txt_file(self) -> None:
         """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
         self.txt = None
-        if ".bin" in str(self.filename):  # files downloaded via URL may not have .bin ending
+        if ".bin" in str(
+            self.filename
+        ):  # files downloaded via URL may not have .bin ending
             txt_filename = str(self.filename).replace(".bin", ".txt")
             if osp.isfile(txt_filename):
                 self.txt = {}
@@ -2531,7 +2528,7 @@ class TrajectoryLog(LogBase):
         metadata: dict = None,
         notes: Union[str, list] = None,
         open_file: bool = False,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 

@@ -4,15 +4,15 @@ import unittest
 from pathlib import Path
 
 from pylinac import (
-    PicketFence,
-    CatPhan604,
-    FieldAnalysis,
-    Dynalog,
-    LeedsTOR,
-    StandardImagingFC2,
-    QuartDVT,
-    Starshot,
     DRGS,
+    CatPhan604,
+    Dynalog,
+    FieldAnalysis,
+    LeedsTOR,
+    PicketFence,
+    QuartDVT,
+    StandardImagingFC2,
+    Starshot,
     WinstonLutz,
 )
 
@@ -31,7 +31,9 @@ class TestPDF(unittest.TestCase):
         pf.analyze()
         with tempfile.NamedTemporaryFile() as tf:
             # shouldn't raise.
-            pf.publish_pdf(tf, logo=os.path.join(os.path.dirname(__file__), "rm-logo.png"))
+            pf.publish_pdf(
+                tf, logo=os.path.join(os.path.dirname(__file__), "rm-logo.png")
+            )
 
     def test_custom_logo_path(self):
         pf = PicketFence.from_demo_image()

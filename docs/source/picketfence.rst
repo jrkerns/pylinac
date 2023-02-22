@@ -836,4 +836,3 @@ You generally won't have to interface with these unless you're doing advanced be
 
 .. autoclass:: pylinac.picketfence.MLCValue
     :members:
-

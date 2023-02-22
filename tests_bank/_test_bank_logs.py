@@ -16,16 +16,16 @@ def run_log(path):
                 raise Exception("Gamma pass % < 90")
         ret = "Success"
     except Exception as e:
-        ret = 'Failure: {} @ {}'.format(e, path)
+        ret = f"Failure: {e} @ {path}"
     return ret
 
 
 class TestLogBank(DataBankMixin, TestCase):
-    DATA_DIR = ['Machine logs']
+    DATA_DIR = ["Machine logs"]
     print_success_path = True
 
     def file_should_be_processed(self, filepath):
-        return filepath.endswith('.dlg') or filepath.endswith('.bin')
+        return filepath.endswith(".dlg") or filepath.endswith(".bin")
 
     def test_all(self):
         super().test_all(run_log)

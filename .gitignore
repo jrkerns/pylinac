@@ -4,6 +4,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Pants tooling
+/.pants.*
+/dist/
+/.pids
+
 # C extensions
 *.so
 
@@ -110,6 +115,7 @@ celerybeat.pid
 .venv
 env/
 venv/
+venv310/
 ENV/
 env.bak/
 venv.bak/
@@ -236,4 +242,3 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-

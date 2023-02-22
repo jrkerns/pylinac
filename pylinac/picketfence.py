@@ -24,7 +24,7 @@ from io import BytesIO
 from itertools import cycle
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, Tuple, List, Optional, BinaryIO, Iterable, Sequence
+from typing import BinaryIO, Iterable, List, Optional, Sequence, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,9 +33,9 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from py_linq import Enumerable
 
 from .core import image, pdf
-from .core.geometry import Line, Rectangle, Point
+from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
-from .core.profile import MultiProfile, SingleProfile, Interpolation
+from .core.profile import Interpolation, MultiProfile, SingleProfile
 from .core.utilities import ResultBase, convert_to_enum
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
@@ -826,7 +826,7 @@ class PicketFence:
         # calculate the error and stdev values per MLC pair
         error_stdev = []
         error_vals = []
-        for leaf_num in set([m.leaf_num for m in self.mlc_meas]):
+        for leaf_num in {m.leaf_num for m in self.mlc_meas}:
             error_vals.append(
                 np.mean(
                     [np.abs(m.error) for m in self.mlc_meas if m.leaf_num == leaf_num]
@@ -946,7 +946,7 @@ class PicketFence:
         open_file: bool = False,
         metadata: dict = None,
         bins: int = 10,
-        logo: Optional[Union[Path, str]] = None
+        logo: Optional[Union[Path, str]] = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -978,7 +978,9 @@ class PicketFence:
         data = io.BytesIO()
         self.save_analyzed_image(data, leaf_error_subplot=True)
         canvas.add_image(data, location=(3, 5), dimensions=(15, 15))
-        canvas.add_text(text=self.results(as_list=True), location=(1.5, 25), font_size=14)
+        canvas.add_text(
+            text=self.results(as_list=True), location=(1.5, 25), font_size=14
+        )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
             canvas.add_text(text=notes, location=(1, 5))

@@ -51,12 +51,12 @@ class TestPoint(unittest.TestCase):
 
     def test_nonnumeric_value(self):
         p = Point()
-        self.assertRaises(TypeError, p.value, 'not numeric')
+        self.assertRaises(TypeError, p.value, "not numeric")
 
     def test_dist_to(self):
-        p = Point(1,1)
+        p = Point(1, 1)
         correct_dist = math.sqrt(8)
-        meas_dist = p.distance_to(Point(3,3))
+        meas_dist = p.distance_to(Point(3, 3))
         self.assertAlmostEqual(correct_dist, meas_dist)
 
         p = Point(3, 0)
@@ -91,8 +91,8 @@ class TestCircle(unittest.TestCase):
 
 class TestLine(unittest.TestCase):
 
-    point_1 = Point(1,1)
-    point_2 = Point(2,3)
+    point_1 = Point(1, 1)
+    point_2 = Point(2, 3)
     # the slope (m) of the two points above
     m_from_points = 2
     # ditto for intercept (b)
@@ -121,8 +121,8 @@ class TestLine(unittest.TestCase):
 
     def test_dist2point(self):
 
-        point = Point(1,0)
-        line = Line((0,0), (0,1))
+        point = Point(1, 0)
+        line = Line((0, 0), (0, 1))
         exp_dist = 1
         self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
 
@@ -132,7 +132,7 @@ class TestLine(unittest.TestCase):
         self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
 
         point = Point(1, 1, 1)
-        line = Line((0,0,0), (0, 0, 1))
+        line = Line((0, 0, 0), (0, 0, 1))
         exp_dist = math.sqrt(2)
         self.assertAlmostEqual(line.distance_to(point), exp_dist, delta=0.01)
 
@@ -146,7 +146,7 @@ class TestRectangle(unittest.TestCase):
     width = 6.9
     height = 4.1
     center = Point(10, 10)
-    bl_corner = Point(10-6.9/2, 10-4.1/2)
+    bl_corner = Point(10 - 6.9 / 2, 10 - 4.1 / 2)
     br_corner = Point(10 + 6.9 / 2, 10 - 4.1 / 2)
     tr_corner = Point(10 + 6.9 / 2, 10 + 4.1 / 2)
     tl_corner = Point(10 - 6.9 / 2, 10 + 4.1 / 2)
@@ -157,7 +157,9 @@ class TestRectangle(unittest.TestCase):
         self.assertEqual(rect.height, self.height)
         point_equality_validation(rect.center, self.center)
 
-        rect_as_int = Rectangle(width=self.width, height=self.height, center=self.center, as_int=True)
+        rect_as_int = Rectangle(
+            width=self.width, height=self.height, center=self.center, as_int=True
+        )
         self.assertEqual(rect_as_int.width, 7)
         self.assertEqual(rect_as_int.height, 4)
 
@@ -174,5 +176,3 @@ class TestRectangle(unittest.TestCase):
         point_equality_validation(rect.br_corner, self.br_corner)
         point_equality_validation(rect.tr_corner, self.tr_corner)
         point_equality_validation(rect.tl_corner, self.tl_corner)
-
-

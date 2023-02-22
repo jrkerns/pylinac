@@ -31,24 +31,24 @@ from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import Union, List, Tuple, Optional, BinaryIO, Iterable, Dict
+from typing import BinaryIO, Dict, Iterable, List, Optional, Tuple, Union
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import ndimage, optimize, linalg
+from scipy import linalg, ndimage, optimize
 from skimage import measure
 from skimage.measure._regionprops import RegionProperties
 from tabulate import tabulate
 
 from .core import image, pdf
 from .core.decorators import lru_cache
-from .core.geometry import Point, Line, Vector, cos, sin
+from .core.geometry import Line, Point, Vector, cos, sin
 from .core.image import LinacDicomImage
-from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file, is_dicom_image
+from .core.io import TemporaryZipDirectory, get_url, is_dicom_image, retrieve_demo_file
 from .core.mask import bounding_box
 from .core.scale import MachineScale, convert
-from .core.utilities import is_close, ResultBase, convert_to_enum
+from .core.utilities import ResultBase, convert_to_enum, is_close
 
 
 class BBArrangement:
@@ -181,7 +181,7 @@ class WinstonLutzResult(ResultBase):
     max_coll_rms_deviation_mm: float  #:
     couch_2d_iso_diameter_mm: float  #:
     max_couch_rms_deviation_mm: float  #:
-    image_details: List[WinstonLutz2DResult]  #:
+    image_details: list[WinstonLutz2DResult]  #:
 
 
 @dataclass
@@ -274,7 +274,7 @@ class WinstonLutz2D(image.LinacDicomImage):
     bb: Point
     field_cax: Point
     _rad_field_bounding_box: list
-    detection_conditions: List[callable] = [
+    detection_conditions: list[callable] = [
         is_round,
         is_symmetric,
         is_near_center,
@@ -282,7 +282,7 @@ class WinstonLutz2D(image.LinacDicomImage):
     ]
 
     def __init__(
-        self, file: Union[str, BinaryIO, Path], use_filenames: bool = False, **kwargs
+        self, file: str | BinaryIO | Path, use_filenames: bool = False, **kwargs
     ):
         """
         Parameters
@@ -340,7 +340,7 @@ class WinstonLutz2D(image.LinacDicomImage):
             self.crop(window_size)
             safety_stop -= 1
 
-    def _find_field_centroid(self) -> Tuple[Point, List]:
+    def _find_field_centroid(self) -> tuple[Point, list]:
         """Find the centroid of the radiation field based on a 50% height threshold.
 
         Returns
@@ -483,7 +483,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         return self.field_cax.distance_to(self.epid) / self.dpmm
 
     def plot(
-        self, ax: Optional[plt.Axes] = None, show: bool = True, clear_fig: bool = False
+        self, ax: plt.Axes | None = None, show: bool = True, clear_fig: bool = False
     ):
         """Plot the image, zoomed-in on the radiation field, along with the detected
         BB location and field CAX location.
@@ -549,7 +549,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         else:
             return Axis.GBP_COMBO
 
-    def results_data(self, as_dict=False) -> Union[WinstonLutz2DResult, dict]:
+    def results_data(self, as_dict=False) -> WinstonLutz2DResult | dict:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
@@ -578,9 +578,9 @@ class WinstonLutz:
 
     def __init__(
         self,
-        directory: Union[str, List[str], Path],
+        directory: str | list[str] | Path,
         use_filenames: bool = False,
-        axis_mapping: Optional[Dict[str, Tuple[int, int, int]]] = None,
+        axis_mapping: dict[str, tuple[int, int, int]] | None = None,
     ):
         """
         Parameters
@@ -638,9 +638,9 @@ class WinstonLutz:
     @classmethod
     def from_zip(
         cls,
-        zfile: Union[str, BinaryIO],
+        zfile: str | BinaryIO,
         use_filenames: bool = False,
-        axis_mapping: Optional[Dict[str, Tuple[int, int, int]]] = None,
+        axis_mapping: dict[str, tuple[int, int, int]] | None = None,
     ):
         """Instantiate from a zip file rather than a directory.
 
@@ -700,7 +700,7 @@ class WinstonLutz:
         self._is_analyzed = True
 
     @lru_cache()
-    def _minimize_axis(self, axes: Union[Axis, Tuple[Axis, ...]] = (Axis.GANTRY,)):
+    def _minimize_axis(self, axes: Axis | tuple[Axis, ...] = (Axis.GANTRY,)):
         """Return the minimization result of the given axis."""
         if isinstance(axes, Axis):
             axes = (axes,)
@@ -817,9 +817,9 @@ class WinstonLutz:
 
     def bb_shift_instructions(
         self,
-        couch_vrt: Optional[float] = None,
-        couch_lng: Optional[float] = None,
-        couch_lat: Optional[float] = None,
+        couch_vrt: float | None = None,
+        couch_lng: float | None = None,
+        couch_lat: float | None = None,
     ) -> str:
         """Returns a string describing how to shift the BB to the radiation isocenter looking from the foot of the couch.
         Optionally, the current couch values can be passed in to get the new couch values. If passing the current
@@ -849,7 +849,7 @@ class WinstonLutz:
     @argue.options(value=("all", "range"))
     def axis_rms_deviation(
         self, axis: Axis = Axis.GANTRY, value: str = "all"
-    ) -> Union[Iterable, float]:
+    ) -> Iterable | float:
         """The RMS deviations of a given axis/axes.
 
         Parameters
@@ -907,7 +907,7 @@ class WinstonLutz:
             return float(np.mean([image.cax2epid_distance for image in self.images]))
 
     def _plot_deviation(
-        self, axis: Axis, ax: Optional[plt.Axes] = None, show: bool = True
+        self, axis: Axis, ax: plt.Axes | None = None, show: bool = True
     ):
         """Helper function: Plot the sag in Cartesian coordinates.
 
@@ -932,12 +932,10 @@ class WinstonLutz:
             for image in self.images
             if image.variable_axis in (axis, Axis.REFERENCE)
         ]
-        angles = [
-            getattr(image, "{}_angle".format(axis.value.lower())) for image in imgs
-        ]
+        angles = [getattr(image, f"{axis.value.lower()}_angle") for image in imgs]
         xz_sag = np.array([getattr(img, attr).x for img in imgs])
         y_sag = np.array([getattr(img, attr).y for img in imgs])
-        rms = np.sqrt(xz_sag ** 2 + y_sag ** 2)
+        rms = np.sqrt(xz_sag**2 + y_sag**2)
 
         # plot the axis deviation
         if ax is None:
@@ -956,15 +954,15 @@ class WinstonLutz:
             plt.show()
 
     def _get_images(
-        self, axis: Union[Axis, Tuple[Axis, ...]] = (Axis.GANTRY,)
-    ) -> Tuple[float, list]:
+        self, axis: Axis | tuple[Axis, ...] = (Axis.GANTRY,)
+    ) -> tuple[float, list]:
         if isinstance(axis, Axis):
             axis = (axis,)
         images = [image for image in self.images if image.variable_axis in axis]
         return len(images), images
 
     def plot_axis_images(
-        self, axis: Axis = Axis.GANTRY, show: bool = True, ax: Optional[plt.Axes] = None
+        self, axis: Axis = Axis.GANTRY, show: bool = True, ax: plt.Axes | None = None
     ):
         """Plot all CAX/BB/EPID positions for the images of a given axis.
 
@@ -1016,7 +1014,7 @@ class WinstonLutz:
 
     def plot_images(
         self, axis: Axis = Axis.GANTRY, show: bool = True, split: bool = False, **kwargs
-    ) -> (List[plt.Figure], List[str]):
+    ) -> (list[plt.Figure], list[str]):
         """Plot a grid of all the images acquired.
 
         Four columns are plotted with the titles showing which axis that column represents.
@@ -1099,9 +1097,7 @@ class WinstonLutz:
 
         return figs, names
 
-    def save_images(
-        self, filename: Union[str, BinaryIO], axis: Axis = Axis.GANTRY, **kwargs
-    ):
+    def save_images(self, filename: str | BinaryIO, axis: Axis = Axis.GANTRY, **kwargs):
         """Save the figure of `plot_images()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
         Parameters
@@ -1114,7 +1110,7 @@ class WinstonLutz:
         self.plot_images(axis=axis, show=False)
         plt.savefig(filename, **kwargs)
 
-    def save_images_to_stream(self, **kwargs) -> Dict[str, io.BytesIO]:
+    def save_images_to_stream(self, **kwargs) -> dict[str, io.BytesIO]:
         """Save the individual image plots to stream"""
         figs, names = self.plot_images(
             axis=Axis.GBP_COMBO, show=False, split=True
@@ -1124,7 +1120,7 @@ class WinstonLutz:
             fig.savefig(stream, **kwargs)
         return {name: stream for name, stream in zip(names, streams)}
 
-    def plot_summary(self, show: bool = True, fig_size: Optional[tuple] = None):
+    def plot_summary(self, show: bool = True, fig_size: tuple | None = None):
         """Plot a summary figure showing the gantry sag and wobble plots of the three axes."""
         if not self._is_analyzed:
             raise ValueError("The set is not analyzed. Use .analyze() first.")
@@ -1150,7 +1146,7 @@ class WinstonLutz:
             plt.tight_layout()
             plt.show()
 
-    def save_summary(self, filename: Union[str, BinaryIO], **kwargs):
+    def save_summary(self, filename: str | BinaryIO, **kwargs):
         """Save the summary image."""
         self.plot_summary(show=False, fig_size=kwargs.pop("fig_size", None))
         plt.tight_layout()
@@ -1193,7 +1189,7 @@ class WinstonLutz:
             result = "\n".join(result)
         return result
 
-    def results_data(self, as_dict=False) -> Union[WinstonLutzResult, dict]:
+    def results_data(self, as_dict=False) -> WinstonLutzResult | dict:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
@@ -1238,7 +1234,7 @@ class WinstonLutz:
             ),
             max_couch_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.COUCH)),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
-            image_details=individual_image_data
+            image_details=individual_image_data,
         )
         if as_dict:
             return dataclasses.asdict(data)
@@ -1247,10 +1243,10 @@ class WinstonLutz:
     def publish_pdf(
         self,
         filename: str,
-        notes: Optional[Union[str, List[str]]] = None,
+        notes: str | list[str] | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -1342,7 +1338,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         return copy.deepcopy(self)
 
     def plot(
-        self, ax: Optional[plt.Axes] = None, show: bool = True, clear_fig: bool = False
+        self, ax: plt.Axes | None = None, show: bool = True, clear_fig: bool = False
     ):
         ax = super(LinacDicomImage, self).plot(ax=ax, show=False, clear_fig=clear_fig)
         ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
@@ -1380,7 +1376,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         expected_x = self.epid.x + shift_x_mm * self.dpmm
         return Point(x=expected_x, y=expected_y)
 
-    def _find_field_centroid(self, location: dict) -> Tuple[Point, List]:
+    def _find_field_centroid(self, location: dict) -> tuple[Point, list]:
         """Find the centroid of the radiation field based on a 50% height threshold.
         This applies the field detection conditions and also a nearness condition.
 
@@ -1503,15 +1499,15 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         near_x = math.isclose(expected.x, region.centroid[1], abs_tol=5 * self.dpmm)
         return near_y and near_x
 
-    def results_data(self, as_dict: bool = False) -> Union[WinstonLutz2DResult, dict]:
+    def results_data(self, as_dict: bool = False) -> WinstonLutz2DResult | dict:
         raise NotImplementedError(
             "Results data is not available for a multi-bb 2D WL image"
         )
 
 
 class WinstonLutzMultiTargetMultiField(WinstonLutz):
-    images: List[WinstonLutz2DMultiTarget]  #:
-    analyzed_images: Dict[str, List[WinstonLutz2DMultiTarget]]  #:
+    images: list[WinstonLutz2DMultiTarget]  #:
+    analyzed_images: dict[str, list[WinstonLutz2DMultiTarget]]  #:
     image_type = WinstonLutz2DMultiTarget
     bb_arrangement: Iterable[dict]  #:
 
@@ -1583,11 +1579,11 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             self.analyzed_images[BBArrangement.to_human(bb)] = image_set
         self._is_analyzed = True
 
-    def plot_images(self, show: bool = True, **kwargs) -> (List[plt.Figure], List[str]):
+    def plot_images(self, show: bool = True, **kwargs) -> (list[plt.Figure], list[str]):
         """Make a plot for each BB. Each plot contains the analysis of that BB on each image
         it was found."""
         figs, names = [], []
-        figsize = kwargs.pop('figsize', None) or (8, 8)
+        figsize = kwargs.pop("figsize", None) or (8, 8)
         for bb, img_set in self.analyzed_images.items():
             rows = len(img_set) // 3 + 1
             fig, axes = plt.subplots(nrows=rows, ncols=3, figsize=figsize, **kwargs)
@@ -1603,7 +1599,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             plt.show()
         return figs, names
 
-    def save_images(self, prefix: str = '', **kwargs):
+    def save_images(self, prefix: str = "", **kwargs):
         """Save the figure of `plot_images()` to file as PNG. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
         Parameters
@@ -1615,7 +1611,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         for fig, name in zip(figs, names):
             fig.savefig(prefix + "_" + str(name) + ".png", **kwargs)
 
-    def save_images_to_stream(self, **kwargs) -> Dict[str, io.BytesIO]:
+    def save_images_to_stream(self, **kwargs) -> dict[str, io.BytesIO]:
         """Save the individual image plots to stream"""
         figs, names = self.plot_images(show=False, **kwargs)
         streams = [io.BytesIO() for _ in figs]
@@ -1646,7 +1642,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
 
     def results_data(
         self, as_dict: bool = False
-    ) -> Union[WinstonLutzMultiTargetMultiFieldResult, dict]:
+    ) -> WinstonLutzMultiTargetMultiFieldResult | dict:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
@@ -1666,11 +1662,11 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             return dataclasses.asdict(data)
         return data
 
-    def plot_summary(self, show: bool = True, fig_size: Optional[tuple] = None):
+    def plot_summary(self, show: bool = True, fig_size: tuple | None = None):
         raise NotImplementedError("Not yet implemented")
 
     def plot_axis_images(
-        self, axis: Axis = Axis.GANTRY, show: bool = True, ax: Optional[plt.Axes] = None
+        self, axis: Axis = Axis.GANTRY, show: bool = True, ax: plt.Axes | None = None
     ):
         raise NotImplementedError("Not yet implemented")
 
@@ -1762,10 +1758,10 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     def publish_pdf(
         self,
         filename: str,
-        notes: Optional[Union[str, List[str]]] = None,
+        notes: str | list[str] | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 

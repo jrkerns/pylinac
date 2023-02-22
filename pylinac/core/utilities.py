@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Union, Sequence, Type, BinaryIO
+from typing import BinaryIO, Sequence, Type, Union
 
 import numpy as np
 import pydicom
@@ -63,9 +63,7 @@ def assign2machine(source_file: str, machine_file: str):
     dcm_source.save_as(source_file)
 
 
-def is_close(
-    val: float, target: Union[float, Sequence], delta: float = 1
-):
+def is_close(val: float, target: Union[float, Sequence], delta: float = 1):
     """Return whether the value is near the target value(s).
 
     Parameters
@@ -144,11 +142,11 @@ def decode_binary(
         if len(output) == 1:
             output = output[0]
     elif dtype == str:  # if string
-        ssize = struct.calcsize('c') * num_values
-        output = struct.unpack('c' * num_values, f.read(ssize))
+        ssize = struct.calcsize("c") * num_values
+        output = struct.unpack("c" * num_values, f.read(ssize))
         # output = f.read(num_values).decode()
         # strip the padding ("\x00")
-        output = ''.join(o.decode() for o in output if o != b'\x00')
+        output = "".join(o.decode() for o in output if o != b"\x00")
         # output = output.strip("\x00")
     elif dtype == int:
         ssize = struct.calcsize("i") * num_values

@@ -41,7 +41,6 @@ class TestRectangleROI(TestCase):
 
 
 class TestRectangleStats(TestCase):
-
     @classmethod
     def setUpClass(cls) -> None:
         np.random.seed(12345)
@@ -49,12 +48,12 @@ class TestRectangleStats(TestCase):
         cls.random_array = np.random.rand(500, 500)
 
         cls.random_rect = RectangleROI(
-                cls.random_array,
-                width=500,
-                height=500,
-                angle=0,
-                dist_from_center=0,
-                phantom_center=Point(250, 250),
+            cls.random_array,
+            width=500,
+            height=500,
+            angle=0,
+            dist_from_center=0,
+            phantom_center=Point(250, 250),
         )
 
     def test_mean(self):
@@ -68,4 +67,3 @@ class TestRectangleStats(TestCase):
 
     def test_std(self):
         self.assertAlmostEqual(np.std(self.random_array), self.random_rect.std)
-
