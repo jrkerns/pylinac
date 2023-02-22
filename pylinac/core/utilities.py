@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Union, Sequence, Type, BinaryIO
+from typing import BinaryIO, Sequence, Type, Union
 
 import numpy as np
 import pydicom

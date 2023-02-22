@@ -4,15 +4,15 @@ import unittest
 from pathlib import Path
 
 from pylinac import (
-    PicketFence,
-    CatPhan604,
-    FieldAnalysis,
-    Dynalog,
-    LeedsTOR,
-    StandardImagingFC2,
-    QuartDVT,
-    Starshot,
     DRGS,
+    CatPhan604,
+    Dynalog,
+    FieldAnalysis,
+    LeedsTOR,
+    PicketFence,
+    QuartDVT,
+    StandardImagingFC2,
+    Starshot,
     WinstonLutz,
 )
 

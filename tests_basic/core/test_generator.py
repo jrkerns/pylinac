@@ -10,21 +10,20 @@ import pydicom
 from pylinac import Interpolation, Normalization
 from pylinac.core.image import load
 from pylinac.core.image_generator import (
-    AS1200Image,
-    PerfectFieldLayer,
-    PerfectBBLayer,
-    PerfectConeLayer,
     AS500Image,
     AS1000Image,
+    AS1200Image,
     ConstantLayer,
-    GaussianFilterLayer,
     FilterFreeFieldLayer,
+    GaussianFilterLayer,
+    PerfectBBLayer,
+    PerfectConeLayer,
+    PerfectFieldLayer,
     RandomNoiseLayer,
 )
 from pylinac.core.image_generator.layers import Layer, clip_add, even_round
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import SingleProfile
-
 
 np.random.seed(1234)  # reproducible noise results
 

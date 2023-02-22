@@ -2,22 +2,22 @@ import copy
 import os
 import os.path as osp
 import random
-from typing import Sequence, Union, List, Tuple, Type, Optional, Dict
+from typing import Dict, List, Optional, Sequence, Tuple, Type, Union
 
+from ...picketfence import Orientation
+from ...winston_lutz import bb_projection_gantry_plane, bb_projection_long
+from ..geometry import cos, sin
 from . import GaussianFilterLayer
 from .layers import (
     FilteredFieldLayer,
+    FilterFreeConeLayer,
     FilterFreeFieldLayer,
     Layer,
     PerfectBBLayer,
-    PerfectFieldLayer,
-    FilterFreeConeLayer,
     PerfectConeLayer,
+    PerfectFieldLayer,
 )
 from .simulators import Simulator
-from ..geometry import cos, sin
-from ...picketfence import Orientation
-from ...winston_lutz import bb_projection_long, bb_projection_gantry_plane
 
 
 def generate_lightrad(

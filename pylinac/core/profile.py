@@ -4,7 +4,7 @@ from __future__ import annotations
 import enum
 import math
 import warnings
-from typing import Union, Tuple, Sequence, List, Optional
+from typing import List, Optional, Sequence, Tuple, Union
 
 import argue
 import matplotlib.pyplot as plt
@@ -16,7 +16,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.optimize import OptimizeWarning, minimize
 from scipy.stats import linregress
 
-from .geometry import Point, Circle
+from .geometry import Circle, Point
 from .hill import Hill
 from .utilities import convert_to_enum
 
@@ -100,7 +100,7 @@ def gamma_1d(
 
 
 def stretch(
-    array: np.ndarray, min: int = 0, max: int = 1, fill_dtype: Optional[np.dtype] = None
+    array: np.ndarray, min: int = 0, max: int = 1, fill_dtype: np.dtype | None = None
 ) -> np.ndarray:
     """'Stretch' the profile to the fit a new min and max value and interpolate in between.
     From: http://www.labri.fr/perso/nrougier/teaching/numpy.100/  exercise #17
@@ -147,7 +147,7 @@ class ProfileMixin:
         orig_array = self.values
         self.values = -orig_array + orig_array.max() + orig_array.min()
 
-    def normalize(self, norm_val: Union[str, float] = "max") -> None:
+    def normalize(self, norm_val: str | float = "max") -> None:
         """Normalize the profile to the given value.
 
         Parameters
@@ -254,15 +254,15 @@ class SingleProfile(ProfileMixin):
         self,
         values: np.ndarray,
         dpmm: float = None,
-        interpolation: Union[Interpolation, str, None] = Interpolation.LINEAR,
+        interpolation: Interpolation | str | None = Interpolation.LINEAR,
         ground: bool = True,
         interpolation_resolution_mm: float = 0.1,
         interpolation_factor: float = 10,
-        normalization_method: Union[Normalization, str] = Normalization.BEAM_CENTER,
-        edge_detection_method: Union[Edge, str] = Edge.FWHM,
+        normalization_method: Normalization | str = Normalization.BEAM_CENTER,
+        edge_detection_method: Edge | str = Edge.FWHM,
         edge_smoothing_ratio: float = 0.003,
         hill_window_ratio: float = 0.1,
-        x_values: Optional[np.ndarray] = None,
+        x_values: np.ndarray | None = None,
     ):
         """
         Parameters
@@ -335,9 +335,7 @@ class SingleProfile(ProfileMixin):
             x_indices, norm_values, bounds_error=False, fill_value="extrapolate"
         )
 
-    def _x_interp_to_original(
-        self, location: Union[float, np.ndarray]
-    ) -> Union[float, np.ndarray]:
+    def _x_interp_to_original(self, location: float | np.ndarray) -> float | np.ndarray:
         """Get the x-value of the (possibly) interpolated profile. The input value is in the original
         value range. E.g. a profile with x-range of 0-10 is interpolated to 10x. Asking for the location at 99 would scale back to 9.9.
         We need this function because peak finding is independent of the x-values. I.e. peaks are found and reported according
@@ -347,9 +345,7 @@ class SingleProfile(ProfileMixin):
             return float(x)
         return x
 
-    def _y_original_to_interp(
-        self, location: Union[float, np.ndarray]
-    ) -> Union[float, np.ndarray]:
+    def _y_original_to_interp(self, location: float | np.ndarray) -> float | np.ndarray:
         """Get the interpolated y-value of the profile. This is a corollary to the _x_interp... function"""
         y = self._y_interp1d(location)
         if isinstance(location, (float, int)) or location.size == 1:
@@ -967,7 +963,7 @@ class SingleProfile(ProfileMixin):
         in_field_ratio: float = 0.8,
         calculation: str = "mean",
         slope_exclusion_ratio: float = 0.2,
-    ) -> Union[float, Tuple[float, float]]:
+    ) -> float | tuple[float, float]:
         """Perform an operation on the field values of the profile.
         This function is useful for determining field symmetry and flatness.
 
@@ -1080,11 +1076,11 @@ class MultiProfile(ProfileMixin):
 
     """
 
-    values: Union[np.ndarray, Sequence]
-    peaks: List
-    valleys: List
+    values: np.ndarray | Sequence
+    peaks: list
+    valleys: list
 
-    def __init__(self, values: Union[np.ndarray, Sequence]):
+    def __init__(self, values: np.ndarray | Sequence):
         """
         Parameters
         ----------
@@ -1095,7 +1091,7 @@ class MultiProfile(ProfileMixin):
         self.peaks = []
         self.valleys = []
 
-    def plot(self, ax: Optional[plt.Axes] = None) -> None:
+    def plot(self, ax: plt.Axes | None = None) -> None:
         """Plot the profile.
 
         Parameters
@@ -1115,12 +1111,12 @@ class MultiProfile(ProfileMixin):
 
     def find_peaks(
         self,
-        threshold: Union[float, int] = 0.3,
-        min_distance: Union[float, int] = 0.05,
+        threshold: float | int = 0.3,
+        min_distance: float | int = 0.05,
         max_number: int = None,
-        search_region: Tuple = (0.0, 1.0),
+        search_region: tuple = (0.0, 1.0),
         peak_sort="prominences",
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Find the peaks of the profile using a simple maximum value search. This also sets the `peaks` attribute.
 
         Parameters
@@ -1166,11 +1162,11 @@ class MultiProfile(ProfileMixin):
 
     def find_valleys(
         self,
-        threshold: Union[float, int] = 0.3,
-        min_distance: Union[float, int] = 0.05,
+        threshold: float | int = 0.3,
+        min_distance: float | int = 0.05,
         max_number: int = None,
-        search_region: Tuple = (0.0, 1.0),
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        search_region: tuple = (0.0, 1.0),
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Find the valleys (minimums) of the profile using a simple minimum value search.
 
         Returns
@@ -1200,13 +1196,13 @@ class MultiProfile(ProfileMixin):
 
     def find_fwxm_peaks(
         self,
-        threshold: Union[float, int] = 0.3,
-        min_distance: Union[float, int] = 0.05,
+        threshold: float | int = 0.3,
+        min_distance: float | int = 0.05,
         max_number: int = None,
-        search_region: Tuple = (0.0, 1.0),
+        search_region: tuple = (0.0, 1.0),
         peak_sort: str = "prominences",
         required_prominence=None,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Find peaks using the center of the FWXM (rather than by max value).
 
         Parameters
@@ -1256,18 +1252,18 @@ class CircleProfile(MultiProfile, Circle):
     """
 
     image_array: np.ndarray
-    start_angle: Union[float, int]
+    start_angle: float | int
     ccw: bool
     sampling_ratio: float
-    _x_locations: Optional[np.ndarray]
-    _y_locations: Optional[np.ndarray]
+    _x_locations: np.ndarray | None
+    _y_locations: np.ndarray | None
 
     def __init__(
         self,
         center: Point,
         radius: float,
         image_array: np.ndarray,
-        start_angle: Union[float, int] = 0,
+        start_angle: float | int = 0,
         ccw: bool = True,
         sampling_ratio: float = 1.0,
     ):
@@ -1350,11 +1346,11 @@ class CircleProfile(MultiProfile, Circle):
 
     def find_peaks(
         self,
-        threshold: Union[float, int] = 0.3,
-        min_distance: Union[float, int] = 0.05,
+        threshold: float | int = 0.3,
+        min_distance: float | int = 0.05,
         max_number: int = None,
-        search_region: Tuple[float, float] = (0.0, 1.0),
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        search_region: tuple[float, float] = (0.0, 1.0),
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Overloads Profile to also map peak locations to the image."""
         peak_idxs, peak_vals = super().find_peaks(
             threshold, min_distance, max_number, search_region
@@ -1364,11 +1360,11 @@ class CircleProfile(MultiProfile, Circle):
 
     def find_valleys(
         self,
-        threshold: Union[float, int] = 0.3,
-        min_distance: Union[float, int] = 0.05,
+        threshold: float | int = 0.3,
+        min_distance: float | int = 0.05,
         max_number: int = None,
-        search_region: Tuple[float, float] = (0.0, 1.0),
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        search_region: tuple[float, float] = (0.0, 1.0),
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Overload Profile to also map valley locations to the image."""
         valley_idxs, valley_vals = super().find_valleys(
             threshold, min_distance, max_number, search_region
@@ -1378,11 +1374,11 @@ class CircleProfile(MultiProfile, Circle):
 
     def find_fwxm_peaks(
         self,
-        threshold: Union[float, int] = 0.3,
-        min_distance: Union[float, int] = 0.05,
+        threshold: float | int = 0.3,
+        min_distance: float | int = 0.05,
         max_number: int = None,
-        search_region: Tuple[float, float] = (0.0, 1.0),
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        search_region: tuple[float, float] = (0.0, 1.0),
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Overloads Profile to also map the peak locations to the image."""
         peak_idxs, peak_vals = super().find_fwxm_peaks(
             threshold, min_distance, max_number, search_region=search_region
@@ -1463,7 +1459,7 @@ class CollapsedCircleProfile(CircleProfile):
         self,
         center: Point,
         radius: float,
-        image_array: Union[np.ndarray, "ArrayImage"],
+        image_array: np.ndarray | ArrayImage,
         start_angle: int = 0,
         ccw: bool = True,
         sampling_ratio: float = 1.0,
@@ -1500,7 +1496,7 @@ class CollapsedCircleProfile(CircleProfile):
         return np.pi * max(self._radii) * 2 * self.sampling_ratio
 
     @property
-    def _multi_x_locations(self) -> List:
+    def _multi_x_locations(self) -> list:
         """List of x-locations of the sampling profiles"""
         x = []
         cos = np.cos(self._radians)
@@ -1510,7 +1506,7 @@ class CollapsedCircleProfile(CircleProfile):
         return x
 
     @property
-    def _multi_y_locations(self) -> List:
+    def _multi_y_locations(self) -> list:
         """List of x-locations of the sampling profiles"""
         y = []
         sin = np.sin(self._radians)
@@ -1571,15 +1567,15 @@ class CollapsedCircleProfile(CircleProfile):
 
 def find_peaks(
     values: np.ndarray,
-    threshold: Union[float, int] = -np.inf,
-    peak_separation: Union[float, int] = 0,
+    threshold: float | int = -np.inf,
+    peak_separation: float | int = 0,
     max_number: int = None,
     fwxm_height: float = 0.5,
     min_width: int = 0,
-    search_region: Tuple[float, float] = (0.0, 1.0),
+    search_region: tuple[float, float] = (0.0, 1.0),
     peak_sort="prominences",
     required_prominence=None,
-) -> Tuple[np.ndarray, dict]:
+) -> tuple[np.ndarray, dict]:
     """Find the peaks of a 1D signal. Heavily relies on the scipy implementation.
 
     Parameters
@@ -1644,10 +1640,10 @@ def find_peaks(
 
 def _parse_peak_args(
     peak_separation: float,
-    search_region: Tuple[float, float],
+    search_region: tuple[float, float],
     threshold: float,
     values: np.ndarray,
-) -> Tuple[float, int, float, np.ndarray]:
+) -> tuple[float, int, float, np.ndarray]:
     """Converts arguments as needed. E.g. converting a ratio to actual values"""
     # set threshold as % if between 0 and 1
     val_range = values.max() - values.min()

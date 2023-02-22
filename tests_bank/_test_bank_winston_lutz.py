@@ -13,7 +13,7 @@ def run_wl(path):
             raise ValueError
         return "Success"
     except Exception as e:
-        return "Failure: {} @ {}".format(e, path)
+        return f"Failure: {e} @ {path}"
 
 
 class WinstonLutzTestBank(DataBankMixin, TestCase):

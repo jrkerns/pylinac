@@ -9,15 +9,15 @@ import numpy as np
 from pylinac import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
-from pylinac.ct import CTP404CP504, CTP404CP503, CTP528CP503, CTP528CP504, CatphanResult
+from pylinac.ct import CTP404CP503, CTP404CP504, CTP528CP503, CTP528CP504, CatphanResult
 from tests_basic.utils import (
-    save_file,
     CloudFileMixin,
-    get_file_from_cloud_test_repo,
-    InitTesterMixin,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
     FromZipTesterMixin,
+    InitTesterMixin,
+    get_file_from_cloud_test_repo,
+    save_file,
 )
 
 TEST_DIR = "CBCT"

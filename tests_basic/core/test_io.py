@@ -1,14 +1,14 @@
 """Test suite for the pylinac.io module."""
-import unittest
 import os
 import os.path as osp
+import unittest
 
 from pylinac.core.io import (
-    TemporaryZipDirectory,
-    get_url,
-    URLError,
-    is_dicom,
     SNCProfiler,
+    TemporaryZipDirectory,
+    URLError,
+    get_url,
+    is_dicom,
 )
 from pylinac.core.profile import SingleProfile
 from tests_basic.utils import get_file_from_cloud_test_repo

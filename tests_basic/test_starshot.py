@@ -11,11 +11,11 @@ from pylinac import Starshot
 from pylinac.core.geometry import Point
 from pylinac.starshot import StarshotResults
 from tests_basic.utils import (
-    save_file,
     CloudFileMixin,
+    FromURLTesterMixin,
     get_file_from_cloud_test_repo,
     get_folder_from_cloud_test_repo,
-    FromURLTesterMixin,
+    save_file,
 )
 
 plt.close("all")

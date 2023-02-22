@@ -16,7 +16,7 @@ def run_log(path):
                 raise Exception("Gamma pass % < 90")
         ret = "Success"
     except Exception as e:
-        ret = "Failure: {} @ {}".format(e, path)
+        ret = f"Failure: {e} @ {path}"
     return ret
 
 

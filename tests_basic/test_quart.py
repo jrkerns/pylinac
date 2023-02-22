@@ -9,14 +9,14 @@ from scipy import ndimage
 from pylinac import QuartDVT
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
-from pylinac.quart import QuartDVTResult, ACRYLIC, POLY
+from pylinac.quart import ACRYLIC, POLY, QuartDVTResult
 from tests_basic.utils import (
-    InitTesterMixin,
-    FromZipTesterMixin,
-    get_file_from_cloud_test_repo,
-    save_file,
     CloudFileMixin,
+    FromZipTesterMixin,
+    InitTesterMixin,
+    get_file_from_cloud_test_repo,
     get_folder_from_cloud_test_repo,
+    save_file,
 )
 
 TEST_DIR = ["CBCT", "Quart"]

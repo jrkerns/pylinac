@@ -8,45 +8,45 @@ if sys.version_info[0] < 3 or sys.version_info[1] < 7:
         "Pylinac is only supported on Python 3.7+. Please update your environment."
     )
 
+# alphabetized modules
+from .acr import ACRCT, ACRMRILarge
+from .calibration import tg51, trs398
+
 # import shortcuts
 # core first
 from .core import decorators, geometry, image, io, mask, profile, roi, utilities
-
-# alphabetized modules
-from .acr import ACRCT, ACRMRILarge
-from .ct import CatPhan504, CatPhan600, CatPhan503, CatPhan604
-from .quart import QuartDVT
-from .core.utilities import clear_data_files, assign2machine
+from .core.utilities import assign2machine, clear_data_files
+from .ct import CatPhan503, CatPhan504, CatPhan600, CatPhan604
 from .field_analysis import (
-    FieldAnalysis,
-    DeviceFieldAnalysis,
-    Protocol,
+    Centering,
     Device,
+    DeviceFieldAnalysis,
     Edge,
+    FieldAnalysis,
     Interpolation,
     Normalization,
-    Centering,
+    Protocol,
 )
+from .log_analyzer import Dynalog, MachineLogs, TrajectoryLog, load_log
+from .picketfence import PicketFence  # must be after log analyzer
 from .planar_imaging import (
-    LeedsTOR,
-    StandardImagingQC3,
-    LasVegas,
+    PTWEPIDQC,
+    SNCFSQA,
+    SNCMV,
+    SNCMV12510,
     DoselabMC2kV,
     DoselabMC2MV,
-    StandardImagingQCkV,
-    PTWEPIDQC,
-    SNCMV,
+    IBAPrimusA,
+    IMTLRad,
+    LasVegas,
+    LeedsTOR,
+    LeedsTORBlue,
     SNCkV,
     StandardImagingFC2,
-    IMTLRad,
-    SNCFSQA,
-    LeedsTORBlue,
-    SNCMV12510,
-    IBAPrimusA,
+    StandardImagingQC3,
+    StandardImagingQCkV,
 )
-from .log_analyzer import load_log, Dynalog, TrajectoryLog, MachineLogs
-from .picketfence import PicketFence  # must be after log analyzer
+from .quart import QuartDVT
 from .starshot import Starshot
-from .vmat import DRMLC, DRGS
+from .vmat import DRGS, DRMLC
 from .winston_lutz import WinstonLutz, WinstonLutzMultiTargetMultiField
-from .calibration import tg51, trs398

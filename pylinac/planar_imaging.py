@@ -27,7 +27,7 @@ import warnings
 import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List, Tuple, Union, BinaryIO, Callable, Dict
+from typing import BinaryIO, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,18 +37,18 @@ from scipy.ndimage import median_filter
 from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
-from .core import image, pdf, geometry
+from .core import geometry, image, pdf
 from .core.decorators import lru_cache
-from .core.geometry import Point, Rectangle, Circle, Vector
+from .core.geometry import Circle, Point, Rectangle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import Interpolation, CollapsedCircleProfile, SingleProfile
+from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
 from .core.roi import (
-    LowContrastDiskROI,
-    HighContrastDiskROI,
-    bbox_center,
     Contrast,
     DiskROI,
+    HighContrastDiskROI,
+    LowContrastDiskROI,
+    bbox_center,
 )
 from .core.utilities import ResultBase
 from .ct import get_regions

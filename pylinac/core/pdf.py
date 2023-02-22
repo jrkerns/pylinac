@@ -2,7 +2,7 @@
 import io
 from datetime import datetime
 from pathlib import Path
-from typing import List, Union, Sequence, Optional
+from typing import List, Optional, Sequence, Union
 
 from PIL import Image
 from reportlab.lib.pagesizes import A4

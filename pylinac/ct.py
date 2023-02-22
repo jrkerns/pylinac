@@ -25,15 +25,15 @@ from io import BytesIO
 from os import path as osp
 from pathlib import Path
 from typing import (
-    Optional,
-    Union,
-    Dict,
-    Tuple,
-    Sequence,
-    List,
     BinaryIO,
-    Type,
     Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
 )
 
 import matplotlib.pyplot as plt
@@ -41,16 +41,16 @@ import numpy as np
 from cached_property import cached_property
 from py_linq import Enumerable
 from scipy import ndimage
-from skimage import filters, measure, segmentation, draw
+from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
 
 from .core import image, pdf
-from .core.geometry import Point, Line
-from .core.image import DicomImageStack, ArrayImage
+from .core.geometry import Line, Point
+from .core.image import ArrayImage, DicomImageStack
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import CollapsedCircleProfile, SingleProfile, Interpolation
-from .core.roi import DiskROI, RectangleROI, LowContrastDiskROI, Contrast
+from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
+from .core.roi import Contrast, DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
 

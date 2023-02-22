@@ -21,9 +21,9 @@ def run_pf(path):
                 raise Exception("Max MLC peak error > 1.2mm")
             return "Success"
         except (ValueError,) as e:
-            return "Failure: {} @ {}".format(e, path)
+            return f"Failure: {e} @ {path}"
     except Exception as e:
-        return "Failure: {} @ {}".format(e, path)
+        return f"Failure: {e} @ {path}"
 
 
 class PicketFenceTestBank(DataBankMixin, TestCase):

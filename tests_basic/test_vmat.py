@@ -1,6 +1,6 @@
 import io
 from functools import partial
-from typing import Union, Type, Iterable
+from typing import Iterable, Type, Union
 from unittest import TestCase
 
 from matplotlib import pyplot as plt
@@ -9,10 +9,10 @@ from pylinac import DRGS, DRMLC
 from pylinac.core.geometry import Point
 from pylinac.vmat import VMATResult
 from tests_basic.utils import (
-    save_file,
-    get_file_from_cloud_test_repo,
-    FromURLTesterMixin,
     FromDemoImageTesterMixin,
+    FromURLTesterMixin,
+    get_file_from_cloud_test_repo,
+    save_file,
 )
 
 TEST_DIR = "VMAT"

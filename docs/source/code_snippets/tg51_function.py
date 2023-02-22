@@ -1,7 +1,6 @@
 """A script to calculate TG-51 dose using pylinac functions and following the TG-51 photon form"""
 from pylinac.calibration import tg51
 
-
 ENERGY = 6
 TEMP = 22.1
 PRESS = tg51.mmHg2kPa(755.0)

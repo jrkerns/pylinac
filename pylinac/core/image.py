@@ -9,9 +9,9 @@ import re
 import typing
 from collections import Counter
 from datetime import datetime
-from io import BytesIO, BufferedReader
+from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import Union, Sequence, List, Any, Tuple, Optional, BinaryIO
+from typing import Any, BinaryIO, List, Optional, Sequence, Tuple, Union
 
 import argue
 import matplotlib.pyplot as plt
@@ -24,17 +24,17 @@ from pydicom.errors import InvalidDicomError
 from scipy import ndimage
 from skimage.draw import disk
 
+from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
 from .geometry import Point
 from .io import (
-    get_url,
     TemporaryZipDirectory,
-    retrieve_filenames,
+    get_url,
     is_dicom_image,
     retrieve_dicom_file,
+    retrieve_filenames,
 )
 from .profile import stretch as stretcharray
-from .utilities import is_close, decode_binary
-from ..settings import get_dicom_cmap, PATH_TRUNCATION_LENGTH
+from .utilities import decode_binary, is_close
 
 ARRAY = "Array"
 DICOM = "DICOM"
@@ -129,7 +129,7 @@ def retrieve_image_files(path: str) -> List[str]:
 def load(
     path: Union[str, Path, ImageLike, np.ndarray, BinaryIO], **kwargs
 ) -> ImageLike:
-    """Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
+    r"""Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
     Parameters
     ----------
@@ -1169,9 +1169,7 @@ class LinacDicomImage(DicomImage):
                 axis_found = True
             # if it is, then make sure it follows the naming convention of <axis###>
             else:
-                match = re.search(
-                    r"(?<={})\d+".format(axis_str.lower()), filename.lower()
-                )
+                match = re.search(rf"(?<={axis_str.lower()})\d+", filename.lower())
                 if match is None:
                     raise ValueError(
                         f"The filename contains '{axis_str}' but could not read a number following it. Use the format '...{axis_str}<#>...'"

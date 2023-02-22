@@ -24,7 +24,7 @@ from io import BytesIO
 from itertools import cycle
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, Tuple, List, Optional, BinaryIO, Iterable, Sequence
+from typing import BinaryIO, Iterable, List, Optional, Sequence, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,9 +33,9 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from py_linq import Enumerable
 
 from .core import image, pdf
-from .core.geometry import Line, Rectangle, Point
+from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
-from .core.profile import MultiProfile, SingleProfile, Interpolation
+from .core.profile import Interpolation, MultiProfile, SingleProfile
 from .core.utilities import ResultBase, convert_to_enum
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
@@ -826,7 +826,7 @@ class PicketFence:
         # calculate the error and stdev values per MLC pair
         error_stdev = []
         error_vals = []
-        for leaf_num in set([m.leaf_num for m in self.mlc_meas]):
+        for leaf_num in {m.leaf_num for m in self.mlc_meas}:
             error_vals.append(
                 np.mean(
                     [np.abs(m.error) for m in self.mlc_meas if m.leaf_num == leaf_num]

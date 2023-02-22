@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import math
 from itertools import zip_longest
-from typing import Union, Optional, List, Iterable, Tuple
+from typing import Iterable, List, Optional, Tuple, Union
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Circle as mpl_Circle, Rectangle as mpl_Rectangle
+from matplotlib.patches import Circle as mpl_Circle
+from matplotlib.patches import Rectangle as mpl_Rectangle
 
 from .utilities import is_iterable
 
@@ -39,16 +40,16 @@ class Point:
     z: float
     y: float
     x: float
-    _attr_list: List[str] = ["x", "y", "z", "idx", "value"]
-    _coord_list: List[str] = ["x", "y", "z"]
+    _attr_list: list[str] = ["x", "y", "z", "idx", "value"]
+    _coord_list: list[str] = ["x", "y", "z"]
 
     def __init__(
         self,
-        x: Union[float, tuple, Point] = 0,
+        x: float | tuple | Point = 0,
         y: float = 0,
         z: float = 0,
-        idx: Optional[int] = None,
-        value: Optional[float] = None,
+        idx: int | None = None,
+        value: float | None = None,
         as_int: bool = False,
     ):
         """
@@ -85,7 +86,7 @@ class Point:
             self.y = int(round(self.y))
             self.z = int(round(self.z))
 
-    def distance_to(self, thing: Union["Point", "Circle"]) -> float:
+    def distance_to(self, thing: Point | Circle) -> float:
         """Calculate the distance to the given point.
 
         Parameters
@@ -116,7 +117,7 @@ class Point:
                 ]
             )
 
-    def as_vector(self) -> "Vector":
+    def as_vector(self) -> Vector:
         return Vector(x=self.x, y=self.y, z=self.z)
 
     def __repr__(self):
@@ -160,9 +161,7 @@ class Circle:
     center: Point
     radius: float
 
-    def __init__(
-        self, center_point: Union[Point, Iterable] = (0, 0), radius: float = 0
-    ):
+    def __init__(self, center_point: Point | Iterable = (0, 0), radius: float = 0):
         """
         Parameters
         ----------
@@ -229,7 +228,7 @@ class Vector:
         """Return the scalar equivalent of the vector."""
         return math.sqrt(self.x**2 + self.y**2 + self.z**2)
 
-    def distance_to(self, thing: Union[Circle, Point]) -> float:
+    def distance_to(self, thing: Circle | Point) -> float:
         """Calculate the distance to the given point.
 
         Parameters
@@ -248,19 +247,19 @@ class Vector:
                 (self.x - p.x) ** 2 + (self.y - p.y) ** 2 + (self.z - p.z) ** 2
             )
 
-    def __sub__(self, other: "Vector") -> "Vector":
+    def __sub__(self, other: Vector) -> Vector:
         new_x = self.x - other.x
         new_y = self.y - other.y
         new_z = self.z - other.z
         return Vector(x=new_x, y=new_y, z=new_z)
 
-    def __add__(self, other: "Vector") -> "Vector":
+    def __add__(self, other: Vector) -> Vector:
         new_x = self.x + other.x
         new_y = self.y + other.y
         new_z = self.z + other.z
         return Vector(x=new_x, y=new_y, z=new_z)
 
-    def __truediv__(self, other: float) -> "Vector":
+    def __truediv__(self, other: float) -> Vector:
         for attr in ("x", "y", "z"):
             val = getattr(self, attr)
             setattr(self, attr, val / other)
@@ -297,8 +296,8 @@ class Line:
 
     def __init__(
         self,
-        point1: Union[Point, Tuple[float, float]],
-        point2: Union[Point, Tuple[float, float]],
+        point1: Point | tuple[float, float],
+        point2: Point | tuple[float, float],
     ):
         """
         Parameters
@@ -355,7 +354,7 @@ class Line:
         """Return length of the line, if finite."""
         return self.point1.distance_to(self.point2)
 
-    def distance_to(self, point: "Point") -> float:
+    def distance_to(self, point: Point) -> float:
         """Calculate the minimum distance from the line to a point.
 
         Equations are from here: http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html #14
@@ -397,8 +396,8 @@ class Line:
 class Rectangle:
     """A rectangle with width, height, center Point, top-left corner Point, and bottom-left corner Point."""
 
-    width: Union[int, float]
-    height: Union[int, float]
+    width: int | float
+    height: int | float
     _as_int: bool
     center: Point
 
@@ -406,7 +405,7 @@ class Rectangle:
         self,
         width: float,
         height: float,
-        center: Union[Point, Tuple],
+        center: Point | tuple,
         as_int: bool = False,
     ):
         """

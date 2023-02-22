@@ -14,7 +14,7 @@ def run_star(path):
             raise Exception("Diamater was > 3mm.")
         return "Success"
     except Exception as e:
-        return "Failure: {} @ {}".format(e, path)
+        return f"Failure: {e} @ {path}"
 
 
 class StarshotBank(DataBankMixin, TestCase):

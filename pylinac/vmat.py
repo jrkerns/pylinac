@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """The VMAT module consists of the class VMAT, which is capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
 images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS)
 and Dose-Rate & MLC speed (DRMLC) tests.
@@ -16,7 +15,7 @@ import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import Union, List, Tuple, Sequence, Optional, BinaryIO
+from typing import BinaryIO, List, Optional, Sequence, Tuple, Union
 
 import argue
 import matplotlib.pyplot as plt
@@ -25,9 +24,9 @@ import numpy as np
 from .core import image
 from .core.geometry import Point, Rectangle
 from .core.image import ImageLike
-from .core.io import get_url, TemporaryZipDirectory, retrieve_demo_file
+from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
-from .core.profile import SingleProfile, Interpolation, Edge
+from .core.profile import Edge, Interpolation, SingleProfile
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 

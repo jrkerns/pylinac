@@ -9,23 +9,23 @@ from matplotlib import pyplot as plt
 from pylinac.core import image
 from pylinac.core.exceptions import NotAnalyzed
 from pylinac.core.io import retrieve_demo_file
-from pylinac.core.profile import Edge, Normalization, Interpolation
+from pylinac.core.profile import Edge, Interpolation, Normalization
 from pylinac.field_analysis import (
-    FieldAnalysis,
-    Protocol,
-    DeviceFieldAnalysis,
     Centering,
-    symmetry_point_difference,
+    DeviceFieldAnalysis,
+    FieldAnalysis,
+    FieldResult,
+    Protocol,
     flatness_dose_difference,
     plot_flatness,
     plot_symmetry_point_difference,
-    FieldResult,
+    symmetry_point_difference,
 )
 from tests_basic.utils import (
-    has_www_connection,
     CloudFileMixin,
-    save_file,
     get_file_from_cloud_test_repo,
+    has_www_connection,
+    save_file,
 )
 
 TEST_DIR = "flatness_symmetry"

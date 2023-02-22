@@ -1,30 +1,30 @@
 import io
-import os.path as osp
 import os
-from unittest import TestCase
+import os.path as osp
 import shutil
 import tempfile
+from unittest import TestCase
 
 import numpy as np
 
 from pylinac.log_analyzer import (
-    MachineLogs,
-    TreatmentType,
-    anonymize,
-    TrajectoryLog,
     Dynalog,
-    load_log,
     DynalogMatchError,
+    MachineLogs,
     NotADynalogError,
     NotALogError,
+    TrajectoryLog,
+    TreatmentType,
+    anonymize,
+    load_log,
 )
 from tests_basic.utils import (
-    save_file,
     CloudFileMixin,
-    get_file_from_cloud_test_repo,
-    get_folder_from_cloud_test_repo,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
+    get_file_from_cloud_test_repo,
+    get_folder_from_cloud_test_repo,
+    save_file,
 )
 
 TEST_DIR = "mlc_logs"

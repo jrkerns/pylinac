@@ -1,7 +1,6 @@
 """A script to calculate TRS-398 dose using pylinac classes and following the TRS-398 photon form"""
 from pylinac.calibration import trs398
 
-
 ENERGY = 6
 TEMP = 22.1
 PRESS = trs398.mmHg2kPa(755.0)

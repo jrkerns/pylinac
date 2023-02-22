@@ -3,7 +3,7 @@ import os.path as osp
 from unittest import TestCase
 from zipfile import BadZipfile
 
-from pylinac import CatPhan600, CatPhan503, CatPhan504
+from pylinac import CatPhan503, CatPhan504, CatPhan600
 from tests_basic.utils import DataBankMixin
 
 
@@ -14,7 +14,7 @@ def run_catphan504(path):
         mypf.analyze()
         return "Success"
     except (ValueError, FileNotFoundError, BadZipfile) as e:
-        return "Failure: {} @ {}".format(e, path)
+        return f"Failure: {e} @ {path}"
 
 
 def run_catphan503(path):
@@ -23,7 +23,7 @@ def run_catphan503(path):
         mypf.analyze()
         return "Success"
     except (ValueError, FileNotFoundError, BadZipfile) as e:
-        return "Failure: {} @ {}".format(e, path)
+        return f"Failure: {e} @ {path}"
 
 
 def run_catphan600(path):
@@ -32,7 +32,7 @@ def run_catphan600(path):
         mypf.analyze()
         return "Success"
     except (ValueError, FileNotFoundError, BadZipfile) as e:
-        return "Failure: {} @ {}".format(e, path)
+        return f"Failure: {e} @ {path}"
 
 
 class CBCTTestBank(DataBankMixin, TestCase):

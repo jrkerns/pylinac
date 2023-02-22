@@ -6,19 +6,19 @@ import warnings
 import webbrowser
 from dataclasses import dataclass
 from enum import Enum
-from math import floor, ceil
+from math import ceil, floor
 from pathlib import Path
-from typing import Union, Optional, Tuple, BinaryIO, List, Dict
+from typing import BinaryIO, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from .core import image, pdf
 from .core.exceptions import NotAnalyzed
-from .core.geometry import Rectangle, Point
+from .core.geometry import Point, Rectangle
 from .core.hill import Hill
-from .core.io import retrieve_demo_file, SNCProfiler
-from .core.profile import SingleProfile, Edge, Interpolation, Normalization
+from .core.io import SNCProfiler, retrieve_demo_file
+from .core.profile import Edge, Interpolation, Normalization, SingleProfile
 from .core.roi import RectangleROI
 from .core.utilities import ResultBase, convert_to_enum
 from .settings import get_dicom_cmap
@@ -39,7 +39,7 @@ def flatness_dose_difference(
             calculation="min",
             slope_exclusion_ratio=kwargs.get("slope_exclusion_ratio", 0.2),
         )
-    except IOError:
+    except OSError:
         raise ValueError(
             "An error was encountered in the flatness calculation. The image is likely inverted. Try inverting the image before analysis with <instance>.image.invert()."
         )

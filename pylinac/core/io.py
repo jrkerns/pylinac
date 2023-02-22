@@ -5,9 +5,9 @@ import struct
 import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable, List, Tuple, Union, BinaryIO, Optional
+from typing import BinaryIO, Callable, List, Optional, Tuple, Union
 from urllib.error import HTTPError, URLError
-from urllib.request import urlretrieve, urlopen
+from urllib.request import urlopen, urlretrieve
 
 import numpy as np
 import pydicom

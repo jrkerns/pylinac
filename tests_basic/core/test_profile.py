@@ -6,12 +6,12 @@ import scipy.signal as sps
 from pylinac.core import image
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import (
-    SingleProfile,
-    MultiProfile,
     CircleProfile,
     CollapsedCircleProfile,
-    Normalization,
     Interpolation,
+    MultiProfile,
+    Normalization,
+    SingleProfile,
     gamma_1d,
 )
 from tests_basic.utils import get_file_from_cloud_test_repo

@@ -1,14 +1,13 @@
-from math import floor, ceil
+from math import ceil, floor
 from typing import Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import stats
 
-from .core.profile import Normalization
 from .core import image
-from .core.profile import SingleProfile, find_peaks
-from .picketfence import MLCArrangement, MLC
+from .core.profile import Normalization, SingleProfile, find_peaks
+from .picketfence import MLC, MLCArrangement
 
 
 class DLG:

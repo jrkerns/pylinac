@@ -4,8 +4,8 @@ from unittest import TestCase
 # from tests_basic import prep_mpl_testing
 import matplotlib.pyplot as plt
 
-from pylinac import LeedsTOR, StandardImagingQC3, LasVegas
-from pylinac.planar_imaging import PTWEPIDQC, SNCkV, SNCMV, StandardImagingQCkV
+from pylinac import LasVegas, LeedsTOR, StandardImagingQC3
+from pylinac.planar_imaging import PTWEPIDQC, SNCMV, SNCkV, StandardImagingQCkV
 from tests_basic.utils import DataBankMixin
 
 
@@ -15,7 +15,7 @@ def process_phantom(phantom, path):
         phantom.plot_analyzed_image(show=False)
         plt.close("all")
     except Exception as e:
-        return "Failure: {} @ {}".format(e, path)
+        return f"Failure: {e} @ {path}"
     else:
         return "Success"
 

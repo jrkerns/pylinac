@@ -6,23 +6,23 @@ import tempfile
 import unittest
 from unittest import TestCase
 
-import PIL.Image
 import numpy as np
+import PIL.Image
 from numpy.testing import assert_array_almost_equal
 
 from pylinac.core import image
 from pylinac.core.geometry import Point
 from pylinac.core.image import (
-    DicomImage,
+    XIM,
     ArrayImage,
-    FileImage,
+    DicomImage,
     DicomImageStack,
+    FileImage,
     LinacDicomImage,
     gamma_2d,
-    XIM,
 )
 from pylinac.core.io import TemporaryZipDirectory
-from tests_basic.utils import save_file, get_file_from_cloud_test_repo
+from tests_basic.utils import get_file_from_cloud_test_repo, save_file
 
 tif_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.tif"])
 png_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.png"])

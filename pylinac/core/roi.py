@@ -1,5 +1,5 @@
 import enum
-from typing import Union, Tuple, Optional
+from typing import Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np

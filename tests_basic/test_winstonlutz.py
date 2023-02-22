@@ -14,19 +14,19 @@ from pylinac.core.io import TemporaryZipDirectory
 from pylinac.core.scale import MachineScale
 from pylinac.winston_lutz import (
     Axis,
-    WinstonLutzResult,
-    WinstonLutz2D,
-    bb_projection_long,
-    bb_projection_gantry_plane,
     BBArrangement,
+    WinstonLutz2D,
+    WinstonLutzResult,
+    bb_projection_gantry_plane,
+    bb_projection_long,
 )
 from tests_basic.utils import (
-    save_file,
     CloudFileMixin,
-    get_folder_from_cloud_test_repo,
-    get_file_from_cloud_test_repo,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
+    get_file_from_cloud_test_repo,
+    get_folder_from_cloud_test_repo,
+    save_file,
 )
 
 TEST_DIR = "Winston-Lutz"

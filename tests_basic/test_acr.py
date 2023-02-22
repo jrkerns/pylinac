@@ -11,11 +11,11 @@ from pylinac.acr import ACRCT, ACRCTResult, ACRMRIResult
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
 from tests_basic.utils import (
-    InitTesterMixin,
+    CloudFileMixin,
     FromZipTesterMixin,
+    InitTesterMixin,
     get_file_from_cloud_test_repo,
     save_file,
-    CloudFileMixin,
 )
 
 TEST_DIR_CT = ["ACR", "CT"]

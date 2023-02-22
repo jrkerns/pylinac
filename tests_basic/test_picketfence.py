@@ -8,14 +8,14 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 
 from pylinac.core import image
-from pylinac.picketfence import PicketFence, Orientation, PFResult, MLCArrangement, MLC
+from pylinac.picketfence import MLC, MLCArrangement, Orientation, PFResult, PicketFence
 from tests_basic.utils import (
-    save_file,
     CloudFileMixin,
-    get_file_from_cloud_test_repo,
-    InitTesterMixin,
-    FromURLTesterMixin,
     FromDemoImageTesterMixin,
+    FromURLTesterMixin,
+    InitTesterMixin,
+    get_file_from_cloud_test_repo,
+    save_file,
 )
 
 TEST_DIR = "picket_fence"
