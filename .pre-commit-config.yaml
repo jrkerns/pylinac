@@ -10,12 +10,30 @@ repos:
     -   id: requirements-txt-fixer
     -   id: no-commit-to-branch
         args: [--branch, master, --branch, staging, --branch, production]
+-   repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+    -   id: isort
+        args: ["--profile", "black", "--filter-files"]
 -   repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
     -   id: black
-#-   repo: https://github.com/pre-commit/mirrors-mypy
-#    rev: v0.991
-#    hooks:
-#    -   id: mypy
-#        exclude: docs\*
+-   repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+    -   id: pyupgrade
+        args: [--py36-plus]
+-   repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
+    -   id: flake8
+        stages:
+            - manual
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.991
+    hooks:
+    -   id: mypy
+        exclude: docs\*
+        stages:
+          - manual
