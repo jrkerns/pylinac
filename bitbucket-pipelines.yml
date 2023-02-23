@@ -226,9 +226,8 @@ pipelines:
 
   pull-requests:
     '**':
-      - parallel:
-          - step: *set-up-env
-          - step: *pre-commit-checks
+      - step: *set-up-env
+      - step: *pre-commit-checks
       - parallel:
           - step: *build-docs
           - step: *cbct-tests
