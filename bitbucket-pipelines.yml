@@ -3,6 +3,11 @@ image: python:3.9-slim
 
 definitions:
   steps:
+    - step: &pre-commit-checks
+        name: Pre-commit checks
+        script:
+          - pip install pre-commit
+          - pre-commit run --all-files
     - step: &set-up-env
         name: Set up Env
         caches:
@@ -221,7 +226,9 @@ pipelines:
 
   pull-requests:
     '**':
-      - step: *set-up-env
+      - parallel:
+          - step: *set-up-env
+          - step: *pre-commit-checks
       - parallel:
           - step: *build-docs
           - step: *cbct-tests
