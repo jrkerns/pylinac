@@ -6,7 +6,7 @@ definitions:
     - step: &pre-commit-checks
         name: Pre-commit checks
         script:
-          - source venv/bin/activate
+          - apt-get install git
           - pip install pre-commit
           - pre-commit run --all-files
     - step: &set-up-env
@@ -227,8 +227,9 @@ pipelines:
 
   pull-requests:
     '**':
-      - step: *set-up-env
-      - step: *pre-commit-checks
+      - parallel:
+          - step: *set-up-env
+          - step: *pre-commit-checks
       - parallel:
           - step: *build-docs
           - step: *cbct-tests
