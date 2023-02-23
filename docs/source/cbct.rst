@@ -69,6 +69,20 @@ Or generate a PDF report:
 
     cbct.publish_pdf('mycbct.pdf')
 
+Image Acquisition
+-----------------
+
+Acquiring a scan of a CatPhan has a few simple requirements:
+
+#. The field of view must be larger than the phantom diameter + a few cm for clearance.
+#. All modules must be visible.
+
+   .. warning::
+
+        This can cause strange results if not all modules are scanned. Furthermore, aligning axially to the white dots
+        on the side of the catphan will not catch the inferior modules on a typical CBCT scan. We suggest
+        aligning to the center of the HU module (the module inferior to the white dots) when acquiring via CBCT.
+
 Typical Use
 -----------
 
