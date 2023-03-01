@@ -811,6 +811,7 @@ class WLLateral3mm(WinstonLutzMixin, TestCase):
 
 class WLReferenceIsLargestRMS(WinstonLutzMixin, TestCase):
     """If the reference image had the largest error, it was not reported"""
+
     file_name = "Ref_is_largest_error.zip"
     num_images = 3
     gantry_iso_size = 0
@@ -820,7 +821,9 @@ class WLReferenceIsLargestRMS(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=1, y=0, z=0)
 
     def test_largest_error_at_ref_is_reported(self):
-        self.assertAlmostEqual(self.wl.results_data().max_gantry_rms_deviation_mm, 1, places=2)
+        self.assertAlmostEqual(
+            self.wl.results_data().max_gantry_rms_deviation_mm, 1, places=2
+        )
 
 
 class WLLongitudinal3mm(WinstonLutzMixin, TestCase):

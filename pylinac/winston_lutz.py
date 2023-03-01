@@ -848,8 +848,8 @@ class WinstonLutz:
 
     @argue.options(value=("all", "range"))
     def axis_rms_deviation(
-        self, axis: Union[Axis, Tuple[Axis, ...]] = Axis.GANTRY, value: str = "all"
-    ) -> Union[Iterable, float]:
+        self, axis: Axis | tuple[Axis, ...] = Axis.GANTRY, value: str = "all"
+    ) -> Iterable | float:
         """The RMS deviations of a given axis/axes.
 
         Parameters
@@ -1231,11 +1231,15 @@ class WinstonLutz:
             couch_2d_iso_diameter_mm=self.couch_iso_size,
             gantry_3d_iso_diameter_mm=self.gantry_iso_size,
             gantry_coll_3d_iso_diameter_mm=self.gantry_coll_iso_size,
-            max_gantry_rms_deviation_mm=max(self.axis_rms_deviation(axis=(Axis.GANTRY, Axis.REFERENCE))),
+            max_gantry_rms_deviation_mm=max(
+                self.axis_rms_deviation(axis=(Axis.GANTRY, Axis.REFERENCE))
+            ),
             max_coll_rms_deviation_mm=max(
                 self.axis_rms_deviation(axis=(Axis.COLLIMATOR, Axis.REFERENCE))
             ),
-            max_couch_rms_deviation_mm=max(self.axis_rms_deviation(axis=(Axis.COUCH, Axis.REFERENCE))),
+            max_couch_rms_deviation_mm=max(
+                self.axis_rms_deviation(axis=(Axis.COUCH, Axis.REFERENCE))
+            ),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
             image_details=individual_image_data,
         )
