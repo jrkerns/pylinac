@@ -28,7 +28,7 @@ class TestIO(unittest.TestCase):
         webpage_url = 'http://google.com'
         get_url(webpage_url)  # shouldn't raise
         # test file
-        file_url = 'https://s3.amazonaws.com/pylinac/winston_lutz.zip'
+        file_url = "https://storage.googleapis.com/pylinac_demo_files/winston_lutz.zip"
         local_file = get_url(file_url)
         osp.isfile(local_file)
         # bad URL
