@@ -16,6 +16,7 @@ CatPhan
 ^^^^^^^
 
 * ROI details have been added to the :ref:`~pylinac.ct.CTP515Result` class.
+* Passing ``delta`` to ``save_analyzed_subimage`` would fail because the parameter was not being passed. This is now fixed.
 
 Winston-Lutz
 ^^^^^^^^^^^^

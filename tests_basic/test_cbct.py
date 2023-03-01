@@ -205,6 +205,8 @@ class TestPlottingSaving(TestCase):
     def test_plot_images(self):
         """Test the various plotting functions."""
         self.cbct.plot_analyzed_image()
+
+    def test_plot_subimages(self):
         for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc"]:
             self.cbct.plot_analyzed_subimage(item)
 
@@ -212,6 +214,15 @@ class TestPlottingSaving(TestCase):
 
         with self.assertRaises(ValueError):
             self.cbct.plot_analyzed_subimage("sr")
+
+    def test_save_subimages(self):
+        for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc"]:
+            self.cbct.save_analyzed_subimage("dummy.png", item)
+
+        self.cbct.save_analyzed_subimage("dummy.png", "lin", delta=False)
+
+        with self.assertRaises(ValueError):
+            self.cbct.save_analyzed_subimage("dummy.png", "sr")
 
     def test_set_figure_size(self):
         self.cbct.plot_analyzed_image(figsize=(8, 13))
