@@ -3,13 +3,6 @@
 Changelog
 =========
 
-v 3.8.2
--------
-
-* Winston-Lutz axis-specific RMS calculations ("Maximum <Gantry | Collimator | Couch> RMS deviation") from the ``results`` and ``results_data`` method calls were potentially erroneous
-  if the maximum error was in a "Reference" image (gantry=coll=couch=0). Users are urged to upgrade if using these outputs.
-  Note that the Maximum/Median/Mean 2D CAX->BB distances are unaffected.
-
 v 3.8.1
 -------
 
@@ -17,6 +10,10 @@ v 3.8.1
   are commonly used with the acrylic jig. That jig is very dense and often causes issues detecting the phantom separate
   from the phantom itself. This fix should remove the effect of the acrylic jig and allow any jig to be used, assuming
   the central ROI area is not occluded.
+
+* Winston-Lutz axis-specific RMS calculations ("Maximum <Gantry | Collimator | Couch> RMS deviation") from the ``results`` and ``results_data`` method calls were potentially erroneous
+  if the maximum error was in a "Reference" image (gantry=coll=couch=0). Users are urged to upgrade if using these outputs.
+  Note that the Maximum/Median/Mean 2D CAX->BB distances are unaffected.
 
 v 3.8.0
 -------
