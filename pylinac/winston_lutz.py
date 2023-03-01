@@ -1476,7 +1476,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
                 max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
                     raise ValueError(
-                        "Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images."
+                        "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there is no artifacts in the images, and that the BB is <2cm from the CAX."
                     )
 
         # determine the center of mass of the BB
