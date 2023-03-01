@@ -848,7 +848,7 @@ class WinstonLutz:
 
     @argue.options(value=("all", "range"))
     def axis_rms_deviation(
-        self, axis: Axis = Axis.GANTRY, value: str = "all"
+        self, axis: Axis | tuple[Axis, ...] = Axis.GANTRY, value: str = "all"
     ) -> Iterable | float:
         """The RMS deviations of a given axis/axes.
 
@@ -860,7 +860,10 @@ class WinstonLutz:
             Whether to return all the RMS values from all images for that axis, or only return the maximum range of
             values, i.e. the 'sag'.
         """
-        axis = convert_to_enum(axis, Axis)
+        if isinstance(axis, Iterable):
+            axis = [convert_to_enum(ax, Axis) for ax in axis]
+        else:
+            axis = convert_to_enum(axis, Axis)
         if axis != Axis.EPID:
             attr = "cax2bb_vector"
         else:
@@ -1177,13 +1180,13 @@ class WinstonLutz:
             f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
             f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
             f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm ({num_gantry_imgs}/{num_imgs} images considered)",
-            f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation(Axis.GANTRY)):.2f}mm",
+            f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation((Axis.GANTRY, Axis.REFERENCE))):.2f}mm",
             f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(Axis.EPID)):.2f}mm",
             f"Gantry+Collimator 3D isocenter diameter: {self.gantry_coll_iso_size:.2f}mm ({num_gantry_coll_imgs}/{num_imgs} images considered)",
             f"Collimator 2D isocenter diameter: {self.collimator_iso_size:.2f}mm ({num_coll_imgs}/{num_imgs} images considered)",
-            f"Maximum Collimator RMS deviation (mm): {max(self.axis_rms_deviation(Axis.COLLIMATOR)):.2f}",
+            f"Maximum Collimator RMS deviation (mm): {max(self.axis_rms_deviation((Axis.COLLIMATOR, Axis.REFERENCE))):.2f}",
             f"Couch 2D isocenter diameter: {self.couch_iso_size:.2f}mm ({num_couch_imgs}/{num_imgs} images considered)",
-            f"Maximum Couch RMS deviation (mm): {max(self.axis_rms_deviation(Axis.COUCH)):.2f}",
+            f"Maximum Couch RMS deviation (mm): {max(self.axis_rms_deviation((Axis.COUCH, Axis.REFERENCE))):.2f}",
         ]
         if not as_list:
             result = "\n".join(result)
@@ -1228,11 +1231,15 @@ class WinstonLutz:
             couch_2d_iso_diameter_mm=self.couch_iso_size,
             gantry_3d_iso_diameter_mm=self.gantry_iso_size,
             gantry_coll_3d_iso_diameter_mm=self.gantry_coll_iso_size,
-            max_gantry_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.GANTRY)),
-            max_coll_rms_deviation_mm=max(
-                self.axis_rms_deviation(axis=Axis.COLLIMATOR)
+            max_gantry_rms_deviation_mm=max(
+                self.axis_rms_deviation(axis=(Axis.GANTRY, Axis.REFERENCE))
             ),
-            max_couch_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.COUCH)),
+            max_coll_rms_deviation_mm=max(
+                self.axis_rms_deviation(axis=(Axis.COLLIMATOR, Axis.REFERENCE))
+            ),
+            max_couch_rms_deviation_mm=max(
+                self.axis_rms_deviation(axis=(Axis.COUCH, Axis.REFERENCE))
+            ),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
             image_details=individual_image_data,
         )
