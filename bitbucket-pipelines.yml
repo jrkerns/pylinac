@@ -74,6 +74,17 @@ definitions:
               - "tests_basic/test_acr.py"
               - "pylinac/ct.py"
               - "pylinac/acr.py"
+    - step: &cheese-tests
+        name: Run Cheese Phantom Tests
+        script:
+          - source venv/bin/activate
+          - pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+        condition:
+          changesets:
+            includePaths:
+              - "pylinac/core/**"
+              - "tests_basic/test_cheese.py"
+              - "pylinac/ct.py"
     - step: &planar-tests
         name: Run Planar Imaging Tests
         script:
@@ -235,6 +246,7 @@ pipelines:
           - step: *build-docs
           - step: *cbct-tests
           - step: *acr-tests
+          - step: *cheese-tests
           - step: *quart-tests
           - step: *planar-tests
           - step: *dlg-tests
@@ -256,6 +268,7 @@ pipelines:
           - step: *build-docs
           - step: *cbct-tests
           - step: *acr-tests
+          - step: *cheese-tests
           - step: *quart-tests
           - step: *planar-tests
           - step: *dlg-tests
