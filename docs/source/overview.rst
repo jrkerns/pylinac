@@ -41,6 +41,8 @@ Intended Audience
 Pylinac is intended to be used by physicists who know at least a bit of programming, although just the basics
 should be enough for most applications.
 
+.. _philosophy:
+
 Philosophy
 ----------
 
@@ -51,15 +53,11 @@ Pylinac runs on a few philosophical principles:
 * Using pylinac should require a minimal amount of code.
 * The user should have to supply as little information as necessary to run an analysis.
 * The underlying code of pylinac should be easy to understand.
+* Although evaluation against a reference or baseline may occur, it is not the
+  end-goal. As stated above, there are better places for containing reference information.
+  Pylinac's goal moving forward is to provide top-tier analysis and results. How those
+  results are evaluated are more suited for other applications such as QATrack+ and RadMachine.
 
-
-.. epigraph::
-
-    The joy of coding Python should be in seeing short, concise, readable classes that express
-    a lot of action in a small amount of clear code -- not in reams of trivial code that bores
-    the reader to death.
-
-    -- Guido van Rossum
 
 Algorithm Design Overview
 -------------------------
@@ -78,6 +76,15 @@ outline its own specific algorithm in its documentation.
 * Algorithm steps should be expressible in a word or short phrase.
 * Algorithm method names should be as similar as possible from module to module.
 
+
+.. epigraph::
+
+    The joy of coding Python should be in seeing short, concise, readable classes that express
+    a lot of action in a small amount of clear code -- not in reams of trivial code that bores
+    the reader to death.
+
+    -- Guido van Rossum
+
 .. _module_design:
 
 Module Design
@@ -94,3 +101,16 @@ pylinac.
   2) Analyze the data, and 3) Show the results.
 * **Most modules can be fully utilized in a few lines** -- The whole point of pylinac is to automate and simplify the process of
   analyzing routine QA data. Thus, most routines can be written in a few lines.
+
+Relation to RadMachine
+----------------------
+
+Pylinac is the image analysis engine for `RadMachine <https://radformation.com/radmachine/radmachine>`__.
+The primary author (James Kerns) is currently employed at Radformation. Pylinac has and will
+continue to be open-source, even as it's used in RadMachine. This is a win-win for the community
+because the algorithms are visible to all, both RadMachine customers and the community, and
+the overall community benefits from advances Radformation makes, such as new phantom analyses
+that RadMachine customers request. There is no intention to close-source pylinac now or in the
+future. That being said, pylinac remains focused on image analysis and being a utility library.
+It is unlikely that, for example, pylinac will expand to include a GUI, add database functionality,
+or data monitoring since that overlaps with QATrack+/RadMachine.

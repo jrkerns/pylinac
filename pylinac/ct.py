@@ -1593,7 +1593,9 @@ class CatPhanBase:
         if show:
             plt.show()
 
-    def save_analyzed_image(self, filename: Union[str, Path], **kwargs) -> None:
+    def save_analyzed_image(
+        self, filename: Union[str, Path, BinaryIO], **kwargs
+    ) -> None:
         """Save the analyzed summary plot.
 
         Parameters
@@ -1714,7 +1716,8 @@ class CatPhanBase:
         look at all the slices and if the phantom was detected, capture the phantom center.
         ALL the centers are then fitted to a 1D poly function and passed to the individual slices.
         This way, even if one slice is messed up (such as because of the phantom jig), the poly function
-        is robust to give the real center based on all the other properly-located positions on the other slices."""
+        is robust to give the real center based on all the other properly-located positions on the other slices.
+        """
         z = []
         center_x = []
         center_y = []
