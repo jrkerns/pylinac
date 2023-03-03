@@ -1671,6 +1671,7 @@ class CatPhanBase:
         self,
         filename: Union[str, BinaryIO],
         subimage: str = "hu",
+        delta: bool = True,
         **kwargs,
     ) -> Optional[plt.Figure]:
         """Save a component image to file.
@@ -1681,8 +1682,10 @@ class CatPhanBase:
             The file to write the image to.
         subimage : str
             See :meth:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
+        delta : bool
+            Only for use with ``lin``. Whether to plot the HU delta or actual values.
         """
-        fig = self.plot_analyzed_subimage(subimage, show=False)
+        fig = self.plot_analyzed_subimage(subimage, delta=delta, show=False)
         if fig:  # no fig if we plot low contrast
             plt.savefig(filename, **kwargs)
             if isinstance(filename, str):
