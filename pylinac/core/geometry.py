@@ -227,6 +227,7 @@ class Circle:
             )
 
     def as_dict(self) -> dict:
+        """Convert to dict. Useful for dataclasses/Result"""
         return {
             "center_x": self.center.x,
             "center_y": self.center.y,

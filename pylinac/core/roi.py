@@ -138,6 +138,12 @@ class DiskROI(Circle):
             axes.imshow(self._array)
         super().plot2axes(axes, edgecolor=edgecolor, text=text, fontsize=fontsize)
 
+    def as_dict(self) -> dict:
+        """Convert to dict. Useful for dataclasses/Result"""
+        data = super().as_dict()
+        data.update({"median": self.pixel_value, "std": self.std})
+        return data
+
 
 class LowContrastDiskROI(DiskROI):
     """A class for analyzing the low-contrast disks."""

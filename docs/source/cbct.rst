@@ -281,6 +281,8 @@ Restrictions
 * All of the modules defined in the ``modules`` attribute must be within the scan extent.
 
 
+.. _cbct_pre-analysis:
+
 Pre-Analysis
 ^^^^^^^^^^^^
 

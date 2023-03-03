@@ -114,6 +114,52 @@ And then load, analyze, and view the results:
     # finally, save a PDF
     cheese.publish_pdf()
 
+Algorithm
+---------
+
+The TomoCheese algorithm leverages a lot of infrastructure from the CatPhan algorithm.
+It is not based on a manual.
+
+Allowances
+^^^^^^^^^^
+
+* The images can be any size.
+* The phantom can have significant translation in all 3 directions.
+* The phantom can have significant roll and moderate yaw and pitch.
+
+Restrictions
+^^^^^^^^^^^^
+
+    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom cannot touch any edge of the FOV.
+* There must be at least one ROI in the "outer" ROI ring that is higher than water/background phantom. This
+  has to do with the automatic roll compensation.
+
+  .. note::
+
+        This is not strictly required but will assist in accurate sub-degree roll compensation.
+
+Pre-Analysis
+^^^^^^^^^^^^
+
+The pre-analysis is almost exactly the same as the :ref:`CatPhan pre-analysis <cbct_pre-analysis>`.
+
+Analysis
+^^^^^^^^
+
+* **Determine image properties** -- Automatic roll compensation is attempted by creating a circular
+  profile at the radius of the "outer" ROIs. This profile is then searched for peaks, which correspond
+  to high-density plugs that have been inserted. If a peak is not found, no correction is applied and the
+  phantom is assumed to be at 0.
+  This would occur if all plugs have been filled with water/background plugs. If a peak is found,
+  i.e. a plug has been inserted with HU detectably above water, the center of the peak is determined
+  which would correspond to the center of the ROI. The distance to the nearest nominal ROI is calculated.
+  If the value is <5 degrees, the roll compensation is applied. If the value is >5 degrees, the
+  compensation is not applied and the phantom is assumed to be at 0.
+* **Measure HU values of each plug** -- Based on the nominal spacing and roll compensation (if applied),
+  each plug area is sampled for the median and standard deviation values.
+
 API Documentation
 -----------------
 
