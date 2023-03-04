@@ -229,12 +229,12 @@ class TomoCheese(CatPhanBase):
                 return min_shift
             else:
                 print(
-                    f"Detected shift of {min_shift} was >5 degrees. automatic roll adjustment aborted. Setting roll to 0."
+                    f"Detected shift of {min_shift} was >5 degrees; automatic roll compensation aborted. Setting roll to 0."
                 )
                 return 0
         else:
             print(
-                "No low-HU regions found in the outer ROI circle; automatic roll adjustment aborted. Setting roll to 0."
+                "No low-HU regions found in the outer ROI circle; automatic roll compensation aborted. Setting roll to 0."
             )
             return 0
 

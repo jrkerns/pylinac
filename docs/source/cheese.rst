@@ -90,7 +90,7 @@ And then load, analyze, and view the results:
   .. code-block:: python
 
     cheese_zip = r"C:/TomoTherapy/QA/September.zip"
-    cheese = TomoCheese.from_zip(acr_ct_zip)
+    cheese = TomoCheese.from_zip(cheese_zip)
 
 * **Analyze** -- Analyze the dataset:
 

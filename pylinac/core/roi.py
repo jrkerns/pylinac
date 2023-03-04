@@ -128,7 +128,7 @@ class DiskROI(Circle):
         fill : bool
             Whether to fill the circle with color or leave hollow.
         text: str
-            If provided, plots the given text at the center. Useful for identifying ROIs on a plotted image apart.
+            If provided, plots the given text at the center. Useful for differentiating ROIs on a plotted image.
         fontsize: str
             The size of the text, if provided. See https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.text.html
             for options.

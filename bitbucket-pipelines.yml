@@ -85,6 +85,7 @@ definitions:
               - "pylinac/core/**"
               - "tests_basic/test_cheese.py"
               - "pylinac/ct.py"
+              - "pylinac/cheese.py"
     - step: &planar-tests
         name: Run Planar Imaging Tests
         script:
