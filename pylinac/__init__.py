@@ -11,6 +11,7 @@ if sys.version_info[0] < 3 or sys.version_info[1] < 7:
 # alphabetized modules
 from .acr import ACRCT, ACRMRILarge
 from .calibration import tg51, trs398
+from .cheese import TomoCheese
 
 # import shortcuts
 # core first

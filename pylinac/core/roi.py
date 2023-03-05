@@ -114,6 +114,8 @@ class DiskROI(Circle):
         axes: Optional[plt.Axes] = None,
         edgecolor: str = "black",
         fill: bool = False,
+        text: str = "",
+        fontsize: str = "medium",
     ) -> None:
         """Plot the Circle on the axes.
 
@@ -125,18 +127,22 @@ class DiskROI(Circle):
             The color of the circle.
         fill : bool
             Whether to fill the circle with color or leave hollow.
+        text: str
+            If provided, plots the given text at the center. Useful for differentiating ROIs on a plotted image.
+        fontsize: str
+            The size of the text, if provided. See https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.text.html
+            for options.
         """
         if axes is None:
             fig, axes = plt.subplots()
             axes.imshow(self._array)
-        axes.add_patch(
-            mpl_Circle(
-                (self.center.x, self.center.y),
-                edgecolor=edgecolor,
-                radius=self.radius,
-                fill=fill,
-            )
-        )
+        super().plot2axes(axes, edgecolor=edgecolor, text=text, fontsize=fontsize)
+
+    def as_dict(self) -> dict:
+        """Convert to dict. Useful for dataclasses/Result"""
+        data = super().as_dict()
+        data.update({"median": self.pixel_value, "std": self.std})
+        return data
 
 
 class LowContrastDiskROI(DiskROI):

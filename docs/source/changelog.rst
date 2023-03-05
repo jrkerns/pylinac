@@ -18,6 +18,12 @@ CatPhan
 * ROI details have been added to the :ref:`~pylinac.ct.CTP515Result` class.
 * Passing ``delta`` to ``save_analyzed_subimage`` would fail because the parameter was not being passed. This is now fixed.
 
+Cheese
+^^^^^^
+
+* A new module for "cheese" phantoms has been created. Only one routine currently exists: the :class:`~pylinac.cheese.TomoCheese`,
+  but more will be added later. Documentation for this new phantom can be found here: :ref:`cheese`.
+
 Winston-Lutz
 ^^^^^^^^^^^^
 

@@ -16,6 +16,7 @@
    vmat_docs
    cbct
    acr
+   cheese
    quart
    log_analyzer
    picketfence
