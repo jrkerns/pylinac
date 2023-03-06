@@ -295,6 +295,19 @@ To change the size of BB pylinac is expecting you can pass the size to the analy
     wl.analyze(bb_size_mm=3)
     ...
 
+Low-density BBs
+---------------
+
+If using a phantom with a low-density BB inside, pass the ``low_density_bb`` parameter:
+
+.. code-block:: python
+
+    import pylinac
+
+    wl = WinstonLutz(...)
+    wl.analyze(..., low_density_bb=True)
+    ...
+
 .. _wl_image_types:
 
 Image types & output definitions
@@ -632,6 +645,38 @@ We can also look at simulated cone WL images. Here we use the 17.5mm cone:
 
     wl = pylinac.WinstonLutz(wl_dir)
     wl.analyze(bb_size_mm=4)
+    wl.plot_images()
+
+Low-density BB
+^^^^^^^^^^^^^^
+
+Simulate a low-density BB surrounded by higher-density material:
+
+.. plot::
+
+    import pylinac
+    from pylinac.core.image_generator import (
+        GaussianFilterLayer,
+        FilteredFieldLayer,
+        AS1200Image,
+        RandomNoiseLayer,
+        generate_winstonlutz,
+    )
+
+    wl_dir = 'wl_dir'
+    generate_winstonlutz(
+        AS1200Image(),
+        FilteredFieldLayer,
+        dir_out=wl_dir,
+        final_layers=[GaussianFilterLayer(),],
+        bb_size_mm=4,
+        field_size_mm=(40, 40),
+        field_alpha=0.6,  # set the field to not max out
+        bb_alpha=0.3  # normally this is negative to attenuate the beam, but here we increase the signal
+    )
+
+    wl = pylinac.WinstonLutz(wl_dir)
+    wl.analyze(bb_size_mm=4, low_density_bb=True)
     wl.plot_images()
 
 

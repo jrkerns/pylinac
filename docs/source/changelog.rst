@@ -30,6 +30,13 @@ Winston-Lutz
 * Multi-Target, Multi-Field Winston-Lutz is now available. This means phantoms such as the SNC MultiMet can
   be analyzed. The algorithm is generalized however, and any reasonable configuration of BBs can be analyzed,
   meaning custom phantoms and new commercial phantoms are easy to make. Read the new section :ref:`here <multi-target-wl>`.
+* Low-density BBs can now be analyzed via a new parameter ``low_density_bb``. See the :meth:`~pylinac.winston_lutz.WinstonLutz.analyze` method.
+
+Image Generator
+^^^^^^^^^^^^^^^
+
+* The ``generate_winston_lutz`` utility script now accepts a ``field_alpha`` and ``bb_alpha`` parameter to set
+  each item respectively.
 
 v 3.8.1
 -------

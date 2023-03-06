@@ -156,6 +156,8 @@ def generate_winstonlutz(
     gantry_tilt: float = 0,
     gantry_sag: float = 0,
     clean_dir: bool = True,
+    field_alpha: float = 1.0,
+    bb_alpha: float = -0.5,
 ) -> List[str]:
     """Create a mock set of WL images, simulating gantry sag effects. Produces one image for each item in image_axes.
 
@@ -187,6 +189,12 @@ def generate_winstonlutz(
         The sag of the gantry that affects the position at gantry=90 and 270. Simulates a simple sine function.
     clean_dir
         Whether to clean out the output directory. Useful when iterating.
+    field_alpha
+        The alpha (i.e. attenuation) of the radiation field. Use in combination
+        with bb_alpha such that the sum of the two  is always <= 1.
+    bb_alpha
+        The alpha (i.e. attenuation) of the BB against the radiation field. More negative values
+        attenuate (remove signal) more.
     """
     if not osp.isdir(dir_out):
         os.mkdir(dir_out)
@@ -200,6 +208,7 @@ def generate_winstonlutz(
             field_layer(
                 field_size_mm=field_size_mm,
                 cax_offset_mm=(gantry_tilt * cos(gantry), gantry_sag * sin(gantry)),
+                alpha=field_alpha,
             )
         )
         long_offset = bb_projection_long(
@@ -216,6 +225,7 @@ def generate_winstonlutz(
             PerfectBBLayer(
                 cax_offset_mm=(long_offset, gplane_offset),
                 bb_size_mm=bb_size_mm,
+                alpha=bb_alpha,
             )
         )
         if final_layers is not None:
