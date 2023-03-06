@@ -35,7 +35,7 @@ Winston-Lutz
 Image Generator
 ^^^^^^^^^^^^^^^
 
-* The ``generate_winston_lutz`` utility script now accepts a ``field_alpha`` and ``bb_alpha`` parameter to set
+* The :meth:`~pylinac.core.image_generator.utils.generate_winstonlutz` utility script now accepts a ``field_alpha`` and ``bb_alpha`` parameter to set
   each item respectively.
 
 v 3.8.1
