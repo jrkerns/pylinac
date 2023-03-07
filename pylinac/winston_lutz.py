@@ -301,10 +301,13 @@ class WinstonLutz2D(image.LinacDicomImage):
         self.ground()
         self.normalize()
 
-    def analyze(self, bb_size_mm: float = 5) -> None:
+    def analyze(self, bb_size_mm: float = 5, low_density_bb: bool = False) -> None:
         """Analyze the image."""
         self.field_cax, self._rad_field_bounding_box = self._find_field_centroid()
-        self.bb = self._find_bb(bb_size_mm)
+        if low_density_bb:
+            self.bb = self._find_low_density_bb(bb_size_mm)
+        else:
+            self.bb = self._find_bb(bb_size_mm)
         self._is_analyzed = True
 
     def __repr__(self):
@@ -364,6 +367,56 @@ class WinstonLutz2D(image.LinacDicomImage):
         p = Point(x=coords[-1], y=coords[0])
         return p, edges
 
+    def _find_low_density_bb(self, bb_size: float):
+        """Find the BB within the radiation field, where the BB is low-density and creates
+        an *increase* in signal vs a decrease/attenuation. The algorithm is similar to the
+        normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables"""
+        # get initial starting conditions
+        lower_thresh = self.array.max() * 0.8
+        spread = self.array.max() - lower_thresh
+        # search for the BB by iteratively increasing a high-pass threshold value until the BB is found.
+        found = False
+        while not found:
+            try:
+                binary_arr = self >= lower_thresh
+                # use below for debugging
+                # plt.imshow(binary_arr)
+                # plt.show()
+                labeled_arr, num_roi = ndimage.label(binary_arr)
+                regions = measure.regionprops(labeled_arr)
+                conditions_met = [
+                    all(
+                        condition(
+                            region,
+                            dpmm=self.dpmm,
+                            bb_size=bb_size,
+                            shape=binary_arr.shape,
+                        )
+                        for condition in self.detection_conditions
+                    )
+                    for region in regions
+                ]
+                if not any(conditions_met):
+                    raise ValueError
+                else:
+                    region_idx = [
+                        idx for idx, value in enumerate(conditions_met) if value
+                    ][0]
+                    found = True
+            except (IndexError, ValueError):
+                lower_thresh += 0.03 * spread
+                if lower_thresh >= self.array.max():
+                    raise ValueError(
+                        "Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images, and that the BB is <2cm from the CAX."
+                    )
+
+        # determine the center of mass of the BB
+        inv_img = image.load(self.array)
+        bb_rprops = measure.regionprops(labeled_arr, intensity_image=inv_img)[
+            region_idx
+        ]
+        return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
+
     def _find_bb(self, bb_size: float) -> Point:
         """Find the BB within the radiation field. Iteratively searches for a circle-like object
         by lowering a low-pass threshold value until found.
@@ -411,7 +464,7 @@ class WinstonLutz2D(image.LinacDicomImage):
                 max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
                     raise ValueError(
-                        "Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images."
+                        "Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images, and that the BB is <2cm from the CAX. If this is a low-density BB, pass the `low_density_bb` to the `analyze` method."
                     )
 
         # determine the center of mass of the BB
@@ -683,7 +736,10 @@ class WinstonLutz:
         wl.plot_summary()
 
     def analyze(
-        self, bb_size_mm: float = 5, machine_scale: MachineScale = MachineScale.IEC61217
+        self,
+        bb_size_mm: float = 5,
+        machine_scale: MachineScale = MachineScale.IEC61217,
+        low_density_bb: bool = False,
     ):
         """Analyze the WL images.
 
@@ -693,10 +749,12 @@ class WinstonLutz:
             The expected size of the BB in mm. The actual size of the BB can be +/-2mm from the passed value.
         machine_scale
             The scale of the machine. Shift vectors depend on this value.
+        low_density_bb
+            Set this flag to True if the BB is lower density than the material surrounding it.
         """
         self.machine_scale = machine_scale
         for img in self.images:
-            img.analyze(bb_size_mm)
+            img.analyze(bb_size_mm, low_density_bb)
         self._is_analyzed = True
 
     @lru_cache()
@@ -1483,7 +1541,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
                 max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
                     raise ValueError(
-                        "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there is no artifacts in the images, and that the BB is <2cm from the CAX."
+                        "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there is no artifacts in the images."
                     )
 
         # determine the center of mass of the BB

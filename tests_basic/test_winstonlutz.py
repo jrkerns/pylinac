@@ -614,10 +614,12 @@ class TestPlottingSaving(TestCase):
 
 
 class WinstonLutzMixin(CloudFileMixin):
+    wl: WinstonLutz
     dir_path = ["Winston-Lutz"]
     num_images = 0
     zip = True
     bb_size = 5
+    low_density_bb = False
     gantry_iso_size = 0
     collimator_iso_size = 0
     couch_iso_size = 0
@@ -640,7 +642,11 @@ class WinstonLutzMixin(CloudFileMixin):
             cls.wl = WinstonLutz.from_zip(filename, use_filenames=cls.use_filenames)
         else:
             cls.wl = WinstonLutz(filename, use_filenames=cls.use_filenames)
-        cls.wl.analyze(bb_size_mm=cls.bb_size, machine_scale=cls.machine_scale)
+        cls.wl.analyze(
+            bb_size_mm=cls.bb_size,
+            machine_scale=cls.machine_scale,
+            low_density_bb=cls.low_density_bb,
+        )
         if cls.print_results:
             print(cls.wl.results())
             print(cls.wl.bb_shift_vector)
@@ -1108,3 +1114,18 @@ class LargeFieldCouchPresent(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 1
     cax2bb_mean_distance = 1
     bb_shift_vector = Vector(x=0.5, y=-0.7, z=0.8)
+
+
+class LowDensityBB(WinstonLutzMixin, TestCase):
+    """An air-like BB where the signal increases vs attenuates. Requires passing the right parameter"""
+
+    file_name = ["low_density_bb_simulated.zip"]
+    num_images = 4
+    low_density_bb = True
+    gantry_iso_size = 0.0
+    collimator_iso_size = None
+    couch_iso_size = None
+    cax2bb_max_distance = 0
+    cax2bb_median_distance = 0
+    cax2bb_mean_distance = 0
+    bb_shift_vector = Vector(x=0, y=0, z=0)
