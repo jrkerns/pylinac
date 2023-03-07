@@ -914,7 +914,12 @@ class XIM(BaseImage):
         diffs = []
         for start, stop in zip(byte_changes[:-1], byte_changes[1:]):
             if stop - start > 1:
-                diffs += decode_binary(xim, "b", num_values=stop - start - 1)
+                vals = decode_binary(xim, "b", num_values=stop - start - 1)
+                if not isinstance(vals, Iterable):
+                    vals = [
+                        vals,
+                    ]
+                diffs += vals
             if stop != byte_changes[-1]:
                 diffs.append(decode_binary(xim, "h"))
         return diffs

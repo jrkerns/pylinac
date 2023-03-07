@@ -116,7 +116,7 @@ def decode_binary(
     dtype: Union[Type[int], Type[float], Type[str], str],
     num_values: int = 1,
     cursor_shift: int = 0,
-) -> Union[int, float, str, np.ndarray]:
+) -> Union[int, float, str, np.ndarray, list]:
     """Read in a raw binary file and convert it to given data types.
 
     Parameters
