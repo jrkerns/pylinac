@@ -89,6 +89,38 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
         self.assertEqual(wl.images[2].collimator_angle, 32)
         self.assertEqual(wl.images[3].couch_angle, 43)
 
+    def test_using_filenames_overrides_axis_mapping(self):
+        """If using filenames flag with axis mapping, file names take precedent. This is because
+        RadMachine uses the axis mapping all the time now with the manual input feature"""
+        path = get_file_from_cloud_test_repo([TEST_DIR, "named_wl.zip"])
+        config = {
+            "wl_gantry13_collimator154_couch88.dcm": (
+                0,
+                2,
+                4,
+            ),
+            "wl_gantry38_collimator12_couch34.dcm": (
+                21,
+                22,
+                23,
+            ),
+            "wl_gantry78_collimator88_couch11.dcm": (
+                31,
+                32,
+                33,
+            ),
+            "wl_gantry98_collimator_23_couch46.dcm": (
+                41,
+                42,
+                43,
+            ),
+        }
+        wl = WinstonLutz.from_zip(path, axis_mapping=config, use_filenames=True)
+        wl.analyze()
+        self.assertEqual(wl.images[0].gantry_angle, 13)
+        self.assertEqual(wl.images[2].collimator_angle, 88)
+        self.assertEqual(wl.images[3].couch_angle, 46)
+
     def test_loading_1_image_fails(self):
         with self.assertRaises(ValueError):
             folder = get_folder_from_cloud_test_repo(
