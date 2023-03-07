@@ -38,6 +38,13 @@ Image Generator
 * The :meth:`~pylinac.core.image_generator.utils.generate_winstonlutz` utility script now accepts a ``field_alpha`` and ``bb_alpha`` parameter to set
   each item respectively.
 
+v 3.8.2
+-------
+
+* Using ``use_filenames`` with ``axis_mapping`` when instantiating Winston-Lutz would not respect the ``use_filenames`` flag.
+  Now, ``use_filenames`` takes precedent. Normally, these should not be used together since they are both trying to set
+  the axis values.
+
 v 3.8.1
 -------
 
