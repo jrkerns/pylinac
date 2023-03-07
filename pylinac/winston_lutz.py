@@ -117,12 +117,13 @@ class WinstonLutz:
         use_filenames: bool
             Whether to try to use the file name to determine axis values.
             Useful for Elekta machines that do not include that info in the DICOM data.
+            This is mutually exclusive to axis_mapping. If True, axis_mapping is ignored.
         axis_mapping: dict
             An optional way of instantiating by passing each file along with the axis values.
             Structure should be <filename>: (<gantry>, <coll>, <couch>).
         """
         self.images = []
-        if axis_mapping:
+        if axis_mapping and not use_filenames:
             for filename, (gantry, coll, couch) in axis_mapping.items():
                 self.images.append(
                     WinstonLutz2D(
