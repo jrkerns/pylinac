@@ -298,7 +298,7 @@ To change the size of BB pylinac is expecting you can pass the size to the analy
 Low-density BBs
 ---------------
 
-If using a phantom with a low-density BB inside, pass the ``low_density_bb`` parameter:
+If using a phantom with a BB that has a lower density that than the surrounding material, pass the ``low_density_bb`` parameter:
 
 .. code-block:: python
 

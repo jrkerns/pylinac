@@ -190,12 +190,16 @@ def generate_winstonlutz(
     clean_dir
         Whether to clean out the output directory. Useful when iterating.
     field_alpha
-        The alpha (i.e. attenuation) of the radiation field. Use in combination
-        with bb_alpha such that the sum of the two  is always <= 1.
+        The normalized alpha (i.e. signal) of the radiation field. Use in combination
+        with bb_alpha such that the sum of the two is always <= 1.
     bb_alpha
-        The alpha (i.e. attenuation) of the BB against the radiation field. More negative values
+        The normalized alpha (in the case of the BB think of it as attenuation) of the BB against the radiation field. More negative values
         attenuate (remove signal) more.
     """
+    if field_alpha + bb_alpha > 1:
+        raise ValueError("field_alpha and bb_alpha must sum to <=1")
+    if field_alpha - bb_alpha < 0:
+        raise ValueError("field_alpha and bb_alpha must have a sum >=0")
     if not osp.isdir(dir_out):
         os.mkdir(dir_out)
     if clean_dir:
