@@ -270,6 +270,13 @@ class TestXIMImage(TestCase):
         self.assertEqual(xim.array.shape, (1280, 1280))
         self.assertIsInstance(xim.properties, dict)
 
+    def test_high_diff_files(self):
+        """RAM-2414; 2-byte 'diff' sizes were causing XIM to choke. See ticket/PR for more"""
+        # shouldn't choke; this file has 1-element switches betwen byte sizes
+        XIM(get_file_from_cloud_test_repo(["xim_1_element_diff_switch.xim"]))
+
+        XIM(get_file_from_cloud_test_repo(["xim_2byte_diff.xim"]))
+
     def test_dont_read_pixels(self):
         xim = XIM(xim_path, read_pixels=False)
         with self.assertRaises(AttributeError):
