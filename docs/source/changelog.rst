@@ -38,6 +38,11 @@ Image Generator
 * The :meth:`~pylinac.core.image_generator.utils.generate_winstonlutz` utility script now accepts a ``field_alpha`` and ``bb_alpha`` parameter to set
   each item respectively.
 
+Bug Fixes
+^^^^^^^^^
+
+* Certain XIM images were failing to render. This has been fixed.
+
 v 3.8.1
 -------
 
