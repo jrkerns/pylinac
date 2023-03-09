@@ -6,12 +6,11 @@ import math
 import os
 import os.path as osp
 import re
-import typing
 from collections import Counter
 from datetime import datetime
 from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import Any, BinaryIO, List, Optional, Sequence, Tuple, Union
+from typing import Any, BinaryIO, Iterable, List, Optional, Sequence, Tuple, Union
 
 import argue
 import matplotlib.pyplot as plt
@@ -856,7 +855,7 @@ class XIM(BaseImage):
         return np.asarray(table, dtype=np.int8)
 
     def _parse_compressed_bytes(
-        self, xim: typing.BinaryIO, lookup_table: np.ndarray
+        self, xim: BinaryIO, lookup_table: np.ndarray
     ) -> np.ndarray:
         """Parse the compressed pixels. We have to do this pixel-by-pixel because each
         pixel can have a different number of bytes representing it
@@ -900,7 +899,7 @@ class XIM(BaseImage):
         return a.reshape((img_height, img_width))
 
     @staticmethod
-    def _get_diffs(lookup_table: np.ndarray, xim: typing.BinaryIO):
+    def _get_diffs(lookup_table: np.ndarray, xim: BinaryIO):
         """Read in all the pixel value 'diffs'. These can be 1, 2, or 4 bytes in size,
         so instead of just reading N pixels of M bytes which would be SOOOO easy, we have to read dynamically
 
@@ -911,12 +910,20 @@ class XIM(BaseImage):
         byte_changes = lookup_table.nonzero()
         byte_changes = np.insert(byte_changes, 0, -1)
         byte_changes = np.append(byte_changes, len(lookup_table) - 1)
-        diffs = []
+        diffs = [5000] * (
+            len(lookup_table) - 1
+        )  # pre-allocate for speed; 5000 is just for debugging
+        LOOKUP_CONVERSION = {0: "b", 1: "h", 2: "i"}
         for start, stop in zip(byte_changes[:-1], byte_changes[1:]):
             if stop - start > 1:
-                diffs += decode_binary(xim, "b", num_values=stop - start - 1)
+                vals = decode_binary(xim, "b", num_values=stop - start - 1)
+                if not isinstance(vals, Iterable):
+                    vals = [
+                        vals,
+                    ]
+                diffs[start + 1 : stop] = vals
             if stop != byte_changes[-1]:
-                diffs.append(decode_binary(xim, "h"))
+                diffs[stop] = decode_binary(xim, LOOKUP_CONVERSION[lookup_table[stop]])
         return diffs
 
     def save_as(self, file: str, format: Optional[str] = None) -> None:
