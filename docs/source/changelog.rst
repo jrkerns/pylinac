@@ -3,6 +3,11 @@
 Changelog
 =========
 
+v 3.10.0
+--------
+
+* Trajectory Log CSV files now include the Jaw positions (X1, X2, Y1, Y2) as well as couch vert and couch pitch and roll if the couch was a 6D couch.
+
 v 3.9.0
 -------
 

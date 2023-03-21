@@ -1367,15 +1367,14 @@ class JawStruct:
 
 
 class CouchStruct:
-    """Couch Axes data structure.
+    """Couch Axes data structure."""
 
-    Attributes
-    ----------
-    vert : :class:`~pylinac.log_analyzer.Axis`
-    long : :class:`~pylinac.log_analyzer.Axis`
-    latl : :class:`~pylinac.log_analyzer.Axis`
-    rotn : :class:`~pylinac.log_analyzer.Axis`
-    """
+    vert: CouchAxis
+    long: CouchAxis
+    latl: CouchAxis
+    rotn: CouchAxis
+    pitch: Optional[CouchAxis]
+    roll: Optional[CouchAxis]
 
     def __init__(
         self,
@@ -1402,6 +1401,9 @@ class CouchStruct:
         if pitch is not None:
             self.pitch = pitch
             self.roll = roll
+        else:
+            self.pitch = None
+            self.roll = None
 
 
 class Subbeam:
@@ -2478,9 +2480,16 @@ class TrajectoryLog(LogBase):
         data_titles = (
             "Gantry",
             "Collimator",
+            "Jaws X1",
+            "Jaws X2",
+            "Jaws Y1",
+            "Jaws Y2",
             "Couch Lat",
             "Couch Lng",
+            "Couch Vert",
             "Couch Rtn",
+            "Couch Pitch",
+            "Couch Roll",
             "MU",
             "Beam Hold",
             "Control Point",
@@ -2491,9 +2500,16 @@ class TrajectoryLog(LogBase):
         data_values = (
             ad.gantry,
             ad.collimator,
+            ad.jaws.x1,
+            ad.jaws.x2,
+            ad.jaws.y1,
+            ad.jaws.y2,
             ad.couch.latl,
             ad.couch.long,
+            ad.couch.vert,
             ad.couch.rotn,
+            ad.couch.pitch,
+            ad.couch.roll,
             ad.mu,
             ad.beam_hold,
             ad.control_point,
@@ -2505,6 +2521,13 @@ class TrajectoryLog(LogBase):
             "degrees",
             "cm",
             "cm",
+            "cm",
+            "cm",
+            "cm",
+            "cm",
+            "cm",
+            "degrees",
+            "degrees",
             "degrees",
             "MU",
             None,
@@ -2513,7 +2536,10 @@ class TrajectoryLog(LogBase):
             "cm",
         )
         for title, value, unit in zip(data_titles, data_values, data_units):
-            write_array(writer, title, value, unit)
+            # the value might not exist, such as pitch which is only for 6D couches
+            # thus, check the value exists first
+            if value:
+                write_array(writer, title, value, unit)
 
         # write leaf data
         for leaf_num, leaf in self.axis_data.mlc.leaf_axes.items():

@@ -1,3 +1,4 @@
+import csv
 import io
 import os
 import os.path as osp
@@ -330,6 +331,41 @@ class TestTrajectoryLog(
 
         log = TrajectoryLog(log_no_txt)
         self.assertIsNone(log.txt)
+
+
+class TestCSV(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.log = TrajectoryLog.from_demo()
+        filename = "mylog.csv"
+        cls.log.to_csv(filename)
+        with open(filename, newline="") as csvfile:
+            items = list(csv.reader(csvfile))
+        cls.items = items
+
+    def test_csv_length(self):
+        """Test we included the number of items we wanted"""
+        self.assertEqual(len(self.items), 283)
+
+    def test_csv_jaws(self):
+        self.assertEqual(self.items[17][0], "Jaws X1 Expected in units of cm")
+        self.assertEqual(
+            float(self.items[17][1]), self.log.axis_data.jaws.x1.expected[0]
+        )
+
+    def test_csv_pitch(self):
+        """Pitch is only included if the couch is 6D"""
+        names = [item[0] for item in self.items]
+        self.assertNotIn("Couch Pitch Expected in units of degrees", names)
+        # load a log w/ 6D couch
+        log_file = get_file_from_cloud_test_repo(["mlc_logs", "tlogs", "3d.bin"])
+        log_6d = TrajectoryLog(log_file)
+        filename = "my6d.csv"
+        log_6d.to_csv(filename)
+        with open(filename, newline="") as csvfile:
+            items = list(csv.reader(csvfile))
+        names = [item[0] for item in items]
+        self.assertIn("Couch Pitch Expected in units of degrees", names)
 
 
 class TestDynalog(LogPlottingSavingMixin, LogBase, TestCase, FromDemoImageTesterMixin):
