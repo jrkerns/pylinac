@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pylinac"
-version = "3.9.0"
+version = "3.9.1"
 description = "A toolkit for performing TG-142 QA-related tasks on a linear accelerator"
 authors = ["James Kerns <jkerns100@gmail.com>"]
 license = "MIT"
@@ -40,6 +40,7 @@ cached-property = "~1.5.2"
 reportlab = ">=3.3"
 pydicom = ">=2.0"
 matplotlib = ">=2.0"
+tabulate = "~0.9.0"
 
 [tool.poetry.dev-dependencies]
 pytest = {version = "^7.1.2", python = ">=3.7,<4.0"}
