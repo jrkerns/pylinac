@@ -7,7 +7,7 @@ Winston-Lutz Multi-Target
 Overview
 --------
 
-.. versionadded:: 3.7
+.. versionadded:: 3.9
 
 The Multi-Target Winston-Lutz (MTWL) is an advanced test category meant to measure multiple locations away from isocenter,
 typically to represent multi-lesion SRS cases. The MTWL module can analyze images with any number of BBs in any
