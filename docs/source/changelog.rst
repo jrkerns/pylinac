@@ -3,6 +3,15 @@
 Changelog
 =========
 
+v 3.10.0
+--------
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+* The ``results_data`` from a ``DeviceFieldAnalysis`` was throwing an error previously. It will now return a ``DeviceResult``, which is
+  the same as a ``FieldResult`` save for ROI information since a device is set of profiles and does not have a ROI to speak of.
+
 v 3.9.0
 -------
 
