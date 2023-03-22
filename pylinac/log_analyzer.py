@@ -891,7 +891,7 @@ class MLC:
 
         # read in "B"-file to get bank B MLC positions. The file must be in the same folder as the "A"-file.
         # The header info is repeated but we already have that.
-        with open(dlog.b_logfile) as csvf:
+        with open(dlog.b_logfile, encoding="utf-8") as csvf:
             dlgdata = csv.reader(csvf, delimiter=",")
             snapshot_data = np.array(
                 [line for line in dlgdata][dlog.HEADER_LINE_LENGTH :], dtype=float
@@ -1367,15 +1367,14 @@ class JawStruct:
 
 
 class CouchStruct:
-    """Couch Axes data structure.
+    """Couch Axes data structure."""
 
-    Attributes
-    ----------
-    vert : :class:`~pylinac.log_analyzer.Axis`
-    long : :class:`~pylinac.log_analyzer.Axis`
-    latl : :class:`~pylinac.log_analyzer.Axis`
-    rotn : :class:`~pylinac.log_analyzer.Axis`
-    """
+    vert: CouchAxis
+    long: CouchAxis
+    latl: CouchAxis
+    rotn: CouchAxis
+    pitch: Optional[CouchAxis]
+    roll: Optional[CouchAxis]
 
     def __init__(
         self,
@@ -1402,6 +1401,9 @@ class CouchStruct:
         if pitch is not None:
             self.pitch = pitch
             self.roll = roll
+        else:
+            self.pitch = None
+            self.roll = None
 
 
 class Subbeam:
@@ -1807,10 +1809,10 @@ class LogBase:
 
         # now the actual anonymization
         for file in self.anon_files(dest_dir, suffix):
-            with open(file) as f:
+            with open(file, encoding="utf-8") as f:
                 txtdata = f.readlines()
             txtdata[self.ANON_LINE] = "Patient ID:\tAnonymous_" + suffix + "\n"
-            with open(file, mode="w") as f:
+            with open(file, mode="w", encoding="utf-8") as f:
                 f.writelines(txtdata)
             print("Anonymized file written to: ", file)
 
@@ -1971,7 +1973,7 @@ class Dynalog(LogBase):
                 "Didn't find the matching dynalog file"
             )  # TODO: clean up
 
-        with open(self.a_logfile) as a_log:
+        with open(self.a_logfile, encoding="utf-8") as a_log:
             dlgdata = [line for line in csv.reader(a_log, delimiter=",")]
         self.header = DynalogHeader(dlgdata)
         self.axis_data = DynalogAxisData(self, dlgdata)
@@ -2398,7 +2400,7 @@ class TrajectoryLog(LogBase):
             txt_filename = str(self.filename).replace(".bin", ".txt")
             if osp.isfile(txt_filename):
                 self.txt = {}
-                with open(txt_filename) as txtfile:
+                with open(txt_filename, encoding="utf-8") as txtfile:
                     txtdata = txtfile.readlines()
                 for line in txtdata:
                     items = line.split(":")
@@ -2437,7 +2439,7 @@ class TrajectoryLog(LogBase):
         elif not filename.endswith(".csv"):
             filename += ".csv"
 
-        csv_file = open(filename, mode="w")
+        csv_file = open(filename, mode="w", encoding="utf-8")
         writer = csv.writer(csv_file, lineterminator="\n")
         # write header info
         header_titles = (
@@ -2478,9 +2480,16 @@ class TrajectoryLog(LogBase):
         data_titles = (
             "Gantry",
             "Collimator",
+            "Jaws X1",
+            "Jaws X2",
+            "Jaws Y1",
+            "Jaws Y2",
             "Couch Lat",
             "Couch Lng",
+            "Couch Vert",
             "Couch Rtn",
+            "Couch Pitch",
+            "Couch Roll",
             "MU",
             "Beam Hold",
             "Control Point",
@@ -2491,9 +2500,16 @@ class TrajectoryLog(LogBase):
         data_values = (
             ad.gantry,
             ad.collimator,
+            ad.jaws.x1,
+            ad.jaws.x2,
+            ad.jaws.y1,
+            ad.jaws.y2,
             ad.couch.latl,
             ad.couch.long,
+            ad.couch.vert,
             ad.couch.rotn,
+            ad.couch.pitch,
+            ad.couch.roll,
             ad.mu,
             ad.beam_hold,
             ad.control_point,
@@ -2505,6 +2521,13 @@ class TrajectoryLog(LogBase):
             "degrees",
             "cm",
             "cm",
+            "cm",
+            "cm",
+            "cm",
+            "cm",
+            "cm",
+            "degrees",
+            "degrees",
             "degrees",
             "MU",
             None,
@@ -2513,7 +2536,10 @@ class TrajectoryLog(LogBase):
             "cm",
         )
         for title, value, unit in zip(data_titles, data_values, data_units):
-            write_array(writer, title, value, unit)
+            # the value might not exist, such as pitch which is only for 6D couches
+            # thus, check the value exists first
+            if value:
+                write_array(writer, title, value, unit)
 
         # write leaf data
         for leaf_num, leaf in self.axis_data.mlc.leaf_axes.items():

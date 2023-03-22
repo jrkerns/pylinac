@@ -1,8 +1,10 @@
+import csv
 import io
 import os
 import os.path as osp
 import shutil
 import tempfile
+from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
@@ -306,6 +308,27 @@ class TestTrajectoryLog(
     def test_save_to_csv(self):
         save_file(self.log.to_csv)
 
+    def test_save_utf_8_to_csv(self):
+        """Saving a tlog to csv w/ a utf-8 character in the filename should be fine"""
+        get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
+        log_file = get_file_from_cloud_test_repo(
+            [
+                "mlc_logs",
+                "mixed_types",
+                "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin",
+            ]
+        )
+        log_w_utf_char = str(Path(log_file).with_stem("ABC\u723BXYZ"))
+        shutil.copy(log_file, log_w_utf_char)
+
+        log = TrajectoryLog(log_w_utf_char)
+        csv_filename = "myfile.csv"
+        log.to_csv(csv_filename)
+        with open(csv_filename, encoding="utf-8") as csv_file:
+            data = csv_file.readlines()
+        self.assertIn("ABC\u723BXYZ", data[0])
+        os.remove(log_w_utf_char)
+
     def test_txt_file_also_loads_if_around(self):
         # has a .txt file
         _ = get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
@@ -331,11 +354,93 @@ class TestTrajectoryLog(
         log = TrajectoryLog(log_no_txt)
         self.assertIsNone(log.txt)
 
+    def test_txt_file_loads_in_utf8(self):
+        # has a .txt file
+        get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
+        log_with_txt = get_file_from_cloud_test_repo(
+            [
+                "mlc_logs",
+                "mixed_types",
+                "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin",
+            ]
+        )
+        log2 = Path(log_with_txt).with_stem("ABC")
+        shutil.copy(log_with_txt, log2)
+        txt_file = get_file_from_cloud_test_repo(
+            [
+                "mlc_logs",
+                "mixed_types",
+                "Anonymous_4DC Treatment_JST90_TX_20140712094246.txt",
+            ]
+        )
+        txt_file2 = Path(txt_file).with_stem("ABC")
+        shutil.copy(txt_file, txt_file2)
+        with open(txt_file2) as tfile:
+            data = tfile.readlines()
+        data[0] = "Patient ID:\t\u723B\n"
+        with open(txt_file2, mode="w", encoding="utf-8") as utffile:
+            utffile.writelines(data)
+
+        log = TrajectoryLog(log2)
+        self.assertIsNotNone(log.txt)
+        self.assertIsInstance(log.txt, dict)
+        self.assertEqual(log.txt["Patient ID"], "\u723B")
+        os.remove(log2)
+        os.remove(txt_file2)
+
+
+class TestCSV(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.log = TrajectoryLog.from_demo()
+        filename = "mylog.csv"
+        cls.log.to_csv(filename)
+        with open(filename, newline="") as csvfile:
+            items = list(csv.reader(csvfile))
+        cls.items = items
+
+    def test_csv_length(self):
+        """Test we included the number of items we wanted"""
+        self.assertEqual(len(self.items), 283)
+
+    def test_csv_jaws(self):
+        self.assertEqual(self.items[17][0], "Jaws X1 Expected in units of cm")
+        self.assertEqual(
+            float(self.items[17][1]), self.log.axis_data.jaws.x1.expected[0]
+        )
+
+    def test_csv_pitch(self):
+        """Pitch is only included if the couch is 6D"""
+        names = [item[0] for item in self.items]
+        self.assertNotIn("Couch Pitch Expected in units of degrees", names)
+        # load a log w/ 6D couch
+        log_file = get_file_from_cloud_test_repo(["mlc_logs", "tlogs", "3d.bin"])
+        log_6d = TrajectoryLog(log_file)
+        filename = "my6d.csv"
+        log_6d.to_csv(filename)
+        with open(filename, newline="") as csvfile:
+            items = list(csv.reader(csvfile))
+        names = [item[0] for item in items]
+        self.assertIn("Couch Pitch Expected in units of degrees", names)
+
 
 class TestDynalog(LogPlottingSavingMixin, LogBase, TestCase, FromDemoImageTesterMixin):
     klass = Dynalog
     demo_load_method = "from_demo"
     anon_file = "A1234_patientid.dlg"
+
+    def test_can_load_utf8_file(self):
+        """Other languages may not be supported out of the box. Default encoding is platform-dependent"""
+        a_file = get_file_from_cloud_test_repo(["mlc_logs", "dlogs", "Adlog1.dlg"])
+        # add some utf-8 characters
+        with open(a_file) as file:
+            data = file.readlines()
+        data[1] = "Patient ID: \u723B\n"
+        with open("newfile.txt", mode="w", encoding="utf-8") as utffile:
+            utffile.writelines(data)
+
+        # shouldn't raise
+        Dynalog(a_file)
 
     def test_loading_can_find_paired_file(self):
         # get all the test files
