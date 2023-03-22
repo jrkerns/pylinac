@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import shutil
 import tempfile
+from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
@@ -306,6 +307,27 @@ class TestTrajectoryLog(
     def test_save_to_csv(self):
         save_file(self.log.to_csv)
 
+    def test_save_utf_8_to_csv(self):
+        """Saving a tlog to csv w/ a utf-8 character in the filename should be fine"""
+        get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
+        log_file = get_file_from_cloud_test_repo(
+            [
+                "mlc_logs",
+                "mixed_types",
+                "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin",
+            ]
+        )
+        log_w_utf_char = str(Path(log_file).with_stem("ABC\u723BXYZ"))
+        shutil.copy(log_file, log_w_utf_char)
+
+        log = TrajectoryLog(log_w_utf_char)
+        csv_filename = "myfile.csv"
+        log.to_csv(csv_filename)
+        with open(csv_filename, encoding="utf-8") as csv_file:
+            data = csv_file.readlines()
+        self.assertIn("ABC\u723BXYZ", data[0])
+        os.remove(log_w_utf_char)
+
     def test_txt_file_also_loads_if_around(self):
         # has a .txt file
         _ = get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
@@ -331,11 +353,58 @@ class TestTrajectoryLog(
         log = TrajectoryLog(log_no_txt)
         self.assertIsNone(log.txt)
 
+    def test_txt_file_loads_in_utf8(self):
+        # has a .txt file
+        get_folder_from_cloud_test_repo(["mlc_logs", "mixed_types"])
+        log_with_txt = get_file_from_cloud_test_repo(
+            [
+                "mlc_logs",
+                "mixed_types",
+                "Anonymous_4DC Treatment_JST90_TX_20140712094246.bin",
+            ]
+        )
+        log2 = Path(log_with_txt).with_stem("ABC")
+        shutil.copy(log_with_txt, log2)
+        txt_file = get_file_from_cloud_test_repo(
+            [
+                "mlc_logs",
+                "mixed_types",
+                "Anonymous_4DC Treatment_JST90_TX_20140712094246.txt",
+            ]
+        )
+        txt_file2 = Path(txt_file).with_stem("ABC")
+        shutil.copy(txt_file, txt_file2)
+        with open(txt_file2) as tfile:
+            data = tfile.readlines()
+        data[0] = "Patient ID:\t\u723B\n"
+        with open(txt_file2, mode="w", encoding="utf-8") as utffile:
+            utffile.writelines(data)
+
+        log = TrajectoryLog(log2)
+        self.assertIsNotNone(log.txt)
+        self.assertIsInstance(log.txt, dict)
+        self.assertEqual(log.txt["Patient ID"], "\u723B")
+        os.remove(log2)
+        os.remove(txt_file2)
+
 
 class TestDynalog(LogPlottingSavingMixin, LogBase, TestCase, FromDemoImageTesterMixin):
     klass = Dynalog
     demo_load_method = "from_demo"
     anon_file = "A1234_patientid.dlg"
+
+    def test_can_load_utf8_file(self):
+        """Other languages may not be supported out of the box. Default encoding is platform-dependent"""
+        a_file = get_file_from_cloud_test_repo(["mlc_logs", "dlogs", "Adlog1.dlg"])
+        # add some utf-8 characters
+        with open(a_file) as file:
+            data = file.readlines()
+        data[1] = "Patient ID: \u723B\n"
+        with open("newfile.txt", mode="w", encoding="utf-8") as utffile:
+            utffile.writelines(data)
+
+        # shouldn't raise
+        Dynalog(a_file)
 
     def test_loading_can_find_paired_file(self):
         # get all the test files
