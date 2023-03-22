@@ -10,6 +10,8 @@ Machine Logs
 ^^^^^^^^^^^^
 
 * Trajectory Log CSV files now include the Jaw positions (X1, X2, Y1, Y2) as well as couch vert and couch pitch and roll if the couch was a 6D couch.
+* Dynalog loading and Trajectory `to_csv` calls will now use UTF-8 encoding by default when reading/writing files.
+
 
 v 3.9.0
 -------

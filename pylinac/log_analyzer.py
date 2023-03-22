@@ -891,7 +891,7 @@ class MLC:
 
         # read in "B"-file to get bank B MLC positions. The file must be in the same folder as the "A"-file.
         # The header info is repeated but we already have that.
-        with open(dlog.b_logfile) as csvf:
+        with open(dlog.b_logfile, encoding="utf-8") as csvf:
             dlgdata = csv.reader(csvf, delimiter=",")
             snapshot_data = np.array(
                 [line for line in dlgdata][dlog.HEADER_LINE_LENGTH :], dtype=float
@@ -1809,10 +1809,10 @@ class LogBase:
 
         # now the actual anonymization
         for file in self.anon_files(dest_dir, suffix):
-            with open(file) as f:
+            with open(file, encoding="utf-8") as f:
                 txtdata = f.readlines()
             txtdata[self.ANON_LINE] = "Patient ID:\tAnonymous_" + suffix + "\n"
-            with open(file, mode="w") as f:
+            with open(file, mode="w", encoding="utf-8") as f:
                 f.writelines(txtdata)
             print("Anonymized file written to: ", file)
 
@@ -1973,7 +1973,7 @@ class Dynalog(LogBase):
                 "Didn't find the matching dynalog file"
             )  # TODO: clean up
 
-        with open(self.a_logfile) as a_log:
+        with open(self.a_logfile, encoding="utf-8") as a_log:
             dlgdata = [line for line in csv.reader(a_log, delimiter=",")]
         self.header = DynalogHeader(dlgdata)
         self.axis_data = DynalogAxisData(self, dlgdata)
@@ -2400,7 +2400,7 @@ class TrajectoryLog(LogBase):
             txt_filename = str(self.filename).replace(".bin", ".txt")
             if osp.isfile(txt_filename):
                 self.txt = {}
-                with open(txt_filename) as txtfile:
+                with open(txt_filename, encoding="utf-8") as txtfile:
                     txtdata = txtfile.readlines()
                 for line in txtdata:
                     items = line.split(":")
@@ -2439,7 +2439,7 @@ class TrajectoryLog(LogBase):
         elif not filename.endswith(".csv"):
             filename += ".csv"
 
-        csv_file = open(filename, mode="w")
+        csv_file = open(filename, mode="w", encoding="utf-8")
         writer = csv.writer(csv_file, lineterminator="\n")
         # write header info
         header_titles = (
