@@ -13,6 +13,7 @@ from pylinac.core.profile import Edge, Interpolation, Normalization
 from pylinac.field_analysis import (
     Centering,
     DeviceFieldAnalysis,
+    DeviceResult,
     FieldAnalysis,
     FieldResult,
     Protocol,
@@ -582,3 +583,27 @@ class TestCustomProtocol(TestCase):
         fa = FieldAnalysis.from_demo_image()
         fa.analyze()  # shouldn't raise
         fa.results()
+
+
+class TestDeviceAnalysis(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.device = DeviceFieldAnalysis.from_demo_image()
+        cls.device.analyze()
+
+    def test_demo(self):
+        # shouldn't raise
+        DeviceFieldAnalysis.run_demo()
+
+    def test_results_data(self):
+        data = self.device.results_data()
+        self.assertIsInstance(data, DeviceResult)
+        self.assertEqual(
+            data.field_size_vertical_mm, self.device._results["field_size_vertical_mm"]
+        )
+        data = self.device.results_data(as_dict=True)
+        self.assertIsInstance(data, dict)
+
+    def test_plotting(self):
+        # shouldn't raise
+        self.device.plot_analyzed_image()

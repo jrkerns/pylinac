@@ -281,19 +281,7 @@ class Centering(Enum):
 
 
 @dataclass
-class FieldResult(ResultBase):
-    """This class should not be called directly. It is returned by the ``results_data()`` method.
-    It is a dataclass under the hood and thus comes with all the dunder magic.
-
-    Use the following attributes as normal class attributes.
-
-    In addition to the below attrs, custom protocol data will also be attached under the
-    ``protocol_results`` attr as a dictionary with keys like so:
-    ``<protocol name>_vertical`` and ``<protocol name>_horizontal`` for each protocol item.
-
-    E.g. a protocol item of ``symmetry`` will result in ``symmetry_vertical`` and ``symmetry_horizontal``.
-    """
-
+class DeviceResult(ResultBase):
     protocol: Protocol  #:
     protocol_results: dict  #:
     centering_method: Centering  #:
@@ -329,6 +317,22 @@ class FieldResult(ResultBase):
     bottom_penumbra_percent_mm: float = 0  #:
     left_penumbra_percent_mm: float = 0  #:
     right_penumbra_percent_mm: float = 0  #:
+
+
+@dataclass
+class FieldResult(DeviceResult):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes.
+
+    In addition to the below attrs, custom protocol data will also be attached under the
+    ``protocol_results`` attr as a dictionary with keys like so:
+    ``<protocol name>_vertical`` and ``<protocol name>_horizontal`` for each protocol item.
+
+    E.g. a protocol item of ``symmetry`` will result in ``symmetry_vertical`` and ``symmetry_horizontal``.
+    """
+
     central_roi_mean: float = 0  #:
     central_roi_max: float = 0  #:
     central_roi_std: float = 0  #:
@@ -1514,6 +1518,22 @@ class DeviceFieldAnalysis(FieldAnalysis):
         )
         self.vert_profile = y_prof
         self.horiz_profile = x_prof
+
+    def results_data(self, as_dict: bool = False) -> Union[FieldResult, dict]:
+        """Present the results data and metadata as a dataclass or dict.
+        The default return type is a dataclass. Unlike vanilla FA, there is no central ROI since it's only profiles"""
+        data = DeviceResult(
+            **self._results,
+            protocol=self._protocol.name,
+            centering_method=getattr(self._centering, "value", None),
+            normalization_method=self.horiz_profile._norm_method.value,
+            interpolation_method=self.horiz_profile._interp_method.value,
+            edge_detection_method=self.horiz_profile._edge_method.value,
+            protocol_results=self._extra_results,
+        )
+        if as_dict:
+            return dataclasses.asdict(data)
+        return data
 
 
 def _remove_ticklabels(axis: plt.Axes):

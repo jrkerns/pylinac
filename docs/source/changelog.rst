@@ -12,6 +12,11 @@ Machine Logs
 * Trajectory Log CSV files now include the Jaw positions (X1, X2, Y1, Y2) as well as couch vert and couch pitch and roll if the couch was a 6D couch.
 * Dynalog loading and Trajectory `to_csv` calls will now use UTF-8 encoding by default when reading/writing files.
 
+Field Analysis
+^^^^^^^^^^^^^^
+
+* The ``results_data`` from a ``DeviceFieldAnalysis`` was throwing an error previously. It will now return a ``DeviceResult``, which is
+  the same as a ``FieldResult`` save for ROI information since a device is set of profiles and does not have a ROI to speak of.
 
 v 3.9.0
 -------

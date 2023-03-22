@@ -700,6 +700,9 @@ These are the classes a typical user may interface with.
 .. autoclass:: pylinac.field_analysis.FieldResult
     :members:
 
+.. autoclass:: pylinac.field_analysis.DeviceResult
+    :members:
+
 .. autoclass:: pylinac.field_analysis.Device
     :members:
 
