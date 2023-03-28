@@ -1,9 +1,8 @@
 """Run through the Machine Log bank."""
 from unittest import TestCase
 
-from pylinac.log_analyzer import IMAGING
-
 from pylinac import load_log
+from pylinac.log_analyzer import IMAGING
 from tests_basic.utils import DataBankMixin
 
 

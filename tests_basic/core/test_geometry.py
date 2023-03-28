@@ -2,7 +2,6 @@
 import unittest
 
 from pylinac.core.geometry import *
-
 from tests_basic.utils import point_equality_validation
 
 

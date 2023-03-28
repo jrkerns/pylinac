@@ -2,7 +2,6 @@ import unittest
 
 from pylinac.dlg import DLG
 from pylinac.picketfence import MLC
-
 from tests_basic.utils import get_file_from_cloud_test_repo
 
 

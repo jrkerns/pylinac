@@ -3,9 +3,9 @@ import math
 from unittest import TestCase, skip
 
 from matplotlib import pyplot as plt
-from pylinac.cheese import TomoCheese, TomoCheeseResult
 from skimage.transform import rotate
 
+from pylinac.cheese import TomoCheese, TomoCheeseResult
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,

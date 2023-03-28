@@ -6,6 +6,9 @@ from typing import Iterable
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
+
+import pylinac
+from pylinac import WinstonLutz, WinstonLutzMultiTargetMultiField
 from pylinac.core.geometry import Vector, vector_is_close
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.core.scale import MachineScale
@@ -17,9 +20,6 @@ from pylinac.winston_lutz import (
     bb_projection_gantry_plane,
     bb_projection_long,
 )
-
-import pylinac
-from pylinac import WinstonLutz, WinstonLutzMultiTargetMultiField
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
