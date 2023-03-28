@@ -3,9 +3,9 @@ import math
 from unittest import TestCase, skip
 
 from matplotlib import pyplot as plt
+from pylinac.cheese import TomoCheese, TomoCheeseResult
 from skimage.transform import rotate
 
-from pylinac.cheese import TomoCheese, TomoCheeseResult
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -99,6 +99,12 @@ class TestAnalysis(TestCase):
         cheese.analyze()
         assert cheese.catphan_roll == 0
 
+    def test_roi_config(self):
+        cheese = TomoCheese.from_demo_images()
+        config = {"3": {"density": 4.12}}
+        cheese.analyze(roi_config=config)
+        self.assertEqual(cheese.roi_config, config)
+
 
 class TestPlottingSaving(TestCase):
     @classmethod
@@ -127,6 +133,17 @@ class TestPlottingSaving(TestCase):
         """There is no sub-images for the tomo"""
         with self.assertRaises(NotImplementedError):
             self.cheese.save_analyzed_subimage()
+
+    def test_plotting_without_density_fails(self):
+        cheese = TomoCheese.from_demo_images()
+        cheese.analyze()  # no roi config
+        with self.assertRaises(ValueError):
+            cheese.plot_density_curve()
+
+    def test_plotting_density(self):
+        cheese = TomoCheese.from_demo_images()
+        cheese.analyze(roi_config={"1": {"density": 1.2}})
+        cheese.plot_density_curve()
 
 
 class TomoCheeseMixin(CloudFileMixin):

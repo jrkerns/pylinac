@@ -114,6 +114,43 @@ And then load, analyze, and view the results:
     # finally, save a PDF
     cheese.publish_pdf()
 
+.. _plotting_tomo_density:
+
+Plotting density
+----------------
+
+An HU-to-density curve can be plotted if an ROI configuration is passed to the ``analyze`` parameter like so:
+
+.. code-block:: python
+
+    import pylinac
+
+    density_info = {'1': {'density': 1.0}, '3': {'density': 3.05}, ...}  # all keys must have a dict with 'density' defined
+    tomo = pylinac.TomoCheese(...)
+    tomo.analyze(roi_config=density_info)
+    tomo.plot_density_curve()  # in this case, ROI 1 and 3 will be plotted vs the stated density
+
+This will plot a simple HU vs density graph.
+
+.. plot::
+    :include-source: false
+
+    import pylinac
+
+    density_info = {'1': {'density': 1.0}, '3': {'density': 3.05}}
+    tomo = pylinac.TomoCheese.from_demo_images()
+    tomo.analyze(roi_config=density_info)
+    tomo.plot_density_curve()
+
+.. note::
+
+    The keys of the configuration must be strings matching the ROI number on the phantom. I.e. ``1`` matches to "ROI 1", etc.
+
+.. note::
+
+    Not all ROI densities have to be defined. Any ROI between 1 and 20 can be set.
+
+
 Algorithm
 ---------
 
