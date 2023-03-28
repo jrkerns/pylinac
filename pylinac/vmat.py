@@ -74,9 +74,9 @@ class Segment(Rectangle):
     Attributes
     ----------
     r_dev : float
-            The reading deviation (R_dev) from the average readings of all the segments. See RTD for equation info.
+            The reading deviation (R_dev) from the average readings of all the segments. See documentation for equation info.
     r_corr : float
-        The corrected reading (R_corr) of the pixel values. See RTD for explanation and equation info.
+        The corrected reading (R_corr) of the pixel values. See documentation for explanation and equation info.
     passed : boolean
         Specifies where the segment reading deviation was under tolerance.
     """
