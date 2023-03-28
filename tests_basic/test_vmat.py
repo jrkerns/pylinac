@@ -23,6 +23,8 @@ within_1 = partial(TestCase().assertAlmostEqual, delta=1)
 
 
 class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
+    """Test"""
+
     demo_load_method = "from_demo_images"
     klass: Union[Type[DRGS], Type[DRMLC]]
 
