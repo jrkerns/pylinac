@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
-
 from pylinac.log_analyzer import (
     Dynalog,
     DynalogMatchError,
@@ -20,6 +19,7 @@ from pylinac.log_analyzer import (
     anonymize,
     load_log,
 )
+
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,

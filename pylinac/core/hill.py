@@ -9,7 +9,8 @@ from scipy.optimize import curve_fit
 
 class Hill:
     """A Hill function is for modeling a field falloff (i.e. penumbra). It's not a perfect model, but it fits to a
-    function, which is not limited by resolution issues as may be experienced on low-res devices like ion chamber arrays."""
+    function, which is not limited by resolution issues as may be experienced on low-res devices like ion chamber arrays.
+    """
 
     @classmethod
     def fit(cls, x_data: np.ndarray, y_data: np.ndarray) -> Hill:

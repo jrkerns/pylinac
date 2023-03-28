@@ -5,10 +5,10 @@ import tempfile
 from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
+from pylinac.picketfence import MLC, MLCArrangement, Orientation, PFResult, PicketFence
 from scipy import ndimage
 
 from pylinac.core import image
-from pylinac.picketfence import MLC, MLCArrangement, Orientation, PFResult, PicketFence
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,

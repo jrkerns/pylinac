@@ -5,8 +5,6 @@ import os.path as osp
 from unittest import TestCase
 
 from matplotlib import pyplot as plt
-
-from pylinac.core import image
 from pylinac.core.exceptions import NotAnalyzed
 from pylinac.core.io import retrieve_demo_file
 from pylinac.core.profile import Edge, Interpolation, Normalization
@@ -22,6 +20,8 @@ from pylinac.field_analysis import (
     plot_symmetry_point_difference,
     symmetry_point_difference,
 )
+
+from pylinac.core import image
 from tests_basic.utils import (
     CloudFileMixin,
     get_file_from_cloud_test_repo,

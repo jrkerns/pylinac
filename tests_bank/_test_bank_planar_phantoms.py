@@ -3,9 +3,9 @@ from unittest import TestCase
 
 # from tests_basic import prep_mpl_testing
 import matplotlib.pyplot as plt
+from pylinac.planar_imaging import PTWEPIDQC, SNCMV, SNCkV, StandardImagingQCkV
 
 from pylinac import LasVegas, LeedsTOR, StandardImagingQC3
-from pylinac.planar_imaging import PTWEPIDQC, SNCMV, SNCkV, StandardImagingQCkV
 from tests_basic.utils import DataBankMixin
 
 

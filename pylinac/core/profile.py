@@ -339,7 +339,8 @@ class SingleProfile(ProfileMixin):
         """Get the x-value of the (possibly) interpolated profile. The input value is in the original
         value range. E.g. a profile with x-range of 0-10 is interpolated to 10x. Asking for the location at 99 would scale back to 9.9.
         We need this function because peak finding is independent of the x-values. I.e. peaks are found and reported according
-        to the (0, len(x_values)) range. If the x-values are interpolated we need to get back to the original x-value."""
+        to the (0, len(x_values)) range. If the x-values are interpolated we need to get back to the original x-value.
+        """
         x = self._x_interp1d(location)
         if isinstance(location, (float, int)) or location.size == 1:
             return float(x)
@@ -444,7 +445,8 @@ class SingleProfile(ProfileMixin):
         """Returns the center index and value of the profile.
 
         If the profile has an even number of values the centre lies between the two centre indices and the centre
-        value is the average of the two centre values else the centre index and value are returned."""
+        value is the average of the two centre values else the centre index and value are returned.
+        """
         plen = values.shape[0]
         # buffer overflow can cause the below addition to give strange results
         values = values.astype(np.float64)

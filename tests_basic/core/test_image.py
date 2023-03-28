@@ -9,8 +9,6 @@ from unittest import TestCase
 import numpy as np
 import PIL.Image
 from numpy.testing import assert_array_almost_equal
-
-from pylinac.core import image
 from pylinac.core.geometry import Point
 from pylinac.core.image import (
     XIM,
@@ -22,6 +20,8 @@ from pylinac.core.image import (
     gamma_2d,
 )
 from pylinac.core.io import TemporaryZipDirectory
+
+from pylinac.core import image
 from tests_basic.utils import get_file_from_cloud_test_repo, save_file
 
 tif_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.tif"])

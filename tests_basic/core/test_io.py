@@ -11,6 +11,7 @@ from pylinac.core.io import (
     is_dicom,
 )
 from pylinac.core.profile import SingleProfile
+
 from tests_basic.utils import get_file_from_cloud_test_repo
 
 
