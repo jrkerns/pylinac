@@ -206,7 +206,7 @@ The algorithm works like such:
     Calculations tend to be lazy, computed only on demand. This represents a nominal analysis
     where all calculations are performed.
 
-* **Calculate sample boundaries** -- Segment positions are always the same within the image. The x-positions are based on the
+* **Calculate sample boundaries** -- The Segment x-positions are based on offsets from the center of the
   FWHM of the detected field. This allows for old and new style tests that have an x-offset from each other.
   These values are then scaled with the image scaling factor determined above.
 * **Calculate the corrected reading** -- For each segment, the mean pixel value is determined for both the open and DMLC image.
