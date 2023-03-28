@@ -1,6 +1,6 @@
 import copy
 import math
-from unittest import TestCase, skip
+from unittest import TestCase
 
 from matplotlib import pyplot as plt
 from pylinac.cheese import TomoCheese, TomoCheeseResult
@@ -12,8 +12,6 @@ from tests_basic.utils import (
     FromURLTesterMixin,
     FromZipTesterMixin,
     InitTesterMixin,
-    get_file_from_cloud_test_repo,
-    get_folder_from_cloud_test_repo,
     save_file,
 )
 
