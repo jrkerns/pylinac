@@ -5,10 +5,10 @@ from unittest import TestCase
 
 import numpy as np
 from matplotlib import pyplot as plt
-
-from pylinac import DRGS, DRMLC
 from pylinac.core.geometry import Point
 from pylinac.vmat import VMATResult
+
+from pylinac import DRGS, DRMLC
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,

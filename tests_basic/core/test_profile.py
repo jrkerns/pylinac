@@ -2,8 +2,6 @@ from unittest import TestCase
 
 import numpy as np
 import scipy.signal as sps
-
-from pylinac.core import image
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import (
     CircleProfile,
@@ -14,15 +12,18 @@ from pylinac.core.profile import (
     SingleProfile,
     gamma_1d,
 )
+
+from pylinac.core import image
 from tests_basic.utils import get_file_from_cloud_test_repo
 
 
 def generate_open_field(field_size=(100, 100), sigma=2, center=(0, 0)) -> Simulator:
-    from pylinac.core.image_generator import AS1000Image
     from pylinac.core.image_generator.layers import (
         FilteredFieldLayer,
         GaussianFilterLayer,
     )
+
+    from pylinac.core.image_generator import AS1000Image
 
     as1000 = AS1000Image()  # this will set the pixel size and shape automatically
     as1000.add_layer(

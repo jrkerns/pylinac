@@ -1,7 +1,6 @@
 from unittest import TestCase
 
 import numpy as np
-
 from pylinac.core.geometry import Point
 from pylinac.core.roi import RectangleROI
 

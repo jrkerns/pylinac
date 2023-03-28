@@ -1,7 +1,8 @@
 import unittest
 
-from pylinac import Interpolation
 from pylinac.core.utilities import *
+
+from pylinac import Interpolation
 
 
 class TestUtilities(unittest.TestCase):

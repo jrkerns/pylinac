@@ -4,12 +4,12 @@ from pathlib import Path
 from unittest import TestCase
 
 from matplotlib import pyplot as plt
-from scipy import ndimage
-
-from pylinac import ACRMRILarge
 from pylinac.acr import ACRCT, ACRCTResult, ACRMRIResult
 from pylinac.core.geometry import Point
 from pylinac.core.io import TemporaryZipDirectory
+from scipy import ndimage
+
+from pylinac import ACRMRILarge
 from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,
