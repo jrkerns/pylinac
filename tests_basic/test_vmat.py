@@ -3,11 +3,12 @@ from functools import partial
 from typing import Iterable, Type, Union
 from unittest import TestCase
 
+import numpy as np
 from matplotlib import pyplot as plt
-
-from pylinac import DRGS, DRMLC
 from pylinac.core.geometry import Point
 from pylinac.vmat import VMATResult
+
+from pylinac import DRGS, DRMLC
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
@@ -75,11 +76,34 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         data = instance.results_data()
         self.assertIsInstance(data, VMATResult)
         self.assertEqual(data.test_type, instance._result_header)
+        data_dict = instance.results_data(as_dict=True)
+        self.assertEqual(len(data_dict), 9)
 
         data_dict = instance.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
         self.assertIn("pylinac_version", data_dict)
         self.assertEqual(data_dict["max_deviation_percent"], instance.max_r_deviation)
+
+    def test_custom_roi_config(self):
+        my_drgs = DRGS.from_demo_images()
+        my_drgs.analyze(roi_config={"DR: 150 MU/min": {"offset_mm": 0}})
+        self.assertEqual(len(my_drgs.segments), 1)
+        results_data = my_drgs.results_data()
+        self.assertIn("DR: 150 MU/min", results_data.named_segment_data.keys())
+
+    def test_custom_num_rois_and_spacing(self):
+        """Kraken minimizes the number of inputs; accepts the # of ROIs and spacing. Essentially the same implementation as Kraken"""
+        num_roi = 5
+        spacing_mm = 30
+        offsets = np.arange(0, num_roi * spacing_mm, 30)
+        centered_offsets = offsets - np.mean(offsets)
+        roi_config = {
+            f"ROI {idx + 1}": {"offset_mm": offset}
+            for idx, offset in enumerate(centered_offsets)
+        }
+        my_drgs = DRGS.from_demo_images()
+        my_drgs.analyze(roi_config=roi_config)
+        self.assertEqual(len(my_drgs.segments), 5)
 
 
 class TestDRGSLoading(LoadingBase, TestCase):

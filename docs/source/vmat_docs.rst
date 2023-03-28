@@ -119,20 +119,29 @@ To change the segment size:
     drgs.analyze(..., segment_size_mm=(10, 150))  # ROI segments will now be 10mm wide by 150mm tall
     # same story for DRMLC
 
-To change the x-positions of the ROI segments, the class property must be changed. This is different
-behavior because by default the x-positions are different for the DRGS and DRMLC test:
+To change the x-positions of the ROI segments or change the number of ROI, use a custom ROI config dictionary and pass it to the ``analyze`` method.
 
 .. code-block:: python
 
     from pylinac import DRGS, DRMLC
 
-    DRGS.SEGMENT_X_POSITIONS_MM = (-100, -80, ...)
-    # proceed as normal
-    my_drgs = DRGS(...)
+    # note the keys are the names of the ROIs and can be anything you like
+    custom_roi_config = {'200 MU/min': {'offset_mm': -100}, '300 MU/min': {'offset_mm': -80}, ...}
 
-    # DRMLC must be addressed separately
-    DRMLC.SEGMENT_X_POSITIONS_MM = (-40, -10, 10, 40)
-    my_drmlc = DRMLC(...)
+    my_drgs = DRGS(...)  # works the same way for DRMLC
+    my_drgs.analyze(..., roi_config=custom_roi_config)
+
+.. plot::
+    :include-source: false
+
+    from pylinac import DRGS
+
+    # note the keys are the names of the ROIs and can be anything you like
+    custom_roi_config = {'200 MU/min': {'offset_mm': -20}, '300 MU/min': {'offset_mm': 20}}
+
+    my_drgs = DRGS.from_demo_images()
+    my_drgs.analyze(roi_config=custom_roi_config)
+    my_drgs.plot_analyzed_image()
 
 Accessing Data
 --------------
