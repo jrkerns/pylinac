@@ -4,12 +4,12 @@ from pathlib import Path
 from unittest import TestCase
 
 from matplotlib import pyplot as plt
-from pylinac.core.geometry import Point
-from pylinac.core.io import TemporaryZipDirectory
-from pylinac.quart import ACRYLIC, POLY, QuartDVTResult
 from scipy import ndimage
 
 from pylinac import QuartDVT
+from pylinac.core.geometry import Point
+from pylinac.core.io import TemporaryZipDirectory
+from pylinac.quart import ACRYLIC, POLY, QuartDVTResult
 from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,

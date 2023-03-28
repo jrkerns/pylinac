@@ -2,11 +2,11 @@
 import unittest
 
 from pylinac.core.geometry import *
-
 from tests_basic.utils import point_equality_validation
 
 
 class TestPoint(unittest.TestCase):
+
     x = 5
     y = -14
     z = 0
@@ -65,6 +65,7 @@ class TestPoint(unittest.TestCase):
 
 
 class TestCircle(unittest.TestCase):
+
     radius = 5.6
     center_point_Point = Point()
     center_point_iter = [3, 4]
@@ -89,6 +90,7 @@ class TestCircle(unittest.TestCase):
 
 
 class TestLine(unittest.TestCase):
+
     point_1 = Point(1, 1)
     point_2 = Point(2, 3)
     # the slope (m) of the two points above
@@ -107,6 +109,7 @@ class TestLine(unittest.TestCase):
     x_at_5 = 2
 
     def test_inputs(self):
+
         # create from two points and test properties
         l = Line(self.point_1, self.point_2)
         self.assertEqual(l.point1.x, self.point_1.x)
@@ -117,6 +120,7 @@ class TestLine(unittest.TestCase):
         self.assertEqual(l.x(4), self.x_at_4)
 
     def test_dist2point(self):
+
         point = Point(1, 0)
         line = Line((0, 0), (0, 1))
         exp_dist = 1

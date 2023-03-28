@@ -6,10 +6,10 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pylinac.core.geometry import Point
-from pylinac.starshot import StarshotResults
 
 from pylinac import Starshot
+from pylinac.core.geometry import Point
+from pylinac.starshot import StarshotResults
 from tests_basic.utils import (
     CloudFileMixin,
     FromURLTesterMixin,

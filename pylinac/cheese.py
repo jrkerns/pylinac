@@ -6,12 +6,12 @@ from typing import Callable, Dict, Optional, Union
 
 import numpy as np
 from matplotlib import pyplot as plt
+
+from pylinac.core import pdf
 from pylinac.core.profile import CollapsedCircleProfile
 from pylinac.core.roi import Contrast, DiskROI
 from pylinac.core.utilities import ResultBase
 from pylinac.ct import CatPhanBase, CatPhanModule, Slice
-
-from pylinac.core import pdf
 
 
 @dataclasses.dataclass

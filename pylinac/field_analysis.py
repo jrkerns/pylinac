@@ -1521,8 +1521,7 @@ class DeviceFieldAnalysis(FieldAnalysis):
 
     def results_data(self, as_dict: bool = False) -> Union[FieldResult, dict]:
         """Present the results data and metadata as a dataclass or dict.
-        The default return type is a dataclass. Unlike vanilla FA, there is no central ROI since it's only profiles
-        """
+        The default return type is a dataclass. Unlike vanilla FA, there is no central ROI since it's only profiles"""
         data = DeviceResult(
             **self._results,
             protocol=self._protocol.name,

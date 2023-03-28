@@ -6,6 +6,17 @@ from unittest import TestCase, skip
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from scipy.ndimage import rotate
+
+from pylinac import (
+    DoselabMC2kV,
+    DoselabMC2MV,
+    IBAPrimusA,
+    LasVegas,
+    LeedsTOR,
+    StandardImagingQC3,
+)
+from pylinac.core import image
 from pylinac.planar_imaging import (
     PTWEPIDQC,
     SNCFSQA,
@@ -18,17 +29,6 @@ from pylinac.planar_imaging import (
     StandardImagingFC2,
     StandardImagingQCkV,
 )
-from scipy.ndimage import rotate
-
-from pylinac import (
-    DoselabMC2kV,
-    DoselabMC2MV,
-    IBAPrimusA,
-    LasVegas,
-    LeedsTOR,
-    StandardImagingQC3,
-)
-from pylinac.core import image
 from tests_basic.utils import CloudFileMixin, get_file_from_cloud_test_repo, save_file
 
 TEST_DIR = "planar_imaging"

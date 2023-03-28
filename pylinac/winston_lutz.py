@@ -370,8 +370,7 @@ class WinstonLutz2D(image.LinacDicomImage):
     def _find_low_density_bb(self, bb_size: float):
         """Find the BB within the radiation field, where the BB is low-density and creates
         an *increase* in signal vs a decrease/attenuation. The algorithm is similar to the
-        normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables
-        """
+        normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables"""
         # get initial starting conditions
         lower_thresh = self.array.max() * 0.8
         spread = self.array.max() - lower_thresh
