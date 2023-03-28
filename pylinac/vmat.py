@@ -15,9 +15,8 @@ import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import BinaryIO, List, Optional, Sequence, Tuple, Union
+from typing import BinaryIO, Dict, List, Optional, Sequence, Tuple, Union
 
-import argue
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -63,19 +62,80 @@ class VMATResult(ResultBase):
     abs_mean_deviation: float  #:
     passed: bool  #:
     segment_data: typing.Iterable[SegmentResult]  #:
+    named_segment_data: Dict[str, SegmentResult]  #:
+
+
+class Segment(Rectangle):
+    """A class for holding and analyzing segment data of VMAT tests.
+
+    For VMAT tests, there are either 4 or 7 'segments', which represents a section of the image that received
+    radiation under the same conditions.
+
+    Attributes
+    ----------
+    r_dev : float
+            The reading deviation (R_dev) from the average readings of all the segments. See documentation for equation info.
+    r_corr : float
+        The corrected reading (R_corr) of the pixel values. See documentation for explanation and equation info.
+    passed : boolean
+        Specifies where the segment reading deviation was under tolerance.
+    """
+
+    # width of the segment (i.e. parallel to MLC motion) in pixels under reference conditions
+    _nominal_width_mm: int
+    _nominal_height_mm: int
+
+    def __init__(
+        self,
+        center_point: Point,
+        open_image: image.DicomImage,
+        dmlc_image: image.DicomImage,
+        tolerance: Union[float, int],
+    ):
+        self.r_dev: float = 0.0  # is assigned after all segments constructed
+        self._tolerance = tolerance
+        self._open_image = open_image
+        self._dmlc_image = dmlc_image
+        width = self._nominal_width_mm * dmlc_image.dpmm
+        height = self._nominal_height_mm * dmlc_image.dpmm
+        super().__init__(width, height, center=center_point, as_int=True)
+
+    @property
+    def r_corr(self) -> float:
+        """Return the ratio of the mean pixel values of DMLC/OPEN images."""
+        dmlc_value = self._dmlc_image.array[
+            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.bl_corner.x : self.bl_corner.x + self.width,
+        ].mean()
+        open_value = self._open_image.array[
+            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.bl_corner.x : self.bl_corner.x + self.width,
+        ].mean()
+        ratio = (dmlc_value / open_value) * 100
+        return ratio
+
+    @property
+    def passed(self) -> bool:
+        """Return whether the segment passed or failed."""
+        return abs(self.r_dev) < self._tolerance * 100
+
+    def get_bg_color(self) -> str:
+        """Get the background color of the segment when plotted, based on the pass/fail status."""
+        return "blue" if self.passed else "red"
 
 
 class VMATBase:
     _url_suffix: str
     _result_header: str
     _result_short_header: str
-    SEGMENT_X_POSITIONS_MM: Tuple
+    roi_config: dict
+    default_roi_config: dict
     dmlc_image: image.DicomImage
     open_image: image.DicomImage
-    segments: List
+    segments: List[Segment]
     _tolerance: float
 
-    def __init__(self, image_paths: Sequence[Union[str, BinaryIO]]):
+    def __init__(self, image_paths: Sequence[Union[str, BinaryIO, Path]]):
         """
         Parameters
         ----------
@@ -103,7 +163,7 @@ class VMATBase:
         return cls.from_zip(zfile)
 
     @classmethod
-    def from_zip(cls, path: str):
+    def from_zip(cls, path: Union[str, Path]):
         """Load VMAT images from a ZIP file that contains both images. Must follow the naming convention.
 
         Parameters
@@ -121,9 +181,11 @@ class VMATBase:
         demo_file = retrieve_demo_file(name=cls._url_suffix)
         return cls.from_zip(demo_file)
 
-    @argue.bounds(tolerance=(0, 8))
     def analyze(
-        self, tolerance: Union[float, int] = 1.5, segment_size_mm: Tuple = (5, 100)
+        self,
+        tolerance: Union[float, int] = 1.5,
+        segment_size_mm: Tuple = (5, 100),
+        roi_config: Optional[dict] = None,
     ):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
@@ -134,8 +196,11 @@ class VMATBase:
             Must be between 0 and 8.
         segment_size_mm : tuple(int, int)
             The (width, height) of the ROI segments in mm.
+        roi_config : dict
+            A dict of the ROI settings. The keys are the names of the ROIs and each value is a dict containing the offset in mm 'offset_mm'.
         """
         self._tolerance = tolerance / 100
+        self.roi_config = roi_config or self.default_roi_config
 
         """Analysis"""
         points = self._calculate_segment_centers()
@@ -196,16 +261,19 @@ class VMATBase:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         segment_data = []
-        for idx, segment in enumerate(self.segments):
-            segment_data.append(
-                SegmentResult(
-                    passed=segment.passed,
-                    r_corr=segment.r_corr,
-                    r_dev=segment.r_dev,
-                    center_x_y=segment.center.as_array(),
-                    x_position_mm=self.SEGMENT_X_POSITIONS_MM[idx],
-                )
+        named_segment_data = {}
+        for segment, (roi_name, roi_data) in zip(
+            self.segments, self.roi_config.items()
+        ):
+            segment = SegmentResult(
+                passed=segment.passed,
+                r_corr=segment.r_corr,
+                r_dev=segment.r_dev,
+                center_x_y=segment.center.as_array(),
+                x_position_mm=roi_data["offset_mm"],
             )
+            segment_data.append(segment)
+            named_segment_data[roi_name] = segment
         data = VMATResult(
             test_type=self._result_header,
             tolerance_percent=self._tolerance * 100,
@@ -213,6 +281,7 @@ class VMATBase:
             abs_mean_deviation=self.avg_abs_r_deviation,
             passed=self.passed,
             segment_data=segment_data,
+            named_segment_data=named_segment_data,
         )
 
         if as_dict:
@@ -224,7 +293,8 @@ class VMATBase:
         points = []
         dmlc_prof, _ = self._median_profiles((self.dmlc_image, self.open_image))
         x_field_center = dmlc_prof.beam_center()["index (rounded)"]
-        for x_offset_mm in self.SEGMENT_X_POSITIONS_MM:
+        for roi_data in self.roi_config.values():
+            x_offset_mm = roi_data["offset_mm"]
             y = self.open_image.center.y
             x_offset_pixels = x_offset_mm * self.open_image.dpmm
             x = x_field_center + x_offset_pixels
@@ -268,7 +338,9 @@ class VMATBase:
         """Return the value of the maximum R_deviation segment."""
         return np.max(np.abs(self.r_devs))
 
-    def plot_analyzed_image(self, show: bool = True, **plt_kwargs: dict):
+    def plot_analyzed_image(
+        self, show: bool = True, show_text: bool = True, **plt_kwargs: dict
+    ):
         """Plot the analyzed images. Shows the open and dmlc images with the segments drawn; also plots the median
         profiles of the two images for visual comparison.
 
@@ -276,6 +348,8 @@ class VMATBase:
         ----------
         show : bool
             Whether to actually show the image.
+        show_text : bool
+            Whether to show the ROI names on the image.
         plt_kwargs : dict
             Keyword args passed to the plt.subplots() method. Allows one to set things like figure size.
         """
@@ -283,7 +357,9 @@ class VMATBase:
         subimages = (ImageType.OPEN, ImageType.DMLC, ImageType.PROFILE)
         titles = ("Open", "DMLC", "Median Profiles")
         for subimage, axis, title in zip(subimages, axes, titles):
-            self._plot_analyzed_subimage(subimage=subimage, ax=axis, show=False)
+            self._plot_analyzed_subimage(
+                subimage=subimage, ax=axis, show=False, show_text=show_text
+            )
             axis.set_title(title)
         axis.set_ylabel("Normalized Response")
         axis.legend(loc="lower center")
@@ -293,7 +369,11 @@ class VMATBase:
             plt.show()
 
     def _save_analyzed_subimage(
-        self, filename: Union[str, BytesIO], subimage: ImageType, **kwargs
+        self,
+        filename: Union[str, BytesIO],
+        subimage: ImageType,
+        show_text: bool,
+        **kwargs,
     ):
         """Save the analyzed images as a png file.
 
@@ -304,11 +384,15 @@ class VMATBase:
         kwargs
             Passed to matplotlib.
         """
-        self._plot_analyzed_subimage(subimage=subimage, show=False)
+        self._plot_analyzed_subimage(subimage=subimage, show=False, show_text=show_text)
         plt.savefig(filename, **kwargs)
 
     def _plot_analyzed_subimage(
-        self, subimage: ImageType, show: bool = True, ax: Optional[plt.Axes] = None
+        self,
+        subimage: ImageType,
+        show: bool = True,
+        ax: Optional[plt.Axes] = None,
+        show_text: bool = True,
     ):
         """Plot an individual piece of the VMAT analysis.
 
@@ -320,6 +404,8 @@ class VMATBase:
             Whether to actually plot the image.
         ax : matplotlib Axes, None
             If None (default), creates a new figure to plot to, otherwise plots to the given axes.
+        show_text : bool
+            Whether to show the ROI names on the image.
         """
         plt.ioff()
         if ax is None:
@@ -332,7 +418,7 @@ class VMATBase:
             elif subimage == ImageType.OPEN:
                 img = self.open_image
             ax.imshow(img, cmap=get_dicom_cmap())
-            self._draw_segments(ax)
+            self._draw_segments(ax, show_text)
             plt.sca(ax)
             plt.axis("off")
             plt.tight_layout()
@@ -351,17 +437,25 @@ class VMATBase:
         if show:
             plt.show()
 
-    def _draw_segments(self, axis: plt.Axes):
+    def _draw_segments(self, axis: plt.Axes, show_text: bool):
         """Draw the segments onto a plot.
 
         Parameters
         ----------
         axis : matplotlib.axes.Axes
             The plot to draw the objects on.
+        show_text : bool
+            Whether to show the ROI name on the image
         """
-        for segment in self.segments:
+        for segment, roi_name in zip(self.segments, self.roi_config.keys()):
             color = segment.get_bg_color()
-            segment.plot2axes(axis, edgecolor=color)
+            if show_text:
+                text = f"{roi_name} : {segment.r_dev:2.2f}%"
+            else:
+                text = ""
+            segment.plot2axes(
+                axis, edgecolor=color, text=text, text_rotation=90, fontsize="small"
+            )
 
     @staticmethod
     def _median_profiles(images) -> Tuple[SingleProfile, SingleProfile]:
@@ -429,7 +523,7 @@ class VMATBase:
             (ImageType.OPEN, ImageType.DMLC, ImageType.PROFILE),
         ):
             data = BytesIO()
-            self._save_analyzed_subimage(data, subimage=img)
+            self._save_analyzed_subimage(data, subimage=img, show_text=True)
             canvas.add_image(data, location=(x, y), dimensions=(width, 18))
             # canvas.add_text(text=f"{img} Image", location=(x + 2, y + 10), font_size=18)
         canvas.add_text(text="Open Image", location=(4, 22), font_size=18)
@@ -461,7 +555,15 @@ class DRGS(VMATBase):
     _url_suffix = "drgs.zip"
     _result_header = "Dose Rate & Gantry Speed"
     _result_short_header = "DR/GS"
-    SEGMENT_X_POSITIONS_MM = (-60, -40, -20, 0, 20, 40, 60)
+    default_roi_config = {
+        "ROI 1": {"offset_mm": -60},
+        "ROI 2": {"offset_mm": -40},
+        "ROI 3": {"offset_mm": -20},
+        "ROI 4": {"offset_mm": 0},
+        "ROI 5": {"offset_mm": 20},
+        "ROI 6": {"offset_mm": 40},
+        "ROI 7": {"offset_mm": 60},
+    }
 
     @staticmethod
     def run_demo():
@@ -478,7 +580,12 @@ class DRMLC(VMATBase):
     _url_suffix = "drmlc.zip"
     _result_header = "Dose Rate & MLC Speed"
     _result_short_header = "DR/MLCS"
-    SEGMENT_X_POSITIONS_MM = (-45, -15, 15, 45)
+    default_roi_config = {
+        "ROI 1": {"offset_mm": -45},
+        "ROI 2": {"offset_mm": -15},
+        "ROI 3": {"offset_mm": 15},
+        "ROI 4": {"offset_mm": 45},
+    }
 
     @staticmethod
     def run_demo():
@@ -487,62 +594,3 @@ class DRMLC(VMATBase):
         vmat.analyze()
         print(vmat.results())
         vmat.plot_analyzed_image()
-
-
-class Segment(Rectangle):
-    """A class for holding and analyzing segment data of VMAT tests.
-
-    For VMAT tests, there are either 4 or 7 'segments', which represents a section of the image that received
-    radiation under the same conditions.
-
-    Attributes
-    ----------
-    r_dev : float
-            The reading deviation (R_dev) from the average readings of all the segments. See RTD for equation info.
-    r_corr : float
-        The corrected reading (R_corr) of the pixel values. See RTD for explanation and equation info.
-    passed : boolean
-        Specifies where the segment reading deviation was under tolerance.
-    """
-
-    # width of the segment (i.e. parallel to MLC motion) in pixels under reference conditions
-    _nominal_width_mm: int
-    _nominal_height_mm: int
-
-    def __init__(
-        self,
-        center_point: Point,
-        open_image: image.DicomImage,
-        dmlc_image: image.DicomImage,
-        tolerance: Union[float, int],
-    ):
-        self.r_dev: float = 0.0  # is assigned after all segments constructed
-        self._tolerance = tolerance
-        self._open_image = open_image
-        self._dmlc_image = dmlc_image
-        width = self._nominal_width_mm * dmlc_image.dpmm
-        height = self._nominal_height_mm * dmlc_image.dpmm
-        super().__init__(width, height, center=center_point, as_int=True)
-
-    @property
-    def r_corr(self) -> float:
-        """Return the ratio of the mean pixel values of DMLC/OPEN images."""
-        dmlc_value = self._dmlc_image.array[
-            self.bl_corner.y : self.bl_corner.y + self.height,
-            self.bl_corner.x : self.bl_corner.x + self.width,
-        ].mean()
-        open_value = self._open_image.array[
-            self.bl_corner.y : self.bl_corner.y + self.height,
-            self.bl_corner.x : self.bl_corner.x + self.width,
-        ].mean()
-        ratio = (dmlc_value / open_value) * 100
-        return ratio
-
-    @property
-    def passed(self) -> bool:
-        """Return whether the segment passed or failed."""
-        return abs(self.r_dev) < self._tolerance * 100
-
-    def get_bg_color(self) -> str:
-        """Get the background color of the segment when plotted, based on the pass/fail status."""
-        return "blue" if self.passed else "red"

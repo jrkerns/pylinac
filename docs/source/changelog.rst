@@ -18,6 +18,22 @@ Field Analysis
 * The ``results_data`` from a ``DeviceFieldAnalysis`` was throwing an error previously. It will now return a ``DeviceResult``, which is
   the same as a ``FieldResult`` save for ROI information since a device is set of profiles and does not have a ROI to speak of.
 
+VMAT
+^^^^
+
+.. warning::
+
+    The ``SEGMENT_X_POSITIONS_MM`` class attribute has been deprecated. Use the new ``roi_config`` parameter described below
+    which is a replacement and more.
+
+* The VMAT classes can now accept an ROI configuration dictionary to the ``analyze`` method. This replaces the ``SEGMENT_X_POSITIONS_MM``
+  attribute. This allows the user to pass in the same details as well as ROI names. See the updated :ref:`customizing_vmat_analysis` Section.
+* The ``VMATResult`` class has a new attribute: ``named_segment_data``. This is the exact same data as ``segment_data`` except it is
+  a dictionary keyed with the same names given in the roi configuration. Note that for backwards compatibility ``segment_data``
+  has been kept.
+* Plotting the analyzed image now renders the names of the ROIs on the image by default along with the ROI deviation value.
+  A new parameter controls this in the ``analyze`` method: ``show_text``.
+
 v 3.9.0
 -------
 

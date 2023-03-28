@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 from itertools import zip_longest
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Iterable
 
 import argue
 import matplotlib.pyplot as plt
@@ -502,6 +502,9 @@ class Rectangle:
         alpha: float = 1,
         facecolor: str = "g",
         label=None,
+        text: str = "",
+        fontsize: str = "medium",
+        text_rotation: float = 0,
     ):
         """Plot the Rectangle to the axes.
 
@@ -515,6 +518,13 @@ class Rectangle:
             Angle of the rectangle.
         fill : bool
             Whether to fill the rectangle with color or leave hollow.
+        text: str
+            If provided, plots the given text at the center. Useful for identifying ROIs on a plotted image apart.
+        fontsize: str
+            The size of the text, if provided. See https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.text.html
+            for options.
+        text_rotation: float
+            The rotation of the text in degrees.
         """
         axes.add_patch(
             mpl_Rectangle(
@@ -529,3 +539,14 @@ class Rectangle:
                 label=label,
             )
         )
+        if text:
+            axes.text(
+                x=self.center.x,
+                y=self.center.y,
+                s=text,
+                fontsize=fontsize,
+                color=edgecolor,
+                rotation=text_rotation,
+                horizontalalignment="center",
+                verticalalignment="center",
+            )
