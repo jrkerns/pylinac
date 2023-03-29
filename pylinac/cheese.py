@@ -279,8 +279,8 @@ class TomoCheese(CatPhanBase):
         xs = []
         ys = []
         for roi_num, roi_data in self.roi_config.items():
-            xs.append(self.hu.rois[roi_num].pixel_value)
-            ys.append(roi_data["density"])
+            xs.append(roi_data["density"])
+            ys.append(self.hu.rois[roi_num].pixel_value)
         # sort by HU so it looks like a normal curve; ROI densities can be out of order
         sorted_args = np.argsort(xs)
         xs = np.array(xs)[sorted_args]
@@ -289,8 +289,8 @@ class TomoCheese(CatPhanBase):
         fig, ax = plt.subplots(**plt_kwargs)
         ax.plot(xs, ys, linestyle="-.", marker="D")
         ax.set_title("Density vs HU curve")
-        ax.set_ylabel("Density")
-        ax.set_xlabel("HU")
+        ax.set_ylabel("HU")
+        ax.set_xlabel("Density")
         ax.grid("on")
         plt.tight_layout()
         if show:
