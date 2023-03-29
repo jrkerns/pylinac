@@ -287,7 +287,7 @@ class TomoCheese(CatPhanBase):
         ys = np.array(ys)[sorted_args]
         # plot
         fig, ax = plt.subplots(**plt_kwargs)
-        ax.plot(xs, ys)
+        ax.plot(xs, ys, linestyle='-.', marker='D')
         ax.set_title("Density vs HU curve")
         ax.set_ylabel("Density")
         ax.set_xlabel("HU")
