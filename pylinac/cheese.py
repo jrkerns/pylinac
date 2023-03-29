@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 
 from pylinac.core import pdf
 from pylinac.core.profile import CollapsedCircleProfile
-from pylinac.core.roi import Contrast, DiskROI
+from pylinac.core.roi import DiskROI
 from pylinac.core.utilities import ResultBase
 from pylinac.ct import CatPhanBase, CatPhanModule, Slice
 
@@ -187,6 +187,7 @@ class TomoCheese(CatPhanBase):
     localization_radius = 110
     min_num_images = 10
     catphan_radius_mm = 150
+    roi_config: dict
     hu: TomoCheeseModule
     modules = {
         TomoCheeseModule: {"offset": 0},
@@ -200,10 +201,17 @@ class TomoCheese(CatPhanBase):
         print(cheese.results())
         cheese.plot_analyzed_image(show)
 
-    def analyze(self) -> None:
-        """Analyze the Tomo Cheese phantom. No parameters as the configuration isn't known a priori"""
+    def analyze(self, roi_config: Optional[dict] = None) -> None:
+        """Analyze the Tomo Cheese phantom.
+
+        Parameters
+        ----------
+        roi_config : dict
+            The configuration of the ROIs, specifically the known densities.
+        """
         self.localize()
         self.hu = TomoCheeseModule(self)
+        self.roi_config = roi_config
 
     def find_phantom_roll(self, func: Optional[Callable] = None) -> float:
         """Examine the phantom for the maximum HU delta insert position. Roll the phantom by the
@@ -250,6 +258,40 @@ class TomoCheese(CatPhanBase):
         """
         fig, ax = plt.subplots(**plt_kwargs)
         self.hu.plot(ax)
+        plt.tight_layout()
+        if show:
+            plt.show()
+
+    def plot_density_curve(self, show: bool = True, **plt_kwargs: dict):
+        """Plot the densities of the ROIs vs the measured HU. This will sort the ROIs by measured HU before plotting.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to plot the image or not.
+        plt_kwargs : dict
+            Keyword args passed to the plt.figure() method. Allows one to set things like figure size.
+        """
+        if not self.roi_config:
+            raise ValueError(
+                "No ROI density configuration was passed to the analyze method. Re-analyze with densities first."
+            )
+        xs = []
+        ys = []
+        for roi_num, roi_data in self.roi_config.items():
+            xs.append(roi_data["density"])
+            ys.append(self.hu.rois[roi_num].pixel_value)
+        # sort by HU so it looks like a normal curve; ROI densities can be out of order
+        sorted_args = np.argsort(xs)
+        xs = np.array(xs)[sorted_args]
+        ys = np.array(ys)[sorted_args]
+        # plot
+        fig, ax = plt.subplots(**plt_kwargs)
+        ax.plot(xs, ys, linestyle="-.", marker="D")
+        ax.set_title("Density vs HU curve")
+        ax.set_ylabel("HU")
+        ax.set_xlabel("Density")
+        ax.grid("on")
         plt.tight_layout()
         if show:
             plt.show()

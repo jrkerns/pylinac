@@ -12,6 +12,13 @@ Machine Logs
 * Trajectory Log CSV files now include the Jaw positions (X1, X2, Y1, Y2) as well as couch vert and couch pitch and roll if the couch was a 6D couch.
 * Dynalog loading and Trajectory `to_csv` calls will now use UTF-8 encoding by default when reading/writing files.
 
+Tomo
+^^^^
+
+* The ``TomoCheese`` phantom can now accept density information via an ``roi_config`` parameter to ``analyze``. This is completely optional.
+  See :ref:`plotting_tomo_density`.
+* A new method ``plot_density_curve`` is available. It requires that an ROI configuration has been passed per above.
+
 Field Analysis
 ^^^^^^^^^^^^^^
 
