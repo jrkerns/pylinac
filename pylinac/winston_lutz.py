@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import BinaryIO, Dict, Iterable, List, Optional, Tuple, Union
+from typing import BinaryIO, Iterable
 
 import argue
 import matplotlib.pyplot as plt
@@ -239,7 +239,7 @@ def is_modest_size(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
     bb_area = region.area_filled / (kwargs["dpmm"] ** 2)
     bb_size = max((kwargs["bb_size"], 2.1))
-    expected_bb_area = np.pi * (bb_size / 2) ** 2
+    np.pi * (bb_size / 2) ** 2
     larger_bb_area = np.pi * ((bb_size + 2) / 2) ** 2
     smaller_bb_area = np.pi * ((bb_size - 2) / 2) ** 2
     # return bool(np.isclose(bb_area, expected_bb_area, rtol=0.6))
@@ -509,8 +509,8 @@ class WinstonLutz2D(image.LinacDicomImage):
             self.gantry_angle
         )
         p2.z = self.cax2bb_vector.y
-        l = Line(p1, p2)
-        return l
+        line = Line(p1, p2)
+        return line
 
     @property
     def cax2bb_vector(self) -> Vector:

@@ -115,7 +115,10 @@ def retrieve_filenames(
     """
     filenames = []
     if func is None:
-        func = lambda x: True
+
+        def func(x):
+            return True
+
     for pdir, _, files in os.walk(directory):
         for file in files:
             filename = osp.join(pdir, file)

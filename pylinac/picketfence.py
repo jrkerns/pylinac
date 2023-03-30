@@ -300,7 +300,7 @@ class PicketFence:
         num_pass = (
             Enumerable(self.mlc_meas)
             .select_many(lambda m: m.passed)
-            .count(lambda p: p == True)
+            .count(lambda p: p is True)
         )
         return float(100 * num_pass / num_meas)
 
@@ -901,7 +901,7 @@ class PicketFence:
         """Return results of analysis. Use with print()."""
         offsets = " ".join(f"{pk.dist2cax:.1f}" for pk in self.pickets)
         results = [
-            f"Picket Fence Results:",
+            "Picket Fence Results:",
             f"Gantry Angle (\N{DEGREE SIGN}): {self.image.gantry_angle:2.1f}",
             f"Collimator Angle (\N{DEGREE SIGN}): {self.image.collimator_angle:2.1f}",
             f"Tolerance (mm): {self.tolerance}",
@@ -1336,12 +1336,12 @@ class Picket:
             return next(self.log_fits)
         x = (
             Enumerable(self.mlc_meas)
-            .select_many(lambda m: [l.point1.y for l in m.marker_lines])
+            .select_many(lambda m: [line.point1.y for line in m.marker_lines])
             .to_list()
         )
         y = (
             Enumerable(self.mlc_meas)
-            .select_many(lambda m: [l.point1.x for l in m.marker_lines])
+            .select_many(lambda m: [line.point1.x for line in m.marker_lines])
             .to_list()
         )
         if self.orientation == Orientation.UP_DOWN:

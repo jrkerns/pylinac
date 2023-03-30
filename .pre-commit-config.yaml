@@ -10,6 +10,10 @@ repos:
     -   id: requirements-txt-fixer
     -   id: no-commit-to-branch
         args: [--branch, master, --branch, staging, --branch, production]
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.260
+    hooks:
+    - id: ruff
 -   repo: https://github.com/PyCQA/isort
     rev: 5.12.0
     hooks:

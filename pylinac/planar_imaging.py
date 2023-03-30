@@ -474,7 +474,7 @@ class ImagePhantomBase:
             side_a = self.phantom_radius * outline_settings["width ratio"]
             side_b = self.phantom_radius * outline_settings["height ratio"]
             half_hyp = np.sqrt(side_a**2 + side_b**2) / 2
-            internal_angle = ia = np.rad2deg(np.arctan(side_b / side_a))
+            ia = np.rad2deg(np.arctan(side_b / side_a))
             new_x = self.phantom_center.x + half_hyp * (
                 geometry.cos(ia) - geometry.cos(ia + self.phantom_angle)
             )

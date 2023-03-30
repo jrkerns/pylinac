@@ -20,7 +20,6 @@ import os
 import webbrowser
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime
 from io import BytesIO
 from os import path as osp
 from pathlib import Path
@@ -1930,12 +1929,6 @@ class CatPhanBase:
         imgs: Sequence[Tuple[str, str]],
         logo: Optional[Union[Path, str]] = None,
     ):
-        try:
-            date = datetime.strptime(
-                self.dicom_stack[0].metadata.InstanceCreationDate, "%Y%m%d"
-            ).strftime("%A, %B %d, %Y")
-        except:
-            date = "Unknown"
         canvas = pdf.PylinacCanvas(
             filename, page_title=analysis_title, metadata=metadata, logo=logo
         )
@@ -1957,11 +1950,11 @@ class CatPhanBase:
         """Compress the raw images into a ZIP archive and remove the uncompressed images."""
         zip_name = rf'{osp.dirname(self.dicom_stack[0].path)}\CBCT - {self.dicom_stack[0].date_created(format="%A, %I-%M-%S, %B %d, %Y")}.zip'
         with zipfile.ZipFile(zip_name, "w", compression=zipfile.ZIP_DEFLATED) as zfile:
-            for image in self.dicom_stack:
-                zfile.write(image.path, arcname=osp.basename(image.path))
-        for image in self.dicom_stack:
+            for img in self.dicom_stack:
+                zfile.write(img.path, arcname=osp.basename(img.path))
+        for img in self.dicom_stack:
             try:
-                os.remove(image.path)
+                os.remove(img.path)
             except:
                 pass
 
@@ -2116,7 +2109,9 @@ class CatPhanBase:
             thickness_num_slices_combined=self.ctp404.num_slices + self.ctp404.pad,
             geometry_passed=self.ctp404.passed_geometry,
             avg_line_distance_mm=self.ctp404.avg_line_length,
-            line_distances_mm=[l.length_mm for name, l in self.ctp404.lines.items()],
+            line_distances_mm=[
+                line.length_mm for name, line in self.ctp404.lines.items()
+            ],
             hu_linearity_passed=self.ctp404.passed_hu,
             hu_tolerance=self.ctp404.hu_tolerance,
             hu_rois=rois_to_results(self.ctp404.rois),

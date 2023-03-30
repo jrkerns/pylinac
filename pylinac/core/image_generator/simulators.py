@@ -181,14 +181,6 @@ class AS1000Image(Simulator):
         ds.GantryAngle = str(gantry_angle)
         ds.BeamLimitingDeviceAngle = str(coll_angle)
         ds.PatientSupportAngle = str(table_angle)
-        # ds.CurveDimensions = 2
-        # ds.NumberOfPoints = 4
-        # ds.TypeOfData = 'ROI'
-        # ds.CurveDescription = 'VContour 30'
-        # ds.AxisUnits = ['PIXL', 'PIXL']
-        # ds.DataValueRepresentation = 3
-        # ds.CurveLabel = 'Field Edge (Q:MV)'
-        # ds.CurveData = b'\x00\x00\x00\x00 .\x81@\x00\x00\x00\x00\x10\\z@\x00\x00\x00\x00 .\x81@\x00\x00\x00\x00\x90\x93u@\x00\x00\x00\x00\xc0\x93}@\x00\x00\x00\x00\x90\x93u@\x00\x00\x00\x00\xc0\x93}@\x00\x00\x00\x00\x10\\z@'
         ds.PixelData = flipped_image  # XXX Array of 1572864 bytes excluded
 
         ds.file_meta = file_meta

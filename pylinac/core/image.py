@@ -795,7 +795,7 @@ class XIM(BaseImage):
                     )
                 else:
                     _ = decode_binary(xim, "c", num_values=comp_pixel_buffer_size)
-                uncompressed_pixel_buffer_size = decode_binary(xim, int)
+                decode_binary(xim, int)
             self.num_hist_bins = decode_binary(xim, int)
             self.histogram = decode_binary(xim, int, num_values=self.num_hist_bins)
             self.num_properties = decode_binary(xim, int)
