@@ -18,7 +18,6 @@ from scipy.stats import linregress
 
 from .geometry import Circle, Point
 from .hill import Hill
-from .image import ArrayImage
 from .utilities import convert_to_enum
 
 # for Hill fits of 2D device data the # of points can be small.
