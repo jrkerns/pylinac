@@ -300,7 +300,7 @@ class PicketFence:
         num_pass = (
             Enumerable(self.mlc_meas)
             .select_many(lambda m: m.passed)
-            .count(lambda p: p is True)
+            .count(lambda p: bool(p) is True)
         )
         return float(100 * num_pass / num_meas)
 
