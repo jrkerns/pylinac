@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Optional, Sequence, Tuple
+from typing import Sequence
 
 import argue
 import numpy as np

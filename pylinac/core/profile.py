@@ -4,7 +4,7 @@ from __future__ import annotations
 import enum
 import math
 import warnings
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 import argue
 import matplotlib.pyplot as plt
@@ -119,14 +119,12 @@ def stretch(
         of that data type. If a value is given for this parameter, it overrides ``min`` and ``max``.
     """
     new_max = max
-    new_min = min
     if fill_dtype is not None:
         try:
             di = np.iinfo(fill_dtype)
         except ValueError:
             di = np.finfo(fill_dtype)
         new_max = di.max
-        new_min = di.min
     # perfectly normalize the array (0..1). ground, then div by range
     stretched_array = (array - array.min()) / (array.max() - array.min())
     # stretch normalized array to new max/min
@@ -813,10 +811,10 @@ class SingleProfile(ProfileMixin):
                         "right index (rounded)"
                     ]
                 ],
-                f"left penumbra width (exact)": abs(
+                "left penumbra width (exact)": abs(
                     upper_data["left index (exact)"] - lower_data["left index (exact)"]
                 ),
-                f"right penumbra width (exact)": abs(
+                "right penumbra width (exact)": abs(
                     upper_data["right index (exact)"]
                     - lower_data["right index (exact)"]
                 ),
@@ -882,11 +880,11 @@ class SingleProfile(ProfileMixin):
                         lower_right_data["right index (rounded)"],
                     )
                 ),
-                f"left penumbra width (exact)": abs(
+                "left penumbra width (exact)": abs(
                     upper_left_data["left index (exact)"]
                     - lower_left_data["left index (exact)"]
                 ),
-                f"right penumbra width (exact)": abs(
+                "right penumbra width (exact)": abs(
                     upper_right_data["right index (exact)"]
                     - lower_right_data["right index (exact)"]
                 ),
@@ -929,13 +927,11 @@ class SingleProfile(ProfileMixin):
                 "right values": self.values[
                     int(round(upper_right_index)) : int(round(lower_right_index))
                 ],
-                f"left penumbra width (exact)": abs(
-                    upper_left_index - lower_left_index
-                ),
-                f"right penumbra width (exact)": abs(
+                "left penumbra width (exact)": abs(upper_left_index - lower_left_index),
+                "right penumbra width (exact)": abs(
                     upper_right_index - lower_right_index
                 ),
-                f"left gradient (exact)": left_hill.gradient_at(
+                "left gradient (exact)": left_hill.gradient_at(
                     infl_data["left index (exact)"]
                 ),
                 r"right gradient (exact)": right_hill.gradient_at(

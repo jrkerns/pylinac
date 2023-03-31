@@ -7,7 +7,7 @@ from scipy.stats import stats
 
 from .core import image
 from .core.profile import Normalization, SingleProfile, find_peaks
-from .picketfence import MLC, MLCArrangement
+from .picketfence import MLC
 
 
 class DLG:

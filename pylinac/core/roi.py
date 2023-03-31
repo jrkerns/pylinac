@@ -4,7 +4,6 @@ from typing import Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 from cached_property import cached_property
-from matplotlib.patches import Circle as mpl_Circle
 from skimage.measure._regionprops import _RegionProperties
 
 from .decorators import lru_cache

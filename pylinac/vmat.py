@@ -223,8 +223,8 @@ class VMATBase:
         image1: ImageLike, image2: ImageLike
     ) -> Tuple[ImageLike, ImageLike]:
         """Check that the images are correctly inverted."""
-        for image in [image1, image2]:
-            image.check_inversion()
+        for img in [image1, image2]:
+            img.check_inversion()
         return image1, image2
 
     def _identify_images(self, image1: ImageLike, image2: ImageLike):
