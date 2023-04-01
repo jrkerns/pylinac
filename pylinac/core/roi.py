@@ -4,6 +4,7 @@ from typing import Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 from cached_property import cached_property
+from skimage import draw
 from skimage.measure._regionprops import _RegionProperties
 
 from .decorators import lru_cache
@@ -79,34 +80,25 @@ class DiskROI(Circle):
 
     @cached_property
     def pixel_values(self) -> np.ndarray:
-        masked_img = self.circle_mask()
-        return self._array[~np.isnan(masked_img)]
+        return self.circle_mask()
 
     @cached_property
     def pixel_value(self) -> float:
         """The median pixel value of the ROI."""
         masked_img = self.circle_mask()
-        return float(np.nanmedian(masked_img))
+        return float(np.median(masked_img))
 
     @cached_property
     def std(self) -> float:
         """The standard deviation of the pixel values."""
         masked_img = self.circle_mask()
-        return float(np.nanstd(masked_img))
+        return float(np.std(masked_img))
 
     @lru_cache()
     def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
-        # http://scikit-image.org/docs/dev/auto_examples/plot_camera_numpy.html
-        # TODO: Replace with scikit-image draw function
-        masked_array = np.copy(self._array).astype(float)
-        l_x, l_y = self._array.shape[0], self._array.shape[1]
-        X, Y = np.ogrid[:l_x, :l_y]
-        outer_disk_mask = (X - self.center.y) ** 2 + (
-            Y - self.center.x
-        ) ** 2 > self.radius**2
-        masked_array[outer_disk_mask] = np.NaN
-        return masked_array
+        rr, cc = draw.disk(center=(self.center.x, self.center.y), radius=self.radius)
+        return self._array[rr, cc]
 
     def plot2axes(
         self,
@@ -305,13 +297,13 @@ class HighContrastDiskROI(DiskROI):
     def max(self) -> np.ndarray:
         """The max pixel value of the ROI."""
         masked_img = self.circle_mask()
-        return np.nanmax(masked_img)
+        return np.max(masked_img)
 
     @cached_property
     def min(self) -> np.ndarray:
         """The min pixel value of the ROI."""
         masked_img = self.circle_mask()
-        return np.nanmin(masked_img)
+        return np.min(masked_img)
 
 
 class RectangleROI(Rectangle):
