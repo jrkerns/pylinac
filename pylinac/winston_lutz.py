@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import BinaryIO, Iterable
+from typing import BinaryIO, Iterable, Sequence
 
 import argue
 import matplotlib.pyplot as plt
@@ -199,13 +199,13 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     bb_maxes: dict  #:
 
 
-def plot_image(image, axis):
+def plot_image(img: WinstonLutz2D | None, axis: plt.Axes) -> None:
     """Helper function to plot a WLImage to an axis."""
-    if image is None:
+    if img is None:
         axis.set_frame_on(False)
         axis.axis("off")
     else:
-        image.plot(ax=axis, show=False)
+        img.plot(ax=axis, show=False)
 
 
 def is_symmetric(region: RegionProperties, *args, **kwargs) -> bool:
@@ -537,7 +537,7 @@ class WinstonLutz2D(image.LinacDicomImage):
 
     def plot(
         self, ax: plt.Axes | None = None, show: bool = True, clear_fig: bool = False
-    ):
+    ) -> plt.Axes:
         """Plot the image, zoomed-in on the radiation field, along with the detected
         BB location and field CAX location.
 
@@ -602,7 +602,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         else:
             return Axis.GBP_COMBO
 
-    def results_data(self, as_dict=False) -> WinstonLutz2DResult | dict:
+    def results_data(self, as_dict: bool = False) -> WinstonLutz2DResult | dict:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
@@ -729,7 +729,7 @@ class WinstonLutz:
         return cls.from_zip(zfile, use_filenames=use_filenames)
 
     @staticmethod
-    def run_demo():
+    def run_demo() -> None:
         """Run the Winston-Lutz demo, which loads the demo files, prints results, and plots a summary image."""
         wl = WinstonLutz.from_demo_images()
         wl.analyze(machine_scale=MachineScale.VARIAN_IEC)
@@ -741,7 +741,7 @@ class WinstonLutz:
         bb_size_mm: float = 5,
         machine_scale: MachineScale = MachineScale.IEC61217,
         low_density_bb: bool = False,
-    ):
+    ) -> None:
         """Analyze the WL images.
 
         Parameters
@@ -970,7 +970,7 @@ class WinstonLutz:
 
     def _plot_deviation(
         self, axis: Axis, ax: plt.Axes | None = None, show: bool = True
-    ):
+    ) -> None:
         """Helper function: Plot the sag in Cartesian coordinates.
 
         Parameters
@@ -1025,7 +1025,7 @@ class WinstonLutz:
 
     def plot_axis_images(
         self, axis: Axis = Axis.GANTRY, show: bool = True, ax: plt.Axes | None = None
-    ):
+    ) -> None:
         """Plot all CAX/BB/EPID positions for the images of a given axis.
 
         For example, axis='Couch' plots a reference image, and all the BB points of the other
@@ -1075,7 +1075,11 @@ class WinstonLutz:
             plt.show()
 
     def plot_images(
-        self, axis: Axis = Axis.GANTRY, show: bool = True, split: bool = False, **kwargs
+        self,
+        axis: Axis = Axis.GANTRY,
+        show: bool = True,
+        split: bool = False,
+        **kwargs: dict,
     ) -> (list[plt.Figure], list[str]):
         """Plot a grid of all the images acquired.
 
@@ -1159,7 +1163,9 @@ class WinstonLutz:
 
         return figs, names
 
-    def save_images(self, filename: str | BinaryIO, axis: Axis = Axis.GANTRY, **kwargs):
+    def save_images(
+        self, filename: str | BinaryIO, axis: Axis = Axis.GANTRY, **kwargs: dict
+    ) -> None:
         """Save the figure of `plot_images()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
         Parameters
@@ -1172,7 +1178,7 @@ class WinstonLutz:
         self.plot_images(axis=axis, show=False)
         plt.savefig(filename, **kwargs)
 
-    def save_images_to_stream(self, **kwargs) -> dict[str, io.BytesIO]:
+    def save_images_to_stream(self, **kwargs: dict) -> dict[str, io.BytesIO]:
         """Save the individual image plots to stream"""
         figs, names = self.plot_images(
             axis=Axis.GBP_COMBO, show=False, split=True
@@ -1182,7 +1188,7 @@ class WinstonLutz:
             fig.savefig(stream, **kwargs)
         return {name: stream for name, stream in zip(names, streams)}
 
-    def plot_summary(self, show: bool = True, fig_size: tuple | None = None):
+    def plot_summary(self, show: bool = True, fig_size: tuple | None = None) -> None:
         """Plot a summary figure showing the gantry sag and wobble plots of the three axes."""
         if not self._is_analyzed:
             raise ValueError("The set is not analyzed. Use .analyze() first.")
@@ -1208,7 +1214,7 @@ class WinstonLutz:
             plt.tight_layout()
             plt.show()
 
-    def save_summary(self, filename: str | BinaryIO, **kwargs):
+    def save_summary(self, filename: str | BinaryIO, **kwargs: dict) -> None:
         """Save the summary image."""
         self.plot_summary(show=False, fig_size=kwargs.pop("fig_size", None))
         plt.tight_layout()
@@ -1251,7 +1257,7 @@ class WinstonLutz:
             result = "\n".join(result)
         return result
 
-    def results_data(self, as_dict=False) -> WinstonLutzResult | dict:
+    def results_data(self, as_dict: bool = False) -> WinstonLutzResult | dict:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         if not self._is_analyzed:
@@ -1405,7 +1411,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
 
     def plot(
         self, ax: plt.Axes | None = None, show: bool = True, clear_fig: bool = False
-    ):
+    ) -> plt.Axes:
         ax = super(LinacDicomImage, self).plot(ax=ax, show=False, clear_fig=clear_fig)
         ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
         ax.plot(self.bb.x, self.bb.y, "ro", ms=8)
@@ -1572,10 +1578,10 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
 
 
 class WinstonLutzMultiTargetMultiField(WinstonLutz):
-    images: list[WinstonLutz2DMultiTarget]  #:
+    images: Sequence[WinstonLutz2DMultiTarget]  #:
     analyzed_images: dict[str, list[WinstonLutz2DMultiTarget]]  #:
     image_type = WinstonLutz2DMultiTarget
-    bb_arrangement: Iterable[dict]  #:
+    bb_arrangement: Sequence[dict]  #:
 
     def __init__(self, *args, **kwargs):
         """We cannot yet handle non-0 couch angles so we drop them. Analysis fails otherwise"""

@@ -20,7 +20,16 @@ def even_round(num: float) -> int:
     return num + num % 2
 
 
-def gaussian2d(mx, my, height, center_x, center_y, width_x, width_y, constant=0):
+def gaussian2d(
+    mx: float,
+    my: float,
+    height: float,
+    center_x: float,
+    center_y: float,
+    width_x: float,
+    width_y: float,
+    constant: float = 0,
+) -> np.ndarray:
     """Returns a gaussian function with the given parameters"""
     width_x = float(width_x)
     width_y = float(width_y)

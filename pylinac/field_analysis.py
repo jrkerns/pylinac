@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from math import ceil, floor
 from pathlib import Path
-from typing import BinaryIO, Dict, List, Optional, Tuple, Union
+from typing import BinaryIO, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -118,7 +118,7 @@ def plot_symmetry_point_difference(
 
 def _plot_sym_common(
     instance,
-    calc_func: callable,
+    calc_func: Callable,
     profile: SingleProfile,
     axis: plt.Axes,
     label: str,
