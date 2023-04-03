@@ -146,7 +146,7 @@ class ImagePhantomBase:
     low_contrast_background_rois = []
     low_contrast_background_value = None
     phantom_outline_object = None
-    detection_conditions: [List[Callable]] = [is_centered, is_right_size]
+    detection_conditions: List[Callable] = [is_centered, is_right_size]
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
     roi_match_condition = "max"

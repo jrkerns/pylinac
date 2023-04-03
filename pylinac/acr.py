@@ -245,7 +245,6 @@ class ACRCT(CatPhanBase):
     air_bubble_radius_mm = 14
     min_num_images = 4
     localization_radius = 70
-    results: dict
     ct_calibration_module = CTModule
     low_contrast_module = LowContrastModule
     spatial_resolution_module = SpatialResolutionModule

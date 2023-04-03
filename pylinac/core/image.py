@@ -1,4 +1,6 @@
 """This module holds classes for image loading and manipulation."""
+from __future__ import annotations
+
 import copy
 import io
 import json
@@ -10,7 +12,7 @@ from collections import Counter
 from datetime import datetime
 from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import Any, BinaryIO, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, BinaryIO, Iterable, Sequence, Union
 
 import argue
 import matplotlib.pyplot as plt
@@ -53,7 +55,7 @@ MM_PER_INCH = 25.4
 ImageLike = Union["DicomImage", "ArrayImage", "FileImage", "LinacDicomImage"]
 
 
-def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, ImageLike]:
+def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, ImageLike]:
     """Crop and resize two images to make them:
       * The same pixel dimensions
       * The same DPI
@@ -104,7 +106,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> Tuple[ImageLike, Imag
     return image1, image2
 
 
-def is_image(path: Union[str, io.BytesIO, ImageLike, np.ndarray]) -> bool:
+def is_image(path: str | io.BytesIO | ImageLike | np.ndarray) -> bool:
     """Determine whether the path is a valid image file.
 
     Returns
@@ -114,7 +116,7 @@ def is_image(path: Union[str, io.BytesIO, ImageLike, np.ndarray]) -> bool:
     return any((_is_array(path), _is_dicom(path), _is_image_file(path)))
 
 
-def retrieve_image_files(path: str) -> List[str]:
+def retrieve_image_files(path: str) -> list[str]:
     """Retrieve the file names of all the valid image files in the path.
 
     Returns
@@ -125,9 +127,7 @@ def retrieve_image_files(path: str) -> List[str]:
     return retrieve_filenames(directory=path, func=is_image)
 
 
-def load(
-    path: Union[str, Path, ImageLike, np.ndarray, BinaryIO], **kwargs
-) -> ImageLike:
+def load(path: str | Path | ImageLike | np.ndarray | BinaryIO, **kwargs) -> ImageLike:
     r"""Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
     Parameters
@@ -241,12 +241,12 @@ def load_multiples(
     return first_img
 
 
-def _is_dicom(path: Union[str, Path, io.BytesIO, ImageLike, np.ndarray]) -> bool:
+def _is_dicom(path: str | Path | io.BytesIO | ImageLike | np.ndarray) -> bool:
     """Whether the file is a readable DICOM file via pydicom."""
     return is_dicom_image(file=path)
 
 
-def _is_image_file(path: Union[str, Path]) -> bool:
+def _is_image_file(path: str | Path) -> bool:
     """Whether the file is a readable image file via Pillow."""
     try:
         pImage.open(path)
@@ -271,8 +271,11 @@ class BaseImage:
         The actual image pixel array.
     """
 
+    array: np.ndarray
+    path: str | Path
+
     def __init__(
-        self, path: Union[str, Path, BytesIO, ImageLike, np.ndarray, BufferedReader]
+        self, path: str | Path | BytesIO | ImageLike | np.ndarray | BufferedReader
     ):
         """
         Parameters
@@ -280,7 +283,7 @@ class BaseImage:
         path : str
             The path to the image.
         """
-        source: Union[FILE_TYPE, STREAM_TYPE]
+        source: FILE_TYPE | STREAM_TYPE
 
         if isinstance(path, (str, Path)) and not osp.isfile(path):
             raise FileExistsError(
@@ -318,7 +321,7 @@ class BaseImage:
     @classmethod
     def from_multiples(
         cls,
-        filelist: List[str],
+        filelist: list[str],
         method: str = "mean",
         stretch: bool = True,
         **kwargs,
@@ -389,7 +392,7 @@ class BaseImage:
 
     def filter(
         self,
-        size: Union[float, int] = 0.05,
+        size: float | int = 0.05,
         kind: str = "median",
     ) -> None:
         """Filter the profile in place.
@@ -419,7 +422,7 @@ class BaseImage:
     def crop(
         self,
         pixels: int = 15,
-        edges: Tuple[str, ...] = ("top", "bottom", "left", "right"),
+        edges: tuple[str, ...] = ("top", "bottom", "left", "right"),
     ) -> None:
         """Removes pixels on all edges of the image in-place.
 
@@ -503,7 +506,7 @@ class BaseImage:
         array = np.where(self.array >= threshold, 1, 0)
         return ArrayImage(array)
 
-    def dist2edge_min(self, point: Union[Point, Tuple]) -> float:
+    def dist2edge_min(self, point: Point | tuple) -> float:
         """Calculates distance from given point to the closest edge.
 
         Parameters
@@ -541,7 +544,7 @@ class BaseImage:
         self.array -= min_val
         return min_val
 
-    def normalize(self, norm_val: Union[str, float] = "max") -> None:
+    def normalize(self, norm_val: str | float = "max") -> None:
         """Normalize the image values in place to the given value.
 
         Parameters
@@ -757,7 +760,7 @@ class XIM(BaseImage):
     array: np.ndarray  #:
     properties: dict  #:
 
-    def __init__(self, file_path: Union[str, Path], read_pixels: bool = True):
+    def __init__(self, file_path: str | Path, read_pixels: bool = True):
         """
         Parameters
         ----------
@@ -926,7 +929,7 @@ class XIM(BaseImage):
                 diffs[stop] = decode_binary(xim, LOOKUP_CONVERSION[lookup_table[stop]])
         return diffs
 
-    def save_as(self, file: str, format: Optional[str] = None) -> None:
+    def save_as(self, file: str, format: str | None = None) -> None:
         """Save the image to a NORMAL format. PNG is highly suggested. Accepts any format supported by Pillow.
         Ironically, an equivalent PNG image (w/ metadata) is ~50% smaller than an .xim image.
 
@@ -969,7 +972,7 @@ class DicomImage(BaseImage):
 
     def __init__(
         self,
-        path: Union[str, Path, BytesIO, BufferedReader],
+        path: str | Path | BytesIO | BufferedReader,
         *,
         dtype=None,
         dpi: float = None,
@@ -1037,7 +1040,7 @@ class DicomImage(BaseImage):
             orig_array = self.array
             self.array = -orig_array + orig_array.max() + orig_array.min()
 
-    def save(self, filename: Union[str, Path]) -> Union[str, Path]:
+    def save(self, filename: str | Path) -> str | Path:
         """Save the image instance back out to a .dcm file.
 
         Returns
@@ -1116,7 +1119,9 @@ class LinacDicomImage(DicomImage):
 
     _use_filenames: bool
 
-    def __init__(self, path: Union[str, Path], use_filenames: bool = False, **kwargs):
+    def __init__(
+        self, path: str | Path | BinaryIO, use_filenames: bool = False, **kwargs
+    ):
         self._gantry = kwargs.pop("gantry", None)
         self._coll = kwargs.pop("coll", None)
         self._couch = kwargs.pop("couch", None)
@@ -1210,11 +1215,11 @@ class FileImage(BaseImage):
 
     def __init__(
         self,
-        path: Union[str, Path, BinaryIO],
+        path: str | Path | BinaryIO,
         *,
-        dpi: Optional[float] = None,
-        sid: Optional[float] = None,
-        dtype: Optional[np.dtype] = None,
+        dpi: float | None = None,
+        sid: float | None = None,
+        dtype: np.dtype | None = None,
     ):
         """
         Parameters
@@ -1260,7 +1265,7 @@ class FileImage(BaseImage):
         return dpi
 
     @property
-    def dpmm(self) -> Optional[float]:
+    def dpmm(self) -> float | None:
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
         try:
@@ -1303,7 +1308,7 @@ class ArrayImage(BaseImage):
         self.sid = sid
 
     @property
-    def dpmm(self) -> Optional[float]:
+    def dpmm(self) -> float | None:
         """The Dots-per-mm of the image, defined at isocenter. E.g. if an EPID image is taken at 150cm SID,
         the dpmm will scale back to 100cm."""
         try:
@@ -1312,7 +1317,7 @@ class ArrayImage(BaseImage):
             return
 
     @property
-    def dpi(self) -> Optional[float]:
+    def dpi(self) -> float | None:
         """The dots-per-inch of the image, defined at isocenter."""
         dpi = None
         if self._dpi is not None:
@@ -1352,12 +1357,12 @@ class DicomImageStack:
     >>> dcm_stack_uint32 = image.DicomImageStack(img_folder, dtype=np.uint32)
     """
 
-    images: List[ImageLike]
+    images: list[ImageLike]
 
     def __init__(
         self,
-        folder: Union[str, Path],
-        dtype: Optional[np.dtype] = None,
+        folder: str | Path,
+        dtype: np.dtype | None = None,
         min_number: int = 39,
         check_uid: bool = True,
     ):
@@ -1397,7 +1402,7 @@ class DicomImageStack:
         self.images.sort(key=lambda x: x.metadata.ImagePositionPatient[-1])
 
     @classmethod
-    def from_zip(cls, zip_path: Union[str, Path], dtype: Optional[np.dtype] = None):
+    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None):
         """Load a DICOM ZIP archive.
 
         Parameters
@@ -1412,7 +1417,7 @@ class DicomImageStack:
         return obj
 
     @staticmethod
-    def is_image_slice(file: Union[str, Path]) -> bool:
+    def is_image_slice(file: str | Path) -> bool:
         """Test if the file is a CT Image storage DICOM file."""
         try:
             ds = pydicom.dcmread(file, force=True, stop_before_pixels=True)
@@ -1420,7 +1425,7 @@ class DicomImageStack:
         except (InvalidDicomError, AttributeError, MemoryError):
             return False
 
-    def _check_number_and_get_common_uid_imgs(self, min_number: int) -> List:
+    def _check_number_and_get_common_uid_imgs(self, min_number: int) -> list:
         """Check that all the images are from the same study."""
         most_common_uid = Counter(
             i.metadata.SeriesInstanceUID for i in self.images

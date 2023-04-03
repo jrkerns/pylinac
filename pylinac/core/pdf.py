@@ -19,7 +19,7 @@ class PylinacCanvas:
         filename: str,
         page_title: str,
         font: str = "Helvetica",
-        metadata: dict = None,
+        metadata: Optional[dict] = None,
         metadata_location: tuple = (2, 25.5),
         logo: Optional[Union[Path, str]] = None,
     ):

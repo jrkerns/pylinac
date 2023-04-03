@@ -11,6 +11,8 @@ class Hill:
     """A Hill function is for modeling a field falloff (i.e. penumbra). It's not a perfect model, but it fits to a
     function, which is not limited by resolution issues as may be experienced on low-res devices like ion chamber arrays."""
 
+    params: np.ndarray
+
     @classmethod
     def fit(cls, x_data: np.ndarray, y_data: np.ndarray) -> Hill:
         """Fit x & y data to a Hill function."""
@@ -61,7 +63,9 @@ class Hill:
         )
 
 
-def hill_func(x, a, b, c, d):  # Hill function
+def hill_func(
+    x: float, a: float, b: float, c: float, d: float
+) -> float:  # Hill function
     """Calculates the Hill function at x.
 
     a : sigmoid low level
