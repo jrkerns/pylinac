@@ -97,7 +97,7 @@ class DiskROI(Circle):
     @lru_cache()
     def circle_mask(self) -> np.ndarray:
         """Return a mask of the image, only showing the circular ROI."""
-        rr, cc = draw.disk(center=(self.center.x, self.center.y), radius=self.radius)
+        rr, cc = draw.disk(center=(self.center.y, self.center.x), radius=self.radius)
         return self._array[rr, cc]
 
     def plot2axes(
