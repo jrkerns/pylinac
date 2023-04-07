@@ -41,6 +41,12 @@ VMAT
 * Plotting the analyzed image now renders the names of the ROIs on the image by default along with the ROI deviation value.
   A new parameter controls this in the ``analyze`` method: ``show_text``.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Analyzing kV WL images is now a bit easier. A new parameter ``open_field`` has been added to the ``.analyze`` method.
+  Setting this flag to True will set the field center to the center of the image. See the new section: :ref:`kv_wl_analysis`.
+
 v 3.9.0
 -------
 
