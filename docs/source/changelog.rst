@@ -46,6 +46,16 @@ Winston-Lutz
 
 * Analyzing kV WL images is now a bit easier. A new parameter ``open_field`` has been added to the ``.analyze`` method.
   Setting this flag to True will set the field center to the center of the image. See the new section: :ref:`kv_wl_analysis`.
+* Very small BBs (<2mm) may not be found. Pylinac was never meant to handle BB's smaller than this, but it may have worked.
+  This is now hardcoded because pylinac will add a tolerance of +/-2mm to the input BB size. For inputs of 2mm BB size,
+  this would lead to almost *any* ROI being detected. This is far more likely in phantoms where there is a block + BB vs
+  a BB in air alone. Issues finding very small BBs were resolved with this hard lower limit.
+
+  .. warning::
+
+        It is very unlikely but this may break your analysis if your BB is very small (<1.5mm diameter). If you are affected please
+        reach out on the forum and I will provide you a workaround.
+
 
 v 3.9.0
 -------
