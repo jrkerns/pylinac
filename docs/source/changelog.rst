@@ -41,6 +41,13 @@ VMAT
 * Plotting the analyzed image now renders the names of the ROIs on the image by default along with the ROI deviation value.
   A new parameter controls this in the ``analyze`` method: ``show_text``.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Winston-Lutz individual images will now show the X and Y component of the distance to the BB.
+
+  .. figure:: images/wl_x_y_component.png
+
 v 3.9.0
 -------
 
