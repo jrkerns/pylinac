@@ -652,6 +652,7 @@ class WinstonLutzMixin(CloudFileMixin):
     zip = True
     bb_size = 5
     low_density_bb = False
+    open_field = False
     gantry_iso_size = 0
     collimator_iso_size = 0
     couch_iso_size = 0
@@ -678,6 +679,7 @@ class WinstonLutzMixin(CloudFileMixin):
             bb_size_mm=cls.bb_size,
             machine_scale=cls.machine_scale,
             low_density_bb=cls.low_density_bb,
+            open_field=cls.open_field,
         )
         if cls.print_results:
             print(cls.wl.results())
@@ -1161,3 +1163,20 @@ class LowDensityBB(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0
     cax2bb_mean_distance = 0
     bb_shift_vector = Vector(x=0, y=0, z=0)
+
+
+class kVImages(WinstonLutzMixin, TestCase):
+    """kV image-based WL set. Have to set the parameters correctly"""
+
+    file_name = ["kV_cube_images.zip"]
+    num_images = 4
+    low_density_bb = True
+    open_field = True
+    bb_size = 2
+    gantry_iso_size = 0.15
+    collimator_iso_size = None
+    couch_iso_size = None
+    cax2bb_max_distance = 0.26
+    cax2bb_median_distance = 0.18
+    cax2bb_mean_distance = 0.18
+    bb_shift_vector = Vector(x=-0.24, y=0, z=0)
