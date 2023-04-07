@@ -308,6 +308,20 @@ If using a phantom with a BB that has a lower density that than the surrounding 
     wl.analyze(..., low_density_bb=True)
     ...
 
+.. _kv_wl_analysis:
+
+kV Analysis/Imaging-only iso evaluation
+---------------------------------------
+
+It is possible to analyze kV WL images and/or analyze a WL set and only focus on the imaging iso.
+In this case there are two parameters you likely need to adjust:
+``open_field`` and ``low_density_bb``. The first will set the field center to the image center. It is assumed
+the field is not of interest or the field cannot be measured, such as a fully-open kV image. Use this anytime
+the radiation iso is not of interest. For large-field WL images, you may need to set the ``low_density_bb``
+parameter to True. This is because the automatic inversion of the WL module assumes a small field is being delivered.
+For large field deliveries, kV or MV, see about flipping this parameter if the analysis fails.
+
+
 .. _wl_image_types:
 
 Image types & output definitions

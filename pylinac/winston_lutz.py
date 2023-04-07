@@ -50,6 +50,11 @@ from .core.mask import bounding_box
 from .core.scale import MachineScale, convert
 from .core.utilities import ResultBase, convert_to_enum, is_close
 
+BB_ERROR_MESSAGE = (
+    "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there are no artifacts in the images, that the 'bb_size' parameter is close to reality, "
+    "and that the BB is near the center (within 2cm). If this is a large-field image or kV image try setting 'low_density_bb' to True."
+)
+
 
 class BBArrangement:
     """Presets for multi-target phantoms."""
@@ -241,8 +246,9 @@ def is_modest_size(region: RegionProperties, *args, **kwargs) -> bool:
     bb_size = max((kwargs["bb_size"], 2.1))
     np.pi * (bb_size / 2) ** 2
     larger_bb_area = np.pi * ((bb_size + 2) / 2) ** 2
-    smaller_bb_area = np.pi * ((bb_size - 2) / 2) ** 2
-    # return bool(np.isclose(bb_area, expected_bb_area, rtol=0.6))
+    smaller_bb_area = max(
+        (np.pi * ((bb_size - 2) / 2) ** 2, 3)
+    )  # set a min of 3 (~pi, equal to just under 1mm radius/2mm bb) because the lower bound can be ~0 for lower bound of radius=2. This is much more likely to find noise in a block.
     return smaller_bb_area < bb_area < larger_bb_area
 
 
@@ -301,9 +307,16 @@ class WinstonLutz2D(image.LinacDicomImage):
         self.ground()
         self.normalize()
 
-    def analyze(self, bb_size_mm: float = 5, low_density_bb: bool = False) -> None:
-        """Analyze the image."""
-        self.field_cax, self._rad_field_bounding_box = self._find_field_centroid()
+    def analyze(
+        self,
+        bb_size_mm: float = 5,
+        low_density_bb: bool = False,
+        open_field: bool = False,
+    ) -> None:
+        """Analyze the image. See WinstonLutz.analyze for parameter details."""
+        self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
+            open_field
+        )
         if low_density_bb:
             self.bb = self._find_low_density_bb(bb_size_mm)
         else:
@@ -343,8 +356,14 @@ class WinstonLutz2D(image.LinacDicomImage):
             self.crop(window_size)
             safety_stop -= 1
 
-    def _find_field_centroid(self) -> tuple[Point, list]:
-        """Find the centroid of the radiation field based on a 50% height threshold.
+    def _find_field_centroid(self, is_open_field: bool) -> tuple[Point, list]:
+        """Find the centroid of the radiation field.
+
+        Parameters
+        ----------
+        is_open_field
+            If True, simply uses the image/EPID center as the field center.
+            If False, finds the radiation field based on a 50% height threshold.
 
         Returns
         -------
@@ -353,18 +372,22 @@ class WinstonLutz2D(image.LinacDicomImage):
         edges
             The bounding box of the field, plus a small margin.
         """
-        min, max = np.percentile(self.array, [5, 99.9])
-        threshold_img = self.as_binary((max - min) / 2 + min)
-        filled_img = ndimage.binary_fill_holes(threshold_img)
-        # clean single-pixel noise from outside field
-        cleaned_img = ndimage.binary_erosion(threshold_img)
-        [*edges] = bounding_box(cleaned_img)
-        edges[0] -= 10
-        edges[1] += 10
-        edges[2] -= 10
-        edges[3] += 10
-        coords = ndimage.center_of_mass(filled_img)
-        p = Point(x=coords[-1], y=coords[0])
+        if is_open_field:
+            p = self.center
+            edges = [0, self.shape[0], 0, self.shape[1]]
+        else:
+            min, max = np.percentile(self.array, [5, 99.9])
+            threshold_img = self.as_binary((max - min) / 2 + min)
+            filled_img = ndimage.binary_fill_holes(threshold_img)
+            # clean single-pixel noise from outside field
+            cleaned_img = ndimage.binary_erosion(threshold_img)
+            [*edges] = bounding_box(cleaned_img)
+            edges[0] -= 10
+            edges[1] += 10
+            edges[2] -= 10
+            edges[3] += 10
+            coords = ndimage.center_of_mass(filled_img)
+            p = Point(x=coords[-1], y=coords[0])
         return p, edges
 
     def _find_low_density_bb(self, bb_size: float):
@@ -406,9 +429,7 @@ class WinstonLutz2D(image.LinacDicomImage):
             except (IndexError, ValueError):
                 lower_thresh += 0.03 * spread
                 if lower_thresh >= self.array.max():
-                    raise ValueError(
-                        "Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images, and that the BB is <2cm from the CAX."
-                    )
+                    raise ValueError(BB_ERROR_MESSAGE)
 
         # determine the center of mass of the BB
         inv_img = image.load(self.array)
@@ -463,9 +484,7 @@ class WinstonLutz2D(image.LinacDicomImage):
             except (IndexError, ValueError):
                 max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
-                    raise ValueError(
-                        "Unable to locate the BB. Make sure the field edges do not obscure the BB and that there is no artifacts in the images, and that the BB is <2cm from the CAX. If this is a low-density BB, pass the `low_density_bb` to the `analyze` method."
-                    )
+                    raise ValueError(BB_ERROR_MESSAGE)
 
         # determine the center of mass of the BB
         inv_img = image.load(self.array)
@@ -628,6 +647,7 @@ class WinstonLutz:
     images: list[WinstonLutz2D]  #:
     machine_scale: MachineScale  #:
     image_type = WinstonLutz2D
+    is_open_field: bool
 
     def __init__(
         self,
@@ -741,6 +761,7 @@ class WinstonLutz:
         bb_size_mm: float = 5,
         machine_scale: MachineScale = MachineScale.IEC61217,
         low_density_bb: bool = False,
+        open_field: bool = False,
     ) -> None:
         """Analyze the WL images.
 
@@ -752,10 +773,14 @@ class WinstonLutz:
             The scale of the machine. Shift vectors depend on this value.
         low_density_bb
             Set this flag to True if the BB is lower density than the material surrounding it.
+        open_field
+            If True, sets the field center to the EPID center under the assumption the field is not the focus of interest or is too wide to be calculated.
+            This is often helpful for kV WL analysis where the blades are wide open and even then the blade edge is of
+            less interest than simply the imaging iso vs the BB.
         """
         self.machine_scale = machine_scale
         for img in self.images:
-            img.analyze(bb_size_mm, low_density_bb)
+            img.analyze(bb_size_mm, low_density_bb, open_field)
         self._is_analyzed = True
 
     @lru_cache()
@@ -1547,9 +1572,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
             except (IndexError, ValueError):
                 max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
-                    raise ValueError(
-                        "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there is no artifacts in the images."
-                    )
+                    raise ValueError(BB_ERROR_MESSAGE)
 
         # determine the center of mass of the BB
         inv_img = image.load(self.array)
