@@ -56,6 +56,9 @@ Winston-Lutz
         It is very unlikely but this may break your analysis if your BB is very small (<1.5mm diameter). If you are affected please
         reach out on the forum and I will provide you a workaround.
 
+* Winston-Lutz individual images will now show the X and Y component of the distance to the BB.
+
+  .. figure:: images/wl_x_y_component.png
 
 v 3.9.0
 -------

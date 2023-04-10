@@ -582,7 +582,9 @@ class WinstonLutz2D(image.LinacDicomImage):
         ax.set_xlabel(
             f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}"
         )
-        ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
+        ax.set_ylabel(
+            f"CAX to BB: {self.cax2bb_distance:3.2f}mm\nX: {self.cax2bb_vector.x:3.2f}mm; Y: {self.cax2bb_vector.y:3.2f}mm"
+        )
         if show:
             plt.show()
         return ax
