@@ -16,6 +16,18 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.optimize import OptimizeWarning, minimize
 from scipy.stats import linregress
 
+from .array_utils import (
+    bit_invert,
+    convert_to_dtype,
+    filter,
+    geometric_center_idx,
+    geometric_center_value,
+    ground,
+    invert,
+    normalize,
+)
+from .array_utils import stretch as util_stretch
+from .decorators import lru_cache
 from .geometry import Circle, Point
 from .hill import Hill
 from .utilities import convert_to_enum
@@ -105,6 +117,8 @@ def stretch(
     """'Stretch' the profile to the fit a new min and max value and interpolate in between.
     From: http://www.labri.fr/perso/nrougier/teaching/numpy.100/  exercise #17
 
+    .. deprecated:: 3.11
+
     Parameters
     ----------
     array: numpy.ndarray
@@ -118,6 +132,10 @@ def stretch(
         If a numpy data type (e.g. np.int16), the array will be stretched to fit the full range of values
         of that data type. If a value is given for this parameter, it overrides ``min`` and ``max``.
     """
+    warnings.warn(
+        "Using stretch from the profile module is deprecated. Use 'stretch' from the pylinac.core.array_utils module",
+        DeprecationWarning,
+    )
     new_max = max
     if fill_dtype is not None:
         try:
@@ -141,24 +159,22 @@ class ProfileMixin:
     values: np.ndarray
 
     def invert(self) -> None:
-        """Invert (imcomplement) the profile."""
-        orig_array = self.values
-        self.values = -orig_array + orig_array.max() + orig_array.min()
+        """Invert the profile."""
+        self.values = invert(self.values)
 
-    def normalize(self, norm_val: str | float = "max") -> None:
+    def bit_invert(self) -> None:
+        """Invert the profile bit-wise."""
+        self.values = bit_invert(self.values)
+
+    def normalize(self, value: float | None = None) -> None:
         """Normalize the profile to the given value.
 
         Parameters
         ----------
-        norm_val : str, number
-            If a string, must be 'max', which normalizes the values to the maximum value.
-            If a number, normalizes all values to that number.
+        value : number or None
+            If a number, normalize the array to that number. If None, normalizes to the maximum value.
         """
-        if norm_val == "max":
-            val = self.values.max()
-        else:
-            val = norm_val
-        self.values /= val
+        self.values = normalize(self.values, value=value)
 
     def stretch(self, min: float = 0, max: float = 1) -> None:
         """'Stretch' the profile to the min and max parameter values.
@@ -170,7 +186,11 @@ class ProfileMixin:
         max : number
             The new maximum value.
         """
-        self.values = stretch(self.values, min=min, max=max)
+        self.values = util_stretch(self.values, min=min, max=max)
+
+    def convert_to_dtype(self, dtype: type[np.dtype]) -> None:
+        """Convert the profile datatype to another datatype while retaining the values relative to the datatype min/max"""
+        self.values = convert_to_dtype(self.values, dtype=dtype)
 
     def ground(self) -> float:
         """Ground the profile such that the lowest value is 0.
@@ -181,10 +201,9 @@ class ProfileMixin:
             The minimum value that was used as the grounding value.
         """
         min_val = self.values.min()
-        self.values = self.values - min_val
+        self.values = ground(self.values)
         return min_val
 
-    @argue.options(kind=("median", "gaussian"))
     def filter(self, size: float = 0.05, kind: str = "median") -> None:
         """Filter the profile.
 
@@ -198,17 +217,7 @@ class ProfileMixin:
         kind : {'median', 'gaussian'}
             The kind of filter to apply. If gaussian, `size` is the sigma value.
         """
-        if isinstance(size, float):
-            if 0 < size < 1:
-                size = int(round(len(self.values) * size))
-                size = max(size, 1)
-            else:
-                raise TypeError("Float was passed but was not between 0 and 1")
-
-        if kind == "median":
-            self.values = ndimage.median_filter(self.values, size=size)
-        elif kind == "gaussian":
-            self.values = ndimage.gaussian_filter(self.values, sigma=size)
+        self.values = filter(self.values, size=size, kind=kind)
 
     def __len__(self):
         return len(self.values)
@@ -240,6 +249,93 @@ class Edge(enum.Enum):
     FWHM = "FWHM"  #:
     INFLECTION_DERIVATIVE = "Inflection Derivative"  #:
     INFLECTION_HILL = "Inflection Hill"  #:
+
+
+class SingleArrayProfile(ProfileMixin):
+    """A profile with one large signal, e.g. a radiation beam profile.
+    Compared to SingleProfile, there is no interpolation done except explicit methods which return
+    a new profile. Interpolation has turned out to be extremely complex to keep in a class-based structure.
+    This class is preferred over SingleProfile and if interpolation is needed, interpolation will return a
+    new SimpleSingleProfile that can be filtered, FWXM, etc. Physical spacing is also required. Few use cases
+    exist for a profile without spacing. This also reduces code complexity
+    TL;DR SimpleSingleProfile means uninterpolated SingleProfile with a physical spacing"""
+
+    def __init__(
+        self,
+        values: np.ndarray,
+        # dpmm: Optional[float] = None,
+        ground: bool = False,
+        normalization_method: Normalization | str = Normalization.NONE,
+        edge_detection_method: Edge | str = Edge.FWHM,
+        edge_smoothing_ratio: float = 0.003,
+        hill_window_ratio: float = 0.1,
+        # x_values: np.ndarray | None = None,
+    ):
+        if ground:
+            self.ground()
+        self.normalize(normalization_method)
+
+    def fwxm(self, x: float = 50):
+        pass
+
+    def fwxm_center_idx(self, x: float = 50):
+        _, peak_props = self._find_peak(relative_height=x)
+        left_idx = peak_props["left_ips"][0]
+        right_idx = peak_props["right_ips"][0]
+        return (right_idx - left_idx) / 2 + left_idx
+
+    def fwxm_center_value(self, x: float = 50):
+        return self.values[self.fwxm_center_idx(x)]
+
+    def fwxm_width(self, x: float = 50) -> int:
+        _, peak_props = self._find_peak(relative_height=x)
+        left_idx = peak_props["left_ips"][0]
+        right_idx = peak_props["right_ips"][0]
+        return right_idx - left_idx
+
+    def fwxm_left_idx(self, x: float = 50) -> int:
+        _, peak_props = self._find_peak(relative_height=x)
+        return peak_props["left_ips"][0]
+
+    def fwxm_left_value(self, x: float = 50) -> int:
+        _, peak_props = self._find_peak(relative_height=x)
+        return self.values[peak_props["left_ips"][0]]
+
+    def fwxm_right_idx(self, x: float = 50) -> int:
+        _, peak_props = self._find_peak(relative_height=x)
+        return peak_props["right_ips"][0]
+
+    @lru_cache
+    def _find_peak(self, relative_height: float = 50) -> (np.ndarray, dict):
+        """Cached utility method. We cache this vs the find_peaks method to keep the cache size as small as possible. Caching
+        the function would keep the input parameters (including the np.ndarray) in the cache as a key. This way, the key is
+        just the fwxm parameter"""
+        return find_peaks(self.values, fwxm_height=relative_height / 100, max_number=1)
+
+    # def beam_center(self) -> dict:
+    #     """The center of the detected beam. This can account for asymmetries in the beam position (e.g. offset jaws)"""
+    #     if self._edge_method == Edge.FWHM:
+    #         data = self.fwxm_data(x=50)
+    #         return {
+    #             "index (rounded)": data["center index (rounded)"],
+    #             "index (exact)": data["center index (exact)"],
+    #             "value (@rounded)": data["center value (@rounded)"],
+    #         }
+    #     elif self._edge_method in (Edge.INFLECTION_DERIVATIVE, Edge.INFLECTION_HILL):
+    #         infl = self.inflection_data()
+    #         mid_point = (
+    #             infl["left index (exact)"]
+    #             + (infl["right index (exact)"] - infl["left index (exact)"]) / 2
+    #         )
+    #         return {
+    #             "index (rounded)": int(round(mid_point)),
+    #             "index (exact)": mid_point,
+    #             "value (@rounded)": self._y_original_to_interp(int(round(mid_point))),
+    #         }
+
+
+class SinglePhysicalProfile(SingleArrayProfile):
+    """A simple array profile but with a known physical spacing (i.e. a pixels/mm attribute)"""
 
 
 class SingleProfile(ProfileMixin):
@@ -443,15 +539,10 @@ class SingleProfile(ProfileMixin):
 
         If the profile has an even number of values the centre lies between the two centre indices and the centre
         value is the average of the two centre values else the centre index and value are returned."""
-        plen = values.shape[0]
-        # buffer overflow can cause the below addition to give strange results
-        values = values.astype(np.float64)
-        if plen % 2 == 0:  # plen is even and central detectors straddle CAX
-            cax = (values[int(plen / 2)] + values[int(plen / 2) - 1]) / 2.0
-        else:  # plen is odd and we have a central detector
-            cax = values[int((plen - 1) / 2)]
-        plen = (plen - 1) / 2.0
-        return {"index (exact)": self._x_interp_to_original(plen), "value (exact)": cax}
+        return {
+            "index (exact)": geometric_center_idx(values),
+            "value (exact)": geometric_center_value(values),
+        }
 
     def geometric_center(self) -> dict:
         """The geometric center (i.e. the device center)"""
@@ -1111,7 +1202,7 @@ class MultiProfile(ProfileMixin):
         min_distance: float | int = 0.05,
         max_number: int = None,
         search_region: tuple = (0.0, 1.0),
-        peak_sort="prominences",
+        peak_sort: str = "prominences",
     ) -> tuple[np.ndarray, np.ndarray]:
         """Find the peaks of the profile using a simple maximum value search. This also sets the `peaks` attribute.
 
@@ -1565,12 +1656,12 @@ def find_peaks(
     values: np.ndarray,
     threshold: float | int = -np.inf,
     peak_separation: float | int = 0,
-    max_number: int = None,
+    max_number: int | None = None,
     fwxm_height: float = 0.5,
     min_width: int = 0,
     search_region: tuple[float, float] = (0.0, 1.0),
-    peak_sort="prominences",
-    required_prominence=None,
+    peak_sort: str = "prominences",
+    required_prominence: float | np.ndarray | None = None,
 ) -> tuple[np.ndarray, dict]:
     """Find the peaks of a 1D signal. Heavily relies on the scipy implementation.
 
@@ -1601,6 +1692,10 @@ def find_peaks(
         The search region to use within the values.
         Using between 0 and 1 will convert to a ratio of the indices. E.g. to search the middle half of the passed values, use (0.25, 0.75).
         Using ints above 1 will use the indices directly. E.g. (33, 71) will search between those two indices.
+    peak_sort
+        The method of sorting peaks. See scipy find_peaks documentation.
+    required_prominence
+        The relative height of the peak compared to surrounding valleys to be considered a peak. See scipy's find_peaks documentation.
 
     Returns
     -------

@@ -26,6 +26,7 @@ from scipy import ndimage
 from skimage.draw import disk
 
 from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
+from .array_utils import bit_invert, filter, ground, invert, normalize
 from .geometry import Point
 from .io import (
     TemporaryZipDirectory,
@@ -407,17 +408,7 @@ class BaseImage:
         kind : {'median', 'gaussian'}
             The kind of filter to apply. If gaussian, *size* is the sigma value.
         """
-        if isinstance(size, float):
-            if 0 < size < 1:
-                size *= len(self.array)
-                size = max(size, 1)
-            else:
-                raise TypeError("Float was passed but was not between 0 and 1")
-
-        if kind == "median":
-            self.array = ndimage.median_filter(self.array, size=size)
-        elif kind == "gaussian":
-            self.array = ndimage.gaussian_filter(self.array, sigma=size)
+        self.array = filter(self.array, size=size, kind=kind)
 
     def crop(
         self,
@@ -454,8 +445,11 @@ class BaseImage:
 
     def invert(self) -> None:
         """Invert (imcomplement) the image."""
-        orig_array = self.array
-        self.array = -orig_array + orig_array.max() + orig_array.min()
+        self.array = invert(self.array)
+
+    def bit_invert(self) -> None:
+        """Invert the image bit-wise"""
+        self.array = bit_invert(self.array)
 
     def roll(self, direction: str = "x", amount: int = 1) -> None:
         """Roll the image array around in-place. Wrapper for np.roll().
@@ -541,23 +535,18 @@ class BaseImage:
             The amount subtracted from the image.
         """
         min_val = self.array.min()
-        self.array -= min_val
+        self.array = ground(self.array)
         return min_val
 
-    def normalize(self, norm_val: str | float = "max") -> None:
-        """Normalize the image values in place to the given value.
+    def normalize(self, value: float | None = None) -> None:
+        """Normalize the profile to the given value.
 
         Parameters
         ----------
-        norm_val : str, number
-            If a string, must be 'max', which normalizes the values to the maximum value.
-            If a number, normalizes all values to that number.
+        value : number or None
+            If a number, normalize the array to that number. If None, normalizes to the maximum value.
         """
-        if norm_val == "max":
-            val = self.array.max()
-        else:
-            val = norm_val
-        self.array = self.array / val
+        self.array = normalize(self.array, value=value)
 
     def check_inversion(
         self, box_size: int = 20, position: (float, float) = (0.0, 0.0)

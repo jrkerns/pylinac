@@ -60,6 +60,31 @@ Winston-Lutz
 
   .. figure:: images/wl_x_y_component.png
 
+
+Core
+^^^^
+
+*  Using ``pylinac.core.profile.stretch`` is now deprecated and will flag a warning on usage. The only current usage in the
+   library is for ``load_multiples`` with the parameter ``stretch_each=True``. This is unlikely to be used by end users
+   and will be removed in v3.11. A new function of the same name is now available as ``pylinac.core.array_utils.stretch``.
+   For the normal use case where an array is to be stretched to have a new minimum and maximum, the result is the same.
+   The use case ``stretch(..., fill_dtype=...)`` is deprecated as it is confusing and can potentially error out going
+   from integer-like dtypes to float-like dtypes.
+
+   .. deprecated:: 3.11
+
+* A new method ``bit_invert`` has been added to the Image classes and subclasses as well as Profile classes and subclasses.
+  This lets the user flip the image `bit-wise <https://numpy.org/doc/stable/reference/generated/numpy.invert.html>`__. This is
+  a better alternative than the existing ``invert`` as it takes into account the datatype. This will eventually become
+  the default inversion method.
+
+* A new method ``convert_to_dtype`` has been added to the Image and Profile classes and subclasses. This method will
+  let the user pass a new numpy datatype and the array and values will be converted to that new datatype. Unlike a
+  simple datatype casting however, this will keep the relative values to the same w/r/t the datatype max and min.
+  E.g. an array of type uint8 has an element of value 100. Converting this to uint16 would result in a new value of
+  25,690 (100/255 = 0.392 = x/65535, x = 25,690). This is mostly helpful for combining images together but is a
+  generally-helpful way of converting datatypes regardless of use case.
+
 v 3.9.0
 -------
 
