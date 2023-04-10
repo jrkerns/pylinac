@@ -85,6 +85,10 @@ Core
   25,690 (100/255 = 0.392 = x/65535, x = 25,690). This is mostly helpful for combining images together but is a
   generally-helpful way of converting datatypes regardless of use case.
 
+* The parameter name for a profile's ``normalize`` method has changed from ``norm_val`` to ``value``. The same is true
+  of an Image class's ``normalize`` method. If you are not passing in the value as a keyword argument no change is required,
+  otherwise change the parameter name as explained here.
+
 v 3.9.0
 -------
 
