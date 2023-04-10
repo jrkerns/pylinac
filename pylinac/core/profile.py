@@ -27,7 +27,6 @@ from .array_utils import (
     normalize,
 )
 from .array_utils import stretch as util_stretch
-from .decorators import lru_cache
 from .geometry import Circle, Point
 from .hill import Hill
 from .utilities import convert_to_enum
@@ -249,93 +248,6 @@ class Edge(enum.Enum):
     FWHM = "FWHM"  #:
     INFLECTION_DERIVATIVE = "Inflection Derivative"  #:
     INFLECTION_HILL = "Inflection Hill"  #:
-
-
-class SingleArrayProfile(ProfileMixin):
-    """A profile with one large signal, e.g. a radiation beam profile.
-    Compared to SingleProfile, there is no interpolation done except explicit methods which return
-    a new profile. Interpolation has turned out to be extremely complex to keep in a class-based structure.
-    This class is preferred over SingleProfile and if interpolation is needed, interpolation will return a
-    new SimpleSingleProfile that can be filtered, FWXM, etc. Physical spacing is also required. Few use cases
-    exist for a profile without spacing. This also reduces code complexity
-    TL;DR SimpleSingleProfile means uninterpolated SingleProfile with a physical spacing"""
-
-    def __init__(
-        self,
-        values: np.ndarray,
-        # dpmm: Optional[float] = None,
-        ground: bool = False,
-        normalization_method: Normalization | str = Normalization.NONE,
-        edge_detection_method: Edge | str = Edge.FWHM,
-        edge_smoothing_ratio: float = 0.003,
-        hill_window_ratio: float = 0.1,
-        # x_values: np.ndarray | None = None,
-    ):
-        if ground:
-            self.ground()
-        self.normalize(normalization_method)
-
-    def fwxm(self, x: float = 50):
-        pass
-
-    def fwxm_center_idx(self, x: float = 50):
-        _, peak_props = self._find_peak(relative_height=x)
-        left_idx = peak_props["left_ips"][0]
-        right_idx = peak_props["right_ips"][0]
-        return (right_idx - left_idx) / 2 + left_idx
-
-    def fwxm_center_value(self, x: float = 50):
-        return self.values[self.fwxm_center_idx(x)]
-
-    def fwxm_width(self, x: float = 50) -> int:
-        _, peak_props = self._find_peak(relative_height=x)
-        left_idx = peak_props["left_ips"][0]
-        right_idx = peak_props["right_ips"][0]
-        return right_idx - left_idx
-
-    def fwxm_left_idx(self, x: float = 50) -> int:
-        _, peak_props = self._find_peak(relative_height=x)
-        return peak_props["left_ips"][0]
-
-    def fwxm_left_value(self, x: float = 50) -> int:
-        _, peak_props = self._find_peak(relative_height=x)
-        return self.values[peak_props["left_ips"][0]]
-
-    def fwxm_right_idx(self, x: float = 50) -> int:
-        _, peak_props = self._find_peak(relative_height=x)
-        return peak_props["right_ips"][0]
-
-    @lru_cache
-    def _find_peak(self, relative_height: float = 50) -> (np.ndarray, dict):
-        """Cached utility method. We cache this vs the find_peaks method to keep the cache size as small as possible. Caching
-        the function would keep the input parameters (including the np.ndarray) in the cache as a key. This way, the key is
-        just the fwxm parameter"""
-        return find_peaks(self.values, fwxm_height=relative_height / 100, max_number=1)
-
-    # def beam_center(self) -> dict:
-    #     """The center of the detected beam. This can account for asymmetries in the beam position (e.g. offset jaws)"""
-    #     if self._edge_method == Edge.FWHM:
-    #         data = self.fwxm_data(x=50)
-    #         return {
-    #             "index (rounded)": data["center index (rounded)"],
-    #             "index (exact)": data["center index (exact)"],
-    #             "value (@rounded)": data["center value (@rounded)"],
-    #         }
-    #     elif self._edge_method in (Edge.INFLECTION_DERIVATIVE, Edge.INFLECTION_HILL):
-    #         infl = self.inflection_data()
-    #         mid_point = (
-    #             infl["left index (exact)"]
-    #             + (infl["right index (exact)"] - infl["left index (exact)"]) / 2
-    #         )
-    #         return {
-    #             "index (rounded)": int(round(mid_point)),
-    #             "index (exact)": mid_point,
-    #             "value (@rounded)": self._y_original_to_interp(int(round(mid_point))),
-    #         }
-
-
-class SinglePhysicalProfile(SingleArrayProfile):
-    """A simple array profile but with a known physical spacing (i.e. a pixels/mm attribute)"""
 
 
 class SingleProfile(ProfileMixin):
