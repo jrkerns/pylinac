@@ -452,7 +452,7 @@ class SingleProfile(ProfileMixin):
         If the profile has an even number of values the centre lies between the two centre indices and the centre
         value is the average of the two centre values else the centre index and value are returned."""
         return {
-            "index (exact)": geometric_center_idx(values),
+            "index (exact)": self._x_interp_to_original(geometric_center_idx(values)),
             "value (exact)": geometric_center_value(values),
         }
 
