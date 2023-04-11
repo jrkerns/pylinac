@@ -3,28 +3,38 @@ from __future__ import annotations
 import numpy as np
 from scipy import ndimage
 
+from pylinac.core.decorators import validate
 
+
+def array_not_empty(array: np.ndarray) -> None:
+    """Check an array isn't empty"""
+    if not array.size:
+        raise ValueError("Array must not be empty")
+
+
+def single_dimension(array: np.ndarray) -> None:
+    """Check an array is a single dimension"""
+    if array.ndim > 1:
+        raise ValueError(
+            f"Array was multidimensional. Must pass 1D array; found {array.ndim}"
+        )
+
+
+@validate(array=(array_not_empty, single_dimension))
 def geometric_center_idx(array: np.ndarray) -> float:
     """Returns the center index and value of the profile.
 
     If the profile has an even number of array the centre lies between the two centre indices and the centre
     value is the average of the two centre array else the centre index and value are returned."""
-    if array.ndim > 1:
-        raise ValueError(
-            f"Array was multidimensional. Must pass 1D array; found {array.ndim}"
-        )
     return (array.shape[0] - 1) / 2.0
 
 
+@validate(array=(array_not_empty, single_dimension))
 def geometric_center_value(array: np.ndarray) -> float:
     """Returns the center value of the profile.
 
     If the profile has an even number of elements the center lies between the two centre indices and the centre
     value is the average of the two center elements else the center index and value are returned."""
-    if array.ndim > 1:
-        raise ValueError(
-            f"Array was multidimensional. Must pass 1D array; found {array.ndim}"
-        )
     arr_len = array.shape[0]
     # buffer overflow can cause the below addition to give strange results
     if arr_len % 2 == 0:  # array is even and central detectors straddle CAX
@@ -34,6 +44,7 @@ def geometric_center_value(array: np.ndarray) -> float:
     return cax
 
 
+@validate(array=array_not_empty)
 def normalize(array: np.ndarray, value: float | None = None) -> np.ndarray:
     """Normalize an array to the passed value. If not value is passed, normalize to the maximum value"""
     if value is None:
@@ -44,11 +55,13 @@ def normalize(array: np.ndarray, value: float | None = None) -> np.ndarray:
     return array
 
 
+@validate(array=array_not_empty)
 def invert(array: np.ndarray) -> np.ndarray:
-    """Invert the array. Makes the max the min and vic versa. Does NOT account for datatype"""
+    """Invert the array. Makes the max the min and vice versa. Does NOT account for datatype"""
     return -array + array.max() + array.min()
 
 
+@validate(array=array_not_empty)
 def bit_invert(array: np.ndarray) -> np.ndarray:
     """Invert the array, ACCOUNTING for the datatype. I.e. 0 for an uint8 array goes to 255, whereas it goes to 65535 for unint16.
     I.e. this is a datatype-specific inversion."""
@@ -60,6 +73,7 @@ def bit_invert(array: np.ndarray) -> np.ndarray:
         )
 
 
+@validate(array=array_not_empty)
 def ground(array: np.ndarray, value: float = 0) -> np.ndarray:
     """Ground the profile. Note this will also work on profiles with negative values. I.e. this will always
     move the minimum value to 'value', regardless of whether the profile minimum was positive or negative
@@ -72,7 +86,10 @@ def ground(array: np.ndarray, value: float = 0) -> np.ndarray:
     return array - array.min() + value
 
 
-def filter(array: np.ndarray, size: float = 0.05, kind: str = "median") -> np.ndarray:
+@validate(array=array_not_empty)
+def filter(
+    array: np.ndarray, size: float | int = 0.05, kind: str = "median"
+) -> np.ndarray:
     """Filter the profile.
 
     Parameters
@@ -105,6 +122,7 @@ def filter(array: np.ndarray, size: float = 0.05, kind: str = "median") -> np.nd
     return filtered_array
 
 
+@validate(array=array_not_empty)
 def stretch(array: np.ndarray, min: int = 0, max: int = 1) -> np.ndarray:
     """'Stretch' the profile to the fit a new min and max value. This is a utility for grounding + normalizing.
 
@@ -134,6 +152,7 @@ def stretch(array: np.ndarray, min: int = 0, max: int = 1) -> np.ndarray:
     return ground(normalize(ground(array)) * (max - min), value=min)
 
 
+@validate(array=array_not_empty)
 def convert_to_dtype(array: np.ndarray, dtype: type[np.dtype]) -> np.ndarray:
     """Convert an array to another datatype, accounting for the array values.
     A normal numpy dtype conversion simply changes the datatype and leaves the values alone.

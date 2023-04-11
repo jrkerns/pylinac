@@ -17,17 +17,31 @@ from pylinac.core.array_utils import (
 
 
 class TestGeometricCenter(TestCase):
-    def test_geometric_idx(self):
+    def test_geometric_idx_odd(self):
         arr3 = np.array((1, 3, 4))
         assert geometric_center_idx(arr3) == 1
-        arr2 = np.array([1, 2])
-        assert geometric_center_idx(arr2) == 0.5
 
-    def test_geometric_value(self):
+    def test_geometric_idx_even(self):
+        arr3 = np.array((1, 3, 4, 5))
+        assert geometric_center_idx(arr3) == 1.5
+
+    def test_geometric_idx_empty(self):
+        arr = np.array([])
+        with self.assertRaises(ValueError):
+            geometric_center_idx(arr)
+
+    def test_geometric_value_odd(self):
         arr1 = np.array((1, 2, 3))
         assert geometric_center_value(arr1) == 2
+
+    def test_geometric_value_even(self):
         arr2 = np.array((1, 1, 2, 2))
         assert geometric_center_value(arr2) == 1.5
+
+    def test_geometric_value_empty(self):
+        arr = np.array([])
+        with self.assertRaises(ValueError):
+            geometric_center_value(arr)
 
     def test_geometric_idx_multidim_fails(self):
         arr1 = np.random.randn(2, 2)
