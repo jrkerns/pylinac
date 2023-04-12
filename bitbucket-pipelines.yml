@@ -2,6 +2,8 @@ image: python:3.9-slim
 
 
 definitions:
+  caches:
+    testfiles: tests_basic/test_files
   steps:
     - step: &pre-commit-checks
         name: Pre-commit checks
@@ -44,6 +46,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_cbct.py --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -55,6 +59,8 @@ definitions:
         script:
           - pip install -r requirements-dev.txt
           - pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -67,6 +73,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -79,6 +87,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -91,6 +101,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -102,6 +114,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_dlg.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -113,6 +127,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_field_analysis.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -124,6 +140,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_logs.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -135,6 +153,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -146,6 +166,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -157,6 +179,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_tg51.py tests_basic/test_trs398.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -169,6 +193,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_vmat.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -181,6 +207,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/test_winstonlutz.py --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
@@ -192,6 +220,8 @@ definitions:
         script:
           - source venv/bin/activate
           - pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml
+        cache:
+          - testfiles
         condition:
           changesets:
             includePaths:
