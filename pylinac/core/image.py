@@ -538,7 +538,7 @@ class BaseImage:
         self.array = ground(self.array)
         return min_val
 
-    def normalize(self, value: float | None = None) -> None:
+    def normalize(self, norm_val: str | float | None = None) -> None:
         """Normalize the profile to the given value.
 
         Parameters
@@ -546,7 +546,10 @@ class BaseImage:
         value : number or None
             If a number, normalize the array to that number. If None, normalizes to the maximum value.
         """
-        self.array = normalize(self.array, value=value)
+        # backwards compatibility
+        if norm_val == "max":
+            norm_val = None
+        self.array = normalize(self.array, value=norm_val)
 
     def check_inversion(
         self, box_size: int = 20, position: (float, float) = (0.0, 0.0)

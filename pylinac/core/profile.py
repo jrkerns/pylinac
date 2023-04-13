@@ -165,15 +165,18 @@ class ProfileMixin:
         """Invert the profile bit-wise."""
         self.values = bit_invert(self.values)
 
-    def normalize(self, value: float | None = None) -> None:
+    def normalize(self, norm_val: str | float | None = None) -> None:
         """Normalize the profile to the given value.
 
         Parameters
         ----------
-        value : number or None
+        value : number or 'max' or None
             If a number, normalize the array to that number. If None, normalizes to the maximum value.
         """
-        self.values = normalize(self.values, value=value)
+        # backwards compatibility
+        if norm_val == "max":
+            norm_val = None
+        self.values = normalize(self.values, value=norm_val)
 
     def stretch(self, min: float = 0, max: float = 1) -> None:
         """'Stretch' the profile to the min and max parameter values.

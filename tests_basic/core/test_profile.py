@@ -173,6 +173,20 @@ class TestGamma1D(TestCase):
 
 
 class SingleProfileTests(TestCase):
+    def test_normalization_max(self):
+        """changed default parameter value to None in 3.10. 'max' should still work"""
+        array = np.random.rand(1, 100).squeeze()
+
+        # don't apply normalization initially, do it later
+        p = SingleProfile(
+            array,
+            normalization_method=Normalization.NONE,
+            interpolation=Interpolation.NONE,
+            ground=False,
+        )
+        p.normalize("max")
+        self.assertEqual(p.values.max(), 1)
+
     def test_normalization(self):
         array = np.random.rand(1, 100).squeeze()
 
