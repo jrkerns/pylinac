@@ -16,7 +16,7 @@ from pylinac import (
     WinstonLutz,
 )
 
-CUSTOM_LOGO = Path(__file__).parent / "rm-logo.png"
+CUSTOM_LOGO = Path(__file__).parent / "rm-logo.png"  # stuffcicles
 
 
 class TestPDF(unittest.TestCase):
