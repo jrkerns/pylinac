@@ -743,7 +743,8 @@ class WinstonLutzMixin(CloudFileMixin):
 
     def test_known_axis_of_rotation(self):
         for idx, axis in self.axis_of_rotation.items():
-            self.assertEqual(axis, self.wl.images[idx].variable_axis)
+            v_axis = self.wl.images[idx].variable_axis
+            self.assertEqual(axis, v_axis)
 
 
 class WLDemo(WinstonLutzMixin, TestCase):
@@ -993,6 +994,7 @@ class KatyTB0(WinstonLutzMixin, TestCase):
     cax2bb_median_distance = 0.8
     cax2bb_mean_distance = 0.8
     machine_scale = MachineScale.VARIAN_IEC
+    axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.7, y=-0.1, z=-0.2)
 
 
@@ -1005,6 +1007,7 @@ class KatyTB1(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1
     cax2bb_median_distance = 0.7
     cax2bb_mean_distance = 0.6
+    axis_of_rotation = {0: Axis.GANTRY}
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.6, y=-0.2)
 
@@ -1018,6 +1021,7 @@ class KatyTB2(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 1.1
     cax2bb_median_distance = 0.4
     cax2bb_mean_distance = 0.5
+    axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=0.0, y=-0.2, z=-0.6)
 
 
@@ -1031,6 +1035,7 @@ class ChicagoTBFinal(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.5
     cax2bb_median_distance = 0.3
     cax2bb_mean_distance = 0.3
+    axis_of_rotation = {0: Axis.GBP_COMBO}
     bb_shift_vector = Vector(y=0.1)
 
 
@@ -1179,4 +1184,5 @@ class kVImages(WinstonLutzMixin, TestCase):
     cax2bb_max_distance = 0.26
     cax2bb_median_distance = 0.18
     cax2bb_mean_distance = 0.18
+    axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.24, y=0, z=0)
