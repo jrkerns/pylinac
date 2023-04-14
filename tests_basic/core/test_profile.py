@@ -1,3 +1,4 @@
+import warnings
 from unittest import TestCase
 
 import numpy as np
@@ -13,6 +14,7 @@ from pylinac.core.profile import (
     Normalization,
     SingleProfile,
     gamma_1d,
+    stretch,
 )
 from tests_basic.utils import get_file_from_cloud_test_repo
 
@@ -171,6 +173,20 @@ class TestGamma1D(TestCase):
 
 
 class SingleProfileTests(TestCase):
+    def test_normalization_max(self):
+        """changed default parameter value to None in 3.10. 'max' should still work"""
+        array = np.random.rand(1, 100).squeeze()
+
+        # don't apply normalization initially, do it later
+        p = SingleProfile(
+            array,
+            normalization_method=Normalization.NONE,
+            interpolation=Interpolation.NONE,
+            ground=False,
+        )
+        p.normalize("max")
+        self.assertEqual(p.values.max(), 1)
+
     def test_normalization(self):
         array = np.random.rand(1, 100).squeeze()
 
@@ -526,3 +542,19 @@ class CollapsedCircleProfileStarshot(CircleProfileTestMixin, TestCase):
     peak_idxs = [241, 529, 812, 1084, 1331, 1563, 1797, 2051]
     valley_idxs = [104, 397, 667, 946, 1210, 1451, 1680, 1916]
     fwxm_peak_idxs = [241, 529, 812, 1084, 1331, 1563, 1797, 2052]
+
+
+class TestStretchDeprecation(TestCase):
+    def test_stretch_deprecation(self):
+        arr = np.array([0, 2, 5, 10], dtype=np.uint8)
+        with warnings.catch_warnings(record=True) as w:
+            # Cause all warnings to always be triggered.
+            warnings.simplefilter("always")
+            # Trigger a warning.
+            stretch(arr)
+            # Verify some things
+            assert len(w) >= 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "Using stretch from the profile module is deprecated" in str(
+                w[0].message
+            )

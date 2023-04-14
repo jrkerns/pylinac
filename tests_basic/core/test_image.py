@@ -4,6 +4,7 @@ import json
 import shutil
 import tempfile
 import unittest
+from builtins import ValueError
 from unittest import TestCase
 
 import numpy as np
@@ -149,7 +150,7 @@ class TestBaseImage(TestCase):
         filter_size = 0.03
         self.arr.filter(filter_size)
         # test using invalid float value
-        self.assertRaises(TypeError, self.img.filter, 1.1)
+        self.assertRaises(ValueError, self.img.filter, 1.1)
         # test using a gaussian filter
         self.arr.filter(kind="gaussian")
 
