@@ -1,4 +1,6 @@
 """Utility functions for pylinac."""
+from __future__ import annotations
+
 import os
 import os.path as osp
 import struct
@@ -6,7 +8,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import BinaryIO, Sequence, Type, Union
+from typing import BinaryIO, Sequence
 
 import numpy as np
 import pydicom
@@ -14,7 +16,7 @@ import pydicom
 from .. import __version__
 
 
-def convert_to_enum(value: Union[str, Enum, None], enum: Type[Enum]) -> Enum:
+def convert_to_enum(value: str | Enum | None, enum: type[Enum]) -> Enum:
     """Convert a value to an enum representation from an enum value if needed"""
     if isinstance(value, enum):
         return value
@@ -63,7 +65,7 @@ def assign2machine(source_file: str, machine_file: str):
     dcm_source.save_as(source_file)
 
 
-def is_close(val: float, target: Union[float, Sequence], delta: float = 1):
+def is_close(val: float, target: float | Sequence, delta: float = 1):
     """Return whether the value is near the target value(s).
 
     Parameters
@@ -89,11 +91,19 @@ def is_close(val: float, target: Union[float, Sequence], delta: float = 1):
     return False
 
 
-def simple_round(number: float, decimals: int = 0) -> float:
-    """Round a number to the given number of decimals. Fixes small floating number errors."""
+def simple_round(number: float | int, decimals: int | None = 0) -> float | int:
+    """Round a number to the given number of decimals. Fixes small floating number errors. If decimals is None, no rounding is performed"""
+    if decimals is None:
+        return number
     num = int(round(number * 10**decimals))
-    num /= 10**decimals
+    if decimals >= 1:
+        num /= 10**decimals
     return num
+
+
+def wrap360(value: float) -> float:
+    """Wrap the input value around 360"""
+    return value % 360
 
 
 def is_iterable(object) -> bool:
@@ -113,10 +123,10 @@ class Structure:
 
 def decode_binary(
     file: BinaryIO,
-    dtype: Union[Type[int], Type[float], Type[str], str],
+    dtype: type[int] | type[float] | type[str] | str,
     num_values: int = 1,
     cursor_shift: int = 0,
-) -> Union[int, float, str, np.ndarray, list]:
+) -> int | float | str | np.ndarray | list:
     """Read in a raw binary file and convert it to given data types.
 
     Parameters

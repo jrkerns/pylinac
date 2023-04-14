@@ -344,6 +344,45 @@ class TestLinacDicomImage(TestCase):
         self.assertEqual(img.collimator_angle, 60)
         self.assertEqual(img.couch_angle, 8)
 
+    def test_using_axes_no_precision_doesnt_round(self):
+        img = LinacDicomImage(
+            as500_path,
+            use_filenames=False,
+            axes_precision=None,
+            gantry=0.12345,
+            coll=89.483,
+            couch=359.6145,  # None is default
+        )
+        self.assertEqual(img.gantry_angle, 0.12345)
+        self.assertEqual(img.collimator_angle, 89.483)
+        self.assertEqual(img.couch_angle, 359.6145)
+
+    def test_using_axes_2precision(self):
+        img = LinacDicomImage(
+            as500_path,
+            use_filenames=False,
+            axes_precision=2,
+            gantry=0.12345,
+            coll=89.483,
+            couch=359.6145,
+        )
+        self.assertEqual(img.gantry_angle, 0.12)
+        self.assertEqual(img.collimator_angle, 89.48)
+        self.assertEqual(img.couch_angle, 359.61)
+
+    def test_using_axes_0precision(self):
+        img = LinacDicomImage(
+            as500_path,
+            use_filenames=False,
+            axes_precision=0,
+            gantry=0.12345,
+            coll=89.48,
+            couch=359.6145,
+        )
+        self.assertEqual(img.gantry_angle, 0)
+        self.assertEqual(img.collimator_angle, 89)
+        self.assertEqual(img.couch_angle, 0)
+
 
 class TestFileImage(TestCase):
     def test_sid(self):
