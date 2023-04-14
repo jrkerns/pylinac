@@ -580,6 +580,26 @@ class GeneralTests(TestCase):
             delta=0.02,
         )
 
+    def test_results_data_individual_keys_duplicate(self):
+        # lucky for us, the demo set has duplicates already
+        data_dict = self.wl.results_data(as_dict=True)
+        self.assertEqual(
+            len(data_dict["keyed_image_details"]), len(self.wl.images)
+        )  # even with duplicates, the # should be the same; we shouldn't be overwriting keys
+        self.assertIn("G0.0C0.0B0.0", data_dict["keyed_image_details"].keys())
+        self.assertIn("G0.0C0.0B0.0_1", data_dict["keyed_image_details"].keys())
+
+    def test_results_data_individual_keys_precisions(self):
+        """Setting precision should be reflected in the keys"""
+        wl = WinstonLutz.from_demo_images(axes_precision=0)
+        wl.analyze()
+        data_dict = wl.results_data(as_dict=True)
+        self.assertEqual(
+            len(data_dict["keyed_image_details"]), len(self.wl.images)
+        )  # even with duplicates, the # should be the same; we shouldn't be overwriting keys
+        self.assertIn("G0C0B0", data_dict["keyed_image_details"].keys())
+        self.assertIn("G0C0B0_1", data_dict["keyed_image_details"].keys())
+
     def test_bb_too_far_away_fails(self):
         """BB is >20mm from CAX"""
         file = get_file_from_cloud_test_repo([TEST_DIR, "bb_too_far_away.zip"])

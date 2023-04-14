@@ -187,6 +187,7 @@ class WinstonLutzResult(ResultBase):
     couch_2d_iso_diameter_mm: float  #:
     max_couch_rms_deviation_mm: float  #:
     image_details: list[WinstonLutz2DResult]  #:
+    keyed_image_details: dict[str, WinstonLutz2DResult]  #:
 
 
 @dataclass
@@ -656,6 +657,7 @@ class WinstonLutz:
         directory: str | list[str] | Path,
         use_filenames: bool = False,
         axis_mapping: dict[str, tuple[int, int, int]] | None = None,
+        axes_precision: int | None = None,
     ):
         """
         Parameters
@@ -669,6 +671,10 @@ class WinstonLutz:
         axis_mapping: dict
             An optional way of instantiating by passing each file along with the axis values.
             Structure should be <filename>: (<gantry>, <coll>, <couch>).
+        axes_precision: int | None
+            How many significant digits to represent the axes values. If None, no precision is set and the input/DICOM values are used raw.
+            If set to an integer, rounds the axes values (gantry, coll, couch) to that many values. E.g. gantry=0.1234 => 0.1 with precision=1.
+            This is mostly useful for plotting/rounding (359.9=>0) and if using the ``keyed_image_details`` with ``results_data``.
         """
         self.images = []
         if axis_mapping and not use_filenames:
@@ -680,12 +686,15 @@ class WinstonLutz:
                         gantry=gantry,
                         coll=coll,
                         couch=couch,
+                        axes_precision=axes_precision,
                     )
                 )
         elif isinstance(directory, list):
             for file in directory:
                 if is_dicom_image(file):
-                    img = self.image_type(file, use_filenames)
+                    img = self.image_type(
+                        file, use_filenames, axes_precision=axes_precision
+                    )
                     self.images.append(img)
         elif not osp.isdir(directory):
             raise ValueError(
@@ -694,7 +703,9 @@ class WinstonLutz:
         else:
             image_files = image.retrieve_image_files(directory)
             for file in image_files:
-                img = self.image_type(file, use_filenames)
+                img = self.image_type(
+                    file, use_filenames, axes_precision=axes_precision
+                )
                 self.images.append(img)
         if len(self.images) < 2:
             raise ValueError(
@@ -706,49 +717,45 @@ class WinstonLutz:
         self._is_analyzed = False
 
     @classmethod
-    def from_demo_images(cls):
-        """Instantiate using the demo images."""
+    def from_demo_images(cls, **kwargs):
+        """Instantiate using the demo images.
+
+        Parameters
+        ----------
+        kwargs
+            See parameters of the __init__ method for details.
+        """
         demo_file = retrieve_demo_file(name="winston_lutz.zip")
-        return cls.from_zip(demo_file)
+        return cls.from_zip(demo_file, **kwargs)
 
     @classmethod
-    def from_zip(
-        cls,
-        zfile: str | BinaryIO,
-        use_filenames: bool = False,
-        axis_mapping: dict[str, tuple[int, int, int]] | None = None,
-    ):
+    def from_zip(cls, zfile: str | BinaryIO, **kwargs):
         """Instantiate from a zip file rather than a directory.
 
         Parameters
         ----------
         zfile
             Path to the archive file.
-        use_filenames : bool
-            Whether to interpret axis angles using the filenames.
-            Set to true for Elekta machines where the gantry/coll/couch data is not in the DICOM metadata.
-        axis_mapping: dict
-            An optional way of instantiating by passing each file along with the axis values.
-            Structure should be <filename>: (<gantry>, <coll>, <couch>).
+        kwargs
+            See parameters of the __init__ method for details.
         """
         with TemporaryZipDirectory(zfile) as tmpz:
-            obj = cls(tmpz, use_filenames=use_filenames, axis_mapping=axis_mapping)
+            obj = cls(tmpz, **kwargs)
         return obj
 
     @classmethod
-    def from_url(cls, url: str, use_filenames: bool = False):
+    def from_url(cls, url: str, **kwargs):
         """Instantiate from a URL.
 
         Parameters
         ----------
         url : str
             URL that points to a zip archive of the DICOM images.
-        use_filenames : bool
-            Whether to interpret axis angles using the filenames.
-            Set to true for Elekta machines where the gantry/coll/couch data is not in the DICOM metadata.
+        kwargs
+            See parameters of the __init__ method for details.
         """
         zfile = get_url(url)
-        return cls.from_zip(zfile, use_filenames=use_filenames)
+        return cls.from_zip(zfile, **kwargs)
 
     @staticmethod
     def run_demo() -> None:
@@ -1106,7 +1113,7 @@ class WinstonLutz:
         axis: Axis = Axis.GANTRY,
         show: bool = True,
         split: bool = False,
-        **kwargs: dict,
+        **kwargs,
     ) -> (list[plt.Figure], list[str]):
         """Plot a grid of all the images acquired.
 
@@ -1191,7 +1198,7 @@ class WinstonLutz:
         return figs, names
 
     def save_images(
-        self, filename: str | BinaryIO, axis: Axis = Axis.GANTRY, **kwargs: dict
+        self, filename: str | BinaryIO, axis: Axis = Axis.GANTRY, **kwargs
     ) -> None:
         """Save the figure of `plot_images()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
 
@@ -1205,7 +1212,7 @@ class WinstonLutz:
         self.plot_images(axis=axis, show=False)
         plt.savefig(filename, **kwargs)
 
-    def save_images_to_stream(self, **kwargs: dict) -> dict[str, io.BytesIO]:
+    def save_images_to_stream(self, **kwargs) -> dict[str, io.BytesIO]:
         """Save the individual image plots to stream"""
         figs, names = self.plot_images(
             axis=Axis.GBP_COMBO, show=False, split=True
@@ -1241,7 +1248,7 @@ class WinstonLutz:
             plt.tight_layout()
             plt.show()
 
-    def save_summary(self, filename: str | BinaryIO, **kwargs: dict) -> None:
+    def save_summary(self, filename: str | BinaryIO, **kwargs) -> None:
         """Save the summary image."""
         self.plot_summary(show=False, fig_size=kwargs.pop("fig_size", None))
         plt.tight_layout()
@@ -1334,9 +1341,27 @@ class WinstonLutz:
             ),
             max_epid_rms_deviation_mm=max(self.axis_rms_deviation(axis=Axis.EPID)),
             image_details=individual_image_data,
+            keyed_image_details=self._generate_keyed_images(individual_image_data),
         )
         if as_dict:
             return dataclasses.asdict(data)
+        return data
+
+    def _generate_keyed_images(
+        self, individual_image_data: list[WinstonLutz2D]
+    ) -> dict:
+        """Generate a dict where each key is based on the axes values and the key is an image. Used in the results_data method.
+        We can't do a simple dict comprehension because we may have duplicate axes sets. We pass individual data
+        because we may have already converted to a dict; we don't want to do that again."""
+        data = {}
+        for img_idx, img in enumerate(self.images):
+            key = f"G{img.gantry_angle}C{img.collimator_angle}B{img.couch_angle}"
+            suffix = ""
+            idx = 1
+            while key + suffix in data.keys():
+                suffix = f"_{idx}"
+                idx += 1
+            data[key + suffix] = individual_image_data[img_idx]
         return data
 
     def publish_pdf(
