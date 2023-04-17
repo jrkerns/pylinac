@@ -1348,14 +1348,14 @@ class WinstonLutz:
         return data
 
     def _generate_keyed_images(
-        self, individual_image_data: list[WinstonLutz2D]
+        self, individual_image_data: list[WinstonLutz2D] | dict
     ) -> dict:
         """Generate a dict where each key is based on the axes values and the key is an image. Used in the results_data method.
         We can't do a simple dict comprehension because we may have duplicate axes sets. We pass individual data
         because we may have already converted to a dict; we don't want to do that again."""
         data = {}
         for img_idx, img in enumerate(self.images):
-            key = f"G{img.gantry_angle}C{img.collimator_angle}B{img.couch_angle}"
+            key = f"G{img.gantry_angle}B{img.collimator_angle}P{img.couch_angle}"
             suffix = ""
             idx = 1
             while key + suffix in data.keys():

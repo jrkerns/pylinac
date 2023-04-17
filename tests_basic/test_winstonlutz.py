@@ -586,8 +586,8 @@ class GeneralTests(TestCase):
         self.assertEqual(
             len(data_dict["keyed_image_details"]), len(self.wl.images)
         )  # even with duplicates, the # should be the same; we shouldn't be overwriting keys
-        self.assertIn("G0.0C0.0B0.0", data_dict["keyed_image_details"].keys())
-        self.assertIn("G0.0C0.0B0.0_1", data_dict["keyed_image_details"].keys())
+        self.assertIn("G0.0B0.0P0.0", data_dict["keyed_image_details"].keys())
+        self.assertIn("G0.0B0.0P0.0_1", data_dict["keyed_image_details"].keys())
 
     def test_results_data_individual_keys_precisions(self):
         """Setting precision should be reflected in the keys"""
@@ -597,8 +597,8 @@ class GeneralTests(TestCase):
         self.assertEqual(
             len(data_dict["keyed_image_details"]), len(self.wl.images)
         )  # even with duplicates, the # should be the same; we shouldn't be overwriting keys
-        self.assertIn("G0C0B0", data_dict["keyed_image_details"].keys())
-        self.assertIn("G0C0B0_1", data_dict["keyed_image_details"].keys())
+        self.assertIn("G0B0P0", data_dict["keyed_image_details"].keys())
+        self.assertIn("G0B0P0_1", data_dict["keyed_image_details"].keys())
 
     def test_bb_too_far_away_fails(self):
         """BB is >20mm from CAX"""

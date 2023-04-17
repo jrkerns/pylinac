@@ -64,10 +64,8 @@ Winston-Lutz
   called ``keyed_image_details``. This is a dict that lets the user key off of the axes values.
   E.g. ``data['G0C90B0']`` will return the :class:`~pylinac.winston_lutz.WinstonLutz2DResult`
   for that image. This is in contrast to the existing ``image_details`` attribute that returns a simple list of the results.
-
-* The user can now pass the precision desired for the axes values using a new parameter: ``axes_precision``.
-  This lets the user decide how to round (if at all) the axes values. E.g. a gantry at 90.1 with ``axes_precision=0`` will get
-  rounded to 90. This can be useful with the above if using string keys to get details from a specific image. E.g.:
+  Images that are taken at the same axes values have a ``_{idx}`` appended to them. E.g. 3 images at the same
+  position would look like ``G0C0B0``, ``G0C0B0_1``, and ``G0C0B0_2``.
 
   .. code-block:: python
 
@@ -75,12 +73,27 @@ Winston-Lutz
     wl.analyze(...)
     results = wl.results_data()
     # knowing a priori I had a G90C0B0 image
-    g90_image_data = results.keyed_image_details['G90C0B0']
+    g90_image_data = results.keyed_image_details['G90B0P0']
     # this is in contrast to having to iterate/search over the images
     g90_image_data = [r.gantry_angle == 90 for r in wl.images][0].results_data()
 
-  Images that are taken at the same axes values have a ``_{idx}`` appended to them. E.g. 3 images at the same
-  position would look like ``G0C0B0``, ``G0C0B0_1``, and ``G0C0B0_2``.
+* The user can now pass the precision desired for the axes values using a new parameter: ``axes_precision``.
+  This lets the user decide how to round (if at all) the axes values. E.g. a gantry at 90.1 with ``axes_precision=0`` will get
+  rounded to 90. This can be useful with the above if using string keys to get details from a specific image as per
+  the example above. E.g.:
+
+  .. code-block:: python
+
+     # Assume an image set with G=359.9
+
+     wl = WinstonLutz(...)  # default, no rounding.
+     wl.analyze(...)
+     wl.results_data().keyed_image_details['G359.9B0P0']  # we would have to know the delivery was at 359.9 and use the appropriate key
+
+     # vs
+     wl = WinstonLutz(..., axes_precision=0)
+     wl.analyze(...)
+     wl.results_data().keyed_image_details['G0B0P0']  # whether delivered at G=359.9 or 0.1, this will always round to the nearest integer
 
   .. note::
 
@@ -88,6 +101,15 @@ Winston-Lutz
       round to the nearest integer. I.e. if you usually do 359.9 and want it be displayed as 0 do the above.
       This is helpful for the example above where even if the image was at 359.9 or 89.9, setting ``axes_precision=0``
       will let you use the same consistent key, such as ``data['G0C0B0']`` rather than having to do ``data['G359.9C0B0']``.
+
+  .. warning::
+
+       Due to this new axes precision, the default sorting MAY result in a different sorting of the images. This would
+       only affect you if doing ``<wl>.images[idx]``. If images are delivered on the "other side of 0" the image
+       will bubble down to the bottom of the stack. I.e. an image delivered as G=359.9, B=0, P=0.1 will now bubble to
+       near the bottom of the stack because the images are sorted first by gantry. Previously, the image would be
+       rounded under the hood to be G=0, B=0, P=0. You can largely restore the prior behavior by passing ``axes_precision=0``
+
 
 Core
 ^^^^
