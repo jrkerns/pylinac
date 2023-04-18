@@ -151,6 +151,13 @@ Core
 
 
 
+v 3.9.1
+-------
+
+* A missing dependency in the built wheel ``tabulate`` was added. This only affected users who were trying to use
+  the new ``WinstonLutzMultiTargetMultiField`` class. This can also be remedied by installing the package on its own:
+  ``pip install tabulate``.
+
 v 3.9.0
 -------
 
