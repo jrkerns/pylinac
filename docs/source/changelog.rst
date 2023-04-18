@@ -89,6 +89,18 @@ Core
   of an Image class's ``normalize`` method. ``max`` and ``None`` do the same thing and ``max`` is still a valid argument.
   No change is needed by the user.
 
+* Precision for axes values of ``LinacDicomImage``s and subclasses are now more consistent and also allow the precision
+  value to be set using a new parameter to the init call: ``axes_precision``. Previously, any angle between 359-360 and 0-1 were considered "0". However, this was not true for
+  any other axes value. I.e. the above values were rounded, but no other rounding occurred. This would also only happen
+  if using the automatic DICOM tag values. If the user passed in the axis values directly, they were used as-is.
+  Now, the precision of all axes values can be set using the new ``axes_precision`` parameter. This will round the axes values
+  to the given precision level. This will apply to both
+  DICOM tag values as well as manually-passed values. The default behavior is to not perform any rounding.
+  The only difference users may notice is that axes values about 359-1 are no longer rounded to 0 by default. To
+  restore this type of behavior pass ``axes_precision=0`` which will round 359.5+ to 0 and 359.5- to 359.
+
+
+
 v 3.9.0
 -------
 

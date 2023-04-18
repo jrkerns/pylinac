@@ -36,7 +36,7 @@ from .io import (
     retrieve_filenames,
 )
 from .profile import stretch as stretcharray
-from .utilities import decode_binary, is_close
+from .utilities import decode_binary, is_close, simple_round, wrap360
 
 ARRAY = "Array"
 DICOM = "DICOM"
@@ -1112,11 +1112,16 @@ class LinacDicomImage(DicomImage):
     _use_filenames: bool
 
     def __init__(
-        self, path: str | Path | BinaryIO, use_filenames: bool = False, **kwargs
+        self,
+        path: str | Path | BinaryIO,
+        use_filenames: bool = False,
+        axes_precision: int | None = None,
+        **kwargs,
     ):
         self._gantry = kwargs.pop("gantry", None)
         self._coll = kwargs.pop("coll", None)
         self._couch = kwargs.pop("couch", None)
+        self._axes_precision = axes_precision
         super().__init__(path, **kwargs)
         self._use_filenames = use_filenames
 
@@ -1124,27 +1129,28 @@ class LinacDicomImage(DicomImage):
     def gantry_angle(self) -> float:
         """Gantry angle of the irradiation."""
         if self._gantry is not None:
-            return self._gantry
+            g = self._gantry
         else:
-            return self._get_axis_value(self.gantry_keyword, "GantryAngle")
+            g = self._get_axis_value(self.gantry_keyword, "GantryAngle")
+        return wrap360(simple_round(g, self._axes_precision))
 
     @property
     def collimator_angle(self) -> float:
         """Collimator angle of the irradiation."""
         if self._coll is not None:
-            return self._coll
+            c = self._coll
         else:
-            return self._get_axis_value(
-                self.collimator_keyword, "BeamLimitingDeviceAngle"
-            )
+            c = self._get_axis_value(self.collimator_keyword, "BeamLimitingDeviceAngle")
+        return wrap360(simple_round(c, self._axes_precision))
 
     @property
     def couch_angle(self) -> float:
         """Couch angle of the irradiation."""
         if self._couch is not None:
-            return self._couch
+            c = self._couch
         else:
-            return self._get_axis_value(self.couch_keyword, "PatientSupportAngle")
+            c = self._get_axis_value(self.couch_keyword, "PatientSupportAngle")
+        return wrap360(simple_round(c, self._axes_precision))
 
     def _get_axis_value(self, axis_str: str, axis_dcm_attr: str) -> float:
         """Retrieve the value of the axis. This will first look in the file name for the value.
@@ -1187,11 +1193,7 @@ class LinacDicomImage(DicomImage):
                 axis = float(getattr(self.metadata, axis_dcm_attr))
             except AttributeError:
                 axis = 0
-        # if the value is close to 0 or 360 then peg at 0
-        if is_close(axis, [0, 360], delta=1):
-            return 0
-        else:
-            return axis
+        return axis
 
 
 class FileImage(BaseImage):
