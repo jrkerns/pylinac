@@ -126,6 +126,7 @@ def decode_binary(
     dtype: type[int] | type[float] | type[str] | str,
     num_values: int = 1,
     cursor_shift: int = 0,
+    strip_empty: bool = True,
 ) -> int | float | str | np.ndarray | list:
     """Read in a raw binary file and convert it to given data types.
 
@@ -143,6 +144,8 @@ def decode_binary(
     cursor_shift : int
         The number of bytes to move the cursor forward after decoding. This is used if there is a
         reserved section after the read-in segment.
+    strip_empty : bool
+        Whether to strip trailing empty/null values for strings.
     """
     f = file
 
@@ -154,10 +157,10 @@ def decode_binary(
     elif dtype == str:  # if string
         ssize = struct.calcsize("c") * num_values
         output = struct.unpack("c" * num_values, f.read(ssize))
-        # output = f.read(num_values).decode()
-        # strip the padding ("\x00")
-        output = "".join(o.decode() for o in output if o != b"\x00")
-        # output = output.strip("\x00")
+        if strip_empty:
+            output = "".join(o.decode() for o in output if o != b"\x00")
+        else:
+            output = "".join(o.decode() for o in output)
     elif dtype == int:
         ssize = struct.calcsize("i") * num_values
         output = np.asarray(struct.unpack("i" * num_values, f.read(ssize)))

@@ -3,6 +3,14 @@
 Changelog
 =========
 
+v 3.11.0
+--------
+
+Machine Logs
+^^^^^^^^^^^^
+
+* Anonymization (:meth:`~pylinac.log_analyzer.TrajectoryLog.anonymize`) of trajectory logs now includes the Metadata->Patient ID field for v4+ logs.
+
 v 3.10.0
 --------
 

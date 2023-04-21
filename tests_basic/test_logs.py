@@ -13,7 +13,6 @@ from pylinac.log_analyzer import (
     Dynalog,
     DynalogMatchError,
     MachineLogs,
-    NotADynalogError,
     NotALogError,
     TrajectoryLog,
     TreatmentType,
@@ -94,6 +93,16 @@ class TestAnonymizeFunction(TestCase):
         invalid_path = r"nonexistant/path"
         with self.assertRaises(NotALogError):
             anonymize(invalid_path)
+
+    def test_v4_log(self):
+        v4_tlog = TrajectoryLog(
+            get_file_from_cloud_test_repo(["mlc_logs", "tlogs", "v4_log.bin"])
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            anon_file = v4_tlog.anonymize(destination=tmpdir, suffix="_testing")
+            anon_log = TrajectoryLog(anon_file[0])
+        self.assertEqual(anon_log.header.metadata.patient_id, "Anonymous_testing")
+        self.assertIn("Anonymous_testing", anon_file[0])
 
 
 class TestPublishPDF(TestCase):
