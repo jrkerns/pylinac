@@ -19,6 +19,8 @@ Features:
 * **Anonymize logs** - Both dynalogs and trajectory logs can be "anonymized" by removing the Patient ID from the filename(s)
   and file data.
 """
+from __future__ import annotations
+
 import collections
 import concurrent.futures
 import copy
@@ -34,7 +36,7 @@ import webbrowser
 import zipfile
 from io import BufferedReader, BytesIO
 from pathlib import Path
-from typing import BinaryIO, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import BinaryIO, Iterable, Sequence
 
 import argue
 import matplotlib.pyplot as plt
@@ -207,10 +209,10 @@ class MachineLogs(list):
 
     def avg_gamma(
         self,
-        doseTA: Union[int, float] = 1,
-        distTA: Union[int, float] = 1,
-        threshold: Union[int, float] = 0.1,
-        resolution: Union[int, float] = 0.1,
+        doseTA: int | float = 1,
+        distTA: int | float = 1,
+        threshold: int | float = 0.1,
+        resolution: int | float = 0.1,
     ) -> float:
         """Calculate and return the average gamma of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
@@ -226,10 +228,10 @@ class MachineLogs(list):
 
     def avg_gamma_pct(
         self,
-        doseTA: Union[int, float] = 1,
-        distTA: Union[int, float] = 1,
-        threshold: Union[int, float] = 0.1,
-        resolution: Union[int, float] = 0.1,
+        doseTA: int | float = 1,
+        distTA: int | float = 1,
+        threshold: int | float = 0.1,
+        resolution: int | float = 0.1,
     ) -> float:
         """Calculate and return the average gamma pass percent of all logs. See :meth:`~pylinac.log_analyzer.GammaFluence.calc_map()`
         for further parameter info."""
@@ -245,7 +247,7 @@ class MachineLogs(list):
         print("")
         return gamma_list.mean()
 
-    def to_csv(self) -> List[str]:
+    def to_csv(self) -> list[str]:
         """Write trajectory logs to CSV. If there are both dynalogs and trajectory logs,
         only the trajectory logs will be written. File names will be the same as the original log file names.
 
@@ -269,7 +271,7 @@ class MachineLogs(list):
             )
         return files
 
-    def anonymize(self, inplace: bool = False, suffix: Optional[str] = None):
+    def anonymize(self, inplace: bool = False, suffix: str | None = None):
         """Save anonymized versions of the logs.
 
         For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
@@ -315,7 +317,7 @@ class Axis:
     Parameters are Attributes
     """
 
-    def __init__(self, actual: np.ndarray, expected: Optional[np.ndarray] = None):
+    def __init__(self, actual: np.ndarray, expected: np.ndarray | None = None):
         """
         Parameters
         ----------
@@ -685,10 +687,10 @@ class GammaFluence(FluenceBase):
     @lru_cache(maxsize=1)
     def calc_map(
         self,
-        doseTA: Union[int, float] = 1,
-        distTA: Union[int, float] = 1,
-        threshold: Union[int, float] = 0.1,
-        resolution: Union[int, float] = 0.1,
+        doseTA: int | float = 1,
+        distTA: int | float = 1,
+        threshold: int | float = 0.1,
+        resolution: int | float = 0.1,
         calc_individual_maps: bool = False,
     ) -> np.ndarray:
         """Calculate the gamma from the actual and expected fluences.
@@ -759,7 +761,7 @@ class GammaFluence(FluenceBase):
         plt.colorbar()
         plt.show()
 
-    def histogram(self, bins: Optional[list] = None) -> Tuple[np.ndarray, np.ndarray]:
+    def histogram(self, bins: list | None = None) -> tuple[np.ndarray, np.ndarray]:
         """Return a histogram array and bin edge array of the gamma map values.
 
         Parameters
@@ -782,7 +784,7 @@ class GammaFluence(FluenceBase):
 
     @argue.options(scale=("log", "linear"))
     def plot_histogram(
-        self, scale: str = "log", bins: Optional[list] = None, show: bool = True
+        self, scale: str = "log", bins: list | None = None, show: bool = True
     ) -> None:
         """Plot a histogram of the gamma map values.
 
@@ -804,7 +806,7 @@ class GammaFluence(FluenceBase):
 
     @argue.options(scale=("log", "linear"))
     def save_histogram(
-        self, filename: str, scale: str = "log", bins: Optional[list] = None, **kwargs
+        self, filename: str, scale: str = "log", bins: list | None = None, **kwargs
     ) -> None:
         """Save the histogram plot to file."""
         self.plot_histogram(scale, bins, show=False)
@@ -842,7 +844,7 @@ class MLC:
     def __init__(
         self,
         log_type,
-        snapshot_idx: Optional[np.ndarray] = None,
+        snapshot_idx: np.ndarray | None = None,
         jaw_struct=None,
         hdmlc: bool = False,
         subbeams=None,
@@ -878,7 +880,7 @@ class MLC:
         dlog,
         jaws,
         snapshot_data: np.ndarray,
-        snapshot_idx: Union[list, np.ndarray],
+        snapshot_idx: list | np.ndarray,
     ):
         """Construct an MLC structure from a Dynalog"""
         mlc = MLC(Dynalog, snapshot_idx, jaws)
@@ -1063,7 +1065,7 @@ class MLC:
 
     def get_RMS_percentile(
         self,
-        percentile: Union[int, float] = 95,
+        percentile: int | float = 95,
         bank: MLCBank = MLCBank.BOTH,
         only_moving_leaves: bool = False,
     ):
@@ -1088,7 +1090,7 @@ class MLC:
         rms_array = self.create_RMS_array(leaves)
         return np.percentile(rms_array, percentile)
 
-    def get_RMS(self, leaves_or_bank: Union[str, MLCBank, Iterable]) -> np.ndarray:
+    def get_RMS(self, leaves_or_bank: str | MLCBank | Iterable) -> np.ndarray:
         """Return an array of leaf RMSs for the given leaves or MLC bank.
 
         Parameters
@@ -1140,7 +1142,7 @@ class MLC:
 
     def get_error_percentile(
         self,
-        percentile: Union[int, float] = 95,
+        percentile: int | float = 95,
         bank: MLCBank = MLCBank.BOTH,
         only_moving_leaves: bool = False,
     ) -> float:
@@ -1283,7 +1285,7 @@ class MLC:
     @argue.options(dtype=("actual", "expected"))
     def get_snapshot_values(
         self,
-        bank_or_leaf: Union[MLCBank, Iterable] = MLCBank.BOTH,
+        bank_or_leaf: MLCBank | Iterable = MLCBank.BOTH,
         dtype: str = "actual",
     ) -> np.ndarray:
         """Retrieve the snapshot data of the given MLC bank or leaf/leaves
@@ -1373,8 +1375,8 @@ class CouchStruct:
     long: CouchAxis
     latl: CouchAxis
     rotn: CouchAxis
-    pitch: Optional[CouchAxis]
-    roll: Optional[CouchAxis]
+    pitch: CouchAxis | None
+    roll: CouchAxis | None
 
     def __init__(
         self,
@@ -1382,8 +1384,8 @@ class CouchStruct:
         longitudinal: CouchAxis,
         lateral: CouchAxis,
         rotational: CouchAxis,
-        pitch: Optional[CouchAxis] = None,
-        roll: Optional[CouchAxis] = None,
+        pitch: CouchAxis | None = None,
+        roll: CouchAxis | None = None,
     ):
         if not all(
             (
@@ -1628,7 +1630,7 @@ class LogBase:
             plt.show()
 
     def save_subimage(
-        self, filename: Union[str, BinaryIO], img: Fluence, fontsize: int, **kwargs
+        self, filename: str | BinaryIO, img: Fluence, fontsize: int, **kwargs
     ):
         """Save a subimage to file"""
         self.plot_subfluence(img, show=False, fontsize=fontsize)
@@ -1671,7 +1673,7 @@ class LogBase:
 
     def save_subgraph(
         self,
-        filename: Union[str, BinaryIO],
+        filename: str | BinaryIO,
         graph: Graph,
         fontsize: int = 10,
         labelsize: int = 8,
@@ -1749,74 +1751,6 @@ class LogBase:
                 "Place an underscore between the patient ID and the rest of the filename and try again."
             )
         return under_index
-
-    def anonymize(
-        self,
-        inplace: bool = False,
-        destination: Optional[str] = None,
-        suffix: Optional[str] = None,
-    ) -> list:
-        """Save an anonymized version of the log.
-
-        For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with 'Anonymous<suffix>`.
-        This will rename both A* and B* logs if both are present in the same directory.
-
-        For trajectory logs, the patient ID in the filename is replaced with `Anonymous<suffix>` for the .bin file. If the
-        associated .txt file is in the same directory it will similarly replace the patient ID in the filename with
-        `Anonymous<suffix>`. Additionally, the `Patient ID` row will be replaced with `Patient ID: Anonymous<suffix>`.
-
-        .. note::
-            Anonymization is only available for logs loaded locally (i.e. not from a URL or a data stream). To
-            anonymize such a log it must be first downloaded or written to a file, then loaded in.
-
-        .. note::
-            Anonymization is done to the log *file* itself. The current instance of `MachineLog` will not be anonymized.
-
-        Parameters
-        ----------
-        inplace : bool
-            If False (default), creates an anonymized *copy* of the log(s).
-            If True, *renames and replaces* the content of the log file.
-        destination : str, optional
-            A string specifying the directory where the newly anonymized logs should be placed.
-            If None, will place the logs in the same directory as the originals.
-        suffix : str, optional
-            An optional suffix that is added after `Anonymous` to give specificity to the log.
-
-        Returns
-        -------
-        list
-            A list containing the paths to the newly written files.
-        """
-        if suffix is None:
-            suffix = ""
-
-        # determine destination directory
-        if destination is None:
-            dest_dir = osp.dirname(self.filename)
-        else:
-            if not osp.isdir(destination):
-                raise NotADirectoryError(
-                    f"Specified destination `{destination}` was not a valid directory"
-                )
-            dest_dir = destination
-
-        # copy or rename the files, depending on `inplace` parameter
-        anonymous_filenames = self.anon_file_renames(dest_dir, suffix)
-        method = os.rename if inplace else shutil.copy
-        for old_file, new_file in anonymous_filenames.items():
-            method(old_file, new_file)
-
-        # now the actual anonymization
-        for file in self.anon_files(dest_dir, suffix):
-            with open(file, encoding="utf-8") as f:
-                txtdata = f.readlines()
-            txtdata[self.ANON_LINE] = "Patient ID:\tAnonymous_" + suffix + "\n"
-            with open(file, mode="w", encoding="utf-8") as f:
-                f.writelines(txtdata)
-            print("Anonymized file written to: ", file)
-
-        return anonymous_filenames.values()
 
 
 class DynalogHeader(Structure):
@@ -2066,7 +2000,7 @@ class Dynalog(LogBase):
         notes: str = None,
         metadata: dict = None,
         open_file: bool = False,
-        logo: Optional[Union[Path, str]] = None,
+        logo: Path | str | None = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -2165,6 +2099,70 @@ class Dynalog(LogBase):
             raise FileNotFoundError(
                 "Complementary dlg file not found; ensure A and B-file are in same directory."
             )
+
+    def anonymize(
+        self,
+        inplace: bool = False,
+        destination: str | None = None,
+        suffix: str | None = None,
+    ) -> list[str]:
+        """Save an anonymized version of the log.
+
+        For dynalogs, this replaces the patient ID in the filename(s) and the second line of the log with ``Anonymous<suffix>``.
+        This will rename both A* and B* logs if both are present in the same directory.
+
+        .. note::
+            Anonymization is only available for logs loaded locally (i.e. not from a URL or a data stream). To
+            anonymize such a log it must be first downloaded or written to a file, then loaded in.
+
+        .. note::
+            Anonymization is done to the log **file** itself. The current instance of ``MachineLog`` will not be anonymized.
+
+        Parameters
+        ----------
+        inplace : bool
+            If False (default), creates an anonymized **copy** of the log(s).
+            If True, **renames and replaces** the content of the log file.
+        destination : str, optional
+            A string specifying the directory where the newly anonymized logs should be placed.
+            If None, will place the logs in the same directory as the originals.
+        suffix : str, optional
+            An optional suffix that is added after ``Anonymous`` to give specificity to the log.
+
+        Returns
+        -------
+        list
+            A list containing the paths to the newly written files.
+        """
+        if suffix is None:
+            suffix = ""
+
+        # determine destination directory
+        if destination is None:
+            dest_dir = osp.dirname(self.filename)
+        else:
+            if not osp.isdir(destination):
+                raise NotADirectoryError(
+                    f"Specified destination `{destination}` was not a valid directory"
+                )
+            dest_dir = destination
+
+        # copy or rename the files, depending on `inplace` parameter
+        anonymous_filenames = self.anon_file_renames(dest_dir, suffix)
+        method = os.rename if inplace else shutil.copy
+        for old_file, new_file in anonymous_filenames.items():
+            method(old_file, new_file)
+
+        # now the actual anonymization
+        for file in self.anon_files(dest_dir, suffix):
+            with open(file, encoding="utf-8") as f:
+                txtdata = f.readlines()
+            txtdata[self.ANON_LINE] = "Patient ID:\tAnonymous_" + suffix + "\n"
+            with open(file, mode="w", encoding="utf-8") as f:
+                f.writelines(txtdata)
+            print("Anonymized file written to: ", file)
+
+        return list(anonymous_filenames.values())
 
 
 class TrajectoryLogAxisData:
@@ -2339,7 +2337,7 @@ class TrajectoryLog(LogBase):
 
     ANON_LINE = 0
 
-    def __init__(self, filename: Union[str, BinaryIO], exclude_beam_off: bool = True):
+    def __init__(self, filename: str | BinaryIO, exclude_beam_off: bool = True):
         super().__init__(filename, exclude_beam_off)
 
         self._read_txt_file()
@@ -2371,25 +2369,120 @@ class TrajectoryLog(LogBase):
         if self.txt is not None:
             return self.filename.replace(".bin", ".txt")
 
-    def anon_file_renames(self, destination: str, suffix: str) -> dict:
+    def anon_file_renames(self, destination: str, suffix: str) -> dict[str, str]:
         base_filename = osp.basename(self.filename)
         anonymous_base_filename = (
             "Anonymous" + suffix + base_filename[self._underscore_idx :]
         )
         anonymous_filename = osp.join(destination, anonymous_base_filename)
-        filenames = collections.OrderedDict()
-        filenames[self.filename] = anonymous_filename
+        filenames = {self.filename: anonymous_filename}
         if self.txt_filename is not None:
             anonymous_txtfilename = anonymous_filename.replace(".bin", ".txt")
             filenames[self.txt_filename] = anonymous_txtfilename
         return filenames
 
-    def anon_files(self, destination: str, suffix: str) -> list:
-        renames = self.anon_file_renames(destination, suffix)
-        if self.txt is not None:
-            return [file for file in renames.values() if ".txt" in file]
+    def anonymize(
+        self,
+        inplace: bool = False,
+        destination: str | None = None,
+        suffix: str | None = None,
+    ) -> list[str]:
+        """Save an anonymized version of the log.
+
+        The patient ID in the filename is replaced with ``Anonymous<suffix>`` for the .bin file. If the
+        associated .txt file is in the same directory it will similarly replace the patient ID in the filename with
+        ``Anonymous<suffix>``. Additionally, the `Patient ID` row will be replaced with ``Patient ID: Anonymous<suffix>``.
+        For v4+ logs, the Patient ID field in the Metadata structure will be replaced with ``Anonymous<suffix>``.
+
+        .. note::
+            Anonymization is only available for logs loaded locally (i.e. not from a URL or a data stream). To
+            anonymize such a log it must be first downloaded or written to a file, then loaded in.
+
+        .. note::
+            Anonymization is done to the log **file** itself. The current instance of ``MachineLog`` will not be anonymized.
+
+        Parameters
+        ----------
+        inplace : bool
+            If False (default), creates an anonymized **copy** of the log(s).
+            If True, **renames and replaces** the content of the log file.
+        destination : str, optional
+            A string specifying the directory where the newly anonymized logs should be placed.
+            If None, will place the logs in the same directory as the originals.
+        suffix : str, optional
+            An optional suffix that is added after ``Anonymous`` to give specificity to the log.
+
+        Returns
+        -------
+        list
+            A list containing the paths to the newly written files.
+        """
+        if suffix is None:
+            suffix = ""
+
+        # determine destination directory
+        if destination is None:
+            dest_dir = osp.dirname(self.filename)
         else:
-            return []
+            if not osp.isdir(destination):
+                raise NotADirectoryError(
+                    f"Specified destination `{destination}` was not a valid directory"
+                )
+            dest_dir = destination
+
+        # copy or rename the files, depending on `inplace` parameter
+        anonymous_filenames = self.anon_file_renames(dest_dir, suffix)
+        method = os.rename if inplace else shutil.copy
+        for old_file, new_file in anonymous_filenames.items():
+            method(old_file, new_file)
+
+        # anonymize the .txt file if it exists.
+        # The .txt file is no longer in use so this can likely be removed at some point in the future
+        txt_file = anonymous_filenames.get(self.txt_filename)
+        if txt_file:
+            with open(txt_file, encoding="utf-8") as f:
+                txtdata = f.readlines()
+            txtdata[self.ANON_LINE] = "Patient ID:\tAnonymous_" + suffix + "\n"
+            with open(txt_file, mode="w", encoding="utf-8") as f:
+                f.writelines(txtdata)
+            print(f"Anonymized .txt file written to: {txt_file}")
+
+        # anonymize the .bin file. Only applies to v4+ files as only they contain metadata
+        bin_file = anonymous_filenames[self.filename]
+        if self.header.version < 4:
+            print(
+                f"The log version is <4.0 and thus does not have metadata. No fields to anonymize. A simple copy or rename has been performed to {bin_file}"
+            )
+        else:
+            with open(self.filename, mode="rb") as log_file:
+                # each block listed per the manual
+                header_size = (
+                    16
+                    + 16
+                    + 4
+                    + 4
+                    + 4
+                    + (4 * self.header.num_axes)
+                    + (4 * self.header.num_axes)
+                    + 4
+                    + 4
+                    + 4
+                    + 4
+                    + 4
+                )
+                header_data = log_file.read(header_size)
+                metadata = decode_binary(log_file, str, 745, strip_empty=False)
+                fields = metadata.split("\r\n")
+                fields[0] = fields[0].split("\t")[0] + "\tAnonymous" + suffix
+                anon_metadata = bytes("\r\n".join(fields).encode("ascii"))
+                rest_of_data = log_file.read()
+
+            with open(bin_file, mode="wb") as new_log_file:
+                new_log_file.write(header_data)
+                new_log_file.write(anon_metadata)
+                new_log_file.write(rest_of_data)
+            print(f"The anonymized .bin file has been written to {bin_file}")
+        return list(anonymous_filenames.values())
 
     def _read_txt_file(self) -> None:
         """Read a Tlog's associated .txt file and put in under the 'txt' attribute."""
@@ -2420,7 +2513,7 @@ class TrajectoryLog(LogBase):
         tlog.report_basic_parameters()
         tlog.plot_summary()
 
-    def to_csv(self, filename: Optional[str] = None) -> str:
+    def to_csv(self, filename: str | None = None) -> str:
         """Write the log to a CSV file.
 
         Parameters
@@ -2550,11 +2643,11 @@ class TrajectoryLog(LogBase):
 
     def publish_pdf(
         self,
-        filename: Union[str, BinaryIO],
+        filename: str | BinaryIO,
         metadata: dict = None,
-        notes: Union[str, list] = None,
+        notes: str | list = None,
         open_file: bool = False,
-        logo: Optional[Union[Path, str]] = None,
+        logo: Path | str | None = None,
     ):
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -2694,7 +2787,7 @@ def anonymize(
 
 def load_log(
     file_or_dir: str, exclude_beam_off: bool = True, recursive: bool = True
-) -> Union[TrajectoryLog, Dynalog, MachineLogs]:
+) -> TrajectoryLog | Dynalog | MachineLogs:
     """Load a log file or directory of logs, either dynalogs or Trajectory logs.
 
     Parameters
