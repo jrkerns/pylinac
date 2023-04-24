@@ -36,6 +36,7 @@ from typing import BinaryIO, Iterable, Sequence
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial.transform import Rotation
 from scipy import linalg, ndimage, optimize
 from skimage import measure
 from skimage.measure._regionprops import RegionProperties
@@ -1495,9 +1496,17 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
             sad=self.sad,
             gantry=self.gantry_angle,
         )
+        
+        bev_projections = _bb_projection_with_rotation(
+            offset_left=bb["offset_left_mm"],
+            offset_up=bb["offset_up_mm"],
+            sad=self.sad,
+            gantry=self.gantry_angle,
+        )
+
         # unlike vanilla WL, the field can be asymmetric, so use center of image
-        expected_y = self.epid.y - shift_y_mm * self.dpmm
-        expected_x = self.epid.x + shift_x_mm * self.dpmm
+        expected_y = self.epid.y - bev_projections[1] * self.dpmm
+        expected_x = self.epid.x + bev_projections[0] * self.dpmm
         return Point(x=expected_x, y=expected_y)
 
     def _find_field_centroid(self, location: dict) -> tuple[Point, list]:
@@ -1971,3 +1980,31 @@ def bb_projection_gantry_plane(
         + offset_left * -cos(gantry)
         + addtl_left_shift
     )
+
+def _bb_projection_with_rotation(
+    offset_left: float, offset_up: float, sad: float, gantry: float, panel_SSD: float 
+) -> float:
+    """Calculate the isoplane projection in the plane of gantry rotation (X/Z)"""
+
+    # Iso distance is always fixed but SID can change. Make array
+    cylinder_centre_SSD = np.array([1000,0,0]) # mm
+
+    # Find rotated positions around isocentre in line with applied rotations
+    bb_positions = [offset_left,offset_up,0] # left, up, in
+
+    # Apply extrinsic rotations here. Can't use simple rotation matricies as order of operation matters + sequention frame of ref rotations.
+    # Too much time spent bashing my head against this part of the problem...
+    couch = 0
+    collimator = 0
+    rotation_matrix = Rotation.from_euler('xyz',[couch,collimator,gantry],degrees=True)
+    rotated_positions = rotation_matrix.apply(bb_positions)
+
+    # Positions in BEV relative to source. Post is +ve in eclipse, so sum together
+    bev_positions = cylinder_centre_SSD + rotated_positions
+    print(f"rotated positions around iso are \n {np.round(bev_positions)}")
+
+    # How much to scale positions is depended on BB SSD. This is a function of the BEV rotation, so apply array for each
+    # This calculates projection onto the panel at the panel SSD
+    imager_projections = np.array([bev_positions[:,1], bev_positions[:,2]]) * panel_SSD / bev_positions[:,0] # panel SSD in mm
+
+    return imager_projections
