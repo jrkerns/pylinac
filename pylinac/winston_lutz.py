@@ -1483,19 +1483,6 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
 
     def _nominal_point(self, bb: dict) -> Point:
         """Calculate the expected point position in 2D"""
-        shift_y_mm = bb_projection_long(
-            offset_in=bb["offset_in_mm"],
-            offset_up=bb["offset_up_mm"],
-            offset_left=bb["offset_left_mm"],
-            sad=self.sad,
-            gantry=self.gantry_angle,
-        )
-        shift_x_mm = bb_projection_gantry_plane(
-            offset_left=bb["offset_left_mm"],
-            offset_up=bb["offset_up_mm"],
-            sad=self.sad,
-            gantry=self.gantry_angle,
-        )
         
         bev_projections = _bb_projection_with_rotation(
             offset_left=bb["offset_left_mm"],
@@ -1507,9 +1494,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
 
         # unlike vanilla WL, the field can be asymmetric, so use center of image
         expected_y_bev = self.epid.y - bev_projections[1] * self.dpmm
-        expected_y = self.epid.y - shift_y_mm * self.dpmm
-        expected_x = self.epid.x + shift_x_mm * self.dpmm
-        expected_x_bev = self.epid.x + bev_projections[0] * self.dpmm
+        expected_x_bev = self.epid.x - bev_projections[0] * self.dpmm
 
         return Point(x=expected_x_bev, y=expected_y_bev)
 
@@ -1997,7 +1982,7 @@ def _bb_projection_with_rotation(
     # Too much time spent bashing my head against this part of the problem...
     couch = 0
     collimator = 0
-    rotation_matrix = Rotation.from_euler('xyz',[couch,collimator,-gantry],degrees=True)
+    rotation_matrix = Rotation.from_euler('xyz',[couch,collimator,gantry],degrees=True)
     rotated_positions = rotation_matrix.apply(bb_positions)
 
     # Positions in BEV relative to source. Post is +ve in eclipse, so sum together
