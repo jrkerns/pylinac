@@ -16,17 +16,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.optimize import OptimizeWarning, minimize
 from scipy.stats import linregress
 
-from .array_utils import (
-    bit_invert,
-    convert_to_dtype,
-    filter,
-    geometric_center_idx,
-    geometric_center_value,
-    ground,
-    invert,
-    normalize,
-)
-from .array_utils import stretch as util_stretch
+from . import array_utils as utils
 from .geometry import Circle, Point
 from .hill import Hill
 from .utilities import convert_to_enum
@@ -159,11 +149,11 @@ class ProfileMixin:
 
     def invert(self) -> None:
         """Invert the profile."""
-        self.values = invert(self.values)
+        self.values = utils.invert(self.values)
 
     def bit_invert(self) -> None:
         """Invert the profile bit-wise."""
-        self.values = bit_invert(self.values)
+        self.values = utils.bit_invert(self.values)
 
     def normalize(self, norm_val: str | float | None = None) -> None:
         """Normalize the profile to the given value.
@@ -176,7 +166,7 @@ class ProfileMixin:
         # backwards compatibility
         if norm_val == "max":
             norm_val = None
-        self.values = normalize(self.values, value=norm_val)
+        self.values = utils.normalize(self.values, value=norm_val)
 
     def stretch(self, min: float = 0, max: float = 1) -> None:
         """'Stretch' the profile to the min and max parameter values.
@@ -188,11 +178,11 @@ class ProfileMixin:
         max : number
             The new maximum value.
         """
-        self.values = util_stretch(self.values, min=min, max=max)
+        self.values = utils.stretch(self.values, min=min, max=max)
 
     def convert_to_dtype(self, dtype: type[np.dtype]) -> None:
         """Convert the profile datatype to another datatype while retaining the values relative to the datatype min/max"""
-        self.values = convert_to_dtype(self.values, dtype=dtype)
+        self.values = utils.convert_to_dtype(self.values, dtype=dtype)
 
     def ground(self) -> float:
         """Ground the profile such that the lowest value is 0.
@@ -203,7 +193,7 @@ class ProfileMixin:
             The minimum value that was used as the grounding value.
         """
         min_val = self.values.min()
-        self.values = ground(self.values)
+        self.values = utils.ground(self.values)
         return min_val
 
     def filter(self, size: float = 0.05, kind: str = "median") -> None:
@@ -219,7 +209,7 @@ class ProfileMixin:
         kind : {'median', 'gaussian'}
             The kind of filter to apply. If gaussian, `size` is the sigma value.
         """
-        self.values = filter(self.values, size=size, kind=kind)
+        self.values = utils.filter(self.values, size=size, kind=kind)
 
     def __len__(self):
         return len(self.values)
@@ -251,6 +241,151 @@ class Edge(enum.Enum):
     FWHM = "FWHM"  #:
     INFLECTION_DERIVATIVE = "Inflection Derivative"  #:
     INFLECTION_HILL = "Inflection Hill"  #:
+
+
+class ArrayProfile(ProfileMixin):
+    def __init__(
+        self,
+        values: np.ndarray,
+        x_values: np.ndarray | None = None,
+        ground: bool = False,
+        normalization: str = Normalization.NONE,
+    ):
+        self.values = values
+        if x_values is None:
+            x_values = np.arange(len(values))
+        self.x_values = x_values
+        if ground:
+            self.values = utils.ground(values)
+        if normalization == Normalization.MAX:
+            self.normalize()
+        elif normalization == Normalization.GEOMETRIC_CENTER:
+            center_val = self.geometric_center_value()
+            self.normalize(center_val)
+        elif normalization == Normalization.BEAM_CENTER:
+            beam_center_val = self.values[int(round(self.fwxm_center_idx(x=50)))]
+            self.normalize(beam_center_val)
+
+    def geometric_center_idx(self) -> float:
+        """The geometric center (i.e. the device center) index"""
+        return utils.geometric_center_idx(self.values)
+
+    def geometric_center_value(self) -> float:
+        """The array value at the geometric center (i.e. the device center)"""
+        return utils.geometric_center_value(self.values)
+
+    def fwxm_width_px(self, x: int | float = 50) -> float:
+        _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
+        left_idx = peak_props["left_ips"][0]
+        right_idx = peak_props["right_ips"][0]
+        width = right_idx - left_idx
+        return width
+
+    def fwxm_center_idx(self, x: int | float = 50) -> float:
+        _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
+        left_idx = peak_props["left_ips"][0]
+        right_idx = peak_props["right_ips"][0]
+        fwxm_center_idx = (right_idx - left_idx) / 2 + left_idx
+        return fwxm_center_idx
+
+    def fwxm_left_idx(self, x: int | float = 50) -> float:
+        _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
+        left_idx = peak_props["left_ips"][0]
+        return left_idx
+
+    def fwxm_right_idx(self, x: int | float = 50) -> float:
+        _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
+        right_idx = peak_props["right_ips"][0]
+        return right_idx
+
+    def fwxm_values(self, x: int | float = 50) -> np.ndarray:
+        left = int(round(self.fwxm_left_idx(x=x)))
+        right = int(round(self.fwxm_right_idx(x=x)))
+        return self.values[left : right + 1]
+
+    def penumbra_width_px(
+        self, side: str = "left", upper: float | int = 80, lower: float | int = 20
+    ) -> float:
+        """The width of the penumbra in pixels on the left side"""
+        if lower > upper:
+            raise ValueError(
+                "Upper penumbra value must be larger than the lower penumbra value"
+            )
+        if side == "left":
+            upper_idx = self.fwxm_left_idx(x=upper)
+            lower_idx = self.fwxm_left_idx(x=lower)
+        elif side == "right":
+            upper_idx = self.fwxm_right_idx(x=upper)
+            lower_idx = self.fwxm_right_idx(x=lower)
+        return abs(upper_idx - lower_idx)
+
+    def inflection_idx_derivative(
+        self, side: str = "left", smoothing_ratio: float = 0.03
+    ) -> float:
+        """Calculate the profile inflection values using either the 2nd derivative or a fitted Hill function.
+
+        Parameters
+        ----------
+
+        """
+        # get max/min of the gradient, which is basically the same as the 2nd deriv 0-crossing
+        filtered_values = gaussian_filter1d(
+            self.values, sigma=smoothing_ratio * len(self.values)
+        )
+        d1 = np.gradient(filtered_values)
+        if side == "left":
+            return max(d1)
+        else:
+            return min(d1)
+
+    def inflection_idx_hill(
+        self,
+        side: str = "left",
+        smoothing_ratio: float = 0.003,
+        window_ratio: float = 0.1,
+    ) -> float:
+        left_infl_idx = self.inflection_idx_derivative(
+            side="left", smoothing_ratio=smoothing_ratio
+        )
+        right_infl_idx = self.inflection_idx_derivative(
+            side="right", smoothing_ratio=smoothing_ratio
+        )
+        window_size = (right_infl_idx - left_infl_idx) * window_ratio
+        if side == "left":
+            left = int(round(left_infl_idx - window_size))
+            right = int(round(left_infl_idx + window_size))
+            x_data = self.x_values[left : right + 1]
+            y_data = self.values[left : right + 1]
+        else:
+            left = int(round(right_infl_idx - window_size))
+            right = int(round(right_infl_idx + window_size))
+            x_data = self.x_values[left : right + 1]
+            y_data = self.values[left : right + 1]
+        hill_fit = Hill.fit(x_data=x_data, y_data=y_data)
+        return hill_fit.inflection_idx()["index (exact)"]
+
+
+class PhysicalProfile(ArrayProfile):
+    def __init__(
+        self,
+        values: np.ndarray,
+        dpmm: float,
+        x_values: np.ndarray | None = None,
+        ground: bool = False,
+        normalization: str = Normalization.NONE,
+    ):
+        super().__init__(
+            values=values, x_values=x_values, ground=ground, normalization=normalization
+        )
+        self.dpmm = dpmm
+
+    def fwxm_width_mm(self, x: int | float = 50):
+        return self.fwxm_width_px(x=x) / self.dpmm
+
+    def penumbra_width_mm(
+        self, side: str = "left", upper: int | float = 80, lower: int | float = 20
+    ):
+        return self.penumbra_width_px(side=side, upper=upper, lower=lower) / self.dpmm
 
 
 class SingleProfile(ProfileMixin):
@@ -455,8 +590,10 @@ class SingleProfile(ProfileMixin):
         If the profile has an even number of values the centre lies between the two centre indices and the centre
         value is the average of the two centre values else the centre index and value are returned."""
         return {
-            "index (exact)": self._x_interp_to_original(geometric_center_idx(values)),
-            "value (exact)": geometric_center_value(values),
+            "index (exact)": self._x_interp_to_original(
+                utils.geometric_center_idx(values)
+            ),
+            "value (exact)": utils.geometric_center_value(values),
         }
 
     def geometric_center(self) -> dict:

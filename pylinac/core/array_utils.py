@@ -3,21 +3,8 @@ from __future__ import annotations
 import numpy as np
 from scipy import ndimage
 
-from pylinac.core.decorators import validate
-
-
-def array_not_empty(array: np.ndarray) -> None:
-    """Check an array isn't empty"""
-    if not array.size:
-        raise ValueError("Array must not be empty")
-
-
-def single_dimension(array: np.ndarray) -> None:
-    """Check an array is a single dimension"""
-    if array.ndim > 1:
-        raise ValueError(
-            f"Array was multidimensional. Must pass 1D array; found {array.ndim}"
-        )
+from .decorators import validate
+from .validators import array_not_empty, single_dimension
 
 
 @validate(array=(array_not_empty, single_dimension))
@@ -123,7 +110,9 @@ def filter(
 
 
 @validate(array=array_not_empty)
-def stretch(array: np.ndarray, min: int = 0, max: int = 1) -> np.ndarray:
+def stretch(
+    array: np.ndarray, min: int | float = 0, max: int | float = 1
+) -> np.ndarray:
     """'Stretch' the profile to the fit a new min and max value. This is a utility for grounding + normalizing.
 
     Parameters
