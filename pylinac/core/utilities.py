@@ -102,8 +102,8 @@ def simple_round(number: float | int, decimals: int | None = 0) -> float | int:
 
 
 def wrap360(value: float) -> float:
-    """Wrap the input value around 360"""
-    return value % 360
+    """Wrap the input value around 360. Also converts negative angles to equivalent positive ones"""
+    return (360 + value) % 360
 
 
 def is_iterable(object) -> bool:

@@ -1724,7 +1724,7 @@ class CatPhanBase:
         center_x = []
         center_y = []
         for idx, img in enumerate(self.dicom_stack):
-            slice = Slice(self, slice_num=idx)
+            slice = Slice(self, slice_num=idx, clear_borders=self.clear_borders)
             if slice.is_phantom_in_view():
                 roi = slice.phantom_roi
                 z.append(idx)
@@ -1829,7 +1829,7 @@ class CatPhanBase:
         float : the angle of the phantom in **degrees**.
         """
         # get edges and make ROIs from it
-        slice = Slice(self, self.origin_slice)
+        slice = Slice(self, self.origin_slice, clear_borders=self.clear_borders)
         larr, regions, _ = get_regions(slice)
         # find appropriate ROIs and grab the two most centrally positioned ones
         hu_bubbles = [

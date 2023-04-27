@@ -26,6 +26,8 @@ class TestUtilities(unittest.TestCase):
             convert_to_enum("baffled", Interpolation)
 
     def test_wrap_360_over(self):
+        self.assertEqual(wrap360(-90), 270)
+        self.assertEqual(wrap360(-5), 355)
         self.assertEqual(wrap360(361), 1)
         self.assertEqual(wrap360(360), 0)
         self.assertEqual(wrap360(359), 359)
