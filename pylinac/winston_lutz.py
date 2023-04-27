@@ -36,8 +36,8 @@ from typing import BinaryIO, Iterable, Sequence
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.spatial.transform import Rotation
 from scipy import linalg, ndimage, optimize
+from scipy.spatial.transform import Rotation
 from skimage import measure
 from skimage.measure._regionprops import RegionProperties
 from tabulate import tabulate
@@ -1480,7 +1480,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         if show:
             plt.show()
         return ax
-    
+
     def _nominal_point(self, bb: dict) -> Point:
         """Calculate the expected point position in 2D"""
         shift_y_mm = bb_projection_long(
@@ -1500,7 +1500,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         expected_y = self.epid.y - shift_y_mm * self.dpmm
         expected_x = self.epid.x + shift_x_mm * self.dpmm
         return Point(x=expected_x, y=expected_y)
-      
+
     def _find_field_centroid(self, location: dict) -> tuple[Point, list]:
         """Find the centroid of the radiation field based on a 50% height threshold.
         This applies the field detection conditions and also a nearness condition.
@@ -1973,6 +1973,7 @@ def bb_projection_gantry_plane(
         + addtl_left_shift
     )
 
+
 def _bb_projection_with_rotation(
     offset_left: float,
     offset_up: float,
@@ -1985,7 +1986,7 @@ def _bb_projection_with_rotation(
 
     This function applies a rotation around the gantry plane (X/Z) to the
     ball bearing (BB) position and calculates its projection onto the isocentre plane in the beam's eye view.
-    
+
     Could be used to calculate couch rotations, but not validated yet.
 
     Args:
@@ -2007,10 +2008,16 @@ def _bb_projection_with_rotation(
 
     # Apply the rotation matrix to the BB positions
     collimator = 0  # Collimator doesn't change positional projection onto panel
-    rotation_matrix = Rotation.from_euler("xyz", [couch, collimator, gantry], degrees=True)
+    rotation_matrix = Rotation.from_euler(
+        "xyz", [couch, collimator, gantry], degrees=True
+    )
     rotated_positions = rotation_matrix.apply(bb_positions)
-    
+
     # Calculate the projection onto the panel at the given SSD
-    bb_magnification = sad / (sad - rotated_positions[0])  # Distance from source to panel
-    imager_projection = np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
+    bb_magnification = sad / (
+        sad - rotated_positions[0]
+    )  # Distance from source to panel
+    imager_projection = (
+        np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
+    )
     return imager_projection
