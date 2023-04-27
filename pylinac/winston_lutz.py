@@ -2012,5 +2012,5 @@ def _bb_projection_with_rotation(
     
     # Calculate the projection onto the panel at the given SSD
     bb_magnification = sad / (sad - rotated_positions[0])  # Distance from source to panel
-    imager_projections = np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
+    imager_projection = np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
     return imager_projection
