@@ -36,6 +36,7 @@ from typing import BinaryIO, Iterable, Sequence
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial.transform import Rotation
 from scipy import linalg, ndimage, optimize
 from skimage import measure
 from skimage.measure._regionprops import RegionProperties
@@ -1479,7 +1480,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         if show:
             plt.show()
         return ax
-
+    
     def _nominal_point(self, bb: dict) -> Point:
         """Calculate the expected point position in 2D"""
         shift_y_mm = bb_projection_long(
@@ -1499,7 +1500,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         expected_y = self.epid.y - shift_y_mm * self.dpmm
         expected_x = self.epid.x + shift_x_mm * self.dpmm
         return Point(x=expected_x, y=expected_y)
-
+      
     def _find_field_centroid(self, location: dict) -> tuple[Point, list]:
         """Find the centroid of the radiation field based on a 50% height threshold.
         This applies the field detection conditions and also a nearness condition.
@@ -1971,3 +1972,45 @@ def bb_projection_gantry_plane(
         + offset_left * -cos(gantry)
         + addtl_left_shift
     )
+
+def _bb_projection_with_rotation(
+    offset_left: float,
+    offset_up: float,
+    offset_in: float,
+    gantry: float,
+    couch: float = 0,
+    sad: float = 1000,
+) -> np.ndarray:
+    """Calculate the isoplane projection onto the panel at the given SSD.
+
+    This function applies a rotation around the gantry plane (X/Z) to the
+    ball bearing (BB) position and calculates its projection onto the isocentre plane in the beam's eye view.
+    
+    Could be used to calculate couch rotations, but not validated yet.
+
+    Args:
+        offset_left (float): The BB position in the left/right direction.
+        offset_up (float): The BB position in the superior/inferior direction.
+        offset_in (float): The BB position in the anterior/posterior direction.
+        gantry (float): The gantry angle in degrees.
+        couch (float, optional): The couch angle in degrees. Defaults to 0.
+        sad (float, optional): The source-to-axis distance in mm. Defaults to 1000.
+
+    Returns:
+        np.ndarray: The projection of the BB onto the panel at the given SSD.
+            The array has shape (2,) where the first element is the projection in the
+            left/right direction and the second element is the projection in the
+            superior/inferior direction.
+    """
+    # Define the BB positions in the patient coordinate system (ap, lr, si)
+    bb_positions = np.array([offset_up, offset_left, offset_in])
+
+    # Apply the rotation matrix to the BB positions
+    collimator = 0  # Collimator doesn't change positional projection onto panel
+    rotation_matrix = Rotation.from_euler("xyz", [couch, collimator, gantry], degrees=True)
+    rotated_positions = rotation_matrix.apply(bb_positions)
+    
+    # Calculate the projection onto the panel at the given SSD
+    bb_magnification = sad / (sad - rotated_positions[0])  # Distance from source to panel
+    imager_projection = np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
+    return imager_projection
