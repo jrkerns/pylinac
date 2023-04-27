@@ -1480,24 +1480,27 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         if show:
             plt.show()
         return ax
-
+    
     def _nominal_point(self, bb: dict) -> Point:
         """Calculate the expected point position in 2D"""
-        
-        bev_projections = _bb_projection_with_rotation(
+        shift_y_mm = bb_projection_long(
+            offset_in=bb["offset_in_mm"],
+            offset_up=bb["offset_up_mm"],
+            offset_left=bb["offset_left_mm"],
+            sad=self.sad,
+            gantry=self.gantry_angle,
+        )
+        shift_x_mm = bb_projection_gantry_plane(
             offset_left=bb["offset_left_mm"],
             offset_up=bb["offset_up_mm"],
-            offset_in=bb["offset_in_mm"],
+            sad=self.sad,
             gantry=self.gantry_angle,
-            panel_SSD=1500
         )
-
         # unlike vanilla WL, the field can be asymmetric, so use center of image
-        expected_y_bev = self.epid.y - bev_projections[1] * self.dpmm
-        expected_x_bev = self.epid.x - bev_projections[0] * self.dpmm
-
-        return Point(x=expected_x_bev, y=expected_y_bev)
-
+        expected_y = self.epid.y - shift_y_mm * self.dpmm
+        expected_x = self.epid.x + shift_x_mm * self.dpmm
+        return Point(x=expected_x, y=expected_y)
+      
     def _find_field_centroid(self, location: dict) -> tuple[Point, list]:
         """Find the centroid of the radiation field based on a 50% height threshold.
         This applies the field detection conditions and also a nearness condition.
@@ -1971,25 +1974,43 @@ def bb_projection_gantry_plane(
     )
 
 def _bb_projection_with_rotation(
-    offset_left: float, offset_up: float, offset_in: float, gantry: float, panel_SSD: float 
-) -> float:
-    """Calculate the isoplane projection in the plane of gantry rotation (X/Z)"""
+    offset_left: float,
+    offset_up: float,
+    offset_in: float,
+    gantry: float,
+    couch: float = 0,
+    sad: float = 1000,
+) -> np.ndarray:
+    """Calculate the isoplane projection onto the panel at the given SSD.
 
-    # Find rotated positions around isocentre in line with applied rotations
-    bb_positions = [offset_up,offset_left,offset_in] # ap, lr, si
+    This function applies a rotation around the gantry plane (X/Z) to the
+    ball bearing (BB) position and calculates its projection onto the isocentre plane in the beam's eye view.
+    
+    Could be used to calculate couch rotations, but not validated yet.
 
-    # Apply extrinsic rotations here. Can't use simple rotation matricies as order of operation matters + sequention frame of ref rotations.
-    # Too much time spent bashing my head against this part of the problem...
-    couch = 0
-    collimator = 0
-    rotation_matrix = Rotation.from_euler('xyz',[couch,collimator,gantry],degrees=True)
+    Args:
+        offset_left (float): The BB position in the left/right direction.
+        offset_up (float): The BB position in the superior/inferior direction.
+        offset_in (float): The BB position in the anterior/posterior direction.
+        gantry (float): The gantry angle in degrees.
+        couch (float, optional): The couch angle in degrees. Defaults to 0.
+        sad (float, optional): The source-to-axis distance in mm. Defaults to 1000.
+
+    Returns:
+        np.ndarray: The projection of the BB onto the panel at the given SSD.
+            The array has shape (2,) where the first element is the projection in the
+            left/right direction and the second element is the projection in the
+            superior/inferior direction.
+    """
+    # Define the BB positions in the patient coordinate system (ap, lr, si)
+    bb_positions = np.array([offset_up, offset_left, offset_in])
+
+    # Apply the rotation matrix to the BB positions
+    collimator = 0  # Collimator doesn't change positional projection onto panel
+    rotation_matrix = Rotation.from_euler("xyz", [couch, collimator, gantry], degrees=True)
     rotated_positions = rotation_matrix.apply(bb_positions)
-
-    # Positions in BEV relative to source. Post is +ve in eclipse, so sum together
-    bev_positions = rotated_positions + np.array([panel_SSD,0,0])
-
-    # How much to scale positions is depended on BB SSD. This is a function of the BEV rotation, so apply array for each
-    # This calculates projection onto the panel at the panel SSD
-    imager_projections = np.array([bev_positions[1], bev_positions[2]]) * panel_SSD / bev_positions[0] # panel SSD in mm
-
-    return imager_projections
+    
+    # Calculate the projection onto the panel at the given SSD
+    bb_magnification = sad / (sad - rotated_positions[0])  # Distance from source to panel
+    imager_projections = np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
+    return imager_projection
