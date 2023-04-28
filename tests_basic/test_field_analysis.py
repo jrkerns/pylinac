@@ -446,11 +446,9 @@ class FFFOpenField(FieldAnalysisBase, TestCase):
     file_name = "fff_open_15x15.dcm"
     edge_detection_method = Edge.INFLECTION_DERIVATIVE
     vert_flatness = 5.2
-    vert_symmetry = (
-        -0.22
-    )  # this is true. I have some small bug with the FFF generator that makes the profile not 100% symmetric.
+    vert_symmetry = -0.11
     horiz_flatness = 5.2
-    horiz_symmetry = -0.22  # ditto
+    horiz_symmetry = -0.11
     vert_field_size = 150
     horiz_field_size = 150
     cax_to_top = 75
@@ -548,10 +546,10 @@ class BBLike(FieldAnalysisBase, TestCase):
     slope_exclusion_ratio = 0.6
     horiz_width = 0.01
     vert_width = 0.01
-    vert_flatness = 15.1
-    vert_symmetry = -3.74
+    vert_flatness = 23.1
+    vert_symmetry = 11.2
     horiz_flatness = 18.4
-    horiz_symmetry = -15.6
+    horiz_symmetry = -1.36
     vert_field_size = 4.4
     horiz_field_size = 4.5
     cax_to_top = 1.85
