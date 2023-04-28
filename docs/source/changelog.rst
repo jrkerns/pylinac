@@ -46,10 +46,10 @@ Field Analysis
         | Profiler (Electron) | 0.08                | -0.30               | 0.52              | -0.26             |
         +---------------------+---------------------+---------------------+-------------------+-------------------+
 
-    Positive values in the table indicate the value got better, i.e. closer to 0. Negative values indicate the
-    values became worse.
+    Positive values in the table indicate the value closer to 0. Negative values indicate the
+    values became further away from 0.
 
-    The data shows that for DICOM data of flat beams, the effect was negligable. This makes sense since an off-by-one error
+    The data shows that for DICOM data of flat beams, the effect was negligible. This makes sense since an off-by-one error
     for a field several hundred pixels wide will hardly register. It is the low-resolution datasets that show a difference.
     The values make general sense in that symmetry generally got better and flatness got somewhat worse. The right-most
     element was not being evaluated and generally speaking, that's where the beam is starting to fall off. So flatness
@@ -63,7 +63,7 @@ Field Analysis
     I understand that this may cause some consternation because the values are suddenly changing. However, I believe
     this is an improvement for the better since it is now more accurate. Additionally, symmetry values are generally getting
     better, which is a good thing. Flatness is usually not within our control either so changes here are bothersome,
-    but evenso I hope you've not adjusted your beam energy based on it 🙃.
+    but know that your energy likely hasn't changed. As always, measure PDD for true energy determination.
 
     Even before this issue was raised, I have been working on refactoring the profile and field analysis modules to be
     easier to test as well as to extend. Stay tuned.
