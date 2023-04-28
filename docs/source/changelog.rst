@@ -3,6 +3,73 @@
 Changelog
 =========
 
+v 3.12.0
+--------
+
+Field Analysis
+^^^^^^^^^^^^^^
+
+.. warning::
+
+    TL;DR: Symmetry will statistically go down and Flatness may rise slightly due to an off-by-one bug. For flat DICOM
+    beams, this is insignifcant.
+
+    A bug was fixed that caused the data considered to be the "field" to be off-by-one. The last element was not included.
+    A visualization can be seen here: https://github.com/jrkerns/pylinac/issues/440.
+    This caused BOTH symmetry and flatness to be affected when using :ref:`~pylinac.field_analysis.FieldAnalysis` and :ref:`~pylinac.field_analysis.DeviceFieldAnalysis` classes.
+
+    The value by which the symmetry and flatness will change depends a few factors. The largest factor is
+    the resolution of the original image/dataset. For fields with high resolution, e.g. an AS1200 image, the effects
+    will be smaller than for low-resolution datasets such as the Profiler. The gradient of the beam is also a
+    large factor and FFF beams are the most affected. Interpolation does not have an effect.
+
+    To give an idea of when and how much the values will change, the change was performed on all the available data
+    we have for open fields using DICOM and Profiler data and are presented in the table below. Approximately
+    400 datasets were evaluated.
+
+    For DICOM, only flat beams were available for analysis. For all analyses, the field ratio was 0.8, i.e. 80% field width.
+
+    .. table:: Symmetry & Flatness changes in % after the bug fix by data and beam type
+        :widths: auto
+
+        +---------------------+---------------------+---------------------+-------------------+-------------------+
+        |                     | Horizontal Symmetry | Horizontal Flatness | Vertical Symmetry | Vertical Flatness |
+        +---------------------+---------------------+---------------------+-------------------+-------------------+
+        | DICOM (Flat)        | 0                   | -0.02               | -0.01             | -0.01             |
+        +---------------------+---------------------+---------------------+-------------------+-------------------+
+        | Profiler (Overall)  | 0.20                | -0.11               | 0.26              | -0.08             |
+        +---------------------+---------------------+---------------------+-------------------+-------------------+
+        | Profiler (Flat)     | 0.16                | -0.04               | 0.09              | -0.01             |
+        +---------------------+---------------------+---------------------+-------------------+-------------------+
+        | Profiler (FFF)      | 0.80                | -0.33               | 1.26              | -0.22             |
+        +---------------------+---------------------+---------------------+-------------------+-------------------+
+        | Profiler (Electron) | 0.08                | -0.30               | 0.52              | -0.26             |
+        +---------------------+---------------------+---------------------+-------------------+-------------------+
+
+    Positive values in the table indicate the value closer to 0. Negative values indicate the
+    values became further away from 0.
+
+    The data shows that for DICOM data of flat beams, the effect was negligible. This makes sense since an off-by-one error
+    for a field several hundred pixels wide will hardly register. It is the low-resolution datasets that show a difference.
+    The values make general sense in that symmetry generally got better and flatness got somewhat worse. The right-most
+    element was not being evaluated and generally speaking, that's where the beam is starting to fall off. So flatness
+    would likely stay the same or get worse, never get better. Symmetry generally improved because now the calculation
+    is actually being done for the points that are truly opposite it across the CAX. Previously, a given element was being compared
+    to its opposite one element closer to the CAX than it should have been.
+
+    FFF beams improve the most and this can be attributed to the larger gradients causing larger differences in the calculation
+    for both symmetry and flatness.
+
+    I understand that this may cause some consternation because the values are suddenly changing. However, I believe
+    this is an improvement for the better since it is now more accurate. Additionally, symmetry values are generally getting
+    better, which is a good thing. Flatness is usually not within our control either so changes here are bothersome,
+    but know that your energy likely hasn't changed. As always, measure PDD for true energy determination.
+
+    Even before this issue was raised, I have been working on refactoring the profile and field analysis modules to be
+    easier to test as well as to extend. Stay tuned.
+
+    Thanks to `Stephen Terry <https://github.com/StephenTerry>`__ for pointing this out. We all get better together!
+
 v 3.11.0
 --------
 
