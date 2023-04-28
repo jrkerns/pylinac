@@ -587,18 +587,24 @@ class SingleProfile(ProfileMixin):
         inner_right_idx = beam_center_idx + slope_exclusion_ratio * field_width / 2
         inner_right_idx_r = int(round(inner_right_idx))
         left_fit = linregress(
-            range(field_left_idx_r, inner_left_idx_r),
-            self._y_original_to_interp(np.arange(field_left_idx_r, inner_left_idx_r)),
+            range(field_left_idx_r, inner_left_idx_r + 1),
+            self._y_original_to_interp(
+                np.arange(field_left_idx_r, inner_left_idx_r + 1)
+            ),
         )
         right_fit = linregress(
-            range(inner_right_idx_r, field_right_idx_r),
-            self._y_original_to_interp(np.arange(inner_right_idx_r, field_right_idx_r)),
+            range(inner_right_idx_r, field_right_idx_r + 1),
+            self._y_original_to_interp(
+                np.arange(inner_right_idx_r, field_right_idx_r + 1)
+            ),
         )
 
         # top calc
         fit_params = np.polyfit(
-            range(inner_left_idx_r, inner_right_idx_r),
-            self._y_original_to_interp(np.arange(inner_left_idx_r, inner_right_idx_r)),
+            range(inner_left_idx_r, inner_right_idx_r + 1),
+            self._y_original_to_interp(
+                np.arange(inner_left_idx_r, inner_right_idx_r + 1)
+            ),
             deg=2,
         )
         width = abs(inner_right_idx_r - inner_left_idx_r)
@@ -647,7 +653,7 @@ class SingleProfile(ProfileMixin):
                 round(field_right_idx)
             ),
             "field values": self._y_original_to_interp(
-                np.arange(int(round(field_left_idx)), int(round(field_right_idx)))
+                np.arange(int(round(field_left_idx)), int(round(field_right_idx)) + 1)
             ),
         }
         if self.dpmm:
