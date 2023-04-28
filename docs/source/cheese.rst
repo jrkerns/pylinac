@@ -196,7 +196,7 @@ creating new classes is relatively easy. The following steps show how this can b
             model = "Swiss Cheese Phantom"
             air_bubble_radius_mm = 14  # generally this is just the radius of a normal ROI
             localization_radius = 110  # This is the radius in mm to a "ring" of ROIs that is used for localization and roll determination.
-            # Generally speaking, set the value to the ring that has the most variance in HU.
+            # Generally speaking, set the value to the ring that contains the highest ROI HUs.
             min_num_images = 10  # minimum number of images that should be in the dataset
             catphan_radius_mm = 150  # the radius of the phantom itself
             module_class = SwissModule  # set this to the module we just created above
