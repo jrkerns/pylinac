@@ -647,7 +647,7 @@ class SingleProfile(ProfileMixin):
                 round(field_right_idx)
             ),
             "field values": self._y_original_to_interp(
-                np.arange(int(round(field_left_idx)), int(round(field_right_idx))+1)
+                np.arange(int(round(field_left_idx)), int(round(field_right_idx)) + 1)
             ),
         }
         if self.dpmm:
