@@ -194,13 +194,19 @@ creating new classes is relatively easy. The following steps show how this can b
 
         class SwissCheesePhantom(CheesePhantomBase):
             model = "Swiss Cheese Phantom"
-            air_bubble_radius_mm = 14  # generally this is just the radius of a normal ROI
-            localization_radius = 110  # This is the radius in mm to a "ring" of ROIs that is used for localization and roll determination.
+            # generally this is just the radius of a normal ROI
+            air_bubble_radius_mm = 14
+            # This is the radius in mm to a "ring" of ROIs that is used for localization and roll determination.
             # Generally speaking, set the value to the ring that contains the highest ROI HUs.
-            min_num_images = 10  # minimum number of images that should be in the dataset
-            catphan_radius_mm = 150  # the radius of the phantom itself
-            module_class = SwissModule  # set this to the module we just created above
-            module: SwissModule  # for the best type inference when using an IDE, set this as well to the new module. Note it's only a type annotation!!
+            localization_radius = 110
+            # minimum number of images that should be in the dataset
+            min_num_images = 10
+            # the radius of the phantom itself
+            catphan_radius_mm = 150
+             # set this to the module we just created above
+            module_class = SwissModule
+            # Optional: for the best type inference when using an IDE, set this as well to the new module. Note it's only a type annotation!!
+            module: SwissModule
 
 #. Use the class as normal. The base classes contain all the infrastructure code for analysis and plotting.
 
