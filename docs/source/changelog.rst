@@ -6,6 +6,11 @@ Changelog
 v 3.12.0
 --------
 
+General/Core
+^^^^^^^^^^^^
+
+* A new function is available under the ``image`` module that converts a TIFF image to a simple DICOM format: ``tiff_to_dicom()``.
+
 Field Analysis
 ^^^^^^^^^^^^^^
 
@@ -16,7 +21,7 @@ Field Analysis
 
     A bug was fixed that caused the data considered to be the "field" to be off-by-one. The last element was not included.
     A visualization can be seen here: https://github.com/jrkerns/pylinac/issues/440.
-    This caused BOTH symmetry and flatness to be affected when using :ref:`~pylinac.field_analysis.FieldAnalysis` and :ref:`~pylinac.field_analysis.DeviceFieldAnalysis` classes.
+    This caused BOTH symmetry and flatness to be affected when using :class:`~pylinac.field_analysis.FieldAnalysis` and :class:`~pylinac.field_analysis.DeviceFieldAnalysis` classes.
 
     The value by which the symmetry and flatness will change depends a few factors. The largest factor is
     the resolution of the original image/dataset. For fields with high resolution, e.g. an AS1200 image, the effects
@@ -69,6 +74,14 @@ Field Analysis
     easier to test as well as to extend. Stay tuned.
 
     Thanks to `Stephen Terry <https://github.com/StephenTerry>`__ for pointing this out. We all get better together!
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The WL module can now handle TIFF images. This is still provisional and may have
+  bugs. Caution is warranted. See :ref:`wl_tiff`.
+
+
 
 v 3.11.0
 --------
