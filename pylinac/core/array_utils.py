@@ -158,10 +158,19 @@ def convert_to_dtype(array: np.ndarray, dtype: type[np.dtype]) -> np.ndarray:
     A normal numpy dtype conversion simply changes the datatype and leaves the values alone.
     This will convert an array and also convert the values to the same relative value of the new datatype.
     E.g. an element of value 100 on an uint8 array to be converted to an uint16 array will become ~25,690 (100/255 = 0.392 = x/65535, x = 25,690)
+
+    .. note::
+
+        Float-like input arrays will be normalized. This is because realistic float values are never near the datatype max.
+        This can cause casting to an int-like datatype being 0's for the array. Thus, all float-like
+        inputs will have outputs at the max value of the output datatype. Float-to-float conversion is discouraged.
     """
     # original array info
     old_dtype_info = get_dtype_info(array.dtype)
     relative_values = array.astype(float) / old_dtype_info.max
+    # float range is so large that it's better to normalize
+    if isinstance(old_dtype_info, np.finfo):
+        relative_values /= relative_values.max()
     # new array info
     dtype_info = get_dtype_info(dtype)
     dtype_range = dtype_info.max - dtype_info.min

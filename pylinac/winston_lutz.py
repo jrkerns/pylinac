@@ -44,8 +44,8 @@ from tabulate import tabulate
 from .core import image, pdf
 from .core.decorators import lru_cache
 from .core.geometry import Line, Point, Vector, cos, sin
-from .core.image import LinacDicomImage
-from .core.io import TemporaryZipDirectory, get_url, is_dicom_image, retrieve_demo_file
+from .core.image import LinacDicomImage, is_image, tiff_to_dicom
+from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import bounding_box
 from .core.scale import MachineScale, convert
 from .core.utilities import ResultBase, convert_to_enum, is_close
@@ -658,6 +658,9 @@ class WinstonLutz:
         use_filenames: bool = False,
         axis_mapping: dict[str, tuple[int, int, int]] | None = None,
         axes_precision: int | None = None,
+        is_tiff: bool = False,
+        dpi: float | None = None,
+        sid: float | None = None,
     ):
         """
         Parameters
@@ -675,14 +678,26 @@ class WinstonLutz:
             How many significant digits to represent the axes values. If None, no precision is set and the input/DICOM values are used raw.
             If set to an integer, rounds the axes values (gantry, coll, couch) to that many values. E.g. gantry=0.1234 => 0.1 with precision=1.
             This is mostly useful for plotting/rounding (359.9=>0) and if using the ``keyed_image_details`` with ``results_data``.
+        is_tiff: bool
+            Whether the images are DICOM or TIFF. If this is True, both ``dpi`` and ``sid`` must be given as well.
+        dpi
+            The dots-per-inch setting. Only used when ``is_tiff`` is True.
+        sid
+            The Source-to-Image distance in mm. Only used when ``is_tiff`` is True.
         """
         self.images = []
+        if is_tiff and (not dpi or not sid or not axis_mapping):
+            raise ValueError(
+                "TIFF images were indicated. Must provide dpi, sid, and axis_mapping."
+            )
         if axis_mapping and not use_filenames:
             for filename, (gantry, coll, couch) in axis_mapping.items():
                 self.images.append(
-                    self.image_type(
+                    self._load_image(
                         Path(directory) / filename,
-                        use_filenames=False,
+                        is_tiff=is_tiff,
+                        sid=sid,
+                        dpi=dpi,
                         gantry=gantry,
                         coll=coll,
                         couch=couch,
@@ -691,11 +706,17 @@ class WinstonLutz:
                 )
         elif isinstance(directory, list):
             for file in directory:
-                if is_dicom_image(file):
-                    img = self.image_type(
-                        file, use_filenames, axes_precision=axes_precision
+                if is_image(file):
+                    self.images.append(
+                        self._load_image(
+                            file,
+                            is_tiff=is_tiff,
+                            dpi=dpi,
+                            sid=sid,
+                            use_filenames=use_filenames,
+                            axes_precision=axes_precision,
+                        )
                     )
-                    self.images.append(img)
         elif not osp.isdir(directory):
             raise ValueError(
                 "Invalid directory passed. Check the correct method and file was used."
@@ -703,10 +724,16 @@ class WinstonLutz:
         else:
             image_files = image.retrieve_image_files(directory)
             for file in image_files:
-                img = self.image_type(
-                    file, use_filenames, axes_precision=axes_precision
+                self.images.append(
+                    self._load_image(
+                        file,
+                        is_tiff=is_tiff,
+                        dpi=dpi,
+                        sid=sid,
+                        use_filenames=use_filenames,
+                        axes_precision=axes_precision,
+                    )
                 )
-                self.images.append(img)
         if len(self.images) < 2:
             raise ValueError(
                 "<2 valid WL images were found in the folder/file or passed. Ensure you chose the correct folder/file for analysis."
@@ -715,6 +742,30 @@ class WinstonLutz:
             key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle)
         )
         self._is_analyzed = False
+
+    def _load_image(
+        self,
+        file: str | Path,
+        is_tiff: bool,
+        sid: float | None,
+        dpi: float | None,
+        **kwargs,
+    ):
+        """A helper method to load either DICOM or TIFF files appropriately."""
+        if not is_tiff:
+            return self.image_type(file, **kwargs)
+        else:
+            with io.BytesIO() as stream:
+                tiff_to_dicom(
+                    file,
+                    stream,
+                    sid=sid,
+                    dpi=dpi,
+                    gantry=kwargs.pop("gantry"),
+                    coll=kwargs.pop("coll"),
+                    couch=kwargs.pop("couch"),
+                )
+                return self.image_type(stream, **kwargs)
 
     @classmethod
     def from_demo_images(cls, **kwargs):

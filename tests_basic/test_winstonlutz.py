@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import io
 import math
@@ -506,6 +508,50 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
         self.assertIsInstance(w, WinstonLutz2D)
         self.assertEqual(w.bb, ref_w.bb)
 
+    def test_loading_tiff(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "AQA.zip"])
+        ref_w = WinstonLutz.from_zip(
+            path,
+            is_tiff=True,
+            dpi=200,
+            sid=1000,
+            axis_mapping={
+                r"AQA_A_03082023.tif": (0, 0, 0),
+                r"AQA_B_03082023.tif": (0, 0, 0),
+            },
+        )
+        ref_w.analyze(bb_size_mm=20)
+        results = ref_w.results_data()
+        self.assertEqual(results.num_gantry_images, 2)
+
+    def test_tiff_not_passing_parameters(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "AQA.zip"])
+        # missing dpi
+        with self.assertRaises(ValueError):
+            WinstonLutz.from_zip(
+                path,
+                is_tiff=True,
+                sid=1000,
+                axis_mapping={
+                    r"AQA_A_03082023.tif": (0, 0, 0),
+                    r"AQA_B_03082023.tif": (0, 0, 0),
+                },
+            )
+        # missing sid
+        with self.assertRaises(ValueError):
+            WinstonLutz.from_zip(
+                path,
+                is_tiff=True,
+                dpi=100,
+                axis_mapping={
+                    r"AQA_A_03082023.tif": (0, 0, 0),
+                    r"AQA_B_03082023.tif": (0, 0, 0),
+                },
+            )
+        # missing axis mapping
+        with self.assertRaises(ValueError):
+            WinstonLutz.from_zip(path, is_tiff=True, dpi=100, sid=1000)
+
 
 class GeneralTests(TestCase):
     @classmethod
@@ -671,6 +717,10 @@ class WinstonLutzMixin(CloudFileMixin):
     num_images = 0
     zip = True
     bb_size = 5
+    is_tiff = False
+    sid: float | None = None
+    dpi: float | None = None
+    axis_mapping: dict | None = None
     low_density_bb = False
     open_field = False
     gantry_iso_size = 0
@@ -692,9 +742,23 @@ class WinstonLutzMixin(CloudFileMixin):
     def setUpClass(cls):
         filename = cls.get_filename()
         if cls.zip:
-            cls.wl = WinstonLutz.from_zip(filename, use_filenames=cls.use_filenames)
+            cls.wl = WinstonLutz.from_zip(
+                filename,
+                use_filenames=cls.use_filenames,
+                is_tiff=cls.is_tiff,
+                sid=cls.sid,
+                dpi=cls.dpi,
+                axis_mapping=cls.axis_mapping,
+            )
         else:
-            cls.wl = WinstonLutz(filename, use_filenames=cls.use_filenames)
+            cls.wl = WinstonLutz(
+                filename,
+                use_filenames=cls.use_filenames,
+                is_tiff=cls.is_tiff,
+                sid=cls.sid,
+                dpi=cls.dpi,
+                axis_mapping=cls.axis_mapping,
+            )
         cls.wl.analyze(
             bb_size_mm=cls.bb_size,
             machine_scale=cls.machine_scale,
@@ -1206,3 +1270,27 @@ class kVImages(WinstonLutzMixin, TestCase):
     cax2bb_mean_distance = 0.18
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.24, y=0, z=0)
+
+
+class TIFFImages(WinstonLutzMixin, TestCase):
+    """Tiff image set. Hell hath frozen over"""
+
+    file_name = ["AQA.zip"]
+    num_images = 2
+    is_tiff = True
+    sid = 1000
+    dpi = 200
+    # I don't know the actual axis values, this is just to get a result
+    axis_mapping = {
+        "AQA_A_03082023.tif": (0, 0, 0),
+        "AQA_B_03082023.tif": (90, 0, 0),
+    }
+    bb_size = 20
+    gantry_iso_size = 0.15
+    collimator_iso_size = None
+    couch_iso_size = None
+    cax2bb_max_distance = 1.14
+    cax2bb_median_distance = 0.82
+    cax2bb_mean_distance = 0.8
+    axis_of_rotation = {-1: Axis.GANTRY}
+    bb_shift_vector = Vector(x=1.1, y=0.34, z=-0.30)
