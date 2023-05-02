@@ -1495,8 +1495,6 @@ def tiff_to_dicom(
     .. note::
 
         This will convert the image into an uint16 datatype to match the native EPID datatype.
-        TIFF images are usually float arrays. In this case the image will be normalized to the
-        uint16 max value. I.e. whatever the maximum value in TIFF, it will be 65535 in the output DICOM image.
 
     Parameters
     ----------

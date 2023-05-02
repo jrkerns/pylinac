@@ -630,35 +630,61 @@ class TestGamma2D(TestCase):
 
 class TestTiffToDicom(TestCase):
     def test_conversion_can_be_loaded_as_dicom(self):
-        tiff_to_dicom(tif_path, "output_dicom.dcm", 1000, 200, 10, 22, 33)
+        tiff_to_dicom(
+            tif_path,
+            "output_dicom.dcm",
+            sid=1000,
+            dpi=200,
+            gantry=10,
+            coll=22,
+            couch=33,
+        )
         # shouldn't raise
         LinacDicomImage("output_dicom.dcm")
 
     def test_conversion_captures_axes(self):
-        tiff_to_dicom(tif_path, "output_dicom.dcm", 1000, 200, 10, 22, 33)
+        tiff_to_dicom(
+            tif_path,
+            "output_dicom.dcm",
+            sid=1000,
+            dpi=200,
+            gantry=10,
+            coll=22,
+            couch=33,
+        )
         dicom_img = LinacDicomImage("output_dicom.dcm")
         self.assertEqual(dicom_img.gantry_angle, 10)
         self.assertEqual(dicom_img.collimator_angle, 22)
         self.assertEqual(dicom_img.couch_angle, 33)
 
     def test_conversion_of_dpmm(self):
-        dpi = 200
-        tiff_to_dicom(tif_path, "output_dicom.dcm", 1000, dpi, 10, 22, 33)
+        tiff_to_dicom(
+            tif_path, "output_dicom.dcm", sid=1000, gantry=10, coll=22, couch=33
+        )
         dicom_img = LinacDicomImage("output_dicom.dcm")
-        dpmm = dpi / 25.4  # 25.4mm/inch
-        self.assertEqual(dicom_img.dpi, dpi)
-        self.assertEqual(dicom_img.dpmm, dpmm)
+        self.assertEqual(dicom_img.dpi, 150)
+        self.assertEqual(dicom_img.dpmm, 150 / 25.4)
 
     def test_conversion_goes_to_uint16(self):
         tiff_img = FileImage(tif_path)
-        tiff_to_dicom(tif_path, "output_dicom.dcm", 1000, 200, 10, 22, 33)
+        tiff_to_dicom(
+            tif_path,
+            "output_dicom.dcm",
+            sid=1000,
+            dpi=200,
+            gantry=10,
+            coll=22,
+            couch=33,
+        )
         self.assertEqual(tiff_img.array.dtype, np.uint8)
         dicom_img = LinacDicomImage("output_dicom.dcm")
         self.assertEqual(dicom_img.array.dtype, np.uint16)
 
     def test_conversion_to_stream(self):
         with io.BytesIO() as stream:
-            tiff_to_dicom(tif_path, stream, 1000, 200, 0, 0, 0)
+            tiff_to_dicom(
+                tif_path, stream, sid=1000, dpi=200, gantry=0, coll=0, couch=0
+            )
             dicom_img = LinacDicomImage(stream)
         self.assertEqual(dicom_img.gantry_angle, 0)
 
