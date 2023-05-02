@@ -717,7 +717,6 @@ class WinstonLutzMixin(CloudFileMixin):
     num_images = 0
     zip = True
     bb_size = 5
-    is_tiff = False
     sid: float | None = None
     dpi: float | None = None
     axis_mapping: dict | None = None
@@ -745,7 +744,6 @@ class WinstonLutzMixin(CloudFileMixin):
             cls.wl = WinstonLutz.from_zip(
                 filename,
                 use_filenames=cls.use_filenames,
-                is_tiff=cls.is_tiff,
                 sid=cls.sid,
                 dpi=cls.dpi,
                 axis_mapping=cls.axis_mapping,
@@ -754,7 +752,6 @@ class WinstonLutzMixin(CloudFileMixin):
             cls.wl = WinstonLutz(
                 filename,
                 use_filenames=cls.use_filenames,
-                is_tiff=cls.is_tiff,
                 sid=cls.sid,
                 dpi=cls.dpi,
                 axis_mapping=cls.axis_mapping,
@@ -1277,7 +1274,6 @@ class TIFFImages(WinstonLutzMixin, TestCase):
 
     file_name = ["AQA.zip"]
     num_images = 2
-    is_tiff = True
     sid = 1000
     dpi = 200
     # I don't know the actual axis values, this is just to get a result

@@ -1267,6 +1267,8 @@ class FileImage(BaseImage):
                     raise ValueError(
                         f"The DPI setting is abnormal or nonsensical. Got resolution of {dpi}. Pass in the dpi manually."
                     )
+                if dpi < 3:
+                    dpi = None
                 break
         if dpi is None:
             dpi = self._dpi

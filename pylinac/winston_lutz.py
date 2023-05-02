@@ -745,10 +745,12 @@ class WinstonLutz:
         try:
             return self.image_type(file, **kwargs)
         except AttributeError:
-            # if not kwargs.get('axis_mapping'):
-            #     raise ValueError("TIFF images detected. Must pass `axis_mapping` parameter.")
-            # if not kwargs.get('sid'):
-            #     raise ValueError("TIFF images detected. Must pass `sid` parameter")
+            if kwargs.get("gantry") is None:
+                raise ValueError(
+                    "TIFF images detected. Must pass `axis_mapping` parameter."
+                )
+            if sid is None:
+                raise ValueError("TIFF images detected. Must pass `sid` parameter")
             with io.BytesIO() as stream:
                 tiff_to_dicom(
                     file,
