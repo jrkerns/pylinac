@@ -30,6 +30,7 @@ class TestUtilities(unittest.TestCase):
         self.assertEqual(wrap360(-5), 355)
         self.assertEqual(wrap360(361), 1)
         self.assertEqual(wrap360(360), 0)
+        self.assertEqual(wrap360(359.6), 359.6)
         self.assertEqual(wrap360(359), 359)
         self.assertEqual(wrap360(180), 180)
 

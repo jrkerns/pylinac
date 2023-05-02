@@ -1132,7 +1132,7 @@ class LinacDicomImage(DicomImage):
             g = self._gantry
         else:
             g = self._get_axis_value(self.gantry_keyword, "GantryAngle")
-        return simple_round(wrap360(g), self._axes_precision)
+        return wrap360(simple_round(wrap360(g), self._axes_precision))
 
     @property
     def collimator_angle(self) -> float:
@@ -1141,7 +1141,7 @@ class LinacDicomImage(DicomImage):
             c = self._coll
         else:
             c = self._get_axis_value(self.collimator_keyword, "BeamLimitingDeviceAngle")
-        return simple_round(wrap360(c), self._axes_precision)
+        return wrap360(simple_round(wrap360(c), self._axes_precision))
 
     @property
     def couch_angle(self) -> float:
@@ -1150,7 +1150,7 @@ class LinacDicomImage(DicomImage):
             c = self._couch
         else:
             c = self._get_axis_value(self.couch_keyword, "PatientSupportAngle")
-        return simple_round(wrap360(c), self._axes_precision)
+        return wrap360(simple_round(wrap360(c), self._axes_precision))
 
     def _get_axis_value(self, axis_str: str, axis_dcm_attr: str) -> float:
         """Retrieve the value of the axis. This will first look in the file name for the value.
