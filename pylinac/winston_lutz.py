@@ -659,7 +659,6 @@ class WinstonLutz:
         use_filenames: bool = False,
         axis_mapping: dict[str, tuple[int, int, int]] | None = None,
         axes_precision: int | None = None,
-        is_tiff: bool = False,
         dpi: float | None = None,
         sid: float | None = None,
     ):
@@ -679,24 +678,17 @@ class WinstonLutz:
             How many significant digits to represent the axes values. If None, no precision is set and the input/DICOM values are used raw.
             If set to an integer, rounds the axes values (gantry, coll, couch) to that many values. E.g. gantry=0.1234 => 0.1 with precision=1.
             This is mostly useful for plotting/rounding (359.9=>0) and if using the ``keyed_image_details`` with ``results_data``.
-        is_tiff: bool
-            Whether the images are DICOM or TIFF. If this is True, both ``dpi`` and ``sid`` must be given as well.
         dpi
             The dots-per-inch setting. Only used when ``is_tiff`` is True.
         sid
             The Source-to-Image distance in mm. Only used when ``is_tiff`` is True.
         """
         self.images = []
-        if is_tiff and (not dpi or not sid or not axis_mapping):
-            raise ValueError(
-                "TIFF images were indicated. Must provide dpi, sid, and axis_mapping."
-            )
         if axis_mapping and not use_filenames:
             for filename, (gantry, coll, couch) in axis_mapping.items():
                 self.images.append(
                     self._load_image(
                         Path(directory) / filename,
-                        is_tiff=is_tiff,
                         sid=sid,
                         dpi=dpi,
                         gantry=gantry,
@@ -711,7 +703,6 @@ class WinstonLutz:
                     self.images.append(
                         self._load_image(
                             file,
-                            is_tiff=is_tiff,
                             dpi=dpi,
                             sid=sid,
                             use_filenames=use_filenames,
@@ -728,7 +719,6 @@ class WinstonLutz:
                 self.images.append(
                     self._load_image(
                         file,
-                        is_tiff=is_tiff,
                         dpi=dpi,
                         sid=sid,
                         use_filenames=use_filenames,
@@ -747,15 +737,18 @@ class WinstonLutz:
     def _load_image(
         self,
         file: str | Path,
-        is_tiff: bool,
         sid: float | None,
         dpi: float | None,
         **kwargs,
     ):
         """A helper method to load either DICOM or TIFF files appropriately."""
-        if not is_tiff:
+        try:
             return self.image_type(file, **kwargs)
-        else:
+        except AttributeError:
+            # if not kwargs.get('axis_mapping'):
+            #     raise ValueError("TIFF images detected. Must pass `axis_mapping` parameter.")
+            # if not kwargs.get('sid'):
+            #     raise ValueError("TIFF images detected. Must pass `sid` parameter")
             with io.BytesIO() as stream:
                 tiff_to_dicom(
                     file,
@@ -766,7 +759,12 @@ class WinstonLutz:
                     coll=kwargs.pop("coll"),
                     couch=kwargs.pop("couch"),
                 )
-                return self.image_type(stream, **kwargs)
+                img = self.image_type(stream, **kwargs)
+                if not img.dpmm:
+                    raise ValueError(
+                        "TIFF images were detected but the dpi tag was not available. Pass the `dpi` parameter manually."
+                    )
+                return img
 
     @classmethod
     def from_demo_images(cls, **kwargs):

@@ -512,7 +512,6 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
         path = get_file_from_cloud_test_repo([TEST_DIR, "AQA.zip"])
         ref_w = WinstonLutz.from_zip(
             path,
-            is_tiff=True,
             dpi=200,
             sid=1000,
             axis_mapping={
@@ -524,33 +523,34 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
         results = ref_w.results_data()
         self.assertEqual(results.num_gantry_images, 2)
 
-    def test_tiff_not_passing_parameters(self):
+    def test_tiff_missing_dpi(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "AQA.zip"])
-        # missing dpi
         with self.assertRaises(ValueError):
             WinstonLutz.from_zip(
                 path,
-                is_tiff=True,
                 sid=1000,
                 axis_mapping={
                     r"AQA_A_03082023.tif": (0, 0, 0),
                     r"AQA_B_03082023.tif": (0, 0, 0),
                 },
             )
-        # missing sid
+
+    def test_tiff_missing_sid(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "AQA.zip"])
         with self.assertRaises(ValueError):
             WinstonLutz.from_zip(
                 path,
-                is_tiff=True,
                 dpi=100,
                 axis_mapping={
                     r"AQA_A_03082023.tif": (0, 0, 0),
                     r"AQA_B_03082023.tif": (0, 0, 0),
                 },
             )
-        # missing axis mapping
+
+    def test_missing_axis_mapping(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "AQA.zip"])
         with self.assertRaises(ValueError):
-            WinstonLutz.from_zip(path, is_tiff=True, dpi=100, sid=1000)
+            WinstonLutz.from_zip(path, dpi=100, sid=1000)
 
 
 class GeneralTests(TestCase):

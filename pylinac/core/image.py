@@ -21,6 +21,7 @@ import pydicom
 import scipy.ndimage.filters as spf
 from PIL import Image as pImage
 from PIL.PngImagePlugin import PngInfo
+from PIL.TiffTags import TAGS
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.errors import InvalidDicomError
 from scipy import ndimage
@@ -1229,14 +1230,24 @@ class FileImage(BaseImage):
         sid : int, float
             The Source-to-Image distance in mm.
         dtype : numpy.dtype
-            The data type to cast the array as.
+            The data type to cast the array as. If None, will use the datatype stored in the file.
+            If the file is multi-channel (e.g. RGB), it will be converted to int32
         """
         super().__init__(path)
         pil_image = pImage.open(path)
-        # convert to gray if need be
-        if pil_image.mode not in ("F", "L", "1"):
-            pil_image = pil_image.convert("F")
+        # convert from multichannel if need be
+        # too many flavors of multichannel so just eval numpy dimensions
+        # https://pillow.readthedocs.io/en/stable/handbook/concepts.html#modes
+        arr = np.array(pil_image)
+        if len(arr.shape) > 2:
+            pil_image = pil_image.convert(
+                "I"
+            )  # int32; uint16 preferred but not reliable
         self.info = pil_image.info
+        try:  # tiff tags
+            self.tags = {TAGS[key]: pil_image.tag_v2[key] for key in pil_image.tag_v2}
+        except AttributeError:
+            pass
         if dtype is not None:
             self.array = np.array(pil_image, dtype=dtype)
         else:
@@ -1245,13 +1256,17 @@ class FileImage(BaseImage):
         self.sid = sid
 
     @property
-    def dpi(self) -> float:
+    def dpi(self) -> float | None:
         """The dots-per-inch of the image, defined at isocenter."""
         dpi = None
         for key in ("dpi", "resolution"):
             dpi = self.info.get(key)
             if dpi is not None:
                 dpi = float(dpi[0])
+                if dpi < 3 and not self._dpi:
+                    raise ValueError(
+                        f"The DPI setting is abnormal or nonsensical. Got resolution of {dpi}. Pass in the dpi manually."
+                    )
                 break
         if dpi is None:
             dpi = self._dpi
@@ -1463,6 +1478,80 @@ class DicomImageStack:
         return len(self.images)
 
 
+def tiff_to_dicom(
+    tiff_file: str | Path | BytesIO,
+    dicom_file: str | Path | BytesIO,
+    sid: float,
+    gantry: float,
+    coll: float,
+    couch: float,
+    dpi: float | None = None,
+) -> None:
+    """Converts a TIFF file into a **simplistic** DICOM file. Not meant to be a full-fledged tool. Used for conversion so that tools that are traditionally oriented
+    towards DICOM have a path to accept TIFF. Currently used to convert files for WL.
+
+    .. note::
+
+        This will convert the image into an uint16 datatype to match the native EPID datatype.
+        TIFF images are usually float arrays. In this case the image will be normalized to the
+        uint16 max value. I.e. whatever the maximum value in TIFF, it will be 65535 in the output DICOM image.
+
+    Parameters
+    ----------
+    tiff_file
+        The TIFF file to be converted.
+    dicom_file
+        The output location of the DICOM file that will be generated.
+    sid
+        The Source-to-Image distance in mm.
+    dpi
+        The dots-per-inch value of the TIFF image.
+    gantry
+        The gantry value that the image was taken at.
+    coll
+        The collimator value that the image was taken at.
+    couch
+        The couch value that the image was taken at.
+    """
+    tiff_img = FileImage(tiff_file, dpi=dpi, sid=sid)
+    if not tiff_img.dpmm:
+        raise ValueError(
+            "Automatic detection of `dpi` failed. A `dpi` value must be passed to the constructor."
+        )
+    uint_array = convert_to_dtype(tiff_img.array, np.uint16)
+    mm_pixel = 25.4 / tiff_img.dpi
+    file_meta = FileMetaDataset()
+    # Main data elements
+    ds = Dataset()
+    ds.SOPClassUID = "1234"
+    ds.SOPInstanceUID = "5678"
+    ds.Modality = "RTIMAGE"
+    ds.ConversionType = "WSD"
+    ds.PatientName = "Lutz^Test Tool"
+    ds.PatientID = "Someone Important"
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.Rows = tiff_img.shape[0]
+    ds.Columns = tiff_img.shape[1]
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.ImagePlanePixelSpacing = [mm_pixel, mm_pixel]
+    ds.RadiationMachineSAD = "1000.0"
+    ds.RTImageSID = sid
+    ds.PrimaryDosimeterUnit = "MU"
+    ds.GantryAngle = str(gantry)
+    ds.BeamLimitingDeviceAngle = str(coll)
+    ds.PatientSupportAngle = str(couch)
+    ds.PixelData = uint_array
+
+    ds.file_meta = file_meta
+    ds.is_implicit_VR = True
+    ds.is_little_endian = True
+    ds.save_as(dicom_file, write_like_original=False)
+
+
 def gamma_2d(
     reference: np.ndarray,
     evaluation: np.ndarray,
@@ -1550,73 +1639,3 @@ def gamma_2d(
                 capital_gammas.append(capital_gamma)
             gamma[row_idx, col_idx] = min(np.nanmin(capital_gammas), gamma_cap_value)
     return np.asarray(gamma)
-
-
-def tiff_to_dicom(
-    tiff_file: str | Path | BytesIO,
-    dicom_file: str | Path | BytesIO,
-    sid: float,
-    dpi: float,
-    gantry: float,
-    coll: float,
-    couch: float,
-) -> None:
-    """Converts a TIFF file into a **simplistic** DICOM file. Not meant to be a full-fledged tool. Used for conversion so that tools that are traditionally oriented
-    towards DICOM have a path to accept TIFF. Currently used to convert files for WL.
-
-    .. note::
-
-        This will convert the image into an uint16 datatype to match the native EPID datatype.
-        TIFF images are usually float arrays. In this case the image will be normalized to the
-        uint16 max value. I.e. whatever the maximum value in TIFF, it will be 65535 in the output DICOM image.
-
-    Parameters
-    ----------
-    tiff_file
-        The TIFF file to be converted.
-    dicom_file
-        The output location of the DICOM file that will be generated.
-    sid
-        The Source-to-Image distance in mm.
-    dpi
-        The dots-per-inch value of the TIFF image
-    gantry
-        The gantry value that the image was taken at
-    coll
-        The collimator value that the image was taken at
-    couch
-        The couch value that the image was taken at.
-    """
-    tiff_img = FileImage(tiff_file)
-    uint_array = convert_to_dtype(tiff_img.array, np.uint16)
-    mm_pixel = 25.4 / dpi
-    file_meta = FileMetaDataset()
-    # Main data elements
-    ds = Dataset()
-    ds.SOPClassUID = "1234"
-    ds.SOPInstanceUID = "5678"
-    ds.Modality = "RTIMAGE"
-    ds.ConversionType = "WSD"
-    ds.PatientName = "Lutz^Test Tool"
-    ds.PatientID = "Someone Important"
-    ds.SamplesPerPixel = 1
-    ds.PhotometricInterpretation = "MONOCHROME2"
-    ds.Rows = tiff_img.shape[0]
-    ds.Columns = tiff_img.shape[1]
-    ds.BitsAllocated = 16
-    ds.BitsStored = 16
-    ds.HighBit = 15
-    ds.PixelRepresentation = 0
-    ds.ImagePlanePixelSpacing = [mm_pixel, mm_pixel]
-    ds.RadiationMachineSAD = "1000.0"
-    ds.RTImageSID = sid
-    ds.PrimaryDosimeterUnit = "MU"
-    ds.GantryAngle = str(gantry)
-    ds.BeamLimitingDeviceAngle = str(coll)
-    ds.PatientSupportAngle = str(couch)
-    ds.PixelData = uint_array
-
-    ds.file_meta = file_meta
-    ds.is_implicit_VR = True
-    ds.is_little_endian = True
-    ds.save_as(dicom_file, write_like_original=False)
