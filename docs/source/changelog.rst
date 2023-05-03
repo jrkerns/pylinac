@@ -11,6 +11,13 @@ General/Core
 
 * A new function is available under the ``image`` module that converts a TIFF image to a simple DICOM format: ``tiff_to_dicom()``.
 
+Cheese Phantoms
+^^^^^^^^^^^^^^^
+
+* The cheese module has been refactored to be more generalizable so that new cheese-like phantoms can be easily created.
+  Documentation on doing this has been added :ref:`here <extending_cheese_phantom>`.
+* The ``hu`` attribute of the ``TomoCheese`` class has been renamed to ``module``. This doesn't affect typical use patterns.
+
 Field Analysis
 ^^^^^^^^^^^^^^
 

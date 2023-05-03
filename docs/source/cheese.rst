@@ -150,6 +150,72 @@ This will plot a simple HU vs density graph.
 
     Not all ROI densities have to be defined. Any ROI between 1 and 20 can be set.
 
+.. _extending_cheese_phantom:
+
+Extending for other phantoms
+----------------------------
+
+While new commercial cheese-like phantoms will continue to be added to this module,
+creating new classes is relatively easy. The following steps show how this can be accomplished.
+
+#. Create a new class "module" that inherits from ``CheeseModule``. This
+   class contains information about the ROIs, such as the distance and angle away from the center.
+   You can use the ``TomoCheeseModule`` as a guide in the source code. An example:
+
+   .. code-block:: python
+
+        from pylinac.cheese import CheeseModule
+
+        class SwissCheeseModule(CheeseModule):
+            common_name = "Swiss cheese phantom"
+            roi_settings = {  # configuration of each ROI.
+                "1": {  # each ROI should have a string key and the following keys
+                    "angle": 90,
+                    "distance": 45,
+                    "radius": 6,
+                },
+                "2": {
+                    "angle": 45,
+                    "distance": 80,
+                    "radius": 6,
+                },
+                "3": {...},
+            }
+
+   .. note::
+
+        Not all ROIs have to be defined. E.g. if you are only interested in 5 ROIs out of 20 then simply configure those 5.
+
+#. Create a new class that inherits from ``CheesePhantomBase``. This will define the phantom itself:
+
+   .. code-block:: python
+
+        from pylinac.cheese import CheesePhantomBase
+
+        class SwissCheesePhantom(CheesePhantomBase):
+            model = "Swiss Cheese Phantom"
+            # generally this is just the radius of a normal ROI
+            air_bubble_radius_mm = 14
+            # This is the radius in mm to a "ring" of ROIs that is used for localization and roll determination.
+            # Generally speaking, set the value to the ring that contains the highest ROI HUs.
+            localization_radius = 110
+            # minimum number of images that should be in the dataset
+            min_num_images = 10
+            # the radius of the phantom itself
+            catphan_radius_mm = 150
+             # set this to the module we just created above
+            module_class = SwissModule
+            # Optional: for the best type inference when using an IDE, set this as well to the new module. Note it's only a type annotation!!
+            module: SwissModule
+
+#. Use the class as normal. The base classes contain all the infrastructure code for analysis and plotting.
+
+   .. code-block:: python
+
+        swiss = SwissCheesePhantom('my/swiss/data')
+        swiss.analyze()
+        swiss.plot_analyzed_image()
+
 
 Algorithm
 ---------

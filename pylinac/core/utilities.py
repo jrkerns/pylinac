@@ -101,8 +101,13 @@ def simple_round(number: float | int, decimals: int | None = 0) -> float | int:
     return num
 
 
+def abs360(value: float) -> float:
+    """Convert angles to always be positive. E.g. -90 -> 270"""
+    return (360 + value) % 360
+
+
 def wrap360(value: float) -> float:
-    """Wrap the input value around 360"""
+    """Wrap the input value around 360. E.g. 361 -> 1"""
     return value % 360
 
 

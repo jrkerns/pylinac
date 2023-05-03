@@ -49,10 +49,10 @@ class TestResults(TestCase):
     def test_results_data(self):
         r = self.cheese.results_data()
         assert isinstance(r, TomoCheeseResult)
-        assert self.cheese.hu.rois["5"].pixel_value == r.roi_5["median"]
+        assert self.cheese.module.rois["5"].pixel_value == r.roi_5["median"]
         r = self.cheese.results_data(as_dict=True)
         assert isinstance(r, dict)
-        assert self.cheese.hu.rois["9"].std == r["roi_9"]["std"]
+        assert self.cheese.module.rois["9"].std == r["roi_9"]["std"]
 
 
 class TestGeneral(TestCase):
@@ -72,11 +72,11 @@ class TestAnalysis(TestCase):
         """Rolling (shifting) the phantom by a nominal amount shouldn't affect analysis"""
         cheese = TomoCheese.from_demo_images()
         cheese.analyze()
-        original_roi_1 = copy.copy(cheese.hu.rois["1"].pixel_value)
+        original_roi_1 = copy.copy(cheese.module.rois["1"].pixel_value)
         for img in cheese.dicom_stack:
             img.roll(direction="x", amount=20)
         cheese.analyze()
-        new_roi_1 = cheese.hu.rois["1"].pixel_value
+        new_roi_1 = cheese.module.rois["1"].pixel_value
         assert math.isclose(original_roi_1, new_roi_1, abs_tol=3)
 
     def test_rotating_phantom(self):
@@ -170,7 +170,7 @@ class TomoCheeseMixin(CloudFileMixin):
 
     def test_HU_values(self):
         """Test HU values."""
-        for name, roi in self.cheese.hu.rois.items():
+        for name, roi in self.cheese.module.rois.items():
             exp_val = self.hu_values[name]
             meas_val = roi.pixel_value
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
