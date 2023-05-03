@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from pylinac.core import pdf
 from pylinac.core.profile import CollapsedCircleProfile
 from pylinac.core.roi import DiskROI
-from pylinac.core.utilities import ResultBase, wrap360
+from pylinac.core.utilities import ResultBase, abs360
 from pylinac.ct import CatPhanBase, CatPhanModule, Slice
 
 
@@ -213,7 +213,7 @@ class CheesePhantomBase(CatPhanBase):
         self.roi_config = roi_config
 
     def _roi_angles(self) -> list[float]:
-        return [wrap360(s["angle"]) for s in self.module_class.roi_settings.values()]
+        return [abs360(s["angle"]) for s in self.module_class.roi_settings.values()]
 
     def find_phantom_roll(self, func: Callable | None = None) -> float:
         """Examine the phantom for the maximum HU delta insert position. Roll the phantom by the
