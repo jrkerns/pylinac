@@ -1236,13 +1236,10 @@ class FileImage(BaseImage):
         super().__init__(path)
         pil_image = pImage.open(path)
         # convert from multichannel if need be
-        # too many flavors of multichannel so just eval numpy dimensions
-        # https://pillow.readthedocs.io/en/stable/handbook/concepts.html#modes
-        arr = np.array(pil_image)
-        if len(arr.shape) > 2:
+        if len(pil_image.getbands()) > 1:
             pil_image = pil_image.convert(
                 "I"
-            )  # int32; uint16 preferred but not reliable
+            )  # int32; uint16 preferred but not reliable using PIL
         self.info = pil_image.info
         try:  # tiff tags
             self.tags = {TAGS[key]: pil_image.tag_v2[key] for key in pil_image.tag_v2}
