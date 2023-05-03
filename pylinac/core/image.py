@@ -1245,10 +1245,7 @@ class FileImage(BaseImage):
             self.tags = {TAGS[key]: pil_image.tag_v2[key] for key in pil_image.tag_v2}
         except AttributeError:
             pass
-        if dtype is not None:
-            self.array = np.array(pil_image, dtype=dtype)
-        else:
-            self.array = np.array(pil_image)
+        self.array = np.array(pil_image, dtype=dtype)
         self._dpi = dpi
         self.sid = sid
 

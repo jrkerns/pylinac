@@ -679,9 +679,10 @@ class WinstonLutz:
             If set to an integer, rounds the axes values (gantry, coll, couch) to that many values. E.g. gantry=0.1234 => 0.1 with precision=1.
             This is mostly useful for plotting/rounding (359.9=>0) and if using the ``keyed_image_details`` with ``results_data``.
         dpi
-            The dots-per-inch setting. Only used when ``is_tiff`` is True.
+            The dots-per-inch setting. Only needed if using TIFF images and the images do not contain the resolution tag.
+            An error will raise if dpi is not passed and the TIFF resolution cannot be determined.
         sid
-            The Source-to-Image distance in mm. Only used when ``is_tiff`` is True.
+            The Source-to-Image distance in mm. Only needed when using TIFF images.
         """
         self.images = []
         if axis_mapping and not use_filenames:
