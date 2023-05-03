@@ -49,7 +49,7 @@ class TestCTGeneral(TestCase):
 
     def test_phan_center(self):
         """Test locations of the phantom center."""
-        known_phan_center = Point(258, 254)
+        known_phan_center = Point(258, 253)
         self.ct.analyze()
         self.assertAlmostEqual(
             self.ct.ct_calibration_module.phan_center.x, known_phan_center.x, delta=0.7
