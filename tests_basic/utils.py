@@ -53,7 +53,7 @@ def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
         all_blobs = list(storage_client.list_blobs(GCP_BUCKET_NAME))
         blobs = (
             Enumerable(all_blobs)
-            .where(lambda b: len(b.name.split("/")) >= len(folder))
+            .where(lambda b: len(b.name.split("/")) > len(folder))
             .where(lambda b: b.name.split("/")[1] != "")
             .where(
                 lambda b: all(

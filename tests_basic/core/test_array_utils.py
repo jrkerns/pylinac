@@ -226,3 +226,9 @@ class TestConvertDataType(TestCase):
         # values will be negative because we are near the bottom of the range of values
         assert np.array_equal(c_arr, [-128, 127])
         self.assertEqual(c_arr.dtype, np.int8)
+
+    def test_float_becomes_normalized(self):
+        arr1 = np.array([0, 255.2], dtype=np.float)
+        c_arr = convert_to_dtype(arr1, dtype=np.uint16)
+        assert np.array_equal(c_arr, [0, 65535])
+        self.assertEqual(c_arr.dtype, np.uint16)

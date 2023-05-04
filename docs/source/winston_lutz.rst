@@ -322,6 +322,56 @@ parameter to True. This is because the automatic inversion of the WL module assu
 For large field deliveries, kV or MV, see about flipping this parameter if the analysis fails.
 
 
+.. _wl_tiff:
+
+Using TIFF images
+-----------------
+
+.. versionadded:: 3.12
+
+The WL module can handle TIFF images on a provisional basis.
+
+.. warning::
+
+    This is still experimental and caution is warranted. Even though
+    there is an automatic noise/edge cleaner, cropping images to remove
+    markers and/or film scan artifacts is encouraged.
+
+To load TIFF images, extra parameters must be passed. Specifically,
+the ``sid`` and potentially the ``dpi`` parameters must be added. Additionally,
+``axis_mapping`` must be populated. This is how pylinac can convert
+the images into rudimentary dicom images. The ``dpi``
+parameter is only needed if the TIFF images do not have a resolution tag.
+Pylinac will give a specific error if ``dpi`` wasn't passed and also wasn't
+in the TIFF tags.
+
+.. note::
+
+    Although it is technically possible to load both DICOM and TIFF together
+    in one dataset it is not encouraged.
+
+.. code-block:: python
+
+    from pylinac import WinstonLutz
+
+    my_tiff_images = ....
+    wl_tiff = WinstonLutz(my_tiff_images, sid=1000, dpi=212,
+        axis_mapping={"g0.tiff": (0, 0, 0), "g270.tiff", (270, 0, 0), ...})
+    # now analyze as normal
+    wl_tiff.analyze(bb_size_mm=...)
+    print(wl_tiff.results())
+
+Note that other ``.from...`` methods are available such as ``.from_zip``:
+
+.. code-block:: python
+
+    from pylinac import WinstonLutz
+
+    my_tiff_zip = "../files/tiffs.zip"
+    # same inputs as above
+    wl_tiff = WinstonLutz.from_zip(my_tiff_zip, dpi=...)
+
+
 .. _wl_image_types:
 
 Image types & output definitions
