@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from scipy import ndimage
 
-from pylinac.core.decorators import validate
+from .decorators import validate
 
 
 def array_not_empty(array: np.ndarray) -> None:

@@ -102,11 +102,11 @@ class MLC(enum.Enum):
     }  #:
     HALCYON_DISTAL = {
         "name": "Halcyon distal",
-        "arrangement": MLCArrangement([(60, 5)], offset=2.5),
+        "arrangement": MLCArrangement([(28, 10)]),
     }  #:
     HALCYON_PROXIMAL = {
         "name": "Halcyon proximal",
-        "arrangement": MLCArrangement([(60, 5)]),
+        "arrangement": MLCArrangement([(29, 10)], offset=5),
     }  #:
 
 
