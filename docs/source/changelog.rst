@@ -13,9 +13,8 @@ General/Core
 * Saving a PDF with the default logo will now additionally try to load the logo from the demo file repository if the file
   is not available locally. This occurs when using pylinac as a Package in RadMachine. This will now allow users to publish PDFs
   within RadMachine from a custom pylinac package.
-* The demo files and PDF references have been removed from the git repository to keep the repo size small. Demo files
-  are still available publicly as they always have been, they just aren't included when, e.g., downloading the repo
-  from Github.
+* The demo files and PDF references have been removed from the git repository to make shallow clones smaller (e.g. downloading the repo from Github).
+  Demo files are still available publicly as they always have been. No user changes required.
 
 Cheese Phantoms
 ^^^^^^^^^^^^^^^
