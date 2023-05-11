@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import copy
 import os
 import os.path as osp
 import random
-from typing import Dict, List, Optional, Sequence, Tuple, Type, Union
+from typing import Sequence
 
 from ...picketfence import Orientation
 from ...winston_lutz import bb_projection_gantry_plane, bb_projection_long
@@ -23,12 +25,10 @@ from .simulators import Simulator
 def generate_lightrad(
     file_out: str,
     simulator: Simulator,
-    field_layer: Type[
-        Union[FilterFreeFieldLayer, FilteredFieldLayer, PerfectFieldLayer]
-    ],
+    field_layer: type[FilterFreeFieldLayer | FilteredFieldLayer | PerfectFieldLayer],
     field_size_mm: (float, float) = (150, 150),
     cax_offset_mm: (float, float) = (0, 0),
-    final_layers: List[Layer] = [
+    final_layers: list[Layer] = [
         GaussianFilterLayer(),
     ],
     bb_size_mm: float = 3,
@@ -76,18 +76,16 @@ def generate_lightrad(
 
 def generate_picketfence(
     simulator: Simulator,
-    field_layer: Type[
-        Union[FilterFreeFieldLayer, FilteredFieldLayer, PerfectFieldLayer]
-    ],
+    field_layer: type[FilterFreeFieldLayer | FilteredFieldLayer | PerfectFieldLayer],
     file_out: str,
-    final_layers: List[Layer] = None,
+    final_layers: list[Layer] = None,
     pickets: int = 11,
     picket_spacing_mm: float = 20,
     picket_width_mm: int = 2,
     picket_height_mm: int = 300,
     gantry_angle: int = 0,
     orientation: Orientation = Orientation.UP_DOWN,
-    picket_offset_error: Optional[Sequence] = None,
+    picket_offset_error: Sequence | None = None,
 ) -> None:
     """Create a mock picket fence image. Will always be up-down.
 
@@ -139,10 +137,10 @@ def generate_picketfence(
 
 def generate_winstonlutz(
     simulator: Simulator,
-    field_layer: Type[Layer],
+    field_layer: type[Layer],
     dir_out: str,
-    field_size_mm: Tuple[float, float] = (30, 30),
-    final_layers: Optional[List[Layer]] = None,
+    field_size_mm: tuple[float, float] = (30, 30),
+    final_layers: list[Layer] | None = None,
     bb_size_mm: float = 5,
     offset_mm_left: float = 0,
     offset_mm_up: float = 0,
@@ -158,7 +156,7 @@ def generate_winstonlutz(
     clean_dir: bool = True,
     field_alpha: float = 1.0,
     bb_alpha: float = -0.5,
-) -> List[str]:
+) -> list[str]:
     """Create a mock set of WL images, simulating gantry sag effects. Produces one image for each item in image_axes.
 
     Parameters
@@ -248,11 +246,11 @@ def generate_winstonlutz(
 
 def generate_winstonlutz_multi_bb_single_field(
     simulator: Simulator,
-    field_layer: Type[Layer],
+    field_layer: type[Layer],
     dir_out: str,
-    offsets: Union[List[List[float]], List[Dict[str, float]]],
-    field_size_mm: Tuple[float, float] = (30, 30),
-    final_layers: Optional[List[Layer]] = None,
+    offsets: list[list[float]] | list[dict[str, float]],
+    field_size_mm: tuple[float, float] = (30, 30),
+    final_layers: list[Layer] | None = None,
     bb_size_mm: float = 5,
     image_axes: ((int, int, int), ...) = (
         (0, 0, 0),
@@ -264,7 +262,7 @@ def generate_winstonlutz_multi_bb_single_field(
     gantry_sag: float = 0,
     clean_dir: bool = True,
     jitter_mm: float = 0,
-) -> List[str]:
+) -> list[str]:
     """Create a mock set of WL images, simulating gantry sag effects. Produces one image for each item in image_axes.
     This will also generate multiple BBs on the image, one per item in `offsets`. Each offset should be a list of
     the shifts of the BB relative to isocenter like so: [<left>, <up>, <in>] OR an arrangement from the WL module.
@@ -367,12 +365,12 @@ def generate_winstonlutz_multi_bb_single_field(
 
 def generate_winstonlutz_multi_bb_multi_field(
     simulator: Simulator,
-    field_layer: Type[Layer],
+    field_layer: type[Layer],
     dir_out: str,
-    field_offsets: List[List[float]],
-    bb_offsets: Union[List[List[float]], List[Dict[str, float]]],
-    field_size_mm: Tuple[float, float] = (20, 20),
-    final_layers: Optional[List[Layer]] = None,
+    field_offsets: list[list[float]],
+    bb_offsets: list[list[float]] | list[dict[str, float]],
+    field_size_mm: tuple[float, float] = (20, 20),
+    final_layers: list[Layer] | None = None,
     bb_size_mm: float = 5,
     image_axes: ((int, int, int), ...) = (
         (0, 0, 0),
@@ -385,7 +383,7 @@ def generate_winstonlutz_multi_bb_multi_field(
     clean_dir: bool = True,
     jitter_mm: float = 0,
     align_to_pixels: bool = True,
-) -> List[str]:
+) -> list[str]:
     """Create a mock set of WL images, simulating gantry sag effects. Produces one image for each item in image_axes.
     This will also generate multiple BBs on the image, one per item in `offsets`. Each offset should be a list of
     the shifts of the BB relative to isocenter like so: [<left>, <up>, <in>] OR an arrangement from the WL module.
@@ -517,10 +515,10 @@ def generate_winstonlutz_multi_bb_multi_field(
 
 def generate_winstonlutz_cone(
     simulator: Simulator,
-    cone_layer: Union[Type[FilterFreeConeLayer], Type[PerfectConeLayer]],
+    cone_layer: type[FilterFreeConeLayer] | type[PerfectConeLayer],
     dir_out: str,
     cone_size_mm: float = 17.5,
-    final_layers: Optional[List[Layer]] = None,
+    final_layers: list[Layer] | None = None,
     bb_size_mm: float = 5,
     offset_mm_left: float = 0,
     offset_mm_up: float = 0,
@@ -534,7 +532,7 @@ def generate_winstonlutz_cone(
     gantry_tilt: float = 0,
     gantry_sag: float = 0,
     clean_dir: bool = True,
-) -> List[str]:
+) -> list[str]:
     """Create a mock set of WL images with a cone field, simulating gantry sag effects. Produces one image for each item in image_axes.
 
     Parameters

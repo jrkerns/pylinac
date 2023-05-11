@@ -12,6 +12,8 @@ Features:
 * **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
 * **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
 """
+from __future__ import annotations
+
 import copy
 import dataclasses
 import enum
@@ -24,7 +26,7 @@ from io import BytesIO
 from itertools import cycle
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import BinaryIO, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import BinaryIO, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -54,7 +56,7 @@ class Orientation(enum.Enum):
 class MLCArrangement:
     """Construct an MLC array"""
 
-    def __init__(self, leaf_arrangement: List[Tuple[int, float]], offset: float = 0):
+    def __init__(self, leaf_arrangement: list[tuple[int, float]], offset: float = 0):
         """
 
         Parameters
@@ -124,11 +126,11 @@ class PFResult(ResultBase):
     absolute_median_error_mm: float  #:
     max_error_mm: float  #:
     max_error_picket: int  #:
-    max_error_leaf: Union[str, int]  #:
+    max_error_leaf: str | int  #:
     mean_picket_spacing_mm: float  #:
-    offsets_from_cax_mm: List[float]  #:
+    offsets_from_cax_mm: list[float]  #:
     passed: bool  #:
-    failed_leaves: Union[List[str], List[int]]  #:
+    failed_leaves: list[str] | list[int]  #:
     mlc_skew: float  #:
 
 
@@ -165,7 +167,7 @@ class PFDicomImage(image.LinacDicomImage):
         )
         return max_is_extreme or min_is_extreme
 
-    def adjust_for_sag(self, sag: int, orientation: Union[str, Orientation]) -> None:
+    def adjust_for_sag(self, sag: int, orientation: str | Orientation) -> None:
         """Roll the image to adjust for EPID sag."""
         orient = convert_to_enum(orientation, Orientation)
         direction = "y" if orient == Orientation.UP_DOWN else "x"
@@ -181,13 +183,13 @@ class PicketFence:
 
     def __init__(
         self,
-        filename: Union[str, Path, BinaryIO],
-        filter: Optional[int] = None,
-        log: Optional[str] = None,
+        filename: str | Path | BinaryIO,
+        filter: int | None = None,
+        log: str | None = None,
         use_filename: bool = False,
-        mlc: Union[MLC, MLCArrangement, str] = MLC.MILLENNIUM,
+        mlc: MLC | MLCArrangement | str = MLC.MILLENNIUM,
         crop_mm: int = 3,
-        image_kwargs: Optional[dict] = None,
+        image_kwargs: dict | None = None,
     ):
         """
         Parameters
@@ -214,8 +216,8 @@ class PicketFence:
             very close to the edge. Generally speaking, they shouldn't be for the best accuracy.
         """
         leaf_analysis_width: float  #:
-        mlc_meas: List  #:
-        pickets: List  #:
+        mlc_meas: list  #:
+        pickets: list  #:
         tolerance: float  #:
         action_tolerance: float  #:
         image: PFDicomImage  #:
@@ -237,7 +239,7 @@ class PicketFence:
         self.mlc = self._get_mlc_arrangement(mlc)
 
     @staticmethod
-    def _get_mlc_arrangement(value: Union[MLC, MLCArrangement, str]) -> MLCArrangement:
+    def _get_mlc_arrangement(value: MLC | MLCArrangement | str) -> MLCArrangement:
         if isinstance(value, MLC):
             return value.value["arrangement"]
         if isinstance(value, MLCArrangement):
@@ -250,9 +252,7 @@ class PicketFence:
             ][0]
 
     @classmethod
-    def from_url(
-        cls, url: str, filter: int = None, image_kwargs: Optional[dict] = None
-    ):
+    def from_url(cls, url: str, filter: int = None, image_kwargs: dict | None = None):
         """Instantiate from a URL."""
         filename = get_url(url, progress_bar=True)
         return cls(filename, filter=filter, image_kwargs=image_kwargs)
@@ -266,7 +266,7 @@ class PicketFence:
     @classmethod
     def from_multiple_images(
         cls,
-        path_list: Iterable[Union[str, Path]],
+        path_list: Iterable[str | Path],
         dtype: np.dtype = np.uint16,
         **kwargs,
     ):
@@ -320,7 +320,7 @@ class PicketFence:
         )
 
     @property
-    def max_error_leaf(self) -> Union[int, str]:
+    def max_error_leaf(self) -> int | str:
         """Return the leaf/leaf pair that had the maximum error.
         This will be a single int value (i.e. either/both A and B) for classic analysis or a fully-qualified name for separate analysis. E.g. A43"""
         if not self.separate_leaves:
@@ -341,10 +341,10 @@ class PicketFence:
             else:
                 return max_meas.full_leaf_nums[1]
 
-    def _flattened_errors(self) -> List[float]:
+    def _flattened_errors(self) -> list[float]:
         return Enumerable(self.mlc_meas).select_many(lambda m: m.error).to_list()
 
-    def failed_leaves(self) -> Union[List[int], List[str]]:
+    def failed_leaves(self) -> list[int] | list[str]:
         """A list of the failed leaves. Either the leaf number or the bank+leaf number if using separate leaves."""
         if not self._is_analyzed:
             raise ValueError(
@@ -389,7 +389,7 @@ class PicketFence:
             )
         )
 
-    def plot_leaf_profile(self, leaf: Union[str, int], picket: int, show: bool = True):
+    def plot_leaf_profile(self, leaf: str | int, picket: int, show: bool = True):
         """Plot the leaf profile of a given leaf pair parallel to leaf motion.
 
         Parameters
@@ -420,8 +420,8 @@ class PicketFence:
 
     def save_leaf_profile(
         self,
-        filename: Union[str, Path, BinaryIO],
-        leaf: Union[str, int],
+        filename: str | Path | BinaryIO,
+        leaf: str | int,
         picket: int,
         **kwargs,
     ):
@@ -464,13 +464,13 @@ class PicketFence:
     def analyze(
         self,
         tolerance: float = 0.5,
-        action_tolerance: Optional[float] = None,
-        num_pickets: Optional[int] = None,
-        sag_adjustment: Union[float, int] = 0,
-        orientation: Optional[Union[Orientation, str]] = None,
+        action_tolerance: float | None = None,
+        num_pickets: int | None = None,
+        sag_adjustment: float | int = 0,
+        orientation: Orientation | str | None = None,
         invert: bool = False,
         leaf_analysis_width_ratio: float = 0.4,
-        picket_spacing: Optional[float] = None,
+        picket_spacing: float | None = None,
         height_threshold: float = 0.5,
         edge_threshold: float = 1.5,
         peak_sort: str = "peak_heights",
@@ -705,7 +705,7 @@ class PicketFence:
             array = self.image[top_edge:bottom_edge, left_edge:right_edge]
         return array
 
-    def _leaves_in_view(self, analysis_width) -> List[Tuple[int, int, int]]:
+    def _leaves_in_view(self, analysis_width) -> list[tuple[int, int, int]]:
         """Crop the leaves if not all leaves are in view."""
         range = (
             self.image.shape[0] / 2
@@ -741,7 +741,7 @@ class PicketFence:
         overlay: bool = True,
         leaf_error_subplot: bool = True,
         show: bool = True,
-        figure_size: Union[str, Tuple] = "auto",
+        figure_size: str | tuple = "auto",
     ) -> None:
         """Plot the analyzed image.
 
@@ -876,7 +876,7 @@ class PicketFence:
 
     def save_analyzed_image(
         self,
-        filename: Union[str, io.BytesIO],
+        filename: str | io.BytesIO,
         guard_rails: bool = True,
         mlc_peaks: bool = True,
         overlay: bool = True,
@@ -917,7 +917,7 @@ class PicketFence:
             results = "\n".join(results)
         return results
 
-    def results_data(self, as_dict=False) -> Union[PFResult, dict]:
+    def results_data(self, as_dict=False) -> PFResult | dict:
         """Present the results data and metadata as a dataclass, dict, or tuple.
         The default return type is a dataclass."""
         data = PFResult(
@@ -941,12 +941,12 @@ class PicketFence:
 
     def publish_pdf(
         self,
-        filename: Union[str, io.BytesIO],
+        filename: str | io.BytesIO,
         notes: str = None,
         open_file: bool = False,
         metadata: dict = None,
         bins: int = 10,
-        logo: Optional[Union[Path, str]] = None,
+        logo: Path | str | None = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -1061,7 +1061,7 @@ class MLCValue:
         orientation: Orientation,
         leaf_analysis_width_ratio: float,
         tolerance: float,
-        action_tolerance: Optional[float],
+        action_tolerance: float | None,
         leaf_num: int,
         approx_peak_val: float,
         image_window: np.ndarray,
@@ -1100,7 +1100,7 @@ class MLCValue:
         return f"Leaf: {self.leaf_num}, Picket: {self.picket_num}"
 
     @property
-    def full_leaf_nums(self) -> Sequence[Union[str, int]]:
+    def full_leaf_nums(self) -> Sequence[str | int]:
         """The fully-qualified leaf names. This will be the simple leaf number for traditional analysis or the bank+leaf num for separate leaves."""
         if not self._separate_leaves:
             return [
@@ -1112,7 +1112,7 @@ class MLCValue:
                 f"{RIGHT_MLC_PREFIX}{self.leaf_num}",
             ]
 
-    def plot2axes(self, axes: plt.Axes, width: Union[float, int] = 1) -> None:
+    def plot2axes(self, axes: plt.Axes, width: float | int = 1) -> None:
         """Plot the measurement to the axes."""
         for idx, line in enumerate(self.marker_lines):
             line.plot2axes(axes, width, color=self.bg_color[idx])
@@ -1150,7 +1150,7 @@ class MLCValue:
         return [abs(error) < self._tolerance for error in self.error]
 
     @property
-    def passed_action(self) -> Optional[Sequence[bool]]:
+    def passed_action(self) -> Sequence[bool] | None:
         """Whether the MLC kiss or leaf was within the action tolerance."""
         return (
             [abs(error) < self._action_tolerance for error in self.error]
@@ -1239,7 +1239,7 @@ class MLCValue:
         return np.max(np.abs([self.error]))
 
     @property
-    def marker_lines(self) -> List[Line]:
+    def marker_lines(self) -> list[Line]:
         """The line(s) representing the MLC measurement position. When using separated leaves
         there are two lines. Traditional analysis returns one."""
         upper_point = (
@@ -1311,7 +1311,7 @@ class Picket:
 
     def __init__(
         self,
-        mlc_measurements: List[MLCValue],
+        mlc_measurements: list[MLCValue],
         log_fits,
         orientation: Orientation,
         image: PFDicomImage,
@@ -1319,7 +1319,7 @@ class Picket:
         separate_leaves: bool,
         nominal_gap: float,
     ):
-        self.mlc_meas: List[MLCValue] = mlc_measurements
+        self.mlc_meas: list[MLCValue] = mlc_measurements
         self.log_fits = log_fits
         self.tolerance = tolerance
         self.orientation = orientation
