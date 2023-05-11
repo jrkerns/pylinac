@@ -9,4 +9,5 @@ pytest-cov==3.0.0
 pytest-xdist
 sphinx
 sphinx-autobuild
+sphinx-copybutton
 twine
