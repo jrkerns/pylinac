@@ -10,6 +10,7 @@ General/Core
 ^^^^^^^^^^^^
 
 * A new function is available under the ``image`` module that converts a TIFF image to a simple DICOM format: ``tiff_to_dicom()``.
+* Type errors should no longer occur for older version of Python.
 
 Cheese Phantoms
 ^^^^^^^^^^^^^^^
