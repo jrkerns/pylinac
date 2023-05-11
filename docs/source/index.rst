@@ -6,11 +6,17 @@
 .. include:: ../../README.rst
 
 .. toctree::
-   :maxdepth: 2
+   :hidden:
+   :caption: Introduction
 
    overview
    installation
    general_tips
+
+.. toctree::
+   :hidden:
+   :caption: Main Modules
+
    calibration_docs
    starshot_docs
    vmat_docs
@@ -24,9 +30,27 @@
    winston_lutz_multi
    planar_imaging
    field_analysis
+
+.. toctree::
+   :hidden:
+   :caption: Ancillary Modules
+
    core_modules
    image_generator
-   topics
+
+.. toctree::
+   :hidden:
+   :caption: Topics
+
+   topics/images
+   topics/xim
+   topics/contrast
+   topics/mtf
+
+.. toctree::
+   :hidden:
+   :caption: Miscellaneous
+
    troubleshooting
    contributing
    changelog
