@@ -9,11 +9,11 @@ from typing import Callable
 import numpy as np
 from matplotlib import pyplot as plt
 
-from pylinac.core import pdf
-from pylinac.core.profile import CollapsedCircleProfile
-from pylinac.core.roi import DiskROI
-from pylinac.core.utilities import ResultBase, abs360
-from pylinac.ct import CatPhanBase, CatPhanModule, Slice
+from .core import pdf
+from .core.profile import CollapsedCircleProfile
+from .core.roi import DiskROI
+from .core.utilities import ResultBase, abs360
+from .ct import CatPhanBase, CatPhanModule, Slice
 
 
 @dataclasses.dataclass

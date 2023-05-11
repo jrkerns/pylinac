@@ -57,7 +57,7 @@ definitions:
     - step: &quart-tests
         name: Run Quart Tests
         script:
-          - pip install -r requirements-dev.txt
+          - source venv/bin/activate
           - pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
