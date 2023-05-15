@@ -111,7 +111,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, Imag
         zoom_factor = image1.dpi / image2.dpi
         image2_array = ndimage.interpolation.zoom(image2.as_type(float), zoom_factor)
         image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
-    
+
     return image1, image2
 
 
