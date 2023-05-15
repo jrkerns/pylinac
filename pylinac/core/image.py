@@ -101,11 +101,17 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, Imag
     pixel_width_diff = abs(int(round(physical_width_diff * img.dpmm / 2)))
     img.crop(pixel_width_diff, edges=("left", "right"))
 
-    # resize images to be of the same shape
-    zoom_factor = image1.shape[1] / image2.shape[1]
-    image2_array = ndimage.interpolation.zoom(image2.as_type(float), zoom_factor)
-    image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
+    # resize biggest image to be of the same shape
+    if image1.dpi > image2.dpi:
+        zoom_factor = image2.dpi / image1.dpi # Equivalent to image2.shape[1] / image1.shape[1]
+        image1_array = ndimage.interpolation.zoom(image1.as_type(float), zoom_factor)
+        image1 = load(image1_array, dpi=image1.dpi * zoom_factor)
 
+    else:
+        zoom_factor = image1.dpi / image2.dpi
+        image2_array = ndimage.interpolation.zoom(image2.as_type(float), zoom_factor)
+        image2 = load(image2_array, dpi=image2.dpi * zoom_factor)
+    
     return image1, image2
 
 
