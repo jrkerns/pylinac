@@ -15,6 +15,7 @@ General/Core
   within RadMachine from a custom pylinac package.
 * The demo files and PDF references have been removed from the git repository to make shallow clones smaller (e.g. downloading the repo from Github).
   Demo files are still available publicly as they always have been. No user changes required.
+* Type errors should no longer occur for older version of Python.
 
 Cheese Phantoms
 ^^^^^^^^^^^^^^^

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import enum
-from typing import Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,7 +48,7 @@ class DiskROI(Circle):
         angle: float,
         roi_radius: float,
         dist_from_center: float,
-        phantom_center: Union[Tuple, Point],
+        phantom_center: tuple | Point,
     ):
         """
         Parameters
@@ -102,7 +103,7 @@ class DiskROI(Circle):
 
     def plot2axes(
         self,
-        axes: Optional[plt.Axes] = None,
+        axes: plt.Axes | None = None,
         edgecolor: str = "black",
         fill: bool = False,
         text: str = "",
@@ -139,22 +140,22 @@ class DiskROI(Circle):
 class LowContrastDiskROI(DiskROI):
     """A class for analyzing the low-contrast disks."""
 
-    contrast_threshold: Optional[float]
-    cnr_threshold: Optional[float]
-    contrast_reference: Optional[float]
+    contrast_threshold: float | None
+    cnr_threshold: float | None
+    contrast_reference: float | None
 
     def __init__(
         self,
-        array: Union[np.ndarray, ArrayImage],
+        array: np.ndarray | ArrayImage,
         angle: float,
         roi_radius: float,
         dist_from_center: float,
-        phantom_center: Union[tuple, Point],
-        contrast_threshold: Optional[float] = None,
-        contrast_reference: Optional[float] = None,
-        cnr_threshold: Optional[float] = None,
+        phantom_center: tuple | Point,
+        contrast_threshold: float | None = None,
+        contrast_reference: float | None = None,
+        cnr_threshold: float | None = None,
         contrast_method: Contrast = Contrast.MICHELSON,
-        visibility_threshold: Optional[float] = 0.1,
+        visibility_threshold: float | None = 0.1,
     ):
         """
         Parameters
@@ -270,7 +271,7 @@ class LowContrastDiskROI(DiskROI):
 class HighContrastDiskROI(DiskROI):
     """A class for analyzing the high-contrast disks."""
 
-    contrast_threshold: Optional[float]
+    contrast_threshold: float | None
 
     def __init__(
         self,
@@ -278,7 +279,7 @@ class HighContrastDiskROI(DiskROI):
         angle: float,
         roi_radius: float,
         dist_from_center: float,
-        phantom_center: Union[tuple, Point],
+        phantom_center: tuple | Point,
         contrast_threshold: float,
     ):
         """

@@ -18,6 +18,8 @@ Features:
 * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
   as you see fit.
 """
+from __future__ import annotations
+
 import copy
 import dataclasses
 import io
@@ -27,7 +29,7 @@ import warnings
 import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO, Callable, Dict, List, Optional, Tuple, Union
+from typing import BinaryIO, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -65,11 +67,11 @@ class PlanarResult(ResultBase):
     median_contrast: float  #:
     median_cnr: float  #:
     num_contrast_rois_seen: int  #:
-    phantom_center_x_y: Tuple[float, float]  #:
-    mtf_lp_mm: Tuple[float, float, float] = None  #:
+    phantom_center_x_y: tuple[float, float]  #:
+    mtf_lp_mm: tuple[float, float, float] = None  #:
 
 
-def _middle_of_bbox_region(region: RegionProperties) -> Tuple:
+def _middle_of_bbox_region(region: RegionProperties) -> tuple:
     return (
         (region.bbox[2] - region.bbox[0]) / 2 + region.bbox[0],
         (region.bbox[3] - region.bbox[1]) / 2 + region.bbox[1],
@@ -146,16 +148,16 @@ class ImagePhantomBase:
     low_contrast_background_rois = []
     low_contrast_background_value = None
     phantom_outline_object = None
-    detection_conditions: List[Callable] = [is_centered, is_right_size]
+    detection_conditions: list[Callable] = [is_centered, is_right_size]
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
     roi_match_condition = "max"
 
     def __init__(
         self,
-        filepath: Union[str, BinaryIO, Path],
+        filepath: str | BinaryIO | Path,
         normalize: bool = True,
-        image_kwargs: Optional[dict] = None,
+        image_kwargs: dict | None = None,
     ):
         """
         Parameters
@@ -204,12 +206,12 @@ class ImagePhantomBase:
     def _check_inversion(self):
         pass
 
-    def window_floor(self) -> Optional[float]:
+    def window_floor(self) -> float | None:
         """The value to use as the minimum when displaying the image (see https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.imshow.html)
         Helps show contrast of images, specifically if there is an open background"""
         return
 
-    def window_ceiling(self) -> Optional[float]:
+    def window_ceiling(self) -> float | None:
         """The value to use as the maximum when displaying the image. Helps show contrast of images, specifically if there is an open background"""
         return
 
@@ -275,9 +277,9 @@ class ImagePhantomBase:
         low_contrast_threshold: float = 0.05,
         high_contrast_threshold: float = 0.5,
         invert: bool = False,
-        angle_override: Optional[float] = None,
-        center_override: Optional[tuple] = None,
-        size_override: Optional[float] = None,
+        angle_override: float | None = None,
+        center_override: tuple | None = None,
+        size_override: float | None = None,
         ssd: float = 1000,
         low_contrast_method: Contrast = Contrast.MICHELSON,
         visibility_threshold: float = 100,
@@ -348,7 +350,7 @@ class ImagePhantomBase:
         if self.low_contrast_roi_settings:
             self.low_contrast_rois = self._sample_low_contrast_rois()
 
-    def _sample_low_contrast_rois(self) -> List[LowContrastDiskROI]:
+    def _sample_low_contrast_rois(self) -> list[LowContrastDiskROI]:
         """Sample the low-contrast sample regions for calculating contrast values."""
         lc_rois = []
         for stng in self.low_contrast_roi_settings.values():
@@ -368,7 +370,7 @@ class ImagePhantomBase:
 
     def _sample_low_contrast_background_rois(
         self,
-    ) -> Tuple[List[LowContrastDiskROI], float]:
+    ) -> tuple[list[LowContrastDiskROI], float]:
         """Sample the low-contrast background regions for calculating contrast values."""
         bg_rois = []
         for stng in self.low_contrast_background_roi_settings.values():
@@ -384,7 +386,7 @@ class ImagePhantomBase:
         avg_bg = np.mean([roi.pixel_value for roi in bg_rois])
         return bg_rois, avg_bg
 
-    def _sample_high_contrast_rois(self) -> List[HighContrastDiskROI]:
+    def _sample_high_contrast_rois(self) -> list[HighContrastDiskROI]:
         """Sample the high-contrast line pair regions."""
         hc_rois = []
         for stng in self.high_contrast_roi_settings.values():
@@ -401,11 +403,11 @@ class ImagePhantomBase:
 
     def save_analyzed_image(
         self,
-        filename: Union[None, str, BinaryIO] = None,
+        filename: None | str | BinaryIO = None,
         split_plots: bool = False,
         to_streams: bool = False,
         **kwargs,
-    ) -> Optional[Union[Dict[str, BinaryIO], List[str]]]:
+    ) -> dict[str, BinaryIO] | list[str] | None:
         """Save the analyzed image to disk or to stream. Kwargs are passed to plt.savefig()
 
         Parameters
@@ -449,7 +451,7 @@ class ImagePhantomBase:
             if split_plots:
                 return filenames
 
-    def _get_canny_regions(self) -> List[RegionProperties]:
+    def _get_canny_regions(self) -> list[RegionProperties]:
         """Compute the canny edges of the image and return the connected regions found."""
         # compute the canny edges with very low thresholds (detects nearly everything)
         canny_img = feature.canny(
@@ -465,7 +467,7 @@ class ImagePhantomBase:
         regions = measure.regionprops(labeled, intensity_image=self.image.array)
         return regions
 
-    def _create_phantom_outline_object(self) -> Tuple[Union[Rectangle, Circle], dict]:
+    def _create_phantom_outline_object(self) -> tuple[Rectangle | Circle, dict]:
         """Construct the phantom outline object which will be plotted on the image for visual inspection."""
         outline_type = list(self.phantom_outline_object)[0]
         outline_settings = list(self.phantom_outline_object.values())[0]
@@ -508,7 +510,7 @@ class ImagePhantomBase:
         show: bool = True,
         split_plots: bool = False,
         **plt_kwargs: dict,
-    ) -> Tuple[List[plt.Figure], List[str]]:
+    ) -> tuple[list[plt.Figure], list[str]]:
         """Plot the analyzed image.
 
         Parameters
@@ -631,7 +633,7 @@ class ImagePhantomBase:
         axes.set_xlabel("Line pairs / mm")
         axes.set_ylabel("relative MTF")
 
-    def results(self, as_list: bool = False) -> Union[str, list[str]]:
+    def results(self, as_list: bool = False) -> str | list[str]:
         """Return the results of the analysis.
 
         Parameters
@@ -656,7 +658,7 @@ class ImagePhantomBase:
             text = "\n".join(text)
         return text
 
-    def results_data(self, as_dict=False) -> Union[PlanarResult, dict]:
+    def results_data(self, as_dict=False) -> PlanarResult | dict:
         data = PlanarResult(
             analysis_type=self.common_name,
             median_contrast=np.median([roi.contrast for roi in self.low_contrast_rois]),
@@ -682,8 +684,8 @@ class ImagePhantomBase:
         filename: str,
         notes: str = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -844,7 +846,7 @@ class StandardImagingFC2(ImagePhantomBase):
         ) = self._find_field_info(fwxm=fwxm)
         self.epid_center = self.image.center
 
-    def results(self, as_list: bool = False) -> Union[str, list[str]]:
+    def results(self, as_list: bool = False) -> str | list[str]:
         """Return the results of the analysis."""
         text = [
             f"{self.common_name} results:",
@@ -876,7 +878,7 @@ class StandardImagingFC2(ImagePhantomBase):
             self.bb_center.as_vector() - self.field_center.as_vector()
         ) / self.image.dpmm
 
-    def results_data(self, as_dict: bool = False) -> Union[LightRadResult, dict]:
+    def results_data(self, as_dict: bool = False) -> LightRadResult | dict:
         """Return the results as a dict or dataclass"""
         data = LightRadResult(
             field_size_x_mm=self.field_width_x,
@@ -986,7 +988,7 @@ class StandardImagingFC2(ImagePhantomBase):
 
     def plot_analyzed_image(
         self, show: bool = True, **kwargs
-    ) -> Tuple[List[plt.Figure], List[str]]:
+    ) -> tuple[list[plt.Figure], list[str]]:
         """Plot the analyzed image.
 
         Parameters
@@ -1035,10 +1037,10 @@ class StandardImagingFC2(ImagePhantomBase):
 
     def save_analyzed_image(
         self,
-        filename: Union[None, str, BinaryIO] = None,
+        filename: None | str | BinaryIO = None,
         to_streams: bool = False,
         **kwargs,
-    ) -> Optional[Union[Dict[str, BinaryIO], List[str]]]:
+    ) -> dict[str, BinaryIO] | list[str] | None:
         """Save the analyzed image to disk or to stream. Kwargs are passed to plt.savefig()
 
         Parameters
@@ -1072,8 +1074,8 @@ class StandardImagingFC2(ImagePhantomBase):
         filename: str,
         notes: str = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -1290,7 +1292,7 @@ class LasVegas(ImagePhantomBase):
 
         axes.legend(handles=[line1, line2, line3])
 
-    def results(self, as_list: bool = False) -> Union[str, list[str]]:
+    def results(self, as_list: bool = False) -> str | list[str]:
         """Return the results of the analysis. Overridden because ROIs seen is based on visibility, not CNR.
 
         Parameters
@@ -1308,7 +1310,7 @@ class LasVegas(ImagePhantomBase):
             text = "\n".join(text)
         return text
 
-    def results_data(self, as_dict: bool = False) -> Union[PlanarResult, dict]:
+    def results_data(self, as_dict: bool = False) -> PlanarResult | dict:
         """Overridden because ROIs seen is based on visibility, not CNR"""
         data = PlanarResult(
             analysis_type=self.common_name,
@@ -1568,12 +1570,12 @@ class IBAPrimusA(ImagePhantomBase):
         pixel_values = [roi.pixel_value for roi in self.low_contrast_rois]
         return abs(max(pixel_values) - min(pixel_values))
 
-    def window_floor(self) -> Optional[float]:
+    def window_floor(self) -> float | None:
         return (
             min(roi.pixel_value for roi in self.low_contrast_rois) - self._wl_spread()
         )
 
-    def window_ceiling(self) -> Optional[float]:
+    def window_ceiling(self) -> float | None:
         return (
             max(roi.pixel_value for roi in self.low_contrast_rois) + self._wl_spread()
         )
@@ -2464,7 +2466,7 @@ class DoselabMC2MV(DoselabMC2kV):
         leeds.plot_analyzed_image()
 
 
-def take_centermost_roi(rprops: List[RegionProperties], image_shape: Tuple[int, int]):
+def take_centermost_roi(rprops: list[RegionProperties], image_shape: tuple[int, int]):
     """Return the ROI that is closest to the center."""
     larger_rois = [
         rprop for rprop in rprops if rprop.area > 20 and rprop.eccentricity < 0.9

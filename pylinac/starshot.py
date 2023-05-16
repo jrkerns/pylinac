@@ -18,13 +18,15 @@ Features:
 * **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
   do an adaptive search by adjusting parameters to find a "reasonable" wobble.
 """
+from __future__ import annotations
+
 import copy
 import dataclasses
 import io
 import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO, List, Optional, Tuple, Union
+from typing import BinaryIO
 
 import argue
 import matplotlib.pyplot as plt
@@ -51,7 +53,7 @@ class StarshotResults(ResultBase):
     circle_diameter_mm: float  #:
     circle_radius_mm: float  #:
     passed: bool  #:
-    circle_center_x_y: Tuple[float, float]  #:
+    circle_center_x_y: tuple[float, float]  #:
 
 
 class Starshot:
@@ -79,7 +81,7 @@ class Starshot:
         >>> mystar.plot_analyzed_image()
     """
 
-    def __init__(self, filepath: Union[str, BinaryIO], **kwargs):
+    def __init__(self, filepath: str | BinaryIO, **kwargs):
         """
         Parameters
         ----------
@@ -197,7 +199,7 @@ class Starshot:
         radius: float = 0.85,
         min_peak_height: float = 0.25,
         tolerance: float = 1.0,
-        start_point: Optional[Union[Point, tuple]] = None,
+        start_point: Point | tuple | None = None,
         fwhm: bool = True,
         recursive: bool = True,
         invert: bool = False,
@@ -365,7 +367,7 @@ class Starshot:
         """Return a pass/fail string."""
         return "PASS" if self.passed else "FAIL"
 
-    def results(self, as_list: bool = False) -> Union[str, list[str]]:
+    def results(self, as_list: bool = False) -> str | list[str]:
         """Return the results of the analysis.
 
         Parameters
@@ -383,7 +385,7 @@ class Starshot:
             results = "\n".join(results)
         return results
 
-    def results_data(self, as_dict: bool = False) -> Union[StarshotResults, dict]:
+    def results_data(self, as_dict: bool = False) -> StarshotResults | dict:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         data = StarshotResults(
@@ -422,7 +424,7 @@ class Starshot:
     def plot_analyzed_subimage(
         self,
         subimage: str = "wobble",
-        ax: Optional[plt.Axes] = None,
+        ax: plt.Axes | None = None,
         show: bool = True,
         **plt_kwargs: dict,
     ):
@@ -499,11 +501,11 @@ class Starshot:
 
     def publish_pdf(
         self,
-        filename: Union[str, BinaryIO],
-        notes: Optional[Union[str, List[str]]] = None,
+        filename: str | BinaryIO,
+        notes: str | list[str] | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -578,7 +580,7 @@ class Wobble(Circle):
 class LineManager:
     """Manages the radiation lines found."""
 
-    def __init__(self, points: List[Point]):
+    def __init__(self, points: list[Point]):
         """
         Parameters
         ----------
@@ -594,7 +596,7 @@ class LineManager:
     def __len__(self):
         return len(self.lines)
 
-    def construct_rad_lines(self, points: List[Point]):
+    def construct_rad_lines(self, points: list[Point]):
         """Find and match the positions of peaks in the circle profile (radiation lines)
             and map their positions to the starshot image.
 
@@ -614,7 +616,7 @@ class LineManager:
         """
         self.match_points(points)
 
-    def match_points(self, points: List[Point]):
+    def match_points(self, points: list[Point]):
         """Match the peaks found to the same radiation lines.
 
         Peaks are matched by connecting the existing peaks based on an offset of peaks. E.g. if there are

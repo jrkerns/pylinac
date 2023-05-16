@@ -1,8 +1,10 @@
 """Module for constructing and interacting with PDF reports for Pylinac."""
+from __future__ import annotations
+
 import io
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
+from typing import Sequence
 
 from PIL import Image
 from reportlab.lib.pagesizes import A4
@@ -34,9 +36,9 @@ class PylinacCanvas:
         filename: str,
         page_title: str,
         font: str = "Helvetica",
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
         metadata_location: tuple = (2, 25.5),
-        logo: Optional[Union[Path, str]] = None,
+        logo: Path | str | None = None,
     ):
         self.canvas = Canvas(filename, pagesize=A4)
         self._font = font
@@ -85,10 +87,10 @@ class PylinacCanvas:
 
     def add_text(
         self,
-        text: Union[str, List[str]],
+        text: str | list[str],
         location: (float, float),
         font_size: int = 10,
-        font: Optional[str] = None,
+        font: str | None = None,
     ) -> None:
         """Generic text drawing function.
 

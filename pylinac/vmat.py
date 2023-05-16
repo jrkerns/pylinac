@@ -8,6 +8,8 @@ Features:
 * **Automatic offset correction** - Older VMAT tests had the ROIs offset, newer ones are centered. No worries, pylinac finds the ROIs automatically.
 * **Automatic open/DMLC identification** - Pass in both images--don't worry about naming. Pylinac will automatically identify the right images.
 """
+from __future__ import annotations
+
 import dataclasses
 import enum
 import typing
@@ -15,7 +17,7 @@ import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import BinaryIO, Dict, List, Optional, Sequence, Tuple, Union
+from typing import BinaryIO, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -62,7 +64,7 @@ class VMATResult(ResultBase):
     abs_mean_deviation: float  #:
     passed: bool  #:
     segment_data: typing.Iterable[SegmentResult]  #:
-    named_segment_data: Dict[str, SegmentResult]  #:
+    named_segment_data: dict[str, SegmentResult]  #:
 
 
 class Segment(Rectangle):
@@ -90,7 +92,7 @@ class Segment(Rectangle):
         center_point: Point,
         open_image: image.DicomImage,
         dmlc_image: image.DicomImage,
-        tolerance: Union[float, int],
+        tolerance: float | int,
     ):
         self.r_dev: float = 0.0  # is assigned after all segments constructed
         self._tolerance = tolerance
@@ -132,10 +134,10 @@ class VMATBase:
     default_roi_config: dict
     dmlc_image: image.DicomImage
     open_image: image.DicomImage
-    segments: List[Segment]
+    segments: list[Segment]
     _tolerance: float
 
-    def __init__(self, image_paths: Sequence[Union[str, BinaryIO, Path]]):
+    def __init__(self, image_paths: Sequence[str | BinaryIO | Path]):
         """
         Parameters
         ----------
@@ -163,7 +165,7 @@ class VMATBase:
         return cls.from_zip(zfile)
 
     @classmethod
-    def from_zip(cls, path: Union[str, Path]):
+    def from_zip(cls, path: str | Path):
         """Load VMAT images from a ZIP file that contains both images. Must follow the naming convention.
 
         Parameters
@@ -183,9 +185,9 @@ class VMATBase:
 
     def analyze(
         self,
-        tolerance: Union[float, int] = 1.5,
-        segment_size_mm: Tuple = (5, 100),
-        roi_config: Optional[dict] = None,
+        tolerance: float | int = 1.5,
+        segment_size_mm: tuple = (5, 100),
+        roi_config: dict | None = None,
     ):
         """Analyze the open and DMLC field VMAT images, according to 1 of 2 possible tests.
 
@@ -210,8 +212,8 @@ class VMATBase:
 
     @staticmethod
     def _load_images(
-        image_paths: Sequence[Union[str, BytesIO]]
-    ) -> Tuple[ImageLike, ImageLike]:
+        image_paths: Sequence[str | BytesIO],
+    ) -> tuple[ImageLike, ImageLike]:
         image1 = image.load(image_paths[0])
         image2 = image.load(image_paths[1])
         image1.ground()
@@ -221,7 +223,7 @@ class VMATBase:
     @staticmethod
     def _check_img_inversion(
         image1: ImageLike, image2: ImageLike
-    ) -> Tuple[ImageLike, ImageLike]:
+    ) -> tuple[ImageLike, ImageLike]:
         """Check that the images are correctly inverted."""
         for img in [image1, image2]:
             img.check_inversion()
@@ -257,7 +259,7 @@ class VMATBase:
         string += f"Max Deviation: {self.max_r_deviation:2.3}%\nAbsolute Mean Deviation: {self.avg_abs_r_deviation:2.3}%"
         return string
 
-    def results_data(self, as_dict=False) -> Union[VMATResult, dict]:
+    def results_data(self, as_dict=False) -> VMATResult | dict:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         segment_data = []
@@ -288,7 +290,7 @@ class VMATBase:
             return dataclasses.asdict(data)
         return data
 
-    def _calculate_segment_centers(self) -> List[Point]:
+    def _calculate_segment_centers(self) -> list[Point]:
         """Construct the center points of the segments based on the field center and known x-offsets."""
         points = []
         dmlc_prof, _ = self._median_profiles((self.dmlc_image, self.open_image))
@@ -301,7 +303,7 @@ class VMATBase:
             points.append(Point(x, y))
         return points
 
-    def _construct_segments(self, points: List[Point]):
+    def _construct_segments(self, points: list[Point]):
         for point in points:
             segment = Segment(point, self.open_image, self.dmlc_image, self._tolerance)
             self.segments.append(segment)
@@ -370,7 +372,7 @@ class VMATBase:
 
     def _save_analyzed_subimage(
         self,
-        filename: Union[str, BytesIO],
+        filename: str | BytesIO,
         subimage: ImageType,
         show_text: bool,
         **kwargs,
@@ -391,7 +393,7 @@ class VMATBase:
         self,
         subimage: ImageType,
         show: bool = True,
-        ax: Optional[plt.Axes] = None,
+        ax: plt.Axes | None = None,
         show_text: bool = True,
     ):
         """Plot an individual piece of the VMAT analysis.
@@ -458,7 +460,7 @@ class VMATBase:
             )
 
     @staticmethod
-    def _median_profiles(images) -> Tuple[SingleProfile, SingleProfile]:
+    def _median_profiles(images) -> tuple[SingleProfile, SingleProfile]:
         """Return two median profiles from the open and dmlc image. For visual comparison."""
         profile1 = SingleProfile(
             np.mean(images[0], axis=0),
@@ -486,8 +488,8 @@ class VMATBase:
         filename: str,
         notes: str = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
     ):
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
