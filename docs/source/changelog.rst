@@ -9,6 +9,7 @@ v 3.12.0
 General/Core
 ^^^^^^^^^^^^
 
+* The docs now use the ``furo`` theme. 🎉🎉
 * A new function is available under the ``image`` module that converts a TIFF image to a simple DICOM format: ``tiff_to_dicom()``.
 * Saving a PDF with the default logo will now additionally try to load the logo from the demo file repository if the file
   is not available locally. This occurs when using pylinac as a Package in RadMachine. This will now allow users to publish PDFs
@@ -30,7 +31,7 @@ Field Analysis
 .. warning::
 
     TL;DR: Symmetry will statistically go down and Flatness may rise slightly due to an off-by-one bug. For flat DICOM
-    beams, this is insignifcant.
+    beams, this is insignificant.
 
     A bug was fixed that caused the data considered to be the "field" to be off-by-one. The last element was not included.
     A visualization can be seen here: https://github.com/jrkerns/pylinac/issues/440.
@@ -271,7 +272,7 @@ General
 CatPhan
 ^^^^^^^
 
-* ROI details have been added to the :ref:`~pylinac.ct.CTP515Result` class.
+* ROI details have been added to the :class:`~pylinac.ct.CTP515Result` class.
 * Passing ``delta`` to ``save_analyzed_subimage`` would fail because the parameter was not being passed. This is now fixed.
 
 Cheese
@@ -614,7 +615,7 @@ Core
 ^^^^
 
 * 1D gamma evaluation between two profiles can now be performed via the new :func:`~pylinac.core.profile.SingleProfile.gamma` function.
-* Resampling of ``SingleProfile``s can now be done with the :func:`~pylinac.core.profile.SingleProfile.resample` function.
+* Resampling of ``SingleProfile`` can now be done with the :func:`~pylinac.core.profile.SingleProfile.resample` function.
   This allows the user to resample a profile after it's already been created to achieve a specific interpolation resolution.
 
 Field Analysis
