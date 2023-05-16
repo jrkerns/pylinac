@@ -59,7 +59,7 @@ ImageLike = Union["DicomImage", "ArrayImage", "FileImage", "LinacDicomImage"]
 
 
 def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, ImageLike]:
-    """Crop and resize two images to make them:
+    """Resize and crop (if necessary) the biggest of two images to make them:
       * The same pixel dimensions
       * The same DPI
 
@@ -90,7 +90,8 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, Imag
     else:
         img = image1
     pixel_height_diff = abs(int(round(-physical_height_diff * img.dpmm / 2)))
-    img.crop(pixel_height_diff, edges=("top", "bottom"))
+    if pixel_height_diff > 0:   # crop if necessary
+        img.crop(pixel_height_diff, edges=("top", "bottom"))
 
     # ...crop width
     physical_width_diff = image1.physical_shape[1] - image2.physical_shape[1]
@@ -99,7 +100,8 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, Imag
     else:
         img = image2
     pixel_width_diff = abs(int(round(physical_width_diff * img.dpmm / 2)))
-    img.crop(pixel_width_diff, edges=("left", "right"))
+    if pixel_width_diff > 0:
+        img.crop(pixel_width_diff, edges=("left", "right"))
 
     # resize biggest image to be of the same shape
     if image1.dpi > image2.dpi:
