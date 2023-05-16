@@ -81,8 +81,9 @@ An XIM has all the utility methods other pylinac image do, so use this to your a
 Exporting images
 ^^^^^^^^^^^^^^^^
 
-Exporting .xim images is easy. The PNG format is recommended because its ~1/2 the size of the xim image and will
-also include the properties. PNG images can usually be viewed easily across many devices and OSs and also loads very fast.
+Exporting .xim images is easy. The PNG format is recommended because its ~1/2 the size of the original xim image and will
+also include the properties. PNG is also lossless, so all information is retained.
+PNG images can usually be viewed easily across many devices and OSs and also loads very fast.
 
 .. code-block:: python
 
