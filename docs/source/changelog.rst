@@ -3,7 +3,7 @@
 Changelog
 =========
 
-v 3.12.0
+v 3.11.0
 --------
 
 General/Core
@@ -96,14 +96,10 @@ Winston-Lutz
   bugs. Caution is warranted. See :ref:`wl_tiff`.
 
 
-
-v 3.11.0
---------
-
 Machine Logs
 ^^^^^^^^^^^^
 
-* Anonymization (:meth:`~pylinac.log_analyzer.TrajectoryLog.anonymize`) of trajectory logs now includes the Metadata->Patient ID field for v4+ logs.
+* Anonymization (:meth:`~pylinac.log_analyzer.TrajectoryLog.anonymize`) of trajectory logs now includes the Metadata->Patient ID field in the .bin file for v4+ logs.
 
 v 3.10.0
 --------
