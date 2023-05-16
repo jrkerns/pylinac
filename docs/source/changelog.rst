@@ -51,22 +51,21 @@ Field Analysis
     .. table:: Symmetry & Flatness changes in % after the bug fix by data and beam type
         :widths: auto
 
-        +---------------------+---------------------+---------------------+-------------------+-------------------+
-        |                     | Horizontal Symmetry | Horizontal Flatness | Vertical Symmetry | Vertical Flatness |
-        +---------------------+---------------------+---------------------+-------------------+-------------------+
-        | DICOM (Flat)        | 0                   | -0.02               | -0.01             | -0.01             |
-        +---------------------+---------------------+---------------------+-------------------+-------------------+
-        | Profiler (Overall)  | 0.20                | -0.11               | 0.26              | -0.08             |
-        +---------------------+---------------------+---------------------+-------------------+-------------------+
-        | Profiler (Flat)     | 0.16                | -0.04               | 0.09              | -0.01             |
-        +---------------------+---------------------+---------------------+-------------------+-------------------+
-        | Profiler (FFF)      | 0.80                | -0.33               | 1.26              | -0.22             |
-        +---------------------+---------------------+---------------------+-------------------+-------------------+
-        | Profiler (Electron) | 0.08                | -0.30               | 0.52              | -0.26             |
-        +---------------------+---------------------+---------------------+-------------------+-------------------+
+        +---------------------+----------------------+---------------------+-------------------+-------------------+
+        |                     | Horizontal Symmetry  | Horizontal Flatness | Vertical Symmetry | Vertical Flatness |
+        +---------------------+----------------------+---------------------+-------------------+-------------------+
+        | DICOM (Flat)        | 0                    | +0.02               | -0.01             | +0.01             |
+        +---------------------+---------------------+---------------------+--------------------+-------------------+
+        | Profiler (Overall)  | -0.20                | +0.11               | -0.26             | +0.08             |
+        +---------------------+---------------------+---------------------+--------------------+-------------------+
+        | Profiler (Flat)     | -0.16                | +0.04               | -0.09             | +0.01             |
+        +---------------------+---------------------+---------------------+--------------------+-------------------+
+        | Profiler (FFF)      | -0.80                | +0.33               | -1.26             | +0.22             |
+        +---------------------+---------------------+---------------------+--------------------+-------------------+
+        | Profiler (Electron) | -0.08                | +0.30               | -0.52             | +0.26             |
+        +---------------------+---------------------+---------------------+--------------------+-------------------+
 
-    Positive values in the table indicate the value closer to 0. Negative values indicate the
-    values became further away from 0.
+    Positive values indicate the value went up, while negative values indicate the average went down.
 
     The data shows that for DICOM data of flat beams, the effect was negligible. This makes sense since an off-by-one error
     for a field several hundred pixels wide will hardly register. It is the low-resolution datasets that show a difference.
@@ -76,7 +75,7 @@ Field Analysis
     is actually being done for the points that are truly opposite it across the CAX. Previously, a given element was being compared
     to its opposite one element closer to the CAX than it should have been.
 
-    FFF beams improve the most and this can be attributed to the larger gradients causing larger differences in the calculation
+    FFF beams change the most and this can be attributed to the larger gradients causing larger differences in the calculation
     for both symmetry and flatness.
 
     I understand that this may cause some consternation because the values are suddenly changing. However, I believe
