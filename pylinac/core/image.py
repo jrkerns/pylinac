@@ -59,7 +59,7 @@ ImageLike = Union["DicomImage", "ArrayImage", "FileImage", "LinacDicomImage"]
 
 
 def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, ImageLike]:
-    """Resize and crop (if necessary) the biggest of two images to make them:
+    """Crop (if needed) and resize the biggest of two images to make them:
       * The same pixel dimensions
       * The same DPI
 
