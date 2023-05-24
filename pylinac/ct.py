@@ -604,6 +604,7 @@ class CTP404CP504(CatPhanModule):
             combine_method="mean",
             num_slices=self.num_slices + self.pad,
             slice_num=self.slice_num,
+            clear_borders=self.clear_borders,
         ).image
 
     def _setup_rois(self) -> None:
