@@ -3,6 +3,7 @@ from unittest import TestCase
 import numpy as np
 
 from pylinac.core import contrast
+from pylinac.core.contrast import Contrast
 
 
 class TestContrastAlgorithms(TestCase):
@@ -35,3 +36,35 @@ class TestContrastAlgorithms(TestCase):
         arr = np.array((-1, 0, 1)).astype(float)
         with self.assertRaises(ValueError):
             contrast.rms(arr)
+
+    def test_contrast_michelson(self):
+        arr2 = np.array((15, 20, 18))
+        self.assertEqual(
+            contrast.michelson(arr2), contrast.contrast(arr2, Contrast.MICHELSON)
+        )
+
+    def test_contrast_rms(self):
+        arr = np.array((0, 0.5, 1)).astype(float)
+        self.assertEqual(contrast.rms(arr), contrast.contrast(arr, Contrast.RMS))
+
+    def test_contrast_weber(self):
+        arr = np.array((0.5, 1))
+        self.assertEqual(
+            contrast.weber(arr[0], arr[1]), contrast.contrast(arr, Contrast.WEBER)
+        )
+
+    def test_contrast_weber_bad_array(self):
+        arr = np.array((0.5, 1, 1.5))
+        with self.assertRaises(ValueError):
+            contrast.contrast(arr, Contrast.WEBER)
+
+    def test_contrast_ratio(self):
+        arr = np.array((0.5, 1))
+        self.assertEqual(
+            contrast.ratio(arr[0], arr[1]), contrast.contrast(arr, Contrast.RATIO)
+        )
+
+    def test_contrast_ratio_bad_array(self):
+        arr = np.array((0.5, 1, 1.5))
+        with self.assertRaises(ValueError):
+            contrast.contrast(arr, Contrast.RATIO)

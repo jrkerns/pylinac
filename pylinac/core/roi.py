@@ -198,8 +198,7 @@ class LowContrastDiskROI(DiskROI):
     @property
     def contrast(self) -> float:
         """The contrast of the bubble. Uses the contrast method passed in the constructor. See https://en.wikipedia.org/wiki/Contrast_(vision)."""
-        array = np.array((self.pixel_value, self.contrast_reference))
-        return contrast(array, self.contrast_method)
+        return contrast(self._contrast_array, self.contrast_method)
 
     @property
     def cnr_constant(self) -> float:
@@ -215,11 +214,10 @@ class LowContrastDiskROI(DiskROI):
         See also here: https://howradiologyworks.com/x-ray-cnr/.
         Finally, a review paper here: http://xrm.phys.northwestern.edu/research/pdf_papers/1999/burgess_josaa_1999.pdf
         Importantly, the Rose model is not applicable for high-contrast use cases."""
-        array = np.array((self.pixel_value, self.contrast_reference))
         return visibility(
-            array=array,
+            array=self._contrast_array,
             radius=self.radius,
-            dqe=self.std,
+            std=self.std,
             algorithm=self.contrast_method,
         )
 

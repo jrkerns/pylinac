@@ -12,7 +12,7 @@ class Contrast:
     RMS = "Root Mean Square"  #:
 
 
-def visibility(array: np.array, radius: float, dqe: float, algorithm: str) -> float:
+def visibility(array: np.array, radius: float, std: float, algorithm: str) -> float:
     """The visual perception of CNR. Uses the model from A Rose: https://www.osapublishing.org/josa/abstract.cfm?uri=josa-38-2-196.
     See also here: https://howradiologyworks.com/x-ray-cnr/.
     Finally, a review paper here: http://xrm.phys.northwestern.edu/research/pdf_papers/1999/burgess_josaa_1999.pdf
@@ -27,14 +27,14 @@ def visibility(array: np.array, radius: float, dqe: float, algorithm: str) -> fl
         inputs. See ``contrast`` for more.
     radius
         The radius of the contrast ROI
-    dqe
-        Detective Quantum Efficiency. A 1:1 corollary is not available, but generally the standard deviation
-        of the ROI can be used as a surrogate.
+    std
+        Standard deviation of the array. This can sometimes be obtained from another ROI, so it
+        is a separate parameter.
     algorithm
         The contrast method. See :class:`~pylinac.core.contrast.Contrast` for options.
     """
     c = contrast(array, algorithm)
-    return c * np.sqrt(radius**2 * np.pi) / dqe
+    return c * np.sqrt(radius**2 * np.pi) / std
 
 
 def contrast(array: np.array, algorithm: str) -> float:
