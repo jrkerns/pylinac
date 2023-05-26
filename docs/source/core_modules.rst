@@ -8,16 +8,19 @@ directly, or as the base for mixin classes or methods.
 
 Image Module
 ------------
+
 .. automodule:: pylinac.core.image
     :members:
 
 Geometry Module
 ---------------
+
 .. automodule:: pylinac.core.geometry
     :members:
 
 Profile Module
 --------------
+
 .. automodule:: pylinac.core.profile
     :members:
 

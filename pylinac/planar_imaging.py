@@ -40,18 +40,13 @@ from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
 from .core import geometry, image, pdf
+from .core.contrast import Contrast
 from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
-from .core.roi import (
-    Contrast,
-    DiskROI,
-    HighContrastDiskROI,
-    LowContrastDiskROI,
-    bbox_center,
-)
+from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
 from .core.utilities import ResultBase
 from .ct import get_regions
 
@@ -281,7 +276,7 @@ class ImagePhantomBase:
         center_override: tuple | None = None,
         size_override: float | None = None,
         ssd: float = 1000,
-        low_contrast_method: Contrast = Contrast.MICHELSON,
+        low_contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 100,
     ) -> None:
         """Analyze the phantom using the provided thresholds and settings.
