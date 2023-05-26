@@ -125,7 +125,10 @@ An HU-to-density curve can be plotted if an ROI configuration is passed to the `
 
     import pylinac
 
-    density_info = {'1': {'density': 1.0}, '3': {'density': 3.05}, ...}  # all keys must have a dict with 'density' defined
+    density_info = {
+        "1": {"density": 1.0},
+        "3": {"density": 3.05},
+    }  # add more as needed. all keys must have a dict with 'density' defined
     tomo = pylinac.TomoCheese(...)
     tomo.analyze(roi_config=density_info)
     tomo.plot_density_curve()  # in this case, ROI 1 and 3 will be plotted vs the stated density
@@ -166,6 +169,7 @@ creating new classes is relatively easy. The following steps show how this can b
 
         from pylinac.cheese import CheeseModule
 
+
         class SwissCheeseModule(CheeseModule):
             common_name = "Swiss cheese phantom"
             roi_settings = {  # configuration of each ROI.
@@ -192,6 +196,7 @@ creating new classes is relatively easy. The following steps show how this can b
 
         from pylinac.cheese import CheesePhantomBase
 
+
         class SwissCheesePhantom(CheesePhantomBase):
             model = "Swiss Cheese Phantom"
             # generally this is just the radius of a normal ROI
@@ -203,7 +208,7 @@ creating new classes is relatively easy. The following steps show how this can b
             min_num_images = 10
             # the radius of the phantom itself
             catphan_radius_mm = 150
-             # set this to the module we just created above
+            # set this to the module we just created above
             module_class = SwissModule
             # Optional: for the best type inference when using an IDE, set this as well to the new module. Note it's only a type annotation!!
             module: SwissModule
@@ -212,7 +217,7 @@ creating new classes is relatively easy. The following steps show how this can b
 
    .. code-block:: python
 
-        swiss = SwissCheesePhantom('my/swiss/data')
+        swiss = SwissCheesePhantom("my/swiss/data")
         swiss.analyze()
         swiss.plot_analyzed_image()
 

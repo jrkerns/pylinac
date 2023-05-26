@@ -505,7 +505,6 @@ class SingleProfileTests(TestCase):
 
 
 class MultiProfileTestMixin:
-
     values = np.ndarray
     peak_max_idxs = (0,)
     valley_max_idxs = (0,)
@@ -533,7 +532,6 @@ class MultiProfileTestMixin:
 
 
 class MultiProfileTriangle(MultiProfileTestMixin, TestCase):
-
     x_values = np.linspace(0, 8 * np.pi, num=200)
     values = sps.sawtooth(x_values, width=0.5)
     valley_max_idxs = (50, 100, 150)
@@ -589,14 +587,12 @@ class CircleProfileTestMixin:
 
 
 class CircleProfileStarshot(CircleProfileTestMixin, TestCase):
-
     peak_idxs = [219, 480, 738, 984, 1209, 1421, 1633, 1864]
     valley_idxs = [95, 348, 607, 860, 1098, 1316, 1527, 1743]
     fwxm_peak_idxs = [218, 480, 738, 984, 1209, 1421, 1633, 1864]
 
 
 class CollapsedCircleProfileStarshot(CircleProfileTestMixin, TestCase):
-
     klass = CollapsedCircleProfile
     peak_idxs = [241, 529, 812, 1084, 1331, 1563, 1797, 2051]
     valley_idxs = [104, 397, 667, 946, 1210, 1451, 1680, 1916]

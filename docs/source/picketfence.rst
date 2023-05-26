@@ -63,7 +63,7 @@ Finally, you can save the results to a PDF report:
 
     pf = PicketFence.from_demo()
     pf.analyze()
-    pf.publish_pdf(filename='PF Oct-2018.pdf')
+    pf.publish_pdf(filename="PF Oct-2018.pdf")
 
 
 Acquiring the Image
@@ -99,8 +99,8 @@ The minimum needed to get going is to:
 
   .. code-block:: python
 
-    img1 = r'path/to/image1.dcm'
-    img2 = r'path/to/image2.dcm'
+    img1 = r"path/to/image1.dcm"
+    img2 = r"path/to/image2.dcm"
     pf = PicketFence.from_multiple_images([img1, img2])
 
   As well, you can use the demo image provided:
@@ -124,7 +124,9 @@ The minimum needed to get going is to:
 
   .. code-block:: python
 
-    pf.analyze(tolerance=0.15, action_tolerance=0.03)  # tight tolerance to demo fail & warning overlay
+    pf.analyze(
+        tolerance=0.15, action_tolerance=0.03
+    )  # tight tolerance to demo fail & warning overlay
 
 * **View the results** -- The PicketFence class can print out the summary of results to the console as well as
   draw a matplotlib image to show the image, MLC peaks, guard rails, and a color overlay for quick assessment:
@@ -150,13 +152,13 @@ The minimum needed to get going is to:
 
   .. code-block:: python
 
-      pf.save_analyzed_image('mypf.png')
+      pf.save_analyzed_image("mypf.png")
 
   Or you may save to PDF:
 
   .. code-block:: python
 
-      pf.publish_pdf('mypf.pdf')
+      pf.publish_pdf("mypf.pdf")
 
 Analyzing individual leaves
 ---------------------------
@@ -169,6 +171,7 @@ to be passed. To analyze individual leaves:
 .. code-block:: python
 
     from pylinac import PicketFence
+
     pf = PicketFence(...)
     pf.analyze(..., separate_leaves=True, nominal_gap_mm=2)
     ...
@@ -283,7 +286,7 @@ fluence of the log to determine where the pickets should be instead of fitting t
 
     from pylinac import PicketFence
 
-    pf = PicketFence('my/pf.dcm', log='my/pf_log.bin')
+    pf = PicketFence("my/pf.dcm", log="my/pf_log.bin")
     ...
 
 Everything else is the same except the measurements are **absolute**.
@@ -335,7 +338,7 @@ Leaf arrangements are sets of tuples with the leaf number and leaf width. An exa
     mlc_setup_offset = MLCArrangement(leaf_arrangement=..., offset=2.5)  # offset is in mm
 
     # pass it in to the mlc parameter
-    pf = PicketFence('path/to/img', mlc=mlc_setup)
+    pf = PicketFence("path/to/img", mlc=mlc_setup)
 
     # proceed as normal
     pf.analyze(...)
@@ -383,7 +386,7 @@ Continuing from above:
 
     # return as a dict
     data_dict = pf.results_data(as_dict=True)
-    data_dict['max_error_mm']
+    data_dict["max_error_mm"]
     ...
 
 
@@ -395,7 +398,7 @@ not be centered exactly on the MLC leaves. If you want to correct for this, simp
 
 .. code-block:: python
 
-    pf = PicketFence(r'C:/path/saggyPF.dcm')
+    pf = PicketFence(r"C:/path/saggyPF.dcm")
     pf.analyze(sag_adjustment=0.6)
 
 Edge leaves
@@ -770,7 +773,7 @@ analysis, there are a few things you can do.
 
   .. code-block:: python
 
-     pf = PicketFence('mypf.dcm', filter=5)  # vary the filter size depending on the image
+     pf = PicketFence("mypf.dcm", filter=5)  # vary the filter size depending on the image
 
   Then try performing the analysis.
 * **Check for streak artifacts** - It is possible in certain scenarios (e.g. TrueBeam dosimetry mode)
@@ -784,7 +787,7 @@ analysis, there are a few things you can do.
 
   .. code-block:: python
 
-     pf = PicketFence('mypf.dcm')
+     pf = PicketFence("mypf.dcm")
      pf.image.array = mypf.image.array[200:400, 150:450]  # or whatever values you want
 
 * **Set the number of pickets** - If pylinac is catching too many pickets you can set
@@ -794,7 +797,7 @@ analysis, there are a few things you can do.
 
   .. code-block:: python
 
-      pf = PicketFence(r'my/pf.dcm')
+      pf = PicketFence(r"my/pf.dcm")
       pf.image.crop(pixels=3)
       pf.analyze()
       ...

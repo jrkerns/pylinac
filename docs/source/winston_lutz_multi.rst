@@ -154,14 +154,14 @@ From here, you can load a directory:
 
 .. code-block:: python
 
-    my_directory = 'path/to/wl_images'
+    my_directory = "path/to/wl_images"
     wl = WinstonLutzMultiTargetMultiField(my_directory)
 
 You can also load a ZIP archive with the images in it:
 
 .. code-block:: python
 
-    wl = WinstonLutzMultiTargetMultiField.from_zip('path/to/wl.zip')
+    wl = WinstonLutzMultiTargetMultiField.from_zip("path/to/wl.zip")
 
 Now, analyze it. Unlike the vanilla WL algorithm, we have to pass the BB arrangement to know where the BBs should be in space.
 :ref:`Preset phantoms <mtwl_phantoms>` exist, or a custom arrangement can be passed.
@@ -177,9 +177,9 @@ And that's it! You can now view images, print the results, or publish a PDF repo
     # plot all the images
     wl.plot_images()
     # save figures of the image plots for each bb
-    wl.save_images(prefix='snc')
+    wl.save_images(prefix="snc")
     # print to PDF
-    wl.publish_pdf('mymtwl.pdf')
+    wl.publish_pdf("mymtwl.pdf")
 
 Changing BB detection size
 --------------------------
@@ -201,11 +201,28 @@ BB offsets and size like so. Use negative values to move the other direction:
 .. code-block:: python
 
     my_special_phantom_bbs = [
-        {'offset_left_mm': 0, 'offset_up_mm': 0, 'offset_in_mm': 0, 'bb_size_mm': 5, 'rad_size_mm': 20},  # 5mm BB at iso
-        {'offset_left_mm': 30, 'offset_up_mm': 0, 'offset_in_mm': 0, 'bb_size_mm': 4, 'rad_size_mm': 20},  # 4mm BB 30mm to left of iso
-        {'offset_left_mm': 0, 'offset_up_mm': -20, 'offset_in_mm': 10, 'bb_size_mm': 5, 'rad_size_mm': 20},  # BB DOWN 20mm and in 10mm
-        ...  # keep going as needed
-        )
+        {
+            "offset_left_mm": 0,
+            "offset_up_mm": 0,
+            "offset_in_mm": 0,
+            "bb_size_mm": 5,
+            "rad_size_mm": 20,
+        },  # 5mm BB at iso
+        {
+            "offset_left_mm": 30,
+            "offset_up_mm": 0,
+            "offset_in_mm": 0,
+            "bb_size_mm": 4,
+            "rad_size_mm": 20,
+        },  # 4mm BB 30mm to left of iso
+        {
+            "offset_left_mm": 0,
+            "offset_up_mm": -20,
+            "offset_in_mm": 10,
+            "bb_size_mm": 5,
+            "rad_size_mm": 20,
+        },  # BB DOWN 20mm and in 10mm
+        ...,  # keep going as needed
     ]
 
 Pass it to the algorithm like so:
