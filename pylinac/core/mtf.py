@@ -35,7 +35,7 @@ class MTF:
         self.minimums = lp_minimums
         self.mtfs = {}
         self.norm_mtfs = {}
-        for (spacing, max, min) in zip(lp_spacings, lp_maximums, lp_minimums):
+        for spacing, max, min in zip(lp_spacings, lp_maximums, lp_minimums):
             self.mtfs[spacing] = (max - min) / (max + min)
         # sort according to spacings
         self.mtfs = {k: v for k, v in sorted(self.mtfs.items(), key=lambda x: x[0])}

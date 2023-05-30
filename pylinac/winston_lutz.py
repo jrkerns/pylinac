@@ -395,7 +395,8 @@ class WinstonLutz2D(image.LinacDicomImage):
     def _find_low_density_bb(self, bb_size: float):
         """Find the BB within the radiation field, where the BB is low-density and creates
         an *increase* in signal vs a decrease/attenuation. The algorithm is similar to the
-        normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables"""
+        normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables
+        """
         # get initial starting conditions
         lower_thresh = self.array.max() * 0.8
         spread = self.array.max() - lower_thresh
@@ -1405,7 +1406,8 @@ class WinstonLutz:
     ) -> dict:
         """Generate a dict where each key is based on the axes values and the key is an image. Used in the results_data method.
         We can't do a simple dict comprehension because we may have duplicate axes sets. We pass individual data
-        because we may have already converted to a dict; we don't want to do that again."""
+        because we may have already converted to a dict; we don't want to do that again.
+        """
         data = {}
         for img_idx, img in enumerate(self.images):
             key = f"G{img.gantry_angle}B{img.collimator_angle}P{img.couch_angle}"

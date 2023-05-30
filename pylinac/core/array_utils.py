@@ -25,7 +25,8 @@ def geometric_center_idx(array: np.ndarray) -> float:
     """Returns the center index and value of the profile.
 
     If the profile has an even number of array the centre lies between the two centre indices and the centre
-    value is the average of the two centre array else the centre index and value are returned."""
+    value is the average of the two centre array else the centre index and value are returned.
+    """
     return (array.shape[0] - 1) / 2.0
 
 
@@ -34,7 +35,8 @@ def geometric_center_value(array: np.ndarray) -> float:
     """Returns the center value of the profile.
 
     If the profile has an even number of elements the center lies between the two centre indices and the centre
-    value is the average of the two center elements else the center index and value are returned."""
+    value is the average of the two center elements else the center index and value are returned.
+    """
     arr_len = array.shape[0]
     # buffer overflow can cause the below addition to give strange results
     if arr_len % 2 == 0:  # array is even and central detectors straddle CAX

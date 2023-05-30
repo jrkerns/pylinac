@@ -51,7 +51,9 @@ And then load, analyze, and view the results:
 
   .. code-block:: python
 
-    quart_folder = r"C:/CT/Quart/Sept 2021.zip"  # this contains all the DICOM files of the scan
+    quart_folder = (
+        r"C:/CT/Quart/Sept 2021.zip"  # this contains all the DICOM files of the scan
+    )
     quart = QuartDVT.from_zip(quart_folder)
 
 * **Analyze** -- Analyze the dataset:
@@ -74,7 +76,7 @@ And then load, analyze, and view the results:
     # save the images
     quart.save_images()
     # finally, save a PDF
-    quart.publish_pdf('myquart.pdf')
+    quart.publish_pdf("myquart.pdf")
 
 Advanced Use
 ------------
@@ -96,7 +98,7 @@ Continuing from above:
 
     # return as a dict
     data_dict = quart.results_data(as_dict=True)
-    data_dict['hu_module']['roi_radius_mm']
+    data_dict["hu_module"]["roi_radius_mm"]
     ...
 
 

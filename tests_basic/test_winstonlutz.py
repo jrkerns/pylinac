@@ -433,7 +433,8 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
 
     def test_using_filenames_overrides_axis_mapping(self):
         """If using filenames flag with axis mapping, file names take precedent. This is because
-        RadMachine uses the axis mapping all the time now with the manual input feature"""
+        RadMachine uses the axis mapping all the time now with the manual input feature
+        """
         path = get_file_from_cloud_test_repo([TEST_DIR, "named_wl.zip"])
         config = {
             "wl_gantry13_collimator154_couch88.dcm": (

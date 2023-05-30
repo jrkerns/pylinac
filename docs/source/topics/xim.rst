@@ -51,7 +51,7 @@ pixels and only reading the properties is relatively fast (order of milliseconds
     for file in my_xim_files:
         # will load relatively fast
         xim_img = XIM(file, read_pixels=False)
-        if xim_img.properties['AcquisitionMode'] == 'Highres':
+        if xim_img.properties["AcquisitionMode"] == "Highres":
             files_to_analyze.append(file)
 
     # now load the pixel data only for the files we're interested in
@@ -93,7 +93,7 @@ PNG images can usually be viewed easily across many devices and OSs and also loa
     my_xim_file = r"C:\TDS\H12345\QA\image.xim"
     xim_img = XIM(my_xim_file)
 
-    xim_img.save_as('myxim.png')
+    xim_img.save_as("myxim.png")
     # saved to PNG!
 
 .. _reading-exported-xim:
@@ -112,7 +112,7 @@ to export to PNG en masse and then perform the analysis.
     import PIL.Image
     import matplotlib.pyplot as plt
 
-    xim_img = PIL.Image.open('myxim.png')
+    xim_img = PIL.Image.open("myxim.png")
 
     # numpy array of the pixels
     xim_array = np.asarray(xim_img)
@@ -131,18 +131,18 @@ if it wasn't originally a string is to use ``json``:
     import json
     import PIL.Image
 
-    xim_img = PIL.Image.open('myxim.png')
+    xim_img = PIL.Image.open("myxim.png")
 
-    system_version = xim_img.info['AcquisitionSystemVersion']
+    system_version = xim_img.info["AcquisitionSystemVersion"]
     # "2.7.304.16" already a string so no change needed
 
-    couch_lat = xim_img.info['CouchLat']
+    couch_lat = xim_img.info["CouchLat"]
     # '100.39021332'  it's a string even though it looks like a number
     # convert to the original type:
     couch_lat_num = float(couch_lat)
 
     # MLCs are a list; we need json
-    mlc_a_string = xim_img.info['MLCLeafsA']
+    mlc_a_string = xim_img.info["MLCLeafsA"]
     # '[20.6643, 20.6992, ...]'
     mlc_a_list = json.loads(mlc_a_string)
     # now it's a normal list: [20.6643, 20.6992, ...]
