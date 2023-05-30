@@ -87,7 +87,7 @@ The official definition is:
 
 Within pylinac, this is interpreted to be the following:
 
-.. math:: \frac{I_{mean} - R_{mean}}{I_{mean}}
+.. math:: \frac{I_{mean} - R_{mean}}{R_{mean}}
 
 where :math:`I` is the ROI of the contrast region in question and :math:`R` is the background ROI, usually
 placed somewhere within the phantom area that is uniform.
