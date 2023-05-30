@@ -29,11 +29,11 @@ To load an image, the easiest way is like so:
 
     from pylinac import image
 
-    my_dcm = image.load('path/to/my/image.dcm')
+    my_dcm = image.load("path/to/my/image.dcm")
     my_dcm.metadata.GantryAngle  # the GantryAngle tag of the DICOM file
     # these won't have the metadata property as they aren't DICOM
-    my_tiff = image.load('path/to/my/image.tiff')
-    my_jpg = image.load('path/to/my/image.jpg')
+    my_tiff = image.load("path/to/my/image.tiff")
+    my_jpg = image.load("path/to/my/image.jpg")
 
 See the :func:`~pylinac.core.image.load` function for details. This will return an image-like
 object ready for plotting or manipulation. Note that :ref:`XIM <xim-images>` images are handled separately.
@@ -44,7 +44,7 @@ We can also test whether a file is image-like without causing an error if it's n
 
     from pylinac import image
 
-    is_image = image.is_image('path/to/questionable.file')  # True or False
+    is_image = image.is_image("path/to/questionable.file")  # True or False
 
 Image Manipulation
 ^^^^^^^^^^^^^^^^^^
@@ -56,10 +56,10 @@ To manipulate an image, such as cropping, simply run the method. Some examples:
     from pylinac import image
 
     my_dcm = image.load(...)
-    my_dcm.filter(size=0.01, kind='median')
+    my_dcm.filter(size=0.01, kind="median")
     my_dcm.fliplr()  # flip the image left-right
     my_dcm.ground()  # set minimum value to 0; useful for images with short dynamic range
-    my_dcm.crop(pixels=30, edges=('top', 'left'))
+    my_dcm.crop(pixels=30, edges=("top", "left"))
     my_dcm.normalize()  # normalize values to 1.0
     my_dcm.rot90(n=1)  # rotate the image by 90 degrees
     my_dcm.bit_invert()  # flip the image so that dark is light and light is dark. Useful for EPID images.
@@ -73,7 +73,7 @@ a few extras. We need to load it specifically:
 
     from pylinac import image
 
-    my_linac_dcm = image.LinacDicomImage('path/to/image.dcm')
+    my_linac_dcm = image.LinacDicomImage("path/to/image.dcm")
     my_linac_dcm.cax()  # a Point instance. E.g. (x=550, y=550)
     my_linac_dcm.dpmm()  # the dots/mm at isocenter. Will account for the SID.
 
@@ -88,9 +88,14 @@ the same methods are available as a DICOM. To do so:
 
     from pylinac import image
 
-    image.tiff_to_dicom(tiff_file='path/to/image.tiff',
-        dicom_file='my_new_dicom.dcm',
-        sid=1000, gantry=0, coll=0, couch=0, dpi=280
+    image.tiff_to_dicom(
+        tiff_file="path/to/image.tiff",
+        dicom_file="my_new_dicom.dcm",
+        sid=1000,
+        gantry=0,
+        coll=0,
+        couch=0,
+        dpi=280,
     )
 
 We will now have a file in our working directory named ``my_new_dicom.dcm`` that is, for all intents and purposes,
@@ -106,11 +111,17 @@ We can compute the gamma between two arrays or images using :func:`~pylinac.core
     import matplotlib.pyplot as plt
     from pylinac import image
 
-    ref = image.load('reference_dicom.dcm')
-    eval = image.load('eval_dicom.dcm')
+    ref = image.load("reference_dicom.dcm")
+    eval = image.load("eval_dicom.dcm")
 
-    gamma = image.gamma_2d(reference=ref, evaluation=eval, dose_to_agreement=2,
-    distance_to_agreement=3, global_dose=True, ...)
+    gamma = image.gamma_2d(
+        reference=ref,
+        evaluation=eval,
+        dose_to_agreement=2,
+        distance_to_agreement=3,
+        global_dose=True,
+        ...,
+    )
 
     # gamma is a numpy array the same size as the reference/eval image
     plt.imshow(gamma)
