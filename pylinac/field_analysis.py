@@ -975,7 +975,7 @@ class FieldAnalysis:
             page_title="Field Analysis",
             metadata=metadata,
             metadata_location=(2, 5),
-            logo = logo
+            logo=logo,
         )
         # draw result text
         text = self.results(as_str=False)
