@@ -58,13 +58,15 @@ The minimum needed to get going is to:
 
       open_img = "C:/QA Folder/VMAT/open_field.dcm"
       dmlc_img = "C:/QA Folder/VMAT/dmlc_field.dcm"
-      mydrgs = DRGS(image_paths=(open_img, dmlc_img))  # use the DRMLC class the exact same way
+      mydrgs = DRGS(
+          image_paths=(open_img, dmlc_img)
+      )  # use the DRMLC class the exact same way
 
       # from zip
-      mydrmlc = DRMLC.from_zip(r'C:/path/to/zip.zip')
+      mydrmlc = DRMLC.from_zip(r"C:/path/to/zip.zip")
 
       # from a URL
-      mydrgs = DRGS.from_url('http://myserver.org/vmat.zip')
+      mydrgs = DRGS.from_url("http://myserver.org/vmat.zip")
 
 
   Finally, if you don't have any images, you can use the demo ones provided:
@@ -102,7 +104,7 @@ The minimum needed to get going is to:
 
   .. code-block:: python
 
-    myvmat.publish_pdf('drgs.pdf')
+    myvmat.publish_pdf("drgs.pdf")
 
 .. _customizing_vmat_analysis:
 
@@ -116,7 +118,9 @@ To change the segment size:
 .. code-block:: python
 
     drgs = DRGS.from_demo_image()
-    drgs.analyze(..., segment_size_mm=(10, 150))  # ROI segments will now be 10mm wide by 150mm tall
+    drgs.analyze(
+        ..., segment_size_mm=(10, 150)
+    )  # ROI segments will now be 10mm wide by 150mm tall
     # same story for DRMLC
 
 To change the x-positions of the ROI segments or change the number of ROI, use a custom ROI config dictionary and pass it to the ``analyze`` method.
@@ -126,7 +130,10 @@ To change the x-positions of the ROI segments or change the number of ROI, use a
     from pylinac import DRGS, DRMLC
 
     # note the keys are the names of the ROIs and can be anything you like
-    custom_roi_config = {'200 MU/min': {'offset_mm': -100}, '300 MU/min': {'offset_mm': -80}, ...}
+    custom_roi_config = {
+        "200 MU/min": {"offset_mm": -100},
+        "300 MU/min": {"offset_mm": -80},
+    }  # add more as needed
 
     my_drgs = DRGS(...)  # works the same way for DRMLC
     my_drgs.analyze(..., roi_config=custom_roi_config)
@@ -167,7 +174,7 @@ Continuing from above:
 
     # return as a dict
     data_dict = my_drmlc.results_data(as_dict=True)
-    data_dict['test_type']
+    data_dict["test_type"]
     ...
 
 Algorithm

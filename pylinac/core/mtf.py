@@ -36,7 +36,7 @@ class MTF:
         self.minimums = lp_minimums
         self.mtfs = {}
         self.norm_mtfs = {}
-        for (spacing, max, min) in zip(lp_spacings, lp_maximums, lp_minimums):
+        for spacing, max, min in zip(lp_spacings, lp_maximums, lp_minimums):
             arr = np.array((max, min))
             self.mtfs[spacing] = michelson(arr)
         # sort according to spacings

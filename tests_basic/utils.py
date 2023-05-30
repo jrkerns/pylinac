@@ -48,7 +48,6 @@ def access_gcp() -> storage.Client:
 def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
     """Get a folder from GCP"""
     with access_gcp() as storage_client:
-
         # get the folder data
         all_blobs = list(storage_client.list_blobs(GCP_BUCKET_NAME))
         blobs = (

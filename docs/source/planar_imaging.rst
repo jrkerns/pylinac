@@ -73,7 +73,9 @@ Import the class:
 
 .. code-block:: python
 
-    from pylinac import LeedsTOR  # or whatever phantom you like from the planar imaging module
+    from pylinac import (
+        LeedsTOR,
+    )  # or whatever phantom you like from the planar imaging module
 
 The minimum needed to get going is to:
 
@@ -81,13 +83,13 @@ The minimum needed to get going is to:
 
   .. code-block:: python
 
-      leeds = LeedsTOR('my/leeds.dcm')
+      leeds = LeedsTOR("my/leeds.dcm")
 
   Alternatively, a URL can be passed:
 
   .. code-block:: python
 
-      leeds = LeedsTOR.from_url('http://myserver.com/leeds')
+      leeds = LeedsTOR.from_url("http://myserver.com/leeds")
 
   You may also use the demo image:
 
@@ -134,13 +136,13 @@ The minimum needed to get going is to:
 
   .. code-block:: python
 
-      leeds.save_analyzed_image('myprofile.png')
+      leeds.save_analyzed_image("myprofile.png")
 
   A PDF report can also be generated:
 
   .. code-block:: python
 
-      leeds.publish_pdf('leeds_october16.pdf')
+      leeds.publish_pdf("leeds_october16.pdf")
 
 
 Leeds TOR Phantom
@@ -656,12 +658,21 @@ The BB window as well as the expected BB positions, and field strip size can be 
 
     from pylinac import StandardImagingFC2
 
+
     class MySIFC2(StandardImagingFC2):
-        bb_sampling_box_size_mm = 20  # look at a 20x20mm window for the BB at the expected position
+        bb_sampling_box_size_mm = (
+            20  # look at a 20x20mm window for the BB at the expected position
+        )
         # change the 10x10 BB expected positions. This is in mm relative to the CAX.
-        bb_positions_10x10 = {'TL': [-30, -30], 'BL': [-30, 30], 'TR': [30, -30], 'BR': [30, 30]}
-        bb_positions_15x15 = ... # same as above
+        bb_positions_10x10 = {
+            "TL": [-30, -30],
+            "BL": [-30, 30],
+            "TR": [30, -30],
+            "BR": [30, 30],
+        }
+        bb_positions_15x15 = ...  # same as above
         field_strip_width_mm = 10  # 10mm strip in x and y to determine field size
+
 
     # use as normal
     fc2 = MySIFC2(...)
@@ -777,21 +788,22 @@ The benefit of this design is that with a few simple definitions you inherit a s
 Creating a new class involves a few different steps but can be done in a few minutes. The following is a guide for custom
 phantoms:
 
-1. Subclass the `ImagePhantomBase` class:
+1. Subclass the ``ImagePhantomBase`` class:
 
     .. code-block:: python
 
         from pylinac.planar_imaging import ImagePhantomBase
 
+
         class CustomPhantom(ImagePhantomBase):
             pass
 
-2. Define the `common_name`. This is the name shown in plots and PDF reports.
+2. Define the ``common_name``. This is the name shown in plots and PDF reports.
 
     .. code-block:: python
 
         class CustomPhantom(ImagePhantomBase):
-            common_name = 'Custom Phantom v2.0'
+            common_name = "Custom Phantom v2.0"
 
 3. If the phantom has a high-contrast measurement object, define the ROI locations.
 
@@ -800,8 +812,13 @@ phantoms:
         class CustomPhantom(ImagePhantomBase):
             ...
             high_contrast_roi_settings = {
-                'roi 1': {'distance from center': 0.5, 'angle': 30, 'roi radius': 0.05, 'lp/mm': 0.2},
-                ...  # add as many ROIs as are needed
+                "roi 1": {
+                    "distance from center": 0.5,
+                    "angle": 30,
+                    "roi radius": 0.05,
+                    "lp/mm": 0.2,
+                },
+                # add as many ROIs as are needed
             }
 
     .. note::
@@ -816,12 +833,16 @@ phantoms:
         class CustomPhantom(ImagePhantomBase):
             ...
             low_contrast_roi_settings = {
-                'roi 1': {'distance from center': 0.5, 'angle': 30, 'roi radius': 0.05},  # no lp/mm key
-                ...  # add as many ROIs as are needed
+                "roi 1": {
+                    "distance from center": 0.5,
+                    "angle": 30,
+                    "roi radius": 0.05,
+                },  # no lp/mm key
+                # add as many ROIs as are needed
             }
             low_contrast_background_roi_settings = {
-                'roi 1': {'distance from center': 0.3, 'angle': -45, 'roi radius': 0.02},
-                ...  # add as many ROIs as are needed
+                "roi 1": {"distance from center": 0.3, "angle": -45, "roi radius": 0.02},
+                # add as many ROIs as are needed
             }
 
     .. note::
@@ -835,15 +856,20 @@ phantoms:
 
     .. code-block:: python
 
-        def my_special_detection_condition(region: RegionProperties, instance: object, rtol: float) -> bool:
+        def my_special_detection_condition(
+            region: RegionProperties, instance: object, rtol: float
+        ) -> bool:
             # region is a scikit regionprop (https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.regionprops)
             # instance == self of the phantom
             # rtol is relative tolerance of agreement. Don't have to use this.
             do_stuff  # e.g. is the region size and position correct?
             return bool(result)  # must always return a boolean
 
+
         class CustomPhantom(ImagePhantomBase):
-            detection_conditions = [my_special_detection_condition,]  # list of conditions; add as many as you want.
+            detection_conditions = [
+                my_special_detection_condition,
+            ]  # list of conditions; add as many as you want.
 
 6. Optionally, add a phantom outline object. This helps visualize the algorithm's determination of the size, center, and angle.
    If no object is defined, then no outline will be shown. This step is optional.
@@ -852,9 +878,13 @@ phantoms:
 
         class CustomPhantom(ImagePhantomBase):
             ...
-            phantom_outline_object = {'Circle': {'radius ratio': 0.5}}  # to create a circular outline
+            phantom_outline_object = {
+                "Circle": {"radius ratio": 0.5}
+            }  # to create a circular outline
             # or...
-            phantom_outline_object = {'Rectangle': {'width ratio': 0.5, 'height ratio': 0.3}}  # to create a rectangular outline
+            phantom_outline_object = {
+                "Rectangle": {"width ratio": 0.5, "height ratio": 0.3}
+            }  # to create a rectangular outline
 
 At this point you could technically call it done. You would need to always override the angle, center, and size values in the analyze method however.
 To automate this part you will need to fill in the associated logic. You can use whatever method you like. What I have
@@ -868,15 +898,18 @@ found most useful is to use an edge detection algorithm and find the outline of 
             def _phantom_center_calc(self) -> Point:
                 # do stuff in here to determine the center point location.
                 # don't forget to return as a Point item (pylinac.core.geometry.Point).
+                ...
 
             def _phantom_radius_calc(self) -> float:
                 # do stuff in here to return a float that represents the phantom radius value.
                 # This value does not have to relate to a physical measure. It simply defines a value that the ROIs scale by.
+                ...
 
             def _phantom_angle_calc(self) -> float:
                 # do stuff in here to return a float that represents the angle of the phantom.
                 # Again, this value does not have to correspond to reality; it simply offsets the ROIs.
                 # You may also return a constant if you like for any of these.
+                ...
 
 Congratulations! You now have a fully-functioning custom phantom. By using the base class and the predefined attributes
 and methods, the plotting and PDF report functionality comes for free.
@@ -910,15 +943,19 @@ To adjust an ROI, override the relevant attribute or create a subclass. E.g. to 
 
     from pylinac import StandardImagingQC3
 
-    StandardImagingQC3.high_contrast_roi_settings['roi 1']['distance from center'] = 0.05  # overrides that one setting
+    StandardImagingQC3.high_contrast_roi_settings["roi 1"][
+        "distance from center"
+    ] = 0.05  # overrides that one setting
     qc3 = StandardImagingQC3(...)
 
     # or
 
+
     class TweakedStandardImagingQC3(StandardImagingQC3):
         high_contrast_roi_settings = {
-            'roi 1': ...
+            "roi 1": ...
         }  # note that you must replace ALL the values
+
 
     qc3 = TweakedStandardImagingQC3(...)
 
@@ -952,8 +989,10 @@ do so fairly easily by overloading the current tooling:
 
     from pylinac.planar_imaging import is_right_size, is_centered, LeedsTOR
 
+
     def is_right_size_loose(region, instance, rtol=0.3):  # rtol default is 0.1
         return is_right_size(region, instance, rtol)
+
 
     # set the new condition for whatever
     LeedsTOR.detection_conditions = [is_right_size_loose, is_centered]

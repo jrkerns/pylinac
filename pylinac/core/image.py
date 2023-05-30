@@ -335,7 +335,8 @@ class BaseImage:
     @property
     def center(self) -> Point:
         """Return the center position of the image array as a Point.
-        Even-length arrays will return the midpoint between central two indices. Odd will return the central index."""
+        Even-length arrays will return the midpoint between central two indices. Odd will return the central index.
+        """
         x_center = (self.shape[1] / 2) - 0.5
         y_center = (self.shape[0] / 2) - 0.5
         return Point(x_center, y_center)
@@ -1094,7 +1095,8 @@ class DicomImage(BaseImage):
     @property
     def cax(self) -> Point:
         """The position of the beam central axis. If no DICOM translation tags are found then the center is returned.
-        Uses this tag: https://dicom.innolitics.com/ciods/rt-beams-delivery-instruction/rt-beams-delivery-instruction/00741020/00741030/3002000d"""
+        Uses this tag: https://dicom.innolitics.com/ciods/rt-beams-delivery-instruction/rt-beams-delivery-instruction/00741020/00741030/3002000d
+        """
         try:
             x = self.center.x - self.metadata.XRayImageReceptorTranslation[0]
             y = self.center.y - self.metadata.XRayImageReceptorTranslation[1]
@@ -1547,15 +1549,15 @@ def tiff_to_dicom(
 
 
 def gamma_2d(
-    reference: np.ndarray,
-    evaluation: np.ndarray,
+    reference: np.array,
+    evaluation: np.array,
     dose_to_agreement: float = 1,
     distance_to_agreement: int = 1,
     gamma_cap_value: float = 2,
     global_dose: bool = True,
     dose_threshold: float = 5,
     fill_value: float = np.nan,
-) -> np.ndarray:
+) -> np.array:
     """Compute a 2D gamma of two 2D numpy arrays. This does NOT do size or spatial resolution checking.
     It performs an element-by-element evaluation. It is the responsibility
     of the caller to ensure the reference and evaluation have comparable spatial resolution.

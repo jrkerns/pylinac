@@ -179,7 +179,8 @@ class QuartHUModule(CTP404CP504):
         CNR = abs(HU_target - HU_background) / sigma,
         where HU_target is the mean HU of a chosen insert, HU_background is the mean HU of the background insert
         and sigma is the stdev of the HU background.
-        We choose to use the Polystyrene as the target HU insert and Acrylic (base phantom material) as the background"""
+        We choose to use the Polystyrene as the target HU insert and Acrylic (base phantom material) as the background
+        """
         return (
             abs(self.rois["Poly"].pixel_value - self.rois["Acrylic"].pixel_value)
             / self.rois["Acrylic"].std

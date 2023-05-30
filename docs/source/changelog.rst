@@ -129,7 +129,7 @@ Machine Logs
 ^^^^^^^^^^^^
 
 * Trajectory Log CSV files now include the Jaw positions (X1, X2, Y1, Y2) as well as couch vert and couch pitch and roll if the couch was a 6D couch.
-* Dynalog loading and Trajectory `to_csv` calls will now use UTF-8 encoding by default when reading/writing files.
+* Dynalog loading and Trajectory ``to_csv`` calls will now use UTF-8 encoding by default when reading/writing files.
 
 Tomo
 ^^^^
@@ -192,7 +192,7 @@ Winston-Lutz
     wl.analyze(...)
     results = wl.results_data()
     # knowing a priori I had a G90C0B0 image
-    g90_image_data = results.keyed_image_details['G90B0P0']
+    g90_image_data = results.keyed_image_details["G90B0P0"]
     # this is in contrast to having to iterate/search over the images
     g90_image_data = [r.gantry_angle == 90 for r in wl.images][0].results_data()
 
@@ -207,12 +207,16 @@ Winston-Lutz
 
      wl = WinstonLutz(...)  # default, no rounding.
      wl.analyze(...)
-     wl.results_data().keyed_image_details['G359.9B0P0']  # we would have to know the delivery was at 359.9 and use the appropriate key
+     wl.results_data().keyed_image_details[
+         "G359.9B0P0"
+     ]  # we would have to know the delivery was at 359.9 and use the appropriate key
 
      # vs
      wl = WinstonLutz(..., axes_precision=0)
      wl.analyze(...)
-     wl.results_data().keyed_image_details['G0B0P0']  # whether delivered at G=359.9 or 0.1, this will always round to the nearest integer
+     wl.results_data().keyed_image_details[
+         "G0B0P0"
+     ]  # whether delivered at G=359.9 or 0.1, this will always round to the nearest integer
 
   .. note::
 
@@ -258,7 +262,7 @@ Core
   of an Image class's ``normalize`` method. ``max`` and ``None`` do the same thing and ``max`` is still a valid argument.
   No change is needed by the user.
 
-* Precision for axes values of ``LinacDicomImage``s and subclasses are now more consistent and also allow the precision
+* Precision for axes values of ``LinacDicomImage`` s and subclasses are now more consistent and also allow the precision
   value to be set using a new parameter to the init call: ``axes_precision``. Previously, any angle between 359-360 and 0-1 were considered "0". However, this was not true for
   any other axes value. I.e. the above values were rounded, but no other rounding occurred. This would also only happen
   if using the automatic DICOM tag values. If the user passed in the axis values directly, they were used as-is.
@@ -484,7 +488,9 @@ Planar Imaging
 
         .. code-block:: python
 
-           num_rois_simple_contrast = sum(roi.passed for roi in <my_planar_phantom>.low_contrast_rois)
+           num_rois_simple_contrast = sum(
+               roi.passed for roi in my_planar_phantom.low_contrast_rois
+           )
 
 
 Picket Fence
@@ -509,7 +515,7 @@ Winston-Lutz
 * Due to the above change, there is no need for the ``couch_angle_varian_scale`` property of the ``WinstonLutz2D`` class.
   It has been removed to reduce confusion. Use the new feature above if you had been using/overriding this property.
 * A bug was fixed where repeating analysis would give different results. This was because the image pre-processing was being
-  performed each time `.analyze()` was called. This only applies if you perform `.analyze()` more than once on the same instance.
+  performed each time ``.analyze()`` was called. This only applies if you perform ``.analyze()`` more than once on the same instance.
 
 Catphan
 ^^^^^^^
@@ -717,8 +723,9 @@ General
   .. code-block:: python
 
     from pylinac import PicketFence
+
     path = ...  # very sad image that has no DICOM tags for DPI or SID
-    pf = PicketFence(path, image_kwargs={'dpi': 184, 'sid': 1500})
+    pf = PicketFence(path, image_kwargs={"dpi": 184, "sid": 1500})
     pf.analyze()
     ...
 
@@ -731,7 +738,9 @@ General
 
     leeds = LeedsTOR.from_demo_image()
     leeds.analyze()
-    leeds.plot_analyzed_image(..., figsize=(10, 10))  # figsize is passed to matplotlib to generate a figure of said size
+    leeds.plot_analyzed_image(
+        ..., figsize=(10, 10)
+    )  # figsize is passed to matplotlib to generate a figure of said size
 
 * Pylinac is now compatible with scikit-image 0.19
 
@@ -808,7 +817,7 @@ General
 
   .. code-block:: python
 
-    with open("mystarshot.dcm", 'rb') as f:
+    with open("mystarshot.dcm", "rb") as f:
         star = Starshot(f)
         ...
 
@@ -829,7 +838,9 @@ General
   .. code-block:: python
 
     pf = PicketFence(...)
-    pf.analyze(..., orientation='Up-Down')  # specify the orientation via a string. Works the same as above
+    pf.analyze(
+        ..., orientation="Up-Down"
+    )  # specify the orientation via a string. Works the same as above
 
   Assuming you'd like to use the string version instead of using enums all over, how do you know the options? Go to the auto-generated documentation
   of the enum! =) E.g. :class:`~pylinac.picketfence.Orientation`.
@@ -851,14 +862,14 @@ General
     from pylinac.core.roi import Contrast
 
     leeds = LeedsTOR(...)
-    leeds.analyze(..., low_contrast_method = Contrast.WEBER)
+    leeds.analyze(..., low_contrast_method=Contrast.WEBER)
     ...
 
     ct = CatPhan504(...)
-    ct.analyze(..., contrast_method = Contrast.MICHELSON)
+    ct.analyze(..., contrast_method=Contrast.MICHELSON)
     ...
 * The algorithm for low contrast contrast constant detection has changed slightly. See :ref:`visibility`. This means the # of detected low-contrast ROIs
-  may change for cbct. You may pass in a contrast technique per above and also a visibility threshold. See the `.analyze` method of the respective class.
+  may change for cbct. You may pass in a contrast technique per above and also a visibility threshold. See the ``.analyze`` method of the respective class.
 * The contrast-to-noise property of the LowContrastDiskROI now uses contrast/stdev, where contrast is defined/chosen per above.
 * Several LowContrastDiskROI properties have been deprecated such as ``contrast_constant``. Use ``visibility`` instead. The old properties still work but come with a deprecation warning and will be removed in a future release.
 * `#270 <https://github.com/jrkerns/pylinac/issues/270>`_ Pylinac had a memory leak that was apparent when running on a server. This was caused by old instances being held in memory from
@@ -1032,23 +1043,23 @@ General
 Dependencies
 ############
 
-* `py-linq` has been added as a dependency. It's pure python so it will not add secondary dependencies.
+* ``py-linq`` has been added as a dependency. It's pure python so it will not add secondary dependencies.
 
 Picket Fence
 ^^^^^^^^^^^^
 
 * MLC configuration has changed from being empirical to a priori, meaning that leaves are no longer determined, but passed in via configuration. This allows users to configure their own
   custom MLCs arrangements. See :ref:`customizing_pf_mlcs`.
-* Linked with the above, the `is_hdmlc` parameter is deprecated and users should now use the `mlc` parameter in the constructor.
-* Also due to above, new parameters have been added to the `analyze` method. Please see the documentation for more info.
+* Linked with the above, the ``is_hdmlc`` parameter is deprecated and users should now use the ``mlc`` parameter in the constructor.
+* Also due to above, new parameters have been added to the ``analyze`` method. Please see the documentation for more info.
 * The colored overlay is now broken up into the individual leaf kisses rather than one line.
 * Several internal classes were removed or overhauled. This should not affect you if you're just using the basic routines like analyze().
-  `Settings` no longer exists, `MLCMeas` is now `MLCValue`. `PicketManager` no longer exists.
+  ``Settings`` no longer exists, ``MLCMeas`` is now ``MLCValue``. ``PicketManager`` no longer exists.
 
 VMAT
 ^^^^
 
-* The ROI segment size can now be specified in `analyze`. This is discussed in the new section :ref:`customizing_vmat_analysis`.
+* The ROI segment size can now be specified in ``analyze``. This is discussed in the new section :ref:`customizing_vmat_analysis`.
 
 Image generator
 ^^^^^^^^^^^^^^^
@@ -1081,10 +1092,12 @@ Thanks to several contributors for making pull requests in this release!
 
     # old
     import pylinac
+
     pylinac.gui()
 
     # new
     from pylinac.py_gui import gui
+
     gui()
 
 Dependencies
@@ -1237,19 +1250,19 @@ General
 
 Although the following changes should really mean a 2.3 release, I consider them small enough that I will keep it a maintenance release.
 
-* An `invert` parameter was added to the `analyze` method of the FlatSym module so the user can override the automatic inversion.
-* An `invert` parameter was added to the `analyze` method of the Starshot module so the user can override the automatic inversion.
+* An ``invert`` parameter was added to the ``analyze`` method of the FlatSym module so the user can override the automatic inversion.
+* An ``invert`` parameter was added to the ``analyze`` method of the Starshot module so the user can override the automatic inversion.
 
 Bug Fixes
 ^^^^^^^^^
 
-* `#272 <https://github.com/jrkerns/pylinac/issues/272>`_ An 'invert' parameter was added to the 'analyze' function of the starshot module. This allows the user to force invert the image if pylinac's auto-inversion algorithm is incorrect.
-* `#264/265 <https://github.com/jrkerns/pylinac/issues/264>`_ The 'results' method for the flatsym module would err out when images with 0 flatness were used.
+* `#272 <https://github.com/jrkerns/pylinac/issues/272>`_ An ``invert`` parameter was added to the ``analyze`` function of the starshot module. This allows the user to force invert the image if pylinac's auto-inversion algorithm is incorrect.
+* `#264/265 <https://github.com/jrkerns/pylinac/issues/264>`_ The ``results`` method for the flatsym module would err out when images with 0 flatness were used.
 * `#191 <https://github.com/jrkerns/pylinac/issues/191>`_ The flatsym module was not loading non-DICOM images properly, causing processing failures.
 * `#202 <https://github.com/jrkerns/pylinac/issues/202>`_ The rotation determination of the QC-3 phantom was often incorrect. This has temporarily been fixed by hardcoding the angle to 45 degrees. This is a correct assumption if the phantom is being used according to the instructions.
 * `#263 <https://github.com/jrkerns/pylinac/issues/263>`_ The FlatSym module was sometimes incorrectly inverting images. This was fixed using a better histogram methodology.
 * `#266 <https://github.com/jrkerns/pylinac/issues/266>`_ The deviation of a VMAT ROI was not properly detecting failing segments if the value was negative.
-* `#267 <https://github.com/jrkerns/pylinac/issues/267>`_ The `overall_passed` property of the CTP515 module contained an error that would cause an error.
+* `#267 <https://github.com/jrkerns/pylinac/issues/267>`_ The ``overall_passed`` property of the CTP515 module contained an error that would cause an error.
 * `#271 <https://github.com/jrkerns/pylinac/pull/271>`_ The line pair/mm values for the CT/CBCT module was inadvertently doubled. I.e. the lines/mm was given, not line *pairs*.
 
 
@@ -1261,12 +1274,12 @@ Winston-Lutz
 ^^^^^^^^^^^^
 
 * A small change was made to the Winston-Lutz BB finding algorithm to be more robust and use less custom code. The output from WL analyses should be within 0.1mm of previous values.
-* A section was added to the documentation to describe how images are classified and the analysis of output from the .results() method.
+* A section was added to the documentation to describe how images are classified and the analysis of output from the ``.results()`` method.
 
 Bug Fixes
 ^^^^^^^^^
 
-* `#187 <https://github.com/jrkerns/pylinac/issues/187>`_ Scipy's imresize function has been deprecated. Functionality was converted to use skimage.transform.resize().
+* `#187 <https://github.com/jrkerns/pylinac/issues/187>`_ Scipy's imresize function has been deprecated. Functionality was converted to use ``skimage.transform.resize()``.
 * `#185 <https://github.com/jrkerns/pylinac/issues/185>`_ Winston-Lutz PDF generation had an artifact causing catastrophic failure.
 * `#183 <https://github.com/jrkerns/pylinac/issues/183>`_ The Bakai fomula of the gamma calculation had an operational inconsistency such that dose-to-agreement other than 1% would give incorrect values of the gamma value.
 * `#190 <https://github.com/jrkerns/pylinac/issues/190>`_ The Catphan module had an inconsistency in the rMTF/spatial resolution determination. Some line pair regions would be detected for some phantoms and not for others. This was caused by the different CatPhan models having slighly different rotations of the CTP528 module. Pylinac now has model-specific boundaries.
@@ -1293,14 +1306,14 @@ V 2.2.5
 General
 ^^^^^^^
 
-The `watcher` function has had several issues. It has been disabled and will be removed in v2.3.
+The ``watcher`` function has had several issues. It has been disabled and will be removed in v2.3.
 
 Bug Fixes
 ^^^^^^^^^
 
 * `#173 <https://github.com/jrkerns/pylinac/issues/173>`_ When forcing inversion of picket fence, the inversion came after the orientation determination, causing orientation to be wrong when inversion was needed.
-* `#171 <https://github.com/jrkerns/pylinac/issues/171>`_ The `load_log` function was not working correctly when passing a directory or ZIP archive.
-* `#172 <https://github.com/jrkerns/pylinac/issues/172>`_ Calling `publish_pdf` from log_analyzer without passing a filename would fail.
+* `#171 <https://github.com/jrkerns/pylinac/issues/171>`_ The ``load_log`` function was not working correctly when passing a directory or ZIP archive.
+* `#172 <https://github.com/jrkerns/pylinac/issues/172>`_ Calling ``publish_pdf`` from log_analyzer without passing a filename would fail.
 * `#169 <https://github.com/jrkerns/pylinac/issues/169>`_ VMAT Dynalogs were calculating fluence incorrectly for CCW plans due to the gantry angle replacing the dose.
 * `#160 <https://github.com/jrkerns/pylinac/issues/160>`_ While addressing #160 initially, Trajectory logs were unknowningly affected. Behavior has been reverted to pre-2.2.2 behavior and documentation changed.
 
@@ -1312,7 +1325,7 @@ Bug Fixes
 ^^^^^^^^^
 
 * `#165 <https://github.com/jrkerns/pylinac/issues/165>`_ Machine log plots and PDFs showing the Leaf RMS were shown in cm, not in mm, as the axis title indicated.
-* `#167 <https://github.com/jrkerns/pylinac/issues/167>`_ Picket fence images where the pickets are too close to the edge perpendicular to the pickets will fail. This adds an explicit error and mentions a workaround. The next major version will include a `padding` parameter to apply this workaround.
+* `#167 <https://github.com/jrkerns/pylinac/issues/167>`_ Picket fence images where the pickets are too close to the edge perpendicular to the pickets will fail. This adds an explicit error and mentions a workaround. The next major version will include a ``padding`` parameter to apply this workaround.
 * `#168 <https://github.com/jrkerns/pylinac/issues/168>`_ Picket fence analyses now crop 2 pixels from every edge. This will allow Elekta images to be analyzed since they inexplicably have a column of dead pixels in EPID images. Should not affect Varian images.
 
 V 2.2.3
@@ -1332,7 +1345,7 @@ Bug Fixes
 
 * `#157 <https://github.com/jrkerns/pylinac/issues/157>`_ Dynalog MLC leaf error was calculated incorrectly. Expected positions were off by a row. Error results should be lower on average.
 * `#160 <https://github.com/jrkerns/pylinac/issues/160>`_ Dynalog MLC leaf internal pair mapping (1-61 vs 1-120) was different than documentation. Image calculations should not change.
-* `#162 <https://github.com/jrkerns/pylinac/issues/162>`_ The LeedsTOR `angle_offset` in the `.analyze()` method was not being followed by the high-contrast bubbles.
+* `#162 <https://github.com/jrkerns/pylinac/issues/162>`_ The LeedsTOR ``angle_offset`` in the ``.analyze()`` method was not being followed by the high-contrast bubbles.
 * `#144 <https://github.com/jrkerns/pylinac/issues/144>`_ The LeedsTOR angle determination is much more robust. Previously, only certain orientations of the phantom would correctly identify.
 
 
@@ -1403,8 +1416,8 @@ TG-51/Calibration
   and ``m_opposite``. These parameters are also the same for the TRS-398 classes (see #127).
 * The ``kq`` function has been separated into three functions: ``kq_photon_pdd10x``, ``kq_photon_tpr2010``, and
   ``kq_electron``.
-* A PDD(20,10) to TPR(20,10) converter function has been added: `tpr2010_from_pdd2010`.
-* Pressure and temperature conversion helper functions have been added: `mmHg2kPa`, `mbar2kPa`, `fahrenheit2celsius`.
+* A PDD(20,10) to TPR(20,10) converter function has been added: ``tpr2010_from_pdd2010``.
+* Pressure and temperature conversion helper functions have been added: ``mmHg2kPa``, ``mbar2kPa``, ``fahrenheit2celsius``.
   This can be used in either TG-51 or TRS-398 to get TPR without actually needing to measure it.
 * Defaults were removed from most functions to avoid possible miscalibration/miscalculation.
 * Most parameters of both TG-51 and TRS-398 were changed to be keyword only. This will prevent accidental miscalculations from simple positional argument mismatches.
@@ -1496,12 +1509,13 @@ General
 
 * Version 2.0 is here! It may or may not be a real major version update worthy of '2.0', but '1.10' just didn't sound as good =)
 * A GUI has been added! Most major modules have been added to the GUI. The GUI is a very simple
-  interface that will load files and publish a PDF/process files. To start the gui run the `gui()` function like
+  interface that will load files and publish a PDF/process files. To start the gui run the ``gui()`` function like
   so:
 
   .. code-block:: python
 
     import pylinac
+
     pylinac.gui()
 
   You may also start the GUI from the command line:
@@ -1550,12 +1564,12 @@ Planar Phantoms
 
     from pylinac import LasVegas
 
-    lv = LasVegas('myfile.dcm')
+    lv = LasVegas("myfile.dcm")
     lv.analyze()
     lv.publish_pdf()
     ...
 
-* The :meth:`pylinac.planar_imaging.LeedsTOR.analyze` method has an additional parameter: `angle_offset`. From analyzing multiple Leeds images, it has become
+* The :meth:`pylinac.planar_imaging.LeedsTOR.analyze` method has an additional parameter: ``angle_offset``. From analyzing multiple Leeds images, it has become
   apparent that the low contrast ROIs are not always perfectly set relative to the phantom. This parameter will allow the user
   to fine-tune the analysis to perfectly overlay the low contrast ROIs by adding an additional angle offset to the analysis.
 
@@ -1564,24 +1578,24 @@ Winston-Lutz
 
 * Closes enhancement `#63 <https://github.com/jrkerns/pylinac/issues/63>`_ Files can now have the axis settings interpreted via the file name.
   E.g: "myWL_gantry90_coll0_couch340.dcm". See :ref:`using_file_names_wl` for further info.
-* The `x/y/z_offset` properties of the WLImages which were deprecated many versions ago have finally been removed.
-* The `collimator/gantry_sag` and associated `plot_gantry_sag` methods have been deprecated. A similar method has been implemented that utilizes the RMS deviation.
-  To achieve the "gantry sag" using RMS errors use the method `axis_rms_deviation` with parameter `value='range'`.
+* The ``x/y/z_offset`` properties of the WLImages which were deprecated many versions ago have finally been removed.
+* The ``collimator/gantry_sag`` and associated ``plot_gantry_sag`` methods have been deprecated. A similar method has been implemented that utilizes the RMS deviation.
+  To achieve the "gantry sag" using RMS errors use the method ``axis_rms_deviation`` with parameter ``value='range'``.
 
 TG-51
 ^^^^^
 
 * The Electron class has been adjusted to reflect the `Muir & Rogers 2014`_ kecal data which allows the user to calculate kQ from just R50 data.
-* The `kq` function now accepts an `r_50` parameter to calculate kQ based on the above data.
+* The ``kq`` function now accepts an ``r_50`` parameter to calculate kQ based on the above data.
 
 .. _Muir & Rogers 2014: http://onlinelibrary.wiley.com/doi/10.1118/1.4893915/abstract
 
 Core Modules
 ^^^^^^^^^^^^
 
-* The `Image` class has been fully depricated and is no longer available. Use the functions available in the :module:`pylinac.core.image` module instead.
+* The ``Image`` class has been fully depricated and is no longer available. Use the functions available in the :module:`pylinac.core.image` module instead.
   See the version 1.4.0 release notes for further details.
-* The `remove_edges` method has been deprecated and is now an alias for `crop`. The `crop` method should be used instead. Parameters are exactly the same.
+* The ``remove_edges`` method has been deprecated and is now an alias for ``crop``. The ``crop`` method should be used instead. Parameters are exactly the same.
 
 V 1.9.0
 -------
@@ -1892,6 +1906,7 @@ General Changes
 
         # old way
         from pylinac.core import image
+
         # new way
         from pylinac import image
 
@@ -2132,7 +2147,7 @@ Starshot
 
   .. code-block:: python
 
-     star = Starshot('mystar.tif', dpi=100, sid=1000)
+     star = Starshot("mystar.tif", dpi=100, sid=1000)
 
 Planar Imaging
 ^^^^^^^^^^^^^^
@@ -2468,7 +2483,7 @@ V 0.2.0
 * Demo files were assimilated into one directory with respective subdirectories.
 * VMAT module can now handle HDMLC images.
 * CBCT module was restructured and is much more reliable now.
-* method names normalized, specifically the `return_results` method, which had different names
+* method names normalized, specifically the ``return_results`` method, which had different names
   in different modules.
 * Lots of tests added; coverage increased dramatically.
 

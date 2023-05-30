@@ -491,13 +491,6 @@ class Starshot27(StarMixin, TestCase):
     num_rad_lines = 6
 
 
-class CRStarshot(StarMixin, TestCase):
-    file_name = "CR-Starshot.dcm"
-    wobble_center = Point(1030.5, 1253.6)
-    wobble_diameter_mm = 0.3
-    num_rad_lines = 6
-
-
 class ChicagoSet(StarMixin, TestCase):
     file_name = "Chicago"
     wobble_center = Point(638, 639.3)

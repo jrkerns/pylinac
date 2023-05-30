@@ -322,7 +322,8 @@ class PicketFence:
     @property
     def max_error_leaf(self) -> int | str:
         """Return the leaf/leaf pair that had the maximum error.
-        This will be a single int value (i.e. either/both A and B) for classic analysis or a fully-qualified name for separate analysis. E.g. A43"""
+        This will be a single int value (i.e. either/both A and B) for classic analysis or a fully-qualified name for separate analysis. E.g. A43
+        """
         if not self.separate_leaves:
             return (
                 Enumerable(self.mlc_meas)

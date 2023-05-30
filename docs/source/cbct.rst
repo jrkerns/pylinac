@@ -52,7 +52,7 @@ Or the rMTF:
 
 .. code-block:: python
 
-    cbct.plot_analyzed_subimage('rmtf')
+    cbct.plot_analyzed_subimage("rmtf")
 
 .. plot::
     :include-source: false
@@ -67,7 +67,7 @@ Or generate a PDF report:
 
 .. code-block:: python
 
-    cbct.publish_pdf('mycbct.pdf')
+    cbct.publish_pdf("mycbct.pdf")
 
 Image Acquisition
 -----------------
@@ -136,9 +136,11 @@ The minimum needed to get going is to:
       # view analyzed images
       mycbct.plot_analyzed_image()
       # save the image
-      mycbct.save_analyzed_image('mycatphan504.png')
+      mycbct.save_analyzed_image("mycatphan504.png")
       # generate PDF
-      mycbct.publish_pdf('mycatphan.pdf', open_file=True)  # open the PDF after saving as well.
+      mycbct.publish_pdf(
+          "mycatphan.pdf", open_file=True
+      )  # open the PDF after saving as well.
 
 Advanced Use
 ------------
@@ -167,7 +169,7 @@ Continuing from above:
 
     # return as a dict
     data_dict = mycbct.results_data(as_dict=True)
-    data_dict['ctp404']['measured_slice_thickness_mm']
+    data_dict["ctp404"]["measured_slice_thickness_mm"]
     ...
 
 
@@ -184,12 +186,14 @@ you can remove or adjust its offset by subclassing and overloading the ``modules
     from pylinac import CatPhan504  # works for any of the other phantoms too
     from pylinac.ct import CTP515, CTP486
 
+
     class PartialCatPhan504(CatPhan504):
         modules = {
-            CTP486: {'offset': -65},
-            CTP515: {'offset': -30},
+            CTP486: {"offset": -65},
+            CTP515: {"offset": -30},
             # the CTP528 was omitted
         }
+
 
     ct = PartialCatPhan504.from_zip(...)  # use like normal
 
@@ -200,7 +204,7 @@ The rMTF can be calculated ad hoc like so. Note that CTP528 must be present (see
 
 .. code-block:: python
 
-    ct = ... # load a dataset like normal
+    ct = ...  # load a dataset like normal
     ct.analyze()
     ct.ctp528.mtf.relative_resolution(x=40)  # get the rMTF (lp/mm) at 40% resolution
 
@@ -215,13 +219,15 @@ The value is in mm:
     from pylinac import CatPhan504  # works for any of the other phantoms too
     from pylinac.ct import CTP515, CTP486, CTP528
 
+
     # create custom catphan with module locations
     class OffsetCatPhan504(CatPhan504):
         modules = {
-            CTP486: {'offset': -60},  # normally -65
-            CTP528: {'offset': 30},
-            CTP515: {'offset': -25},  # normally -30
+            CTP486: {"offset": -60},  # normally -65
+            CTP528: {"offset": 30},
+            CTP515: {"offset": -25},  # normally -30
         }
+
 
     ct = OffsetCatPhan504.from_zip(...)  # use like normal
 
@@ -238,22 +244,35 @@ As an example, let's override the nominal HU values for CTP404.
 
     from pylinac.ct import CatPhan504, CTP404CP504
 
+
     # first, customize the module
     class CustomCTP404(CTP404CP504):
         roi_dist_mm = 58.7  # this is the default value; we repeat here because it's easy to copy from source
         roi_radius_mm = 5  # ditto
         roi_settings = {
-            'Air': {'value': -1000, 'angle': -93, 'distance': roi_dist_mm, 'radius': roi_radius_mm},  # changed 'angle' from -90
-            'PMP': {'value': -196, 'angle': -120, 'distance': roi_dist_mm, 'radius': roi_radius_mm},
-            ...  # add other ROIs as appropriate
+            "Air": {
+                "value": -1000,
+                "angle": -93,
+                "distance": roi_dist_mm,
+                "radius": roi_radius_mm,
+            },  # changed 'angle' from -90
+            "PMP": {
+                "value": -196,
+                "angle": -120,
+                "distance": roi_dist_mm,
+                "radius": roi_radius_mm,
+            },
+            # add other ROIs as appropriate
         }
+
 
     # then, pass to the CatPhan model
     class CustomCP504(CatPhan504):
         modules = {
-            CustomCTP404: {'offset': 0}
-            ...  # add other modules here as appropriate
+            CustomCTP404: {"offset": 0}
+            # add other modules here as appropriate
         }
+
 
     # use like normal
     ct = CustomCP504(...)
