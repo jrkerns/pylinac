@@ -46,8 +46,8 @@ Utilities Module
 .. automodule:: pylinac.core.utilities
     :members:
 
-Decorators Module
------------------
+Contrast Module
+---------------
 
-.. automodule:: pylinac.core.decorators
+.. automodule:: pylinac.core.contrast
     :members:
