@@ -26,12 +26,12 @@ class Hill:
         instance.params = fitted_parameters
         return instance
 
-    def inflection_idx(self) -> dict:
+    def inflection_idx(self) -> float:
         """Determine the x-value inflection point of the fitted Hill function."""
         idx = self.params[2] * math.pow(
             (self.params[3] - 1) / (self.params[3] + 1), 1 / self.params[3]
         )
-        return {"index (exact)": idx, "index (rounded)": int(round(idx))}
+        return idx
 
     @classmethod
     def from_params(cls, params) -> Hill:
