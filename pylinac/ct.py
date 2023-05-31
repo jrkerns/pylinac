@@ -36,13 +36,14 @@ from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
 
 from .core import image, pdf
+from .core.contrast import Contrast
 from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
-from .core.roi import Contrast, DiskROI, LowContrastDiskROI, RectangleROI
-from .core.utilities import ResultBase, convert_to_enum
+from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
+from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
@@ -1347,7 +1348,7 @@ class CTP515(CatPhanModule):
         tolerance: float,
         cnr_threshold: float,
         offset: int,
-        contrast_method: Contrast,
+        contrast_method: str,
         visibility_threshold: float,
     ):
         self.cnr_threshold = cnr_threshold
@@ -1956,7 +1957,7 @@ class CatPhanBase:
         low_contrast_tolerance: int | float = 1,
         cnr_threshold: int | float = 15,
         zip_after: bool = False,
-        contrast_method: Contrast | str = Contrast.MICHELSON,
+        contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 0.15,
     ):
         """Single-method full analysis of CBCT DICOM files.
@@ -2006,7 +2007,6 @@ class CatPhanBase:
             self.ctp528 = ctp528(self, offset=offset, tolerance=None)
         if self._has_module(CTP515):
             ctp515, offset = self._get_module(CTP515)
-            contrast_method = convert_to_enum(contrast_method, Contrast)
             self.ctp515 = ctp515(
                 self,
                 tolerance=low_contrast_tolerance,

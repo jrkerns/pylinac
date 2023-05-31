@@ -3,6 +3,28 @@
 Changelog
 =========
 
+v 3.12.0
+--------
+
+General
+^^^^^^^
+
+* The :class:`~pylinac.core.contrast.Contrast` class which contains all the contrast algorithms is no longer an
+  enum. It is now a simple class. This should have no effect on the user unless doing something like
+  ``Contrast.MICHELSON.value``. No changes are required on the users's part for normal usage patterns.
+* The :ref:<contrast> section has been enhanced to provide more details.
+* A new core module ``contrast`` has been created. It contains all contrast-related items.
+  Individual functions can now be called. See the above contrast doc section for examples.
+* A new contrast option is available: Root-mean-square. It is available in the ``Contrast``
+  class like the existing options. E.g. ``leeds.analyze(..., contrast_method=Contrast.RMS)``
+* The :ref:`Image <image_loading>` section of the documentation has been enhanced with examples
+  for using the core image behavior.
+* The :class:`~pylinac.core.roi.LowContrastDiskROI` now provides properties for all contrast
+  types, not just the selected one. I.e. ``<roi>.weber``, ``<roi>.rms``, ``<roi>.michelson``,
+  and ``<roi>.ratio``. The existing ``<roi>.contrast`` still exists and will respect the
+  passed contrast algorithm as before. This provides a way to compare other contrast algorithms without needing
+  to re-analyze an image.
+
 v 3.11.0
 --------
 
