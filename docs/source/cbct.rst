@@ -76,6 +76,9 @@ Acquiring a scan of a CatPhan has a few simple requirements:
 
 #. The field of view must be larger than the phantom diameter + a few cm for clearance.
 #. The phantom should not be touching any edge of the FOV.
+#. The phantom shouldn't touch the couch or other high-HU objects. This may cause
+   localization issues finding the phantom. If the phantom doesn't have an associated cradle,
+   setting it on foam or something similar is recommended.
 #. All modules must be visible.
 
    .. warning::
