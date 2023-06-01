@@ -570,7 +570,7 @@ class CTP404CP504(CatPhanModule):
     }
     pad: str | int
     thickness_image: Slice
-    
+
     def __init__(
         self,
         catphan,
@@ -578,7 +578,7 @@ class CTP404CP504(CatPhanModule):
         hu_tolerance: float,
         thickness_tolerance: float,
         scaling_tolerance: float,
-        thickness_slice_padding: str | int
+        thickness_slice_padding: str | int,
     ):
         """
         Parameters
@@ -600,7 +600,10 @@ class CTP404CP504(CatPhanModule):
 
     def preprocess(self, catphan) -> None:
         # for the thickness analysis image, combine thin slices or just use one slice if slices are thick
-        if self.thickness_slice_padding.lower() == 'auto':
+        if (
+            isinstance(self.thickness_slice_padding, str)
+            and self.thickness_slice_padding.lower() == "auto"
+        ):
             if float(catphan.dicom_stack.metadata.SliceThickness) < 3.5:
                 self.pad = 1
             else:
@@ -1966,7 +1969,7 @@ class CatPhanBase:
         zip_after: bool = False,
         contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 0.15,
-        thickness_slice_padding: str | int = 'auto'
+        thickness_slice_padding: str | int = "auto",
     ):
         """Single-method full analysis of CBCT DICOM files.
 
@@ -1998,14 +2001,14 @@ class CatPhanBase:
             The threshold for detecting low-contrast ROIs. Use instead of ``cnr_threshold``. Follows the Rose equation.
             See :ref:`visibility`.
         thickness_slice_padding
-            The number of extra slices on each side of the HU module slice to use for slice thickness determination. 
+            The number of extra slices on each side of the HU module slice to use for slice thickness determination.
             The rationale is that for thin slices the ramp FWHM can be very noisy. I.e. a 1mm slice might have a 100%
             variation with a low-mAs protocol. To account for this, slice thicknesses < 3.5mm have 1 slice added
-            on either side of the HU module (so 3 total slices) and then averaged. The default is 'auto', 
+            on either side of the HU module (so 3 total slices) and then averaged. The default is 'auto',
             which follows the above logic. Set to an integer to explicitly use a certain amount of padding. Typical
-            values are 0, 1, and 2. 
-            
-            .. warning:: This is the padding **on either side**. So a value of 1 => 3 slices, 2 => 5 slices, 3 => 7 slices, etc. 
+            values are 0, 1, and 2.
+
+            .. warning:: This is the padding **on either side**. So a value of 1 => 3 slices, 2 => 5 slices, 3 => 7 slices, etc.
         """
         self.localize()
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
@@ -2015,7 +2018,7 @@ class CatPhanBase:
             hu_tolerance=hu_tolerance,
             thickness_tolerance=thickness_tolerance,
             scaling_tolerance=scaling_tolerance,
-            thickness_slice_padding=thickness_slice_padding
+            thickness_slice_padding=thickness_slice_padding,
         )
         if self._has_module(CTP486):
             ctp486, offset = self._get_module(CTP486)

@@ -285,6 +285,8 @@ As an example, let's override the nominal HU values for CTP404.
 Slice Thickness
 ---------------
 
+.. versionadded:: 3.12
+
 When measuring slice thickness in pylinac, slices are sometimes combined depending on the slice thickness.
 Scans with thin slices and low mAs can have very noisy wire ramp measurements. To compensate for this,
 pylinac will average over 3 slices (+/-1 from CTP404) if the slice thickness is <3.5mm. This will generally improve the statistics
