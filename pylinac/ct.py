@@ -578,7 +578,7 @@ class CTP404CP504(CatPhanModule):
         hu_tolerance: float,
         thickness_tolerance: float,
         scaling_tolerance: float,
-        thickness_slice_padding: str | int,
+        thickness_slice_padding: str | int = "auto",
     ):
         """
         Parameters
