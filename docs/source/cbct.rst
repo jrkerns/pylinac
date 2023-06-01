@@ -75,6 +75,7 @@ Image Acquisition
 Acquiring a scan of a CatPhan has a few simple requirements:
 
 #. The field of view must be larger than the phantom diameter + a few cm for clearance.
+#. The phantom should not be touching any edge of the FOV.
 #. All modules must be visible.
 
    .. warning::
@@ -292,8 +293,11 @@ Scans with thin slices and low mAs can have very noisy wire ramp measurements. T
 pylinac will average over 3 slices (+/-1 from CTP404) if the slice thickness is <3.5mm. This will generally improve the statistics
 of the measurement. This is the only part of the algorithm that may use more than one slice.
 
-If you'd like to override this, you can do so by setting the padding explicitly. This can be useful when
-your slices overlap.
+If you'd like to override this, you can do so by setting the padding explicitly.
+
+.. note::
+
+    This technique can be especially useful when your slices overlap.
 
 .. code-block:: python
 
@@ -326,8 +330,9 @@ Restrictions
 
   .. warning::
 
-    slices are not generally a problem other than the slice thickness measurement. See
-    the :ref:`slice-thickness` section.
+    Overlapping slices are not generally a problem other than the slice thickness measurement. See
+    the :ref:`slice-thickness` section for how to override this to get a valid slice thickness
+    in such a situation.
 
 
 .. _cbct_pre-analysis:
