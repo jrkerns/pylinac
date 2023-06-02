@@ -126,6 +126,8 @@ We can compute the gamma between two arrays or images using :func:`~pylinac.core
     # gamma is a numpy array the same size as the reference/eval image
     plt.imshow(gamma)
 
+.. _pixel_inversion:
+
 Pixel Data & Inversion
 ^^^^^^^^^^^^^^^^^^^^^^
 
