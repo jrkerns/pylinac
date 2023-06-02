@@ -578,7 +578,7 @@ class CTP404CP504(CatPhanModule):
         hu_tolerance: float,
         thickness_tolerance: float,
         scaling_tolerance: float,
-        thickness_slice_padding: str | int = "auto",
+        thickness_slice_straddle: str | int = "auto",
     ):
         """
         Parameters
@@ -595,21 +595,21 @@ class CTP404CP504(CatPhanModule):
         self.scaling_tolerance = scaling_tolerance
         self.thickness_rois = {}
         self.lines = {}
-        self.thickness_slice_padding = thickness_slice_padding
+        self.thickness_slice_straddle = thickness_slice_straddle
         super().__init__(catphan, tolerance=hu_tolerance, offset=offset)
 
     def preprocess(self, catphan) -> None:
         # for the thickness analysis image, combine thin slices or just use one slice if slices are thick
         if (
-            isinstance(self.thickness_slice_padding, str)
-            and self.thickness_slice_padding.lower() == "auto"
+            isinstance(self.thickness_slice_straddle, str)
+            and self.thickness_slice_straddle.lower() == "auto"
         ):
             if float(catphan.dicom_stack.metadata.SliceThickness) < 3.5:
                 self.pad = 1
             else:
                 self.pad = 0
         else:
-            self.pad = self.thickness_slice_padding
+            self.pad = self.thickness_slice_straddle
         self.thickness_image = Slice(
             catphan,
             combine_method="mean",
@@ -1969,7 +1969,7 @@ class CatPhanBase:
         zip_after: bool = False,
         contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 0.15,
-        thickness_slice_padding: str | int = "auto",
+        thickness_slice_straddle: str | int = "auto",
     ):
         """Single-method full analysis of CBCT DICOM files.
 
@@ -2000,8 +2000,8 @@ class CatPhanBase:
         visibility_threshold
             The threshold for detecting low-contrast ROIs. Use instead of ``cnr_threshold``. Follows the Rose equation.
             See :ref:`visibility`.
-        thickness_slice_padding
-            The number of extra slices on each side of the HU module slice to use for slice thickness determination.
+        thickness_slice_straddle
+            The number of extra slices **on each side** of the HU module slice to use for slice thickness determination.
             The rationale is that for thin slices the ramp FWHM can be very noisy. I.e. a 1mm slice might have a 100%
             variation with a low-mAs protocol. To account for this, slice thicknesses < 3.5mm have 1 slice added
             on either side of the HU module (so 3 total slices) and then averaged. The default is 'auto',
@@ -2018,7 +2018,7 @@ class CatPhanBase:
             hu_tolerance=hu_tolerance,
             thickness_tolerance=thickness_tolerance,
             scaling_tolerance=scaling_tolerance,
-            thickness_slice_padding=thickness_slice_padding,
+            thickness_slice_straddle=thickness_slice_straddle,
         )
         if self._has_module(CTP486):
             ctp486, offset = self._get_module(CTP486)

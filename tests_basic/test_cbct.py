@@ -248,7 +248,7 @@ class CatPhanMixin(CloudFileMixin):
     mtf_values = {}
     avg_line_length = 50
     slice_thickness = 2
-    thickness_slice_padding = "auto"
+    thickness_slice_straddle = "auto"
     lowcon_visible = 0
     print_debug = False
 
@@ -262,7 +262,7 @@ class CatPhanMixin(CloudFileMixin):
         cls.cbct.analyze(
             cls.hu_tolerance,
             cls.scaling_tolerance,
-            thickness_slice_padding=cls.thickness_slice_padding,
+            thickness_slice_straddle=cls.thickness_slice_straddle,
         )
         if cls.print_debug:
             print(cls.cbct._results())
@@ -1437,7 +1437,7 @@ class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):
         "PMP": -190,
         "LDPE": -105,
     }
-    thickness_slice_padding = 0
+    thickness_slice_straddle = 0
     slice_thickness = 5.9
     unif_values = {"Center": 8, "Left": 7, "Right": 8, "Top": 8, "Bottom": 8}
     mtf_values = {50: 0.40}
