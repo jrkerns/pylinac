@@ -184,7 +184,7 @@ The VMAT analysis algorithm is based on the Varian RapidArc QA Test Procedures f
 (besides Picket Fence, which has its own module) are specified. Each test takes 10x0.5cm samples, each corresponding to
 a distinct section of radiation. A corrected reading of each segment is made, defined as:
 :math:`M_{corr}(x) = \frac{M_{DRGS}(x)}{M_{open}(x)} * 100`. The reading deviation of each segment is calculated as:
-:math:`M_{deviation}(x) = \frac{M_{corr}(x)}{M_{corr}} * 100 - 100`, where :math:`M_{corr}` is the average of all segments.
+:math:`M_{deviation}(x) = \frac{M_{corr}(x)}{\bar{M_{corr}}} * 100 - 100`, where :math:`\bar{M_{corr}}` is the average of all segments.
 
 The algorithm works like such:
 
@@ -365,6 +365,107 @@ with an output of::
     Test Results (Tol. +/-1.5%): FAIL
     Max Deviation: 2.12%
     Absolute Mean Deviation: 1.13%
+
+
+Comparing to other programs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    The DRGS pattern is used as an example but the same concepts applies to both DRGS and DRMLC.
+
+A common question is how results should be compared to other programs. While
+the answer will depend on several factors, we can make some general observations here.
+
+* **Ensure the ROI sizes are similar** - Different programs may have different defaults for the ROI size.
+  Varian suggests a 5x100mm rectangular ROI, although this seems arbitrarily small in our opinion.
+  In any event, to match Varian's suggestion, the pylinac default segment ROI size is 5x100mm
+* **DICOM images may have different reconstruction algorithms** - Pylinac's DICOM image loading
+  algorithm can be read here: :ref:`pixel_inversion`. It tries to use as many tags as it can to
+  reconstruct the correct pixel values. However, this behavior does not appear consistent across
+  all programs. E.g. if tags are not considered when loading images, the resulting pixels (and
+  thus ratio) may not match an image that did use tags.
+
+  Take for instance the below example comparing "raw" pixel values to using the Tag-corrected version:
+
+  .. plot::
+
+    from matplotlib import pyplot as plt
+    import pydicom
+
+    from pylinac import image
+    from pylinac.core.io import retrieve_demo_file, TemporaryZipDirectory
+
+    demo_zip = retrieve_demo_file('drgs.zip')
+    with TemporaryZipDirectory(demo_zip) as tmpzip:
+        image_files = image.retrieve_image_files(tmpzip)
+
+        # read the values "raw"
+        dmlc_raw = pydicom.read_file(image_files[0])
+        open_raw = pydicom.read_file(image_files[1])
+        raw = dmlc_raw.pixel_array / open_raw.pixel_array
+
+        # Tag-correct the values
+        img_dmlc = image.load(image_files[0])
+        img_open = image.load(image_files[1])
+        corrected = img_dmlc.array / img_open.array
+
+    plt.plot(raw[200, :], label="Raw DICOM pixels")
+    plt.plot(corrected[200, :], label="Using Rescale + Intercept Tags")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+  We can also scale the tag-corrected value for the purpose of comparing relative responses:
+
+  .. plot::
+    :include-source: false
+
+    from matplotlib import pyplot as plt
+    import pydicom
+
+    from pylinac import image
+    from pylinac.core.io import retrieve_demo_file, TemporaryZipDirectory
+
+    demo_zip = retrieve_demo_file('drgs.zip')
+    with TemporaryZipDirectory(demo_zip) as tmpzip:
+        image_files = image.retrieve_image_files(tmpzip)
+
+        # read the values "raw"
+        dmlc_raw = pydicom.read_file(image_files[0])
+        open_raw = pydicom.read_file(image_files[1])
+        raw = dmlc_raw.pixel_array / open_raw.pixel_array
+
+        # Tag-correct the values
+        img_dmlc = image.load(image_files[0])
+        img_open = image.load(image_files[1])
+        corrected = img_dmlc.array / img_open.array
+
+    plt.plot(raw[200, :], label="Raw DICOM pixels")
+    plt.plot(23*corrected[200, :], label="Using Rescale + Intercept Tags * 23")
+    plt.legend()
+    plt.grid(True)
+    plt.ylim(1.1, 1.6)
+    plt.show()
+
+  The point of the second plot is to show what the ratio of each ROI looks like
+  between the normalizations. Inspecting the left-most ROI, we see that the
+  raw pixel normalization is lower than the average ROI response, whereas with
+  the tag-corrected implementation, it's actually higher. When evaluating
+  the ROI results of pylinac vs other programs this explains why the left-most ROI
+  (which is used simply as an example) has a positive deviation whereas other
+  programs may have a negative deviation.
+
+  This behavior can change depending on the tags available in the DICOM file. Newer DICOMs
+  also have a "sign" tag to correct for inversion of pixel data. Why this difference can be
+  problematic is that the ratio of the open to DMLC image depends on the initial pixel value.
+
+  Currently, this is a philosophical difference between programs that don't use DICOM
+  tags and those that do, like pylinac. If the goal is to switch from another program
+  to pylinac, the standard approach of measuring with both algorithms to establish
+  a baseline of differences is recommended, just as you might when switching from a
+  water tank measurement to an array-based measurement scheme.
+
 
 API Documentation
 -----------------
