@@ -1423,7 +1423,7 @@ class CatPhan604wJig(CatPhan604Mixin, TestCase):
 
 class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):
     """This dataset is 6mm slices with a 2mm overlap. The slice thickness
-    default algorithm gives incorrect values unless the padding is set explicitly"""
+    default algorithm gives incorrect values unless the straddle is set explicitly"""
 
     file_name = "catphan_slice_overlap.zip"
     expected_roll = 0.1

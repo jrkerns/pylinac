@@ -296,7 +296,10 @@ Scans with thin slices and low mAs can have very noisy wire ramp measurements. T
 pylinac will average over 3 slices (+/-1 from CTP404) if the slice thickness is <3.5mm. This will generally improve the statistics
 of the measurement. This is the only part of the algorithm that may use more than one slice.
 
-If you'd like to override this, you can do so by setting the padding explicitly.
+If you'd like to override this, you can do so by setting the padding (aka straddle) explicitly.
+The straddle is the number of extra slices **on each side** of the HU module slice to use for slice thickness determination.
+The default is ``auto``; set to an integer to explicitly use a certain amount of straddle slices. Typical
+values are 0, 1, and 2. So, a value of 1 averages over 3 slices, 2 => 5 slices, 3 => 7 slices, etc.
 
 .. note::
 
@@ -307,7 +310,7 @@ If you'd like to override this, you can do so by setting the padding explicitly.
     from pylinac import CatPhan504  # applies to all catphans
 
     ct = CatPhan504(...)
-    ct.analyze(..., thickness_slice_padding=0)
+    ct.analyze(..., thickness_slice_straddle=0)
     ...
 
 

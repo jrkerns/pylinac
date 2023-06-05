@@ -28,7 +28,7 @@ General
 CatPhan
 ^^^^^^^
 
-* A new analyse parameter has been added ``thickness_slice_padding``. This is to explicitly control
+* A new analyse parameter has been added ``thickness_slice_straddle``. This is to explicitly control
   the slice combination technique for the slice thickness measurement. The default behavior is
   backwards-compatible so no changes are needed. Read more here: :ref:`slice-thickness`.
 
