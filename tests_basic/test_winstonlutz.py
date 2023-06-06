@@ -1291,3 +1291,21 @@ class TIFFImages(WinstonLutzMixin, TestCase):
     cax2bb_mean_distance = 0.8
     axis_of_rotation = {-1: Axis.GANTRY}
     bb_shift_vector = Vector(x=1.1, y=0.34, z=-0.30)
+
+
+class VarianBBkV(WinstonLutzMixin, TestCase):
+    """kV image-based WL set using the super tiny Varian BB. Have to set the parameters correctly"""
+
+    file_name = ["Varian_BB_kV.zip"]
+    num_images = 4
+    low_density_bb = True
+    open_field = True
+    bb_size = 1.5
+    gantry_iso_size = 0.15
+    collimator_iso_size = None
+    couch_iso_size = None
+    cax2bb_max_distance = 0.26
+    cax2bb_median_distance = 0.31
+    cax2bb_mean_distance = 0.18
+    axis_of_rotation = {-1: Axis.REFERENCE}
+    bb_shift_vector = Vector(x=-0.24, y=0.2, z=-0.15)
