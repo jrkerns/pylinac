@@ -245,12 +245,11 @@ def is_near_center(region: RegionProperties, *args, **kwargs) -> bool:
 def is_modest_size(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
     bb_area = region.area_filled / (kwargs["dpmm"] ** 2)
-    bb_size = max((kwargs["bb_size"], 2.1))
-    np.pi * (bb_size / 2) ** 2
+    bb_size = kwargs["bb_size"]
     larger_bb_area = np.pi * ((bb_size + 2) / 2) ** 2
     smaller_bb_area = max(
-        (np.pi * ((bb_size - 2) / 2) ** 2, 3)
-    )  # set a min of 3 (~pi, equal to just under 1mm radius/2mm bb) because the lower bound can be ~0 for lower bound of radius=2. This is much more likely to find noise in a block.
+        (np.pi * ((bb_size - 2) / 2) ** 2, 2)
+    )  # set a min of 2 to avoid a lower bound of 0 when radius=2. This is much more likely to find noise in a block.
     return smaller_bb_area < bb_area < larger_bb_area
 
 

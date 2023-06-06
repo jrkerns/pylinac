@@ -25,6 +25,16 @@ General
   passed contrast algorithm as before. This provides a way to compare other contrast algorithms without needing
   to re-analyze an image.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The smallest BB allowed for detection is now ~1mm. This was previously 2mm, but the Varian Exact cube's BB
+  proved to be too small.
+
+  .. warning::
+
+    Setting the BB size to a very small value increases the chance of inaccurately detecting the BB when the BB is encased in a block.
+
 CatPhan
 ^^^^^^^
 
