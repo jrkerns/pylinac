@@ -75,6 +75,10 @@ Image Acquisition
 Acquiring a scan of a CatPhan has a few simple requirements:
 
 #. The field of view must be larger than the phantom diameter + a few cm for clearance.
+#. The phantom should not be touching any edge of the FOV.
+#. The phantom shouldn't touch the couch or other high-HU objects. This may cause
+   localization issues finding the phantom. If the phantom doesn't have an associated cradle,
+   setting it on foam or something similar is recommended.
 #. All modules must be visible.
 
    .. warning::
@@ -280,6 +284,36 @@ As an example, let's override the nominal HU values for CTP404.
 .. warning:: If you overload the ``roi_settings`` or ``modules`` attributes, you are responsible for filling it out completely.
              I.e. when you overload it's not partial. In the above example if you want other CTP modules you **must** populate them.
 
+.. _slice-thickness:
+
+Slice Thickness
+---------------
+
+.. versionadded:: 3.12
+
+When measuring slice thickness in pylinac, slices are sometimes combined depending on the slice thickness.
+Scans with thin slices and low mAs can have very noisy wire ramp measurements. To compensate for this,
+pylinac will average over 3 slices (+/-1 from CTP404) if the slice thickness is <3.5mm. This will generally improve the statistics
+of the measurement. This is the only part of the algorithm that may use more than one slice.
+
+If you'd like to override this, you can do so by setting the padding (aka straddle) explicitly.
+The straddle is the number of extra slices **on each side** of the HU module slice to use for slice thickness determination.
+The default is ``auto``; set to an integer to explicitly use a certain amount of straddle slices. Typical
+values are 0, 1, and 2. So, a value of 1 averages over 3 slices, 2 => 5 slices, 3 => 7 slices, etc.
+
+.. note::
+
+    This technique can be especially useful when your slices overlap.
+
+.. code-block:: python
+
+    from pylinac import CatPhan504  # applies to all catphans
+
+    ct = CatPhan504(...)
+    ct.analyze(..., thickness_slice_straddle=0)
+    ...
+
+
 Algorithm
 ---------
 
@@ -295,9 +329,16 @@ Allowances
 Restrictions
 ^^^^^^^^^^^^
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * All of the modules defined in the ``modules`` attribute must be within the scan extent.
+* Scan slices are not expected to overlap.
+
+  .. warning::
+
+    Overlapping slices are not generally a problem other than the slice thickness measurement. See
+    the :ref:`slice-thickness` section for how to override this to get a valid slice thickness
+    in such a situation.
 
 
 .. _cbct_pre-analysis:
@@ -351,7 +392,7 @@ Analysis
   bars is that they are all focused on and equally distant to the phantom center. This is taken advantage of by extracting
   a :class:`~pylinac.core.profile.CollapsedCircleProfile` about the line pairs. The peaks and valleys of the profile are located;
   peaks and valleys of each line pair are used to calculated the MTF. The relative MTF (i.e. normalized to the first line pair) is then
-  calculated from these values.
+  calculated from these values. See :ref:`mtf_topic`.
 * **Calculate Low Contrast Resolution** -- Low contrast is inherently difficult to determine since detectability of humans
   is not simply contrast based. Pylinac's analysis uses both the contrast value of the ROI as well as the ROI size to compute
   a "detectability" score. ROIs above the score are said to be "seen", while those below are not seen. Only the 1.0% supra-slice ROIs
@@ -359,6 +400,7 @@ Analysis
 * **Calculate Slice Thickness** -- Slice thickness is measured by determining the FWHM of the wire ramps in the CTP404 module.
   A profile of the area around each wire ramp is taken, and the FWHM is determined from the profile.
   The profiles are averaged and the value is converted from pixels to mm and multiplied by 0.42 (Catphan manual "Scan Slice Geometry" section).
+  Also see :ref:`slice-thickness`.
 
 
 Post-Analysis
