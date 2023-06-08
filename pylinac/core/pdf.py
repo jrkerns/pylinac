@@ -18,7 +18,8 @@ from .io import get_url
 
 def get_logo() -> Path:
     """Get the Pylinac logo. First try the embedded version, then try the internet.
-    When pylinac is embedded in RadMachine as a package non-py files aren't correctly uncompressed."""
+    When pylinac is embedded in RadMachine as a package non-py files aren't correctly uncompressed.
+    """
     logo_file = Path(__file__).parent.parent / "files" / "Pylinac Full cropped.png"
     if logo_file.exists():
         return logo_file

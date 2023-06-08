@@ -40,18 +40,13 @@ from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
 from .core import geometry, image, pdf
+from .core.contrast import Contrast
 from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
-from .core.roi import (
-    Contrast,
-    DiskROI,
-    HighContrastDiskROI,
-    LowContrastDiskROI,
-    bbox_center,
-)
+from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
 from .core.utilities import ResultBase
 from .ct import get_regions
 
@@ -281,7 +276,7 @@ class ImagePhantomBase:
         center_override: tuple | None = None,
         size_override: float | None = None,
         ssd: float = 1000,
-        low_contrast_method: Contrast = Contrast.MICHELSON,
+        low_contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 100,
     ) -> None:
         """Analyze the phantom using the provided thresholds and settings.
@@ -577,7 +572,7 @@ class ImagePhantomBase:
                 roi.plot2axes(img_ax, edgecolor=roi.plot_color)
             # plot the high-contrast ROIs along w/ pass/fail coloration
             if self.high_contrast_rois:
-                for (roi, mtf) in zip(
+                for roi, mtf in zip(
                     self.high_contrast_rois, self.mtf.norm_mtfs.values()
                 ):
                     color = "b" if mtf > self._high_contrast_threshold else "r"
@@ -2232,7 +2227,8 @@ class LeedsTOR(ImagePhantomBase):
 
     def _check_inversion(self):
         """We recycle the circle profile used for angle detection to determine the correct inversion
-        The profile is mostly even except the bright lead area. If the lead area is darker than the mean, it's inverted."""
+        The profile is mostly even except the bright lead area. If the lead area is darker than the mean, it's inverted.
+        """
         circle = self._circle_profile_for_phantom_angle(start_angle_deg=0)
         p2, p50, p98 = np.percentile(circle.values, [2, 50, 98])
         if abs(p50 - p98) < abs(p50 - p2):

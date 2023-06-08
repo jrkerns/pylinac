@@ -36,13 +36,14 @@ from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
 
 from .core import image, pdf
+from .core.contrast import Contrast
 from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
-from .core.roi import Contrast, DiskROI, LowContrastDiskROI, RectangleROI
-from .core.utilities import ResultBase, convert_to_enum
+from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
+from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
 # The ramp angle ratio is from the Catphan manual ("Scan slice geometry" section)
@@ -567,6 +568,8 @@ class CTP404CP504(CatPhanModule):
         "Left-Vertical": (0, 2),
         "Right-Vertical": (1, 3),
     }
+    pad: str | int
+    thickness_image: Slice
 
     def __init__(
         self,
@@ -576,6 +579,7 @@ class CTP404CP504(CatPhanModule):
         thickness_tolerance: float,
         scaling_tolerance: float,
         clear_borders: bool=True,
+        thickness_slice_straddle: str | int = "auto",
     ):
         """
         Parameters
@@ -594,13 +598,20 @@ class CTP404CP504(CatPhanModule):
         self.thickness_rois = {}
         self.lines = {}
         super().__init__(catphan, tolerance=hu_tolerance, offset=offset, clear_borders=clear_borders)
+        self.thickness_slice_straddle = thickness_slice_straddle
 
     def preprocess(self, catphan) -> None:
         # for the thickness analysis image, combine thin slices or just use one slice if slices are thick
-        if float(catphan.dicom_stack.metadata.SliceThickness) < 3.5:
-            self.pad = 1
+        if (
+            isinstance(self.thickness_slice_straddle, str)
+            and self.thickness_slice_straddle.lower() == "auto"
+        ):
+            if float(catphan.dicom_stack.metadata.SliceThickness) < 3.5:
+                self.pad = 1
+            else:
+                self.pad = 0
         else:
-            self.pad = 0
+            self.pad = self.thickness_slice_straddle
         self.thickness_image = Slice(
             catphan,
             combine_method="mean",
@@ -1350,7 +1361,7 @@ class CTP515(CatPhanModule):
         tolerance: float,
         cnr_threshold: float,
         offset: int,
-        contrast_method: Contrast,
+        contrast_method: str,
         visibility_threshold: float,
         clear_borders: bool=True,
     ):
@@ -1961,8 +1972,9 @@ class CatPhanBase:
         low_contrast_tolerance: int | float = 1,
         cnr_threshold: int | float = 15,
         zip_after: bool = False,
-        contrast_method: Contrast | str = Contrast.MICHELSON,
+        contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 0.15,
+        thickness_slice_straddle: str | int = "auto",
     ):
         """Single-method full analysis of CBCT DICOM files.
 
@@ -1993,6 +2005,15 @@ class CatPhanBase:
         visibility_threshold
             The threshold for detecting low-contrast ROIs. Use instead of ``cnr_threshold``. Follows the Rose equation.
             See :ref:`visibility`.
+        thickness_slice_straddle
+            The number of extra slices **on each side** of the HU module slice to use for slice thickness determination.
+            The rationale is that for thin slices the ramp FWHM can be very noisy. I.e. a 1mm slice might have a 100%
+            variation with a low-mAs protocol. To account for this, slice thicknesses < 3.5mm have 1 slice added
+            on either side of the HU module (so 3 total slices) and then averaged. The default is 'auto',
+            which follows the above logic. Set to an integer to explicitly use a certain amount of padding. Typical
+            values are 0, 1, and 2.
+
+            .. warning:: This is the padding **on either side**. So a value of 1 => 3 slices, 2 => 5 slices, 3 => 7 slices, etc.
         """
         self.localize()
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
@@ -2003,6 +2024,7 @@ class CatPhanBase:
             thickness_tolerance=thickness_tolerance,
             scaling_tolerance=scaling_tolerance,
             clear_borders=self.clear_borders,
+            thickness_slice_straddle=thickness_slice_straddle,
         )
         if self._has_module(CTP486):
             ctp486, offset = self._get_module(CTP486)
@@ -2021,7 +2043,6 @@ class CatPhanBase:
             )
         if self._has_module(CTP515):
             ctp515, offset = self._get_module(CTP515)
-            contrast_method = convert_to_enum(contrast_method, Contrast)
             self.ctp515 = ctp515(
                 self,
                 tolerance=low_contrast_tolerance,

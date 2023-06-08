@@ -58,7 +58,7 @@ Perhaps the data is stored online somewhere. You can load in the data from a URL
 
 .. code-block:: python
 
-    log = TrajectoryLog.from_url('https://myserver.com/logs/log23.bin')
+    log = TrajectoryLog.from_url("https://myserver.com/logs/log23.bin")
 
 If for any reason you don't have data and want to experiment, you can easily load in demo data:
 

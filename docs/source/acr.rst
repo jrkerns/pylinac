@@ -109,7 +109,7 @@ Continuing from above:
 
     # return as a dict
     data_dict = ct.results_data(as_dict=True)
-    data_dict['ct_module']['roi_radius_mm']
+    data_dict["ct_module"]["roi_radius_mm"]
     ...
 
 API Documentation

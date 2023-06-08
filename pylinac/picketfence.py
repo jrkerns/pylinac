@@ -322,7 +322,8 @@ class PicketFence:
     @property
     def max_error_leaf(self) -> int | str:
         """Return the leaf/leaf pair that had the maximum error.
-        This will be a single int value (i.e. either/both A and B) for classic analysis or a fully-qualified name for separate analysis. E.g. A43"""
+        This will be a single int value (i.e. either/both A and B) for classic analysis or a fully-qualified name for separate analysis. E.g. A43
+        """
         if not self.separate_leaves:
             return (
                 Enumerable(self.mlc_meas)
@@ -979,7 +980,7 @@ class PicketFence:
         self.save_analyzed_image(data, leaf_error_subplot=True)
         canvas.add_image(data, location=(3, 5), dimensions=(15, 15))
         canvas.add_text(
-            text=self.results(as_list=True), location=(1.5, 25), font_size=14
+            text=self.results(as_list=True), location=(1.5, 22), font_size=14
         )
         if notes is not None:
             canvas.add_text(text="Notes:", location=(1, 5.5), font_size=14)
