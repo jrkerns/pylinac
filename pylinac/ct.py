@@ -578,7 +578,7 @@ class CTP404CP504(CatPhanModule):
         hu_tolerance: float,
         thickness_tolerance: float,
         scaling_tolerance: float,
-        clear_borders: bool=True,
+        clear_borders: bool = True,
         thickness_slice_straddle: str | int = "auto",
     ):
         """
@@ -597,7 +597,9 @@ class CTP404CP504(CatPhanModule):
         self.scaling_tolerance = scaling_tolerance
         self.thickness_rois = {}
         self.lines = {}
-        super().__init__(catphan, tolerance=hu_tolerance, offset=offset, clear_borders=clear_borders)
+        super().__init__(
+            catphan, tolerance=hu_tolerance, offset=offset, clear_borders=clear_borders
+        )
         self.thickness_slice_straddle = thickness_slice_straddle
 
     def preprocess(self, catphan) -> None:
@@ -1363,13 +1365,14 @@ class CTP515(CatPhanModule):
         offset: int,
         contrast_method: str,
         visibility_threshold: float,
-        clear_borders: bool=True,
+        clear_borders: bool = True,
     ):
         self.cnr_threshold = cnr_threshold
         self.contrast_method = contrast_method
         self.visibility_threshold = visibility_threshold
-        super().__init__(catphan, tolerance=tolerance, offset=offset,
-                         clear_borders=clear_borders)
+        super().__init__(
+            catphan, tolerance=tolerance, offset=offset, clear_borders=clear_borders
+        )
 
     def _setup_rois(self):
         # create both background rois dynamically, then create the actual sample ROI as normal
@@ -2029,17 +2032,15 @@ class CatPhanBase:
         if self._has_module(CTP486):
             ctp486, offset = self._get_module(CTP486)
             self.ctp486 = ctp486(
-                self, offset=offset,
+                self,
+                offset=offset,
                 tolerance=hu_tolerance,
                 clear_borders=self.clear_borders,
             )
         if self._has_module(CTP528CP504):
             ctp528, offset = self._get_module(CTP528CP504)
             self.ctp528 = ctp528(
-                self,
-                offset=offset,
-                tolerance=None,
-                clear_borders=self.clear_borders
+                self, offset=offset, tolerance=None, clear_borders=self.clear_borders
             )
         if self._has_module(CTP515):
             ctp515, offset = self._get_module(CTP515)
