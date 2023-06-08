@@ -1494,7 +1494,8 @@ class SubbeamManager:
 
     def post_hoc_metadata(self, axis_data):
         """From the Axis Data, perform post-hoc analysis and set metadata to the subbeams.
-        Gives the subbeams more information, as not much is given directly in the logs."""
+        Gives the subbeams more information, as not much is given directly in the logs.
+        """
         for subbeam_num, subbeam in enumerate(self.subbeams):
             self._set_subbeam_snapshots(axis_data, subbeam_num)
             mlc_subsection = copy.copy(axis_data.mlc)

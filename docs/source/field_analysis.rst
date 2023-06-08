@@ -143,9 +143,15 @@ For custom protocols, see :ref:`custom_protocols`.
 
     from pylinac import Protocol, Centering, Edge, Normalization, Interpolation
 
-    my_img.analyze(protocol=Protocol.ELEKTA, centering=Centering.BEAM_CENTER, in_field_ratio=0.8,
-                   is_FFF=True, interpolation=Interpolation.SPLINE, interpolation_resolution_mm=0.2,
-                   edge_detection_method=Edge.INFLECTION_HILL)
+    my_img.analyze(
+        protocol=Protocol.ELEKTA,
+        centering=Centering.BEAM_CENTER,
+        in_field_ratio=0.8,
+        is_FFF=True,
+        interpolation=Interpolation.SPLINE,
+        interpolation_resolution_mm=0.2,
+        edge_detection_method=Edge.INFLECTION_HILL,
+    )
 
 
 .. _centering:
@@ -202,7 +208,9 @@ This is helpful if you always want to be at the center of the image.
     fa.analyze(...)  # nothing special needed as it's the default
 
     # You CANNOT specify a position. These values will be ignored
-    fa.analyze(..., centering=Centering.GEOMETRIC_CENTER, vert_position=0.3, horiz_position=0.8)
+    fa.analyze(
+        ..., centering=Centering.GEOMETRIC_CENTER, vert_position=0.3, horiz_position=0.8
+    )
     # this is allowed but will result in the same result as above
 
 .. _edge:
@@ -242,7 +250,7 @@ can be tripped up by noise so it is not used.
 
     from pylinac import FieldAnalysis, Edge
 
-    fa = FieldAnalysis(...) # nothing special needed as it's the default
+    fa = FieldAnalysis(...)  # nothing special needed as it's the default
 
     # you may also specify the edge smoothing value. This is a gaussian filter applied to the derivative just for the purposes of finding the min/max derivative.
     # This is to ensure the derivative is not caught by some noise. It is usually not necessary to change this.
@@ -283,7 +291,9 @@ The function is fitted to the edge data of the field on each side to return the 
     fa = FieldAnalysis(..., edge_detection_method=Edge.INFLECTION_HILL)
 
     # you may also specify the hill window. This is the size of the window (as a ratio) to use to fit the field edge to the Hill function.
-    fa = FieldAnalysis(..., edge_detection_method=Edge.INFLECTION_HILL, hill_window_ratio=0.05)
+    fa = FieldAnalysis(
+        ..., edge_detection_method=Edge.INFLECTION_HILL, hill_window_ratio=0.05
+    )
     # i.e. use a 5% field width about the edges to fit the Hill function.
 
 
@@ -506,14 +516,18 @@ a specific signature as shown in the example below:
 
     import enum
 
+
     # create the custom algorithm functions
     # the ``calc`` function must have the following signature
-    def my_special_flatness(profile: SingleProfile, in_field_ratio: float, **kwargs) -> float:
+    def my_special_flatness(
+        profile: SingleProfile, in_field_ratio: float, **kwargs
+    ) -> float:
         # do whatever. Must return a float. ``profile`` will be called twice, once for the vertical profile and horizontal profile.
         # the kwargs are passed to ``analyze`` and can be used here for your own purposes (e.g. fitting parameters)
         my_special_value = kwargs.get("funkilicious")
-        flatness = profile...
+        flatness = profile(...)
         return flatness
+
 
     # custom plot function for the above flatness function
     # This is OPTIONAL
@@ -523,16 +537,22 @@ a specific signature as shown in the example below:
         # do whatever; typically, you will do an axis.plot()
         axis.plot(...)
 
+
     # custom protocol MUST inherit from Enum
     class MySpecialProtocols(enum.Enum):
         # note you can specify several protocols if you wish
         PROTOCOL_1 = {
             # for each protocol, you can specify any number of metrics to calculate. E.g. 2 symmetry calculations
-            'my flatness': {'calc': my_special_flatness, 'unit': '%', 'plot': my_special_flatness_plot},
-            'my symmetry': ...,
-            'my other flatness metric': ...,
+            "my flatness": {
+                "calc": my_special_flatness,
+                "unit": "%",
+                "plot": my_special_flatness_plot,
+            },
+            "my symmetry": ...,
+            "my other flatness metric": ...,
         }
         PROTOCOL_2 = ...
+
 
     # proceed as normal
     fa = FieldAnalysis(...)
@@ -553,9 +573,11 @@ The parameter will then be passed to the custom functions:
 
 .. code-block:: python
 
-    def my_special_flatness(profile: SingleProfile, in_field_ratio: float, **kwargs) -> float:
+    def my_special_flatness(
+        profile: SingleProfile, in_field_ratio: float, **kwargs
+    ) -> float:
         my_special_value = kwargs.get("my_special_variable")  # 42
-        flatness = profile...
+        flatness = profile(...)
         return flatness
 
 .. note:: The :class:`~pylinac.core.profile.SingleProfile` passed to the functions is very powerful and can calculate
@@ -635,7 +657,7 @@ You can access most data you get from ``results()``:
 
 .. code-block:: python
 
-    fa = FieldAnalysis...
+    fa = FieldAnalysis(...)
     fa.analyze(...)
     data = fa.results_data()
 
@@ -647,16 +669,16 @@ the protocol names and fields are dynamic and not known a priori.
 
 .. code-block:: python
 
-    data.protocol_results['flatness_vertical']
-    data.protocol_results['symmetry_horizontal']
+    data.protocol_results["flatness_vertical"]
+    data.protocol_results["symmetry_horizontal"]
 
 The keys of this dict are defined by the protocol names. Using the example from the :ref:`custom_protocols` section,
 we would access that custom protocol data as:
 
 .. code-block:: python
 
-    data.protocol_results['my flatness_vertical']
-    data.protocol_results['my flatness_horizontal']
+    data.protocol_results["my flatness_vertical"]
+    data.protocol_results["my flatness_horizontal"]
 
 because the protocol name was ``my flatness``.
 

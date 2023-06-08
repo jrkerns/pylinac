@@ -204,7 +204,7 @@ def generate_winstonlutz(
         for pdir, _, files in os.walk(dir_out):
             [os.remove(osp.join(pdir, f)) for f in files]
     file_names = []
-    for (gantry, coll, couch) in image_axes:
+    for gantry, coll, couch in image_axes:
         sim_single = copy.copy(simulator)
         sim_single.add_layer(
             field_layer(
@@ -301,7 +301,7 @@ def generate_winstonlutz_multi_bb_single_field(
         for pdir, _, files in os.walk(dir_out):
             [os.remove(osp.join(pdir, f)) for f in files]
     file_names = []
-    for (gantry, coll, couch) in image_axes:
+    for gantry, coll, couch in image_axes:
         sim_single = copy.copy(simulator)
         sim_single.add_layer(
             field_layer(
@@ -424,7 +424,7 @@ def generate_winstonlutz_multi_bb_multi_field(
         for pdir, _, files in os.walk(dir_out):
             [os.remove(osp.join(pdir, f)) for f in files]
     file_names = []
-    for (gantry, coll, couch) in image_axes:
+    for gantry, coll, couch in image_axes:
         sim_single = copy.copy(simulator)
         for field_offset in field_offsets:
             offset_mm_left = field_offset[0] + random.uniform(-jitter_mm, jitter_mm)
@@ -570,7 +570,7 @@ def generate_winstonlutz_cone(
         for pdir, _, files in os.walk(dir_out):
             [os.remove(osp.join(pdir, f)) for f in files]
     file_names = []
-    for (gantry, coll, couch) in image_axes:
+    for gantry, coll, couch in image_axes:
         sim_single = copy.copy(simulator)
         sim_single.add_layer(
             cone_layer(

@@ -5,8 +5,8 @@ Modulation Transfer Function
 ----------------------------
 
 The modulation transfer function (MTF) is used in CBCT and planar imaging metrics to describe high-contrast characteristics of the imaging system.
-An excellent introduction is here: https://www.edmundoptics.com/knowledge-center/application-notes/optics/introduction-to-modulation-transfer-function/
-In pylinac, MTF is calculated using equation 3 of the above reference:
+An excellent introduction is `here <https://www.edmundoptics.com/knowledge-center/application-notes/optics/introduction-to-modulation-transfer-function/>`__.
+In pylinac, MTF is calculated using equation 3 of the above reference, which is also the :ref:`Michelson <michelson>` contrast definition.
 
 .. math:: contrast = \frac{I_{max} - I_{min}}{I_{max} + I_{min}}
 

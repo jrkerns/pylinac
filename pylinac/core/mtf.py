@@ -8,6 +8,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 
+from .contrast import michelson
 from .roi import HighContrastDiskROI
 
 
@@ -35,8 +36,9 @@ class MTF:
         self.minimums = lp_minimums
         self.mtfs = {}
         self.norm_mtfs = {}
-        for (spacing, max, min) in zip(lp_spacings, lp_maximums, lp_minimums):
-            self.mtfs[spacing] = (max - min) / (max + min)
+        for spacing, max, min in zip(lp_spacings, lp_maximums, lp_minimums):
+            arr = np.array((max, min))
+            self.mtfs[spacing] = michelson(arr)
         # sort according to spacings
         self.mtfs = {k: v for k, v in sorted(self.mtfs.items(), key=lambda x: x[0])}
         for key, value in self.mtfs.items():
