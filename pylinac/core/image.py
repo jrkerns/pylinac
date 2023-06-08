@@ -429,7 +429,7 @@ class BaseImage:
         edges : tuple
             Which edges to remove from. Can be any combination of the four edges.
         """
-        if pixels < 0:
+        if pixels <= 0:
             raise ValueError("Pixels to remove must be a positive number")
         if "top" in edges:
             self.array = self.array[pixels:, :]
