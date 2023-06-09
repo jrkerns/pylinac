@@ -46,6 +46,9 @@ CatPhan
 * A new analyse parameter has been added ``thickness_slice_straddle``. This is to explicitly control
   the slice combination technique for the slice thickness measurement. The default behavior is
   backwards-compatible so no changes are needed. Read more here: :ref:`slice-thickness`.
+* The parameter ``clear_borders`` was not being propogated to all submodules for catphan analysis.
+  This is now fixed. Thanks to `Chris Williams <https://github.com/ckswilliams>`__ for finding and fixing the
+  issue here: https://github.com/jrkerns/pylinac/issues/448.
 
 v 3.11.0
 --------

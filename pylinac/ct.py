@@ -578,6 +578,7 @@ class CTP404CP504(CatPhanModule):
         hu_tolerance: float,
         thickness_tolerance: float,
         scaling_tolerance: float,
+        clear_borders: bool = True,
         thickness_slice_straddle: str | int = "auto",
     ):
         """
@@ -588,6 +589,7 @@ class CTP404CP504(CatPhanModule):
         hu_tolerance : float
         thickness_tolerance : float
         scaling_tolerance : float
+        clear_borders : bool
         """
         self.mm_per_pixel = catphan.mm_per_pixel
         self.hu_tolerance = hu_tolerance
@@ -596,7 +598,9 @@ class CTP404CP504(CatPhanModule):
         self.thickness_rois = {}
         self.lines = {}
         self.thickness_slice_straddle = thickness_slice_straddle
-        super().__init__(catphan, tolerance=hu_tolerance, offset=offset)
+        super().__init__(
+            catphan, tolerance=hu_tolerance, offset=offset, clear_borders=clear_borders
+        )
 
     def preprocess(self, catphan) -> None:
         # for the thickness analysis image, combine thin slices or just use one slice if slices are thick
@@ -615,6 +619,7 @@ class CTP404CP504(CatPhanModule):
             combine_method="mean",
             num_slices=self.num_slices + self.pad,
             slice_num=self.slice_num,
+            clear_borders=self.clear_borders,
         ).image
 
     def _setup_rois(self) -> None:
@@ -1360,11 +1365,14 @@ class CTP515(CatPhanModule):
         offset: int,
         contrast_method: str,
         visibility_threshold: float,
+        clear_borders: bool = True,
     ):
         self.cnr_threshold = cnr_threshold
         self.contrast_method = contrast_method
         self.visibility_threshold = visibility_threshold
-        super().__init__(catphan, tolerance=tolerance, offset=offset)
+        super().__init__(
+            catphan, tolerance=tolerance, offset=offset, clear_borders=clear_borders
+        )
 
     def _setup_rois(self):
         # create both background rois dynamically, then create the actual sample ROI as normal
@@ -2018,14 +2026,22 @@ class CatPhanBase:
             hu_tolerance=hu_tolerance,
             thickness_tolerance=thickness_tolerance,
             scaling_tolerance=scaling_tolerance,
+            clear_borders=self.clear_borders,
             thickness_slice_straddle=thickness_slice_straddle,
         )
         if self._has_module(CTP486):
             ctp486, offset = self._get_module(CTP486)
-            self.ctp486 = ctp486(self, offset=offset, tolerance=hu_tolerance)
+            self.ctp486 = ctp486(
+                self,
+                offset=offset,
+                tolerance=hu_tolerance,
+                clear_borders=self.clear_borders,
+            )
         if self._has_module(CTP528CP504):
             ctp528, offset = self._get_module(CTP528CP504)
-            self.ctp528 = ctp528(self, offset=offset, tolerance=None)
+            self.ctp528 = ctp528(
+                self, offset=offset, tolerance=None, clear_borders=self.clear_borders
+            )
         if self._has_module(CTP515):
             ctp515, offset = self._get_module(CTP515)
             self.ctp515 = ctp515(
@@ -2035,6 +2051,7 @@ class CatPhanBase:
                 offset=offset,
                 contrast_method=contrast_method,
                 visibility_threshold=visibility_threshold,
+                clear_borders=self.clear_borders,
             )
         if zip_after and not self.was_from_zip:
             self._zip_images()
