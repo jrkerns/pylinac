@@ -24,6 +24,11 @@ General
   and ``<roi>.ratio``. The existing ``<roi>.contrast`` still exists and will respect the
   passed contrast algorithm as before. This provides a way to compare other contrast algorithms without needing
   to re-analyze an image.
+* There was a bug in the ``equate_images`` function where same-sized images were causing a zero division error.
+  See here: https://github.com/jrkerns/pylinac/issues/446. Thanks to `Luis <https://github.com/LuisOlivaresJ>`__
+  for finding it!
+* The ``crop`` method for images had a bug where passing ``pixels=0`` would cause the array to diminish to shape 0
+  along the axes it was cropping.
 
 Winston-Lutz
 ^^^^^^^^^^^^

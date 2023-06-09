@@ -21,7 +21,9 @@ from pylinac.core.image import (
     DicomImageStack,
     FileImage,
     LinacDicomImage,
+    equate_images,
     gamma_2d,
+    load,
     tiff_to_dicom,
 )
 from pylinac.core.io import TemporaryZipDirectory
@@ -39,6 +41,17 @@ as500_path = get_file_from_cloud_test_repo(["picket_fence", "AS500#5.dcm"])
 xim_path = get_file_from_cloud_test_repo(["ximdcmtest.xim"])
 xim_dcm_path = get_file_from_cloud_test_repo(["ximdcmtest.dcm"])
 dcm_url = "https://storage.googleapis.com/pylinac_demo_files/EPID-PF-LR.dcm"
+
+
+class TestEquateImages(TestCase):
+    def test_same_sized_images_work(self):
+        """As found here: https://github.com/jrkerns/pylinac/issues/446"""
+
+        image1 = load(np.random.rand(20, 20), dpi=10)
+        image2 = load(np.random.rand(10, 10), dpi=5)
+
+        img1, img2 = equate_images(image1, image2)
+        self.assertEqual(img1.shape, img2.shape)
 
 
 class TestLoaders(TestCase):
@@ -147,6 +160,12 @@ class TestBaseImage(TestCase):
         self.assertEqual(new_shape[0] + crop * 2, orig_shape[0])
         # ensure original metadata is still the same
         self.assertEqual(new_dpi, orig_dpi)
+
+    def test_crop_must_be_positive(self):
+        """Crop must be manifestly positive"""
+        crop = 0
+        with self.assertRaises(ValueError):
+            self.img.crop(crop)
 
     def test_filter(self):
         # test integer filter size
