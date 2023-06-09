@@ -597,10 +597,10 @@ class CTP404CP504(CatPhanModule):
         self.scaling_tolerance = scaling_tolerance
         self.thickness_rois = {}
         self.lines = {}
+        self.thickness_slice_straddle = thickness_slice_straddle
         super().__init__(
             catphan, tolerance=hu_tolerance, offset=offset, clear_borders=clear_borders
         )
-        self.thickness_slice_straddle = thickness_slice_straddle
 
     def preprocess(self, catphan) -> None:
         # for the thickness analysis image, combine thin slices or just use one slice if slices are thick
