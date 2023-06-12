@@ -1,9 +1,11 @@
 import unittest
+from unittest import TestCase
 
 import numpy as np
 
 from pylinac import Interpolation
 from pylinac.core.utilities import (
+    OptionListMixin,
     abs360,
     convert_to_enum,
     is_iterable,
@@ -64,3 +66,15 @@ class TestSimpleRound(unittest.TestCase):
 
     def test_int_in_is_int_out(self):
         self.assertIsInstance(simple_round(12, decimals=None), int)
+
+
+class TestOptionMixin(TestCase):
+    def test_option_list(self):
+        class MyOptions(OptionListMixin):
+            APPLES = "aPpLes"
+            ORANGES = "Oranges"
+
+        self.assertIsInstance(MyOptions.options(), list)
+        self.assertEqual(len(MyOptions.options()), 2)
+        self.assertEqual(MyOptions.APPLES, "aPpLes")
+        self.assertListEqual(MyOptions.options(), ["aPpLes", "Oranges"])
