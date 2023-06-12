@@ -6,7 +6,8 @@ from matplotlib import pyplot as plt
 from scipy.stats import stats
 
 from .core import image
-from .core.profile import Normalization, SingleProfile, find_peaks
+from .core.array_utils import invert
+from .core.profile import find_peaks
 from .picketfence import MLC
 
 
@@ -110,10 +111,9 @@ class DLG:
     def _determine_measured_gap(profile: np.ndarray) -> float:
         """Return the measured gap based on profile height"""
         mid_value = profile[int(len(profile) / 2)]
-        prof = SingleProfile(profile, normalization_method=Normalization.NONE)
         if mid_value < profile.mean():
-            prof.invert()
-        _, props = find_peaks(prof.values, max_number=1)
+            profile = invert(profile)
+        _, props = find_peaks(profile, max_number=1)
         if mid_value < profile.mean():
             return -props["prominences"][0]
         else:

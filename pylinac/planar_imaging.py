@@ -42,7 +42,7 @@ from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
+from .core.profile import CollapsedCircleProfile, Edge, PhysicalProfile
 from .core.roi import (
     Contrast,
     DiskROI,
@@ -903,21 +903,17 @@ class StandardImagingFC2(ImagePhantomBase):
             int(self.image.center.x + sample_width),
         )
         y_img = np.mean(self.image[:, x_bounds[0] : x_bounds[1]], 1)
-        y_prof = SingleProfile(
-            y_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm
-        )
+        y_prof = PhysicalProfile(y_img, dpmm=self.image.dpmm)
         y_bounds = (
             int(self.image.center.y - sample_width),
             int(self.image.center.y + sample_width),
         )
         x_img = np.mean(self.image[y_bounds[0] : y_bounds[1], :], 0)
-        x_prof = SingleProfile(
-            x_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm
-        )
-        x = x_prof.fwxm_data(x=fwxm)["center index (exact)"]
-        y = y_prof.fwxm_data(x=fwxm)["center index (exact)"]
-        field_width_x = x_prof.fwxm_data(x=fwxm)["width (exact) mm"]
-        field_width_y = y_prof.fwxm_data(x=fwxm)["width (exact) mm"]
+        x_prof = PhysicalProfile(x_img, dpmm=self.image.dpmm)
+        x = x_prof.center_idx(edge_method=Edge.FWHM)
+        y = y_prof.center_idx(edge_method=Edge.FWHM)
+        field_width_x = x_prof.field_width_mm(edge_method=Edge.FWHM, x=fwxm)
+        field_width_y = y_prof.field_width_mm(edge_method=Edge.FWHM, x=fwxm)
         return Point(x=x, y=y), field_width_x, field_width_y
 
     def _find_overall_bb_centroid(self, fwxm: int) -> Point:
@@ -967,14 +963,14 @@ class StandardImagingFC2(ImagePhantomBase):
 
     def _determine_bb_set(self, fwxm: int) -> dict:
         """This finds the approximate field size to determine whether to check for the 10x10 BBs or the 15x15. Returns the BB positions"""
-        x_prof = SingleProfile(
+        x_prof = PhysicalProfile(
             self.image[int(self.image.center.y), :], dpmm=self.image.dpmm
         )
-        y_prof = SingleProfile(
+        y_prof = PhysicalProfile(
             self.image[:, int(self.image.center.x)], dpmm=self.image.dpmm
         )
-        x_width = x_prof.fwxm_data(x=fwxm)["width (exact) mm"]
-        y_width = y_prof.fwxm_data(x=fwxm)["width (exact) mm"]
+        x_width = x_prof.field_width_mm(x=fwxm)
+        y_width = y_prof.field_width(x=fwxm)
         if not np.allclose(x_width, y_width, atol=10):
             raise ValueError(
                 f"The detected y and x field sizes were too different from one another. They should be within 1cm from each other. Detected field sizes: x={x_width}, y={y_width}"

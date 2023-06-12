@@ -25,7 +25,7 @@ from .core.geometry import Point, Rectangle
 from .core.image import ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
-from .core.profile import Edge, Interpolation, SingleProfile
+from .core.profile import ArrayProfile
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
@@ -458,18 +458,14 @@ class VMATBase:
             )
 
     @staticmethod
-    def _median_profiles(images) -> Tuple[SingleProfile, SingleProfile]:
-        """Return two median profiles from the open and dmlc image. For visual comparison."""
-        profile1 = SingleProfile(
+    def _median_profiles(images) -> Tuple[ArrayProfile, ArrayProfile]:
+        """Return two median profiles from the open and DMLC image. For visual comparison."""
+        profile1 = ArrayProfile(
             np.mean(images[0], axis=0),
-            interpolation=Interpolation.NONE,
-            edge_detection_method=Edge.INFLECTION_DERIVATIVE,
         )
         profile1.stretch()
-        profile2 = SingleProfile(
+        profile2 = ArrayProfile(
             np.mean(images[1], axis=0),
-            interpolation=Interpolation.NONE,
-            edge_detection_method=Edge.INFLECTION_DERIVATIVE,
         )
         profile2.stretch()
 

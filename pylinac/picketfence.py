@@ -35,7 +35,7 @@ from py_linq import Enumerable
 from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
-from .core.profile import Interpolation, MultiProfile, SingleProfile
+from .core.profile import LEFT, RIGHT, ArrayProfile, Edge, MultiProfile
 from .core.utilities import ResultBase, convert_to_enum
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
@@ -1092,7 +1092,6 @@ class MLCValue:
         self._action_tolerance: float = action_tolerance
         self._separate_leaves = separate_leaves
         self._nominal_gap_mm = nominal_gap_mm
-        self.profile: SingleProfile
         self.position = self.get_peak_positions()
         self._fit = None
 
@@ -1122,25 +1121,19 @@ class MLCValue:
             pix_vals = np.median(self._image_window, axis=0)
         else:
             pix_vals = np.median(self._image_window, axis=1)
-        interpolation_factor = 100
-        prof = SingleProfile(
-            pix_vals,
-            interpolation=Interpolation.LINEAR,
-            interpolation_factor=interpolation_factor,
-        )
-        fwxm = prof.fwxm_data(self._fwxm)
+        prof = ArrayProfile(pix_vals)
         self.profile = prof
         if self._separate_leaves:
-            left = fwxm["left index (exact)"] + max(
+            left = prof.field_edge_idx(side=LEFT, method=Edge.FWHM, x=self._fwxm) + max(
                 self._approximate_idx - self._spacing / 2, 0
             )
-            right = fwxm["right index (exact)"] + max(
-                self._approximate_idx - self._spacing / 2, 0
-            )
+            right = prof.field_edge_idx(
+                side=RIGHT, method=Edge.FWHM, x=self._fwxm
+            ) + max(self._approximate_idx - self._spacing / 2, 0)
             return left, right
         else:
             return (
-                fwxm["center index (exact)"]
+                prof.center_idx(edge_method=Edge.FWHM, x=self._fwxm)
                 + max(self._approximate_idx - self._spacing / 2, 0),
             )  # crop to left edge if need be
 
@@ -1200,7 +1193,6 @@ class MLCValue:
 
         fig, ax = plt.subplots()
         ax.plot(x_values, pix_vals)
-        # ax.vlines(x=data['center index (exact)']/self.profile._interpolation_factor + offset_pixels, ymin=data['peak_props']['peak_heights'][0] - data['peak_props']['prominences'][0], ymax=data['peak_props']['peak_heights'][0], color='magenta', label='Peak center')
         for picket_pos in self.picket_positions:
             ax.axvline(
                 x=picket_pos * self._image.dpmm,

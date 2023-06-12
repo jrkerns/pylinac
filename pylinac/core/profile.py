@@ -19,11 +19,10 @@ from scipy.stats import linregress
 from . import array_utils as utils
 from .geometry import Circle, Point
 from .hill import Hill
-from .image import ArrayImage
 from .utilities import convert_to_enum
 
-RIGHT = 'right'
-LEFT = 'left'
+RIGHT = "right"
+LEFT = "left"
 
 # for Hill fits of 2D device data the # of points can be small.
 # This results in optimization warnings about the variance of the fit (the variance isn't of concern for us for that particular item)
@@ -263,6 +262,12 @@ class ArrayProfile(ProfileMixin):
         ground: bool = False,
         normalization: str = Normalization.NONE,
     ):
+        """A 1D profile that has one large signal, e.g. a radiation beam profile.
+        Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
+        Profiles with multiple peaks are better suited by the MultiProfile class.
+        """
+        # validate
+        utils.single_dimension(values)
         self.values = values
         if x_values is None:
             x_values = np.arange(len(values))
@@ -272,17 +277,21 @@ class ArrayProfile(ProfileMixin):
         if normalization == Normalization.MAX:
             self.normalize()
         elif normalization == Normalization.GEOMETRIC_CENTER:
-            center_val = self.geometric_center_value()
+            center_val = utils.geometric_center_value(self.values)
             self.normalize(center_val)
         elif normalization == Normalization.BEAM_CENTER:
             beam_center_val = self.values[int(round(self._fwxm_center_idx(x=50)))]
             self.normalize(beam_center_val)
         self._interp_values = interp1d(x=self.x_values, y=self.values)
-    
-        
-    def center_idx(self, centering_method: Centering = Centering.BEAM_CENTER, edge_method: Edge = Edge.INFLECTION_DERIVATIVE, **kwargs) -> float:
+
+    def center_idx(
+        self,
+        centering_method: Centering = Centering.BEAM_CENTER,
+        edge_method: Edge = Edge.INFLECTION_DERIVATIVE,
+        **kwargs,
+    ) -> float:
         """The center of the detected beam. This can account for asymmetries in the beam position (e.g. offset jaws)
-        
+
         Parameters
         ----------
         centering_method
@@ -290,104 +299,117 @@ class ArrayProfile(ProfileMixin):
         edge_method
             The method of edge detection. Only applicable for Beam centering method.
         kwargs
-            Kwargs are passed to the specific edge detection function. For 
+            Kwargs are passed to the specific edge detection function. For
         """
         if centering_method == Centering.GEOMETRIC_CENTER:
             return utils.geometric_center_idx(self.values)
         elif centering_method == Centering.BEAM_CENTER:
             if edge_method == Edge.FWHM:
-                return self._fwxm_center_idx(x=50)
+                return self._fwxm_center_idx(**kwargs)
             elif edge_method == Edge.INFLECTION_DERIVATIVE:
                 left = self._inflection_derivative_idx(side=LEFT, **kwargs)
                 right = self._inflection_derivative_idx(side=RIGHT, **kwargs)
-                return (right - left)/2 + left
+                return (right - left) / 2 + left
             elif edge_method == Edge.INFLECTION_HILL:
                 left = self._inflection_hill_idx(side=LEFT, **kwargs)
                 right = self._inflection_hill_idx(side=RIGHT, **kwargs)
                 return (right - left) / 2 + left
-            
-    def center_val(self, centering_method: Centering = Centering.BEAM_CENTER, edge_method: Edge = Edge.INFLECTION_DERIVATIVE, **kwargs) -> float:
-        return self._interp_values(self.center_idx(centering_method, edge_method, **kwargs))
+
+    def center_val(
+        self,
+        centering_method: Centering = Centering.BEAM_CENTER,
+        edge_method: Edge = Edge.INFLECTION_DERIVATIVE,
+        **kwargs,
+    ) -> float:
+        """Get the 'center' value of the profile. The center depends on the technique. If using
+        the beam center, the edge detection method is utilized. This will linearly interpolate between acquired values"""
+        f = interp1d(x=self.x_values, y=self.values)
+        return f(self.center_idx(centering_method, edge_method, **kwargs))
+
+    def field_edge_idx(
+        self, side: str, method: Edge = Edge.INFLECTION_DERIVATIVE, **kwargs
+    ) -> float:
+        """The index of the field edge, given the side and edge detection method."""
+        if method == Edge.FWHM:
+            right = self._fwxm_edge_idx(side=side, **kwargs)
+        elif method == Edge.INFLECTION_DERIVATIVE:
+            right = self._inflection_derivative_idx(side=side, **kwargs)
+        else:
+            right = self._inflection_hill_idx(side=side, **kwargs)
+        return right
+
+    def field_width(self, edge_method=Edge.FWHM, **kwargs) -> float:
+        """The field width of the profile in pixels using the given method for
+        edge detection"""
+        left_idx = self.field_edge_idx(side=LEFT, method=edge_method, **kwargs)
+        right_idx = self.field_edge_idx(side=RIGHT, method=edge_method, **kwargs)
+        return right_idx - left_idx
 
     def _fwxm_center_idx(self, x: int | float = 50) -> float:
+        """The center index using FWXM methodology"""
         _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
         left_idx = peak_props["left_ips"][0]
         right_idx = peak_props["right_ips"][0]
         fwxm_center_idx = (right_idx - left_idx) / 2 + left_idx
         return fwxm_center_idx
 
-    def _fwxm_left_idx(self, x: int | float = 50) -> float:
+    def _fwxm_edge_idx(self, side: str = LEFT, x: int | float = 50) -> float:
+        """The edge index of the given side using the FWXM methodology"""
         _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
-        left_idx = peak_props["left_ips"][0]
-        return left_idx
+        if side == LEFT:
+            idx = peak_props["left_ips"][0]
+        elif side == RIGHT:
+            idx = peak_props["right_ips"][0]
+        return idx
 
-    def _fwxm_right_idx(self, x: int | float = 50) -> float:
-        _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
-        right_idx = peak_props["right_ips"][0]
-        return right_idx
-    
-    def left_field_edge_idx(self, method: Edge = Edge.INFLECTION_DERIVATIVE, **kwargs) -> float:
-        if method == Edge.FWHM:
-            left = self._fwxm_left_idx(x=50)
-        elif method == Edge.INFLECTION_DERIVATIVE:
-            left = self._inflection_derivative_idx(side=LEFT, **kwargs)
-        else:
-            left = self._inflection_hill_idx(side=LEFT, **kwargs)
-        return left
-
-    def right_field_edge_idx(self, method: Edge = Edge.INFLECTION_DERIVATIVE, **kwargs) -> float:
-        if method == Edge.FWHM:
-            right = self._fwxm_right_idx(x=50)
-        elif method == Edge.INFLECTION_DERIVATIVE:
-            right = self._inflection_derivative_idx(side=RIGHT, **kwargs)
-        else:
-            right = self._inflection_hill_idx(side=RIGHT, **kwargs)
-        return right
-    
-    def field_values(self, in_field_ratio: float = 0.8, edge_method: Edge = Edge.INFLECTION_DERIVATIVE, **kwargs) -> np.array:
-        left = self.left_field_edge_idx(method=edge_method, **kwargs)
-        right = self.right_field_edge_idx(method=edge_method, **kwargs)
+    def field_values(
+        self,
+        in_field_ratio: float = 0.8,
+        edge_method: Edge = Edge.INFLECTION_DERIVATIVE,
+        **kwargs,
+    ) -> np.array:
+        """The values of the profile within the 'field' area. This is typically 80% of the detected
+        field width."""
+        left = self.field_edge_idx(side=LEFT, method=edge_method, **kwargs)
+        right = self.field_edge_idx(side=RIGHT, method=edge_method, **kwargs)
         width = right - left
-        f_left = left + (1-in_field_ratio)/2*width
-        f_right = right - (1-in_field_ratio)/2*width
-        return self.values[int(round(f_left)):int(round(f_right)+1)]
+        f_left = left + (1 - in_field_ratio) / 2 * width
+        f_right = right - (1 - in_field_ratio) / 2 * width
+        return self.values[int(round(f_left)) : int(round(f_right) + 1)]
 
     def penumbra_width_px(
-        self, side: str = LEFT, upper: float | int = 80, lower: float | int = 20
+        self,
+        side: str,
+        edge_method: str = Edge.INFLECTION_DERIVATIVE,
+        upper: float | int = 80,
+        lower: float | int = 20,
+        **kwargs,
     ) -> float:
-        """The width of the penumbra in pixels on the left side"""
+        """The width of the penumbra in pixels"""
         if lower > upper:
             raise ValueError(
                 "Upper penumbra value must be larger than the lower penumbra value"
             )
-        if side == LEFT:
-            upper_idx = self._fwxm_left_idx(x=upper)
-            lower_idx = self._fwxm_left_idx(x=lower)
-        else:
-            upper_idx = self._fwxm_right_idx(x=upper)
-            lower_idx = self._fwxm_right_idx(x=lower)
+        upper_idx = self.field_edge_idx(side=LEFT, method=edge_method)
+        upper_idx = self._fwxm_edge_idx(side=side, x=upper)
+        lower_idx = self._fwxm_edge_idx(side=side, x=lower)
         return abs(upper_idx - lower_idx)
 
     def _inflection_derivative_idx(
         self, side: str = LEFT, smoothing_ratio: float = 0.03
     ) -> float:
-        """Calculate the profile inflection values using either the 2nd derivative or a fitted Hill function.
-
-        Parameters
-        ----------
-
-        """
+        """The edge index of the given side using the 2nd derivative crossover methodology"""
         # get max/min of the gradient, which is basically the same as the 2nd derivative 0-crossing
         filtered_values = gaussian_filter1d(
             self.values, sigma=smoothing_ratio * len(self.values)
         )
         diff = np.gradient(filtered_values)
-        f_min = interp1d(x=self.x_values, y=diff, kind='cubic')
-        
+        f_min = interp1d(x=self.x_values, y=diff, kind="cubic")
+
         if side == LEFT:
-            return minimize(lambda x: -f_min(x), x0=np.argmax(diff))
+            return minimize(lambda x: -f_min(x), x0=np.argmax(diff)).res
         else:
-            return minimize(f_min, x0=np.argmin(diff))
+            return minimize(f_min, x0=np.argmin(diff)).res
 
     def _inflection_hill_idx(
         self,
@@ -395,6 +417,7 @@ class ArrayProfile(ProfileMixin):
         smoothing_ratio: float = 0.003,
         window_ratio: float = 0.1,
     ) -> float:
+        """The edge index of the given side using the fit of a sigmoid/Hill function methodology"""
         left_infl_idx = self._inflection_derivative_idx(
             side=LEFT, smoothing_ratio=smoothing_ratio
         )
@@ -433,7 +456,12 @@ class PhysicalProfile(ArrayProfile):
     def penumbra_width_mm(
         self, side: str = LEFT, upper: int | float = 80, lower: int | float = 20
     ):
+        """"""
         return self.penumbra_width_px(side=side, upper=upper, lower=lower) / self.dpmm
+
+    def field_width_mm(self, edge_method=Edge.FWHM, **kwargs) -> float:
+        """The field width of the profile in mm"""
+        return self.field_width(edge_method=edge_method, **kwargs) / self.dpmm
 
 
 class SingleProfile(ProfileMixin):
@@ -1646,7 +1674,7 @@ class CollapsedCircleProfile(CircleProfile):
         self,
         center: Point,
         radius: float,
-        image_array: np.ndarray | ArrayImage,
+        image_array: np.ndarray,
         start_angle: int = 0,
         ccw: bool = True,
         sampling_ratio: float = 1.0,
@@ -1853,4 +1881,3 @@ def _parse_peak_args(
         values = values[search_region[0] : search_region[1]]
         shift_amount = search_region[0]
     return peak_separation, shift_amount, threshold, values
-
