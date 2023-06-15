@@ -6,6 +6,12 @@ Changelog
 v 3.12.0
 --------
 
+.. warning::
+
+    This is the last version of pylinac that will support python 3.7 as it will reach end-of-life in July 2023.
+    pylinac v3.13+ will support python 3.8 until October 2024 when python 3.8 is deprecated, etc. You can
+    see the end-of-life chart `here <https://endoflife.date/python>`__.
+
 General
 ^^^^^^^
 
