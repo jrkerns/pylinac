@@ -159,7 +159,7 @@ class TestComplement(TestCase):
         assert np.array_equal(inv_arr, [-1, -11])
 
     def test_complement_float_fails(self):
-        arr1 = np.array([0, 10], dtype=np.float)
+        arr1 = np.array([0, 10], dtype=float)
         with self.assertRaises(ValueError) as ve:
             bit_invert(arr1)
             self.assertIn("could not be safely", str(ve.exception))
@@ -228,7 +228,7 @@ class TestConvertDataType(TestCase):
         self.assertEqual(c_arr.dtype, np.int8)
 
     def test_float_becomes_normalized(self):
-        arr1 = np.array([0, 255.2], dtype=np.float)
+        arr1 = np.array([0, 255.2], dtype=float)
         c_arr = convert_to_dtype(arr1, dtype=np.uint16)
         assert np.array_equal(c_arr, [0, 65535])
         self.assertEqual(c_arr.dtype, np.uint16)
