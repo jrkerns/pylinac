@@ -1,7 +1,9 @@
 """Tests for the flatsym module of pylinac."""
 import enum
 import io
+import os
 import os.path as osp
+import tempfile
 from unittest import TestCase
 
 from matplotlib import pyplot as plt
@@ -39,6 +41,10 @@ def create_instance(model=FieldAnalysis):
 
 
 class FieldAnalysisTests(TestCase):
+    @classmethod
+    def tearDownClass(cls) -> None:
+        plt.close("all")
+
     def test_load_from_file_object(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "6x-auto-bulb-2.dcm"])
         ref_fa = FieldAnalysis(path)
@@ -148,9 +154,10 @@ class FieldAnalysisTests(TestCase):
         # regular single plot produces one image/file
         figs, names = fs.plot_analyzed_image()
         self.assertEqual(len(figs), 0)
-        name = "b.png"
-        fs.save_analyzed_image("b.png")
-        self.assertTrue(osp.isfile(name))
+        with tempfile.TemporaryDirectory() as tdir:
+            name = os.path.join(tdir, "b.png")
+            fs.save_analyzed_image(name)
+            self.assertTrue(osp.isfile(name))
 
         # stream buffer shouldn't fail
         with io.BytesIO() as tmp:
