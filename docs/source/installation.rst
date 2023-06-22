@@ -87,8 +87,8 @@ is completely up to you. If you want one, here are some options:
      :height: 400px
      :width: 600px
 
-* `Spyder <https://code.google.com/p/spyderlib/>`_ - A MATLAB-like IDE with similar layout, preferred by many working in the scientific realm.
-  Here are the `Spyder docs <https://pythonhosted.org/spyder/>`_.
+* `Spyder <https://www.spyder-ide.org/>`_ - A MATLAB-like IDE with similar layout, preferred by many working in the scientific realm.
+  Here are the `Spyder docs <https://docs.spyder-ide.org/current/index.html>`_.
 
   .. note:: Spyder is part of the Anaconda distribution.
 
