@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
+from pylinac.core.utilities import OptionListMixin
 
-class Contrast:
+
+class Contrast(OptionListMixin):
     """Contrast calculation technique. See :ref:`visibility`"""
 
     MICHELSON = "Michelson"  #:

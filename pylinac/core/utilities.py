@@ -24,6 +24,19 @@ def convert_to_enum(value: str | Enum | None, enum: type[Enum]) -> Enum:
         return enum(value)
 
 
+class OptionListMixin:
+    """A mixin class that will create a list of the class attributes.
+    Used for enum-like classes"""
+
+    @classmethod
+    def options(cls) -> list[str]:
+        return [
+            option
+            for attr, option in cls.__dict__.items()
+            if not callable(option) and not attr.startswith("__")
+        ]
+
+
 @dataclass
 class ResultBase:
     pylinac_version: str = field(init=False)  #:
