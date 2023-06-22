@@ -53,7 +53,7 @@ Install via ``pip``:
 
     $ pip install pylinac
 
-See the `Installation page <http://pylinac.readthedocs.io/en/stable/installation.html>`_ for further details.
+See the `Installation page <https://pylinac.readthedocs.io/en/latest/installation.html>`_ for further details.
 
 Quick Start Guide
 -----------------
