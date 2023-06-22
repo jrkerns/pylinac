@@ -55,6 +55,10 @@ class TestStarshotLoading(TestCase, FromURLTesterMixin):
 
 
 class TestPlottingSaving(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
+
     def setUp(self):
         self.star = Starshot.from_demo_image()
         self.star.analyze()

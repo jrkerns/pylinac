@@ -1,6 +1,7 @@
 import io
 import os
 import os.path as osp
+import tempfile
 from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
@@ -216,13 +217,15 @@ class TestPlottingSaving(TestCase):
             self.cbct.plot_analyzed_subimage("sr")
 
     def test_save_subimages(self):
-        for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc"]:
-            self.cbct.save_analyzed_subimage("dummy.png", item)
+        with tempfile.TemporaryDirectory() as tdir:
+            file = os.path.join(tdir, "dummy.png")
+            for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc"]:
+                self.cbct.save_analyzed_subimage(file, item)
 
-        self.cbct.save_analyzed_subimage("dummy.png", "lin", delta=False)
+            self.cbct.save_analyzed_subimage(file, "lin", delta=False)
 
-        with self.assertRaises(ValueError):
-            self.cbct.save_analyzed_subimage("dummy.png", "sr")
+            with self.assertRaises(ValueError):
+                self.cbct.save_analyzed_subimage(file, "sr")
 
     def test_set_figure_size(self):
         self.cbct.plot_analyzed_image(figsize=(8, 13))
