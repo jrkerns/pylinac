@@ -61,7 +61,7 @@ A typical analysis sequence looks like so:
 
   .. code-block:: python
 
-    star_imgs = ['path/star0.tif', 'path/star45.tif', 'path/star90.tif']
+    star_imgs = ["path/star0.tif", "path/star45.tif", "path/star90.tif"]
     mystar = Starshot.from_multiple_images(star_imgs)
 
 * **Analyze the image** -- After loading the image, all that needs to be done is analyze the image. You may optionally
@@ -69,7 +69,7 @@ A typical analysis sequence looks like so:
 
   .. code-block:: python
 
-    mystar.analyze(radius=0.5, tolerance=0.8) # see API docs for more parameter info
+    mystar.analyze(radius=0.5, tolerance=0.8)  # see API docs for more parameter info
 
 * **View the results** -- Starshot can print out the summary of results to the console as well as draw a matplotlib image to show the
   detected radiation lines and wobble circle:
@@ -94,7 +94,7 @@ A typical analysis sequence looks like so:
 
     # return as a dict
     data_dict = mystart.results_data(as_dict=True)
-    data_dict['passed']
+    data_dict["passed"]
     ...
 
   Each subplot can be plotted independently as well:
@@ -102,21 +102,21 @@ A typical analysis sequence looks like so:
   .. code-block:: python
 
       # just the wobble plot
-      mystar.plot_analyzed_subimage('wobble')
+      mystar.plot_analyzed_subimage("wobble")
       # just the zoomed-out plot
-      mystar.plot_analyzed_subimage('whole')
+      mystar.plot_analyzed_subimage("whole")
 
   Saving the images is also just as easy:
 
   .. code-block:: python
 
-      mystar.save_analyzed_image('mystar.png')
+      mystar.save_analyzed_image("mystar.png")
 
   You may also save to PDF:
 
   .. code-block:: python
 
-      mystar.publish_pdf('mystar.pdf')
+      mystar.publish_pdf("mystar.pdf")
 
 
 Algorithm
@@ -177,8 +177,8 @@ analysis, there are a few things you can do.
   wobble even if the conditions you passed don't for some reason give one.
 * **Make sure the center of the star is in the central 1/3 of the image** - Otherwise, pylinac won't find it.
 * **Make sure there aren't egregious artifacts** - Pin pricks can cause wild pixel values; crop them out if possible.
-* **Set `invert` to True** - While right most of the time, it's possible the inversion checker got it wrong. This would
-  look like peak locations in the "valley" regions of the image. If so, pass `invert=True` to the `analyze` method.
+* **Set ``invert`` to True** - While right most of the time, it's possible the inversion checker got it wrong. This would
+  look like peak locations in the "valley" regions of the image. If so, pass ``invert=True`` to the ``analyze`` method.
 
 Benchmarking the Algorithm
 --------------------------

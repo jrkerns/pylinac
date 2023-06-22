@@ -32,4 +32,4 @@ class TestMTF(unittest.TestCase):
         maxs = (500, 300, 500, 100)
         mins = (25, 50, 25, 75)
 
-        m = MTF(pair_units, maxs, mins)
+        MTF(pair_units, maxs, mins)

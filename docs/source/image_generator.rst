@@ -59,9 +59,11 @@ inherit from ``Simulator`` and define the pixel size and shape. Note that genera
 
     from pylinac.core.image_generator.simulators import Simulator
 
+
     class AS5000(Simulator):
         pixel_size = 0.12
         shape = (5000, 5000)
+
 
     # use like any other simulator
 
@@ -71,11 +73,12 @@ To implement a custom layer, inherit from ``Layer`` and implement the ``apply`` 
 
     from pylinac.core.image_generator.layers import Layer
 
-    class MyAwesomeLayer(Layer):
 
+    class MyAwesomeLayer(Layer):
         def apply(image, pixel_size):
             # do stuff here
             return image
+
 
     # use
     from pylinac.core.image_generator import AS1000Image
@@ -218,19 +221,30 @@ Using the new utility functions of v2.5+ we can construct full dicom files of pi
 
     sim = image_generator.simulators.AS1000Image()
     field_layer = image_generator.layers.FilteredFieldLayer  # could also do FilterFreeLayer
-    generate_picketfence(simulator=Simulator, field_layer=FilteredFieldLayer,
-                         file_out='pf_image.dcm',
-                         pickets=11, picket_spacing_mm=20, picket_width_mm=2,
-                         picket_height_mm=300, gantry_angle=0)
+    generate_picketfence(
+        simulator=Simulator,
+        field_layer=FilteredFieldLayer,
+        file_out="pf_image.dcm",
+        pickets=11,
+        picket_spacing_mm=20,
+        picket_width_mm=2,
+        picket_height_mm=300,
+        gantry_angle=0,
+    )
     # we now have a pf image saved as 'pf_image.dcm'
 
     # create a set of WL images
     # this will create 4 images (via image_axes len) with an offset of 3mm to the left
     # the function is smart enough to correct for the offset w/r/t gantry angle.
-    generate_winstonlutz(simulator=sim, field_layer=field_layer,
-                         final_layers=[GaussianFilterLayer()], gantry_tilt=0,
-                         dir_out='./wl_dir', offset_mm_left=3,
-                         image_axes=[[0, 0, 0], [180, 0, 0], [90, 0, 0], [270, 0, 0]])
+    generate_winstonlutz(
+        simulator=sim,
+        field_layer=field_layer,
+        final_layers=[GaussianFilterLayer()],
+        gantry_tilt=0,
+        dir_out="./wl_dir",
+        offset_mm_left=3,
+        image_axes=[[0, 0, 0], [180, 0, 0], [90, 0, 0], [270, 0, 0]],
+    )
 
 
 Tips & Tricks

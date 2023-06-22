@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from math import ceil, floor
 from typing import Sequence
 
@@ -12,7 +14,8 @@ from .picketfence import MLC
 
 class DLG:
     """Analyze a machine's dosimetric leaf gap by looking at profiles with various amounts of overlap. This is NOT the
-    same procedure as the sweeping gaps as provided by Varian, although the determined value should be similar."""
+    same procedure as the sweeping gaps as provided by Varian, although the determined value should be similar.
+    """
 
     def __init__(self, path):
         self.image = image.LinacDicomImage(path)

@@ -36,7 +36,7 @@ def access_gcp() -> storage.Client:
     # if not, load from the env var (test pipeline)
     if not credentials_file.is_file():
         with open(credentials_file, "wb") as f:
-            creds = base64.b64decode(os.environ.get("GOOGLE_CREDENTIALS"))
+            creds = base64.b64decode(os.environ.get("GOOGLE_CREDENTIALS", ""))
             f.write(creds)
     client = storage.Client.from_service_account_json(str(credentials_file))
     try:
@@ -48,7 +48,6 @@ def access_gcp() -> storage.Client:
 def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
     """Get a folder from GCP"""
     with access_gcp() as storage_client:
-
         # get the folder data
         all_blobs = list(storage_client.list_blobs(GCP_BUCKET_NAME))
         blobs = (

@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import dataclasses
 import io
 import textwrap
 import webbrowser
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import scipy.ndimage
@@ -178,7 +179,8 @@ class QuartHUModule(CTP404CP504):
         CNR = abs(HU_target - HU_background) / sigma,
         where HU_target is the mean HU of a chosen insert, HU_background is the mean HU of the background insert
         and sigma is the stdev of the HU background.
-        We choose to use the Polystyrene as the target HU insert and Acrylic (base phantom material) as the background"""
+        We choose to use the Polystyrene as the target HU insert and Acrylic (base phantom material) as the background
+        """
         return (
             abs(self.rois["Poly"].pixel_value - self.rois["Acrylic"].pixel_value)
             / self.rois["Acrylic"].std
@@ -277,7 +279,7 @@ class QuartGeometryModule(CatPhanModule):
         for name, profile_data in self.profiles.items():
             profile_data["line"].plot2axes(axis, width=2, color="blue")
 
-    def distances(self) -> Dict[str, float]:
+    def distances(self) -> dict[str, float]:
         """The measurements of the phantom size for the two lines in mm"""
         return {f"{name} mm": p["width (mm)"] for name, p in self.profiles.items()}
 
@@ -305,10 +307,10 @@ class QuartDVT(CatPhanBase):
 
     def analyze(
         self,
-        hu_tolerance: Union[int, float] = 40,
-        scaling_tolerance: Union[int, float] = 1,
-        thickness_tolerance: Union[int, float] = 0.2,
-        cnr_threshold: Union[int, float] = 5,
+        hu_tolerance: int | float = 40,
+        scaling_tolerance: int | float = 1,
+        thickness_tolerance: int | float = 0.2,
+        cnr_threshold: int | float = 5,
     ):
         self.localize()
         self.hu_module = QuartHUModule(
@@ -357,7 +359,7 @@ class QuartDVT(CatPhanBase):
     def plot_analyzed_subimage(self, *args, **kwargs) -> None:
         raise NotImplementedError()
 
-    def results(self, as_str: bool = True) -> Union[str, Tuple[str, ...]]:
+    def results(self, as_str: bool = True) -> str | tuple[str, ...]:
         """Return the results of the analysis as a string. Use with print()."""
         items = (
             f"\n - {self._model} QA Test - \n",
@@ -374,7 +376,7 @@ class QuartDVT(CatPhanBase):
         else:
             return items
 
-    def results_data(self, as_dict: bool = False) -> Union[QuartDVTResult, dict]:
+    def results_data(self, as_dict: bool = False) -> QuartDVTResult | dict:
         """Return results in a data structure for more programmatic use."""
         data = QuartDVTResult(
             phantom_model=self._model,
@@ -407,7 +409,7 @@ class QuartDVT(CatPhanBase):
         else:
             return data
 
-    def plot_images(self, show: bool = True, **plt_kwargs) -> Dict[str, plt.Figure]:
+    def plot_images(self, show: bool = True, **plt_kwargs) -> dict[str, plt.Figure]:
         """Plot all the individual images separately.
 
         Parameters
@@ -435,10 +437,10 @@ class QuartDVT(CatPhanBase):
 
     def save_images(
         self,
-        directory: Optional[Union[Path, str]] = None,
+        directory: Path | str | None = None,
         to_stream: bool = False,
         **plt_kwargs,
-    ) -> Union[List[Path], Dict[str, BytesIO]]:
+    ) -> list[Path] | dict[str, BytesIO]:
         """Save separate images to disk or stream.
 
         Parameters
@@ -469,11 +471,11 @@ class QuartDVT(CatPhanBase):
 
     def publish_pdf(
         self,
-        filename: Union[str, Path],
-        notes: Optional[str] = None,
+        filename: str | Path,
+        notes: str | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 

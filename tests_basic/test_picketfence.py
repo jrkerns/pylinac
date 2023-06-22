@@ -744,14 +744,6 @@ class AS1000HDFullError(PFTestMixin, TestCase):
         self.assertFalse(pf.passed)
 
 
-class AS1200(PFTestMixin, TestCase):
-    """Tests for the AS1200 image."""
-
-    file_name = "AS1200.dcm"
-    max_error = 0.08
-    abs_median_error = 0.02
-
-
 class AS1200Error(PFTestMixin, TestCase):
     """Tests for the AS1200 image."""
 
