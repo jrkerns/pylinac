@@ -31,7 +31,7 @@ class OptionListMixin:
     @classmethod
     def options(cls) -> list[str]:
         return [
-            option for attr, option in cls.__dict__.items() if not attr.startswith("__")
+            option for attr, option in cls.__dict__.items() if not callable(option) and not attr.startswith('__')
         ]
 
 

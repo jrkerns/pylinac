@@ -78,3 +78,16 @@ class TestOptionMixin(TestCase):
         self.assertEqual(len(MyOptions.options()), 2)
         self.assertEqual(MyOptions.APPLES, "aPpLes")
         self.assertListEqual(MyOptions.options(), ["aPpLes", "Oranges"])
+
+    def test_option_with_method(self):
+        class MyOptions(OptionListMixin):
+            APPLES = "aPpLes"
+            ORANGES = "Oranges"
+
+            def kill_me_now(self):
+                pass
+
+        self.assertIsInstance(MyOptions.options(), list)
+        self.assertEqual(len(MyOptions.options()), 2)
+        self.assertEqual(MyOptions.APPLES, "aPpLes")
+        self.assertListEqual(MyOptions.options(), ["aPpLes", "Oranges"])
