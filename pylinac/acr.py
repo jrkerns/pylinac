@@ -594,12 +594,12 @@ class MRSlice1Module(CatPhanModule):
     roi_settings = {
         "Row Reference": {"radius": 9, "distance": 58, "angle": 135, "lp/mm": 0},
         "Col Reference": {"radius": 9, "distance": 58, "angle": 135, "lp/mm": 0},
-        "Row 1.1": {"radius": 3, "distance": 41, "angle": 115, "lp/mm": 1 / 1.1},
-        "Col 1.1": {"radius": 3, "distance": 45, "angle": 103, "lp/mm": 1 / 1.1},
-        "Row 1.0": {"radius": 3, "distance": 37.5, "angle": 81, "lp/mm": 1.0},
-        "Col 1.0": {"radius": 3, "distance": 45, "angle": 74, "lp/mm": 1.0},
-        "Row 0.9": {"radius": 2, "distance": 47.5, "angle": 52, "lp/mm": 1 / 0.9},
-        "Col 0.9": {"radius": 2, "distance": 56, "angle": 51, "lp/mm": 1 / 0.9},
+        "Row 1.1": {"radius": 3, "distance": 40, "angle": 116, "lp/mm": 1 / 1.1},
+        "Col 1.1": {"radius": 3, "distance": 44, "angle": 104, "lp/mm": 1 / 1.1},
+        "Row 1.0": {"radius": 3, "distance": 36, "angle": 81, "lp/mm": 1.0},
+        "Col 1.0": {"radius": 3, "distance": 44, "angle": 74, "lp/mm": 1.0},
+        "Row 0.9": {"radius": 2, "distance": 46, "angle": 52, "lp/mm": 1 / 0.9},
+        "Col 0.9": {"radius": 2, "distance": 55, "angle": 51, "lp/mm": 1 / 0.9},
     }
     position_roi_settings = {
         "Left": {"width": 2, "height": 25, "distance": 65, "angle": 2.5},

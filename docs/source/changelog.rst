@@ -27,6 +27,9 @@ ACR
 
 * The ACR MRI algorithm now accounts for scans where slices do not abut. E.g. if the slice thickness is 5mm
   and the spacing between slices is 10mm.
+* The ACR MRI high-resolution ROIs have been adjusted slightly to match the increasing test suite data,
+  however, there are still some sets that do not perfectly align. We suggest following the
+  :ref:`customizing-acr-modules` section and adjusting the location as needed.
 * The ACR MRI algorithm has a new parameter for ``analyze``: ``echo_number``. This lets the user pick an
   echo number if the acquisition was a dual echo scan. This is not required however. If the scan is dual-echo
   and no echo number is passed, the scan with the first echo number is selected. See the

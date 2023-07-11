@@ -345,6 +345,42 @@ class ACRMRMixin(CloudFileMixin):
         self.assertAlmostEqual(self.mri.uniformity_module.psg, self.psg, delta=0.3)
 
 
+class ACRT1Single(ACRMRMixin, TestCase):
+    file_name = "T1-Single.zip"
+    mtf_50 = 0.96
+    phantom_roll = -0.5
+    slice_thickness = 5
+    slice1_shift = -1
+    slice11_shift = 0
+    psg = 0.3
+
+
+class ACRDualEcho(ACRMRMixin, TestCase):
+    file_name = "AXIAL_DUAL_ECHO.zip"
+    mtf_50 = 0.96
+    phantom_roll = 0
+    slice_thickness = 5
+    slice1_shift = -1
+    slice11_shift = 0
+    psg = 0.3
+
+
+class ACRDualEcho2(ACRMRMixin, TestCase):
+    file_name = "AXIAL_DUAL_ECHO.zip"
+    mtf_50 = 0.96
+    phantom_roll = 0
+    slice_thickness = 4.4
+    slice1_shift = -1
+    slice11_shift = 0
+    psg = 0.3
+
+    @classmethod
+    def setUpClass(cls):
+        filename = cls.get_filename()
+        cls.mri = ACRMRILarge.from_zip(filename)
+        cls.mri.analyze(echo_number=2)
+
+
 class ACRGE3T(ACRMRMixin, TestCase):
     file_name = "GE 3T.zip"
     mtf_50 = 0.96
@@ -380,14 +416,14 @@ class ACRGE3TOffset(ACRMRMixin, TestCase):
 
 
 class ACRGE3TRotated(ACRMRMixin, TestCase):
-    """Rotate the phantom over by a bit. Sadly, this does mess up the algorithm slighly as
+    """Rotate the phantom over by a bit. Sadly, this does mess up the algorithm slightly as
     many ROIs are rectangles and cannot be truly rotated by the determined roll.
     Adding this test so for constancy but also so that in the future if the
     ROI analysis is improved this test can be fixed.
     """
 
     file_name = "GE 3T.zip"
-    mtf_50 = 0.81
+    mtf_50 = 0.91
     phantom_roll = -0.4
     slice_thickness = 4.7
     slice1_shift = 0
