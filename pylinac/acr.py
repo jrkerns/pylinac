@@ -4,6 +4,7 @@ import dataclasses
 import io
 import math
 import textwrap
+import warnings
 import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
@@ -15,6 +16,7 @@ from scipy import ndimage
 
 from .core import pdf
 from .core.geometry import Line, Point
+from .core.image import DicomImage
 from .core.mtf import MTF
 from .core.profile import Interpolation, SingleProfile
 from .core.roi import HighContrastDiskROI, RectangleROI
@@ -513,6 +515,20 @@ class ACRCT(CatPhanBase):
         if open_file:
             webbrowser.open(filename)
 
+    def _module_offsets(self) -> list[float]:
+        absolute_origin_position = self.dicom_stack[
+            self.origin_slice
+        ].metadata.SliceLocation
+        relative_offsets_mm = [
+            0,
+            CT_UNIFORMITY_MODULE_OFFSET_MM,
+            CT_LOW_CONTRAST_MODULE_OFFSET_MM,
+            CT_SPATIAL_RESOLUTION_MODULE_OFFSET_MM,
+        ]
+        return [
+            absolute_origin_position + offset_mm for offset_mm in relative_offsets_mm
+        ]
+
 
 class MRSlice11PositionModule(CatPhanModule):
     common_name = "Slice Position, Slice 11"
@@ -918,6 +934,10 @@ class ACRMRILarge(CatPhanBase):
     catphan_radius_mm = 100
     min_num_images = 4
     air_bubble_radius_mm = 20
+    slice1 = MRSlice1Module
+    geometric_distortion = GeometricDistortionModule
+    uniformity_module = MRUniformityModule
+    slice11 = MRSlice11PositionModule
 
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
@@ -926,9 +946,29 @@ class ACRMRILarge(CatPhanBase):
         raise NotImplementedError("Use `save_images`")
 
     def localize(self) -> None:
-        self.origin_slice = 1
         self._phantom_center_func = self.find_phantom_axis()
         self.catphan_roll = self.find_phantom_roll()
+        # now that we have the origin slice, ensure we have scanned all linked modules
+        if not self._ensure_physical_scan_extent():
+            raise ValueError(
+                "The physical scan extent does not cover the extent of module configuration. "
+                "This means not all modules were included in the scan. Rescan the phantom to include all "
+                "relevant modules, or change the offset values."
+            )
+
+    def _module_offsets(self) -> list[float]:
+        absolute_origin_position = self.dicom_stack[
+            self.origin_slice
+        ].metadata.SliceLocation
+        relative_offsets_mm = [
+            0,
+            MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM,
+            MR_UNIFORMITY_MODULE_OFFSET_MM,
+            MR_SLICE11_MODULE_OFFSET_MM,
+        ]
+        return [
+            absolute_origin_position + offset_mm for offset_mm in relative_offsets_mm
+        ]
 
     def find_phantom_roll(self) -> float:
         """Determine the "roll" of the phantom. This algorithm uses the circular left-upper hole on slice 1 as the reference
@@ -963,17 +1003,46 @@ class ACRMRILarge(CatPhanBase):
                 "Could not determine the roll of the phantom. Ensure the 20mm top-left circle is visible on Slice 1"
             )
 
-    def analyze(self) -> None:
-        """Analyze the ACR CT phantom"""
+    def analyze(self, echo_number: int | None = None) -> None:
+        """Analyze the ACR CT phantom
+
+        Parameters
+        ----------
+        echo_number:
+            The echo to analyze. If not passed, uses the minimum echo number found.
+        """
+        self.dicom_stack.images = self._select_echo_images(echo_number)
         self.localize()
-        self.slice1 = MRSlice1Module(self, offset=0)
-        self.geometric_distortion = GeometricDistortionModule(
+        self.slice1 = self.slice1(self, offset=0)
+        self.geometric_distortion = self.geometric_distortion(
             self, offset=MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM
         )
-        self.uniformity_module = MRUniformityModule(
+        self.uniformity_module = self.uniformity_module(
             self, offset=MR_UNIFORMITY_MODULE_OFFSET_MM
         )
-        self.slice11 = MRSlice11PositionModule(self, offset=MR_SLICE11_MODULE_OFFSET_MM)
+        self.slice11 = self.slice11(self, offset=MR_SLICE11_MODULE_OFFSET_MM)
+
+    def _select_echo_images(self, echo_number: int | None) -> list[DicomImage]:
+        """Get the image indices that match the given echo number"""
+        # we check for multiple echos. We only pick the first echo found.
+        # this is probably not the best logic but we somehow have to pick
+        # Echo Numbers is an int; https://dicom.innolitics.com/ciods/mr-image/mr-image/00180086
+        all_echos = {int(i.metadata.EchoNumbers) for i in self.dicom_stack.images}
+        if echo_number is None:
+            echo_number = min(all_echos)
+            if len(all_echos) > 1:
+                warnings.warn(
+                    f"Multiple echoes found ({all_echos}) and no echo number was passed. Using echo # {echo_number}"
+                )
+        if echo_number not in all_echos:
+            raise ValueError(
+                f"Echo number {echo_number} was passed but not found in the dataset. Found echo numbers: {all_echos}. Remove the echo_number parameter or pick a valid echo number."
+            )
+        return [
+            image
+            for image in self.dicom_stack.images
+            if int(image.metadata.EchoNumbers) == echo_number
+        ]
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
         """Plot the analyzed image

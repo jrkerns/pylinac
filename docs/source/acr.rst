@@ -88,6 +88,104 @@ And then load, analyze, and view the results:
     # finally, save a PDF
     ct.publish_pdf()
 
+.. _choosing-mr-echo-number:
+
+Choosing an MR Echo
+-------------------
+
+With MRI, a dual echo scan can be obtained. These can result in a combined DICOM dataset but are distinct
+acquisitions. To select between multiple echos, use the ``echo_number`` parameter:
+
+.. code-block:: python
+
+  from pylinac import ACRMRILarge
+
+  mri = ACRMRILarge(...)  # load zip or dir with dual echo image set
+  mri.analyze(echo_number=2)
+  mri.results()
+
+If no echo number is passed, the first and lowest echo number is selected and analyzed.
+
+.. _customizing-acr-modules:
+
+Customizing MR/CT Modules
+-------------------------
+
+To customize aspects of the MR analysis modules, subclass the relevant module and set the attribute in the
+analysis class. E.g. to customize the "Slice1" MR module:
+
+.. code-block:: python
+
+  from pylinac.acr import ACRMRILarge, MRSlice1Module
+
+
+  class Slice1Modified(MRSlice1Module):
+      """Custom location for the slice thickness ROIs"""
+
+      thickness_roi_settings = {
+          "Top": {"width": 100, "height": 4, "distance": -3},
+          "Bottom": {"width": 100, "height": 4, "distance": 2.5},
+      }
+
+
+  # now pass to the MR analysis class
+  class MyMRI(ACRMRILarge):
+      slice1 = Slice1Modified
+
+
+  # use as normal
+  mri = MyMRI(...)
+  mri.analyze(...)
+
+There are 4 modules in ACR MRI Large analysis that can be overridden. The attribute name should stay the same
+but the name of the subclassed module can be anything as long as it subclasses the original module:
+
+.. code-block:: python
+
+    class ACRMRILarge:
+        # overload these as you wish. The attribute name cannot change.
+        slice1 = MRSlice1Module
+        geometric_distortion = GeometricDistortionModule
+        uniformity_module = MRUniformityModule
+        slice11 = MRSlice11PositionModule
+
+
+    class ACRCT:
+        ct_calibration_module = CTModule
+        low_contrast_module = LowContrastModule
+        spatial_resolution_module = SpatialResolutionModule
+        uniformity_module = UniformityModule
+
+Customizing module offsets
+--------------------------
+
+Customizing the module offsts in the ACR module is easier than for the CT module.
+To do so, simply override any relevant constant like so:
+
+.. code-block:: python
+
+  import pylinac
+
+  pylinac.acr.MR_SLICE11_MODULE_OFFSET_MM = 95
+
+  mri = pylinac.ACRMRILarge(...)  # will use offset above
+
+The options for module offsets are as follows along with their default value:
+
+.. code-block:: python
+
+  # CT
+  CT_UNIFORMITY_MODULE_OFFSET_MM = 70
+  CT_SPATIAL_RESOLUTION_MODULE_OFFSET_MM = 100
+  CT_LOW_CONTRAST_MODULE_OFFSET_MM = 30
+
+  # MR
+  MR_SLICE11_MODULE_OFFSET_MM = 100
+  MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM = 40
+  MR_UNIFORMITY_MODULE_OFFSET_MM = 60
+
+
+
 Advanced Use
 ------------
 

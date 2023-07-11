@@ -237,6 +237,31 @@ class TestMRGeneral(TestCase):
         # check the additional modules got added
         self.assertIsInstance(data.slice11.rois, dict)
 
+    def test_echo_number(self):
+        """Test analyzing a specific echo number works"""
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
+        mri1 = ACRMRILarge.from_zip(path)
+        mri1.analyze(echo_number=1)
+        echo_number_1 = mri1.dicom_stack[0].metadata.EchoNumbers
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
+        mri2 = ACRMRILarge.from_zip(path)
+        mri2.analyze(echo_number=2)
+        echo_number_2 = mri2.dicom_stack[0].metadata.EchoNumbers
+        self.assertNotEqual(echo_number_1, echo_number_2)
+
+    def test_echo_number_invalid(self):
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
+        mri = ACRMRILarge.from_zip(path)
+        with self.assertRaises(ValueError):
+            mri.analyze(echo_number=3)  # only 2 echoes
+
+    def test_echo_number_defaults_to_first(self):
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
+        mri = ACRMRILarge.from_zip(path)
+        self.assertEqual(len({s.metadata.EchoNumbers for s in mri.dicom_stack}), 2)
+        mri.analyze(echo_number=None)
+        self.assertEqual(mri.dicom_stack[0].metadata.EchoNumbers, "1")
+
 
 class TestMRPlottingSaving(TestCase):
     @classmethod
