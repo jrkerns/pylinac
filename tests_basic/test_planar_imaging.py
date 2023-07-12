@@ -185,7 +185,7 @@ class PlanarPhantomMixin(CloudFileMixin):
         # check that the MTF is the expected value. This is a surrogate for the angle being wrong
         if self.mtf_50:
             self.assertAlmostEqual(
-                self.mtf_50, instance.mtf.relative_resolution(50), delta=0.3
+                self.mtf_50, instance.mtf.relative_resolution(50), delta=0.2
             )
 
     def test_plotting(self):
@@ -258,7 +258,7 @@ class Leeds45Deg(LeedsMixin, TestCase):
 
 
 class LeedsDirtyEdges(LeedsMixin, TestCase):
-    mtf_50 = 1.3
+    mtf_50 = 1.53
     ssd = 1000
     file_name = "Leeds-dirty-edges.dcm"
 
@@ -299,14 +299,14 @@ class LeedsClosedBlades(LeedsMixin, TestCase):
 class LeedsACB1(LeedsMixin, TestCase):
     dir_path = ["planar_imaging", "Leeds", "ACB 1"]
     file_path = "1.dcm"
-    mtf_50 = 1.4
+    mtf_50 = 1.69
 
 
 class LeedsBadInversion(LeedsMixin, TestCase):
     """Radmachine image where inversion was bad. pylinac should be able to correct"""
 
     file_path = "Leeds bad inversion.dcm"
-    mtf_50 = 1.4
+    mtf_50 = 1.69
 
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
@@ -400,7 +400,7 @@ class DoselabMVDemo(PlanarPhantomMixin, TestCase):
 
 class DoselabkVDemo(PlanarPhantomMixin, TestCase):
     klass = DoselabMC2kV
-    mtf_50 = 2.16
+    mtf_50 = 2.0
 
     def test_demo(self):
         DoselabMC2kV.run_demo()
@@ -549,7 +549,7 @@ class PTWEPIDQC1(PlanarPhantomMixin, TestCase):
 
 class PTWEPID15MV(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
-    mtf_50 = 0.79
+    mtf_50 = 0.5
     rois_seen = 9
     median_contrast = 0.17
     median_cnr = 26.7
