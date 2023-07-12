@@ -3,6 +3,65 @@
 Changelog
 =========
 
+v 3.13.0
+--------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The Leeds phantom has had its high-contrast ROIs adjusted to better fit the majority of phantoms
+  encountered. Additionally, due to perceived differences in manufacturing, the high-contrast ROIs
+  are now placed according to the center of the high-contrast block. The block is found after the
+  phantom is found and the ROI configuration is adjusted about this center. We have noticed small
+  differences between the block and the phantom center that are large enough to move the ROIs
+  outside the line pairs. Even this however does not correctly place the ROIs all the time.
+
+  .. warning::
+
+      This may affect your MTF values, but so far it does not significantly change it if
+      the ROIs were already correctly on top of the high contrast pairs. Images where
+      the ROIs were mis-aligned with the line pairs should now better match, so any
+      change should be between noise and a healthy improvement.
+
+  Here are two images comparing the old positions to the new ones for an image that was previously
+  not working:
+
+  .. figure:: images/old_leeds_rois.png
+
+      Previous Leeds ROIs on a poorly-fitting image
+
+  .. figure:: images/new_leeds_rois.png
+
+      New Leeds ROIs on the same image
+
+  Here is the demo image, where the ROIs were working before, showing that the new locations
+  still work.
+
+  .. figure:: images/old_leeds_rois_demo.png
+
+      Previous Leeds ROIs on the demo image
+
+  .. figure:: images/new_leeds_rois_demo.png
+
+      New Leeds ROIs on the demo image
+
+  .. note::
+
+    At this point in time it's unclear where the variation is coming from. This is a best-fit
+    solution to this variation. It's possible there was a revision along the line or the
+    placement tolerances are simply not very tight. We have evidence of other quality issues
+    such as off-center low-contrast ROIs as well. If you know how these differences have come to
+    be let us know!
+
+    Finally, if you would like to keep the old ROI locations here is a gist
+    with the old settings: https://gist.github.com/jrkerns/10b62aad7b38c210b9213761447f6155
+
+
+* Related to above, the high-contrast ROIs have been reduced in size slightly so as not to
+  spill out of the line pair area when there are small discrepancies of location.
+  Testing did not change the MTF significantly from reducing the ROI size.
+
+
 v 3.12.0
 --------
 
