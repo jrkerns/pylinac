@@ -17,6 +17,7 @@ from scipy.optimize import OptimizeWarning, minimize
 from scipy.stats import linregress
 
 from . import array_utils as utils
+from . import validators
 from .geometry import Circle, Point
 from .hill import Hill
 from .utilities import convert_to_enum
@@ -257,8 +258,8 @@ class Centering(enum.Enum):
 class ArrayProfile(ProfileMixin):
     def __init__(
         self,
-        values: np.ndarray,
-        x_values: np.ndarray | None = None,
+        values: np.array,
+        x_values: np.array | None = None,
         ground: bool = False,
         normalization: str = Normalization.NONE,
     ):
@@ -266,8 +267,7 @@ class ArrayProfile(ProfileMixin):
         Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
         Profiles with multiple peaks are better suited by the MultiProfile class.
         """
-        # validate
-        utils.single_dimension(values)
+        validators.single_dimension(values)
         self.values = values
         if x_values is None:
             x_values = np.arange(len(values))
@@ -345,7 +345,7 @@ class ArrayProfile(ProfileMixin):
         right_idx = self.field_edge_idx(side=RIGHT, method=edge_method, **kwargs)
         return right_idx - left_idx
 
-    def _fwxm_center_idx(self, x: int | float = 50) -> float:
+    def _fwxm_center_idx(self, x: int | float) -> float:
         """The center index using FWXM methodology"""
         _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
         left_idx = peak_props["left_ips"][0]
