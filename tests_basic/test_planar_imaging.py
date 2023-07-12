@@ -263,6 +263,12 @@ class LeedsDirtyEdges(LeedsMixin, TestCase):
     file_name = "Leeds-dirty-edges.dcm"
 
 
+class LeedsOffsetHighRes(LeedsMixin, TestCase):
+    mtf_50 = 1.85
+    ssd = 1500
+    file_name = "Leeds_offset_high_res_rois.dcm"
+
+
 class LeedsBlue(LeedsMixin, TestCase):
     klass = LeedsTORBlue
     mtf_50 = 1.5
