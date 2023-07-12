@@ -516,9 +516,7 @@ class ACRCT(CatPhanBase):
             webbrowser.open(filename)
 
     def _module_offsets(self) -> list[float]:
-        absolute_origin_position = self.dicom_stack[
-            self.origin_slice
-        ].metadata.SliceLocation
+        absolute_origin_position = self.dicom_stack[self.origin_slice].z_position
         relative_offsets_mm = [
             0,
             CT_UNIFORMITY_MODULE_OFFSET_MM,
@@ -957,9 +955,7 @@ class ACRMRILarge(CatPhanBase):
             )
 
     def _module_offsets(self) -> list[float]:
-        absolute_origin_position = self.dicom_stack[
-            self.origin_slice
-        ].metadata.SliceLocation
+        absolute_origin_position = self.dicom_stack[self.origin_slice].z_position
         relative_offsets_mm = [
             0,
             MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM,

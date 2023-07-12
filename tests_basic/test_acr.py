@@ -391,19 +391,11 @@ class ACRGE3T(ACRMRMixin, TestCase):
     psg = 0.3
 
 
-class ACRGE3TOffset(ACRMRMixin, TestCase):
+class ACRGE3TOffset(ACRGE3T):
     """Shift the phantom over by several pixels to ensure no row/col algorithm issues
 
     Unfortunately, I can't move them that far because the FOV is very tight
     """
-
-    file_name = "GE 3T.zip"
-    mtf_50 = 0.96
-    phantom_roll = 0
-    slice_thickness = 5
-    slice1_shift = 0
-    slice11_shift = 1.5
-    psg = 0.3
 
     @classmethod
     def setUpClass(cls):
@@ -415,20 +407,14 @@ class ACRGE3TOffset(ACRMRMixin, TestCase):
         cls.mri.analyze()
 
 
-class ACRGE3TRotated(ACRMRMixin, TestCase):
+class ACRGE3TRotated(ACRGE3T):
     """Rotate the phantom over by a bit. Sadly, this does mess up the algorithm slightly as
     many ROIs are rectangles and cannot be truly rotated by the determined roll.
     Adding this test so for constancy but also so that in the future if the
     ROI analysis is improved this test can be fixed.
     """
 
-    file_name = "GE 3T.zip"
-    mtf_50 = 0.91
     phantom_roll = -0.4
-    slice_thickness = 4.7
-    slice1_shift = 0
-    slice11_shift = 1.5
-    psg = 0.3
 
     @classmethod
     def setUpClass(cls):
