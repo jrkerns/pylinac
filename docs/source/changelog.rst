@@ -3,6 +3,19 @@
 Changelog
 =========
 
+v 3.12.1
+--------
+
+Contrast
+^^^^^^^^
+
+* The contrast logic was refactored in pylinac 3.12.0. Unfortunately, this used the
+  "vanilla" definition of weber (see `Weber <https://en.wikipedia.org/wiki/Contrast_(vision)#Weber_contrast>`__).
+  Pylinac versions 3.11 and prior used the absolute difference of the numerator.
+  Using the signed difference caused issues for existing users and workflows.
+  This was unintentional. For backwards compatibility, the definition has been restored to the previous
+  behavior.
+
 v 3.12.0
 --------
 
