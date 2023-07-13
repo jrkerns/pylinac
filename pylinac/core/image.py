@@ -26,6 +26,7 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.errors import InvalidDicomError
 from scipy import ndimage
 from skimage.draw import disk
+from skimage.transform import rotate
 
 from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
 from .array_utils import bit_invert, convert_to_dtype, filter, ground, invert, normalize
@@ -472,6 +473,11 @@ class BaseImage:
     def rot90(self, n: int = 1) -> None:
         """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW n times."""
         self.array = np.rot90(self.array, n)
+
+    def rotate(self, angle: float, mode: str = "edge", *args, **kwargs):
+        """Rotate the image counter-clockwise. Simple wrapper for scikit-image. See https://scikit-image.org/docs/stable/api/skimage.transform.html#skimage.transform.rotate.
+        All parameters are passed to that function."""
+        self.array = rotate(self.array, angle, mode=mode, *args, **kwargs)
 
     def threshold(self, threshold: float, kind: str = "high") -> None:
         """Apply a high- or low-pass threshold filter.
