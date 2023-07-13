@@ -14,6 +14,7 @@ from tempfile import TemporaryDirectory
 from typing import Callable, List, Sequence, Union
 from urllib.request import urlopen
 
+from cachetools.func import lru_cache
 from google.cloud import storage
 from py_linq import Enumerable
 
@@ -36,7 +37,7 @@ def access_gcp() -> storage.Client:
     # if not, load from the env var (test pipeline)
     if not credentials_file.is_file():
         with open(credentials_file, "wb") as f:
-            creds = base64.b64decode(os.environ.get("GOOGLE_CREDENTIALS"))
+            creds = base64.b64decode(os.environ.get("GOOGLE_CREDENTIALS", ""))
             f.write(creds)
     client = storage.Client.from_service_account_json(str(credentials_file))
     try:
@@ -45,46 +46,57 @@ def access_gcp() -> storage.Client:
         del client
 
 
-def get_folder_from_cloud_test_repo(folder: List[str]) -> str:
-    """Get a folder from GCP"""
+@lru_cache
+def gcp_bucket_object_list(bucket_name: str) -> list:
     with access_gcp() as storage_client:
+        return list(storage_client.list_blobs(bucket_name))
 
-        # get the folder data
-        all_blobs = list(storage_client.list_blobs(GCP_BUCKET_NAME))
-        blobs = (
-            Enumerable(all_blobs)
-            .where(lambda b: len(b.name.split("/")) >= len(folder))
-            .where(lambda b: b.name.split("/")[1] != "")
-            .where(
-                lambda b: all(
-                    f in b.name.split("/")[idx] for idx, f in enumerate(folder)
-                )
-            )
-            .to_list()
+
+def get_folder_from_cloud_test_repo(folder: List[str], skip_exists: bool = True) -> str:
+    """Get a folder from GCP.
+
+    Parameters
+    ----------
+    skip_exists
+        If True, only checks that the destination folder exists and isn't empty.
+        This is helpful for avoiding network calls since querying GCP can cost significant time.
+    """
+    dest_folder = Path(LOCAL_TEST_DIR, *folder)
+    if skip_exists and dest_folder.exists() and len(list(dest_folder.iterdir())) > 0:
+        return str(dest_folder)
+    # get the folder data
+    all_blobs = gcp_bucket_object_list(GCP_BUCKET_NAME)
+    blobs = (
+        Enumerable(all_blobs)
+        .where(lambda b: len(b.name.split("/")) > len(folder))
+        .where(lambda b: b.name.split("/")[1] != "")
+        .where(
+            lambda b: all(f in b.name.split("/")[idx] for idx, f in enumerate(folder))
         )
+        .to_list()
+    )
 
-        # make root folder if need be
-        dest_folder = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
-        if not osp.isdir(dest_folder):
-            os.makedirs(dest_folder)
+    # make root folder if need be
+    dest_folder = osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
+    if not osp.isdir(dest_folder):
+        os.makedirs(dest_folder)
 
-        # make subfolders if need be
-        subdirs = [b.name.split("/")[1:-2] for b in blobs if len(b.name.split("/")) > 2]
-        dest_sub_folders = [
-            osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder, *f)
-            for f in subdirs
-        ]
-        for sdir in dest_sub_folders:
-            if not osp.isdir(sdir):
-                os.makedirs(sdir)
+    # make subfolders if need be
+    subdirs = [b.name.split("/")[1:-2] for b in blobs if len(b.name.split("/")) > 2]
+    dest_sub_folders = [
+        osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder, *f) for f in subdirs
+    ]
+    for sdir in dest_sub_folders:
+        if not osp.isdir(sdir):
+            os.makedirs(sdir)
 
-        for blob in blobs:
-            # download file
-            path = osp.join(dest_folder, blob.name.split("/")[-1])
-            if not os.path.exists(path):
-                blob.download_to_filename(path)
+    for blob in blobs:
+        # download file
+        path = osp.join(dest_folder, blob.name.split("/")[-1])
+        if not os.path.exists(path):
+            blob.download_to_filename(path)
 
-        return osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
+    return osp.join(osp.dirname(__file__), LOCAL_TEST_DIR, *folder)
 
 
 def get_file_from_cloud_test_repo(path: List[str], force: bool = False) -> str:

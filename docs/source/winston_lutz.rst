@@ -17,6 +17,7 @@ To run the Winston-Lutz demo, create a script or start an interpreter session an
 .. code-block:: python
 
     from pylinac import WinstonLutz
+
     WinstonLutz.run_demo()
 
 Results will be printed to the console and a figure showing the zoomed-in images will be generated::
@@ -123,14 +124,14 @@ From here, you can load a directory:
 
 .. code-block:: python
 
-    my_directory = 'path/to/wl_images'
+    my_directory = "path/to/wl_images"
     wl = WinstonLutz(my_directory)
 
 You can also load a ZIP archive with the images in it:
 
 .. code-block:: python
 
-    wl = WinstonLutz.from_zip('path/to/wl.zip')
+    wl = WinstonLutz.from_zip("path/to/wl.zip")
 
 Now, analyze it:
 
@@ -147,9 +148,9 @@ And that's it! You can now view images, print the results, or publish a PDF repo
     # plot an individual image
     wl.images[3].plot()
     # save a figure of the image plots
-    wl.save_plots('wltest.png')
+    wl.save_plots("wltest.png")
     # print to PDF
-    wl.publish_pdf('mywl.pdf')
+    wl.publish_pdf("mywl.pdf")
 
 If you want to shift the BB based on the results and perform the test again there is a method for that:
 
@@ -163,7 +164,7 @@ You can also pass in your couch coordinates and the new values will be generated
 .. code-block:: python
 
     print(wl.bb_shift_instructions(couch_vrt=0.41, couch_lng=96.23, couch_lat=0.12))
-    New couch coordinates (mm): VRT: 0.32; LNG: 96.11; LAT: 0.11
+    # New couch coordinates (mm): VRT: 0.32; LNG: 96.11; LAT: 0.11
 
 .. _using_file_names_wl:
 
@@ -193,7 +194,7 @@ Continuing from above:
 
     # return as a dict
     data_dict = wl.results_data(as_dict=True)
-    data_dict['num_total_images']
+    data_dict["num_total_images"]
     ...
 
 Accessing individual images
@@ -205,11 +206,17 @@ Each image can be plotted and otherwise accessed easily:
 
     wl = WinstonLutz(...)
     # access first image
-    wl.images[0]  # these are subclasses of the pylinac.core.image.DicomImage class, with a few special props
+    wl.images[
+        0
+    ]  # these are subclasses of the pylinac.core.image.DicomImage class, with a few special props
     # plot 3rd image
-    wl.images[0].plot()  # the plot method is special to the WL module and shows the BB, EPID, and Field CAX.
+    wl.images[
+        0
+    ].plot()  # the plot method is special to the WL module and shows the BB, EPID, and Field CAX.
     # get 2D x/y vector of an image
-    wl.images[4].cax2bb_vector  # this is a Vector with a .x and .y attribute. Note that x and y are in respect to the image, not the fixed room coordinates.
+    wl.images[
+        4
+    ].cax2bb_vector  # this is a Vector with a .x and .y attribute. Note that x and y are in respect to the image, not the fixed room coordinates.
 
 Analyzing a single image
 ------------------------
@@ -260,20 +267,23 @@ Using the filenames within the code is done by passing the ``use_filenames=True`
 
 .. code-block:: python
 
-    my_directory = 'path/to/wl_images'
+    my_directory = "path/to/wl_images"
     wl = WinstonLutz(my_directory, use_filenames=True)
 
 .. note:: If using filenames any relevant axes must be defined, otherwise they will default to zero. For example,
           if the acquisition was at gantry=45, coll=15, couch=0 then the filename must include both the gantry and collimator
           in the name (<...gantry45...coll15....dcm>). For this example, the couch need not be defined since it is 0.
 
-The other way of inputting axis information is passing the `axis_mapping` parameter to the constructor. This is a
+The other way of inputting axis information is passing the ``axis_mapping`` parameter to the constructor. This is a
 dictionary with the filenames as keys and a tuple of ints for the gantry, coll, and couch:
 
 .. code-block:: python
 
-    directory = 'path/to/wl/dir'
-    mapping = {'file1.dcm': (0, 0, 0), 'file2.dcm': (90, 315, 45), ...}
+    directory = "path/to/wl/dir"
+    mapping = {
+        "file1.dcm": (0, 0, 0),
+        "file2.dcm": (90, 315, 45),
+    }  # add more as needed
     wl = WinstonLutz(directory=directory, axis_mapping=mapping)
     # analyze as normal
     wl.analyze(...)
@@ -320,6 +330,60 @@ the field is not of interest or the field cannot be measured, such as a fully-op
 the radiation iso is not of interest. For large-field WL images, you may need to set the ``low_density_bb``
 parameter to True. This is because the automatic inversion of the WL module assumes a small field is being delivered.
 For large field deliveries, kV or MV, see about flipping this parameter if the analysis fails.
+
+
+.. _wl_tiff:
+
+Using TIFF images
+-----------------
+
+.. versionadded:: 3.12
+
+The WL module can handle TIFF images on a provisional basis.
+
+.. warning::
+
+    This is still experimental and caution is warranted. Even though
+    there is an automatic noise/edge cleaner, cropping images to remove
+    markers and/or film scan artifacts is encouraged.
+
+To load TIFF images, extra parameters must be passed. Specifically,
+the ``sid`` and potentially the ``dpi`` parameters must be added. Additionally,
+``axis_mapping`` must be populated. This is how pylinac can convert
+the images into rudimentary dicom images. The ``dpi``
+parameter is only needed if the TIFF images do not have a resolution tag.
+Pylinac will give a specific error if ``dpi`` wasn't passed and also wasn't
+in the TIFF tags.
+
+.. note::
+
+    Although it is technically possible to load both DICOM and TIFF together
+    in one dataset it is not encouraged.
+
+.. code-block:: python
+
+    from pylinac import WinstonLutz
+
+    my_tiff_images = list(Path(...), Path(...))
+    wl_tiff = WinstonLutz(
+        my_tiff_images,
+        sid=1000,
+        dpi=212,
+        axis_mapping={"g0.tiff": (0, 0, 0), "g270.tiff": (270, 0, 0)},
+    )
+    # now analyze as normal
+    wl_tiff.analyze(...)
+    print(wl_tiff.results())
+
+Note that other ``.from...`` methods are available such as ``.from_zip``:
+
+.. code-block:: python
+
+    from pylinac import WinstonLutz
+
+    my_tiff_zip = "../files/tiffs.zip"
+    # same inputs as above
+    wl_tiff = WinstonLutz.from_zip(my_tiff_zip, dpi=...)
 
 
 .. _wl_image_types:

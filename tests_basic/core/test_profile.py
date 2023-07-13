@@ -250,6 +250,65 @@ class SingleProfileTests(TestCase):
         )
         self.assertAlmostEqual(p.beam_center()["index (exact)"], 422, delta=1)
 
+    def test_field_values_length(self):
+        field = generate_open_field()
+        p = SingleProfile(
+            field.image[:, int(field.shape[1] / 2)], interpolation=Interpolation.NONE
+        )
+        field_data = p.field_data()
+        width = field_data["right index (rounded)"] - (
+            field_data["left index (rounded)"] - 1
+        )  # we subtract one because the values include the left index element
+        self.assertEqual(len(field_data["field values"]), width)
+
+    def test_cax_odd_sized_array(self):
+        arr = np.array(
+            [0, 1, 1, 1, 2, 3, 5, 7, 9, 10, 10, 10, 9, 7, 5, 3, 2, 1, 1, 1, 0]
+        )
+        p = SingleProfile(
+            arr,
+            interpolation=Interpolation.NONE,
+            normalization_method=Normalization.NONE,
+        )
+        field_data = p.field_data()
+        self.assertEqual(field_data["cax index (rounded)"], 10)
+        self.assertEqual(field_data["cax index (exact)"], 10)
+
+    def test_cax_even_sized_array(self):
+        arr = np.array([0, 1, 1, 1, 2, 3, 5, 7, 9, 10, 10, 9, 7, 5, 3, 2, 1, 1, 1, 0])
+        p = SingleProfile(
+            arr,
+            interpolation=Interpolation.NONE,
+            normalization_method=Normalization.NONE,
+        )
+        field_data = p.field_data()
+        self.assertEqual(field_data["cax index (rounded)"], 10)
+        self.assertEqual(field_data["cax index (exact)"], 9.5)
+
+    def test_field_data_is_symmetric_odd(self):
+        """For a symmetric array, the field values should be centered and symmetric."""
+        arr = np.array(
+            [0, 1, 1, 1, 2, 3, 5, 7, 9, 10, 10, 10, 9, 7, 5, 3, 2, 1, 1, 1, 0]
+        )
+        p = SingleProfile(
+            arr,
+            interpolation=Interpolation.NONE,
+            normalization_method=Normalization.NONE,
+        )
+        field_data = p.field_data()
+        self.assertEqual(field_data["field values"][0], field_data["field values"][-1])
+
+    def test_field_data_is_symmetric_even(self):
+        """For a symmetric array, the field values should be centered and symmetric."""
+        arr = np.array([0, 1, 1, 1, 2, 3, 5, 7, 9, 10, 10, 9, 7, 5, 3, 2, 1, 1, 1, 0])
+        p = SingleProfile(
+            arr,
+            interpolation=Interpolation.NONE,
+            normalization_method=Normalization.NONE,
+        )
+        field_data = p.field_data()
+        self.assertEqual(field_data["field values"][0], field_data["field values"][-1])
+
     def test_geometric_center(self):
         # centered field
         field = generate_open_field()
@@ -446,7 +505,6 @@ class SingleProfileTests(TestCase):
 
 
 class MultiProfileTestMixin:
-
     values = np.ndarray
     peak_max_idxs = (0,)
     valley_max_idxs = (0,)
@@ -474,7 +532,6 @@ class MultiProfileTestMixin:
 
 
 class MultiProfileTriangle(MultiProfileTestMixin, TestCase):
-
     x_values = np.linspace(0, 8 * np.pi, num=200)
     values = sps.sawtooth(x_values, width=0.5)
     valley_max_idxs = (50, 100, 150)
@@ -530,14 +587,12 @@ class CircleProfileTestMixin:
 
 
 class CircleProfileStarshot(CircleProfileTestMixin, TestCase):
-
     peak_idxs = [219, 480, 738, 984, 1209, 1421, 1633, 1864]
     valley_idxs = [95, 348, 607, 860, 1098, 1316, 1527, 1743]
     fwxm_peak_idxs = [218, 480, 738, 984, 1209, 1421, 1633, 1864]
 
 
 class CollapsedCircleProfileStarshot(CircleProfileTestMixin, TestCase):
-
     klass = CollapsedCircleProfile
     peak_idxs = [241, 529, 812, 1084, 1331, 1563, 1797, 2051]
     valley_idxs = [104, 397, 667, 946, 1210, 1451, 1680, 1916]

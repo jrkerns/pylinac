@@ -1,11 +1,13 @@
 """I/O helper functions for pylinac."""
+from __future__ import annotations
+
 import os
 import os.path as osp
 import struct
 import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import BinaryIO, Callable, List, Optional, Tuple, Union
+from typing import BinaryIO, Callable
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, urlretrieve
 
@@ -16,7 +18,7 @@ from tqdm import tqdm
 from .profile import SingleProfile
 
 
-def is_dicom(file: Union[str, Path]) -> bool:
+def is_dicom(file: str | Path) -> bool:
     """Boolean specifying if file is a proper DICOM file.
 
     This function is a pared down version of read_preamble meant for a fast return.
@@ -39,7 +41,7 @@ def is_dicom(file: Union[str, Path]) -> bool:
         return prefix == b"DICM"
 
 
-def is_dicom_image(file: Union[str, Path, BinaryIO]) -> bool:
+def is_dicom_image(file: str | Path | BinaryIO) -> bool:
     """Boolean specifying if file is a proper DICOM file with a image
 
     Parameters
@@ -64,7 +66,7 @@ def is_dicom_image(file: Union[str, Path, BinaryIO]) -> bool:
     return result
 
 
-def retrieve_dicom_file(file: Union[str, Path, BinaryIO]) -> pydicom.FileDataset:
+def retrieve_dicom_file(file: str | Path | BinaryIO) -> pydicom.FileDataset:
     """Read and return the DICOM dataset.
 
     Parameters
@@ -81,7 +83,7 @@ def retrieve_dicom_file(file: Union[str, Path, BinaryIO]) -> pydicom.FileDataset
 class TemporaryZipDirectory(TemporaryDirectory):
     """Creates a temporary directory that unpacks a ZIP archive. Shockingly useful"""
 
-    def __init__(self, zfile: Union[str, Path, BinaryIO]):
+    def __init__(self, zfile: str | Path | BinaryIO):
         """
         Parameters
         ----------
@@ -94,11 +96,11 @@ class TemporaryZipDirectory(TemporaryDirectory):
 
 
 def retrieve_filenames(
-    directory: Union[str, Path],
-    func: Optional[Callable] = None,
+    directory: str | Path,
+    func: Callable | None = None,
     recursive: bool = True,
-    **kwargs
-) -> List[str]:
+    **kwargs,
+) -> list[str]:
     """Retrieve file names in a directory.
 
     Parameters
@@ -171,7 +173,7 @@ def is_url(url: str) -> bool:
 
 
 def get_url(
-    url: str, destination: Union[str, Path, None] = None, progress_bar: bool = True
+    url: str, destination: str | Path | None = None, progress_bar: bool = True
 ) -> str:
     """Download a URL to a local file.
 
@@ -265,7 +267,7 @@ class SNCProfiler:
 
     def to_profiles(
         self, n_detectors_row: int = 63, **kwargs
-    ) -> Tuple[SingleProfile, SingleProfile, SingleProfile, SingleProfile]:
+    ) -> tuple[SingleProfile, SingleProfile, SingleProfile, SingleProfile]:
         """Convert the SNC data to SingleProfiles. These can be analyzed directly or passed to other modules like flat/sym.
 
         Parameters
@@ -297,12 +299,12 @@ class SNCProfiler:
             copy_cax_dose(
                 self.integrated_dose[2 * n_detectors_row + 2 : 3 * n_detectors_row + 2]
             ),
-            **kwargs
+            **kwargs,
         )
         neg_prof = SingleProfile(
             copy_cax_dose(
                 self.integrated_dose[3 * n_detectors_row + 2 : 4 * n_detectors_row + 2]
             ),
-            **kwargs
+            **kwargs,
         )
         return x_prof, y_prof, pos_prof, neg_prof

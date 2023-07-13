@@ -1,8 +1,10 @@
 """Module for constructing and interacting with PDF reports for Pylinac."""
+from __future__ import annotations
+
 import io
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
+from typing import Sequence
 
 from PIL import Image
 from reportlab.lib.pagesizes import A4
@@ -11,6 +13,22 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen.canvas import Canvas
 
 from .. import __version__
+from .io import get_url
+
+
+def get_logo() -> Path:
+    """Get the Pylinac logo. First try the embedded version, then try the internet.
+    When pylinac is embedded in RadMachine as a package non-py files aren't correctly uncompressed.
+    """
+    logo_file = Path(__file__).parent.parent / "files" / "Pylinac Full cropped.png"
+    if logo_file.exists():
+        return logo_file
+    else:
+        filepath = get_url(
+            url=r"https://storage.googleapis.com/pylinac_demo_files/Pylinac_Full_cropped.png",
+            progress_bar=False,
+        )
+        return Path(filepath)
 
 
 class PylinacCanvas:
@@ -19,15 +37,15 @@ class PylinacCanvas:
         filename: str,
         page_title: str,
         font: str = "Helvetica",
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
         metadata_location: tuple = (2, 25.5),
-        logo: Optional[Union[Path, str]] = None,
+        logo: Path | str | None = None,
     ):
         self.canvas = Canvas(filename, pagesize=A4)
         self._font = font
         self._title = page_title
         self._metadata = metadata
-        self._logo = logo
+        self._logo = logo or get_logo()
         self._metadata_location = metadata_location
         self._generate_pylinac_template_theme()
         self._add_metadata()
@@ -48,12 +66,8 @@ class PylinacCanvas:
 
     def _generate_pylinac_template_theme(self) -> None:
         # draw logo and header separation line
-        if self._logo is None:
-            logo = Path(__file__).parent.parent / "files" / "Pylinac Full cropped.png"
-        else:
-            logo = self._logo
         self.canvas.drawImage(
-            logo,
+            self._logo,
             1 * cm,
             26.5 * cm,
             width=5 * cm,
@@ -74,10 +88,10 @@ class PylinacCanvas:
 
     def add_text(
         self,
-        text: Union[str, List[str]],
+        text: str | list[str],
         location: (float, float),
         font_size: int = 10,
-        font: Optional[str] = None,
+        font: str | None = None,
     ) -> None:
         """Generic text drawing function.
 

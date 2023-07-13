@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import unittest
 from builtins import ValueError
+from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
@@ -20,11 +21,19 @@ from pylinac.core.image import (
     DicomImageStack,
     FileImage,
     LinacDicomImage,
+    equate_images,
     gamma_2d,
+    load,
+    tiff_to_dicom,
 )
 from pylinac.core.io import TemporaryZipDirectory
-from tests_basic.utils import get_file_from_cloud_test_repo, save_file
+from tests_basic.utils import (
+    get_file_from_cloud_test_repo,
+    get_folder_from_cloud_test_repo,
+    save_file,
+)
 
+bad_tif_path = get_file_from_cloud_test_repo(["Winston-Lutz", "AQA_A_03082023.tif"])
 tif_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.tif"])
 png_path = get_file_from_cloud_test_repo(["Starshot", "Starshot-1.png"])
 dcm_path = get_file_from_cloud_test_repo(["VMAT", "DRGSdmlc-105-example.dcm"])
@@ -32,6 +41,17 @@ as500_path = get_file_from_cloud_test_repo(["picket_fence", "AS500#5.dcm"])
 xim_path = get_file_from_cloud_test_repo(["ximdcmtest.xim"])
 xim_dcm_path = get_file_from_cloud_test_repo(["ximdcmtest.dcm"])
 dcm_url = "https://storage.googleapis.com/pylinac_demo_files/EPID-PF-LR.dcm"
+
+
+class TestEquateImages(TestCase):
+    def test_same_sized_images_work(self):
+        """As found here: https://github.com/jrkerns/pylinac/issues/446"""
+
+        image1 = load(np.random.rand(20, 20), dpi=10)
+        image2 = load(np.random.rand(10, 10), dpi=5)
+
+        img1, img2 = equate_images(image1, image2)
+        self.assertEqual(img1.shape, img2.shape)
 
 
 class TestLoaders(TestCase):
@@ -140,6 +160,12 @@ class TestBaseImage(TestCase):
         self.assertEqual(new_shape[0] + crop * 2, orig_shape[0])
         # ensure original metadata is still the same
         self.assertEqual(new_dpi, orig_dpi)
+
+    def test_crop_must_be_positive(self):
+        """Crop must be manifestly positive"""
+        crop = 0
+        with self.assertRaises(ValueError):
+            self.img.crop(crop)
 
     def test_filter(self):
         # test integer filter size
@@ -416,6 +442,25 @@ class TestFileImage(TestCase):
         fi_jpg2.dpi
         fi_jpg2.dpmm
 
+    def test_dpi_abnormal(self):
+        # has DPI of 1. Nonsensical
+        fimg = FileImage(bad_tif_path)
+        with self.assertRaises(ValueError):
+            fimg.dpi
+
+
+class TestTiff(TestCase):
+    """A special case of the FileImage"""
+
+    def test_all_tiffs_have_tags_and_are_2d(self):
+        """Test all tiffs will load. Just raw ingestion"""
+        all_starshot_files = get_folder_from_cloud_test_repo(["Starshot"])
+        for img in Path(all_starshot_files).iterdir():
+            if img.suffix in (".tif", ".tiff"):
+                fimg = FileImage(img)
+                self.assertTrue(fimg, "tags")
+                self.assertEqual(len(fimg.array.shape), 2)
+
 
 class TestArrayImage(TestCase):
     def test_dpmm(self):
@@ -600,3 +645,74 @@ class TestGamma2D(TestCase):
         eval = np.ones(5)
         with self.assertRaises(ValueError):
             gamma_2d(reference=ref, evaluation=eval)
+
+
+class TestTiffToDicom(TestCase):
+    def test_conversion_can_be_loaded_as_dicom(self):
+        tiff_to_dicom(
+            tif_path,
+            "output_dicom.dcm",
+            sid=1000,
+            dpi=200,
+            gantry=10,
+            coll=22,
+            couch=33,
+        )
+        # shouldn't raise
+        LinacDicomImage("output_dicom.dcm")
+
+    def test_conversion_captures_axes(self):
+        tiff_to_dicom(
+            tif_path,
+            "output_dicom.dcm",
+            sid=1000,
+            dpi=200,
+            gantry=10,
+            coll=22,
+            couch=33,
+        )
+        dicom_img = LinacDicomImage("output_dicom.dcm")
+        self.assertEqual(dicom_img.gantry_angle, 10)
+        self.assertEqual(dicom_img.collimator_angle, 22)
+        self.assertEqual(dicom_img.couch_angle, 33)
+
+    def test_conversion_of_dpmm(self):
+        tiff_to_dicom(
+            tif_path, "output_dicom.dcm", sid=1000, gantry=10, coll=22, couch=33
+        )
+        dicom_img = LinacDicomImage("output_dicom.dcm")
+        self.assertEqual(dicom_img.dpi, 150)
+        self.assertEqual(dicom_img.dpmm, 150 / 25.4)
+
+    def test_conversion_goes_to_uint16(self):
+        tiff_img = FileImage(tif_path)
+        tiff_to_dicom(
+            tif_path,
+            "output_dicom.dcm",
+            sid=1000,
+            dpi=200,
+            gantry=10,
+            coll=22,
+            couch=33,
+        )
+        self.assertEqual(tiff_img.array.dtype, np.uint8)
+        dicom_img = LinacDicomImage("output_dicom.dcm")
+        self.assertEqual(dicom_img.array.dtype, np.uint16)
+
+    def test_conversion_to_stream(self):
+        with io.BytesIO() as stream:
+            tiff_to_dicom(
+                tif_path, stream, sid=1000, dpi=200, gantry=0, coll=0, couch=0
+            )
+            dicom_img = LinacDicomImage(stream)
+        self.assertEqual(dicom_img.gantry_angle, 0)
+
+    def test_mass_conversion(self):
+        """Mass conversion; shouldn't fail. All images have dpi tag"""
+        all_starshot_files = get_folder_from_cloud_test_repo(["Starshot"])
+        for img in Path(all_starshot_files).iterdir():
+            if img.suffix in (".tif", ".tiff"):
+                with io.BytesIO() as stream:
+                    tiff_to_dicom(
+                        img, dicom_file=stream, sid=1000, gantry=10, coll=11, couch=12
+                    )

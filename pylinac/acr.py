@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 import io
 import math
@@ -6,7 +8,6 @@ import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -104,7 +105,7 @@ class SpatialResolutionModule(CatPhanModule):
 
     attr_name = "spatial_resolution_module"
     common_name = "Spatial Resolution"
-    rois: Dict[str, HighContrastDiskROI]
+    rois: dict[str, HighContrastDiskROI]
     roi_dist_mm = 70
     roi_radius_mm = 6
     roi_settings = {
@@ -316,9 +317,7 @@ class ACRCT(CatPhanBase):
             plt.show()
         return fig
 
-    def save_analyzed_image(
-        self, filename: Union[str, Path, BytesIO], **plt_kwargs
-    ) -> None:
+    def save_analyzed_image(self, filename: str | Path | BytesIO, **plt_kwargs) -> None:
         """Save the analyzed image to disk or stream
 
         Parameters
@@ -331,7 +330,7 @@ class ACRCT(CatPhanBase):
         fig = self.plot_analyzed_image(show=False, **plt_kwargs)
         fig.savefig(filename)
 
-    def plot_images(self, show: bool = True, **plt_kwargs) -> Dict[str, plt.Figure]:
+    def plot_images(self, show: bool = True, **plt_kwargs) -> dict[str, plt.Figure]:
         """Plot all the individual images separately
 
         Parameters
@@ -365,10 +364,10 @@ class ACRCT(CatPhanBase):
 
     def save_images(
         self,
-        directory: Optional[Union[Path, str]] = None,
+        directory: Path | str | None = None,
         to_stream: bool = False,
         **plt_kwargs,
-    ) -> List[Union[Path, BytesIO]]:
+    ) -> list[Path | BytesIO]:
         """Save separate images to disk or stream.
 
         Parameters
@@ -412,7 +411,7 @@ class ACRCT(CatPhanBase):
         )
         return string
 
-    def results_data(self, as_dict=False) -> Union[ACRCTResult, dict]:
+    def results_data(self, as_dict=False) -> ACRCTResult | dict:
         data = ACRCTResult(
             phantom_model="ACR CT 464",
             phantom_roll_deg=self.catphan_roll,
@@ -468,11 +467,11 @@ class ACRCT(CatPhanBase):
 
     def publish_pdf(
         self,
-        filename: Union[str, Path],
-        notes: Optional[str] = None,
+        filename: str | Path,
+        notes: str | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -577,8 +576,8 @@ class MRSlice11ModuleOutput:
 
 class MRSlice1Module(CatPhanModule):
     common_name = "Slice 1 (Thickness, Offset, Resolution)"
-    slice_lines: Dict[str, Line]
-    thickness_rois: Dict[str, ThicknessROI] = {}
+    slice_lines: dict[str, Line]
+    thickness_rois: dict[str, ThicknessROI] = {}
     thickness_roi_settings = {
         "Top": {"width": 100, "height": 3, "distance": -3},
         "Bottom": {"width": 100, "height": 3, "distance": 2.5},
@@ -598,7 +597,7 @@ class MRSlice1Module(CatPhanModule):
         "Right": {"width": 2, "height": 25, "distance": 65, "angle": -2.5},
     }
     position_rois: dict = {}
-    rois: Dict[str, HighContrastDiskROI]
+    rois: dict[str, HighContrastDiskROI]
     spacings = [0, 1 / 1.1, 1, 1 / 0.9]
 
     def _setup_rois(self) -> None:
@@ -1019,7 +1018,7 @@ class ACRMRILarge(CatPhanBase):
             plt.show()
         return fig
 
-    def plot_images(self, show: bool = True, **plt_kwargs) -> Dict[str, plt.Figure]:
+    def plot_images(self, show: bool = True, **plt_kwargs) -> dict[str, plt.Figure]:
         """Plot all the individual images separately
 
         Parameters
@@ -1054,10 +1053,10 @@ class ACRMRILarge(CatPhanBase):
 
     def save_images(
         self,
-        directory: Optional[Union[Path, str]] = None,
+        directory: Path | str | None = None,
         to_stream: bool = False,
         **plt_kwargs,
-    ) -> List[Union[Path, BytesIO]]:
+    ) -> list[Path | BytesIO]:
         """Save separate images to disk or stream.
 
         Parameters
@@ -1083,11 +1082,11 @@ class ACRMRILarge(CatPhanBase):
 
     def publish_pdf(
         self,
-        filename: Union[str, Path],
-        notes: Optional[str] = None,
+        filename: str | Path,
+        notes: str | None = None,
         open_file: bool = False,
-        metadata: Optional[dict] = None,
-        logo: Optional[Union[Path, str]] = None,
+        metadata: dict | None = None,
+        logo: Path | str | None = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis and quantitative results.
 
@@ -1136,7 +1135,7 @@ class ACRMRILarge(CatPhanBase):
         if open_file:
             webbrowser.open(filename)
 
-    def results(self, as_str: bool = True) -> Union[str, Tuple]:
+    def results(self, as_str: bool = True) -> str | tuple:
         """Return the results of the analysis as a string. Use with print()."""
         string = (
             f" - {self._model} Results - ",
@@ -1155,7 +1154,7 @@ class ACRMRILarge(CatPhanBase):
         else:
             return string
 
-    def results_data(self, as_dict: bool = False) -> Union[ACRMRIResult, dict]:
+    def results_data(self, as_dict: bool = False) -> ACRMRIResult | dict:
         data = ACRMRIResult(
             phantom_model=self._model,
             phantom_roll_deg=self.catphan_roll,

@@ -7,6 +7,7 @@ definitions:
   steps:
     - step: &pre-commit-checks
         name: Pre-commit checks
+        image: python:3.11-slim
         script:
           - apt-get update
           - apt-get -y install git
@@ -57,7 +58,7 @@ definitions:
     - step: &quart-tests
         name: Run Quart Tests
         script:
-          - pip install -r requirements-dev.txt
+          - source venv/bin/activate
           - pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles

@@ -1,6 +1,7 @@
 import io
 import os
 import os.path as osp
+import tempfile
 from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
@@ -216,13 +217,15 @@ class TestPlottingSaving(TestCase):
             self.cbct.plot_analyzed_subimage("sr")
 
     def test_save_subimages(self):
-        for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc"]:
-            self.cbct.save_analyzed_subimage("dummy.png", item)
+        with tempfile.TemporaryDirectory() as tdir:
+            file = os.path.join(tdir, "dummy.png")
+            for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc"]:
+                self.cbct.save_analyzed_subimage(file, item)
 
-        self.cbct.save_analyzed_subimage("dummy.png", "lin", delta=False)
+            self.cbct.save_analyzed_subimage(file, "lin", delta=False)
 
-        with self.assertRaises(ValueError):
-            self.cbct.save_analyzed_subimage("dummy.png", "sr")
+            with self.assertRaises(ValueError):
+                self.cbct.save_analyzed_subimage(file, "sr")
 
     def test_set_figure_size(self):
         self.cbct.plot_analyzed_image(figsize=(8, 13))
@@ -248,6 +251,7 @@ class CatPhanMixin(CloudFileMixin):
     mtf_values = {}
     avg_line_length = 50
     slice_thickness = 2
+    thickness_slice_straddle = "auto"
     lowcon_visible = 0
     print_debug = False
 
@@ -258,7 +262,11 @@ class CatPhanMixin(CloudFileMixin):
             cls.cbct = cls.catphan.from_zip(filename)
         else:
             cls.cbct = cls.catphan(filename)
-        cls.cbct.analyze(cls.hu_tolerance, cls.scaling_tolerance)
+        cls.cbct.analyze(
+            cls.hu_tolerance,
+            cls.scaling_tolerance,
+            thickness_slice_straddle=cls.thickness_slice_straddle,
+        )
         if cls.print_debug:
             print(cls.cbct._results())
 
@@ -1414,3 +1422,25 @@ class CatPhan604wJig(CatPhan604Mixin, TestCase):
     unif_values = {"Center": 6, "Left": 4, "Right": 13, "Top": 10, "Bottom": 7}
     mtf_values = {50: 0.28}
     lowcon_visible = 1
+
+
+class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):
+    """This dataset is 6mm slices with a 2mm overlap. The slice thickness
+    default algorithm gives incorrect values unless the straddle is set explicitly"""
+
+    file_name = "catphan_slice_overlap.zip"
+    expected_roll = 0.1
+    origin_slice = 115
+    hu_values = {
+        "Poly": -48,
+        "Acrylic": 123,
+        "Delrin": 327,
+        "Air": -1010,
+        "Teflon": 901,
+        "PMP": -190,
+        "LDPE": -105,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 5.9
+    unif_values = {"Center": 8, "Left": 7, "Right": 8, "Top": 8, "Bottom": 8}
+    mtf_values = {50: 0.40}

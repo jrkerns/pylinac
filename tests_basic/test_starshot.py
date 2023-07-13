@@ -55,6 +55,10 @@ class TestStarshotLoading(TestCase, FromURLTesterMixin):
 
 
 class TestPlottingSaving(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
+
     def setUp(self):
         self.star = Starshot.from_demo_image()
         self.star.analyze()
@@ -488,13 +492,6 @@ class Starshot27(StarMixin, TestCase):
     file_name = "Starshot#27.tiff"
     wobble_center = Point(1105, 1306)
     wobble_diameter_mm = 0.4
-    num_rad_lines = 6
-
-
-class CRStarshot(StarMixin, TestCase):
-    file_name = "CR-Starshot.dcm"
-    wobble_center = Point(1030.5, 1253.6)
-    wobble_diameter_mm = 0.3
     num_rad_lines = 6
 
 

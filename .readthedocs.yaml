@@ -11,7 +11,7 @@ formats:
 # Optionally set the version of Python and requirements required to build your docs
 python:
    install:
-   - requirements: requirements.txt
+   - requirements: requirements-rtd.txt
 
 build:
    os: ubuntu-20.04

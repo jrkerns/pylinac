@@ -1,5 +1,4 @@
-import enum
-from typing import Optional, Tuple, Union
+from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,6 +6,7 @@ from cached_property import cached_property
 from skimage import draw
 from skimage.measure._regionprops import _RegionProperties
 
+from .contrast import Contrast, contrast, michelson, ratio, rms, visibility, weber
 from .decorators import lru_cache
 from .geometry import Circle, Point, Rectangle
 from .image import ArrayImage
@@ -30,14 +30,6 @@ def bbox_center(region: _RegionProperties) -> Point:
     return Point(x, y)
 
 
-class Contrast(enum.Enum):
-    """Contrast calculation technique. See :ref:`visibility`"""
-
-    MICHELSON = "Michelson"  #:
-    WEBER = "Weber"  #:
-    RATIO = "Ratio"  #:
-
-
 class DiskROI(Circle):
     """An class representing a disk-shaped Region of Interest."""
 
@@ -47,7 +39,7 @@ class DiskROI(Circle):
         angle: float,
         roi_radius: float,
         dist_from_center: float,
-        phantom_center: Union[Tuple, Point],
+        phantom_center: tuple | Point,
     ):
         """
         Parameters
@@ -102,7 +94,7 @@ class DiskROI(Circle):
 
     def plot2axes(
         self,
-        axes: Optional[plt.Axes] = None,
+        axes: plt.Axes | None = None,
         edgecolor: str = "black",
         fill: bool = False,
         text: str = "",
@@ -139,22 +131,22 @@ class DiskROI(Circle):
 class LowContrastDiskROI(DiskROI):
     """A class for analyzing the low-contrast disks."""
 
-    contrast_threshold: Optional[float]
-    cnr_threshold: Optional[float]
-    contrast_reference: Optional[float]
+    contrast_threshold: float | None
+    cnr_threshold: float | None
+    contrast_reference: float | None
 
     def __init__(
         self,
-        array: Union[np.ndarray, ArrayImage],
+        array: np.ndarray | ArrayImage,
         angle: float,
         roi_radius: float,
         dist_from_center: float,
-        phantom_center: Union[tuple, Point],
-        contrast_threshold: Optional[float] = None,
-        contrast_reference: Optional[float] = None,
-        cnr_threshold: Optional[float] = None,
-        contrast_method: Contrast = Contrast.MICHELSON,
-        visibility_threshold: Optional[float] = 0.1,
+        phantom_center: tuple | Point,
+        contrast_threshold: float | None = None,
+        contrast_reference: float | None = None,
+        cnr_threshold: float | None = None,
+        contrast_method: str = Contrast.MICHELSON,
+        visibility_threshold: float | None = 0.1,
     ):
         """
         Parameters
@@ -170,6 +162,10 @@ class LowContrastDiskROI(DiskROI):
         self.visibility_threshold = visibility_threshold
 
     @property
+    def _contrast_array(self) -> np.array:
+        return np.array((self.pixel_value, self.contrast_reference))
+
+    @property
     def signal_to_noise(self) -> float:
         """The signal to noise ratio."""
         return self.pixel_value / self.std
@@ -180,20 +176,29 @@ class LowContrastDiskROI(DiskROI):
         return self.contrast / self.std
 
     @property
+    def michelson(self) -> float:
+        """The Michelson contrast"""
+        return michelson(self._contrast_array)
+
+    @property
+    def weber(self) -> float:
+        """The Weber contrast"""
+        return weber(feature=self.pixel_value, background=self.contrast_reference)
+
+    @property
+    def rms(self) -> float:
+        """The root-mean-square contrast"""
+        return rms(self._contrast_array)
+
+    @property
+    def ratio(self) -> float:
+        """The ratio contrast"""
+        return ratio(self._contrast_array)
+
+    @property
     def contrast(self) -> float:
         """The contrast of the bubble. Uses the contrast method passed in the constructor. See https://en.wikipedia.org/wiki/Contrast_(vision)."""
-        if self.contrast_method == Contrast.MICHELSON:
-            return abs(
-                (self.pixel_value - self.contrast_reference)
-                / (self.pixel_value + self.contrast_reference)
-            )
-        elif self.contrast_method == Contrast.WEBER:
-            return (
-                abs(self.pixel_value - self.contrast_reference)
-                / self.contrast_reference
-            )
-        elif self.contrast_method == Contrast.RATIO:
-            return self.pixel_value / self.contrast_reference
+        return contrast(self._contrast_array, self.contrast_method)
 
     @property
     def cnr_constant(self) -> float:
@@ -209,7 +214,12 @@ class LowContrastDiskROI(DiskROI):
         See also here: https://howradiologyworks.com/x-ray-cnr/.
         Finally, a review paper here: http://xrm.phys.northwestern.edu/research/pdf_papers/1999/burgess_josaa_1999.pdf
         Importantly, the Rose model is not applicable for high-contrast use cases."""
-        return self.contrast * np.sqrt(self.radius**2 * np.pi) / self.std
+        return visibility(
+            array=self._contrast_array,
+            radius=self.radius,
+            std=self.std,
+            algorithm=self.contrast_method,
+        )
 
     @property
     def contrast_constant(self) -> float:
@@ -257,7 +267,7 @@ class LowContrastDiskROI(DiskROI):
     def as_dict(self) -> dict:
         """Dump important data as a dictionary. Useful when exporting a `results_data` output"""
         return {
-            "contrast method": self.contrast_method.value,
+            "contrast method": self.contrast_method,
             "visibility": self.visibility,
             "visibility threshold": self.visibility_threshold,
             "passed visibility": self.passed_visibility,
@@ -270,7 +280,7 @@ class LowContrastDiskROI(DiskROI):
 class HighContrastDiskROI(DiskROI):
     """A class for analyzing the high-contrast disks."""
 
-    contrast_threshold: Optional[float]
+    contrast_threshold: float | None
 
     def __init__(
         self,
@@ -278,7 +288,7 @@ class HighContrastDiskROI(DiskROI):
         angle: float,
         roi_radius: float,
         dist_from_center: float,
-        phantom_center: Union[tuple, Point],
+        phantom_center: tuple | Point,
         contrast_threshold: float,
     ):
         """

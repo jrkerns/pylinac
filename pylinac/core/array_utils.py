@@ -4,7 +4,20 @@ import numpy as np
 from scipy import ndimage
 
 from .decorators import validate
-from .validators import array_not_empty, single_dimension
+
+
+def array_not_empty(array: np.ndarray) -> None:
+    """Check an array isn't empty"""
+    if not array.size:
+        raise ValueError("Array must not be empty")
+
+
+def single_dimension(array: np.ndarray) -> None:
+    """Check an array is a single dimension"""
+    if array.ndim > 1:
+        raise ValueError(
+            f"Array was multidimensional. Must pass 1D array; found {array.ndim}"
+        )
 
 
 @validate(array=(array_not_empty, single_dimension))
@@ -12,7 +25,8 @@ def geometric_center_idx(array: np.ndarray) -> float:
     """Returns the center index and value of the profile.
 
     If the profile has an even number of array the centre lies between the two centre indices and the centre
-    value is the average of the two centre array else the centre index and value are returned."""
+    value is the average of the two centre array else the centre index and value are returned.
+    """
     return (array.shape[0] - 1) / 2.0
 
 
@@ -21,7 +35,8 @@ def geometric_center_value(array: np.ndarray) -> float:
     """Returns the center value of the profile.
 
     If the profile has an even number of elements the center lies between the two centre indices and the centre
-    value is the average of the two center elements else the center index and value are returned."""
+    value is the average of the two center elements else the center index and value are returned.
+    """
     arr_len = array.shape[0]
     # buffer overflow can cause the below addition to give strange results
     if arr_len % 2 == 0:  # array is even and central detectors straddle CAX
@@ -110,9 +125,7 @@ def filter(
 
 
 @validate(array=array_not_empty)
-def stretch(
-    array: np.ndarray, min: int | float = 0, max: int | float = 1
-) -> np.ndarray:
+def stretch(array: np.ndarray, min: int = 0, max: int = 1) -> np.ndarray:
     """'Stretch' the profile to the fit a new min and max value. This is a utility for grounding + normalizing.
 
     Parameters
@@ -147,10 +160,19 @@ def convert_to_dtype(array: np.ndarray, dtype: type[np.dtype]) -> np.ndarray:
     A normal numpy dtype conversion simply changes the datatype and leaves the values alone.
     This will convert an array and also convert the values to the same relative value of the new datatype.
     E.g. an element of value 100 on an uint8 array to be converted to an uint16 array will become ~25,690 (100/255 = 0.392 = x/65535, x = 25,690)
+
+    .. note::
+
+        Float-like input arrays will be normalized. This is because realistic float values are never near the datatype max.
+        This can cause casting to an int-like datatype being 0's for the array. Thus, all float-like
+        inputs will have outputs at the max value of the output datatype. Float-to-float conversion is discouraged.
     """
     # original array info
     old_dtype_info = get_dtype_info(array.dtype)
     relative_values = array.astype(float) / old_dtype_info.max
+    # float range is so large that it's better to normalize
+    if isinstance(old_dtype_info, np.finfo):
+        relative_values /= relative_values.max()
     # new array info
     dtype_info = get_dtype_info(dtype)
     dtype_range = dtype_info.max - dtype_info.min

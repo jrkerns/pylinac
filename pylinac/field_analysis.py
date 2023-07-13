@@ -1,4 +1,6 @@
 """Module for performing analysis of images or 2D arrays for parameters such as flatness and symmetry."""
+from __future__ import annotations
+
 import dataclasses
 import io
 import os.path as osp
@@ -8,7 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 from math import ceil, floor
 from pathlib import Path
-from typing import BinaryIO, Callable, Dict, List, Optional, Tuple, Union
+from typing import BinaryIO, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -285,8 +287,8 @@ class DeviceResult(ResultBase):
     bottom_penumbra_mm: float  #:
     left_penumbra_mm: float  #:
     right_penumbra_mm: float  #:
-    geometric_center_index_x_y: Tuple[float, float]  #:
-    beam_center_index_x_y: Tuple[float, float]  #:
+    geometric_center_index_x_y: tuple[float, float]  #:
+    beam_center_index_x_y: tuple[float, float]  #:
     field_size_vertical_mm: float  #:
     field_size_horizontal_mm: float  #:
     beam_center_to_top_mm: float  #:
@@ -297,7 +299,7 @@ class DeviceResult(ResultBase):
     cax_to_bottom_mm: float  #:
     cax_to_left_mm: float  #:
     cax_to_right_mm: float  #:
-    top_position_index_x_y: Tuple[float, float]  #:
+    top_position_index_x_y: tuple[float, float]  #:
     top_horizontal_distance_from_cax_mm: float  #:
     top_vertical_distance_from_cax_mm: float  #:
     top_horizontal_distance_from_beam_center_mm: float  #:
@@ -337,9 +339,9 @@ class FieldAnalysis:
 
     def __init__(
         self,
-        path: Union[str, BinaryIO],
-        filter: Optional[int] = None,
-        image_kwargs: Optional[dict] = None,
+        path: str | BinaryIO,
+        filter: int | None = None,
+        image_kwargs: dict | None = None,
     ):
         """
 
@@ -377,7 +379,7 @@ class FieldAnalysis:
         print(fs.results())
         fs.plot_analyzed_image()
 
-    def _determine_center(self, centering: Centering) -> Tuple[float, float]:
+    def _determine_center(self, centering: Centering) -> tuple[float, float]:
         """Determine the position ratio using a centering technique."""
         vert_sum = np.sum(self.image.array, axis=1)
         horiz_sum = np.sum(self.image.array, axis=0)
@@ -457,7 +459,7 @@ class FieldAnalysis:
     def analyze(
         self,
         protocol: Protocol = Protocol.VARIAN,
-        centering: Union[Centering, str] = Centering.BEAM_CENTER,
+        centering: Centering | str = Centering.BEAM_CENTER,
         vert_position: float = 0.5,
         horiz_position: float = 0.5,
         vert_width: float = 0,
@@ -466,12 +468,12 @@ class FieldAnalysis:
         slope_exclusion_ratio: float = 0.2,
         invert: bool = False,
         is_FFF: bool = False,
-        penumbra: Tuple[float, float] = (20, 80),
-        interpolation: Union[Interpolation, str, None] = Interpolation.LINEAR,
+        penumbra: tuple[float, float] = (20, 80),
+        interpolation: Interpolation | str | None = Interpolation.LINEAR,
         interpolation_resolution_mm: float = 0.1,
         ground: bool = True,
-        normalization_method: Union[Normalization, str] = Normalization.BEAM_CENTER,
-        edge_detection_method: Union[Edge, str] = Edge.INFLECTION_DERIVATIVE,
+        normalization_method: Normalization | str = Normalization.BEAM_CENTER,
+        edge_detection_method: Edge | str = Edge.INFLECTION_DERIVATIVE,
         edge_smoothing_ratio: float = 0.003,
         hill_window_ratio: float = 0.15,
         **kwargs,
@@ -859,7 +861,7 @@ class FieldAnalysis:
             results = "\n".join(result for result in results)
         return results
 
-    def results_data(self, as_dict: bool = False) -> Union[FieldResult, dict]:
+    def results_data(self, as_dict: bool = False) -> FieldResult | dict:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         data = FieldResult(
@@ -932,10 +934,10 @@ class FieldAnalysis:
     def publish_pdf(
         self,
         filename: str,
-        notes: Union[str, list] = None,
+        notes: str | list = None,
         open_file: bool = False,
         metadata: dict = None,
-        logo: Optional[Union[Path, str]] = None,
+        logo: Path | str | None = None,
     ) -> None:
         """Publish (print) a PDF containing the analysis, images, and quantitative results.
 
@@ -966,6 +968,7 @@ class FieldAnalysis:
             page_title="Field Analysis",
             metadata=metadata,
             metadata_location=(2, 5),
+            logo=logo,
         )
         # draw result text
         text = self.results(as_str=False)
@@ -1009,7 +1012,7 @@ class FieldAnalysis:
         grid: bool = True,
         split_plots: bool = False,
         **plt_kwargs,
-    ) -> Tuple[List[plt.Figure], List[str]]:
+    ) -> tuple[list[plt.Figure], list[str]]:
         """Plot the analyzed image. Shows parameters such as flatness & symmetry.
 
         Parameters
@@ -1095,11 +1098,11 @@ class FieldAnalysis:
 
     def save_analyzed_image(
         self,
-        filename: Union[None, str, Path, BinaryIO] = None,
+        filename: None | str | Path | BinaryIO = None,
         split_plots: bool = False,
         to_streams: bool = False,
         **kwargs,
-    ) -> Optional[Union[List[str], Dict[str, BinaryIO]]]:
+    ) -> list[str] | dict[str, BinaryIO] | None:
         """Save the analyzed image to disk or to stream. Kwargs are passed to plt.savefig()
 
         Parameters
@@ -1248,7 +1251,7 @@ class FieldAnalysis:
                 item["plot"](self, self.horiz_profile, axis)
 
     @staticmethod
-    def _save_plot(func, filename: Union[str, io.BytesIO], **kwargs) -> None:
+    def _save_plot(func, filename: str | io.BytesIO, **kwargs) -> None:
         func(**kwargs)
         # figure headers appear cut off on the PDF without a tight layout
         plt.tight_layout()
@@ -1512,9 +1515,10 @@ class DeviceFieldAnalysis(FieldAnalysis):
         self.vert_profile = y_prof
         self.horiz_profile = x_prof
 
-    def results_data(self, as_dict: bool = False) -> Union[FieldResult, dict]:
+    def results_data(self, as_dict: bool = False) -> FieldResult | dict:
         """Present the results data and metadata as a dataclass or dict.
-        The default return type is a dataclass. Unlike vanilla FA, there is no central ROI since it's only profiles"""
+        The default return type is a dataclass. Unlike vanilla FA, there is no central ROI since it's only profiles
+        """
         data = DeviceResult(
             **self._results,
             protocol=self._protocol.name,

@@ -37,6 +37,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import linalg, ndimage, optimize
+from scipy.spatial.transform import Rotation
 from skimage import measure
 from skimage.measure._regionprops import RegionProperties
 from tabulate import tabulate
@@ -44,8 +45,8 @@ from tabulate import tabulate
 from .core import image, pdf
 from .core.decorators import lru_cache
 from .core.geometry import Line, Point, Vector, cos, sin
-from .core.image import LinacDicomImage
-from .core.io import TemporaryZipDirectory, get_url, is_dicom_image, retrieve_demo_file
+from .core.image import LinacDicomImage, is_image, tiff_to_dicom
+from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import bounding_box
 from .core.scale import MachineScale, convert
 from .core.utilities import ResultBase, convert_to_enum, is_close
@@ -244,12 +245,11 @@ def is_near_center(region: RegionProperties, *args, **kwargs) -> bool:
 def is_modest_size(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
     bb_area = region.area_filled / (kwargs["dpmm"] ** 2)
-    bb_size = max((kwargs["bb_size"], 2.1))
-    np.pi * (bb_size / 2) ** 2
+    bb_size = kwargs["bb_size"]
     larger_bb_area = np.pi * ((bb_size + 2) / 2) ** 2
     smaller_bb_area = max(
-        (np.pi * ((bb_size - 2) / 2) ** 2, 3)
-    )  # set a min of 3 (~pi, equal to just under 1mm radius/2mm bb) because the lower bound can be ~0 for lower bound of radius=2. This is much more likely to find noise in a block.
+        (np.pi * ((bb_size - 2) / 2) ** 2, 2)
+    )  # set a min of 2 to avoid a lower bound of 0 when radius=2. This is much more likely to find noise in a block.
     return smaller_bb_area < bb_area < larger_bb_area
 
 
@@ -394,7 +394,8 @@ class WinstonLutz2D(image.LinacDicomImage):
     def _find_low_density_bb(self, bb_size: float):
         """Find the BB within the radiation field, where the BB is low-density and creates
         an *increase* in signal vs a decrease/attenuation. The algorithm is similar to the
-        normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables"""
+        normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables
+        """
         # get initial starting conditions
         lower_thresh = self.array.max() * 0.8
         spread = self.array.max() - lower_thresh
@@ -658,6 +659,8 @@ class WinstonLutz:
         use_filenames: bool = False,
         axis_mapping: dict[str, tuple[int, int, int]] | None = None,
         axes_precision: int | None = None,
+        dpi: float | None = None,
+        sid: float | None = None,
     ):
         """
         Parameters
@@ -675,14 +678,20 @@ class WinstonLutz:
             How many significant digits to represent the axes values. If None, no precision is set and the input/DICOM values are used raw.
             If set to an integer, rounds the axes values (gantry, coll, couch) to that many values. E.g. gantry=0.1234 => 0.1 with precision=1.
             This is mostly useful for plotting/rounding (359.9=>0) and if using the ``keyed_image_details`` with ``results_data``.
+        dpi
+            The dots-per-inch setting. Only needed if using TIFF images and the images do not contain the resolution tag.
+            An error will raise if dpi is not passed and the TIFF resolution cannot be determined.
+        sid
+            The Source-to-Image distance in mm. Only needed when using TIFF images.
         """
         self.images = []
         if axis_mapping and not use_filenames:
             for filename, (gantry, coll, couch) in axis_mapping.items():
                 self.images.append(
-                    self.image_type(
+                    self._load_image(
                         Path(directory) / filename,
-                        use_filenames=False,
+                        sid=sid,
+                        dpi=dpi,
                         gantry=gantry,
                         coll=coll,
                         couch=couch,
@@ -691,11 +700,16 @@ class WinstonLutz:
                 )
         elif isinstance(directory, list):
             for file in directory:
-                if is_dicom_image(file):
-                    img = self.image_type(
-                        file, use_filenames, axes_precision=axes_precision
+                if is_image(file):
+                    self.images.append(
+                        self._load_image(
+                            file,
+                            dpi=dpi,
+                            sid=sid,
+                            use_filenames=use_filenames,
+                            axes_precision=axes_precision,
+                        )
                     )
-                    self.images.append(img)
         elif not osp.isdir(directory):
             raise ValueError(
                 "Invalid directory passed. Check the correct method and file was used."
@@ -703,10 +717,15 @@ class WinstonLutz:
         else:
             image_files = image.retrieve_image_files(directory)
             for file in image_files:
-                img = self.image_type(
-                    file, use_filenames, axes_precision=axes_precision
+                self.images.append(
+                    self._load_image(
+                        file,
+                        dpi=dpi,
+                        sid=sid,
+                        use_filenames=use_filenames,
+                        axes_precision=axes_precision,
+                    )
                 )
-                self.images.append(img)
         if len(self.images) < 2:
             raise ValueError(
                 "<2 valid WL images were found in the folder/file or passed. Ensure you chose the correct folder/file for analysis."
@@ -715,6 +734,40 @@ class WinstonLutz:
             key=lambda i: (i.gantry_angle, i.collimator_angle, i.couch_angle)
         )
         self._is_analyzed = False
+
+    def _load_image(
+        self,
+        file: str | Path,
+        sid: float | None,
+        dpi: float | None,
+        **kwargs,
+    ):
+        """A helper method to load either DICOM or TIFF files appropriately."""
+        try:
+            return self.image_type(file, **kwargs)
+        except AttributeError:
+            if kwargs.get("gantry") is None:
+                raise ValueError(
+                    "TIFF images detected. Must pass `axis_mapping` parameter."
+                )
+            if sid is None:
+                raise ValueError("TIFF images detected. Must pass `sid` parameter")
+            with io.BytesIO() as stream:
+                tiff_to_dicom(
+                    file,
+                    stream,
+                    sid=sid,
+                    dpi=dpi,
+                    gantry=kwargs.pop("gantry"),
+                    coll=kwargs.pop("coll"),
+                    couch=kwargs.pop("couch"),
+                )
+                img = self.image_type(stream, **kwargs)
+                if not img.dpmm:
+                    raise ValueError(
+                        "TIFF images were detected but the dpi tag was not available. Pass the `dpi` parameter manually."
+                    )
+                return img
 
     @classmethod
     def from_demo_images(cls, **kwargs):
@@ -1352,7 +1405,8 @@ class WinstonLutz:
     ) -> dict:
         """Generate a dict where each key is based on the axes values and the key is an image. Used in the results_data method.
         We can't do a simple dict comprehension because we may have duplicate axes sets. We pass individual data
-        because we may have already converted to a dict; we don't want to do that again."""
+        because we may have already converted to a dict; we don't want to do that again.
+        """
         data = {}
         for img_idx, img in enumerate(self.images):
             key = f"G{img.gantry_angle}B{img.collimator_angle}P{img.couch_angle}"
@@ -1971,3 +2025,52 @@ def bb_projection_gantry_plane(
         + offset_left * -cos(gantry)
         + addtl_left_shift
     )
+
+
+def _bb_projection_with_rotation(
+    offset_left: float,
+    offset_up: float,
+    offset_in: float,
+    gantry: float,
+    couch: float = 0,
+    sad: float = 1000,
+) -> np.ndarray:
+    """Calculate the isoplane projection onto the panel at the given SSD.
+
+    This function applies a rotation around the gantry plane (X/Z) to the
+    ball bearing (BB) position and calculates its projection onto the isocentre plane in the beam's eye view.
+
+    Could be used to calculate couch rotations, but not validated yet.
+
+    Args:
+        offset_left (float): The BB position in the left/right direction.
+        offset_up (float): The BB position in the superior/inferior direction.
+        offset_in (float): The BB position in the anterior/posterior direction.
+        gantry (float): The gantry angle in degrees.
+        couch (float, optional): The couch angle in degrees. Defaults to 0.
+        sad (float, optional): The source-to-axis distance in mm. Defaults to 1000.
+
+    Returns:
+        np.ndarray: The projection of the BB onto the panel at the given SSD.
+            The array has shape (2,) where the first element is the projection in the
+            left/right direction and the second element is the projection in the
+            superior/inferior direction.
+    """
+    # Define the BB positions in the patient coordinate system (ap, lr, si)
+    bb_positions = np.array([offset_up, offset_left, offset_in])
+
+    # Apply the rotation matrix to the BB positions
+    collimator = 0  # Collimator doesn't change positional projection onto panel
+    rotation_matrix = Rotation.from_euler(
+        "xyz", [couch, collimator, gantry], degrees=True
+    )
+    rotated_positions = rotation_matrix.apply(bb_positions)
+
+    # Calculate the projection onto the panel at the given SSD
+    bb_magnification = sad / (
+        sad - rotated_positions[0]
+    )  # Distance from source to panel
+    imager_projection = (
+        np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
+    )
+    return imager_projection

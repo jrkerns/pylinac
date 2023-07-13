@@ -24,6 +24,19 @@ def convert_to_enum(value: str | Enum | None, enum: type[Enum]) -> Enum:
         return enum(value)
 
 
+class OptionListMixin:
+    """A mixin class that will create a list of the class attributes.
+    Used for enum-like classes"""
+
+    @classmethod
+    def options(cls) -> list[str]:
+        return [
+            option
+            for attr, option in cls.__dict__.items()
+            if not callable(option) and not attr.startswith("__")
+        ]
+
+
 @dataclass
 class ResultBase:
     pylinac_version: str = field(init=False)  #:
@@ -101,8 +114,13 @@ def simple_round(number: float | int, decimals: int | None = 0) -> float | int:
     return num
 
 
+def abs360(value: float) -> float:
+    """Convert angles to always be positive. E.g. -90 -> 270"""
+    return (360 + value) % 360
+
+
 def wrap360(value: float) -> float:
-    """Wrap the input value around 360"""
+    """Wrap the input value around 360. E.g. 361 -> 1"""
     return value % 360
 
 

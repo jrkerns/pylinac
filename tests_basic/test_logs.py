@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from pylinac.log_analyzer import (
     Dynalog,
@@ -304,6 +305,11 @@ class TestTrajectoryLog(
     url = "Tlog.bin"
     anon_file = "PatientID_4DC Treatment_JST90_TX_20140712094246.bin"
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        os.chdir(Path(__file__).parent)
+
     def test_not_logs(self):
         # throw an error for files that aren't logs
         test_tlog = get_file_from_cloud_test_repo(
@@ -425,10 +431,11 @@ class TestCSV(TestCase):
         # load a log w/ 6D couch
         log_file = get_file_from_cloud_test_repo(["mlc_logs", "tlogs", "3d.bin"])
         log_6d = TrajectoryLog(log_file)
-        filename = "my6d.csv"
-        log_6d.to_csv(filename)
-        with open(filename, newline="") as csvfile:
-            items = list(csv.reader(csvfile))
+        with tempfile.TemporaryDirectory() as tdir:
+            file = os.path.join(tdir, "my6d.csv")
+            log_6d.to_csv(file)
+            with open(file, newline="") as csvfile:
+                items = list(csv.reader(csvfile))
         names = [item[0] for item in items]
         self.assertIn("Couch Pitch Expected in units of degrees", names)
 
@@ -437,6 +444,10 @@ class TestDynalog(LogPlottingSavingMixin, LogBase, TestCase, FromDemoImageTester
     klass = Dynalog
     demo_load_method = "from_demo"
     anon_file = "A1234_patientid.dlg"
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
 
     def test_can_load_utf8_file(self):
         """Other languages may not be supported out of the box. Default encoding is platform-dependent"""

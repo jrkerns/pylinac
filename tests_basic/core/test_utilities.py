@@ -1,9 +1,17 @@
 import unittest
+from unittest import TestCase
 
 import numpy as np
 
 from pylinac import Interpolation
-from pylinac.core.utilities import convert_to_enum, is_iterable, simple_round, wrap360
+from pylinac.core.utilities import (
+    OptionListMixin,
+    abs360,
+    convert_to_enum,
+    is_iterable,
+    simple_round,
+    wrap360,
+)
 
 
 class TestUtilities(unittest.TestCase):
@@ -25,9 +33,16 @@ class TestUtilities(unittest.TestCase):
         with self.assertRaises(ValueError):
             convert_to_enum("baffled", Interpolation)
 
+    def test_absolute_360(self):
+        self.assertEqual(abs360(-90), 270)
+        self.assertEqual(abs360(-5), 355)
+        self.assertEqual(abs360(12), 12)
+        self.assertEqual(abs360(359), 359)
+
     def test_wrap_360_over(self):
         self.assertEqual(wrap360(361), 1)
         self.assertEqual(wrap360(360), 0)
+        self.assertEqual(wrap360(359.6), 359.6)
         self.assertEqual(wrap360(359), 359)
         self.assertEqual(wrap360(180), 180)
 
@@ -51,3 +66,28 @@ class TestSimpleRound(unittest.TestCase):
 
     def test_int_in_is_int_out(self):
         self.assertIsInstance(simple_round(12, decimals=None), int)
+
+
+class TestOptionMixin(TestCase):
+    def test_option_list(self):
+        class MyOptions(OptionListMixin):
+            APPLES = "aPpLes"
+            ORANGES = "Oranges"
+
+        self.assertIsInstance(MyOptions.options(), list)
+        self.assertEqual(len(MyOptions.options()), 2)
+        self.assertEqual(MyOptions.APPLES, "aPpLes")
+        self.assertListEqual(MyOptions.options(), ["aPpLes", "Oranges"])
+
+    def test_option_with_method(self):
+        class MyOptions(OptionListMixin):
+            APPLES = "aPpLes"
+            ORANGES = "Oranges"
+
+            def kill_me_now(self):
+                pass
+
+        self.assertIsInstance(MyOptions.options(), list)
+        self.assertEqual(len(MyOptions.options()), 2)
+        self.assertEqual(MyOptions.APPLES, "aPpLes")
+        self.assertListEqual(MyOptions.options(), ["aPpLes", "Oranges"])

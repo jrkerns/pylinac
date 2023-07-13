@@ -65,6 +65,7 @@ As usual, the module comes with demo files and methods:
 .. code-block:: python
 
     from pylinac import Dynalog
+
     Dynalog.run_demo()
 
 Which will output the following::
@@ -89,6 +90,7 @@ The same can be done using the demo Trajectory log:
 .. code-block:: python
 
     from pylinac import TrajectoryLog
+
     TrajectoryLog.run_demo()
 
 Which will give::
@@ -113,7 +115,7 @@ Note that you can also save data in a PDF report:
 .. code-block:: python
 
     tlog = ...
-    tlog.publish_pdf('mytlog.pdf')
+    tlog.publish_pdf("mytlog.pdf")
 
 Loading Data
 ------------
@@ -141,7 +143,7 @@ In addition, a folder, ZIP archive, or URL can also be passed:
 
 .. code-block:: python
 
-    log2 = load_log('http://myserver.com/logs/2.dlg')
+    log2 = load_log("http://myserver.com/logs/2.dlg")
 
 .. note:: If loading from a URL the object can be a file or ZIP archive.
 
@@ -176,7 +178,7 @@ The logs can also be directly instantiated by using :class:`~pylinac.log_analyze
     logs = load_log(path_to_folder)
 
     # from ZIP archive
-    logs = load_log('path/to/logs.zip')
+    logs = load_log("path/to/logs.zip")
 
 
 Working with the Data
@@ -232,7 +234,7 @@ For Dynalogs the following header information is available:
 
 Let's explore the header of the demo trajectory log:
 
-.. code-block:: python
+.. code-block:: pycon
 
     >>> tlog = TrajectoryLog.from_demo()
     >>> tlog.header.header
@@ -306,7 +308,7 @@ Dynalogs have similar attributes, derived from the :class:`~pylinac.log_analyzer
 
 Let's access a few axis data attributes:
 
-.. code-block:: python
+.. code-block:: pycon
 
     >>> log = Dynalog.from_demo()
     >>> log.axis_data.mu.actual  # a numpy array
@@ -324,7 +326,7 @@ Working with MLC Data
 Although MLC data is acquired and included in Trajectory logs and Dynalogs, it is not always easy to parse. Additionally,
 a physicist may be interested in the MLC metrics of a log (RMS, etc). Pylinac provides tools for accessing MLC raw data as
 well as helper methods and properties via the :class:`~pylinac.log_analyzer.MLC` class. Note that this class is consistent
-between Trajectory logs and Dynalogs. This class is reachable through the `axis_data`
+between Trajectory logs and Dynalogs. This class is reachable through the ``axis_data``
 attribute as ``mlc``.
 
 Accessing Leaf data
@@ -365,7 +367,7 @@ are given here::
 Working with Fluences
 ^^^^^^^^^^^^^^^^^^^^^
 
-Fluences created by the MLCs can also be accessed and viewed. Fluences are accessible under the `fluence`
+Fluences created by the MLCs can also be accessed and viewed. Fluences are accessible under the ``fluence``
 attribute. There are three subclasses that handle the fluences:
 The fluence actually delivered is in :class:`~pylinac.log_analyzer.ActualFluence`, the fluence planned is in
 :class:`~pylinac.log_analyzer.ExpectedFluence`, and the gamma of the fluences is in :class:`~pylinac.log_analyzer.GammaFluence`.
@@ -415,7 +417,7 @@ Axis plots are just as easily saved:
 
 .. code-block:: python
 
-    log.axis_data.gantry.save_plot_difference(filename='gantry diff.png')
+    log.axis_data.gantry.save_plot_difference(filename="gantry diff.png")
 
 Now, lets plot the actual fluence:
 
@@ -475,10 +477,10 @@ log file or a whole directory. If you plan on anonymizing a lot of logs, use thi
 
     from pylinac.log_analyzer import anonymize
 
-    log_file = 'path/to/tlog.bin'
+    log_file = "path/to/tlog.bin"
     anonymize(log_file)
-    log_dir = 'path/to/log/folder'
-    anonymize(log_dir) # VERY fast
+    log_dir = "path/to/log/folder"
+    anonymize(log_dir)  # VERY fast
 
 Batch Processing
 ----------------
