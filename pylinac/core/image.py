@@ -971,10 +971,11 @@ class DicomImage(BaseImage):
         self,
         path: str | Path | BytesIO | BufferedReader,
         *,
-        dtype=None,
+        dtype: np.dtype | None = None,
         dpi: float = None,
         sid: float = None,
         sad: float = 1000,
+        raw_pixels: bool = False,
     ):
         """
         Parameters
@@ -991,6 +992,16 @@ class DicomImage(BaseImage):
 
         sid : int, float
             The Source-to-Image distance in mm.
+        sad : float
+            The Source-to-Axis distance in mm.
+        raw_pixels : bool
+            Whether to apply pixel intensity correction to the DICOM data.
+            Typically, Rescale Slope, Rescale Intercept, and other tags
+            are included and meant to be applied to the raw pixel data, which
+            is potentially compressed.
+            If True, no correction will be applied. This is typically used
+            for scenarios when you want to match behavior to older or different
+            software.
         """
         super().__init__(path)
         self._sid = sid
