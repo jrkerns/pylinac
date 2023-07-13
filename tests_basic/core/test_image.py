@@ -10,6 +10,7 @@ from unittest import TestCase
 
 import numpy as np
 import PIL.Image
+import pydicom
 from numpy.testing import assert_array_almost_equal
 
 from pylinac.core import image
@@ -288,6 +289,14 @@ class TestDicomImage(TestCase):
         self.assertEqual(
             original_shape[1] - 30, dcm_cropped.shape[1]
         )  # 15 from each side = 2 * 15 = 30
+
+    def test_raw_pixels_via_load(self):
+        dcm_ds = pydicom.dcmread(dcm_path)
+        dcm_raw = image.load(dcm_path, raw_pixels=True)
+        assert np.array_equal(dcm_raw.array, dcm_ds.pixel_array)
+        # test that the pixels are corrected otherwise
+        dcm_corr = image.load(dcm_path)
+        assert not np.array_equal(dcm_corr.array, dcm_ds.pixel_array)
 
 
 class TestXIMImage(TestCase):

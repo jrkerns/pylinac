@@ -1031,7 +1031,9 @@ class DicomImage(BaseImage):
         )
         is_ct_storage = self.metadata.SOPClassUID.name == "CT Image Storage"
         is_mr_storage = self.metadata.SOPClassUID.name == "MR Image Storage"
-        if has_all_rescale_tags:
+        if raw_pixels:
+            pass  # no-op
+        elif has_all_rescale_tags:
             self.array = (
                 (self.metadata.RescaleSlope * self.array)
                 + self.metadata.RescaleIntercept

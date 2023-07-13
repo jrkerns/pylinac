@@ -137,16 +137,18 @@ class VMATBase:
     segments: list[Segment]
     _tolerance: float
 
-    def __init__(self, image_paths: Sequence[str | BinaryIO | Path]):
+    def __init__(self, image_paths: Sequence[str | BinaryIO | Path], **kwargs):
         """
         Parameters
         ----------
         image_paths : iterable (list, tuple, etc)
             A sequence of paths to the image files.
+        kwargs
+            Passed to the image loading function. See :ref:`~pylinac.core.image.load`.
         """
         if len(image_paths) != 2:
             raise ValueError("Exactly 2 images (open, DMLC) must be passed")
-        image1, image2 = self._load_images(image_paths)
+        image1, image2 = self._load_images(image_paths, **kwargs)
         image1, image2 = self._check_img_inversion(image1, image2)
         self._identify_images(image1, image2)
         self.segments = []
@@ -165,23 +167,25 @@ class VMATBase:
         return cls.from_zip(zfile)
 
     @classmethod
-    def from_zip(cls, path: str | Path):
+    def from_zip(cls, path: str | Path, **kwargs):
         """Load VMAT images from a ZIP file that contains both images. Must follow the naming convention.
 
         Parameters
         ----------
         path : str
             Path to the ZIP archive which holds the VMAT image files.
+        kwargs
+            Passed to the constructor.
         """
         with TemporaryZipDirectory(path) as tmpzip:
             image_files = image.retrieve_image_files(tmpzip)
-            return cls(image_paths=image_files)
+            return cls(image_paths=image_files, **kwargs)
 
     @classmethod
-    def from_demo_images(cls):
+    def from_demo_images(cls, **kwargs):
         """Construct a VMAT instance using the demo images."""
         demo_file = retrieve_demo_file(name=cls._url_suffix)
-        return cls.from_zip(demo_file)
+        return cls.from_zip(demo_file, **kwargs)
 
     def analyze(
         self,
@@ -212,12 +216,13 @@ class VMATBase:
 
     @staticmethod
     def _load_images(
-        image_paths: Sequence[str | BytesIO],
+        image_paths: Sequence[str | BytesIO], **kwargs
     ) -> tuple[ImageLike, ImageLike]:
-        image1 = image.load(image_paths[0])
-        image2 = image.load(image_paths[1])
-        image1.ground()
-        image2.ground()
+        image1 = image.load(image_paths[0], **kwargs)
+        image2 = image.load(image_paths[1], **kwargs)
+        if "raw_pixels" not in kwargs:
+            image1.ground()
+            image2.ground()
         return image1, image2
 
     @staticmethod
