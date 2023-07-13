@@ -220,7 +220,7 @@ class VMATBase:
     ) -> tuple[ImageLike, ImageLike]:
         image1 = image.load(image_paths[0], **kwargs)
         image2 = image.load(image_paths[1], **kwargs)
-        if "raw_pixels" not in kwargs:
+        if not kwargs.get("raw_pixels", True):
             image1.ground()
             image2.ground()
         return image1, image2
