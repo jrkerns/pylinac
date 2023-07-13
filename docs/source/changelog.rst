@@ -3,6 +3,13 @@
 Changelog
 =========
 
+Core
+^^^^
+
+* A new contrast algorithm, "Difference", has been added. This can be used similar to RMS, Weber, etc.
+  The reason this might be preferred is so that the resulting CNR value is closer to the default algorithm.
+  See :ref:`contrast` for more.
+
 v 3.12.0
 --------
 
