@@ -10,7 +10,7 @@ Core
 ^^^^
 
 * Image classes (``DicomImage``, ``ArrayImage``, ``FileImage``) have a new method: :func:`~pylinac.core.image.BaseImage.rotate`.
-  This is a wrapper for scikit-image that allows rotation of an arbitrary angle. Previously, only rotations of 90 degrees where
+  This is a wrapper for scikit-image that allows rotation of an arbitrary angle. Previously, only rotations of 90 degrees were
   allowed via the ``rot90`` method.
 
 v 3.12.1
