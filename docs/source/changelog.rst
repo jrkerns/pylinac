@@ -3,6 +3,14 @@
 Changelog
 =========
 
+VMAT
+^^^^
+
+* Three new parameters were added to the ``__init__`` call: ``raw_pixels``. ``ground``, and ``check_inversion``.
+  These were added to allow users to avoid applying DICOM pixel correction and
+  analysis manipulations. The reason for this is to match the results from other
+  programs such as Doselab. See the new section :ref:`vmat-doselab`.
+
 v 3.12.0
 --------
 

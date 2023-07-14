@@ -138,7 +138,13 @@ class VMATBase:
     segments: list[Segment]
     _tolerance: float
 
-    def __init__(self, image_paths: Sequence[str | BinaryIO | Path], **kwargs):
+    def __init__(
+        self,
+        image_paths: Sequence[str | BinaryIO | Path],
+        ground=True,
+        check_inversion=True,
+        **kwargs,
+    ):
         """
         Parameters
         ----------
@@ -147,9 +153,13 @@ class VMATBase:
         kwargs
             Passed to the image loading function. See :ref:`~pylinac.core.image.load`.
         """
+        ground = kwargs.get("ground", False) or ground
+        check_inversion = kwargs.get("check_inversion", False) or check_inversion
         if len(image_paths) != 2:
             raise ValueError("Exactly 2 images (open, DMLC) must be passed")
-        image1, image2 = self._load_images(image_paths, **kwargs)
+        image1, image2 = self._load_images(image_paths, ground=ground, **kwargs)
+        if check_inversion:
+            image1, image2 = self._check_inversion(image1, image2)
         self._identify_images(image1, image2)
         self.segments = []
         self._tolerance = 0
@@ -216,13 +226,13 @@ class VMATBase:
 
     @staticmethod
     def _load_images(
-        image_paths: Sequence[str | BytesIO], **kwargs
+        image_paths: Sequence[str | BytesIO], ground, **kwargs
     ) -> tuple[ImageLike, ImageLike]:
         image1 = image.load(image_paths[0], **kwargs)
         image2 = image.load(image_paths[1], **kwargs)
-        # if not kwargs.get("raw_pixels", False):
-        image1.ground()
-        image2.ground()
+        if ground:
+            image1.ground()
+            image2.ground()
         return image1, image2
 
     def _identify_images(self, image1: DicomImage, image2: DicomImage):
@@ -543,6 +553,12 @@ class VMATBase:
 
         if open_file:
             webbrowser.open(filename)
+
+    @staticmethod
+    def _check_inversion(image1, image2):
+        for img in (image1, image2):
+            img.check_inversion()
+        return image1, image2
 
 
 class DRGS(VMATBase):
