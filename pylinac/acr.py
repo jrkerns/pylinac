@@ -252,6 +252,14 @@ class ACRCT(CatPhanBase):
     uniformity_module = UniformityModule
     clear_borders = False
 
+    def _detected_modules(self) -> list[CatPhanModule]:
+        return [
+            self.ct_calibration_module,
+            self.low_contrast_module,
+            self.spatial_resolution_module,
+            self.uniformity_module,
+        ]
+
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
 
@@ -301,8 +309,10 @@ class ACRCT(CatPhanBase):
         self.spatial_resolution_module.plot(sr_ax)
         locon_ax = plt.subplot2grid(grid_size, (1, 0))
         self.low_contrast_module.plot(locon_ax)
-        spatial_res_graph = plt.subplot2grid(grid_size, (1, 1), colspan=2)
+        spatial_res_graph = plt.subplot2grid(grid_size, (1, 2))
         self.spatial_resolution_module.mtf.plot(spatial_res_graph)
+        side_ax = plt.subplot2grid(grid_size, (1, 1))
+        self.plot_side_view(side_ax)
 
         # finish up
         plt.tight_layout()
@@ -349,6 +359,11 @@ class ACRCT(CatPhanBase):
         fig, ax = plt.subplots(**plt_kwargs)
         figs["mtf"] = fig
         self.spatial_resolution_module.mtf.plot(ax)
+        # plot the side view
+        fig, ax = plt.subplots(**plt_kwargs)
+        figs["side"] = fig
+        self.plot_side_view(ax)
+
         plt.tight_layout()
 
         if show:
@@ -997,7 +1012,9 @@ class ACRMRILarge(CatPhanBase):
         position_ax = plt.subplot2grid(grid_size, (1, 0))
         self.slice11.plot(position_ax)
 
-        spatial_res_graph = plt.subplot2grid(grid_size, (1, 1))
+        side_view_ax = plt.subplot2grid(grid_size, (1, 1))
+        self.plot_side_view(side_view_ax)
+        spatial_res_graph = plt.subplot2grid(grid_size, (1, 2))
         self.slice1.row_mtf.plot(spatial_res_graph, label="Row-wise rMTF")
         self.slice1.col_mtf.plot(spatial_res_graph, label="Column-wise rMTF")
         spatial_res_graph.legend()
@@ -1036,10 +1053,22 @@ class ACRMRILarge(CatPhanBase):
         self.slice1.col_mtf.plot(ax, label="Column-wise rMTF")
         ax.legend()
         figs["rMTF"] = fig
+        # plot the side view
+        fig, ax = plt.subplots(**plt_kwargs)
+        figs["side"] = fig
+        self.plot_side_view(ax)
 
         if show:
             plt.show()
         return figs
+
+    def _detected_modules(self) -> list[CatPhanModule]:
+        return [
+            self.slice1,
+            self.slice11,
+            self.uniformity_module,
+            self.geometric_distortion,
+        ]
 
     def save_images(
         self,

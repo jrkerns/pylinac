@@ -3,6 +3,15 @@
 Changelog
 =========
 
+CT
+^^
+
+* CBCT, ACR CT/MR, and Quart analyses will now plot a "side view" of the phantom with lines
+  to show where the modules were sampled. This will help visualize if the module slice selection
+  was appropriate.
+
+  .. figure:: images/side_view.png
+
 v 3.12.1
 --------
 
