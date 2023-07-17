@@ -467,6 +467,51 @@ the answer will depend on several factors, we can make some general observations
   water tank measurement to an array-based measurement scheme.
 
 
+.. _vmat-doselab:
+
+Comparison to Doselab
+"""""""""""""""""""""
+
+.. versionadded:: 3.13
+
+All that being said, if the goal is to match another program (specifically, Doselab, although this might apply to
+others) use the following:
+
+.. code-block:: python
+
+  from pylinac import DRMLC
+
+  drmlc = DRMLC(..., raw_pixels=True, ground=False, check_inversion=False)
+  ...
+
+This will skip the checking of DICOM tags for correcting the pixel values as well
+as other manipulations normally applied.
+
+Here's a table comparing the results of the DRMLC demo dataset with different variations:
+
++----------------------------------------------------+-----------+-------------+-------------+-------------+-------------+
+|                                                    | Max R_dev | ROI 1 R_dev | ROI 2 R_dev | ROI 3 R_dev | ROI 4 R_dev |
++----------------------------------------------------+-----------+-------------+-------------+-------------+-------------+
+| Doselab (normalized)                               |           |       0.995 |       1.005 |       1.006 |       0.994 |
++----------------------------------------------------+-----------+-------------+-------------+-------------+-------------+
+| Doselab (as % from unity)                          | 0.60%     |      -0.50% |       0.50% |       0.60% |      -0.60% |
++----------------------------------------------------+-----------+-------------+-------------+-------------+-------------+
+| Pylinac (raw=True, ground=False, inversion=False)  | 0.56%     |      -0.54% |       0.53% |       0.56% |      -0.55% |
++----------------------------------------------------+-----------+-------------+-------------+-------------+-------------+
+| Pylinac (default)                                  | 0.89%     |      -0.68% |       0.89% |      -0.10% |      -0.11% |
++----------------------------------------------------+-----------+-------------+-------------+-------------+-------------+
+| Pylinac (raw=False, ground=False, inversion=False) | 0.90%     |      -0.68% |       0.90% |      -0.08% |      -0.12% |
++----------------------------------------------------+-----------+-------------+-------------+-------------+-------------+
+
+The Doselab and pylinac results are very similar when the raw pixels are used.
+The default settings and the analysis without any extra manipulations are also extremely similar.
+
+.. note::
+
+  For historical continuity, the manipulations are set to ``True``. If you are just starting to
+  use Pylinac, it is recommended to use the settings of the last row. However,
+  it is unlikely to make a significant difference.
+
 API Documentation
 -----------------
 
