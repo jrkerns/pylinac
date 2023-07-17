@@ -11,6 +11,13 @@ VMAT
   analysis manipulations. The reason for this is to match the results from other
   programs such as Doselab. See the new section :ref:`vmat-doselab`.
 
+Core
+^^^^
+
+* The ``DicomImage`` class constructor has a new boolean parameter ``raw_pixels``. This was implemented
+  for the above VMAT feature, but can be applied to any image if desired. This will not
+  apply any pixel correction tags, and simpy load the values as saved in the DICOM file.
+
 v 3.12.1
 --------
 
