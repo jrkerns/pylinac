@@ -3,6 +3,27 @@
 Changelog
 =========
 
+v 3.13.0
+--------
+
+Quart
+^^^^^
+
+* The Quart algorithm now measures the high-contrast resolution. It is accessible via the ``high_contrast_resolution``
+  method. It is given in the ``results`` and ``results_data`` methods as well.
+
+  .. code-block:: python
+
+    from pylinac import QuartDVT
+
+    quart = QuartDVT(...)
+    quart.analyze()
+    high_res = quart.geometry_module.high_resolution_contrast()
+    # or
+    print(quart.results())
+    # or
+    high_res = quart.results_data().geometric_module.high_contrast_distance
+
 v 3.12.1
 --------
 

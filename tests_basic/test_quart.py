@@ -69,6 +69,7 @@ class TestQuartDVTGeneral(TestCase):
 
         # check the additional modules got added
         self.assertIsInstance(data.hu_module.rois, dict)
+        self.assertIsInstance(data.geometric_module.high_contrast_distance, float)
 
 
 class TestPlottingSaving(TestCase):
@@ -120,6 +121,7 @@ class QuartDVTMixin(CloudFileMixin):
     snr: float
     cnr: float
     slice_thickness: float
+    high_contrast_distance: float = 0.0
     horiz_dist = float
     vert_dist = float
     hu_values: dict
@@ -160,6 +162,13 @@ class QuartDVTMixin(CloudFileMixin):
             delta=0.3,
         )
 
+    def test_high_contrast_distance(self):
+        self.assertAlmostEqual(
+            self.high_contrast_distance,
+            self.quart.geometry_module.high_contrast_resolution(),
+            delta=0.05,
+        )
+
     def test_HU_values(self):
         """Test HU values."""
         for key, roi in self.quart.hu_module.rois.items():
@@ -178,6 +187,7 @@ class QuartHead(QuartDVTMixin, TestCase):
     file_name = "Head_Quart.zip"
     phantom_roll = 0.2
     slice_thickness = 1.9
+    high_contrast_distance = 1.14
     snr = 50
     cnr = 6.45
     horiz_dist = 159.3
@@ -197,6 +207,7 @@ class QuartHeadOffset(QuartDVTMixin, TestCase):
     slice_thickness = 1.9
     horiz_dist = 159.3
     vert_dist = 159.6
+    high_contrast_distance = 1.14
     snr = 50
     cnr = 6.45
     hu_values = {"Poly": POLY, "Acrylic": 126, "Air": -999, "Teflon": 981}
@@ -223,6 +234,7 @@ class QuartHeadRotated(QuartDVTMixin, TestCase):
     slice_thickness = 1.9
     horiz_dist = 159.3
     vert_dist = 159.6
+    high_contrast_distance = 0.80
     snr = 50
     cnr = 6.45
     hu_values = {"Poly": POLY, "Acrylic": 126, "Air": -999, "Teflon": 981}
@@ -246,5 +258,6 @@ class QuartPelvis(QuartDVTMixin, TestCase):
     cnr = 28.3
     horiz_dist = 159.3
     vert_dist = 159.6
+    high_contrast_distance = 0.82
     hu_values = {"Poly": -29, "Acrylic": 140, "Air": -1000, "Teflon": 989}
     unif_values = {"Center": 120, "Left": 132, "Right": 142, "Top": 136, "Bottom": 137}
