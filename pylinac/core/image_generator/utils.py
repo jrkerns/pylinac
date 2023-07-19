@@ -7,7 +7,11 @@ import random
 from typing import Sequence
 
 from ...picketfence import Orientation
-from ...winston_lutz import bb_projection_gantry_plane, bb_projection_long
+from ...winston_lutz import (
+    _bb_projection_with_rotation,
+    bb_projection_gantry_plane,
+    bb_projection_long,
+)
 from ..geometry import cos, sin
 from . import GaussianFilterLayer
 from .layers import (
@@ -474,18 +478,26 @@ def generate_winstonlutz_multi_bb_multi_field(
                     -jitter_mm, jitter_mm
                 )  # negative because pixels increase as we go out, so to go in we subtract
 
-            long_offset = bb_projection_long(
+            # long_offset = bb_projection_long(
+            #     offset_in=offset_mm_in,
+            #     offset_up=offset_mm_up,
+            #     offset_left=offset_mm_left,
+            #     sad=1000,
+            #     gantry=gantry,
+            # )
+            # gplane_offset = bb_projection_gantry_plane(
+            #     offset_left=offset_mm_left,
+            #     offset_up=offset_mm_up,
+            #     sad=1000,
+            #     gantry=gantry,
+            # )
+            gplane_offset, long_offset = _bb_projection_with_rotation(
+                offset_left=offset_mm_left,
+                offset_up=offset_mm_up,
                 offset_in=offset_mm_in,
-                offset_up=offset_mm_up,
-                offset_left=offset_mm_left,
-                sad=1000,
                 gantry=gantry,
-            )
-            gplane_offset = bb_projection_gantry_plane(
-                offset_left=offset_mm_left,
-                offset_up=offset_mm_up,
+                couch=0,
                 sad=1000,
-                gantry=gantry,
             )
             if align_to_pixels:
                 long_offset = pixel_align(sim_single.pixel_size, long_offset)

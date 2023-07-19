@@ -28,6 +28,7 @@ import os.path as osp
 import statistics
 import webbrowser
 from dataclasses import dataclass
+from functools import cached_property
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
@@ -138,6 +139,74 @@ class BBArrangement:
         ud = "Up" if a["offset_up_mm"] >= 0 else "Down"
         io = "In" if a["offset_in_mm"] >= 0 else "Out"
         return f"'{a['name']}': {lr} {abs(a['offset_left_mm'])}mm, {ud} {abs(a['offset_up_mm'])}mm, {io} {abs(a['offset_in_mm'])}mm"
+
+
+class BB:
+    """A representation of a BB in 3D space"""
+
+    def __repr__(self):
+        return self.nominal_position
+
+    def __init__(self, nominal_bb: dict, ray_lines: list[Line]):
+        self.nominal_bb = nominal_bb
+        self.ray_lines = ray_lines
+
+    @cached_property
+    def measured_position(self) -> Point:
+        """The 3D measured position of the BB based on the ray-tracing lines in MM"""
+        initial_guess = self.nominal_position.as_array()
+        bounds = [(-200, 200), (-200, 200), (-200, 200)]
+        result = optimize.minimize(
+            max_distance_to_lines, initial_guess, args=self.ray_lines, bounds=bounds
+        )
+        return Point(result.x)
+
+    @cached_property
+    def nominal_position(self) -> Point:
+        """The nominal location of the BB in MM"""
+        return Point(
+            x=-self.nominal_bb["offset_left_mm"],
+            y=-self.nominal_bb["offset_in_mm"],
+            z=self.nominal_bb["offset_up_mm"],
+        )
+
+    @cached_property
+    def delta_vector(self) -> Vector:
+        """The shift from measured BB location to nominal as a vector in MM"""
+        return self.measured_position - self.nominal_position
+
+    @cached_property
+    def delta_distance(self):
+        """The scalar distance between the measured BB location and nominal in MM"""
+        return self.measured_position.distance_to(self.nominal_position)
+
+    def plot_nominal(self, axes: plt.Axes, color: str):
+        """Plot the BB nominal position"""
+        u = np.linspace(0, 2 * np.pi, 100)
+        v = np.linspace(0, np.pi, 100)
+        # nominal
+        bb_radius = self.nominal_bb["bb_size_mm"] / 2
+        x = bb_radius * np.outer(np.cos(u), np.sin(v)) + self.nominal_position.x
+        y = bb_radius * np.outer(np.sin(u), np.sin(v)) + self.nominal_position.y
+        z = (
+            bb_radius * np.outer(np.ones(np.size(u)), np.cos(v))
+            + self.nominal_position.z
+        )
+        axes.plot_surface(x, y, z, color=color)
+
+    def plot_measured(self, axes: plt.Axes, color: str):
+        """Plot the BB measured position"""
+        u = np.linspace(0, 2 * np.pi, 100)
+        v = np.linspace(0, np.pi, 100)
+        bb_radius = self.nominal_bb["bb_size_mm"] / 2
+        # measured
+        x = bb_radius * np.outer(np.cos(u), np.sin(v)) + self.measured_position.x
+        y = bb_radius * np.outer(np.sin(u), np.sin(v)) + self.measured_position.y
+        z = (
+            bb_radius * np.outer(np.ones(np.size(u)), np.cos(v))
+            + self.measured_position.z
+        )
+        axes.plot_surface(x, y, z, color=color)
 
 
 class Axis(enum.Enum):
@@ -1536,22 +1605,17 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
 
     def _nominal_point(self, bb: dict) -> Point:
         """Calculate the expected point position in 2D"""
-        shift_y_mm = bb_projection_long(
+        x, y = _bb_projection_with_rotation(
+            offset_left=bb["offset_left_mm"],
+            offset_up=bb["offset_up_mm"],
             offset_in=bb["offset_in_mm"],
-            offset_up=bb["offset_up_mm"],
-            offset_left=bb["offset_left_mm"],
-            sad=self.sad,
             gantry=self.gantry_angle,
-        )
-        shift_x_mm = bb_projection_gantry_plane(
-            offset_left=bb["offset_left_mm"],
-            offset_up=bb["offset_up_mm"],
+            couch=self.couch_angle,
             sad=self.sad,
-            gantry=self.gantry_angle,
         )
         # unlike vanilla WL, the field can be asymmetric, so use center of image
-        expected_y = self.epid.y - shift_y_mm * self.dpmm
-        expected_x = self.epid.x + shift_x_mm * self.dpmm
+        expected_y = self.epid.y - y * self.dpmm
+        expected_x = self.epid.x - x * self.dpmm
         return Point(x=expected_x, y=expected_y)
 
     def _find_field_centroid(self, location: dict) -> tuple[Point, list]:
@@ -1654,7 +1718,6 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
                 max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
                     raise ValueError(BB_ERROR_MESSAGE)
-
         # determine the center of mass of the BB
         inv_img = image.load(self.array)
         # we invert so BB intensity increases w/ attenuation
@@ -1686,6 +1749,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     analyzed_images: dict[str, list[WinstonLutz2DMultiTarget]]  #:
     image_type = WinstonLutz2DMultiTarget
     bb_arrangement: Sequence[dict]  #:
+    bb_projections: dict[str, BB]  #:
 
     def __init__(self, *args, **kwargs):
         """We cannot yet handle non-0 couch angles so we drop them. Analysis fails otherwise"""
@@ -1731,8 +1795,9 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         wl.analyze(bb_arrangement=arrangement)
         print(wl.results())
         wl.plot_images()
+        wl.plot_locations()
 
-    def analyze(self, bb_arrangement: Iterable[dict]):
+    def analyze(self, bb_arrangement: Sequence[dict]):
         """Analyze the WL images.
 
         Parameters
@@ -1742,6 +1807,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             keys and syntax.
         """
         self.analyzed_images = {}
+        self.bb_projections = {}
         self.bb_arrangement = bb_arrangement
         for idx, bb in enumerate(bb_arrangement):
             image_set = []
@@ -1749,10 +1815,21 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                 try:
                     image_set.append(img.as_analyzed(bb))
                 except ValueError:
-                    pass  # didn't find the field and/or BB; likely occluded or not part of the plan
+                    pass
             if not image_set:
                 raise ValueError(f"Did not find any field/bb pairs for bb: {bb}")
             self.analyzed_images[BBArrangement.to_human(bb)] = image_set
+            ray_lines = []
+            for img in image_set:
+                ray_line = bb_ray_line(
+                    bb=img.bb,
+                    gantry_angle=img.gantry_angle,
+                    sad=img.sad,
+                    image_center=img.center,
+                    dpmm=img.dpmm,
+                )
+                ray_lines.append(ray_line)
+            self.bb_projections[BBArrangement.to_human(bb)] = BB(bb, ray_lines)
         self._is_analyzed = True
 
     def plot_images(self, show: bool = True, **kwargs) -> (list[plt.Figure], list[str]):
@@ -1794,6 +1871,76 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         for fig, stream in zip(figs, streams):
             fig.savefig(stream, **kwargs)
         return {name: stream for name, stream in zip(names, streams)}
+
+    def save_locations(
+        self,
+        filename: str | BinaryIO,
+        plot_rays: bool = False,
+        measured_color: str = "yellow",
+        nominal_color: str = "blue",
+        **kwargs,
+    ):
+        """Save the figure of `plot_locations()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to save to.
+        """
+        self.plot_locations(
+            plot_rays=plot_rays,
+            measured_color=measured_color,
+            nominal_color=nominal_color,
+            show=False,
+        )
+        plt.savefig(filename, **kwargs)
+
+    def plot_locations(
+        self,
+        plot_rays: bool = False,
+        measured_color: str = "yellow",
+        nominal_color: str = "blue",
+        show: bool = True,
+    ):
+        """Plot the 3D positions of the nominal and measured BB locations"""
+        ax = plt.axes(projection="3d")
+        # plot the BB projection lines
+        for bb in self.bb_projections.values():
+            if plot_rays:
+                for line in bb.ray_lines:
+                    line.plot2axes(ax, color="blue")
+            bb.plot_nominal(ax, color=nominal_color)
+            bb.plot_measured(ax, color=measured_color)
+
+        # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
+        # Could be a one-liner but it was getting gnarly.
+        view_limit = 5
+        for arr in self.bb_arrangement:
+            offset = max(
+                abs(offset)
+                for offset in (
+                    arr["offset_in_mm"],
+                    arr["offset_left_mm"],
+                    arr["offset_up_mm"],
+                )
+            )
+            if offset + 5 > view_limit:
+                view_limit = offset
+        ax.set(
+            xlabel="X, Right (+)",
+            ylabel="Y, Out (+)",
+            zlabel="Z, Up (+)",
+            title="WL Target locations",
+            ylim=[
+                view_limit,
+                -view_limit,
+            ],  # y is inverted because from top-down, a 2D view has 0 value at the top, so positive should be going down/out
+            xlim=[-view_limit, view_limit],
+            zlim=[-view_limit, view_limit],
+        )
+
+        if show:
+            plt.show()
 
     def cax2bb_distance(self, bb: str, metric: str = "max") -> float:
         """The distance in mm between the CAX and BB for all images according to the given metric.
@@ -1994,37 +2141,23 @@ def max_distance_to_lines(p, lines: Iterable[Line]) -> float:
     return max(line.distance_to(point) for line in lines)
 
 
-def bb_projection_long(
-    offset_in: float, offset_up: float, offset_left: float, sad: float, gantry: float
-) -> float:
-    """Calculate the isoplane projection in the sup/inf/longitudinal direction in mm"""
-    # the divergence of the beam causes the BB to be closer or further depending on the
-    # up/down position, left/right position and gantry angle
-    addtl_long_shift_cos = (
-        offset_up * offset_in / (sad - cos(gantry) * offset_up) * cos(gantry)
+def bb_ray_line(
+    bb: Point, gantry_angle: float, sad: float, image_center: Point, dpmm: float
+) -> Line:
+    """Create a 'ray' projection from the linac source through the BB. Used together, this is how the BB position can be found in 3D"""
+    # This would've been cleaner by passing the image, but for testing purposes it's easier to pass near-primitives
+    source_x = sin(gantry_angle) * sad
+    source_z = cos(gantry_angle) * sad
+    source = Point(x=source_x, y=0, z=source_z)
+    # we want the line to go past the isoplane, so calculate the other point at 1.5x the SAD; when plotted
+    bb_x_mm = (bb.x - image_center.x) / dpmm
+    bb_y_mm = (bb.y - image_center.y) / dpmm
+    distal = Point(
+        x=-source_x + bb_x_mm * 2 * cos(gantry_angle),
+        y=2 * bb_y_mm,
+        z=-source_z - bb_x_mm * 2 * sin(gantry_angle),
     )
-    addtl_left_shift_sin = (
-        offset_left * offset_in / (sad + sin(gantry) * offset_left) * -sin(gantry)
-    )
-    return offset_in + addtl_long_shift_cos + addtl_left_shift_sin
-
-
-def bb_projection_gantry_plane(
-    offset_left: float, offset_up: float, sad: float, gantry: float
-) -> float:
-    """Calculate the isoplane projection in the plane of gantry rotation (X/Z)"""
-    addtl_left_shift = (
-        -offset_up * offset_left / (sad + cos(gantry) * offset_up) * abs(cos(gantry))
-    )
-    addtl_up_shift = (
-        offset_left * offset_up / (sad + sin(gantry) * offset_left) * abs(sin(gantry))
-    )
-    return (
-        offset_up * -sin(gantry)
-        + addtl_up_shift
-        + offset_left * -cos(gantry)
-        + addtl_left_shift
-    )
+    return Line(source, distal)
 
 
 def _bb_projection_with_rotation(
@@ -2034,7 +2167,7 @@ def _bb_projection_with_rotation(
     gantry: float,
     couch: float = 0,
     sad: float = 1000,
-) -> np.ndarray:
+) -> (float, float):
     """Calculate the isoplane projection onto the panel at the given SSD.
 
     This function applies a rotation around the gantry plane (X/Z) to the
@@ -2073,4 +2206,4 @@ def _bb_projection_with_rotation(
     imager_projection = (
         np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
     )
-    return imager_projection
+    return imager_projection[0], imager_projection[1]
