@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import scipy.ndimage
 from matplotlib import pyplot as plt
+from scipy.interpolate import interp1d
 
 from .core import pdf
 from .core.geometry import Line, Point
@@ -58,6 +59,8 @@ class QuartGeometryModuleOutput:
     roi_settings: dict
     rois: dict
     distances: dict
+    high_contrast_distances: dict
+    mean_high_contrast_distance: float
 
 
 @dataclasses.dataclass
@@ -238,6 +241,8 @@ class QuartGeometryModule(CatPhanModule):
     attr_name = "geometry_module"
     common_name = "Geometric Distortion"
     profiles: dict
+    horiz_array: np.array
+    vert_array: np.array
 
     def _setup_rois(self) -> None:
         self.profiles = {}
@@ -247,9 +252,11 @@ class QuartGeometryModule(CatPhanModule):
         img = scipy.ndimage.median_filter(img, size=3)
         img = img - img.min()  # ground the profile
         # calculate horizontal
-        data = img[int(self.phan_center.y), :]
+        self.horiz_array = img[int(self.phan_center.y), :]
         prof = SingleProfile(
-            data, interpolation=Interpolation.NONE, dpmm=1 / self.mm_per_pixel
+            self.horiz_array,
+            interpolation=Interpolation.NONE,
+            dpmm=1 / self.mm_per_pixel,
         )
         fwhm = prof.fwxm_data()
         line = Line(
@@ -261,9 +268,11 @@ class QuartGeometryModule(CatPhanModule):
             "line": line,
         }
         # calculate vertical
-        data = img[:, int(self.phan_center.x)]
+        self.vert_array = img[:, int(self.phan_center.x)]
         prof = SingleProfile(
-            data, interpolation=Interpolation.NONE, dpmm=1 / self.mm_per_pixel
+            self.vert_array,
+            interpolation=Interpolation.NONE,
+            dpmm=1 / self.mm_per_pixel,
         )
         fwhm = prof.fwxm_data()
         line = Line(
@@ -282,6 +291,42 @@ class QuartGeometryModule(CatPhanModule):
     def distances(self) -> dict[str, float]:
         """The measurements of the phantom size for the two lines in mm"""
         return {f"{name} mm": p["width (mm)"] for name, p in self.profiles.items()}
+
+    def high_contrast_resolutions(self) -> dict:
+        """The distance in mm from the -700 HU index to the -200 HU index.
+
+        This calculates the distance on each edge of the horizontal and vertical
+        geometric profiles for a total of 4 measurements. The result is the
+        average of the 4 values. The DICOM data is already HU-corrected so
+        -1000 => 0. This means we will search for 300 HU (-1000 + 700) and 800 HU (-1000 + 200) respectively.
+
+        This cuts the profile in half, searches for the highest-gradient index (where the phantom edge is),
+        then further cuts it down to +/-10 pixels. The 300/800 HU are then found from linear interpolation.
+        It was found that artifacts in the image could drastically influence these values, so hence the +/-10
+        subset.
+
+        Assumptions:
+        -The phantom does not cross the halfway point of the image FOV (i.e. not offset by an obscene amount).
+        -10 pixels about the phantom edge is adequate to capture the full dropoff.
+        -300 and 800 HU values will be in the profile"""
+        dists = {"Top": np.nan, "Bottom": np.nan, "Left": np.nan, "Right": np.nan}
+        edge_5mm = int(5 / self.mm_per_pixel)  # physical 5mm distance
+        keys = (key for key in dists)
+        for array in (self.horiz_array, self.vert_array):
+            split_idx = len(array) // 2  # we need not be exact, just close
+            left_data, right_data = array[:split_idx], array[split_idx:][::-1]
+            for profile_data in (left_data, right_data):
+                # find the phantom edge and chop about it
+                edge_idx = np.argmax(np.diff(profile_data))
+                edge_data = profile_data[edge_idx - edge_5mm : edge_idx + edge_5mm]
+                interp_func = interp1d(edge_data, np.arange(len(edge_data)))
+                idx_300, idx_800 = interp_func([300, 800])
+                dists[next(keys)] = abs(idx_800 - idx_300) * self.mm_per_pixel
+        return dists
+
+    def mean_high_contrast_resolution(self) -> float:
+        """Mean high-contrast resolution"""
+        return float(np.mean(list(self.high_contrast_resolutions().values())))
 
 
 class QuartDVT(CatPhanBase):
@@ -372,6 +417,7 @@ class QuartDVT(CatPhanBase):
             f"Uniformity ROIs: {self.uniformity_module.roi_vals_as_str}\n",
             f"Uniformity Passed?: {self.uniformity_module.overall_passed}\n",
             f"Geometric width: {self.geometry_module.distances()}",
+            f"High-Contrast distance (mm): {self.geometry_module.mean_high_contrast_resolution():2.3f}",
         )
         if as_str:
             return "\n".join(items)
@@ -396,6 +442,8 @@ class QuartDVT(CatPhanBase):
                 roi_settings=self.geometry_module.roi_settings,
                 rois=rois_to_results(self.geometry_module.rois),
                 distances=self.geometry_module.distances(),
+                high_contrast_distances=self.geometry_module.high_contrast_resolutions(),
+                mean_high_contrast_distance=self.geometry_module.mean_high_contrast_resolution(),
             ),
             hu_module=QuartHUModuleOutput(
                 offset=0,
