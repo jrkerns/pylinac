@@ -222,6 +222,15 @@ class TestBaseImage(TestCase):
         shifted_val = self.dcm[-1, 0]
         self.assertEqual(orig_val, shifted_val)
 
+    def test_rotate(self):
+        # rotate by 90 because it's easy to test
+        # we test where the value was relatively high and
+        # ensure it's now low
+        orig_val = self.dcm[150, 500]
+        self.dcm.rotate(angle=90)
+        shifted_val = self.dcm[150, 500]
+        self.assertNotAlmostEqual(orig_val, shifted_val, delta=0.2)
+
     def test_threshold(self):
         # apply high-pass threshold
         orig_val = self.arr[0, 4]
