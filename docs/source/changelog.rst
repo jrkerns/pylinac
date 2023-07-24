@@ -3,6 +3,42 @@
 Changelog
 =========
 
+v 3.14.0
+--------
+
+CT
+^^
+
+* A new check for the scan extent vs the configuration extent is now in place. This will check that
+  the physical extent of the scan is large enough to include all the listed modules. If it's not
+  an error will be raised. This improves the error diagnosis when a scan did not include enough data.
+
+  .. note::
+
+    This applies to all CT-like algorithms including the ACR analyses.
+
+ACR
+^^^
+
+* The ACR MRI algorithm now accounts for scans where slices do not abut. E.g. if the slice thickness is 5mm
+  and the spacing between slices is 10mm.
+* The ACR MRI high-resolution ROIs have been adjusted slightly to match the increasing test suite data,
+  however, there are still some sets that do not perfectly align. We suggest following the
+  :ref:`customizing-acr-modules` section and adjusting the location as needed.
+* The ACR MRI algorithm has a new parameter for ``analyze``: ``echo_number``. This lets the user pick an
+  echo number if the acquisition was a dual echo scan. This is not required however. If the scan is dual-echo
+  and no echo number is passed, the scan with the first echo number is selected. See the
+  :ref:`choosing-mr-echo-number`.
+* The ACR MRI module classes can now be defined at the class-level, similar to the ACR CT. This was
+  changed so that users can more easily change aspects of each module.
+  See the :ref:`customizing-acr-modules` section for more.
+
+Core
+^^^^
+
+* The :class:`~pylinac.core.image.DicomImage` class has two new properties available: ``z_location`` and ``slice_spacing``.
+  These both apply to CT/MR-like datasets.
+
 v 3.13.0
 --------
 
@@ -94,39 +130,6 @@ Contrast
 
     As stated in the previous version, v3.13+ will not support Python 3.7. Python 3.8+ is required, matching
     the PSF's deprecation policy.
-
-CT
-^^
-
-* A new check for the scan extent vs the configuration extent is now in place. This will check that
-  the physical extent of the scan is large enough to include all the listed modules. If it's not
-  an error will be raised. This improves the error diagnosis when a scan did not include enough data.
-
-  .. note::
-
-    This applies to all CT-like algorithms including the ACR analyses.
-
-ACR
-^^^
-
-* The ACR MRI algorithm now accounts for scans where slices do not abut. E.g. if the slice thickness is 5mm
-  and the spacing between slices is 10mm.
-* The ACR MRI high-resolution ROIs have been adjusted slightly to match the increasing test suite data,
-  however, there are still some sets that do not perfectly align. We suggest following the
-  :ref:`customizing-acr-modules` section and adjusting the location as needed.
-* The ACR MRI algorithm has a new parameter for ``analyze``: ``echo_number``. This lets the user pick an
-  echo number if the acquisition was a dual echo scan. This is not required however. If the scan is dual-echo
-  and no echo number is passed, the scan with the first echo number is selected. See the
-  :ref:`choosing-mr-echo-number`.
-* The ACR MRI module classes can now be defined at the class-level, similar to the ACR CT. This was
-  changed so that users can more easily change aspects of each module.
-  See the :ref:`customizing-acr-modules` section for more.
-
-Core
-^^^^
-
-* The :class:`~pylinac.core.image.DicomImage` class has two new properties available: ``z_location`` and ``slice_spacing``.
-  These both apply to CT/MR-like datasets.
 
 v 3.12.0
 --------

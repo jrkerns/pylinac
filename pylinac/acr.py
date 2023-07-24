@@ -1023,7 +1023,12 @@ class ACRMRILarge(CatPhanBase):
         # we check for multiple echos. We only pick the first echo found.
         # this is probably not the best logic but we somehow have to pick
         # Echo Numbers is an int; https://dicom.innolitics.com/ciods/mr-image/mr-image/00180086
-        all_echos = {int(i.metadata.EchoNumbers) for i in self.dicom_stack.images}
+
+        # in case EchoNumbers isn't there, return all
+        try:
+            all_echos = {int(i.metadata.EchoNumbers) for i in self.dicom_stack.images}
+        except AttributeError:
+            return self.dicom_stack.images
         if echo_number is None:
             echo_number = min(all_echos)
             if len(all_echos) > 1:
