@@ -111,7 +111,7 @@ High-Resolution
 ^^^^^^^^^^^^^^^
 
 For high-resolution resolvability, the Quart manual does describe an equation for calculating
-the MTF using the LSF of the phantom edge. For simplicity,
+the MTF using the line-spread function (LSF) of the phantom edge. For simplicity,
 we use the Varian Halcyon IPA document, which outlines a similar logic
 with specific measurements of the -700 -> -200 HU distance using a vertical
 and horizontal profile.

@@ -69,7 +69,7 @@ class TestQuartDVTGeneral(TestCase):
 
         # check the additional modules got added
         self.assertIsInstance(data.hu_module.rois, dict)
-        self.assertIsInstance(data.geometric_module.high_contrast_distance, float)
+        self.assertIsInstance(data.geometric_module.mean_high_contrast_distance, float)
 
 
 class TestPlottingSaving(TestCase):
@@ -162,10 +162,10 @@ class QuartDVTMixin(CloudFileMixin):
             delta=0.3,
         )
 
-    def test_high_contrast_distance(self):
+    def test_mean_high_contrast_distance(self):
         self.assertAlmostEqual(
             self.high_contrast_distance,
-            self.quart.geometry_module.high_contrast_resolution(),
+            self.quart.geometry_module.mean_high_contrast_resolution(),
             delta=0.05,
         )
 
@@ -187,7 +187,7 @@ class QuartHead(QuartDVTMixin, TestCase):
     file_name = "Head_Quart.zip"
     phantom_roll = 0.2
     slice_thickness = 1.9
-    high_contrast_distance = 1.14
+    high_contrast_distance = 0.9
     snr = 50
     cnr = 6.45
     horiz_dist = 159.3
@@ -207,7 +207,7 @@ class QuartHeadOffset(QuartDVTMixin, TestCase):
     slice_thickness = 1.9
     horiz_dist = 159.3
     vert_dist = 159.6
-    high_contrast_distance = 1.14
+    high_contrast_distance = 0.9
     snr = 50
     cnr = 6.45
     hu_values = {"Poly": POLY, "Acrylic": 126, "Air": -999, "Teflon": 981}
