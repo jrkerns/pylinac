@@ -93,7 +93,7 @@ def rms(array: np.array) -> float:
     return np.sqrt(np.mean((array - array.mean()) ** 2))
 
 
-def difference(feature: float, background: float):
+def difference(feature: float, background: float) -> float:
     """The simple absolute difference between the feature ROI and background ROI.
     This can be useful if the default CNR formula is desired (since pylinac CNR is based
     on the contrast algorithm chosen.
