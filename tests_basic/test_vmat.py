@@ -125,6 +125,7 @@ class VMATMixin:
         0: {"r_dev": 0, "r_corr": 100},
         4: {"r_dev": 0, "r_corr": 100},
     }
+    kwargs = {}
     avg_abs_r_deviation = 0
     avg_r_deviation = 0
     max_r_deviation = 0
@@ -144,9 +145,9 @@ class VMATMixin:
 
     def setUp(self):
         if self.is_zip:
-            self.vmat = self.klass.from_zip(self.absolute_path())
+            self.vmat = self.klass.from_zip(self.absolute_path(), **self.kwargs)
         else:
-            self.vmat = self.klass(self.absolute_path())
+            self.vmat = self.klass(self.absolute_path(), **self.kwargs)
         self.vmat.analyze()
         if self.print_debug:
             print(self.vmat.results())
@@ -238,11 +239,23 @@ class TestDRMLCDemo(VMATMixin, TestCase):
     max_r_deviation = 0.89
 
     def setUp(self):
-        self.vmat = DRMLC.from_demo_images()
+        self.vmat = DRMLC.from_demo_images(**self.kwargs)
         self.vmat.analyze()
 
     def test_demo(self):
         self.vmat.run_demo()
+
+
+class TestDRMLCDemoRawPixels(TestDRMLCDemo):
+    """Use raw DICOM pixel values, like doselab does."""
+
+    kwargs = {"raw_pixels": True, "ground": False, "check_inversion": False}
+    segment_values = {
+        0: {"r_dev": -0.55, "r_corr": 138.55},
+        2: {"r_dev": 0.56, "r_corr": 140},
+    }
+    avg_abs_r_deviation = 0.54
+    max_r_deviation = 0.56
 
 
 class TestDRMLC105(VMATMixin, TestCase):
