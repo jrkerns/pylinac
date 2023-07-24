@@ -26,6 +26,7 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.errors import InvalidDicomError
 from scipy import ndimage
 from skimage.draw import disk
+from skimage.transform import rotate
 
 from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
 from .array_utils import bit_invert, convert_to_dtype, filter, ground, invert, normalize
@@ -472,6 +473,11 @@ class BaseImage:
     def rot90(self, n: int = 1) -> None:
         """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW n times."""
         self.array = np.rot90(self.array, n)
+
+    def rotate(self, angle: float, mode: str = "edge", *args, **kwargs):
+        """Rotate the image counter-clockwise. Simple wrapper for scikit-image. See https://scikit-image.org/docs/stable/api/skimage.transform.html#skimage.transform.rotate.
+        All parameters are passed to that function."""
+        self.array = rotate(self.array, angle, mode=mode, *args, **kwargs)
 
     def threshold(self, threshold: float, kind: str = "high") -> None:
         """Apply a high- or low-pass threshold filter.
@@ -971,10 +977,11 @@ class DicomImage(BaseImage):
         self,
         path: str | Path | BytesIO | BufferedReader,
         *,
-        dtype=None,
+        dtype: np.dtype | None = None,
         dpi: float = None,
         sid: float = None,
         sad: float = 1000,
+        raw_pixels: bool = False,
     ):
         """
         Parameters
@@ -991,6 +998,16 @@ class DicomImage(BaseImage):
 
         sid : int, float
             The Source-to-Image distance in mm.
+        sad : float
+            The Source-to-Axis distance in mm.
+        raw_pixels : bool
+            Whether to apply pixel intensity correction to the DICOM data.
+            Typically, Rescale Slope, Rescale Intercept, and other tags
+            are included and meant to be applied to the raw pixel data, which
+            is potentially compressed.
+            If True, no correction will be applied. This is typically used
+            for scenarios when you want to match behavior to older or different
+            software.
         """
         super().__init__(path)
         self._sid = sid
@@ -1020,7 +1037,9 @@ class DicomImage(BaseImage):
         )
         is_ct_storage = self.metadata.SOPClassUID.name == "CT Image Storage"
         is_mr_storage = self.metadata.SOPClassUID.name == "MR Image Storage"
-        if has_all_rescale_tags:
+        if raw_pixels:
+            pass  # no-op
+        elif has_all_rescale_tags:
             self.array = (
                 (self.metadata.RescaleSlope * self.array)
                 + self.metadata.RescaleIntercept
@@ -1053,6 +1072,27 @@ class DicomImage(BaseImage):
         self.metadata.Rows = self.array.shape[0]
         self.metadata.save_as(filename)
         return filename
+
+    @property
+    def z_position(self) -> float:
+        """The z-position of the slice. Relevant for CT and MR images."""
+        try:
+            return self.metadata.SliceLocation
+        except AttributeError:
+            return self.metadata.ImagePositionPatient[-1]
+
+    @property
+    def slice_spacing(self) -> float:
+        """Determine the distance between slices. In MRI
+        the spacing can be greater than the slice thickness (i.e. gaps).
+
+        This attempts to use the slice spacing attr (present in MRIs) and if it doesn't exist, use the slice thickness attr
+        """
+
+        try:
+            return self.metadata.SpacingBetweenSlices
+        except AttributeError:
+            return self.metadata.SliceThickness
 
     @property
     def sid(self) -> float:

@@ -391,10 +391,12 @@ class QuartDVT(CatPhanBase):
         self.hu_module.plot_linearity(hu_lin_ax)
         unif_ax = plt.subplot2grid(grid_size, (1, 0))
         self.uniformity_module.plot(unif_ax)
-        unif_prof_ax = plt.subplot2grid(grid_size, (1, 1), colspan=2)
+        unif_prof_ax = plt.subplot2grid(grid_size, (1, 2))
         self.uniformity_module.plot_profiles(unif_prof_ax)
         geometry_ax = plt.subplot2grid(grid_size, (0, 0))
         self.geometry_module.plot(geometry_ax)
+        side_view_ax = plt.subplot2grid(grid_size, (1, 1))
+        self.plot_side_view(side_view_ax)
 
         # finish up
         plt.tight_layout()
@@ -478,6 +480,10 @@ class QuartDVT(CatPhanBase):
             fig, ax = plt.subplots(**plt_kwargs)
             module.plot(ax)
             figs[key] = fig
+        # add side-view
+        fig, ax = plt.subplots(**plt_kwargs)
+        self.plot_side_view(ax)
+        figs["side"] = fig
 
         if show:
             plt.show()
@@ -571,3 +577,13 @@ class QuartDVT(CatPhanBase):
 
         if open_file:
             webbrowser.open(filename)
+
+    def _module_offsets(self) -> list[float]:
+        absolute_origin_position = self.dicom_stack[self.origin_slice].z_position
+        relative_offsets_mm = [0, UNIFORMITY_OFFSET_MM, GEOMETRY_OFFSET_MM]
+        return [
+            absolute_origin_position + offset_mm for offset_mm in relative_offsets_mm
+        ]
+
+    def _detected_modules(self) -> list[CatPhanModule]:
+        return [self.uniformity_module, self.hu_module, self.geometry_module]
