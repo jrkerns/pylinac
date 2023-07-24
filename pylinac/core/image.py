@@ -1068,6 +1068,27 @@ class DicomImage(BaseImage):
         return filename
 
     @property
+    def z_position(self) -> float:
+        """The z-position of the slice. Relevant for CT and MR images."""
+        try:
+            return self.metadata.SliceLocation
+        except AttributeError:
+            return self.metadata.ImagePositionPatient[-1]
+
+    @property
+    def slice_spacing(self) -> float:
+        """Determine the distance between slices. In MRI
+        the spacing can be greater than the slice thickness (i.e. gaps).
+
+        This attempts to use the slice spacing attr (present in MRIs) and if it doesn't exist, use the slice thickness attr
+        """
+
+        try:
+            return self.metadata.SpacingBetweenSlices
+        except AttributeError:
+            return self.metadata.SliceThickness
+
+    @property
     def sid(self) -> float:
         """The Source-to-Image in mm."""
         try:
