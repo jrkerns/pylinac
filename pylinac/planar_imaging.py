@@ -2004,8 +2004,8 @@ class LeedsTOR(ImagePhantomBase):
     phantom_outline_object = {"Circle": {"radius ratio": 0.97}}
     high_contrast_roi_settings = {
         "roi 1": {
-            "distance from center": 0.3,
-            "angle": 54.8,
+            "distance from center": 0.2895,
+            "angle": 54.62,
             "roi radius": 0.04,
             "lp/mm": 0.5,
         },
@@ -2016,63 +2016,63 @@ class LeedsTOR(ImagePhantomBase):
             "lp/mm": 0.56,
         },
         "roi 3": {
-            "distance from center": 0.187,
-            "angle": -27.5,
+            "distance from center": 0.1848,
+            "angle": 335.5,
             "roi radius": 0.04,
             "lp/mm": 0.63,
         },
         "roi 4": {
-            "distance from center": 0.252,
-            "angle": 79.7,
+            "distance from center": 0.238,
+            "angle": 80.06,
             "roi radius": 0.03,
             "lp/mm": 0.71,
         },
         "roi 5": {
-            "distance from center": 0.092,
-            "angle": 63.4,
+            "distance from center": 0.0916,
+            "angle": 62.96,
             "roi radius": 0.03,
             "lp/mm": 0.8,
         },
         "roi 6": {
-            "distance from center": 0.094,
-            "angle": -65,
+            "distance from center": 0.093,
+            "angle": -64,
             "roi radius": 0.02,
             "lp/mm": 0.9,
         },
         "roi 7": {
-            "distance from center": 0.252,
-            "angle": -263,
-            "roi radius": 0.02,
+            "distance from center": 0.239,
+            "angle": 101.98,
+            "roi radius": 0.015,
             "lp/mm": 1.0,
         },
         "roi 8": {
-            "distance from center": 0.094,
-            "angle": -246,
-            "roi radius": 0.018,
+            "distance from center": 0.0907,
+            "angle": 122.62,
+            "roi radius": 0.015,
             "lp/mm": 1.12,
         },
         "roi 9": {
-            "distance from center": 0.0958,
-            "angle": -117,
-            "roi radius": 0.018,
+            "distance from center": 0.09515,
+            "angle": 239.07,
+            "roi radius": 0.015,
             "lp/mm": 1.25,
         },
         "roi 10": {
-            "distance from center": 0.27,
-            "angle": 112.5,
-            "roi radius": 0.015,
+            "distance from center": 0.2596,
+            "angle": 115.8,
+            "roi radius": 0.012,
             "lp/mm": 1.4,
         },
         "roi 11": {
-            "distance from center": 0.13,
+            "distance from center": 0.138,
             "angle": 145,
-            "roi radius": 0.015,
+            "roi radius": 0.012,
             "lp/mm": 1.6,
         },
         "roi 12": {
-            "distance from center": 0.135,
-            "angle": -142,
-            "roi radius": 0.011,
+            "distance from center": 0.13967,
+            "angle": 216.4,
+            "roi radius": 0.010,
             "lp/mm": 1.8,
         },
     }
@@ -2178,6 +2178,48 @@ class LeedsTOR(ImagePhantomBase):
 
     def _preprocess(self) -> None:
         self._check_if_counter_clockwise()
+
+    def _sample_high_contrast_rois(self) -> list[HighContrastDiskROI]:
+        """Sample the high-contrast line pair regions. We overload to find
+        the center of the high-res block which can be offset relative
+        to the center depending on the model"""
+        # find the high-res block ROI
+        regions = self._get_canny_regions()
+        high_res_block_size = self.phantom_bbox_size_px * 0.23
+        sorted_regions = (
+            Enumerable(regions)
+            .where(
+                lambda r: math.isclose(r.bbox_area, high_res_block_size, rel_tol=0.75)
+            )
+            .where(
+                lambda r: bbox_center(r).distance_to(self.phantom_center)
+                < 0.1 * self.phantom_radius
+            )
+            .order_by_descending(
+                lambda r: bbox_center(r).distance_to(self.phantom_center)
+            )
+            .to_list()
+        )
+        if not sorted_regions:
+            raise ValueError(
+                "Could not find high-resolution block within the leeds phantom. Try rotating the image."
+            )
+        high_res_center = bbox_center(sorted_regions[0])
+        self.high_res_center = high_res_center
+
+        # do the same as the base method but centered on the high-res block
+        hc_rois = []
+        for stng in self.high_contrast_roi_settings.values():
+            roi = HighContrastDiskROI(
+                self.image,
+                self.phantom_angle + stng["angle"],
+                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["distance from center"],
+                high_res_center,
+                self._high_contrast_threshold,
+            )
+            hc_rois.append(roi)
+        return hc_rois
 
     def _check_if_counter_clockwise(self) -> None:
         """Determine if the low-contrast bubbles go from high to low clockwise or counter-clockwise."""

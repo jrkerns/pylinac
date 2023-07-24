@@ -13,7 +13,21 @@ class TestContrastAlgorithms(TestCase):
 
     def test_weber(self):
         self.assertEqual(contrast.weber(1, 0.5), 1)
-        self.assertEqual(contrast.weber(0.5, 1), -0.5)
+        self.assertEqual(contrast.weber(0.5, 1), 0.5)
+
+    def test_weber_symmetric(self):
+        self.assertEqual(contrast.weber(1.5, 1), 0.5)
+
+    def test_weber_against_old_definition(self):
+        """Match previous algorithm =(
+        https://github.com/jrkerns/pylinac/blob/release-v3.11/pylinac/core/roi.py#L192-L195
+        """
+
+        def old_weber(pixel, contrast):
+            return abs(pixel - contrast) / contrast
+
+        self.assertEqual(old_weber(0.5, 1), contrast.weber(0.5, 1))
+        self.assertEqual(old_weber(1.5, 1), contrast.weber(1.5, 1))
 
     def test_michelson(self):
         arr = np.array((0, 1, 3))

@@ -1,12 +1,8 @@
-Pylinac
-=======
 
-.. image:: https://storage.googleapis.com/pylinac_demo_files/Pylinac_Full_cropped.png
+.. image:: https://storage.googleapis.com/pylinac_demo_files/Pylinac-GREEN.png
     :width: 100%
     :target: https://github.com/jrkerns/pylinac
     :align: center
-
-|
 
 .. image:: https://img.shields.io/pypi/v/pylinac.svg
     :target: https://pypi.python.org/pypi/pylinac

@@ -10,6 +10,7 @@ from unittest import TestCase
 
 import numpy as np
 import PIL.Image
+import pydicom
 from numpy.testing import assert_array_almost_equal
 
 from pylinac.core import image
@@ -288,6 +289,43 @@ class TestDicomImage(TestCase):
         self.assertEqual(
             original_shape[1] - 30, dcm_cropped.shape[1]
         )  # 15 from each side = 2 * 15 = 30
+
+    def test_raw_pixels_via_load(self):
+        dcm_ds = pydicom.dcmread(dcm_path)
+        dcm_raw = image.load(dcm_path, raw_pixels=True)
+        assert np.array_equal(dcm_raw.array, dcm_ds.pixel_array)
+        # test that the pixels are corrected otherwise
+        dcm_corr = image.load(dcm_path)
+        assert not np.array_equal(dcm_corr.array, dcm_ds.pixel_array)
+
+    def test_z_location_mri(self):
+        path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0008"])
+        img: DicomImage = image.load(path)
+        self.assertAlmostEqual(img.z_position, -20.2, places=1)
+
+    def test_z_location_ct(self):
+        path = get_file_from_cloud_test_repo(
+            ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
+        )
+        img: DicomImage = image.load(path)
+        self.assertAlmostEqual(img.z_position, -500.5, places=1)
+
+    def test_z_location_none_for_epid(self):
+        """EPID has no z location"""
+        with self.assertRaises(AttributeError):
+            self.dcm.z_position
+
+    def test_slice_spacing_mri(self):
+        path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0008"])
+        img: DicomImage = image.load(path)
+        self.assertAlmostEqual(img.slice_spacing, 10, places=1)
+
+    def test_slice_spacing_ct(self):
+        path = get_file_from_cloud_test_repo(
+            ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
+        )
+        img: DicomImage = image.load(path)
+        self.assertAlmostEqual(img.slice_spacing, 0.5, places=1)
 
 
 class TestXIMImage(TestCase):

@@ -91,10 +91,16 @@ The official definition is:
 
 Within pylinac, this is interpreted to be the following:
 
-.. math:: \frac{I_{mean} - R_{mean}}{R_{mean}}
+.. math:: \frac{|I_{mean} - R_{mean}|}{R_{mean}}
 
 where :math:`I` is the ROI of the contrast region in question and :math:`R` is the background ROI, usually
 placed somewhere within the phantom area that is uniform.
+
+.. important::
+
+    For historical reasons, the numerator is the absolute difference. This means the range is from
+    0 to infinity vs -1 to infinity. The repercussions is that contrast is symmetric. I.e. -1 and +1 both go
+    to +1.
 
 An example calculation:
 
