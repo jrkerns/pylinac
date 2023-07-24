@@ -3,6 +3,7 @@
 Changelog
 =========
 
+
 v 3.14.0
 --------
 
@@ -38,6 +39,22 @@ Core
 
 * The :class:`~pylinac.core.image.DicomImage` class has two new properties available: ``z_location`` and ``slice_spacing``.
   These both apply to CT/MR-like datasets.
+* A new contrast algorithm, "Difference", has been added. This can be used similar to RMS, Weber, etc.
+  The reason this might be preferred is so that the resulting CNR value is closer to the default algorithm.
+  See :ref:`contrast` for more.
+* Contrast values are now case-insensitive. This applies only if you are passing a string for the contrast
+  method.
+
+  .. code-block:: python
+
+    from pylinac import CatPhan504
+    from pylinac.core.contrast import Contrast
+
+    ct = CatPhan504.from_demo_images()
+    # equivalent
+    ct.analyze(..., contrast_method="weber")
+    ct.analyze(..., contrast_method="Weber")
+    ct.analyze(..., contrast_method=Contrast.WEBER)
 
 v 3.13.0
 --------

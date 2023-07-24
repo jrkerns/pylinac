@@ -15,7 +15,7 @@ which comes from this repo: https://bitbucket.org/dmoderesearchtools/ximreader/s
     Rant ahead.
 
 The XIM images used a custom compression format. Why they chose to use a custom format is beyond me. Moreso, the
-format they chose was that of a PNG algorithm. So, XIM images are just PNG images but with a custom lookup table
+format they chose was that of a PNG algorithm, but not as good. So, XIM images are just PNG images but with a custom lookup table
 and property tags. A TIFF format would've worked just as well. It's possible this is security by obscurity or NIH syndrome.
 
 Loading an XIM image
@@ -60,7 +60,7 @@ pixels and only reading the properties is relatively fast (order of milliseconds
         # image is available, do what you want
         xim_img.plot()
 
-An XIM has all the utility methods other pylinac image do, so use this to your advantage:
+An XIM image has all the utility methods other pylinac images do, so use this to your advantage:
 
 .. code-block:: python
 
@@ -81,7 +81,7 @@ An XIM has all the utility methods other pylinac image do, so use this to your a
 Exporting images
 ^^^^^^^^^^^^^^^^
 
-Exporting .xim images is easy. The PNG format is recommended because its ~1/2 the size of the original xim image and will
+Exporting ``*.xim`` images is easy. The PNG format is recommended because its ~1/2 the size of the original xim image and will
 also include the properties. PNG is also lossless, so all information is retained.
 PNG images can usually be viewed easily across many devices and OSs and also loads very fast.
 
