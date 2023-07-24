@@ -228,7 +228,7 @@ class TestPlottingSaving(TestCase):
         self.cbct.plot_analyzed_image()
 
     def test_plot_subimages(self):
-        for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc"]:
+        for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc", "side"]:
             self.cbct.plot_analyzed_subimage(item)
 
         self.cbct.plot_analyzed_subimage("lin", delta=False)

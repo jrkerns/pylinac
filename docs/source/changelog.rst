@@ -3,12 +3,17 @@
 Changelog
 =========
 
-
 v 3.14.0
 --------
 
 CT
 ^^
+
+* CBCT, ACR CT/MR, and Quart analyses will now plot a "side view" of the phantom with lines
+  to show where the modules were sampled. This will help visualize if the module slice selection
+  was appropriate.
+
+  .. figure:: images/side_view.png
 
 * A new check for the scan extent vs the configuration extent is now in place. This will check that
   the physical extent of the scan is large enough to include all the listed modules. If it's not
@@ -58,6 +63,11 @@ Core
 
 v 3.13.0
 --------
+
+.. warning::
+
+    As stated in the previous version, v3.13+ will not support Python 3.7. Python 3.8+ is required, matching
+    the PSF's deprecation policy.
 
 Planar Imaging
 ^^^^^^^^^^^^^^
@@ -143,10 +153,6 @@ Contrast
   This was unintentional. For backwards compatibility, the definition has been restored to the previous
   behavior.
 
-.. warning::
-
-    As stated in the previous version, v3.13+ will not support Python 3.7. Python 3.8+ is required, matching
-    the PSF's deprecation policy.
 
 v 3.12.0
 --------

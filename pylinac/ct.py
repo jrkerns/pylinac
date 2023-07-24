@@ -30,6 +30,7 @@ from typing import BinaryIO, Callable, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from cached_property import cached_property
+from matplotlib.axes import Axes
 from py_linq import Enumerable
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
@@ -1586,10 +1587,14 @@ class CatPhanBase:
         self.ctp404.plot(hu_ax)
         hu_lin_ax = plt.subplot2grid(grid_size, (0, 2))
         self.ctp404.plot_linearity(hu_lin_ax)
+        # plot side view w/ module locations
+        side_ax = plt.subplot2grid(grid_size, (1, 2))
+        self.plot_side_view(side_ax)
+        # plot individual modules
         if self._has_module(CTP486):
             unif_ax = plt.subplot2grid(grid_size, (0, 0))
             self.ctp486.plot(unif_ax)
-            unif_prof_ax = plt.subplot2grid(grid_size, (1, 2), colspan=2)
+            unif_prof_ax = plt.subplot2grid(grid_size, (1, 3))
             self.ctp486.plot_profiles(unif_prof_ax)
         if self._has_module(CTP528CP504):
             sr_ax = plt.subplot2grid(grid_size, (1, 0))
@@ -1628,7 +1633,7 @@ class CatPhanBase:
 
         Parameters
         ----------
-        subimage : {'hu', 'un', 'sp', 'lc', 'mtf', 'lin', 'prof'}
+        subimage : {'hu', 'un', 'sp', 'lc', 'mtf', 'lin', 'prof', 'side'}
             The subcomponent to plot. Values must contain one of the following letter combinations.
             E.g. ``linearity``, ``linear``, and ``lin`` will all draw the HU linearity values.
 
@@ -1639,6 +1644,7 @@ class CatPhanBase:
             * ``mtf`` draws the RMTF plot.
             * ``lin`` draws the HU linearity values. Used with ``delta``.
             * ``prof`` draws the HU uniformity profiles.
+            * ``side`` draws the side view of the phantom with lines of the module locations.
         delta : bool
             Only for use with ``lin``. Whether to plot the HU delta or actual values.
         show : bool
@@ -1672,6 +1678,9 @@ class CatPhanBase:
         elif "prof" in subimage:
             plt.axis("on")
             self.ctp486.plot_profiles(ax)
+        elif "side" in subimage:
+            ax = plt.gca()
+            self.plot_side_view(ax)
         else:
             raise ValueError(f"Subimage parameter {subimage} not understood")
 
@@ -1948,13 +1957,14 @@ class CatPhanBase:
             module_images.append(("un", "prof"))
         if self._has_module(CTP515):
             module_images.append(("lc", None))
+        module_images.append(("side", None))
 
         self._publish_pdf(
             filename,
             metadata,
             notes,
             analysis_title,
-            self.results(as_list=True),
+            [*self.results(as_list=True), ""],
             module_images,
             logo,
         )
@@ -1999,6 +2009,26 @@ class CatPhanBase:
                 os.remove(img.path)
             except:
                 pass
+
+    def plot_side_view(self, axis: Axes) -> None:
+        """Plot a view of the scan from the side with lines showing detected module positions"""
+        side_array = np.stack(self.dicom_stack.images, axis=-1).max(axis=1)
+        axis.set_yticks([])
+        axis.set_title("Side View")
+        axis.imshow(side_array, aspect="auto", cmap="gray", interpolation="none")
+        for module in self._detected_modules():
+            axis.axvline(module.slice_num)
+
+    def _detected_modules(self) -> list[CatPhanModule]:
+        """A list of the modules detected. Unlike _get_module, this returns the instances"""
+        modules = [self.ctp404]
+        if self._has_module(CTP515):
+            modules.append(self.ctp515)
+        if self._has_module(CTP486):
+            modules.append(self.ctp486)
+        if self._has_module(CTP528CP504):
+            modules.append(self.ctp528)
+        return modules
 
     def analyze(
         self,
