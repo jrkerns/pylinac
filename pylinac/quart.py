@@ -530,5 +530,12 @@ class QuartDVT(CatPhanBase):
         if open_file:
             webbrowser.open(filename)
 
+    def _module_offsets(self) -> list[float]:
+        absolute_origin_position = self.dicom_stack[self.origin_slice].z_position
+        relative_offsets_mm = [0, UNIFORMITY_OFFSET_MM, GEOMETRY_OFFSET_MM]
+        return [
+            absolute_origin_position + offset_mm for offset_mm in relative_offsets_mm
+        ]
+
     def _detected_modules(self) -> list[CatPhanModule]:
         return [self.uniformity_module, self.hu_module, self.geometry_module]

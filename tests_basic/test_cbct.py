@@ -79,6 +79,26 @@ class TestGeneral(TestCase):
         self.assertIsInstance(cbct, CatPhan504)
         self.assertEqual(cbct.origin_slice, ref_cbct.origin_slice)
 
+    def test_scan_extent_not_long_enough_far_side(self):
+        """Test that if a scan doesn't include all the modules it raises an error"""
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        ref_cbct = CatPhan504.from_zip(path)
+        ref_cbct.dicom_stack.images = ref_cbct.dicom_stack.images[
+            :-25
+        ]  # chop off the end
+        with self.assertRaises(ValueError):
+            ref_cbct.localize()
+
+    def test_scan_extent_not_long_enough_near_side(self):
+        """Test that if a scan doesn't include all the modules it raises an error"""
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        ref_cbct = CatPhan504.from_zip(path)
+        ref_cbct.dicom_stack.images = ref_cbct.dicom_stack.images[
+            20:
+        ]  # chop off the end
+        with self.assertRaises(ValueError):
+            ref_cbct.localize()
+
     def test_crop_before_analysis(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         cbct = CatPhan504.from_zip(path)
