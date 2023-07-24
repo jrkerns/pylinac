@@ -37,6 +37,11 @@ class TestContrastAlgorithms(TestCase):
         arr3 = np.array((3, 3, 3))
         self.assertEqual(contrast.michelson(arr3), 0)
 
+    def test_difference(self):
+        self.assertEqual(10, contrast.difference(20, 10))
+        self.assertEqual(10, contrast.difference(10, 20))
+        self.assertEqual(1, contrast.difference(-2, -1))
+
     def test_rms_normal(self):
         arr = np.array((0, 0.5, 1)).astype(float)
         self.assertAlmostEqual(contrast.rms(arr), 0.40825, places=5)
@@ -56,6 +61,18 @@ class TestContrastAlgorithms(TestCase):
         self.assertEqual(
             contrast.michelson(arr2), contrast.contrast(arr2, Contrast.MICHELSON)
         )
+
+    def test_contrast_difference(self):
+        arr = np.array((0.5, 1))
+        self.assertEqual(
+            contrast.difference(arr[0], arr[1]),
+            contrast.contrast(arr, Contrast.DIFFERENCE),
+        )
+
+    def test_contrast_difference_bad_array(self):
+        arr = np.array((0.5, 1, 1.5))
+        with self.assertRaises(ValueError):
+            contrast.contrast(arr, Contrast.DIFFERENCE)
 
     def test_contrast_rms(self):
         arr = np.array((0, 0.5, 1)).astype(float)

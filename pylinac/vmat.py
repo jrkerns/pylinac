@@ -10,6 +10,7 @@ Features:
 """
 from __future__ import annotations
 
+import copy
 import dataclasses
 import enum
 import typing
@@ -24,7 +25,7 @@ import numpy as np
 
 from .core import image
 from .core.geometry import Point, Rectangle
-from .core.image import ImageLike
+from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import Edge, Interpolation, SingleProfile
@@ -137,17 +138,28 @@ class VMATBase:
     segments: list[Segment]
     _tolerance: float
 
-    def __init__(self, image_paths: Sequence[str | BinaryIO | Path]):
+    def __init__(
+        self,
+        image_paths: Sequence[str | BinaryIO | Path],
+        ground=True,
+        check_inversion=True,
+        **kwargs,
+    ):
         """
         Parameters
         ----------
         image_paths : iterable (list, tuple, etc)
             A sequence of paths to the image files.
+        kwargs
+            Passed to the image loading function. See :ref:`~pylinac.core.image.load`.
         """
+        ground = kwargs.get("ground", False) or ground
+        check_inversion = kwargs.get("check_inversion", False) or check_inversion
         if len(image_paths) != 2:
             raise ValueError("Exactly 2 images (open, DMLC) must be passed")
-        image1, image2 = self._load_images(image_paths)
-        image1, image2 = self._check_img_inversion(image1, image2)
+        image1, image2 = self._load_images(image_paths, ground=ground, **kwargs)
+        if check_inversion:
+            image1, image2 = self._check_inversion(image1, image2)
         self._identify_images(image1, image2)
         self.segments = []
         self._tolerance = 0
@@ -165,23 +177,25 @@ class VMATBase:
         return cls.from_zip(zfile)
 
     @classmethod
-    def from_zip(cls, path: str | Path):
+    def from_zip(cls, path: str | Path, **kwargs):
         """Load VMAT images from a ZIP file that contains both images. Must follow the naming convention.
 
         Parameters
         ----------
         path : str
             Path to the ZIP archive which holds the VMAT image files.
+        kwargs
+            Passed to the constructor.
         """
         with TemporaryZipDirectory(path) as tmpzip:
             image_files = image.retrieve_image_files(tmpzip)
-            return cls(image_paths=image_files)
+            return cls(image_paths=image_files, **kwargs)
 
     @classmethod
-    def from_demo_images(cls):
+    def from_demo_images(cls, **kwargs):
         """Construct a VMAT instance using the demo images."""
         demo_file = retrieve_demo_file(name=cls._url_suffix)
-        return cls.from_zip(demo_file)
+        return cls.from_zip(demo_file, **kwargs)
 
     def analyze(
         self,
@@ -212,26 +226,18 @@ class VMATBase:
 
     @staticmethod
     def _load_images(
-        image_paths: Sequence[str | BytesIO],
+        image_paths: Sequence[str | BytesIO], ground, **kwargs
     ) -> tuple[ImageLike, ImageLike]:
-        image1 = image.load(image_paths[0])
-        image2 = image.load(image_paths[1])
-        image1.ground()
-        image2.ground()
+        image1 = image.load(image_paths[0], **kwargs)
+        image2 = image.load(image_paths[1], **kwargs)
+        if ground:
+            image1.ground()
+            image2.ground()
         return image1, image2
 
-    @staticmethod
-    def _check_img_inversion(
-        image1: ImageLike, image2: ImageLike
-    ) -> tuple[ImageLike, ImageLike]:
-        """Check that the images are correctly inverted."""
-        for img in [image1, image2]:
-            img.check_inversion()
-        return image1, image2
-
-    def _identify_images(self, image1: ImageLike, image2: ImageLike):
+    def _identify_images(self, image1: DicomImage, image2: DicomImage):
         """Identify which image is the DMLC and which is the open field."""
-        profile1, profile2 = self._median_profiles((image1, image2))
+        profile1, profile2 = self._median_profiles(image1=image1, image2=image2)
         field_profile1 = profile1.field_data()["field values"]
         field_profile2 = profile2.field_data()["field values"]
         if np.std(field_profile1) > np.std(field_profile2):
@@ -293,7 +299,7 @@ class VMATBase:
     def _calculate_segment_centers(self) -> list[Point]:
         """Construct the center points of the segments based on the field center and known x-offsets."""
         points = []
-        dmlc_prof, _ = self._median_profiles((self.dmlc_image, self.open_image))
+        dmlc_prof, _ = self._median_profiles(self.dmlc_image, self.open_image)
         x_field_center = dmlc_prof.beam_center()["index (rounded)"]
         for roi_data in self.roi_config.values():
             x_offset_mm = roi_data["offset_mm"]
@@ -428,7 +434,7 @@ class VMATBase:
         # plot profile
         elif subimage == ImageType.PROFILE:
             dmlc_prof, open_prof = self._median_profiles(
-                (self.dmlc_image, self.open_image)
+                self.dmlc_image, self.open_image
             )
             ax.plot(dmlc_prof.values, label="DMLC")
             ax.plot(open_prof.values, label="Open")
@@ -459,29 +465,27 @@ class VMATBase:
                 axis, edgecolor=color, text=text, text_rotation=90, fontsize="small"
             )
 
-    @staticmethod
-    def _median_profiles(images) -> tuple[SingleProfile, SingleProfile]:
-        """Return two median profiles from the open and dmlc image. For visual comparison."""
-        profile1 = SingleProfile(
-            np.mean(images[0], axis=0),
-            interpolation=Interpolation.NONE,
-            edge_detection_method=Edge.INFLECTION_DERIVATIVE,
-        )
-        profile1.stretch()
-        profile2 = SingleProfile(
-            np.mean(images[1], axis=0),
-            interpolation=Interpolation.NONE,
-            edge_detection_method=Edge.INFLECTION_DERIVATIVE,
-        )
-        profile2.stretch()
-
-        # normalize the profiles to approximately the same value
-        norm_val = np.percentile(profile1.values, 90)
-        profile1.normalize(norm_val)
-        norm_val = np.percentile(profile2.values, 90)
-        profile2.normalize(norm_val)
-
-        return profile1, profile2
+    @classmethod
+    def _median_profiles(
+        cls, image1: DicomImage, image2: DicomImage
+    ) -> list[SingleProfile, SingleProfile]:
+        """Return two median profiles from the open and DMLC image. Only used for visual purposes.
+        Evaluation is not based on these profiles."""
+        profiles = []
+        for orig_img in (image1, image2):
+            img = copy.deepcopy(orig_img)
+            img.ground()
+            img.check_inversion()
+            profile = SingleProfile(
+                np.mean(img.array, axis=0),
+                interpolation=Interpolation.NONE,
+                edge_detection_method=Edge.INFLECTION_DERIVATIVE,
+            )
+            profile.stretch()
+            norm_val = np.percentile(profile.values, 90)
+            profile.normalize(norm_val)
+            profiles.append(profile)
+        return profiles
 
     def publish_pdf(
         self,
@@ -549,6 +553,12 @@ class VMATBase:
 
         if open_file:
             webbrowser.open(filename)
+
+    @staticmethod
+    def _check_inversion(image1, image2):
+        for img in (image1, image2):
+            img.check_inversion()
+        return image1, image2
 
 
 class DRGS(VMATBase):
