@@ -151,7 +151,7 @@ class VMATBase:
         image_paths : iterable (list, tuple, etc)
             A sequence of paths to the image files.
         kwargs
-            Passed to the image loading function. See :ref:`~pylinac.core.image.load`.
+            Passed to the image loading function. See :func:`~pylinac.core.image.load`.
         """
         ground = kwargs.get("ground", False) or ground
         check_inversion = kwargs.get("check_inversion", False) or check_inversion
