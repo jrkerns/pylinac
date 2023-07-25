@@ -7,6 +7,11 @@ Changelog
 v 3.14.0
 --------
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* An Elekta variant of the Las Vegas phantom has been added: :class:`~pylinac.planar_imaging.ElektaLasVegas`.
+
 CT
 ^^
 

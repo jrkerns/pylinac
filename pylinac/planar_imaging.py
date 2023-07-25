@@ -5,6 +5,7 @@ The following phantoms are supported:
 * Standard Imaging QC-3
 * Standard Imaging QC-kV
 * Las Vegas
+* Elekta Las Vegas
 * Doselab MC2 MV
 * Doselab MC2 kV
 * SNC kV
@@ -29,7 +30,7 @@ import warnings
 import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import BinaryIO, Callable, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -146,7 +147,7 @@ class ImagePhantomBase:
     detection_conditions: list[Callable] = [is_centered, is_right_size]
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
-    roi_match_condition = "max"
+    roi_match_condition: Literal["max", "closest"] = "max"
 
     def __init__(
         self,
@@ -775,7 +776,7 @@ class ImagePhantomBase:
         pass
 
     def _phantom_radius_calc(self):
-        pass
+        return math.sqrt(self.phantom_ski_region.bbox_area)
 
 
 @dataclass
@@ -1321,6 +1322,81 @@ class LasVegas(ImagePhantomBase):
         if as_dict:
             return dataclasses.asdict(data)
         return data
+
+
+class ElektaLasVegas(LasVegas):
+    """Elekta's variant of the Las Vegas."""
+
+    _demo_filename = "elekta_las_vegas.dcm"
+    common_name = "Elekta Las Vegas"
+    phantom_bbox_size_mm2 = 140 * 140
+    phantom_outline_object = {"Rectangle": {"width ratio": 0.61, "height ratio": 0.61}}
+    low_contrast_background_roi_settings = {
+        "roi 1": {"distance from center": 0.24, "angle": 0, "roi radius": 0.03},
+        "roi 2": {"distance from center": 0.24, "angle": 90, "roi radius": 0.03},
+        "roi 3": {"distance from center": 0.24, "angle": 180, "roi radius": 0.03},
+        "roi 4": {"distance from center": 0.24, "angle": 270, "roi radius": 0.03},
+    }
+    low_contrast_roi_settings = {
+        "roi 1": {"distance from center": 0.161, "angle": 0.4, "roi radius": 0.024},
+        "roi 2": {"distance from center": 0.181, "angle": 28.6, "roi radius": 0.024},
+        "roi 3": {"distance from center": 0.238, "angle": 47.45, "roi radius": 0.024},
+        "roi 4": {"distance from center": 0.183, "angle": -70.6, "roi radius": 0.015},
+        "roi 5": {"distance from center": 0.107, "angle": -55.1, "roi radius": 0.015},
+        "roi 6": {"distance from center": 0.061, "angle": 1, "roi radius": 0.015},
+        "roi 7": {"distance from center": 0.107, "angle": 55.15, "roi radius": 0.015},
+        "roi 8": {"distance from center": 0.185, "angle": 71.1, "roi radius": 0.015},
+        "roi 9": {"distance from center": 0.175, "angle": -97.3, "roi radius": 0.011},
+        "roi 10": {"distance from center": 0.09, "angle": -104.3, "roi radius": 0.011},
+        "roi 11": {"distance from center": 0.022, "angle": -180, "roi radius": 0.011},
+        "roi 12": {"distance from center": 0.088, "angle": 104.6, "roi radius": 0.011},
+        "roi 13": {"distance from center": 0.1757, "angle": 97.26, "roi radius": 0.011},
+        "roi 14": {
+            "distance from center": 0.1945,
+            "angle": -116.58,
+            "roi radius": 0.006,
+        },
+        "roi 15": {
+            "distance from center": 0.124,
+            "angle": -135.11,
+            "roi radius": 0.006,
+        },
+        "roi 16": {
+            "distance from center": 0.0876,
+            "angle": 179.85,
+            "roi radius": 0.006,
+        },
+        "roi 17": {"distance from center": 0.1227, "angle": 135.4, "roi radius": 0.006},
+        "roi 18": {
+            "distance from center": 0.1947,
+            "angle": 116.65,
+            "roi radius": 0.006,
+        },
+        "roi 19": {
+            "distance from center": 0.2258,
+            "angle": -129.53,
+            "roi radius": 0.003,
+        },
+        "roi 20": {
+            "distance from center": 0.1699,
+            "angle": -148.57,
+            "roi radius": 0.003,
+        },
+        "roi 21": {
+            "distance from center": 0.145,
+            "angle": -179.82,
+            "roi radius": 0.003,
+        },
+        "roi 22": {"distance from center": 0.1682, "angle": 149, "roi radius": 0.003},
+    }
+
+    @staticmethod
+    def run_demo():
+        """Run the Elekta Las Vegas phantom analysis demonstration."""
+        lv = ElektaLasVegas.from_demo_image()
+        lv.image.rot90(n=3)
+        lv.analyze()
+        lv.plot_analyzed_image()
 
 
 class PTWEPIDQC(ImagePhantomBase):

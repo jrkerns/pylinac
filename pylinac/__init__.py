@@ -37,6 +37,7 @@ from .planar_imaging import (
     SNCMV12510,
     DoselabMC2kV,
     DoselabMC2MV,
+    ElektaLasVegas,
     IBAPrimusA,
     IMTLRad,
     LasVegas,

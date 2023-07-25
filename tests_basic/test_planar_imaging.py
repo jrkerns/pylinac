@@ -11,6 +11,7 @@ from scipy.ndimage import rotate
 from pylinac import (
     DoselabMC2kV,
     DoselabMC2MV,
+    ElektaLasVegas,
     IBAPrimusA,
     LasVegas,
     LeedsTOR,
@@ -388,6 +389,35 @@ class LasVegasTB1(LasVegasTestMixin, TestCase):
         "6MV LasVegas HQ 0deg - ImageRT_2016-10-6 20-10-17.dcm",
     ]
     phantom_angle = 284.5
+
+
+class ElektaLasVegasMixin(LasVegasTestMixin):
+    dir_path = ["planar_imaging", "Elekta Las Vegas"]
+    klass = ElektaLasVegas
+
+    @classmethod
+    def setUpClass(cls):
+        cls.instance = cls.create_instance()
+        cls.preprocess(cls.instance)
+        cls.instance.image.rot90(n=3)
+        cls.instance.analyze(ssd=cls.ssd, invert=cls.invert)
+
+
+class ElektaDemo(ElektaLasVegasMixin, TestCase):
+    rois_seen = 17
+
+    def test_demo(self):
+        ElektaLasVegas.run_demo()  # shouldn't raise
+
+
+class Elekta2MU(ElektaLasVegasMixin, TestCase):
+    file_name = "LasVegas_2MU.dcm"
+    rois_seen = 12
+
+
+class Elekta10MU(ElektaLasVegasMixin, TestCase):
+    file_name = "LasVegas_10MU.dcm"
+    rois_seen = 17
 
 
 class DoselabMVDemo(PlanarPhantomMixin, TestCase):

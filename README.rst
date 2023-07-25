@@ -4,17 +4,29 @@
     :target: https://github.com/jrkerns/pylinac
     :align: center
 
-.. image:: https://img.shields.io/pypi/v/pylinac.svg
+.. image:: https://img.shields.io/pypi/v/pylinac?logo=pypi
     :target: https://pypi.python.org/pypi/pylinac
     :alt: Latest Version
 
-.. image:: https://img.shields.io/pypi/l/pylinac.svg
+.. image:: https://img.shields.io/pypi/pyversions/pylinac?logo=python
+    :alt: PyPI - Python Version
+
+.. image:: https://img.shields.io/pypi/wheel/pylinac
+    :alt: PyPI - Wheel
+
+.. image:: https://img.shields.io/github/license/jrkerns/pylinac
     :target: https://choosealicense.com/licenses/mit/
     :alt: MIT
 
-.. image:: https://readthedocs.org/projects/pylinac/badge/?version=stable
+.. image:: https://img.shields.io/readthedocs/pylinac?logo=readthedocs
     :target: http://pylinac.readthedocs.org/en/stable/
-    :alt: Documentation Status
+    :alt: Read the Docs
+
+.. image:: https://img.shields.io/pypi/dm/pylinac
+    :alt: PyPI - Downloads
+
+.. image:: https://img.shields.io/github/commit-activity/m/jrkerns/pylinac
+    :alt: GitHub commit activity (branch)
 
 
 Pylinac provides TG-142 quality assurance (QA) tools to Python programmers in the field of
