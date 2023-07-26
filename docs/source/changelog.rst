@@ -44,6 +44,8 @@ ACR
 * The ACR MRI module classes can now be defined at the class-level, similar to the ACR CT. This was
   changed so that users can more easily change aspects of each module.
   See the :ref:`customizing-acr-modules` section for more.
+* The ACR MRI phantom :class:`~pylinac.acr.MRUniformityModuleOutput` had a typo. The property ``ghost_rois`` was actually spelled ``ghose_rois``.
+  Any code using this property should be updated to the correct spelling.
 
 Quart
 ^^^^^
