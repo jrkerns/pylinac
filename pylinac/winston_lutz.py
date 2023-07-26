@@ -2034,7 +2034,7 @@ def _bb_projection_with_rotation(
     gantry: float,
     couch: float = 0,
     sad: float = 1000,
-) -> np.array:
+) -> np.ndarray:
     """Calculate the isoplane projection onto the panel at the given SSD.
 
     This function applies a rotation around the gantry plane (X/Z) to the
@@ -2053,7 +2053,7 @@ def _bb_projection_with_rotation(
 
     Returns
     -------
-    np.array: The projection of the BB onto the panel at the given SSD.
+    np.ndarray: The projection of the BB onto the panel at the given SSD.
         The array has shape (2,) where the first element is the projection in the
         left/right direction and the second element is the projection in the
         superior/inferior direction.

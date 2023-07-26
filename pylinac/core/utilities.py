@@ -135,7 +135,7 @@ def decode_binary(
     num_values: int = 1,
     cursor_shift: int = 0,
     strip_empty: bool = True,
-) -> int | float | str | np.array | list:
+) -> int | float | str | np.ndarray | list:
     """Read in a raw binary file and convert it to given data types.
 
     Parameters

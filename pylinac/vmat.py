@@ -327,7 +327,7 @@ class VMATBase:
         return all(segment.passed for segment in self.segments)
 
     @property
-    def r_devs(self) -> np.array:
+    def r_devs(self) -> np.ndarray:
         """Return the deviations of all segments as an array."""
         return np.array([segment.r_dev for segment in self.segments])
 

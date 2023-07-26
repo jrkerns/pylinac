@@ -6,13 +6,13 @@ from scipy import ndimage
 from .decorators import validate
 
 
-def array_not_empty(array: np.array) -> None:
+def array_not_empty(array: np.ndarray) -> None:
     """Check an array isn't empty"""
     if not array.size:
         raise ValueError("Array must not be empty")
 
 
-def single_dimension(array: np.array) -> None:
+def single_dimension(array: np.ndarray) -> None:
     """Check an array is a single dimension"""
     if array.ndim > 1:
         raise ValueError(
@@ -21,7 +21,7 @@ def single_dimension(array: np.array) -> None:
 
 
 @validate(array=(array_not_empty, single_dimension))
-def geometric_center_idx(array: np.array) -> float:
+def geometric_center_idx(array: np.ndarray) -> float:
     """Returns the center index and value of the profile.
 
     If the profile has an even number of array the centre lies between the two centre indices and the centre

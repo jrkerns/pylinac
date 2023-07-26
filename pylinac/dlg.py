@@ -114,7 +114,7 @@ class DLG:
                 return gap
 
     @staticmethod
-    def _determine_measured_gap(profile: np.array) -> float:
+    def _determine_measured_gap(profile: np.ndarray) -> float:
         """Return the measured gap based on profile height"""
         mid_value = profile[int(len(profile) / 2)]
         prof = SingleProfile(profile, normalization_method=Normalization.NONE)

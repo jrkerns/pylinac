@@ -317,7 +317,7 @@ class Axis:
     Parameters are Attributes
     """
 
-    def __init__(self, actual: np.array, expected: np.array | None = None):
+    def __init__(self, actual: np.ndarray, expected: np.ndarray | None = None):
         """
         Parameters
         ----------
@@ -339,7 +339,7 @@ class Axis:
             self.expected = expected
 
     @property
-    def difference(self) -> np.array:
+    def difference(self) -> np.ndarray:
         """Return an array of the difference between actual and expected positions.
 
         Returns
@@ -457,7 +457,7 @@ class FluenceBase:
         mu_axis : BeamAxis
         jaw_struct : Jaw_Struct
         """
-        self.array: np.array = np.empty((0, 0))
+        self.array: np.ndarray = np.empty((0, 0))
         self._mlc = mlc_struct
         self._mu = mu_axis
         self._jaws = jaw_struct
@@ -473,7 +473,9 @@ class FluenceBase:
             return calced
 
     @lru_cache(maxsize=1)
-    def calc_map(self, resolution: float = 0.1, equal_aspect: bool = False) -> np.array:
+    def calc_map(
+        self, resolution: float = 0.1, equal_aspect: bool = False
+    ) -> np.ndarray:
         """Calculate a fluence pixel map.
 
         Image calculation is done by adding fluence snapshot by snapshot, and leaf pair by leaf pair.
@@ -676,8 +678,8 @@ class GammaFluence(FluenceBase):
         mlc_struct : MLC_Struct
             The MLC structure, so fluence can be calculated from leaf positions.
         """
-        self.array: np.array = np.empty((0, 0))
-        self.passfail_array: np.array
+        self.array: np.ndarray = np.empty((0, 0))
+        self.passfail_array: np.ndarray
         self._actual_fluence: ActualFluence = actual_fluence
         self._expected_fluence: ExpectedFluence = expected_fluence
         self._mlc: MLC = mlc_struct
@@ -690,7 +692,7 @@ class GammaFluence(FluenceBase):
         threshold: int | float = 0.1,
         resolution: int | float = 0.1,
         calc_individual_maps: bool = False,
-    ) -> np.array:
+    ) -> np.ndarray:
         """Calculate the gamma from the actual and expected fluences.
 
         The gamma calculation is based on `Bakai et al
@@ -759,7 +761,7 @@ class GammaFluence(FluenceBase):
         plt.colorbar()
         plt.show()
 
-    def histogram(self, bins: list | None = None) -> tuple[np.array, np.array]:
+    def histogram(self, bins: list | None = None) -> tuple[np.ndarray, np.ndarray]:
         """Return a histogram array and bin edge array of the gamma map values.
 
         Parameters
@@ -842,7 +844,7 @@ class MLC:
     def __init__(
         self,
         log_type,
-        snapshot_idx: np.array | None = None,
+        snapshot_idx: np.ndarray | None = None,
         jaw_struct=None,
         hdmlc: bool = False,
         subbeams=None,
@@ -877,8 +879,8 @@ class MLC:
         cls,
         dlog,
         jaws,
-        snapshot_data: np.array,
-        snapshot_idx: list | np.array,
+        snapshot_data: np.ndarray,
+        snapshot_idx: list | np.ndarray,
     ):
         """Construct an MLC structure from a Dynalog"""
         mlc = MLC(Dynalog, snapshot_idx, jaws)
@@ -951,7 +953,7 @@ class MLC:
         return len(self.moving_leaves)
 
     @cached_property
-    def moving_leaves(self) -> np.array:
+    def moving_leaves(self) -> np.ndarray:
         """Return an array of the leaves that moved during treatment."""
         threshold = 0.01
         indices = ()
@@ -1007,7 +1009,7 @@ class MLC:
         return self.leaf_moved(a_leaf) or self.leaf_moved(b_leaf)
 
     @property
-    def _all_leaf_indices(self) -> np.array:
+    def _all_leaf_indices(self) -> np.ndarray:
         """Return an array enumerated over all the leaves."""
         return np.array(range(1, len(self.leaf_axes) + 1))
 
@@ -1088,7 +1090,7 @@ class MLC:
         rms_array = self.create_RMS_array(leaves)
         return np.percentile(rms_array, percentile)
 
-    def get_RMS(self, leaves_or_bank: str | MLCBank | Iterable) -> np.array:
+    def get_RMS(self, leaves_or_bank: str | MLCBank | Iterable) -> np.ndarray:
         """Return an array of leaf RMSs for the given leaves or MLC bank.
 
         Parameters
@@ -1170,7 +1172,7 @@ class MLC:
 
     def create_error_array(
         self, leaves: Sequence[int], absolute: bool = True
-    ) -> np.array:
+    ) -> np.ndarray:
         """Create and return an error array of only the leaves specified.
 
         Parameters
@@ -1192,7 +1194,7 @@ class MLC:
             error_array = self._error_array_all_leaves
         return error_array[leaves, :]
 
-    def create_RMS_array(self, leaves: Sequence[int]) -> np.array:
+    def create_RMS_array(self, leaves: Sequence[int]) -> np.ndarray:
         """Create an RMS array of only the leaves specified.
 
         Parameters
@@ -1217,7 +1219,7 @@ class MLC:
         return np.abs(self._error_array_all_leaves)
 
     @cached_property
-    def _error_array_all_leaves(self) -> np.array:
+    def _error_array_all_leaves(self) -> np.ndarray:
         """Error array of all leaves."""
         mlc_error = np.zeros((self.num_leaves, self.num_snapshots))
         # construct numpy array for easy array calculation
@@ -1226,7 +1228,7 @@ class MLC:
         return mlc_error
 
     @argue.options(dtype=("actual", "expected"))
-    def _snapshot_array(self, dtype: str = "actual") -> np.array:
+    def _snapshot_array(self, dtype: str = "actual") -> np.ndarray:
         """Return an array of the snapshot data of all leaves."""
         arr = np.zeros((self.num_leaves, self.num_snapshots))
         # construct numpy array for easy array calculation
@@ -1235,7 +1237,7 @@ class MLC:
         return arr
 
     @cached_property
-    def _RMS_array_all_leaves(self) -> np.array:
+    def _RMS_array_all_leaves(self) -> np.ndarray:
         """Return the RMS of all leaves."""
         rms_array = np.array(
             [
@@ -1285,7 +1287,7 @@ class MLC:
         self,
         bank_or_leaf: MLCBank | Iterable = MLCBank.BOTH,
         dtype: str = "actual",
-    ) -> np.array:
+    ) -> np.ndarray:
         """Retrieve the snapshot data of the given MLC bank or leaf/leaves
 
         Parameters

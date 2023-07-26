@@ -37,15 +37,15 @@ warnings.simplefilter("ignore", OptimizeWarning)
 
 
 def gamma_1d(
-    reference: np.array,
-    evaluation: np.array,
+    reference: np.ndarray,
+    evaluation: np.ndarray,
     dose_to_agreement: float = 1,
     distance_to_agreement: int = 1,
     gamma_cap_value: float = 2,
     global_dose: bool = True,
     dose_threshold: float = 5,
     fill_value: float = np.nan,
-) -> np.array:
+) -> np.ndarray:
     """Perform a 1D gamma of two 1D profiles/arrays. This does NOT check lengths or
     spatial consistency. It performs an element-by-element evaluation. It is the responsibility
     of the caller to ensure the reference and evaluation have comparable spatial resolution.
@@ -111,8 +111,8 @@ def gamma_1d(
 
 
 def stretch(
-    array: np.array, min: int = 0, max: int = 1, fill_dtype: np.dtype | None = None
-) -> np.array:
+    array: np.ndarray, min: int = 0, max: int = 1, fill_dtype: np.dtype | None = None
+) -> np.ndarray:
     """'Stretch' the profile to the fit a new min and max value and interpolate in between.
     From: http://www.labri.fr/perso/nrougier/teaching/numpy.100/  exercise #17
 
@@ -155,7 +155,7 @@ def stretch(
 class ProfileMixin:
     """A mixin to provide various manipulations of 1D profile data."""
 
-    values: np.array
+    values: np.ndarray
 
     def invert(self) -> None:
         """Invert the profile."""
@@ -261,7 +261,7 @@ class SingleProfile(ProfileMixin):
 
     def __init__(
         self,
-        values: np.array,
+        values: np.ndarray,
         dpmm: float = None,
         interpolation: Interpolation | str | None = Interpolation.LINEAR,
         ground: bool = True,
@@ -271,7 +271,7 @@ class SingleProfile(ProfileMixin):
         edge_detection_method: Edge | str = Edge.FWHM,
         edge_smoothing_ratio: float = 0.003,
         hill_window_ratio: float = 0.1,
-        x_values: np.array | None = None,
+        x_values: np.ndarray | None = None,
     ):
         """
         Parameters
@@ -344,7 +344,7 @@ class SingleProfile(ProfileMixin):
             x_indices, norm_values, bounds_error=False, fill_value="extrapolate"
         )
 
-    def _x_interp_to_original(self, location: float | np.array) -> float | np.array:
+    def _x_interp_to_original(self, location: float | np.ndarray) -> float | np.ndarray:
         """Get the x-value of the (possibly) interpolated profile. The input value is in the original
         value range. E.g. a profile with x-range of 0-10 is interpolated to 10x. Asking for the location at 99 would scale back to 9.9.
         We need this function because peak finding is independent of the x-values. I.e. peaks are found and reported according
@@ -355,7 +355,7 @@ class SingleProfile(ProfileMixin):
             return float(x)
         return x
 
-    def _y_original_to_interp(self, location: float | np.array) -> float | np.array:
+    def _y_original_to_interp(self, location: float | np.ndarray) -> float | np.ndarray:
         """Get the interpolated y-value of the profile. This is a corollary to the _x_interp... function"""
         y = self._y_interp1d(location)
         if isinstance(location, (float, int)) or location.size == 1:
@@ -393,7 +393,7 @@ class SingleProfile(ProfileMixin):
         interpolation_resolution,
         interpolation_factor,
         interp_method: Interpolation,
-    ) -> (np.array, float, float, float):
+    ) -> (np.ndarray, float, float, float):
         """Fit the data to the passed interpolation method. Will also calculate the new values to correct the measurements such as dpmm"""
         if x_values is None:
             x_values = np.array(range(len(values)))
@@ -439,7 +439,7 @@ class SingleProfile(ProfileMixin):
             new_y = f(new_x)
             return new_y, new_dpmm, new_x
 
-    def _normalize(self, values, method: Normalization) -> np.array:
+    def _normalize(self, values, method: Normalization) -> np.ndarray:
         """Normalize the data given a method."""
         if method == Normalization.NONE:
             return values

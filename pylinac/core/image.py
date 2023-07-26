@@ -113,7 +113,7 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, Imag
     return image1, image2
 
 
-def is_image(path: str | io.BytesIO | ImageLike | np.array) -> bool:
+def is_image(path: str | io.BytesIO | ImageLike | np.ndarray) -> bool:
     """Determine whether the path is a valid image file.
 
     Returns
@@ -134,7 +134,7 @@ def retrieve_image_files(path: str) -> list[str]:
     return retrieve_filenames(directory=path, func=is_image)
 
 
-def load(path: str | Path | ImageLike | np.array | BinaryIO, **kwargs) -> ImageLike:
+def load(path: str | Path | ImageLike | np.ndarray | BinaryIO, **kwargs) -> ImageLike:
     r"""Load a DICOM image, JPG/TIF/BMP image, or numpy 2D array.
 
     Parameters
@@ -248,7 +248,7 @@ def load_multiples(
     return first_img
 
 
-def _is_dicom(path: str | Path | io.BytesIO | ImageLike | np.array) -> bool:
+def _is_dicom(path: str | Path | io.BytesIO | ImageLike | np.ndarray) -> bool:
     """Whether the file is a readable DICOM file via pydicom."""
     return is_dicom_image(file=path)
 
@@ -264,7 +264,7 @@ def _is_image_file(path: str | Path) -> bool:
 
 def _is_array(obj: Any) -> bool:
     """Whether the object is a numpy array."""
-    return isinstance(obj, np.array)
+    return isinstance(obj, np.ndarray)
 
 
 class BaseImage:
@@ -278,11 +278,11 @@ class BaseImage:
         The actual image pixel array.
     """
 
-    array: np.array
+    array: np.ndarray
     path: str | Path
 
     def __init__(
-        self, path: str | Path | BytesIO | ImageLike | np.array | BufferedReader
+        self, path: str | Path | BytesIO | ImageLike | np.ndarray | BufferedReader
     ):
         """
         Parameters
@@ -632,7 +632,7 @@ class BaseImage:
         threshold: float = 0.1,
         ground: bool = True,
         normalize: bool = True,
-    ) -> np.array:
+    ) -> np.ndarray:
         """Calculate the gamma between the current image (reference) and a comparison image.
 
         .. versionadded:: 1.2
@@ -714,7 +714,7 @@ class BaseImage:
 
         return gamma_map
 
-    def as_type(self, dtype: np.dtype) -> np.array:
+    def as_type(self, dtype: np.dtype) -> np.ndarray:
         return self.array.astype(dtype)
 
     @property
@@ -736,11 +736,11 @@ class BaseImage:
     def sum(self) -> float:
         return self.array.sum()
 
-    def ravel(self) -> np.array:
+    def ravel(self) -> np.ndarray:
         return self.array.ravel()
 
     @property
-    def flat(self) -> np.array:
+    def flat(self) -> np.ndarray:
         return self.array.flat
 
     def __len__(self):
@@ -761,7 +761,7 @@ class XIM(BaseImage):
     - https://bitbucket.org/dmoderesearchtools/ximreader/src/master/
     """
 
-    array: np.array  #:
+    array: np.ndarray  #:
     properties: dict  #:
 
     def __init__(self, file_path: str | Path, read_pixels: bool = True):
@@ -831,7 +831,7 @@ class XIM(BaseImage):
                 self.properties[name] = value
 
     @staticmethod
-    def _parse_lookup_table(lookup_table_bytes: np.array) -> np.array:
+    def _parse_lookup_table(lookup_table_bytes: np.ndarray) -> np.ndarray:
         """The lookup table doesn't follow normal structure conventions like 1, 2, or 4 byte values. They
         got smart and said each value is 2 bits. Yes, bits. This means each byte is actually 4 values.
         Python only reads things as granular as bytes. To get around this the general logic is:
@@ -862,8 +862,8 @@ class XIM(BaseImage):
         return np.asarray(table, dtype=np.int8)
 
     def _parse_compressed_bytes(
-        self, xim: BinaryIO, lookup_table: np.array
-    ) -> np.array:
+        self, xim: BinaryIO, lookup_table: np.ndarray
+    ) -> np.ndarray:
         """Parse the compressed pixels. We have to do this pixel-by-pixel because each
         pixel can have a different number of bytes representing it
 
@@ -906,7 +906,7 @@ class XIM(BaseImage):
         return a.reshape((img_height, img_width))
 
     @staticmethod
-    def _get_diffs(lookup_table: np.array, xim: BinaryIO):
+    def _get_diffs(lookup_table: np.ndarray, xim: BinaryIO):
         """Read in all the pixel value 'diffs'. These can be 1, 2, or 4 bytes in size,
         so instead of just reading N pixels of M bytes which would be SOOOO easy, we have to read dynamically
 
@@ -952,7 +952,7 @@ class XIM(BaseImage):
         # we construct the custom PNG tags; it won't be included for tiff or jpeg, etc but it won't error it either.
         metadata = PngInfo()
         for prop, value in self.properties.items():
-            if isinstance(value, np.array):
+            if isinstance(value, np.ndarray):
                 value = value.tolist()
             if not isinstance(value, str):
                 value = json.dumps(value)
@@ -1330,7 +1330,7 @@ class ArrayImage(BaseImage):
 
     def __init__(
         self,
-        array: np.array,
+        array: np.ndarray,
         *,
         dpi: float = None,
         sid: float = None,
@@ -1592,15 +1592,15 @@ def tiff_to_dicom(
 
 
 def gamma_2d(
-    reference: np.array,
-    evaluation: np.array,
+    reference: np.ndarray,
+    evaluation: np.ndarray,
     dose_to_agreement: float = 1,
     distance_to_agreement: int = 1,
     gamma_cap_value: float = 2,
     global_dose: bool = True,
     dose_threshold: float = 5,
     fill_value: float = np.nan,
-) -> np.array:
+) -> np.ndarray:
     """Compute a 2D gamma of two 2D numpy arrays. This does NOT do size or spatial resolution checking.
     It performs an element-by-element evaluation. It is the responsibility
     of the caller to ensure the reference and evaluation have comparable spatial resolution.

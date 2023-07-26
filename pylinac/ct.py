@@ -164,7 +164,7 @@ class HUDiskROI(DiskROI):
 
     def __init__(
         self,
-        array: np.array | ArrayImage,
+        array: np.ndarray | ArrayImage,
         angle: float,
         roi_radius: float,
         dist_from_center: float,
