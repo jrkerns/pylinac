@@ -424,6 +424,7 @@ Given the above terms, the following calculations are performed.
   For EPID, the displacement is calculated as the distance from image center to BB for all images with couch=0. If no
   images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
 
+.. _wl-algorithm:
 
 Algorithm
 ---------
@@ -445,6 +446,7 @@ This method is used to determine the shift instructions. Specifically, equations
     IEC 61217. By default, Pylinac assumes the images are in IEC 61217 scale and will internally convert it to varian scale
     to be able to use Low's equations.
     To use a different scale use the ``machine_scale`` parameter, shown here :ref:`passing-a-coordinate-system`.
+    Also see :ref:`scale`.
 
 The algorithm works like such:
 
