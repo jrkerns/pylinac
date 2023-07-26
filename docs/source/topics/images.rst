@@ -138,21 +138,35 @@ this has changed in v3.0.
 
 .. note:: The axiom for pylinac (for v3.0+) is that higher pixel values == more radiation == lighter/whiter display
 
-Assigned pixel values now have the following logic:
+Image pixel values will proceed through the following conditions. The
+first condition that matches will be executed:
 
-If the image has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_,
-`Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052>`_ and the `Pixel Intensity Relationship Sign <https://dicom.innolitics.com/ciods/rt-image/rt-image/00281041>`_
-attributes, all of them are applied with a simple linear correction: :math:`P_{corrected} = Sign * Slope * P_{raw} + Intercept`
-Images from newer linac platforms appear more likely to have this attribute.
+* If the ``raw_pixels`` parameter is set to ``True``, no tags will be searched and
+  the values from the DICOM file will be used directly. E.g.
 
-If the image only has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_ and
-`Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052>`_ but not the relationship tag then it is applied as:
-:math:`P_{corrected} = Slope * P_{raw} + Intercept`. This is the most common scenario encountered to date.
+  .. code-block:: python
 
-.. note:: It is possible that the slope has a negative value which is implicitly applying a relationship and would be equivalent to the first case, however, older images often have a simple positive slope relationship.
+    from pylinac.core import image
 
-If the image does not have these two tags, then an imcompliment is applied: :math:`new array = -old array + max(old array) + min(old array)`.
-Very old images will likely reach this condition.
+    dcm = image.load("my_dcm_file.dcm", raw_pixels=True)
+    # OR
+    dcm = image.DicomImage("my_dcm_file.dcm", raw_pixels=True)
+
+  .. versionadded:: 3.13
+
+* If the image has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_,
+  `Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052>`_ and the `Pixel Intensity Relationship Sign <https://dicom.innolitics.com/ciods/rt-image/rt-image/00281041>`_
+  attributes, all of them are applied with a simple linear correction: :math:`P_{corrected} = Sign * Slope * P_{raw} + Intercept`
+  Images from newer linac platforms appear more likely to have this attribute.
+
+* If the image only has the `Rescale Slope <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281053>`_ and
+  `Rescale Intercept <https://dicom.innolitics.com/ciods/ct-image/ct-image/00281052>`_ but not the relationship tag then it is applied as:
+  :math:`P_{corrected} = Slope * P_{raw} + Intercept`. This is the most common scenario encountered to date.
+
+  .. note:: It is possible that the slope has a negative value which is implicitly applying a relationship and would be equivalent to the first case, however, older images often have a simple positive slope relationship.
+
+* If the image does not have these two tags, then an imcompliment is applied: :math:`new array = -old array + max(old array) + min(old array)`.
+  Very old images will likely reach this condition.
 
 .. note::
 

@@ -30,6 +30,7 @@ from typing import BinaryIO, Callable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
 from py_linq import Enumerable
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
@@ -352,6 +353,7 @@ class CatPhanModule(Slice):
         self.origin_slice = catphan.origin_slice
         self.tolerance = tolerance
         self.slice_thickness = catphan.dicom_stack.metadata.SliceThickness
+        self.slice_spacing = catphan.dicom_stack[0].slice_spacing
         self.catphan_roll = catphan.catphan_roll
         self.mm_per_pixel = catphan.mm_per_pixel
         self.rois: dict[str, HUDiskROI] = {}
@@ -410,7 +412,7 @@ class CatPhanModule(Slice):
         -------
         float
         """
-        return int(self.origin_slice + round(self._offset / self.slice_thickness))
+        return int(self.origin_slice + round(self._offset / self.slice_spacing))
 
     def _setup_rois(self) -> None:
         for name, setting in self.background_roi_settings.items():
@@ -1493,6 +1495,7 @@ class CatPhanBase:
     clear_borders: bool = True
     hu_origin_slice_variance = 400  # the HU variance required on the origin slice
     _phantom_center_func: tuple[Callable, Callable] | None = None
+    modules: dict[CatPhanModule, dict[str, int]]
 
     def __init__(
         self,
@@ -1584,10 +1587,14 @@ class CatPhanBase:
         self.ctp404.plot(hu_ax)
         hu_lin_ax = plt.subplot2grid(grid_size, (0, 2))
         self.ctp404.plot_linearity(hu_lin_ax)
+        # plot side view w/ module locations
+        side_ax = plt.subplot2grid(grid_size, (1, 2))
+        self.plot_side_view(side_ax)
+        # plot individual modules
         if self._has_module(CTP486):
             unif_ax = plt.subplot2grid(grid_size, (0, 0))
             self.ctp486.plot(unif_ax)
-            unif_prof_ax = plt.subplot2grid(grid_size, (1, 2), colspan=2)
+            unif_prof_ax = plt.subplot2grid(grid_size, (1, 3))
             self.ctp486.plot_profiles(unif_prof_ax)
         if self._has_module(CTP528CP504):
             sr_ax = plt.subplot2grid(grid_size, (1, 0))
@@ -1626,7 +1633,7 @@ class CatPhanBase:
 
         Parameters
         ----------
-        subimage : {'hu', 'un', 'sp', 'lc', 'mtf', 'lin', 'prof'}
+        subimage : {'hu', 'un', 'sp', 'lc', 'mtf', 'lin', 'prof', 'side'}
             The subcomponent to plot. Values must contain one of the following letter combinations.
             E.g. ``linearity``, ``linear``, and ``lin`` will all draw the HU linearity values.
 
@@ -1637,6 +1644,7 @@ class CatPhanBase:
             * ``mtf`` draws the RMTF plot.
             * ``lin`` draws the HU linearity values. Used with ``delta``.
             * ``prof`` draws the HU uniformity profiles.
+            * ``side`` draws the side view of the phantom with lines of the module locations.
         delta : bool
             Only for use with ``lin``. Whether to plot the HU delta or actual values.
         show : bool
@@ -1670,6 +1678,9 @@ class CatPhanBase:
         elif "prof" in subimage:
             plt.axis("on")
             self.ctp486.plot_profiles(ax)
+        elif "side" in subimage:
+            ax = plt.gca()
+            self.plot_side_view(ax)
         else:
             raise ValueError(f"Subimage parameter {subimage} not understood")
 
@@ -1718,6 +1729,32 @@ class CatPhanBase:
         self._phantom_center_func = self.find_phantom_axis()
         self.origin_slice = self.find_origin_slice()
         self.catphan_roll = self.find_phantom_roll()
+        # now that we have the origin slice, ensure we have scanned all linked modules
+        if not self._ensure_physical_scan_extent():
+            raise ValueError(
+                "The physical scan extent does not match the module configuration. "
+                "This means not all modules were included in the scan. Rescan the phantom to include all"
+                "relevant modules, or remove modules from the analysis."
+            )
+
+    def _module_offsets(self) -> list[float]:
+        """A list of the module offsets. Used to confirm scan extent"""
+        absolute_origin_position = self.dicom_stack.images[self.origin_slice].z_position
+        return [
+            absolute_origin_position + config["offset"]
+            for config in self.modules.values()
+        ]
+
+    def _ensure_physical_scan_extent(self) -> bool:
+        """Ensure that all the modules of the phantom have been scanned. If a CBCT isn't
+        positioned correctly, some modules might not be included."""
+        min_scan_extent_slice = min(s.z_position for s in self.dicom_stack)
+        max_scan_extent_slice = max(s.z_position for s in self.dicom_stack)
+        min_config_extent_slice = min(self._module_offsets())
+        max_config_extent_slice = max(self._module_offsets())
+        return (min_config_extent_slice >= min_scan_extent_slice) and (
+            max_config_extent_slice <= max_scan_extent_slice
+        )
 
     def find_phantom_axis(self) -> (Callable, Callable):
         """We fit all the center locations of the phantom across all slices to a 1D poly function instead of finding them individually for robustness.
@@ -1739,14 +1776,19 @@ class CatPhanBase:
                 z.append(idx)
                 center_y.append(roi.centroid[0])
                 center_x.append(roi.centroid[1])
-        # clip within percentiles to exclude any crazy values
+        # clip to exclude any crazy values
         zs = np.array(z)
         center_xs = np.array(center_x)
         center_ys = np.array(center_y)
-        p30, p70 = np.percentile(center_x, [30, 70])
-        x_idxs = np.argwhere((p30 < center_xs) & (center_xs < p70))
-        p30, p70 = np.percentile(center_y, [30, 70])
-        y_idxs = np.argwhere((p30 < center_ys) & (center_ys < p70))
+        # gives an absolute and relative range so tight ranges are all included
+        # but extreme values are excluded. Sometimes the range is very tight
+        # and thus percentiles are not a sure thing
+        x_idxs = np.argwhere(
+            np.isclose(np.median(center_xs), center_xs, atol=3, rtol=0.01)
+        )
+        y_idxs = np.argwhere(
+            np.isclose(np.median(center_ys), center_ys, atol=3, rtol=0.01)
+        )
         common_idxs = np.intersect1d(x_idxs, y_idxs)
         # fit to 1D polynomials; inspiration: https://stackoverflow.com/a/45351484
         fit_zx = np.poly1d(np.polyfit(zs[common_idxs], center_xs[common_idxs], deg=1))
@@ -1915,13 +1957,14 @@ class CatPhanBase:
             module_images.append(("un", "prof"))
         if self._has_module(CTP515):
             module_images.append(("lc", None))
+        module_images.append(("side", None))
 
         self._publish_pdf(
             filename,
             metadata,
             notes,
             analysis_title,
-            self.results(as_list=True),
+            [*self.results(as_list=True), ""],
             module_images,
             logo,
         )
@@ -1966,6 +2009,26 @@ class CatPhanBase:
                 os.remove(img.path)
             except:
                 pass
+
+    def plot_side_view(self, axis: Axes) -> None:
+        """Plot a view of the scan from the side with lines showing detected module positions"""
+        side_array = np.stack(self.dicom_stack.images, axis=-1).max(axis=1)
+        axis.set_yticks([])
+        axis.set_title("Side View")
+        axis.imshow(side_array, aspect="auto", cmap="gray", interpolation="none")
+        for module in self._detected_modules():
+            axis.axvline(module.slice_num)
+
+    def _detected_modules(self) -> list[CatPhanModule]:
+        """A list of the modules detected. Unlike _get_module, this returns the instances"""
+        modules = [self.ctp404]
+        if self._has_module(CTP515):
+            modules.append(self.ctp515)
+        if self._has_module(CTP486):
+            modules.append(self.ctp486)
+        if self._has_module(CTP528CP504):
+            modules.append(self.ctp528)
+        return modules
 
     def analyze(
         self,
@@ -2067,7 +2130,7 @@ class CatPhanBase:
         """Grab the module that is, or is a subclass of, the module of interest. This allows users to subclass a CTP module and pass that in."""
         for module, values in self.modules.items():
             if issubclass(module, module_of_interest):
-                return module, values["offset"]
+                return module, values.get("offset")
         if raise_empty:
             raise ValueError(
                 f"Tried to find the {module_of_interest} or a subclass of it. Did you override `modules` and not pass this module in?"

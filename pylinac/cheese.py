@@ -216,6 +216,10 @@ class CheesePhantomBase(CatPhanBase):
     def _roi_angles(self) -> list[float]:
         return [abs360(s["angle"]) for s in self.module_class.roi_settings.values()]
 
+    def _ensure_physical_scan_extent(self) -> bool:
+        """The cheese phantom only has one module."""
+        return True
+
     def find_phantom_roll(self, func: Callable | None = None) -> float:
         """Examine the phantom for the maximum HU delta insert position. Roll the phantom by the
         measured angle to the nearest nominal angle if nearby. If not nearby, default to 0
