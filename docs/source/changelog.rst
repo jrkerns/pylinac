@@ -46,6 +46,9 @@ ACR
   See the :ref:`customizing-acr-modules` section for more.
 * The ACR MRI phantom :class:`~pylinac.acr.MRUniformityModuleOutput` had a typo. The property ``ghost_rois`` was actually spelled ``ghose_rois``.
   Any code using this property should be updated to the correct spelling.
+* The ACR MRI :func:`~pylinac.acr.ACRMRILarge.results_data` method will now return ``ROIResult`` instances instead of the
+  raw ``HUDiskROI`` classes as before. This behavior already occurs for the catphan module and will thus make
+  the results similar in structure.
 
 Quart
 ^^^^^
