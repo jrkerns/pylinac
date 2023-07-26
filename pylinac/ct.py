@@ -22,6 +22,7 @@ import os
 import webbrowser
 import zipfile
 from dataclasses import dataclass
+from functools import cached_property
 from io import BytesIO
 from os import path as osp
 from pathlib import Path
@@ -29,7 +30,6 @@ from typing import BinaryIO, Callable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from py_linq import Enumerable
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
@@ -163,7 +163,7 @@ class HUDiskROI(DiskROI):
 
     def __init__(
         self,
-        array: np.ndarray | ArrayImage,
+        array: np.array | ArrayImage,
         angle: float,
         roi_radius: float,
         dist_from_center: float,
@@ -2297,11 +2297,11 @@ class CatPhan600(CatPhanBase):
 
 
 def get_regions(
-    slice_or_arr: Slice | np.ndarray,
+    slice_or_arr: Slice | np.array,
     fill_holes: bool = False,
     clear_borders: bool = True,
     threshold: str = "otsu",
-) -> tuple[np.ndarray, list, int]:
+) -> tuple[np.array, list, int]:
     """Get the skimage regions of a black & white image."""
     if threshold == "otsu":
         thresmeth = filters.threshold_otsu
@@ -2310,7 +2310,7 @@ def get_regions(
     if isinstance(slice_or_arr, Slice):
         edges = filters.scharr(slice_or_arr.image.array.astype(float))
         center = slice_or_arr.image.center
-    elif isinstance(slice_or_arr, np.ndarray):
+    elif isinstance(slice_or_arr, np.array):
         edges = filters.scharr(slice_or_arr.astype(float))
         center = (int(edges.shape[1] / 2), int(edges.shape[0] / 2))
     edges = filters.gaussian(edges, sigma=1)
@@ -2337,7 +2337,7 @@ def combine_surrounding_slices(
     nominal_slice_num: int,
     slices_plusminus: int = 1,
     mode: str = "mean",
-) -> np.ndarray:
+) -> np.array:
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
 
     Parameters

@@ -28,12 +28,12 @@ import os.path as osp
 import warnings
 import webbrowser
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from typing import BinaryIO, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from py_linq import Enumerable
 from scipy.ndimage import median_filter
 from skimage import feature, measure

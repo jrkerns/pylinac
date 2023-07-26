@@ -430,7 +430,7 @@ class SingleProfileTests(TestCase):
             interpolation_resolution_mm=0.1,
         )
         gamma = reference.gamma(evaluation)
-        self.assertIsInstance(gamma, np.ndarray)
+        self.assertIsInstance(gamma, np.array)
         self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
         self.assertAlmostEqual(
             np.nanmean(gamma), 0, delta=0.0003
@@ -448,7 +448,7 @@ class SingleProfileTests(TestCase):
         # downsample eval profile. We will upsample inside gamma and it should be pretty close to the original
         evaluation = reference.resample(interpolation_resolution_mm=0.2)
         gamma = reference.gamma(evaluation)
-        self.assertIsInstance(gamma, np.ndarray)
+        self.assertIsInstance(gamma, np.array)
         self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
         self.assertLess(
             np.nanmean(gamma), 0.002
@@ -466,7 +466,7 @@ class SingleProfileTests(TestCase):
         # upsample eval profile. We will downsample inside gamma and it should be pretty close to the original
         evaluation = reference.resample(interpolation_resolution_mm=0.05)
         gamma = reference.gamma(evaluation)
-        self.assertIsInstance(gamma, np.ndarray)
+        self.assertIsInstance(gamma, np.array)
         self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
         self.assertLess(
             np.nanmean(gamma), 0.002
@@ -488,7 +488,7 @@ class SingleProfileTests(TestCase):
             interpolation_resolution_mm=0.1,
         )
         gamma = reference.gamma(evaluation)
-        self.assertIsInstance(gamma, np.ndarray)
+        self.assertIsInstance(gamma, np.array)
         self.assertEqual(len(gamma), len(reference.values))
         self.assertTrue(np.isnan(gamma[0]))  # first element is under threshold
         self.assertAlmostEqual(
@@ -505,7 +505,7 @@ class SingleProfileTests(TestCase):
 
 
 class MultiProfileTestMixin:
-    values = np.ndarray
+    values = np.array
     peak_max_idxs = (0,)
     valley_max_idxs = (0,)
     peak_fwxm_idxs = (0,)

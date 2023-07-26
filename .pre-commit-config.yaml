@@ -32,7 +32,7 @@ repos:
     rev: v3.4.0
     hooks:
     -   id: pyupgrade
-        args: [--py36-plus]
+        args: [--py36-plus, --py37-plus, --py38-plus]
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.3.0
     hooks:

@@ -37,15 +37,15 @@ warnings.simplefilter("ignore", OptimizeWarning)
 
 
 def gamma_1d(
-    reference: np.ndarray,
-    evaluation: np.ndarray,
+    reference: np.array,
+    evaluation: np.array,
     dose_to_agreement: float = 1,
     distance_to_agreement: int = 1,
     gamma_cap_value: float = 2,
     global_dose: bool = True,
     dose_threshold: float = 5,
     fill_value: float = np.nan,
-) -> np.ndarray:
+) -> np.array:
     """Perform a 1D gamma of two 1D profiles/arrays. This does NOT check lengths or
     spatial consistency. It performs an element-by-element evaluation. It is the responsibility
     of the caller to ensure the reference and evaluation have comparable spatial resolution.
@@ -111,8 +111,8 @@ def gamma_1d(
 
 
 def stretch(
-    array: np.ndarray, min: int = 0, max: int = 1, fill_dtype: np.dtype | None = None
-) -> np.ndarray:
+    array: np.array, min: int = 0, max: int = 1, fill_dtype: np.dtype | None = None
+) -> np.array:
     """'Stretch' the profile to the fit a new min and max value and interpolate in between.
     From: http://www.labri.fr/perso/nrougier/teaching/numpy.100/  exercise #17
 
@@ -155,7 +155,7 @@ def stretch(
 class ProfileMixin:
     """A mixin to provide various manipulations of 1D profile data."""
 
-    values: np.ndarray
+    values: np.array
 
     def invert(self) -> None:
         """Invert the profile."""
@@ -261,7 +261,7 @@ class SingleProfile(ProfileMixin):
 
     def __init__(
         self,
-        values: np.ndarray,
+        values: np.array,
         dpmm: float = None,
         interpolation: Interpolation | str | None = Interpolation.LINEAR,
         ground: bool = True,
@@ -271,7 +271,7 @@ class SingleProfile(ProfileMixin):
         edge_detection_method: Edge | str = Edge.FWHM,
         edge_smoothing_ratio: float = 0.003,
         hill_window_ratio: float = 0.1,
-        x_values: np.ndarray | None = None,
+        x_values: np.array | None = None,
     ):
         """
         Parameters
@@ -344,7 +344,7 @@ class SingleProfile(ProfileMixin):
             x_indices, norm_values, bounds_error=False, fill_value="extrapolate"
         )
 
-    def _x_interp_to_original(self, location: float | np.ndarray) -> float | np.ndarray:
+    def _x_interp_to_original(self, location: float | np.array) -> float | np.array:
         """Get the x-value of the (possibly) interpolated profile. The input value is in the original
         value range. E.g. a profile with x-range of 0-10 is interpolated to 10x. Asking for the location at 99 would scale back to 9.9.
         We need this function because peak finding is independent of the x-values. I.e. peaks are found and reported according
@@ -355,7 +355,7 @@ class SingleProfile(ProfileMixin):
             return float(x)
         return x
 
-    def _y_original_to_interp(self, location: float | np.ndarray) -> float | np.ndarray:
+    def _y_original_to_interp(self, location: float | np.array) -> float | np.array:
         """Get the interpolated y-value of the profile. This is a corollary to the _x_interp... function"""
         y = self._y_interp1d(location)
         if isinstance(location, (float, int)) or location.size == 1:
@@ -393,7 +393,7 @@ class SingleProfile(ProfileMixin):
         interpolation_resolution,
         interpolation_factor,
         interp_method: Interpolation,
-    ) -> (np.ndarray, float, float, float):
+    ) -> (np.array, float, float, float):
         """Fit the data to the passed interpolation method. Will also calculate the new values to correct the measurements such as dpmm"""
         if x_values is None:
             x_values = np.array(range(len(values)))
@@ -439,7 +439,7 @@ class SingleProfile(ProfileMixin):
             new_y = f(new_x)
             return new_y, new_dpmm, new_x
 
-    def _normalize(self, values, method: Normalization) -> np.ndarray:
+    def _normalize(self, values, method: Normalization) -> np.array:
         """Normalize the data given a method."""
         if method == Normalization.NONE:
             return values
@@ -1006,7 +1006,7 @@ class SingleProfile(ProfileMixin):
         dose_threshold: float = 5,
         global_dose: bool = True,
         fill_value: float = np.nan,
-    ) -> np.ndarray:
+    ) -> np.array:
         """Calculate a 1D gamma. The passed profile is the evaluation profile. The instance calling this method is the reference profile.
         This profile must have the `dpmm` value given at instantiation so that physical spacing can be evaluated.
         The evaluation profile is resampled to be the same resolution as the reference profile.
@@ -1086,11 +1086,11 @@ class MultiProfile(ProfileMixin):
 
     """
 
-    values: np.ndarray | Sequence
+    values: np.array | Sequence
     peaks: list
     valleys: list
 
-    def __init__(self, values: np.ndarray | Sequence):
+    def __init__(self, values: np.array | Sequence):
         """
         Parameters
         ----------
@@ -1126,7 +1126,7 @@ class MultiProfile(ProfileMixin):
         max_number: int = None,
         search_region: tuple = (0.0, 1.0),
         peak_sort: str = "prominences",
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.array, np.array]:
         """Find the peaks of the profile using a simple maximum value search. This also sets the `peaks` attribute.
 
         Parameters
@@ -1176,7 +1176,7 @@ class MultiProfile(ProfileMixin):
         min_distance: float | int = 0.05,
         max_number: int = None,
         search_region: tuple = (0.0, 1.0),
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.array, np.array]:
         """Find the valleys (minimums) of the profile using a simple minimum value search.
 
         Returns
@@ -1212,7 +1212,7 @@ class MultiProfile(ProfileMixin):
         search_region: tuple = (0.0, 1.0),
         peak_sort: str = "prominences",
         required_prominence=None,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.array, np.array]:
         """Find peaks using the center of the FWXM (rather than by max value).
 
         Parameters
@@ -1261,18 +1261,18 @@ class CircleProfile(MultiProfile, Circle):
         How the profile is/was taken; clockwise or counter-clockwise.
     """
 
-    image_array: np.ndarray
+    image_array: np.array
     start_angle: float | int
     ccw: bool
     sampling_ratio: float
-    _x_locations: np.ndarray | None
-    _y_locations: np.ndarray | None
+    _x_locations: np.array | None
+    _y_locations: np.array | None
 
     def __init__(
         self,
         center: Point,
         radius: float,
-        image_array: np.ndarray,
+        image_array: np.array,
         start_angle: float | int = 0,
         ccw: bool = True,
         sampling_ratio: float = 1.0,
@@ -1314,7 +1314,7 @@ class CircleProfile(MultiProfile, Circle):
         return np.pi * self.radius * 2 * self.sampling_ratio
 
     @property
-    def _radians(self) -> np.ndarray:
+    def _radians(self) -> np.array:
         interval = (2 * np.pi) / self.size
         rads = np.arange(
             0 + self.start_angle, (2 * np.pi) + self.start_angle - interval, interval
@@ -1324,7 +1324,7 @@ class CircleProfile(MultiProfile, Circle):
         return rads
 
     @property
-    def x_locations(self) -> np.ndarray:
+    def x_locations(self) -> np.array:
         """The x-locations of the profile values."""
         if self._x_locations is None:
             return np.cos(self._radians) * self.radius + self.center.x
@@ -1332,11 +1332,11 @@ class CircleProfile(MultiProfile, Circle):
             return self._x_locations
 
     @x_locations.setter
-    def x_locations(self, array: np.ndarray):
+    def x_locations(self, array: np.array):
         self._x_locations = array
 
     @property
-    def y_locations(self) -> np.ndarray:
+    def y_locations(self) -> np.array:
         """The x-locations of the profile values."""
         if self._y_locations is None:
             return np.sin(self._radians) * self.radius + self.center.y
@@ -1344,11 +1344,11 @@ class CircleProfile(MultiProfile, Circle):
             return self._y_locations
 
     @y_locations.setter
-    def y_locations(self, array: np.ndarray):
+    def y_locations(self, array: np.array):
         self._y_locations = array
 
     @property
-    def _profile(self) -> np.ndarray:
+    def _profile(self) -> np.array:
         """The actual profile array; private attr that is passed to MultiProfile."""
         return ndimage.map_coordinates(
             self.image_array, [self.y_locations, self.x_locations], order=0
@@ -1360,7 +1360,7 @@ class CircleProfile(MultiProfile, Circle):
         min_distance: float | int = 0.05,
         max_number: int = None,
         search_region: tuple[float, float] = (0.0, 1.0),
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.array, np.array]:
         """Overloads Profile to also map peak locations to the image."""
         peak_idxs, peak_vals = super().find_peaks(
             threshold, min_distance, max_number, search_region
@@ -1374,7 +1374,7 @@ class CircleProfile(MultiProfile, Circle):
         min_distance: float | int = 0.05,
         max_number: int = None,
         search_region: tuple[float, float] = (0.0, 1.0),
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.array, np.array]:
         """Overload Profile to also map valley locations to the image."""
         valley_idxs, valley_vals = super().find_valleys(
             threshold, min_distance, max_number, search_region
@@ -1388,7 +1388,7 @@ class CircleProfile(MultiProfile, Circle):
         min_distance: float | int = 0.05,
         max_number: int = None,
         search_region: tuple[float, float] = (0.0, 1.0),
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.array, np.array]:
         """Overloads Profile to also map the peak locations to the image."""
         peak_idxs, peak_vals = super().find_fwxm_peaks(
             threshold, min_distance, max_number, search_region=search_region
@@ -1447,7 +1447,7 @@ class CircleProfile(MultiProfile, Circle):
 
     @staticmethod
     def _ensure_array_size(
-        array: np.ndarray, min_width: float, min_height: float
+        array: np.array, min_width: float, min_height: float
     ) -> None:
         """Ensure the array size of inputs are greater than the minimums."""
         height = array.shape[0]
@@ -1469,7 +1469,7 @@ class CollapsedCircleProfile(CircleProfile):
         self,
         center: Point,
         radius: float,
-        image_array: np.ndarray | ArrayImage,
+        image_array: np.array | ArrayImage,
         start_angle: int = 0,
         ccw: bool = True,
         sampling_ratio: float = 1.0,
@@ -1494,7 +1494,7 @@ class CollapsedCircleProfile(CircleProfile):
         super().__init__(center, radius, image_array, start_angle, ccw, sampling_ratio)
 
     @property
-    def _radii(self) -> np.ndarray:
+    def _radii(self) -> np.array:
         return np.linspace(
             start=self.radius * (1 - self.width_ratio),
             stop=self.radius * (1 + self.width_ratio),
@@ -1526,7 +1526,7 @@ class CollapsedCircleProfile(CircleProfile):
         return y
 
     @property
-    def _profile(self) -> np.ndarray:
+    def _profile(self) -> np.array:
         """The actual profile array; private attr that is passed to MultiProfile."""
         profile = np.zeros(len(self._multi_x_locations[0]))
         for radius, x, y in zip(
@@ -1576,7 +1576,7 @@ class CollapsedCircleProfile(CircleProfile):
 
 
 def find_peaks(
-    values: np.ndarray,
+    values: np.array,
     threshold: float | int = -np.inf,
     peak_separation: float | int = 0,
     max_number: int | None = None,
@@ -1584,8 +1584,8 @@ def find_peaks(
     min_width: int = 0,
     search_region: tuple[float, float] = (0.0, 1.0),
     peak_sort: str = "prominences",
-    required_prominence: float | np.ndarray | None = None,
-) -> tuple[np.ndarray, dict]:
+    required_prominence: float | np.array | None = None,
+) -> tuple[np.array, dict]:
     """Find the peaks of a 1D signal. Heavily relies on the scipy implementation.
 
     Parameters
@@ -1656,8 +1656,8 @@ def _parse_peak_args(
     peak_separation: float,
     search_region: tuple[float, float],
     threshold: float,
-    values: np.ndarray,
-) -> tuple[float, int, float, np.ndarray]:
+    values: np.array,
+) -> tuple[float, int, float, np.array]:
     """Converts arguments as needed. E.g. converting a ratio to actual values"""
     # set threshold as % if between 0 and 1
     val_range = values.max() - values.min()

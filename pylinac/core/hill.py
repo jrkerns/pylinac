@@ -12,10 +12,10 @@ class Hill:
     function, which is not limited by resolution issues as may be experienced on low-res devices like ion chamber arrays.
     """
 
-    params: np.ndarray
+    params: np.array
 
     @classmethod
-    def fit(cls, x_data: np.ndarray, y_data: np.ndarray) -> Hill:
+    def fit(cls, x_data: np.array, y_data: np.array) -> Hill:
         """Fit x & y data to a Hill function."""
         fitted_parameters, _ = curve_fit(
             hill_func,

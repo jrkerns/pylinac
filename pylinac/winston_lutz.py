@@ -2034,7 +2034,7 @@ def _bb_projection_with_rotation(
     gantry: float,
     couch: float = 0,
     sad: float = 1000,
-) -> np.ndarray:
+) -> np.array:
     """Calculate the isoplane projection onto the panel at the given SSD.
 
     This function applies a rotation around the gantry plane (X/Z) to the
@@ -2042,19 +2042,21 @@ def _bb_projection_with_rotation(
 
     Could be used to calculate couch rotations, but not validated yet.
 
-    Args:
-        offset_left (float): The BB position in the left/right direction.
-        offset_up (float): The BB position in the superior/inferior direction.
-        offset_in (float): The BB position in the anterior/posterior direction.
-        gantry (float): The gantry angle in degrees.
-        couch (float, optional): The couch angle in degrees. Defaults to 0.
-        sad (float, optional): The source-to-axis distance in mm. Defaults to 1000.
+    Args
+    ----
+    offset_left (float): The BB position in the left/right direction.
+    offset_up (float): The BB position in the superior/inferior direction.
+    offset_in (float): The BB position in the anterior/posterior direction.
+    gantry (float): The gantry angle in degrees.
+    couch (float, optional): The couch angle in degrees. Defaults to 0.
+    sad (float, optional): The source-to-axis distance in mm. Defaults to 1000.
 
-    Returns:
-        np.ndarray: The projection of the BB onto the panel at the given SSD.
-            The array has shape (2,) where the first element is the projection in the
-            left/right direction and the second element is the projection in the
-            superior/inferior direction.
+    Returns
+    -------
+    np.array: The projection of the BB onto the panel at the given SSD.
+        The array has shape (2,) where the first element is the projection in the
+        left/right direction and the second element is the projection in the
+        superior/inferior direction.
     """
     # Define the BB positions in the patient coordinate system (ap, lr, si)
     bb_positions = np.array([offset_up, offset_left, offset_in])

@@ -890,7 +890,7 @@ class FieldAnalysis:
 
     def _get_vert_values(
         self, vert_position: float, vert_width: float
-    ) -> (np.ndarray, float, float):
+    ) -> (np.array, float, float):
         """Get the raw values of the profile to pass to SingleProfile"""
         left_edge = int(
             round(
@@ -915,7 +915,7 @@ class FieldAnalysis:
 
     def _get_horiz_values(
         self, horiz_position: float, horiz_width: float
-    ) -> (np.ndarray, float, float):
+    ) -> (np.array, float, float):
         """Get the raw values of the profile to pass to SingleProfile"""
         bottom_edge = int(
             round(

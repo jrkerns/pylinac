@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from functools import cached_property
+
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from skimage import draw
 from skimage.measure._regionprops import _RegionProperties
 
@@ -35,7 +36,7 @@ class DiskROI(Circle):
 
     def __init__(
         self,
-        array: np.ndarray,
+        array: np.array,
         angle: float,
         roi_radius: float,
         dist_from_center: float,
@@ -71,7 +72,7 @@ class DiskROI(Circle):
         return Point(phantom_center.x + x_shift, phantom_center.y + y_shift)
 
     @cached_property
-    def pixel_values(self) -> np.ndarray:
+    def pixel_values(self) -> np.array:
         return self.circle_mask()
 
     @cached_property
@@ -87,7 +88,7 @@ class DiskROI(Circle):
         return float(np.std(masked_img))
 
     @lru_cache()
-    def circle_mask(self) -> np.ndarray:
+    def circle_mask(self) -> np.array:
         """Return a mask of the image, only showing the circular ROI."""
         rr, cc = draw.disk(center=(self.center.y, self.center.x), radius=self.radius)
         return self._array[rr, cc]
@@ -137,7 +138,7 @@ class LowContrastDiskROI(DiskROI):
 
     def __init__(
         self,
-        array: np.ndarray | ArrayImage,
+        array: np.array | ArrayImage,
         angle: float,
         roi_radius: float,
         dist_from_center: float,
@@ -284,7 +285,7 @@ class HighContrastDiskROI(DiskROI):
 
     def __init__(
         self,
-        array: np.ndarray,
+        array: np.array,
         angle: float,
         roi_radius: float,
         dist_from_center: float,
@@ -304,13 +305,13 @@ class HighContrastDiskROI(DiskROI):
         return f"High-Contrast Disk; max pixel: {self.max}, min pixel: {self.min}"
 
     @cached_property
-    def max(self) -> np.ndarray:
+    def max(self) -> np.array:
         """The max pixel value of the ROI."""
         masked_img = self.circle_mask()
         return np.max(masked_img)
 
     @cached_property
-    def min(self) -> np.ndarray:
+    def min(self) -> np.array:
         """The min pixel value of the ROI."""
         masked_img = self.circle_mask()
         return np.min(masked_img)
@@ -345,7 +346,7 @@ class RectangleROI(Rectangle):
     #                angle=angle, dist_from_center=distance, phantom_center=phan_center)
 
     @cached_property
-    def pixel_array(self) -> np.ndarray:
+    def pixel_array(self) -> np.array:
         """The pixel array within the ROI."""
         return self._array[
             self.bl_corner.y : self.tr_corner.y, self.bl_corner.x : self.tr_corner.x

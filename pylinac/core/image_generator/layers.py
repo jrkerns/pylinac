@@ -7,8 +7,8 @@ from skimage import draw, filters
 
 
 def clip_add(
-    image1: np.ndarray, image2: np.ndarray, dtype: type[np.dtype] = np.uint16
-) -> np.ndarray:
+    image1: np.array, image2: np.array, dtype: type[np.dtype] = np.uint16
+) -> np.array:
     """Clip the image to the dtype extrema. Otherwise, the bits will flip."""
     # convert to float first so we don't flip bits initially
     combined_img = image1.astype(float) + image2.astype(float)
@@ -30,7 +30,7 @@ def gaussian2d(
     width_x: float,
     width_y: float,
     constant: float = 0,
-) -> np.ndarray:
+) -> np.array:
     """Returns a gaussian function with the given parameters"""
     width_x = float(width_x)
     width_y = float(width_y)
@@ -47,9 +47,7 @@ class Layer(ABC):
     """Abstract base for layers"""
 
     @abstractmethod
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         """Apply the layer. Takes a 2D array and pixel size value in and returns a modified array."""
         pass
 
@@ -78,15 +76,13 @@ class PerfectConeLayer(Layer):
         self.cax_offset_mm = cax_offset_mm
         self.alpha = alpha
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         image, _, _ = self._create_perfect_field(image, pixel_size, mag_factor)
         return image
 
     def _create_perfect_field(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> (np.ndarray, ...):
+        self, image: np.array, pixel_size: float, mag_factor: float
+    ) -> (np.array, ...):
         cone_size_pix = ((self.cone_size_mm / 2) / pixel_size) * mag_factor**2
         cax_offset_pix = tuple(
             x * mag_factor / pixel_size + (shape / 2 - 0.5)
@@ -131,9 +127,7 @@ class FilterFreeConeLayer(PerfectConeLayer):
         self.filter_magnitude = filter_magnitude
         self.filter_sigma_mm = filter_sigma_mm
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
         n = gaussian2d(
@@ -175,8 +169,8 @@ class PerfectFieldLayer(Layer):
         self.alpha = alpha
 
     def _create_perfect_field(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> (np.ndarray, ...):
+        self, image: np.array, pixel_size: float, mag_factor: float
+    ) -> (np.array, ...):
         field_size_pix = [
             even_round(f * mag_factor**2 / pixel_size) for f in self.field_size_mm
         ]
@@ -202,9 +196,7 @@ class PerfectFieldLayer(Layer):
         image = clip_add(image, temp_array)
         return image, rr, cc
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         image, _, _ = self._create_perfect_field(image, pixel_size, mag_factor)
         return image
 
@@ -241,9 +233,7 @@ class FilteredFieldLayer(PerfectFieldLayer):
         self.gaussian_height = gaussian_height
         self.gaussian_sigma_mm = gaussian_sigma_mm
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
         height = -self.gaussian_height * np.iinfo(image.dtype).max
@@ -291,9 +281,7 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
             field_size_mm, cax_offset_mm, alpha, gaussian_height, gaussian_sigma_mm
         )
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
         n = gaussian2d(
@@ -330,9 +318,7 @@ class GaussianFilterLayer(Layer):
     def __init__(self, sigma_mm: float = 2):
         self.sigma_mm = sigma_mm
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         sigma_pix = self.sigma_mm / pixel_size
         return filters.gaussian(image, sigma_pix, preserve_range=True).astype(
             image.dtype
@@ -346,9 +332,7 @@ class RandomNoiseLayer(Layer):
         self.mean = mean
         self.sigma = sigma
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         normalized_sigma = self.sigma * np.iinfo(image.dtype).max
         noise = np.random.normal(self.mean, normalized_sigma, size=image.shape)
         return clip_add(image, noise, dtype=image.dtype)
@@ -360,8 +344,6 @@ class ConstantLayer(Layer):
     def __init__(self, constant: float):
         self.constant = constant
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         constant_img = np.full(image.shape, fill_value=self.constant)
         return clip_add(image, constant_img, dtype=image.dtype)

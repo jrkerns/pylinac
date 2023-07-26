@@ -22,6 +22,7 @@ import os.path as osp
 import warnings
 import webbrowser
 from dataclasses import dataclass
+from functools import cached_property
 from io import BytesIO
 from itertools import cycle
 from pathlib import Path
@@ -30,7 +31,6 @@ from typing import BinaryIO, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from py_linq import Enumerable
 
@@ -677,9 +677,7 @@ class PicketFence:
         is_not_at_edge = max(std) < edge_threshold * np.median(std)
         return is_above_height_threshold and is_not_at_edge
 
-    def _get_mlc_window(
-        self, leaf_center, leaf_width, approx_idx, spacing
-    ) -> np.ndarray:
+    def _get_mlc_window(self, leaf_center, leaf_width, approx_idx, spacing) -> np.array:
         """A small 2D window of the image that contains the area around the picket."""
         leaf_width_px = leaf_width * self.image.dpmm
         leaf_center_px = leaf_center * self.image.dpmm + (
@@ -1065,7 +1063,7 @@ class MLCValue:
         action_tolerance: float | None,
         leaf_num: int,
         approx_peak_val: float,
-        image_window: np.ndarray,
+        image_window: np.array,
         image: PFDicomImage,
         fwxm: int,
         separate_leaves: bool,

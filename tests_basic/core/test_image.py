@@ -293,7 +293,7 @@ class TestDicomImage(TestCase):
 class TestXIMImage(TestCase):
     def test_normal_load(self):
         xim = XIM(xim_path)
-        self.assertIsInstance(xim.array, np.ndarray)
+        self.assertIsInstance(xim.array, np.array)
         self.assertEqual(xim.array.shape, (1280, 1280))
         self.assertIsInstance(xim.properties, dict)
 
