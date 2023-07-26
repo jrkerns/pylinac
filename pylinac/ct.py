@@ -2373,7 +2373,7 @@ def get_regions(
     if isinstance(slice_or_arr, Slice):
         edges = filters.scharr(slice_or_arr.image.array.astype(float))
         center = slice_or_arr.image.center
-    elif isinstance(slice_or_arr, np.array):
+    elif isinstance(slice_or_arr, np.ndarray):
         edges = filters.scharr(slice_or_arr.astype(float))
         center = (int(edges.shape[1] / 2), int(edges.shape[0] / 2))
     edges = filters.gaussian(edges, sigma=1)
