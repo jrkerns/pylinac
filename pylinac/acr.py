@@ -21,7 +21,14 @@ from .core.mtf import MTF
 from .core.profile import Interpolation, SingleProfile
 from .core.roi import HighContrastDiskROI, RectangleROI
 from .core.utilities import ResultBase
-from .ct import CatPhanBase, CatPhanModule, Slice, ThicknessROI, get_regions
+from .ct import (
+    CatPhanBase,
+    CatPhanModule,
+    Slice,
+    ThicknessROI,
+    get_regions,
+    rois_to_results,
+)
 
 # CT
 CT_UNIFORMITY_MODULE_OFFSET_MM = 70
@@ -90,7 +97,7 @@ class UniformityModuleOutput(CTModuleOutput):
 
     Use the following attributes as normal class attributes."""
 
-    center_roi_stdev: float
+    center_roi_stdev: float  #:
 
 
 class SpatialResolutionModule(CatPhanModule):
@@ -185,7 +192,7 @@ class SpatialResolutionModuleOutput(CTModuleOutput):
 
     Use the following attributes as normal class attributes."""
 
-    lpmm_to_rmtf: dict
+    lpmm_to_rmtf: dict  #:
 
 
 class LowContrastModule(CatPhanModule):
@@ -222,7 +229,7 @@ class LowContrastModuleOutput(CTModuleOutput):
 
     Use the following attributes as normal class attributes."""
 
-    cnr: float
+    cnr: float  #:
 
 
 @dataclass
@@ -589,11 +596,11 @@ class MRSlice11ModuleOutput:
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_settings: dict
-    rois: dict
-    bar_difference_mm: float
-    slice_shift_mm: float
+    offset: int  #:
+    roi_settings: dict  #:
+    rois: dict  #:
+    bar_difference_mm: float  #:
+    slice_shift_mm: float  #:
 
 
 class MRSlice1Module(CatPhanModule):
@@ -713,14 +720,14 @@ class MRSlice1ModuleOutput:
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_settings: dict
-    rois: dict
-    bar_difference_mm: float
-    slice_shift_mm: float
-    measured_slice_thickness_mm: float
-    row_mtf_50: float
-    col_mtf_50: float
+    offset: int  #:
+    roi_settings: dict  #:
+    rois: dict  #:
+    bar_difference_mm: float  #:
+    slice_shift_mm: float  #:
+    measured_slice_thickness_mm: float  #:
+    row_mtf_50: float  #:
+    col_mtf_50: float  #:
 
 
 class MRUniformityModule(CatPhanModule):
@@ -810,15 +817,15 @@ class MRUniformityModuleOutput:
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_settings: dict
-    rois: dict
-    ghost_roi_settings: dict
-    ghost_rois: dict
-    psg: float
-    ghosting_ratio: float
-    piu_passed: bool
-    piu: float
+    offset: int  #:
+    roi_settings: dict  #:
+    rois: dict  #:
+    ghost_roi_settings: dict  #:
+    ghost_rois: dict  #:
+    psg: float  #:
+    ghosting_ratio: float  #:
+    piu_passed: bool  #:
+    piu: float  #:
 
 
 class GeometricDistortionModule(CatPhanModule):
@@ -920,9 +927,9 @@ class MRGeometricDistortionModuleOutput:
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    profiles: dict
-    distances: dict
+    offset: int  #:
+    profiles: dict  #:
+    distances: dict  #:
 
 
 @dataclass
@@ -1252,7 +1259,7 @@ class ACRMRILarge(CatPhanBase):
             slice1=MRSlice1ModuleOutput(
                 offset=0,
                 roi_settings=self.slice1.roi_settings,
-                rois=self.slice1.rois,
+                rois=rois_to_results(self.slice1.rois),
                 bar_difference_mm=self.slice1.bar_difference_mm,
                 slice_shift_mm=self.slice1.slice_shift_mm,
                 measured_slice_thickness_mm=self.slice1.measured_slice_thickness_mm,
@@ -1263,7 +1270,7 @@ class ACRMRILarge(CatPhanBase):
                 offset=MR_SLICE11_MODULE_OFFSET_MM,
                 bar_difference_mm=self.slice11.bar_difference_mm,
                 slice_shift_mm=self.slice11.slice_shift_mm,
-                rois=self.slice11.rois,
+                rois=rois_to_results(self.slice11.rois),
                 roi_settings=self.slice11.roi_settings,
             ),
             geometric_distortion_module=MRGeometricDistortionModuleOutput(
@@ -1274,9 +1281,9 @@ class ACRMRILarge(CatPhanBase):
             uniformity_module=MRUniformityModuleOutput(
                 offset=0,
                 roi_settings=self.uniformity_module.roi_settings,
-                rois=self.uniformity_module.rois,
+                rois=rois_to_results(self.uniformity_module.rois),
                 ghost_roi_settings=self.uniformity_module.ghost_roi_settings,
-                ghost_rois=self.uniformity_module.ghost_rois,
+                ghost_rois=rois_to_results(self.uniformity_module.ghost_rois),
                 psg=self.uniformity_module.psg,
                 ghosting_ratio=self.uniformity_module.ghosting_ratio,
                 piu=self.uniformity_module.percent_image_uniformity,

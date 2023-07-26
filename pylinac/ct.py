@@ -75,9 +75,9 @@ class ROIResult:
     name: str  #:
     value: float  #:
     stdev: float  #:
-    difference: float  #:
-    nominal_value: float  #:
-    passed: bool  #:
+    difference: float | None  #:
+    nominal_value: float | None  #:
+    passed: bool | None  #:
 
 
 @dataclass
@@ -2433,7 +2433,7 @@ def combine_surrounding_slices(
     return combined_array
 
 
-def rois_to_results(dict_mapping: dict[str, HUDiskROI]) -> dict[str, ROIResult]:
+def rois_to_results(dict_mapping: dict[str, DiskROI]) -> dict[str, ROIResult]:
     """Converts a dict of HUDiskROIs to a dict of ROIResults. This is for dumping to simple data formats for results_data and RadMachine"""
     flat_dict = {}
     for name, roi in dict_mapping.items():
@@ -2441,8 +2441,8 @@ def rois_to_results(dict_mapping: dict[str, HUDiskROI]) -> dict[str, ROIResult]:
             name=name,
             value=roi.pixel_value,
             stdev=roi.std,
-            difference=roi.value_diff,
-            nominal_value=roi.nominal_val,
-            passed=roi.passed,
+            difference=getattr(roi, "value_diff", None),
+            nominal_value=getattr(roi, "nominal_val", None),
+            passed=getattr(roi, "passed", None),
         )
     return flat_dict
