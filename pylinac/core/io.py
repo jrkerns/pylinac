@@ -276,7 +276,9 @@ class SNCProfiler:
             The number of detectors in a given row. Note that they Y profile includes 2 extra detectors from the other 3.
         """
 
-        def copy_cax_dose(array: np.array, center_detector_idx: int = 31) -> np.array:
+        def copy_cax_dose(
+            array: np.ndarray, center_detector_idx: int = 31
+        ) -> np.ndarray:
             array = np.insert(
                 array, center_detector_idx + 1, array[center_detector_idx]
             )

@@ -31,7 +31,7 @@ def geometric_center_idx(array: np.ndarray) -> float:
 
 
 @validate(array=(array_not_empty, single_dimension))
-def geometric_center_value(array: np.array) -> float:
+def geometric_center_value(array: np.ndarray) -> float:
     """Returns the center value of the profile.
 
     If the profile has an even number of elements the center lies between the two centre indices and the centre
@@ -47,7 +47,7 @@ def geometric_center_value(array: np.array) -> float:
 
 
 @validate(array=array_not_empty)
-def normalize(array: np.array, value: float | None = None) -> np.array:
+def normalize(array: np.ndarray, value: float | None = None) -> np.ndarray:
     """Normalize an array to the passed value. If not value is passed, normalize to the maximum value"""
     if value is None:
         val = array.max()
@@ -58,13 +58,13 @@ def normalize(array: np.array, value: float | None = None) -> np.array:
 
 
 @validate(array=array_not_empty)
-def invert(array: np.array) -> np.array:
+def invert(array: np.ndarray) -> np.ndarray:
     """Invert the array. Makes the max the min and vice versa. Does NOT account for datatype"""
     return -array + array.max() + array.min()
 
 
 @validate(array=array_not_empty)
-def bit_invert(array: np.array) -> np.array:
+def bit_invert(array: np.ndarray) -> np.ndarray:
     """Invert the array, ACCOUNTING for the datatype. I.e. 0 for an uint8 array goes to 255, whereas it goes to 65535 for unint16.
     I.e. this is a datatype-specific inversion."""
     try:
@@ -76,7 +76,7 @@ def bit_invert(array: np.array) -> np.array:
 
 
 @validate(array=array_not_empty)
-def ground(array: np.array, value: float = 0) -> np.array:
+def ground(array: np.ndarray, value: float = 0) -> np.ndarray:
     """Ground the profile. Note this will also work on profiles with negative values. I.e. this will always
     move the minimum value to 'value', regardless of whether the profile minimum was positive or negative
 
@@ -89,12 +89,14 @@ def ground(array: np.array, value: float = 0) -> np.array:
 
 
 @validate(array=array_not_empty)
-def filter(array: np.array, size: float | int = 0.05, kind: str = "median") -> np.array:
+def filter(
+    array: np.ndarray, size: float | int = 0.05, kind: str = "median"
+) -> np.ndarray:
     """Filter the profile.
 
     Parameters
     ----------
-    array: np.array
+    array: np.ndarray
         The array to filter.
     size : float, int
         Size of the median filter to apply.
@@ -123,7 +125,7 @@ def filter(array: np.array, size: float | int = 0.05, kind: str = "median") -> n
 
 
 @validate(array=array_not_empty)
-def stretch(array: np.array, min: int = 0, max: int = 1) -> np.array:
+def stretch(array: np.ndarray, min: int = 0, max: int = 1) -> np.array:
     """'Stretch' the profile to the fit a new min and max value. This is a utility for grounding + normalizing.
 
     Parameters

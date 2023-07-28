@@ -1006,7 +1006,7 @@ class SingleProfile(ProfileMixin):
         dose_threshold: float = 5,
         global_dose: bool = True,
         fill_value: float = np.nan,
-    ) -> np.array:
+    ) -> np.ndarray:
         """Calculate a 1D gamma. The passed profile is the evaluation profile. The instance calling this method is the reference profile.
         This profile must have the `dpmm` value given at instantiation so that physical spacing can be evaluated.
         The evaluation profile is resampled to be the same resolution as the reference profile.
@@ -1086,7 +1086,7 @@ class MultiProfile(ProfileMixin):
 
     """
 
-    values: np.array | Sequence
+    values: np.ndarray | Sequence
     peaks: list
     valleys: list
 

@@ -13,7 +13,7 @@ class Simulator(ABC):
 
     pixel_size: float
     shape: (int, int)
-    image: np.array
+    image: np.ndarray
 
     def __init__(self, sid: float = 1500):
         """

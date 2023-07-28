@@ -15,7 +15,7 @@ class Contrast(OptionListMixin):
     DIFFERENCE = "Difference"  #:
 
 
-def visibility(array: np.array, radius: float, std: float, algorithm: str) -> float:
+def visibility(array: np.ndarray, radius: float, std: float, algorithm: str) -> float:
     """The visual perception of CNR. Uses the model from A Rose: https://www.osapublishing.org/josa/abstract.cfm?uri=josa-38-2-196.
     See also here: https://howradiologyworks.com/x-ray-cnr/.
     Finally, a review paper here: http://xrm.phys.northwestern.edu/research/pdf_papers/1999/burgess_josaa_1999.pdf
@@ -40,7 +40,7 @@ def visibility(array: np.array, radius: float, std: float, algorithm: str) -> fl
     return c * np.sqrt(radius**2 * np.pi) / std
 
 
-def contrast(array: np.array, algorithm: str) -> float:
+def contrast(array: np.ndarray, algorithm: str) -> float:
     """Generic contrast function. Different algorithms have different inputs, so caution is advised.
     When possible, the exact contrast function is preferred.
 
@@ -84,7 +84,7 @@ def contrast(array: np.array, algorithm: str) -> float:
         )
 
 
-def rms(array: np.array) -> float:
+def rms(array: np.ndarray) -> float:
     """The root-mean-square contrast. Requires values be within 0 and 1."""
     if array.min() < 0 or array.max() > 1:
         raise ValueError(
@@ -105,7 +105,7 @@ def difference(feature: float, background: float) -> float:
     return abs(feature - background)
 
 
-def michelson(array: np.array) -> float:
+def michelson(array: np.ndarray) -> float:
     """The Michelson contrast. Used for sinusoidal patterns. Ranges from 0 to 1.
 
     .. seealso::
