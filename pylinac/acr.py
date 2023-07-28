@@ -814,7 +814,7 @@ class MRUniformityModuleOutput:
     roi_settings: dict
     rois: dict
     ghost_roi_settings: dict
-    ghose_rois: dict
+    ghost_rois: dict
     psg: float
     ghosting_ratio: float
     piu_passed: bool
@@ -1276,7 +1276,7 @@ class ACRMRILarge(CatPhanBase):
                 roi_settings=self.uniformity_module.roi_settings,
                 rois=self.uniformity_module.rois,
                 ghost_roi_settings=self.uniformity_module.ghost_roi_settings,
-                ghose_rois=self.uniformity_module.ghost_rois,
+                ghost_rois=self.uniformity_module.ghost_rois,
                 psg=self.uniformity_module.psg,
                 ghosting_ratio=self.uniformity_module.ghosting_ratio,
                 piu=self.uniformity_module.percent_image_uniformity,
