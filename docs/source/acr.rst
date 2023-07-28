@@ -159,7 +159,7 @@ but the name of the subclassed module can be anything as long as it subclasses t
 Customizing module offsets
 --------------------------
 
-Customizing the module offsts in the ACR module is easier than for the CT module.
+Customizing the module offsets in the ACR module is easier than for the CT module.
 To do so, simply override any relevant constant like so:
 
 .. code-block:: python
@@ -235,7 +235,7 @@ Section 0.4 specifies the 7 tests to perform. Pylinac can perform 6 of these 7. 
 low-contrast visibility test.
 
 * **Geometric Accuracy** - The geometric accuracy is measured using profiles of slice 5. The only difference
-  is that pylinac will use the 60th percentile pixel value of the image as a high-pass filter and then take the FWHM
+  is that pylinac will use the 60th percentile pixel value of the image as a high-pass filter so that minor background fluctuations are removed and then take the FWHM
   of several profiles of this new image. The width between the two pixels defining the FWHM is the diameter.
 * **High Contrast** - High contrast is hard to measure for the ACR MRI phantom simply because it does not use line pairs,
   but rather offset dots as well as the qualitative description in the guidance document about how to score these.
@@ -247,7 +247,7 @@ low-contrast visibility test.
 
   .. tip::
 
-    It is suggested to visually perform the contrast measurement manually and compare to pylinac values to establish
+    It is suggested to perform the contrast measurement visually and compare to pylinac values to establish
     a cross-comparison ratio. After a ratio has been established, the pylinac MTF can be used as the baseline value
     moving forward.
 
