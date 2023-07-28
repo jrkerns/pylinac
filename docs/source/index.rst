@@ -46,6 +46,7 @@
    topics/xim
    topics/contrast
    topics/mtf
+   topics/scale
 
 .. toctree::
    :hidden:
