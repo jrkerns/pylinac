@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 
 
-def bounding_box(array: np.array) -> (float, ...):
+def bounding_box(array: np.ndarray) -> (float, ...):
     # TODO: replace with regionprops
     """Get the bounding box values of an ROI in a 2D array."""
     binary_arr = np.argwhere(array)

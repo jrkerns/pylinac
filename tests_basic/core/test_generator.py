@@ -408,9 +408,7 @@ class TestConstantLayer(TestCase):
 
 
 class NOOPLayer(Layer):
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         return image
 
 

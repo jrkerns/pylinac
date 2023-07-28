@@ -12,7 +12,8 @@ from matplotlib import pyplot as plt
 from .core import pdf
 from .core.profile import CollapsedCircleProfile
 from .core.roi import DiskROI
-from .core.utilities import ResultBase, abs360
+from .core.scale import abs360
+from .core.utilities import ResultBase
 from .ct import CatPhanBase, CatPhanModule, Slice
 
 

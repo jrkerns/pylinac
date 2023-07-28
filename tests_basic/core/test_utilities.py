@@ -4,13 +4,12 @@ from unittest import TestCase
 import numpy as np
 
 from pylinac import Interpolation
+from pylinac.core.scale import abs360, wrap360
 from pylinac.core.utilities import (
     OptionListMixin,
-    abs360,
     convert_to_enum,
     is_iterable,
     simple_round,
-    wrap360,
 )
 
 

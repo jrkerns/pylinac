@@ -241,8 +241,8 @@ class QuartGeometryModule(CatPhanModule):
     attr_name = "geometry_module"
     common_name = "Geometric Distortion"
     profiles: dict
-    horiz_array: np.array
-    vert_array: np.array
+    horiz_array: np.ndarray
+    vert_array: np.ndarray
 
     def _setup_rois(self) -> None:
         self.profiles = {}

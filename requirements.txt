@@ -1,5 +1,4 @@
 argue
-cached-property~=1.5.2
 matplotlib >= 2.0
 numpy >= 1.16
 Pillow >= 4.0

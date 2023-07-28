@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from functools import cached_property
+
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from skimage import draw
 from skimage.measure._regionprops import _RegionProperties
 
@@ -162,7 +163,7 @@ class LowContrastDiskROI(DiskROI):
         self.visibility_threshold = visibility_threshold
 
     @property
-    def _contrast_array(self) -> np.array:
+    def _contrast_array(self) -> np.ndarray:
         return np.array((self.pixel_value, self.contrast_reference))
 
     @property

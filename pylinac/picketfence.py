@@ -22,6 +22,7 @@ import os.path as osp
 import warnings
 import webbrowser
 from dataclasses import dataclass
+from functools import cached_property
 from io import BytesIO
 from itertools import cycle
 from pathlib import Path
@@ -30,7 +31,6 @@ from typing import BinaryIO, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from py_linq import Enumerable
 

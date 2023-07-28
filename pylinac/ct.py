@@ -22,6 +22,7 @@ import os
 import webbrowser
 import zipfile
 from dataclasses import dataclass
+from functools import cached_property
 from io import BytesIO
 from os import path as osp
 from pathlib import Path
@@ -29,7 +30,6 @@ from typing import BinaryIO, Callable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from matplotlib.axes import Axes
 from py_linq import Enumerable
 from scipy import ndimage
@@ -2360,11 +2360,11 @@ class CatPhan600(CatPhanBase):
 
 
 def get_regions(
-    slice_or_arr: Slice | np.ndarray,
+    slice_or_arr: Slice | np.array,
     fill_holes: bool = False,
     clear_borders: bool = True,
     threshold: str = "otsu",
-) -> tuple[np.ndarray, list, int]:
+) -> tuple[np.array, list, int]:
     """Get the skimage regions of a black & white image."""
     if threshold == "otsu":
         thresmeth = filters.threshold_otsu
@@ -2400,7 +2400,7 @@ def combine_surrounding_slices(
     nominal_slice_num: int,
     slices_plusminus: int = 1,
     mode: str = "mean",
-) -> np.ndarray:
+) -> np.array:
     """Return an array that is the combination of a given slice and a number of slices surrounding it.
 
     Parameters

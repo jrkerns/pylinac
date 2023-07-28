@@ -39,7 +39,8 @@ from .io import (
     retrieve_filenames,
 )
 from .profile import stretch as stretcharray
-from .utilities import decode_binary, is_close, simple_round, wrap360
+from .scale import wrap360
+from .utilities import decode_binary, is_close, simple_round
 
 ARRAY = "Array"
 DICOM = "DICOM"
@@ -1329,7 +1330,7 @@ class ArrayImage(BaseImage):
 
     def __init__(
         self,
-        array: np.array,
+        array: np.ndarray,
         *,
         dpi: float = None,
         sid: float = None,
@@ -1591,15 +1592,15 @@ def tiff_to_dicom(
 
 
 def gamma_2d(
-    reference: np.array,
-    evaluation: np.array,
+    reference: np.ndarray,
+    evaluation: np.ndarray,
     dose_to_agreement: float = 1,
     distance_to_agreement: int = 1,
     gamma_cap_value: float = 2,
     global_dose: bool = True,
     dose_threshold: float = 5,
     fill_value: float = np.nan,
-) -> np.array:
+) -> np.ndarray:
     """Compute a 2D gamma of two 2D numpy arrays. This does NOT do size or spatial resolution checking.
     It performs an element-by-element evaluation. It is the responsibility
     of the caller to ensure the reference and evaluation have comparable spatial resolution.

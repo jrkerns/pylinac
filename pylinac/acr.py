@@ -15,6 +15,7 @@ from matplotlib import pyplot as plt
 from scipy import ndimage
 
 from .core import pdf
+from .core.array_utils import find_nearest_idx
 from .core.geometry import Line, Point
 from .core.image import DicomImage
 from .core.mtf import MTF
@@ -1286,7 +1287,3 @@ class ACRMRILarge(CatPhanBase):
         if as_dict:
             return dataclasses.asdict(data)
         return data
-
-
-def find_nearest_idx(array: np.ndarray, value: float):
-    return (np.abs(array - value)).argmin()

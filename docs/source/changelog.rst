@@ -90,6 +90,9 @@ Core
 * Image classes (``DicomImage``, ``ArrayImage``, ``FileImage``) have a new method: :func:`~pylinac.core.image.BaseImage.rotate`.
   This is a wrapper for scikit-image that allows rotation of an arbitrary angle. Previously, only rotations of 90 degrees were
   allowed via the ``rot90`` method.
+* The library ``cached_property`` was dropped as a requirement since it was introduced in Python 3.8
+* The utility function ``find_nearest_index`` in the ``acr`` module was moved to ``core.array_utils``.
+* The utility functions ``abs360`` and ``wrap360`` were moved from ``core.utilities`` to ``core.scale``.
 
 v 3.13.0
 --------
