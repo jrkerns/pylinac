@@ -351,7 +351,20 @@ class BaseImage:
         return self.shape[0] / self.dpmm, self.shape[1] / self.dpmm
 
     def date_created(self, format: str = "%A, %B %d, %Y") -> str:
-        """The date the file was created. Tries DICOM data before falling back on OS timestamp"""
+        """The date the file was created. Tries DICOM data before falling back on OS timestamp. 
+        The method use one or more inputs of formatted code, where % means a placeholder and the letter the time unit of interest. 
+        For a full description of the several formatting codes see `strftime() documentation. <https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes>`_
+        
+        Parameters
+        ----------
+        format : str
+            %A means weekday full name, %B month full name, %d day of the month as a zero-padded decimal number and %Y year with century as a decimal number.
+            
+        Returns
+        -------
+        str
+            The date the file was created.
+        """
         date = None
         try:
             date = datetime.strptime(
