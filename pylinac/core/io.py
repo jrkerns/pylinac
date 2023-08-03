@@ -230,6 +230,7 @@ class SNCProfiler:
     def __init__(
         self,
         path: str,
+        gain_row: int = 20,
         detector_row: int = 106,
         bias_row: int = 107,
         calibration_row: int = 108,
@@ -260,10 +261,12 @@ class SNCProfiler:
             self.data = np.array(raw_data[data_row].split("\t")[data_columns]).astype(
                 float
             )
-            self.timetic = float(raw_data[bias_row].split("\t")[2])
+            self.gain = float(raw_data[gain_row].split("\t")[1])
+            self.timetic = float(raw_data[data_row].split("\t")[2])
             self.integrated_dose = self.calibration * (
-                self.data - self.bias * self.timetic
-            )
+                    self.data - self.bias * self.timetic
+            ) / self.gain
+
 
     def to_profiles(
         self, n_detectors_row: int = 63, **kwargs
