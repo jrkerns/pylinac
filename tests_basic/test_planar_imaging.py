@@ -145,13 +145,23 @@ class GeneralTests(TestCase):
 
         self.assertEqual(x, x_manual_dpi)
 
+    def test_ssd_values(self):
+        """Test various SSD values"""
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze(ssd="auto")  # shouldn't raise
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze(ssd=1000)  # shouldn't raise
+        with self.assertRaises(ValueError):
+            phan = LeedsTOR.from_demo_image()
+            phan.analyze(ssd=1500)  # really at 1000
+
 
 class PlanarPhantomMixin(CloudFileMixin):
     klass: Callable
     dir_path = ["planar_imaging"]
     mtf_50 = None
     invert = False
-    ssd = 1000
+    ssd = "auto"
     median_contrast = None
     median_cnr = None
     file_name = None
@@ -254,33 +264,33 @@ class LeedsCCW(LeedsMixin, TestCase):
 
 class Leeds45Deg(LeedsMixin, TestCase):
     mtf_50 = 1.9
-    ssd = 1500
+    ssd = "auto"
     file_name = "Leeds-45deg.dcm"
 
 
 class LeedsDirtyEdges(LeedsMixin, TestCase):
     mtf_50 = 1.53
-    ssd = 1000
+    ssd = "auto"
     file_name = "Leeds-dirty-edges.dcm"
 
 
 class LeedsOffsetHighRes(LeedsMixin, TestCase):
     mtf_50 = 1.85
-    ssd = 1500
+    ssd = "auto"
     file_name = "Leeds_offset_high_res_rois.dcm"
 
 
 class LeedsBlue(LeedsMixin, TestCase):
     klass = LeedsTORBlue
     mtf_50 = 1.5
-    ssd = 1450
+    ssd = "auto"
     file_name = "Leeds_Blue.dcm"
 
 
 class LeedsBlueRotated(LeedsMixin, TestCase):
     klass = LeedsTORBlue
     mtf_50 = 1.5
-    ssd = 1450
+    ssd = "auto"
     file_name = "Leeds_Blue.dcm"
 
     @classmethod
@@ -293,7 +303,7 @@ class LeedsBlueRotated(LeedsMixin, TestCase):
 @skip("Phantom appears distorted. MTF locations are different than other phantoms")
 class LeedsClosedBlades(LeedsMixin, TestCase):
     mtf_50 = 1.3
-    ssd = 1500
+    ssd = "auto"
     file_name = "Leeds-closed-blades.dcm"
 
 
@@ -330,6 +340,7 @@ class SIQC3_2(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     file_name = "QC3-2.5MV-2.dcm"
     mtf_50 = 1.16
+    ssd = 1000
     rois_seen = 5
 
     def test_wrong_ssd_fails(self):

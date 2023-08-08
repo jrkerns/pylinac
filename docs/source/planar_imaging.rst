@@ -106,7 +106,7 @@ The minimum needed to get going is to:
 
      leeds.analyze(low_contrast_threshold=0.01, high_contrast_threshold=0.5)
 
-  Additionally, you may specify the SSD of the phantom if it is not at iso (e.g. sitting on the panel):
+  Additionally, you may specify the SSD of the phantom. By default, SAD and 5cm up from SID are searched:
 
   .. code-block:: python
 

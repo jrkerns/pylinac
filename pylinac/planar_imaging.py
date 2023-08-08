@@ -148,6 +148,8 @@ class ImagePhantomBase:
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
     roi_match_condition: Literal["max", "closest"] = "max"
+    mtf: MTF
+    _ssd: float
 
     def __init__(
         self,
@@ -176,8 +178,6 @@ class ImagePhantomBase:
         self._center_override = None
         self._high_contrast_threshold = None
         self._low_contrast_threshold = None
-        self._ssd: float = 100
-        self.mtf = None
 
     @classmethod
     def from_demo_image(cls):
@@ -276,7 +276,7 @@ class ImagePhantomBase:
         angle_override: float | None = None,
         center_override: tuple | None = None,
         size_override: float | None = None,
-        ssd: float = 1000,
+        ssd: float | Literal["auto"] = "auto",
         low_contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 100,
     ) -> None:
@@ -311,7 +311,7 @@ class ImagePhantomBase:
 
                  This value is not necessarily the physical size of the phantom. It is an arbitrary value.
         ssd
-            The SSD of the phantom itself in mm.
+            The SSD of the phantom itself in mm. If set to "auto", will first search for the phantom at the SAD, then at 5cm above the SID.
         low_contrast_method
             The equation to use for calculating low contrast.
         visibility_threshold
@@ -325,6 +325,7 @@ class ImagePhantomBase:
         self._low_contrast_method = low_contrast_method
         self.visibility_threshold = visibility_threshold
         self._ssd = ssd
+        self._find_ssd()
         self._check_inversion()
         if invert:
             self.image.invert()
@@ -777,6 +778,18 @@ class ImagePhantomBase:
 
     def _phantom_radius_calc(self):
         return math.sqrt(self.phantom_ski_region.bbox_area)
+
+    def _find_ssd(self):
+        """If the SSD parameter is set to auto, search at SAD, then at -5cm SID"""
+        if isinstance(self._ssd, str) and self._ssd.lower() == "auto":
+            self._ssd = self.image.metadata.get("RadiationMachineSAD", 1000)
+            try:
+                # cached property; no error means it found it.
+                self.phantom_ski_region
+            except ValueError:
+                # 5cm up from SID
+                self._ssd = self.image.metadata.get("RTImageSID", 1500) - 50
+                self.phantom_ski_region
 
 
 @dataclass
