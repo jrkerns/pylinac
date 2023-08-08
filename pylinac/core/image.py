@@ -1084,14 +1084,14 @@ class DicomImage(BaseImage):
 
     @property
     def slice_spacing(self) -> float:
-        """Determine the distance between slices. In MRI
-        the spacing can be greater than the slice thickness (i.e. gaps).
+        """Determine the distance between slices. The spacing can be greater than the slice thickness (i.e. gaps).
+        Uses the absolute version as it can apparently be negative: https://dicom.innolitics.com/ciods/nm-image/nm-reconstruction/00180088
 
-        This attempts to use the slice spacing attr (present in MRIs) and if it doesn't exist, use the slice thickness attr
+        This attempts to use the slice spacing attr and if it doesn't exist, use the slice thickness attr
         """
 
         try:
-            return self.metadata.SpacingBetweenSlices
+            return abs(self.metadata.SpacingBetweenSlices)
         except AttributeError:
             return self.metadata.SliceThickness
 
