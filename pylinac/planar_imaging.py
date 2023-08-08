@@ -311,7 +311,7 @@ class ImagePhantomBase:
 
                  This value is not necessarily the physical size of the phantom. It is an arbitrary value.
         ssd
-            The SSD of the phantom itself in mm. If set to "auto", will first search for the phantom at the SAD, then at -5cm from the SID.
+            The SSD of the phantom itself in mm. If set to "auto", will first search for the phantom at the SAD, then at 5cm above the SID.
         low_contrast_method
             The equation to use for calculating low contrast.
         visibility_threshold

@@ -13,7 +13,7 @@ Planar Imaging
 * An Elekta variant of the Las Vegas phantom has been added: :class:`~pylinac.planar_imaging.ElektaLasVegas`.
 * The SSD parameter of now defaults to "auto" (``.analyze(..., ssd="auto")``). Previously, it was set to 1000mm. If "auto", the phantom
   is first searched at 1000mm (for backwards compatibility). If the phantom isn't found, it then searches
-  at 5cm up from the SID value. The 5cm is to account for the physical shroud of most EPID panels.
+  at 5cm above the SID value. The 5cm is to account for the physical shroud of most EPID panels.
   If the phantom isn't found at either of these locations an error is raised. In that case, the SSD
   should be provided manually, which was already the case previously.
 
