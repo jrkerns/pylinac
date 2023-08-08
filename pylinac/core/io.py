@@ -263,10 +263,9 @@ class SNCProfiler:
             )
             self.gain = float(raw_data[gain_row].split("\t")[1])
             self.timetic = float(raw_data[data_row].split("\t")[2])
-            self.integrated_dose = self.calibration * (
-                    self.data - self.bias * self.timetic
-            ) / self.gain
-
+            self.integrated_dose = (
+                self.calibration * (self.data - self.bias * self.timetic) / self.gain
+            )
 
     def to_profiles(
         self, n_detectors_row: int = 63, **kwargs
