@@ -336,6 +336,13 @@ class TestDicomImage(TestCase):
         img: DicomImage = image.load(path)
         self.assertAlmostEqual(img.slice_spacing, 0.5, places=1)
 
+    def test_negative_slice_spacing_ct(self):
+        path = get_file_from_cloud_test_repo(
+            ["CBCT", "CatPhan_604", "negative_spacing.zip"]
+        )
+        stack = DicomImageStack.from_zip(path)
+        self.assertAlmostEqual(stack[1].slice_spacing, 2, places=1)
+
 
 class TestXIMImage(TestCase):
     def test_normal_load(self):

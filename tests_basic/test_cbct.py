@@ -1464,3 +1464,28 @@ class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):
     slice_thickness = 5.9
     unif_values = {"Center": 8, "Left": 7, "Right": 8, "Top": 8, "Bottom": 8}
     mtf_values = {50: 0.40}
+
+
+class CatPhan604NegativeSliceOverlap(CatPhan604Mixin, TestCase):
+    """Has a negative value for slice overlap. Has to do with stack order, but is irrelevant for our needs:
+    https://dicom.innolitics.com/ciods/nm-image/nm-reconstruction/00180088"""
+
+    file_name = "negative_spacing.zip"
+    expected_roll = 0.1
+    origin_slice = 65
+    hu_values = {
+        "Poly": -20,
+        "Acrylic": 128,
+        "Delrin": 351,
+        "Air": -967,
+        "Teflon": 910,
+        "PMP": -165,
+        "LDPE": -75,
+        "50% Bone": 604,
+        "20% Bone": 211,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.15
+    unif_values = {"Center": 24, "Left": 23, "Right": 22, "Top": 23, "Bottom": 21}
+    mtf_values = {50: 0.40}
+    lowcon_visible = 6
