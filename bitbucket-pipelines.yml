@@ -32,8 +32,6 @@ definitions:
         script:
           - apt update
           - apt install git -y
-          - git config pull.rebase false
-          - git pull git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
           - git push git@github.com:jrkerns/pylinac.git $BITBUCKET_BRANCH
     - step: &build-docs
         name: Build Docs
