@@ -3,6 +3,15 @@
 Changelog
 =========
 
+v 3.15.0
+--------
+
+CT
+^^
+
+* The catphan detection was failing if the phantom jig was touching the phantom at the center of a
+  module. This has been fixed.
+
 
 v 3.14.0
 --------
