@@ -318,12 +318,11 @@ class Slice:
             return False
 
     @property
-    def phan_center(self) -> Point | None:
+    def phan_center(self) -> Point:
         """Determine the location of the center of the phantom."""
-        if self.is_phantom_in_view():
-            x = self._phantom_center_func[0](self.slice_num)
-            y = self._phantom_center_func[1](self.slice_num)
-            return Point(x=x, y=y)
+        x = self._phantom_center_func[0](self.slice_num)
+        y = self._phantom_center_func[1](self.slice_num)
+        return Point(x=x, y=y)
 
 
 class CatPhanModule(Slice):
