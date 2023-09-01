@@ -3,6 +3,16 @@
 Changelog
 =========
 
+v 3.15.0
+--------
+
+CT
+^^
+
+* A rounding error was fixed where the extent check was failing because of
+  floating point rounding differences. This was causing an error to be raised
+  when the scan extent was just slightly smaller (or appeared to be smaller) than the configuration extent.
+
 
 v 3.14.0
 --------
