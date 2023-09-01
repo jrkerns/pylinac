@@ -1747,11 +1747,14 @@ class CatPhanBase:
 
     def _ensure_physical_scan_extent(self) -> bool:
         """Ensure that all the modules of the phantom have been scanned. If a CBCT isn't
-        positioned correctly, some modules might not be included."""
-        min_scan_extent_slice = min(s.z_position for s in self.dicom_stack)
-        max_scan_extent_slice = max(s.z_position for s in self.dicom_stack)
-        min_config_extent_slice = min(self._module_offsets())
-        max_config_extent_slice = max(self._module_offsets())
+        positioned correctly, some modules might not be included.
+
+        It appears there can be rounding errors between the DICOM tag and the actual slice position. See RAM-2897.
+        """
+        min_scan_extent_slice = round(min(s.z_position for s in self.dicom_stack), 1)
+        max_scan_extent_slice = round(max(s.z_position for s in self.dicom_stack), 1)
+        min_config_extent_slice = round(min(self._module_offsets()), 1)
+        max_config_extent_slice = round(max(self._module_offsets()), 1)
         return (min_config_extent_slice >= min_scan_extent_slice) and (
             max_config_extent_slice <= max_scan_extent_slice
         )
