@@ -1692,7 +1692,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         super().__init__(*args, **kwargs)
         orig_length = len(self.images)
         self.images = [
-            i for i in self.images if math.isclose(i.couch_angle, 0, abs_tol=5)
+            i for i in self.images if is_close(i.couch_angle, [0, 360], delta=1)
         ]
         new_length = len(self.images)
         if new_length != orig_length:
