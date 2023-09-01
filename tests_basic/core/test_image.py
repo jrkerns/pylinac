@@ -1,6 +1,7 @@
 import copy
 import io
 import json
+import math
 import shutil
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ import numpy as np
 import PIL.Image
 import pydicom
 from numpy.testing import assert_array_almost_equal
+from pydicom.uid import UID
 
 from pylinac.core import image
 from pylinac.core.geometry import Point
@@ -22,6 +24,8 @@ from pylinac.core.image import (
     DicomImageStack,
     FileImage,
     LinacDicomImage,
+    _rescale_dicom_values,
+    _unscale_dicom_values,
     equate_images,
     gamma_2d,
     load,
@@ -42,6 +46,114 @@ as500_path = get_file_from_cloud_test_repo(["picket_fence", "AS500#5.dcm"])
 xim_path = get_file_from_cloud_test_repo(["ximdcmtest.xim"])
 xim_dcm_path = get_file_from_cloud_test_repo(["ximdcmtest.dcm"])
 dcm_url = "https://storage.googleapis.com/pylinac_demo_files/EPID-PF-LR.dcm"
+
+
+class TestDICOMScaling(TestCase):
+    def test_raw_pixels_doesnt_change_array(self):
+        """Test that loading a dicom with raw_pixels=True doesn't change the array"""
+        ds = pydicom.dcmread(dcm_path)
+        array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=True)
+        assert np.array_equal(ds.pixel_array, array)
+
+    def test_mr_storage_doesnt_rescale(self):
+        """Test that loading a dicom with MR storage doesn't rescale"""
+        dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
+        ds = pydicom.dcmread(dcm_path)
+        array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
+        assert np.array_equal(ds.pixel_array, array)
+
+    def test_ct_image(self):
+        """Test an older CT Image where we are guaranteed to have rescale slope and intercept tags"""
+        dcm_path = get_file_from_cloud_test_repo(
+            ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
+        )
+        ds = pydicom.dcmread(dcm_path)
+        array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
+        assert not np.array_equal(ds.pixel_array, array)
+        assert np.isclose(array.max(), 194)
+
+    def test_no_tags_inverts(self):
+        ds = pydicom.Dataset()
+        ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
+        array = np.zeros((3, 3))
+        array[0, 0] = 100
+        scaled_array = _rescale_dicom_values(array, ds, raw_pixels=False)
+        assert not np.array_equal(array, scaled_array)
+        assert np.isclose(
+            scaled_array[0, 0], 0
+        )  # test we inverted and the value is now opposite
+        assert np.isclose(scaled_array.max(), 100)
+
+    def test_all_tags_negative_sign(self):
+        ds = pydicom.Dataset()
+        ds.RescaleSlope = 1
+        ds.RescaleIntercept = -1000
+        ds.PixelIntensityRelationshipSign = -1
+        ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
+        array = np.ones((3, 3))
+        scaled_array = _rescale_dicom_values(array, ds, raw_pixels=False)
+        # with all tags, this will be negative and offset
+        assert not np.array_equal(array, scaled_array)
+        assert np.isclose(scaled_array.max(), 999)
+
+    def test_all_tags_positive_sign(self):
+        ds = pydicom.Dataset()
+        ds.RescaleSlope = 1
+        ds.RescaleIntercept = -1000
+        ds.PixelIntensityRelationshipSign = 1
+        ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
+        array = np.ones((3, 3))
+        scaled_array = _rescale_dicom_values(array, ds, raw_pixels=False)
+        # with all tags, this will be negative and offset
+        assert not np.array_equal(array, scaled_array)
+        assert np.isclose(scaled_array.max(), -999)
+
+
+class TestDICOMUnscaling(TestCase):
+    def test_unscale_raw_pixels(self):
+        """Test when we unscale the image that the values are the same"""
+        ds = pydicom.dcmread(dcm_path)
+        array = _unscale_dicom_values(ds.pixel_array, ds, raw_pixels=True)
+        assert np.array_equal(ds.pixel_array, array)
+
+    def test_unscale_mr_storage(self):
+        dcm_path = get_file_from_cloud_test_repo(["ACR", "MRI", "GE - 3T", "IM_0001"])
+        ds = pydicom.dcmread(dcm_path)
+        array = _unscale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
+        assert np.array_equal(ds.pixel_array, array)
+
+    def test_unscale_ct_image(self):
+        """Test an older CT Image where we are guaranteed to have rescale slope and intercept tags"""
+        dcm_path = get_file_from_cloud_test_repo(
+            ["CBCT", "CatPhan_504", "Case3_Philips_1mm", "1mm", "EE035381"]
+        )
+        ds = pydicom.dcmread(dcm_path)
+        original_array = ds.pixel_array
+        scaled_array = _rescale_dicom_values(ds.pixel_array, ds, raw_pixels=False)
+        unscaled_array = _unscale_dicom_values(scaled_array, ds, raw_pixels=False)
+        assert np.array_equal(original_array, unscaled_array)
+
+    def test_no_tags_inverts_back(self):
+        ds = pydicom.Dataset()
+        ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
+        original_array = np.zeros((3, 3))
+        original_array[0, 0] = 100
+        scaled_array = _rescale_dicom_values(original_array, ds, raw_pixels=False)
+        assert not np.array_equal(original_array, scaled_array)
+        unscaled_array = _unscale_dicom_values(scaled_array, ds, raw_pixels=False)
+        assert np.array_equal(original_array, unscaled_array)
+
+    def test_all_tags_negative_sign(self):
+        ds = pydicom.Dataset()
+        ds.RescaleSlope = 1
+        ds.RescaleIntercept = -1000
+        ds.PixelIntensityRelationshipSign = -1
+        ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
+        original_array = np.ones((3, 3))
+        scaled_array = _rescale_dicom_values(original_array, ds, raw_pixels=False)
+        assert not np.array_equal(scaled_array, original_array)
+        unscaled_array = _unscale_dicom_values(scaled_array, ds, raw_pixels=False)
+        assert np.array_equal(unscaled_array, original_array)
 
 
 class TestEquateImages(TestCase):
@@ -283,6 +395,23 @@ class TestDicomImage(TestCase):
 
     def test_save(self):
         save_file(self.dcm.save)
+
+    def test_save_round_trip_pixel_values(self):
+        original_dcm = pydicom.dcmread(dcm_path)
+        dcm_img = DicomImage(dcm_path)
+        with io.BytesIO() as stream:
+            dcm_img.save(stream)
+            stream.seek(0)
+            reloaded_dcm = pydicom.dcmread(stream)
+        # full array comparison fails due to some rounding,
+        # but testing min/max and argmax should be sufficient
+        assert math.isclose(
+            reloaded_dcm.pixel_array.max(), original_dcm.pixel_array.max()
+        )
+        assert math.isclose(
+            reloaded_dcm.pixel_array.min(), original_dcm.pixel_array.min()
+        )
+        assert reloaded_dcm.pixel_array.argmax() == original_dcm.pixel_array.argmax()
 
     def test_manipulation_still_saves_correctly(self):
         dcm = image.load(dcm_path)

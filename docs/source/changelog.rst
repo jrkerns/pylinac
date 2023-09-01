@@ -12,6 +12,25 @@ CT
 * The catphan detection was failing if the phantom jig was touching the phantom at the center of a
   module. This has been fixed.
 
+Core
+^^^^
+
+* When saving a DICOM image, the pixel values were not "unscaling" the raw pixel values.
+  I.e. the scaled values were being saved back to the DICOM file. If the image
+  was then read in again, the values would be scaled twice. This has been fixed
+  and DICOM images can now go "round trip" without the raw pixel values changing.
+  An example is below:
+
+  .. code-block:: python
+
+    dcm_image = image.load("my_image.dcm")
+    dcm_image.array  # this is scaled by the DICOM tags
+    dcm_image.save(
+        "my_output_image.dcm"
+    )  # the pixel values were written back *as rescaled*
+    dcm_image2 = image.load("my_output_image.dcm")
+    dcm_image2.array  # this was scaling by the DICOM tags *again*
+
 
 v 3.14.0
 --------
