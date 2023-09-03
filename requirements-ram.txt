@@ -5,7 +5,7 @@ attrs==21.4.0
 bleach==5.0.0
 bump2version==1.0.1
 cached-property==1.5.2
-certifi==2022.6.15
+certifi==2022.12.7
 charset-normalizer==2.0.12
 colorama==0.4.4
 colorlog==6.6.0
