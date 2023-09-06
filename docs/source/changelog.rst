@@ -15,7 +15,7 @@ CT
 
 VMAT
 ^^^^
-`
+
 * The standard deviation for each VMAT segment is now available as the ``.stdev`` property.
   The value is expressed as a percentage to be consistent with :math:`R_{corr}`. I.e.
   a value of 0.5 means 0.5% standard deviation of the ratio of DMLC and open field over the ROI.
