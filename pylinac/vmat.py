@@ -50,6 +50,7 @@ class SegmentResult:
     r_corr: float  #:
     r_dev: float  #:
     center_x_y: float  #:
+    stdev: float  #:
 
 
 @dataclass
@@ -116,6 +117,20 @@ class Segment(Rectangle):
         ].mean()
         ratio = (dmlc_value / open_value) * 100
         return ratio
+
+    @property
+    def stdev(self) -> float:
+        """Return the standard deviation of the segment as a percentage of R_corr."""
+        dmlc_value = self._dmlc_image.array[
+            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.bl_corner.x : self.bl_corner.x + self.width,
+        ]
+        open_value = self._open_image.array[
+            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.bl_corner.x : self.bl_corner.x + self.width,
+        ]
+        # we multiply by 100 to be consistent w/ r_corr. I.e. this is a % value.
+        return np.std(dmlc_value / open_value) * 100
 
     @property
     def passed(self) -> bool:
@@ -279,6 +294,7 @@ class VMATBase:
                 r_dev=segment.r_dev,
                 center_x_y=segment.center.as_array(),
                 x_position_mm=roi_data["offset_mm"],
+                stdev=segment.stdev,
             )
             segment_data.append(segment)
             named_segment_data[roi_name] = segment
