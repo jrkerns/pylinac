@@ -1722,7 +1722,6 @@ class StandardImagingQC3(ImagePhantomBase):
     _demo_filename = "qc3.dcm"
     common_name = "SI QC-3"
     phantom_bbox_size_mm2 = 168**2
-    roi_match_condition = "closest"
     detection_conditions = [is_centered, is_right_size]
     phantom_outline_object = {"Rectangle": {"width ratio": 7.5, "height ratio": 6}}
     high_contrast_roi_settings = {
