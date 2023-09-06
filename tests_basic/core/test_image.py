@@ -1,7 +1,6 @@
 import copy
 import io
 import json
-import math
 import shutil
 import tempfile
 import unittest
@@ -136,7 +135,7 @@ class TestDICOMUnscaling(TestCase):
     def test_no_tags_inverts_back(self):
         ds = pydicom.Dataset()
         ds.SOPClassUID = UID("1.2.840.122332")  # junk UID; not a real image type
-        original_array = np.zeros((3, 3))
+        original_array = np.zeros((3, 3), dtype=np.uint16)
         original_array[0, 0] = 100
         scaled_array = _rescale_dicom_values(original_array, ds, raw_pixels=False)
         assert not np.array_equal(original_array, scaled_array)
@@ -396,7 +395,7 @@ class TestDicomImage(TestCase):
     def test_save(self):
         save_file(self.dcm.save)
 
-    def test_save_round_trip_pixel_values(self):
+    def test_save_round_trip_has_same_pixel_values(self):
         original_dcm = pydicom.dcmread(dcm_path)
         dcm_img = DicomImage(dcm_path)
         with io.BytesIO() as stream:
@@ -405,13 +404,34 @@ class TestDicomImage(TestCase):
             reloaded_dcm = pydicom.dcmread(stream)
         # full array comparison fails due to some rounding,
         # but testing min/max and argmax should be sufficient
-        assert math.isclose(
-            reloaded_dcm.pixel_array.max(), original_dcm.pixel_array.max()
+        self.assertAlmostEqual(
+            reloaded_dcm.pixel_array.max(), original_dcm.pixel_array.max(), places=-1
         )
-        assert math.isclose(
-            reloaded_dcm.pixel_array.min(), original_dcm.pixel_array.min()
+        self.assertAlmostEqual(
+            reloaded_dcm.pixel_array.min(), original_dcm.pixel_array.min(), places=-1
         )
-        assert reloaded_dcm.pixel_array.argmax() == original_dcm.pixel_array.argmax()
+        self.assertEqual(
+            reloaded_dcm.pixel_array.argmax(), original_dcm.pixel_array.argmax()
+        )
+
+    def test_save_out_of_bounds_values_normalizes(self):
+        # this occurs if we add multiple images together and the values go out of bounds
+        # causing a bit overflow
+        original_dcm = pydicom.dcmread(dcm_path)
+        dcm_img = DicomImage(dcm_path)
+        dcm_img.array *= 10e6  # values out of normal bounds of uint16
+        with io.BytesIO() as stream, self.assertWarns(UserWarning):
+            dcm_img.save(stream)
+            stream.seek(0)
+            reloaded_dcm = pydicom.dcmread(stream)
+        # because values are out of bounds, the values will get stretched
+        # and equality cannot be assumed
+        # max will be uint16 (original datatype) max
+        self.assertAlmostEqual(reloaded_dcm.pixel_array.max(), 65535, places=-1)
+        # indices should be the same however.
+        self.assertEqual(
+            reloaded_dcm.pixel_array.argmax(), original_dcm.pixel_array.argmax()
+        )
 
     def test_manipulation_still_saves_correctly(self):
         dcm = image.load(dcm_path)

@@ -8,6 +8,7 @@ import math
 import os
 import os.path as osp
 import re
+import warnings
 from collections import Counter
 from datetime import datetime
 from io import BufferedReader, BytesIO
@@ -29,7 +30,15 @@ from skimage.draw import disk
 from skimage.transform import rotate
 
 from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
-from .array_utils import bit_invert, convert_to_dtype, filter, ground, invert, normalize
+from .array_utils import (
+    bit_invert,
+    convert_to_dtype,
+    filter,
+    get_dtype_info,
+    ground,
+    invert,
+    normalize,
+)
 from .geometry import Point
 from .io import (
     TemporaryZipDirectory,
@@ -1128,6 +1137,18 @@ class DicomImage(BaseImage):
         unscaled_array = _unscale_dicom_values(
             self.array, self.metadata, self._raw_pixels
         )
+        # if we will have bit overflows, stretch instead
+        max_is_too_high = (
+            unscaled_array.max() > get_dtype_info(self._original_dtype).max
+        )
+        min_is_too_low = unscaled_array.min() < get_dtype_info(self._original_dtype).min
+        if min_is_too_low or max_is_too_high:
+            warnings.warn(
+                "The pixel values of image were detected to be outside"
+                f"the range of {self._original_dtype} values and will be normalized to fit the original dtype. "
+                f"The maximum value will be the maximum value of the original datatype: ({get_dtype_info(self._original_dtype).max})."
+            )
+            unscaled_array = convert_to_dtype(unscaled_array, self._original_dtype)
         self.metadata.PixelData = unscaled_array.astype(self._original_dtype).tobytes()
         self.metadata.Columns = unscaled_array.shape[1]
         self.metadata.Rows = unscaled_array.shape[0]
