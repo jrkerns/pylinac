@@ -430,3 +430,18 @@ class ACRGE3TRotated(ACRGE3T):
             img.array = ndimage.rotate(img.array, angle=0.5, mode="nearest")
         cls.mri.localize()
         cls.mri.analyze()
+
+
+class ACRBadProfile(ACRMRMixin, TestCase):
+    """This dataset was causing long_profile errors due.
+
+    There are also other issues going on (different geometry module).
+    The only point here is to test the long profile error."""
+
+    file_name = "Config rounding.zip"
+    mtf_50 = 0.96
+    phantom_roll = 0
+    slice_thickness = 4.2
+    slice1_shift = 1.5
+    slice11_shift = 1.95
+    psg = 0.3
