@@ -240,6 +240,13 @@ definitions:
           - ./google-cloud-sdk/install.sh --quiet
           - export PATH="./google-cloud-sdk/bin:$PATH"
           - nox -s update_dev_kraken
+    - step: &grype-scanning
+        name: Grype (dependency vulnerability) scan
+        script:
+          - apt-get update
+          - apt-get -y install curl
+          - curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          - grype dir:. --fail-on high --only-fixed
 
 pipelines:
 
@@ -268,6 +275,8 @@ pipelines:
                 PYPI_USERNAME: $PYPI_USERNAME
                 PYPI_PASSWORD: $PYPI_PASSWORD
                 DISTRIBUTIONS: 'bdist_wheel'
+    grype-scanning:
+      - step: *grype-scanning
 
   pull-requests:
     '**':
@@ -290,6 +299,12 @@ pipelines:
           - step: *vmat-tests
           - step: *winston-lutz-tests
           - step: *core-module-tests
+          - step:
+              <<: *grype-scanning
+              condition:
+                changesets:
+                  includePaths:
+                    - "requirements.txt"
 
   branches:
     release*:

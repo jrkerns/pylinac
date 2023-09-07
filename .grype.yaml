@@ -1,0 +1,4 @@
+exclude:
+  - ./requirements-dev.txt
+  - ./requirements-ram.txt
+  - ./requirements-rtd.txt
