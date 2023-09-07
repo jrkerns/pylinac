@@ -373,7 +373,7 @@ def fahrenheit2celsius(f: float) -> float:
 
 @argue.bounds(pdd2010=(0.5, 1))
 def tpr2010_from_pdd2010(*, pdd2010: float) -> float:
-    """Calculate TPR20,10 from PDD20,10. From TRS-398 pg 62 and Followill et al 1998 eqn 1."""
+    """Calculate TPR20,10 from PDD20,10. From TRS-398 footnote 25, section 6.3.1, p.68, and Followill et al 1998 eqn 1."""
     return 1.2661 * pdd2010 - 0.0595
 
 
