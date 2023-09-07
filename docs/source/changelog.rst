@@ -20,6 +20,10 @@ CT
 * The catphan detection was failing if the phantom jig was touching the phantom at the center of a
   module. This has been fixed.
 
+* A rounding error was fixed where the extent check was failing because of
+  floating point rounding differences. This was causing an error to be raised
+  when the scan extent was just slightly smaller (or appeared to be smaller) than the configuration extent.
+
 
 v 3.14.0
 --------

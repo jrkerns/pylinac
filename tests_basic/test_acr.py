@@ -262,6 +262,12 @@ class TestMRGeneral(TestCase):
         mri.analyze(echo_number=None)
         self.assertEqual(mri.dicom_stack[0].metadata.EchoNumbers, "1")
 
+    def test_config_extent_rounds(self):
+        """Test that the extent check rounds the config extent to the nearest slice"""
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "Config rounding.zip"])
+        mri = ACRMRILarge.from_zip(path)
+        self.assertTrue(mri._ensure_physical_scan_extent())
+
 
 class TestMRPlottingSaving(TestCase):
     @classmethod
