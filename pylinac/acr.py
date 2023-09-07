@@ -562,7 +562,7 @@ class MRSlice11PositionModule(CatPhanModule):
     def _setup_rois(self) -> None:
         for name, setting in self.roi_settings.items():
             # angle is +90 because pointing right is 0, and these rois move downward, not rightward
-            self.rois[name] = ThicknessROI(
+            self.rois[name] = RectangleROI(
                 self.image,
                 setting["width_pixels"],
                 setting["height_pixels"],
@@ -574,20 +574,26 @@ class MRSlice11PositionModule(CatPhanModule):
     @property
     def bar_difference_mm(self) -> float:
         """The difference in height between the two angled bars"""
-        left_array = self.rois["Left"].long_profile.values
-        left_mid_height = (left_array.max() - left_array.min()) / 2 + left_array.min()
-        left_idx = find_nearest_idx(left_array, left_mid_height)
-        right_array = self.rois["Right"].long_profile.values
-        right_mid_height = (
-            right_array.max() - right_array.min()
-        ) / 2 + right_array.min()
-        right_idx = find_nearest_idx(right_array, right_mid_height)
-        return (right_idx - left_idx) * self.mm_per_pixel
+        idxs = []
+        for roi in (self.rois["Right"], self.rois["Left"]):
+            prof = roi.pixel_array.max(axis=np.argmin(roi.pixel_array.shape))
+            mid_height = (prof.max() - prof.min()) / 2 + prof.min()
+            idx = find_nearest_idx(prof, mid_height)
+            idxs.append(idx)
+        return (idxs[0] - idxs[1]) * self.mm_per_pixel
 
     @property
     def slice_shift_mm(self) -> float:
         """The effective shift in phantom position in the S/I direction. Because bars are at 45 degrees, the shift is half the bar difference"""
         return self.bar_difference_mm / 2
+
+    def plot_rois(self, axis: plt.Axes) -> None:
+        """Plot the ROIs to the axis.
+
+        We overload because simple rectangle ROIs don't have a pass/fail color.
+        """
+        for roi in self.rois.values():
+            roi.plot2axes(axis, edgecolor="blue")
 
 
 @dataclass

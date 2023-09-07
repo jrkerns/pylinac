@@ -6,6 +6,14 @@ Changelog
 v 3.15.0
 --------
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* For the MultiTargetMultiField Winston Lutz analysis, non-zero couch angles are not allowed.
+  However, the check for this was limited to 0-5 degrees. Couch values that were on the
+  other side of 0 were not being included. Couch angles between
+  355-5 degrees are now allowed as originally intended.
+
 CT
 ^^
 
@@ -15,6 +23,26 @@ CT
 * A rounding error was fixed where the extent check was failing because of
   floating point rounding differences. This was causing an error to be raised
   when the scan extent was just slightly smaller (or appeared to be smaller) than the configuration extent.
+
+ACR
+^^^
+
+* The ACR MRI phantom analysis was sometimes failing because the slice thickness check was failing.
+  This was caused by a slightly inappropriate use of the profile module, causing instability under
+  certain conditions. The MRI analysis should be more stable. Quantitative results should be the
+  same.
+
+VMAT
+^^^^
+
+* The standard deviation for each VMAT segment is now available as the ``.stdev`` property of the segment.
+
+  .. code-block:: python
+
+    vmat = DRMLC(...)
+    vmat.analyze(...)
+    data = vmat.results_data()
+    print(data.segments[0].stdev)  # first segment stdev
 
 Core
 ^^^^
