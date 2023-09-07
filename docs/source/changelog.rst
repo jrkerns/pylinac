@@ -32,6 +32,18 @@ ACR
   certain conditions. The MRI analysis should be more stable. Quantitative results should be the
   same.
 
+VMAT
+^^^^
+
+* The standard deviation for each VMAT segment is now available as the ``.stdev`` property of the segment.
+
+  .. code-block:: python
+
+    vmat = DRMLC(...)
+    vmat.analyze(...)
+    data = vmat.results_data()
+    print(data.segments[0].stdev)  # first segment stdev
+
 v 3.14.0
 --------
 
