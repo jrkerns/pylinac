@@ -11,8 +11,8 @@ Winston-Lutz
 
 * For the MultiTargetMultiField Winston Lutz analysis, non-zero couch angles are not allowed.
   However, the check for this was limited to 0-5 degrees. Couch values that were on the
-  other side of 0 were not being included. This has been fixed. Allowed couch angles
-  355-5 degrees as originally intended.
+  other side of 0 were not being included. Couch angles between
+  355-5 degrees are now allowed as originally intended.
 
 CT
 ^^
