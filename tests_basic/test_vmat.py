@@ -209,8 +209,8 @@ class TestDRGSDemo(VMATMixin, TestCase):
 
     segment_positions = {0: Point(161, 192), 4: Point(314, 192)}
     segment_values = {
-        0: {"r_dev": 0.965, "r_corr": 6.2, "stdev": 0.08},
-        4: {"r_dev": -0.459, "r_corr": 6, "stdev": 0.07},
+        0: {"r_dev": 0.965, "r_corr": 6.2, "stdev": 0.0008},
+        4: {"r_dev": -0.459, "r_corr": 6, "stdev": 0.0007},
     }
     avg_abs_r_deviation = 0.66
     max_r_deviation = 1.8
@@ -236,8 +236,8 @@ class TestDRMLCDemo(VMATMixin, TestCase):
 
     segment_positions = {0: Point(170, 192), 2: Point(285, 192)}
     segment_values = {
-        0: {"r_dev": -0.7, "r_corr": 5.7, "stdev": 0.086},
-        2: {"r_dev": -0.405, "r_corr": 5.8, "stdev": 0.085},
+        0: {"r_dev": -0.7, "r_corr": 5.7, "stdev": 0.00086},
+        2: {"r_dev": -0.405, "r_corr": 5.8, "stdev": 0.00085},
     }
     avg_abs_r_deviation = 0.44
     max_r_deviation = 0.89
