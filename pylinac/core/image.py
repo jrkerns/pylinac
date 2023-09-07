@@ -8,6 +8,7 @@ import math
 import os
 import os.path as osp
 import re
+import warnings
 from collections import Counter
 from datetime import datetime
 from io import BufferedReader, BytesIO
@@ -29,7 +30,15 @@ from skimage.draw import disk
 from skimage.transform import rotate
 
 from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
-from .array_utils import bit_invert, convert_to_dtype, filter, ground, invert, normalize
+from .array_utils import (
+    bit_invert,
+    convert_to_dtype,
+    filter,
+    get_dtype_info,
+    ground,
+    invert,
+    normalize,
+)
 from .geometry import Point
 from .io import (
     TemporaryZipDirectory,
@@ -246,6 +255,85 @@ def load_multiples(
     # replace array of first object and return
     first_img.array = combined_arr
     return first_img
+
+
+def _rescale_dicom_values(
+    unscaled_array: np.ndarray, metadata: Dataset, raw_pixels: bool
+) -> np.ndarray:
+    """Rescale the DICOM pixel values depending on the tags available.
+
+    See Also
+    --------
+    https://pylinac.readthedocs.io/en/latest/topics/images.html#pixel-data-inversion
+    """
+    has_all_rescale_tags = (
+        hasattr(metadata, "RescaleSlope")
+        and hasattr(metadata, "RescaleIntercept")
+        and hasattr(metadata, "PixelIntensityRelationshipSign")
+    )
+    has_some_rescale_tags = hasattr(metadata, "RescaleSlope") and hasattr(
+        metadata, "RescaleIntercept"
+    )
+    is_ct_storage = metadata.SOPClassUID.name == "CT Image Storage"
+    is_mr_storage = metadata.SOPClassUID.name == "MR Image Storage"
+    if raw_pixels:
+        return unscaled_array
+    elif has_all_rescale_tags:
+        scaled_array = (
+            (metadata.RescaleSlope * unscaled_array) + metadata.RescaleIntercept
+        ) * metadata.PixelIntensityRelationshipSign
+    elif is_ct_storage or has_some_rescale_tags:
+        scaled_array = (
+            metadata.RescaleSlope * unscaled_array
+        ) + metadata.RescaleIntercept
+    elif is_mr_storage:
+        # signal is usually correct as-is, no inversion needed
+        scaled_array = unscaled_array
+    else:
+        # invert it
+        orig_array = unscaled_array
+        scaled_array = -orig_array + orig_array.max() + orig_array.min()
+    return scaled_array
+
+
+def _unscale_dicom_values(
+    scaled_array: np.ndarray, metadata: Dataset, raw_pixels: bool
+) -> np.ndarray:
+    """Unscale the DICOM pixel values depending on the tags available.
+
+    This is the inverse of _rescale_dicom_values; specifically, when we
+    want to save the DICOM image we want to save the raw values
+    back to such that when re-importing and rescaling we will get the same array.
+    """
+    has_all_rescale_tags = (
+        hasattr(metadata, "RescaleSlope")
+        and hasattr(metadata, "RescaleIntercept")
+        and hasattr(metadata, "PixelIntensityRelationshipSign")
+    )
+    has_some_rescale_tags = hasattr(metadata, "RescaleSlope") and hasattr(
+        metadata, "RescaleIntercept"
+    )
+    is_ct_storage = metadata.SOPClassUID.name == "CT Image Storage"
+    is_mr_storage = metadata.SOPClassUID.name == "MR Image Storage"
+    if raw_pixels:
+        return scaled_array
+    elif has_all_rescale_tags:
+        unscaled_array = scaled_array * metadata.PixelIntensityRelationshipSign
+        unscaled_array = (
+            unscaled_array - metadata.RescaleIntercept
+        ) / metadata.RescaleSlope
+    elif is_ct_storage or has_some_rescale_tags:
+        unscaled_array = (
+            scaled_array - metadata.RescaleIntercept
+        ) / metadata.RescaleSlope
+    elif is_mr_storage:
+        # signal is usually correct as-is, no inversion needed
+        unscaled_array = scaled_array
+    else:
+        # invert it
+        orig_array = scaled_array
+        unscaled_array = -orig_array + orig_array.max() + orig_array.min()
+    return unscaled_array
 
 
 def _is_dicom(path: str | Path | io.BytesIO | ImageLike | np.ndarray) -> bool:
@@ -1030,6 +1118,7 @@ class DicomImage(BaseImage):
         # read the file once to get just the DICOM metadata
         self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
+        self._raw_pixels = raw_pixels
         # read a second time to get pixel data
         try:
             path.seek(0)
@@ -1040,35 +1129,8 @@ class DicomImage(BaseImage):
             self.array = ds.pixel_array.astype(dtype)
         else:
             self.array = ds.pixel_array.copy()
-        # convert values to HU or CU: real_values = slope * raw + intercept
-        has_all_rescale_tags = (
-            hasattr(self.metadata, "RescaleSlope")
-            and hasattr(self.metadata, "RescaleIntercept")
-            and hasattr(self.metadata, "PixelIntensityRelationshipSign")
-        )
-        has_some_rescale_tags = hasattr(self.metadata, "RescaleSlope") and hasattr(
-            self.metadata, "RescaleIntercept"
-        )
-        is_ct_storage = self.metadata.SOPClassUID.name == "CT Image Storage"
-        is_mr_storage = self.metadata.SOPClassUID.name == "MR Image Storage"
-        if raw_pixels:
-            pass  # no-op
-        elif has_all_rescale_tags:
-            self.array = (
-                (self.metadata.RescaleSlope * self.array)
-                + self.metadata.RescaleIntercept
-            ) * self.metadata.PixelIntensityRelationshipSign
-        elif is_ct_storage or has_some_rescale_tags:
-            self.array = (
-                self.metadata.RescaleSlope * self.array
-            ) + self.metadata.RescaleIntercept
-        elif is_mr_storage:
-            # signal is usually correct as-is, no inversion needed
-            pass
-        else:
-            # invert it
-            orig_array = self.array
-            self.array = -orig_array + orig_array.max() + orig_array.min()
+        # convert values to HU or CU
+        self.array = _rescale_dicom_values(self.array, ds, raw_pixels=raw_pixels)
 
     def save(self, filename: str | Path) -> str | Path:
         """Save the image instance back out to a .dcm file.
@@ -1077,13 +1139,24 @@ class DicomImage(BaseImage):
         -------
         A string pointing to the new filename.
         """
-        if self.metadata.SOPClassUID.name == "CT Image Storage":
-            self.array = (self.array - int(self.metadata.RescaleIntercept)) / int(
-                self.metadata.RescaleSlope
+        unscaled_array = _unscale_dicom_values(
+            self.array, self.metadata, self._raw_pixels
+        )
+        # if we will have bit overflows, stretch instead
+        max_is_too_high = (
+            unscaled_array.max() > get_dtype_info(self._original_dtype).max
+        )
+        min_is_too_low = unscaled_array.min() < get_dtype_info(self._original_dtype).min
+        if min_is_too_low or max_is_too_high:
+            warnings.warn(
+                "The pixel values of image were detected to be outside"
+                f"the range of {self._original_dtype} values and will be normalized to fit the original dtype. "
+                f"The maximum value will be the maximum value of the original datatype: ({get_dtype_info(self._original_dtype).max})."
             )
-        self.metadata.PixelData = self.array.astype(self._original_dtype).tobytes()
-        self.metadata.Columns = self.array.shape[1]
-        self.metadata.Rows = self.array.shape[0]
+            unscaled_array = convert_to_dtype(unscaled_array, self._original_dtype)
+        self.metadata.PixelData = unscaled_array.astype(self._original_dtype).tobytes()
+        self.metadata.Columns = unscaled_array.shape[1]
+        self.metadata.Rows = unscaled_array.shape[0]
         self.metadata.save_as(filename)
         return filename
 
