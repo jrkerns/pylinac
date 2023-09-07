@@ -24,6 +24,13 @@ CT
   floating point rounding differences. This was causing an error to be raised
   when the scan extent was just slightly smaller (or appeared to be smaller) than the configuration extent.
 
+ACR
+^^^
+
+* The ACR MRI phantom analysis was sometimes failing because the slice thickness check was failing.
+  This was caused by a slightly inappropriate use of the profile module, causing instability under
+  certain conditions. The MRI analysis should be more stable. Quantitative results should be the
+  same.
 
 v 3.14.0
 --------
