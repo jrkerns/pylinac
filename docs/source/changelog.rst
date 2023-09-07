@@ -37,9 +37,9 @@ Core
 
   .. warning::
 
-      If the DICOM pixel values have been modified, such as concataning images together,
+      If the DICOM pixel values have been modified, such as concatenating images together,
       and the values are too high or too low for the original datatype (usually uint16),
-      the values will be "stretched" to fit the datatype, with the maximum value
+      the values will be scaled to fit the datatype, with the maximum value
       being the max of the datatype. A warning will be raised when this occurs.
 
       Most of the time these operations are relative and absolute values don't matter,

@@ -260,7 +260,12 @@ def load_multiples(
 def _rescale_dicom_values(
     unscaled_array: np.ndarray, metadata: Dataset, raw_pixels: bool
 ) -> np.ndarray:
-    """Rescale the DICOM pixel values depending on the tags available."""
+    """Rescale the DICOM pixel values depending on the tags available.
+
+    See Also
+    --------
+    https://pylinac.readthedocs.io/en/latest/topics/images.html#pixel-data-inversion
+    """
     has_all_rescale_tags = (
         hasattr(metadata, "RescaleSlope")
         and hasattr(metadata, "RescaleIntercept")
