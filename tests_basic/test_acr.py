@@ -433,7 +433,8 @@ class ACRGE3TRotated(ACRGE3T):
 
 
 class ACRBadProfile(ACRMRMixin, TestCase):
-    """This dataset was causing long_profile errors due.
+    """This dataset was causing long_profile errors due to the profile not
+    being a true profile w/ low values at the edges.
 
     There are also other issues going on (different geometry module).
     The only point here is to test the long profile error."""
