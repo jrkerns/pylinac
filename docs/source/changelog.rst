@@ -14,6 +14,11 @@ Winston-Lutz
   other side of 0 were not being included. Couch angles between
   355-5 degrees are now allowed as originally intended.
 
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The Doselab RLf light/rad phantom has been added as an analysis options: :ref:`doselab_rlf`.
+
 CT
 ^^
 
