@@ -722,6 +722,13 @@ The algorithm works like such:
 
 * **Get BB centroid** -- An image window looks for each BB on the inner side of each edge. After finding the BBs,
   the centroid is calculated.
+
+  .. note::
+
+    The inner 10x10 BBs are always used regardless of the field size. This is because the BB detection
+    is more robust when the BBs are away from a field edge. This also means that 10x10 analysis is
+    slightly less robust that 15x15 analysis all else being equal.
+
 * **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
   A 5mm strip is averaged and used to reduce noise.
 

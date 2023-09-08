@@ -1155,14 +1155,18 @@ class DoselabRLf(StandardImagingFC2):
         "TR": [45, -17],
         "BR": [17, 45],
     }
-    bb_positions_15x15 = {
-        "TL": [-45, -70],
-        "BL": [-68, 45],
-        "TR": [68, -45],
-        "BR": [45, 68],
-    }
+    # 15x15 is not as robust as 10x10
+    # bb_positions_15x15 = {
+    #     "TL": [-45, -70],
+    #     "BL": [-70, 45],
+    #     "TR": [70, -45],
+    #     "BR": [45, 70],
+    # }
     bb_sampling_box_size_mm = 10
     field_strip_width_mm = 5
+
+    def _determine_bb_set(self, fwxm: int) -> dict:
+        return self.bb_positions_10x10
 
     @staticmethod
     def run_demo() -> None:

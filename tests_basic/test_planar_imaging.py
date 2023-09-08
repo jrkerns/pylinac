@@ -797,8 +797,8 @@ class DoselabRLfDemo(DoselabRLfMixin, TestCase):
     field_size_x_mm = 149.3
     field_epid_offset_x_mm = 0.1
     field_epid_offset_y_mm = 0.6
-    field_bb_offset_y_mm = 1
-    field_bb_offset_x_mm = 0.1
+    field_bb_offset_y_mm = 0.8
+    field_bb_offset_x_mm = 0.2
 
     def test_demo(self):
         DoselabRLf.run_demo()
