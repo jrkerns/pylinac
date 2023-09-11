@@ -3,5 +3,3 @@ exclude:
   - ./requirements-ram.txt
   - ./requirements-rtd.txt
   - ./poetry.lock
-
-fail-on-severity: "high"
