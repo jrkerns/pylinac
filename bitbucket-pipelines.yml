@@ -276,6 +276,7 @@ pipelines:
                 PYPI_PASSWORD: $PYPI_PASSWORD
                 DISTRIBUTIONS: 'bdist_wheel'
     grype-scanning:
+      - step: *set-up-env
       - step: *grype-scanning
 
   pull-requests:
@@ -305,6 +306,7 @@ pipelines:
                 changesets:
                   includePaths:
                     - "requirements.txt"
+                    - "requirements-ram.txt"
 
   branches:
     release*:
