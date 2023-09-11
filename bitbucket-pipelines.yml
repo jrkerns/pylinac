@@ -243,6 +243,7 @@ definitions:
     - step: &grype-scanning
         name: Grype (dependency vulnerability) scan
         script:
+          - source venv/bin/activate
           - apt-get update
           - apt-get -y install curl
           - curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
