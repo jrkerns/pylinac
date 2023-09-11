@@ -247,7 +247,9 @@ definitions:
           - apt-get update
           - apt-get -y install curl
           - curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
-          - grype dir:. --fail-on high --only-fixed
+          - grype dir:. --fail-on high --only-fixed -o json > grype_results.json
+        artifacts:
+          - grype_results.json
 
 pipelines:
 
