@@ -114,16 +114,6 @@ def simple_round(number: float | int, decimals: int | None = 0) -> float | int:
     return num
 
 
-def abs360(value: float) -> float:
-    """Convert angles to always be positive. E.g. -90 -> 270"""
-    return (360 + value) % 360
-
-
-def wrap360(value: float) -> float:
-    """Wrap the input value around 360. E.g. 361 -> 1"""
-    return value % 360
-
-
 def is_iterable(object) -> bool:
     """Determine if an object is iterable."""
     return isinstance(object, Iterable)
@@ -141,7 +131,7 @@ class Structure:
 
 def decode_binary(
     file: BinaryIO,
-    dtype: type[int] | type[float] | type[str] | str,
+    dtype: type[int] | type[float] | type[str] | str | np.dtype,
     num_values: int = 1,
     cursor_shift: int = 0,
     strip_empty: bool = True,

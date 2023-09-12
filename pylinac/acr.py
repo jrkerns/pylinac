@@ -4,6 +4,7 @@ import dataclasses
 import io
 import math
 import textwrap
+import warnings
 import webbrowser
 from dataclasses import dataclass
 from io import BytesIO
@@ -14,7 +15,9 @@ from matplotlib import pyplot as plt
 from scipy import ndimage
 
 from .core import pdf
+from .core.array_utils import find_nearest_idx
 from .core.geometry import Line, Point
+from .core.image import DicomImage
 from .core.mtf import MTF
 from .core.profile import (
     LEFT,
@@ -26,7 +29,14 @@ from .core.profile import (
 )
 from .core.roi import HighContrastDiskROI, RectangleROI
 from .core.utilities import ResultBase
-from .ct import CatPhanBase, CatPhanModule, Slice, ThicknessROI, get_regions
+from .ct import (
+    CatPhanBase,
+    CatPhanModule,
+    Slice,
+    ThicknessROI,
+    get_regions,
+    rois_to_results,
+)
 
 # CT
 CT_UNIFORMITY_MODULE_OFFSET_MM = 70
@@ -95,7 +105,7 @@ class UniformityModuleOutput(CTModuleOutput):
 
     Use the following attributes as normal class attributes."""
 
-    center_roi_stdev: float
+    center_roi_stdev: float  #:
 
 
 class SpatialResolutionModule(CatPhanModule):
@@ -190,7 +200,7 @@ class SpatialResolutionModuleOutput(CTModuleOutput):
 
     Use the following attributes as normal class attributes."""
 
-    lpmm_to_rmtf: dict
+    lpmm_to_rmtf: dict  #:
 
 
 class LowContrastModule(CatPhanModule):
@@ -227,7 +237,7 @@ class LowContrastModuleOutput(CTModuleOutput):
 
     Use the following attributes as normal class attributes."""
 
-    cnr: float
+    cnr: float  #:
 
 
 @dataclass
@@ -258,6 +268,14 @@ class ACRCT(CatPhanBase):
     spatial_resolution_module = SpatialResolutionModule
     uniformity_module = UniformityModule
     clear_borders = False
+
+    def _detected_modules(self) -> list[CatPhanModule]:
+        return [
+            self.ct_calibration_module,
+            self.low_contrast_module,
+            self.spatial_resolution_module,
+            self.uniformity_module,
+        ]
 
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
@@ -308,8 +326,10 @@ class ACRCT(CatPhanBase):
         self.spatial_resolution_module.plot(sr_ax)
         locon_ax = plt.subplot2grid(grid_size, (1, 0))
         self.low_contrast_module.plot(locon_ax)
-        spatial_res_graph = plt.subplot2grid(grid_size, (1, 1), colspan=2)
+        spatial_res_graph = plt.subplot2grid(grid_size, (1, 2))
         self.spatial_resolution_module.mtf.plot(spatial_res_graph)
+        side_ax = plt.subplot2grid(grid_size, (1, 1))
+        self.plot_side_view(side_ax)
 
         # finish up
         plt.tight_layout()
@@ -356,6 +376,11 @@ class ACRCT(CatPhanBase):
         fig, ax = plt.subplots(**plt_kwargs)
         figs["mtf"] = fig
         self.spatial_resolution_module.mtf.plot(ax)
+        # plot the side view
+        fig, ax = plt.subplots(**plt_kwargs)
+        figs["side"] = fig
+        self.plot_side_view(ax)
+
         plt.tight_layout()
 
         if show:
@@ -520,6 +545,18 @@ class ACRCT(CatPhanBase):
         if open_file:
             webbrowser.open(filename)
 
+    def _module_offsets(self) -> list[float]:
+        absolute_origin_position = self.dicom_stack[self.origin_slice].z_position
+        relative_offsets_mm = [
+            0,
+            CT_UNIFORMITY_MODULE_OFFSET_MM,
+            CT_LOW_CONTRAST_MODULE_OFFSET_MM,
+            CT_SPATIAL_RESOLUTION_MODULE_OFFSET_MM,
+        ]
+        return [
+            absolute_origin_position + offset_mm for offset_mm in relative_offsets_mm
+        ]
+
 
 class MRSlice11PositionModule(CatPhanModule):
     common_name = "Slice Position, Slice 11"
@@ -532,7 +569,7 @@ class MRSlice11PositionModule(CatPhanModule):
     def _setup_rois(self) -> None:
         for name, setting in self.roi_settings.items():
             # angle is +90 because pointing right is 0, and these rois move downward, not rightward
-            self.rois[name] = ThicknessROI(
+            self.rois[name] = RectangleROI(
                 self.image,
                 setting["width_pixels"],
                 setting["height_pixels"],
@@ -544,20 +581,26 @@ class MRSlice11PositionModule(CatPhanModule):
     @property
     def bar_difference_mm(self) -> float:
         """The difference in height between the two angled bars"""
-        left_array = self.rois["Left"].long_profile.values
-        left_mid_height = (left_array.max() - left_array.min()) / 2 + left_array.min()
-        left_idx = find_nearest_idx(left_array, left_mid_height)
-        right_array = self.rois["Right"].long_profile.values
-        right_mid_height = (
-            right_array.max() - right_array.min()
-        ) / 2 + right_array.min()
-        right_idx = find_nearest_idx(right_array, right_mid_height)
-        return (right_idx - left_idx) * self.mm_per_pixel
+        idxs = []
+        for roi in (self.rois["Right"], self.rois["Left"]):
+            prof = roi.pixel_array.max(axis=np.argmin(roi.pixel_array.shape))
+            mid_height = (prof.max() - prof.min()) / 2 + prof.min()
+            idx = find_nearest_idx(prof, mid_height)
+            idxs.append(idx)
+        return (idxs[0] - idxs[1]) * self.mm_per_pixel
 
     @property
     def slice_shift_mm(self) -> float:
         """The effective shift in phantom position in the S/I direction. Because bars are at 45 degrees, the shift is half the bar difference"""
         return self.bar_difference_mm / 2
+
+    def plot_rois(self, axis: plt.Axes) -> None:
+        """Plot the ROIs to the axis.
+
+        We overload because simple rectangle ROIs don't have a pass/fail color.
+        """
+        for roi in self.rois.values():
+            roi.plot2axes(axis, edgecolor="blue")
 
 
 @dataclass
@@ -567,11 +610,11 @@ class MRSlice11ModuleOutput:
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_settings: dict
-    rois: dict
-    bar_difference_mm: float
-    slice_shift_mm: float
+    offset: int  #:
+    roi_settings: dict  #:
+    rois: dict  #:
+    bar_difference_mm: float  #:
+    slice_shift_mm: float  #:
 
 
 class MRSlice1Module(CatPhanModule):
@@ -585,12 +628,12 @@ class MRSlice1Module(CatPhanModule):
     roi_settings = {
         "Row Reference": {"radius": 9, "distance": 58, "angle": 135, "lp/mm": 0},
         "Col Reference": {"radius": 9, "distance": 58, "angle": 135, "lp/mm": 0},
-        "Row 1.1": {"radius": 3, "distance": 41, "angle": 115, "lp/mm": 1 / 1.1},
-        "Col 1.1": {"radius": 3, "distance": 45, "angle": 103, "lp/mm": 1 / 1.1},
-        "Row 1.0": {"radius": 3, "distance": 37.5, "angle": 81, "lp/mm": 1.0},
-        "Col 1.0": {"radius": 3, "distance": 45, "angle": 74, "lp/mm": 1.0},
-        "Row 0.9": {"radius": 2, "distance": 47.5, "angle": 52, "lp/mm": 1 / 0.9},
-        "Col 0.9": {"radius": 2, "distance": 56, "angle": 51, "lp/mm": 1 / 0.9},
+        "Row 1.1": {"radius": 3, "distance": 40, "angle": 116, "lp/mm": 1 / 1.1},
+        "Col 1.1": {"radius": 3, "distance": 44, "angle": 104, "lp/mm": 1 / 1.1},
+        "Row 1.0": {"radius": 3, "distance": 36, "angle": 81, "lp/mm": 1.0},
+        "Col 1.0": {"radius": 3, "distance": 44, "angle": 74, "lp/mm": 1.0},
+        "Row 0.9": {"radius": 2, "distance": 46, "angle": 52, "lp/mm": 1 / 0.9},
+        "Col 0.9": {"radius": 2, "distance": 55, "angle": 51, "lp/mm": 1 / 0.9},
     }
     position_roi_settings = {
         "Left": {"width": 2, "height": 25, "distance": 65, "angle": 2.5},
@@ -691,14 +734,14 @@ class MRSlice1ModuleOutput:
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_settings: dict
-    rois: dict
-    bar_difference_mm: float
-    slice_shift_mm: float
-    measured_slice_thickness_mm: float
-    row_mtf_50: float
-    col_mtf_50: float
+    offset: int  #:
+    roi_settings: dict  #:
+    rois: dict  #:
+    bar_difference_mm: float  #:
+    slice_shift_mm: float  #:
+    measured_slice_thickness_mm: float  #:
+    row_mtf_50: float  #:
+    col_mtf_50: float  #:
 
 
 class MRUniformityModule(CatPhanModule):
@@ -788,15 +831,15 @@ class MRUniformityModuleOutput:
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    roi_settings: dict
-    rois: dict
-    ghost_roi_settings: dict
-    ghose_rois: dict
-    psg: float
-    ghosting_ratio: float
-    piu_passed: bool
-    piu: float
+    offset: int  #:
+    roi_settings: dict  #:
+    rois: dict  #:
+    ghost_roi_settings: dict  #:
+    ghost_rois: dict  #:
+    psg: float  #:
+    ghosting_ratio: float  #:
+    piu_passed: bool  #:
+    piu: float  #:
 
 
 class GeometricDistortionModule(CatPhanModule):
@@ -901,9 +944,9 @@ class MRGeometricDistortionModuleOutput:
 
     Use the following attributes as normal class attributes."""
 
-    offset: int
-    profiles: dict
-    distances: dict
+    offset: int  #:
+    profiles: dict  #:
+    distances: dict  #:
 
 
 @dataclass
@@ -928,6 +971,10 @@ class ACRMRILarge(CatPhanBase):
     catphan_radius_mm = 100
     min_num_images = 4
     air_bubble_radius_mm = 20
+    slice1 = MRSlice1Module
+    geometric_distortion = GeometricDistortionModule
+    uniformity_module = MRUniformityModule
+    slice11 = MRSlice11PositionModule
 
     def plot_analyzed_subimage(self, *args, **kwargs):
         raise NotImplementedError("Use `plot_images`")
@@ -936,9 +983,27 @@ class ACRMRILarge(CatPhanBase):
         raise NotImplementedError("Use `save_images`")
 
     def localize(self) -> None:
-        self.origin_slice = 1
         self._phantom_center_func = self.find_phantom_axis()
         self.catphan_roll = self.find_phantom_roll()
+        # now that we have the origin slice, ensure we have scanned all linked modules
+        if not self._ensure_physical_scan_extent():
+            raise ValueError(
+                "The physical scan extent does not cover the extent of module configuration. "
+                "This means not all modules were included in the scan. Rescan the phantom to include all "
+                "relevant modules, or change the offset values."
+            )
+
+    def _module_offsets(self) -> list[float]:
+        absolute_origin_position = self.dicom_stack[self.origin_slice].z_position
+        relative_offsets_mm = [
+            0,
+            MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM,
+            MR_UNIFORMITY_MODULE_OFFSET_MM,
+            MR_SLICE11_MODULE_OFFSET_MM,
+        ]
+        return [
+            absolute_origin_position + offset_mm for offset_mm in relative_offsets_mm
+        ]
 
     def find_phantom_roll(self) -> float:
         """Determine the "roll" of the phantom. This algorithm uses the circular left-upper hole on slice 1 as the reference
@@ -973,17 +1038,51 @@ class ACRMRILarge(CatPhanBase):
                 "Could not determine the roll of the phantom. Ensure the 20mm top-left circle is visible on Slice 1"
             )
 
-    def analyze(self) -> None:
-        """Analyze the ACR CT phantom"""
+    def analyze(self, echo_number: int | None = None) -> None:
+        """Analyze the ACR CT phantom
+
+        Parameters
+        ----------
+        echo_number:
+            The echo to analyze. If not passed, uses the minimum echo number found.
+        """
+        self.dicom_stack.images = self._select_echo_images(echo_number)
         self.localize()
-        self.slice1 = MRSlice1Module(self, offset=0)
-        self.geometric_distortion = GeometricDistortionModule(
+        self.slice1 = self.slice1(self, offset=0)
+        self.geometric_distortion = self.geometric_distortion(
             self, offset=MR_GEOMETRIC_DISTORTION_MODULE_OFFSET_MM
         )
-        self.uniformity_module = MRUniformityModule(
+        self.uniformity_module = self.uniformity_module(
             self, offset=MR_UNIFORMITY_MODULE_OFFSET_MM
         )
-        self.slice11 = MRSlice11PositionModule(self, offset=MR_SLICE11_MODULE_OFFSET_MM)
+        self.slice11 = self.slice11(self, offset=MR_SLICE11_MODULE_OFFSET_MM)
+
+    def _select_echo_images(self, echo_number: int | None) -> list[DicomImage]:
+        """Get the image indices that match the given echo number"""
+        # we check for multiple echos. We only pick the first echo found.
+        # this is probably not the best logic but we somehow have to pick
+        # Echo Numbers is an int; https://dicom.innolitics.com/ciods/mr-image/mr-image/00180086
+
+        # in case EchoNumbers isn't there, return all
+        try:
+            all_echos = {int(i.metadata.EchoNumbers) for i in self.dicom_stack.images}
+        except AttributeError:
+            return self.dicom_stack.images
+        if echo_number is None:
+            echo_number = min(all_echos)
+            if len(all_echos) > 1:
+                warnings.warn(
+                    f"Multiple echoes found ({all_echos}) and no echo number was passed. Using echo # {echo_number}"
+                )
+        if echo_number not in all_echos:
+            raise ValueError(
+                f"Echo number {echo_number} was passed but not found in the dataset. Found echo numbers: {all_echos}. Remove the echo_number parameter or pick a valid echo number."
+            )
+        return [
+            image
+            for image in self.dicom_stack.images
+            if int(image.metadata.EchoNumbers) == echo_number
+        ]
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
         """Plot the analyzed image
@@ -1007,7 +1106,9 @@ class ACRMRILarge(CatPhanBase):
         position_ax = plt.subplot2grid(grid_size, (1, 0))
         self.slice11.plot(position_ax)
 
-        spatial_res_graph = plt.subplot2grid(grid_size, (1, 1))
+        side_view_ax = plt.subplot2grid(grid_size, (1, 1))
+        self.plot_side_view(side_view_ax)
+        spatial_res_graph = plt.subplot2grid(grid_size, (1, 2))
         self.slice1.row_mtf.plot(spatial_res_graph, label="Row-wise rMTF")
         self.slice1.col_mtf.plot(spatial_res_graph, label="Column-wise rMTF")
         spatial_res_graph.legend()
@@ -1046,10 +1147,22 @@ class ACRMRILarge(CatPhanBase):
         self.slice1.col_mtf.plot(ax, label="Column-wise rMTF")
         ax.legend()
         figs["rMTF"] = fig
+        # plot the side view
+        fig, ax = plt.subplots(**plt_kwargs)
+        figs["side"] = fig
+        self.plot_side_view(ax)
 
         if show:
             plt.show()
         return figs
+
+    def _detected_modules(self) -> list[CatPhanModule]:
+        return [
+            self.slice1,
+            self.slice11,
+            self.uniformity_module,
+            self.geometric_distortion,
+        ]
 
     def save_images(
         self,
@@ -1163,7 +1276,7 @@ class ACRMRILarge(CatPhanBase):
             slice1=MRSlice1ModuleOutput(
                 offset=0,
                 roi_settings=self.slice1.roi_settings,
-                rois=self.slice1.rois,
+                rois=rois_to_results(self.slice1.rois),
                 bar_difference_mm=self.slice1.bar_difference_mm,
                 slice_shift_mm=self.slice1.slice_shift_mm,
                 measured_slice_thickness_mm=self.slice1.measured_slice_thickness_mm,
@@ -1174,7 +1287,7 @@ class ACRMRILarge(CatPhanBase):
                 offset=MR_SLICE11_MODULE_OFFSET_MM,
                 bar_difference_mm=self.slice11.bar_difference_mm,
                 slice_shift_mm=self.slice11.slice_shift_mm,
-                rois=self.slice11.rois,
+                rois=rois_to_results(self.slice11.rois),
                 roi_settings=self.slice11.roi_settings,
             ),
             geometric_distortion_module=MRGeometricDistortionModuleOutput(
@@ -1185,9 +1298,9 @@ class ACRMRILarge(CatPhanBase):
             uniformity_module=MRUniformityModuleOutput(
                 offset=0,
                 roi_settings=self.uniformity_module.roi_settings,
-                rois=self.uniformity_module.rois,
+                rois=rois_to_results(self.uniformity_module.rois),
                 ghost_roi_settings=self.uniformity_module.ghost_roi_settings,
-                ghose_rois=self.uniformity_module.ghost_rois,
+                ghost_rois=rois_to_results(self.uniformity_module.ghost_rois),
                 psg=self.uniformity_module.psg,
                 ghosting_ratio=self.uniformity_module.ghosting_ratio,
                 piu=self.uniformity_module.percent_image_uniformity,
@@ -1197,7 +1310,3 @@ class ACRMRILarge(CatPhanBase):
         if as_dict:
             return dataclasses.asdict(data)
         return data
-
-
-def find_nearest_idx(array: np.ndarray, value: float):
-    return (np.abs(array - value)).argmin()

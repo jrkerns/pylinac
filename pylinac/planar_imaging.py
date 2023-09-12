@@ -5,6 +5,7 @@ The following phantoms are supported:
 * Standard Imaging QC-3
 * Standard Imaging QC-kV
 * Las Vegas
+* Elekta Las Vegas
 * Doselab MC2 MV
 * Doselab MC2 kV
 * SNC kV
@@ -28,12 +29,12 @@ import os.path as osp
 import warnings
 import webbrowser
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import BinaryIO, Callable, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from py_linq import Enumerable
 from scipy.ndimage import median_filter
 from skimage import feature, measure
@@ -146,7 +147,9 @@ class ImagePhantomBase:
     detection_conditions: list[Callable] = [is_centered, is_right_size]
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
-    roi_match_condition = "max"
+    roi_match_condition: Literal["max", "closest"] = "max"
+    mtf: MTF
+    _ssd: float
 
     def __init__(
         self,
@@ -175,8 +178,6 @@ class ImagePhantomBase:
         self._center_override = None
         self._high_contrast_threshold = None
         self._low_contrast_threshold = None
-        self._ssd: float = 100
-        self.mtf = None
 
     @classmethod
     def from_demo_image(cls):
@@ -275,7 +276,7 @@ class ImagePhantomBase:
         angle_override: float | None = None,
         center_override: tuple | None = None,
         size_override: float | None = None,
-        ssd: float = 1000,
+        ssd: float | Literal["auto"] = "auto",
         low_contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 100,
     ) -> None:
@@ -310,7 +311,7 @@ class ImagePhantomBase:
 
                  This value is not necessarily the physical size of the phantom. It is an arbitrary value.
         ssd
-            The SSD of the phantom itself in mm.
+            The SSD of the phantom itself in mm. If set to "auto", will first search for the phantom at the SAD, then at 5cm above the SID.
         low_contrast_method
             The equation to use for calculating low contrast.
         visibility_threshold
@@ -324,6 +325,7 @@ class ImagePhantomBase:
         self._low_contrast_method = low_contrast_method
         self.visibility_threshold = visibility_threshold
         self._ssd = ssd
+        self._find_ssd()
         self._check_inversion()
         if invert:
             self.image.invert()
@@ -775,7 +777,19 @@ class ImagePhantomBase:
         pass
 
     def _phantom_radius_calc(self):
-        pass
+        return math.sqrt(self.phantom_ski_region.bbox_area)
+
+    def _find_ssd(self):
+        """If the SSD parameter is set to auto, search at SAD, then at -5cm SID"""
+        if isinstance(self._ssd, str) and self._ssd.lower() == "auto":
+            self._ssd = self.image.metadata.get("RadiationMachineSAD", 1000)
+            try:
+                # cached property; no error means it found it.
+                self.phantom_ski_region
+            except ValueError:
+                # 5cm up from SID
+                self._ssd = self.image.metadata.get("RTImageSID", 1500) - 50
+                self.phantom_ski_region
 
 
 @dataclass
@@ -1129,6 +1143,39 @@ class IMTLRad(StandardImagingFC2):
         return self.center_only_bb
 
 
+class DoselabRLf(StandardImagingFC2):
+    """The Doselab light/rad phantom"""
+
+    common_name = "Doselab Rlf"
+    _demo_filename = "Doselab_RLf.dcm"
+    # these positions are the offset in mm from the center of the image to the nominal position of the BBs
+    bb_positions_10x10 = {
+        "TL": [-17, -45],
+        "BL": [-45, 17],
+        "TR": [45, -17],
+        "BR": [17, 45],
+    }
+    # 15x15 is not as robust as 10x10
+    # bb_positions_15x15 = {
+    #     "TL": [-45, -70],
+    #     "BL": [-70, 45],
+    #     "TR": [70, -45],
+    #     "BR": [45, 70],
+    # }
+    bb_sampling_box_size_mm = 10
+    field_strip_width_mm = 5
+
+    def _determine_bb_set(self, fwxm: int) -> dict:
+        return self.bb_positions_10x10
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Doselab RFl phantom analysis demonstration."""
+        dl = DoselabRLf.from_demo_image()
+        dl.analyze()
+        dl.plot_analyzed_image()
+
+
 class SNCFSQA(StandardImagingFC2):
     """SNC light/rad phantom. See the 'FSQA' phantom and specs: https://www.sunnuclear.com/products/suncheck-machine.
 
@@ -1321,6 +1368,81 @@ class LasVegas(ImagePhantomBase):
         if as_dict:
             return dataclasses.asdict(data)
         return data
+
+
+class ElektaLasVegas(LasVegas):
+    """Elekta's variant of the Las Vegas."""
+
+    _demo_filename = "elekta_las_vegas.dcm"
+    common_name = "Elekta Las Vegas"
+    phantom_bbox_size_mm2 = 140 * 140
+    phantom_outline_object = {"Rectangle": {"width ratio": 0.61, "height ratio": 0.61}}
+    low_contrast_background_roi_settings = {
+        "roi 1": {"distance from center": 0.24, "angle": 0, "roi radius": 0.03},
+        "roi 2": {"distance from center": 0.24, "angle": 90, "roi radius": 0.03},
+        "roi 3": {"distance from center": 0.24, "angle": 180, "roi radius": 0.03},
+        "roi 4": {"distance from center": 0.24, "angle": 270, "roi radius": 0.03},
+    }
+    low_contrast_roi_settings = {
+        "roi 1": {"distance from center": 0.161, "angle": 0.4, "roi radius": 0.024},
+        "roi 2": {"distance from center": 0.181, "angle": 28.6, "roi radius": 0.024},
+        "roi 3": {"distance from center": 0.238, "angle": 47.45, "roi radius": 0.024},
+        "roi 4": {"distance from center": 0.183, "angle": -70.6, "roi radius": 0.015},
+        "roi 5": {"distance from center": 0.107, "angle": -55.1, "roi radius": 0.015},
+        "roi 6": {"distance from center": 0.061, "angle": 1, "roi radius": 0.015},
+        "roi 7": {"distance from center": 0.107, "angle": 55.15, "roi radius": 0.015},
+        "roi 8": {"distance from center": 0.185, "angle": 71.1, "roi radius": 0.015},
+        "roi 9": {"distance from center": 0.175, "angle": -97.3, "roi radius": 0.011},
+        "roi 10": {"distance from center": 0.09, "angle": -104.3, "roi radius": 0.011},
+        "roi 11": {"distance from center": 0.022, "angle": -180, "roi radius": 0.011},
+        "roi 12": {"distance from center": 0.088, "angle": 104.6, "roi radius": 0.011},
+        "roi 13": {"distance from center": 0.1757, "angle": 97.26, "roi radius": 0.011},
+        "roi 14": {
+            "distance from center": 0.1945,
+            "angle": -116.58,
+            "roi radius": 0.006,
+        },
+        "roi 15": {
+            "distance from center": 0.124,
+            "angle": -135.11,
+            "roi radius": 0.006,
+        },
+        "roi 16": {
+            "distance from center": 0.0876,
+            "angle": 179.85,
+            "roi radius": 0.006,
+        },
+        "roi 17": {"distance from center": 0.1227, "angle": 135.4, "roi radius": 0.006},
+        "roi 18": {
+            "distance from center": 0.1947,
+            "angle": 116.65,
+            "roi radius": 0.006,
+        },
+        "roi 19": {
+            "distance from center": 0.2258,
+            "angle": -129.53,
+            "roi radius": 0.003,
+        },
+        "roi 20": {
+            "distance from center": 0.1699,
+            "angle": -148.57,
+            "roi radius": 0.003,
+        },
+        "roi 21": {
+            "distance from center": 0.145,
+            "angle": -179.82,
+            "roi radius": 0.003,
+        },
+        "roi 22": {"distance from center": 0.1682, "angle": 149, "roi radius": 0.003},
+    }
+
+    @staticmethod
+    def run_demo():
+        """Run the Elekta Las Vegas phantom analysis demonstration."""
+        lv = ElektaLasVegas.from_demo_image()
+        lv.image.rot90(n=3)
+        lv.analyze()
+        lv.plot_analyzed_image()
 
 
 class PTWEPIDQC(ImagePhantomBase):
@@ -2004,8 +2126,8 @@ class LeedsTOR(ImagePhantomBase):
     phantom_outline_object = {"Circle": {"radius ratio": 0.97}}
     high_contrast_roi_settings = {
         "roi 1": {
-            "distance from center": 0.3,
-            "angle": 54.8,
+            "distance from center": 0.2895,
+            "angle": 54.62,
             "roi radius": 0.04,
             "lp/mm": 0.5,
         },
@@ -2016,63 +2138,63 @@ class LeedsTOR(ImagePhantomBase):
             "lp/mm": 0.56,
         },
         "roi 3": {
-            "distance from center": 0.187,
-            "angle": -27.5,
+            "distance from center": 0.1848,
+            "angle": 335.5,
             "roi radius": 0.04,
             "lp/mm": 0.63,
         },
         "roi 4": {
-            "distance from center": 0.252,
-            "angle": 79.7,
+            "distance from center": 0.238,
+            "angle": 80.06,
             "roi radius": 0.03,
             "lp/mm": 0.71,
         },
         "roi 5": {
-            "distance from center": 0.092,
-            "angle": 63.4,
+            "distance from center": 0.0916,
+            "angle": 62.96,
             "roi radius": 0.03,
             "lp/mm": 0.8,
         },
         "roi 6": {
-            "distance from center": 0.094,
-            "angle": -65,
+            "distance from center": 0.093,
+            "angle": -64,
             "roi radius": 0.02,
             "lp/mm": 0.9,
         },
         "roi 7": {
-            "distance from center": 0.252,
-            "angle": -263,
-            "roi radius": 0.02,
+            "distance from center": 0.239,
+            "angle": 101.98,
+            "roi radius": 0.015,
             "lp/mm": 1.0,
         },
         "roi 8": {
-            "distance from center": 0.094,
-            "angle": -246,
-            "roi radius": 0.018,
+            "distance from center": 0.0907,
+            "angle": 122.62,
+            "roi radius": 0.015,
             "lp/mm": 1.12,
         },
         "roi 9": {
-            "distance from center": 0.0958,
-            "angle": -117,
-            "roi radius": 0.018,
+            "distance from center": 0.09515,
+            "angle": 239.07,
+            "roi radius": 0.015,
             "lp/mm": 1.25,
         },
         "roi 10": {
-            "distance from center": 0.27,
-            "angle": 112.5,
-            "roi radius": 0.015,
+            "distance from center": 0.2596,
+            "angle": 115.8,
+            "roi radius": 0.012,
             "lp/mm": 1.4,
         },
         "roi 11": {
-            "distance from center": 0.13,
+            "distance from center": 0.138,
             "angle": 145,
-            "roi radius": 0.015,
+            "roi radius": 0.012,
             "lp/mm": 1.6,
         },
         "roi 12": {
-            "distance from center": 0.135,
-            "angle": -142,
-            "roi radius": 0.011,
+            "distance from center": 0.13967,
+            "angle": 216.4,
+            "roi radius": 0.010,
             "lp/mm": 1.8,
         },
     }
@@ -2178,6 +2300,48 @@ class LeedsTOR(ImagePhantomBase):
 
     def _preprocess(self) -> None:
         self._check_if_counter_clockwise()
+
+    def _sample_high_contrast_rois(self) -> list[HighContrastDiskROI]:
+        """Sample the high-contrast line pair regions. We overload to find
+        the center of the high-res block which can be offset relative
+        to the center depending on the model"""
+        # find the high-res block ROI
+        regions = self._get_canny_regions()
+        high_res_block_size = self.phantom_bbox_size_px * 0.23
+        sorted_regions = (
+            Enumerable(regions)
+            .where(
+                lambda r: math.isclose(r.bbox_area, high_res_block_size, rel_tol=0.75)
+            )
+            .where(
+                lambda r: bbox_center(r).distance_to(self.phantom_center)
+                < 0.1 * self.phantom_radius
+            )
+            .order_by_descending(
+                lambda r: bbox_center(r).distance_to(self.phantom_center)
+            )
+            .to_list()
+        )
+        if not sorted_regions:
+            raise ValueError(
+                "Could not find high-resolution block within the leeds phantom. Try rotating the image."
+            )
+        high_res_center = bbox_center(sorted_regions[0])
+        self.high_res_center = high_res_center
+
+        # do the same as the base method but centered on the high-res block
+        hc_rois = []
+        for stng in self.high_contrast_roi_settings.values():
+            roi = HighContrastDiskROI(
+                self.image,
+                self.phantom_angle + stng["angle"],
+                self.phantom_radius * stng["roi radius"],
+                self.phantom_radius * stng["distance from center"],
+                high_res_center,
+                self._high_contrast_threshold,
+            )
+            hc_rois.append(roi)
+        return hc_rois
 
     def _check_if_counter_clockwise(self) -> None:
         """Determine if the low-contrast bubbles go from high to low clockwise or counter-clockwise."""

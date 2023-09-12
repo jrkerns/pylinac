@@ -104,7 +104,7 @@ class Point:
             (self.x - p.x) ** 2 + (self.y - p.y) ** 2 + (self.z - p.z) ** 2
         )
 
-    def as_array(self, only_coords: bool = True) -> np.array:
+    def as_array(self, only_coords: bool = True) -> np.ndarray:
         """Return the point as a numpy array."""
         if only_coords:
             return np.array([getattr(self, item) for item in self._coord_list])
@@ -120,16 +120,16 @@ class Point:
     def as_vector(self) -> Vector:
         return Vector(x=self.x, y=self.y, z=self.z)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Point(x={self.x:3.2f}, y={self.y:3.2f}, z={self.z:3.2f})"
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         # if all attrs equal, points considered equal
         return all(
             getattr(self, attr) == getattr(other, attr) for attr in self._attr_list
         )
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> Point:
         p = Point()
         for attr in self._attr_list:
             try:
@@ -139,14 +139,14 @@ class Point:
             setattr(p, attr, diff)
         return p
 
-    def __mul__(self, other):
+    def __mul__(self, other: int | float) -> None:
         for attr in self._attr_list:
             try:
                 self.__dict__[attr] *= other
             except TypeError:
                 pass
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: int | float) -> Point:
         for attr in self._attr_list:
             val = getattr(self, attr)
             # sometimes not all attrs are defined (like index or value and only x,y,z). Skip dividing those.
@@ -336,7 +336,7 @@ class Line:
         self.point1 = Point(point1)
         self.point2 = Point(point2)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"Line: p1:(x={self.point1.x:.1f}, y={self.point1.y:.1f}, z={self.point1.z:.1f}), "
             f"p2:(x={self.point2.x:.1f}, y={self.point2.y:.1f}, z={self.point2.z:.1f})"

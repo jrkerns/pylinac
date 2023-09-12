@@ -12,7 +12,8 @@ from matplotlib import pyplot as plt
 from .core import pdf
 from .core.profile import CollapsedCircleProfile
 from .core.roi import DiskROI
-from .core.utilities import ResultBase, abs360
+from .core.scale import abs360
+from .core.utilities import ResultBase
 from .ct import CatPhanBase, CatPhanModule, Slice
 
 
@@ -214,6 +215,10 @@ class CheesePhantomBase(CatPhanBase):
 
     def _roi_angles(self) -> list[float]:
         return [abs360(s["angle"]) for s in self.module_class.roi_settings.values()]
+
+    def _ensure_physical_scan_extent(self) -> bool:
+        """The cheese phantom only has one module."""
+        return True
 
     def find_phantom_roll(self, func: Callable | None = None) -> float:
         """Examine the phantom for the maximum HU delta insert position. Roll the phantom by the

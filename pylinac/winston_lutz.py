@@ -1692,7 +1692,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         super().__init__(*args, **kwargs)
         orig_length = len(self.images)
         self.images = [
-            i for i in self.images if math.isclose(i.couch_angle, 0, abs_tol=5)
+            i for i in self.images if is_close(i.couch_angle, [0, 360], delta=5)
         ]
         new_length = len(self.images)
         if new_length != orig_length:
@@ -2042,19 +2042,21 @@ def _bb_projection_with_rotation(
 
     Could be used to calculate couch rotations, but not validated yet.
 
-    Args:
-        offset_left (float): The BB position in the left/right direction.
-        offset_up (float): The BB position in the superior/inferior direction.
-        offset_in (float): The BB position in the anterior/posterior direction.
-        gantry (float): The gantry angle in degrees.
-        couch (float, optional): The couch angle in degrees. Defaults to 0.
-        sad (float, optional): The source-to-axis distance in mm. Defaults to 1000.
+    Args
+    ----
+    offset_left (float): The BB position in the left/right direction.
+    offset_up (float): The BB position in the superior/inferior direction.
+    offset_in (float): The BB position in the anterior/posterior direction.
+    gantry (float): The gantry angle in degrees.
+    couch (float, optional): The couch angle in degrees. Defaults to 0.
+    sad (float, optional): The source-to-axis distance in mm. Defaults to 1000.
 
-    Returns:
-        np.ndarray: The projection of the BB onto the panel at the given SSD.
-            The array has shape (2,) where the first element is the projection in the
-            left/right direction and the second element is the projection in the
-            superior/inferior direction.
+    Returns
+    -------
+    np.ndarray: The projection of the BB onto the panel at the given SSD.
+        The array has shape (2,) where the first element is the projection in the
+        left/right direction and the second element is the projection in the
+        superior/inferior direction.
     """
     # Define the BB positions in the patient coordinate system (ap, lr, si)
     bb_positions = np.array([offset_up, offset_left, offset_in])

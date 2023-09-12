@@ -125,6 +125,7 @@ class VMATMixin:
         0: {"r_dev": 0, "r_corr": 100},
         4: {"r_dev": 0, "r_corr": 100},
     }
+    kwargs = {}
     avg_abs_r_deviation = 0
     avg_r_deviation = 0
     max_r_deviation = 0
@@ -144,9 +145,9 @@ class VMATMixin:
 
     def setUp(self):
         if self.is_zip:
-            self.vmat = self.klass.from_zip(self.absolute_path())
+            self.vmat = self.klass.from_zip(self.absolute_path(), **self.kwargs)
         else:
-            self.vmat = self.klass(self.absolute_path())
+            self.vmat = self.klass(self.absolute_path(), **self.kwargs)
         self.vmat.analyze()
         if self.print_debug:
             print(self.vmat.results())
@@ -179,6 +180,10 @@ class VMATMixin:
         for key, value in self.segment_values.items():
             within_1(self.vmat.segments[key].r_dev, value["r_dev"])
             within_1(self.vmat.segments[key].r_corr, value["r_corr"])
+            if "stdev" in value:
+                self.assertAlmostEqual(
+                    self.vmat.segments[key].stdev, value["stdev"], places=2
+                )
 
     def test_deviations(self):
         self.assertAlmostEqual(
@@ -204,8 +209,8 @@ class TestDRGSDemo(VMATMixin, TestCase):
 
     segment_positions = {0: Point(161, 192), 4: Point(314, 192)}
     segment_values = {
-        0: {"r_dev": 0.965, "r_corr": 6.2},
-        4: {"r_dev": -0.459, "r_corr": 6},
+        0: {"r_dev": 0.965, "r_corr": 6.2, "stdev": 0.0008},
+        4: {"r_dev": -0.459, "r_corr": 6, "stdev": 0.0007},
     }
     avg_abs_r_deviation = 0.66
     max_r_deviation = 1.8
@@ -231,18 +236,30 @@ class TestDRMLCDemo(VMATMixin, TestCase):
 
     segment_positions = {0: Point(170, 192), 2: Point(285, 192)}
     segment_values = {
-        0: {"r_dev": -0.7, "r_corr": 5.7},
-        2: {"r_dev": -0.405, "r_corr": 5.8},
+        0: {"r_dev": -0.7, "r_corr": 5.7, "stdev": 0.00086},
+        2: {"r_dev": -0.405, "r_corr": 5.8, "stdev": 0.00085},
     }
     avg_abs_r_deviation = 0.44
     max_r_deviation = 0.89
 
     def setUp(self):
-        self.vmat = DRMLC.from_demo_images()
+        self.vmat = DRMLC.from_demo_images(**self.kwargs)
         self.vmat.analyze()
 
     def test_demo(self):
         self.vmat.run_demo()
+
+
+class TestDRMLCDemoRawPixels(TestDRMLCDemo):
+    """Use raw DICOM pixel values, like doselab does."""
+
+    kwargs = {"raw_pixels": True, "ground": False, "check_inversion": False}
+    segment_values = {
+        0: {"r_dev": -0.55, "r_corr": 138.55},
+        2: {"r_dev": 0.56, "r_corr": 140},
+    }
+    avg_abs_r_deviation = 0.54
+    max_r_deviation = 0.56
 
 
 class TestDRMLC105(VMATMixin, TestCase):

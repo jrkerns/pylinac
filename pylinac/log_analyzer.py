@@ -34,6 +34,7 @@ import os.path as osp
 import shutil
 import webbrowser
 import zipfile
+from functools import cached_property
 from io import BufferedReader, BytesIO
 from pathlib import Path
 from typing import BinaryIO, Iterable, Sequence
@@ -41,7 +42,6 @@ from typing import BinaryIO, Iterable, Sequence
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 
 from .core import image, io, pdf
 from .core.decorators import lru_cache

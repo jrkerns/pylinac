@@ -313,6 +313,7 @@ values are 0, 1, and 2. So, a value of 1 averages over 3 slices, 2 => 5 slices, 
     ct.analyze(..., thickness_slice_straddle=0)
     ...
 
+.. _cbct-algorithm:
 
 Algorithm
 ---------

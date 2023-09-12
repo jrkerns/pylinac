@@ -75,6 +75,10 @@ An example calculation:
     my_roi = np.array((1.17, 1.31, 1.26, ...))
     c = contrast.michelson(my_roi)
 
+.. seealso::
+
+  `Wikipedia <https://en.wikipedia.org/wiki/Contrast_(vision)#Michelson_contrast>`__
+
 Weber
 """""
 
@@ -87,10 +91,16 @@ The official definition is:
 
 Within pylinac, this is interpreted to be the following:
 
-.. math:: \frac{I_{mean} - R_{mean}}{R_{mean}}
+.. math:: \frac{|I_{mean} - R_{mean}|}{R_{mean}}
 
 where :math:`I` is the ROI of the contrast region in question and :math:`R` is the background ROI, usually
 placed somewhere within the phantom area that is uniform.
+
+.. important::
+
+    For historical reasons, the numerator is the absolute difference. This means the range is from
+    0 to infinity vs -1 to infinity. The repercussions is that contrast is symmetric. I.e. -1 and +1 both go
+    to +1.
 
 An example calculation:
 
@@ -101,6 +111,10 @@ An example calculation:
     feature_value = np.max(my_array)
     background = np.median(my_array)
     c = contrast.weber(feature=feature_value, background=background)
+
+.. seealso::
+
+  `Wikipedia <https://en.wikipedia.org/wiki/Contrast_(vision)#Weber_contrast>`__.
 
 Ratio
 """""
@@ -126,6 +140,38 @@ An example calculation:
     reference = np.min(my_array)
     c = contrast.ratio(feature=feature_value, reference=reference)
 
+Difference
+""""""""""
+
+The difference algorithm is the absolute difference of the feature ROI and the reference or background ROI.
+You might prefer this algorithm if you want to have a strictly normal definition of CNR like `this <https://en.wikipedia.org/wiki/Contrast-to-noise_ratio>`__.
+
+
+.. math:: |feature - background|
+
+.. note::
+
+  The absolute difference is used; i.e. the difference algorithm is symmetric.
+
+Within pylinac, this is interpreted as:
+
+.. math:: I_{mean} - R_{mean}
+
+where :math:`I` is the ROI of the contrast region in question and :math:`R` is the background/reference ROI, usually
+placed somewhere within the phantom area that is uniform.
+
+An example calculation:
+
+.. code-block:: python
+
+    from pylinac.core import contrast
+
+    c = contrast.ratio(feature=10, background=5)
+
+.. seealso::
+
+    `Wikipedia <https://en.wikipedia.org/wiki/Contrast-to-noise_ratio>`__.
+
 Root-mean-square
 """"""""""""""""
 
@@ -133,7 +179,7 @@ The RMS algorithm is another good general algorithm for evaluating contrast in m
 
 .. math:: \sqrt{ \frac{1}{M*N} * \sum_{i=0}^{N-1}\sum_{j=0}^{M-1} (I_{i,j} - \bar{I})^2 }
 
-where and image/array is of size :math:`M` by :math:`N`. :math:`\bar{I}` is the average intensity of the image. :math:`I_{i,j}`
+where an image/array is of size :math:`M` by :math:`N`. :math:`\bar{I}` is the average intensity of the image. :math:`I_{i,j}`
 is the element at the :math:`i`-th and :math:`j`-th position within the image array dimensions.
 
 .. warning::
@@ -149,6 +195,10 @@ An example calculation:
 
     my_roi = np.array((0.34, 0.67, 0.44, ...))
     c = contrast.rms(my_roi)
+
+.. seealso::
+
+    `Wikipedia <https://en.wikipedia.org/wiki/Contrast_(vision)#RMS_contrast>`__
 
 .. _visibility:
 
@@ -193,3 +243,5 @@ The contrast to noise ratio (CNR) is defined as follows:
 .. math:: CNR(I) = \frac{Contrast(I)}{noise(I)} = \frac{Contrast(I)}{stdev(I)}
 
 where contrast is an option from the low contrast methods.
+If you prefer the `classic definition <https://en.wikipedia.org/wiki/Contrast-to-noise_ratio>`__ of CNR
+then use the "Difference" algorithm.

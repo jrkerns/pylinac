@@ -505,7 +505,7 @@ class SingleProfileTests(TestCase):
 
 
 class MultiProfileTestMixin:
-    values = np.ndarray
+    values = np.array
     peak_max_idxs = (0,)
     valley_max_idxs = (0,)
     peak_fwxm_idxs = (0,)

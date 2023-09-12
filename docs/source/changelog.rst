@@ -3,6 +3,272 @@
 Changelog
 =========
 
+v 3.15.0
+--------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* For the MultiTargetMultiField Winston Lutz analysis, non-zero couch angles are not allowed.
+  However, the check for this was limited to 0-5 degrees. Couch values that were on the
+  other side of 0 were not being included. Couch angles between
+  355-5 degrees are now allowed as originally intended.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The Doselab RLf light/rad phantom has been added as an analysis options: :ref:`doselab_rlf`.
+
+CT
+^^
+
+* The catphan detection was failing if the phantom jig was touching the phantom at the center of a
+  module. This has been fixed.
+
+* A rounding error was fixed where the extent check was failing because of
+  floating point rounding differences. This was causing an error to be raised
+  when the scan extent was just slightly smaller (or appeared to be smaller) than the configuration extent.
+
+ACR
+^^^
+
+* The ACR MRI phantom analysis was sometimes failing because the slice thickness check was failing.
+  This was caused by a slightly inappropriate use of the profile module, causing instability under
+  certain conditions. The MRI analysis should be more stable. Quantitative results should be the
+  same.
+
+VMAT
+^^^^
+
+* The standard deviation for each VMAT segment is now available as the ``.stdev`` property of the segment.
+
+  .. code-block:: python
+
+    vmat = DRMLC(...)
+    vmat.analyze(...)
+    data = vmat.results_data()
+    print(data.segments[0].stdev)  # first segment stdev
+
+Core
+^^^^
+
+* When saving a DICOM image, the pixel values were not "unscaling" the raw pixel values.
+  I.e. the scaled values were being saved back to the DICOM file. If the image
+  was then read in again, the values would be scaled twice. This has been fixed
+  and DICOM images can now, for the most part, go "round trip" without the raw pixel values changing.
+  An example is below:
+
+  .. code-block:: python
+
+    dcm_image = image.load("my_image.dcm")
+    dcm_image.array  # this is scaled by the DICOM tags
+    dcm_image.save(
+        "my_output_image.dcm"
+    )  # the pixel values were written back *as rescaled*
+    dcm_image2 = image.load("my_output_image.dcm")
+    dcm_image2.array  # this was scaling by the DICOM tags *again*
+
+  .. warning::
+
+      If the DICOM pixel values have been modified, such as concatenating images together,
+      and the values are too high or too low for the original datatype (usually uint16),
+      the values will be scaled to fit the datatype, with the maximum value
+      being the max of the datatype. A warning will be raised when this occurs.
+
+      Most of the time these operations are relative and absolute values don't matter,
+      but it's still something to be aware of.
+
+
+v 3.14.0
+--------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* An Elekta variant of the Las Vegas phantom has been added: :class:`~pylinac.planar_imaging.ElektaLasVegas`.
+* The SSD parameter of now defaults to "auto" (``.analyze(..., ssd="auto")``). Previously, it was set to 1000mm. If "auto", the phantom
+  is first searched at 1000mm (for backwards compatibility). If the phantom isn't found, it then searches
+  at 5cm above the SID value. The 5cm is to account for the physical shroud of most EPID panels.
+  If the phantom isn't found at either of these locations an error is raised. In that case, the SSD
+  should be provided manually, which was already the case previously.
+
+CT
+^^
+
+* CBCT, ACR CT/MR, and Quart analyses will now plot a "side view" of the phantom with lines
+  to show where the modules were sampled. This will help visualize if the module slice selection
+  was appropriate.
+
+  .. figure:: images/side_view.png
+
+* A new check for the scan extent vs the configuration extent is now in place. This will check that
+  the physical extent of the scan is large enough to include all the listed modules. If it's not
+  an error will be raised. This improves the error diagnosis when a scan did not include enough data.
+
+  .. note::
+
+    This applies to all CT-like algorithms including the ACR analyses.
+
+ACR
+^^^
+
+* The ACR MRI algorithm now accounts for scans where slices do not abut. E.g. if the slice thickness is 5mm
+  and the spacing between slices is 10mm.
+* The ACR MRI high-resolution ROIs have been adjusted slightly to match the increasing test suite data,
+  however, there are still some sets that do not perfectly align. We suggest following the
+  :ref:`customizing-acr-modules` section and adjusting the location as needed.
+* The ACR MRI algorithm has a new parameter for ``analyze``: ``echo_number``. This lets the user pick an
+  echo number if the acquisition was a dual echo scan. This is not required however. If the scan is dual-echo
+  and no echo number is passed, the scan with the first echo number is selected. See the
+  :ref:`choosing-mr-echo-number`.
+* The ACR MRI module classes can now be defined at the class-level, similar to the ACR CT. This was
+  changed so that users can more easily change aspects of each module.
+  See the :ref:`customizing-acr-modules` section for more.
+* The ACR MRI phantom :class:`~pylinac.acr.MRUniformityModuleOutput` had a typo. The property ``ghost_rois`` was actually spelled ``ghose_rois``.
+  Any code using this property should be updated to the correct spelling.
+* The ACR MRI :func:`~pylinac.acr.ACRMRILarge.results_data` method will now return ``ROIResult`` instances instead of the
+  raw ``HUDiskROI`` classes as before. This behavior already occurs for the catphan module and will thus make
+  the results similar in structure.
+
+Quart
+^^^^^
+
+* The Quart algorithm now measures the high-contrast resolution. It is accessible via the ``high_contrast_resolution``
+  method. It is given in the ``results`` and ``results_data`` methods as well.
+
+  .. code-block:: python
+
+    from pylinac import QuartDVT
+
+    quart = QuartDVT(...)
+    quart.analyze()
+    high_res = quart.geometry_module.high_resolution_contrast()
+    # or
+    print(quart.results())
+    # or
+    high_res = quart.results_data().geometric_module.high_contrast_distance
+
+Core
+^^^^
+
+* The :class:`~pylinac.core.image.DicomImage` class has two new properties available: ``z_location`` and ``slice_spacing``.
+  These both apply to CT/MR-like datasets.
+* A new contrast algorithm, "Difference", has been added. This can be used similar to RMS, Weber, etc.
+  The reason this might be preferred is so that the resulting CNR value is closer to the default algorithm.
+  See :ref:`contrast` for more.
+* Contrast values are now case-insensitive. This applies only if you are passing a string for the contrast
+  method.
+
+  .. code-block:: python
+
+    from pylinac import CatPhan504
+    from pylinac.core.contrast import Contrast
+
+    ct = CatPhan504.from_demo_images()
+    # equivalent
+    ct.analyze(..., contrast_method="weber")
+    ct.analyze(..., contrast_method="Weber")
+    ct.analyze(..., contrast_method=Contrast.WEBER)
+
+* Image classes (``DicomImage``, ``ArrayImage``, ``FileImage``) have a new method: :func:`~pylinac.core.image.BaseImage.rotate`.
+  This is a wrapper for scikit-image that allows rotation of an arbitrary angle. Previously, only rotations of 90 degrees were
+  allowed via the ``rot90`` method.
+* The library ``cached_property`` was dropped as a requirement since it was introduced in Python 3.8
+* The utility function ``find_nearest_index`` in the ``acr`` module was moved to ``core.array_utils``.
+* The utility functions ``abs360`` and ``wrap360`` were moved from ``core.utilities`` to ``core.scale``.
+
+v 3.13.0
+--------
+
+.. warning::
+
+    As stated in the previous version, v3.13+ will not support Python 3.7. Python 3.8+ is required, matching
+    the PSF's deprecation policy.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The Leeds phantom has had its high-contrast ROIs adjusted to better fit the majority of phantoms
+  encountered. Additionally, due to perceived differences in manufacturing, the high-contrast ROIs
+  are now placed according to the center of the high-contrast block. The block is found after the
+  phantom is found and the ROI configuration is adjusted about this center. We have noticed small
+  differences between the block and the phantom center that are large enough to move the ROIs
+  outside the line pairs. Even this however does not correctly place the ROIs all the time.
+
+  .. warning::
+
+      This may affect your MTF values, but so far it does not significantly change it if
+      the ROIs were already correctly on top of the high contrast pairs. Images where
+      the ROIs were mis-aligned with the line pairs should now better match, so any
+      change should be between noise and a healthy improvement.
+
+  Here are two images comparing the old positions to the new ones for an image that was previously
+  not working:
+
+  .. figure:: images/old_leeds_rois.png
+
+      Previous Leeds ROIs on a poorly-fitting image
+
+  .. figure:: images/new_leeds_rois.png
+
+      New Leeds ROIs on the same image
+
+  Here is the demo image, where the ROIs were working before, showing that the new locations
+  still work.
+
+  .. figure:: images/old_leeds_rois_demo.png
+
+      Previous Leeds ROIs on the demo image
+
+  .. figure:: images/new_leeds_rois_demo.png
+
+      New Leeds ROIs on the demo image
+
+  .. note::
+
+    At this point in time it's unclear where the variation is coming from. This is a best-fit
+    solution to this variation. It's possible there was a revision along the line or the
+    placement tolerances are simply not very tight. We have evidence of other quality issues
+    such as off-center low-contrast ROIs as well. If you know how these differences have come to
+    be let us know!
+
+    Finally, if you would like to keep the old ROI locations here is a gist
+    with the old settings: https://gist.github.com/jrkerns/10b62aad7b38c210b9213761447f6155
+
+
+* Related to above, the high-contrast ROIs have been reduced in size slightly so as not to
+  spill out of the line pair area when there are small discrepancies of location.
+  Testing did not change the MTF significantly from reducing the ROI size.
+
+
+VMAT
+^^^^
+
+* Three new parameters were added to the ``__init__`` call: ``raw_pixels``. ``ground``, and ``check_inversion``.
+  These were added to allow users to avoid applying DICOM pixel correction and
+  analysis manipulations. The reason for this is to match the results from other
+  programs such as Doselab. See the new section :ref:`vmat-doselab`.
+
+Core
+^^^^
+
+* The ``DicomImage`` class constructor has a new boolean parameter ``raw_pixels``. This was implemented
+  for the above VMAT feature, but can be applied to any image if desired. This will not
+  apply any pixel correction tags, and simpy load the values as saved in the DICOM file.
+
+v 3.12.1
+--------
+
+Contrast
+^^^^^^^^
+
+* The contrast logic was refactored in pylinac 3.12.0. Unfortunately, this used the
+  "vanilla" definition of weber (see `Weber <https://en.wikipedia.org/wiki/Contrast_(vision)#Weber_contrast>`__).
+  Pylinac versions 3.11 and prior used the absolute difference of the numerator.
+  Using the signed difference caused issues for existing users and workflows.
+  This was unintentional. For backwards compatibility, the definition has been restored to the previous
+  behavior.
+
 v 3.12.0
 --------
 

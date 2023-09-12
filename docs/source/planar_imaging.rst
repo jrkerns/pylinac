@@ -20,7 +20,9 @@ Feature table
 +------------------+------------------+-------------+----------------+---------------------------+
 | Doselab MC2 (kV) | No               | Manual      | Yes            | Semi (+/-5 from 0)        |
 +------------------+------------------+-------------+----------------+---------------------------+
-| Las Vegas        | L/R              | Manual      | Yes            | No (0)                    |
+| Las Vegas        | No               | Manual      | Yes            | No (0)                    |
++------------------+------------------+-------------+----------------+---------------------------+
+| Elekta Las Vegas | No               | Manual      | Yes            | No (0)                    |
 +------------------+------------------+-------------+----------------+---------------------------+
 | Leeds TOR        | Yes              | Manual      | Yes            | Yes                       |
 +------------------+------------------+-------------+----------------+---------------------------+
@@ -104,7 +106,7 @@ The minimum needed to get going is to:
 
      leeds.analyze(low_contrast_threshold=0.01, high_contrast_threshold=0.5)
 
-  Additionally, you may specify the SSD of the phantom if it is not at iso (e.g. sitting on the panel):
+  Additionally, you may specify the SSD of the phantom. By default, SAD and 5cm up from SID are searched:
 
   .. code-block:: python
 
@@ -182,7 +184,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching or close to any image edges.
 * The blades should be fully or mostly open to correctly invert the image. This may not result in a complete failure,
@@ -288,7 +290,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must be at 0 degrees.
 * The phantom must not be touching any image edges.
@@ -350,7 +352,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must be at 45 degrees.
 * The phantom must not be touching any image edges.
@@ -391,14 +393,19 @@ Las Vegas Phantom
 -----------------
 
 The Las Vegas phantom is for MV image quality testing and includes low contrast regions of varying contrast and size.
+There is also a :class:`~pylinac.planar_imaging.ElektaLasVegas` class that is very similar. This section covers
+both styles.
 
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
 
-The Las Vegas phantom has a recommended position as stated on the phantom. Pylinac will however account for angles,
-shifts, and inversions. Best practices for the Las Vegas phantom:
+The Las Vegas phantom has a recommended position as stated on the phantom. Pylinac will however account for
+shifts and inversions. Best practices for the Las Vegas phantom:
 
 * Keep the phantom from a couch edge or any rails.
+* The field edge should be >=5mm from the phantom edge, preferably 10+mm.
+* The orientation should have the largest "holes" towards the right side although this can be accounted for as an ``analyze`` parameter.
+* The angle should be as close to 0 as possible, given above, although this can be accounted for as an ``analyze`` parameter.
 
 Algorithm
 ^^^^^^^^^
@@ -412,7 +419,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching any image edges.
 * The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
@@ -463,7 +470,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching any image edges.
 * The phantom should be at 45 degrees relative to the EPID.
@@ -516,7 +523,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching any image edges.
 * The phantom should be at 45 degrees relative to the EPID.
@@ -564,7 +571,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching any image edges.
 * The phantom should be at 0, 90, or 270 +/-5 degrees relative to the EPID where 0 is facing the gun.
@@ -625,7 +632,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
 * The phantom should be centered near the CAX (<1cm).
@@ -677,6 +684,60 @@ The BB window as well as the expected BB positions, and field strip size can be 
     # use as normal
     fc2 = MySIFC2(...)
 
+
+.. _doselab_rlf:
+
+Doselab RLf
+-----------
+
+.. versionadded:: 3.15
+
+The Doselab RLf is for testing light/radiation coincidence. See also :class:`~pylinac.planar_imaging.DoselabRLf`.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The RLf phantom should be placed on the couch at 100cm SSD.
+
+* Keep the phantom away from a couch edge or any rails.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
+* The phantom should be centered near the CAX (<2mm).
+
+**Analysis**
+
+* **Get BB centroid** -- An image window looks for each BB on the inner side of each edge. After finding the BBs,
+  the centroid is calculated.
+
+  .. note::
+
+    The inner 10x10 BBs are always used regardless of the field size. This is because the BB detection
+    is more robust when the BBs are away from a field edge. This also means that 10x10 analysis is
+    slightly less robust that 15x15 analysis all else being equal.
+
+* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
+  A 5mm strip is averaged and used to reduce noise.
+
+**Post-Analysis**
+
+* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
+  The field size is also reported.
+
+
 .. _imt_lrad:
 
 IMT L-Rad
@@ -707,7 +768,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
 * The phantom should be centered near the CAX (<3mm).
@@ -758,7 +819,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom should be at 0 degrees relative to the EPID.
 * The phantom should be roughly centered along the CAX (<3mm).
@@ -1049,6 +1110,9 @@ API Documentation
 .. autoclass:: pylinac.planar_imaging.LasVegas
     :inherited-members:
 
+.. autoclass:: pylinac.planar_imaging.ElektaLasVegas
+    :inherited-members:
+
 .. autoclass:: pylinac.planar_imaging.DoselabMC2MV
     :inherited-members:
 
@@ -1074,6 +1138,9 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.IMTLRad
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.DoselabRLf
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.SNCFSQA

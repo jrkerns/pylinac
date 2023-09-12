@@ -26,7 +26,11 @@ class DLG:
         self._lin_fit = None
 
     def analyze(
-        self, gaps: Sequence, mlc: MLC, y_field_size: float = 100, profile_width=10
+        self,
+        gaps: Sequence,
+        mlc: MLC,
+        y_field_size: float = 100,
+        profile_width: int = 10,
     ):
         """Analyze an EPID image with varying MLC overlaps to determine the DLG.
 
@@ -82,7 +86,7 @@ class DLG:
         self.planned_dlg_per_leaf = planned_dlg_per_leaf
         self.measured_dlg_per_leaf = measured_dlg_per_leaf
 
-    def plot_dlg(self, show=True):
+    def plot_dlg(self, show: bool = True) -> None:
         """Plot the measured DLG values across the planned gaps"""
         if not self.measured_dlg_per_leaf:
             raise ValueError("Analyze the image before plotting with .analyze()")
@@ -100,7 +104,7 @@ class DLG:
             plt.show()
 
     @staticmethod
-    def _get_dlg_offset(field_size, leaf_center, dlgs: Sequence) -> float:
+    def _get_dlg_offset(field_size: float, leaf_center: float, dlgs: Sequence) -> float:
         """Return the planned leaf overlap for a given leaf"""
         roi_size = field_size / len(dlgs)
         y_bounds = [field_size / 2 - idx * roi_size for idx in range(len(dlgs) + 1)]

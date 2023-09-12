@@ -11,6 +11,8 @@ from scipy.ndimage import rotate
 from pylinac import (
     DoselabMC2kV,
     DoselabMC2MV,
+    DoselabRLf,
+    ElektaLasVegas,
     IBAPrimusA,
     LasVegas,
     LeedsTOR,
@@ -144,13 +146,23 @@ class GeneralTests(TestCase):
 
         self.assertEqual(x, x_manual_dpi)
 
+    def test_ssd_values(self):
+        """Test various SSD values"""
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze(ssd="auto")  # shouldn't raise
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze(ssd=1000)  # shouldn't raise
+        with self.assertRaises(ValueError):
+            phan = LeedsTOR.from_demo_image()
+            phan.analyze(ssd=1500)  # really at 1000
+
 
 class PlanarPhantomMixin(CloudFileMixin):
     klass: Callable
     dir_path = ["planar_imaging"]
     mtf_50 = None
     invert = False
-    ssd = 1000
+    ssd = "auto"
     median_contrast = None
     median_cnr = None
     file_name = None
@@ -185,7 +197,7 @@ class PlanarPhantomMixin(CloudFileMixin):
         # check that the MTF is the expected value. This is a surrogate for the angle being wrong
         if self.mtf_50:
             self.assertAlmostEqual(
-                self.mtf_50, instance.mtf.relative_resolution(50), delta=0.3
+                self.mtf_50, instance.mtf.relative_resolution(50), delta=0.2
             )
 
     def test_plotting(self):
@@ -253,27 +265,33 @@ class LeedsCCW(LeedsMixin, TestCase):
 
 class Leeds45Deg(LeedsMixin, TestCase):
     mtf_50 = 1.9
-    ssd = 1500
+    ssd = "auto"
     file_name = "Leeds-45deg.dcm"
 
 
 class LeedsDirtyEdges(LeedsMixin, TestCase):
-    mtf_50 = 1.3
-    ssd = 1000
+    mtf_50 = 1.53
+    ssd = "auto"
     file_name = "Leeds-dirty-edges.dcm"
+
+
+class LeedsOffsetHighRes(LeedsMixin, TestCase):
+    mtf_50 = 1.85
+    ssd = "auto"
+    file_name = "Leeds_offset_high_res_rois.dcm"
 
 
 class LeedsBlue(LeedsMixin, TestCase):
     klass = LeedsTORBlue
     mtf_50 = 1.5
-    ssd = 1450
+    ssd = "auto"
     file_name = "Leeds_Blue.dcm"
 
 
 class LeedsBlueRotated(LeedsMixin, TestCase):
     klass = LeedsTORBlue
     mtf_50 = 1.5
-    ssd = 1450
+    ssd = "auto"
     file_name = "Leeds_Blue.dcm"
 
     @classmethod
@@ -286,21 +304,21 @@ class LeedsBlueRotated(LeedsMixin, TestCase):
 @skip("Phantom appears distorted. MTF locations are different than other phantoms")
 class LeedsClosedBlades(LeedsMixin, TestCase):
     mtf_50 = 1.3
-    ssd = 1500
+    ssd = "auto"
     file_name = "Leeds-closed-blades.dcm"
 
 
 class LeedsACB1(LeedsMixin, TestCase):
     dir_path = ["planar_imaging", "Leeds", "ACB 1"]
     file_path = "1.dcm"
-    mtf_50 = 1.4
+    mtf_50 = 1.69
 
 
 class LeedsBadInversion(LeedsMixin, TestCase):
     """Radmachine image where inversion was bad. pylinac should be able to correct"""
 
     file_path = "Leeds bad inversion.dcm"
-    mtf_50 = 1.4
+    mtf_50 = 1.69
 
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
@@ -323,6 +341,7 @@ class SIQC3_2(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     file_name = "QC3-2.5MV-2.dcm"
     mtf_50 = 1.16
+    ssd = 1000
     rois_seen = 5
 
     def test_wrong_ssd_fails(self):
@@ -384,6 +403,35 @@ class LasVegasTB1(LasVegasTestMixin, TestCase):
     phantom_angle = 284.5
 
 
+class ElektaLasVegasMixin(LasVegasTestMixin):
+    dir_path = ["planar_imaging", "Elekta Las Vegas"]
+    klass = ElektaLasVegas
+
+    @classmethod
+    def setUpClass(cls):
+        cls.instance = cls.create_instance()
+        cls.preprocess(cls.instance)
+        cls.instance.image.rot90(n=3)
+        cls.instance.analyze(ssd=cls.ssd, invert=cls.invert)
+
+
+class ElektaDemo(ElektaLasVegasMixin, TestCase):
+    rois_seen = 17
+
+    def test_demo(self):
+        ElektaLasVegas.run_demo()  # shouldn't raise
+
+
+class Elekta2MU(ElektaLasVegasMixin, TestCase):
+    file_name = "LasVegas_2MU.dcm"
+    rois_seen = 12
+
+
+class Elekta10MU(ElektaLasVegasMixin, TestCase):
+    file_name = "LasVegas_10MU.dcm"
+    rois_seen = 17
+
+
 class DoselabMVDemo(PlanarPhantomMixin, TestCase):
     klass = DoselabMC2MV
     mtf_50 = 0.54
@@ -394,7 +442,7 @@ class DoselabMVDemo(PlanarPhantomMixin, TestCase):
 
 class DoselabkVDemo(PlanarPhantomMixin, TestCase):
     klass = DoselabMC2kV
-    mtf_50 = 2.16
+    mtf_50 = 2.0
 
     def test_demo(self):
         DoselabMC2kV.run_demo()
@@ -543,7 +591,7 @@ class PTWEPIDQC1(PlanarPhantomMixin, TestCase):
 
 class PTWEPID15MV(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
-    mtf_50 = 0.79
+    mtf_50 = 0.5
     rois_seen = 9
     median_contrast = 0.17
     median_cnr = 26.7
@@ -737,6 +785,33 @@ class FC2BBDownRight1mm(FC2Mixin, TestCase):
     field_epid_offset_x_mm = 0
     field_bb_offset_y_mm = 1
     field_bb_offset_x_mm = 1
+
+
+class DoselabRLfMixin(FC2Mixin):
+    klass = DoselabRLf
+    dir_path = ["planar_imaging", "Doselab RLf"]
+
+
+class DoselabRLfDemo(DoselabRLfMixin, TestCase):
+    field_size_y_mm = 148.2
+    field_size_x_mm = 149.3
+    field_epid_offset_x_mm = 0.1
+    field_epid_offset_y_mm = 0.6
+    field_bb_offset_y_mm = 0.8
+    field_bb_offset_x_mm = 0.2
+
+    def test_demo(self):
+        DoselabRLf.run_demo()
+
+
+class DoselabRLf10x10(DoselabRLfMixin, TestCase):
+    file_name = "FS 10x10.dcm"
+    field_size_y_mm = 98.2
+    field_size_x_mm = 99.2
+    field_epid_offset_x_mm = 0.2
+    field_epid_offset_y_mm = 0.8
+    field_bb_offset_y_mm = 0.9
+    field_bb_offset_x_mm = 0.2
 
 
 class IMTLRadMixin(FC2Mixin):

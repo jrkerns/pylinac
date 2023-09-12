@@ -90,3 +90,13 @@ def convert(
     c_out = output_scale.value["collimator_from_iec"](c)
     r_out = output_scale.value["rotation_from_iec"](r)
     return g_out, c_out, r_out
+
+
+def abs360(value: float) -> float:
+    """Convert angles to always be positive. E.g. -90 -> 270"""
+    return (360 + value) % 360
+
+
+def wrap360(value: float) -> float:
+    """Wrap the input value around 360. E.g. 361 -> 1"""
+    return value % 360
