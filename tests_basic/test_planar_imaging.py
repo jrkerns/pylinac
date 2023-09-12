@@ -11,6 +11,7 @@ from scipy.ndimage import rotate
 from pylinac import (
     DoselabMC2kV,
     DoselabMC2MV,
+    DoselabRLf,
     ElektaLasVegas,
     IBAPrimusA,
     LasVegas,
@@ -784,6 +785,33 @@ class FC2BBDownRight1mm(FC2Mixin, TestCase):
     field_epid_offset_x_mm = 0
     field_bb_offset_y_mm = 1
     field_bb_offset_x_mm = 1
+
+
+class DoselabRLfMixin(FC2Mixin):
+    klass = DoselabRLf
+    dir_path = ["planar_imaging", "Doselab RLf"]
+
+
+class DoselabRLfDemo(DoselabRLfMixin, TestCase):
+    field_size_y_mm = 148.2
+    field_size_x_mm = 149.3
+    field_epid_offset_x_mm = 0.1
+    field_epid_offset_y_mm = 0.6
+    field_bb_offset_y_mm = 0.8
+    field_bb_offset_x_mm = 0.2
+
+    def test_demo(self):
+        DoselabRLf.run_demo()
+
+
+class DoselabRLf10x10(DoselabRLfMixin, TestCase):
+    file_name = "FS 10x10.dcm"
+    field_size_y_mm = 98.2
+    field_size_x_mm = 99.2
+    field_epid_offset_x_mm = 0.2
+    field_epid_offset_y_mm = 0.8
+    field_bb_offset_y_mm = 0.9
+    field_bb_offset_x_mm = 0.2
 
 
 class IMTLRadMixin(FC2Mixin):

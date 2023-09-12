@@ -1143,6 +1143,39 @@ class IMTLRad(StandardImagingFC2):
         return self.center_only_bb
 
 
+class DoselabRLf(StandardImagingFC2):
+    """The Doselab light/rad phantom"""
+
+    common_name = "Doselab Rlf"
+    _demo_filename = "Doselab_RLf.dcm"
+    # these positions are the offset in mm from the center of the image to the nominal position of the BBs
+    bb_positions_10x10 = {
+        "TL": [-17, -45],
+        "BL": [-45, 17],
+        "TR": [45, -17],
+        "BR": [17, 45],
+    }
+    # 15x15 is not as robust as 10x10
+    # bb_positions_15x15 = {
+    #     "TL": [-45, -70],
+    #     "BL": [-70, 45],
+    #     "TR": [70, -45],
+    #     "BR": [45, 70],
+    # }
+    bb_sampling_box_size_mm = 10
+    field_strip_width_mm = 5
+
+    def _determine_bb_set(self, fwxm: int) -> dict:
+        return self.bb_positions_10x10
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Doselab RFl phantom analysis demonstration."""
+        dl = DoselabRLf.from_demo_image()
+        dl.analyze()
+        dl.plot_analyzed_image()
+
+
 class SNCFSQA(StandardImagingFC2):
     """SNC light/rad phantom. See the 'FSQA' phantom and specs: https://www.sunnuclear.com/products/suncheck-machine.
 
