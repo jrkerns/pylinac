@@ -44,6 +44,7 @@ from .planar_imaging import (
     LasVegas,
     LeedsTOR,
     LeedsTORBlue,
+    PTWIsoAlign,
     SNCkV,
     StandardImagingFC2,
     StandardImagingQC3,

@@ -18,6 +18,7 @@ Planar Imaging
 ^^^^^^^^^^^^^^
 
 * The Doselab RLf light/rad phantom has been added as an analysis options: :ref:`doselab_rlf`.
+* The PTW IsoAlign light/rad phantom has been added as an analysis options: :ref:`ptw_isoalign`.
 
 CT
 ^^
