@@ -738,6 +738,53 @@ The algorithm works like such:
   The field size is also reported.
 
 
+.. _ptw_isoalign:
+
+PTW IsoAlign
+------------
+
+.. versionadded:: 3.15
+
+The PTW IsoAlign phantom is for testing light/radiation coincidence. See also :class:`~pylinac.planar_imaging.PTWIsoAlign`.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The phantom should be placed on the couch at 100cm SSD.
+
+* Keep the phantom away from a couch edge or any rails.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
+* The phantom should be centered near the CAX (<2mm).
+
+**Analysis**
+
+* **Get BB centroid** -- An image window looks for the central BB as well as 1 BB in each cardinal direction. After finding the BBs,
+  the centroid is calculated.
+
+* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
+  A 10mm strip is averaged and used to reduce noise.
+
+**Post-Analysis**
+
+* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
+  The field size is also reported.
+
+
 .. _imt_lrad:
 
 IMT L-Rad
@@ -1141,6 +1188,9 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.DoselabRLf
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.PTWIsoAlign
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.SNCFSQA
