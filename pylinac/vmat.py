@@ -252,9 +252,9 @@ class VMATBase:
 
     def _identify_images(self, image1: DicomImage, image2: DicomImage):
         """Identify which image is the DMLC and which is the open field."""
-        profile1, profile2 = self._median_profiles((image1, image2))
-        field_profile1 = profile1.field_values()
-        field_profile2 = profile2.field_values()
+        profile1, profile2 = self._median_profiles(image1=image1, image2=image2)
+        field_profile1 = profile1.field_data()["field values"]
+        field_profile2 = profile2.field_data()["field values"]
         if np.std(field_profile1) > np.std(field_profile2):
             self.dmlc_image = image1
             self.open_image = image2

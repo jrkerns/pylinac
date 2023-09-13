@@ -1093,6 +1093,7 @@ class MLCValue:
         self._action_tolerance: float = action_tolerance
         self._separate_leaves = separate_leaves
         self._nominal_gap_mm = nominal_gap_mm
+        self.profile: SingleProfile
         self.position = self.get_peak_positions()
         self._fit = None
 
