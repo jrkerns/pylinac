@@ -20,11 +20,7 @@ from .core.geometry import Line, Point
 from .core.image import DicomImage
 from .core.mtf import MTF
 from .core.profile import (
-    LEFT,
-    RIGHT,
-    Edge,
     Interpolation,
-    PhysicalProfile,
     SingleProfile,
 )
 from .core.roi import HighContrastDiskROI, RectangleROI
@@ -870,19 +866,16 @@ class GeometricDistortionModule(CatPhanModule):
         }
         # calculate vertical
         data = bin_image[:, int(self.phan_center.x)]
-        prof = PhysicalProfile(data, dpmm=1 / self.mm_per_pixel)
+        prof = SingleProfile(
+            data, interpolation=Interpolation.NONE, dpmm=1 / self.mm_per_pixel
+        )
+        fwhm = prof.fwxm_data()
         line = Line(
-            Point(
-                self.phan_center.x,
-                int(round(prof.field_edge_idx(side=LEFT, method=Edge.FWHM))),
-            ),
-            Point(
-                self.phan_center.x,
-                int(round(prof.field_edge_idx(side=RIGHT, method=Edge.FWHM))),
-            ),
+            Point(self.phan_center.x, fwhm["left index (rounded)"]),
+            Point(self.phan_center.x, fwhm["right index (rounded)"]),
         )
         self.profiles["vertical"] = {
-            "width (mm)": prof.field_width_mm(edge_method=Edge.FWHM),
+            "width (mm)": fwhm["width (exact) mm"],
             "line": line,
         }
         # calculate negative diagonal

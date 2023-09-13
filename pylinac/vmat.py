@@ -28,7 +28,7 @@ from .core.geometry import Point, Rectangle
 from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
-from .core.profile import ArrayProfile, Edge
+from .core.profile import Edge, SingleProfile, Interpolation
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
@@ -481,27 +481,27 @@ class VMATBase:
                 axis, edgecolor=color, text=text, text_rotation=90, fontsize="small"
             )
 
-    @staticmethod
-    def _median_profiles(images) -> tuple[ArrayProfile, ArrayProfile]:
-        """Return two median profiles from the open and dmlc image. For visual comparison."""
-        profile1 = ArrayProfile(
-            np.mean(images[0], axis=0),
-            edge_method=Edge.INFLECTION_DERIVATIVE,
-        )
-        profile1.stretch()
-        profile2 = ArrayProfile(
-            np.mean(images[1], axis=0),
-            edge_method=Edge.INFLECTION_DERIVATIVE,
-        )
-        profile2.stretch()
-
-        # normalize the profiles to approximately the same value
-        norm_val = np.percentile(profile1.values, 90)
-        profile1.normalize(norm_val)
-        norm_val = np.percentile(profile2.values, 90)
-        profile2.normalize(norm_val)
-
-        return profile1, profile2
+    @classmethod
+    def _median_profiles(
+        cls, image1: DicomImage, image2: DicomImage
+    ) -> list[SingleProfile, SingleProfile]:
+        """Return two median profiles from the open and DMLC image. Only used for visual purposes.
+        Evaluation is not based on these profiles."""
+        profiles = []
+        for orig_img in (image1, image2):
+            img = copy.deepcopy(orig_img)
+            img.ground()
+            img.check_inversion()
+            profile = SingleProfile(
+                np.mean(img.array, axis=0),
+                interpolation=Interpolation.NONE,
+                edge_detection_method=Edge.INFLECTION_DERIVATIVE,
+            )
+            profile.stretch()
+            norm_val = np.percentile(profile.values, 90)
+            profile.normalize(norm_val)
+            profiles.append(profile)
+        return profiles
 
     def publish_pdf(
         self,

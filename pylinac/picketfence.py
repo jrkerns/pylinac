@@ -37,7 +37,7 @@ from py_linq import Enumerable
 from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
-from .core.profile import LEFT, RIGHT, ArrayProfile, Edge, MultiProfile
+from .core.profile import Interpolation, MultiProfile, SingleProfile
 from .core.utilities import ResultBase, convert_to_enum
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
@@ -1122,19 +1122,25 @@ class MLCValue:
             pix_vals = np.median(self._image_window, axis=0)
         else:
             pix_vals = np.median(self._image_window, axis=1)
-        prof = ArrayProfile(pix_vals)
+        interpolation_factor = 100
+        prof = SingleProfile(
+            pix_vals,
+            interpolation=Interpolation.LINEAR,
+            interpolation_factor=interpolation_factor,
+        )
+        fwxm = prof.fwxm_data(self._fwxm)
         self.profile = prof
         if self._separate_leaves:
-            left = prof.field_edge_idx(side=LEFT, method=Edge.FWHM, x=self._fwxm) + max(
+            left = fwxm["left index (exact)"] + max(
                 self._approximate_idx - self._spacing / 2, 0
             )
-            right = prof.field_edge_idx(
-                side=RIGHT, method=Edge.FWHM, x=self._fwxm
-            ) + max(self._approximate_idx - self._spacing / 2, 0)
+            right = fwxm["right index (exact)"] + max(
+                self._approximate_idx - self._spacing / 2, 0
+            )
             return left, right
         else:
             return (
-                prof.center_idx(edge_method=Edge.FWHM, x=self._fwxm)
+                fwxm["center index (exact)"]
                 + max(self._approximate_idx - self._spacing / 2, 0),
             )  # crop to left edge if need be
 

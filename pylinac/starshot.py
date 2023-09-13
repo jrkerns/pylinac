@@ -33,11 +33,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import optimize
 
-from . import Edge
 from .core import image, pdf
 from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
-from .core.profile import ArrayProfile, CollapsedCircleProfile
+from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
@@ -179,13 +178,19 @@ class Starshot:
         y_sum = np.sum(central_array, 1)
 
         # Calculate Full-Width, 80% Maximum center
-        x_point = (
-            ArrayProfile(x_sum).center_idx(edge_method=Edge.FWHM, x=80) + left_third
+        fwxm_x_point = (
+            SingleProfile(x_sum, interpolation=Interpolation.NONE).fwxm_data(80)[
+                "center index (rounded)"
+            ]
+            + left_third
         )
-        y_point = (
-            ArrayProfile(y_sum).center_idx(edge_method=Edge.FWHM, x=80) + top_third
+        fwxm_y_point = (
+            SingleProfile(y_sum, interpolation=Interpolation.NONE).fwxm_data(80)[
+                "center index (rounded)"
+            ]
+            + top_third
         )
-        center_point = Point(x_point, y_point)
+        center_point = Point(fwxm_x_point, fwxm_y_point)
         return center_point
 
     @argue.bounds(radius=(0.2, 0.95), min_peak_height=(0.05, 0.95))
