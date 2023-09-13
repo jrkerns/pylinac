@@ -28,7 +28,7 @@ from .core.geometry import Point, Rectangle
 from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
-from .core.profile import Edge, SingleProfile, Interpolation
+from .core.profile import Edge, Interpolation, SingleProfile
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 

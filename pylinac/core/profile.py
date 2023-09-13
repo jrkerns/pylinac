@@ -4,8 +4,9 @@ from __future__ import annotations
 import enum
 import math
 import warnings
+from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Sequence
+from typing import Any, Sequence
 
 import argue
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from scipy import ndimage, signal
 from scipy.interpolate import interp1d
-from scipy.ndimage import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d, zoom
 from scipy.optimize import OptimizeWarning, minimize
 from scipy.stats import linregress
 
@@ -254,19 +255,20 @@ class Centering(enum.Enum):
     MANUAL = "Manual"  #:
     BEAM_CENTER = "Beam center"  #:
     GEOMETRIC_CENTER = "Geometric center"  #:
-
-
-class ArrayProfile(ProfileMixin):
+    
+    
+class ProfileBase(ProfileMixin, ABC):
+    """The base class for multiple type of profiles. This class should not be instantiated directly.
+    
+    We use a base class to avoid having long stacked if statements for the different detection patterns. 
+    This is also more explicit and extensible."""
     def __init__(
         self,
         values: np.array,
         x_values: np.array | None = None,
         ground: bool = False,
-        normalization: str = Normalization.NONE,
+        normalization: str | Normalization = Normalization.NONE,
         centering_method: str | Centering = Centering.BEAM_CENTER,
-        edge_method: str | Edge = Edge.INFLECTION_DERIVATIVE,
-        edge_smoothing_ratio: float = 0.003,
-        hill_window_ratio: float = 0.1,
     ):
         """A 1D profile that has one large signal, e.g. a radiation beam profile.
         Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
@@ -275,9 +277,6 @@ class ArrayProfile(ProfileMixin):
         validators.single_dimension(values)
         self.values = values
         self.centering_method = centering_method
-        self.edge_method = edge_method
-        self.edge_smoothing_ratio = edge_smoothing_ratio
-        self.hill_window_ratio = hill_window_ratio
         if x_values is None:
             x_values = np.arange(len(values))
         self.x_values = x_values
@@ -289,79 +288,43 @@ class ArrayProfile(ProfileMixin):
             center_val = utils.geometric_center_value(self.values)
             self.normalize(center_val)
         elif normalization == Normalization.BEAM_CENTER:
-            beam_center_val = self.values[int(round(self._fwxm_center_idx(x=50)))]
+            beam_center_val = self.values[int(round(self.center_idx))]
             self.normalize(beam_center_val)
-        self._interp_values = interp1d(x=self.x_values, y=self.values)
 
     @property
+    @abstractmethod
+    def _center_idx(self) -> float:
+        """The specific algorithm implementation of the center index"""
+        pass
+
+    @abstractmethod
+    def field_edge_idx(self, side: str) -> float:
+        """The index of the field edge, given the side and edge detection method."""
+        pass
+
+    @abstractmethod
+    def _edge_idx(self, side: str, **kwargs) -> float:
+        """The edge index of the given side using the FWXM methodology"""
+        pass
+    
+    @property
     def center_idx(self) -> float:
-        """The center of the detected beam. This can account for asymmetries in the beam position (e.g. offset jaws)"""
+        """The center index of the profile"""
         if self.centering_method == Centering.GEOMETRIC_CENTER:
             return utils.geometric_center_idx(self.values)
         elif self.centering_method == Centering.BEAM_CENTER:
-            if self.edge_method == Edge.FWHM:
-                return self._fwxm_center_idx()
-            elif self.edge_method == Edge.INFLECTION_DERIVATIVE:
-                left = self._inflection_derivative_idx(side=LEFT)
-                right = self._inflection_derivative_idx(side=RIGHT)
-                return (right - left) / 2 + left
-            elif self.edge_method == Edge.INFLECTION_HILL:
-                left = self._inflection_hill_idx(side=LEFT)
-                right = self._inflection_hill_idx(side=RIGHT)
-                return (right - left) / 2 + left
-
-    # def center_val(
-    #     self,
-    #     centering_method: Centering = Centering.BEAM_CENTER,
-    #     edge_method: Edge = Edge.INFLECTION_DERIVATIVE,
-    #     **kwargs,
-    # ) -> float:
-    #     """Get the 'center' value of the profile. The center depends on the technique. If using
-    #     the beam center, the edge detection method is utilized. This will linearly interpolate between acquired values"""
-    #     f = interp1d(x=self.x_values, y=self.values)
-    #     return f(self.center_idx(centering_method, edge_method, **kwargs))
-
-    def field_edge_idx(self, side: str) -> float:
-        """The index of the field edge, given the side and edge detection method."""
-        if self.edge_method == Edge.FWHM:
-            right = self._fwxm_edge_idx(
-                side=side,
-            )
-        elif self.edge_method == Edge.INFLECTION_DERIVATIVE:
-            right = self._inflection_derivative_idx(
-                side=side,
-            )
-        else:
-            right = self._inflection_hill_idx(side=side)
-        return right
+            return self._center_idx
 
     @cached_property
-    def field_width(self) -> float:
+    def field_width_px(self) -> float:
         """The field width of the profile in pixels"""
         left_idx = self.field_edge_idx(side=LEFT)
         right_idx = self.field_edge_idx(side=RIGHT)
         return right_idx - left_idx
 
-    def _fwxm_center_idx(self, x: int | float) -> float:
-        """The center index using FWXM methodology"""
-        _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
-        left_idx = peak_props["left_ips"][0]
-        right_idx = peak_props["right_ips"][0]
-        fwxm_center_idx = (right_idx - left_idx) / 2 + left_idx
-        return fwxm_center_idx
-
-    def _fwxm_edge_idx(self, side: str, x: int | float) -> float:
-        """The edge index of the given side using the FWXM methodology"""
-        _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
-        if side == LEFT:
-            idx = peak_props["left_ips"][0]
-        elif side == RIGHT:
-            idx = peak_props["right_ips"][0]
-        return idx
-
     def field_values(
-        self,
-        in_field_ratio: float = 0.8,
+            self,
+            in_field_ratio: float = 0.8,
     ) -> np.array:
         """The values of the profile within the 'field' area. This is typically 80% of the detected
         field width."""
@@ -370,36 +333,127 @@ class ArrayProfile(ProfileMixin):
         width = right - left
         f_left = left + (1 - in_field_ratio) / 2 * width
         f_right = right - (1 - in_field_ratio) / 2 * width
-        return self.values[int(round(f_left)) : int(round(f_right) + 1)]
-
-    @property
-    def geometric_center_idx(self) -> float:
-        return utils.geometric_center_idx(self.values)
-
-    @property
-    def geometric_center_val(self) -> float:
-        return utils.geometric_center_value(self.values)
+        return self.values[int(round(f_left)): int(round(f_right) + 1)]
 
     def penumbra_width_px(
-        self,
-        side: str,
-        upper: float | int = 80,
-        lower: float | int = 20,
-        **kwargs,
+            self,
+            side: str,
+            upper: float | int = 80,
+            lower: float | int = 20,
     ) -> float:
         """The width of the penumbra in pixels"""
         if lower > upper:
             raise ValueError(
                 "Upper penumbra value must be larger than the lower penumbra value"
             )
-        upper_idx = self.field_edge_idx(side=LEFT)
-        upper_idx = self._fwxm_edge_idx(side=side, x=upper)
-        lower_idx = self._fwxm_edge_idx(side=side, x=lower)
+        upper_idx = self._edge_idx(side=side, x=upper)
+        lower_idx = self._edge_idx(side=side, x=lower)
         return abs(upper_idx - lower_idx)
 
-    def _inflection_derivative_idx(self, side: str) -> float:
-        """The edge index of the given side using the 2nd derivative crossover methodology"""
-        # get max/min of the gradient, which is basically the same as the 2nd derivative 0-crossing
+    def resample(
+        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+    ) -> Any:
+        """Resample the profile at a new resolution. Returns a new profile"""
+        new_y = zoom(self.values, zoom=interpolation_factor, order=order, grid_mode=True, mode='nearest')
+        new_x = np.linspace(self.x_values.min(), self.x_values.max(), len(new_y))
+
+        return type(self)(
+            values=new_y,
+            x_values=new_x,
+            ground=False,
+            normalization=Normalization.NONE,
+            centering_method=self.centering_method,
+            **kwargs
+        )
+
+    def plot(self, show: bool = True) -> None:
+        """Plot the profile."""
+        plt.plot(self.x_values, self.values)
+        if show:
+            plt.show()
+
+
+class FWXMProfile(ProfileBase):
+    """A profile that has one large signal, e.g. a radiation beam profile and data derived from it is based on 
+    the Full-Width X-Maximum to find the edge indices"""
+    def __init__(
+        self,
+        values: np.array,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str | Normalization = Normalization.NONE,
+        centering_method: str | Centering = Centering.BEAM_CENTER,
+        fwxm_height: float = 50,
+    ):
+        """A 1D profile that has one large signal, e.g. a radiation beam profile.
+        Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
+        Profiles with multiple peaks are better suited by the MultiProfile class.
+        """
+        self._fwxm_height = fwxm_height
+        super().__init__(values=values, x_values=x_values, ground=ground, normalization=normalization, centering_method=centering_method)
+    
+    @property
+    def _center_idx(self) -> float:
+        _, peak_props = find_peaks(self.values, fwxm_height=self._fwxm_height / 100, max_number=1)
+        left_idx = peak_props["left_ips"][0]
+        right_idx = peak_props["right_ips"][0]
+        fwxm_center_idx = (right_idx - left_idx) / 2 + left_idx
+        return fwxm_center_idx
+        
+    def field_edge_idx(self, side: str) -> float:
+        """The index of the field edge, given the side and edge detection method."""
+        return self._edge_idx(
+            side=side, x=self._fwxm_height,
+        )
+    
+    def _edge_idx(self, side: str, x: int | float) -> float:
+        """The edge index of the given side using the FWXM methodology"""
+        _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
+        if side == LEFT:
+            idx = peak_props["left_ips"][0]
+        elif side == RIGHT:
+            idx = peak_props["right_ips"][0]
+        return idx
+
+    def resample(
+        self, interpolation_factor: float = 10, order: int = 3,
+    ) -> FWXMProfile:
+        return super().resample(interpolation_factor=interpolation_factor, order=order, fwxm_height=self._fwxm_height)
+
+
+class InflectionDerivativeProfile(ProfileBase):
+    """A profile that has one large signal, e.g. a radiation beam profile and data derived from it is based on 
+    the Full-Width X-Maximum"""
+
+    def __init__(
+            self,
+            values: np.array,
+            x_values: np.array | None = None,
+            ground: bool = False,
+            normalization: str = Normalization.NONE,
+            centering_method: str | Centering = Centering.BEAM_CENTER,
+            edge_smoothing_ratio: float = 0.003,
+    ):
+        """A 1D profile that has one large signal, e.g. a radiation beam profile.
+        Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
+        Profiles with multiple peaks are better suited by the MultiProfile class.
+        """
+        self.edge_smoothing_ratio = edge_smoothing_ratio
+        super().__init__(values=values, x_values=x_values, ground=ground, normalization=normalization,
+                         centering_method=centering_method)
+
+    @property
+    def _center_idx(self) -> float:
+        left = self._edge_idx(side=LEFT)
+        right = self._edge_idx(side=RIGHT)
+        return (right - left) / 2 + left
+
+    def field_edge_idx(self, side: str) -> float:
+        """The index of the field edge, given the side and edge detection method."""
+        return self._edge_idx(side=side)
+
+    def _edge_idx(self, side: str) -> float:
+        """The edge index of the given side using the FWXM methodology"""
         filtered_values = gaussian_filter1d(
             self.values, sigma=self.edge_smoothing_ratio * len(self.values)
         )
@@ -411,46 +465,64 @@ class ArrayProfile(ProfileMixin):
         else:
             return minimize(f_min, x0=np.argmin(diff)).res
 
-    def _inflection_hill_idx(
-        self,
-        side: str,
-    ) -> float:
-        """The edge index of the given side using the fit of a sigmoid/Hill function methodology"""
-        left_infl_idx = self._inflection_derivative_idx(side=LEFT)
-        right_infl_idx = self._inflection_derivative_idx(side=RIGHT)
+    def resample(
+        self, interpolation_factor: float = 10, kind="cubic",
+    ) -> InflectionDerivativeProfile:
+        return super().resample(interpolation_factor=interpolation_factor, kind=kind, edge_smoothing_ratio=self.edge_smoothing_ratio)
+
+
+class HillProfile(InflectionDerivativeProfile):
+    """A profile that has one large signal, e.g. a radiation beam profile and data derived from it is based on 
+    the Full-Width X-Maximum"""
+
+    def __init__(
+            self,
+            values: np.array,
+            x_values: np.array | None = None,
+            ground: bool = False,
+            normalization: str = Normalization.NONE,
+            centering_method: str | Centering = Centering.BEAM_CENTER,
+            edge_smoothing_ratio: float = 0.003,
+            hill_window_ratio: float = 0.1,
+    ):
+        """A 1D profile that has one large signal, e.g. a radiation beam profile.
+        Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
+        Profiles with multiple peaks are better suited by the MultiProfile class.
+        """
+        self.hill_window_ratio = hill_window_ratio
+        super().__init__(values=values, x_values=x_values, ground=ground, normalization=normalization,
+                         centering_method=centering_method, edge_smoothing_ratio=edge_smoothing_ratio)
+
+    def _edge_idx(self, side: str) -> float:
+        """The edge index of the given side using the FWXM methodology"""
+        left_infl_idx = super()._edge_idx(side=LEFT)
+        right_infl_idx = super()._edge_idx(side=RIGHT)
         window_size = (right_infl_idx - left_infl_idx) * self.hill_window_ratio
         if side == LEFT:
             left = int(round(left_infl_idx - window_size))
             right = int(round(left_infl_idx + window_size))
-            x_data = self.x_values[left : right + 1]
-            y_data = self.values[left : right + 1]
+            x_data = self.x_values[left: right + 1]
+            y_data = self.values[left: right + 1]
         else:
             left = int(round(right_infl_idx - window_size))
             right = int(round(right_infl_idx + window_size))
-            x_data = self.x_values[left : right + 1]
-            y_data = self.values[left : right + 1]
+            x_data = self.x_values[left: right + 1]
+            y_data = self.values[left: right + 1]
         hill_fit = Hill.fit(x_data=x_data, y_data=y_data)
         return hill_fit.inflection_idx()
 
-    def plot(self, show: bool = True) -> None:
-        """Plot the profile."""
-        plt.plot(self.x_values, self.values)
-        if show:
-            plt.show()
+    def resample(
+            self, interpolation_factor: float = 10, kind="cubic",
+    ) -> HillProfile:
+        return ProfileBase.resample(self, interpolation_factor=interpolation_factor, kind=kind,
+                                edge_smoothing_ratio=self.edge_smoothing_ratio, hill_window_ratio=self.hill_window_ratio)
 
 
-class PhysicalProfile(ArrayProfile):
+class PhysicalProfileMixin:
     def __init__(
         self,
-        values: np.ndarray,
         dpmm: float,
-        x_values: np.ndarray | None = None,
-        ground: bool = False,
-        normalization: str = Normalization.NONE,
     ):
-        super().__init__(
-            values=values, x_values=x_values, ground=ground, normalization=normalization
-        )
         self.dpmm = dpmm
 
     def penumbra_width_mm(
@@ -459,9 +531,78 @@ class PhysicalProfile(ArrayProfile):
         """"""
         return self.penumbra_width_px(side=side, upper=upper, lower=lower) / self.dpmm
 
-    def field_width_mm(self, edge_method=Edge.FWHM, **kwargs) -> float:
+    def field_width_mm(self) -> float:
         """The field width of the profile in mm"""
-        return self.field_width(edge_method=edge_method, **kwargs) / self.dpmm
+        return self.field_width_px / self.dpmm
+
+    def resample(
+        self, interpolation_resolution_mm: int = 0.1, kind="cubic", **kwargs
+    ) -> Any:
+        num_samples = int(round(len(self.x_values) / (self.dpmm * interpolation_resolution_mm)))
+        new_x = np.linspace(self.x_values.min(), self.x_values.max(), num_samples)
+        f = interp1d(x=self.x_values, y=self.values, kind=kind)
+        new_y = f(new_x)
+
+        return type(self)(
+            values=new_y,
+            x_values=new_x,
+            ground=False,
+            normalization=Normalization.NONE,
+            centering_method=self.centering_method,
+            **kwargs
+        )
+
+
+class FWXMProfilePhysical(FWXMProfile, PhysicalProfileMixin):
+    def __init__(self,        values: np.array,
+                 dpmm: float,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str | Normalization = Normalization.NONE,
+        centering_method: str | Centering = Centering.BEAM_CENTER,
+        fwxm_height: float = 50):
+        FWXMProfile.__init__(self, values=values, x_values=x_values, ground=ground, normalization=normalization, centering_method=centering_method, fwxm_height=fwxm_height)
+        PhysicalProfileMixin.__init__(self, dpmm=dpmm)
+
+    def resample(
+        self, interpolation_resolution_mm: int = 0.1, kind="cubic", **kwargs
+    ) -> FWXMProfilePhysical:
+        return super().resample(interpolation_resolution_mm=interpolation_resolution_mm, kind=kind, fwxm=self.fwxm_height)
+
+
+class InflectionDerivativeProfilePhysical(InflectionDerivativeProfile, PhysicalProfileMixin):
+    def __init__(self,        values: np.array,
+                 dpmm: float,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str | Normalization = Normalization.NONE,
+        centering_method: str | Centering = Centering.BEAM_CENTER,
+        edge_smoothing_ratio: float = 0.003):
+        InflectionDerivativeProfile.__init__(self, values=values, x_values=x_values, ground=ground, normalization=normalization, centering_method=centering_method, edge_smoothing_ratio=edge_smoothing_ratio)
+        PhysicalProfileMixin.__init__(self, dpmm=dpmm)
+
+    def resample(
+        self, interpolation_resolution_mm: int = 0.1, kind="cubic"
+    ) -> InflectionDerivativeProfilePhysical:
+        return super().resample(interpolation_resolution_mm=interpolation_resolution_mm, kind=kind, edge_smoothing_ratio=self.edge_smoothing_ratio)
+
+
+class HillProfilePhysical(HillProfile, PhysicalProfileMixin):
+    def __init__(self,        values: np.array,
+                 dpmm: float,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str | Normalization = Normalization.NONE,
+        centering_method: str | Centering = Centering.BEAM_CENTER,
+        edge_smoothing_ratio: float = 0.003,
+                 hill_window_ratio: float = 0.1):
+        HillProfile.__init__(self, values=values, x_values=x_values, ground=ground, normalization=normalization, centering_method=centering_method, edge_smoothing_ratio=edge_smoothing_ratio, hill_window_ratio=hill_window_ratio)
+        PhysicalProfileMixin.__init__(self, dpmm=dpmm)
+
+    def resample(
+        self, interpolation_resolution_mm: int = 0.1, kind="cubic"
+    ) -> HillProfilePhysical:
+        return super().resample(interpolation_resolution_mm=interpolation_resolution_mm, kind=kind, edge_smoothing_ratio=self.edge_smoothing_ratio, hill_window_ratio=self.hill_window_ratio)
 
 
 class SingleProfile(ProfileMixin):
