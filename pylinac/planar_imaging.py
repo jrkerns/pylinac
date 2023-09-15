@@ -1176,7 +1176,7 @@ class DoselabRLf(StandardImagingFC2):
         dl.plot_analyzed_image()
 
 
-class PTWIsoAlign(StandardImagingFC2):
+class IsoAlign(StandardImagingFC2):
     """The PTW Iso-Align light/rad phantom"""
 
     common_name = "PTW Iso-Align"
@@ -1198,7 +1198,7 @@ class PTWIsoAlign(StandardImagingFC2):
     @staticmethod
     def run_demo() -> None:
         """Run the phantom analysis demonstration."""
-        al = PTWIsoAlign.from_demo_image()
+        al = IsoAlign.from_demo_image()
         al.analyze()
         al.plot_analyzed_image()
 
