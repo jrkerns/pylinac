@@ -183,7 +183,9 @@ def create_simple_9_profile() -> np.array:
 
 def create_long_23_profile() -> np.array:
     # length of 23
-    return np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
+    return np.array(
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+    )
 
 
 def skewed_19_profile() -> np.array:
@@ -195,11 +197,12 @@ def skewed_19_profile() -> np.array:
 def symmetrical_sigmoidal_21_profile() -> np.array:
     """A curve with sigmoid shape on either side of the center"""
     # length of 21
-    return np.array([0, 1, 2, 4, 6, 8, 9, 10, 10, 10, 10, 10, 10, 10, 9, 8, 6, 4, 2, 1, 0])
+    return np.array(
+        [0, 1, 2, 4, 6, 8, 9, 10, 10, 10, 10, 10, 10, 10, 9, 8, 6, 4, 2, 1, 0]
+    )
 
 
 class TestProfileGeneric(TestCase):
-
     def test_ground(self) -> None:
         offset_array = create_simple_9_profile() + 1
         self.assertEqual(offset_array.min(), 1)
@@ -211,74 +214,77 @@ class TestProfileGeneric(TestCase):
         array = create_simple_9_profile()
         profile = FWXMProfile(array, normalization=Normalization.MAX)
         self.assertEqual(profile.values.max(), 1)
-        
+
     def test_geometric_centering(self):
         """Geometric centering is the same for all implementations."""
         array = create_simple_9_profile()
         profile = FWXMProfile(array, centering_method=Centering.GEOMETRIC_CENTER)
         self.assertEqual(profile.center_idx, 4)
-        profile = InflectionDerivativeProfile(array, centering_method=Centering.GEOMETRIC_CENTER)
+        profile = InflectionDerivativeProfile(
+            array, centering_method=Centering.GEOMETRIC_CENTER
+        )
         self.assertEqual(profile.center_idx, 4)
         profile = HillProfile(array, centering_method=Centering.GEOMETRIC_CENTER)
         self.assertEqual(profile.center_idx, 4)
-        
+
     def test_geometric_centering_skewed(self):
         """Test that a skewed profile does not affect the geometric center"""
         array = skewed_19_profile()
         profile = FWXMProfile(array, centering_method=Centering.GEOMETRIC_CENTER)
         self.assertEqual(profile.center_idx, 8.5)
-        profile = InflectionDerivativeProfile(array, centering_method=Centering.GEOMETRIC_CENTER)
+        profile = InflectionDerivativeProfile(
+            array, centering_method=Centering.GEOMETRIC_CENTER
+        )
         self.assertEqual(profile.center_idx, 8.5)
         profile = HillProfile(array, centering_method=Centering.GEOMETRIC_CENTER)
         self.assertEqual(profile.center_idx, 8.5)
-    
-    
+
+
 class TestFWXMProfile(TestCase):
-    
     def test_center_idx(self):
         array = create_simple_9_profile()
         profile = FWXMProfile(array)
         self.assertEqual(profile.center_idx, 4)
-        
+
     def test_field_edge_idx_50(self):
         array = create_simple_9_profile()
         profile = FWXMProfile(array, fwxm_height=50)
-        self.assertEqual(profile.field_edge_idx('left'), 2)
-        self.assertEqual(profile.field_edge_idx('right'), 6)
+        self.assertEqual(profile.field_edge_idx("left"), 2)
+        self.assertEqual(profile.field_edge_idx("right"), 6)
 
     def test_field_edge_idx_25(self):
         array = create_simple_9_profile()
         profile = FWXMProfile(array, fwxm_height=25)
-        self.assertEqual(profile.field_edge_idx('left'), 1)
-        self.assertEqual(profile.field_edge_idx('right'), 7)
-        
+        self.assertEqual(profile.field_edge_idx("left"), 1)
+        self.assertEqual(profile.field_edge_idx("right"), 7)
+
     def test_field_edge_idx_75(self):
         array = create_simple_9_profile()
         profile = FWXMProfile(array, fwxm_height=75)
-        self.assertEqual(profile.field_edge_idx('left'), 3)
-        self.assertEqual(profile.field_edge_idx('right'), 5)
-    
+        self.assertEqual(profile.field_edge_idx("left"), 3)
+        self.assertEqual(profile.field_edge_idx("right"), 5)
+
     def test_field_edge_skewed(self):
         array = skewed_19_profile()
         profile = FWXMProfile(array, fwxm_height=50)
-        self.assertEqual(profile.field_edge_idx('left'), 5)
-        self.assertEqual(profile.field_edge_idx('right'), 14.5)
-        
+        self.assertEqual(profile.field_edge_idx("left"), 5)
+        self.assertEqual(profile.field_edge_idx("right"), 14.5)
+
     def test_field_width_50(self):
         array = create_simple_9_profile()
         profile = FWXMProfile(array, fwxm_height=50)
         self.assertEqual(profile.field_width_px, 4)
-    
+
     def test_field_width_25(self):
         array = create_simple_9_profile()
         profile = FWXMProfile(array, fwxm_height=25)
         self.assertEqual(profile.field_width_px, 6)
-        
+
     def test_field_width_skewed(self):
         array = skewed_19_profile()
         profile = FWXMProfile(array, fwxm_height=50)
         self.assertEqual(profile.field_width_px, 9.5)
-    
+
     def test_field_values_full_width(self):
         # ratio of 1 is FWHM
         array = create_simple_9_profile()
@@ -286,7 +292,7 @@ class TestFWXMProfile(TestCase):
         field_values = profile.field_values(in_field_ratio=1)
         self.assertIsInstance(field_values, np.ndarray)
         self.assertEqual(len(field_values), 5)
-        
+
     def test_field_values_half_width(self):
         # ratio of 0.5 is FHWM
         array = create_simple_9_profile()
@@ -294,7 +300,7 @@ class TestFWXMProfile(TestCase):
         field_values = profile.field_values(in_field_ratio=0.5)
         self.assertIsInstance(field_values, np.ndarray)
         self.assertEqual(len(field_values), 3)
-    
+
     def test_resample(self):
         array = create_long_23_profile()
         profile = FWXMProfile(array, fwxm_height=50)
@@ -302,10 +308,12 @@ class TestFWXMProfile(TestCase):
         self.assertEqual(len(resampled_profile), len(profile) * 2)
         self.assertIsInstance(resampled_profile, FWXMProfile)
         # ensure x-values are the same; i.e. that we didn't just multiple x-values
-        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())   
+        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
         # y values should be similar.
-        self.assertAlmostEqual(resampled_profile.values.max(), profile.values.max(), delta=0.1)
-    
+        self.assertAlmostEqual(
+            resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
+
     def test_resample_10(self):
         array = create_long_23_profile()
         profile = FWXMProfile(array, fwxm_height=50)
@@ -313,10 +321,12 @@ class TestFWXMProfile(TestCase):
         self.assertEqual(len(resampled_profile), len(profile) * 10)
         self.assertIsInstance(resampled_profile, FWXMProfile)
         # ensure x-values are the same; i.e. that we didn't just multiple x-values
-        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())   
+        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
         # y values should be similar.
-        self.assertAlmostEqual(resampled_profile.values.max(), profile.values.max(), delta=0.1)
-    
+        self.assertAlmostEqual(
+            resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
+
     def test_resample_in_half(self):
         array = create_long_23_profile()
         profile = FWXMProfile(array, fwxm_height=50)
@@ -324,29 +334,30 @@ class TestFWXMProfile(TestCase):
         self.assertEqual(len(resampled_profile), 12)
         self.assertIsInstance(resampled_profile, FWXMProfile)
         # ensure x-values are the same; i.e. that we didn't just multiple x-values
-        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())   
+        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
         # y values should be similar.
-        self.assertAlmostEqual(resampled_profile.values.max(), profile.values.max(), delta=0.1)
-    
-    
+        self.assertAlmostEqual(
+            resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
+
+
 class TestInflectionDerivativeProfile(TestCase):
-    
     def test_center_idx(self):
         array = symmetrical_sigmoidal_21_profile()
         profile = InflectionDerivativeProfile(array)
         self.assertAlmostEqual(profile.center_idx, 10, delta=0.01)
-    
+
     def test_field_edge_idx(self):
         array = symmetrical_sigmoidal_21_profile()
         profile = InflectionDerivativeProfile(array)
-        self.assertAlmostEqual(profile.field_edge_idx('left'), 3.5, delta=0.01)
-        self.assertAlmostEqual(profile.field_edge_idx('right'), 16.5, delta=0.01)
-        
+        self.assertAlmostEqual(profile.field_edge_idx("left"), 3.5, delta=0.01)
+        self.assertAlmostEqual(profile.field_edge_idx("right"), 16.5, delta=0.01)
+
     def test_field_width(self):
         array = symmetrical_sigmoidal_21_profile()
         profile = InflectionDerivativeProfile(array)
         self.assertAlmostEqual(profile.field_width_px, 13, delta=0.01)
-    
+
     def test_resample_10(self):
         array = create_long_23_profile()
         profile = InflectionDerivativeProfile(array)
@@ -354,10 +365,12 @@ class TestInflectionDerivativeProfile(TestCase):
         self.assertEqual(len(resampled_profile), len(profile) * 10)
         self.assertIsInstance(resampled_profile, InflectionDerivativeProfile)
         # ensure x-values are the same; i.e. that we didn't just multiple x-values
-        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())   
+        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
         # y values should be similar.
-        self.assertAlmostEqual(resampled_profile.values.max(), profile.values.max(), delta=0.1)
-    
+        self.assertAlmostEqual(
+            resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
+
     def test_resampled_half(self):
         array = create_long_23_profile()
         profile = InflectionDerivativeProfile(array)
@@ -365,9 +378,11 @@ class TestInflectionDerivativeProfile(TestCase):
         self.assertEqual(len(resampled_profile), 12)
         self.assertIsInstance(resampled_profile, InflectionDerivativeProfile)
         # ensure x-values are the same; i.e. that we didn't just multiple x-values
-        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())   
+        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
         # y values should be similar.
-        self.assertAlmostEqual(resampled_profile.values.max(), profile.values.max(), delta=0.1)
+        self.assertAlmostEqual(
+            resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
 
 
 class SingleProfileTests(TestCase):

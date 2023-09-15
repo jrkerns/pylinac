@@ -19,10 +19,7 @@ from .core.array_utils import find_nearest_idx
 from .core.geometry import Line, Point
 from .core.image import DicomImage
 from .core.mtf import MTF
-from .core.profile import (
-    Interpolation,
-    SingleProfile,
-)
+from .core.profile import Interpolation, SingleProfile
 from .core.roi import HighContrastDiskROI, RectangleROI
 from .core.utilities import ResultBase
 from .ct import (

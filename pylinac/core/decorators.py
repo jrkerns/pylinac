@@ -125,7 +125,6 @@ def bounds(**bounds_kwargs):
                 )
 
     def decorator(func):
-
         sig = inspect.signature(func)
 
         @functools.wraps(func)
