@@ -738,14 +738,14 @@ The algorithm works like such:
   The field size is also reported.
 
 
-.. _ptw_isoalign:
+.. _isoalign:
 
-PTW IsoAlign
-------------
+IsoAlign
+--------
 
 .. versionadded:: 3.15
 
-The PTW IsoAlign phantom is for testing light/radiation coincidence. See also :class:`~pylinac.planar_imaging.PTWIsoAlign`.
+The IsoAlign phantom is for testing light/radiation coincidence. See also :class:`~pylinac.planar_imaging.IsoAlign`.
 
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
@@ -1190,7 +1190,7 @@ API Documentation
 .. autoclass:: pylinac.planar_imaging.DoselabRLf
     :inherited-members:
 
-.. autoclass:: pylinac.planar_imaging.PTWIsoAlign
+.. autoclass:: pylinac.planar_imaging.IsoAlign
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.SNCFSQA

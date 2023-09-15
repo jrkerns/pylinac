@@ -25,9 +25,9 @@ from pylinac.planar_imaging import (
     SNCMV,
     SNCMV12510,
     IMTLRad,
+    IsoAlign,
     LeedsTORBlue,
     PlanarResult,
-    PTWIsoAlign,
     SNCkV,
     StandardImagingFC2,
     StandardImagingQCkV,
@@ -815,12 +815,12 @@ class DoselabRLf10x10(DoselabRLfMixin, TestCase):
     field_bb_offset_x_mm = 0.2
 
 
-class PTWIsoAlignMixin(FC2Mixin):
-    klass = PTWIsoAlign
+class IsoAlignMixin(FC2Mixin):
+    klass = IsoAlign
     dir_path = ["planar_imaging", "Doselab RLf"]
 
 
-class PTWIsoAlignDemo(PTWIsoAlignMixin, TestCase):
+class IsoAlignDemo(IsoAlignMixin, TestCase):
     field_size_y_mm = 149.6
     field_size_x_mm = 150.2
     field_epid_offset_y_mm = 0.4
@@ -829,7 +829,7 @@ class PTWIsoAlignDemo(PTWIsoAlignMixin, TestCase):
     field_bb_offset_x_mm = 0.2
 
     def test_demo(self):
-        PTWIsoAlign.run_demo()
+        IsoAlign.run_demo()
 
 
 class IMTLRadMixin(FC2Mixin):
