@@ -301,11 +301,6 @@ class ProfileBase(ProfileMixin, ABC):
     def field_edge_idx(self, side: str) -> float:
         """The index of the field edge, given the side and edge detection method."""
         pass
-
-    @abstractmethod
-    def _edge_idx(self, side: str, **kwargs) -> float:
-        """The edge index of the given side using the FWXM methodology"""
-        pass
     
     @property
     def center_idx(self) -> float:
@@ -334,21 +329,6 @@ class ProfileBase(ProfileMixin, ABC):
         f_left = left + (1 - in_field_ratio) / 2 * width
         f_right = right - (1 - in_field_ratio) / 2 * width
         return self.values[int(round(f_left)): int(round(f_right) + 1)]
-
-    def penumbra_width_px(
-            self,
-            side: str,
-            upper: float | int = 80,
-            lower: float | int = 20,
-    ) -> float:
-        """The width of the penumbra in pixels"""
-        if lower > upper:
-            raise ValueError(
-                "Upper penumbra value must be larger than the lower penumbra value"
-            )
-        upper_idx = self._edge_idx(side=side, x=upper)
-        lower_idx = self._edge_idx(side=side, x=lower)
-        return abs(upper_idx - lower_idx)
 
     def resample(
         self, interpolation_factor: float = 10, order: int = 3, **kwargs
@@ -399,16 +379,10 @@ class FWXMProfile(ProfileBase):
         right_idx = peak_props["right_ips"][0]
         fwxm_center_idx = (right_idx - left_idx) / 2 + left_idx
         return fwxm_center_idx
-        
-    def field_edge_idx(self, side: str) -> float:
-        """The index of the field edge, given the side and edge detection method."""
-        return self._edge_idx(
-            side=side, x=self._fwxm_height,
-        )
     
-    def _edge_idx(self, side: str, x: int | float) -> float:
+    def field_edge_idx(self, side: str) -> float:
         """The edge index of the given side using the FWXM methodology"""
-        _, peak_props = find_peaks(self.values, fwxm_height=x / 100, max_number=1)
+        _, peak_props = find_peaks(self.values, fwxm_height=self._fwxm_height / 100, max_number=1)
         if side == LEFT:
             idx = peak_props["left_ips"][0]
         elif side == RIGHT:
@@ -444,15 +418,11 @@ class InflectionDerivativeProfile(ProfileBase):
 
     @property
     def _center_idx(self) -> float:
-        left = self._edge_idx(side=LEFT)
-        right = self._edge_idx(side=RIGHT)
+        left = self.field_edge_idx(side=LEFT)
+        right = self.field_edge_idx(side=RIGHT)
         return (right - left) / 2 + left
 
     def field_edge_idx(self, side: str) -> float:
-        """The index of the field edge, given the side and edge detection method."""
-        return self._edge_idx(side=side)
-
-    def _edge_idx(self, side: str) -> float:
         """The edge index of the given side using the FWXM methodology"""
         filtered_values = gaussian_filter1d(
             self.values, sigma=self.edge_smoothing_ratio * len(self.values)
@@ -461,14 +431,14 @@ class InflectionDerivativeProfile(ProfileBase):
         f_min = interp1d(x=self.x_values, y=diff, kind="cubic")
 
         if side == LEFT:
-            return minimize(lambda x: -f_min(x), x0=np.argmax(diff)).res
+            return minimize(lambda x: -f_min(x), x0=np.argmax(diff)).x[0]
         else:
-            return minimize(f_min, x0=np.argmin(diff)).res
+            return minimize(f_min, x0=np.argmin(diff)).x[0]
 
     def resample(
-        self, interpolation_factor: float = 10, kind="cubic",
+        self, interpolation_factor: float = 10, order: int = 3,
     ) -> InflectionDerivativeProfile:
-        return super().resample(interpolation_factor=interpolation_factor, kind=kind, edge_smoothing_ratio=self.edge_smoothing_ratio)
+        return super().resample(interpolation_factor=interpolation_factor, order=order, edge_smoothing_ratio=self.edge_smoothing_ratio)
 
 
 class HillProfile(InflectionDerivativeProfile):
@@ -493,7 +463,7 @@ class HillProfile(InflectionDerivativeProfile):
         super().__init__(values=values, x_values=x_values, ground=ground, normalization=normalization,
                          centering_method=centering_method, edge_smoothing_ratio=edge_smoothing_ratio)
 
-    def _edge_idx(self, side: str) -> float:
+    def field_edge_idx(self, side: str) -> float:
         """The edge index of the given side using the FWXM methodology"""
         left_infl_idx = super()._edge_idx(side=LEFT)
         right_infl_idx = super()._edge_idx(side=RIGHT)
@@ -512,9 +482,9 @@ class HillProfile(InflectionDerivativeProfile):
         return hill_fit.inflection_idx()
 
     def resample(
-            self, interpolation_factor: float = 10, kind="cubic",
+            self, interpolation_factor: float = 10, order: int = 3,
     ) -> HillProfile:
-        return ProfileBase.resample(self, interpolation_factor=interpolation_factor, kind=kind,
+        return ProfileBase.resample(self, interpolation_factor=interpolation_factor, order=order,
                                 edge_smoothing_ratio=self.edge_smoothing_ratio, hill_window_ratio=self.hill_window_ratio)
 
 
