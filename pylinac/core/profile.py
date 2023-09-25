@@ -459,7 +459,7 @@ class InflectionDerivativeProfile(ProfileBase):
         return (right - left) / 2 + left
 
     def field_edge_idx(self, side: str) -> float:
-        """The edge index of the given side using the FWXM methodology"""
+        """The edge index of the given side using the second derivative methodology"""
         filtered_values = gaussian_filter1d(
             self.values, sigma=self.edge_smoothing_ratio * len(self.values)
         )
@@ -513,8 +513,8 @@ class HillProfile(InflectionDerivativeProfile):
 
     def field_edge_idx(self, side: str) -> float:
         """The edge index of the given side using the FWXM methodology"""
-        left_infl_idx = super()._edge_idx(side=LEFT)
-        right_infl_idx = super()._edge_idx(side=RIGHT)
+        left_infl_idx = super().field_edge_idx(side=LEFT)
+        right_infl_idx = super().field_edge_idx(side=RIGHT)
         window_size = (right_infl_idx - left_infl_idx) * self.hill_window_ratio
         if side == LEFT:
             left = int(round(left_infl_idx - window_size))
@@ -527,7 +527,7 @@ class HillProfile(InflectionDerivativeProfile):
             x_data = self.x_values[left : right + 1]
             y_data = self.values[left : right + 1]
         hill_fit = Hill.fit(x_data=x_data, y_data=y_data)
-        return hill_fit.inflection_idx()
+        return hill_fit.inflection_idx()["index (exact)"]
 
     def resample(
         self,

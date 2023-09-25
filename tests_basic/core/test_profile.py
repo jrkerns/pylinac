@@ -202,6 +202,14 @@ def symmetrical_sigmoidal_21_profile() -> np.array:
     )
 
 
+def symmetrical_sharp_sigmoidal_21_profile() -> np.array:
+    """A curve with sharper sigmoid shape on either side of the center"""
+    # length of 21
+    return np.array(
+        [0, 1, 1, 2, 5, 8, 9, 10, 10, 10, 10, 10, 10, 10, 9, 8, 5, 2, 1, 1, 0]
+    )
+
+
 class TestProfileGeneric(TestCase):
     def test_ground(self) -> None:
         offset_array = create_simple_9_profile() + 1
@@ -374,6 +382,50 @@ class TestInflectionDerivativeProfile(TestCase):
     def test_resampled_half(self):
         array = create_long_23_profile()
         profile = InflectionDerivativeProfile(array)
+        resampled_profile = profile.resample(interpolation_factor=0.5)
+        self.assertEqual(len(resampled_profile), 12)
+        self.assertIsInstance(resampled_profile, InflectionDerivativeProfile)
+        # ensure x-values are the same; i.e. that we didn't just multiple x-values
+        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
+        # y values should be similar.
+        self.assertAlmostEqual(
+            resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
+
+
+class TestHillProfile(TestCase):
+    def test_center_idx(self):
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        profile = HillProfile(array, hill_window_ratio=0.2)
+        self.assertAlmostEqual(profile.center_idx, 10, delta=0.1)
+
+    def test_field_edge_idx(self):
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        profile = HillProfile(array, hill_window_ratio=0.2)
+        self.assertAlmostEqual(profile.field_edge_idx("left"), 3.8, delta=0.1)
+        self.assertAlmostEqual(profile.field_edge_idx("right"), 15.9, delta=0.1)
+
+    def test_field_width(self):
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        profile = HillProfile(array, hill_window_ratio=0.2)
+        self.assertAlmostEqual(profile.field_width_px, 12, delta=0.1)
+
+    def test_resample_10(self):
+        array = create_long_23_profile()
+        profile = HillProfile(array, hill_window_ratio=0.2)
+        resampled_profile = profile.resample(interpolation_factor=10)
+        self.assertEqual(len(resampled_profile), len(profile) * 10)
+        self.assertIsInstance(resampled_profile, InflectionDerivativeProfile)
+        # ensure x-values are the same; i.e. that we didn't just multiple x-values
+        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
+        # y values should be similar.
+        self.assertAlmostEqual(
+            resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
+
+    def test_resampled_half(self):
+        array = create_long_23_profile()
+        profile = HillProfile(array)
         resampled_profile = profile.resample(interpolation_factor=0.5)
         self.assertEqual(len(resampled_profile), 12)
         self.assertIsInstance(resampled_profile, InflectionDerivativeProfile)

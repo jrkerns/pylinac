@@ -69,22 +69,7 @@ def validate(**validate_kwargs):
 
 
 def between(**validate_kwargs):
-    """Validate arguments to a function with validator-like functions.
-
-    def is_float(value):
-        if not isinstance(value, float):
-            raise ValueError
-
-    @validate(a=is_float)
-    def add(a, b):
-        return a + b
-
-    # this will fail
-    add(3, 4.4)
-
-    # this is fine
-    add(1.1, 2)  # b is not checked
-    """
+    """Validate that a parameter is between two values."""
 
     def decorator(func):
         sig = inspect.signature(func)
