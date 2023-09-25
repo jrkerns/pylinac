@@ -354,8 +354,14 @@ class ProfileBase(ProfileMixin, ABC):
         )
 
     def plot(self, show: bool = True) -> None:
-        """Plot the profile."""
-        plt.plot(self.x_values, self.values)
+        """Plot the profile along with relevant overlays to point out features."""
+        _, ax = plt.subplots()
+        ax.plot(self.x_values, self.values, color="b", label="Data")
+        ax.axvline(
+            self.field_edge_idx(side=LEFT), color="r", ls="--", label="Field Edges"
+        )
+        ax.axvline(self.field_edge_idx(side=RIGHT), color="r", ls="--")
+        ax.legend()
         if show:
             plt.show()
 
@@ -388,6 +394,7 @@ class FWXMProfile(ProfileBase):
 
     @property
     def _center_idx(self) -> float:
+        """The center index using FWXM methodology."""
         _, peak_props = find_peaks(
             self.values, fwxm_height=self._fwxm_height / 100, max_number=1
         )
