@@ -172,7 +172,7 @@ def convert_to_dtype(array: np.array, dtype: type[np.dtype]) -> np.array:
     relative_values = array.astype(float) / old_dtype_info.max
     # float range is so large that it's better to normalize
     if isinstance(old_dtype_info, np.finfo):
-        relative_values /= relative_values.max()
+        relative_values = stretch(relative_values, min=0, max=1)
     # new array info
     dtype_info = get_dtype_info(dtype)
     dtype_range = dtype_info.max - dtype_info.min

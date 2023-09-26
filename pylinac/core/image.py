@@ -1585,6 +1585,14 @@ class DicomImageStack:
         """
         self.images[slice].plot()
 
+    def plot_3view(self):
+        """Plot the stack in 3 views: axial, coronal, and sagittal."""
+        fig, axes = plt.subplots(1, 3)
+        for idx, ax in enumerate(axes):
+            arry = np.stack(self.images, axis=-1).max(axis=idx)
+            ax.imshow(arry, cmap="gray", aspect="equal")
+        plt.show()
+
     def roll(self, direction: str, amount: int):
         for img in self.images:
             img.roll(direction, amount)
@@ -1603,6 +1611,78 @@ class DicomImageStack:
 
     def __len__(self):
         return len(self.images)
+
+
+def array_to_dicom(
+    array: np.ndarray,
+    dicom_file: str | Path | BytesIO,
+    sid: float,
+    gantry: float,
+    coll: float,
+    couch: float,
+    dpi: float | None = None,
+) -> None:
+    """Converts a TIFF file into a **simplistic** DICOM file. Not meant to be a full-fledged tool. Used for conversion so that tools that are traditionally oriented
+    towards DICOM have a path to accept TIFF. Currently used to convert files for WL.
+
+    .. note::
+
+        This will convert the image into an uint16 datatype to match the native EPID datatype.
+
+    Parameters
+    ----------
+    array
+        The numpy array to be converted. Must be 2 dimensions.
+    dicom_file
+        The output location of the DICOM file that will be generated.
+    sid
+        The Source-to-Image distance in mm.
+    dpi
+        The dots-per-inch value of the TIFF image.
+    gantry
+        The gantry value that the image was taken at.
+    coll
+        The collimator value that the image was taken at.
+    couch
+        The couch value that the image was taken at.
+    """
+    arr_img = ArrayImage(array, dpi=dpi, sid=sid)
+    if not arr_img.dpmm:
+        raise ValueError(
+            "Automatic detection of `dpi` failed. A `dpi` value must be passed to the constructor."
+        )
+    uint_array = convert_to_dtype(arr_img.array, np.uint16)
+    mm_pixel = 25.4 / arr_img.dpi
+    file_meta = FileMetaDataset()
+    # Main data elements
+    ds = Dataset()
+    ds.SOPClassUID = "1234"
+    ds.SOPInstanceUID = "5678"
+    ds.Modality = "RTIMAGE"
+    ds.ConversionType = "WSD"
+    ds.PatientName = "Lutz^Test Tool"
+    ds.PatientID = "Someone Important"
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.Rows = arr_img.shape[0]
+    ds.Columns = arr_img.shape[1]
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.ImagePlanePixelSpacing = [mm_pixel, mm_pixel]
+    ds.RadiationMachineSAD = "1000.0"
+    ds.RTImageSID = sid
+    ds.PrimaryDosimeterUnit = "MU"
+    ds.GantryAngle = str(gantry)
+    ds.BeamLimitingDeviceAngle = str(coll)
+    ds.PatientSupportAngle = str(couch)
+    ds.PixelData = uint_array
+
+    ds.file_meta = file_meta
+    ds.is_implicit_VR = True
+    ds.is_little_endian = True
+    ds.save_as(dicom_file, write_like_original=False)
 
 
 def tiff_to_dicom(

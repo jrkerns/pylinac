@@ -26,6 +26,7 @@ import io
 import math
 import os.path as osp
 import statistics
+import tempfile
 import webbrowser
 from dataclasses import dataclass
 from itertools import zip_longest
@@ -37,6 +38,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import linalg, ndimage, optimize
+from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
 from skimage import measure
 from skimage.measure._regionprops import RegionProperties
@@ -45,7 +47,13 @@ from tabulate import tabulate
 from .core import image, pdf
 from .core.decorators import lru_cache
 from .core.geometry import Line, Point, Vector, cos, sin
-from .core.image import LinacDicomImage, is_image, tiff_to_dicom
+from .core.image import (
+    DicomImageStack,
+    LinacDicomImage,
+    array_to_dicom,
+    is_image,
+    tiff_to_dicom,
+)
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import bounding_box
 from .core.scale import MachineScale, convert
@@ -809,6 +817,54 @@ class WinstonLutz:
         """
         zfile = get_url(url)
         return cls.from_zip(zfile, **kwargs)
+
+    @classmethod
+    def from_cbct(cls, directory: Path, **kwargs):
+        """Create a 4-angle WL test from a CBCT dataset"""
+        dicom_stack = DicomImageStack(folder=directory, min_number=10)
+        np_stack = np.stack(dicom_stack.images, axis=-1)
+        zoom_ratio = (
+            1,
+            dicom_stack.metadata.SliceThickness / dicom_stack.metadata.PixelSpacing[0],
+        )
+        left_arr = np.rot90(
+            zoom(
+                np_stack.max(axis=0),
+                zoom=zoom_ratio,
+                grid_mode=True,
+                mode="nearest",
+                order=1,
+            ),
+            k=3,
+        )
+        top_arr = np.rot90(
+            zoom(
+                np_stack.max(axis=1),
+                zoom=zoom_ratio,
+                grid_mode=True,
+                mode="nearest",
+                order=1,
+            ),
+            k=3,
+        )
+        right_arr = np.fliplr(left_arr)
+        bottom_arr = np.fliplr(top_arr)
+        streams = [tempfile.NamedTemporaryFile(delete=False).name for _ in range(4)]
+        dpi = 25.4 / dicom_stack.metadata.PixelSpacing[0]
+        for array, stream, gantry in zip(
+            (left_arr, top_arr, right_arr, bottom_arr), streams, (270, 0, 90, 180)
+        ):
+            array_to_dicom(
+                array=np.ascontiguousarray(array),
+                dicom_file=stream,
+                sid=1000,
+                gantry=gantry,
+                coll=0,
+                couch=0,
+                dpi=dpi,
+            )
+        # now we load these as normal images into the WL algorithm
+        return cls(streams, **kwargs)
 
     @staticmethod
     def run_demo() -> None:
