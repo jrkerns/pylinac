@@ -15,6 +15,7 @@ from typing import BinaryIO, Callable
 import matplotlib.pyplot as plt
 import numpy as np
 
+from . import Centering
 from .core import image, pdf
 from .core.exceptions import NotAnalyzed
 from .core.geometry import Point, Rectangle
@@ -274,14 +275,6 @@ class Protocol(Enum):
     ELEKTA = elekta_protocol  #:
 
 
-class Centering(Enum):
-    """See :ref:`centering`"""
-
-    MANUAL = "Manual"  #:
-    BEAM_CENTER = "Beam center"  #:
-    GEOMETRIC_CENTER = "Geometric center"  #:
-
-
 @dataclass
 class DeviceResult(ResultBase):
     protocol: Protocol  #:
@@ -491,7 +484,7 @@ class FieldAnalysis:
         ----------
         protocol : :class:`~pylinac.field_analysis.Protocol`
             The analysis protocol. See :ref:`analysis_definitions` for equations.
-        centering : :class:`~pylinac.field_analysis.Centering`
+        centering : :class:`~pylinac.Centering`
             The profile extraction position technique. Beam center will determine the beam center and take profiles through the middle.
             Geometric center will simply take profiles centered about the image in both axes.
             Manual will use the values of `vert_position` and `horiz_position` as the position.
