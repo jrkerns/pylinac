@@ -36,7 +36,7 @@ from scipy import optimize
 from .core import image, pdf
 from .core.geometry import Circle, Line, Point
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
-from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
+from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
@@ -179,16 +179,10 @@ class Starshot:
 
         # Calculate Full-Width, 80% Maximum center
         fwxm_x_point = (
-            SingleProfile(x_sum, interpolation=Interpolation.NONE).fwxm_data(80)[
-                "center index (rounded)"
-            ]
-            + left_third
+            round(FWXMProfile(values=x_sum, fwxm_height=80).center_idx) + left_third
         )
         fwxm_y_point = (
-            SingleProfile(y_sum, interpolation=Interpolation.NONE).fwxm_data(80)[
-                "center index (rounded)"
-            ]
-            + top_third
+            round(FWXMProfile(values=y_sum, fwxm_height=80).center_idx) + top_third
         )
         center_point = Point(fwxm_x_point, fwxm_y_point)
         return center_point

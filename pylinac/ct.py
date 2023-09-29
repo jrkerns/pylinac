@@ -42,7 +42,7 @@ from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
+from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
@@ -209,19 +209,16 @@ class ThicknessROI(RectangleROI):
     """A rectangular ROI that measures the angled wire rod in the HU linearity slice which determines slice thickness."""
 
     @cached_property
-    def long_profile(self) -> SingleProfile:
+    def long_profile(self) -> FWXMProfile:
         """The profile along the axis perpendicular to ramped wire."""
         img = image.load(self.pixel_array)
         img.filter(size=1, kind="gaussian")
-        prof = SingleProfile(
-            img.array.max(axis=np.argmin(img.shape)), interpolation=Interpolation.NONE
-        )
-        return prof
+        return FWXMProfile(values=img.array.max(axis=np.argmin(img.shape)))
 
     @cached_property
     def wire_fwhm(self) -> float:
         """The FWHM of the wire in pixels."""
-        return self.long_profile.fwxm_data(x=50)["width (exact)"]
+        return self.long_profile.field_width_px
 
     @property
     def plot_color(self) -> str:

@@ -47,6 +47,7 @@
    topics/contrast
    topics/mtf
    topics/scale
+   topics/profiles
 
 .. toctree::
    :hidden:
