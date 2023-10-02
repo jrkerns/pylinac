@@ -5,6 +5,8 @@ import numpy as np
 import scipy.signal as sps
 
 from pylinac.core import image
+from pylinac.core.array_utils import normalize
+from pylinac.core.image_generator import FilteredFieldLayer, GaussianFilterLayer
 from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import (
     CircleProfile,
@@ -19,6 +21,7 @@ from pylinac.core.profile import (
     MultiProfile,
     Normalization,
     SingleProfile,
+    SymmetryPointDifference,
     gamma_1d,
     stretch,
 )
@@ -27,10 +30,6 @@ from tests_basic.utils import get_file_from_cloud_test_repo
 
 def generate_open_field(field_size=(100, 100), sigma=2, center=(0, 0)) -> Simulator:
     from pylinac.core.image_generator import AS1000Image
-    from pylinac.core.image_generator.layers import (
-        FilteredFieldLayer,
-        GaussianFilterLayer,
-    )
 
     as1000 = AS1000Image()  # this will set the pixel size and shape automatically
     as1000.add_layer(
@@ -40,6 +39,14 @@ def generate_open_field(field_size=(100, 100), sigma=2, center=(0, 0)) -> Simula
         GaussianFilterLayer(sigma_mm=sigma)
     )  # add an image-wide gaussian to simulate penumbra/scatter
     return as1000
+
+
+def generate_profile(field_size=100, sigma=2, center=0) -> np.ndarray:
+    img = generate_open_field(
+        field_size=(field_size, field_size), sigma=sigma, center=(center, center)
+    ).image
+    arr = normalize(img[:, img.shape[1] // 2])
+    return arr
 
 
 class TestGamma1D(TestCase):
@@ -668,6 +675,15 @@ class TestHillProfilePhysical(TestCase):
         self.assertAlmostEqual(
             prof100.field_width_px, prof100_2.field_width_px, delta=0.001
         )
+
+
+class TestProfilePlugins(TestCase):
+    def test_analyze_method(self):
+        array = generate_profile()
+        profile = FWXMProfile(array, fwxm_height=50)
+        profile.analyze(metrics=[SymmetryPointDifference()])
+        self.assertIsInstance(profile.metrics, dict)
+        self.assertEqual(profile.metrics["Point Difference Symmetry"], 0)
 
 
 class SingleProfileTests(TestCase):
