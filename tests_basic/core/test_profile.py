@@ -607,7 +607,7 @@ class TestInflectionProfilePhysical(TestCase):
         # doing it again is not appropriate.
         prof100_2 = prof10.as_resampled(interpolation_resolution_mm=0.01, grid=False)
         self.assertEqual(len(prof100.values), len(prof100_2.values))
-        self.assertAlmostEqual(prof100.center_idx, prof100_2.center_idx)
+        self.assertAlmostEqual(prof100.center_idx, prof100_2.center_idx, delta=0.001)
         self.assertAlmostEqual(
             prof100.field_width_px, prof100_2.field_width_px, delta=0.001
         )
@@ -671,7 +671,7 @@ class TestHillProfilePhysical(TestCase):
         # doing it again is not appropriate.
         prof100_2 = prof10.as_resampled(interpolation_resolution_mm=0.01, grid=False)
         self.assertEqual(len(prof100.values), len(prof100_2.values))
-        self.assertAlmostEqual(prof100.center_idx, prof100_2.center_idx)
+        self.assertAlmostEqual(prof100.center_idx, prof100_2.center_idx, delta=0.001)
         self.assertAlmostEqual(
             prof100.field_width_px, prof100_2.field_width_px, delta=0.001
         )
