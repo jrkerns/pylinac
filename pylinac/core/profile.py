@@ -150,12 +150,12 @@ def stretch(
 
 
 class ProfileMetric(ABC):
-    """Base class for profile metrics. A profile metric is a value that can be calculated from a profile
+    """Abstract base class for profile metrics. A profile metric is a value that can be calculated from a profile
     and potentially has plot features associated with it.
     Examples include penumbra, flatness, and symmetry"""
 
     label: str
-    unit: str
+    unit: str = ""
     profile: ProfileBase | PhysicalProfileMixin
 
     def __init__(self, color: str | None = None, linestyle: str | None = None):
@@ -180,10 +180,12 @@ class ProfileMetric(ABC):
         pass
 
     def __str__(self):
-        return f"{self.label}: {self.calculate():.2f}{self.unit}"
+        return f"{self.label}: {self.calculate():.3f}{self.unit}"
 
 
-class FlatnessDifference(ProfileMetric):
+class FlatnessDifferenceMetric(ProfileMetric):
+    """Flatness as defined by IAEA Rad Onc Handbook pg 196: https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1196_web.pdf"""
+
     unit = "%"
     label = "Flatness (Difference)"
 
@@ -195,7 +197,7 @@ class FlatnessDifference(ProfileMetric):
         """Calculate the flatness ratio of the profile."""
         return (
             100
-            * abs(self.profile.field_values().max() - self.profile.field_values().min())
+            * (self.profile.field_values().max() - self.profile.field_values().min())
             / (self.profile.field_values().max() + self.profile.field_values().min())
         )
 
@@ -224,7 +226,9 @@ class FlatnessDifference(ProfileMetric):
         )
 
 
-class FlatnessRatio(FlatnessDifference):
+class FlatnessRatioMetric(FlatnessDifferenceMetric):
+    """Flatness as (apparently) defined by IEC."""
+
     label = "Flatness (Ratio)"
 
     def calculate(self) -> float:
@@ -234,7 +238,9 @@ class FlatnessRatio(FlatnessDifference):
         )
 
 
-class SymmetryPointDifference(ProfileMetric):
+class SymmetryPointDifferenceMetric(ProfileMetric):
+    """Symmetry using the point difference method."""
+
     unit = "%"
     label = "Point Difference Symmetry"
 
@@ -296,8 +302,8 @@ class SymmetryPointDifference(ProfileMetric):
 
         # plot the symmetry on the secondary axis
         # add some vertical padding and/or use the minimum/maximum symmetry values
-        ylim_top = max((max(self.symmetry_values) + 0.5, self.max_sym))
-        ylim_bottom = min((min(self.symmetry_values) - 0.5, self.min_sym))
+        ylim_top = max((max(self.symmetry_values) + 0.5, self.max_sym + 0.5))
+        ylim_bottom = min((min(self.symmetry_values) - 0.5, self.min_sym - 0.5))
         sec_ax.set_ylim(ylim_bottom, ylim_top)
         sec_ax.plot(
             range(left_edge, len(self.symmetry_values) + left_edge),
@@ -307,10 +313,65 @@ class SymmetryPointDifference(ProfileMetric):
         )
 
 
-class PenumbraLeft(ProfileMetric):
+class SymmetryPointDifferenceQuotientMetric(SymmetryPointDifferenceMetric):
+    """Symmetry as defined by IEC."""
+
+    label = "Point Difference Quotient Symmetry"
+
+    def __init__(
+        self,
+        in_field_ratio: float = 0.8,
+        color="magenta",
+        linestyle="--",
+        max_sym_range: float = 2,
+        min_sym_range: float = 0,
+    ):
+        super().__init__(in_field_ratio, color, linestyle, max_sym_range, min_sym_range)
+
+    @staticmethod
+    def _calc_point(lt: float, rt: float, cax: float) -> float:
+        """Calculate an individual point's symmetry."""
+        return 100 * max((lt / rt), (rt / lt))
+
+
+class SymmetryAreaMetric(ProfileMetric):
+    """The symmetry using ratios of the areas of the left and right sides of the profile."""
+
+    label = "Symmetry (Area)"
+
+    def __init__(
+        self,
+        in_field_ratio: float = 0.8,
+    ):
+        self.in_field_ratio = in_field_ratio
+
+    def calculate(self) -> float:
+        """Calculate the symmetry ratio of the profile using the area of the left side vs the right side."""
+        _, _, width = self.profile.field_indices(in_field_ratio=self.in_field_ratio)
+        area_left = np.sum(
+            self.profile.field_values(self.in_field_ratio)[: math.floor(width / 2) + 1]
+        )
+        area_right = np.sum(
+            self.profile.field_values(self.in_field_ratio)[math.ceil(width / 2) :]
+        )
+        return 100 * (area_left - area_right) / (area_left + area_right)
+
+    def plot(self, axis: plt.Axes):
+        """Plot the symmetry by shading the left and right areas"""
+        left, right, width = self.profile.field_indices(
+            in_field_ratio=self.in_field_ratio
+        )
+        left_data = self.profile.field_values(self.in_field_ratio)[: width // 2 + 1]
+        left_stretch = np.linspace(left, left + width // 2, len(left_data))
+        right_data = self.profile.field_values(self.in_field_ratio)[width // 2 :]
+        right_stretch = np.linspace(right - width // 2, right, len(right_data))
+        axis.fill_between(left_stretch, left_data, alpha=0.2, label="Left Area")
+        axis.fill_between(right_stretch, right_data, alpha=0.2, label="Right Area")
+
+
+class PenumbraLeftMetric(ProfileMetric):
     unit = "%"
-    label = "Left Penumbra Left"
-    attr_name = "penumbra_left"
+    label = "Left Penumbra"
     side = LEFT
 
     def __init__(self, lower: float = 20, upper: float = 80, color="pink", ls="-."):
@@ -346,9 +407,69 @@ class PenumbraLeft(ProfileMetric):
         )
 
 
-class PenumbraRight(PenumbraLeft):
+class PenumbraRightMetric(PenumbraLeftMetric):
     side = RIGHT
     label = "Right Penumbra"
+
+
+class TopDistanceMetric(ProfileMetric):
+    """The distance from an FFF beam's "top" to the center of the field. Similar, although
+    not 100% faithful to NCS-33. The NCS report uses the middle 5cm but we use a field ratio.
+    In practice, this shouldn't make a difference."""
+
+    label = "Top Distance"
+    unit = "mm"
+
+    def __init__(self, top_region_ratio: float = 0.2, color="orange"):
+        self.top_region_ratio = top_region_ratio
+        super().__init__(color=color)
+
+    def calculate(self) -> float:
+        """Calculate the distance from the top to the field center. Positive means the top is to the right,
+        negative means the top is to the left."""
+        values = self.profile.field_values(in_field_ratio=self.top_region_ratio)
+        left, right, _ = self.profile.field_indices(
+            in_field_ratio=self.top_region_ratio
+        )
+        fit_params = np.polyfit(
+            range(left, right + 1),
+            values,
+            deg=2,
+        )
+
+        # minimize the polynomial function
+        min_f = minimize(
+            lambda x: -np.polyval(
+                fit_params, x
+            ),  # return the negative since we're MINIMIZING and want the top value
+            method="Nelder-Mead",
+            x0=self.profile.center_idx,
+            bounds=((left, right),),
+        )
+        top_idx = min_f.x[0]
+        self.top_idx = top_idx
+        self.top_values = np.polyval(fit_params, range(left, right + 1))
+        return (top_idx - self.profile.center_idx) / self.profile.dpmm
+
+    def plot(self, axis: plt.Axes):
+        """Plot the top point and the fitted curve."""
+        axis.plot(
+            self.top_idx,
+            self.profile.y_at_x(self.top_idx),
+            "o",
+            color=self.color,
+            label=self.label,
+        )
+        left, right, _ = self.profile.field_indices(
+            in_field_ratio=self.top_region_ratio
+        )
+        axis.plot(
+            range(left, right + 1),
+            self.top_values,
+            color=self.color,
+            linestyle=self.linestyle,
+            label=self.label + " Fit",
+        )
 
 
 class ProfileMixin:

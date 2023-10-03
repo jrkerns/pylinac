@@ -3,6 +3,24 @@
 Changelog
 =========
 
+v 3.16.0
+--------
+
+Profiles
+^^^^^^^^
+
+* Profile analysis has been completely revamped. The existing ``SingleProfile`` class still
+  exists and will not be deprecated immediately. It is frozen and will not receive updates.
+* New profile classes were written that are more generalizable and extensible. These
+  can be read about in the documentation below:
+* A new documentation section has been added for profiles: :ref:`profiles`. This section
+  describes the various profile classes and how to use them.
+* Internally, pylinac now uses these new profile classes. Existing calculations should
+  be the same.
+* Calculating custom profile metrics (such as symmetry or flatness) is now much easier using
+  these new classes. The field analysis module will get a "v2" that will use these new classes
+  and allow for these easy-to-write custom metrics.
+
 v 3.15.0
 --------
 

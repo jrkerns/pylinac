@@ -1,3 +1,5 @@
+.. _profiles:
+
 Profiles
 ========
 
@@ -13,7 +15,7 @@ Assumptions & Constraints
 * The radiation field should not be at the edge of the array.
 * The radiation field should have a higher pixel value than the background. I.e. it should not be inverted.
 
-* The field does not have to be normalized.
+* The field does not have to be normalized, but generally it should be. Plugins may assume normalized data.
 * The field can be "horned" (i.e. have a dip in the middle) and/or contain a peak from an FFF field.
 * The field can be off-center, but the penumbra should be fully contained in the array.
 * The field can be skewed (e.g. a wedge field).
@@ -27,6 +29,25 @@ Typical use cases for profiles are:
 * Calculating a metric such as flatness, symmetry, penumbra, etc.
 * Finding the center of the field.
 * Finding the field edges.
+
+Basic Usage
+-----------
+
+Out of the box, the profile classes can be used to find the center of the field, field width,
+and the field edges.
+
+.. code-block:: python
+
+    from pylinac.core.profile import FWXMProfile
+
+    profile = FWXMProfile(..., fwxm_height=50)
+    print(profile.center_idx)  # print the center of the field position
+    print(profile.field_edge_idx(side="left"))  # print the left field edge position
+    print(profile.field_width_px)  # print the field width in pixels
+    profile.plot()  # plot the profile
+
+However, the real power of the profile classes is in the plugins that can be used to calculate
+custom metrics. See the :ref:`plugins <profile_plugins>` section for more information.
 
 Legacy vs New Classes
 ---------------------
@@ -42,20 +63,469 @@ For physical profiles, i.e. something where the values have a physical size or l
 or water tank scan, use the following classes: :class:`~pylinac.core.profile.FWXMProfilePhysical`,
 :class:`~pylinac.core.profile.InflectionDerivativeProfilePhysical`, :class:`~pylinac.core.profile.HillProfilePhysical`.
 
+.. important::
+
+    You will almost always want the ``...Physical`` variants of the classes as most profiles are
+    from physical sources. Furthermore, some plugins will not work with the non-physical classes.
+
 The difference between ``SingleProfile`` and the other classes
 is that ``SingleProfile`` is a swiss army knife. It can
 do almost everything the other classes can do and considerably more. However,
 the other classes are more specialized and thus more robust
 as well as a lot clearer and focused.
-Internally, pylinac uses the specialized classes.
-A plugin system is being developed for adding additional functionality to the specialized classes
-to mimic the ``SingleProfile`` functionality.
+Internally, pylinac uses the new specialized classes.
+The new classes also allow for :ref:`plugins <profile_plugins>` to be written and used much easier than
+with ``SingleProfile``.
 
 The ``SingleProfile`` class is more complicated to both read and use
 than the specialized classes. It's also harder to test and maintain.
 Thus, the specialized classes have come about as a response.
 
+What class to use
+-----------------
 
+.. note::
+
+    Throughout the documentation examples, the FWXM variety is used, but all examples
+    can be replaced with the other variants.
+
+The following list is a guide to what class to use:
+
+* :class:`~pylinac.core.profile.FWXMProfile`/:class:`~pylinac.core.profile.FWXMProfilePhysical`
+
+  * Use when the beam is "flat"; no FFF beams.
+  * Can handle somewhat noisy data.
+  * Robust to background noise and asymmetric background data.
+
+* :class:`~pylinac.core.profile.InflectionDerivativeProfile`/:class:`~pylinac.core.profile.InflectionDerivativeProfilePhysical`:
+
+  * Use either when the beam is flat or peaked.
+  * Is not robust to salt and pepper noise or gently-sloping data.
+  * The profile should have relatively sharp slopes compared to the background and central region.
+  * This is a good default *ceteris parabus*.
+
+* :class:`~pylinac.core.profile.HillProfile`/:class:`~pylinac.core.profile.HillProfilePhysical`:
+
+  * Use either when the beam is flat or peaked.
+  * It is robust to salt and pepper noise.
+  * Do not use with sparse data such as IC profiler or similar where little data exists in the penumbra region.
+
+.. _profile_plugins:
+
+Metric Plugins
+--------------
+
+The new profile classes discussed above allow for plugins to be written that
+can calculate metrics of the profile. For example,
+a penumbra plugin could be written that calculates the penumbra of the profile.
+
+Several plugins are provided out of the box, and writing new plugins is straightforward.
+
+.. _profile_builtin_plugins:
+
+Built-in Plugins
+~~~~~~~~~~~~~~~~
+
+The following plugins are available out of the box:
+
+Penumbra Right
+^^^^^^^^^^^^^^
+
+:class:`~pylinac.core.profile.PenumbraRightMetric` This plugin calculates the right penumbra of the profile.
+The upper and lower bounds can be passed in as arguments. The default is 80/20.
+
+Example usage:
+
+.. code-block:: python
+
+  profile = FWXMProfile(...)
+  profile.analyze(metrics=[PenumbraRightMetric(upper=80, lower=20)])
+
+.. note::
+
+  When using Inflection derivative or Hill profiles, the penumbra
+  is based on the height of the edge, not the maximum value of the profile.
+  E.g. assume an FFF profile normalized to 1.0 and penumbra bounds of 80/20. The penumbra
+  will not be at 50% height for Inflection derivative or Hill profiles. If it
+  is detected at 0.4, or 40% height, the lower penumbra will be set to 20% (0.2) * 2 * 0.4, or 0.16.
+  The upper penumbra will be 80% (0.8) * 2 * 0.4, or 0.64. This is because the penumbra bound is based on the
+  height of the field edge, not the maximum value of the profile.
+  This is best illustrated with a plot. We use the ``FWXMProfilePhysical`` class first to show its
+  *inappropriate* use with FFF beams:
+
+  .. plot::
+    :include-source: false
+
+    from pylinac.core.array_utils import normalize
+    from pylinac.core.image_generator import AS1000Image, FilterFreeFieldLayer, GaussianFilterLayer
+    from pylinac.core.profile import FWXMProfilePhysical, PenumbraLeftMetric, PenumbraRightMetric
+
+    # this is our set up to get a nice profile
+    as1000 = AS1000Image()
+    as1000.add_layer(
+        FilterFreeFieldLayer(field_size_mm=(100, 100))
+    )
+    as1000.add_layer(
+        GaussianFilterLayer(sigma_mm=2)
+    )  # add an image-wide gaussian to simulate penumbra/scatter
+
+    # pull out the profile array
+    array = normalize(as1000.image[:, as1000.shape[1] // 2])
+
+    # create the profile
+    profile = FWXMProfilePhysical(array, dpmm=1)
+
+    # analyze the profile with our plugin
+    profile.analyze(metrics=[PenumbraLeftMetric(), PenumbraRightMetric()])
+
+    # plot the profile
+    profile.plot()
+
+  Note the upper penumbra is well-past the "shoulder" region and thus the penumbra is not accurate.
+  Now let's use the ``InflectionDerivativeProfilePhysical`` class:
+
+  .. plot::
+    :include-source: false
+
+
+    from pylinac.core.array_utils import normalize
+    from pylinac.core.image_generator import AS1000Image, FilterFreeFieldLayer, GaussianFilterLayer
+    from pylinac.core.profile import InflectionDerivativeProfilePhysical, PenumbraLeftMetric, PenumbraRightMetric
+
+    # this is our set up to get a nice profile
+    as1000 = AS1000Image()
+    as1000.add_layer(
+        FilterFreeFieldLayer(field_size_mm=(100, 100))
+    )
+    as1000.add_layer(
+        GaussianFilterLayer(sigma_mm=2)
+    )  # add an image-wide gaussian to simulate penumbra/scatter
+
+    # pull out the profile array
+    array = normalize(as1000.image[:, as1000.shape[1] // 2])
+
+    # create the profile
+    profile = InflectionDerivativeProfilePhysical(array, dpmm=1)
+
+    # analyze the profile with our plugin
+    profile.analyze(metrics=[PenumbraLeftMetric(), PenumbraRightMetric()])
+
+    # plot the profile
+    profile.plot()
+
+  When analyzing flat beams, the ``FWXMProfile`` class is appropriate and will give similar
+  results to the other two classes.
+
+Penumbra Left
+^^^^^^^^^^^^^
+
+:class:`~pylinac.core.profile.PenumbraLeftMetric` This plugin calculates the left penumbra of the profile.
+The upper and lower bounds can be passed in as arguments. The default is 80/20.
+
+Flatness (Difference)
+^^^^^^^^^^^^^^^^^^^^^
+
+:class:`~pylinac.core.profile.FlatnessDifferenceMetric` This plugin calculates the flatness difference of the profile.
+The in-field ratio can be passed in as an argument. The default is 0.8.
+
+The flatness equation is:
+
+.. math::
+
+    flatness = 100 * \frac{D_{max} - D_{min}}{D_{max} + D_{min}} \in field
+
+The equation does not track which side the flatness is higher or lower on.
+The value can range from 0 to 100. A perfect value is 0.
+
+Example usage:
+
+.. code-block:: python
+
+    profile = FWXMProfile(...)
+    profile.analyze(metrics=[FlatnessDifferenceMetric(in_field_ratio=0.8)])
+
+Flatness (Ratio)
+^^^^^^^^^^^^^^^^
+
+:class:`~pylinac.core.profile.FlatnessRatioMetric` This plugin calculates the flatness ratio of the profile.
+The in-field ratio can be passed in as an argument. The default is 0.8.
+
+The flatness equation is:
+
+.. math::
+
+    flatness = 100 * \frac{D_{max}}{D_{min}} \in field
+
+The equation does not track which side the flatness is higher or lower on.
+The value will range from 100 to :math:`\infty`. A perfect value is 100.
+
+Example usage:
+
+.. code-block:: python
+
+    profile = FWXMProfile(...)
+    profile.analyze(metrics=[FlatnessRatioMetric(in_field_ratio=0.8)])
+
+Symmetry (Point Difference)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:class:`~pylinac.core.profile.SymmetryPointDifferenceMetric` This plugin calculates the symmetry point difference of the profile.
+The in-field ratio can be passed in as an argument. The default is 0.8.
+
+The symmetry point difference equation is:
+
+.. math::
+
+    symmetry = 100 * \frac{max(L_{pt} - R_{pt})}{D_{CAX}} \in field
+
+where :math:`L_{pt}` and :math:`R_{pt}` are equidistant from the beam center.
+Symmetry can be positive or negative. The :math:`max` refers to the
+point with the maximum difference between the left and right points. If the
+largest absolute value is negative, that is the value used.
+
+.. note::
+
+  Unlike the point difference quotient, this metric is signed. A negative value means the right side is higher.
+  A positive value means the left side is higher.
+
+Example usage:
+
+.. code-block:: python
+
+    profile = FWXMProfile(...)
+    profile.analyze(metrics=[SymmetryPointDifferenceMetric(in_field_ratio=0.8)])
+
+Symmetry (Point Difference Quotient)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:class:`~pylinac.core.profile.SymmetryPointDifferenceQuotientMetric` This plugin calculates the symmetry point difference of the profile
+defined as the Point Difference Quotient (aka IEC).
+The in-field ratio can be passed in as an argument. The default is 0.8.
+
+The symmetry point difference equation is:
+
+.. math::
+
+    symmetry = 100 * max(\frac{L_{pt}}{R_{pt}}, \frac{R_{pt}}{L_{pt}}) \in field
+
+where :math:`L_{pt}` and :math:`R_{pt}` are equidistant from the beam center.
+This value can range from 100 to :math:`\infty`. A perfect value is 100.
+
+Example usage:
+
+.. code-block:: python
+
+    profile = FWXMProfile(...)
+    profile.analyze(metrics=[SymmetryPointDifferenceQuotientMetric(in_field_ratio=0.8)])
+
+Symmetry (Area)
+^^^^^^^^^^^^^^^
+
+:class:`~pylinac.core.profile.SymmetryAreaMetric` This plugin calculates the symmetry area of the profile.
+The in-field ratio can be passed in as an argument. The default is 0.8.
+
+The symmetry area equation is:
+
+.. math::
+
+    symmetry = 100 * \frac{area_{left} - area_{right}}{area_{left} + area_{right}} \in field
+
+where :math:`area_{left}` and :math:`area_{right}` are the areas under the left and right sides of the profile, centered about
+the beam center.
+
+The value is signed. A negative value means the right side is higher and vice versa.
+The value can range from :math:`-100` to :math:`+100`. A perfect value is 0.
+
+Example usage:
+
+.. code-block:: python
+
+    profile = FWXMProfile(...)
+    profile.analyze(metrics=[SymmetryAreaMetric(in_field_ratio=0.8)])
+
+Top Position
+^^^^^^^^^^^^
+
+:class:`~pylinac.core.profile.TopPositionMetric` This plugin calculates the distance from the
+"top" of the field to the beam center. This is typically used for FFF beams.
+
+The calculation is based on the `NCS-33 <https://radiationdosimetry.org/files/Prepublication_-_NCS_Report_33_Beam_parameters_V2020-07-29.pdf>`__ report. The central part of the field, by default the
+central 20%, is fitted to a 2nd order polynomial. The maximum of the polynomial is the "top"
+and the distance to the field center is calculated.
+
+Example usage:
+
+.. code-block:: python
+
+    profile = FWXMProfile(...)
+    profile.analyze(metrics=[TopDistanceMetric(top_region_ratio=0.2)])
+
+Writing plugins
+~~~~~~~~~~~~~~~
+
+To write a plugin, you need to create a class that inherits from ``ProfileMetric``.
+It should have a ``calculate()`` method that returns a float. Optionally,
+a ``plot`` method can be declared that will plot the metric on the profile plot, although
+this is not required. It should also have a ``label`` attribute.
+
+For an example, let us write a plugin that calculates the value of the center index
+and also plots it.
+
+.. code-block:: python
+
+  import matplotlib.pyplot as plt
+
+  from pylinac.core.profile import ProfileMetric
+
+
+  class CenterMetric(ProfileMetric):
+      label = "Center Index"  # human-readable string
+
+      def calculate(self) -> float:
+          """Return the index of the center of the profile."""
+          return self.profile.center_idx
+
+      def plot(self, axis: plt.Axes) -> None:
+          """Plot the center index."""
+          axis.plot(
+              self.profile.center_idx,
+              self.profile.y_at_x(self.profile.center_idx),
+              "o",
+              color="red",
+              markersize=10,
+              label="Center Index",
+          )
+
+We can now pass this metric to the profile class' ``analyze`` method.
+We will use the image generator to create an image we will extract a profile from.
+
+.. plot::
+
+    import matplotlib.pyplot as plt
+
+    from pylinac.core.profile import FWXMProfile, ProfileMetric
+    from pylinac.core.image_generator import AS1000Image, FilteredFieldLayer, GaussianFilterLayer
+    from pylinac.core.array_utils import normalize
+
+
+    # same as above; included so we can plot
+    class CenterMetric(ProfileMetric):
+        label = 'Center Index'  # human-readable string
+
+        def calculate(self) -> float:
+            """Return the index of the center of the profile."""
+            return self.profile.center_idx
+
+        def plot(self, axis: plt.Axes) -> None:
+            """Plot the center index."""
+            axis.plot(self.profile.center_idx, self.profile.y_at_x(self.profile.center_idx), 'o', color='red',
+                      markersize=10, label='Center Index')
+
+    # this is our set up to get a nice profile
+    as1000 = AS1000Image()
+    as1000.add_layer(
+        FilteredFieldLayer(field_size_mm=(100, 100))
+    )
+    as1000.add_layer(
+        GaussianFilterLayer(sigma_mm=2)
+    )  # add an image-wide gaussian to simulate penumbra/scatter
+
+    # pull out the profile array
+    array = normalize(as1000.image[:, as1000.shape[1] // 2])
+
+    # create the profile
+    profile = FWXMProfile(array)
+
+    # analyze the profile with our plugin
+    profile.analyze(metrics=[CenterMetric()])
+
+    # plot the profile
+    profile.plot()
+
+We can also access the metric's calculation (what is returned from ``calculate``)
+by accessing the ``metric`` attribute of the profile:
+
+.. code-block:: python
+
+  profile = FWXMProfile(...)
+  profile.analyze(metrics=[PenumbraRightMetric()])
+  print(profile.metric["Right Penumbra"])  # prints the penumbra value
+
+Some things to note:
+
+* Within the plugin, ``self.profile`` is available and will be the profile itself.
+  This is so we can access the profile's attributes and methods.
+* The key within a profile's ``metric`` dictionary attribute is the name of the plugin's ``label``.
+* The ``calculate`` method must return a float.
+* The ``plot`` method must take a ``matplotlib.plt.Axes`` object as an argument and return nothing. But
+  a plot method is optional. It does not have to be implemented.
+* Multiple metrics can be passed to the ``analyze`` method.
+* There are metrics included in pylinac. See the :ref:`built-in <profile_builtin_plugins>` section.
+
+Resampling
+----------
+
+Resampling a profile is the process of interpolating the profile data to a new resolution and
+can be done easily using ``as_resampled``:
+
+.. code-block:: python
+
+  from pylinac.core.profile import FWXMProfilePhysical
+
+  profile = FWXMProfilePhysical(my_array, dpmm=3)
+  profile_resampled = profile.as_resampled(interpolation_resolution_mm=0.1)
+
+This will create a **new** profile that is resampled to 0.1 mm resolution. The new profile's ``dpmm``
+attribute is also updated. The original profile is not modified.
+
+.. note::
+
+   Resampling can be used for both upsampling and downsampling.
+
+.. important::
+
+  The parameters for ``as_resampled`` are slightly different between the physical and non-physical classes.
+  For physical classes, the new resolution is in mm/pixels. For non-physical classes, the new resolution
+  is a simple factor like 5x or 10x the original resolution.
+
+.. important::
+
+    Resampling is not the same as smoothing. Smoothing is the process of removing noise from the profile.
+    Resampling is the process of changing the resolution of the profile.
+
+.. important::
+
+    When resampling a physical profile, it is important to know that interpolation must
+    account for the physical size of the pixels and how that affects the edge of the array.
+    Simply resampling the array without accounting for the physical size of the pixels will
+    result in a profile that is not accurate at the edges.
+    The simplest way to visualize this is shown in the ``grid_mode`` parameter of
+    `scipy's zoom function <https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.zoom.html>`__.
+
+Multiple resampling
+~~~~~~~~~~~~~~~~~~~
+
+Profiles can be resampled multiple times, but it is important to set ``grid_mode=False`` on
+secondary resamplings. This is because the physical size of the pixels is already accounted for
+in the first resampling. If ``grid_mode=True`` is used on secondary resamplings, the profile
+edges will not accurately represent the physical size and position of the pixels:
+
+.. code-block:: python
+
+    from pylinac.core.profile import FWXMProfilePhysical
+
+    profile = FWXMProfilePhysical(my_array, dpmm=3)
+    profile_resampled = profile.as_resampled(interpolation_resolution_mm=0.1)
+    # use grid_mode=False on secondary resamplings
+    profile_resampled2 = profile_resampled.as_resampled(
+        interpolation_resolution_mm=0.05, grid_mode=False
+    )
+
+    # if we resample to 0.05mm directly from the original it will be the same as the above
+    profile_resampled3 = profile.as_resampled(interpolation_resolution_mm=0.05)
+    assert len(profile_resampled2) == len(profile_resampled3)
+    # assert the left edge is at the same physical location
+    assert profile_resampled2.x_values[0] == profile_resampled3.x_values[0]
 
 API
 ---
@@ -68,7 +538,7 @@ API
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.profile.FWHXMProfilePhysical
+.. autoclass:: pylinac.core.profile.FWXMProfilePhysical
     :inherited-members:
     :members:
 
@@ -85,5 +555,33 @@ API
     :members:
 
 .. autoclass:: pylinac.core.profile.HillProfilePhysical
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.profile.PenumbraRightMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.profile.PenumbraLeftMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.profile.SymmetryPointDifferenceMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.profile.SymmetryPointDifferenceQuotientMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.profile.TopDistanceMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.profile.FlatnessRatioMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.profile.FlatnessDifferenceMetric
     :inherited-members:
     :members:
