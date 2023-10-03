@@ -3,6 +3,16 @@
 Changelog
 =========
 
+v 3.16.0
+--------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The Winston Lutz module can now load CBCT datasets of a scanned BB. This is still experimental and may have bugs. Caution is warranted.
+  See :ref:`wl_cbct`.
+
+
 v 3.15.0
 --------
 

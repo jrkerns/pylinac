@@ -819,9 +819,44 @@ class WinstonLutz:
         return cls.from_zip(zfile, **kwargs)
 
     @classmethod
-    def from_cbct(cls, directory: Path, **kwargs):
-        """Create a 4-angle WL test from a CBCT dataset"""
-        dicom_stack = DicomImageStack(folder=directory, min_number=10)
+    def from_cbct_zip(cls, file: Path | str, raw_pixels: bool = False, **kwargs):
+        """Instantiate from a zip file containing CBCT images.
+
+        Parameters
+        ----------
+        file
+            Path to the archive file.
+                raw_pixels
+            If True, uses the raw pixel values of the DICOM files. If False, uses the rescaled Hounsfield units.
+            Generally, this should be true.
+        kwargs
+            See parameters of the __init__ method for details.
+        """
+        with TemporaryZipDirectory(file) as tmpz:
+            obj = cls.from_cbct(tmpz, raw_pixels=raw_pixels, **kwargs)
+        return obj
+
+    @classmethod
+    def from_cbct(cls, directory: Path | str, raw_pixels: bool = False, **kwargs):
+        """Create a 4-angle WL test from a CBCT dataset.
+
+        The dataset is loaded and the array is "viewed" from top, bottom, left, and right to create the 4 angles.
+        The dataset has to be rescaled so that the z-axis spacing is equal to the x/y axis. This is because the
+        typical slice thickness is much larger than the in-plane resolution.
+
+        Parameters
+        ----------
+        directory
+            The directory containing the CBCT DICOM files.
+        raw_pixels
+            If True, uses the raw pixel values of the DICOM files. If False, uses the rescaled Hounsfield units.
+            Generally, this should be true.
+        kwargs
+            See parameters of the __init__ method for details.
+        """
+        dicom_stack = DicomImageStack(
+            folder=directory, min_number=10, raw_pixels=raw_pixels
+        )
         np_stack = np.stack(dicom_stack.images, axis=-1)
         zoom_ratio = (
             1,
@@ -835,7 +870,7 @@ class WinstonLutz:
                 mode="nearest",
                 order=1,
             ),
-            k=3,
+            k=1,
         )
         top_arr = np.rot90(
             zoom(
@@ -845,7 +880,7 @@ class WinstonLutz:
                 mode="nearest",
                 order=1,
             ),
-            k=3,
+            k=1,
         )
         right_arr = np.fliplr(left_arr)
         bottom_arr = np.fliplr(top_arr)
@@ -855,7 +890,7 @@ class WinstonLutz:
             (left_arr, top_arr, right_arr, bottom_arr), streams, (270, 0, 90, 180)
         ):
             array_to_dicom(
-                array=np.ascontiguousarray(array),
+                array=np.ascontiguousarray(array),  # pydicom complains due to np.rot90
                 dicom_file=stream,
                 sid=1000,
                 gantry=gantry,
