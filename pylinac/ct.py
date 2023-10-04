@@ -581,6 +581,7 @@ class CTP404CP504(CatPhanModule):
         scaling_tolerance: float,
         clear_borders: bool = True,
         thickness_slice_straddle: str | int = "auto",
+        expected_hu_values: dict[str, float | int] | None = None,
     ):
         """
         Parameters
@@ -599,6 +600,7 @@ class CTP404CP504(CatPhanModule):
         self.thickness_rois = {}
         self.lines = {}
         self.thickness_slice_straddle = thickness_slice_straddle
+        self.expected_hu_values = expected_hu_values
         super().__init__(
             catphan, tolerance=hu_tolerance, offset=offset, clear_borders=clear_borders
         )
@@ -623,7 +625,15 @@ class CTP404CP504(CatPhanModule):
             clear_borders=self.clear_borders,
         ).image
 
+    def _replace_hu_values(self):
+        """Possibly replace the HU values in the ROI settings with the expected values if the key is present."""
+        if self.expected_hu_values is not None:
+            for name, value in self.expected_hu_values.items():
+                if name in self.roi_settings:
+                    self.roi_settings[name]["value"] = value
+
     def _setup_rois(self) -> None:
+        self._replace_hu_values()
         super()._setup_rois()
         self._setup_thickness_rois()
         self._setup_geometry_rois()
@@ -2043,6 +2053,7 @@ class CatPhanBase:
         contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 0.15,
         thickness_slice_straddle: str | int = "auto",
+        expected_hu_values: dict[str, int | float] | None = None,
     ):
         """Single-method full analysis of CBCT DICOM files.
 
@@ -2082,6 +2093,9 @@ class CatPhanBase:
             values are 0, 1, and 2.
 
             .. warning:: This is the padding **on either side**. So a value of 1 => 3 slices, 2 => 5 slices, 3 => 7 slices, etc.
+        expected_hu_values
+            An optional dictionary of the expected HU values for the HU linearity module. The keys are the ROI names and the values
+            are the expected HU values. If a key is not present or the parameter is None, the default values will be used.
         """
         self.localize()
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
@@ -2093,6 +2107,7 @@ class CatPhanBase:
             scaling_tolerance=scaling_tolerance,
             clear_borders=self.clear_borders,
             thickness_slice_straddle=thickness_slice_straddle,
+            expected_hu_values=expected_hu_values,
         )
         if self._has_module(CTP486):
             ctp486, offset = self._get_module(CTP486)
