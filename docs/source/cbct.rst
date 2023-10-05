@@ -153,7 +153,8 @@ Custom HU values
 
 .. versionadded:: 3.16
 
-It's possible to override one or more of the HU values of the CatPhan modules. This is useful if you have a custom CatPhan or
+By default, expected HU values are drawn from the values stated in the :ref:`manual <cbct_density_list>`.
+It's possible to override one or more of the HU values of the CatPhan modules however. This is useful if you have a custom CatPhan or
 know the exact HU values of your phantom. To do so, pass in a dictionary of the HU values to the ``expected_hu_values`` parameter.
 The keys should be the name of the material and the values should be the HU value.
 
@@ -170,7 +171,6 @@ The keys should be the name of the material and the values should be the HU valu
 
   Not all materials need to be overridden. Only the ones you want to override need to be passed in.
 
-The default values are drawn from the values stated in the manual. See here: :ref:`cbct_density_list`.
 
 Keys
 ^^^^
