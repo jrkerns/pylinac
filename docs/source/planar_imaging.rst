@@ -898,126 +898,126 @@ phantoms:
 
 1. Subclass the ``ImagePhantomBase`` class:
 
-    .. code-block:: python
+.. code-block:: python
 
-        from pylinac.planar_imaging import ImagePhantomBase
+    from pylinac.planar_imaging import ImagePhantomBase
 
 
-        class CustomPhantom(ImagePhantomBase):
-            pass
+    class CustomPhantom(ImagePhantomBase):
+        pass
 
 2. Define the ``common_name``. This is the name shown in plots and PDF reports.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
-            common_name = "Custom Phantom v2.0"
+    class CustomPhantom(ImagePhantomBase):
+        common_name = "Custom Phantom v2.0"
 
 3. If the phantom has a high-contrast measurement object, define the ROI locations.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
-            ...
-            high_contrast_roi_settings = {
-                "roi 1": {
-                    "distance from center": 0.5,
-                    "angle": 30,
-                    "roi radius": 0.05,
-                    "lp/mm": 0.2,
-                },
-                # add as many ROIs as are needed
-            }
+    class CustomPhantom(ImagePhantomBase):
+        ...
+        high_contrast_roi_settings = {
+            "roi 1": {
+                "distance from center": 0.5,
+                "angle": 30,
+                "roi radius": 0.05,
+                "lp/mm": 0.2,
+            },
+            # add as many ROIs as are needed
+        }
 
-    .. note::
+.. note::
 
-        The exact values of your ROIs will need to be empirically determined. This usually involves an iterative process of
-        adjusting the values until the values are satisfactory based on the ROI sample alignment to the actual ROIs.
+    The exact values of your ROIs will need to be empirically determined. This usually involves an iterative process of
+    adjusting the values until the values are satisfactory based on the ROI sample alignment to the actual ROIs.
 
 4. If the phantom has a low-contrast measurement object, define the sample ROI and background ROI locations.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
-            ...
-            low_contrast_roi_settings = {
-                "roi 1": {
-                    "distance from center": 0.5,
-                    "angle": 30,
-                    "roi radius": 0.05,
-                },  # no lp/mm key
-                # add as many ROIs as are needed
-            }
-            low_contrast_background_roi_settings = {
-                "roi 1": {"distance from center": 0.3, "angle": -45, "roi radius": 0.02},
-                # add as many ROIs as are needed
-            }
+    class CustomPhantom(ImagePhantomBase):
+        ...
+        low_contrast_roi_settings = {
+            "roi 1": {
+                "distance from center": 0.5,
+                "angle": 30,
+                "roi radius": 0.05,
+            },  # no lp/mm key
+            # add as many ROIs as are needed
+        }
+        low_contrast_background_roi_settings = {
+            "roi 1": {"distance from center": 0.3, "angle": -45, "roi radius": 0.02},
+            # add as many ROIs as are needed
+        }
 
-    .. note::
+.. note::
 
-        The exact values of your ROIs will need to be empirically determined. This usually involves an iterative process of
-        adjusting the values until the values are satisfactory based on the ROI sample alignment to the actual ROIs.
+    The exact values of your ROIs will need to be empirically determined. This usually involves an iterative process of
+    adjusting the values until the values are satisfactory based on the ROI sample alignment to the actual ROIs.
 
 5. Set the "detection conditions", which is the list of rules that must be true to properly detect the phantom ROI.
    E.g. the phantom should be near the center of the image.
    Detection conditions must always have a specific signature as shown below:
 
-    .. code-block:: python
+.. code-block:: python
 
-        def my_special_detection_condition(
-            region: RegionProperties, instance: object, rtol: float
-        ) -> bool:
-            # region is a scikit regionprop (https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.regionprops)
-            # instance == self of the phantom
-            # rtol is relative tolerance of agreement. Don't have to use this.
-            do_stuff  # e.g. is the region size and position correct?
-            return bool(result)  # must always return a boolean
+    def my_special_detection_condition(
+        region: RegionProperties, instance: object, rtol: float
+    ) -> bool:
+        # region is a scikit regionprop (https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.regionprops)
+        # instance == self of the phantom
+        # rtol is relative tolerance of agreement. Don't have to use this.
+        do_stuff  # e.g. is the region size and position correct?
+        return bool(result)  # must always return a boolean
 
 
-        class CustomPhantom(ImagePhantomBase):
-            detection_conditions = [
-                my_special_detection_condition,
-            ]  # list of conditions; add as many as you want.
+    class CustomPhantom(ImagePhantomBase):
+        detection_conditions = [
+            my_special_detection_condition,
+        ]  # list of conditions; add as many as you want.
 
 6. Optionally, add a phantom outline object. This helps visualize the algorithm's determination of the size, center, and angle.
    If no object is defined, then no outline will be shown. This step is optional.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
-            ...
-            phantom_outline_object = {
-                "Circle": {"radius ratio": 0.5}
-            }  # to create a circular outline
-            # or...
-            phantom_outline_object = {
-                "Rectangle": {"width ratio": 0.5, "height ratio": 0.3}
-            }  # to create a rectangular outline
+    class CustomPhantom(ImagePhantomBase):
+        ...
+        phantom_outline_object = {
+            "Circle": {"radius ratio": 0.5}
+        }  # to create a circular outline
+        # or...
+        phantom_outline_object = {
+            "Rectangle": {"width ratio": 0.5, "height ratio": 0.3}
+        }  # to create a rectangular outline
 
 At this point you could technically call it done. You would need to always override the angle, center, and size values in the analyze method however.
 To automate this part you will need to fill in the associated logic. You can use whatever method you like. What I have
 found most useful is to use an edge detection algorithm and find the outline of the phantom.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
+    class CustomPhantom(ImagePhantomBase):
+        ...
+
+        def _phantom_center_calc(self) -> Point:
+            # do stuff in here to determine the center point location.
+            # don't forget to return as a Point item (pylinac.core.geometry.Point).
             ...
 
-            def _phantom_center_calc(self) -> Point:
-                # do stuff in here to determine the center point location.
-                # don't forget to return as a Point item (pylinac.core.geometry.Point).
-                ...
+        def _phantom_radius_calc(self) -> float:
+            # do stuff in here to return a float that represents the phantom radius value.
+            # This value does not have to relate to a physical measure. It simply defines a value that the ROIs scale by.
+            ...
 
-            def _phantom_radius_calc(self) -> float:
-                # do stuff in here to return a float that represents the phantom radius value.
-                # This value does not have to relate to a physical measure. It simply defines a value that the ROIs scale by.
-                ...
-
-            def _phantom_angle_calc(self) -> float:
-                # do stuff in here to return a float that represents the angle of the phantom.
-                # Again, this value does not have to correspond to reality; it simply offsets the ROIs.
-                # You may also return a constant if you like for any of these.
-                ...
+        def _phantom_angle_calc(self) -> float:
+            # do stuff in here to return a float that represents the angle of the phantom.
+            # Again, this value does not have to correspond to reality; it simply offsets the ROIs.
+            # You may also return a constant if you like for any of these.
+            ...
 
 Congratulations! You now have a fully-functioning custom phantom. By using the base class and the predefined attributes
 and methods, the plotting and PDF report functionality comes for free.

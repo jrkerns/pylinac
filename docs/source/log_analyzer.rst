@@ -23,14 +23,14 @@ few concepts that should be grasped before diving in.
   *Header*, *Axis Data*, *Subbeams*, and *CRC*. The *Subbeams* are only applicable for auto-sequenced beams and all v3.0 logs, and the *CRC* is specific to
   the Trajectory log. The *Header* and *Axis Data* however, are common to both Trajectory logs and Dynalogs.
 
-   .. note::
+  .. note::
     Dynalogs do not have explicit sections like the Trajectory logs,
     but pylinac formats them to have these two data structures for consistency.
 
 * **Leaf Indexing & Positions** - Varian leaf identification is 1-index based, over against Python's 0-based indexing. Thus,
   indexing the first MLC leaf would be ``[1]``, not ``[0]``.
 
-    .. warning:: When slicing or analyzing leaf data, keep the Varian 1-index base in mind.
+  .. warning:: When slicing or analyzing leaf data, keep the Varian 1-index base in mind.
 
   Leaf data is stored in a dictionary, with the leaf number as the key, from 1 up to the number of MLC leaves. E.g. if the machine has a
   Millennium 120 standard MLC model, leaf data will have 120 dictionary items from 1 to 120. Leaves from each bank have an offset of half the
@@ -201,34 +201,34 @@ Header information is essentially anything that isn't axis measurement data; it'
 machine configuration, etc. Because of the different file formats, there are separate classes for Trajectory log and
 Dynalog headers. The classes are:
 
-    * :class:`~pylinac.log_analyzer.TrajectoryLogHeader`
-    * :class:`~pylinac.log_analyzer.DynalogHeader`
+* :class:`~pylinac.log_analyzer.TrajectoryLogHeader`
+* :class:`~pylinac.log_analyzer.DynalogHeader`
 
 Header attributes are listed in the class API docs by following the above links. For completeness they are also listed
 here. For Trajectory logs:
 
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.header`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.version`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.header_size`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.sampling_interval`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.num_axes`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.axis_enum`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.samples_per_axis`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.num_mlc_leaves`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.axis_scale`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.num_subbeams`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.is_truncated`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.num_snapshots`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.mlc_model`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.header`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.version`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.header_size`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.sampling_interval`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.num_axes`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.axis_enum`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.samples_per_axis`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.num_mlc_leaves`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.axis_scale`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.num_subbeams`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.is_truncated`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.num_snapshots`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogHeader.mlc_model`
 
 For Dynalogs the following header information is available:
 
-    * :attr:`~pylinac.log_analyzer.DynalogHeader.version`
-    * :attr:`~pylinac.log_analyzer.DynalogHeader.patient_name`
-    * :attr:`~pylinac.log_analyzer.DynalogHeader.plan_filename`
-    * :attr:`~pylinac.log_analyzer.DynalogHeader.tolerance`
-    * :attr:`~pylinac.log_analyzer.DynalogHeader.num_mlc_leaves`
-    * :attr:`~pylinac.log_analyzer.DynalogHeader.clinac_scale`
+* :attr:`~pylinac.log_analyzer.DynalogHeader.version`
+* :attr:`~pylinac.log_analyzer.DynalogHeader.patient_name`
+* :attr:`~pylinac.log_analyzer.DynalogHeader.plan_filename`
+* :attr:`~pylinac.log_analyzer.DynalogHeader.tolerance`
+* :attr:`~pylinac.log_analyzer.DynalogHeader.num_mlc_leaves`
+* :attr:`~pylinac.log_analyzer.DynalogHeader.clinac_scale`
 
 .. rubric:: Example
 
@@ -256,53 +256,53 @@ are axes. Pylinac adds properties to the axis data structure for ease of use (e.
 For Trajectory logs the following attributes are available,
 based on the :class:`~pylinac.log_analyzer.TrajectoryLogAxisData` class:
 
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.collimator`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.gantry`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.jaws`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.collimator`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.gantry`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.jaws`
 
-      .. note::
-            The ``jaws`` attribute is a data structure to hold all 4 jaw axes; see
-            :class:`~pylinac.log_analyzer.JawStruct`
+  .. note::
+        The ``jaws`` attribute is a data structure to hold all 4 jaw axes; see
+        :class:`~pylinac.log_analyzer.JawStruct`
 
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.couch`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.couch`
 
-      .. note::
-            The ``couch`` attribute is a data structure to hold lateral, longitudinal, etc couch positions; see
-            :class:`~pylinac.log_analyzer.CouchStruct`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.mu`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.beam_hold`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.control_point`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.carriage_A`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.carriage_B`
-    * :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.mlc`
+  .. note::
+        The ``couch`` attribute is a data structure to hold lateral, longitudinal, etc couch positions; see
+        :class:`~pylinac.log_analyzer.CouchStruct`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.mu`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.beam_hold`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.control_point`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.carriage_A`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.carriage_B`
+* :attr:`~pylinac.log_analyzer.TrajectoryLogAxisData.mlc`
 
-      .. note::
-        The ``mlc`` attribute is a data structure to hold leaf information; see
-        :class:`~pylinac.log_analyzer.MLC` for attributes and the :ref:`mlc` section for more info.
+  .. note::
+    The ``mlc`` attribute is a data structure to hold leaf information; see
+    :class:`~pylinac.log_analyzer.MLC` for attributes and the :ref:`mlc` section for more info.
 
 Dynalogs have similar attributes, derived from the :class:`~pylinac.log_analyzer.DynalogAxisData` class:
 
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.collimator`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.gantry`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.jaws`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.collimator`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.gantry`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.jaws`
 
-      .. note::
-        The ``jaws`` attribute is a data structure to hold all 4 jaw axes; see
-        :class:`~pylinac.log_analyzer.JawStruct`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.num_snapshots`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.mu`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.beam_hold`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.beam_on`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.previous_segment_num`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.previous_dose_index`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.next_dose_index`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.carriage_A`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.carriage_B`
-    * :attr:`~pylinac.log_analyzer.DynalogAxisData.mlc`
+  .. note::
+    The ``jaws`` attribute is a data structure to hold all 4 jaw axes; see
+    :class:`~pylinac.log_analyzer.JawStruct`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.num_snapshots`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.mu`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.beam_hold`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.beam_on`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.previous_segment_num`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.prior_dose_index`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.next_dose_index`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.carriage_A`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.carriage_B`
+* :attr:`~pylinac.log_analyzer.DynalogAxisData.mlc`
 
-      .. note::
-        The ``mlc`` attribute is a data structure to hold leaf information; see
-        :class:`~pylinac.log_analyzer.MLC` for attributes and the :ref:`mlc` section for more info.
+  .. note::
+    The ``mlc`` attribute is a data structure to hold leaf information; see
+    :class:`~pylinac.log_analyzer.MLC` for attributes and the :ref:`mlc` section for more info.
 
 .. rubric:: Example
 

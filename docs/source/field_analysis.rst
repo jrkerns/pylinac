@@ -13,7 +13,7 @@ The module is very flexible, allowing users to choose different types of interpo
 Users can also creat custom protocols to perform other types of field analysis within the main pylinac flow.
 
 The module implements traditional analysis like FWHM as well as new methods as outlined in the pre-publication of the
-`NCS-33 report <https://radiationdosimetry.org/files/Prepublication_-_NCS_Report_33_Beam_parameters_V2020-07-29.pdf>`_
+`NCS-33 report <https://radiationdosimetry.org/files/Prepublication_-_NCS_Report_33_Beam_parameters_V2020-07-29.pdf>`__
 which include edge fitting for FFF fields as well as a "top" calculation for the center position of FFF beams.
 
 .. note::
