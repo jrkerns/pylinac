@@ -3,6 +3,15 @@
 Changelog
 =========
 
+v 3.16.0
+--------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* ``results_data`` for planar imaging phantoms (Leeds, SNC kV/MV, Doselab MC2, etc) will now return
+  a ``low_contrast_rois`` dict that contains relevant info for each low-contrast ROI.
+
 v 3.15.0
 --------
 
