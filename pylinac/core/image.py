@@ -47,6 +47,7 @@ from .io import (
     retrieve_dicom_file,
     retrieve_filenames,
 )
+from .metrics import MetricBase
 from .profile import stretch as stretcharray
 from .scale import wrap360
 from .utilities import decode_binary, is_close, simple_round
@@ -368,6 +369,8 @@ class BaseImage:
 
     array: np.ndarray
     path: str | Path
+    metrics: list[MetricBase]
+    metric_values: dict[str, Any]
 
     def __init__(
         self, path: str | Path | BytesIO | ImageLike | np.ndarray | BufferedReader
@@ -379,7 +382,8 @@ class BaseImage:
             The path to the image.
         """
         source: FILE_TYPE | STREAM_TYPE
-
+        self.metrics = []
+        self.metric_values = {}
         if isinstance(path, (str, Path)) and not osp.isfile(path):
             raise FileExistsError(
                 f"File `{path}` does not exist. Verify the file path name."
@@ -495,9 +499,25 @@ class BaseImage:
         if clear_fig:
             plt.clf()
         ax.imshow(self.array, cmap=get_dicom_cmap(), **kwargs)
+        # plot the metrics
+        for metric in self.metrics:
+            metric.plot(axis=ax)
         if show:
             plt.show()
         return ax
+
+    def metric_plots(self, show: bool = True) -> list[plt.figure]:
+        """Plot any additional figures from the metrics.
+
+        Returns a list of figures of the metrics. These metrics are not
+        drawn on the original image but rather are something complete separate.
+        E.g. a profile plot or a histogram of the metric."""
+        figs = []
+        for metric in self.metrics:
+            figs.append(metric.additional_plots())
+        if show:
+            plt.show()
+        return figs
 
     def filter(
         self,
@@ -817,6 +837,39 @@ class BaseImage:
 
     def as_type(self, dtype: np.dtype) -> np.ndarray:
         return self.array.astype(dtype)
+
+    def compute(self, metrics: list[MetricBase] | MetricBase) -> Any | dict[str, Any]:
+        """Compute the given metrics on the image.
+
+        This can be called multiple times to compute different metrics.
+        Metrics are appended on each call. This allows for modification
+        of the image between metric calls as well as the ability to compute
+        different metrics on the same image that might depend on
+        earlier metrics.
+
+        Metrics are both returned and stored in the ``metrics`` attribute.
+        The ``metrics`` attribute will store all metrics every calculated.
+        The metrics returned are only those passed in the ``metrics`` argument.
+
+        Parameters
+        ----------
+        metrics : list[MetricBase] | MetricBase
+            The metric(s) to compute.
+        """
+        metric_data = {}
+        if isinstance(metrics, MetricBase):
+            metrics = [metrics]
+        for metric in metrics:
+            # we copy the image so any manipulations
+            # do not affect the original
+            metric.inject_image(self)
+            self.metrics.append(metric)
+            value = metric.context_calculate()
+            metric_data[metric.name] = value
+        self.metric_values |= metric_data
+        if len(metrics) == 1:
+            return metric_data[metrics[0].name]
+        return metric_data
 
     @property
     def shape(self) -> (int, int):
@@ -1443,6 +1496,8 @@ class ArrayImage(BaseImage):
             self.array = array
         self._dpi = dpi
         self.sid = sid
+        self.metrics = []
+        self.metric_values = {}
 
     @property
     def dpmm(self) -> float | None:
