@@ -154,7 +154,7 @@ class ProfileMetric(ABC):
     and potentially has plot features associated with it.
     Examples include penumbra, flatness, and symmetry"""
 
-    label: str
+    name: str
     unit: str = ""
     profile: ProfileBase | PhysicalProfileMixin
 
@@ -175,19 +175,16 @@ class ProfileMetric(ABC):
         pass
 
     @abstractmethod
-    def calculate(self) -> float:
+    def calculate(self) -> Any:
         """Calculate the metric on the given profile."""
         pass
-
-    def __str__(self):
-        return f"{self.label}: {self.calculate():.3f}{self.unit}"
 
 
 class FlatnessDifferenceMetric(ProfileMetric):
     """Flatness as defined by IAEA Rad Onc Handbook pg 196: https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1196_web.pdf"""
 
+    name = "Flatness (Difference)"
     unit = "%"
-    label = "Flatness (Difference)"
 
     def __init__(self, in_field_ratio: float = 0.8, color="g", linestyle="-."):
         self.in_field_ratio = in_field_ratio
@@ -222,14 +219,14 @@ class FlatnessDifferenceMetric(ProfileMetric):
             [np.max(data), np.min(data)],
             "o",
             color=self.color,
-            label=self.label,
+            label=self.name,
         )
 
 
 class FlatnessRatioMetric(FlatnessDifferenceMetric):
     """Flatness as (apparently) defined by IEC."""
 
-    label = "Flatness (Ratio)"
+    name = "Flatness (Ratio)"
 
     def calculate(self) -> float:
         """Calculate the flatness ratio of the profile."""
@@ -242,7 +239,7 @@ class SymmetryPointDifferenceMetric(ProfileMetric):
     """Symmetry using the point difference method."""
 
     unit = "%"
-    label = "Point Difference Symmetry"
+    name = "Point Difference Symmetry"
 
     def __init__(
         self,
@@ -286,7 +283,7 @@ class SymmetryPointDifferenceMetric(ProfileMetric):
             self.profile.y_at_x(left_edge + idx),
             "^",
             color=self.color,
-            label=self.label,
+            label=self.name,
         )
         # plot min sym value
         axis.plot(
@@ -298,7 +295,7 @@ class SymmetryPointDifferenceMetric(ProfileMetric):
 
         # plot the symmetry on a secondary axis
         sec_ax = axis.twinx()
-        sec_ax.set_ylabel(self.label)
+        sec_ax.set_ylabel(self.name)
 
         # plot the symmetry on the secondary axis
         # add some vertical padding and/or use the minimum/maximum symmetry values
@@ -316,7 +313,7 @@ class SymmetryPointDifferenceMetric(ProfileMetric):
 class SymmetryPointDifferenceQuotientMetric(SymmetryPointDifferenceMetric):
     """Symmetry as defined by IEC."""
 
-    label = "Point Difference Quotient Symmetry"
+    name = "Point Difference Quotient Symmetry"
 
     def __init__(
         self,
@@ -337,7 +334,7 @@ class SymmetryPointDifferenceQuotientMetric(SymmetryPointDifferenceMetric):
 class SymmetryAreaMetric(ProfileMetric):
     """The symmetry using ratios of the areas of the left and right sides of the profile."""
 
-    label = "Symmetry (Area)"
+    name = "Symmetry (Area)"
 
     def __init__(
         self,
@@ -371,7 +368,7 @@ class SymmetryAreaMetric(ProfileMetric):
 
 class PenumbraLeftMetric(ProfileMetric):
     unit = "%"
-    label = "Left Penumbra"
+    name = "Left Penumbra"
     side = LEFT
 
     def __init__(self, lower: float = 20, upper: float = 80, color="pink", ls="-."):
@@ -403,13 +400,13 @@ class PenumbraLeftMetric(ProfileMetric):
             ymax=self.profile.values.max(),
             color=self.color,
             linestyle=self.linestyle,
-            label=self.label,
+            label=self.name,
         )
 
 
 class PenumbraRightMetric(PenumbraLeftMetric):
     side = RIGHT
-    label = "Right Penumbra"
+    name = "Right Penumbra"
 
 
 class TopDistanceMetric(ProfileMetric):
@@ -417,7 +414,7 @@ class TopDistanceMetric(ProfileMetric):
     not 100% faithful to NCS-33. The NCS report uses the middle 5cm but we use a field ratio.
     In practice, this shouldn't make a difference."""
 
-    label = "Top Distance"
+    name = "Top Distance"
     unit = "mm"
 
     def __init__(self, top_region_ratio: float = 0.2, color="orange"):
@@ -458,7 +455,7 @@ class TopDistanceMetric(ProfileMetric):
             self.profile.y_at_x(self.top_idx),
             "o",
             color=self.color,
-            label=self.label,
+            label=self.name,
         )
         left, right, _ = self.profile.field_indices(
             in_field_ratio=self.top_region_ratio
@@ -468,7 +465,7 @@ class TopDistanceMetric(ProfileMetric):
             self.top_values,
             color=self.color,
             linestyle=self.linestyle,
-            label=self.label + " Fit",
+            label=self.name + " Fit",
         )
 
 
@@ -587,8 +584,8 @@ class ProfileBase(ProfileMixin, ABC):
     We use a base class to avoid having long stacked if statements for the different detection patterns.
     This is also more explicit and extensible."""
 
-    _metrics: list[ProfileMetric]
-    metrics: dict[str, float]
+    metrics: list[ProfileMetric]
+    metric_values: dict[str, float]
 
     def __init__(
         self,
@@ -739,7 +736,7 @@ class ProfileBase(ProfileMixin, ABC):
             axis.axvline(self.field_edge_idx(side=RIGHT), ls="--")
         if show_center:
             axis.axvline(self.center_idx, ls=":", label="Center")
-        for metric in self._metrics:
+        for metric in self.metrics:
             metric.plot(axis)
         axis.grid(show_grid)
         axis.legend()
@@ -747,23 +744,40 @@ class ProfileBase(ProfileMixin, ABC):
             plt.show()
         return axis
 
-    def analyze(self, metrics: Iterable[ProfileMetric] | None = None):
-        """Analyze the profile for various metrics.
+    def compute(
+        self, metrics: Iterable[ProfileMetric] | ProfileMetric
+    ) -> Any | dict[str, Any]:
+        """Compute metric(s) on the profile.
 
-        Unlike other modules, calling ``analyze`` is not strictly necessary.
+        Unlike other modules, calling ``compute`` is not strictly necessary.
         Only call it if there are metrics to calculate.
 
         Parameters
         ----------
-        metrics: iterable of ProfileMetric
-            List of metrics to calculate. If None, no metrics will be calculated.
+        metrics: iterable of ProfileMetric | ProfileMetric
+            List of metrics to calculate. If only one metric is desired, it can be passed directly.
+
+        Returns
+        -------
+        dict | list
+            A dictionary of metric names and values if multiple metrics were given.
+            If only one metric was given, the value of that metric is returned.
+
         """
-        self.metrics = {}
-        self._metrics = []
+        self.metric_values = {}
+        self.metrics = []
+        values = {}
+        if isinstance(metrics, ProfileMetric):
+            metrics = [metrics]
         for metric in metrics:
             metric.inject_profile(self)
-            self._metrics.append(metric)
-            self.metrics[metric.label] = metric.calculate()
+            self.metrics.append(metric)
+            values[metric.name] = metric.calculate()
+        self.metric_values |= values
+        if len(values) == 1:
+            return list(values.values())[0]
+        else:
+            return values
 
 
 class FWXMProfile(ProfileBase):

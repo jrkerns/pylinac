@@ -121,6 +121,9 @@ a penumbra plugin could be written that calculates the penumbra of the profile.
 
 Several plugins are provided out of the box, and writing new plugins is straightforward.
 
+Metrics are calculated by passing it as a list to the ``compute`` method.
+The examples below show its usage.
+
 .. _profile_builtin_plugins:
 
 Built-in Plugins
@@ -139,7 +142,7 @@ Example usage:
 .. code-block:: python
 
   profile = FWXMProfile(...)
-  profile.analyze(metrics=[PenumbraRightMetric(upper=80, lower=20)])
+  profile.compute(metrics=[PenumbraRightMetric(upper=80, lower=20)])
 
 .. note::
 
@@ -175,8 +178,8 @@ Example usage:
     # create the profile
     profile = FWXMProfilePhysical(array, dpmm=1)
 
-    # analyze the profile with our plugin
-    profile.analyze(metrics=[PenumbraLeftMetric(), PenumbraRightMetric()])
+    # compute the profile with our plugin
+    profile.compute(metrics=[PenumbraLeftMetric(), PenumbraRightMetric()])
 
     # plot the profile
     profile.plot()
@@ -207,8 +210,8 @@ Example usage:
     # create the profile
     profile = InflectionDerivativeProfilePhysical(array, dpmm=1)
 
-    # analyze the profile with our plugin
-    profile.analyze(metrics=[PenumbraLeftMetric(), PenumbraRightMetric()])
+    # compute the profile with our plugin
+    profile.compute(metrics=[PenumbraLeftMetric(), PenumbraRightMetric()])
 
     # plot the profile
     profile.plot()
@@ -242,7 +245,7 @@ Example usage:
 .. code-block:: python
 
     profile = FWXMProfile(...)
-    profile.analyze(metrics=[FlatnessDifferenceMetric(in_field_ratio=0.8)])
+    profile.compute(metrics=[FlatnessDifferenceMetric(in_field_ratio=0.8)])
 
 Flatness (Ratio)
 ^^^^^^^^^^^^^^^^
@@ -264,7 +267,7 @@ Example usage:
 .. code-block:: python
 
     profile = FWXMProfile(...)
-    profile.analyze(metrics=[FlatnessRatioMetric(in_field_ratio=0.8)])
+    profile.compute(metrics=[FlatnessRatioMetric(in_field_ratio=0.8)])
 
 Symmetry (Point Difference)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -293,7 +296,7 @@ Example usage:
 .. code-block:: python
 
     profile = FWXMProfile(...)
-    profile.analyze(metrics=[SymmetryPointDifferenceMetric(in_field_ratio=0.8)])
+    profile.compute(metrics=[SymmetryPointDifferenceMetric(in_field_ratio=0.8)])
 
 Symmetry (Point Difference Quotient)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -316,7 +319,7 @@ Example usage:
 .. code-block:: python
 
     profile = FWXMProfile(...)
-    profile.analyze(metrics=[SymmetryPointDifferenceQuotientMetric(in_field_ratio=0.8)])
+    profile.compute(metrics=[SymmetryPointDifferenceQuotientMetric(in_field_ratio=0.8)])
 
 Symmetry (Area)
 ^^^^^^^^^^^^^^^
@@ -341,7 +344,7 @@ Example usage:
 .. code-block:: python
 
     profile = FWXMProfile(...)
-    profile.analyze(metrics=[SymmetryAreaMetric(in_field_ratio=0.8)])
+    profile.compute(metrics=[SymmetryAreaMetric(in_field_ratio=0.8)])
 
 Top Position
 ^^^^^^^^^^^^
@@ -358,15 +361,64 @@ Example usage:
 .. code-block:: python
 
     profile = FWXMProfile(...)
-    profile.analyze(metrics=[TopDistanceMetric(top_region_ratio=0.2)])
+    profile.compute(metrics=[TopDistanceMetric(top_region_ratio=0.2)])
+
+Accessing metrics
+~~~~~~~~~~~~~~~~~
+
+There are two ways to access the metrics calculated by a profile (what is returned by the metric's ``calculate`` method). The first is
+what is returned by the ``compute`` method:
+
+.. code-block:: python
+
+  profile = FWXMProfile(...)
+  penum = profile.compute(metrics=PenumbraRightMetric())
+  print(penum)  # prints the penumbra value
+
+We can also access the metric's calculation
+by accessing the ``metric_values`` attribute of the profile:
+
+.. code-block:: python
+
+  profile = FWXMProfile(...)
+  profile.compute(metrics=[PenumbraRightMetric()])
+  print(profile.metric_values["Right Penumbra"])  # prints the penumbra value
+
+
+.. note::
+
+  * The key within a profile's ``metric_values`` dictionary attribute is the value of the plugin's ``name`` attribute.
+  * Either 1 or multiple (as a list) metrics can be passed to the ``compute`` method.
+  * There are metrics included in pylinac. See the :ref:`built-in <profile_builtin_plugins>` section.
+
 
 Writing plugins
 ~~~~~~~~~~~~~~~
 
-To write a plugin, you need to create a class that inherits from ``ProfileMetric``.
-It should have a ``calculate()`` method that returns a float. Optionally,
-a ``plot`` method can be declared that will plot the metric on the profile plot, although
-this is not required. It should also have a ``label`` attribute.
+To write a plugin, create a class with the following conditions:
+
+* It inherits from ``ProfileMetric``.
+* It implements a ``calculate()`` method that returns something.
+* It should also have a ``name`` attribute.
+
+  .. note::
+
+    This can be handled either by a class attribute or dynamically using a property.
+
+* (Optional) It implements a ``plot`` method can be declared that will plot the metric on the profile plot, although
+  this is not required.
+
+
+.. note::
+
+  * Within the plugin, ``self.profile`` is available and will be the profile itself.
+    This is so we can access the profile's attributes and methods.
+  * The ``calculate`` method can return anything, but a float is normal.
+  * The ``plot`` method must take a ``matplotlib.plt.Axes`` object as an argument and return nothing. But
+    a plot method is optional.
+
+Center index example
+^^^^^^^^^^^^^^^^^^^^
 
 For an example, let us write a plugin that calculates the value of the center index
 and also plots it.
@@ -379,7 +431,7 @@ and also plots it.
 
 
   class CenterMetric(ProfileMetric):
-      label = "Center Index"  # human-readable string
+      name = "Center Index"  # human-readable string
 
       def calculate(self) -> float:
           """Return the index of the center of the profile."""
@@ -393,10 +445,10 @@ and also plots it.
               "o",
               color="red",
               markersize=10,
-              label="Center Index",
+              label=self.name,
           )
 
-We can now pass this metric to the profile class' ``analyze`` method.
+We can now pass this metric to the profile class' ``compute`` method.
 We will use the image generator to create an image we will extract a profile from.
 
 .. plot::
@@ -410,7 +462,7 @@ We will use the image generator to create an image we will extract a profile fro
 
     # same as above; included so we can plot
     class CenterMetric(ProfileMetric):
-        label = 'Center Index'  # human-readable string
+        name = 'Center Index'  # human-readable string
 
         def calculate(self) -> float:
             """Return the index of the center of the profile."""
@@ -419,7 +471,7 @@ We will use the image generator to create an image we will extract a profile fro
         def plot(self, axis: plt.Axes) -> None:
             """Plot the center index."""
             axis.plot(self.profile.center_idx, self.profile.y_at_x(self.profile.center_idx), 'o', color='red',
-                      markersize=10, label='Center Index')
+                      markersize=10, label=self.name)
 
     # this is our set up to get a nice profile
     as1000 = AS1000Image()
@@ -436,31 +488,11 @@ We will use the image generator to create an image we will extract a profile fro
     # create the profile
     profile = FWXMProfile(array)
 
-    # analyze the profile with our plugin
-    profile.analyze(metrics=[CenterMetric()])
+    # compute the metric with our plugin
+    profile.compute(metrics=CenterMetric())
 
     # plot the profile
     profile.plot()
-
-We can also access the metric's calculation (what is returned from ``calculate``)
-by accessing the ``metric`` attribute of the profile:
-
-.. code-block:: python
-
-  profile = FWXMProfile(...)
-  profile.analyze(metrics=[PenumbraRightMetric()])
-  print(profile.metric["Right Penumbra"])  # prints the penumbra value
-
-Some things to note:
-
-* Within the plugin, ``self.profile`` is available and will be the profile itself.
-  This is so we can access the profile's attributes and methods.
-* The key within a profile's ``metric`` dictionary attribute is the name of the plugin's ``label``.
-* The ``calculate`` method must return a float.
-* The ``plot`` method must take a ``matplotlib.plt.Axes`` object as an argument and return nothing. But
-  a plot method is optional. It does not have to be implemented.
-* Multiple metrics can be passed to the ``analyze`` method.
-* There are metrics included in pylinac. See the :ref:`built-in <profile_builtin_plugins>` section.
 
 Resampling
 ----------
