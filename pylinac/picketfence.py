@@ -1201,7 +1201,6 @@ class MLCValue:
 
         fig, ax = plt.subplots()
         ax.plot(x_values, pix_vals)
-        # ax.vlines(x=data['center index (exact)']/self.profile._interpolation_factor + offset_pixels, ymin=data['peak_props']['peak_heights'][0] - data['peak_props']['prominences'][0], ymax=data['peak_props']['peak_heights'][0], color='magenta', label='Peak center')
         for picket_pos in self.picket_positions:
             ax.axvline(
                 x=picket_pos * self._image.dpmm,

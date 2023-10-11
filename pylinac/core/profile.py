@@ -4,32 +4,28 @@ from __future__ import annotations
 import enum
 import math
 import warnings
-from typing import Sequence
+from abc import ABC, abstractmethod
+from functools import cached_property
+from typing import Any, Sequence
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from scipy import ndimage, signal
-from scipy.interpolate import interp1d
-from scipy.ndimage import gaussian_filter1d
+from scipy.interpolate import UnivariateSpline, interp1d
+from scipy.ndimage import gaussian_filter1d, zoom
 from scipy.optimize import OptimizeWarning, minimize
 from scipy.stats import linregress
 
-from .array_utils import (
-    bit_invert,
-    convert_to_dtype,
-    filter,
-    geometric_center_idx,
-    geometric_center_value,
-    ground,
-    invert,
-    normalize,
-)
-from .array_utils import stretch as util_stretch
+from . import array_utils as utils
+from . import validators
 from .geometry import Circle, Point
 from .hill import Hill
 from .utilities import convert_to_enum
+
+RIGHT = "right"
+LEFT = "left"
 
 # for Hill fits of 2D device data the # of points can be small.
 # This results in optimization warnings about the variance of the fit (the variance isn't of concern for us for that particular item)
@@ -159,24 +155,24 @@ class ProfileMixin:
 
     def invert(self) -> None:
         """Invert the profile."""
-        self.values = invert(self.values)
+        self.values = utils.invert(self.values)
 
     def bit_invert(self) -> None:
         """Invert the profile bit-wise."""
-        self.values = bit_invert(self.values)
+        self.values = utils.bit_invert(self.values)
 
     def normalize(self, norm_val: str | float | None = None) -> None:
         """Normalize the profile to the given value.
 
         Parameters
         ----------
-        value : number or 'max' or None
+        norm_val : number or 'max' or None
             If a number, normalize the array to that number. If None, normalizes to the maximum value.
         """
         # backwards compatibility
         if norm_val == "max":
             norm_val = None
-        self.values = normalize(self.values, value=norm_val)
+        self.values = utils.normalize(self.values, value=norm_val)
 
     def stretch(self, min: float = 0, max: float = 1) -> None:
         """'Stretch' the profile to the min and max parameter values.
@@ -188,11 +184,11 @@ class ProfileMixin:
         max : number
             The new maximum value.
         """
-        self.values = util_stretch(self.values, min=min, max=max)
+        self.values = utils.stretch(self.values, min=min, max=max)
 
     def convert_to_dtype(self, dtype: type[np.dtype]) -> None:
         """Convert the profile datatype to another datatype while retaining the values relative to the datatype min/max"""
-        self.values = convert_to_dtype(self.values, dtype=dtype)
+        self.values = utils.convert_to_dtype(self.values, dtype=dtype)
 
     def ground(self) -> float:
         """Ground the profile such that the lowest value is 0.
@@ -203,7 +199,7 @@ class ProfileMixin:
             The minimum value that was used as the grounding value.
         """
         min_val = self.values.min()
-        self.values = ground(self.values)
+        self.values = utils.ground(self.values)
         return min_val
 
     def filter(self, size: float = 0.05, kind: str = "median") -> None:
@@ -219,7 +215,7 @@ class ProfileMixin:
         kind : {'median', 'gaussian'}
             The kind of filter to apply. If gaussian, `size` is the sigma value.
         """
-        self.values = filter(self.values, size=size, kind=kind)
+        self.values = utils.filter(self.values, size=size, kind=kind)
 
     def __len__(self):
         return len(self.values)
@@ -251,6 +247,388 @@ class Edge(enum.Enum):
     FWHM = "FWHM"  #:
     INFLECTION_DERIVATIVE = "Inflection Derivative"  #:
     INFLECTION_HILL = "Inflection Hill"  #:
+
+
+class Centering(enum.Enum):
+    """See :ref:`centering`"""
+
+    MANUAL = "Manual"  #:
+    BEAM_CENTER = "Beam center"  #:
+    GEOMETRIC_CENTER = "Geometric center"  #:
+
+
+class ProfileBase(ProfileMixin, ABC):
+    """The base class for multiple type of profiles. This class should not be instantiated directly.
+
+    We use a base class to avoid having long stacked if statements for the different detection patterns.
+    This is also more explicit and extensible."""
+
+    def __init__(
+        self,
+        values: np.array,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str | Normalization = Normalization.NONE,
+    ):
+        """A 1D profile that has one large signal, e.g. a radiation beam profile.
+        Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
+        Profiles with multiple peaks are better suited by the MultiProfile class.
+        """
+        validators.single_dimension(values)
+        self.values = values
+        if x_values is None:
+            x_values = np.arange(len(values))
+        self.x_values = x_values
+        if ground:
+            self.values = utils.ground(values)
+        if normalization == Normalization.MAX:
+            self.normalize()
+        elif normalization == Normalization.GEOMETRIC_CENTER:
+            center_val = utils.geometric_center_value(self.values)
+            self.normalize(center_val)
+        elif normalization == Normalization.BEAM_CENTER:
+            # linear interpolation
+            f = UnivariateSpline(x=self.x_values, y=self.values, k=1, s=0)
+            beam_center_val = f(self.center_idx)
+            self.normalize(beam_center_val)
+
+    @abstractmethod
+    def field_edge_idx(self, side: str) -> float:
+        """The index of the field edge, given the side and edge detection method."""
+        pass
+
+    @cached_property
+    def center_idx(self) -> float:
+        """The center index of the profile. Halfway between the field edges."""
+        left = self.field_edge_idx(side=LEFT)
+        right = self.field_edge_idx(side=RIGHT)
+        return abs(right - left) / 2 + left
+
+    @cached_property
+    def field_width_px(self) -> float:
+        """The field width of the profile in pixels"""
+        left_idx = self.field_edge_idx(side=LEFT)
+        right_idx = self.field_edge_idx(side=RIGHT)
+        return abs(right_idx - left_idx)
+
+    def field_values(
+        self,
+        in_field_ratio: float = 0.8,
+    ) -> np.array:
+        """The array of values of the profile within the 'field' area. This is typically 80% of the detected
+        field width."""
+        left = self.field_edge_idx(side=LEFT)
+        right = self.field_edge_idx(side=RIGHT)
+        width = right - left
+        f_left = left + (1 - in_field_ratio) / 2 * width
+        f_right = right - (1 - in_field_ratio) / 2 * width
+        return self.values[int(round(f_left)) : int(round(f_right) + 1)]
+
+    def as_resampled(
+        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+    ) -> Any:
+        """Resample the profile at a new resolution. Returns a new profile"""
+        new_y = zoom(
+            self.values,
+            zoom=interpolation_factor,
+            order=order,
+            grid_mode=True,
+            mode="nearest",
+        )
+        new_x = np.linspace(self.x_values.min(), self.x_values.max(), len(new_y))
+
+        return type(self)(
+            values=new_y,
+            x_values=new_x,
+            ground=False,
+            normalization=Normalization.NONE,
+            **kwargs,
+        )
+
+    def plot(self, show: bool = True) -> None:
+        """Plot the profile along with relevant overlays to point out features."""
+        _, ax = plt.subplots()
+        ax.plot(self.x_values, self.values, color="b", label="Data")
+        ax.axvline(
+            self.field_edge_idx(side=LEFT), color="r", ls="--", label="Field Edges"
+        )
+        ax.axvline(self.field_edge_idx(side=RIGHT), color="r", ls="--")
+        ax.legend()
+        if show:
+            plt.show()
+
+
+class FWXMProfile(ProfileBase):
+    """A profile that has one large signal, e.g. a radiation beam profile and data derived from it is based on
+    the Full-Width X-Maximum to find the edge indices"""
+
+    def __init__(
+        self,
+        values: np.array,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str | Normalization = Normalization.NONE,
+        fwxm_height: float = 50,
+    ):
+        """A 1D profile that has one large signal, e.g. a radiation beam profile.
+        Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
+        Profiles with multiple peaks are better suited by the MultiProfile class.
+        """
+        self.fwxm_height = fwxm_height
+        super().__init__(
+            values=values,
+            x_values=x_values,
+            ground=ground,
+            normalization=normalization,
+        )
+
+    def field_edge_idx(self, side: str) -> float:
+        """The edge index of the given side using the FWXM methodology"""
+        _, peak_props = find_peaks(
+            self.values, fwxm_height=self.fwxm_height / 100, max_number=1
+        )
+        if side == LEFT:
+            idx = peak_props["left_ips"][0]
+        elif side == RIGHT:
+            idx = peak_props["right_ips"][0]
+        return idx
+
+    def as_resampled(
+        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+    ) -> FWXMProfile:
+        return super().as_resampled(
+            interpolation_factor=interpolation_factor,
+            order=order,
+            fwxm_height=self.fwxm_height,
+            **kwargs,
+        )
+
+
+class InflectionDerivativeProfile(ProfileBase):
+    """A profile that has one large signal, e.g. a radiation beam profile and data derived from it is based on
+    the Full-Width X-Maximum"""
+
+    def __init__(
+        self,
+        values: np.array,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str = Normalization.NONE,
+        edge_smoothing_ratio: float = 0.003,
+    ):
+        """A 1D profile that has one large signal, e.g. a radiation beam profile.
+        Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
+        Profiles with multiple peaks are better suited by the MultiProfile class.
+        """
+        self.edge_smoothing_ratio = edge_smoothing_ratio
+        super().__init__(
+            values=values,
+            x_values=x_values,
+            ground=ground,
+            normalization=normalization,
+        )
+
+    def field_edge_idx(self, side: str) -> float:
+        """The edge index of the given side using the second derivative methodology"""
+        filtered_values = gaussian_filter1d(
+            self.values, sigma=self.edge_smoothing_ratio * len(self.values)
+        )
+        diff = np.gradient(filtered_values)
+        f_min = interp1d(x=self.x_values, y=diff, kind="cubic")
+
+        if side == LEFT:
+            return minimize(lambda x: -f_min(x), x0=np.argmax(diff)).x[0]
+        else:
+            return minimize(f_min, x0=np.argmin(diff)).x[0]
+
+    def as_resampled(
+        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+    ) -> InflectionDerivativeProfile:
+        return super().as_resampled(
+            interpolation_factor=interpolation_factor,
+            order=order,
+            edge_smoothing_ratio=self.edge_smoothing_ratio,
+            **kwargs,
+        )
+
+
+class HillProfile(InflectionDerivativeProfile):
+    """A profile that has one large signal, e.g. a radiation beam profile and data derived from it is based on
+    the Full-Width X-Maximum"""
+
+    def __init__(
+        self,
+        values: np.array,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str = Normalization.NONE,
+        edge_smoothing_ratio: float = 0.003,
+        hill_window_ratio: float = 0.1,
+    ):
+        """A 1D profile that has one large signal, e.g. a radiation beam profile.
+        Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
+        Profiles with multiple peaks are better suited by the MultiProfile class.
+        """
+        self.hill_window_ratio = hill_window_ratio
+        super().__init__(
+            values=values,
+            x_values=x_values,
+            ground=ground,
+            normalization=normalization,
+            edge_smoothing_ratio=edge_smoothing_ratio,
+        )
+
+    def field_edge_idx(self, side: str) -> float:
+        """The edge index of the given side using the FWXM methodology"""
+        left_infl_idx = super().field_edge_idx(side=LEFT)
+        right_infl_idx = super().field_edge_idx(side=RIGHT)
+        window_size = (right_infl_idx - left_infl_idx) * self.hill_window_ratio
+        if side == LEFT:
+            left = int(round(left_infl_idx - window_size))
+            right = int(round(left_infl_idx + window_size))
+            x_data = self.x_values[left : right + 1]
+            y_data = self.values[left : right + 1]
+        else:
+            left = int(round(right_infl_idx - window_size))
+            right = int(round(right_infl_idx + window_size))
+            x_data = self.x_values[left : right + 1]
+            y_data = self.values[left : right + 1]
+        hill_fit = Hill.fit(x_data=x_data, y_data=y_data)
+        return hill_fit.inflection_idx()["index (exact)"]
+
+    def as_resampled(
+        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+    ) -> HillProfile:
+        """Resample the profile at a new zoom factor. Returns a new profile."""
+        return ProfileBase.as_resampled(
+            self,
+            interpolation_factor=interpolation_factor,
+            order=order,
+            edge_smoothing_ratio=self.edge_smoothing_ratio,
+            hill_window_ratio=self.hill_window_ratio,
+            **kwargs,
+        )
+
+
+class PhysicalProfileMixin:
+    """A mixin when the profile has a physical component.
+    This is pretty typical for EPID profiles, etc. The mixin
+    adds a few methods that take physical distance into account."""
+
+    x_values: np.ndarray
+    values: np.ndarray
+    field_width_px: float
+
+    def __init__(
+        self,
+        dpmm: float,
+    ):
+        self.dpmm = dpmm
+
+    @cached_property
+    def field_width_mm(self) -> float:
+        """The field width of the profile in mm"""
+        return self.field_width_px / self.dpmm
+
+
+class FWXMProfilePhysical(PhysicalProfileMixin, FWXMProfile):
+    def __init__(
+        self,
+        values: np.array,
+        dpmm: float,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str | Normalization = Normalization.NONE,
+        fwxm_height: float = 50,
+    ):
+        FWXMProfile.__init__(
+            self,
+            values=values,
+            x_values=x_values,
+            ground=ground,
+            normalization=normalization,
+            fwxm_height=fwxm_height,
+        )
+        PhysicalProfileMixin.__init__(self, dpmm=dpmm)
+
+    def as_resampled(
+        self,
+        interpolation_resolution_mm: float = 0.1,
+        order: int = 3,
+    ) -> FWXMProfilePhysical:
+        """Resample the physical profile at a new resolution. Returns a new profile"""
+        factor = 1 / (self.dpmm * interpolation_resolution_mm)
+        return super().as_resampled(
+            interpolation_factor=factor,
+            order=order,
+            dpmm=self.dpmm,
+        )
+
+
+class InflectionDerivativeProfilePhysical(
+    InflectionDerivativeProfile, PhysicalProfileMixin
+):
+    def __init__(
+        self,
+        values: np.array,
+        dpmm: float,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str | Normalization = Normalization.NONE,
+        edge_smoothing_ratio: float = 0.003,
+    ):
+        InflectionDerivativeProfile.__init__(
+            self,
+            values=values,
+            x_values=x_values,
+            ground=ground,
+            normalization=normalization,
+            edge_smoothing_ratio=edge_smoothing_ratio,
+        )
+        PhysicalProfileMixin.__init__(self, dpmm=dpmm)
+
+    def as_resampled(
+        self, interpolation_resolution_mm: int = 0.1, order: int = 3
+    ) -> InflectionDerivativeProfilePhysical:
+        """Resample the physical profile at a new resolution. Returns a new profile"""
+        factor = 1 / (self.dpmm * interpolation_resolution_mm)
+        return super().as_resampled(
+            interpolation_factor=factor,
+            order=order,
+            dpmm=self.dpmm,
+        )
+
+
+class HillProfilePhysical(HillProfile, PhysicalProfileMixin):
+    def __init__(
+        self,
+        values: np.array,
+        dpmm: float,
+        x_values: np.array | None = None,
+        ground: bool = False,
+        normalization: str | Normalization = Normalization.NONE,
+        edge_smoothing_ratio: float = 0.003,
+        hill_window_ratio: float = 0.1,
+    ):
+        HillProfile.__init__(
+            self,
+            values=values,
+            x_values=x_values,
+            ground=ground,
+            normalization=normalization,
+            edge_smoothing_ratio=edge_smoothing_ratio,
+            hill_window_ratio=hill_window_ratio,
+        )
+        PhysicalProfileMixin.__init__(self, dpmm=dpmm)
+
+    def as_resampled(
+        self, interpolation_resolution_mm: int = 0.1, order: int = 3
+    ) -> HillProfilePhysical:
+        """Resample the physical profile at a new resolution. Returns a new profile"""
+        factor = 1 / (self.dpmm * interpolation_resolution_mm)
+        return super().as_resampled(
+            interpolation_factor=factor, order=order, dpmm=self.dpmm
+        )
 
 
 class SingleProfile(ProfileMixin):
@@ -457,8 +835,10 @@ class SingleProfile(ProfileMixin):
         value is the average of the two centre values else the centre index and value are returned.
         """
         return {
-            "index (exact)": self._x_interp_to_original(geometric_center_idx(values)),
-            "value (exact)": geometric_center_value(values),
+            "index (exact)": self._x_interp_to_original(
+                utils.geometric_center_idx(values)
+            ),
+            "value (exact)": utils.geometric_center_value(values),
         }
 
     def geometric_center(self) -> dict:
@@ -1469,7 +1849,7 @@ class CollapsedCircleProfile(CircleProfile):
         self,
         center: Point,
         radius: float,
-        image_array: np.array | ArrayImage,
+        image_array: np.ndarray,
         start_angle: int = 0,
         ccw: bool = True,
         sampling_ratio: float = 1.0,
