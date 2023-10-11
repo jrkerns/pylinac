@@ -238,7 +238,7 @@ Allowances
 Restrictions
 ^^^^^^^^^^^^
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom cannot touch any edge of the FOV.
 * There must be at least one ROI in the "outer" ROI ring that is higher than water/background phantom. This

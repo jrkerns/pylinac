@@ -98,9 +98,9 @@ Results will be printed to the console and a figure showing the zoomed-in images
 .. plot::
     :include-source: false
 
-    from pylinac import WinstonLutzMultiTarget
+    from pylinac import WinstonLutzMultiTargetMultiField
 
-    WinstonLutzMultiTarget.run_demo()
+    WinstonLutzMultiTargetMultiField.run_demo()
 
 .. _mtwl_image_acquisition:
 
@@ -251,7 +251,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * Each BB and radiation field must be within 5mm of the expected position in x and y in the EPID plane. I.e. it must be <=7mm in scalar distance.
 * BBs must not occlude or be <5 mm from each other in any 2D image.
@@ -321,6 +321,7 @@ as the demo, but is good for explanation).
     wl = pylinac.WinstonLutzMultiTargetMultiField(wl_dir)
     wl.analyze(bb_arrangement=arrange)
     print(wl.results())
+    wl.plot_images()
 
 which has an output of::
 
@@ -375,6 +376,7 @@ Let's now offset both BBs by 1mm to the left:
     wl = pylinac.WinstonLutzMultiTargetMultiField(wl_dir)
     wl.analyze(bb_arrangement=arrange)
     print(wl.results())
+    wl.plot_images()
 
 with an output of::
 
@@ -436,6 +438,7 @@ Let's now add random error:
     wl = pylinac.WinstonLutzMultiTargetMultiField(wl_dir)
     wl.analyze(bb_arrangement=arrange)
     print(wl.results())
+    wl.plot_images()
 
 with an output of::
 

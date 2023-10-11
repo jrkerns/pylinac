@@ -2168,6 +2168,8 @@ class Dynalog(LogBase):
 
 class TrajectoryLogAxisData:
     """
+    Attributes
+    ----------
     collimator : :class:`~pylinac.log_analyzer.Axis`
         Collimator data in degrees.
     gantry : :class:`~pylinac.log_analyzer.Axis`
@@ -2248,6 +2250,8 @@ class TrajectoryLogAxisData:
 
 class TrajectoryLogHeader:
     """
+    Attributes
+    ----------
     header : str
         Header signature: 'VOSTL'.
     version : str

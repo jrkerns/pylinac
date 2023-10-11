@@ -9,13 +9,13 @@ There are several ways you can contribute to the pylinac project no matter your 
 Submitting bugs
 ---------------
 
-The easiest way to contribute is to report bugs. Submit bugs via a Github issue `here <https://github.com/jrkerns/pylinac/issues>`_.
+The easiest way to contribute is to report bugs. Submit bugs via a Github issue `here <https://github.com/jrkerns/pylinac/issues>`__.
 
 Submitting files
 ----------------
 
 Another easy way to improve pylinac is to submit QA files for the testing repository. Files are treated anonymously and are
-added to the test suite so that the package will become more robust. You can submit files `here <https://forms.gle/sfrDXL3XhHsyiKeJ7>`_.
+added to the test suite so that the package will become more robust. You can submit files `here <https://forms.gle/sfrDXL3XhHsyiKeJ7>`__.
 
 Suggesting ideas
 ----------------
