@@ -146,6 +146,83 @@ The minimum needed to get going is to:
           "mycatphan.pdf", open_file=True
       )  # open the PDF after saving as well.
 
+.. _custom-hu-values:
+
+Custom HU values
+----------------
+
+.. versionadded:: 3.16
+
+By default, expected HU values are drawn from the values stated in the :ref:`manual <cbct_density_list>`.
+It's possible to override one or more of the HU values of the CatPhan modules however. This is useful if you have a custom CatPhan or
+know the exact HU values of your phantom. To do so, pass in a dictionary of the HU values to the ``expected_hu_values`` parameter.
+The keys should be the name of the material and the values should be the HU value.
+
+.. code-block:: python
+
+    from pylinac import CatPhan504
+
+    # overrides the HU values of the Air and PMP regions
+    mycbct = CatPhan504(..., expected_hu_values={"Air": -999, "PMP": -203})
+    mycbct.analyze()
+    mycbct.plot_analyzed_image()
+
+.. note::
+
+  Not all materials need to be overridden. Only the ones you want to override need to be passed in.
+
+
+Keys
+^^^^
+
+The keys to override for CatPhan504 and CatPhan503 are listed below along with the default value:
+
+* ``Air: -1000``
+* ``PMP: -196``
+* ``LDPE: -104``
+* ``Poly: -47``
+* ``Acrylic: 115``
+* ``Delrin: 365``
+* ``Teflon: 1000``
+
+The CatPhan600 has the above keys as well as:
+
+* ``Vial: 0``
+
+The CatPhan604 has the original keys as well as:
+
+* ``50% Bone: 725``
+* ``20% Bone: 237``
+
+.. _slice-thickness:
+
+Slice Thickness
+---------------
+
+.. versionadded:: 3.12
+
+When measuring slice thickness in pylinac, slices are sometimes combined depending on the slice thickness.
+Scans with thin slices and low mAs can have very noisy wire ramp measurements. To compensate for this,
+pylinac will average over 3 slices (+/-1 from CTP404) if the slice thickness is <3.5mm. This will generally improve the statistics
+of the measurement. This is the only part of the algorithm that may use more than one slice.
+
+If you'd like to override this, you can do so by setting the padding (aka straddle) explicitly.
+The straddle is the number of extra slices **on each side** of the HU module slice to use for slice thickness determination.
+The default is ``auto``; set to an integer to explicitly use a certain amount of straddle slices. Typical
+values are 0, 1, and 2. So, a value of 1 averages over 3 slices, 2 => 5 slices, 3 => 7 slices, etc.
+
+.. note::
+
+    This technique can be especially useful when your slices overlap.
+
+.. code-block:: python
+
+    from pylinac import CatPhan504  # applies to all catphans
+
+    ct = CatPhan504(...)
+    ct.analyze(..., thickness_slice_straddle=0)
+    ...
+
 Advanced Use
 ------------
 
@@ -242,7 +319,7 @@ You can also customize modules themselves in v2.4+. Customization should always 
 module and overloading the attributes. Then, pass in the new custom module into the parent CatPhan class. The easiest
 way to get started is copy the relevant attributes from the existing code.
 
-As an example, let's override the nominal HU values for CTP404.
+As an example, let's override the angles of the ROIs for CTP404.
 
 .. code-block:: python
 
@@ -256,13 +333,13 @@ As an example, let's override the nominal HU values for CTP404.
         roi_settings = {
             "Air": {
                 "value": -1000,
-                "angle": -93,
+                "angle": -93,  # changed 'angle' from -90 to -93
                 "distance": roi_dist_mm,
                 "radius": roi_radius_mm,
-            },  # changed 'angle' from -90
+            },
             "PMP": {
                 "value": -196,
-                "angle": -120,
+                "angle": -122,  # changed 'angle' from -120 to -122
                 "distance": roi_dist_mm,
                 "radius": roi_radius_mm,
             },
@@ -283,35 +360,6 @@ As an example, let's override the nominal HU values for CTP404.
 
 .. warning:: If you overload the ``roi_settings`` or ``modules`` attributes, you are responsible for filling it out completely.
              I.e. when you overload it's not partial. In the above example if you want other CTP modules you **must** populate them.
-
-.. _slice-thickness:
-
-Slice Thickness
----------------
-
-.. versionadded:: 3.12
-
-When measuring slice thickness in pylinac, slices are sometimes combined depending on the slice thickness.
-Scans with thin slices and low mAs can have very noisy wire ramp measurements. To compensate for this,
-pylinac will average over 3 slices (+/-1 from CTP404) if the slice thickness is <3.5mm. This will generally improve the statistics
-of the measurement. This is the only part of the algorithm that may use more than one slice.
-
-If you'd like to override this, you can do so by setting the padding (aka straddle) explicitly.
-The straddle is the number of extra slices **on each side** of the HU module slice to use for slice thickness determination.
-The default is ``auto``; set to an integer to explicitly use a certain amount of straddle slices. Typical
-values are 0, 1, and 2. So, a value of 1 averages over 3 slices, 2 => 5 slices, 3 => 7 slices, etc.
-
-.. note::
-
-    This technique can be especially useful when your slices overlap.
-
-.. code-block:: python
-
-    from pylinac import CatPhan504  # applies to all catphans
-
-    ct = CatPhan504(...)
-    ct.analyze(..., thickness_slice_straddle=0)
-    ...
 
 .. _cbct-algorithm:
 
@@ -375,10 +423,14 @@ Analysis
         Additionally, values tend to be lazy (computed only when asked for), thus the calculations listed may sometimes
         be performed only when asked for.
 
+.. _cbct_density_list:
+
 * **Determine HU linearity** -- The HU module (CTP404) contains several materials with different HU values. Using
   hardcoded angles (corrected for roll) and radius from the center of the phantom, circular ROIs are sampled which
   correspond to the HU material regions. The median pixel value of the ROI is the stated HU value. Nominal HU values
   are taken as the mean of the range given in the manual(s):
+
+  .. note:: As of v3.16, these can be overriden: :ref:`custom-hu-values`.
 
   .. image:: images/catphan_densities.png
 
