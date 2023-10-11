@@ -367,7 +367,8 @@ loaded as normal images and analyzed.
 
   The CBCT analysis comes with a few caveats:
 
-  * Analyzing the image should always have ``low_density_bb=True`` and ``open_field=True``.
+  * Analyzing the image will override the ``low_density_bb`` and ``open_field`` flags to always be True; it does
+    not matter what is passed in ``analyze``.
   * No axis deviation information is available, i.e. couch/coll/gantry walkout.
   * There are always 4 images generated.
   * The generated images are not true DICOMs and thus do not have all the DICOM tags.

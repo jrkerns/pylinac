@@ -659,7 +659,7 @@ class WinstonLutz:
     images: list[WinstonLutz2D]  #:
     machine_scale: MachineScale  #:
     image_type = WinstonLutz2D
-    is_open_field: bool
+    is_from_cbct: bool = False
 
     def __init__(
         self,
@@ -899,7 +899,9 @@ class WinstonLutz:
                 dpi=dpi,
             )
         # now we load these as normal images into the WL algorithm
-        return cls(streams, **kwargs)
+        instance = cls(streams, **kwargs)
+        instance.is_from_cbct = True
+        return instance
 
     @staticmethod
     def run_demo() -> None:
@@ -932,6 +934,9 @@ class WinstonLutz:
             less interest than simply the imaging iso vs the BB.
         """
         self.machine_scale = machine_scale
+        if self.is_from_cbct:
+            low_density_bb = True
+            open_field = True
         for img in self.images:
             img.analyze(bb_size_mm, low_density_bb, open_field)
         self._is_analyzed = True
