@@ -215,6 +215,8 @@ class DiskRegion(MetricBase):
 
 
 class DiskLocator(DiskRegion):
+    """Calculates the weighted centroid of a disk/BB as a Point in an image where the disk is near an expected position and size."""
+
     point: Point
 
     def calculate(self, image) -> Point:

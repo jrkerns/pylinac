@@ -1188,6 +1188,11 @@ class DicomImage(BaseImage):
     def save(self, filename: str | Path) -> str | Path:
         """Save the image instance back out to a .dcm file.
 
+        Parameters
+        ----------
+        filename : str, Path
+            The filename to save the DICOM file as.
+
         Returns
         -------
         A string pointing to the new filename.
