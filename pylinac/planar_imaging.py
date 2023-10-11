@@ -64,6 +64,7 @@ class PlanarResult(ResultBase):
     median_cnr: float  #:
     num_contrast_rois_seen: int  #:
     phantom_center_x_y: tuple[float, float]  #:
+    low_contrast_rois: list[dict]  #:
     mtf_lp_mm: tuple[float, float, float] = None  #:
 
 
@@ -666,6 +667,7 @@ class ImagePhantomBase:
                 roi.passed_visibility for roi in self.low_contrast_rois
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
+            low_contrast_rois=[roi.as_dict() for roi in self.low_contrast_rois],
         )
 
         if self.mtf is not None:
@@ -1391,6 +1393,7 @@ class LasVegas(ImagePhantomBase):
                 roi.passed_visibility for roi in self.low_contrast_rois
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
+            low_contrast_rois=[r.as_dict() for r in self.low_contrast_rois],
         )
         if as_dict:
             return dataclasses.asdict(data)
