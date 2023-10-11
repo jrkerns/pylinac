@@ -1672,7 +1672,7 @@ General
 * The TG-51 module has been placed under a new module: :ref:`calibration_module`. This is because:
 * A TRS-398 calibration module has been created :ref:`trs398`.
 * The default colormap for arrays is now Viridis, the matplotlib default.
-* A contributer's guide has been added: :ref:`contributor_guide`.
+* A contributor's guide has been added: :ref:`contributor_guide`.
 * `#141 <https://github.com/jrkerns/pylinac/issues/141>`_ The Pylinac logo has been included in the package so that PDFs can be generated without needing www access.
 * A new dependency has been added: `argue <https://pypi.org/project/argue/>`_ which handles input parameters.
 
@@ -1891,7 +1891,7 @@ TG-51
 Core Modules
 ^^^^^^^^^^^^
 
-* The ``Image`` class has been fully depricated and is no longer available. Use the functions available in the :ref:`image_module` instead.
+* The ``Image`` class has been fully deprecated and is no longer available. Use the functions available in the :ref:`image_module` instead.
   See the version 1.4.0 release notes for further details.
 * The ``remove_edges`` method has been deprecated and is now an alias for ``crop``. The ``crop`` method should be used instead. Parameters are exactly the same.
 
