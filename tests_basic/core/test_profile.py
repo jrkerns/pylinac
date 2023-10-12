@@ -270,6 +270,24 @@ class TestProfileGeneric(TestCase):
         prof = FWXMProfile(array, normalization=Normalization.GEOMETRIC_CENTER)
         self.assertNotEqual(prof.values.max(), array.max())
 
+    def test_resample_with_ints_and_small_range_raises_warning(self):
+        array = create_long_23_profile().astype(np.uint8)
+        prof = FWXMProfile(array)
+        with warnings.catch_warnings(record=True) as w:
+            prof.as_resampled(interpolation_factor=2)
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[-1].category, UserWarning))
+            self.assertIn("small", str(w[-1].message))
+
+    def test_physical_resample_with_ints_and_small_range_raises_warning(self):
+        array = create_long_23_profile().astype(np.uint8)
+        prof = FWXMProfilePhysical(array, 1)
+        with warnings.catch_warnings(record=True) as w:
+            prof.as_resampled(interpolation_resolution_mm=0.1)
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[-1].category, UserWarning))
+            self.assertIn("small", str(w[-1].message))
+
 
 class TestFWXMProfile(TestCase):
     def test_center_idx(self):
@@ -582,7 +600,7 @@ class TestInflectionProfilePhysical(TestCase):
     def test_resample_adds_half_pixel(self):
         """With phyiscal profiles, when interpolating,
         we have to account for the 'half pixel' offset that must be accounted for.
-        See the grid_mode parameter of scikit-image zoom"""
+        See the grid_mode parameter of scipy's zoom function"""
         array = create_long_23_profile()
         profile = InflectionDerivativeProfilePhysical(array, dpmm=1)
         resampled_profile = profile.as_resampled(interpolation_resolution_mm=0.1)
