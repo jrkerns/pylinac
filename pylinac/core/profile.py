@@ -600,6 +600,8 @@ class ProfileBase(ProfileMixin, ABC):
         Profiles with multiple peaks are better suited by the MultiProfile class.
         """
         validators.single_dimension(values)
+        self.metrics = []
+        self.metric_values = {}
         self._interp_order = interpolation_order
         self.values = values
         if x_values is None:

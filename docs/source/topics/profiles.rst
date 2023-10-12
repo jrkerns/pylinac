@@ -511,6 +511,83 @@ can be done easily using ``as_resampled``:
 This will create a **new** profile that is resampled to 0.1 mm resolution. The new profile's ``dpmm``
 attribute is also updated. The original profile is not modified.
 
+.. warning::
+
+ Resampling will respect the input datatype. If the array is an integer type and has a small range,
+ the resampled array may be truncated. For example, if the array is an unsigned 16-bit integer (native EPID)
+ and the range of values varies from 100 to 200, the resampled array will appear to be step-wise.
+
+ .. plot::
+
+    import numpy as np
+    from matplotlib import pyplot as plt
+
+    from pylinac.core.profile import FWXMProfile
+
+    y = np.array([0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0], dtype=int)
+    x = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5], dtype=int)
+
+    prof = FWXMProfile(values=y, x_values=x)
+    prof_interp = prof.as_resampled(interpolation_factor=2)
+    ax = prof.plot(show=False, show_field_edges=False, show_center=False)
+    prof_interp.plot(show=True, axis=ax, show_field_edges=False, show_center=False)
+
+ Compare this to a float array:
+
+ .. plot::
+
+    import numpy as np
+    from matplotlib import pyplot as plt
+
+    from pylinac.core.profile import FWXMProfile
+
+    y = np.array([0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0], dtype=float)
+    x = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5], dtype=float)
+
+    prof = FWXMProfile(values=y, x_values=x)
+    prof_interp = prof.as_resampled(interpolation_factor=2)
+    ax = prof.plot(show=False, show_field_edges=False, show_center=False)
+    prof_interp.plot(show=True, axis=ax, show_field_edges=False, show_center=False)
+
+This float array is interpolated better, although there is still some apparent spline interpolation fit error.
+
+This second issue can be resolved by using an odd-sized interpolation factor:
+
+.. plot::
+
+    import numpy as np
+    from matplotlib import pyplot as plt
+
+    from pylinac.core.profile import FWXMProfile
+
+    y = np.array([0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0], dtype=float)
+    x = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5], dtype=float)
+
+    prof = FWXMProfile(values=y, x_values=x)
+    prof_interp = prof.as_resampled(interpolation_factor=3)  # not 2
+    ax = prof.plot(show=False, show_field_edges=False, show_center=False)
+    prof_interp.plot(show=True, axis=ax, show_field_edges=False, show_center=False)
+
+Better, but still not perfect. Most profiles do not look like this however. This is an extreme example.
+However, even here we can improve things by using linear interpolation. This is done by setting
+the ``order`` parameter to 1:
+
+.. plot::
+
+    import numpy as np
+    from matplotlib import pyplot as plt
+
+    from pylinac.core.profile import FWXMProfile
+
+    y = np.array([0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0], dtype=float)
+    x = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5], dtype=float)
+
+    prof = FWXMProfile(values=y, x_values=x)
+    prof_interp = prof.as_resampled(interpolation_factor=3, order=1)  # order=1 => linear
+    ax = prof.plot(show=False, show_field_edges=False, show_center=False)
+    prof_interp.plot(show=True, axis=ax, show_field_edges=False, show_center=False)
+
+
 .. note::
 
    Resampling can be used for both upsampling and downsampling.
@@ -524,7 +601,15 @@ attribute is also updated. The original profile is not modified.
 .. important::
 
     Resampling is not the same as smoothing. Smoothing is the process of removing noise from the profile.
-    Resampling is the process of changing the resolution of the profile.
+    Resampling is the process of changing the resolution of the profile. To apply a filter, use the
+    :meth:`~pylinac.core.profile.FWXMProfile.filter` method:
+
+    .. code-block:: python
+
+        from pylinac.core.profile import FWXMProfile
+
+        profile = FWXMProfile(...)
+        profile.filter(size=5, kind="gaussian")
 
 .. important::
 

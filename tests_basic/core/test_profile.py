@@ -719,6 +719,11 @@ class TestHillProfilePhysical(TestCase):
 
 
 class TestProfilePlugins(TestCase):
+    def test_plot_without_metric_is_fine(self):
+        array = generate_profile()
+        profile = FWXMProfile(array, fwxm_height=50)
+        profile.plot()
+
     def test_analyze_method(self):
         # tests the .analyze method, not the plugin itself
         array = generate_profile()
