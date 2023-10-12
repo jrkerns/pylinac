@@ -499,7 +499,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-  .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The BB must be fully within the field of view.
 * The BB must be within 2.0cm of the real isocenter.

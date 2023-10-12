@@ -1188,7 +1188,7 @@ General
 * Several LowContrastDiskROI properties have been deprecated such as ``contrast_constant``. Use ``visibility`` instead. The old properties still work but come with a deprecation warning and will be removed in a future release.
 * `#270 <https://github.com/jrkerns/pylinac/issues/270>`_ Pylinac had a memory leak that was apparent when running on a server. This was caused by old instances being held in memory from
   and incorrect usage of the ``lru_cache``. This has been fixed.
-* Documentation about topics has been added :ref:`topics`.
+* Documentation about topics has been added.
 * Documentation benchmarking several algorithms has been added. See the "Benchmarking the Algorithm" section for vmat, winston-lutz, and starshot modules. Picket fence will come soon.
 
 .. note::
@@ -1219,7 +1219,7 @@ Field Analysis (previously Flatness/Symmetry)
   , which gives guidance on FFF beams.
 * From the above report, a "top" position as well as field slope values are calculated for FFF beams.
   See :ref:`fff_fields`.
-* The new module can handle files from devices, specifically the SNC Profiler. See :ref:`loading_device_data`.
+* The new module can handle files from devices, specifically the SNC Profiler.
 * Extensibility was greatly enhanced. Users can now easily add their own custom analysis routines to the module.
   See :ref:`custom_protocols`.
 * New options for :ref:`centering`, :ref:`normalization`, :ref:`edge`, and :ref:`interpolation` were introduced. Each of these can be
@@ -1688,7 +1688,7 @@ General
 * The TG-51 module has been placed under a new module: :ref:`calibration_module`. This is because:
 * A TRS-398 calibration module has been created :ref:`trs398`.
 * The default colormap for arrays is now Viridis, the matplotlib default.
-* A contributer's guide has been added: :ref:`contributer_guide`.
+* A contributor's guide has been added: :ref:`contributor_guide`.
 * `#141 <https://github.com/jrkerns/pylinac/issues/141>`_ The Pylinac logo has been included in the package so that PDFs can be generated without needing www access.
 * A new dependency has been added: `argue <https://pypi.org/project/argue/>`_ which handles input parameters.
 
@@ -1697,7 +1697,7 @@ Flatness & Symmetry
 ^^^^^^^^^^^^^^^^^^^
 
 * `#130 <https://github.com/jrkerns/pylinac/issues/130>`_ The flatsym module has been completely rewritten.
-  Documentation has also been updated and should be consulted given the number of changes: :ref:`flatsym_module`.
+  Documentation has also been updated and should be consulted given the number of changes: :ref:`field_analysis_module`.
 
 VMAT
 ^^^^
@@ -1907,7 +1907,7 @@ TG-51
 Core Modules
 ^^^^^^^^^^^^
 
-* The ``Image`` class has been fully depricated and is no longer available. Use the functions available in the :module:`pylinac.core.image` module instead.
+* The ``Image`` class has been fully deprecated and is no longer available. Use the functions available in the :ref:`image_module` instead.
   See the version 1.4.0 release notes for further details.
 * The ``remove_edges`` method has been deprecated and is now an alias for ``crop``. The ``crop`` method should be used instead. Parameters are exactly the same.
 
@@ -1922,7 +1922,7 @@ General Changes
   data like the author, machine/unit, and any custom notes. See e.g. :meth:`pylinac.starshot.Starshot.publish_pdf`
   or :meth:`pylinac.picketfence.PicketFence.publish_pdf`.
 * The watch/process functions have been tweaked to best work on one unit per run. Multiple units/machines should
-  have their own config files. A new article :ref:`task_scheduler` describes how to use the process function with Windows Task
+  have their own config files. A new article describes how to use the process function with Windows Task
   Scheduler to regularly pull and analyze files.
 
 CatPhan
