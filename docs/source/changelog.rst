@@ -12,6 +12,13 @@ Planar Imaging
 * ``results_data`` for planar imaging phantoms (Leeds, SNC kV/MV, Doselab MC2, etc) will now return
   a ``low_contrast_rois`` dict that contains relevant info for each low-contrast ROI.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The Winston Lutz module can now load CBCT datasets of a scanned BB. This is still experimental and may have bugs. Caution is warranted.
+  See :ref:`wl_cbct`.
+
+
 v 3.15.0
 --------
 

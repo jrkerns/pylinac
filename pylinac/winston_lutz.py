@@ -26,6 +26,7 @@ import io
 import math
 import os.path as osp
 import statistics
+import tempfile
 import webbrowser
 from dataclasses import dataclass
 from itertools import zip_longest
@@ -37,6 +38,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import linalg, ndimage, optimize
+from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
 from skimage import measure
 from skimage.measure._regionprops import RegionProperties
@@ -45,7 +47,13 @@ from tabulate import tabulate
 from .core import image, pdf
 from .core.decorators import lru_cache
 from .core.geometry import Line, Point, Vector, cos, sin
-from .core.image import LinacDicomImage, is_image, tiff_to_dicom
+from .core.image import (
+    DicomImageStack,
+    LinacDicomImage,
+    array_to_dicom,
+    is_image,
+    tiff_to_dicom,
+)
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import bounding_box
 from .core.scale import MachineScale, convert
@@ -651,7 +659,7 @@ class WinstonLutz:
     images: list[WinstonLutz2D]  #:
     machine_scale: MachineScale  #:
     image_type = WinstonLutz2D
-    is_open_field: bool
+    is_from_cbct: bool = False
 
     def __init__(
         self,
@@ -810,6 +818,91 @@ class WinstonLutz:
         zfile = get_url(url)
         return cls.from_zip(zfile, **kwargs)
 
+    @classmethod
+    def from_cbct_zip(cls, file: Path | str, raw_pixels: bool = False, **kwargs):
+        """Instantiate from a zip file containing CBCT images.
+
+        Parameters
+        ----------
+        file
+            Path to the archive file.
+                raw_pixels
+            If True, uses the raw pixel values of the DICOM files. If False, uses the rescaled Hounsfield units.
+            Generally, this should be true.
+        kwargs
+            See parameters of the __init__ method for details.
+        """
+        with TemporaryZipDirectory(file) as tmpz:
+            obj = cls.from_cbct(tmpz, raw_pixels=raw_pixels, **kwargs)
+        return obj
+
+    @classmethod
+    def from_cbct(cls, directory: Path | str, raw_pixels: bool = False, **kwargs):
+        """Create a 4-angle WL test from a CBCT dataset.
+
+        The dataset is loaded and the array is "viewed" from top, bottom, left, and right to create the 4 angles.
+        The dataset has to be rescaled so that the z-axis spacing is equal to the x/y axis. This is because the
+        typical slice thickness is much larger than the in-plane resolution.
+
+        Parameters
+        ----------
+        directory
+            The directory containing the CBCT DICOM files.
+        raw_pixels
+            If True, uses the raw pixel values of the DICOM files. If False, uses the rescaled Hounsfield units.
+            Generally, this should be true.
+        kwargs
+            See parameters of the __init__ method for details.
+        """
+        dicom_stack = DicomImageStack(
+            folder=directory, min_number=10, raw_pixels=raw_pixels
+        )
+        np_stack = np.stack(dicom_stack.images, axis=-1)
+        zoom_ratio = (
+            1,
+            dicom_stack.metadata.SliceThickness / dicom_stack.metadata.PixelSpacing[0],
+        )
+        left_arr = np.rot90(
+            zoom(
+                np_stack.max(axis=0),
+                zoom=zoom_ratio,
+                grid_mode=True,
+                mode="nearest",
+                order=1,
+            ),
+            k=1,
+        )
+        top_arr = np.rot90(
+            zoom(
+                np_stack.max(axis=1),
+                zoom=zoom_ratio,
+                grid_mode=True,
+                mode="nearest",
+                order=1,
+            ),
+            k=1,
+        )
+        right_arr = np.fliplr(left_arr)
+        bottom_arr = np.fliplr(top_arr)
+        streams = [tempfile.NamedTemporaryFile(delete=False).name for _ in range(4)]
+        dpi = 25.4 / dicom_stack.metadata.PixelSpacing[0]
+        for array, stream, gantry in zip(
+            (left_arr, top_arr, right_arr, bottom_arr), streams, (270, 0, 90, 180)
+        ):
+            array_to_dicom(
+                array=np.ascontiguousarray(array),  # pydicom complains due to np.rot90
+                dicom_file=stream,
+                sid=1000,
+                gantry=gantry,
+                coll=0,
+                couch=0,
+                dpi=dpi,
+            )
+        # now we load these as normal images into the WL algorithm
+        instance = cls(streams, **kwargs)
+        instance.is_from_cbct = True
+        return instance
+
     @staticmethod
     def run_demo() -> None:
         """Run the Winston-Lutz demo, which loads the demo files, prints results, and plots a summary image."""
@@ -841,6 +934,9 @@ class WinstonLutz:
             less interest than simply the imaging iso vs the BB.
         """
         self.machine_scale = machine_scale
+        if self.is_from_cbct:
+            low_density_bb = True
+            open_field = True
         for img in self.images:
             img.analyze(bb_size_mm, low_density_bb, open_field)
         self._is_analyzed = True
