@@ -701,7 +701,22 @@ class ProfileBase(ProfileMixin, ABC):
             The factor to zoom the profile by. E.g. 10 means the profile will be 10x larger.
         order : int
             The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
+
+        Warnings
+        --------
+        This method will respect the input datatype of the numpy array. If the input array is a float, the output array will be a float.
+        This can cause issues for int arrays with a small range. E.g. if the range is only 10, interpolation
+        will look more step-like than smooth. If this is the case, convert the array to a float before passing it to this method.
+        The array is not automatically converted to float in this case to respect the original dtype. However,
+        a warning will be produced.
         """
+        arr_range = self.values.max() - self.values.min()
+        if self.values.dtype != float and arr_range < 100:
+            warnings.warn(
+                f"Array range is small ({arr_range}) and is not a float. Interpolation may look step-like. "
+                f"Consider converting the array to a float before passing it to this method.",
+                UserWarning,
+            )
         new_y = zoom(
             self.values,
             zoom=interpolation_factor,
@@ -877,15 +892,6 @@ class InflectionDerivativeProfile(ProfileBase):
     def as_resampled(
         self, interpolation_factor: float = 10, order: int = 3
     ) -> InflectionDerivativeProfile:
-        """Resample the profile at a new resolution. Returns a new profile.
-
-        Parameters
-        ----------
-        interpolation_factor : float
-            The factor to zoom the profile by. E.g. 10 means the profile will be 10x larger.
-        order : int
-            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
-        """
         return super().as_resampled(
             interpolation_factor=interpolation_factor,
             order=order,
@@ -941,15 +947,6 @@ class HillProfile(InflectionDerivativeProfile):
     def as_resampled(
         self, interpolation_factor: float = 10, order: int = 3
     ) -> HillProfile:
-        """Resample the profile at a new resolution. Returns a new profile.
-
-        Parameters
-        ----------
-        interpolation_factor : float
-            The factor to zoom the profile by. E.g. 10 means the profile will be 10x larger.
-        order : int
-            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
-        """
         return ProfileBase.as_resampled(
             self,
             interpolation_factor=interpolation_factor,
@@ -996,7 +993,23 @@ class PhysicalProfileMixin:
         grid : bool
             Whether to use grid mode when zooming. See parameter ``grid_mode`` in :func:`~scipy.ndimage.zoom` for more information.
             This should be true unless you are resampling an already-resampled physical array.
+
+        Warnings
+        --------
+        This method will respect the input datatype of the numpy array. If the input array is a float, the output array will be a float.
+        This can cause issues for int arrays with a small range. E.g. if the range is only 10, interpolation
+        will look more step-like than smooth. If this is the case, convert the array to a float before passing it to this method.
+        The array is not automatically converted to float in this case to respect the original dtype. However,
+        a warning will be produced.
         """
+        arr_range = self.values.max() - self.values.min()
+        if self.values.dtype != float and arr_range < 100:
+            warnings.warn(
+                f"Array range is small ({arr_range}) and is not a float. Interpolation may look step-like. "
+                f"Consider converting the array to a float before passing it to this method.",
+                UserWarning,
+            )
+
         factor = 1 / (self.dpmm * interpolation_resolution_mm)
         #  When dealing with physical arrays where each pixel/voxel is a physical distance, it is important to
         #  use grid mode when zooming. This is because each pixel/voxel has a physical size.
@@ -1011,7 +1024,6 @@ class PhysicalProfileMixin:
         # similarly, we assume that x-values are also physical
         # we thus have to offset the x-values by half a pixel/voxel
         # while accounting for the physical size of the pixel/voxel
-        # resampling_factor = samples / len(values)
         if grid:
             offset = 0.5 - 1 / (2 * factor)
             new_x = np.linspace(
@@ -1055,18 +1067,6 @@ class FWXMProfilePhysical(PhysicalProfileMixin, FWXMProfile):
         order: int = 3,
         grid: bool = True,
     ) -> FWXMProfilePhysical:
-        """Resample the physical profile at a new resolution. Returns a new profile.
-
-        Parameters
-        ----------
-        interpolation_resolution_mm : float
-            The resolution to resample to in mm. E.g. 0.1 means the profile will be 0.1 mm resolution.
-        order : int
-            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
-        grid : bool
-            Whether to use grid mode when zooming. See parameter ``grid_mode`` in :func:`~scipy.ndimage.zoom` for more information.
-            This should be true unless you are resampling an already-resampled physical array.
-        """
         return super().as_resampled(
             interpolation_resolution_mm=interpolation_resolution_mm,
             order=order,
@@ -1102,18 +1102,6 @@ class InflectionDerivativeProfilePhysical(
         order: int = 3,
         grid: bool = True,
     ) -> InflectionDerivativeProfilePhysical:
-        """Resample the physical profile at a new resolution. Returns a new profile.
-
-        Parameters
-        ----------
-        interpolation_resolution_mm : float
-            The resolution to resample to in mm. E.g. 0.1 means the profile will be 0.1 mm resolution.
-        order : int
-            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
-        grid : bool
-            Whether to use grid mode when zooming. See parameter ``grid_mode`` in :func:`~scipy.ndimage.zoom` for more information.
-            This should be true unless you are resampling an already-resampled physical array.
-        """
         return super().as_resampled(
             interpolation_resolution_mm=interpolation_resolution_mm,
             order=order,
@@ -1149,18 +1137,6 @@ class HillProfilePhysical(PhysicalProfileMixin, HillProfile):
         order: int = 3,
         grid: bool = True,
     ) -> HillProfilePhysical:
-        """Resample the physical profile at a new resolution. Returns a new profile.
-
-        Parameters
-        ----------
-        interpolation_resolution_mm : float
-            The resolution to resample to in mm. E.g. 0.1 means the profile will be 0.1 mm resolution.
-        order : int
-            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
-        grid : bool
-            Whether to use grid mode when zooming. See parameter ``grid_mode`` in :func:`~scipy.ndimage.zoom` for more information.
-            This should be true unless you are resampling an already-resampled physical array.
-        """
         return super().as_resampled(
             interpolation_resolution_mm=interpolation_resolution_mm,
             order=order,

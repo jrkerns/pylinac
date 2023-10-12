@@ -85,6 +85,7 @@ class Segment(Rectangle):
     # width of the segment (i.e. parallel to MLC motion) in pixels under reference conditions
     _nominal_width_mm: int
     _nominal_height_mm: int
+    r_dev: float
 
     def __init__(
         self,

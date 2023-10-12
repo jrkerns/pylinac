@@ -8,6 +8,15 @@ contain a single radiation field. Colloquially, these are what
 physicists might call an "inplane profile" or "crossplane profile"
 although the usage here is not restricted to those orientations.
 
+Use Cases
+---------
+
+Typical use cases for profiles are:
+
+* Calculating a metric such as flatness, symmetry, penumbra, etc.
+* Finding the center of the field.
+* Finding the field edges.
+
 Assumptions & Constraints
 -------------------------
 
@@ -21,14 +30,6 @@ Assumptions & Constraints
 * The field can be skewed (e.g. a wedge field).
 * The field can have any resolution or no resolution.
 
-Use Cases
----------
-
-Typical use cases for profiles are:
-
-* Calculating a metric such as flatness, symmetry, penumbra, etc.
-* Finding the center of the field.
-* Finding the field edges.
 
 Basic Usage
 -----------

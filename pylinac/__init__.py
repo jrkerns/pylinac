@@ -41,6 +41,7 @@ from .planar_imaging import (
     ElektaLasVegas,
     IBAPrimusA,
     IMTLRad,
+    IsoAlign,
     LasVegas,
     LeedsTOR,
     LeedsTORBlue,

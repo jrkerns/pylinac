@@ -25,6 +25,7 @@ from pylinac.planar_imaging import (
     SNCMV,
     SNCMV12510,
     IMTLRad,
+    IsoAlign,
     LeedsTORBlue,
     PlanarResult,
     SNCkV,
@@ -78,7 +79,7 @@ class GeneralTests(TestCase):
 
         data_dict = phan.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
-        self.assertEqual(len(data_dict), 8)
+        self.assertEqual(len(data_dict), 9)
         self.assertIn("pylinac_version", data_dict)
 
     def test_results_data_no_mtf(self):
@@ -86,7 +87,7 @@ class GeneralTests(TestCase):
         phan.analyze()
 
         data_dict = phan.results_data(as_dict=True)
-        self.assertEqual(len(data_dict), 8)
+        self.assertEqual(len(data_dict), 9)
 
     def test_set_figure_size(self):
         phan = LeedsTOR.from_demo_image()
@@ -812,6 +813,23 @@ class DoselabRLf10x10(DoselabRLfMixin, TestCase):
     field_epid_offset_y_mm = 0.8
     field_bb_offset_y_mm = 0.9
     field_bb_offset_x_mm = 0.2
+
+
+class IsoAlignMixin(FC2Mixin):
+    klass = IsoAlign
+    dir_path = ["planar_imaging", "Doselab RLf"]
+
+
+class IsoAlignDemo(IsoAlignMixin, TestCase):
+    field_size_y_mm = 149.6
+    field_size_x_mm = 150.2
+    field_epid_offset_y_mm = 0.4
+    field_epid_offset_x_mm = -0.1
+    field_bb_offset_y_mm = 0.0
+    field_bb_offset_x_mm = 0.2
+
+    def test_demo(self):
+        IsoAlign.run_demo()
 
 
 class IMTLRadMixin(FC2Mixin):

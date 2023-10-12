@@ -207,6 +207,26 @@ class TestDemos(TestCase):
         CatPhan604.run_demo()
 
 
+class TestCustomHUValues(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.cbct = CatPhan504.from_demo_images()
+
+    def test_override(self):
+        self.cbct.analyze(expected_hu_values={"Air": -1000, "Poly": 321})
+        self.assertEqual(self.cbct.ctp404.rois["Air"].nominal_val, -1000)
+        self.assertEqual(self.cbct.ctp404.rois["Poly"].nominal_val, 321)
+
+    def test_extra_keys_harmless(self):
+        # shouldn't raise
+        self.cbct.analyze(expected_hu_values={"stuffcicles": 1111})
+
+    def test_nothing_passed(self):
+        # shouldn't raise; normal; backwards-compatible
+        self.cbct.analyze(expected_hu_values=None)
+        self.assertEqual(self.cbct.ctp404.rois["Air"].nominal_val, -1000)
+
+
 class TestPlottingSaving(TestCase):
     @classmethod
     def setUpClass(cls):

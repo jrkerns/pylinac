@@ -65,6 +65,7 @@ class PlanarResult(ResultBase):
     median_cnr: float  #:
     num_contrast_rois_seen: int  #:
     phantom_center_x_y: tuple[float, float]  #:
+    low_contrast_rois: list[dict]  #:
     mtf_lp_mm: tuple[float, float, float] = None  #:
 
 
@@ -667,6 +668,7 @@ class ImagePhantomBase:
                 roi.passed_visibility for roi in self.low_contrast_rois
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
+            low_contrast_rois=[roi.as_dict() for roi in self.low_contrast_rois],
         )
 
         if self.mtf is not None:
@@ -1183,6 +1185,33 @@ class DoselabRLf(StandardImagingFC2):
         dl.plot_analyzed_image()
 
 
+class IsoAlign(StandardImagingFC2):
+    """The PTW Iso-Align light/rad phantom"""
+
+    common_name = "PTW Iso-Align"
+    _demo_filename = "ptw_isoalign.dcm"
+    # these positions are the offset in mm from the center of the image to the nominal position of the BBs
+    bb_positions = {
+        "Center": [0, 0],
+        "Top": [0, -25],
+        "Bottom": [0, 25],
+        "Left": [-25, 0],
+        "Right": [25, 0],
+    }
+    bb_sampling_box_size_mm = 8
+    field_strip_width_mm = 10
+
+    def _determine_bb_set(self, fwxm: int) -> dict:
+        return self.bb_positions
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the phantom analysis demonstration."""
+        al = IsoAlign.from_demo_image()
+        al.analyze()
+        al.plot_analyzed_image()
+
+
 class SNCFSQA(StandardImagingFC2):
     """SNC light/rad phantom. See the 'FSQA' phantom and specs: https://www.sunnuclear.com/products/suncheck-machine.
 
@@ -1371,6 +1400,7 @@ class LasVegas(ImagePhantomBase):
                 roi.passed_visibility for roi in self.low_contrast_rois
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
+            low_contrast_rois=[r.as_dict() for r in self.low_contrast_rois],
         )
         if as_dict:
             return dataclasses.asdict(data)
