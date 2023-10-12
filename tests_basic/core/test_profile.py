@@ -180,53 +180,61 @@ class TestGamma1D(TestCase):
 
 def create_simple_9_profile() -> np.array:
     # length of 9
-    return np.array([0, 1, 2, 3, 4, 3, 2, 1, 0])
+    return np.array([0, 1, 2, 3, 4, 3, 2, 1, 0], dtype=float)
 
 
 def create_simple_8_profile() -> np.array:
     # length of 8
-    return np.array([0, 1, 2, 3, 3, 2, 1, 0])
+    return np.array([0, 1, 2, 3, 3, 2, 1, 0], dtype=float)
 
 
 def create_long_23_profile() -> np.array:
     # length of 23
     return np.array(
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+        dtype=float,
     )
 
 
 def create_long_22_profile() -> np.array:
     # length of 22
     return np.array(
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+        dtype=float,
     )
 
 
 def skewed_19_profile() -> np.array:
     """A profile where the peak is skewed to the right."""
     # length of 19
-    return np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 8, 6, 4, 2, 0])
+    return np.array(
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 8, 6, 4, 2, 0], dtype=float
+    )
 
 
 def symmetrical_sigmoidal_21_profile() -> np.array:
     """A curve with sigmoid shape on either side of the center"""
     # length of 21
     return np.array(
-        [0, 1, 2, 4, 6, 8, 9, 10, 10, 10, 10, 10, 10, 10, 9, 8, 6, 4, 2, 1, 0]
+        [0, 1, 2, 4, 6, 8, 9, 10, 10, 10, 10, 10, 10, 10, 9, 8, 6, 4, 2, 1, 0],
+        dtype=float,
     )
 
 
 def symmetrical_sigmoidal_20_profile() -> np.array:
     """A curve with sigmoid shape on either side of the center"""
     # length of 20
-    return np.array([0, 1, 2, 4, 6, 8, 9, 10, 10, 10, 10, 10, 10, 9, 8, 6, 4, 2, 1, 0])
+    return np.array(
+        [0, 1, 2, 4, 6, 8, 9, 10, 10, 10, 10, 10, 10, 9, 8, 6, 4, 2, 1, 0], dtype=float
+    )
 
 
 def symmetrical_sharp_sigmoidal_21_profile() -> np.array:
     """A curve with sharper sigmoid shape on either side of the center"""
     # length of 21
     return np.array(
-        [0, 1, 1, 2, 5, 8, 9, 10, 10, 10, 10, 10, 10, 10, 9, 8, 5, 2, 1, 1, 0]
+        [0, 1, 1, 2, 5, 8, 9, 10, 10, 10, 10, 10, 10, 10, 9, 8, 5, 2, 1, 1, 0],
+        dtype=float,
     )
 
 
@@ -261,6 +269,24 @@ class TestProfileGeneric(TestCase):
         array = np.roll(array, 3)  # shift array so beam center is not at geom center
         prof = FWXMProfile(array, normalization=Normalization.GEOMETRIC_CENTER)
         self.assertNotEqual(prof.values.max(), array.max())
+
+    def test_resample_with_ints_and_small_range_raises_warning(self):
+        array = create_long_23_profile().astype(np.uint8)
+        prof = FWXMProfile(array)
+        with warnings.catch_warnings(record=True) as w:
+            prof.as_resampled(interpolation_factor=2)
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[-1].category, UserWarning))
+            self.assertIn("small", str(w[-1].message))
+
+    def test_physical_resample_with_ints_and_small_range_raises_warning(self):
+        array = create_long_23_profile().astype(np.uint8)
+        prof = FWXMProfilePhysical(array, 1)
+        with warnings.catch_warnings(record=True) as w:
+            prof.as_resampled(interpolation_resolution_mm=0.1)
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[-1].category, UserWarning))
+            self.assertIn("small", str(w[-1].message))
 
 
 class TestFWXMProfile(TestCase):
@@ -496,11 +522,40 @@ class TestFWXMProfilePhysical(TestCase):
         # will be 10x as large
         self.assertEqual(len(resampled_profile), len(profile) * 10)
         self.assertIsInstance(resampled_profile, FWXMProfilePhysical)
-        # ensure x-values are the same; i.e. that we didn't just multiple x-values
-        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
+        # ensure x-values are properly offset
+        self.assertEqual(
+            resampled_profile.x_values.max(), profile.x_values.max() + 0.45
+        )
         # y values should be similar.
         self.assertAlmostEqual(
             resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
+        self.assertEqual(resampled_profile.dpmm, 10)
+
+    def test_resample_adds_half_pixel(self):
+        """With phyiscal profiles, when interpolating,
+        we have to account for the 'half pixel' offset that must be accounted for.
+        See the grid_mode parameter of scikit-image zoom"""
+        array = create_long_23_profile()
+        profile = FWXMProfilePhysical(array, fwxm_height=50, dpmm=1)
+        resampled_profile = profile.as_resampled(interpolation_resolution_mm=0.1)
+        # Add half pixel to either side to account for physical size
+        self.assertAlmostEqual(resampled_profile.x_values[0], -0.45, delta=0.01)
+        self.assertAlmostEqual(resampled_profile.x_values[-1], 22.45, delta=0.01)
+
+    def test_resample_of_resample(self):
+        """Test that resampling twice **correctly** is the same as a 1-step resample"""
+        array = create_long_23_profile()
+        profile = FWXMProfilePhysical(array, fwxm_height=50, dpmm=1)
+        prof10 = profile.as_resampled(interpolation_resolution_mm=0.1)
+        prof100 = profile.as_resampled(interpolation_resolution_mm=0.01)
+        # we need grid = false because we have already resampled the profile once
+        # doing it again is not appropriate.
+        prof100_2 = prof10.as_resampled(interpolation_resolution_mm=0.01, grid=False)
+        self.assertEqual(len(prof100.values), len(prof100_2.values))
+        self.assertEqual(prof100.center_idx, prof100_2.center_idx)
+        self.assertAlmostEqual(
+            prof100.field_width_px, prof100_2.field_width_px, delta=0.01
         )
 
 
@@ -532,11 +587,40 @@ class TestInflectionProfilePhysical(TestCase):
         # will be 10x as large
         self.assertEqual(len(resampled_profile), len(profile) * 10)
         self.assertIsInstance(resampled_profile, InflectionDerivativeProfilePhysical)
-        # ensure x-values are the same; i.e. that we didn't just multiple x-values
-        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
+        # ensure x-values are the nearly the same; i.e. that we didn't just multiple x-values
+        # they aren't exactly the same due to physical pixel size
+        self.assertEqual(
+            resampled_profile.x_values.max(), profile.x_values.max() + 0.45
+        )
         # y values should be similar.
         self.assertAlmostEqual(
             resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
+
+    def test_resample_adds_half_pixel(self):
+        """With phyiscal profiles, when interpolating,
+        we have to account for the 'half pixel' offset that must be accounted for.
+        See the grid_mode parameter of scipy's zoom function"""
+        array = create_long_23_profile()
+        profile = InflectionDerivativeProfilePhysical(array, dpmm=1)
+        resampled_profile = profile.as_resampled(interpolation_resolution_mm=0.1)
+        # Add half pixel to either side to account for physical size
+        self.assertAlmostEqual(resampled_profile.x_values[0], -0.45, delta=0.01)
+        self.assertAlmostEqual(resampled_profile.x_values[-1], 22.45, delta=0.01)
+
+    def test_resample_of_resample(self):
+        """Test that resampling twice **correctly** is the same as a 1-step resample"""
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        profile = InflectionDerivativeProfilePhysical(array, dpmm=1)
+        prof10 = profile.as_resampled(interpolation_resolution_mm=0.1)
+        prof100 = profile.as_resampled(interpolation_resolution_mm=0.01)
+        # we need grid = false because we have already resampled the profile once
+        # doing it again is not appropriate.
+        prof100_2 = prof10.as_resampled(interpolation_resolution_mm=0.01, grid=False)
+        self.assertEqual(len(prof100.values), len(prof100_2.values))
+        self.assertAlmostEqual(prof100.center_idx, prof100_2.center_idx, delta=0.001)
+        self.assertAlmostEqual(
+            prof100.field_width_px, prof100_2.field_width_px, delta=0.001
         )
 
 
@@ -568,11 +652,39 @@ class TestHillProfilePhysical(TestCase):
         # will be 10x as large
         self.assertEqual(len(resampled_profile), len(profile) * 10)
         self.assertIsInstance(resampled_profile, HillProfilePhysical)
-        # ensure x-values are the same; i.e. that we didn't just multiple x-values
-        self.assertEqual(resampled_profile.x_values.max(), profile.x_values.max())
+        # ensure x-values are the same plus offset; i.e. that we didn't just multiple x-values
+        self.assertEqual(
+            resampled_profile.x_values.max(), profile.x_values.max() + 0.45
+        )
         # y values should be similar.
         self.assertAlmostEqual(
             resampled_profile.values.max(), profile.values.max(), delta=0.1
+        )
+
+    def test_resample_adds_half_pixel(self):
+        """With phyiscal profiles, when interpolating,
+        we have to account for the 'half pixel' offset that must be accounted for.
+        See the grid_mode parameter of scikit-image zoom"""
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        profile = HillProfilePhysical(array, dpmm=1)
+        resampled_profile = profile.as_resampled(interpolation_resolution_mm=0.1)
+        # Add half pixel to either side to account for physical size
+        self.assertAlmostEqual(resampled_profile.x_values[0], -0.45, delta=0.01)
+        self.assertAlmostEqual(resampled_profile.x_values[-1], 20.45, delta=0.01)
+
+    def test_resample_of_resample(self):
+        """Test that resampling twice **correctly** is the same as a 1-step resample"""
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        profile = InflectionDerivativeProfilePhysical(array, dpmm=1)
+        prof10 = profile.as_resampled(interpolation_resolution_mm=0.1)
+        prof100 = profile.as_resampled(interpolation_resolution_mm=0.01)
+        # we need grid = false because we have already resampled the profile once
+        # doing it again is not appropriate.
+        prof100_2 = prof10.as_resampled(interpolation_resolution_mm=0.01, grid=False)
+        self.assertEqual(len(prof100.values), len(prof100_2.values))
+        self.assertAlmostEqual(prof100.center_idx, prof100_2.center_idx, delta=0.001)
+        self.assertAlmostEqual(
+            prof100.field_width_px, prof100_2.field_width_px, delta=0.001
         )
 
 

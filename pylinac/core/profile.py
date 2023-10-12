@@ -6,11 +6,12 @@ import math
 import warnings
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axis import Axis
 from matplotlib.patches import Circle as mpl_Circle
 from scipy import ndimage, signal
 from scipy.interpolate import UnivariateSpline, interp1d
@@ -269,12 +270,14 @@ class ProfileBase(ProfileMixin, ABC):
         x_values: np.array | None = None,
         ground: bool = False,
         normalization: str | Normalization = Normalization.NONE,
+        interpolation_order: int = 1,
     ):
         """A 1D profile that has one large signal, e.g. a radiation beam profile.
         Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
         Profiles with multiple peaks are better suited by the MultiProfile class.
         """
         validators.single_dimension(values)
+        self._interp_order = interpolation_order
         self.values = values
         if x_values is None:
             x_values = np.arange(len(values))
@@ -287,10 +290,23 @@ class ProfileBase(ProfileMixin, ABC):
             center_val = utils.geometric_center_value(self.values)
             self.normalize(center_val)
         elif normalization == Normalization.BEAM_CENTER:
-            # linear interpolation
-            f = UnivariateSpline(x=self.x_values, y=self.values, k=1, s=0)
-            beam_center_val = f(self.center_idx)
+            beam_center_val = self._interp_y_at_x(self.center_idx)
             self.normalize(beam_center_val)
+
+    def _interp_x_at_x(self, index: float) -> float:
+        # UnivariateSpline is the newer approach than interp1d
+        # interp1d is legacy and may be removed in the future
+        # we create an interpolation for x-values so we can
+        # get the original x-value when the index is a float (very often the case)
+        f = UnivariateSpline(
+            x=np.arange(len(self.x_values)), y=self.x_values, k=self._interp_order, s=0
+        )
+        return float(f(index))
+
+    def _interp_y_at_x(self, index: float) -> float:
+        """Interpolated y-values. Can use floats as indices."""
+        f = UnivariateSpline(x=self.x_values, y=self.values, k=self._interp_order, s=0)
+        return float(f(index))
 
     @abstractmethod
     def field_edge_idx(self, side: str) -> float:
@@ -327,12 +343,35 @@ class ProfileBase(ProfileMixin, ABC):
     def as_resampled(
         self, interpolation_factor: float = 10, order: int = 3, **kwargs
     ) -> Any:
-        """Resample the profile at a new resolution. Returns a new profile"""
+        """Resample the profile at a new resolution. Returns a new profile.
+
+        Parameters
+        ----------
+        interpolation_factor : float
+            The factor to zoom the profile by. E.g. 10 means the profile will be 10x larger.
+        order : int
+            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
+
+        Warnings
+        --------
+        This method will respect the input datatype of the numpy array. If the input array is a float, the output array will be a float.
+        This can cause issues for int arrays with a small range. E.g. if the range is only 10, interpolation
+        will look more step-like than smooth. If this is the case, convert the array to a float before passing it to this method.
+        The array is not automatically converted to float in this case to respect the original dtype. However,
+        a warning will be produced.
+        """
+        arr_range = self.values.max() - self.values.min()
+        if self.values.dtype != float and arr_range < 100:
+            warnings.warn(
+                f"Array range is small ({arr_range}) and is not a float. Interpolation may look step-like. "
+                f"Consider converting the array to a float before passing it to this method.",
+                UserWarning,
+            )
         new_y = zoom(
             self.values,
             zoom=interpolation_factor,
             order=order,
-            grid_mode=True,
+            grid_mode=False,
             mode="nearest",
         )
         new_x = np.linspace(self.x_values.min(), self.x_values.max(), len(new_y))
@@ -345,17 +384,17 @@ class ProfileBase(ProfileMixin, ABC):
             **kwargs,
         )
 
-    def plot(self, show: bool = True) -> None:
+    def plot(self, show: bool = True, axis: Axis | None = None) -> Axis:
         """Plot the profile along with relevant overlays to point out features."""
-        _, ax = plt.subplots()
-        ax.plot(self.x_values, self.values, color="b", label="Data")
-        ax.axvline(
-            self.field_edge_idx(side=LEFT), color="r", ls="--", label="Field Edges"
-        )
-        ax.axvline(self.field_edge_idx(side=RIGHT), color="r", ls="--")
-        ax.legend()
+        if axis is None:
+            _, axis = plt.subplots()
+        axis.plot(self.x_values, self.values, label="Data")
+        axis.axvline(self.field_edge_idx(side=LEFT), ls="--", label="Field Edges")
+        axis.axvline(self.field_edge_idx(side=RIGHT), color="r", ls="--")
+        axis.legend()
         if show:
             plt.show()
+        return axis
 
 
 class FWXMProfile(ProfileBase):
@@ -382,7 +421,7 @@ class FWXMProfile(ProfileBase):
             normalization=normalization,
         )
 
-    def field_edge_idx(self, side: str) -> float:
+    def field_edge_idx(self, side: Literal["right", "left"]) -> float:
         """The edge index of the given side using the FWXM methodology"""
         _, peak_props = find_peaks(
             self.values, fwxm_height=self.fwxm_height / 100, max_number=1
@@ -391,16 +430,24 @@ class FWXMProfile(ProfileBase):
             idx = peak_props["left_ips"][0]
         elif side == RIGHT:
             idx = peak_props["right_ips"][0]
-        return idx
+        return self._interp_x_at_x(idx)
 
     def as_resampled(
-        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+        self, interpolation_factor: float = 10, order: int = 3
     ) -> FWXMProfile:
+        """Resample the profile at a new resolution. Returns a new profile.
+
+        Parameters
+        ----------
+        interpolation_factor : float
+            The factor to zoom the profile by. E.g. 10 means the profile will be 10x larger.
+        order : int
+            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
+        """
         return super().as_resampled(
             interpolation_factor=interpolation_factor,
             order=order,
             fwxm_height=self.fwxm_height,
-            **kwargs,
         )
 
 
@@ -413,7 +460,7 @@ class InflectionDerivativeProfile(ProfileBase):
         values: np.array,
         x_values: np.array | None = None,
         ground: bool = False,
-        normalization: str = Normalization.NONE,
+        normalization: str | Normalization = Normalization.NONE,
         edge_smoothing_ratio: float = 0.003,
     ):
         """A 1D profile that has one large signal, e.g. a radiation beam profile.
@@ -434,21 +481,23 @@ class InflectionDerivativeProfile(ProfileBase):
             self.values, sigma=self.edge_smoothing_ratio * len(self.values)
         )
         diff = np.gradient(filtered_values)
-        f_min = interp1d(x=self.x_values, y=diff, kind="cubic")
+        f_diff = interp1d(x=self.x_values, y=diff, kind="cubic")
 
         if side == LEFT:
-            return minimize(lambda x: -f_min(x), x0=np.argmax(diff)).x[0]
+            initial_guess = self._interp_x_at_x(np.argmax(diff))
+            idx = minimize(lambda x: -f_diff(x), x0=initial_guess).x[0]
         else:
-            return minimize(f_min, x0=np.argmin(diff)).x[0]
+            initial_guess = self._interp_x_at_x(np.argmin(diff))
+            idx = minimize(f_diff, x0=initial_guess).x[0]
+        return idx
 
     def as_resampled(
-        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+        self, interpolation_factor: float = 10, order: int = 3
     ) -> InflectionDerivativeProfile:
         return super().as_resampled(
             interpolation_factor=interpolation_factor,
             order=order,
             edge_smoothing_ratio=self.edge_smoothing_ratio,
-            **kwargs,
         )
 
 
@@ -494,19 +543,18 @@ class HillProfile(InflectionDerivativeProfile):
             x_data = self.x_values[left : right + 1]
             y_data = self.values[left : right + 1]
         hill_fit = Hill.fit(x_data=x_data, y_data=y_data)
-        return hill_fit.inflection_idx()["index (exact)"]
+        idx = hill_fit.inflection_idx()["index (exact)"]
+        return self._interp_x_at_x(idx)
 
     def as_resampled(
-        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+        self, interpolation_factor: float = 10, order: int = 3
     ) -> HillProfile:
-        """Resample the profile at a new zoom factor. Returns a new profile."""
         return ProfileBase.as_resampled(
             self,
             interpolation_factor=interpolation_factor,
             order=order,
             edge_smoothing_ratio=self.edge_smoothing_ratio,
             hill_window_ratio=self.hill_window_ratio,
-            **kwargs,
         )
 
 
@@ -529,6 +577,70 @@ class PhysicalProfileMixin:
     def field_width_mm(self) -> float:
         """The field width of the profile in mm"""
         return self.field_width_px / self.dpmm
+
+    def as_resampled(
+        self,
+        interpolation_resolution_mm: float = 0.1,
+        order: int = 3,
+        grid: bool = True,
+    ) -> Any:
+        """Resample the physical profile at a new resolution. Returns a new profile.
+
+        Parameters
+        ----------
+        interpolation_resolution_mm : float
+            The resolution to resample to in mm. E.g. 0.1 means the profile will be 0.1 mm resolution.
+        order : int
+            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
+        grid : bool
+            Whether to use grid mode when zooming. See parameter ``grid_mode`` in :func:`~scipy.ndimage.zoom` for more information.
+            This should be true unless you are resampling an already-resampled physical array.
+
+        Warnings
+        --------
+        This method will respect the input datatype of the numpy array. If the input array is a float, the output array will be a float.
+        This can cause issues for int arrays with a small range. E.g. if the range is only 10, interpolation
+        will look more step-like than smooth. If this is the case, convert the array to a float before passing it to this method.
+        The array is not automatically converted to float in this case to respect the original dtype. However,
+        a warning will be produced.
+        """
+        arr_range = self.values.max() - self.values.min()
+        if self.values.dtype != float and arr_range < 100:
+            warnings.warn(
+                f"Array range is small ({arr_range}) and is not a float. Interpolation may look step-like. "
+                f"Consider converting the array to a float before passing it to this method.",
+                UserWarning,
+            )
+
+        factor = 1 / (self.dpmm * interpolation_resolution_mm)
+        #  When dealing with physical arrays where each pixel/voxel is a physical distance, it is important to
+        #  use grid mode when zooming. This is because each pixel/voxel has a physical size.
+        #  See parameter ``grid_mode`` in :func:`~scipy.ndimage.zoom` for more information.
+        new_y = zoom(
+            self.values,
+            zoom=factor,
+            order=order,
+            grid_mode=grid,
+            mode="nearest",
+        )
+        # similarly, we assume that x-values are also physical
+        # we thus have to offset the x-values by half a pixel/voxel
+        # while accounting for the physical size of the pixel/voxel
+        if grid:
+            offset = 0.5 - 1 / (2 * factor)
+            new_x = np.linspace(
+                self.x_values.min() - offset, self.x_values.max() + offset, len(new_y)
+            )
+        else:
+            new_x = np.linspace(self.x_values.min(), self.x_values.max(), len(new_y))
+
+        return type(self)(
+            values=new_y,
+            x_values=new_x,
+            ground=False,
+            normalization=Normalization.NONE,
+            dpmm=factor * self.dpmm,
+        )
 
 
 class FWXMProfilePhysical(PhysicalProfileMixin, FWXMProfile):
@@ -555,18 +667,17 @@ class FWXMProfilePhysical(PhysicalProfileMixin, FWXMProfile):
         self,
         interpolation_resolution_mm: float = 0.1,
         order: int = 3,
+        grid: bool = True,
     ) -> FWXMProfilePhysical:
-        """Resample the physical profile at a new resolution. Returns a new profile"""
-        factor = 1 / (self.dpmm * interpolation_resolution_mm)
         return super().as_resampled(
-            interpolation_factor=factor,
+            interpolation_resolution_mm=interpolation_resolution_mm,
             order=order,
-            dpmm=self.dpmm,
+            grid=grid,
         )
 
 
 class InflectionDerivativeProfilePhysical(
-    InflectionDerivativeProfile, PhysicalProfileMixin
+    PhysicalProfileMixin, InflectionDerivativeProfile
 ):
     def __init__(
         self,
@@ -588,18 +699,19 @@ class InflectionDerivativeProfilePhysical(
         PhysicalProfileMixin.__init__(self, dpmm=dpmm)
 
     def as_resampled(
-        self, interpolation_resolution_mm: int = 0.1, order: int = 3
+        self,
+        interpolation_resolution_mm: float = 0.1,
+        order: int = 3,
+        grid: bool = True,
     ) -> InflectionDerivativeProfilePhysical:
-        """Resample the physical profile at a new resolution. Returns a new profile"""
-        factor = 1 / (self.dpmm * interpolation_resolution_mm)
         return super().as_resampled(
-            interpolation_factor=factor,
+            interpolation_resolution_mm=interpolation_resolution_mm,
             order=order,
-            dpmm=self.dpmm,
+            grid=grid,
         )
 
 
-class HillProfilePhysical(HillProfile, PhysicalProfileMixin):
+class HillProfilePhysical(PhysicalProfileMixin, HillProfile):
     def __init__(
         self,
         values: np.array,
@@ -622,12 +734,15 @@ class HillProfilePhysical(HillProfile, PhysicalProfileMixin):
         PhysicalProfileMixin.__init__(self, dpmm=dpmm)
 
     def as_resampled(
-        self, interpolation_resolution_mm: int = 0.1, order: int = 3
+        self,
+        interpolation_resolution_mm: float = 0.1,
+        order: int = 3,
+        grid: bool = True,
     ) -> HillProfilePhysical:
-        """Resample the physical profile at a new resolution. Returns a new profile"""
-        factor = 1 / (self.dpmm * interpolation_resolution_mm)
         return super().as_resampled(
-            interpolation_factor=factor, order=order, dpmm=self.dpmm
+            interpolation_resolution_mm=interpolation_resolution_mm,
+            order=order,
+            grid=grid,
         )
 
 
