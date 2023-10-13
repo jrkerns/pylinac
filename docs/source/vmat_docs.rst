@@ -195,7 +195,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The tests must be delivered using the DICOM RT plan files provided by Varian which follow the test layout of Ling et al.
 * The images must be acquired with the EPID.
@@ -241,10 +241,7 @@ if the algorithm doesn't work on a given image and when commissioning pylinac.
 Perfect Fields
 ^^^^^^^^^^^^^^
 
-In this example, we generate a perfectly flat set of images.
-
-The script will generate the files, but you can also download them here:
-:download:`perfect_open_drmlc.dcm <files/perfect_open_drmlc.dcm>` :download:`perfect_dmlc_drmlc.dcm <files/perfect_dmlc_drmlc.dcm>`.
+In this example, we generate a perfectly flat set of images and analyze them.
 
 .. plot::
 

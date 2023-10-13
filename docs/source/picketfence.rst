@@ -718,7 +718,7 @@ of the FWHM to determine the MLC positions:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The image must be a DICOM image acquired via the EPID.
 * The delivery must be parallel or nearly-parallel (<~5°) to an image edge; i.e. the collimator should be at 0, 90, or 270 degrees.

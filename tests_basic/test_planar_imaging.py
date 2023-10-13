@@ -79,7 +79,7 @@ class GeneralTests(TestCase):
 
         data_dict = phan.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
-        self.assertEqual(len(data_dict), 8)
+        self.assertEqual(len(data_dict), 9)
         self.assertIn("pylinac_version", data_dict)
 
     def test_results_data_no_mtf(self):
@@ -87,7 +87,7 @@ class GeneralTests(TestCase):
         phan.analyze()
 
         data_dict = phan.results_data(as_dict=True)
-        self.assertEqual(len(data_dict), 8)
+        self.assertEqual(len(data_dict), 9)
 
     def test_set_figure_size(self):
         phan = LeedsTOR.from_demo_image()

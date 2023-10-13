@@ -25,6 +25,7 @@ from PIL.PngImagePlugin import PngInfo
 from PIL.TiffTags import TAGS
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.errors import InvalidDicomError
+from pydicom.uid import UID, generate_uid
 from scipy import ndimage
 from skimage.draw import disk
 from skimage.transform import rotate
@@ -1562,6 +1563,7 @@ class DicomImageStack:
         dtype: np.dtype | None = None,
         min_number: int = 39,
         check_uid: bool = True,
+        raw_pixels: bool = False,
     ):
         """Load a folder with DICOM CT images.
 
@@ -1583,7 +1585,7 @@ class DicomImageStack:
                     paths.append(osp.join(pdir, file))
         for path in paths:
             if self.is_image_slice(path):
-                img = DicomImage(path, dtype=dtype)
+                img = DicomImage(path, dtype=dtype, raw_pixels=raw_pixels)
                 self.images.append(img)
 
         # check that at least 1 image was loaded
@@ -1645,6 +1647,16 @@ class DicomImageStack:
         """
         self.images[slice].plot()
 
+    def plot_3view(self):
+        """Plot the stack in 3 views: axial, coronal, and sagittal."""
+        fig, axes = plt.subplots(1, 3)
+        names = ("Coronal", "Sagittal", "Axial")
+        for idx, (ax, name) in enumerate(zip(axes, names)):
+            arry = np.stack(self.images, axis=-1).max(axis=idx)
+            ax.imshow(arry, cmap="gray", aspect="equal")
+            ax.set_title(name)
+        plt.show()
+
     def roll(self, direction: str, amount: int):
         for img in self.images:
             img.roll(direction, amount)
@@ -1663,6 +1675,82 @@ class DicomImageStack:
 
     def __len__(self):
         return len(self.images)
+
+
+def array_to_dicom(
+    array: np.ndarray,
+    dicom_file: str | Path | BytesIO,
+    sid: float,
+    gantry: float,
+    coll: float,
+    couch: float,
+    dpi: float | None = None,
+    **kwargs,
+) -> None:
+    """Converts a TIFF file into a **simplistic** DICOM file. Not meant to be a full-fledged tool. Used for conversion so that tools that are traditionally oriented
+    towards DICOM have a path to accept TIFF. Currently used to convert files for WL.
+
+    .. note::
+
+        This will convert the image into an uint16 datatype to match the native EPID datatype.
+
+    Parameters
+    ----------
+    array
+        The numpy array to be converted. Must be 2 dimensions.
+    dicom_file
+        The output location of the DICOM file that will be generated.
+    sid
+        The Source-to-Image distance in mm.
+    dpi
+        The dots-per-inch value of the TIFF image.
+    gantry
+        The gantry value that the image was taken at.
+    coll
+        The collimator value that the image was taken at.
+    couch
+        The couch value that the image was taken at.
+    """
+    arr_img = ArrayImage(array, dpi=dpi, sid=sid)
+    if not arr_img.dpmm:
+        raise ValueError(
+            "Automatic detection of `dpi` failed. A `dpi` value must be passed to the constructor."
+        )
+    uint_array = convert_to_dtype(arr_img.array, np.uint16)
+    mm_pixel = 25.4 / arr_img.dpi
+    file_meta = FileMetaDataset()
+    # Main data elements
+    ds = Dataset()
+    ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+    ds.SOPInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.Modality = "RTIMAGE"
+    ds.ConversionType = "WSD"
+    ds.PatientName = "Lutz^Test Tool"
+    ds.PatientID = "Someone Important"
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.Rows = arr_img.shape[0]
+    ds.Columns = arr_img.shape[1]
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.ImagePlanePixelSpacing = [mm_pixel, mm_pixel]
+    ds.RadiationMachineSAD = "1000.0"
+    ds.RTImageSID = sid
+    ds.PrimaryDosimeterUnit = "MU"
+    ds.GantryAngle = str(gantry)
+    ds.BeamLimitingDeviceAngle = str(coll)
+    ds.PatientSupportAngle = str(couch)
+    ds.PixelData = uint_array
+
+    ds.file_meta = file_meta
+    ds.is_implicit_VR = True
+    ds.is_little_endian = True
+    for key, value in kwargs.items():
+        setattr(ds, key, value)
+    ds.save_as(dicom_file, write_like_original=False)
 
 
 def tiff_to_dicom(
@@ -1708,8 +1796,9 @@ def tiff_to_dicom(
     file_meta = FileMetaDataset()
     # Main data elements
     ds = Dataset()
-    ds.SOPClassUID = "1234"
-    ds.SOPInstanceUID = "5678"
+    ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+    ds.SOPInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
     ds.Modality = "RTIMAGE"
     ds.ConversionType = "WSD"
     ds.PatientName = "Lutz^Test Tool"

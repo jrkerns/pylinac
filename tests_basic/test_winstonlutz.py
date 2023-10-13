@@ -3,15 +3,21 @@ from __future__ import annotations
 import copy
 import io
 import math
+import shutil
 import tempfile
+from pathlib import Path
 from typing import Iterable
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
+import numpy as np
+from pydicom.multival import MultiValue
+from pydicom.uid import generate_uid
 
 import pylinac
 from pylinac import WinstonLutz, WinstonLutzMultiTargetMultiField
 from pylinac.core.geometry import Vector, vector_is_close
+from pylinac.core.image import array_to_dicom
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.core.scale import MachineScale
 from pylinac.winston_lutz import (
@@ -1309,3 +1315,174 @@ class VarianBBkV(WinstonLutzMixin, TestCase):
     cax2bb_mean_distance = 0.18
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.24, y=0.2, z=-0.15)
+
+
+def _create_sigmoidal_array(array: np.ndarray, steepness: float = 1.0):
+    # Apply the sigmoid function with a given steepness
+    return 1 / (1 + np.exp(-steepness * array))
+
+
+def create_sphere(
+    radius: float,
+    shape: tuple[int, int, int],
+    offset: tuple[float, float, float] = (0, 0, 0),
+) -> np.ndarray:
+    """Create a 3D numpy array with a BB inside. Thanks ChatGPT."""
+    # axis 0: positive -> left, offset, 1: positive -> up, 2: positive -> in
+    # Calculate the center of the array
+    center = np.array(shape) / 2 - 0.5 + np.array(offset)
+    # Create a grid of indices
+    indices = np.indices(shape)
+    # Calculate the distance of each point from the center
+    distances = np.sqrt(
+        np.sum((indices - center[:, np.newaxis, np.newaxis, np.newaxis]) ** 2, axis=0)
+    )
+    # Set values inside the sphere to the distance from the center
+    arr = radius - distances
+    arr[arr <= 0] = 0  # Clamp negative intensity values to 0
+    # Apply a sigmoidal function to the array to make the edges sharper and
+    # the BB more "flat" in the center
+    arr = _create_sigmoidal_array(arr)
+    arr *= 1000  # Scale intensity to a reasonable range
+    arr -= arr.min()  # set background to 0
+    return arr
+
+
+def create_dicom_files_from_3d_array(array: np.ndarray) -> Path:
+    # we iterate over the array in the last dimension and
+    # create a dicom image from it.
+    series_uid = generate_uid()
+    slice_thickness = 1
+    pixel_spacing = MultiValue(iterable=(1, 1), type_constructor=float)
+    tmp_path = Path(__file__).parent / "temp"
+    shutil.rmtree(str(tmp_path), ignore_errors=True)
+    tmp_path.mkdir(exist_ok=True, parents=True)
+    for i in range(array.shape[-1]):
+        arr = array[..., i].astype(np.uint16)
+        image_patient_position = MultiValue(iterable=(0, 0, i), type_constructor=float)
+        array_to_dicom(
+            arr,
+            dicom_file=tmp_path / f"{i}.dcm",
+            sid=1000,
+            gantry=0,
+            coll=0,
+            couch=0,
+            dpi=25.4,
+            SeriesInstanceUID=series_uid,
+            ImagePositionPatient=image_patient_position,
+            SliceThickness=slice_thickness,
+            PixelSpacing=pixel_spacing,
+        )
+    return tmp_path
+
+
+def create_wl_dicom_stack(
+    bb_radius: float = 5,
+    dicom_shape: tuple[int, int, int] = (100, 100, 100),
+    bb_offset: tuple[float, float, float] = (0, 0, 0),
+) -> Path:
+    sphere_array = create_sphere(bb_radius, dicom_shape, offset=bb_offset)
+    return create_dicom_files_from_3d_array(sphere_array)
+
+
+class GeneratedWLCBCT:
+    bb_size = 5
+    bb_offset = {"left": 0, "up": 0, "in": 0}
+    array_shape = (100, 100, 100)
+    zip = False
+    raw_pixels = True
+
+    @classmethod
+    def get_filename(cls) -> Path:
+        # generate the fake cbct
+        return create_wl_dicom_stack(
+            bb_radius=cls.bb_size,
+            dicom_shape=cls.array_shape,
+            bb_offset=(cls.bb_offset["left"], cls.bb_offset["up"], cls.bb_offset["in"]),
+        )
+
+
+class CBCTWinstonLutzMixin(WinstonLutzMixin):
+    low_density_bb = True
+    open_field = True
+    num_images = 4
+    collimator_iso_size = 0
+    couch_iso_size = 0
+    gantry_iso_size = 0
+    raw_pixels = False
+
+    @classmethod
+    def setUpClass(cls):
+        filename = cls.get_filename()
+        if cls.zip:
+            cls.wl = WinstonLutz.from_cbct_zip(
+                filename,
+                use_filenames=cls.use_filenames,
+                sid=cls.sid,
+                dpi=cls.dpi,
+                axis_mapping=cls.axis_mapping,
+                raw_pixels=cls.raw_pixels,
+            )
+        else:
+            cls.wl = WinstonLutz.from_cbct(
+                filename,
+                use_filenames=cls.use_filenames,
+                sid=cls.sid,
+                dpi=cls.dpi,
+                axis_mapping=cls.axis_mapping,
+                raw_pixels=cls.raw_pixels,
+            )
+        cls.wl.analyze(
+            bb_size_mm=cls.bb_size,
+            machine_scale=cls.machine_scale,
+            low_density_bb=cls.low_density_bb,
+            open_field=cls.open_field,
+        )
+        if cls.print_results:
+            print(cls.wl.results())
+            print(cls.wl.bb_shift_vector)
+
+
+class TestFrenchCBCT(CBCTWinstonLutzMixin, TestCase):
+    file_name = ["cbct_wl_real.zip"]
+    cax2bb_max_distance = 0.23
+    cax2bb_median_distance = 0.22
+    cax2bb_mean_distance = 0.22
+    machine_scale = MachineScale.VARIAN_IEC
+    bb_shift_vector = Vector(x=0.2, y=0, z=-0.2)
+
+
+class TestPerfectCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
+    bb_size = 5
+    bb_offset = {"left": 0, "up": 0, "in": 0}
+    cax2bb_max_distance = 0
+    cax2bb_median_distance = 0
+    cax2bb_mean_distance = 0
+    bb_shift_vector = Vector(x=0, y=0, z=0)
+
+
+class TestOffsetLeftCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
+    bb_size = 5
+    bb_offset = {"left": 5, "up": 0, "in": 0}
+    cax2bb_max_distance = 5
+    cax2bb_median_distance = 2.5
+    cax2bb_mean_distance = 2.5
+    bb_shift_vector = Vector(x=-5, y=0, z=0)
+
+
+class TestOffsetDownCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
+    bb_size = 5
+    bb_offset = {"left": 0, "up": -5, "in": 0}
+    cax2bb_max_distance = 5
+    cax2bb_median_distance = 2.5
+    cax2bb_mean_distance = 2.5
+    bb_shift_vector = Vector(x=0, y=0, z=5)
+
+
+class TestOffsetInCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
+    bb_size = 5
+    bb_offset = {"left": 0, "up": 0, "in": 5}
+    cax2bb_max_distance = 5
+    cax2bb_median_distance = 5
+    cax2bb_mean_distance = 5
+    bb_shift_vector = Vector(x=0, y=-5, z=0)

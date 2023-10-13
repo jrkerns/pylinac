@@ -14,7 +14,7 @@ from scipy.interpolate import interp1d
 
 from .core import pdf
 from .core.geometry import Line, Point
-from .core.profile import Interpolation, SingleProfile
+from .core.profile import FWXMProfilePhysical
 from .core.utilities import ResultBase
 from .ct import (
     AIR,
@@ -253,34 +253,30 @@ class QuartGeometryModule(CatPhanModule):
         img = img - img.min()  # ground the profile
         # calculate horizontal
         self.horiz_array = img[int(self.phan_center.y), :]
-        prof = SingleProfile(
-            self.horiz_array,
-            interpolation=Interpolation.NONE,
+        prof = FWXMProfilePhysical(
+            values=self.horiz_array,
             dpmm=1 / self.mm_per_pixel,
         )
-        fwhm = prof.fwxm_data()
         line = Line(
-            Point(fwhm["left index (rounded)"], self.phan_center.y),
-            Point(fwhm["right index (rounded)"], self.phan_center.y),
+            Point(round(prof.field_edge_idx("left")), self.phan_center.y),
+            Point(round(prof.field_edge_idx("right")), self.phan_center.y),
         )
         self.profiles["horizontal"] = {
-            "width (mm)": fwhm["width (exact) mm"],
+            "width (mm)": prof.field_width_mm,
             "line": line,
         }
         # calculate vertical
         self.vert_array = img[:, int(self.phan_center.x)]
-        prof = SingleProfile(
-            self.vert_array,
-            interpolation=Interpolation.NONE,
+        prof = FWXMProfilePhysical(
+            values=self.vert_array,
             dpmm=1 / self.mm_per_pixel,
         )
-        fwhm = prof.fwxm_data()
         line = Line(
-            Point(self.phan_center.x, fwhm["left index (rounded)"]),
-            Point(self.phan_center.x, fwhm["right index (rounded)"]),
+            Point(self.phan_center.x, round(prof.field_edge_idx("left"))),
+            Point(self.phan_center.x, round(prof.field_edge_idx("right"))),
         )
         self.profiles["vertical"] = {
-            "width (mm)": fwhm["width (exact) mm"],
+            "width (mm)": prof.field_width_mm,
             "line": line,
         }
 

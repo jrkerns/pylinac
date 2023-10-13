@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 from skimage import draw, filters
 
+from ..array_utils import geometric_center_idx
+
 
 def clip_add(
     image1: np.ndarray, image2: np.ndarray, dtype: type[np.dtype] = np.uint16
@@ -136,12 +138,14 @@ class FilterFreeConeLayer(PerfectConeLayer):
     ) -> np.ndarray:
         image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
+        center_x = geometric_center_idx(image[:, 0])
+        center_y = geometric_center_idx(image[0, :])
         n = gaussian2d(
             rr,
             cc,
             self.filter_magnitude * np.iinfo(image.dtype).max,
-            image.shape[0] / 2,
-            image.shape[1] / 2,
+            center_x,
+            center_y,
             self.filter_sigma_mm / pixel_size,
             self.filter_sigma_mm / pixel_size,
             constant=-self.filter_magnitude * np.iinfo(image.dtype).max,
@@ -246,12 +250,14 @@ class FilteredFieldLayer(PerfectFieldLayer):
         # add filter effect
         height = -self.gaussian_height * np.iinfo(image.dtype).max
         width = self.gaussian_sigma_mm / pixel_size
+        center_x = geometric_center_idx(image[:, 0])
+        center_y = geometric_center_idx(image[0, :])
         horns = gaussian2d(
             rr,
             cc,
             height=height,
-            center_x=image.shape[0] / 2,
-            center_y=image.shape[1] / 2,
+            center_x=center_x,
+            center_y=center_y,
             width_x=width,
             width_y=width,
         )
@@ -292,12 +298,14 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
     def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
+        center_x = geometric_center_idx(image[:, 0])
+        center_y = geometric_center_idx(image[0, :])
         n = gaussian2d(
             rr,
             cc,
             self.gaussian_height * np.iinfo(image.dtype).max,
-            image.shape[0] / 2,
-            image.shape[1] / 2,
+            center_x,
+            center_y,
             self.gaussian_sigma_mm / pixel_size,
             self.gaussian_sigma_mm / pixel_size,
             constant=-self.gaussian_height * np.iinfo(image.dtype).max,

@@ -6,12 +6,13 @@ import math
 import warnings
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Any, Sequence
+from typing import Any, Iterable, Literal, Sequence
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
+from matplotlib.patches import Rectangle
 from scipy import ndimage, signal
 from scipy.interpolate import UnivariateSpline, interp1d
 from scipy.ndimage import gaussian_filter1d, zoom
@@ -148,6 +149,326 @@ def stretch(
     return stretched_array
 
 
+class ProfileMetric(ABC):
+    """Abstract base class for profile metrics. A profile metric is a value that can be calculated from a profile
+    and potentially has plot features associated with it.
+    Examples include penumbra, flatness, and symmetry"""
+
+    name: str
+    unit: str = ""
+    profile: ProfileBase | PhysicalProfileMixin
+
+    def __init__(self, color: str | None = None, linestyle: str | None = None):
+        self.color = color
+        self.linestyle = linestyle
+
+    def inject_profile(self, profile: ProfileBase) -> None:
+        """Inject the profile into the metric class.
+        We can't do this at instantiation because we don't have
+        the profile yet. We also don't want to force the user
+        to have to save it manually as they might forget.
+        Finally, we want to have it around for any method we might use."""
+        self.profile = profile
+
+    def plot(self, axis: plt.Axes):
+        """Plot the metric on the given axis."""
+        pass
+
+    @abstractmethod
+    def calculate(self) -> Any:
+        """Calculate the metric on the given profile."""
+        pass
+
+
+class FlatnessDifferenceMetric(ProfileMetric):
+    """Flatness as defined by IAEA Rad Onc Handbook pg 196: https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1196_web.pdf"""
+
+    name = "Flatness (Difference)"
+    unit = "%"
+
+    def __init__(self, in_field_ratio: float = 0.8, color="g", linestyle="-."):
+        self.in_field_ratio = in_field_ratio
+        super().__init__(color=color, linestyle=linestyle)
+
+    def calculate(self) -> float:
+        """Calculate the flatness ratio of the profile."""
+        return (
+            100
+            * (self.profile.field_values().max() - self.profile.field_values().min())
+            / (self.profile.field_values().max() + self.profile.field_values().min())
+        )
+
+    def plot(self, axis: plt.Axes) -> None:
+        """Plot the points of largest flattness difference as well as the search bounding box."""
+        data = self.profile.field_values()
+        left, _, width = self.profile.field_indices(in_field_ratio=self.in_field_ratio)
+        # plot the search bounding box
+        axis.add_patch(
+            Rectangle(
+                (left, np.min(data)),
+                width,
+                np.max(data) - np.min(data),
+                fill=False,
+                color=self.color,
+                label=self.label + " Bounding box",
+            )
+        )
+        # plot the max and min values
+        axis.plot(
+            [np.argmax(data) + left, np.argmin(data) + left],
+            [np.max(data), np.min(data)],
+            "o",
+            color=self.color,
+            label=self.name,
+        )
+
+
+class FlatnessRatioMetric(FlatnessDifferenceMetric):
+    """Flatness as (apparently) defined by IEC."""
+
+    name = "Flatness (Ratio)"
+
+    def calculate(self) -> float:
+        """Calculate the flatness ratio of the profile."""
+        return (
+            100 * self.profile.field_values().max() / self.profile.field_values().min()
+        )
+
+
+class SymmetryPointDifferenceMetric(ProfileMetric):
+    """Symmetry using the point difference method."""
+
+    unit = "%"
+    name = "Point Difference Symmetry"
+
+    def __init__(
+        self,
+        in_field_ratio: float = 0.8,
+        color="magenta",
+        linestyle="--",
+        max_sym_range: float = 2,
+        min_sym_range: float = -2,
+    ):
+        self.in_field_ratio = in_field_ratio
+        self.max_sym = max_sym_range
+        self.min_sym = min_sym_range
+        super().__init__(color=color, linestyle=linestyle)
+
+    @staticmethod
+    def _calc_point(lt: float, rt: float, cax: float) -> float:
+        return 100 * (lt - rt) / cax
+
+    @cached_property
+    def symmetry_values(self) -> list[float]:
+        field_values = self.profile.field_values(in_field_ratio=self.in_field_ratio)
+        cax_value = self.profile.y_at_x(self.profile.center_idx)
+        return [
+            self._calc_point(lt, rt, cax_value)
+            for lt, rt in zip(field_values, field_values[::-1])
+        ]
+
+    def calculate(self) -> float:
+        """Calculate the symmetry ratio of the profile."""
+        max_sym_idx = np.argmax(np.abs(self.symmetry_values))
+        return self.symmetry_values[max_sym_idx]
+
+    def plot(self, axis: plt.Axes) -> None:
+        idx = np.argmax(self.symmetry_values)
+        left_edge, right_edge, _ = self.profile.field_indices(
+            in_field_ratio=self.in_field_ratio
+        )
+        # plot max sym value
+        axis.plot(
+            left_edge + idx,
+            self.profile.y_at_x(left_edge + idx),
+            "^",
+            color=self.color,
+            label=self.name,
+        )
+        # plot min sym value
+        axis.plot(
+            right_edge - idx,
+            self.profile.y_at_x(right_edge - idx),
+            "v",
+            color=self.color,
+        )
+
+        # plot the symmetry on a secondary axis
+        sec_ax = axis.twinx()
+        sec_ax.set_ylabel(self.name)
+
+        # plot the symmetry on the secondary axis
+        # add some vertical padding and/or use the minimum/maximum symmetry values
+        ylim_top = max((max(self.symmetry_values) + 0.5, self.max_sym + 0.5))
+        ylim_bottom = min((min(self.symmetry_values) - 0.5, self.min_sym - 0.5))
+        sec_ax.set_ylim(ylim_bottom, ylim_top)
+        sec_ax.plot(
+            range(left_edge, len(self.symmetry_values) + left_edge),
+            self.symmetry_values,
+            color=self.color,
+            linestyle=self.linestyle,
+        )
+
+
+class SymmetryPointDifferenceQuotientMetric(SymmetryPointDifferenceMetric):
+    """Symmetry as defined by IEC."""
+
+    name = "Point Difference Quotient Symmetry"
+
+    def __init__(
+        self,
+        in_field_ratio: float = 0.8,
+        color="magenta",
+        linestyle="--",
+        max_sym_range: float = 2,
+        min_sym_range: float = 0,
+    ):
+        super().__init__(in_field_ratio, color, linestyle, max_sym_range, min_sym_range)
+
+    @staticmethod
+    def _calc_point(lt: float, rt: float, cax: float) -> float:
+        """Calculate an individual point's symmetry."""
+        return 100 * max((lt / rt), (rt / lt))
+
+
+class SymmetryAreaMetric(ProfileMetric):
+    """The symmetry using ratios of the areas of the left and right sides of the profile."""
+
+    name = "Symmetry (Area)"
+
+    def __init__(
+        self,
+        in_field_ratio: float = 0.8,
+    ):
+        self.in_field_ratio = in_field_ratio
+
+    def calculate(self) -> float:
+        """Calculate the symmetry ratio of the profile using the area of the left side vs the right side."""
+        _, _, width = self.profile.field_indices(in_field_ratio=self.in_field_ratio)
+        area_left = np.sum(
+            self.profile.field_values(self.in_field_ratio)[: math.floor(width / 2) + 1]
+        )
+        area_right = np.sum(
+            self.profile.field_values(self.in_field_ratio)[math.ceil(width / 2) :]
+        )
+        return 100 * (area_left - area_right) / (area_left + area_right)
+
+    def plot(self, axis: plt.Axes):
+        """Plot the symmetry by shading the left and right areas"""
+        left, right, width = self.profile.field_indices(
+            in_field_ratio=self.in_field_ratio
+        )
+        left_data = self.profile.field_values(self.in_field_ratio)[: width // 2 + 1]
+        left_stretch = np.linspace(left, left + width // 2, len(left_data))
+        right_data = self.profile.field_values(self.in_field_ratio)[width // 2 :]
+        right_stretch = np.linspace(right - width // 2, right, len(right_data))
+        axis.fill_between(left_stretch, left_data, alpha=0.2, label="Left Area")
+        axis.fill_between(right_stretch, right_data, alpha=0.2, label="Right Area")
+
+
+class PenumbraLeftMetric(ProfileMetric):
+    unit = "%"
+    name = "Left Penumbra"
+    side = LEFT
+
+    def __init__(self, lower: float = 20, upper: float = 80, color="pink", ls="-."):
+        self.lower = lower
+        self.upper = upper
+        super().__init__(color=color, linestyle=ls)
+
+    def calculate(self) -> float:
+        """Calculate the left penumbra in mm.
+        We first find the edge point and then return the
+        distance from the lower penumbra value to upper penumbra value.
+        The trick is that wherever the field edge is, is assumed to be 50%
+        height. It's okay if it's not actually (like for FFF).
+        """
+        left_edge = self.profile.field_edge_idx(side=self.side)
+        left_edge_value = self.profile.y_at_x(left_edge)
+        lower_search_value = left_edge_value * 2 * self.lower / 100
+        lower_index = self.profile.x_at_y(y=lower_search_value, side=self.side)
+        upper_search_value = left_edge_value * 2 * self.upper / 100
+        upper_index = self.profile.x_at_y(y=upper_search_value, side=self.side)
+        self.lower_index = lower_index
+        self.upper_index = upper_index
+        return abs(upper_index - lower_index) / self.profile.dpmm
+
+    def plot(self, axis: plt.Axes):
+        axis.vlines(
+            x=[self.lower_index, self.upper_index],
+            ymin=self.profile.values.min(),
+            ymax=self.profile.values.max(),
+            color=self.color,
+            linestyle=self.linestyle,
+            label=self.name,
+        )
+
+
+class PenumbraRightMetric(PenumbraLeftMetric):
+    side = RIGHT
+    name = "Right Penumbra"
+
+
+class TopDistanceMetric(ProfileMetric):
+    """The distance from an FFF beam's "top" to the center of the field. Similar, although
+    not 100% faithful to NCS-33. The NCS report uses the middle 5cm but we use a field ratio.
+    In practice, this shouldn't make a difference."""
+
+    name = "Top Distance"
+    unit = "mm"
+
+    def __init__(self, top_region_ratio: float = 0.2, color="orange"):
+        self.top_region_ratio = top_region_ratio
+        super().__init__(color=color)
+
+    def calculate(self) -> float:
+        """Calculate the distance from the top to the field center. Positive means the top is to the right,
+        negative means the top is to the left."""
+        values = self.profile.field_values(in_field_ratio=self.top_region_ratio)
+        left, right, _ = self.profile.field_indices(
+            in_field_ratio=self.top_region_ratio
+        )
+        fit_params = np.polyfit(
+            range(left, right + 1),
+            values,
+            deg=2,
+        )
+
+        # minimize the polynomial function
+        min_f = minimize(
+            lambda x: -np.polyval(
+                fit_params, x
+            ),  # return the negative since we're MINIMIZING and want the top value
+            method="Nelder-Mead",
+            x0=self.profile.center_idx,
+            bounds=((left, right),),
+        )
+        top_idx = min_f.x[0]
+        self.top_idx = top_idx
+        self.top_values = np.polyval(fit_params, range(left, right + 1))
+        return (top_idx - self.profile.center_idx) / self.profile.dpmm
+
+    def plot(self, axis: plt.Axes):
+        """Plot the top point and the fitted curve."""
+        axis.plot(
+            self.top_idx,
+            self.profile.y_at_x(self.top_idx),
+            "o",
+            color=self.color,
+            label=self.name,
+        )
+        left, right, _ = self.profile.field_indices(
+            in_field_ratio=self.top_region_ratio
+        )
+        axis.plot(
+            range(left, right + 1),
+            self.top_values,
+            color=self.color,
+            linestyle=self.linestyle,
+            label=self.name + " Fit",
+        )
+
+
 class ProfileMixin:
     """A mixin to provide various manipulations of 1D profile data."""
 
@@ -263,18 +584,25 @@ class ProfileBase(ProfileMixin, ABC):
     We use a base class to avoid having long stacked if statements for the different detection patterns.
     This is also more explicit and extensible."""
 
+    metrics: list[ProfileMetric]
+    metric_values: dict[str, float]
+
     def __init__(
         self,
         values: np.array,
         x_values: np.array | None = None,
         ground: bool = False,
         normalization: str | Normalization = Normalization.NONE,
+        interpolation_order: int = 1,
     ):
         """A 1D profile that has one large signal, e.g. a radiation beam profile.
         Signal analysis methods are given, mostly based on FWXM and on Hill function calculations.
         Profiles with multiple peaks are better suited by the MultiProfile class.
         """
         validators.single_dimension(values)
+        self.metrics = []
+        self.metric_values = {}
+        self._interp_order = interpolation_order
         self.values = values
         if x_values is None:
             x_values = np.arange(len(values))
@@ -287,15 +615,54 @@ class ProfileBase(ProfileMixin, ABC):
             center_val = utils.geometric_center_value(self.values)
             self.normalize(center_val)
         elif normalization == Normalization.BEAM_CENTER:
-            # linear interpolation
-            f = UnivariateSpline(x=self.x_values, y=self.values, k=1, s=0)
-            beam_center_val = f(self.center_idx)
+            beam_center_val = self.y_at_x(self.center_idx)
             self.normalize(beam_center_val)
+
+    def x_at_x(self, x: float) -> float:
+        # UnivariateSpline is the newer approach than interp1d
+        # interp1d is legacy and may be removed in the future
+        # we create an interpolation for x-values so we can
+        # get the original x-value when the index is a float (very often the case)
+        f = UnivariateSpline(
+            x=np.arange(len(self.x_values)), y=self.x_values, k=self._interp_order, s=0
+        )
+        return float(f(x))
+
+    def y_at_x(self, x: float) -> float:
+        """Interpolated y-values. Can use floats as indices."""
+        f = UnivariateSpline(x=self.x_values, y=self.values, k=self._interp_order, s=0)
+        return float(f(x))
+
+    def x_at_y(self, y: float, side: str) -> float:
+        """Interpolated y-values. Can use floats as indices."""
+        # I can't get UnivariateSpline to work here because it wants strictly increasing
+        # data. So we use interp1d instead
+        s = self.center_idx
+        if side == LEFT:
+            f = interp1d(x=self.values[: int(s)], y=self.x_values[: int(s)])
+        elif side == RIGHT:
+            f = interp1d(x=self.values[int(s) :], y=self.x_values[int(s) :])
+        return float(f(y))
 
     @abstractmethod
     def field_edge_idx(self, side: str) -> float:
         """The index of the field edge, given the side and edge detection method."""
         pass
+
+    def field_indices(self, in_field_ratio: float) -> (int, int, int):
+        """Return the indices of the left and right edge of the field, given the in-field ratio.
+        Importantly, this will use the same rounding behavior as field_values. So,
+        e.g., if plotting of the field data is important, use this method to get the indices
+        """
+        left = self.field_edge_idx(side=LEFT)
+        right = self.field_edge_idx(side=RIGHT)
+        width = right - left
+        f_left = left + (1 - in_field_ratio) / 2 * width
+        f_right = right - (1 - in_field_ratio) / 2 * width
+        left = math.ceil(f_left)
+        right = math.floor(f_right)
+        width = right - left
+        return left, right, width
 
     @cached_property
     def center_idx(self) -> float:
@@ -322,17 +689,41 @@ class ProfileBase(ProfileMixin, ABC):
         width = right - left
         f_left = left + (1 - in_field_ratio) / 2 * width
         f_right = right - (1 - in_field_ratio) / 2 * width
-        return self.values[int(round(f_left)) : int(round(f_right) + 1)]
+        # use floor/ceil to be conservatively exclusive of edge values.
+        return self.values[math.ceil(f_left) : math.floor(f_right) + 1]
 
     def as_resampled(
         self, interpolation_factor: float = 10, order: int = 3, **kwargs
     ) -> Any:
-        """Resample the profile at a new resolution. Returns a new profile"""
+        """Resample the profile at a new resolution. Returns a new profile.
+
+        Parameters
+        ----------
+        interpolation_factor : float
+            The factor to zoom the profile by. E.g. 10 means the profile will be 10x larger.
+        order : int
+            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
+
+        Warnings
+        --------
+        This method will respect the input datatype of the numpy array. If the input array is a float, the output array will be a float.
+        This can cause issues for int arrays with a small range. E.g. if the range is only 10, interpolation
+        will look more step-like than smooth. If this is the case, convert the array to a float before passing it to this method.
+        The array is not automatically converted to float in this case to respect the original dtype. However,
+        a warning will be produced.
+        """
+        arr_range = self.values.max() - self.values.min()
+        if self.values.dtype != float and arr_range < 100:
+            warnings.warn(
+                f"Array range is small ({arr_range}) and is not a float. Interpolation may look step-like. "
+                f"Consider converting the array to a float before passing it to this method.",
+                UserWarning,
+            )
         new_y = zoom(
             self.values,
             zoom=interpolation_factor,
             order=order,
-            grid_mode=True,
+            grid_mode=False,
             mode="nearest",
         )
         new_x = np.linspace(self.x_values.min(), self.x_values.max(), len(new_y))
@@ -345,17 +736,65 @@ class ProfileBase(ProfileMixin, ABC):
             **kwargs,
         )
 
-    def plot(self, show: bool = True) -> None:
+    def plot(
+        self,
+        show: bool = True,
+        axis: plt.Axes | None = None,
+        show_field_edges: bool = True,
+        show_grid: bool = True,
+        show_center: bool = True,
+    ) -> plt.Axes:
         """Plot the profile along with relevant overlays to point out features."""
-        _, ax = plt.subplots()
-        ax.plot(self.x_values, self.values, color="b", label="Data")
-        ax.axvline(
-            self.field_edge_idx(side=LEFT), color="r", ls="--", label="Field Edges"
-        )
-        ax.axvline(self.field_edge_idx(side=RIGHT), color="r", ls="--")
-        ax.legend()
+        if axis is None:
+            _, axis = plt.subplots()
+        axis.plot(self.x_values, self.values, label="Data")
+        if show_field_edges:
+            axis.axvline(self.field_edge_idx(side=LEFT), ls="--", label="Field Edges")
+            axis.axvline(self.field_edge_idx(side=RIGHT), ls="--")
+        if show_center:
+            axis.axvline(self.center_idx, ls=":", label="Center")
+        for metric in self.metrics:
+            metric.plot(axis)
+        axis.grid(show_grid)
+        axis.legend()
         if show:
             plt.show()
+        return axis
+
+    def compute(
+        self, metrics: Iterable[ProfileMetric] | ProfileMetric
+    ) -> Any | dict[str, Any]:
+        """Compute metric(s) on the profile.
+
+        Unlike other modules, calling ``compute`` is not strictly necessary.
+        Only call it if there are metrics to calculate.
+
+        Parameters
+        ----------
+        metrics: iterable of ProfileMetric | ProfileMetric
+            List of metrics to calculate. If only one metric is desired, it can be passed directly.
+
+        Returns
+        -------
+        dict | list
+            A dictionary of metric names and values if multiple metrics were given.
+            If only one metric was given, the value of that metric is returned.
+
+        """
+        self.metric_values = {}
+        self.metrics = []
+        values = {}
+        if isinstance(metrics, ProfileMetric):
+            metrics = [metrics]
+        for metric in metrics:
+            metric.inject_profile(self)
+            self.metrics.append(metric)
+            values[metric.name] = metric.calculate()
+        self.metric_values |= values
+        if len(values) == 1:
+            return list(values.values())[0]
+        else:
+            return values
 
 
 class FWXMProfile(ProfileBase):
@@ -382,7 +821,7 @@ class FWXMProfile(ProfileBase):
             normalization=normalization,
         )
 
-    def field_edge_idx(self, side: str) -> float:
+    def field_edge_idx(self, side: Literal["right", "left"]) -> float:
         """The edge index of the given side using the FWXM methodology"""
         _, peak_props = find_peaks(
             self.values, fwxm_height=self.fwxm_height / 100, max_number=1
@@ -391,16 +830,24 @@ class FWXMProfile(ProfileBase):
             idx = peak_props["left_ips"][0]
         elif side == RIGHT:
             idx = peak_props["right_ips"][0]
-        return idx
+        return self.x_at_x(idx)
 
     def as_resampled(
-        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+        self, interpolation_factor: float = 10, order: int = 3
     ) -> FWXMProfile:
+        """Resample the profile at a new resolution. Returns a new profile.
+
+        Parameters
+        ----------
+        interpolation_factor : float
+            The factor to zoom the profile by. E.g. 10 means the profile will be 10x larger.
+        order : int
+            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
+        """
         return super().as_resampled(
             interpolation_factor=interpolation_factor,
             order=order,
             fwxm_height=self.fwxm_height,
-            **kwargs,
         )
 
 
@@ -413,7 +860,7 @@ class InflectionDerivativeProfile(ProfileBase):
         values: np.array,
         x_values: np.array | None = None,
         ground: bool = False,
-        normalization: str = Normalization.NONE,
+        normalization: str | Normalization = Normalization.NONE,
         edge_smoothing_ratio: float = 0.003,
     ):
         """A 1D profile that has one large signal, e.g. a radiation beam profile.
@@ -434,21 +881,23 @@ class InflectionDerivativeProfile(ProfileBase):
             self.values, sigma=self.edge_smoothing_ratio * len(self.values)
         )
         diff = np.gradient(filtered_values)
-        f_min = interp1d(x=self.x_values, y=diff, kind="cubic")
+        f_diff = interp1d(x=self.x_values, y=diff, kind="cubic")
 
         if side == LEFT:
-            return minimize(lambda x: -f_min(x), x0=np.argmax(diff)).x[0]
+            initial_guess = self.x_at_x(np.argmax(diff))
+            idx = minimize(lambda x: -f_diff(x), x0=initial_guess).x[0]
         else:
-            return minimize(f_min, x0=np.argmin(diff)).x[0]
+            initial_guess = self.x_at_x(np.argmin(diff))
+            idx = minimize(f_diff, x0=initial_guess).x[0]
+        return idx
 
     def as_resampled(
-        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+        self, interpolation_factor: float = 10, order: int = 3
     ) -> InflectionDerivativeProfile:
         return super().as_resampled(
             interpolation_factor=interpolation_factor,
             order=order,
             edge_smoothing_ratio=self.edge_smoothing_ratio,
-            **kwargs,
         )
 
 
@@ -494,19 +943,18 @@ class HillProfile(InflectionDerivativeProfile):
             x_data = self.x_values[left : right + 1]
             y_data = self.values[left : right + 1]
         hill_fit = Hill.fit(x_data=x_data, y_data=y_data)
-        return hill_fit.inflection_idx()["index (exact)"]
+        idx = hill_fit.inflection_idx()["index (exact)"]
+        return self.x_at_x(idx)
 
     def as_resampled(
-        self, interpolation_factor: float = 10, order: int = 3, **kwargs
+        self, interpolation_factor: float = 10, order: int = 3
     ) -> HillProfile:
-        """Resample the profile at a new zoom factor. Returns a new profile."""
         return ProfileBase.as_resampled(
             self,
             interpolation_factor=interpolation_factor,
             order=order,
             edge_smoothing_ratio=self.edge_smoothing_ratio,
             hill_window_ratio=self.hill_window_ratio,
-            **kwargs,
         )
 
 
@@ -529,6 +977,70 @@ class PhysicalProfileMixin:
     def field_width_mm(self) -> float:
         """The field width of the profile in mm"""
         return self.field_width_px / self.dpmm
+
+    def as_resampled(
+        self,
+        interpolation_resolution_mm: float = 0.1,
+        order: int = 3,
+        grid: bool = True,
+    ) -> Any:
+        """Resample the physical profile at a new resolution. Returns a new profile.
+
+        Parameters
+        ----------
+        interpolation_resolution_mm : float
+            The resolution to resample to in mm. E.g. 0.1 means the profile will be 0.1 mm resolution.
+        order : int
+            The order of the spline interpolation. 1 is linear, 3 is cubic, etc.
+        grid : bool
+            Whether to use grid mode when zooming. See parameter ``grid_mode`` in :func:`~scipy.ndimage.zoom` for more information.
+            This should be true unless you are resampling an already-resampled physical array.
+
+        Warnings
+        --------
+        This method will respect the input datatype of the numpy array. If the input array is a float, the output array will be a float.
+        This can cause issues for int arrays with a small range. E.g. if the range is only 10, interpolation
+        will look more step-like than smooth. If this is the case, convert the array to a float before passing it to this method.
+        The array is not automatically converted to float in this case to respect the original dtype. However,
+        a warning will be produced.
+        """
+        arr_range = self.values.max() - self.values.min()
+        if self.values.dtype != float and arr_range < 100:
+            warnings.warn(
+                f"Array range is small ({arr_range}) and is not a float. Interpolation may look step-like. "
+                f"Consider converting the array to a float before passing it to this method.",
+                UserWarning,
+            )
+
+        factor = 1 / (self.dpmm * interpolation_resolution_mm)
+        #  When dealing with physical arrays where each pixel/voxel is a physical distance, it is important to
+        #  use grid mode when zooming. This is because each pixel/voxel has a physical size.
+        #  See parameter ``grid_mode`` in :func:`~scipy.ndimage.zoom` for more information.
+        new_y = zoom(
+            self.values,
+            zoom=factor,
+            order=order,
+            grid_mode=grid,
+            mode="nearest",
+        )
+        # similarly, we assume that x-values are also physical
+        # we thus have to offset the x-values by half a pixel/voxel
+        # while accounting for the physical size of the pixel/voxel
+        if grid:
+            offset = 0.5 - 1 / (2 * factor)
+            new_x = np.linspace(
+                self.x_values.min() - offset, self.x_values.max() + offset, len(new_y)
+            )
+        else:
+            new_x = np.linspace(self.x_values.min(), self.x_values.max(), len(new_y))
+
+        return type(self)(
+            values=new_y,
+            x_values=new_x,
+            ground=False,
+            normalization=Normalization.NONE,
+            dpmm=factor * self.dpmm,
+        )
 
 
 class FWXMProfilePhysical(PhysicalProfileMixin, FWXMProfile):
@@ -555,18 +1067,17 @@ class FWXMProfilePhysical(PhysicalProfileMixin, FWXMProfile):
         self,
         interpolation_resolution_mm: float = 0.1,
         order: int = 3,
+        grid: bool = True,
     ) -> FWXMProfilePhysical:
-        """Resample the physical profile at a new resolution. Returns a new profile"""
-        factor = 1 / (self.dpmm * interpolation_resolution_mm)
         return super().as_resampled(
-            interpolation_factor=factor,
+            interpolation_resolution_mm=interpolation_resolution_mm,
             order=order,
-            dpmm=self.dpmm,
+            grid=grid,
         )
 
 
 class InflectionDerivativeProfilePhysical(
-    InflectionDerivativeProfile, PhysicalProfileMixin
+    PhysicalProfileMixin, InflectionDerivativeProfile
 ):
     def __init__(
         self,
@@ -588,18 +1099,19 @@ class InflectionDerivativeProfilePhysical(
         PhysicalProfileMixin.__init__(self, dpmm=dpmm)
 
     def as_resampled(
-        self, interpolation_resolution_mm: int = 0.1, order: int = 3
+        self,
+        interpolation_resolution_mm: float = 0.1,
+        order: int = 3,
+        grid: bool = True,
     ) -> InflectionDerivativeProfilePhysical:
-        """Resample the physical profile at a new resolution. Returns a new profile"""
-        factor = 1 / (self.dpmm * interpolation_resolution_mm)
         return super().as_resampled(
-            interpolation_factor=factor,
+            interpolation_resolution_mm=interpolation_resolution_mm,
             order=order,
-            dpmm=self.dpmm,
+            grid=grid,
         )
 
 
-class HillProfilePhysical(HillProfile, PhysicalProfileMixin):
+class HillProfilePhysical(PhysicalProfileMixin, HillProfile):
     def __init__(
         self,
         values: np.array,
@@ -622,12 +1134,15 @@ class HillProfilePhysical(HillProfile, PhysicalProfileMixin):
         PhysicalProfileMixin.__init__(self, dpmm=dpmm)
 
     def as_resampled(
-        self, interpolation_resolution_mm: int = 0.1, order: int = 3
+        self,
+        interpolation_resolution_mm: float = 0.1,
+        order: int = 3,
+        grid: bool = True,
     ) -> HillProfilePhysical:
-        """Resample the physical profile at a new resolution. Returns a new profile"""
-        factor = 1 / (self.dpmm * interpolation_resolution_mm)
         return super().as_resampled(
-            interpolation_factor=factor, order=order, dpmm=self.dpmm
+            interpolation_resolution_mm=interpolation_resolution_mm,
+            order=order,
+            grid=grid,
         )
 
 
