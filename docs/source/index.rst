@@ -48,6 +48,7 @@
    topics/mtf
    topics/scale
    topics/profiles
+   topics/image_metrics
 
 .. toctree::
    :hidden:

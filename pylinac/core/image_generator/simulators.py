@@ -4,6 +4,7 @@ from abc import ABC
 
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
+from pydicom.uid import UID, generate_uid
 
 from .layers import Layer
 
@@ -31,18 +32,16 @@ class Simulator(ABC):
         """Add a layer to the image"""
         self.image = layer.apply(self.image, self.pixel_size, self.mag_factor)
 
-    def generate_dicom(self, file_out_name: str, **kwargs: dict) -> None:
-        """Generate a DICOM file with the constructed image (via add_layer)"""
+    def as_dicom(
+        self,
+        gantry_angle: float = 0.0,
+        coll_angle: float = 0.0,
+        table_angle: float = 0.0,
+    ) -> Dataset:
+        """Create and return a pydicom Dataset. I.e. create a pseudo-DICOM image."""
         raise NotImplementedError(
             "This method has not been implemented for this simulator. Overload the method of your simulator."
         )
-
-
-class AS500Image(Simulator):
-    """Simulates an AS500 EPID image."""
-
-    pixel_size: float = 0.78125
-    shape: (int, int) = (384, 512)
 
     def generate_dicom(
         self,
@@ -51,6 +50,22 @@ class AS500Image(Simulator):
         coll_angle: float = 0.0,
         table_angle: float = 0.0,
     ) -> None:
+        ds = self.as_dicom(gantry_angle, coll_angle, table_angle)
+        ds.save_as(file_out_name, write_like_original=False)
+
+
+class AS500Image(Simulator):
+    """Simulates an AS500 EPID image."""
+
+    pixel_size: float = 0.78125
+    shape: (int, int) = (384, 512)
+
+    def as_dicom(
+        self,
+        gantry_angle: float = 0.0,
+        coll_angle: float = 0.0,
+        table_angle: float = 0.0,
+    ) -> Dataset:
         # make image look like an EPID with flipped data (dose->low)
         flipped_image = -self.image + self.image.max() + self.image.min()
 
@@ -58,8 +73,9 @@ class AS500Image(Simulator):
         # Main data elements
         ds = Dataset()
         ds.ImageType = ["DERIVED", "SECONDARY", "PORTAL"]
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.481.1"
-        ds.SOPInstanceUID = "1.2.840.113854.141883099300381770008774160544352783139.1.1"
+        ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+        ds.SOPInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
         ds.StudyDate = "20150212"
         ds.ContentDate = "20150212"
         ds.StudyTime = "124120"
@@ -111,7 +127,7 @@ class AS500Image(Simulator):
         ds.file_meta = file_meta
         ds.is_implicit_VR = True
         ds.is_little_endian = True
-        ds.save_as(file_out_name, write_like_original=False)
+        return ds
 
 
 class AS1000Image(Simulator):
@@ -120,13 +136,12 @@ class AS1000Image(Simulator):
     pixel_size: float = 0.390625
     shape: (int, int) = (768, 1024)
 
-    def generate_dicom(
+    def as_dicom(
         self,
-        file_out_name: str,
         gantry_angle: float = 0.0,
         coll_angle: float = 0.0,
         table_angle: float = 0.0,
-    ) -> None:
+    ) -> Dataset:
         # make image look like an EPID with flipped data (dose->low)
         flipped_image = -self.image + self.image.max() + self.image.min()
 
@@ -136,8 +151,9 @@ class AS1000Image(Simulator):
         # Main data elements
         ds = Dataset()
         ds.ImageType = ["DERIVED", "SECONDARY", "PORTAL"]
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.481.1"
-        ds.SOPInstanceUID = "1.2.840.113854.323870129946883845737820671794195198978.1.1"
+        ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+        ds.SOPInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
         ds.StudyDate = "20140819"
         ds.ContentDate = "20140819"
         ds.StudyTime = "130944"
@@ -189,7 +205,7 @@ class AS1000Image(Simulator):
         ds.file_meta = file_meta
         ds.is_implicit_VR = True
         ds.is_little_endian = True
-        ds.save_as(file_out_name, write_like_original=False)
+        return ds
 
 
 class AS1200Image(Simulator):
@@ -198,13 +214,12 @@ class AS1200Image(Simulator):
     pixel_size: float = 0.336
     shape: (int, int) = (1280, 1280)
 
-    def generate_dicom(
+    def as_dicom(
         self,
-        file_out_name: str,
         gantry_angle: float = 0.0,
         coll_angle: float = 0.0,
         table_angle: float = 0.0,
-    ) -> None:
+    ) -> Dataset:
         file_meta = FileMetaDataset()
         file_meta.FileMetaInformationGroupLength = 196
         file_meta.FileMetaInformationVersion = b"\x00\x01"
@@ -222,8 +237,9 @@ class AS1200Image(Simulator):
         ds.ImageType = ["ORIGINAL", "PRIMARY", "PORTAL"]
         ds.InstanceCreationDate = "20161230"
         ds.InstanceCreationTime = "215510"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.481.1"
-        ds.SOPInstanceUID = "1.2.246.352.64.1.5468686515961995030.4457606667843517571"
+        ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+        ds.SOPInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
         ds.StudyDate = "20161230"
         ds.ContentDate = "20161230"
         ds.StudyTime = "215441.936"
@@ -293,4 +309,4 @@ class AS1200Image(Simulator):
         ds.file_meta = file_meta
         ds.is_implicit_VR = True
         ds.is_little_endian = True
-        ds.save_as(file_out_name, write_like_original=False)
+        return ds

@@ -507,7 +507,7 @@ class BaseImage:
             plt.show()
         return ax
 
-    def metric_plots(self, show: bool = True) -> list[plt.figure]:
+    def plot_metrics(self, show: bool = True) -> list[plt.figure]:
         """Plot any additional figures from the metrics.
 
         Returns a list of figures of the metrics. These metrics are not
@@ -1185,6 +1185,13 @@ class DicomImage(BaseImage):
             self.array = ds.pixel_array.copy()
         # convert values to HU or CU
         self.array = _rescale_dicom_values(self.array, ds, raw_pixels=raw_pixels)
+
+    @classmethod
+    def from_dataset(cls, dataset: Dataset):
+        """Create a DICOM image instance from a pydicom Dataset."""
+        stream = io.BytesIO()
+        dataset.save_as(stream)
+        return cls(path=stream)
 
     def save(self, filename: str | Path) -> str | Path:
         """Save the image instance back out to a .dcm file.
