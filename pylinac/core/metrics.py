@@ -190,10 +190,9 @@ class DiskRegion(MetricBase):
         ),
         name="Disk Region",
     ):
-        """Create a DiskRegion using physical dimensions.
-
-        We set a flag so we know to convert from physical sizes to pixels later.
-        We don't have the image/dpmm yet so we can't do it now."""
+        """Create a DiskRegion using physical dimensions."""
+        # We set a flag so we know to convert from physical sizes to pixels later.
+        # We don't have the image/dpmm yet so we can't do it now.
         instance = cls(
             expected_position=expected_position_mm,
             search_window=search_window_mm,
@@ -247,7 +246,7 @@ class DiskRegion(MetricBase):
         ),
         name="Disk Region",
     ):
-        """Create a DiskRegion using physical dimensions from a center point."""
+        """Create a DiskRegion using physical dimensions from the center point."""
         # We set a flag so we know to convert from physical sizes to pixels later.
         # We don't have the image/dpmm yet so we can't do it now
         instance = cls(
@@ -263,6 +262,12 @@ class DiskRegion(MetricBase):
         return instance
 
     def calculate(self) -> RegionProperties:
+        """Find the scikit-image regiongprops of the BB.
+
+        This will apply a high-pass filter to the image iteratively.
+        The filter starts at a very low percentile and increases until
+        a region is found that meets the detection conditions.
+        """
         if self.is_from_physical:
             # convert from physical sizes to pixels
             self.expected_position * self.image.dpmm
