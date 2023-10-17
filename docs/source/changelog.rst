@@ -24,7 +24,10 @@ Profiles
 * Profile analysis has been completely revamped. The existing ``SingleProfile`` class still
   exists and will not be deprecated immediately. It is frozen and will not receive updates.
 * New profile classes were written that are more generalizable and extensible. These
-  can be read about in the documentation below:
+  can be read about in the documentation below.
+* The new profile classes also have a new plugin system for computing custom metrics.
+  This allows for much more user-friendly, readable, and extensible code for both
+  myself and users.
 * A new documentation section has been added for profiles: :ref:`profiles`. This section
   describes the various profile classes and how to use them.
 * Internally, pylinac now uses these new profile classes. Existing calculations should
@@ -32,6 +35,24 @@ Profiles
 * Calculating custom profile metrics (such as symmetry or flatness) is now much easier using
   these new classes. The field analysis module will get a "v2" that will use these new classes
   and allow for these easy-to-write custom metrics.
+
+Core
+^^^^
+
+Image
+#####
+
+* Similar to the new profile plugin architecture, 2D images also have a new plugin metric system.
+  See the new documentation: :ref:`image-metrics`.
+* The ``DicomImage`` class has a new class method: :meth:`~pylinac.core.image.DicomImage.from_dataset`.
+  This allows one to create a Dicom image from a pydicom dataset directly.
+
+Image Generator
+###############
+
+* The ``Simulator`` class and its subclasses has a new method: :meth:`~pylinac.core.image_generator.simulators.AS1200Image.as_dicom`.
+  This method will perform the same action as ``generate_dicom``, but instead of saving to file, will return the pydicom Dataset.
+
 
 v 3.15.0
 --------
