@@ -1,0 +1,45 @@
+exclude:
+  - ./requirements-dev.txt
+  - ./requirements-rtd.txt
+  - ./poetry.lock
+
+# initial commit; ignore vulnerabilities
+ignore:
+  # These vulnerabilities are coming from the venv/requirements-ram.txt
+  - vulnerability: GHSA-xqr8-7jwr-rhp7
+    package:
+      name: certifi
+      version: 2022.6.15
+      type: python
+  - vulnerability: GHSA-v3c5-jqr6-7qm8
+    package:
+      name: future
+      version: 0.18.2
+      type: python
+  - vulnerability: GHSA-9j59-75qj-795w
+    package:
+      name: Pillow
+      version: 9.0.0
+      type: python
+  - vulnerability: GHSA-8vj2-vxx3-667w
+    package:
+      name: Pillow
+      version: 9.0.0
+      type: python
+  - vulnerability: GHSA-m2vv-5vj5-2hm7
+    package:
+      name: Pillow
+      version: 9.0.0
+      type: python
+  - vulnerability: GHSA-9q9m-c65c-37pq
+    package:
+      name: reportlab
+      version: 3.6.5
+      type: python
+  # the setuptools vulnerability is coming from the base image in the bitbucket pipeline:
+  # https://github.com/docker-library/python/blob/81b6e5f0643965618d633cd6b811bf0879dee360/3.9/slim-bookworm/Dockerfile#L138
+  - vulnerability: GHSA-r9hx-vwmv-q579
+    package:
+      name: setuptools
+      version: 58.1.0
+      type: python

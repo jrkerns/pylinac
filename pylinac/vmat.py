@@ -23,12 +23,13 @@ from typing import BinaryIO, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 
+from . import Normalization
 from .core import image
 from .core.geometry import Point, Rectangle
 from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
-from .core.profile import Edge, Interpolation, SingleProfile
+from .core.profile import InflectionDerivativeProfile
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
@@ -50,6 +51,7 @@ class SegmentResult:
     r_corr: float  #:
     r_dev: float  #:
     center_x_y: float  #:
+    stdev: float  #:
 
 
 @dataclass
@@ -78,15 +80,12 @@ class Segment(Rectangle):
     ----------
     r_dev : float
             The reading deviation (R_dev) from the average readings of all the segments. See documentation for equation info.
-    r_corr : float
-        The corrected reading (R_corr) of the pixel values. See documentation for explanation and equation info.
-    passed : boolean
-        Specifies where the segment reading deviation was under tolerance.
     """
 
     # width of the segment (i.e. parallel to MLC motion) in pixels under reference conditions
     _nominal_width_mm: int
     _nominal_height_mm: int
+    r_dev: float
 
     def __init__(
         self,
@@ -116,6 +115,20 @@ class Segment(Rectangle):
         ].mean()
         ratio = (dmlc_value / open_value) * 100
         return ratio
+
+    @property
+    def stdev(self) -> float:
+        """Return the standard deviation of the segment."""
+        dmlc_value = self._dmlc_image.array[
+            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.bl_corner.x : self.bl_corner.x + self.width,
+        ]
+        open_value = self._open_image.array[
+            self.bl_corner.y : self.bl_corner.y + self.height,
+            self.bl_corner.x : self.bl_corner.x + self.width,
+        ]
+        # we multiply by 100 to be consistent w/ r_corr. I.e. this is a % value.
+        return float(np.std(dmlc_value / open_value))
 
     @property
     def passed(self) -> bool:
@@ -151,7 +164,7 @@ class VMATBase:
         image_paths : iterable (list, tuple, etc)
             A sequence of paths to the image files.
         kwargs
-            Passed to the image loading function. See :ref:`~pylinac.core.image.load`.
+            Passed to the image loading function. See :func:`~pylinac.core.image.load`.
         """
         ground = kwargs.get("ground", False) or ground
         check_inversion = kwargs.get("check_inversion", False) or check_inversion
@@ -238,8 +251,8 @@ class VMATBase:
     def _identify_images(self, image1: DicomImage, image2: DicomImage):
         """Identify which image is the DMLC and which is the open field."""
         profile1, profile2 = self._median_profiles(image1=image1, image2=image2)
-        field_profile1 = profile1.field_data()["field values"]
-        field_profile2 = profile2.field_data()["field values"]
+        field_profile1 = profile1.field_values()
+        field_profile2 = profile2.field_values()
         if np.std(field_profile1) > np.std(field_profile2):
             self.dmlc_image = image1
             self.open_image = image2
@@ -279,6 +292,7 @@ class VMATBase:
                 r_dev=segment.r_dev,
                 center_x_y=segment.center.as_array(),
                 x_position_mm=roi_data["offset_mm"],
+                stdev=segment.stdev,
             )
             segment_data.append(segment)
             named_segment_data[roi_name] = segment
@@ -300,7 +314,7 @@ class VMATBase:
         """Construct the center points of the segments based on the field center and known x-offsets."""
         points = []
         dmlc_prof, _ = self._median_profiles(self.dmlc_image, self.open_image)
-        x_field_center = dmlc_prof.beam_center()["index (rounded)"]
+        x_field_center = round(dmlc_prof.center_idx)
         for roi_data in self.roi_config.values():
             x_offset_mm = roi_data["offset_mm"]
             y = self.open_image.center.y
@@ -468,7 +482,7 @@ class VMATBase:
     @classmethod
     def _median_profiles(
         cls, image1: DicomImage, image2: DicomImage
-    ) -> list[SingleProfile, SingleProfile]:
+    ) -> list[InflectionDerivativeProfile, InflectionDerivativeProfile]:
         """Return two median profiles from the open and DMLC image. Only used for visual purposes.
         Evaluation is not based on these profiles."""
         profiles = []
@@ -476,10 +490,10 @@ class VMATBase:
             img = copy.deepcopy(orig_img)
             img.ground()
             img.check_inversion()
-            profile = SingleProfile(
+            profile = InflectionDerivativeProfile(
                 np.mean(img.array, axis=0),
-                interpolation=Interpolation.NONE,
-                edge_detection_method=Edge.INFLECTION_DERIVATIVE,
+                ground=True,
+                normalization=Normalization.BEAM_CENTER,
             )
             profile.stretch()
             norm_val = np.percentile(profile.values, 90)

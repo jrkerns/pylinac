@@ -11,6 +11,8 @@ from scipy.ndimage import rotate
 from pylinac import (
     DoselabMC2kV,
     DoselabMC2MV,
+    DoselabRLf,
+    ElektaLasVegas,
     IBAPrimusA,
     LasVegas,
     LeedsTOR,
@@ -23,6 +25,7 @@ from pylinac.planar_imaging import (
     SNCMV,
     SNCMV12510,
     IMTLRad,
+    IsoAlign,
     LeedsTORBlue,
     PlanarResult,
     SNCkV,
@@ -76,7 +79,7 @@ class GeneralTests(TestCase):
 
         data_dict = phan.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
-        self.assertEqual(len(data_dict), 8)
+        self.assertEqual(len(data_dict), 9)
         self.assertIn("pylinac_version", data_dict)
 
     def test_results_data_no_mtf(self):
@@ -84,7 +87,7 @@ class GeneralTests(TestCase):
         phan.analyze()
 
         data_dict = phan.results_data(as_dict=True)
-        self.assertEqual(len(data_dict), 8)
+        self.assertEqual(len(data_dict), 9)
 
     def test_set_figure_size(self):
         phan = LeedsTOR.from_demo_image()
@@ -144,13 +147,23 @@ class GeneralTests(TestCase):
 
         self.assertEqual(x, x_manual_dpi)
 
+    def test_ssd_values(self):
+        """Test various SSD values"""
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze(ssd="auto")  # shouldn't raise
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze(ssd=1000)  # shouldn't raise
+        with self.assertRaises(ValueError):
+            phan = LeedsTOR.from_demo_image()
+            phan.analyze(ssd=1500)  # really at 1000
+
 
 class PlanarPhantomMixin(CloudFileMixin):
     klass: Callable
     dir_path = ["planar_imaging"]
     mtf_50 = None
     invert = False
-    ssd = 1000
+    ssd = "auto"
     median_contrast = None
     median_cnr = None
     file_name = None
@@ -253,33 +266,33 @@ class LeedsCCW(LeedsMixin, TestCase):
 
 class Leeds45Deg(LeedsMixin, TestCase):
     mtf_50 = 1.9
-    ssd = 1500
+    ssd = "auto"
     file_name = "Leeds-45deg.dcm"
 
 
 class LeedsDirtyEdges(LeedsMixin, TestCase):
     mtf_50 = 1.53
-    ssd = 1000
+    ssd = "auto"
     file_name = "Leeds-dirty-edges.dcm"
 
 
 class LeedsOffsetHighRes(LeedsMixin, TestCase):
     mtf_50 = 1.85
-    ssd = 1500
+    ssd = "auto"
     file_name = "Leeds_offset_high_res_rois.dcm"
 
 
 class LeedsBlue(LeedsMixin, TestCase):
     klass = LeedsTORBlue
     mtf_50 = 1.5
-    ssd = 1450
+    ssd = "auto"
     file_name = "Leeds_Blue.dcm"
 
 
 class LeedsBlueRotated(LeedsMixin, TestCase):
     klass = LeedsTORBlue
     mtf_50 = 1.5
-    ssd = 1450
+    ssd = "auto"
     file_name = "Leeds_Blue.dcm"
 
     @classmethod
@@ -292,7 +305,7 @@ class LeedsBlueRotated(LeedsMixin, TestCase):
 @skip("Phantom appears distorted. MTF locations are different than other phantoms")
 class LeedsClosedBlades(LeedsMixin, TestCase):
     mtf_50 = 1.3
-    ssd = 1500
+    ssd = "auto"
     file_name = "Leeds-closed-blades.dcm"
 
 
@@ -329,6 +342,7 @@ class SIQC3_2(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     file_name = "QC3-2.5MV-2.dcm"
     mtf_50 = 1.16
+    ssd = 1000
     rois_seen = 5
 
     def test_wrong_ssd_fails(self):
@@ -388,6 +402,35 @@ class LasVegasTB1(LasVegasTestMixin, TestCase):
         "6MV LasVegas HQ 0deg - ImageRT_2016-10-6 20-10-17.dcm",
     ]
     phantom_angle = 284.5
+
+
+class ElektaLasVegasMixin(LasVegasTestMixin):
+    dir_path = ["planar_imaging", "Elekta Las Vegas"]
+    klass = ElektaLasVegas
+
+    @classmethod
+    def setUpClass(cls):
+        cls.instance = cls.create_instance()
+        cls.preprocess(cls.instance)
+        cls.instance.image.rot90(n=3)
+        cls.instance.analyze(ssd=cls.ssd, invert=cls.invert)
+
+
+class ElektaDemo(ElektaLasVegasMixin, TestCase):
+    rois_seen = 17
+
+    def test_demo(self):
+        ElektaLasVegas.run_demo()  # shouldn't raise
+
+
+class Elekta2MU(ElektaLasVegasMixin, TestCase):
+    file_name = "LasVegas_2MU.dcm"
+    rois_seen = 12
+
+
+class Elekta10MU(ElektaLasVegasMixin, TestCase):
+    file_name = "LasVegas_10MU.dcm"
+    rois_seen = 17
 
 
 class DoselabMVDemo(PlanarPhantomMixin, TestCase):
@@ -743,6 +786,50 @@ class FC2BBDownRight1mm(FC2Mixin, TestCase):
     field_epid_offset_x_mm = 0
     field_bb_offset_y_mm = 1
     field_bb_offset_x_mm = 1
+
+
+class DoselabRLfMixin(FC2Mixin):
+    klass = DoselabRLf
+    dir_path = ["planar_imaging", "Doselab RLf"]
+
+
+class DoselabRLfDemo(DoselabRLfMixin, TestCase):
+    field_size_y_mm = 148.2
+    field_size_x_mm = 149.3
+    field_epid_offset_x_mm = 0.1
+    field_epid_offset_y_mm = 0.6
+    field_bb_offset_y_mm = 0.8
+    field_bb_offset_x_mm = 0.2
+
+    def test_demo(self):
+        DoselabRLf.run_demo()
+
+
+class DoselabRLf10x10(DoselabRLfMixin, TestCase):
+    file_name = "FS 10x10.dcm"
+    field_size_y_mm = 98.2
+    field_size_x_mm = 99.2
+    field_epid_offset_x_mm = 0.2
+    field_epid_offset_y_mm = 0.8
+    field_bb_offset_y_mm = 0.9
+    field_bb_offset_x_mm = 0.2
+
+
+class IsoAlignMixin(FC2Mixin):
+    klass = IsoAlign
+    dir_path = ["planar_imaging", "Doselab RLf"]
+
+
+class IsoAlignDemo(IsoAlignMixin, TestCase):
+    field_size_y_mm = 149.6
+    field_size_x_mm = 150.2
+    field_epid_offset_y_mm = 0.4
+    field_epid_offset_x_mm = -0.1
+    field_bb_offset_y_mm = 0.0
+    field_bb_offset_x_mm = 0.2
+
+    def test_demo(self):
+        IsoAlign.run_demo()
 
 
 class IMTLRadMixin(FC2Mixin):

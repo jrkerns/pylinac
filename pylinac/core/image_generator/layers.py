@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 from skimage import draw, filters
 
+from ..array_utils import geometric_center_idx
+
 
 def clip_add(
     image1: np.ndarray, image2: np.ndarray, dtype: type[np.dtype] = np.uint16
@@ -136,12 +138,14 @@ class FilterFreeConeLayer(PerfectConeLayer):
     ) -> np.ndarray:
         image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
+        center_x = geometric_center_idx(image[:, 0])
+        center_y = geometric_center_idx(image[0, :])
         n = gaussian2d(
             rr,
             cc,
             self.filter_magnitude * np.iinfo(image.dtype).max,
-            image.shape[0] / 2,
-            image.shape[1] / 2,
+            center_x,
+            center_y,
             self.filter_sigma_mm / pixel_size,
             self.filter_sigma_mm / pixel_size,
             constant=-self.filter_magnitude * np.iinfo(image.dtype).max,
@@ -204,7 +208,7 @@ class PerfectFieldLayer(Layer):
 
     def apply(
         self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    ) -> np.array:
         image, _, _ = self._create_perfect_field(image, pixel_size, mag_factor)
         return image
 
@@ -241,19 +245,19 @@ class FilteredFieldLayer(PerfectFieldLayer):
         self.gaussian_height = gaussian_height
         self.gaussian_sigma_mm = gaussian_sigma_mm
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
         height = -self.gaussian_height * np.iinfo(image.dtype).max
         width = self.gaussian_sigma_mm / pixel_size
+        center_x = geometric_center_idx(image[:, 0])
+        center_y = geometric_center_idx(image[0, :])
         horns = gaussian2d(
             rr,
             cc,
             height=height,
-            center_x=image.shape[0] / 2,
-            center_y=image.shape[1] / 2,
+            center_x=center_x,
+            center_y=center_y,
             width_x=width,
             width_y=width,
         )
@@ -291,17 +295,17 @@ class FilterFreeFieldLayer(FilteredFieldLayer):
             field_size_mm, cax_offset_mm, alpha, gaussian_height, gaussian_sigma_mm
         )
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         image, rr, cc = self._create_perfect_field(image, pixel_size, mag_factor)
         # add filter effect
+        center_x = geometric_center_idx(image[:, 0])
+        center_y = geometric_center_idx(image[0, :])
         n = gaussian2d(
             rr,
             cc,
             self.gaussian_height * np.iinfo(image.dtype).max,
-            image.shape[0] / 2,
-            image.shape[1] / 2,
+            center_x,
+            center_y,
             self.gaussian_sigma_mm / pixel_size,
             self.gaussian_sigma_mm / pixel_size,
             constant=-self.gaussian_height * np.iinfo(image.dtype).max,
@@ -330,9 +334,7 @@ class GaussianFilterLayer(Layer):
     def __init__(self, sigma_mm: float = 2):
         self.sigma_mm = sigma_mm
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         sigma_pix = self.sigma_mm / pixel_size
         return filters.gaussian(image, sigma_pix, preserve_range=True).astype(
             image.dtype
@@ -346,9 +348,7 @@ class RandomNoiseLayer(Layer):
         self.mean = mean
         self.sigma = sigma
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         normalized_sigma = self.sigma * np.iinfo(image.dtype).max
         noise = np.random.normal(self.mean, normalized_sigma, size=image.shape)
         return clip_add(image, noise, dtype=image.dtype)
@@ -360,8 +360,6 @@ class ConstantLayer(Layer):
     def __init__(self, constant: float):
         self.constant = constant
 
-    def apply(
-        self, image: np.ndarray, pixel_size: float, mag_factor: float
-    ) -> np.ndarray:
+    def apply(self, image: np.array, pixel_size: float, mag_factor: float) -> np.array:
         constant_img = np.full(image.shape, fill_value=self.constant)
         return clip_add(image, constant_img, dtype=image.dtype)

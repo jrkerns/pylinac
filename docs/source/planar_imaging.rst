@@ -20,7 +20,9 @@ Feature table
 +------------------+------------------+-------------+----------------+---------------------------+
 | Doselab MC2 (kV) | No               | Manual      | Yes            | Semi (+/-5 from 0)        |
 +------------------+------------------+-------------+----------------+---------------------------+
-| Las Vegas        | L/R              | Manual      | Yes            | No (0)                    |
+| Las Vegas        | No               | Manual      | Yes            | No (0)                    |
++------------------+------------------+-------------+----------------+---------------------------+
+| Elekta Las Vegas | No               | Manual      | Yes            | No (0)                    |
 +------------------+------------------+-------------+----------------+---------------------------+
 | Leeds TOR        | Yes              | Manual      | Yes            | Yes                       |
 +------------------+------------------+-------------+----------------+---------------------------+
@@ -104,7 +106,7 @@ The minimum needed to get going is to:
 
      leeds.analyze(low_contrast_threshold=0.01, high_contrast_threshold=0.5)
 
-  Additionally, you may specify the SSD of the phantom if it is not at iso (e.g. sitting on the panel):
+  Additionally, you may specify the SSD of the phantom. By default, SAD and 5cm up from SID are searched:
 
   .. code-block:: python
 
@@ -182,7 +184,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching or close to any image edges.
 * The blades should be fully or mostly open to correctly invert the image. This may not result in a complete failure,
@@ -288,7 +290,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must be at 0 degrees.
 * The phantom must not be touching any image edges.
@@ -350,7 +352,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must be at 45 degrees.
 * The phantom must not be touching any image edges.
@@ -391,14 +393,19 @@ Las Vegas Phantom
 -----------------
 
 The Las Vegas phantom is for MV image quality testing and includes low contrast regions of varying contrast and size.
+There is also a :class:`~pylinac.planar_imaging.ElektaLasVegas` class that is very similar. This section covers
+both styles.
 
 Image Acquisition
 ^^^^^^^^^^^^^^^^^
 
-The Las Vegas phantom has a recommended position as stated on the phantom. Pylinac will however account for angles,
-shifts, and inversions. Best practices for the Las Vegas phantom:
+The Las Vegas phantom has a recommended position as stated on the phantom. Pylinac will however account for
+shifts and inversions. Best practices for the Las Vegas phantom:
 
 * Keep the phantom from a couch edge or any rails.
+* The field edge should be >=5mm from the phantom edge, preferably 10+mm.
+* The orientation should have the largest "holes" towards the right side although this can be accounted for as an ``analyze`` parameter.
+* The angle should be as close to 0 as possible, given above, although this can be accounted for as an ``analyze`` parameter.
 
 Algorithm
 ^^^^^^^^^
@@ -412,7 +419,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching any image edges.
 * The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
@@ -463,7 +470,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching any image edges.
 * The phantom should be at 45 degrees relative to the EPID.
@@ -516,7 +523,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching any image edges.
 * The phantom should be at 45 degrees relative to the EPID.
@@ -564,7 +571,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom must not be touching any image edges.
 * The phantom should be at 0, 90, or 270 +/-5 degrees relative to the EPID where 0 is facing the gun.
@@ -625,7 +632,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
 * The phantom should be centered near the CAX (<1cm).
@@ -677,6 +684,107 @@ The BB window as well as the expected BB positions, and field strip size can be 
     # use as normal
     fc2 = MySIFC2(...)
 
+
+.. _doselab_rlf:
+
+Doselab RLf
+-----------
+
+.. versionadded:: 3.15
+
+The Doselab RLf is for testing light/radiation coincidence. See also :class:`~pylinac.planar_imaging.DoselabRLf`.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The RLf phantom should be placed on the couch at 100cm SSD.
+
+* Keep the phantom away from a couch edge or any rails.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
+* The phantom should be centered near the CAX (<2mm).
+
+**Analysis**
+
+* **Get BB centroid** -- An image window looks for each BB on the inner side of each edge. After finding the BBs,
+  the centroid is calculated.
+
+  .. note::
+
+    The inner 10x10 BBs are always used regardless of the field size. This is because the BB detection
+    is more robust when the BBs are away from a field edge. This also means that 10x10 analysis is
+    slightly less robust that 15x15 analysis all else being equal.
+
+* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
+  A 5mm strip is averaged and used to reduce noise.
+
+**Post-Analysis**
+
+* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
+  The field size is also reported.
+
+
+.. _isoalign:
+
+IsoAlign
+--------
+
+.. versionadded:: 3.15
+
+The IsoAlign phantom is for testing light/radiation coincidence. See also :class:`~pylinac.planar_imaging.IsoAlign`.
+
+Image Acquisition
+^^^^^^^^^^^^^^^^^
+
+The phantom should be placed on the couch at 100cm SSD.
+
+* Keep the phantom away from a couch edge or any rails.
+
+Algorithm
+^^^^^^^^^
+
+The algorithm works like such:
+
+**Allowances**
+
+* The images can be acquired at any SID.
+* The images can be acquired with any EPID.
+
+**Restrictions**
+
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+
+* The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
+* The phantom should be centered near the CAX (<2mm).
+
+**Analysis**
+
+* **Get BB centroid** -- An image window looks for the central BB as well as 1 BB in each cardinal direction. After finding the BBs,
+  the centroid is calculated.
+
+* **Determine field center** -- The field size is measured along the center of the image in the inplane and crossplane direction.
+  A 10mm strip is averaged and used to reduce noise.
+
+**Post-Analysis**
+
+* **Comparing centroids** -- The irradiated field centroid is compared to the EPID/image center as well as the the BB centroid.
+  The field size is also reported.
+
+
 .. _imt_lrad:
 
 IMT L-Rad
@@ -707,7 +815,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom should be at a cardinal angle (0, 90, 180, or 270 degrees) relative to the EPID.
 * The phantom should be centered near the CAX (<3mm).
@@ -758,7 +866,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The phantom should be at 0 degrees relative to the EPID.
 * The phantom should be roughly centered along the CAX (<3mm).
@@ -790,126 +898,126 @@ phantoms:
 
 1. Subclass the ``ImagePhantomBase`` class:
 
-    .. code-block:: python
+.. code-block:: python
 
-        from pylinac.planar_imaging import ImagePhantomBase
+    from pylinac.planar_imaging import ImagePhantomBase
 
 
-        class CustomPhantom(ImagePhantomBase):
-            pass
+    class CustomPhantom(ImagePhantomBase):
+        pass
 
 2. Define the ``common_name``. This is the name shown in plots and PDF reports.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
-            common_name = "Custom Phantom v2.0"
+    class CustomPhantom(ImagePhantomBase):
+        common_name = "Custom Phantom v2.0"
 
 3. If the phantom has a high-contrast measurement object, define the ROI locations.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
-            ...
-            high_contrast_roi_settings = {
-                "roi 1": {
-                    "distance from center": 0.5,
-                    "angle": 30,
-                    "roi radius": 0.05,
-                    "lp/mm": 0.2,
-                },
-                # add as many ROIs as are needed
-            }
+    class CustomPhantom(ImagePhantomBase):
+        ...
+        high_contrast_roi_settings = {
+            "roi 1": {
+                "distance from center": 0.5,
+                "angle": 30,
+                "roi radius": 0.05,
+                "lp/mm": 0.2,
+            },
+            # add as many ROIs as are needed
+        }
 
-    .. note::
+.. note::
 
-        The exact values of your ROIs will need to be empirically determined. This usually involves an iterative process of
-        adjusting the values until the values are satisfactory based on the ROI sample alignment to the actual ROIs.
+    The exact values of your ROIs will need to be empirically determined. This usually involves an iterative process of
+    adjusting the values until the values are satisfactory based on the ROI sample alignment to the actual ROIs.
 
 4. If the phantom has a low-contrast measurement object, define the sample ROI and background ROI locations.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
-            ...
-            low_contrast_roi_settings = {
-                "roi 1": {
-                    "distance from center": 0.5,
-                    "angle": 30,
-                    "roi radius": 0.05,
-                },  # no lp/mm key
-                # add as many ROIs as are needed
-            }
-            low_contrast_background_roi_settings = {
-                "roi 1": {"distance from center": 0.3, "angle": -45, "roi radius": 0.02},
-                # add as many ROIs as are needed
-            }
+    class CustomPhantom(ImagePhantomBase):
+        ...
+        low_contrast_roi_settings = {
+            "roi 1": {
+                "distance from center": 0.5,
+                "angle": 30,
+                "roi radius": 0.05,
+            },  # no lp/mm key
+            # add as many ROIs as are needed
+        }
+        low_contrast_background_roi_settings = {
+            "roi 1": {"distance from center": 0.3, "angle": -45, "roi radius": 0.02},
+            # add as many ROIs as are needed
+        }
 
-    .. note::
+.. note::
 
-        The exact values of your ROIs will need to be empirically determined. This usually involves an iterative process of
-        adjusting the values until the values are satisfactory based on the ROI sample alignment to the actual ROIs.
+    The exact values of your ROIs will need to be empirically determined. This usually involves an iterative process of
+    adjusting the values until the values are satisfactory based on the ROI sample alignment to the actual ROIs.
 
 5. Set the "detection conditions", which is the list of rules that must be true to properly detect the phantom ROI.
    E.g. the phantom should be near the center of the image.
    Detection conditions must always have a specific signature as shown below:
 
-    .. code-block:: python
+.. code-block:: python
 
-        def my_special_detection_condition(
-            region: RegionProperties, instance: object, rtol: float
-        ) -> bool:
-            # region is a scikit regionprop (https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.regionprops)
-            # instance == self of the phantom
-            # rtol is relative tolerance of agreement. Don't have to use this.
-            do_stuff  # e.g. is the region size and position correct?
-            return bool(result)  # must always return a boolean
+    def my_special_detection_condition(
+        region: RegionProperties, instance: object, rtol: float
+    ) -> bool:
+        # region is a scikit regionprop (https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.regionprops)
+        # instance == self of the phantom
+        # rtol is relative tolerance of agreement. Don't have to use this.
+        do_stuff  # e.g. is the region size and position correct?
+        return bool(result)  # must always return a boolean
 
 
-        class CustomPhantom(ImagePhantomBase):
-            detection_conditions = [
-                my_special_detection_condition,
-            ]  # list of conditions; add as many as you want.
+    class CustomPhantom(ImagePhantomBase):
+        detection_conditions = [
+            my_special_detection_condition,
+        ]  # list of conditions; add as many as you want.
 
 6. Optionally, add a phantom outline object. This helps visualize the algorithm's determination of the size, center, and angle.
    If no object is defined, then no outline will be shown. This step is optional.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
-            ...
-            phantom_outline_object = {
-                "Circle": {"radius ratio": 0.5}
-            }  # to create a circular outline
-            # or...
-            phantom_outline_object = {
-                "Rectangle": {"width ratio": 0.5, "height ratio": 0.3}
-            }  # to create a rectangular outline
+    class CustomPhantom(ImagePhantomBase):
+        ...
+        phantom_outline_object = {
+            "Circle": {"radius ratio": 0.5}
+        }  # to create a circular outline
+        # or...
+        phantom_outline_object = {
+            "Rectangle": {"width ratio": 0.5, "height ratio": 0.3}
+        }  # to create a rectangular outline
 
 At this point you could technically call it done. You would need to always override the angle, center, and size values in the analyze method however.
 To automate this part you will need to fill in the associated logic. You can use whatever method you like. What I have
 found most useful is to use an edge detection algorithm and find the outline of the phantom.
 
-    .. code-block:: python
+.. code-block:: python
 
-        class CustomPhantom(ImagePhantomBase):
+    class CustomPhantom(ImagePhantomBase):
+        ...
+
+        def _phantom_center_calc(self) -> Point:
+            # do stuff in here to determine the center point location.
+            # don't forget to return as a Point item (pylinac.core.geometry.Point).
             ...
 
-            def _phantom_center_calc(self) -> Point:
-                # do stuff in here to determine the center point location.
-                # don't forget to return as a Point item (pylinac.core.geometry.Point).
-                ...
+        def _phantom_radius_calc(self) -> float:
+            # do stuff in here to return a float that represents the phantom radius value.
+            # This value does not have to relate to a physical measure. It simply defines a value that the ROIs scale by.
+            ...
 
-            def _phantom_radius_calc(self) -> float:
-                # do stuff in here to return a float that represents the phantom radius value.
-                # This value does not have to relate to a physical measure. It simply defines a value that the ROIs scale by.
-                ...
-
-            def _phantom_angle_calc(self) -> float:
-                # do stuff in here to return a float that represents the angle of the phantom.
-                # Again, this value does not have to correspond to reality; it simply offsets the ROIs.
-                # You may also return a constant if you like for any of these.
-                ...
+        def _phantom_angle_calc(self) -> float:
+            # do stuff in here to return a float that represents the angle of the phantom.
+            # Again, this value does not have to correspond to reality; it simply offsets the ROIs.
+            # You may also return a constant if you like for any of these.
+            ...
 
 Congratulations! You now have a fully-functioning custom phantom. By using the base class and the predefined attributes
 and methods, the plotting and PDF report functionality comes for free.
@@ -1049,6 +1157,9 @@ API Documentation
 .. autoclass:: pylinac.planar_imaging.LasVegas
     :inherited-members:
 
+.. autoclass:: pylinac.planar_imaging.ElektaLasVegas
+    :inherited-members:
+
 .. autoclass:: pylinac.planar_imaging.DoselabMC2MV
     :inherited-members:
 
@@ -1074,6 +1185,12 @@ API Documentation
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.IMTLRad
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.DoselabRLf
+    :inherited-members:
+
+.. autoclass:: pylinac.planar_imaging.IsoAlign
     :inherited-members:
 
 .. autoclass:: pylinac.planar_imaging.SNCFSQA

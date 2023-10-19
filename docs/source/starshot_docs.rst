@@ -131,7 +131,7 @@ Algorithm
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The image must have at least 6 spokes (3 angles).
 * The center of the "star" must be in the central 1/3 of the image.

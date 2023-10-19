@@ -125,7 +125,7 @@ def filter(
 
 
 @validate(array=array_not_empty)
-def stretch(array: np.ndarray, min: int = 0, max: int = 1) -> np.ndarray:
+def stretch(array: np.ndarray, min: int = 0, max: int = 1) -> np.array:
     """'Stretch' the profile to the fit a new min and max value. This is a utility for grounding + normalizing.
 
     Parameters
@@ -155,7 +155,7 @@ def stretch(array: np.ndarray, min: int = 0, max: int = 1) -> np.ndarray:
 
 
 @validate(array=array_not_empty)
-def convert_to_dtype(array: np.ndarray, dtype: type[np.dtype]) -> np.ndarray:
+def convert_to_dtype(array: np.array, dtype: type[np.dtype]) -> np.array:
     """Convert an array to another datatype, accounting for the array values.
     A normal numpy dtype conversion simply changes the datatype and leaves the values alone.
     This will convert an array and also convert the values to the same relative value of the new datatype.
@@ -172,7 +172,7 @@ def convert_to_dtype(array: np.ndarray, dtype: type[np.dtype]) -> np.ndarray:
     relative_values = array.astype(float) / old_dtype_info.max
     # float range is so large that it's better to normalize
     if isinstance(old_dtype_info, np.finfo):
-        relative_values /= relative_values.max()
+        relative_values = stretch(relative_values, min=0, max=1)
     # new array info
     dtype_info = get_dtype_info(dtype)
     dtype_range = dtype_info.max - dtype_info.min
@@ -186,3 +186,8 @@ def get_dtype_info(dtype: type[np.dtype]) -> np.iinfo | np.finfo:
     except ValueError:
         dtype_info = np.finfo(dtype)
     return dtype_info
+
+
+def find_nearest_idx(array: np.array, value: float) -> int:
+    """Find the nearest index to the target value"""
+    return (np.abs(array - value)).argmin()

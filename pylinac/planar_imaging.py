@@ -5,6 +5,7 @@ The following phantoms are supported:
 * Standard Imaging QC-3
 * Standard Imaging QC-kV
 * Las Vegas
+* Elekta Las Vegas
 * Doselab MC2 MV
 * Doselab MC2 kV
 * SNC kV
@@ -28,24 +29,25 @@ import os.path as osp
 import warnings
 import webbrowser
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import BinaryIO, Callable, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from py_linq import Enumerable
 from scipy.ndimage import median_filter
 from skimage import feature, measure
 from skimage.measure._regionprops import RegionProperties
 
+from . import Normalization
 from .core import geometry, image, pdf
 from .core.contrast import Contrast
 from .core.decorators import lru_cache
 from .core.geometry import Circle, Point, Rectangle, Vector
 from .core.io import get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import CollapsedCircleProfile, Interpolation, SingleProfile
+from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
 from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
 from .core.utilities import ResultBase
 from .ct import get_regions
@@ -63,6 +65,7 @@ class PlanarResult(ResultBase):
     median_cnr: float  #:
     num_contrast_rois_seen: int  #:
     phantom_center_x_y: tuple[float, float]  #:
+    low_contrast_rois: list[dict]  #:
     mtf_lp_mm: tuple[float, float, float] = None  #:
 
 
@@ -146,7 +149,9 @@ class ImagePhantomBase:
     detection_conditions: list[Callable] = [is_centered, is_right_size]
     detection_canny_settings = {"sigma": 2, "percentiles": (0.001, 0.01)}
     phantom_bbox_size_mm2: float
-    roi_match_condition = "max"
+    roi_match_condition: Literal["max", "closest"] = "max"
+    mtf: MTF
+    _ssd: float
 
     def __init__(
         self,
@@ -175,8 +180,6 @@ class ImagePhantomBase:
         self._center_override = None
         self._high_contrast_threshold = None
         self._low_contrast_threshold = None
-        self._ssd: float = 100
-        self.mtf = None
 
     @classmethod
     def from_demo_image(cls):
@@ -275,7 +278,7 @@ class ImagePhantomBase:
         angle_override: float | None = None,
         center_override: tuple | None = None,
         size_override: float | None = None,
-        ssd: float = 1000,
+        ssd: float | Literal["auto"] = "auto",
         low_contrast_method: str = Contrast.MICHELSON,
         visibility_threshold: float = 100,
     ) -> None:
@@ -310,7 +313,7 @@ class ImagePhantomBase:
 
                  This value is not necessarily the physical size of the phantom. It is an arbitrary value.
         ssd
-            The SSD of the phantom itself in mm.
+            The SSD of the phantom itself in mm. If set to "auto", will first search for the phantom at the SAD, then at 5cm above the SID.
         low_contrast_method
             The equation to use for calculating low contrast.
         visibility_threshold
@@ -324,6 +327,7 @@ class ImagePhantomBase:
         self._low_contrast_method = low_contrast_method
         self.visibility_threshold = visibility_threshold
         self._ssd = ssd
+        self._find_ssd()
         self._check_inversion()
         if invert:
             self.image.invert()
@@ -664,6 +668,7 @@ class ImagePhantomBase:
                 roi.passed_visibility for roi in self.low_contrast_rois
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
+            low_contrast_rois=[roi.as_dict() for roi in self.low_contrast_rois],
         )
 
         if self.mtf is not None:
@@ -775,7 +780,19 @@ class ImagePhantomBase:
         pass
 
     def _phantom_radius_calc(self):
-        pass
+        return math.sqrt(self.phantom_ski_region.bbox_area)
+
+    def _find_ssd(self):
+        """If the SSD parameter is set to auto, search at SAD, then at -5cm SID"""
+        if isinstance(self._ssd, str) and self._ssd.lower() == "auto":
+            self._ssd = self.image.metadata.get("RadiationMachineSAD", 1000)
+            try:
+                # cached property; no error means it found it.
+                self.phantom_ski_region
+            except ValueError:
+                # 5cm up from SID
+                self._ssd = self.image.metadata.get("RTImageSID", 1500) - 50
+                self.phantom_ski_region
 
 
 @dataclass
@@ -900,21 +917,29 @@ class StandardImagingFC2(ImagePhantomBase):
             int(self.image.center.x + sample_width),
         )
         y_img = np.mean(self.image[:, x_bounds[0] : x_bounds[1]], 1)
-        y_prof = SingleProfile(
-            y_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm
+        y_prof = FWXMProfilePhysical(
+            values=y_img,
+            dpmm=self.image.dpmm,
+            normalization=Normalization.BEAM_CENTER,
+            ground=True,
+            fwxm_height=fwxm,
         )
+        y = y_prof.center_idx
+        field_width_y = y_prof.field_width_mm
         y_bounds = (
             int(self.image.center.y - sample_width),
             int(self.image.center.y + sample_width),
         )
         x_img = np.mean(self.image[y_bounds[0] : y_bounds[1], :], 0)
-        x_prof = SingleProfile(
-            x_img, interpolation=Interpolation.NONE, dpmm=self.image.dpmm
+        x_prof = FWXMProfilePhysical(
+            values=x_img,
+            dpmm=self.image.dpmm,
+            normalization=Normalization.BEAM_CENTER,
+            ground=True,
+            fwxm_height=fwxm,
         )
-        x = x_prof.fwxm_data(x=fwxm)["center index (exact)"]
-        y = y_prof.fwxm_data(x=fwxm)["center index (exact)"]
-        field_width_x = x_prof.fwxm_data(x=fwxm)["width (exact) mm"]
-        field_width_y = y_prof.fwxm_data(x=fwxm)["width (exact) mm"]
+        x = x_prof.center_idx
+        field_width_x = x_prof.field_width_mm
         return Point(x=x, y=y), field_width_x, field_width_y
 
     def _find_overall_bb_centroid(self, fwxm: int) -> Point:
@@ -964,14 +989,12 @@ class StandardImagingFC2(ImagePhantomBase):
 
     def _determine_bb_set(self, fwxm: int) -> dict:
         """This finds the approximate field size to determine whether to check for the 10x10 BBs or the 15x15. Returns the BB positions"""
-        x_prof = SingleProfile(
-            self.image[int(self.image.center.y), :], dpmm=self.image.dpmm
-        )
-        y_prof = SingleProfile(
-            self.image[:, int(self.image.center.x)], dpmm=self.image.dpmm
-        )
-        x_width = x_prof.fwxm_data(x=fwxm)["width (exact) mm"]
-        y_width = y_prof.fwxm_data(x=fwxm)["width (exact) mm"]
+        x_width = FWXMProfilePhysical(
+            values=self.image[int(self.image.center.y), :], dpmm=self.image.dpmm
+        ).field_width_mm
+        y_width = FWXMProfilePhysical(
+            values=self.image[:, int(self.image.center.x)], dpmm=self.image.dpmm
+        ).field_width_mm
         if not np.allclose(x_width, y_width, atol=10):
             raise ValueError(
                 f"The detected y and x field sizes were too different from one another. They should be within 1cm from each other. Detected field sizes: x={x_width}, y={y_width}"
@@ -1127,6 +1150,66 @@ class IMTLRad(StandardImagingFC2):
 
     def _determine_bb_set(self, fwxm: int) -> dict:
         return self.center_only_bb
+
+
+class DoselabRLf(StandardImagingFC2):
+    """The Doselab light/rad phantom"""
+
+    common_name = "Doselab Rlf"
+    _demo_filename = "Doselab_RLf.dcm"
+    # these positions are the offset in mm from the center of the image to the nominal position of the BBs
+    bb_positions_10x10 = {
+        "TL": [-17, -45],
+        "BL": [-45, 17],
+        "TR": [45, -17],
+        "BR": [17, 45],
+    }
+    # 15x15 is not as robust as 10x10
+    # bb_positions_15x15 = {
+    #     "TL": [-45, -70],
+    #     "BL": [-70, 45],
+    #     "TR": [70, -45],
+    #     "BR": [45, 70],
+    # }
+    bb_sampling_box_size_mm = 10
+    field_strip_width_mm = 5
+
+    def _determine_bb_set(self, fwxm: int) -> dict:
+        return self.bb_positions_10x10
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the Doselab RFl phantom analysis demonstration."""
+        dl = DoselabRLf.from_demo_image()
+        dl.analyze()
+        dl.plot_analyzed_image()
+
+
+class IsoAlign(StandardImagingFC2):
+    """The PTW Iso-Align light/rad phantom"""
+
+    common_name = "PTW Iso-Align"
+    _demo_filename = "ptw_isoalign.dcm"
+    # these positions are the offset in mm from the center of the image to the nominal position of the BBs
+    bb_positions = {
+        "Center": [0, 0],
+        "Top": [0, -25],
+        "Bottom": [0, 25],
+        "Left": [-25, 0],
+        "Right": [25, 0],
+    }
+    bb_sampling_box_size_mm = 8
+    field_strip_width_mm = 10
+
+    def _determine_bb_set(self, fwxm: int) -> dict:
+        return self.bb_positions
+
+    @staticmethod
+    def run_demo() -> None:
+        """Run the phantom analysis demonstration."""
+        al = IsoAlign.from_demo_image()
+        al.analyze()
+        al.plot_analyzed_image()
 
 
 class SNCFSQA(StandardImagingFC2):
@@ -1317,10 +1400,86 @@ class LasVegas(ImagePhantomBase):
                 roi.passed_visibility for roi in self.low_contrast_rois
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
+            low_contrast_rois=[r.as_dict() for r in self.low_contrast_rois],
         )
         if as_dict:
             return dataclasses.asdict(data)
         return data
+
+
+class ElektaLasVegas(LasVegas):
+    """Elekta's variant of the Las Vegas."""
+
+    _demo_filename = "elekta_las_vegas.dcm"
+    common_name = "Elekta Las Vegas"
+    phantom_bbox_size_mm2 = 140 * 140
+    phantom_outline_object = {"Rectangle": {"width ratio": 0.61, "height ratio": 0.61}}
+    low_contrast_background_roi_settings = {
+        "roi 1": {"distance from center": 0.24, "angle": 0, "roi radius": 0.03},
+        "roi 2": {"distance from center": 0.24, "angle": 90, "roi radius": 0.03},
+        "roi 3": {"distance from center": 0.24, "angle": 180, "roi radius": 0.03},
+        "roi 4": {"distance from center": 0.24, "angle": 270, "roi radius": 0.03},
+    }
+    low_contrast_roi_settings = {
+        "roi 1": {"distance from center": 0.161, "angle": 0.4, "roi radius": 0.024},
+        "roi 2": {"distance from center": 0.181, "angle": 28.6, "roi radius": 0.024},
+        "roi 3": {"distance from center": 0.238, "angle": 47.45, "roi radius": 0.024},
+        "roi 4": {"distance from center": 0.183, "angle": -70.6, "roi radius": 0.015},
+        "roi 5": {"distance from center": 0.107, "angle": -55.1, "roi radius": 0.015},
+        "roi 6": {"distance from center": 0.061, "angle": 1, "roi radius": 0.015},
+        "roi 7": {"distance from center": 0.107, "angle": 55.15, "roi radius": 0.015},
+        "roi 8": {"distance from center": 0.185, "angle": 71.1, "roi radius": 0.015},
+        "roi 9": {"distance from center": 0.175, "angle": -97.3, "roi radius": 0.011},
+        "roi 10": {"distance from center": 0.09, "angle": -104.3, "roi radius": 0.011},
+        "roi 11": {"distance from center": 0.022, "angle": -180, "roi radius": 0.011},
+        "roi 12": {"distance from center": 0.088, "angle": 104.6, "roi radius": 0.011},
+        "roi 13": {"distance from center": 0.1757, "angle": 97.26, "roi radius": 0.011},
+        "roi 14": {
+            "distance from center": 0.1945,
+            "angle": -116.58,
+            "roi radius": 0.006,
+        },
+        "roi 15": {
+            "distance from center": 0.124,
+            "angle": -135.11,
+            "roi radius": 0.006,
+        },
+        "roi 16": {
+            "distance from center": 0.0876,
+            "angle": 179.85,
+            "roi radius": 0.006,
+        },
+        "roi 17": {"distance from center": 0.1227, "angle": 135.4, "roi radius": 0.006},
+        "roi 18": {
+            "distance from center": 0.1947,
+            "angle": 116.65,
+            "roi radius": 0.006,
+        },
+        "roi 19": {
+            "distance from center": 0.2258,
+            "angle": -129.53,
+            "roi radius": 0.003,
+        },
+        "roi 20": {
+            "distance from center": 0.1699,
+            "angle": -148.57,
+            "roi radius": 0.003,
+        },
+        "roi 21": {
+            "distance from center": 0.145,
+            "angle": -179.82,
+            "roi radius": 0.003,
+        },
+        "roi 22": {"distance from center": 0.1682, "angle": 149, "roi radius": 0.003},
+    }
+
+    @staticmethod
+    def run_demo():
+        """Run the Elekta Las Vegas phantom analysis demonstration."""
+        lv = ElektaLasVegas.from_demo_image()
+        lv.image.rot90(n=3)
+        lv.analyze()
+        lv.plot_analyzed_image()
 
 
 class PTWEPIDQC(ImagePhantomBase):

@@ -237,6 +237,37 @@ class TestMRGeneral(TestCase):
         # check the additional modules got added
         self.assertIsInstance(data.slice11.rois, dict)
 
+    def test_echo_number(self):
+        """Test analyzing a specific echo number works"""
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
+        mri1 = ACRMRILarge.from_zip(path)
+        mri1.analyze(echo_number=1)
+        echo_number_1 = mri1.dicom_stack[0].metadata.EchoNumbers
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
+        mri2 = ACRMRILarge.from_zip(path)
+        mri2.analyze(echo_number=2)
+        echo_number_2 = mri2.dicom_stack[0].metadata.EchoNumbers
+        self.assertNotEqual(echo_number_1, echo_number_2)
+
+    def test_echo_number_invalid(self):
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
+        mri = ACRMRILarge.from_zip(path)
+        with self.assertRaises(ValueError):
+            mri.analyze(echo_number=3)  # only 2 echoes
+
+    def test_echo_number_defaults_to_first(self):
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "AXIAL_DUAL_ECHO.zip"])
+        mri = ACRMRILarge.from_zip(path)
+        self.assertEqual(len({s.metadata.EchoNumbers for s in mri.dicom_stack}), 2)
+        mri.analyze(echo_number=None)
+        self.assertEqual(mri.dicom_stack[0].metadata.EchoNumbers, "1")
+
+    def test_config_extent_rounds(self):
+        """Test that the extent check rounds the config extent to the nearest slice"""
+        path = get_file_from_cloud_test_repo([*TEST_DIR_MR, "Config rounding.zip"])
+        mri = ACRMRILarge.from_zip(path)
+        self.assertTrue(mri._ensure_physical_scan_extent())
+
 
 class TestMRPlottingSaving(TestCase):
     @classmethod
@@ -320,6 +351,42 @@ class ACRMRMixin(CloudFileMixin):
         self.assertAlmostEqual(self.mri.uniformity_module.psg, self.psg, delta=0.3)
 
 
+class ACRT1Single(ACRMRMixin, TestCase):
+    file_name = "T1-Single.zip"
+    mtf_50 = 0.96
+    phantom_roll = -0.5
+    slice_thickness = 5
+    slice1_shift = -1
+    slice11_shift = 0
+    psg = 0.3
+
+
+class ACRDualEcho(ACRMRMixin, TestCase):
+    file_name = "AXIAL_DUAL_ECHO.zip"
+    mtf_50 = 0.96
+    phantom_roll = 0
+    slice_thickness = 5
+    slice1_shift = -1
+    slice11_shift = 0
+    psg = 0.3
+
+
+class ACRDualEcho2(ACRMRMixin, TestCase):
+    file_name = "AXIAL_DUAL_ECHO.zip"
+    mtf_50 = 0.96
+    phantom_roll = 0
+    slice_thickness = 4.4
+    slice1_shift = -1
+    slice11_shift = 0
+    psg = 0.3
+
+    @classmethod
+    def setUpClass(cls):
+        filename = cls.get_filename()
+        cls.mri = ACRMRILarge.from_zip(filename)
+        cls.mri.analyze(echo_number=2)
+
+
 class ACRGE3T(ACRMRMixin, TestCase):
     file_name = "GE 3T.zip"
     mtf_50 = 0.96
@@ -330,19 +397,11 @@ class ACRGE3T(ACRMRMixin, TestCase):
     psg = 0.3
 
 
-class ACRGE3TOffset(ACRMRMixin, TestCase):
+class ACRGE3TOffset(ACRGE3T):
     """Shift the phantom over by several pixels to ensure no row/col algorithm issues
 
     Unfortunately, I can't move them that far because the FOV is very tight
     """
-
-    file_name = "GE 3T.zip"
-    mtf_50 = 0.96
-    phantom_roll = 0
-    slice_thickness = 5
-    slice1_shift = 0
-    slice11_shift = 1.5
-    psg = 0.3
 
     @classmethod
     def setUpClass(cls):
@@ -354,20 +413,14 @@ class ACRGE3TOffset(ACRMRMixin, TestCase):
         cls.mri.analyze()
 
 
-class ACRGE3TRotated(ACRMRMixin, TestCase):
-    """Rotate the phantom over by a bit. Sadly, this does mess up the algorithm slighly as
+class ACRGE3TRotated(ACRGE3T):
+    """Rotate the phantom over by a bit. Sadly, this does mess up the algorithm slightly as
     many ROIs are rectangles and cannot be truly rotated by the determined roll.
     Adding this test so for constancy but also so that in the future if the
     ROI analysis is improved this test can be fixed.
     """
 
-    file_name = "GE 3T.zip"
-    mtf_50 = 0.81
     phantom_roll = -0.4
-    slice_thickness = 4.7
-    slice1_shift = 0
-    slice11_shift = 1.5
-    psg = 0.3
 
     @classmethod
     def setUpClass(cls):
@@ -377,3 +430,19 @@ class ACRGE3TRotated(ACRMRMixin, TestCase):
             img.array = ndimage.rotate(img.array, angle=0.5, mode="nearest")
         cls.mri.localize()
         cls.mri.analyze()
+
+
+class ACRBadProfile(ACRMRMixin, TestCase):
+    """This dataset was causing long_profile errors due to the profile not
+    being a true profile w/ low values at the edges.
+
+    There are also other issues going on (different geometry module).
+    The only point here is to test the long profile error."""
+
+    file_name = "Config rounding.zip"
+    mtf_50 = 0.96
+    phantom_roll = 0
+    slice_thickness = 4.2
+    slice1_shift = 1.5
+    slice11_shift = 1.95
+    psg = 0.3

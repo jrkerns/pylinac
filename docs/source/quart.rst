@@ -101,6 +101,52 @@ Continuing from above:
     data_dict["hu_module"]["roi_radius_mm"]
     ...
 
+Algorithm
+---------
+
+The Quart algorithm is nearly the same as the :ref:`CBCT Algorithm <cbct-algorithm>`. The
+image loading and localization use the same type of logic.
+
+High-Resolution
+^^^^^^^^^^^^^^^
+
+For high-resolution resolvability, the Quart manual does describe an equation for calculating
+the MTF using the line-spread function (LSF) of the phantom edge. For simplicity,
+we use the Varian Halcyon IPA document, which outlines a similar logic
+with specific measurements of the -700 -> -200 HU distance using a vertical
+and horizontal profile.
+
+Within pylinac, to reduce the number of input parameters and also match commissioning
+values, these are the values used. The result is the distance in mm from
+these two HU values.
+
+.. note::
+
+  The images in pylinac are "grounded", meaning -1000 -> 0. So the actual algorithm
+  search values are +300 HU (-700 + 1000) and +800 HU (-200 + 1000).
+
+
+CNR/SNR
+^^^^^^^
+
+While normally the :ref:`contrast <contrast>` algorithm is chosen by the user,
+for the Quart phantom it is hardcoded based on the equations in the manual.
+Specifically, contrast to noise is defined as:
+
+.. math:: \frac{|Polystyrene - Acrylic|}{Acrylic}
+
+where the values are the median pixel value of the given ROI. Poly
+was given as a possible recommendations in the Quart user manual.
+Acrylic is the base material of the phantom, i.e. background.
+
+.. note:: The numerator is an absolute value.
+
+The signal to noise is defined as:
+
+.. math:: \frac{Polystyrene + 1000}{\sigma_{Polystyrene}}
+
+where :math:`\sigma` is the standard deviation of the Polystyrene ROI pixel values.
+The poly ROI was chosen by us to match the selection for the CNR equation.
 
 API Documentation
 ------------------

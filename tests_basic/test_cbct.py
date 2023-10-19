@@ -79,6 +79,26 @@ class TestGeneral(TestCase):
         self.assertIsInstance(cbct, CatPhan504)
         self.assertEqual(cbct.origin_slice, ref_cbct.origin_slice)
 
+    def test_scan_extent_not_long_enough_far_side(self):
+        """Test that if a scan doesn't include all the modules it raises an error"""
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        ref_cbct = CatPhan504.from_zip(path)
+        ref_cbct.dicom_stack.images = ref_cbct.dicom_stack.images[
+            :-25
+        ]  # chop off the end
+        with self.assertRaises(ValueError):
+            ref_cbct.localize()
+
+    def test_scan_extent_not_long_enough_near_side(self):
+        """Test that if a scan doesn't include all the modules it raises an error"""
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        ref_cbct = CatPhan504.from_zip(path)
+        ref_cbct.dicom_stack.images = ref_cbct.dicom_stack.images[
+            20:
+        ]  # chop off the end
+        with self.assertRaises(ValueError):
+            ref_cbct.localize()
+
     def test_crop_before_analysis(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         cbct = CatPhan504.from_zip(path)
@@ -187,6 +207,26 @@ class TestDemos(TestCase):
         CatPhan604.run_demo()
 
 
+class TestCustomHUValues(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.cbct = CatPhan504.from_demo_images()
+
+    def test_override(self):
+        self.cbct.analyze(expected_hu_values={"Air": -1000, "Poly": 321})
+        self.assertEqual(self.cbct.ctp404.rois["Air"].nominal_val, -1000)
+        self.assertEqual(self.cbct.ctp404.rois["Poly"].nominal_val, 321)
+
+    def test_extra_keys_harmless(self):
+        # shouldn't raise
+        self.cbct.analyze(expected_hu_values={"stuffcicles": 1111})
+
+    def test_nothing_passed(self):
+        # shouldn't raise; normal; backwards-compatible
+        self.cbct.analyze(expected_hu_values=None)
+        self.assertEqual(self.cbct.ctp404.rois["Air"].nominal_val, -1000)
+
+
 class TestPlottingSaving(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -208,7 +248,7 @@ class TestPlottingSaving(TestCase):
         self.cbct.plot_analyzed_image()
 
     def test_plot_subimages(self):
-        for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc"]:
+        for item in ["hu", "un", "mtf", "sp", "prof", "lin", "lc", "side"]:
             self.cbct.plot_analyzed_subimage(item)
 
         self.cbct.plot_analyzed_subimage("lin", delta=False)
@@ -1444,3 +1484,28 @@ class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):
     slice_thickness = 5.9
     unif_values = {"Center": 8, "Left": 7, "Right": 8, "Top": 8, "Bottom": 8}
     mtf_values = {50: 0.40}
+
+
+class CatPhan604NegativeSliceOverlap(CatPhan604Mixin, TestCase):
+    """Has a negative value for slice overlap. Has to do with stack order, but is irrelevant for our needs:
+    https://dicom.innolitics.com/ciods/nm-image/nm-reconstruction/00180088"""
+
+    file_name = "negative_spacing.zip"
+    expected_roll = 0.1
+    origin_slice = 65
+    hu_values = {
+        "Poly": -20,
+        "Acrylic": 128,
+        "Delrin": 351,
+        "Air": -967,
+        "Teflon": 910,
+        "PMP": -165,
+        "LDPE": -75,
+        "50% Bone": 604,
+        "20% Bone": 211,
+    }
+    thickness_slice_straddle = 0
+    slice_thickness = 2.15
+    unif_values = {"Center": 24, "Left": 23, "Right": 22, "Top": 23, "Bottom": 21}
+    mtf_values = {50: 0.40}
+    lowcon_visible = 6

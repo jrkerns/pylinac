@@ -3,8 +3,239 @@
 Changelog
 =========
 
+v 3.16.0
+--------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* ``results_data`` for planar imaging phantoms (Leeds, SNC kV/MV, Doselab MC2, etc) will now return
+  a ``low_contrast_rois`` dict that contains relevant info for each low-contrast ROI.
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The Winston Lutz module can now load CBCT datasets of a scanned BB. This is still experimental and may have bugs. Caution is warranted.
+  See :ref:`wl_cbct`.
+
+Profiles
+^^^^^^^^
+
+* Profile analysis has been completely revamped. The existing ``SingleProfile`` class still
+  exists and will not be deprecated immediately. It is frozen and will not receive updates.
+* New profile classes were written that are more generalizable and extensible. These
+  can be read about in the documentation below.
+* The new profile classes also have a new plugin system for computing custom metrics.
+  This allows for much more user-friendly, readable, and extensible code for both
+  myself and users.
+* A new documentation section has been added for profiles: :ref:`profiles`. This section
+  describes the various profile classes and how to use them.
+* Internally, pylinac now uses these new profile classes. Existing calculations should
+  be the same.
+* Calculating custom profile metrics (such as symmetry or flatness) is now much easier using
+  these new classes. The field analysis module will get a "v2" that will use these new classes
+  and allow for these easy-to-write custom metrics.
+
+Core
+^^^^
+
+Image
+#####
+
+* Similar to the new profile plugin architecture, 2D images also have a new plugin metric system.
+  See the new documentation: :ref:`image-metrics`.
+* The ``DicomImage`` class has a new class method: :meth:`~pylinac.core.image.DicomImage.from_dataset`.
+  This allows one to create a Dicom image from a pydicom dataset directly.
+
+Image Generator
+###############
+
+* The ``Simulator`` class and its subclasses has a new method: :meth:`~pylinac.core.image_generator.simulators.AS1200Image.as_dicom`.
+  This method will perform the same action as ``generate_dicom``, but instead of saving to file, will return the pydicom Dataset.
+
+
+v 3.15.0
+--------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* For the MultiTargetMultiField Winston Lutz analysis, non-zero couch angles are not allowed.
+  However, the check for this was limited to 0-5 degrees. Couch values that were on the
+  other side of 0 were not being included. Couch angles between
+  355-5 degrees are now allowed as originally intended.
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* The Doselab RLf light/rad phantom has been added as an analysis options: :ref:`doselab_rlf`.
+* The IsoAlign light/rad phantom has been added as an analysis options: :ref:`isoalign`.
+
+CT
+^^
+
+* The catphan detection was failing if the phantom jig was touching the phantom at the center of a
+  module. This has been fixed.
+
+* A rounding error was fixed where the extent check was failing because of
+  floating point rounding differences. This was causing an error to be raised
+  when the scan extent was just slightly smaller (or appeared to be smaller) than the configuration extent.
+
+ACR
+^^^
+
+* The ACR MRI phantom analysis was sometimes failing because the slice thickness check was failing.
+  This was caused by a slightly inappropriate use of the profile module, causing instability under
+  certain conditions. The MRI analysis should be more stable. Quantitative results should be the
+  same.
+
+VMAT
+^^^^
+
+* The standard deviation for each VMAT segment is now available as the ``.stdev`` property of the segment.
+
+  .. code-block:: python
+
+    vmat = DRMLC(...)
+    vmat.analyze(...)
+    data = vmat.results_data()
+    print(data.segments[0].stdev)  # first segment stdev
+
+Core
+^^^^
+
+* When saving a DICOM image, the pixel values were not "unscaling" the raw pixel values.
+  I.e. the scaled values were being saved back to the DICOM file. If the image
+  was then read in again, the values would be scaled twice. This has been fixed
+  and DICOM images can now, for the most part, go "round trip" without the raw pixel values changing.
+  An example is below:
+
+  .. code-block:: python
+
+    dcm_image = image.load("my_image.dcm")
+    dcm_image.array  # this is scaled by the DICOM tags
+    dcm_image.save(
+        "my_output_image.dcm"
+    )  # the pixel values were written back *as rescaled*
+    dcm_image2 = image.load("my_output_image.dcm")
+    dcm_image2.array  # this was scaling by the DICOM tags *again*
+
+  .. warning::
+
+      If the DICOM pixel values have been modified, such as concatenating images together,
+      and the values are too high or too low for the original datatype (usually uint16),
+      the values will be scaled to fit the datatype, with the maximum value
+      being the max of the datatype. A warning will be raised when this occurs.
+
+      Most of the time these operations are relative and absolute values don't matter,
+      but it's still something to be aware of.
+
+
+v 3.14.0
+--------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* An Elekta variant of the Las Vegas phantom has been added: :class:`~pylinac.planar_imaging.ElektaLasVegas`.
+* The SSD parameter of now defaults to "auto" (``.analyze(..., ssd="auto")``). Previously, it was set to 1000mm. If "auto", the phantom
+  is first searched at 1000mm (for backwards compatibility). If the phantom isn't found, it then searches
+  at 5cm above the SID value. The 5cm is to account for the physical shroud of most EPID panels.
+  If the phantom isn't found at either of these locations an error is raised. In that case, the SSD
+  should be provided manually, which was already the case previously.
+
+CT
+^^
+
+* CBCT, ACR CT/MR, and Quart analyses will now plot a "side view" of the phantom with lines
+  to show where the modules were sampled. This will help visualize if the module slice selection
+  was appropriate.
+
+  .. figure:: images/side_view.png
+
+* A new check for the scan extent vs the configuration extent is now in place. This will check that
+  the physical extent of the scan is large enough to include all the listed modules. If it's not
+  an error will be raised. This improves the error diagnosis when a scan did not include enough data.
+
+  .. note::
+
+    This applies to all CT-like algorithms including the ACR analyses.
+
+ACR
+^^^
+
+* The ACR MRI algorithm now accounts for scans where slices do not abut. E.g. if the slice thickness is 5mm
+  and the spacing between slices is 10mm.
+* The ACR MRI high-resolution ROIs have been adjusted slightly to match the increasing test suite data,
+  however, there are still some sets that do not perfectly align. We suggest following the
+  :ref:`customizing-acr-modules` section and adjusting the location as needed.
+* The ACR MRI algorithm has a new parameter for ``analyze``: ``echo_number``. This lets the user pick an
+  echo number if the acquisition was a dual echo scan. This is not required however. If the scan is dual-echo
+  and no echo number is passed, the scan with the first echo number is selected. See the
+  :ref:`choosing-mr-echo-number`.
+* The ACR MRI module classes can now be defined at the class-level, similar to the ACR CT. This was
+  changed so that users can more easily change aspects of each module.
+  See the :ref:`customizing-acr-modules` section for more.
+* The ACR MRI phantom :class:`~pylinac.acr.MRUniformityModuleOutput` had a typo. The property ``ghost_rois`` was actually spelled ``ghose_rois``.
+  Any code using this property should be updated to the correct spelling.
+* The ACR MRI :func:`~pylinac.acr.ACRMRILarge.results_data` method will now return ``ROIResult`` instances instead of the
+  raw ``HUDiskROI`` classes as before. This behavior already occurs for the catphan module and will thus make
+  the results similar in structure.
+
+Quart
+^^^^^
+
+* The Quart algorithm now measures the high-contrast resolution. It is accessible via the ``high_contrast_resolution``
+  method. It is given in the ``results`` and ``results_data`` methods as well.
+
+  .. code-block:: python
+
+    from pylinac import QuartDVT
+
+    quart = QuartDVT(...)
+    quart.analyze()
+    high_res = quart.geometry_module.high_resolution_contrast()
+    # or
+    print(quart.results())
+    # or
+    high_res = quart.results_data().geometric_module.high_contrast_distance
+
+Core
+^^^^
+
+* The :class:`~pylinac.core.image.DicomImage` class has two new properties available: ``z_location`` and ``slice_spacing``.
+  These both apply to CT/MR-like datasets.
+* A new contrast algorithm, "Difference", has been added. This can be used similar to RMS, Weber, etc.
+  The reason this might be preferred is so that the resulting CNR value is closer to the default algorithm.
+  See :ref:`contrast` for more.
+* Contrast values are now case-insensitive. This applies only if you are passing a string for the contrast
+  method.
+
+  .. code-block:: python
+
+    from pylinac import CatPhan504
+    from pylinac.core.contrast import Contrast
+
+    ct = CatPhan504.from_demo_images()
+    # equivalent
+    ct.analyze(..., contrast_method="weber")
+    ct.analyze(..., contrast_method="Weber")
+    ct.analyze(..., contrast_method=Contrast.WEBER)
+
+* Image classes (``DicomImage``, ``ArrayImage``, ``FileImage``) have a new method: :func:`~pylinac.core.image.BaseImage.rotate`.
+  This is a wrapper for scikit-image that allows rotation of an arbitrary angle. Previously, only rotations of 90 degrees were
+  allowed via the ``rot90`` method.
+* The library ``cached_property`` was dropped as a requirement since it was introduced in Python 3.8
+* The utility function ``find_nearest_index`` in the ``acr`` module was moved to ``core.array_utils``.
+* The utility functions ``abs360`` and ``wrap360`` were moved from ``core.utilities`` to ``core.scale``.
+
 v 3.13.0
 --------
+
+.. warning::
+
+    As stated in the previous version, v3.13+ will not support Python 3.7. Python 3.8+ is required, matching
+    the PSF's deprecation policy.
 
 Planar Imaging
 ^^^^^^^^^^^^^^
@@ -992,7 +1223,7 @@ General
 * Several LowContrastDiskROI properties have been deprecated such as ``contrast_constant``. Use ``visibility`` instead. The old properties still work but come with a deprecation warning and will be removed in a future release.
 * `#270 <https://github.com/jrkerns/pylinac/issues/270>`_ Pylinac had a memory leak that was apparent when running on a server. This was caused by old instances being held in memory from
   and incorrect usage of the ``lru_cache``. This has been fixed.
-* Documentation about topics has been added :ref:`topics`.
+* Documentation about topics has been added.
 * Documentation benchmarking several algorithms has been added. See the "Benchmarking the Algorithm" section for vmat, winston-lutz, and starshot modules. Picket fence will come soon.
 
 .. note::
@@ -1023,7 +1254,7 @@ Field Analysis (previously Flatness/Symmetry)
   , which gives guidance on FFF beams.
 * From the above report, a "top" position as well as field slope values are calculated for FFF beams.
   See :ref:`fff_fields`.
-* The new module can handle files from devices, specifically the SNC Profiler. See :ref:`loading_device_data`.
+* The new module can handle files from devices, specifically the SNC Profiler.
 * Extensibility was greatly enhanced. Users can now easily add their own custom analysis routines to the module.
   See :ref:`custom_protocols`.
 * New options for :ref:`centering`, :ref:`normalization`, :ref:`edge`, and :ref:`interpolation` were introduced. Each of these can be
@@ -1492,7 +1723,7 @@ General
 * The TG-51 module has been placed under a new module: :ref:`calibration_module`. This is because:
 * A TRS-398 calibration module has been created :ref:`trs398`.
 * The default colormap for arrays is now Viridis, the matplotlib default.
-* A contributer's guide has been added: :ref:`contributer_guide`.
+* A contributor's guide has been added: :ref:`contributor_guide`.
 * `#141 <https://github.com/jrkerns/pylinac/issues/141>`_ The Pylinac logo has been included in the package so that PDFs can be generated without needing www access.
 * A new dependency has been added: `argue <https://pypi.org/project/argue/>`_ which handles input parameters.
 
@@ -1501,7 +1732,7 @@ Flatness & Symmetry
 ^^^^^^^^^^^^^^^^^^^
 
 * `#130 <https://github.com/jrkerns/pylinac/issues/130>`_ The flatsym module has been completely rewritten.
-  Documentation has also been updated and should be consulted given the number of changes: :ref:`flatsym_module`.
+  Documentation has also been updated and should be consulted given the number of changes: :ref:`field_analysis_module`.
 
 VMAT
 ^^^^
@@ -1711,7 +1942,7 @@ TG-51
 Core Modules
 ^^^^^^^^^^^^
 
-* The ``Image`` class has been fully depricated and is no longer available. Use the functions available in the :module:`pylinac.core.image` module instead.
+* The ``Image`` class has been fully deprecated and is no longer available. Use the functions available in the :ref:`image_module` instead.
   See the version 1.4.0 release notes for further details.
 * The ``remove_edges`` method has been deprecated and is now an alias for ``crop``. The ``crop`` method should be used instead. Parameters are exactly the same.
 
@@ -1726,7 +1957,7 @@ General Changes
   data like the author, machine/unit, and any custom notes. See e.g. :meth:`pylinac.starshot.Starshot.publish_pdf`
   or :meth:`pylinac.picketfence.PicketFence.publish_pdf`.
 * The watch/process functions have been tweaked to best work on one unit per run. Multiple units/machines should
-  have their own config files. A new article :ref:`task_scheduler` describes how to use the process function with Windows Task
+  have their own config files. A new article describes how to use the process function with Windows Task
   Scheduler to regularly pull and analyze files.
 
 CatPhan

@@ -22,6 +22,7 @@ import os.path as osp
 import warnings
 import webbrowser
 from dataclasses import dataclass
+from functools import cached_property
 from io import BytesIO
 from itertools import cycle
 from pathlib import Path
@@ -30,14 +31,14 @@ from typing import BinaryIO, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from cached_property import cached_property
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from py_linq import Enumerable
 
+from . import Normalization
 from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
-from .core.profile import Interpolation, MultiProfile, SingleProfile
+from .core.profile import FWXMProfilePhysical, MultiProfile
 from .core.utilities import ResultBase, convert_to_enum
 from .log_analyzer import load_log
 from .settings import get_dicom_cmap
@@ -1093,7 +1094,7 @@ class MLCValue:
         self._action_tolerance: float = action_tolerance
         self._separate_leaves = separate_leaves
         self._nominal_gap_mm = nominal_gap_mm
-        self.profile: SingleProfile
+        self.profile: FWXMProfilePhysical
         self.position = self.get_peak_positions()
         self._fit = None
 
@@ -1123,26 +1124,26 @@ class MLCValue:
             pix_vals = np.median(self._image_window, axis=0)
         else:
             pix_vals = np.median(self._image_window, axis=1)
-        interpolation_factor = 100
-        prof = SingleProfile(
-            pix_vals,
-            interpolation=Interpolation.LINEAR,
-            interpolation_factor=interpolation_factor,
-        )
-        fwxm = prof.fwxm_data(self._fwxm)
+        # we use a physical profile since we're looking at pixels
+        # however, we don't have the actual dpmm value
+        # but it's all relative in this context, so we can just use 1 dpmm.
+        prof = FWXMProfilePhysical(
+            values=pix_vals, ground=True, normalization=Normalization.MAX, dpmm=1
+        ).as_resampled(
+            interpolation_resolution_mm=0.01, order=1
+        )  # linear interpolation
         self.profile = prof
         if self._separate_leaves:
-            left = fwxm["left index (exact)"] + max(
+            left = prof.field_edge_idx(side="left") + max(
                 self._approximate_idx - self._spacing / 2, 0
             )
-            right = fwxm["right index (exact)"] + max(
+            right = prof.field_edge_idx(side="right") + max(
                 self._approximate_idx - self._spacing / 2, 0
             )
             return left, right
         else:
             return (
-                fwxm["center index (exact)"]
-                + max(self._approximate_idx - self._spacing / 2, 0),
+                prof.center_idx + max(self._approximate_idx - self._spacing / 2, 0),
             )  # crop to left edge if need be
 
     @property
@@ -1201,7 +1202,6 @@ class MLCValue:
 
         fig, ax = plt.subplots()
         ax.plot(x_values, pix_vals)
-        # ax.vlines(x=data['center index (exact)']/self.profile._interpolation_factor + offset_pixels, ymin=data['peak_props']['peak_heights'][0] - data['peak_props']['prominences'][0], ymax=data['peak_props']['peak_heights'][0], color='magenta', label='Peak center')
         for picket_pos in self.picket_positions:
             ax.axvline(
                 x=picket_pos * self._image.dpmm,

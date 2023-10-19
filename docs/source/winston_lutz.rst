@@ -290,7 +290,7 @@ dictionary with the filenames as keys and a tuple of ints for the gantry, coll, 
 
 .. note::
 
-    The filenames should be local to the directory. In the above example the full paths would be `path/to/wl/dir/file1.dcm`, and `path/to/wl/dir/file2.dcm`.
+    The filenames should be local to the directory. In the above example the full paths would be ``path/to/wl/dir/file1.dcm``, and ``path/to/wl/dir/file2.dcm``.
 
 Changing BB detection size
 --------------------------
@@ -331,6 +331,47 @@ the radiation iso is not of interest. For large-field WL images, you may need to
 parameter to True. This is because the automatic inversion of the WL module assumes a small field is being delivered.
 For large field deliveries, kV or MV, see about flipping this parameter if the analysis fails.
 
+.. wl_cbct:
+
+CBCT Analysis
+-------------
+
+.. versionadded:: 3.16
+
+.. warning::
+
+  This feature is still experimental. Use with caution.
+
+It's possible to take and load a CBCT dataset of a BB using the ``from_cbct`` and ``from_cbct_zip`` class methods.
+The CBCT dataset is
+loaded as a 3D numpy array. Projections at the 4 faces
+of the array (top, left, bottom, right) are created into pseudo-cardinal angle DICOMs. These DICOMs are then
+loaded as normal images and analyzed.
+
+.. code-block:: python
+  :emphasize-lines: 1,3
+  :caption: Example of loading and analyzing a CBCT dataset of a WL BB
+
+  wl = WinstonLutz.from_cbct("my/cbct/dir")
+  # OR
+  wl = WinstonLutz.from_cbct_zip("my/cbct.zip")
+  # ensure to set low density and open field to True
+  wl.analyze(low_density_bb=True, open_field=True, bb_size_mm=3)
+  # use as normal
+  print(wl.results())
+  print(wl.results_data())
+  print(wl.bb_shift_instructions())
+  wl.plot_images()
+
+.. warning::
+
+  The CBCT analysis comes with a few caveats:
+
+  * Analyzing the image will override the ``low_density_bb`` and ``open_field`` flags to always be True; it does
+    not matter what is passed in ``analyze``.
+  * No axis deviation information is available, i.e. couch/coll/gantry walkout.
+  * There are always 4 images generated.
+  * The generated images are not true DICOMs and thus do not have all the DICOM tags.
 
 .. _wl_tiff:
 
@@ -424,6 +465,7 @@ Given the above terms, the following calculations are performed.
   For EPID, the displacement is calculated as the distance from image center to BB for all images with couch=0. If no
   images are given that rotate about the axis in question (e.g. cardinal gantry angles only) the isocenter size will default to 0.
 
+.. _wl-algorithm:
 
 Algorithm
 ---------
@@ -445,6 +487,7 @@ This method is used to determine the shift instructions. Specifically, equations
     IEC 61217. By default, Pylinac assumes the images are in IEC 61217 scale and will internally convert it to varian scale
     to be able to use Low's equations.
     To use a different scale use the ``machine_scale`` parameter, shown here :ref:`passing-a-coordinate-system`.
+    Also see :ref:`scale`.
 
 The algorithm works like such:
 
@@ -456,7 +499,7 @@ The algorithm works like such:
 
 **Restrictions**
 
-    .. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
+.. warning:: Analysis can fail or give unreliable results if any Restriction is violated.
 
 * The BB must be fully within the field of view.
 * The BB must be within 2.0cm of the real isocenter.

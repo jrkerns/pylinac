@@ -8,6 +8,7 @@ import math
 import os
 import os.path as osp
 import re
+import warnings
 from collections import Counter
 from datetime import datetime
 from io import BufferedReader, BytesIO
@@ -24,11 +25,21 @@ from PIL.PngImagePlugin import PngInfo
 from PIL.TiffTags import TAGS
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.errors import InvalidDicomError
+from pydicom.uid import UID, generate_uid
 from scipy import ndimage
 from skimage.draw import disk
+from skimage.transform import rotate
 
 from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
-from .array_utils import bit_invert, convert_to_dtype, filter, ground, invert, normalize
+from .array_utils import (
+    bit_invert,
+    convert_to_dtype,
+    filter,
+    get_dtype_info,
+    ground,
+    invert,
+    normalize,
+)
 from .geometry import Point
 from .io import (
     TemporaryZipDirectory,
@@ -37,8 +48,10 @@ from .io import (
     retrieve_dicom_file,
     retrieve_filenames,
 )
+from .metrics import MetricBase
 from .profile import stretch as stretcharray
-from .utilities import decode_binary, is_close, simple_round, wrap360
+from .scale import wrap360
+from .utilities import decode_binary, is_close, simple_round
 
 ARRAY = "Array"
 DICOM = "DICOM"
@@ -246,6 +259,85 @@ def load_multiples(
     return first_img
 
 
+def _rescale_dicom_values(
+    unscaled_array: np.ndarray, metadata: Dataset, raw_pixels: bool
+) -> np.ndarray:
+    """Rescale the DICOM pixel values depending on the tags available.
+
+    See Also
+    --------
+    https://pylinac.readthedocs.io/en/latest/topics/images.html#pixel-data-inversion
+    """
+    has_all_rescale_tags = (
+        hasattr(metadata, "RescaleSlope")
+        and hasattr(metadata, "RescaleIntercept")
+        and hasattr(metadata, "PixelIntensityRelationshipSign")
+    )
+    has_some_rescale_tags = hasattr(metadata, "RescaleSlope") and hasattr(
+        metadata, "RescaleIntercept"
+    )
+    is_ct_storage = metadata.SOPClassUID.name == "CT Image Storage"
+    is_mr_storage = metadata.SOPClassUID.name == "MR Image Storage"
+    if raw_pixels:
+        return unscaled_array
+    elif has_all_rescale_tags:
+        scaled_array = (
+            (metadata.RescaleSlope * unscaled_array) + metadata.RescaleIntercept
+        ) * metadata.PixelIntensityRelationshipSign
+    elif is_ct_storage or has_some_rescale_tags:
+        scaled_array = (
+            metadata.RescaleSlope * unscaled_array
+        ) + metadata.RescaleIntercept
+    elif is_mr_storage:
+        # signal is usually correct as-is, no inversion needed
+        scaled_array = unscaled_array
+    else:
+        # invert it
+        orig_array = unscaled_array
+        scaled_array = -orig_array + orig_array.max() + orig_array.min()
+    return scaled_array
+
+
+def _unscale_dicom_values(
+    scaled_array: np.ndarray, metadata: Dataset, raw_pixels: bool
+) -> np.ndarray:
+    """Unscale the DICOM pixel values depending on the tags available.
+
+    This is the inverse of _rescale_dicom_values; specifically, when we
+    want to save the DICOM image we want to save the raw values
+    back to such that when re-importing and rescaling we will get the same array.
+    """
+    has_all_rescale_tags = (
+        hasattr(metadata, "RescaleSlope")
+        and hasattr(metadata, "RescaleIntercept")
+        and hasattr(metadata, "PixelIntensityRelationshipSign")
+    )
+    has_some_rescale_tags = hasattr(metadata, "RescaleSlope") and hasattr(
+        metadata, "RescaleIntercept"
+    )
+    is_ct_storage = metadata.SOPClassUID.name == "CT Image Storage"
+    is_mr_storage = metadata.SOPClassUID.name == "MR Image Storage"
+    if raw_pixels:
+        return scaled_array
+    elif has_all_rescale_tags:
+        unscaled_array = scaled_array * metadata.PixelIntensityRelationshipSign
+        unscaled_array = (
+            unscaled_array - metadata.RescaleIntercept
+        ) / metadata.RescaleSlope
+    elif is_ct_storage or has_some_rescale_tags:
+        unscaled_array = (
+            scaled_array - metadata.RescaleIntercept
+        ) / metadata.RescaleSlope
+    elif is_mr_storage:
+        # signal is usually correct as-is, no inversion needed
+        unscaled_array = scaled_array
+    else:
+        # invert it
+        orig_array = scaled_array
+        unscaled_array = -orig_array + orig_array.max() + orig_array.min()
+    return unscaled_array
+
+
 def _is_dicom(path: str | Path | io.BytesIO | ImageLike | np.ndarray) -> bool:
     """Whether the file is a readable DICOM file via pydicom."""
     return is_dicom_image(file=path)
@@ -278,6 +370,8 @@ class BaseImage:
 
     array: np.ndarray
     path: str | Path
+    metrics: list[MetricBase]
+    metric_values: dict[str, Any]
 
     def __init__(
         self, path: str | Path | BytesIO | ImageLike | np.ndarray | BufferedReader
@@ -289,7 +383,8 @@ class BaseImage:
             The path to the image.
         """
         source: FILE_TYPE | STREAM_TYPE
-
+        self.metrics = []
+        self.metric_values = {}
         if isinstance(path, (str, Path)) and not osp.isfile(path):
             raise FileExistsError(
                 f"File `{path}` does not exist. Verify the file path name."
@@ -349,7 +444,20 @@ class BaseImage:
         return self.shape[0] / self.dpmm, self.shape[1] / self.dpmm
 
     def date_created(self, format: str = "%A, %B %d, %Y") -> str:
-        """The date the file was created. Tries DICOM data before falling back on OS timestamp"""
+        """The date the file was created. Tries DICOM data before falling back on OS timestamp.
+        The method use one or more inputs of formatted code, where % means a placeholder and the letter the time unit of interest.
+        For a full description of the several formatting codes see `strftime() documentation. <https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes>`_
+
+        Parameters
+        ----------
+        format : str
+            %A means weekday full name, %B month full name, %d day of the month as a zero-padded decimal number and %Y year with century as a decimal number.
+
+        Returns
+        -------
+        str
+            The date the file was created.
+        """
         date = None
         try:
             date = datetime.strptime(
@@ -392,9 +500,25 @@ class BaseImage:
         if clear_fig:
             plt.clf()
         ax.imshow(self.array, cmap=get_dicom_cmap(), **kwargs)
+        # plot the metrics
+        for metric in self.metrics:
+            metric.plot(axis=ax)
         if show:
             plt.show()
         return ax
+
+    def plot_metrics(self, show: bool = True) -> list[plt.figure]:
+        """Plot any additional figures from the metrics.
+
+        Returns a list of figures of the metrics. These metrics are not
+        drawn on the original image but rather are something complete separate.
+        E.g. a profile plot or a histogram of the metric."""
+        figs = []
+        for metric in self.metrics:
+            figs.append(metric.additional_plots())
+        if show:
+            plt.show()
+        return figs
 
     def filter(
         self,
@@ -472,6 +596,11 @@ class BaseImage:
     def rot90(self, n: int = 1) -> None:
         """Wrapper for numpy.rot90; rotate the array by 90 degrees CCW n times."""
         self.array = np.rot90(self.array, n)
+
+    def rotate(self, angle: float, mode: str = "edge", *args, **kwargs):
+        """Rotate the image counter-clockwise. Simple wrapper for scikit-image. See https://scikit-image.org/docs/stable/api/skimage.transform.html#skimage.transform.rotate.
+        All parameters are passed to that function."""
+        self.array = rotate(self.array, angle, mode=mode, *args, **kwargs)
 
     def threshold(self, threshold: float, kind: str = "high") -> None:
         """Apply a high- or low-pass threshold filter.
@@ -709,6 +838,39 @@ class BaseImage:
 
     def as_type(self, dtype: np.dtype) -> np.ndarray:
         return self.array.astype(dtype)
+
+    def compute(self, metrics: list[MetricBase] | MetricBase) -> Any | dict[str, Any]:
+        """Compute the given metrics on the image.
+
+        This can be called multiple times to compute different metrics.
+        Metrics are appended on each call. This allows for modification
+        of the image between metric calls as well as the ability to compute
+        different metrics on the same image that might depend on
+        earlier metrics.
+
+        Metrics are both returned and stored in the ``metrics`` attribute.
+        The ``metrics`` attribute will store all metrics every calculated.
+        The metrics returned are only those passed in the ``metrics`` argument.
+
+        Parameters
+        ----------
+        metrics : list[MetricBase] | MetricBase
+            The metric(s) to compute.
+        """
+        metric_data = {}
+        if isinstance(metrics, MetricBase):
+            metrics = [metrics]
+        for metric in metrics:
+            # we copy the image so any manipulations
+            # do not affect the original
+            metric.inject_image(self)
+            self.metrics.append(metric)
+            value = metric.context_calculate()
+            metric_data[metric.name] = value
+        self.metric_values |= metric_data
+        if len(metrics) == 1:
+            return metric_data[metrics[0].name]
+        return metric_data
 
     @property
     def shape(self) -> (int, int):
@@ -1010,6 +1172,7 @@ class DicomImage(BaseImage):
         # read the file once to get just the DICOM metadata
         self.metadata = retrieve_dicom_file(path)
         self._original_dtype = self.metadata.pixel_array.dtype
+        self._raw_pixels = raw_pixels
         # read a second time to get pixel data
         try:
             path.seek(0)
@@ -1020,52 +1183,69 @@ class DicomImage(BaseImage):
             self.array = ds.pixel_array.astype(dtype)
         else:
             self.array = ds.pixel_array.copy()
-        # convert values to HU or CU: real_values = slope * raw + intercept
-        has_all_rescale_tags = (
-            hasattr(self.metadata, "RescaleSlope")
-            and hasattr(self.metadata, "RescaleIntercept")
-            and hasattr(self.metadata, "PixelIntensityRelationshipSign")
-        )
-        has_some_rescale_tags = hasattr(self.metadata, "RescaleSlope") and hasattr(
-            self.metadata, "RescaleIntercept"
-        )
-        is_ct_storage = self.metadata.SOPClassUID.name == "CT Image Storage"
-        is_mr_storage = self.metadata.SOPClassUID.name == "MR Image Storage"
-        if raw_pixels:
-            pass  # no-op
-        elif has_all_rescale_tags:
-            self.array = (
-                (self.metadata.RescaleSlope * self.array)
-                + self.metadata.RescaleIntercept
-            ) * self.metadata.PixelIntensityRelationshipSign
-        elif is_ct_storage or has_some_rescale_tags:
-            self.array = (
-                self.metadata.RescaleSlope * self.array
-            ) + self.metadata.RescaleIntercept
-        elif is_mr_storage:
-            # signal is usually correct as-is, no inversion needed
-            pass
-        else:
-            # invert it
-            orig_array = self.array
-            self.array = -orig_array + orig_array.max() + orig_array.min()
+        # convert values to HU or CU
+        self.array = _rescale_dicom_values(self.array, ds, raw_pixels=raw_pixels)
+
+    @classmethod
+    def from_dataset(cls, dataset: Dataset):
+        """Create a DICOM image instance from a pydicom Dataset."""
+        stream = io.BytesIO()
+        dataset.save_as(stream)
+        return cls(path=stream)
 
     def save(self, filename: str | Path) -> str | Path:
         """Save the image instance back out to a .dcm file.
+
+        Parameters
+        ----------
+        filename : str, Path
+            The filename to save the DICOM file as.
 
         Returns
         -------
         A string pointing to the new filename.
         """
-        if self.metadata.SOPClassUID.name == "CT Image Storage":
-            self.array = (self.array - int(self.metadata.RescaleIntercept)) / int(
-                self.metadata.RescaleSlope
+        unscaled_array = _unscale_dicom_values(
+            self.array, self.metadata, self._raw_pixels
+        )
+        # if we will have bit overflows, stretch instead
+        max_is_too_high = (
+            unscaled_array.max() > get_dtype_info(self._original_dtype).max
+        )
+        min_is_too_low = unscaled_array.min() < get_dtype_info(self._original_dtype).min
+        if min_is_too_low or max_is_too_high:
+            warnings.warn(
+                "The pixel values of image were detected to be outside"
+                f"the range of {self._original_dtype} values and will be normalized to fit the original dtype. "
+                f"The maximum value will be the maximum value of the original datatype: ({get_dtype_info(self._original_dtype).max})."
             )
-        self.metadata.PixelData = self.array.astype(self._original_dtype).tobytes()
-        self.metadata.Columns = self.array.shape[1]
-        self.metadata.Rows = self.array.shape[0]
+            unscaled_array = convert_to_dtype(unscaled_array, self._original_dtype)
+        self.metadata.PixelData = unscaled_array.astype(self._original_dtype).tobytes()
+        self.metadata.Columns = unscaled_array.shape[1]
+        self.metadata.Rows = unscaled_array.shape[0]
         self.metadata.save_as(filename)
         return filename
+
+    @property
+    def z_position(self) -> float:
+        """The z-position of the slice. Relevant for CT and MR images."""
+        try:
+            return self.metadata.SliceLocation
+        except AttributeError:
+            return self.metadata.ImagePositionPatient[-1]
+
+    @property
+    def slice_spacing(self) -> float:
+        """Determine the distance between slices. The spacing can be greater than the slice thickness (i.e. gaps).
+        Uses the absolute version as it can apparently be negative: https://dicom.innolitics.com/ciods/nm-image/nm-reconstruction/00180088
+
+        This attempts to use the slice spacing attr and if it doesn't exist, use the slice thickness attr
+        """
+
+        try:
+            return abs(self.metadata.SpacingBetweenSlices)
+        except AttributeError:
+            return self.metadata.SliceThickness
 
     @property
     def sid(self) -> float:
@@ -1302,7 +1482,7 @@ class ArrayImage(BaseImage):
 
     def __init__(
         self,
-        array: np.array,
+        array: np.ndarray,
         *,
         dpi: float = None,
         sid: float = None,
@@ -1329,6 +1509,8 @@ class ArrayImage(BaseImage):
             self.array = array
         self._dpi = dpi
         self.sid = sid
+        self.metrics = []
+        self.metric_values = {}
 
     @property
     def dpmm(self) -> float | None:
@@ -1388,6 +1570,7 @@ class DicomImageStack:
         dtype: np.dtype | None = None,
         min_number: int = 39,
         check_uid: bool = True,
+        raw_pixels: bool = False,
     ):
         """Load a folder with DICOM CT images.
 
@@ -1409,7 +1592,7 @@ class DicomImageStack:
                     paths.append(osp.join(pdir, file))
         for path in paths:
             if self.is_image_slice(path):
-                img = DicomImage(path, dtype=dtype)
+                img = DicomImage(path, dtype=dtype, raw_pixels=raw_pixels)
                 self.images.append(img)
 
         # check that at least 1 image was loaded
@@ -1471,6 +1654,16 @@ class DicomImageStack:
         """
         self.images[slice].plot()
 
+    def plot_3view(self):
+        """Plot the stack in 3 views: axial, coronal, and sagittal."""
+        fig, axes = plt.subplots(1, 3)
+        names = ("Coronal", "Sagittal", "Axial")
+        for idx, (ax, name) in enumerate(zip(axes, names)):
+            arry = np.stack(self.images, axis=-1).max(axis=idx)
+            ax.imshow(arry, cmap="gray", aspect="equal")
+            ax.set_title(name)
+        plt.show()
+
     def roll(self, direction: str, amount: int):
         for img in self.images:
             img.roll(direction, amount)
@@ -1489,6 +1682,82 @@ class DicomImageStack:
 
     def __len__(self):
         return len(self.images)
+
+
+def array_to_dicom(
+    array: np.ndarray,
+    dicom_file: str | Path | BytesIO,
+    sid: float,
+    gantry: float,
+    coll: float,
+    couch: float,
+    dpi: float | None = None,
+    **kwargs,
+) -> None:
+    """Converts a TIFF file into a **simplistic** DICOM file. Not meant to be a full-fledged tool. Used for conversion so that tools that are traditionally oriented
+    towards DICOM have a path to accept TIFF. Currently used to convert files for WL.
+
+    .. note::
+
+        This will convert the image into an uint16 datatype to match the native EPID datatype.
+
+    Parameters
+    ----------
+    array
+        The numpy array to be converted. Must be 2 dimensions.
+    dicom_file
+        The output location of the DICOM file that will be generated.
+    sid
+        The Source-to-Image distance in mm.
+    dpi
+        The dots-per-inch value of the TIFF image.
+    gantry
+        The gantry value that the image was taken at.
+    coll
+        The collimator value that the image was taken at.
+    couch
+        The couch value that the image was taken at.
+    """
+    arr_img = ArrayImage(array, dpi=dpi, sid=sid)
+    if not arr_img.dpmm:
+        raise ValueError(
+            "Automatic detection of `dpi` failed. A `dpi` value must be passed to the constructor."
+        )
+    uint_array = convert_to_dtype(arr_img.array, np.uint16)
+    mm_pixel = 25.4 / arr_img.dpi
+    file_meta = FileMetaDataset()
+    # Main data elements
+    ds = Dataset()
+    ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+    ds.SOPInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.Modality = "RTIMAGE"
+    ds.ConversionType = "WSD"
+    ds.PatientName = "Lutz^Test Tool"
+    ds.PatientID = "Someone Important"
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.Rows = arr_img.shape[0]
+    ds.Columns = arr_img.shape[1]
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.ImagePlanePixelSpacing = [mm_pixel, mm_pixel]
+    ds.RadiationMachineSAD = "1000.0"
+    ds.RTImageSID = sid
+    ds.PrimaryDosimeterUnit = "MU"
+    ds.GantryAngle = str(gantry)
+    ds.BeamLimitingDeviceAngle = str(coll)
+    ds.PatientSupportAngle = str(couch)
+    ds.PixelData = uint_array
+
+    ds.file_meta = file_meta
+    ds.is_implicit_VR = True
+    ds.is_little_endian = True
+    for key, value in kwargs.items():
+        setattr(ds, key, value)
+    ds.save_as(dicom_file, write_like_original=False)
 
 
 def tiff_to_dicom(
@@ -1534,8 +1803,9 @@ def tiff_to_dicom(
     file_meta = FileMetaDataset()
     # Main data elements
     ds = Dataset()
-    ds.SOPClassUID = "1234"
-    ds.SOPInstanceUID = "5678"
+    ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+    ds.SOPInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
     ds.Modality = "RTIMAGE"
     ds.ConversionType = "WSD"
     ds.PatientName = "Lutz^Test Tool"
@@ -1564,15 +1834,15 @@ def tiff_to_dicom(
 
 
 def gamma_2d(
-    reference: np.array,
-    evaluation: np.array,
+    reference: np.ndarray,
+    evaluation: np.ndarray,
     dose_to_agreement: float = 1,
     distance_to_agreement: int = 1,
     gamma_cap_value: float = 2,
     global_dose: bool = True,
     dose_threshold: float = 5,
     fill_value: float = np.nan,
-) -> np.array:
+) -> np.ndarray:
     """Compute a 2D gamma of two 2D numpy arrays. This does NOT do size or spatial resolution checking.
     It performs an element-by-element evaluation. It is the responsibility
     of the caller to ensure the reference and evaluation have comparable spatial resolution.
