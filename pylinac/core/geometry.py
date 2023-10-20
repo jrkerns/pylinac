@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from matplotlib.patches import Rectangle as mpl_Rectangle
+from mpl_toolkits.mplot3d.art3d import Line3D
 
 from .utilities import is_iterable
 
@@ -399,7 +400,7 @@ class Line:
 
     def plot2axes(
         self, axes: plt.Axes, width: float = 1, color: str = "w", **kwargs
-    ) -> None:
+    ) -> Line3D:
         """Plot the line to an axes.
 
         Parameters
@@ -409,7 +410,7 @@ class Line:
         color : str
             The color of the line.
         """
-        axes.plot(
+        lines = axes.plot(
             (self.point1.x, self.point2.x),
             (self.point1.y, self.point2.y),
             (self.point1.z, self.point2.z),
@@ -417,6 +418,7 @@ class Line:
             color=color,
             **kwargs,
         )
+        return lines[0]
 
 
 class Rectangle:

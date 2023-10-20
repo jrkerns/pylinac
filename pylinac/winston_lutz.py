@@ -33,7 +33,7 @@ from functools import cached_property
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import BinaryIO, Iterable, Sequence
+from typing import BinaryIO, Iterable, Sequence, TypedDict
 
 import argue
 import matplotlib.pyplot as plt
@@ -149,13 +149,21 @@ class BBArrangement:
         return f"'{a['name']}': {lr} {abs(a['offset_left_mm'])}mm, {ud} {abs(a['offset_up_mm'])}mm, {io} {abs(a['offset_in_mm'])}mm"
 
 
+class NominalBB(TypedDict):
+    """Input for BB location"""
+    offset_left_mm: float
+    offset_up_mm: float
+    offset_in_mm: float
+    bb_diameter_mm: float
+
+
 class BB:
     """A representation of a BB in 3D space"""
 
     def __repr__(self):
         return self.nominal_position
 
-    def __init__(self, nominal_bb: dict, ray_lines: list[Line]):
+    def __init__(self, nominal_bb: NominalBB, ray_lines: list[Line]):
         self.nominal_bb = nominal_bb
         self.ray_lines = ray_lines
 
@@ -190,31 +198,23 @@ class BB:
 
     def plot_nominal(self, axes: plt.Axes, color: str):
         """Plot the BB nominal position"""
-        u = np.linspace(0, 2 * np.pi, 100)
-        v = np.linspace(0, np.pi, 100)
-        # nominal
-        bb_radius = self.nominal_bb["bb_size_mm"] / 2
-        x = bb_radius * np.outer(np.cos(u), np.sin(v)) + self.nominal_position.x
-        y = bb_radius * np.outer(np.sin(u), np.sin(v)) + self.nominal_position.y
-        z = (
-            bb_radius * np.outer(np.ones(np.size(u)), np.cos(v))
-            + self.nominal_position.z
-        )
+        x, y, z = create_sphere_surface(radius = self.nominal_bb["bb_diameter_mm"] / 2, center=self.nominal_position)
         axes.plot_surface(x, y, z, color=color)
 
     def plot_measured(self, axes: plt.Axes, color: str):
         """Plot the BB measured position"""
-        u = np.linspace(0, 2 * np.pi, 100)
-        v = np.linspace(0, np.pi, 100)
-        bb_radius = self.nominal_bb["bb_size_mm"] / 2
-        # measured
-        x = bb_radius * np.outer(np.cos(u), np.sin(v)) + self.measured_position.x
-        y = bb_radius * np.outer(np.sin(u), np.sin(v)) + self.measured_position.y
-        z = (
-            bb_radius * np.outer(np.ones(np.size(u)), np.cos(v))
-            + self.measured_position.z
-        )
+        x, y, z = create_sphere_surface(radius = self.nominal_bb["bb_diameter_mm"] / 2, center=self.measured_position)
         axes.plot_surface(x, y, z, color=color)
+
+
+def create_sphere_surface(radius: float, center: Point) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Create a sphere surface for plotting"""
+    u = np.linspace(0, 2 * np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
+    x = radius * np.outer(np.cos(u), np.sin(v)) + center.x
+    y = radius * np.outer(np.sin(u), np.sin(v)) + center.y
+    z = radius * np.outer(np.ones(np.size(u)), np.cos(v)) + center.z
+    return x, y, z
 
 
 class Axis(enum.Enum):
@@ -595,18 +595,18 @@ class WinstonLutz2D(image.LinacDicomImage):
         p1.x = self.cax2bb_vector.x * cos(self.gantry_angle) + 20 * sin(
             self.gantry_angle
         )
-        p1.y = self.cax2bb_vector.x * -sin(self.gantry_angle) + 20 * cos(
+        p1.z = self.cax2bb_vector.x * -sin(self.gantry_angle) + 20 * cos(
             self.gantry_angle
         )
-        p1.z = self.cax2bb_vector.y
+        p1.y = self.cax2bb_vector.y
         # point 2 - ray destination
         p2.x = self.cax2bb_vector.x * cos(self.gantry_angle) - 20 * sin(
             self.gantry_angle
         )
-        p2.y = self.cax2bb_vector.x * -sin(self.gantry_angle) - 20 * cos(
+        p2.z = self.cax2bb_vector.x * -sin(self.gantry_angle) - 20 * cos(
             self.gantry_angle
         )
-        p2.z = self.cax2bb_vector.y
+        p2.y = self.cax2bb_vector.y
         line = Line(p1, p2)
         return line
 
@@ -729,6 +729,7 @@ class WinstonLutz:
     machine_scale: MachineScale  #:
     image_type = WinstonLutz2D
     is_from_cbct: bool = False
+    _bb_size = float
 
     def __init__(
         self,
@@ -992,7 +993,7 @@ class WinstonLutz:
         Parameters
         ----------
         bb_size_mm
-            The expected size of the BB in mm. The actual size of the BB can be +/-2mm from the passed value.
+            The expected diameter of the BB in mm. The actual size of the BB can be +/-2mm from the passed value.
         machine_scale
             The scale of the machine. Shift vectors depend on this value.
         low_density_bb
@@ -1009,6 +1010,7 @@ class WinstonLutz:
         for img in self.images:
             img.analyze(bb_size_mm, low_density_bb, open_field)
         self._is_analyzed = True
+        self._bb_size = bb_size_mm
 
     @lru_cache()
     def _minimize_axis(self, axes: Axis | tuple[Axis, ...] = (Axis.GANTRY,)):
@@ -1323,6 +1325,60 @@ class WinstonLutz:
             axis.value
             + f" iso size: {getattr(self, axis.value.lower() + '_iso_size'):3.2f}mm"
         )
+        if show:
+            plt.show()
+
+    def plot_location(self, show: bool = True, viewbox_mm: float = 20, plot_bb: bool = True, plot_wobble: bool = True):
+        """Plot the isocenter and size as a sphere in 3D space relative to the BB. The
+        iso is at the origin.
+        
+        Only images where the couch was at zero are considered.
+        
+        Parameters
+        ----------
+        show : bool
+            Whether to plot the image.
+        viewbox_mm : float
+            The default size of the 3D space to plot in mm in each axis.
+        plot_bb : bool
+            Whether to plot the BB location; the size is also considered.
+        plot_wobble : bool
+            Whether to plot the gantry + collimator isocenter size.
+        """
+        ax = plt.axes(projection="3d")
+        _, relevant_images = self._get_images(axis=(Axis.REFERENCE, Axis.GB_COMBO, Axis.COLLIMATOR, Axis.GANTRY))
+        wobble = BB(nominal_bb={"offset_left_mm": self.bb_shift_vector.x, "offset_in_mm": self.bb_shift_vector.y, 'offset_up_mm': self.bb_shift_vector.z, "bb_diameter_mm": self._bb_size},
+                    ray_lines=[image.cax_line_projection for image in relevant_images])
+        # plot the x,y,z origin lines
+        x_line = Line(Point(-viewbox_mm, 0, 0), Point(viewbox_mm, 0, 0))
+        x_line.plot2axes(ax, color='red', label='isocenter (x)')
+        y_line = Line(Point(0, -viewbox_mm, 0), Point(0, viewbox_mm, 0))
+        y_line.plot2axes(ax, color='green', label='isocenter (y)')
+        z_line = Line(Point(0, 0, -viewbox_mm), Point(0, 0, viewbox_mm))
+        z_line.plot2axes(ax, color='blue', label='isocenter (z)')
+        if plot_bb:
+            wobble.plot_measured(ax, color='cyan')
+            # create an empty, fake line so we can add a label for the legend
+            fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
+            fake_line.plot2axes(ax, color='cyan', label=f'BB ({self._bb_size}mm)')
+        if plot_wobble:
+            x, y, z = create_sphere_surface(radius=self.gantry_coll_iso_size / 2, center=Point(0, 0, 0))
+            ax.plot_surface(x, y, z, alpha=0.2, color='magenta')
+            # create an empty, fake line so we can add a label for the legend
+            fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
+            fake_line.plot2axes(ax, color='magenta', label=f'Isocenter ({self.gantry_coll_iso_size:3.2f}mm)')
+        ax.legend()
+        # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
+        ax.set(
+            xlabel="X (mm), Right (+)",
+            ylabel="Y (mm), In (+)",
+            zlabel="Z (mm), Up (+)",
+            title="Isocenter Visualization",
+            ylim=[-viewbox_mm, viewbox_mm],
+            xlim=[-viewbox_mm, viewbox_mm],
+            zlim=[-viewbox_mm, viewbox_mm],
+        )
+
         if show:
             plt.show()
 
@@ -2235,6 +2291,38 @@ def max_distance_to_lines(p, lines: Iterable[Line]) -> float:
     """Calculate the maximum distance to any line from the given point."""
     point = Point(p[0], p[1], p[2])
     return max(line.distance_to(point) for line in lines)
+
+def bb_projection_long(
+    offset_in: float, offset_up: float, offset_left: float, sad: float, gantry: float
+) -> float:
+    """Calculate the isoplane projection in the sup/inf/longitudinal direction in mm"""
+    # the divergence of the beam causes the BB to be closer or further depending on the
+    # up/down position, left/right position and gantry angle
+    addtl_long_shift_cos = (
+        offset_up * offset_in / (sad - cos(gantry) * offset_up) * cos(gantry)
+    )
+    addtl_left_shift_sin = (
+        offset_left * offset_in / (sad + sin(gantry) * offset_left) * -sin(gantry)
+    )
+    return -offset_in + addtl_long_shift_cos + addtl_left_shift_sin
+
+
+def bb_projection_gantry_plane(
+    offset_left: float, offset_up: float, sad: float, gantry: float
+) -> float:
+    """Calculate the isoplane projection in the plane of gantry rotation (X/Z)"""
+    addtl_left_shift = (
+        -offset_up * offset_left / (sad + cos(gantry) * offset_up) * abs(cos(gantry))
+    )
+    addtl_up_shift = (
+        offset_left * offset_up / (sad + sin(gantry) * offset_left) * abs(sin(gantry))
+    )
+    return (
+        offset_up * -sin(gantry)
+        + addtl_up_shift
+        + offset_left * -cos(gantry)
+        + addtl_left_shift
+    )
 
 
 def bb_ray_line(

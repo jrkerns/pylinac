@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import io
-import math
 import shutil
 import tempfile
 from pathlib import Path
@@ -661,9 +660,7 @@ class WinstonLutzMixin(CloudFileMixin):
     def test_bb_shift_vector(self):
         self.assertTrue(
             vector_is_close(self.wl.bb_shift_vector, self.bb_shift_vector, delta=0.15),
-            msg="The vector {} is not sufficiently close to vector {}".format(
-                self.wl.bb_shift_vector, self.bb_shift_vector
-            ),
+            msg=f"The vector {self.wl.bb_shift_vector} is not sufficiently close to vector {self.bb_shift_vector}",
         )
 
     def test_known_axis_of_rotation(self):
