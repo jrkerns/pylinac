@@ -8,7 +8,6 @@ from typing import Sequence
 
 from ...picketfence import Orientation
 from ...winston_lutz import (
-    _bb_projection_with_rotation,
     bb_projection_gantry_plane,
     bb_projection_long,
 )
@@ -490,14 +489,6 @@ def generate_winstonlutz_multi_bb_multi_field(
                 offset_up=offset_mm_up,
                 sad=1000,
                 gantry=gantry,
-            )
-            gplane_offset, long_offset = _bb_projection_with_rotation(
-                offset_left=offset_mm_left,
-                offset_up=offset_mm_up,
-                offset_in=offset_mm_in,
-                gantry=gantry,
-                couch=0,
-                sad=1000,
             )
             if align_to_pixels:
                 long_offset = pixel_align(sim_single.pixel_size, long_offset)
