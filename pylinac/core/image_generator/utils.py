@@ -216,7 +216,10 @@ def generate_winstonlutz(
                 alpha=field_alpha,
             )
         )
-        long_offset = bb_projection_long(
+        # we return the negative because this function
+        # will return the offset in PLOTTING space, not coordinate space
+        # which is inverted in the long direction
+        long_offset = -bb_projection_long(
             offset_in=offset_mm_in,
             offset_up=offset_mm_up,
             offset_left=offset_mm_left,

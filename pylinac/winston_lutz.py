@@ -1758,17 +1758,22 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
 
     def _nominal_point(self, bb: dict) -> Point:
         """Calculate the expected point position in 2D"""
-        x, y = _bb_projection_with_rotation(
+        shift_y_mm = bb_projection_long(
+            offset_in=bb["offset_in_mm"],
+            offset_up=bb["offset_up_mm"],
+            offset_left=bb["offset_left_mm"],
+            sad=self.sad,
+            gantry=self.gantry_angle,
+        )
+        shift_x_mm = bb_projection_gantry_plane(
             offset_left=bb["offset_left_mm"],
             offset_up=bb["offset_up_mm"],
-            offset_in=bb["offset_in_mm"],
-            gantry=self.gantry_angle,
-            couch=self.couch_angle,
             sad=self.sad,
+            gantry=self.gantry_angle,
         )
         # unlike vanilla WL, the field can be asymmetric, so use center of image
-        expected_y = self.epid.y - y * self.dpmm
-        expected_x = self.epid.x - x * self.dpmm
+        expected_y = self.epid.y - shift_y_mm * self.dpmm
+        expected_x = self.epid.x + shift_x_mm * self.dpmm
         return Point(x=expected_x, y=expected_y)
 
     def _find_field_centroid(self, location: dict) -> tuple[Point, list]:
@@ -2209,6 +2214,7 @@ def max_distance_to_lines(p, lines: Iterable[Line]) -> float:
     point = Point(p[0], p[1], p[2])
     return max(line.distance_to(point) for line in lines)
 
+
 def bb_projection_long(
     offset_in: float, offset_up: float, offset_left: float, sad: float, gantry: float
 ) -> float:
@@ -2221,7 +2227,7 @@ def bb_projection_long(
     addtl_left_shift_sin = (
         offset_left * offset_in / (sad + sin(gantry) * offset_left) * -sin(gantry)
     )
-    return -offset_in + addtl_long_shift_cos + addtl_left_shift_sin
+    return offset_in + addtl_long_shift_cos + addtl_left_shift_sin
 
 
 def bb_projection_gantry_plane(

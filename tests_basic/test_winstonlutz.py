@@ -25,7 +25,6 @@ from pylinac.winston_lutz import (
     BBArrangement,
     WinstonLutz2D,
     WinstonLutzResult,
-    _bb_projection_with_rotation,
     bb_projection_gantry_plane,
     bb_projection_long,
 )
