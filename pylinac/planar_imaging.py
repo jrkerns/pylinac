@@ -66,7 +66,8 @@ class PlanarResult(ResultBase):
     num_contrast_rois_seen: int  #:
     phantom_center_x_y: tuple[float, float]  #:
     low_contrast_rois: list[dict]  #:
-    mtf_lp_mm: tuple[float, float, float] = None  #:
+    mtf_lp_mm: tuple[float, float, float] | None = None  #:
+    percent_integral_uniformity: float | None = None  #:
 
 
 def _middle_of_bbox_region(region: RegionProperties) -> tuple:
@@ -99,6 +100,12 @@ def is_right_size(region: RegionProperties, instance: object, rtol=0.1) -> bool:
             rtol=rtol,
         )
     )
+
+
+def percent_integral_uniformity(max: float, min: float) -> float:
+    """Calculate the percent integral uniformity. A small constant is
+    added to avoid possible division by zero."""
+    return 100 * (1 - (max - min + 1e-6) / (max + min + 1e-6))
 
 
 class ImagePhantomBase:
@@ -500,6 +507,21 @@ class ImagePhantomBase:
                 "An outline object was passed but was not a Circle or Rectangle."
             )
         return obj, settings
+    
+    def percent_integral_uniformity(self, percentiles: tuple[float, float] = (1, 99)) -> float | None:
+        """Calculate and return the percent integral uniformity (PIU). This uses
+        a similar equation as ACR does for CT protocols. The PIU is calculated
+        over all the low contrast ROIs and the lowest (worst) PIU is returned. 
+        
+        If the phantom does not contain low-contrast ROIs, None is returned."""
+        if not self.low_contrast_rois:
+            return
+        pius = []
+        for roi in self.low_contrast_rois:
+            low = roi.percentile(percentiles[0])
+            high = roi.percentile(percentiles[1])
+            pius.append(percent_integral_uniformity(max=high, min=low))
+        return min(pius)
 
     def plot_analyzed_image(
         self,
@@ -669,6 +691,7 @@ class ImagePhantomBase:
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
             low_contrast_rois=[roi.as_dict() for roi in self.low_contrast_rois],
+            percent_integral_uniformity=self.percent_integral_uniformity(),
         )
 
         if self.mtf is not None:
