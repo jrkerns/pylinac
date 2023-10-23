@@ -1328,7 +1328,7 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    def plot_location(self, show: bool = True, viewbox_mm: float | None = None, plot_bb: bool = True, plot_wobble: bool = True):
+    def plot_location(self, show: bool = True, viewbox_mm: float | None = None, plot_bb: bool = True, plot_isocenter_sphere: bool = True):
         """Plot the isocenter and size as a sphere in 3D space relative to the BB. The
         iso is at the origin.
         
@@ -1342,13 +1342,15 @@ class WinstonLutz:
             The default size of the 3D space to plot in mm in each axis.
         plot_bb : bool
             Whether to plot the BB location; the size is also considered.
-        plot_wobble : bool
+        plot_isocenter_sphere : bool
             Whether to plot the gantry + collimator isocenter size.
         """
         limit = viewbox_mm or max(np.abs((self.bb_shift_vector.x, self.bb_shift_vector.y, self.bb_shift_vector.z))) + self._bb_diameter
         ax = plt.axes(projection="3d")
         _, relevant_images = self._get_images(axis=(Axis.REFERENCE, Axis.GB_COMBO, Axis.COLLIMATOR, Axis.GANTRY))
-        wobble = BB(nominal_bb={"offset_left_mm": self.bb_shift_vector.x, "offset_in_mm": self.bb_shift_vector.y, 'offset_up_mm': self.bb_shift_vector.z, "bb_diameter_mm": self._bb_diameter},
+        # we can represent the iso sphere as a BB object; the nominal object isn't used, just the BB size
+        # the ray lines are what we want to plot as a sphere
+        iso_sphere = BB(nominal_bb={"offset_left_mm": 0, "offset_in_mm": 0, 'offset_up_mm': 0, "bb_diameter_mm": self._bb_diameter},
                     ray_lines=[image.cax_line_projection for image in relevant_images])
         # plot the x,y,z origin lines
         x_line = Line(Point(-limit, 0, 0), Point(limit, 0, 0))
@@ -1358,11 +1360,11 @@ class WinstonLutz:
         z_line = Line(Point(0, 0, -limit), Point(0, 0, limit))
         z_line.plot2axes(ax, color='blue', label='isocenter (z)')
         if plot_bb:
-            wobble.plot_measured(ax, color='cyan')
+            iso_sphere.plot_measured(ax, color='cyan')
             # create an empty, fake line so we can add a label for the legend
             fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
             fake_line.plot2axes(ax, color='cyan', label=f'BB ({self._bb_diameter}mm)')
-        if plot_wobble:
+        if plot_isocenter_sphere:
             x, y, z = create_sphere_surface(radius=self.gantry_coll_iso_size / 2, center=Point(0, 0, 0))
             ax.plot_surface(x, y, z, alpha=0.2, color='magenta')
             # create an empty, fake line so we can add a label for the legend
