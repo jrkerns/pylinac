@@ -3,6 +3,15 @@
 Changelog
 =========
 
+v 3.17.0
+--------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Normal Winston-Lutz analyses (not multi-target/multi-field) can now plot a visualization of the BB position
+  relative to the determined isocenter. After analyzing a WL set, call ``plot_location()``. See :ref:`wl_visualizing_bb`.
+
 v 3.16.0
 --------
 

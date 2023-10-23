@@ -495,6 +495,10 @@ class GeneralTests(TestCase):
         wl = WinstonLutz.from_zip(file)
         with self.assertRaises(ValueError):
             wl.analyze()
+            
+    def test_plot_bb_location(self):
+        # shouldn't raise
+        self.wl.plot_location()
 
 
 class TestPublishPDF(TestCase):
