@@ -40,15 +40,20 @@ TEST_DIR = "planar_imaging"
 
 
 class TestPercentIntegralUniformity(TestCase):
-    
     def test_normal(self):
-        self.assertAlmostEqual(percent_integral_uniformity(max=1000, min=900), 94.73, delta=0.1)
-    
+        self.assertAlmostEqual(
+            percent_integral_uniformity(max=1000, min=900), 94.73, delta=0.1
+        )
+
     def test_perfect(self):
-        self.assertAlmostEqual(percent_integral_uniformity(max=1000, min=1000), 100, delta=0.1)
+        self.assertAlmostEqual(
+            percent_integral_uniformity(max=1000, min=1000), 100, delta=0.1
+        )
 
     def test_min_0(self):
-        self.assertAlmostEqual(percent_integral_uniformity(max=1000, min=0), 0, delta=0.1)
+        self.assertAlmostEqual(
+            percent_integral_uniformity(max=1000, min=0), 0, delta=0.1
+        )
 
 
 class GeneralTests(TestCase):
@@ -215,14 +220,18 @@ class PlanarPhantomMixin(CloudFileMixin):
             self.assertAlmostEqual(
                 self.mtf_50, instance.mtf.relative_resolution(50), delta=0.2
             )
-            
+
     def test_percent_integral_uniformity(self):
         """Test the PIU if it exists in the results data"""
         if self.piu:
-            self.assertAlmostEqual(self.piu, self.instance.results_data().percent_integral_uniformity, delta=0.1)
+            self.assertAlmostEqual(
+                self.piu,
+                self.instance.results_data().percent_integral_uniformity,
+                delta=0.1,
+            )
         elif not isinstance(self.instance.results_data(), LightRadResult):
             self.assertIsNone(self.instance.results_data().percent_integral_uniformity)
-            
+
     def test_plotting(self):
         self.instance.plot_analyzed_image()
         self.instance.plot_analyzed_image(low_contrast=False, high_contrast=False)

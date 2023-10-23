@@ -276,11 +276,11 @@ class LowContrastDiskROI(DiskROI):
             "cnr": self.contrast_to_noise,
             "signal to noise": self.signal_to_noise,
         }
-    
+
     def percentile(self, percentile: float) -> float:
         """Return the pixel value at the given percentile."""
         return np.percentile(self.circle_mask(), percentile)
-    
+
     @cached_property
     def std(self) -> float:
         """The std within the ROI."""

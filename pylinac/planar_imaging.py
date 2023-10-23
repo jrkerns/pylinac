@@ -507,12 +507,14 @@ class ImagePhantomBase:
                 "An outline object was passed but was not a Circle or Rectangle."
             )
         return obj, settings
-    
-    def percent_integral_uniformity(self, percentiles: tuple[float, float] = (1, 99)) -> float | None:
+
+    def percent_integral_uniformity(
+        self, percentiles: tuple[float, float] = (1, 99)
+    ) -> float | None:
         """Calculate and return the percent integral uniformity (PIU). This uses
         a similar equation as ACR does for CT protocols. The PIU is calculated
-        over all the low contrast ROIs and the lowest (worst) PIU is returned. 
-        
+        over all the low contrast ROIs and the lowest (worst) PIU is returned.
+
         If the phantom does not contain low-contrast ROIs, None is returned."""
         if not self.low_contrast_rois:
             return
