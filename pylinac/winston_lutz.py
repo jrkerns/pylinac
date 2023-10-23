@@ -1902,7 +1902,6 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     analyzed_images: dict[str, list[WinstonLutz2DMultiTarget]]  #:
     image_type = WinstonLutz2DMultiTarget
     bb_arrangement: Sequence[dict]  #:
-    bb_projections: dict[str, BB]  #:
 
     def __init__(self, *args, **kwargs):
         """We cannot yet handle non-0 couch angles so we drop them. Analysis fails otherwise"""
@@ -1948,7 +1947,6 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         wl.analyze(bb_arrangement=arrangement)
         print(wl.results())
         wl.plot_images()
-        wl.plot_locations()
 
     def analyze(self, bb_arrangement: Sequence[dict]):
         """Analyze the WL images.
@@ -1960,7 +1958,6 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             keys and syntax.
         """
         self.analyzed_images = {}
-        self.bb_projections = {}
         self.bb_arrangement = bb_arrangement
         for idx, bb in enumerate(bb_arrangement):
             image_set = []
@@ -1972,17 +1969,6 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             if not image_set:
                 raise ValueError(f"Did not find any field/bb pairs for bb: {bb}")
             self.analyzed_images[BBArrangement.to_human(bb)] = image_set
-            ray_lines = []
-            for img in image_set:
-                ray_line = bb_ray_line(
-                    bb=img.bb,
-                    gantry_angle=img.gantry_angle,
-                    sad=img.sad,
-                    image_center=img.center,
-                    dpmm=img.dpmm,
-                )
-                ray_lines.append(ray_line)
-            self.bb_projections[BBArrangement.to_human(bb)] = BB(bb, ray_lines)
         self._is_analyzed = True
 
     def plot_images(self, show: bool = True, **kwargs) -> (list[plt.Figure], list[str]):
@@ -2024,76 +2010,6 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         for fig, stream in zip(figs, streams):
             fig.savefig(stream, **kwargs)
         return {name: stream for name, stream in zip(names, streams)}
-
-    def save_locations(
-        self,
-        filename: str | BinaryIO,
-        plot_rays: bool = False,
-        measured_color: str = "yellow",
-        nominal_color: str = "blue",
-        **kwargs,
-    ):
-        """Save the figure of `plot_locations()` to file. Keyword arguments are passed to `matplotlib.pyplot.savefig()`.
-
-        Parameters
-        ----------
-        filename : str
-            The name of the file to save to.
-        """
-        self.plot_locations(
-            plot_rays=plot_rays,
-            measured_color=measured_color,
-            nominal_color=nominal_color,
-            show=False,
-        )
-        plt.savefig(filename, **kwargs)
-
-    def plot_locations(
-        self,
-        plot_rays: bool = False,
-        measured_color: str = "yellow",
-        nominal_color: str = "blue",
-        show: bool = True,
-    ):
-        """Plot the 3D positions of the nominal and measured BB locations"""
-        ax = plt.axes(projection="3d")
-        # plot the BB projection lines
-        for bb in self.bb_projections.values():
-            if plot_rays:
-                for line in bb.ray_lines:
-                    line.plot2axes(ax, color="blue")
-            bb.plot_nominal(ax, color=nominal_color)
-            bb.plot_measured(ax, color=measured_color)
-
-        # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
-        # Could be a one-liner but it was getting gnarly.
-        view_limit = 5
-        for arr in self.bb_arrangement:
-            offset = max(
-                abs(offset)
-                for offset in (
-                    arr["offset_in_mm"],
-                    arr["offset_left_mm"],
-                    arr["offset_up_mm"],
-                )
-            )
-            if offset + 5 > view_limit:
-                view_limit = offset
-        ax.set(
-            xlabel="X, Right (+)",
-            ylabel="Y, Out (+)",
-            zlabel="Z, Up (+)",
-            title="WL Target locations",
-            ylim=[
-                view_limit,
-                -view_limit,
-            ],  # y is inverted because from top-down, a 2D view has 0 value at the top, so positive should be going down/out
-            xlim=[-view_limit, view_limit],
-            zlim=[-view_limit, view_limit],
-        )
-
-        if show:
-            plt.show()
 
     def cax2bb_distance(self, bb: str, metric: str = "max") -> float:
         """The distance in mm between the CAX and BB for all images according to the given metric.
@@ -2324,25 +2240,6 @@ def bb_projection_gantry_plane(
         + offset_left * -cos(gantry)
         + addtl_left_shift
     )
-
-
-def bb_ray_line(
-    bb: Point, gantry_angle: float, sad: float, image_center: Point, dpmm: float
-) -> Line:
-    """Create a 'ray' projection from the linac source through the BB. Used together, this is how the BB position can be found in 3D"""
-    # This would've been cleaner by passing the image, but for testing purposes it's easier to pass near-primitives
-    source_x = sin(gantry_angle) * sad
-    source_z = cos(gantry_angle) * sad
-    source = Point(x=source_x, y=0, z=source_z)
-    # we want the line to go past the isoplane, so calculate the other point at 1.5x the SAD; when plotted
-    bb_x_mm = (bb.x - image_center.x) / dpmm
-    bb_y_mm = (bb.y - image_center.y) / dpmm
-    distal = Point(
-        x=-source_x + bb_x_mm * 2 * cos(gantry_angle),
-        y=2 * bb_y_mm,
-        z=-source_z - bb_x_mm * 2 * sin(gantry_angle),
-    )
-    return Line(source, distal)
 
 
 def _bb_projection_with_rotation(

@@ -478,19 +478,19 @@ def generate_winstonlutz_multi_bb_multi_field(
                     -jitter_mm, jitter_mm
                 )  # negative because pixels increase as we go out, so to go in we subtract
 
-            # long_offset = bb_projection_long(
-            #     offset_in=offset_mm_in,
-            #     offset_up=offset_mm_up,
-            #     offset_left=offset_mm_left,
-            #     sad=1000,
-            #     gantry=gantry,
-            # )
-            # gplane_offset = bb_projection_gantry_plane(
-            #     offset_left=offset_mm_left,
-            #     offset_up=offset_mm_up,
-            #     sad=1000,
-            #     gantry=gantry,
-            # )
+            long_offset = bb_projection_long(
+                offset_in=offset_mm_in,
+                offset_up=offset_mm_up,
+                offset_left=offset_mm_left,
+                sad=1000,
+                gantry=gantry,
+            )
+            gplane_offset = bb_projection_gantry_plane(
+                offset_left=offset_mm_left,
+                offset_up=offset_mm_up,
+                sad=1000,
+                gantry=gantry,
+            )
             gplane_offset, long_offset = _bb_projection_with_rotation(
                 offset_left=offset_mm_left,
                 offset_up=offset_mm_up,
