@@ -1011,6 +1011,9 @@ class PicketFence:
         ax.axvline(self.tolerance, color="r", linewidth=3)
         ax.axvline(-self.tolerance, color="r", linewidth=3)
         ax.grid(True)
+        if self.action_tolerance is not None:
+            ax.axvline(self.action_tolerance, color="m", linewidth=3)
+            ax.axvline(-self.action_tolerance, color="m", linewidth=3)
         ax.set_title("Leaf error histogram")
         ax.set_ylabel("Counts")
         ax.set_xlabel("Error (mm)")
