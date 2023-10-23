@@ -151,6 +151,7 @@ class BBArrangement:
 
 class NominalBB(TypedDict):
     """Input for BB location"""
+
     offset_left_mm: float
     offset_up_mm: float
     offset_in_mm: float
@@ -198,16 +199,22 @@ class BB:
 
     def plot_nominal(self, axes: plt.Axes, color: str):
         """Plot the BB nominal position"""
-        x, y, z = create_sphere_surface(radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.nominal_position)
+        x, y, z = create_sphere_surface(
+            radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.nominal_position
+        )
         axes.plot_surface(x, y, z, color=color)
 
     def plot_measured(self, axes: plt.Axes, color: str):
         """Plot the BB measured position"""
-        x, y, z = create_sphere_surface(radius = self.nominal_bb["bb_diameter_mm"] / 2, center=self.measured_position)
+        x, y, z = create_sphere_surface(
+            radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.measured_position
+        )
         axes.plot_surface(x, y, z, color=color)
 
 
-def create_sphere_surface(radius: float, center: Point) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def create_sphere_surface(
+    radius: float, center: Point
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Create a sphere surface for plotting"""
     u = np.linspace(0, 2 * np.pi, 100)
     v = np.linspace(0, np.pi, 100)
@@ -1328,12 +1335,18 @@ class WinstonLutz:
         if show:
             plt.show()
 
-    def plot_location(self, show: bool = True, viewbox_mm: float | None = None, plot_bb: bool = True, plot_isocenter_sphere: bool = True):
+    def plot_location(
+        self,
+        show: bool = True,
+        viewbox_mm: float | None = None,
+        plot_bb: bool = True,
+        plot_isocenter_sphere: bool = True,
+    ):
         """Plot the isocenter and size as a sphere in 3D space relative to the BB. The
         iso is at the origin.
-        
+
         Only images where the couch was at zero are considered.
-        
+
         Parameters
         ----------
         show : bool
@@ -1345,31 +1358,58 @@ class WinstonLutz:
         plot_isocenter_sphere : bool
             Whether to plot the gantry + collimator isocenter size.
         """
-        limit = viewbox_mm or max(np.abs((self.bb_shift_vector.x, self.bb_shift_vector.y, self.bb_shift_vector.z))) + self._bb_diameter
+        limit = (
+            viewbox_mm
+            or max(
+                np.abs(
+                    (
+                        self.bb_shift_vector.x,
+                        self.bb_shift_vector.y,
+                        self.bb_shift_vector.z,
+                    )
+                )
+            )
+            + self._bb_diameter
+        )
         ax = plt.axes(projection="3d")
-        _, relevant_images = self._get_images(axis=(Axis.REFERENCE, Axis.GB_COMBO, Axis.COLLIMATOR, Axis.GANTRY))
+        _, relevant_images = self._get_images(
+            axis=(Axis.REFERENCE, Axis.GB_COMBO, Axis.COLLIMATOR, Axis.GANTRY)
+        )
         # we can represent the iso sphere as a BB object; the nominal object isn't used, just the BB size
         # the ray lines are what we want to plot as a sphere
-        iso_sphere = BB(nominal_bb={"offset_left_mm": 0, "offset_in_mm": 0, 'offset_up_mm': 0, "bb_diameter_mm": self._bb_diameter},
-                    ray_lines=[image.cax_line_projection for image in relevant_images])
+        iso_sphere = BB(
+            nominal_bb={
+                "offset_left_mm": 0,
+                "offset_in_mm": 0,
+                "offset_up_mm": 0,
+                "bb_diameter_mm": self._bb_diameter,
+            },
+            ray_lines=[image.cax_line_projection for image in relevant_images],
+        )
         # plot the x,y,z origin lines
         x_line = Line(Point(-limit, 0, 0), Point(limit, 0, 0))
-        x_line.plot2axes(ax, color='red', label='isocenter (x)')
+        x_line.plot2axes(ax, color="red", label="isocenter (x)")
         y_line = Line(Point(0, -limit, 0), Point(0, limit, 0))
-        y_line.plot2axes(ax, color='green', label='isocenter (y)')
+        y_line.plot2axes(ax, color="green", label="isocenter (y)")
         z_line = Line(Point(0, 0, -limit), Point(0, 0, limit))
-        z_line.plot2axes(ax, color='blue', label='isocenter (z)')
+        z_line.plot2axes(ax, color="blue", label="isocenter (z)")
         if plot_bb:
-            iso_sphere.plot_measured(ax, color='cyan')
+            iso_sphere.plot_measured(ax, color="cyan")
             # create an empty, fake line so we can add a label for the legend
             fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
-            fake_line.plot2axes(ax, color='cyan', label=f'BB ({self._bb_diameter}mm)')
+            fake_line.plot2axes(ax, color="cyan", label=f"BB ({self._bb_diameter}mm)")
         if plot_isocenter_sphere:
-            x, y, z = create_sphere_surface(radius=self.gantry_coll_iso_size / 2, center=Point(0, 0, 0))
-            ax.plot_surface(x, y, z, alpha=0.2, color='magenta')
+            x, y, z = create_sphere_surface(
+                radius=self.gantry_coll_iso_size / 2, center=Point(0, 0, 0)
+            )
+            ax.plot_surface(x, y, z, alpha=0.2, color="magenta")
             # create an empty, fake line so we can add a label for the legend
             fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
-            fake_line.plot2axes(ax, color='magenta', label=f'Isocenter sphere ({self.gantry_coll_iso_size:3.2f}mm)')
+            fake_line.plot2axes(
+                ax,
+                color="magenta",
+                label=f"Isocenter sphere ({self.gantry_coll_iso_size:3.2f}mm)",
+            )
         ax.legend()
         # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
         ax.set(

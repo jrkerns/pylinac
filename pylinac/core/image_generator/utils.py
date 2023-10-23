@@ -7,10 +7,7 @@ import random
 from typing import Sequence
 
 from ...picketfence import Orientation
-from ...winston_lutz import (
-    bb_projection_gantry_plane,
-    bb_projection_long,
-)
+from ...winston_lutz import bb_projection_gantry_plane, bb_projection_long
 from ..geometry import cos, sin
 from . import GaussianFilterLayer
 from .layers import (

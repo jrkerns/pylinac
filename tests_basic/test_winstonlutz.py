@@ -42,6 +42,7 @@ TEST_DIR = "Winston-Lutz"
 
 class TestBBProjection(TestCase):
     """Test the BB isoplane projections"""
+
     def test_longitudinal_projection(self):
         # in coordinate space, positive is in, but in plotting space, positive is out
         # thus, we return the opposite sign than the coordinate space
@@ -178,6 +179,7 @@ class TestBBProjection(TestCase):
             -10.1,
             abs_tol=0.005,
         )
+
     def test_gantry_plane_projection(self):
         # left is negative, right is positive
         # dead center
@@ -657,7 +659,7 @@ class GeneralTests(TestCase):
         wl = WinstonLutz.from_zip(file)
         with self.assertRaises(ValueError):
             wl.analyze()
-            
+
     def test_plot_bb_location(self):
         # shouldn't raise
         self.wl.plot_location()
