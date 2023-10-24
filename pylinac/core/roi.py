@@ -277,6 +277,27 @@ class LowContrastDiskROI(DiskROI):
             "signal to noise": self.signal_to_noise,
         }
 
+    def percentile(self, percentile: float) -> float:
+        """Return the pixel value at the given percentile."""
+        return np.percentile(self.circle_mask(), percentile)
+
+    @cached_property
+    def std(self) -> float:
+        """The std within the ROI."""
+        return float(np.std(self.circle_mask()))
+
+    @cached_property
+    def max(self) -> float:
+        """The max pixel value of the ROI."""
+        masked_img = self.circle_mask()
+        return np.max(masked_img)
+
+    @cached_property
+    def min(self) -> float:
+        """The min pixel value of the ROI."""
+        masked_img = self.circle_mask()
+        return np.min(masked_img)
+
 
 class HighContrastDiskROI(DiskROI):
     """A class for analyzing the high-contrast disks."""

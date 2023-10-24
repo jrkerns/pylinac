@@ -1,10 +1,17 @@
-
 =========
 Changelog
 =========
 
 v 3.17.0
 --------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* A new method is available for planar phantom analyses: :meth:`~pylinac.planar_imaging.LeedsTOR.percent_integral_uniformity`.
+  This method will calculate the percent integral uniformity (PIU) over the low-contrast
+  ROIs. This result will also be included in the ``results_data`` structure.
+  This is not done for light/rad phantoms.
 
 Winston-Lutz
 ^^^^^^^^^^^^

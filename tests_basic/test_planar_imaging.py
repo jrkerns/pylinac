@@ -27,14 +27,33 @@ from pylinac.planar_imaging import (
     IMTLRad,
     IsoAlign,
     LeedsTORBlue,
+    LightRadResult,
     PlanarResult,
     SNCkV,
     StandardImagingFC2,
     StandardImagingQCkV,
+    percent_integral_uniformity,
 )
 from tests_basic.utils import CloudFileMixin, get_file_from_cloud_test_repo, save_file
 
 TEST_DIR = "planar_imaging"
+
+
+class TestPercentIntegralUniformity(TestCase):
+    def test_normal(self):
+        self.assertAlmostEqual(
+            percent_integral_uniformity(max=1000, min=900), 94.73, delta=0.1
+        )
+
+    def test_perfect(self):
+        self.assertAlmostEqual(
+            percent_integral_uniformity(max=1000, min=1000), 100, delta=0.1
+        )
+
+    def test_min_0(self):
+        self.assertAlmostEqual(
+            percent_integral_uniformity(max=1000, min=0), 0, delta=0.1
+        )
 
 
 class GeneralTests(TestCase):
@@ -79,7 +98,7 @@ class GeneralTests(TestCase):
 
         data_dict = phan.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
-        self.assertEqual(len(data_dict), 9)
+        self.assertEqual(len(data_dict), 10)
         self.assertIn("pylinac_version", data_dict)
 
     def test_results_data_no_mtf(self):
@@ -87,7 +106,7 @@ class GeneralTests(TestCase):
         phan.analyze()
 
         data_dict = phan.results_data(as_dict=True)
-        self.assertEqual(len(data_dict), 9)
+        self.assertEqual(len(data_dict), 10)
 
     def test_set_figure_size(self):
         phan = LeedsTOR.from_demo_image()
@@ -168,6 +187,7 @@ class PlanarPhantomMixin(CloudFileMixin):
     median_cnr = None
     file_name = None
     rois_seen = None
+    piu = None
 
     @classmethod
     def setUpClass(cls):
@@ -200,6 +220,17 @@ class PlanarPhantomMixin(CloudFileMixin):
             self.assertAlmostEqual(
                 self.mtf_50, instance.mtf.relative_resolution(50), delta=0.2
             )
+
+    def test_percent_integral_uniformity(self):
+        """Test the PIU if it exists in the results data"""
+        if self.piu:
+            self.assertAlmostEqual(
+                self.piu,
+                self.instance.results_data().percent_integral_uniformity,
+                delta=0.1,
+            )
+        elif not isinstance(self.instance.results_data(), LightRadResult):
+            self.assertIsNone(self.instance.results_data().percent_integral_uniformity)
 
     def test_plotting(self):
         self.instance.plot_analyzed_image()
@@ -254,6 +285,7 @@ class LeedsMixin(PlanarPhantomMixin):
 
 class LeedsDemo(LeedsMixin, TestCase):
     mtf_50 = 1.5
+    piu = 91.8
 
     def test_demo(self):
         LeedsTOR.run_demo()  # shouldn't raise
@@ -262,24 +294,28 @@ class LeedsDemo(LeedsMixin, TestCase):
 class LeedsCCW(LeedsMixin, TestCase):
     mtf_50 = 1.5
     file_name = "Leeds_ccw.dcm"
+    piu = 93.5
 
 
 class Leeds45Deg(LeedsMixin, TestCase):
     mtf_50 = 1.9
     ssd = "auto"
     file_name = "Leeds-45deg.dcm"
+    piu = 95.5
 
 
 class LeedsDirtyEdges(LeedsMixin, TestCase):
     mtf_50 = 1.53
     ssd = "auto"
     file_name = "Leeds-dirty-edges.dcm"
+    piu = 96.8
 
 
 class LeedsOffsetHighRes(LeedsMixin, TestCase):
     mtf_50 = 1.85
     ssd = "auto"
     file_name = "Leeds_offset_high_res_rois.dcm"
+    piu = 89.3
 
 
 class LeedsBlue(LeedsMixin, TestCase):
@@ -287,6 +323,7 @@ class LeedsBlue(LeedsMixin, TestCase):
     mtf_50 = 1.5
     ssd = "auto"
     file_name = "Leeds_Blue.dcm"
+    piu = 97
 
 
 class LeedsBlueRotated(LeedsMixin, TestCase):
@@ -294,6 +331,7 @@ class LeedsBlueRotated(LeedsMixin, TestCase):
     mtf_50 = 1.5
     ssd = "auto"
     file_name = "Leeds_Blue.dcm"
+    piu = 97
 
     @classmethod
     def preprocess(cls, instance):
@@ -313,6 +351,7 @@ class LeedsACB1(LeedsMixin, TestCase):
     dir_path = ["planar_imaging", "Leeds", "ACB 1"]
     file_path = "1.dcm"
     mtf_50 = 1.69
+    piu = 91.8
 
 
 class LeedsBadInversion(LeedsMixin, TestCase):
@@ -320,12 +359,14 @@ class LeedsBadInversion(LeedsMixin, TestCase):
 
     file_path = "Leeds bad inversion.dcm"
     mtf_50 = 1.69
+    piu = 91.8
 
 
 class SIQC3Demo(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQC3
     mtf_50 = 0.53
     rois_seen = 5
+    piu = 98
 
     def test_demo(self):
         StandardImagingQC3.run_demo()  # shouldn't raise
@@ -336,6 +377,7 @@ class SIQC3_1(PlanarPhantomMixin, TestCase):
     file_name = "QC3-2.5MV.dcm"
     mtf_50 = 1.19
     rois_seen = 5
+    piu = 91.8
 
 
 class SIQC3_2(PlanarPhantomMixin, TestCase):
@@ -344,6 +386,7 @@ class SIQC3_2(PlanarPhantomMixin, TestCase):
     mtf_50 = 1.16
     ssd = 1000
     rois_seen = 5
+    piu = 91.8
 
     def test_wrong_ssd_fails(self):
         self.instance = self.klass(self.get_filename())
@@ -436,6 +479,7 @@ class Elekta10MU(ElektaLasVegasMixin, TestCase):
 class DoselabMVDemo(PlanarPhantomMixin, TestCase):
     klass = DoselabMC2MV
     mtf_50 = 0.54
+    piu = 51.8
 
     def test_demo(self):
         DoselabMC2MV.run_demo()
@@ -444,6 +488,7 @@ class DoselabMVDemo(PlanarPhantomMixin, TestCase):
 class DoselabkVDemo(PlanarPhantomMixin, TestCase):
     klass = DoselabMC2kV
     mtf_50 = 2.0
+    piu = 4.2
 
     def test_demo(self):
         DoselabMC2kV.run_demo()
@@ -454,6 +499,7 @@ class SNCkVDemo(PlanarPhantomMixin, TestCase):
     mtf_50 = 1.76
     median_contrast = 0.17
     median_cnr = 69.4
+    piu = 98.7
 
     def test_demo(self):
         SNCkV.run_demo()
@@ -464,6 +510,7 @@ class SNCMVDemo(PlanarPhantomMixin, TestCase):
     median_cnr = 81
     median_contrast = 0.21
     mtf_50 = 0.43
+    piu = 98.4
 
     def test_demo(self):
         SNCMV.run_demo()
@@ -476,6 +523,7 @@ class SNCMV12510_6MV1(PlanarPhantomMixin, TestCase):
     median_cnr = 65.34
     dir_path = ["planar_imaging", "SNC MV Old"]
     file_name = "SNC_MV_Old1.dcm"
+    piu = 96.3
 
     def test_demo(self):
         SNCMV12510.run_demo()
@@ -488,6 +536,7 @@ class SNCMV12510_6MV2(PlanarPhantomMixin, TestCase):
     median_cnr = 66.43
     dir_path = ["planar_imaging", "SNC MV Old"]
     file_name = "SNC_MV_Old2.dcm"
+    piu = 96.4
 
 
 class SNCMV12510_Jig(PlanarPhantomMixin, TestCase):
@@ -499,6 +548,7 @@ class SNCMV12510_Jig(PlanarPhantomMixin, TestCase):
     median_cnr = 58.6
     dir_path = ["planar_imaging", "SNC MV Old"]
     file_name = "SNC_MV_jig.dcm"
+    piu = 96.7
 
 
 class IBAPrimusDemo(PlanarPhantomMixin, TestCase):
@@ -509,6 +559,7 @@ class IBAPrimusDemo(PlanarPhantomMixin, TestCase):
     ssd = 1395
     median_cnr = 1084.4
     median_contrast = 0.62
+    piu = 90.1
 
     def test_demo(self):
         IBAPrimusA.run_demo()
@@ -561,12 +612,14 @@ class IBAPrimusFarSSD(PlanarPhantomMixin, TestCase):
     ssd = 2790
     median_cnr = 3990
     median_contrast = 0.6
+    piu = 89.8
 
 
 class SIQCkVDemo(PlanarPhantomMixin, TestCase):
     klass = StandardImagingQCkV
     mtf_50 = 1.81
     rois_seen = 5
+    piu = 96.7
 
     def test_demo(self):
         StandardImagingQCkV.run_demo()
@@ -575,6 +628,7 @@ class SIQCkVDemo(PlanarPhantomMixin, TestCase):
 class PTWEPIDDemo(PlanarPhantomMixin, TestCase):
     klass = PTWEPIDQC
     mtf_50 = 0.79
+    piu = 95.4
 
     def test_demo(self):
         PTWEPIDQC.run_demo()
@@ -588,6 +642,7 @@ class PTWEPIDQC1(PlanarPhantomMixin, TestCase):
     median_cnr = 40.9
     dir_path = ["planar_imaging", "PTW-EPID"]
     file_name = "PTW EPID QC Phantom.dcm"
+    piu = 94.7
 
 
 class PTWEPID15MV(PlanarPhantomMixin, TestCase):
@@ -598,6 +653,7 @@ class PTWEPID15MV(PlanarPhantomMixin, TestCase):
     median_cnr = 26.7
     dir_path = ["planar_imaging", "PTW-EPID"]
     file_name = "PTW-EPID-15MV.dcm"
+    piu = 96.3
 
 
 class PTWEPID6xHigh(PlanarPhantomMixin, TestCase):
@@ -608,6 +664,7 @@ class PTWEPID6xHigh(PlanarPhantomMixin, TestCase):
     median_cnr = 72.1
     dir_path = ["planar_imaging", "PTW-EPID"]
     file_name = "QA EPI 6x High.dcm"
+    piu = 94.3
 
 
 class PTWEPID6xHighQuality(PlanarPhantomMixin, TestCase):
@@ -618,6 +675,7 @@ class PTWEPID6xHighQuality(PlanarPhantomMixin, TestCase):
     median_cnr = 37.9
     dir_path = ["planar_imaging", "PTW-EPID"]
     file_name = "TB1_PTW_EPID_Phan 6x_HighQuality.dcm"
+    piu = 94.6
 
 
 class PTWEPIDTB3(PlanarPhantomMixin, TestCase):
@@ -628,6 +686,7 @@ class PTWEPIDTB3(PlanarPhantomMixin, TestCase):
     median_cnr = 43.2
     dir_path = ["planar_imaging", "PTW-EPID"]
     file_name = "TB3_PTW_EPID_Phan.dcm"
+    piu = 92.3
 
 
 class PTWEPIDTB4(PlanarPhantomMixin, TestCase):
@@ -638,6 +697,7 @@ class PTWEPIDTB4(PlanarPhantomMixin, TestCase):
     median_cnr = 39.1
     dir_path = ["planar_imaging", "PTW-EPID"]
     file_name = "TB4 PTW_EPID_phan.dcm"
+    piu = 92.2
 
 
 class FC2Mixin(PlanarPhantomMixin):
