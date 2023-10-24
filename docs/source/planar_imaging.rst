@@ -1067,6 +1067,34 @@ To adjust an ROI, override the relevant attribute or create a subclass. E.g. to 
 
     qc3 = TweakedStandardImagingQC3(...)
 
+Calculating Uniformity
+^^^^^^^^^^^^^^^^^^^^^^
+
+The uniformity of the phantom can be found by using the :meth:`~pylinac.planar_imaging.LeedsTOR.percent_integral_uniformity` method.
+This uses the same equation as ACR for CT uniformity. See the "Uniformity" section under :ref:`ACR Analysis <acr_analysis>` for more information.
+
+The PIU is calculated over all the low-contrast ROIs and the lowest (worst) PIU is returned.
+
+For robustness, the 1st and 99th percentiles are used rather than the min/max. The true
+min/max can be influenced by salt and paper noise.
+To use the true min and max, set the percentiles to 0 and 100 respectively:
+
+.. note::
+
+    This will not be reflected in the ``results_data`` structure.
+
+.. code-block:: python
+
+    leeds = LeedsTOR(...)
+    leeds.analyze(...)
+    print(leeds.percent_integral_uniformity(percentiles=(0, 100)))  # uses the true min/max
+
+.. warning::
+
+   This equation was chosen because it is common and understood, but it does come with pitfalls.
+   It is not designed to handle negative values or 0. The calculated result may be misleading if these
+   conditions exist.
+
 Calculate a specific MTF
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
