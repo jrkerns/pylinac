@@ -13,6 +13,12 @@ Planar Imaging
   ROIs. This result will also be included in the ``results_data`` structure.
   This is not done for light/rad phantoms.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Normal Winston-Lutz analyses (not multi-target/multi-field) can now plot a visualization of the BB position
+  relative to the determined isocenter. After analyzing a WL set, call ``plot_location()``. See :ref:`wl_visualizing_bb`.
+
 v 3.16.0
 --------
 

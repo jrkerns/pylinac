@@ -166,7 +166,25 @@ You can also pass in your couch coordinates and the new values will be generated
     print(wl.bb_shift_instructions(couch_vrt=0.41, couch_lng=96.23, couch_lat=0.12))
     # New couch coordinates (mm): VRT: 0.32; LNG: 96.11; LAT: 0.11
 
-.. _using_file_names_wl:
+.. _wl_visualizing_bb:
+
+Visualizing the Isocenter-to-BB
+-------------------------------
+
+.. versionadded:: 3.17
+
+The isocenter and BB can be visualized together after analysis by calling ``plot_location``:
+
+.. code-block:: python
+
+    wl = WinstonLutz(...)
+    wl.analyze(...)
+    wl.plot_location()
+
+This will result in a 3D plot visualizing the BB (true physical size) and the isocenter (true physical size) in the room coordinates
+like so:
+
+.. image:: images/iso_visualization.png
 
 
 Accessing data
@@ -238,6 +256,8 @@ You may optionally analyze a single image if that is your preference. Obviously,
     ...
 
 This class does not have all the methods that ``WinstonLutz`` has for mostly obvious reasons and lower likelihood of being used directly.
+
+.. _using_file_names_wl:
 
 .. _passing-in-axis-values:
 

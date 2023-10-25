@@ -40,7 +40,7 @@ from tests_basic.utils import (
 TEST_DIR = "Winston-Lutz"
 
 
-class TestProjection(TestCase):
+class TestBBProjection(TestCase):
     """Test the BB isoplane projections"""
 
     def test_longitudinal_projection(self):
@@ -660,6 +660,10 @@ class GeneralTests(TestCase):
         with self.assertRaises(ValueError):
             wl.analyze()
 
+    def test_plot_bb_location(self):
+        # shouldn't raise
+        self.wl.plot_location()
+
 
 class TestPublishPDF(TestCase):
     @classmethod
@@ -824,9 +828,7 @@ class WinstonLutzMixin(CloudFileMixin):
     def test_bb_shift_vector(self):
         self.assertTrue(
             vector_is_close(self.wl.bb_shift_vector, self.bb_shift_vector, delta=0.15),
-            msg="The vector {} is not sufficiently close to vector {}".format(
-                self.wl.bb_shift_vector, self.bb_shift_vector
-            ),
+            msg=f"The vector {self.wl.bb_shift_vector} is not sufficiently close to vector {self.bb_shift_vector}",
         )
 
     def test_known_axis_of_rotation(self):
