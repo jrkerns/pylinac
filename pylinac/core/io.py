@@ -243,9 +243,13 @@ class SNCProfiler:
         path : str
             Path to the .prs file.
         detector_row
+            The row that contains the detector data.
         bias_row
+            The row that contains the bias data.
         calibration_row
+            The row that contains the calibration data.
         data_row
+            The row that contains the data.
         data_columns
             The range of columns that the data is in. Usually, there are some columns before and after the real data.
         """

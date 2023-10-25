@@ -77,7 +77,8 @@ class CheeseModule(CatPhanModule):
 class TomoCheeseModule(CheeseModule):
     """The pluggable module with user-accessible holes.
 
-    The ROIs of the inner circle are ~45 degrees apart. The ROIs of the outer circle are ~30 degrees apart
+    The ROIs of the inner circle are ~45 degrees apart. The ROIs of the outer circle are ~30 degrees apart.
+
     """
 
     common_name = "Tomo Cheese"
