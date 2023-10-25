@@ -24,7 +24,18 @@ def serve_docs(session):
 
 @nox.session(python=False)
 def build_docs(session):
-    session.run("sphinx-build", "docs/source", "docs/build", "-W", "--keep-going", "-q")
+    session.run(
+        "sphinx-build",
+        "docs/source",
+        "docs/build",
+        "-W",
+        "--keep-going",
+        "-j",
+        "auto",
+        "-a",
+        "-b",
+        "html",
+    )
 
 
 @nox.session(python=False)
