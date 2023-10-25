@@ -1,6 +1,7 @@
 -r requirements.txt
 black
 bump2version
+furo
 google-cloud-storage
 nox
 pre-commit
