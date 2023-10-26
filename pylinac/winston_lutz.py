@@ -1429,7 +1429,7 @@ class WinstonLutz:
         if plot_couch_iso:
             circle = plt.Circle(
                 (0, 0),
-                self.couch_iso_size,
+                radius=self.couch_iso_size / 2,
                 fill=True,
                 color="yellow",
                 alpha=0.4,
@@ -1440,7 +1440,7 @@ class WinstonLutz:
         if plot_coll_iso:
             circle = plt.Circle(
                 (0, 0),
-                self.collimator_iso_size,
+                radius=self.collimator_iso_size / 2,
                 fill=True,
                 color="blue",
                 alpha=0.4,
