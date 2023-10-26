@@ -130,8 +130,8 @@ class Point:
             getattr(self, attr) == getattr(other, attr) for attr in self._attr_list
         )
 
-    def __sub__(self, other) -> Point:
-        p = Point()
+    def __sub__(self, other) -> Vector:
+        p = Vector()
         for attr in self._attr_list:
             try:
                 diff = getattr(self, attr) - getattr(other, attr)
