@@ -88,6 +88,24 @@ def is_right_size_square(region: RegionProperties, *args, **kwargs) -> bool:
     return smaller_bb_area < field_area < larger_bb_area
 
 
+def deduplicate_points(
+    original_points: list[Point], new_points: list[Point], min_separation_mm
+) -> list[Point]:
+    """Deduplicate points that are too close together. The original points should be the
+    starting point. The new point's x, y, and z values are compared to the existing points.
+    If the new point is too close to the original point, it's dropped. If it's sufficiently
+    far away, it is added. Will return a new combined list of points"""
+    # copilot wrote this 😁
+    combined_points = original_points
+    for new_point in new_points:
+        for original_point in original_points:
+            if new_point.distance_to(original_point) < min_separation_mm:
+                break
+        else:
+            combined_points.append(new_point)
+    return combined_points
+
+
 class MetricBase(ABC):
     """Base class for any 2D metric. This class is abstract and should not be instantiated.
 
@@ -347,6 +365,94 @@ class DiskLocator(DiskRegion):
     def plot(self, axis: plt.Axes) -> None:
         """Plot the BB center"""
         axis.plot(self.point.x, self.point.y, "ro")
+
+
+class GlobalDiskLocator(MetricBase):
+    """Finds BBs globally within an image."""
+
+    name: str
+    points: list[Point]
+
+    def __init__(
+        self,
+        radius_mm: float,
+        radius_tolerance_mm: float,
+        detection_conditions: list[callable] = (
+            is_round,
+            is_right_size_bb,
+            is_right_circumference,
+        ),
+        min_number: int = 1,
+        max_number: int | None = None,
+        min_separation_mm: float = 5,
+        name="Global Disk Locator",
+    ):
+        self.radius_mm = radius_mm
+        self.radius_tolerance_mm = radius_tolerance_mm
+        self.detection_conditions = detection_conditions
+        self.name = name
+        self.min_number = min_number
+        self.max_number = max_number or 1e3
+        self.min_separation_mm = min_separation_mm
+
+    def calculate(self) -> list[Point]:
+        """Find up to N BBs/disks in the image. This will look for BBs at every percentile range.
+        Multiple BBs may be found at different threshold levels."""
+        bbs = []
+        sample = invert(self.image.array)
+        # search for multiple BBs by iteratively raising the high-pass threshold value.
+        threshold_percentile = 5
+        while threshold_percentile < 100 and len(bbs) < self.max_number:
+            try:
+                binary_array = sample > np.percentile(sample, threshold_percentile)
+                labeled_arr = measure.label(binary_array)
+                regions = measure.regionprops(labeled_arr, intensity_image=sample)
+                conditions_met = [
+                    all(
+                        condition(
+                            region,
+                            dpmm=self.image.dpmm,
+                            bb_size=self.radius_mm,
+                            tolerance=self.radius_tolerance_mm,
+                            shape=binary_array.shape,
+                        )
+                        for condition in self.detection_conditions
+                    )
+                    for region in regions
+                ]
+                if not any(conditions_met):
+                    raise ValueError
+                else:
+                    bb_regions = [
+                        regions[idx]
+                        for idx, value in enumerate(conditions_met)
+                        if value
+                    ]
+                    points = [
+                        Point(region.weighted_centroid[1], region.weighted_centroid[0])
+                        for region in bb_regions
+                    ]
+                    bbs = deduplicate_points(
+                        original_points=bbs,
+                        new_points=points,
+                        min_separation_mm=self.min_separation_mm,
+                    )
+            except (IndexError, ValueError):
+                pass
+            finally:
+                threshold_percentile += 2
+        if len(bbs) < self.min_number:
+            # didn't find the number we needed
+            raise ValueError(
+                f"Couldn't find the minimum number of disks in the image. Found {len(bbs)}; required: {self.min_number}"
+            )
+        self.points = bbs
+        return bbs
+
+    def plot(self, axis: plt.Axes) -> None:
+        """Plot the BB centers"""
+        for point in self.points:
+            axis.plot(point.x, point.y, "ro")
 
 
 # TODO
