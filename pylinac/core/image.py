@@ -1050,14 +1050,12 @@ class XIM(BaseImage):
             xim, int, num_values=img_width + 1
         )
         diffs = self._get_diffs(lookup_table, xim)
-        for diff, idx in zip(
-            np.asarray(diffs, dtype=np.int16),
-            range(img_width + 1, img_width * img_height),
-        ):
-            left = a[idx - 1]
-            above = a[idx - img_width]
-            upper_left = a[idx - img_width - 1]
-            a[idx] = diff + left + above - upper_left
+        for diff, idx in zip(diffs, range(img_width + 1, img_width * img_height)):
+            # intermediate math can cause overflow errors. Use float for intermediate, then back to int
+            left = float(a[idx - 1])
+            above = float(a[idx - img_width])
+            upper_left = float(a[idx - img_width - 1])
+            a[idx] = np.asarray(diff + left + above - upper_left, dtype=dtype)
         return a.reshape((img_height, img_width))
 
     @staticmethod
@@ -1086,7 +1084,16 @@ class XIM(BaseImage):
                 diffs[start + 1 : stop] = vals
             if stop != byte_changes[-1]:
                 diffs[stop] = decode_binary(xim, LOOKUP_CONVERSION[lookup_table[stop]])
-        return diffs
+        return np.asarray(diffs, dtype=float)
+
+    @property
+    def dpmm(self) -> float:
+        """The dots/mm value of the XIM images. The value appears to be in cm in the file."""
+        if self.properties["PixelWidth"] != self.properties["PixelHeight"]:
+            raise ValueError(
+                "The XIM image does not have the same pixel height and width"
+            )
+        return 1 / (10 * self.properties["PixelHeight"])
 
     def save_as(self, file: str, format: str | None = None) -> None:
         """Save the image to a NORMAL format. PNG is highly suggested. Accepts any format supported by Pillow.

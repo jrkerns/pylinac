@@ -551,6 +551,13 @@ class TestXIMImage(TestCase):
         png_array = np.asarray(pimg)
         assert_array_almost_equal(png_array, xim.array)
 
+    def test_overflow(self):
+        # set overflow to cause errors
+        # shouldn't raise
+        np.seterr(all="raise")
+        xim_path = get_file_from_cloud_test_repo(["IsoCal-kV-08.xim"])
+        XIM(xim_path)
+
 
 class TestLinacDicomImage(TestCase):
     def test_normal_image(self):
