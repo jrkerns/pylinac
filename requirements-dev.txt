@@ -4,6 +4,7 @@ bump2version
 furo
 google-cloud-storage
 nox
+Pillow==10.*
 pre-commit
 pytest
 pytest-cov==3.0.0
