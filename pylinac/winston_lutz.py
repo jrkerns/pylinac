@@ -29,10 +29,11 @@ import statistics
 import tempfile
 import webbrowser
 from dataclasses import dataclass
+from functools import cached_property
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import BinaryIO, Iterable, Sequence
+from typing import BinaryIO, Iterable, Sequence, TypedDict
 
 import argue
 import matplotlib.pyplot as plt
@@ -146,6 +147,81 @@ class BBArrangement:
         ud = "Up" if a["offset_up_mm"] >= 0 else "Down"
         io = "In" if a["offset_in_mm"] >= 0 else "Out"
         return f"'{a['name']}': {lr} {abs(a['offset_left_mm'])}mm, {ud} {abs(a['offset_up_mm'])}mm, {io} {abs(a['offset_in_mm'])}mm"
+
+
+class NominalBB(TypedDict):
+    """Input for BB location"""
+
+    offset_left_mm: float
+    offset_up_mm: float
+    offset_in_mm: float
+    bb_diameter_mm: float
+
+
+class BB:
+    """A representation of a BB in 3D space"""
+
+    def __repr__(self):
+        return self.nominal_position
+
+    def __init__(self, nominal_bb: NominalBB, ray_lines: list[Line]):
+        self.nominal_bb = nominal_bb
+        self.ray_lines = ray_lines
+
+    @cached_property
+    def measured_position(self) -> Point:
+        """The 3D measured position of the BB based on the ray-tracing lines in MM"""
+        initial_guess = self.nominal_position.as_array()
+        bounds = [(-200, 200), (-200, 200), (-200, 200)]
+        result = optimize.minimize(
+            max_distance_to_lines, initial_guess, args=self.ray_lines, bounds=bounds
+        )
+        return Point(result.x)
+
+    @cached_property
+    def nominal_position(self) -> Point:
+        """The nominal location of the BB in MM"""
+        return Point(
+            x=-self.nominal_bb["offset_left_mm"],
+            y=-self.nominal_bb["offset_in_mm"],
+            z=self.nominal_bb["offset_up_mm"],
+        )
+
+    @cached_property
+    def delta_vector(self) -> Vector:
+        """The shift from measured BB location to nominal as a vector in MM"""
+        return self.measured_position - self.nominal_position
+
+    @cached_property
+    def delta_distance(self):
+        """The scalar distance between the measured BB location and nominal in MM"""
+        return self.measured_position.distance_to(self.nominal_position)
+
+    def plot_nominal(self, axes: plt.Axes, color: str):
+        """Plot the BB nominal position"""
+        x, y, z = create_sphere_surface(
+            radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.nominal_position
+        )
+        axes.plot_surface(x, y, z, color=color)
+
+    def plot_measured(self, axes: plt.Axes, color: str):
+        """Plot the BB measured position"""
+        x, y, z = create_sphere_surface(
+            radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.measured_position
+        )
+        axes.plot_surface(x, y, z, color=color)
+
+
+def create_sphere_surface(
+    radius: float, center: Point
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Create a sphere surface for plotting"""
+    u = np.linspace(0, 2 * np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
+    x = radius * np.outer(np.cos(u), np.sin(v)) + center.x
+    y = radius * np.outer(np.sin(u), np.sin(v)) + center.y
+    z = radius * np.outer(np.ones(np.size(u)), np.cos(v)) + center.z
+    return x, y, z
 
 
 class Axis(enum.Enum):
@@ -526,18 +602,18 @@ class WinstonLutz2D(image.LinacDicomImage):
         p1.x = self.cax2bb_vector.x * cos(self.gantry_angle) + 20 * sin(
             self.gantry_angle
         )
-        p1.y = self.cax2bb_vector.x * -sin(self.gantry_angle) + 20 * cos(
+        p1.z = self.cax2bb_vector.x * -sin(self.gantry_angle) + 20 * cos(
             self.gantry_angle
         )
-        p1.z = self.cax2bb_vector.y
+        p1.y = self.cax2bb_vector.y
         # point 2 - ray destination
         p2.x = self.cax2bb_vector.x * cos(self.gantry_angle) - 20 * sin(
             self.gantry_angle
         )
-        p2.y = self.cax2bb_vector.x * -sin(self.gantry_angle) - 20 * cos(
+        p2.z = self.cax2bb_vector.x * -sin(self.gantry_angle) - 20 * cos(
             self.gantry_angle
         )
-        p2.z = self.cax2bb_vector.y
+        p2.y = self.cax2bb_vector.y
         line = Line(p1, p2)
         return line
 
@@ -660,6 +736,7 @@ class WinstonLutz:
     machine_scale: MachineScale  #:
     image_type = WinstonLutz2D
     is_from_cbct: bool = False
+    _bb_diameter = float
 
     def __init__(
         self,
@@ -923,7 +1000,7 @@ class WinstonLutz:
         Parameters
         ----------
         bb_size_mm
-            The expected size of the BB in mm. The actual size of the BB can be +/-2mm from the passed value.
+            The expected diameter of the BB in mm. The actual size of the BB can be +/-2mm from the passed value.
         machine_scale
             The scale of the machine. Shift vectors depend on this value.
         low_density_bb
@@ -940,6 +1017,7 @@ class WinstonLutz:
         for img in self.images:
             img.analyze(bb_size_mm, low_density_bb, open_field)
         self._is_analyzed = True
+        self._bb_diameter = bb_size_mm
 
     @lru_cache()
     def _minimize_axis(self, axes: Axis | tuple[Axis, ...] = (Axis.GANTRY,)):
@@ -1254,6 +1332,96 @@ class WinstonLutz:
             axis.value
             + f" iso size: {getattr(self, axis.value.lower() + '_iso_size'):3.2f}mm"
         )
+        if show:
+            plt.show()
+
+    def plot_location(
+        self,
+        show: bool = True,
+        viewbox_mm: float | None = None,
+        plot_bb: bool = True,
+        plot_isocenter_sphere: bool = True,
+    ):
+        """Plot the isocenter and size as a sphere in 3D space relative to the BB. The
+        iso is at the origin.
+
+        Only images where the couch was at zero are considered.
+
+        Parameters
+        ----------
+        show : bool
+            Whether to plot the image.
+        viewbox_mm : float
+            The default size of the 3D space to plot in mm in each axis.
+        plot_bb : bool
+            Whether to plot the BB location; the size is also considered.
+        plot_isocenter_sphere : bool
+            Whether to plot the gantry + collimator isocenter size.
+        """
+        limit = (
+            viewbox_mm
+            or max(
+                np.abs(
+                    (
+                        self.bb_shift_vector.x,
+                        self.bb_shift_vector.y,
+                        self.bb_shift_vector.z,
+                    )
+                )
+            )
+            + self._bb_diameter
+        )
+        ax = plt.axes(projection="3d")
+        _, relevant_images = self._get_images(
+            axis=(Axis.REFERENCE, Axis.GB_COMBO, Axis.COLLIMATOR, Axis.GANTRY)
+        )
+        # we can represent the iso sphere as a BB object; the nominal object isn't used, just the BB size
+        # the ray lines are what we want to plot as a sphere
+        iso_sphere = BB(
+            nominal_bb={
+                "offset_left_mm": 0,
+                "offset_in_mm": 0,
+                "offset_up_mm": 0,
+                "bb_diameter_mm": self._bb_diameter,
+            },
+            ray_lines=[image.cax_line_projection for image in relevant_images],
+        )
+        # plot the x,y,z origin lines
+        x_line = Line(Point(-limit, 0, 0), Point(limit, 0, 0))
+        x_line.plot2axes(ax, color="red", label="isocenter (x)")
+        y_line = Line(Point(0, -limit, 0), Point(0, limit, 0))
+        y_line.plot2axes(ax, color="green", label="isocenter (y)")
+        z_line = Line(Point(0, 0, -limit), Point(0, 0, limit))
+        z_line.plot2axes(ax, color="blue", label="isocenter (z)")
+        if plot_bb:
+            iso_sphere.plot_measured(ax, color="cyan")
+            # create an empty, fake line so we can add a label for the legend
+            fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
+            fake_line.plot2axes(ax, color="cyan", label=f"BB ({self._bb_diameter}mm)")
+        if plot_isocenter_sphere:
+            x, y, z = create_sphere_surface(
+                radius=self.gantry_coll_iso_size / 2, center=Point(0, 0, 0)
+            )
+            ax.plot_surface(x, y, z, alpha=0.2, color="magenta")
+            # create an empty, fake line so we can add a label for the legend
+            fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
+            fake_line.plot2axes(
+                ax,
+                color="magenta",
+                label=f"Isocenter sphere ({self.gantry_coll_iso_size:3.2f}mm)",
+            )
+        ax.legend()
+        # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
+        ax.set(
+            xlabel="X (mm), Right (+)",
+            ylabel="Y (mm), In (+)",
+            zlabel="Z (mm), Up (+)",
+            title="Isocenter Visualization",
+            ylim=[-limit, limit],
+            xlim=[-limit, limit],
+            zlim=[-limit, limit],
+        )
+
         if show:
             plt.show()
 
@@ -1750,7 +1918,6 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
                 max_thresh -= 0.03 * spread
                 if max_thresh < hmin:
                     raise ValueError(BB_ERROR_MESSAGE)
-
         # determine the center of mass of the BB
         inv_img = image.load(self.array)
         # we invert so BB intensity increases w/ attenuation
@@ -1828,7 +1995,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         print(wl.results())
         wl.plot_images()
 
-    def analyze(self, bb_arrangement: Iterable[dict]):
+    def analyze(self, bb_arrangement: Sequence[dict]):
         """Analyze the WL images.
 
         Parameters
@@ -1845,7 +2012,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                 try:
                     image_set.append(img.as_analyzed(bb))
                 except ValueError:
-                    pass  # didn't find the field and/or BB; likely occluded or not part of the plan
+                    pass
             if not image_set:
                 raise ValueError(f"Did not find any field/bb pairs for bb: {bb}")
             self.analyzed_images[BBArrangement.to_human(bb)] = image_set
@@ -2130,7 +2297,7 @@ def _bb_projection_with_rotation(
     gantry: float,
     couch: float = 0,
     sad: float = 1000,
-) -> np.ndarray:
+) -> (float, float):
     """Calculate the isoplane projection onto the panel at the given SSD.
 
     This function applies a rotation around the gantry plane (X/Z) to the
@@ -2171,4 +2338,4 @@ def _bb_projection_with_rotation(
     imager_projection = (
         np.array([rotated_positions[1], rotated_positions[2]]) * bb_magnification
     )
-    return imager_projection
+    return imager_projection[0], imager_projection[1]
