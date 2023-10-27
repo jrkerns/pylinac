@@ -90,8 +90,9 @@ def equate_images(image1: ImageLike, image2: ImageLike) -> tuple[ImageLike, Imag
     Returns
     -------
     image1 : :class:`~pylinac.core.image.ArrayImage`
+        The first image equated.
     image2 : :class:`~pylinac.core.image.ArrayImage`
-        The returns are new instances of Images.
+        The second image equated.
     """
     image1 = copy.deepcopy(image1)
     image2 = copy.deepcopy(image2)
@@ -1237,9 +1238,9 @@ class DicomImage(BaseImage):
     def z_position(self) -> float:
         """The z-position of the slice. Relevant for CT and MR images."""
         try:
-            return self.metadata.SliceLocation
-        except AttributeError:
             return self.metadata.ImagePositionPatient[-1]
+        except AttributeError:
+            return self.metadata.SliceLocation
 
     @property
     def slice_spacing(self) -> float:
