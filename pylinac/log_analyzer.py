@@ -491,12 +491,12 @@ class FluenceBase:
         equal_aspect : bool
             If True, make the y-direction the same resolution as x. If False, the y-axis will be equal to the number of leaves.
 
-         Returns
-         -------
-         numpy.ndarray
-             A numpy array reconstructing the actual fluence of the log. The size will
-             be the number of MLC pairs by 400 / resolution since the MLCs can move anywhere within the
-             40cm-wide linac head opening.
+        Returns
+        -------
+        numpy.ndarray
+            A numpy array reconstructing the actual fluence of the log. The size will
+            be the number of MLC pairs by 400 / resolution since the MLCs can move anywhere within the
+            40cm-wide linac head opening.
         """
         height = MLC_FOV_HEIGHT_MM if not self._mlc.hdmlc else HDMLC_FOV_HEIGHT_MM
         if equal_aspect:
@@ -852,16 +852,20 @@ class MLC:
         """
         Parameters
         ----------
-        log_type: Dynalog, TrajectoryLog
+
+        log_type: :class:`~pylinac.log_analyzer.Dynalog`, :class:`~pylinac.log_analyzer.TrajectoryLog`
+            The log type.
         snapshot_idx : array, list
             The snapshots to be considered for RMS and error calculations (can be all snapshots or just when beam was on).
-        jaw_struct : Jaw_Struct
+        jaw_struct : :class:`~pylinac.log_analyzer.JawStruct`
+            The jaw structure.
         hdmlc : boolean
             If False (default), indicates a regular MLC model (e.g. Millennium 120).
             If True, indicates an HD MLC model (e.g. Millennium 120 HD).
 
         Attributes
         ----------
+
         leaf_axes : dict containing :class:`~pylinac.log_analyzer.Axis`
             The dictionary is keyed by the leaf number, with the Axis as the value.
 
@@ -2174,9 +2178,9 @@ class TrajectoryLogAxisData:
         Collimator data in degrees.
     gantry : :class:`~pylinac.log_analyzer.Axis`
         Gantry data in degrees.
-    jaws : :class:`~pylinac.log_analyzer.Jaw_Struct`
+    jaws : :class:`~pylinac.log_analyzer.JawStruct`
         Jaw data structure. Data in cm.
-    couch : :class:`~pylinac.log_analyzer.Couch_Struct`
+    couch : :class:`~pylinac.log_analyzer.CouchStruct`
         Couch data structure. Data in cm.
     mu : :class:`~pylinac.log_analyzer.Axis`
         MU data in MU.

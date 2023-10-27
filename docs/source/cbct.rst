@@ -163,8 +163,8 @@ The keys should be the name of the material and the values should be the HU valu
     from pylinac import CatPhan504
 
     # overrides the HU values of the Air and PMP regions
-    mycbct = CatPhan504(..., expected_hu_values={"Air": -999, "PMP": -203})
-    mycbct.analyze()
+    mycbct = CatPhan504(...)
+    mycbct.analyze(..., expected_hu_values={"Air": -999, "PMP": -203})
     mycbct.plot_analyzed_image()
 
 .. note::

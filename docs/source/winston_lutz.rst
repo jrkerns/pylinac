@@ -351,7 +351,7 @@ the radiation iso is not of interest. For large-field WL images, you may need to
 parameter to True. This is because the automatic inversion of the WL module assumes a small field is being delivered.
 For large field deliveries, kV or MV, see about flipping this parameter if the analysis fails.
 
-.. wl_cbct:
+.. _wl_cbct:
 
 CBCT Analysis
 -------------

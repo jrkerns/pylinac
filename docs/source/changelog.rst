@@ -19,6 +19,15 @@ Winston-Lutz
 * Normal Winston-Lutz analyses (not multi-target/multi-field) can now plot a visualization of the BB position
   relative to the determined isocenter. After analyzing a WL set, call ``plot_location()``. See :ref:`wl_visualizing_bb`.
 
+ACR
+^^^
+
+* The ``z_position`` property for DICOM stacks (used in CT and MRI) was using ``SliceLocation`` if the tag
+  existed and ``ImagePositionPatient[-1]`` if it did not exist. The ``SliceLocation`` tag however is apparently
+  relative. This caused problems for the ACR MRI module on properly-acquired datasets.
+  The ``ImagePositionPatient`` tag is now the primary lookup key and ``SliceLocation`` is only used
+  if the former tag is unavailable.
+
 v 3.16.0
 --------
 
@@ -33,6 +42,11 @@ Winston-Lutz
 
 * The Winston Lutz module can now load CBCT datasets of a scanned BB. This is still experimental and may have bugs. Caution is warranted.
   See :ref:`wl_cbct`.
+
+CBCT
+^^^^
+
+* Passing expected HU values for ROIs is now much easier by passing a dictionary to the ``.analyze()`` method. See :ref:`custom-hu-values`.
 
 Profiles
 ^^^^^^^^
