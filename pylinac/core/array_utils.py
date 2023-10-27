@@ -169,10 +169,15 @@ def convert_to_dtype(array: np.array, dtype: type[np.dtype]) -> np.array:
     """
     # original array info
     old_dtype_info = get_dtype_info(array.dtype)
-    relative_values = array.astype(float) / old_dtype_info.max
     # float range is so large that it's better to normalize
     if isinstance(old_dtype_info, np.finfo):
-        relative_values = stretch(relative_values, min=0, max=1)
+        relative_values = stretch(array, min=0, max=1)
+    else:
+        # we have an int-like array.
+        # the float conversion is to avoid integer division
+        # this can help when the values are very small
+        # we will cast back to int later
+        relative_values = array.astype(float) / old_dtype_info.max
     # new array info
     dtype_info = get_dtype_info(dtype)
     dtype_range = dtype_info.max - dtype_info.min

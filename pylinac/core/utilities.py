@@ -178,7 +178,7 @@ def decode_binary(
         ssize = struct.calcsize("f") * num_values
         output = np.asarray(struct.unpack("f" * num_values, f.read(ssize)))
         if len(output) == 1:
-            output = float(output)
+            output = float(np.squeeze(output))
     else:
         raise TypeError(f"datatype '{dtype}' was not valid")
 

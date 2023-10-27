@@ -19,7 +19,7 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 import pydicom
-import scipy.ndimage.filters as spf
+import scipy.ndimage as spf
 from PIL import Image as pImage
 from PIL.PngImagePlugin import PngInfo
 from PIL.TiffTags import TAGS
@@ -347,8 +347,8 @@ def _is_dicom(path: str | Path | io.BytesIO | ImageLike | np.ndarray) -> bool:
 def _is_image_file(path: str | Path) -> bool:
     """Whether the file is a readable image file via Pillow."""
     try:
-        pImage.open(path)
-        return True
+        with pImage.open(path):
+            return True
     except:
         return False
 
