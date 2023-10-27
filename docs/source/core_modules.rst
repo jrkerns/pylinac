@@ -22,8 +22,7 @@ Geometry Module
 Profile Module
 --------------
 
-.. automodule:: pylinac.core.profile
-    :members:
+See :ref:`profiles`.
 
 I/O Module
 ----------

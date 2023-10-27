@@ -264,8 +264,8 @@ The inflection point via the Hill function is useful for both flat and FFF beams
 The fitting of the function is best for low-resolution data, and is thus the default for ``DeviceFieldAnalysis``.
 The Hill function, the sigmoid function, and 4-point non-linear regression belong to a family of logistic equations to fit a dual-curved value.
 Since these fit a function to the data the resolution problems are eliminated. Some examples can be
-seen `here <https://en.wikipedia.org/wiki/Sigmoid_function#Examples>`_. The generalized logistic function has helpful visuals as well
-`here <https://en.wikipedia.org/wiki/Generalised_logistic_function>`_.
+seen `here <https://en.wikipedia.org/wiki/Sigmoid_function#Examples>`__. The generalized logistic function has helpful visuals as well
+`here <https://en.wikipedia.org/wiki/Generalised_logistic_function>`__.
 
 The function used here is:
 
@@ -735,9 +735,6 @@ These are the classes a typical user may interface with.
     :members:
 
 .. autoclass:: pylinac.field_analysis.Interpolation
-    :members:
-
-.. autoclass:: pylinac.field_analysis.Normalization
     :members:
 
 .. autoclass:: pylinac.field_analysis.Edge

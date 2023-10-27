@@ -24,7 +24,21 @@ def serve_docs(session):
 
 @nox.session(python=False)
 def build_docs(session):
-    session.run("sphinx-build", "docs/source", "docs/build")
+    """Build the docs; used in CI pipelines to test the build. Will always rebuild and will always fail if there are any warnings"""
+    session.run(
+        "sphinx-build",
+        "docs/source",
+        "docs/build",
+        "-W",
+        "--keep-going",
+        "-j",
+        "auto",
+        "-a",
+        "-E",
+        "-b",
+        "html",
+        "-q",
+    )
 
 
 @nox.session(python=False)

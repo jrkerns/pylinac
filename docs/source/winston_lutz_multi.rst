@@ -468,25 +468,12 @@ with an output of::
 API Documentation
 -----------------
 
-.. autoclass:: pylinac.winston_lutz.WinstonLutz
-    :members:
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiField
     :members:
 
-.. autoclass:: pylinac.winston_lutz.WinstonLutz2D
-    :members:
-
 .. autoclass:: pylinac.winston_lutz.WinstonLutz2DMultiTarget
     :members:
-
-.. autoclass:: pylinac.winston_lutz.WinstonLutzResult
-    :members:
-    :inherited-members:
-
-.. autoclass:: pylinac.winston_lutz.WinstonLutz2DResult
-    :members:
-    :inherited-members:
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldResult
     :members:

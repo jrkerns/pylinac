@@ -516,10 +516,10 @@ Trajectory logs in a MachineLogs instance can also be converted to CSV, just as 
 API Documentation
 -----------------
 
-Main classes
-^^^^^^^^^^^^
+Main interface
+^^^^^^^^^^^^^^
 
-These are the classes a typical user may interface with.
+These are the classes and functions a typical user may interface with.
 
 .. autofunction:: pylinac.log_analyzer.load_log
 

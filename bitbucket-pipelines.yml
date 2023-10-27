@@ -21,7 +21,7 @@ definitions:
           - apt-get update
           - python -m venv venv
           - source venv/bin/activate
-          - pip install -r requirements-ram.txt
+          - pip install -r requirements-dev.txt
           - pip freeze
         artifacts:
           - venv/**
@@ -247,6 +247,7 @@ definitions:
           - apt-get update
           - apt-get -y install curl
           - curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          - pip freeze
           # we want to dump this to file regardless of fail status so we can inspect if needed
           - grype dir:. --only-fixed -o json > grype_results.json
           - grype dir:. --only-fixed --fail-on high
@@ -305,13 +306,6 @@ pipelines:
           - step: *vmat-tests
           - step: *winston-lutz-tests
           - step: *core-module-tests
-          - step:
-              <<: *grype-scanning
-              condition:
-                changesets:
-                  includePaths:
-                    - "requirements.txt"
-                    - "requirements-ram.txt"
 
   branches:
     release*:
