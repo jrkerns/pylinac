@@ -62,9 +62,11 @@ class MLCArrangement:
 
         Parameters
         ----------
-        leaf_arrangement: Description of the leaf arrangement. List of tuples containing the number of leaves and leaf width.
+        leaf_arrangement
+            Description of the leaf arrangement. List of tuples containing the number of leaves and leaf width.
             E.g. (10, 5) is 10 leaves with 5mm widths.
-        offset: The offset in mm of the leaves. Used for asymmetric arrangements. E.g. -2.5mm will shift the arrangement 2.5mm to the left.
+        offset
+            The offset in mm of the leaves. Used for asymmetric arrangements. E.g. -2.5mm will shift the arrangement 2.5mm to the left.
         """
         self.centers = []
         self.widths = []

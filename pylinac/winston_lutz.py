@@ -898,7 +898,7 @@ class WinstonLutz:
         ----------
         file
             Path to the archive file.
-                raw_pixels
+        raw_pixels
             If True, uses the raw pixel values of the DICOM files. If False, uses the rescaled Hounsfield units.
             Generally, this should be true.
         kwargs
@@ -1434,6 +1434,7 @@ class WinstonLutz:
         Parameters
         ----------
         axis : {'Gantry', 'Collimator', 'Couch', 'GB Combo', 'GBP Combo', 'All'}
+            The axis to plot.
         show : bool
             Whether to show the image.
         split : bool
