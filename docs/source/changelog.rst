@@ -5,6 +5,15 @@ Changelog
 v 3.17.0
 --------
 
+Metrics
+^^^^^^^
+
+* Another metric is now available for 2D image analysis: :class:`~pylinac.core.metrics.GlobalDiskLocator`.
+  This metric will find a number of BBs/disks within an image. This is useful for finding BBs in an image
+  without knowing where they might be. This is relatively efficient if there are multiple BBs in the image
+  compared with using the :class:`~pylinac.core.metrics.DiskLocator` class multiple times, even when
+  the BB locations are known.
+
 Planar Imaging
 ^^^^^^^^^^^^^^
 

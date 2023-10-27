@@ -2,14 +2,16 @@ from unittest import TestCase
 
 from pydicom import Dataset
 
-from pylinac.core.image import DicomImage
+from pylinac.core.geometry import Point
+from pylinac.core.image import XIM, DicomImage
 from pylinac.core.image_generator import AS1000Image, PerfectBBLayer, RandomNoiseLayer
 from pylinac.core.image_generator.layers import (
     FilteredFieldLayer,
     GaussianFilterLayer,
     Layer,
 )
-from pylinac.core.metrics import DiskLocator
+from pylinac.core.metrics import DiskLocator, GlobalDiskLocator, deduplicate_points
+from tests_basic.utils import get_file_from_cloud_test_repo
 
 
 def create_bb_image(
@@ -30,6 +32,86 @@ def create_bb_image(
     as1000.add_layer(PerfectBBLayer(bb_size_mm=bb_size, cax_offset_mm=offset))
     as1000.add_layer(RandomNoiseLayer())
     return as1000.as_dicom()
+
+
+class TestGlobalDiskLocator(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        path = get_file_from_cloud_test_repo(["IsoCal-kV-08.xim"])
+        xim = XIM(path)
+        cls.xim = xim
+
+    def test_isocal_image_default(self):
+        bbs = self.xim.compute(
+            metrics=GlobalDiskLocator(radius_mm=3.5, radius_tolerance_mm=1)
+        )
+        self.assertEqual(len(bbs), 15)
+
+    def test_min_number_fails(self):
+        # we should get a failure if the min number isn't found
+        with self.assertRaises(ValueError):
+            self.xim.compute(
+                metrics=GlobalDiskLocator(
+                    radius_mm=3.5, radius_tolerance_mm=1, min_number=16
+                )
+            )
+
+    def test_max_number_is_close(self):
+        # the max number is soft, but we can stop early if we find at least the max number
+        bbs = self.xim.compute(
+            metrics=GlobalDiskLocator(
+                radius_mm=3.5, radius_tolerance_mm=1, max_number=5
+            )
+        )
+        self.assertEqual(len(bbs), 5)
+
+    def test_none_found(self):
+        # set the radius too high to test that no bbs are found
+        with self.assertRaises(ValueError):
+            self.xim.compute(
+                metrics=GlobalDiskLocator(radius_mm=10, radius_tolerance_mm=1)
+            )
+
+    def test_min_separation(self):
+        # set the separation to 35mm. this will reduce the number found by 2 compared to no separation
+        bbs = self.xim.compute(
+            metrics=GlobalDiskLocator(
+                radius_mm=3.5, radius_tolerance_mm=1, min_separation_mm=35
+            )
+        )
+        self.assertEqual(len(bbs), 13)
+
+    def test_min_separation_massive(self):
+        # with a massive separation, we should get 1 bb
+        bbs = self.xim.compute(
+            metrics=GlobalDiskLocator(
+                radius_mm=3.5, radius_tolerance_mm=1, min_separation_mm=1000
+            )
+        )
+        self.assertEqual(len(bbs), 1)
+
+
+class TestDeduplicatePoints(TestCase):
+    def test_normal(self):
+        # normal case: no duplicates
+        original_points = [Point(1, 1), Point(5, 5)]
+        new_points = [Point(10, 10)]
+        deduped = deduplicate_points(original_points, new_points, min_separation_px=3)
+        self.assertEqual(len(deduped), 3)
+
+    def test_no_recursion(self):
+        # tests we don't recurse infinitely
+        original_points = [Point(1, 1), Point(5, 5)]
+        deduped = deduplicate_points(
+            original_points, original_points, min_separation_px=3
+        )
+        self.assertEqual(len(deduped), 2)
+
+    def test_exclude_from_original_list(self):
+        # tests that points in the original list are not added to the new list
+        original_points = [Point(1, 1), Point(5, 5)]
+        deduped = deduplicate_points([], original_points, min_separation_px=30)
+        self.assertEqual(len(deduped), 1)
 
 
 class TestDiskLocatorPixels(TestCase):

@@ -89,17 +89,19 @@ def is_right_size_square(region: RegionProperties, *args, **kwargs) -> bool:
 
 
 def deduplicate_points(
-    original_points: list[Point], new_points: list[Point], min_separation_mm
+    original_points: list[Point], new_points: list[Point], min_separation_px
 ) -> list[Point]:
     """Deduplicate points that are too close together. The original points should be the
     starting point. The new point's x, y, and z values are compared to the existing points.
     If the new point is too close to the original point, it's dropped. If it's sufficiently
-    far away, it is added. Will return a new combined list of points"""
-    # copilot wrote this 😁
+    far away, it is added. Will return a new combined list of points.
+
+    We assume the original points are already deduplicated. When used in a loop starting from an empty list
+    this is true."""
     combined_points = original_points
     for new_point in new_points:
         for original_point in original_points:
-            if new_point.distance_to(original_point) < min_separation_mm:
+            if new_point.distance_to(original_point) < min_separation_px:
                 break
         else:
             combined_points.append(new_point)
@@ -368,8 +370,6 @@ class DiskLocator(DiskRegion):
 
 
 class GlobalDiskLocator(MetricBase):
-    """Finds BBs globally within an image."""
-
     name: str
     points: list[Point]
 
@@ -387,6 +387,28 @@ class GlobalDiskLocator(MetricBase):
         min_separation_mm: float = 5,
         name="Global Disk Locator",
     ):
+        """Finds BBs globally within an image.
+
+        Parameters
+        ----------
+        radius_mm : float
+            The radius of the BB in mm.
+        radius_tolerance_mm : float
+            The tolerance of the BB radius in mm.
+        detection_conditions : list[callable]
+            A list of functions that take a regionprops object and return a boolean.
+            The functions should be used to determine whether the regionprops object
+            is a BB.
+        min_number : int
+            The minimum number of BBs to find. If not found, an error is raised.
+        max_number : int, None
+            The maximum number of BBs to find. If None, no maximum is set.
+        min_separation_mm : float
+            The minimum distance between BBs in mm. If BBs are found that are closer than this,
+            they are deduplicated.
+        name : str
+            The name of the metric.
+        """
         self.radius_mm = radius_mm
         self.radius_tolerance_mm = radius_tolerance_mm
         self.detection_conditions = detection_conditions
@@ -435,7 +457,7 @@ class GlobalDiskLocator(MetricBase):
                     bbs = deduplicate_points(
                         original_points=bbs,
                         new_points=points,
-                        min_separation_mm=self.min_separation_mm,
+                        min_separation_px=self.min_separation_mm * self.image.dpmm,
                     )
             except (IndexError, ValueError):
                 pass
