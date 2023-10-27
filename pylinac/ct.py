@@ -241,7 +241,9 @@ class Slice:
         """
         Parameters
         ----------
-        catphan : `~pylinac.cbct.CatPhanBase` instance.
+
+        catphan : :class:`~pylinac.cbct.CatPhanBase` instance.
+            The catphan instance.
         slice_num : int
             The slice number of the DICOM array desired. If None, will use the ``slice_num`` property of subclass.
         combine : bool
@@ -1001,8 +1003,10 @@ class CTP528CP504(CatPhanModule):
 
     Attributes
     ----------
+
     radius2linepairs_mm : float
         The radius in mm to the line pairs.
+
     """
 
     attr_name: str = "ctp528"
@@ -2068,11 +2072,12 @@ class CatPhanBase:
         low_contrast_tolerance : int
             The number of low-contrast bubbles needed to be "seen" to pass.
         cnr_threshold : float, int
+            The threshold for "detecting" low-contrast image. See RTD for calculation info.
 
             .. deprecated:: 3.0
+
                 Use visibility parameter instead.
 
-            The threshold for "detecting" low-contrast image. See RTD for calculation info.
         zip_after : bool
             If the CT images were not compressed before analysis and this is set to true, pylinac will compress
             the analyzed images into a ZIP archive.
@@ -2090,9 +2095,11 @@ class CatPhanBase:
             values are 0, 1, and 2.
 
             .. warning:: This is the padding **on either side**. So a value of 1 => 3 slices, 2 => 5 slices, 3 => 7 slices, etc.
+
         expected_hu_values
             An optional dictionary of the expected HU values for the HU linearity module. The keys are the ROI names and the values
             are the expected HU values. If a key is not present or the parameter is None, the default values will be used.
+
         """
         self.localize()
         ctp404, offset = self._get_module(CTP404CP504, raise_empty=True)
