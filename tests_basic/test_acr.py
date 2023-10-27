@@ -387,6 +387,18 @@ class ACRDualEcho2(ACRMRMixin, TestCase):
         cls.mri.analyze(echo_number=2)
 
 
+class ACRUVMSliceLocation(ACRMRMixin, TestCase):
+    """Test that the image patient position is the primary measurement of slice location."""
+
+    file_name = "UVM_slice_location_mismatch.zip"
+    mtf_50 = 0.96
+    phantom_roll = 0
+    slice_thickness = 4.5
+    slice1_shift = 0.5
+    slice11_shift = 2
+    psg = 0.3
+
+
 class ACRGE3T(ACRMRMixin, TestCase):
     file_name = "GE 3T.zip"
     mtf_50 = 0.96
