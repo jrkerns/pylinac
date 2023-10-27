@@ -43,6 +43,11 @@ Winston-Lutz
 * The Winston Lutz module can now load CBCT datasets of a scanned BB. This is still experimental and may have bugs. Caution is warranted.
   See :ref:`wl_cbct`.
 
+CBCT
+^^^^
+
+* Passing expected HU values for ROIs is now much easier by passing a dictionary to the ``.analyze()`` method. See :ref:`custom-hu-values`.
+
 Profiles
 ^^^^^^^^
 
