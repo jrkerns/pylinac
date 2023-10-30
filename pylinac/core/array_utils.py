@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import numpy as np
+from pydicom import Dataset
+from pydicom.dataset import FileMetaDataset
+from pydicom.multival import MultiValue
+from pydicom.uid import UID, generate_uid
 from scipy import ndimage
 
 from .decorators import validate
@@ -196,3 +203,128 @@ def get_dtype_info(dtype: type[np.dtype]) -> np.iinfo | np.finfo:
 def find_nearest_idx(array: np.array, value: float) -> int:
     """Find the nearest index to the target value"""
     return (np.abs(array - value)).argmin()
+
+
+def array_to_dicom(
+    array: np.ndarray,
+    sid: float,
+    gantry: float,
+    coll: float,
+    couch: float,
+    dpi: float | None = None,
+    **kwargs,
+) -> Dataset:
+    """Converts a numpy array into a **simplistic** DICOM file. Not meant to be a full-featured converter. This
+    allows for the creation of DICOM files from numpy arrays usually for internal use or image analysis.
+
+    .. note::
+
+        This will convert the image into an uint16 datatype to match the native EPID datatype.
+
+    Parameters
+    ----------
+    array
+        The numpy array to be converted. Must be 2 dimensions.
+    sid
+        The Source-to-Image distance in mm.
+    dpi
+        The dots-per-inch value of the TIFF image.
+    gantry
+        The gantry value that the image was taken at.
+    coll
+        The collimator value that the image was taken at.
+    couch
+        The couch value that the image was taken at.
+    """
+    from pylinac.core.image import ArrayImage
+
+    arr_img = ArrayImage(array, dpi=dpi, sid=sid)
+    if not arr_img.dpmm:
+        raise ValueError(
+            "Automatic detection of `dpi` failed. A `dpi` value must be passed to the constructor."
+        )
+    uint_array = convert_to_dtype(arr_img.array, np.uint16)
+    mm_pixel = 25.4 / arr_img.dpi
+    file_meta = FileMetaDataset()
+    # Main data elements
+    ds = Dataset()
+    ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+    ds.SOPInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.Modality = "RTIMAGE"
+    ds.ConversionType = "WSD"
+    ds.PatientName = "Pylinac numpy array"
+    ds.PatientID = "123456789"
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.Rows = arr_img.shape[0]
+    ds.Columns = arr_img.shape[1]
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.ImagePlanePixelSpacing = [mm_pixel, mm_pixel]
+    ds.RadiationMachineSAD = "1000.0"
+    ds.RTImageSID = sid
+    ds.PrimaryDosimeterUnit = "MU"
+    ds.GantryAngle = str(gantry)
+    ds.BeamLimitingDeviceAngle = str(coll)
+    ds.PatientSupportAngle = str(couch)
+    ds.PixelData = uint_array
+
+    ds.file_meta = file_meta
+    ds.is_implicit_VR = True
+    ds.is_little_endian = True
+    for key, value in kwargs.items():
+        setattr(ds, key, value)
+    return ds
+
+
+def create_dicom_files_from_3d_array(
+    array: np.ndarray,
+    out_dir: Path | None = None,
+    slice_thickness: float = 1,
+    pixel_size: float = 1,
+) -> Path:
+    """Create a stack of DICOM files from a 3D numpy array. This creates a pseudo-CT scan.
+
+    Parameters
+    ----------
+
+    array : np.ndarray
+        The 3D array
+    out_dir : Path, optional
+        The directory to save the DICOM files to. If None, a temporary directory is created.
+    slice_thickness : float, optional
+        The slice thickness in mm. Default is 1.
+    pixel_size : float, optional
+        The pixel size in mm. Default is 1.
+    """
+    # we iterate over the array in the last dimension and
+    # create a dicom image from it.
+    series_uid = generate_uid()
+    pixel_spacing = MultiValue(
+        iterable=(pixel_size, pixel_size), type_constructor=float
+    )
+    out_dir = out_dir or Path(tempfile.mkdtemp())
+    out_dir.mkdir(exist_ok=True, parents=True)
+    for i in range(array.shape[-1]):
+        arr = array[..., i].astype(np.uint16)
+        image_patient_position = MultiValue(
+            iterable=(0, 0, i * slice_thickness), type_constructor=float
+        )
+        ds = array_to_dicom(
+            arr,
+            dicom_file=out_dir / f"{i}.dcm",
+            sid=1000,
+            gantry=0,
+            coll=0,
+            couch=0,
+            dpi=25.4,
+            SeriesInstanceUID=series_uid,
+            ImagePositionPatient=image_patient_position,
+            SliceThickness=slice_thickness,
+            PixelSpacing=pixel_spacing,
+        )
+        ds.save_as(out_dir / f"{i}.dcm", write_like_original=False)
+    return out_dir

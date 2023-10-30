@@ -47,15 +47,10 @@ from skimage.measure._regionprops import RegionProperties
 from tabulate import tabulate
 
 from .core import image, pdf
+from .core.array_utils import array_to_dicom
 from .core.decorators import lru_cache
 from .core.geometry import Line, Point, Vector, cos, sin
-from .core.image import (
-    DicomImageStack,
-    LinacDicomImage,
-    array_to_dicom,
-    is_image,
-    tiff_to_dicom,
-)
+from .core.image import DicomImageStack, LinacDicomImage, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import bounding_box
 from .core.scale import MachineScale, convert
@@ -839,15 +834,15 @@ class WinstonLutz:
             if sid is None:
                 raise ValueError("TIFF images detected. Must pass `sid` parameter")
             with io.BytesIO() as stream:
-                tiff_to_dicom(
-                    file,
-                    stream,
+                ds = tiff_to_dicom(
+                    tiff_file=file,
                     sid=sid,
                     dpi=dpi,
                     gantry=kwargs.pop("gantry"),
                     coll=kwargs.pop("coll"),
                     couch=kwargs.pop("couch"),
                 )
+                ds.save_as(stream, write_like_original=False)
                 img = self.image_type(stream, **kwargs)
                 if not img.dpmm:
                     raise ValueError(
@@ -962,22 +957,22 @@ class WinstonLutz:
         )
         right_arr = np.fliplr(left_arr)
         bottom_arr = np.fliplr(top_arr)
-        streams = [tempfile.NamedTemporaryFile(delete=False).name for _ in range(4)]
+        dicom_dir = Path(tempfile.mkdtemp())
         dpi = 25.4 / dicom_stack.metadata.PixelSpacing[0]
-        for array, stream, gantry in zip(
-            (left_arr, top_arr, right_arr, bottom_arr), streams, (270, 0, 90, 180)
+        for array, gantry in zip(
+            (left_arr, top_arr, right_arr, bottom_arr), (270, 0, 90, 180)
         ):
-            array_to_dicom(
+            ds = array_to_dicom(
                 array=np.ascontiguousarray(array),  # pydicom complains due to np.rot90
-                dicom_file=stream,
                 sid=1000,
                 gantry=gantry,
                 coll=0,
                 couch=0,
                 dpi=dpi,
             )
+            ds.save_as(dicom_dir / f"G={gantry}", write_like_original=False)
         # now we load these as normal images into the WL algorithm
-        instance = cls(streams, **kwargs)
+        instance = cls(dicom_dir, **kwargs)
         instance.is_from_cbct = True
         return instance
 

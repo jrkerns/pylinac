@@ -911,9 +911,7 @@ class StandardImagingFC2(ImagePhantomBase):
     @property
     def field_bb_offset_mm(self) -> Vector:
         """Field offset from BB centroid using vector difference"""
-        return (
-            self.bb_center.as_vector() - self.field_center.as_vector()
-        ) / self.image.dpmm
+        return (self.bb_center - self.field_center) / self.image.dpmm
 
     def results_data(self, as_dict: bool = False) -> LightRadResult | dict:
         """Return the results as a dict or dataclass"""

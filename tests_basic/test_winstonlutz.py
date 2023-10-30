@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 import io
 import math
-import shutil
 import tempfile
 from pathlib import Path
 from typing import Iterable
@@ -11,13 +10,11 @@ from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pydicom.multival import MultiValue
-from pydicom.uid import generate_uid
 
 import pylinac
 from pylinac import WinstonLutz, WinstonLutzMultiTargetMultiField
+from pylinac.core.array_utils import create_dicom_files_from_3d_array
 from pylinac.core.geometry import Vector, vector_is_close
-from pylinac.core.image import array_to_dicom
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.core.scale import MachineScale
 from pylinac.winston_lutz import (
@@ -1348,34 +1345,6 @@ def create_sphere(
     arr *= 1000  # Scale intensity to a reasonable range
     arr -= arr.min()  # set background to 0
     return arr
-
-
-def create_dicom_files_from_3d_array(array: np.ndarray) -> Path:
-    # we iterate over the array in the last dimension and
-    # create a dicom image from it.
-    series_uid = generate_uid()
-    slice_thickness = 1
-    pixel_spacing = MultiValue(iterable=(1, 1), type_constructor=float)
-    tmp_path = Path(__file__).parent / "temp"
-    shutil.rmtree(str(tmp_path), ignore_errors=True)
-    tmp_path.mkdir(exist_ok=True, parents=True)
-    for i in range(array.shape[-1]):
-        arr = array[..., i].astype(np.uint16)
-        image_patient_position = MultiValue(iterable=(0, 0, i), type_constructor=float)
-        array_to_dicom(
-            arr,
-            dicom_file=tmp_path / f"{i}.dcm",
-            sid=1000,
-            gantry=0,
-            coll=0,
-            couch=0,
-            dpi=25.4,
-            SeriesInstanceUID=series_uid,
-            ImagePositionPatient=image_patient_position,
-            SliceThickness=slice_thickness,
-            PixelSpacing=pixel_spacing,
-        )
-    return tmp_path
 
 
 def create_wl_dicom_stack(
