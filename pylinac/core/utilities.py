@@ -173,12 +173,12 @@ def decode_binary(
         ssize = struct.calcsize("i") * num_values
         output = np.asarray(struct.unpack("i" * num_values, f.read(ssize)))
         if len(output) == 1:
-            output = int(output)
+            output = int(np.squeeze(output))
     elif dtype == float:
         ssize = struct.calcsize("f") * num_values
         output = np.asarray(struct.unpack("f" * num_values, f.read(ssize)))
         if len(output) == 1:
-            output = float(output)
+            output = float(np.squeeze(output))
     else:
         raise TypeError(f"datatype '{dtype}' was not valid")
 
