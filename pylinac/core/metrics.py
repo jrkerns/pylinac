@@ -73,19 +73,35 @@ def is_right_circumference(region: RegionProperties, *args, **kwargs) -> bool:
     return upper_circumference > actual_perimeter > lower_circumference
 
 
+def is_right_square_perimeter(region: RegionProperties, *args, **kwargs) -> bool:
+    """Test the regionprop's perimeter attr to see if it matches
+    that of an equivalent square"""
+    actual_perimeter = region.perimeter / kwargs["dpmm"]
+    upper_perimeter = 2 * (
+        kwargs["field_width_mm"] + kwargs["field_tolerance_mm"]
+    ) + 2 * (kwargs["field_height_mm"] + kwargs["field_tolerance_mm"])
+    lower_perimeter = 2 * (
+        kwargs["field_width_mm"] - kwargs["field_tolerance_mm"]
+    ) + 2 * (kwargs["field_height_mm"] - kwargs["field_tolerance_mm"])
+    return upper_perimeter > actual_perimeter > lower_perimeter
+
+
 def is_square(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is square in nature by testing the filled area vs bounding box. Used to find the BB."""
     actual_fill_ratio = region.filled_area / region.bbox_area
     return actual_fill_ratio > 0.8
 
 
-def is_right_size_square(region: RegionProperties, *args, **kwargs) -> bool:
+def is_right_area_square(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is square in nature by testing the filled area vs bounding box. Used to find the BB."""
     field_area = region.area_filled / (kwargs["dpmm"] ** 2)
-    rad_size = max((kwargs["rad_size"], 5))
-    larger_bb_area = (rad_size + 5) ** 2
-    smaller_bb_area = (rad_size - 5) ** 2
-    return smaller_bb_area < field_area < larger_bb_area
+    low_bound_expected_area = (
+        kwargs["field_width_mm"] - kwargs["field_tolerance_mm"]
+    ) * (kwargs["field_height_mm"] - kwargs["field_tolerance_mm"])
+    high_bound_expected_area = (
+        kwargs["field_width_mm"] + kwargs["field_tolerance_mm"]
+    ) * (kwargs["field_height_mm"] + kwargs["field_tolerance_mm"])
+    return low_bound_expected_area < field_area < high_bound_expected_area
 
 
 def deduplicate_points(
@@ -477,6 +493,98 @@ class GlobalDiskLocator(MetricBase):
             axis.plot(point.x, point.y, "ro")
 
 
+class GlobalSizedFieldLocator(MetricBase):
+    fields: list[Point]
+
+    def __init__(
+        self,
+        field_with_mm: float,
+        field_height_mm: float,
+        field_tolerance_mm: float,
+        min_number: int = 1,
+        max_number: int | None = None,
+        min_separation_mm: float = 5,
+        name: str = "Field Finder",
+        detection_conditions: list[callable] = (
+            is_right_square_perimeter,
+            is_right_area_square,
+        ),
+    ):
+        self.field_width_mm = field_with_mm
+        self.field_height_mm = field_height_mm
+        self.field_tolerance_mm = field_tolerance_mm
+        self.min_number = min_number
+        self.max_number = max_number or 1e6
+        self.name = name
+        self.detection_conditions = detection_conditions
+        self.min_separation_mm = min_separation_mm
+
+    def calculate(self) -> list[Point]:
+        """Find up to N BBs/disks in the image. This will look for BBs at every percentile range.
+        Multiple BBs may be found at different threshold levels."""
+        fields = []
+        sample = self.image.array
+        # search for multiple BBs by iteratively raising the high-pass threshold value.
+        threshold_percentile = 5
+        while threshold_percentile < 100 and len(fields) < self.max_number:
+            try:
+                binary_array = sample > np.percentile(sample, threshold_percentile)
+                labeled_arr = measure.label(binary_array)
+                regions = measure.regionprops(labeled_arr, intensity_image=sample)
+                conditions_met = [
+                    all(
+                        condition(
+                            region,
+                            dpmm=self.image.dpmm,
+                            field_width_mm=self.field_width_mm,
+                            field_height_mm=self.field_height_mm,
+                            field_tolerance_mm=self.field_tolerance_mm,
+                            shape=binary_array.shape,
+                        )
+                        for condition in self.detection_conditions
+                    )
+                    for region in regions
+                ]
+                if not any(conditions_met):
+                    raise ValueError
+                else:
+                    fields_regions = [
+                        regions[idx]
+                        for idx, value in enumerate(conditions_met)
+                        if value
+                    ]
+                    points = [
+                        Point(region.centroid[1], region.centroid[0])
+                        for region in fields_regions
+                    ]
+                    # the separation is the the minimum value + field size
+                    fields = deduplicate_points(
+                        original_points=fields,
+                        new_points=points,
+                        min_separation_px=(
+                            self.min_separation_mm
+                            + min((self.field_height_mm, self.field_height_mm))
+                        )
+                        * self.image.dpmm,
+                    )
+            except (IndexError, ValueError):
+                pass
+            finally:
+                threshold_percentile += 2
+        if len(fields) < self.min_number:
+            # didn't find the number we needed
+            raise ValueError(
+                f"Couldn't find the minimum number of fields in the image. Found {len(fields)}; required: {self.min_number}"
+            )
+        self.fields = fields
+        return fields
+
+    def plot(self, axis: plt.Axes) -> None:
+        """Plot the BB centers"""
+        for point in self.fields:
+            axis.plot(point.x, point.y, "g+")
+
+
 # TODO
 # class GlobalFieldLocator(MetricBase):
 #     def __init__(
@@ -499,22 +607,3 @@ class GlobalDiskLocator(MetricBase):
 #         return Point(x=coords[-1], y=coords[0])
 #
 #
-# class GlobalSizedFieldRegion(MetricBase):
-#     def __init__(
-#             self,
-#             low_threshold_percentile: float = 5,
-#             high_threshold_percentile: float = 99.9,
-#             field_size: float = 10,
-#             name: str = "Field Finder",
-#     ):
-#         self.low_threshold_percentile = low_threshold_percentile
-#         self.high_threshold_percentile = high_threshold_percentile
-#         self.name = name
-#
-#     def calculate(self, image: BaseImage) -> RegionProperties:
-#         min, max = np.percentile(
-#             image.array, [self.low_threshold_percentile, self.high_threshold_percentile]
-#         )
-#         threshold_img = image.as_binary((max - min) / 2 + min)
-#         filled_img = ndimage.binary_fill_holes(threshold_img)
-#         return RegionProperties(filled_img)
