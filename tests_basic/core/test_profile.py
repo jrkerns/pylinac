@@ -320,6 +320,28 @@ class TestProfileGeneric(TestCase):
 
 
 class TestFWXMProfile(TestCase):
+    def test_x_values_decrease_is_okay(self):
+        array = create_simple_9_profile()
+        x_values = np.arange(len(array))[::-1]
+        f = FWXMProfile(array, x_values=x_values)
+        # both width and indices should respect the x-values
+        self.assertEqual(f.field_width_px, 4)
+        self.assertEqual(f.field_indices(in_field_ratio=0.8), (7, 1, 6))
+
+    def test_not_monotonically_increasing_raises_error(self):
+        array = create_simple_9_profile()
+        x_values = np.arange(len(array))
+        x_values[2] = 5
+        with self.assertRaises(ValueError):
+            FWXMProfile(array, x_values=x_values)
+
+    def test_not_monotonically_decreasing_raises_error(self):
+        array = create_simple_9_profile()
+        x_values = np.arange(len(array))[::-1]
+        x_values[5] = 5
+        with self.assertRaises(ValueError):
+            FWXMProfile(array, x_values=x_values)
+
     def test_center_idx(self):
         array = create_simple_9_profile()
         profile = FWXMProfile(array)
@@ -932,6 +954,11 @@ class SingleProfileTests(TestCase):
             field.image[:, 500], normalization_method=Normalization.BEAM_CENTER
         )
         self.assertGreaterEqual(p.values.max(), 1.0)
+
+    def test_x_values_are_monotonically_increasing(self):
+        array = np.random.rand(1, 100).squeeze()
+        with self.assertRaises(ValueError):
+            SingleProfile(array, x_values=array, interpolation=Interpolation.NONE)
 
     def test_beam_center(self):
         # centered field

@@ -37,6 +37,14 @@ ACR
   The ``ImagePositionPatient`` tag is now the primary lookup key and ``SliceLocation`` is only used
   if the former tag is unavailable.
 
+Profiles
+^^^^^^^^
+
+* Passing *decreasing* x-values to ``SingleProfile`` would usually result in an error because the measured
+  width would be negative. An error will now be raised if the x-values are decreasing.
+* The same error as above was also detected in the new ``<FWXM|InflectionDerivative|Hill>Profile`` classes.
+  Given these classes are the new standard, they have been fully fixed and can now handle decreasing x-values.
+
 v 3.16.0
 --------
 

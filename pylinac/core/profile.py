@@ -606,6 +606,9 @@ class ProfileBase(ProfileMixin, ABC):
         self.values = values
         if x_values is None:
             x_values = np.arange(len(values))
+        x_diff = np.diff(x_values)
+        if x_diff.max() > 0 > x_diff.min():
+            raise ValueError("X values must be monotonically increasing or decreasing")
         self.x_values = x_values
         if ground:
             self.values = utils.ground(values)
@@ -656,12 +659,12 @@ class ProfileBase(ProfileMixin, ABC):
         """
         left = self.field_edge_idx(side=LEFT)
         right = self.field_edge_idx(side=RIGHT)
-        width = right - left
+        width = self.field_width_px
         f_left = left + (1 - in_field_ratio) / 2 * width
         f_right = right - (1 - in_field_ratio) / 2 * width
         left = math.ceil(f_left)
         right = math.floor(f_right)
-        width = right - left
+        width = max(right, left) - min(right, left)
         return left, right, width
 
     @cached_property
@@ -676,7 +679,7 @@ class ProfileBase(ProfileMixin, ABC):
         """The field width of the profile in pixels"""
         left_idx = self.field_edge_idx(side=LEFT)
         right_idx = self.field_edge_idx(side=RIGHT)
-        return abs(right_idx - left_idx)
+        return max(right_idx, left_idx) - min(right_idx, left_idx)
 
     def field_values(
         self,
@@ -686,7 +689,7 @@ class ProfileBase(ProfileMixin, ABC):
         field width."""
         left = self.field_edge_idx(side=LEFT)
         right = self.field_edge_idx(side=RIGHT)
-        width = right - left
+        width = self.field_width_px
         f_left = left + (1 - in_field_ratio) / 2 * width
         f_right = right - (1 - in_field_ratio) / 2 * width
         # use floor/ceil to be conservatively exclusive of edge values.
@@ -1214,6 +1217,8 @@ class SingleProfile(ProfileMixin):
             values  # set initial data so we can do things like find beam center
         )
         self.dpmm = dpmm
+        if np.diff(values).min() < 0:
+            raise ValueError("Profile values must be monotonically increasing")
         fitted_values, new_dpmm, x_indices = self._interpolate(
             values,
             x_values,
