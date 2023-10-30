@@ -38,6 +38,7 @@ from typing import BinaryIO, Iterable, Sequence, TypedDict
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.mplot3d import art3d
 from scipy import linalg, ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
@@ -197,19 +198,19 @@ class BB:
         """The scalar distance between the measured BB location and nominal in MM"""
         return self.measured_position.distance_to(self.nominal_position)
 
-    def plot_nominal(self, axes: plt.Axes, color: str):
+    def plot_nominal(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB nominal position"""
         x, y, z = create_sphere_surface(
             radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.nominal_position
         )
-        axes.plot_surface(x, y, z, color=color)
+        axes.plot_surface(x, y, z, color=color, **kwargs)
 
-    def plot_measured(self, axes: plt.Axes, color: str):
+    def plot_measured(self, axes: plt.Axes, color: str, **kwargs):
         """Plot the BB measured position"""
         x, y, z = create_sphere_surface(
             radius=self.nominal_bb["bb_diameter_mm"] / 2, center=self.measured_position
         )
-        axes.plot_surface(x, y, z, color=color)
+        axes.plot_surface(x, y, z, color=color, **kwargs)
 
 
 def create_sphere_surface(
@@ -1341,6 +1342,9 @@ class WinstonLutz:
         viewbox_mm: float | None = None,
         plot_bb: bool = True,
         plot_isocenter_sphere: bool = True,
+        plot_couch_iso: bool = True,
+        plot_coll_iso: bool = True,
+        show_legend: bool = True,
     ):
         """Plot the isocenter and size as a sphere in 3D space relative to the BB. The
         iso is at the origin.
@@ -1357,6 +1361,16 @@ class WinstonLutz:
             Whether to plot the BB location; the size is also considered.
         plot_isocenter_sphere : bool
             Whether to plot the gantry + collimator isocenter size.
+        plot_couch_iso : bool
+            Whether to plot the couch-plane-only isocenter size.
+            This will be zero if there are no images where the couch rotated.
+        plot_coll_iso : bool
+            Whether to plot the collimator-plane-only isocenter size.
+            This is shown along the Z/Y plane only to differentiate from the couch iso visualization.
+            The collimator plane is always normal to the gantry angle.
+            This will be zero if there are no images where the collimator rotated.
+        show_legend : bool
+            Whether to show the legend.
         """
         limit = (
             viewbox_mm
@@ -1388,13 +1402,15 @@ class WinstonLutz:
         )
         # plot the x,y,z origin lines
         x_line = Line(Point(-limit, 0, 0), Point(limit, 0, 0))
-        x_line.plot2axes(ax, color="red", label="isocenter (x)")
+        x_line.plot2axes(ax, color="green", alpha=0.5)
         y_line = Line(Point(0, -limit, 0), Point(0, limit, 0))
-        y_line.plot2axes(ax, color="green", label="isocenter (y)")
+        y_line.plot2axes(ax, color="green", alpha=0.5)
         z_line = Line(Point(0, 0, -limit), Point(0, 0, limit))
-        z_line.plot2axes(ax, color="blue", label="isocenter (z)")
+        z_line.plot2axes(
+            ax, color="green", alpha=0.5, label="Determined isocenter (x,y,z)"
+        )
         if plot_bb:
-            iso_sphere.plot_measured(ax, color="cyan")
+            iso_sphere.plot_measured(ax, color="cyan", alpha=0.6)
             # create an empty, fake line so we can add a label for the legend
             fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
             fake_line.plot2axes(ax, color="cyan", label=f"BB ({self._bb_diameter}mm)")
@@ -1402,15 +1418,38 @@ class WinstonLutz:
             x, y, z = create_sphere_surface(
                 radius=self.gantry_coll_iso_size / 2, center=Point(0, 0, 0)
             )
-            ax.plot_surface(x, y, z, alpha=0.2, color="magenta")
+            ax.plot_surface(x, y, z, alpha=0.3, color="magenta")
             # create an empty, fake line so we can add a label for the legend
             fake_line = Line(Point(0, 0, 0), Point(0, 0, 0))
             fake_line.plot2axes(
                 ax,
                 color="magenta",
-                label=f"Isocenter sphere ({self.gantry_coll_iso_size:3.2f}mm)",
+                label=f"Gantry + Coll Isosphere ({self.gantry_coll_iso_size:3.2f}mm)",
             )
-        ax.legend()
+        if plot_couch_iso:
+            circle = plt.Circle(
+                (0, 0),
+                radius=self.couch_iso_size / 2,
+                fill=True,
+                color="yellow",
+                alpha=0.4,
+                label=f"Couch-only iso ({self.couch_iso_size:3.2f}mm)",
+            )
+            ax.add_patch(circle)
+            art3d.pathpatch_2d_to_3d(circle, z=0, zdir="z")
+        if plot_coll_iso:
+            circle = plt.Circle(
+                (0, 0),
+                radius=self.collimator_iso_size / 2,
+                fill=True,
+                color="blue",
+                alpha=0.4,
+                label=f"Collimator-only iso ({self.collimator_iso_size:3.2f}mm)",
+            )
+            ax.add_patch(circle)
+            art3d.pathpatch_2d_to_3d(circle, z=0, zdir="x")
+        if show_legend:
+            ax.legend()
         # set the limits of the 3D plot; they must be the same in all axes for equal aspect ratio
         ax.set(
             xlabel="X (mm), Right (+)",
