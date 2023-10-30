@@ -1096,6 +1096,15 @@ class XIM(BaseImage):
             )
         return 1 / (10 * self.properties["PixelHeight"])
 
+    @property
+    def dpmm(self) -> float:
+        """The dots/mm value of the XIM images. The value appears to be in cm in the file."""
+        if self.properties["PixelWidth"] != self.properties["PixelHeight"]:
+            raise ValueError(
+                "The XIM image does not have the same pixel height and width"
+            )
+        return 1 / (10 * self.properties["PixelHeight"])
+
     def save_as(self, file: str, format: str | None = None) -> None:
         """Save the image to a NORMAL format. PNG is highly suggested. Accepts any format supported by Pillow.
         Ironically, an equivalent PNG image (w/ metadata) is ~50% smaller than an .xim image.

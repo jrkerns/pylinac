@@ -98,17 +98,21 @@ Metrics might have something to plot on the image. If so, the ``plot`` method of
 Built-in Metrics
 ----------------
 
-Out of the box, only two metrics currently exists, although they are useful for a number of situations:
-:class:`~pylinac.core.metrics.DiskLocator` and :class:`~pylinac.core.metrics.DiskRegion`.
+Out of the box, three metrics currently exist:
+:class:`~pylinac.core.metrics.DiskLocator`, :class:`~pylinac.core.metrics.DiskRegion` and
+:class:`~pylinac.core.metrics.GlobalDiskLocator`.
 
 These metrics will find disks, usually BBs, in an image and then return the location or region properties.
+
+Single Disk Locators
+^^^^^^^^^^^^^^^^^^^^
 
 .. note::
 
   The values provided below are in pixels. The following sections show how variants of how to use the metrics
   using physical units and relative to the center of the image.
 
-For example:
+Here's an example of using the ``DiskLocator``:
 
 .. code-block:: python
   :caption: Search for a disk 100 pixels right and 100 pixels down from the top left of the image
@@ -214,6 +218,39 @@ This will look for the disk/BB 30mm right and 30mm down from the center of the i
   )
   img.plot()
 
+Global Disk Locator
+^^^^^^^^^^^^^^^^^^^
+
+The :class:`~pylinac.core.metrics.GlobalDiskLocator` metric is similar to the :class:`~pylinac.core.metrics.DiskLocator` metric
+except that it searches the entire image for disks/BB, not just a small window. This is useful for finding the BB in images
+where the BB is not in the expected location or unknown. This is also efficient for finding BBs in images,
+even if the locations are known.
+
+For example, here is an example analysis of an MPC image:
+
+.. code-block:: python
+
+  from pylinac.core.image import XIM
+  from pylinac.core.metrics import GlobalDiskLocator
+
+  img = XIM("my_image.xim")
+  bbs = img.compute(
+      metrics=GlobalDiskLocator(
+          radius_mm=3.5,
+          radius_tolerance_mm=1.5,
+          min_number=10,
+      )
+  )
+  img.plot()
+
+This will result in an image like so:
+
+.. image:: ../images/global_disk_locator.png
+  :width: 600
+  :align: center
+
+
+
 Writing Custom Plugins
 ----------------------
 
@@ -272,5 +309,9 @@ API
     :members:
 
 .. autoclass:: pylinac.core.metrics.DiskRegion
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.metrics.GlobalDiskLocator
     :inherited-members:
     :members:
