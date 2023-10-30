@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import math
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
@@ -180,7 +181,7 @@ class DiskRegion(MetricBase):
         search_window: tuple[float, float],
         radius: float,
         radius_tolerance: float,
-        detection_conditions: list[callable] = (
+        detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
             is_round,
             is_right_size_bb,
             is_right_circumference,
@@ -377,7 +378,7 @@ class GlobalDiskLocator(MetricBase):
         self,
         radius_mm: float,
         radius_tolerance_mm: float,
-        detection_conditions: list[callable] = (
+        detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
             is_round,
             is_right_size_bb,
             is_right_circumference,
