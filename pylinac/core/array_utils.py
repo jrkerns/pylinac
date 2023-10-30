@@ -209,8 +209,8 @@ def array_to_dicom(
     dpi: float | None = None,
     **kwargs,
 ) -> Dataset:
-    """Converts a TIFF file into a **simplistic** DICOM file. Not meant to be a full-fledged tool. Used for conversion so that tools that are traditionally oriented
-    towards DICOM have a path to accept TIFF. Currently used to convert files for WL.
+    """Converts a numpy array into a **simplistic** DICOM file. Not meant to be a full-featured converter. This
+    allows for the creation of DICOM files from numpy arrays usually for internal use or image analysis.
 
     .. note::
 
@@ -248,8 +248,8 @@ def array_to_dicom(
     ds.SeriesInstanceUID = generate_uid()
     ds.Modality = "RTIMAGE"
     ds.ConversionType = "WSD"
-    ds.PatientName = "Lutz^Test Tool"
-    ds.PatientID = "Someone Important"
+    ds.PatientName = "Pylinac numpy array"
+    ds.PatientID = "123456789"
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
     ds.Rows = arr_img.shape[0]
