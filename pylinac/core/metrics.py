@@ -204,7 +204,7 @@ class DiskRegion(MetricBase):
         search_window_mm: tuple[float, float],
         radius_mm: float,
         radius_tolerance_mm: float,
-        detection_conditions: list[callable] = (
+        detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
             is_round,
             is_right_size_bb,
             is_right_circumference,
@@ -232,7 +232,7 @@ class DiskRegion(MetricBase):
         search_window: tuple[float, float],
         radius: float,
         radius_tolerance: float,
-        detection_conditions: list[callable] = (
+        detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
             is_round,
             is_right_size_bb,
             is_right_circumference,
@@ -260,7 +260,7 @@ class DiskRegion(MetricBase):
         search_window_mm: tuple[float, float],
         radius_mm: float,
         radius_tolerance_mm: float = 0.25,
-        detection_conditions: list[callable] = (
+        detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
             is_round,
             is_right_size_bb,
             is_right_circumference,
