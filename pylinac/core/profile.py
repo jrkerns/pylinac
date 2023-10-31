@@ -1217,8 +1217,6 @@ class SingleProfile(ProfileMixin):
             values  # set initial data so we can do things like find beam center
         )
         self.dpmm = dpmm
-        if np.diff(values).min() < 0:
-            raise ValueError("Profile values must be monotonically increasing")
         fitted_values, new_dpmm, x_indices = self._interpolate(
             values,
             x_values,
@@ -1295,6 +1293,8 @@ class SingleProfile(ProfileMixin):
         """Fit the data to the passed interpolation method. Will also calculate the new values to correct the measurements such as dpmm"""
         if x_values is None:
             x_values = np.array(range(len(values)))
+        if np.diff(x_values).min() < 0:
+            raise ValueError("Profile values must be monotonically increasing")
         if interp_method == Interpolation.NONE:
             return values, dpmm, x_values  # do nothing
         else:
