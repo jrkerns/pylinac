@@ -41,7 +41,7 @@ definitions:
         condition:
           changesets:
             includePaths:
-              - "**/**.rst"
+              - "**/*.rst"
     - step: &cbct-tests
         name: Run CBCT Tests
         script:
