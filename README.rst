@@ -18,9 +18,8 @@
     :target: https://choosealicense.com/licenses/mit/
     :alt: MIT
 
-.. image:: https://img.shields.io/readthedocs/pylinac?logo=readthedocs
-    :target: http://pylinac.readthedocs.org/en/stable/
-    :alt: Read the Docs
+.. image:: https://img.shields.io/readthedocs/pylinac/latest?logo=readthedocs
+   :alt: Read the Docs (version)
 
 .. image:: https://img.shields.io/pypi/dm/pylinac
     :alt: PyPI - Downloads
