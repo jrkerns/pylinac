@@ -19,6 +19,7 @@
     :alt: MIT
 
 .. image:: https://img.shields.io/readthedocs/pylinac/latest?logo=readthedocs
+   :target: https://pylinac.readthedocs.io/en/latest/
    :alt: Read the Docs (version)
 
 .. image:: https://img.shields.io/pypi/dm/pylinac
