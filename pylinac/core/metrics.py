@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import measure
 from skimage.measure._regionprops import RegionProperties
+from skimage.segmentation import find_boundaries
 
 from pylinac.core.array_utils import invert
 from pylinac.core.geometry import Point
@@ -557,6 +558,18 @@ class GlobalSizedFieldLocator(MetricBase):
                         Point(region.centroid[1], region.centroid[0])
                         for region in fields_regions
                     ]
+                    boundaries = [
+                        find_boundaries(
+                            region.image,
+                            connectivity=region.image.ndim,
+                            mode="inner",
+                            background=0,
+                        )
+                        for region in fields_regions
+                    ]
+
+                    # print(boundaries)
+                    # print(marked)
                     # the separation is the the minimum value + field size
                     fields = deduplicate_points(
                         original_points=fields,
@@ -577,12 +590,15 @@ class GlobalSizedFieldLocator(MetricBase):
                 f"Couldn't find the minimum number of fields in the image. Found {len(fields)}; required: {self.min_number}"
             )
         self.fields = fields
+        self.boundaries = boundaries
         return fields
 
     def plot(self, axis: plt.Axes) -> None:
         """Plot the BB centers"""
         for point in self.fields:
             axis.plot(point.x, point.y, "g+")
+        for boundary in self.boundaries:
+            axis.imshow(boundary)
 
 
 # TODO
