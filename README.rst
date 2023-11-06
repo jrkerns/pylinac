@@ -386,3 +386,5 @@ Contributing
 Contributions to pylinac can be many. The most useful things a non-programmer can contribute are images to analyze and bug reports. If
 you have VMAT images, starshot images, machine log files, CBCT DICOM files, or anything else you want analyzed, upload them privately
 `here <https://forms.gle/RBR5ubFvjogE9iC67>`_.
+
+See the full `Contributing page <https://pylinac.readthedocs.io/en/latest/contributing.html>`_ for more details.
