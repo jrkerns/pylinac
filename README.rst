@@ -68,7 +68,7 @@ Quick Start Guide
 
 Below are the high-level tools currently available:
 
-* `TG-51 & TRS-398 Absolute Dose Calibration <http://pylinac.readthedocs.org/en/stable/calibration_docs.html>`__ -
+* `TG-51 & TRS-398 Absolute Dose Calibration <http://pylinac.readthedocs.org/en/latest/calibration_docs.html>`__ -
    Input the raw data and pylinac can calculate either individual values (kQ, PDDx, Pion, etc) or use the
    provided classes to input all measurement data and have it calculate all factors and dose values automatically.
 
@@ -129,7 +129,7 @@ Below are the high-level tools currently available:
 
             # TRS-398 is very similar and just as easy!
 
-* `Planar Phantom Analysis (Leeds TOR, StandardImaging QC-3 & QC-kV, Las Vegas, Doselab MC2 (kV & MV), SNC kV & MV, PTW EPID QC) <http://pylinac.readthedocs.org/en/stable/planar_imaging.html>`__ -
+* `Planar Phantom Analysis (Leeds TOR, StandardImaging QC-3 & QC-kV, Las Vegas, Doselab MC2 (kV & MV), SNC kV & MV, PTW EPID QC) <http://pylinac.readthedocs.org/en/latest/planar_imaging.html>`__ -
      Features:
 
      * **Automatic phantom localization** - Set up your phantom any way you like; automatic positioning,
@@ -160,7 +160,7 @@ Below are the high-level tools currently available:
 
             ...
 
-* `Winston-Lutz Analysis <http://pylinac.readthedocs.org/en/stable/winston_lutz.html>`_ -
+* `Winston-Lutz Analysis <http://pylinac.readthedocs.org/en/latest/winston_lutz.html>`_ -
     The Winston-Lutz module analyzes EPID images taken of a small radiation field and BB to determine the 2D
     distance from BB to field CAX. Additionally, the isocenter size of the gantry, collimator, and couch can
     all be determined *without the BB being at isocenter*. Analysis is based on
@@ -196,7 +196,7 @@ Below are the high-level tools currently available:
         print(wl.results())
         wl.publish_pdf("my_wl.pdf")
 
-* `Starshot Analysis <http://pylinac.readthedocs.org/en/stable/starshot_docs.html>`_ -
+* `Starshot Analysis <http://pylinac.readthedocs.org/en/latest/starshot_docs.html>`_ -
     The Starshot module analyses a starshot image made of radiation spokes, whether gantry, collimator, MLC or couch.
     It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
     and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_.
@@ -228,7 +228,7 @@ Below are the high-level tools currently available:
         star.plot_analyzed_image()  # shows a matplotlib figure
         star.publish_pdf()  # publish a PDF report
 
-* `VMAT QA <http://pylinac.readthedocs.org/en/stable/vmat_docs.html>`_ -
+* `VMAT QA <http://pylinac.readthedocs.org/en/latest/vmat_docs.html>`_ -
     The VMAT module consists of two classes: ``DRGS`` and ``DRMLC``, which are capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
     images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS) and MLC speed (MLCS) tests.
 
@@ -249,7 +249,7 @@ Below are the high-level tools currently available:
         drgs.plot_analyzed_image()  # shows a matplotlib figure
         drgs.publish_pdf("mydrgs.pdf")  # generate a PDF report
 
-* `CatPhan, Quart, ACR phantom QA <http://pylinac.readthedocs.org/en/stable/cbct_docs.html>`_ -
+* `CatPhan, Quart, ACR phantom QA <http://pylinac.readthedocs.org/en/latest/cbct_docs.html>`_ -
     The CBCT module automatically analyzes DICOM images of a CatPhan 504, 503, 600, 604, Quart DVT, and ACR CT/MR acquired when doing CT, CBCT, or MR quality assurance. It can load a folder or zip file that
     the images are in and automatically correct for phantom setup in 6 axes.
     CatPhans analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
@@ -289,7 +289,7 @@ Below are the high-level tools currently available:
         cbct.plot_analyzed_image()
         cbct.publish_pdf("mycbct.pdf")
 
-* `Log Analysis <http://pylinac.readthedocs.org/en/stable/log_analyzer.html>`_ -
+* `Log Analysis <http://pylinac.readthedocs.org/en/latest/log_analyzer.html>`_ -
     The log analyzer module reads and parses Varian linear accelerator machine logs, both Dynalogs and Trajectory logs. The module also
     calculates actual and expected fluences as well as performing gamma evaluations. Data is structured to be easily accessible and
     easily plottable.
@@ -322,7 +322,7 @@ Below are the high-level tools currently available:
         dlog = load_log("dynalog.dlg")
         ...
 
-* `Picket Fence MLC Analysis <http://pylinac.readthedocs.org/en/stable/picketfence.html>`_ -
+* `Picket Fence MLC Analysis <http://pylinac.readthedocs.org/en/latest/picketfence.html>`_ -
     The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
     Physicists regularly check MLC positioning through this test. This test can be done using film and one can
     "eyeball" it, but this is the 21st century and we have numerous ways of quantifying such data. This module
@@ -349,7 +349,7 @@ Below are the high-level tools currently available:
         pf.plot_analyzed_image()
         pf.publish_pdf()
 
-* `Open Field Analysis <http://pylinac.readthedocs.org/en/stable/field_analysis.html>`_ -
+* `Open Field Analysis <http://pylinac.readthedocs.org/en/latest/field_analysis.html>`_ -
     Field analysis from a digital image such as EPID DICOM or 2D device array can easily be analyzed. The module contains built-in
     flatness and symmetry equation definitions but is extensible to quickly create custom F&S equations.
 
