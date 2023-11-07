@@ -40,10 +40,28 @@ ACR
 Profiles
 ^^^^^^^^
 
+The following applies to the ``SingleProfile`` classes:
+
 * Passing *decreasing* x-values to ``SingleProfile`` would usually result in an error because the measured
   width would be negative. An error will now be raised if the x-values are decreasing.
-* The same error as above was also detected in the new ``<FWXM|InflectionDerivative|Hill>Profile`` classes.
+* Profiles that had non-integer increments in the x-values were not returning the right field values.
+  I.e. when calling ``.field_data()['field values']`` and non-integer x-values were passed at instantiation the values were not correct.
+  Given the ``SingleProfile`` class is now frozen, it is recommended to not pass non-integer x-values and/or skip passing
+  x-values to the profile.
+
+The following applies to the ``<FWXM|InflectionDerivative|Hill>Profile`` classes:
+
+* The same error of passing *decreasing* x-values as above was also detected in the new ``<FWXM|InflectionDerivative|Hill>Profile`` classes.
   Given these classes are the new standard, they have been fully fixed and can now handle decreasing x-values.
+* Profiles that had non-integer increments in the x-values were not returning the right field values.
+  I.e. when calling ``.field_values()`` and non-integer x-values were passed at instantiation the values were not correct.
+  This has been fixed.
+* The ``x_at_x`` method has been renamed to ``x_at_x_idx``. A deprecation warning will be raised. The method will be removed in 3.18.
+* The ``y_at_x`` and ``x_at_y`` and ``x_at_x_idx`` methods now all return a numpy array instead of a float.
+* A new method has been added: ``field_x_values``. This returns a numpy array of x-values that corresponds
+  to the y-values that are returned when using ``field_values``. This is useful for plotting the field values to the correct x-values.
+* The ``SymmetryPointDifferenceMetric`` class' plot method now uses "x" for the markers instead of "^" and "v".
+
 
 v 3.16.0
 --------

@@ -326,7 +326,41 @@ class TestFWXMProfile(TestCase):
         f = FWXMProfile(array, x_values=x_values)
         # both width and indices should respect the x-values
         self.assertEqual(f.field_width_px, 4)
-        self.assertEqual(f.field_indices(in_field_ratio=0.8), (7, 1, 6))
+        (left, right, width) = f.field_indices(in_field_ratio=0.8)
+        self.assertEqual((left, right, width), (7, 1, 6))
+        assert np.allclose(
+            f.field_x_values(in_field_ratio=0.8), np.array([7, 6, 5, 4, 3, 2, 1])
+        )
+
+    def test_x_values_about_zero(self):
+        """A profile that's centered on x should be correct"""
+        array = create_long_23_profile()
+        x_values = np.arange(len(array)) - 22 / 2
+        f = FWXMProfile(array, x_values=x_values)
+        (left, right, width) = f.field_indices(in_field_ratio=0.8)
+        # the edges are symmetric about 0 because we offset the x-values above.
+        self.assertEqual((left, right, width), (-5, 5, 10))
+        # the x-values are symmetric about 0 because we offset the x-values above.
+        assert np.allclose(
+            f.field_x_values(in_field_ratio=0.8), np.arange(-5, 5.1), atol=0.01
+        )
+
+    def test_non_integer_increment_x_values_has_right_num_indices(self):
+        """Arrays with x-values that are not integers used to cause problems when calculating the field array"""
+        array = create_simple_9_profile()
+        # x-values aren't simple integers
+        x_values = (np.arange(len(array)) - 4.5) / 0.75
+        f = FWXMProfile(array, x_values=x_values)
+        self.assertAlmostEqual(f.field_width_px, 5.33, delta=0.01)
+        (left, right, center) = f.field_indices(in_field_ratio=0.8)
+        self.assertEqual((left, right, center), (-2, 2, 4))
+        # the x-values are symmetric about 0 because we offset the x-values above.
+        assert np.allclose(
+            f.field_x_values(in_field_ratio=0.8),
+            np.array([-2, -0.667, 0.6667, 2]),
+            atol=0.01,
+        )
+        self.assertEqual(len(f.field_values(in_field_ratio=0.8)), 4)
 
     def test_not_monotonically_increasing_raises_error(self):
         array = create_simple_9_profile()
