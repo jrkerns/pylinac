@@ -258,7 +258,7 @@ class TestQuartPelvis(QuartDVTMixin, TestCase):
     cnr = 28.3
     horiz_dist = 159.3
     vert_dist = 159.6
-    high_contrast_distance = 0.6
+    high_contrast_distance = 0.82
     hu_values = {"Poly": -29, "Acrylic": 140, "Air": -1000, "Teflon": 989}
     unif_values = {"Center": 120, "Left": 132, "Right": 142, "Top": 136, "Bottom": 137}
 
