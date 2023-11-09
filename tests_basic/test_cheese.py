@@ -5,7 +5,7 @@ from unittest import TestCase
 from matplotlib import pyplot as plt
 from skimage.transform import rotate
 
-from pylinac.cheese import TomoCheese, TomoCheeseResult
+from pylinac.cheese import CIRS062M, TomoCheese, TomoCheeseResult
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -144,7 +144,7 @@ class TestPlottingSaving(TestCase):
         cheese.plot_density_curve()
 
 
-class TomoCheeseMixin(CloudFileMixin):
+class CheeseMixin(CloudFileMixin):
     model = TomoCheese
     origin_slice = 0
     dir_path = ["Tomo"]
@@ -155,6 +155,7 @@ class TomoCheeseMixin(CloudFileMixin):
     def setUpClass(cls):
         filename = cls.get_filename()
         cls.cheese = cls.model.from_zip(filename)
+        cls.cheese.analyze()
 
     @classmethod
     def tearDownClass(cls):
@@ -170,6 +171,7 @@ class TomoCheeseMixin(CloudFileMixin):
 
     def test_HU_values(self):
         """Test HU values."""
+        self.assertEqual(len(self.cheese.module.rois.values()), len(self.hu_values))
         for name, roi in self.cheese.module.rois.items():
             exp_val = self.hu_values[name]
             meas_val = roi.pixel_value
@@ -179,7 +181,7 @@ class TomoCheeseMixin(CloudFileMixin):
         save_file(self.cheese.publish_pdf, "temp")
 
 
-class TomoCheeseDemo(TomoCheeseMixin, TestCase):
+class TestTomoCheeseDemo(CheeseMixin, TestCase):
     origin_slice = 24
     expected_roll = -0.23
     hu_values = {
@@ -209,3 +211,139 @@ class TomoCheeseDemo(TomoCheeseMixin, TestCase):
     def setUpClass(cls):
         cls.cheese = TomoCheese.from_demo_images()
         cls.cheese.analyze()
+
+
+class TestCIRS062MErogluer(CheeseMixin, TestCase):
+    model = CIRS062M
+    origin_slice = 32
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "CIRS062M - Erogluer.zip"
+    expected_roll = 0
+    hu_values = {
+        "1": 5,
+        "2": -55,
+        "3": -811,
+        "4": 66,
+        "5": 73,
+        "6": -20,
+        "7": 1337,
+        "8": 67,
+        "9": 245,
+        "10": -806,
+        "11": 911,
+        "12": -490,
+        "13": 882,
+        "14": -16,
+        "15": 67,
+        "16": -494,
+        "17": 274,
+    }
+
+
+class TestCIRS062MButsonCareDose(CheeseMixin, TestCase):
+    model = CIRS062M
+    origin_slice = 38
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "Butson - caredose.zip"
+    expected_roll = 0
+    hu_values = {
+        "1": -963,
+        "2": -480,
+        "3": 57,
+        "4": 46,
+        "5": 847,
+        "6": -22,
+        "7": 207,
+        "8": -780,
+        "9": -60,
+        "10": 62,
+        "11": 1291,
+        "12": -20,
+        "13": -60,
+        "14": -476,
+        "15": 44,
+        "16": 214,
+        "17": 856,
+    }
+
+
+class TestCIRS062MButson160mAsB(CheeseMixin, TestCase):
+    # same as caredose but different mAs, thus same HU values
+    model = CIRS062M
+    origin_slice = 38
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "Butson - 160mAs.zip"
+    expected_roll = 0
+    hu_values = {
+        "1": -963,
+        "2": -480,
+        "3": 57,
+        "4": 46,
+        "5": 847,
+        "6": -22,
+        "7": 207,
+        "8": -780,
+        "9": -60,
+        "10": 62,
+        "11": 1291,
+        "12": -20,
+        "13": -60,
+        "14": -476,
+        "15": 44,
+        "16": 214,
+        "17": 856,
+    }
+
+
+class TestCIRS062MButsonLungOuter(CheeseMixin, TestCase):
+    model = CIRS062M
+    origin_slice = 24
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "Butson - lung outer.zip"
+    expected_roll = 0
+    hu_values = {
+        "1": -963,
+        "2": -480,
+        "3": 57,
+        "4": 46,
+        "5": 847,
+        "6": -22,
+        "7": 207,
+        "8": -60,
+        "9": -60,
+        "10": 62,
+        "11": 1291,
+        "12": -20,
+        "13": -780,
+        "14": -476,
+        "15": 44,
+        "16": 214,
+        "17": 856,
+    }
+
+
+class TestCIRS062MButsonEmptyButoOuter(CheeseMixin, TestCase):
+    model = CIRS062M
+    origin_slice = 30
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "Butson - empty outer.zip"
+    expected_roll = 0
+    hu_values = {
+        "1": -60,
+        "2": -480,
+        "3": 57,
+        "4": 46,
+        "5": 847,
+        "6": -22,
+        "7": 207,
+        "8": -780,
+        "9": -60,
+        "10": 62,
+        "11": 1291,
+        "12": -20,
+        "13": -974,
+        "14": -476,
+        "15": 44,
+        "16": 214,
+        "17": 856,
+    }

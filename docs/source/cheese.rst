@@ -20,8 +20,13 @@ allow for additional functionality such as spatial resolution.
 It can load a folder or zip file of images, correcting for
 translational and rotational offsets.
 
-Currently, there is only 1 phantom routine for the TomoTherapy cheese phantom,
-but similar phantoms will be added to this module in the future.
+Phantoms Supported
+------------------
+
+The following phantoms are supported:
+
+* Tomotherapy Cheese
+* CIRS Electron Density
 
 
 Running the Demo
@@ -276,10 +281,26 @@ API Documentation
     :inherited-members:
     :members:
 
+.. autoclass:: pylinac.cheese.CIRS062M
+    :inherited-members:
+    :members:
+
 .. autoclass:: pylinac.cheese.TomoCheeseModule
     :inherited-members:
     :members:
 
+.. autoclass:: pylinac.cheese.CIRSHUModule
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.cheese.CheeseResult
+    :inherited-members:
+    :members:
+
 .. autoclass:: pylinac.cheese.TomoCheeseResult
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.cheese.CheesePhantomBase
     :inherited-members:
     :members:
