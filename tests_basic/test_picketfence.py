@@ -809,6 +809,22 @@ class ChicagoError(PFTestMixin, TestCase):
     max_error = 0.3
 
 
+class HalcyonProximal(PFTestMixin, TestCase):
+    file_name = "Distal - DoRa - Really proximal.dcm"
+    mlc = "Halcyon proximal"
+    max_error = 0.13
+    num_pickets = 6
+    mean_picket_spacing = 50
+
+
+class HalcyonDistal(PFTestMixin, TestCase):
+    file_name = "Proximal - DoRa - Really distal.dcm"
+    mlc = "Halcyon distal"
+    max_error = 0.13
+    num_pickets = 6
+    mean_picket_spacing = 50
+
+
 @skip
 class CharlestonRA(PFTestMixin, TestCase):
     file_name = ["Charleston", "TB1", "July2016", "RA.dcm"]
