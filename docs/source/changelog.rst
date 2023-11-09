@@ -35,6 +35,12 @@ Winston-Lutz
 * Normal Winston-Lutz analyses (not multi-target/multi-field) can now plot a visualization of the BB position
   relative to the determined isocenter. After analyzing a WL set, call ``plot_location()``. See :ref:`wl_visualizing_bb`.
 
+CT
+^^
+
+* A new class :class:`~pylinac.ct.HypersightQuartDVT` has been added that will analyze the Hypersight variant
+  of the Quart phantom, which includes and additional water ROI.
+
 ACR
 ^^^
 

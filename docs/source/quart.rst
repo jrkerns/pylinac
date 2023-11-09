@@ -78,6 +78,17 @@ And then load, analyze, and view the results:
     # finally, save a PDF
     quart.publish_pdf("myquart.pdf")
 
+Hypersight
+----------
+
+.. versionadded:: 3.17
+
+The Hypersight variant of the Quart phantom includes a water ROI at the HU module.
+A sister class can be used to also analyze this phantom: :class:`~pylinac.ct.HypersightQuartDVT`
+and will include an additional ROI analysis of the water bubble.
+
+The class can be used interchangeably with the normal class and throughout this documentation.
+
 Advanced Use
 ------------
 
@@ -153,6 +164,10 @@ API Documentation
 
 
 .. autoclass:: pylinac.quart.QuartDVT
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.quart.HypersightQuartDVT
     :inherited-members:
     :members:
 

@@ -183,7 +183,7 @@ class QuartDVTMixin(CloudFileMixin):
             self.assertAlmostEqual(exp_val, meas_val, delta=5)
 
 
-class QuartHead(QuartDVTMixin, TestCase):
+class TestQuartHead(QuartDVTMixin, TestCase):
     file_name = "Head_Quart.zip"
     phantom_roll = 0.2
     slice_thickness = 1.9
@@ -196,7 +196,7 @@ class QuartHead(QuartDVTMixin, TestCase):
     unif_values = {"Center": 114, "Left": 114, "Right": 136, "Top": 125, "Bottom": 127}
 
 
-class QuartHeadOffset(QuartDVTMixin, TestCase):
+class TestQuartHeadOffset(QuartDVTMixin, TestCase):
     """Shift the phantom over by several pixels to ensure no row/col algorithm issues
 
     Unfortunately, I can't move them that far because the FOV is very tight
@@ -223,7 +223,7 @@ class QuartHeadOffset(QuartDVTMixin, TestCase):
         cls.quart.analyze()
 
 
-class QuartHeadRotated(QuartDVTMixin, TestCase):
+class TestQuartHeadRotated(QuartDVTMixin, TestCase):
     """Rotate the phantom over by several pixels to ensure no row/col algorithm issues
 
     Unfortunately, I can't move them that far because the FOV is very tight
@@ -250,7 +250,7 @@ class QuartHeadRotated(QuartDVTMixin, TestCase):
         cls.quart.analyze()
 
 
-class QuartPelvis(QuartDVTMixin, TestCase):
+class TestQuartPelvis(QuartDVTMixin, TestCase):
     file_name = "Pelvis_Quart.zip"
     phantom_roll = 0.2
     slice_thickness = 1.9
@@ -258,6 +258,19 @@ class QuartPelvis(QuartDVTMixin, TestCase):
     cnr = 28.3
     horiz_dist = 159.3
     vert_dist = 159.6
-    high_contrast_distance = 0.82
+    high_contrast_distance = 0.6
     hu_values = {"Poly": -29, "Acrylic": 140, "Air": -1000, "Teflon": 989}
     unif_values = {"Center": 120, "Left": 132, "Right": 142, "Top": 136, "Bottom": 137}
+
+
+class TestHypersightQuart(QuartDVTMixin, TestCase):
+    file_name = "Hypersight Quart (w water).zip"
+    phantom_roll = 0.0
+    slice_thickness = 1.9
+    snr = 400
+    cnr = 56.2
+    horiz_dist = 159.7
+    vert_dist = 159.6
+    high_contrast_distance = 0.6
+    hu_values = {"Poly": -47, "Acrylic": 106, "Air": -1000, "Teflon": 963, "Water": 0}
+    unif_values = {"Center": 98, "Left": 96, "Right": 92, "Top": 92, "Bottom": 93}
