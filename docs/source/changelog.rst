@@ -13,6 +13,8 @@ Metrics
   without knowing where they might be. This is relatively efficient if there are multiple BBs in the image
   compared with using the :class:`~pylinac.core.metrics.DiskLocator` class multiple times, even when
   the BB locations are known.
+* The metric :class:`~pylinac.core.metrics.GlobalSizedFieldLocator`` is also available. This metric
+  will find a number of open fields within an image. See :ref:`global_sized_field_locator` for more.
 
 Planar Imaging
 ^^^^^^^^^^^^^^

@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import measure
 from skimage.measure._regionprops import RegionProperties
+from skimage.segmentation import find_boundaries
 
 from pylinac.core.array_utils import invert
 from pylinac.core.geometry import Point
@@ -74,19 +75,37 @@ def is_right_circumference(region: RegionProperties, *args, **kwargs) -> bool:
     return upper_circumference > actual_perimeter > lower_circumference
 
 
+def is_right_square_perimeter(region: RegionProperties, *args, **kwargs) -> bool:
+    """Test the regionprop's perimeter attr to see if it matches
+    that of an equivalent square. In reality, edges aren't perfectly straight, so
+    the real perimeter is always going to be higher than the theoretical perimeter.
+    We thus add a larger tolerance (20%) to the upper perimeter"""
+    actual_perimeter = region.perimeter / kwargs["dpmm"]
+    upper_perimeter = 1.20 * 2 * (
+        kwargs["field_width_mm"] + kwargs["field_tolerance_mm"]
+    ) + 2 * (kwargs["field_height_mm"] + kwargs["field_tolerance_mm"])
+    lower_perimeter = 2 * (
+        kwargs["field_width_mm"] - kwargs["field_tolerance_mm"]
+    ) + 2 * (kwargs["field_height_mm"] - kwargs["field_tolerance_mm"])
+    return upper_perimeter > actual_perimeter > lower_perimeter
+
+
 def is_square(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is square in nature by testing the filled area vs bounding box. Used to find the BB."""
     actual_fill_ratio = region.filled_area / region.bbox_area
     return actual_fill_ratio > 0.8
 
 
-def is_right_size_square(region: RegionProperties, *args, **kwargs) -> bool:
+def is_right_area_square(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is square in nature by testing the filled area vs bounding box. Used to find the BB."""
     field_area = region.area_filled / (kwargs["dpmm"] ** 2)
-    rad_size = max((kwargs["rad_size"], 5))
-    larger_bb_area = (rad_size + 5) ** 2
-    smaller_bb_area = (rad_size - 5) ** 2
-    return smaller_bb_area < field_area < larger_bb_area
+    low_bound_expected_area = (
+        kwargs["field_width_mm"] - kwargs["field_tolerance_mm"]
+    ) * (kwargs["field_height_mm"] - kwargs["field_tolerance_mm"])
+    high_bound_expected_area = (
+        kwargs["field_width_mm"] + kwargs["field_tolerance_mm"]
+    ) * (kwargs["field_height_mm"] + kwargs["field_tolerance_mm"])
+    return low_bound_expected_area < field_area < high_bound_expected_area
 
 
 def deduplicate_points(
@@ -478,44 +497,257 @@ class GlobalDiskLocator(MetricBase):
             axis.plot(point.x, point.y, "ro")
 
 
-# TODO
-# class GlobalFieldLocator(MetricBase):
-#     def __init__(
-#             self,
-#             low_threshold_percentile: float = 5,
-#             high_threshold_percentile: float = 99.9,
-#             name: str = "Field Finder",
-#     ):
-#         self.low_threshold_percentile = low_threshold_percentile
-#         self.high_threshold_percentile = high_threshold_percentile
-#         self.name = name
-#
-#     def calculate(self, image: BaseImage) -> Point:
-#         min, max = np.percentile(
-#             image.array, [self.low_threshold_percentile, self.high_threshold_percentile]
-#         )
-#         threshold_img = image.as_binary((max - min) / 2 + min)
-#         filled_img = ndimage.binary_fill_holes(threshold_img)
-#         coords = ndimage.center_of_mass(filled_img)
-#         return Point(x=coords[-1], y=coords[0])
-#
-#
-# class GlobalSizedFieldRegion(MetricBase):
-#     def __init__(
-#             self,
-#             low_threshold_percentile: float = 5,
-#             high_threshold_percentile: float = 99.9,
-#             field_size: float = 10,
-#             name: str = "Field Finder",
-#     ):
-#         self.low_threshold_percentile = low_threshold_percentile
-#         self.high_threshold_percentile = high_threshold_percentile
-#         self.name = name
-#
-#     def calculate(self, image: BaseImage) -> RegionProperties:
-#         min, max = np.percentile(
-#             image.array, [self.low_threshold_percentile, self.high_threshold_percentile]
-#         )
-#         threshold_img = image.as_binary((max - min) / 2 + min)
-#         filled_img = ndimage.binary_fill_holes(threshold_img)
-#         return RegionProperties(filled_img)
+class GlobalSizedFieldLocator(MetricBase):
+    fields: list[Point]
+    boundaries: list[np.ndarray]
+    is_from_physical: bool = False
+
+    def __init__(
+        self,
+        field_width_px: float,
+        field_height_px: float,
+        field_tolerance_px: float,
+        min_number: int = 1,
+        max_number: int | None = None,
+        name: str = "Field Finder",
+        detection_conditions: list[callable] = (
+            is_right_square_perimeter,
+            is_right_area_square,
+        ),
+        default_threshold_step_size: float = 2,
+    ):
+        """Finds fields globally within an image.
+
+        Parameters
+        ----------
+        field_width_px : float
+            The width of the field in px.
+        field_height_px : float
+            The height of the field in px.
+        field_tolerance_px : float
+            The tolerance of the field size in px.
+        min_number : int
+            The minimum number of fields to find. If not found, an error is raised.
+        max_number : int, None
+            The maximum number of fields to find. If None, no maximum is set.
+        name : str
+            The name of the metric.
+        detection_conditions : list[callable]
+            A list of functions that take a regionprops object and return a boolean.
+        default_threshold_step_size : float
+            The default step size for the threshold iteration. This is based on the max number of fields and the field size.
+        """
+        self.field_width_mm = field_width_px
+        self.field_height_mm = field_height_px
+        self.field_tolerance_mm = field_tolerance_px
+        self.min_number = min_number
+        self.max_number = max_number or 1e6
+        self.name = name
+        self.detection_conditions = detection_conditions
+        self.default_threshold_step_size = default_threshold_step_size
+
+    @classmethod
+    def from_physical(
+        cls,
+        field_width_mm: float,
+        field_height_mm: float,
+        field_tolerance_mm: float,
+        min_number: int = 1,
+        max_number: int | None = None,
+        name: str = "Field Finder",
+        detection_conditions: list[callable] = (
+            is_right_square_perimeter,
+            is_right_area_square,
+        ),
+        default_threshold_step_size: float = 2,
+    ):
+        """Construct an instance using physical dimensions.
+
+        Parameters
+        ----------
+        field_width_mm : float
+            The width of the field in mm.
+        field_height_mm : float
+            The height of the field in mm.
+        field_tolerance_mm : float
+            The tolerance of the field size in mm.
+        min_number : int
+            The minimum number of fields to find. If not found, an error is raised.
+        max_number : int, None
+            The maximum number of fields to find. If None, no maximum is set.
+        name : str
+            The name of the metric.
+        detection_conditions : list[callable]
+            A list of functions that take a regionprops object and return a boolean.
+        default_threshold_step_size : float
+            The default step size for the threshold iteration. This is based on the max number of fields and the field size.
+        """
+        instance = cls(
+            field_width_px=field_width_mm,
+            field_height_px=field_height_mm,
+            field_tolerance_px=field_tolerance_mm,
+            min_number=min_number,
+            max_number=max_number,
+            name=name,
+            detection_conditions=detection_conditions,
+            default_threshold_step_size=default_threshold_step_size,
+        )
+        instance.is_from_physical = True
+        return instance
+
+    @property
+    def threshold_step_size(self) -> float:
+        """Set the step size for the threshold. This is based on the max number of fields and the field size."""
+        if not self.max_number:
+            return self.default_threshold_step_size
+        else:
+            # usually the threshold is actually very small
+            # since the field is very small compared to the
+            # image size. In this case, we want to increase
+            # the threshold much slower than the default.
+            # In combination with the threshold_start,
+            # this is actually quite sensitive and quick.
+            # In effect, we are shifting the threshold to whatever
+            # 10% of the expected total field area is or 2, whichever is smaller.
+            # For larger fields, this can be quite large, thus the 2 max.
+            calculated_step_size = (
+                self.max_number
+                * (self.field_width_mm * self.field_height_mm)
+                * (self.image.dpmm**2)
+                / self.image.size
+                * 10
+            )
+            return min((calculated_step_size, self.default_threshold_step_size))
+
+    @property
+    def threshold_start(self) -> float:
+        """The starting percentile for the threshold. This is based on the max number of fields and the field size."""
+        if not self.max_number:
+            return 5
+        else:
+            # start at a higher threshold if we have a max number
+            # by using the expected total area of the fields / image size
+            # this offset from 100 and adds a 1.5 safety margin
+            # E.g. for a 10x10 field, this might result in a starting threshold of 99.6
+            return (
+                100
+                - 100
+                * 1.5
+                * self.max_number
+                * (self.field_width_mm * self.field_height_mm)
+                * (self.image.dpmm**2)
+                / self.image.size
+            )
+
+    def calculate(self) -> list[Point]:
+        """Find up to N fields in the image. This will look for fields at every percentile range.
+        Multiple fields may be found at different threshold levels."""
+        if not self.is_from_physical:
+            self.field_width_mm /= self.image.dpmm
+            self.field_height_mm /= self.image.dpmm
+            self.field_tolerance_mm /= self.image.dpmm
+        fields = []
+        boundaries = []
+        sample = self.image.array
+        # search for multiple BBs by iteratively raising the high-pass threshold value.
+        threshold_percentile = self.threshold_start
+        while threshold_percentile < 100 and len(fields) < self.max_number:
+            try:
+                binary_array = sample > np.percentile(sample, threshold_percentile)
+                labeled_arr = measure.label(binary_array)
+                regions = measure.regionprops(labeled_arr, intensity_image=sample)
+                conditions_met = [
+                    all(
+                        condition(
+                            region,
+                            dpmm=self.image.dpmm,
+                            field_width_mm=self.field_width_mm,
+                            field_height_mm=self.field_height_mm,
+                            field_tolerance_mm=self.field_tolerance_mm,
+                            shape=binary_array.shape,
+                        )
+                        for condition in self.detection_conditions
+                    )
+                    for region in regions
+                ]
+                if not any(conditions_met):
+                    raise ValueError
+                else:
+                    fields_regions = [
+                        regions[idx]
+                        for idx, value in enumerate(conditions_met)
+                        if value
+                    ]
+                    points = [
+                        Point(region.centroid[1], region.centroid[0])
+                        for region in fields_regions
+                    ]
+                    # find the boundaries of the fields
+                    # this is solely for plotting purposes
+                    # these will be bool arrays
+                    # we pad the boundaries to offset the ROI to the right
+                    # position on the image.
+                    boundaries = [
+                        np.pad(
+                            find_boundaries(
+                                # padding is needed as boundary edges aren't detected otherwise
+                                np.pad(
+                                    region.image,
+                                    pad_width=1,
+                                    mode="constant",
+                                    constant_values=0,
+                                ),
+                                connectivity=region.image.ndim,
+                                mode="inner",
+                                background=0,
+                            ),
+                            ((region.bbox[0] - 1, 0), (region.bbox[1] - 1, 0)),
+                            mode="constant",
+                            constant_values=0,
+                        )
+                        for region in fields_regions
+                    ]
+                    # the separation is the minimum value + field size
+                    fields = deduplicate_points(
+                        original_points=fields,
+                        new_points=points,
+                        min_separation_px=min(
+                            (self.field_height_mm, self.field_width_mm)
+                        )
+                        * self.image.dpmm,
+                    )
+            except (IndexError, ValueError):
+                pass
+            finally:
+                threshold_percentile += self.threshold_step_size
+        if len(fields) < self.min_number:
+            # didn't find the number we needed
+            raise ValueError(
+                f"Couldn't find the minimum number of fields in the image. Found {len(fields)}; required: {self.min_number}"
+            )
+        self.fields = fields
+        self.boundaries = boundaries
+        return fields
+
+    def plot(
+        self,
+        axis: plt.Axes,
+        show_boundaries: bool = True,
+        color: str = "red",
+        markersize: float = 3,
+        alpha: float = 0.25,
+    ) -> None:
+        """Plot the BB centers and boundary of detection."""
+        for point in self.fields:
+            axis.plot(point.x, point.y, color=color, marker="+", alpha=alpha)
+        if show_boundaries:
+            for boundary in self.boundaries:
+                boundary_y, boundary_x = np.nonzero(boundary)
+                axis.scatter(
+                    boundary_x,
+                    boundary_y,
+                    c=color,
+                    marker="s",
+                    alpha=alpha,
+                    s=markersize,
+                )
