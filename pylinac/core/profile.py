@@ -633,7 +633,7 @@ class ProfileBase(ProfileMixin, ABC):
         )
         return self.x_at_x_idx(x)
 
-    def x_at_x_idx(self, x: float) -> np.ndarray:
+    def x_at_x_idx(self, x: float | np.ndarray) -> np.ndarray | float:
         """Return the physical x-value at the given index. When no x-values are provided, these are the same.
         However, physical dimensions can be different than the index."""
         # UnivariateSpline is the newer approach than interp1d
@@ -643,18 +643,24 @@ class ProfileBase(ProfileMixin, ABC):
         f = UnivariateSpline(
             x=np.arange(len(self.x_values)), y=self.x_values, k=self._interp_order, s=0
         )
+        new_x = f(x)
+        if new_x.size == 1:
+            return float(new_x)
         return f(x)
 
     def x_idx_at_x(self, x: float) -> int:
         """Return the **index** of the x-value closest to the given x-value."""
         return int(np.argmin(np.abs(self.x_values - x)))
 
-    def y_at_x(self, x: float | np.ndarray) -> np.ndarray:
+    def y_at_x(self, x: float | np.ndarray) -> np.ndarray | float:
         """Interpolated y-values. The x-value is the physical position, not the index. However, if no x-values were provided, these will be the same."""
         f = UnivariateSpline(x=self.x_values, y=self.values, k=self._interp_order, s=0)
-        return f(x)
+        new_y = f(x)
+        if new_y.size == 1:
+            return float(new_y)
+        return new_y
 
-    def x_at_y(self, y: float | np.ndarray, side: str) -> np.ndarray:
+    def x_at_y(self, y: float | np.ndarray, side: str) -> np.ndarray | float:
         """Interpolated y-values. Can use floats as indices."""
         # I can't get UnivariateSpline to work here because it wants strictly increasing
         # data. So we use interp1d instead
@@ -663,6 +669,9 @@ class ProfileBase(ProfileMixin, ABC):
             f = interp1d(x=self.values[:s], y=self.x_values[:s])
         elif side == RIGHT:
             f = interp1d(x=self.values[s:], y=self.x_values[s:])
+        new_x = f(y)
+        if new_x.size == 1:
+            return float(new_x)
         return f(y)
 
     @abstractmethod
