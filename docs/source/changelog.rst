@@ -39,7 +39,7 @@ CT
 ^^
 
 * A new class :class:`~pylinac.ct.HypersightQuartDVT` has been added that will analyze the Hypersight variant
-  of the Quart phantom, which includes and additional water ROI.
+  of the Quart phantom, which includes an additional water ROI.
 
 ACR
 ^^^

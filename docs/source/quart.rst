@@ -83,7 +83,7 @@ Hypersight
 
 .. versionadded:: 3.17
 
-The Hypersight variant of the Quart phantom includes a water ROI at the HU module.
+The Hypersight variant of the Quart phantom includes a water ROI in the HU module.
 A sister class can be used to also analyze this phantom: :class:`~pylinac.ct.HypersightQuartDVT`
 and will include an additional ROI analysis of the water bubble.
 
