@@ -13,7 +13,7 @@ Metrics
   without knowing where they might be. This is relatively efficient if there are multiple BBs in the image
   compared with using the :class:`~pylinac.core.metrics.DiskLocator` class multiple times, even when
   the BB locations are known.
-* The metric :class:`~pylinac.core.metrics.GlobalSizedFieldLocator`` is also available. This metric
+* The metric :class:`~pylinac.core.metrics.GlobalSizedFieldLocator` is also available. This metric
   will find a number of open fields within an image. See :ref:`global_sized_field_locator` for more.
 
 Planar Imaging
@@ -36,6 +36,18 @@ Winston-Lutz
 
 * Normal Winston-Lutz analyses (not multi-target/multi-field) can now plot a visualization of the BB position
   relative to the determined isocenter. After analyzing a WL set, call ``plot_location()``. See :ref:`wl_visualizing_bb`.
+
+CT
+^^
+
+* A new class :class:`~pylinac.cheese.CIRS062M` is now available. This will analyze the `CIRS electron density phantom <https://www.cirsinc.com/products/radiation-therapy/electron-density-phantom/>`__.
+* The base class for cheese phantoms (:class:`~pylinac.cheese.CheesePhantomBase`) now has a default implementation
+  for ``results_data``. Previously, it did not and required the user to create one when extending the phantom analysis to a new type.
+* The :class:`~pylinac.cheese.TomoCheese` phantom's output from ``results_data`` has an additional key: ``rois``. This is a dictionary of all
+  the ROIs with the name of the ROI (usually the number) as the key.
+  The data in the ``rois`` dict is the same information as in the ``roi_<n>`` elements. In retrospect, a simple dictionary is far more extensible when the number of ROIs vary.
+  I.e. ``results_data()['rois']['1']`` is the same as ``results_data()['roi_1']``. The ``roi_<n>`` keys were left for backwards
+  compatibility.
 
 ACR
 ^^^

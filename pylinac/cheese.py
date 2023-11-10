@@ -27,6 +27,9 @@ class TomoCheeseResult(ResultBase):
     origin_slice: int  #:
     num_images: int  #:
     phantom_roll: float  #:
+    rois: dict  #:
+    # having explicit rois here is a stupid idea. Keeping it for backwards compatibility.
+    # `rois` is the new way to go as its extensible for N ROIs.
     roi_1: dict  #:
     roi_2: dict  #:
     roi_3: dict  #:
@@ -47,6 +50,19 @@ class TomoCheeseResult(ResultBase):
     roi_18: dict  #:
     roi_19: dict  #:
     roi_20: dict  #:
+
+
+@dataclasses.dataclass
+class CheeseResult(ResultBase):
+    """This class should not be called directly. It is returned by the ``results_data()`` method.
+    It is a dataclass under the hood and thus comes with all the dunder magic.
+
+    Use the following attributes as normal class attributes."""
+
+    origin_slice: int  #:
+    num_images: int  #:
+    phantom_roll: float  #:
+    rois: dict  #:
 
 
 class CheeseModule(CatPhanModule):
@@ -381,6 +397,19 @@ class CheesePhantomBase(CatPhanBase):
     def plot_analyzed_subimage(self) -> None:
         raise NotImplementedError("There are no sub-images for cheese-like phantoms")
 
+    def results_data(self, as_dict: bool = False) -> CheeseResult | dict:
+        """Return the results of the analysis as a structure dataclass"""
+        data = CheeseResult(
+            origin_slice=self.origin_slice,
+            num_images=self.num_images,
+            phantom_roll=self.catphan_roll,
+            rois={name: roi.as_dict() for name, roi in self.module.rois.items()},
+        )
+
+        if as_dict:
+            return dataclasses.asdict(data)
+        return data
+
 
 class TomoCheese(CheesePhantomBase):
     """A class for analyzing the TomoTherapy 'Cheese' Phantom containing insert holes and plugs for HU analysis."""
@@ -408,6 +437,7 @@ class TomoCheese(CheesePhantomBase):
             origin_slice=self.origin_slice,
             num_images=self.num_images,
             phantom_roll=self.catphan_roll,
+            rois={name: roi.as_dict() for name, roi in self.module.rois.items()},
             roi_1=self.module.rois["1"].as_dict(),
             roi_2=self.module.rois["2"].as_dict(),
             roi_3=self.module.rois["3"].as_dict(),
@@ -433,3 +463,174 @@ class TomoCheese(CheesePhantomBase):
         if as_dict:
             return dataclasses.asdict(data)
         return data
+
+
+class CIRSHUModule(CheeseModule):
+    """The pluggable module with user-accessible holes.
+
+    The ROIs of each circle are ~45 degrees apart.
+    """
+
+    common_name = "CIRS electron density"
+    outer_radius_mm = 115
+    inner_radius_mm = 60
+    roi_radius_mm = 10
+    roi_settings = {
+        "1": {
+            "angle": 0,
+            "distance": 0,
+            "radius": roi_radius_mm,
+        },
+        "2": {
+            "angle": -90,
+            "distance": inner_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "3": {
+            "angle": -90,
+            "distance": outer_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "4": {
+            "angle": -45,
+            "distance": inner_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "5": {
+            "angle": -45,
+            "distance": outer_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "6": {
+            "angle": 0,
+            "distance": inner_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "7": {
+            "angle": 0,
+            "distance": outer_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "8": {
+            "angle": 45,
+            "distance": inner_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "9": {
+            "angle": 45,
+            "distance": outer_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "10": {
+            "angle": 90,
+            "distance": inner_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        # this one is closer to the ring; presumably because the bottom of the phantom is flatter than the top
+        "11": {
+            "angle": 90,
+            "distance": outer_radius_mm - 5,
+            "radius": roi_radius_mm,
+        },
+        "12": {
+            "angle": 135,
+            "distance": inner_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "13": {
+            "angle": 135,
+            "distance": outer_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "14": {
+            "angle": 180,
+            "distance": inner_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "15": {
+            "angle": 180,
+            "distance": outer_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "16": {
+            "angle": -135,
+            "distance": inner_radius_mm,
+            "radius": roi_radius_mm,
+        },
+        "17": {
+            "angle": -135,
+            "distance": outer_radius_mm,
+            "radius": roi_radius_mm,
+        },
+    }
+
+
+class CIRS062M(CheesePhantomBase):
+    """A class for analyzing the CIRS Electron Density Phantom containing insert holes and plugs for HU analysis.
+
+    See Also
+    --------
+    https://www.cirsinc.com/products/radiation-therapy/electron-density-phantom/
+    """
+
+    model = "CIRS Electron Density (062M)"
+    air_bubble_radius_mm = 30
+    clear_borders = False
+    hu_origin_slice_variance = 150
+    localization_radius = 115
+    catphan_radius_mm = 155
+    min_num_images = 10
+    roi_config: dict
+    module_class = CIRSHUModule
+    module: CIRSHUModule
+
+    @classmethod
+    def from_demo_images(cls):
+        raise NotImplementedError("No demo images available for this phantom")
+
+    def find_origin_slice(self) -> int:
+        """We override to lower the minimum variation required. This is ripe for refactor, but I'd like to
+        add a few more phantoms first to get the full picture required."""
+        hu_slices = []
+        for image_number in range(0, self.num_images, 2):
+            slice = Slice(
+                self, image_number, combine=False, clear_borders=self.clear_borders
+            )
+            if slice.is_phantom_in_view():
+                circle_prof = CollapsedCircleProfile(
+                    slice.phan_center,
+                    radius=self.localization_radius / self.mm_per_pixel,
+                    image_array=slice.image,
+                    width_ratio=0.05,
+                    num_profiles=5,
+                )
+                prof = circle_prof.values
+                # determine if the profile contains both low and high values and that most values are the same
+                low_end, high_end = np.percentile(prof, [2, 98])
+                median = np.median(prof)
+                ##################################
+                # the difference from the original
+                ##################################
+                middle_variation = np.percentile(prof, 60) - np.percentile(prof, 40)
+                variation_limit = max(
+                    100, self.dicom_stack.metadata.SliceThickness * -100 + 300
+                )
+                if (
+                    (low_end < median - self.hu_origin_slice_variance)
+                    or (high_end > median + self.hu_origin_slice_variance)
+                    and (middle_variation < variation_limit)
+                ):
+                    hu_slices.append(image_number)
+
+        if not hu_slices:
+            raise ValueError(
+                "No slices were found that resembled the HU linearity module"
+            )
+        hu_slices = np.array(hu_slices)
+        c = int(round(float(np.median(hu_slices))))
+        ln = len(hu_slices)
+        # drop slices that are way far from median
+        hu_slices = hu_slices[((c + ln / 2) >= hu_slices) & (hu_slices >= (c - ln / 2))]
+        center_hu_slice = int(round(float(np.median(hu_slices))))
+        if self._is_within_image_extent(center_hu_slice):
+            return center_hu_slice
