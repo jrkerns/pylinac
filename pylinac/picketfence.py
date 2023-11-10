@@ -105,13 +105,15 @@ class MLC(enum.Enum):
         "name": "MLCi",
         "arrangement": MLCArrangement([(40, 10)]),
     }  #:
+    # Halcyon reference
+    # https://aapm.onlinelibrary.wiley.com/doi/pdf/10.1002/acm2.12568
     HALCYON_DISTAL = {
         "name": "Halcyon distal",
-        "arrangement": MLCArrangement([(60, 5)], offset=2.5),
+        "arrangement": MLCArrangement([(28, 10)]),
     }  #:
     HALCYON_PROXIMAL = {
         "name": "Halcyon proximal",
-        "arrangement": MLCArrangement([(60, 5)]),
+        "arrangement": MLCArrangement([(29, 10)]),
     }  #:
 
 

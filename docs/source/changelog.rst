@@ -24,6 +24,13 @@ Planar Imaging
   ROIs. This result will also be included in the ``results_data`` structure.
   This is not done for light/rad phantoms.
 
+Picket Fence
+^^^^^^^^^^^^
+
+* The Halcyon MLC configurations were incorrect and have now been fixed. Thanks to Dominic Rafferty for
+  pointing this out. Previously, it was using a similar configuration as the TrueBeam out of lack of experience
+  with the system. The new configuration was based on `this paper <https://aapm.onlinelibrary.wiley.com/doi/pdf/10.1002/acm2.12568>`__.
+
 Winston-Lutz
 ^^^^^^^^^^^^
 
