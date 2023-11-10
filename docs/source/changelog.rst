@@ -46,6 +46,12 @@ ACR
   The ``ImagePositionPatient`` tag is now the primary lookup key and ``SliceLocation`` is only used
   if the former tag is unavailable.
 
+Starshot
+^^^^^^^^
+
+* The ``from_multiple_images`` method no longer requires the demo image. The demo
+  image was just a placeholder to set up initial values.
+
 Profiles
 ^^^^^^^^
 

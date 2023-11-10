@@ -123,19 +123,33 @@ class Starshot:
         return cls(demo_file, sid=1000)
 
     @classmethod
-    def from_multiple_images(cls, filepath_list: list, **kwargs):
+    def from_multiple_images(
+        cls,
+        filepath_list: list,
+        stretch_each: bool = True,
+        method: str = "sum",
+        **kwargs,
+    ):
         """Construct a Starshot instance and load in and combine multiple images.
 
         Parameters
         ----------
         filepath_list : iterable
             An iterable of file paths to starshot images that are to be superimposed.
+        stretch_each : bool
+            Whether to stretch each image individually before combining. See ``load_multiples``.
+        method : {'sum', 'mean'}
+            The method to combine the images. See ``load_multiples``.
         kwargs
             Passed to :func:`~pylinac.core.image.load_multiples`.
         """
-        obj = cls.from_demo_image()
-        obj.image = image.load_multiples(filepath_list, **kwargs)
-        return obj
+        with io.BytesIO() as stream:
+            img = image.load_multiples(
+                filepath_list, stretch_each=stretch_each, method=method, **kwargs
+            )
+            img.save(stream)
+            stream.seek(0)
+            return cls(stream, **kwargs)
 
     @classmethod
     def from_zip(cls, zip_file: str, **kwargs):
