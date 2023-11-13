@@ -221,6 +221,8 @@ This will look for the disk/BB 30mm right and 30mm down from the center of the i
 Global Disk Locator
 ^^^^^^^^^^^^^^^^^^^
 
+.. versionadded:: 3.17
+
 The :class:`~pylinac.core.metrics.GlobalDiskLocator` metric is similar to the :class:`~pylinac.core.metrics.DiskLocator` metric
 except that it searches the entire image for disks/BB, not just a small window. This is useful for finding the BB in images
 where the BB is not in the expected location or unknown. This is also efficient for finding BBs in images,
@@ -249,7 +251,65 @@ This will result in an image like so:
   :width: 600
   :align: center
 
+.. _global_sized_field_locator:
 
+Global Sized Field Locator
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.17
+
+The :class:`~pylinac.core.metrics.GlobalSizedFieldLocator` metric is similar to the :class:`~pylinac.core.metrics.GlobalDiskLocator` metric
+except that it searches the entire image for fields of a given size. This is useful for finding one or more fields in images
+where the field is not in the expected location or unknown. This is also efficient when multiple fields are present in the image.
+
+The locator will find the weighted center of the field(s) and return the location(s) as a :class:`~pylinac.core.geometry.Point` objects.
+The boundary of the detected field(s) will be plotted on the image in addition to the center.
+
+The locator will use pixels by default, but also has a ``from_physical`` class method to use physical units.
+
+An example plot of finding multiple fields can be seen below:
+
+.. image:: ../images/global_sized_field_locator.png
+  :width: 600
+  :align: center
+
+For example:
+
+.. code-block:: python
+   :caption: Search for at least 2 fields of size 30x30 pixels with a tolerance of 4 pixels & plot
+
+   img = DicomImage("my_image.dcm")
+   img.compute(
+       metrics=GlobalSizedFieldLocator(
+           field_width_px=30, field_height_px=30, field_tolerance_px=4, max_number=2
+       )
+   )
+   img.plot()  # this will plot the image with the fields overlaid
+
+Using physical units
+####################
+
+To perform a similar field location using mm instead of pixels:
+
+.. code-block:: python
+   :caption: Search for at least 2 fields of size 30x30mm with a tolerance of 4mm
+
+   img = DicomImage("my_image.dcm")
+   img.compute(
+       metrics=GlobalSizedFieldLocator.from_physical(
+           field_width_mm=30, field_height_mm=30, field_tolerance_mm=4, max_number=2
+       )
+   )
+
+Usage tips
+##########
+
+* Whenever possible, set the ``max_number`` parameter. This can **greatly** speed up the computation for several reasons.
+  First, it will stop searching once the number of fields is found. Second, the thresholding algorithm will have a much
+  better initial guess and also a better step size. This is because the approximate area of the field is known relative
+  to the total image size.
+* The ``field_tolerance_<mm|px>`` parameter can be relatively tight if the ``max_number`` parameter is set. Without a
+  ``max_number`` parameter, you may have to increase the field tolerance to find all fields.
 
 Writing Custom Plugins
 ----------------------
@@ -313,5 +373,9 @@ API
     :members:
 
 .. autoclass:: pylinac.core.metrics.GlobalDiskLocator
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.metrics.GlobalSizedFieldLocator
     :inherited-members:
     :members:

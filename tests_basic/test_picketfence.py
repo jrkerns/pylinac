@@ -73,7 +73,7 @@ class TestInstantiation(
     def test_all_mlc_arrangements(self):
         """This isn't really testing the MLCs so much as a constancy check to ensure they haven't changed."""
         path = get_file_from_cloud_test_repo([TEST_DIR, "AS500_PF.dcm"])
-        expected_max_error = [0.13, 0.18, 0.16, 0.14, 0.06, 0.14, 0.14]
+        expected_max_error = [0.13, 0.18, 0.16, 0.14, 0.06, 0.06, 0.06]
         for max_error, mlc in zip(expected_max_error, MLC):
             pf = PicketFence(path, mlc=mlc)
             pf.analyze()

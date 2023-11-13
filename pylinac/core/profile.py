@@ -272,24 +272,26 @@ class SymmetryPointDifferenceMetric(ProfileMetric):
         max_sym_idx = np.argmax(np.abs(self.symmetry_values))
         return self.symmetry_values[max_sym_idx]
 
-    def plot(self, axis: plt.Axes) -> None:
+    def plot(self, axis: plt.Axes, markers: (str, str) = ("^", "v")) -> None:
         idx = np.argmax(self.symmetry_values)
         left_edge, right_edge, _ = self.profile.field_indices(
             in_field_ratio=self.in_field_ratio
         )
         # plot max sym value
+        max_x = self.profile.x_at_x_idx(self.profile.x_idx_at_x(left_edge) + idx)
         axis.plot(
-            left_edge + idx,
-            self.profile.y_at_x(left_edge + idx),
-            "^",
+            max_x,
+            self.profile.y_at_x(max_x),
+            markers[0],
             color=self.color,
             label=self.name,
         )
         # plot min sym value
+        min_x = self.profile.x_at_x_idx(self.profile.x_idx_at_x(right_edge) - idx)
         axis.plot(
-            right_edge - idx,
-            self.profile.y_at_x(right_edge - idx),
-            "v",
+            min_x,
+            self.profile.y_at_x(min_x),
+            markers[1],
             color=self.color,
         )
 
@@ -303,7 +305,7 @@ class SymmetryPointDifferenceMetric(ProfileMetric):
         ylim_bottom = min((min(self.symmetry_values) - 0.5, self.min_sym - 0.5))
         sec_ax.set_ylim(ylim_bottom, ylim_top)
         sec_ax.plot(
-            range(left_edge, len(self.symmetry_values) + left_edge),
+            self.profile.field_x_values(self.in_field_ratio),
             self.symmetry_values,
             color=self.color,
             linestyle=self.linestyle,
@@ -330,6 +332,9 @@ class SymmetryPointDifferenceQuotientMetric(SymmetryPointDifferenceMetric):
         """Calculate an individual point's symmetry."""
         return 100 * max((lt / rt), (rt / lt))
 
+    def plot(self, axis: plt.Axes, markers: (str, str) = ("x", "x")) -> None:
+        super().plot(axis, markers)
+
 
 class SymmetryAreaMetric(ProfileMetric):
     """The symmetry using ratios of the areas of the left and right sides of the profile."""
@@ -355,15 +360,15 @@ class SymmetryAreaMetric(ProfileMetric):
 
     def plot(self, axis: plt.Axes):
         """Plot the symmetry by shading the left and right areas"""
-        left, right, width = self.profile.field_indices(
-            in_field_ratio=self.in_field_ratio
-        )
-        left_data = self.profile.field_values(self.in_field_ratio)[: width // 2 + 1]
-        left_stretch = np.linspace(left, left + width // 2, len(left_data))
-        right_data = self.profile.field_values(self.in_field_ratio)[width // 2 :]
-        right_stretch = np.linspace(right - width // 2, right, len(right_data))
-        axis.fill_between(left_stretch, left_data, alpha=0.2, label="Left Area")
-        axis.fill_between(right_stretch, right_data, alpha=0.2, label="Right Area")
+        field_values = self.profile.field_values(self.in_field_ratio)
+        x_values = self.profile.field_x_values(self.in_field_ratio)
+        split = math.floor(len(field_values) / 2)
+        left_data = field_values[: split + 1]
+        left_x = x_values[: split + 1]
+        right_data = field_values[split:]
+        right_x = x_values[split:]
+        axis.fill_between(left_x, left_data, alpha=0.2, label="Left Area")
+        axis.fill_between(right_x, right_data, alpha=0.2, label="Right Area")
 
 
 class PenumbraLeftMetric(ProfileMetric):
@@ -621,7 +626,16 @@ class ProfileBase(ProfileMixin, ABC):
             beam_center_val = self.y_at_x(self.center_idx)
             self.normalize(beam_center_val)
 
-    def x_at_x(self, x: float) -> float:
+    def x_at_x(self, x: float) -> np.ndarray:
+        """Deprecated alias for x_at_x_idx"""
+        warnings.warn(
+            "x_at_x is deprecated. Use x_at_x_idx instead", DeprecationWarning
+        )
+        return self.x_at_x_idx(x)
+
+    def x_at_x_idx(self, x: float | np.ndarray) -> np.ndarray | float:
+        """Return the physical x-value at the given index. When no x-values are provided, these are the same.
+        However, physical dimensions can be different than the index."""
         # UnivariateSpline is the newer approach than interp1d
         # interp1d is legacy and may be removed in the future
         # we create an interpolation for x-values so we can
@@ -629,23 +643,36 @@ class ProfileBase(ProfileMixin, ABC):
         f = UnivariateSpline(
             x=np.arange(len(self.x_values)), y=self.x_values, k=self._interp_order, s=0
         )
-        return float(f(x))
+        new_x = f(x)
+        if new_x.size == 1:
+            return float(new_x)
+        return f(x)
 
-    def y_at_x(self, x: float) -> float:
-        """Interpolated y-values. Can use floats as indices."""
+    def x_idx_at_x(self, x: float) -> int:
+        """Return the **index** of the x-value closest to the given x-value."""
+        return int(np.argmin(np.abs(self.x_values - x)))
+
+    def y_at_x(self, x: float | np.ndarray) -> np.ndarray | float:
+        """Interpolated y-values. The x-value is the physical position, not the index. However, if no x-values were provided, these will be the same."""
         f = UnivariateSpline(x=self.x_values, y=self.values, k=self._interp_order, s=0)
-        return float(f(x))
+        new_y = f(x)
+        if new_y.size == 1:
+            return float(new_y)
+        return new_y
 
-    def x_at_y(self, y: float, side: str) -> float:
+    def x_at_y(self, y: float | np.ndarray, side: str) -> np.ndarray | float:
         """Interpolated y-values. Can use floats as indices."""
         # I can't get UnivariateSpline to work here because it wants strictly increasing
         # data. So we use interp1d instead
-        s = self.center_idx
+        s = self.x_idx_at_x(self.center_idx)
         if side == LEFT:
-            f = interp1d(x=self.values[: int(s)], y=self.x_values[: int(s)])
+            f = interp1d(x=self.values[:s], y=self.x_values[:s])
         elif side == RIGHT:
-            f = interp1d(x=self.values[int(s) :], y=self.x_values[int(s) :])
-        return float(f(y))
+            f = interp1d(x=self.values[s:], y=self.x_values[s:])
+        new_x = f(y)
+        if new_x.size == 1:
+            return float(new_x)
+        return f(y)
 
     @abstractmethod
     def field_edge_idx(self, side: str) -> float:
@@ -654,18 +681,30 @@ class ProfileBase(ProfileMixin, ABC):
 
     def field_indices(self, in_field_ratio: float) -> (int, int, int):
         """Return the indices of the left and right edge of the field, given the in-field ratio.
-        Importantly, this will use the same rounding behavior as field_values. So,
-        e.g., if plotting of the field data is important, use this method to get the indices
+        Importantly, this will use the same rounding behavior as field_values.
+        """
+        xs = self.field_x_values(in_field_ratio)
+        left = xs[0]
+        right = xs[-1]
+        width = max(right, left) - min(right, left)
+        return left, right, width
+
+    def field_x_values(self, in_field_ratio: float) -> np.ndarray:
+        """Return the x-values of the field, given the in-field ratio.
+        This is helpful when plotting the field to include the proper x-values as well.
         """
         left = self.field_edge_idx(side=LEFT)
         right = self.field_edge_idx(side=RIGHT)
         width = self.field_width_px
         f_left = left + (1 - in_field_ratio) / 2 * width
         f_right = right - (1 - in_field_ratio) / 2 * width
-        left = math.ceil(f_left)
-        right = math.floor(f_right)
-        width = max(right, left) - min(right, left)
-        return left, right, width
+        # use floor/ceil to be inclusive of the edges
+        lower_bound = math.floor(min((f_left, f_right)))
+        upper_bound = math.ceil(max((f_left, f_right)))
+        inner_range = np.nonzero(
+            (self.x_values >= lower_bound) & (self.x_values <= upper_bound)
+        )[0]
+        return self.x_values[inner_range]
 
     @cached_property
     def center_idx(self) -> float:
@@ -684,16 +723,11 @@ class ProfileBase(ProfileMixin, ABC):
     def field_values(
         self,
         in_field_ratio: float = 0.8,
-    ) -> np.array:
+    ) -> np.ndarray:
         """The array of values of the profile within the 'field' area. This is typically 80% of the detected
         field width."""
-        left = self.field_edge_idx(side=LEFT)
-        right = self.field_edge_idx(side=RIGHT)
-        width = self.field_width_px
-        f_left = left + (1 - in_field_ratio) / 2 * width
-        f_right = right - (1 - in_field_ratio) / 2 * width
-        # use floor/ceil to be conservatively exclusive of edge values.
-        return self.values[math.ceil(f_left) : math.floor(f_right) + 1]
+        x_values = self.field_x_values(in_field_ratio)
+        return self.y_at_x(x_values)
 
     def as_resampled(
         self, interpolation_factor: float = 10, order: int = 3, **kwargs
@@ -833,7 +867,7 @@ class FWXMProfile(ProfileBase):
             idx = peak_props["left_ips"][0]
         elif side == RIGHT:
             idx = peak_props["right_ips"][0]
-        return self.x_at_x(idx)
+        return self.x_at_x_idx(idx)
 
     def as_resampled(
         self, interpolation_factor: float = 10, order: int = 3
@@ -887,10 +921,10 @@ class InflectionDerivativeProfile(ProfileBase):
         f_diff = interp1d(x=self.x_values, y=diff, kind="cubic")
 
         if side == LEFT:
-            initial_guess = self.x_at_x(np.argmax(diff))
+            initial_guess = self.x_at_x_idx(np.argmax(diff))
             idx = minimize(lambda x: -f_diff(x), x0=initial_guess).x[0]
         else:
-            initial_guess = self.x_at_x(np.argmin(diff))
+            initial_guess = self.x_at_x_idx(np.argmin(diff))
             idx = minimize(f_diff, x0=initial_guess).x[0]
         return idx
 
@@ -947,7 +981,7 @@ class HillProfile(InflectionDerivativeProfile):
             y_data = self.values[left : right + 1]
         hill_fit = Hill.fit(x_data=x_data, y_data=y_data)
         idx = hill_fit.inflection_idx()["index (exact)"]
-        return self.x_at_x(idx)
+        return self.x_at_x_idx(idx)
 
     def as_resampled(
         self, interpolation_factor: float = 10, order: int = 3

@@ -13,6 +13,8 @@ Metrics
   without knowing where they might be. This is relatively efficient if there are multiple BBs in the image
   compared with using the :class:`~pylinac.core.metrics.DiskLocator` class multiple times, even when
   the BB locations are known.
+* The metric :class:`~pylinac.core.metrics.GlobalSizedFieldLocator` is also available. This metric
+  will find a number of open fields within an image. See :ref:`global_sized_field_locator` for more.
 
 Planar Imaging
 ^^^^^^^^^^^^^^
@@ -38,6 +40,14 @@ Winston-Lutz
 CT
 ^^
 
+* A new class :class:`~pylinac.cheese.CIRS062M` is now available. This will analyze the `CIRS electron density phantom <https://www.cirsinc.com/products/radiation-therapy/electron-density-phantom/>`__.
+* The base class for cheese phantoms (:class:`~pylinac.cheese.CheesePhantomBase`) now has a default implementation
+  for ``results_data``. Previously, it did not and required the user to create one when extending the phantom analysis to a new type.
+* The :class:`~pylinac.cheese.TomoCheese` phantom's output from ``results_data`` has an additional key: ``rois``. This is a dictionary of all
+  the ROIs with the name of the ROI (usually the number) as the key.
+  The data in the ``rois`` dict is the same information as in the ``roi_<n>`` elements. In retrospect, a simple dictionary is far more extensible when the number of ROIs vary.
+  I.e. ``results_data()['rois']['1']`` is the same as ``results_data()['roi_1']``. The ``roi_<n>`` keys were left for backwards
+  compatibility.
 * A new class :class:`~pylinac.ct.HypersightQuartDVT` has been added that will analyze the Hypersight variant
   of the Quart phantom, which includes an additional water ROI.
 
@@ -53,10 +63,28 @@ ACR
 Profiles
 ^^^^^^^^
 
+The following applies to the ``SingleProfile`` classes:
+
 * Passing *decreasing* x-values to ``SingleProfile`` would usually result in an error because the measured
   width would be negative. An error will now be raised if the x-values are decreasing.
-* The same error as above was also detected in the new ``<FWXM|InflectionDerivative|Hill>Profile`` classes.
+* Profiles that had non-integer increments in the x-values were not returning the right field values.
+  I.e. when calling ``.field_data()['field values']`` and non-integer x-values were passed at instantiation the values were not correct.
+  Given the ``SingleProfile`` class is now frozen, it is recommended to not pass non-integer x-values and/or skip passing
+  x-values to the profile.
+
+The following applies to the ``<FWXM|InflectionDerivative|Hill>Profile`` classes:
+
+* The same error of passing *decreasing* x-values as above was also detected in the new ``<FWXM|InflectionDerivative|Hill>Profile`` classes.
   Given these classes are the new standard, they have been fully fixed and can now handle decreasing x-values.
+* Profiles that had non-integer increments in the x-values were not returning the right field values.
+  I.e. when calling ``.field_values()`` and non-integer x-values were passed at instantiation the values were not correct.
+  This has been fixed.
+* The ``x_at_x`` method has been renamed to ``x_at_x_idx``. A deprecation warning will be raised. The method will be removed in 3.18.
+* The ``y_at_x`` and ``x_at_y`` and ``x_at_x_idx`` methods now all return a numpy array instead of a float.
+* A new method has been added: ``field_x_values``. This returns a numpy array of x-values that corresponds
+  to the y-values that are returned when using ``field_values``. This is useful for plotting the field values to the correct x-values.
+* The ``SymmetryPointDifferenceMetric`` class' plot method now uses "x" for the markers instead of "^" and "v".
+
 
 v 3.16.0
 --------

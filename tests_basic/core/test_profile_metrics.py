@@ -10,7 +10,12 @@ from pylinac.core.image_generator.layers import (
     GaussianFilterLayer,
     Layer,
 )
-from pylinac.core.metrics import DiskLocator, GlobalDiskLocator, deduplicate_points
+from pylinac.core.metrics import (
+    DiskLocator,
+    GlobalDiskLocator,
+    GlobalSizedFieldLocator,
+    deduplicate_points,
+)
 from tests_basic.utils import get_file_from_cloud_test_repo
 
 
@@ -30,6 +35,43 @@ def create_bb_image(
         GaussianFilterLayer(sigma_mm=2)
     )  # add an image-wide gaussian to simulate penumbra/scatter
     as1000.add_layer(PerfectBBLayer(bb_size_mm=bb_size, cax_offset_mm=offset))
+    as1000.add_layer(RandomNoiseLayer())
+    return as1000.as_dicom()
+
+
+def create_open_field_image(
+    field_size=(50, 50),
+    offset=(0, 0),
+    field: type[Layer] = FilteredFieldLayer,
+) -> Dataset:
+    as1000 = AS1000Image(
+        sid=1000
+    )  # this will set the pixel size and shape automatically
+    as1000.add_layer(
+        field(field_size_mm=field_size, cax_offset_mm=offset)
+    )  # create a 50x50mm square field
+    as1000.add_layer(
+        GaussianFilterLayer(sigma_mm=2)
+    )  # add an image-wide gaussian to simulate penumbra/scatter
+    as1000.add_layer(RandomNoiseLayer())
+    return as1000.as_dicom()
+
+
+def create_multi_open_field(
+    field_sizes=((50, 50), (50, 50)),
+    offsets=((0, 0), (40, 40)),
+    field: type[Layer] = FilteredFieldLayer,
+) -> Dataset:
+    as1000 = AS1000Image(
+        sid=1000
+    )  # this will set the pixel size and shape automatically
+    for field_size, offset in zip(field_sizes, offsets):
+        as1000.add_layer(
+            field(field_size_mm=field_size, cax_offset_mm=offset)
+        )  # create a 50x50mm square field
+    as1000.add_layer(
+        GaussianFilterLayer(sigma_mm=2)
+    )  # add an image-wide gaussian to simulate penumbra/scatter
     as1000.add_layer(RandomNoiseLayer())
     return as1000.as_dicom()
 
@@ -350,3 +392,96 @@ class TestDiskLocatorCenterPhysical(TestCase):
                 )
             ]
         )
+
+
+class TestGlobalSizedFieldLocator(TestCase):
+    def test_perfect_image(self):
+        ds = create_open_field_image(field_size=(60, 60))
+        img = DicomImage.from_dataset(ds)
+        fields = img.compute(
+            metrics=GlobalSizedFieldLocator.from_physical(
+                field_width_mm=60,
+                field_height_mm=60,
+                field_tolerance_mm=2,
+                max_number=1,
+            )
+        )
+        self.assertAlmostEqual(fields[0].x, 511.5, delta=1)
+        self.assertAlmostEqual(fields[0].y, 383.5, delta=1)
+
+    def test_small_image(self):
+        ds = create_open_field_image(field_size=(10, 10))
+        img = DicomImage.from_dataset(ds)
+        fields = img.compute(
+            metrics=GlobalSizedFieldLocator.from_physical(
+                field_width_mm=10,
+                field_height_mm=10,
+                field_tolerance_mm=2,
+                max_number=1,
+            )
+        )
+        self.assertAlmostEqual(fields[0].x, 511.5, delta=1)
+        self.assertAlmostEqual(fields[0].y, 383.5, delta=1)
+
+    def test_large_image(self):
+        ds = create_open_field_image(field_size=(250, 250))
+        img = DicomImage.from_dataset(ds)
+        fields = img.compute(
+            metrics=GlobalSizedFieldLocator.from_physical(
+                field_width_mm=250,
+                field_height_mm=250,
+                field_tolerance_mm=5,
+                max_number=1,
+            )
+        )
+        self.assertAlmostEqual(fields[0].x, 511.5, delta=1)
+        self.assertAlmostEqual(fields[0].y, 383.5, delta=1)
+
+    def test_multiple_medium_fields(self):
+        ds = create_multi_open_field(
+            field_sizes=((30, 30), (30, 30)), offsets=((0, 0), (40, 40))
+        )
+        img = DicomImage.from_dataset(ds)
+        fields = img.compute(
+            metrics=GlobalSizedFieldLocator.from_physical(
+                field_width_mm=30,
+                field_height_mm=30,
+                field_tolerance_mm=5,
+                max_number=2,
+            )
+        )
+        self.assertAlmostEqual(fields[0].x, 511.5, delta=1)
+        self.assertAlmostEqual(fields[0].y, 383.5, delta=1)
+        self.assertAlmostEqual(fields[1].x, 613.6, delta=1)
+        self.assertAlmostEqual(fields[1].y, 485.6, delta=1)
+
+    def test_lots_of_fields(self):
+        ds = create_multi_open_field(
+            field_sizes=((30, 30), (30, 30), (30, 30), (30, 30)),
+            offsets=((0, 0), (40, 40), (-40, 0), (-60, -60)),
+        )
+        img = DicomImage.from_dataset(ds)
+        fields = img.compute(
+            metrics=GlobalSizedFieldLocator.from_physical(
+                field_width_mm=30,
+                field_height_mm=30,
+                field_tolerance_mm=5,
+                max_number=4,
+            )
+        )
+        self.assertEqual(len(fields), 4)
+
+    def test_not_from_physical(self):
+        ds = create_open_field_image(field_size=(10, 10))
+        img = DicomImage.from_dataset(ds)
+        dpmm = img.dpmm
+        fields = img.compute(
+            metrics=GlobalSizedFieldLocator(
+                field_width_px=10 * dpmm,
+                field_height_px=10 * dpmm,
+                field_tolerance_px=2 * dpmm,
+                max_number=1,
+            )
+        )
+        self.assertAlmostEqual(fields[0].x, 511.5, delta=1)
+        self.assertAlmostEqual(fields[0].y, 383.5, delta=1)
