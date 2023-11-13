@@ -1424,6 +1424,7 @@ class LasVegas(ImagePhantomBase):
             ),
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
             low_contrast_rois=[r.as_dict() for r in self.low_contrast_rois],
+            percent_integral_uniformity=self.percent_integral_uniformity(),
         )
         if as_dict:
             return dataclasses.asdict(data)

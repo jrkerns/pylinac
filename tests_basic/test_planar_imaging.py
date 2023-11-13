@@ -409,6 +409,7 @@ class LasVegasTestMixin(PlanarPhantomMixin):
 
 class LasVegasDemo(LasVegasTestMixin, TestCase):
     rois_seen = 12
+    piu = 98.4
 
     def test_demo(self):
         LasVegas.run_demo()  # shouldn't raise
@@ -461,6 +462,7 @@ class ElektaLasVegasMixin(LasVegasTestMixin):
 
 class ElektaDemo(ElektaLasVegasMixin, TestCase):
     rois_seen = 17
+    piu = 99.5
 
     def test_demo(self):
         ElektaLasVegas.run_demo()  # shouldn't raise
@@ -469,11 +471,13 @@ class ElektaDemo(ElektaLasVegasMixin, TestCase):
 class Elekta2MU(ElektaLasVegasMixin, TestCase):
     file_name = "LasVegas_2MU.dcm"
     rois_seen = 12
+    piu = 99.11
 
 
 class Elekta10MU(ElektaLasVegasMixin, TestCase):
     file_name = "LasVegas_10MU.dcm"
     rois_seen = 17
+    piu = 99.4
 
 
 class DoselabMVDemo(PlanarPhantomMixin, TestCase):
