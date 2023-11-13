@@ -20,6 +20,7 @@ from .ct import (
     AIR,
     CTP404CP504,
     CTP486,
+    WATER,
     CatPhanBase,
     CatPhanModule,
     ThicknessROI,
@@ -190,6 +191,43 @@ class QuartHUModule(CTP404CP504):
         )
 
 
+class HypersightQuartHUModule(QuartHUModule):
+    roi_dist_mm = 52.5
+    roi_radius_mm = 6
+    roi_settings = {
+        "Air": {
+            "value": AIR,
+            "angle": -90,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Poly": {
+            "value": POLY,
+            "angle": 0,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Acrylic": {
+            "value": ACRYLIC,
+            "angle": 45,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Teflon": {
+            "value": TEFLON,
+            "angle": 180,
+            "distance": roi_dist_mm,
+            "radius": roi_radius_mm,
+        },
+        "Water": {
+            "value": WATER,
+            "angle": -45,
+            "distance": roi_dist_mm,
+            "radius": 12,
+        },
+    }
+
+
 class QuartUniformityModule(CTP486):
     """Class for analysis of the Uniformity slice of the CTP module. Measures 5 ROIs around the slice that
     should all be close to the same value.
@@ -335,8 +373,11 @@ class QuartDVT(CatPhanBase):
     hu_origin_slice_variance = 300
     catphan_radius_mm = 80
     hu_module: QuartHUModule
+    hu_module_class = QuartHUModule
     uniformity_module: QuartUniformityModule
+    uniformity_module_class = QuartUniformityModule
     geometry_module: QuartGeometryModule
+    geometry_module_class = QuartGeometryModule
 
     @staticmethod
     def run_demo(show: bool = True):
@@ -354,17 +395,17 @@ class QuartDVT(CatPhanBase):
         cnr_threshold: int | float = 5,
     ):
         self.localize()
-        self.hu_module = QuartHUModule(
+        self.hu_module = self.hu_module_class(
             self,
             offset=0,
             hu_tolerance=hu_tolerance,
             thickness_tolerance=thickness_tolerance,
             scaling_tolerance=scaling_tolerance,
         )
-        self.uniformity_module = QuartUniformityModule(
+        self.uniformity_module = self.uniformity_module_class(
             self, offset=UNIFORMITY_OFFSET_MM, tolerance=hu_tolerance
         )
-        self.geometry_module = QuartGeometryModule(
+        self.geometry_module = self.geometry_module_class(
             self, tolerance=3, offset=GEOMETRY_OFFSET_MM
         )
 
@@ -583,3 +624,14 @@ class QuartDVT(CatPhanBase):
 
     def _detected_modules(self) -> list[CatPhanModule]:
         return [self.uniformity_module, self.hu_module, self.geometry_module]
+
+
+class HypersightQuartDVT(QuartDVT):
+    """A class for loading and analyzing CT DICOM files of a Quart phantom that comes with the Halcyon, specifically
+    for the Hypersight version, which includes a water ROI.
+    Analyzes: HU Uniformity, Image Scaling & HU Linearity.
+    """
+
+    _model = "Hypersight Quart DVT"
+    hu_module = HypersightQuartHUModule
+    hu_module_class = HypersightQuartHUModule

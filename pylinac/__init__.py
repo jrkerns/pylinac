@@ -50,7 +50,7 @@ from .planar_imaging import (
     StandardImagingQC3,
     StandardImagingQCkV,
 )
-from .quart import QuartDVT
+from .quart import HypersightQuartDVT, QuartDVT
 from .starshot import Starshot
 from .vmat import DRGS, DRMLC
 from .winston_lutz import WinstonLutz, WinstonLutzMultiTargetMultiField

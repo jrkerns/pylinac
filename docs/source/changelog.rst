@@ -48,6 +48,8 @@ CT
   The data in the ``rois`` dict is the same information as in the ``roi_<n>`` elements. In retrospect, a simple dictionary is far more extensible when the number of ROIs vary.
   I.e. ``results_data()['rois']['1']`` is the same as ``results_data()['roi_1']``. The ``roi_<n>`` keys were left for backwards
   compatibility.
+* A new class :class:`~pylinac.ct.HypersightQuartDVT` has been added that will analyze the Hypersight variant
+  of the Quart phantom, which includes an additional water ROI.
 
 ACR
 ^^^
