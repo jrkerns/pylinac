@@ -168,13 +168,13 @@ class LowContrastDiskROI(DiskROI):
 
     @property
     def signal_to_noise(self) -> float:
-        """The signal to noise ratio."""
-        return self.pixel_value / self.std
+        """The signal-to-noise ratio. Cast to numpy first to use numpy overflow handling."""
+        return float(np.array(self.pixel_value) / self.std)
 
     @property
     def contrast_to_noise(self) -> float:
-        """The contrast to noise ratio of the ROI"""
-        return self.contrast / self.std
+        """The contrast to noise ratio of the ROI. Cast to numpy first to use numpy overflow handling."""
+        return float(np.array(self.contrast) / self.std)
 
     @property
     def michelson(self) -> float:

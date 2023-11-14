@@ -23,6 +23,10 @@ Planar Imaging
   This method will calculate the percent integral uniformity (PIU) over the low-contrast
   ROIs. This result will also be included in the ``results_data`` structure.
   This is not done for light/rad phantoms.
+* If a phantom had a completely homogeneous array for an ROI, the ``results_data`` call
+  would fail due to a division by 0 error. This has now been fixed such than an error is
+  not raised. However, the resulting CNR and SNR will be a special case of ``float('inf')``.
+  This was encountered with a very low kVp analysis of the Doselab MC2 kV/MV phantom.
 
 Picket Fence
 ^^^^^^^^^^^^
