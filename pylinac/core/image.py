@@ -40,6 +40,7 @@ from .array_utils import (
     invert,
     normalize,
 )
+from .decorators import lru_cache
 from .geometry import Point
 from .io import (
     TemporaryZipDirectory,
@@ -1096,15 +1097,6 @@ class XIM(BaseImage):
             )
         return 1 / (10 * self.properties["PixelHeight"])
 
-    @property
-    def dpmm(self) -> float:
-        """The dots/mm value of the XIM images. The value appears to be in cm in the file."""
-        if self.properties["PixelWidth"] != self.properties["PixelHeight"]:
-            raise ValueError(
-                "The XIM image does not have the same pixel height and width"
-            )
-        return 1 / (10 * self.properties["PixelHeight"])
-
     def save_as(self, file: str, format: str | None = None) -> None:
         """Save the image to a NORMAL format. PNG is highly suggested. Accepts any format supported by Pillow.
         Ironically, an equivalent PNG image (w/ metadata) is ~50% smaller than an .xim image.
@@ -1552,7 +1544,113 @@ class ArrayImage(BaseImage):
         return ArrayImage(self.array - other.array)
 
 
-class DicomImageStack:
+class LazyDicomImageStack:
+    _image_path_keys: list[Path]
+
+    def __init__(
+        self,
+        folder: str | Path,
+        dtype: np.dtype | None = None,
+        min_number: int = 39,
+        check_uid: bool = True,
+    ):
+        """Load a folder with DICOM CT images. This variant is more memory efficient than the standard DicomImageStack.
+
+        This is done by loading images from disk on the fly. This assumes all images remain on disk for the lifetime of the instance. This does not
+        need to be true for the original implementation.
+
+        See the documentation for DicomImageStack for parameter descriptions.
+        """
+        self.dtype = dtype
+        paths = []
+        # load in images in their received order
+        if isinstance(folder, (list, tuple)):
+            paths = folder
+        elif osp.isdir(folder):
+            for pdir, sdir, files in os.walk(folder):
+                for file in files:
+                    paths.append(osp.join(pdir, file))
+        # we only want to read the metadata once
+        # so we read it here and then filter and sort
+        metadatas, paths = self._get_path_metadatas(paths)
+
+        # check that at least 1 image was loaded
+        if len(paths) < 1:
+            raise FileNotFoundError(
+                f"No files were found in the specified location: {folder}"
+            )
+
+        # error checking
+        if check_uid:
+            most_common_uid = self._get_common_uid_imgs(metadatas, min_number)
+            metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
+        # sort according to physical order
+        order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+        self._image_path_keys = [paths[i] for i in order]
+
+    @classmethod
+    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None):
+        """Load a DICOM ZIP archive.
+
+        Parameters
+        ----------
+        zip_path : str
+            Path to the ZIP archive.
+        dtype : dtype, None, optional
+            The data type to cast the image data as. If None, will use whatever raw image format is.
+        """
+        with TemporaryZipDirectory(zip_path, delete=False) as tmpzip:
+            obj = cls(tmpzip, dtype)
+        return obj
+
+    def _get_common_uid_imgs(
+        self, metadata: list[pydicom.Dataset], min_number: int
+    ) -> pydicom.DataElement:
+        """Check that all the images are from the same study."""
+        most_common_uid = Counter(i.SeriesInstanceUID for i in metadata).most_common(1)[
+            0
+        ]
+        if most_common_uid[1] < min_number:
+            raise ValueError(
+                "The minimum number images from the same study were not found"
+            )
+        return most_common_uid[0]
+
+    def _get_path_metadatas(
+        self, paths: list[Path]
+    ) -> (list[pydicom.Dataset], list[Path]):
+        """Get the metadata for the images. This also filters out non-image files."""
+        metadata = []
+        matched_paths = []
+        for path in paths:
+            try:
+                ds = pydicom.dcmread(path, force=True, stop_before_pixels=True)
+                if "Image Storage" in ds.SOPClassUID.name:
+                    metadata.append(ds)
+                    matched_paths.append(path)
+            except (InvalidDicomError, AttributeError, MemoryError):
+                pass
+        return metadata, matched_paths
+
+    @lru_cache(maxsize=3)
+    def side_view(self, axis: int) -> np.ndarray:
+        """Return the side view of the stack. E.g. if axis=0, return the maximum value along the 0th axis."""
+        return np.stack(self.images, axis=-1).max(axis=axis)
+
+    @property
+    def metadata(self) -> pydicom.FileDataset:
+        """The metadata of the first image; shortcut attribute. Only attributes that are common throughout the stack should be used,
+        otherwise the individual image metadata should be used."""
+        return self[0].metadata
+
+    def __getitem__(self, item: int) -> DicomImage:
+        return DicomImage(self._image_path_keys[item], dtype=self.dtype)
+
+    def __len__(self):
+        return len(self._image_path_keys)
+
+
+class DicomImageStack(LazyDicomImageStack):
     """A class that loads and holds a stack of DICOM images (e.g. a CT dataset). The class can take
     a folder or zip file and will read CT images. The images must all be the same size. Supports
     indexing to individual images.
@@ -1598,31 +1696,11 @@ class DicomImageStack:
         dtype : dtype, None, optional
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
-        self.images = []
-        paths = []
-        # load in images in their received order
-        if isinstance(folder, (list, tuple)):
-            paths = folder
-        elif osp.isdir(folder):
-            for pdir, sdir, files in os.walk(folder):
-                for file in files:
-                    paths.append(osp.join(pdir, file))
-        for path in paths:
-            if self.is_image_slice(path):
-                img = DicomImage(path, dtype=dtype, raw_pixels=raw_pixels)
-                self.images.append(img)
-
-        # check that at least 1 image was loaded
-        if len(self.images) < 1:
-            raise FileNotFoundError(
-                f"No files were found in the specified location: {folder}"
-            )
-
-        # error checking
-        if check_uid:
-            self.images = self._check_number_and_get_common_uid_imgs(min_number)
-        # sort according to physical order
-        self.images.sort(key=lambda x: x.metadata.ImagePositionPatient[-1])
+        super().__init__(folder, dtype, min_number, check_uid)
+        self.images = [
+            DicomImage(path, dtype=dtype, raw_pixels=raw_pixels)
+            for path in self._image_path_keys
+        ]
 
     @classmethod
     def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None):
@@ -1639,44 +1717,12 @@ class DicomImageStack:
             obj = cls(tmpzip, dtype)
         return obj
 
-    @staticmethod
-    def is_image_slice(file: str | Path) -> bool:
-        """Test if the file is a CT Image storage DICOM file."""
-        try:
-            ds = pydicom.dcmread(file, force=True, stop_before_pixels=True)
-            return "Image Storage" in ds.SOPClassUID.name
-        except (InvalidDicomError, AttributeError, MemoryError):
-            return False
-
-    def _check_number_and_get_common_uid_imgs(self, min_number: int) -> list:
-        """Check that all the images are from the same study."""
-        most_common_uid = Counter(
-            i.metadata.SeriesInstanceUID for i in self.images
-        ).most_common(1)[0]
-        if most_common_uid[1] < min_number:
-            raise ValueError(
-                "The minimum number images from the same study were not found"
-            )
-        return [
-            i for i in self.images if i.metadata.SeriesInstanceUID == most_common_uid[0]
-        ]
-
-    def plot(self, slice: int = 0) -> None:
-        """Plot a slice of the DICOM dataset.
-
-        Parameters
-        ----------
-        slice : int
-            The slice to plot.
-        """
-        self.images[slice].plot()
-
     def plot_3view(self):
         """Plot the stack in 3 views: axial, coronal, and sagittal."""
         fig, axes = plt.subplots(1, 3)
         names = ("Coronal", "Sagittal", "Axial")
         for idx, (ax, name) in enumerate(zip(axes, names)):
-            arry = np.stack(self.images, axis=-1).max(axis=idx)
+            arry = self.side_view(idx)
             ax.imshow(arry, cmap="gray", aspect="equal")
             ax.set_title(name)
         plt.show()
@@ -1684,12 +1730,6 @@ class DicomImageStack:
     def roll(self, direction: str, amount: int):
         for img in self.images:
             img.roll(direction, amount)
-
-    @property
-    def metadata(self) -> pydicom.FileDataset:
-        """The metadata of the first image; shortcut attribute. Only attributes that are common throughout the stack should be used,
-        otherwise the individual image metadata should be used."""
-        return self.images[0].metadata
 
     def __getitem__(self, item) -> DicomImage:
         return self.images[item]

@@ -1506,11 +1506,13 @@ class CatPhanBase:
     hu_origin_slice_variance = 400  # the HU variance required on the origin slice
     _phantom_center_func: tuple[Callable, Callable] | None = None
     modules: dict[CatPhanModule, dict[str, int]]
+    dicom_stack: image.DicomImageStack | image.LazyDicomImageStack
 
     def __init__(
         self,
         folderpath: str | Sequence[str] | Path | Sequence[Path] | Sequence[BytesIO],
         check_uid: bool = True,
+        memory_efficient_mode: bool = False,
     ):
         """
         Parameters
@@ -1519,6 +1521,9 @@ class CatPhanBase:
             String that points to the CBCT image folder location.
         check_uid : bool
             Whether to enforce raising an error if more than one UID is found in the dataset.
+        memory_efficient_mode : bool
+            Whether to use a memory efficient mode. If True, the DICOM stack will be loaded on demand rather than all at once.
+            This will reduce the memory footprint but will be slower by ~25%. Default is False.
 
         Raises
         ------
@@ -1532,7 +1537,12 @@ class CatPhanBase:
         if isinstance(folderpath, (str, Path)):
             if not osp.isdir(folderpath):
                 raise NotADirectoryError("Path given was not a Directory/Folder")
-        self.dicom_stack = image.DicomImageStack(
+        stack = (
+            image.DicomImageStack
+            if not memory_efficient_mode
+            else image.LazyDicomImageStack
+        )
+        self.dicom_stack = stack(
             folderpath, check_uid=check_uid, min_number=self.min_num_images
         )
 
@@ -1558,7 +1568,10 @@ class CatPhanBase:
 
     @classmethod
     def from_zip(
-        cls, zip_file: str | zipfile.ZipFile | BinaryIO, check_uid: bool = True
+        cls,
+        zip_file: str | zipfile.ZipFile | BinaryIO,
+        check_uid: bool = True,
+        memory_efficient_mode: bool = False,
     ):
         """Construct a CBCT object and pass the zip file.
 
@@ -1574,8 +1587,16 @@ class CatPhanBase:
         FileExistsError : If zip_file passed was not a legitimate zip file.
         FileNotFoundError : If no CT images are found in the folder
         """
-        with TemporaryZipDirectory(zip_file) as temp_zip:
-            obj = cls(temp_zip, check_uid=check_uid)
+        if memory_efficient_mode:
+            delete = False
+        else:
+            delete = True
+        with TemporaryZipDirectory(zip_file, delete=delete) as temp_zip:
+            obj = cls(
+                temp_zip,
+                check_uid=check_uid,
+                memory_efficient_mode=memory_efficient_mode,
+            )
         obj.was_from_zip = True
         return obj
 
@@ -1749,7 +1770,7 @@ class CatPhanBase:
 
     def _module_offsets(self) -> list[float]:
         """A list of the module offsets. Used to confirm scan extent"""
-        absolute_origin_position = self.dicom_stack.images[self.origin_slice].z_position
+        absolute_origin_position = self.dicom_stack[self.origin_slice].z_position
         return [
             absolute_origin_position + config["offset"]
             for config in self.modules.values()
@@ -2025,7 +2046,7 @@ class CatPhanBase:
 
     def plot_side_view(self, axis: Axes) -> None:
         """Plot a view of the scan from the side with lines showing detected module positions"""
-        side_array = np.stack(self.dicom_stack.images, axis=-1).max(axis=1)
+        side_array = self.dicom_stack.side_view(axis=1)
         axis.set_yticks([])
         axis.set_title("Side View")
         axis.imshow(side_array, aspect="auto", cmap="gray", interpolation="none")

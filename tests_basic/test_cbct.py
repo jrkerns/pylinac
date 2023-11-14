@@ -293,15 +293,18 @@ class CatPhanMixin(CloudFileMixin):
     slice_thickness = 2
     thickness_slice_straddle = "auto"
     lowcon_visible = 0
+    memory_efficient = True
     print_debug = False
 
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
         if cls.zip:
-            cls.cbct = cls.catphan.from_zip(filename)
+            cls.cbct = cls.catphan.from_zip(
+                filename, memory_efficient_mode=cls.memory_efficient
+            )
         else:
-            cls.cbct = cls.catphan(filename)
+            cls.cbct = cls.catphan(filename, memory_efficient_mode=cls.memory_efficient)
         cls.cbct.analyze(
             cls.hu_tolerance,
             cls.scaling_tolerance,
