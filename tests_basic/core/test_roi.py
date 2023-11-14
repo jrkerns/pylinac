@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 
 from pylinac.core.geometry import Point
-from pylinac.core.roi import RectangleROI
+from pylinac.core.roi import LowContrastDiskROI, RectangleROI
 
 
 class TestRectangleROI(TestCase):
@@ -67,3 +67,32 @@ class TestRectangleStats(TestCase):
 
     def test_std(self):
         self.assertAlmostEqual(np.std(self.random_array), self.random_rect.std)
+
+
+class TestEdgeCases(TestCase):
+    def test_0_std_snr(self):
+        # this will result in an infinite SNR; should be handled by numpy.
+        # potentially need to address later to handle better; unsure
+        homogeneous_array = np.ones((10, 10))
+        disk = LowContrastDiskROI(
+            array=homogeneous_array,
+            angle=0,
+            roi_radius=2,
+            dist_from_center=0,
+            phantom_center=Point(5, 5),
+        )
+        self.assertEqual(disk.signal_to_noise, float("inf"))
+
+    def test_0_std_cnr(self):
+        # this will result in an infinite SNR; should be handled by numpy.
+        # potentially need to address later to handle better; unsure
+        homogeneous_array = np.ones((10, 10))
+        disk = LowContrastDiskROI(
+            array=homogeneous_array,
+            angle=0,
+            roi_radius=2,
+            dist_from_center=0,
+            phantom_center=Point(5, 5),
+            contrast_reference=0,
+        )
+        self.assertEqual(disk.contrast_to_noise, float("inf"))

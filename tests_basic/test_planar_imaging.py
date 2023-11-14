@@ -223,7 +223,7 @@ class PlanarPhantomMixin(CloudFileMixin):
 
     def test_percent_integral_uniformity(self):
         """Test the PIU if it exists in the results data"""
-        if self.piu:
+        if self.piu is not None:
             self.assertAlmostEqual(
                 self.piu,
                 self.instance.results_data().percent_integral_uniformity,
@@ -496,6 +496,14 @@ class DoselabkVDemo(PlanarPhantomMixin, TestCase):
 
     def test_demo(self):
         DoselabMC2kV.run_demo()
+
+
+class DoselabkV70kVp(PlanarPhantomMixin, TestCase):
+    klass = DoselabMC2kV
+    dir_path = ["planar_imaging", "Doselab MC2"]
+    file_name = "DL kV 70kVp.dcm"
+    mtf_50 = 1.14
+    piu = 0
 
 
 class SNCkVDemo(PlanarPhantomMixin, TestCase):
