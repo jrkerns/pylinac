@@ -3,6 +3,18 @@
 Changelog
 =========
 
+v 3.16.1
+--------
+
+Planar Imaging
+^^^^^^^^^^^^^^
+
+* If a phantom had a completely homogeneous array for an ROI, the ``results_data`` call
+  would fail due to a division by 0 error. This has now been fixed such than an error is
+  not raised. However, the resulting CNR and SNR will be a special case of ``float('inf')``.
+  This was encountered with a very low kVp analysis of the Doselab MC2 kV/MV phantom.
+
+
 v 3.16.0
 --------
 
