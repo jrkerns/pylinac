@@ -449,6 +449,14 @@ class DoselabkVDemo(PlanarPhantomMixin, TestCase):
         DoselabMC2kV.run_demo()
 
 
+class DoselabkV70kVp(PlanarPhantomMixin, TestCase):
+    klass = DoselabMC2kV
+    dir_path = ["planar_imaging", "Doselab MC2"]
+    file_name = "DL kV 70kVp.dcm"
+    mtf_50 = 1.14
+    piu = 0
+
+
 class SNCkVDemo(PlanarPhantomMixin, TestCase):
     klass = SNCkV
     mtf_50 = 1.76
