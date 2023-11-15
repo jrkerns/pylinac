@@ -323,8 +323,7 @@ class CatPhanMixin(CloudFileMixin):
 
     @classmethod
     def tearDownClass(cls):
-        # somewhere there is a memory leak if ``cbct`` isn't deleted.
-        delattr(cls, "cbct")
+        plt.close("all")
         super().tearDownClass()
 
     def test_slice_thickness(self):

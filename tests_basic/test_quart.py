@@ -73,8 +73,8 @@ class TestQuartDVTGeneral(TestCase):
 
     def test_lazy_same_as_default(self):
         """Test that the results are the same from a lazy load vs default"""
-        self.quart.analyze()
         lazy_quart = QuartDVT.from_zip(self.path, memory_efficient_mode=True)
+        self.quart.analyze()
         lazy_quart.analyze()
         self.assertEqual(self.quart.results(), lazy_quart.results())
         self.assertEqual(self.quart.results_data(), lazy_quart.results_data())

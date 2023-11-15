@@ -1635,7 +1635,7 @@ class LazyDicomImageStack:
     @lru_cache(maxsize=3)
     def side_view(self, axis: int) -> np.ndarray:
         """Return the side view of the stack. E.g. if axis=0, return the maximum value along the 0th axis."""
-        return np.stack(self.images, axis=-1).max(axis=axis)
+        return np.stack(self, axis=-1).max(axis=axis)
 
     @property
     def metadata(self) -> pydicom.FileDataset:
@@ -1736,6 +1736,9 @@ class DicomImageStack(LazyDicomImageStack):
 
     def __setitem__(self, key, value: DicomImage):
         self.images[key] = value
+
+    def __len__(self):
+        return len(self.images)
 
 
 def tiff_to_dicom(
