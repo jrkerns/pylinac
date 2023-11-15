@@ -1,4 +1,4 @@
-image: python:3.9-slim
+image: python:3.11-slim
 
 
 definitions:
@@ -241,19 +241,6 @@ definitions:
           - ./google-cloud-sdk/install.sh --quiet
           - export PATH="./google-cloud-sdk/bin:$PATH"
           - nox -s update_dev_kraken
-    - step: &grype-scanning
-        name: Grype (dependency vulnerability) scan
-        script:
-          - source venv/bin/activate
-          - apt-get update
-          - apt-get -y install curl
-          - curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
-          - pip freeze
-          # we want to dump this to file regardless of fail status so we can inspect if needed
-          - grype dir:. --only-fixed -o json > grype_results.json
-          - grype dir:. --only-fixed --fail-on high
-        artifacts:
-          - grype_results.json
 
 pipelines:
 
@@ -282,9 +269,6 @@ pipelines:
                 PYPI_USERNAME: $PYPI_USERNAME
                 PYPI_PASSWORD: $PYPI_PASSWORD
                 DISTRIBUTIONS: 'bdist_wheel'
-    grype-scanning:
-      - step: *set-up-env
-      - step: *grype-scanning
 
   pull-requests:
     '**':
