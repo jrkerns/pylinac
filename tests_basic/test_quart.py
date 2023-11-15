@@ -47,8 +47,8 @@ class TestQuartDVT(TestCase, FromZipTesterMixin, InitTesterMixin):
 
 class TestQuartDVTGeneral(TestCase):
     def setUp(self):
-        path = get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
-        self.quart = QuartDVT.from_zip(path)
+        self.path = get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
+        self.quart = QuartDVT.from_zip(self.path)
 
     def test_phan_center(self):
         """Test locations of the phantom center."""
@@ -70,6 +70,14 @@ class TestQuartDVTGeneral(TestCase):
         # check the additional modules got added
         self.assertIsInstance(data.hu_module.rois, dict)
         self.assertIsInstance(data.geometric_module.mean_high_contrast_distance, float)
+
+    def test_lazy_same_as_default(self):
+        """Test that the results are the same from a lazy load vs default"""
+        self.quart.analyze()
+        lazy_quart = QuartDVT.from_zip(self.path, memory_efficient_mode=True)
+        lazy_quart.analyze()
+        self.assertEqual(self.quart.results(), lazy_quart.results())
+        self.assertEqual(self.quart.results_data(), lazy_quart.results_data())
 
 
 class TestPlottingSaving(TestCase):
