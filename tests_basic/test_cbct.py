@@ -157,6 +157,14 @@ class TestGeneral(TestCase):
         self.cbct.analyze(contrast_method="Michelson")
         self.cbct.results_data()
 
+    def test_same_results_for_lazy_load(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        ct = CatPhan504.from_zip(path, memory_efficient_mode=False)
+        ct.analyze()
+        lazy_ct = CatPhan504.from_zip(path, memory_efficient_mode=True)
+        lazy_ct.analyze()
+        self.assertEqual(ct.results(), lazy_ct.results())
+
 
 class TestCustomPhantom(TestCase):
     def test_removing_module(self):

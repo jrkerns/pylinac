@@ -57,6 +57,22 @@ class TestIO(unittest.TestCase):
         self.assertRaises(IOError, is_dicom, invalid_file)
 
 
+class TestTempZipDir(unittest.TestCase):
+    def test_dir_is_deleted_normally(self):
+        """Test that the directory is deleted normally."""
+        zfile = get_file_from_cloud_test_repo(["VMAT", "DRMLC.zip"])
+        with TemporaryZipDirectory(zfile) as tmpzip:
+            self.assertTrue(osp.isdir(tmpzip))
+        self.assertFalse(osp.exists(tmpzip))
+
+    def test_dir_remains_when_delete_false(self):
+        """Test that the directory is not deleted when delete=False."""
+        zfile = get_file_from_cloud_test_repo(["VMAT", "DRMLC.zip"])
+        with TemporaryZipDirectory(zfile, delete=False) as tmpzip:
+            self.assertTrue(osp.isdir(tmpzip))
+        self.assertTrue(osp.exists(tmpzip))
+
+
 class TestSNCProfiler(unittest.TestCase):
     def test_loading(self):
         path = get_file_from_cloud_test_repo(["9E-GA0.prs"])

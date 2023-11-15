@@ -1737,9 +1737,6 @@ class DicomImageStack(LazyDicomImageStack):
     def __setitem__(self, key, value: DicomImage):
         self.images[key] = value
 
-    def __len__(self):
-        return len(self.images)
-
 
 def tiff_to_dicom(
     tiff_file: str | Path | BytesIO,

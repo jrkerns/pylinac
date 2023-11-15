@@ -1581,6 +1581,9 @@ class CatPhanBase:
             Path to the zip file or a ZipFile object.
         check_uid : bool
             Whether to enforce raising an error if more than one UID is found in the dataset.
+        memory_efficient_mode : bool
+            Whether to use a memory efficient mode. If True, the DICOM stack will be loaded on demand rather than all at once.
+            This will reduce the memory footprint but will be slower by ~25%. Default is False.
 
         Raises
         ------

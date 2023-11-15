@@ -22,6 +22,7 @@ from pylinac.core.image import (
     DicomImage,
     DicomImageStack,
     FileImage,
+    LazyDicomImageStack,
     LinacDicomImage,
     _rescale_dicom_values,
     _unscale_dicom_values,
@@ -697,6 +698,17 @@ class TestDicomStack(TestCase):
             self.assertEqual(len(dstack), 64)
         # test zip
         dstack = DicomImageStack.from_zip(self.stack_location)
+
+    def test_lazy_and_normal_have_same_length(self):
+        dstack = DicomImageStack.from_zip(self.stack_location)
+        dstack_lazy = LazyDicomImageStack.from_zip(self.stack_location)
+        self.assertEqual(len(dstack), len(dstack_lazy))
+
+    def test_images_are_the_same(self):
+        dstack = DicomImageStack.from_zip(self.stack_location)
+        dstack_lazy = LazyDicomImageStack.from_zip(self.stack_location)
+        for img, img_lazy in zip(dstack, dstack_lazy):
+            assert_array_almost_equal(img.array, img_lazy.array)
 
     @unittest.skip("Wait until better error checking is implemented")
     def test_mixed_studies(self):
