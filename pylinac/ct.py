@@ -1599,10 +1599,7 @@ class CatPhanBase:
         FileExistsError : If zip_file passed was not a legitimate zip file.
         FileNotFoundError : If no CT images are found in the folder
         """
-        if memory_efficient_mode:
-            delete = False
-        else:
-            delete = True
+        delete = not memory_efficient_mode
         with TemporaryZipDirectory(zip_file, delete=delete) as temp_zip:
             obj = cls(
                 temp_zip,

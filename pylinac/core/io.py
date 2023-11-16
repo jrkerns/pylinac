@@ -93,7 +93,7 @@ class TemporaryZipDirectory(TemporaryDirectory):
         delete : bool
             Whether to delete the temporary directory when the context manager exits.
         """
-        # this is a hack. In py Python 3.12, we can pass the delete argument to TemporaryDirectory directly
+        # this is a hack. In Python 3.12, we can pass the delete argument to TemporaryDirectory directly
         self.delete = delete
         if delete:
             super().__init__()
