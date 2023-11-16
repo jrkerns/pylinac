@@ -60,7 +60,7 @@ definitions:
         name: Run Quart Tests
         script:
           - source venv/bin/activate
-          - pytest tests_basic/test_quart.py -n 4 --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - pytest tests_basic/test_quart.py --cov=pylinac.quart --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -74,7 +74,7 @@ definitions:
         name: Run ACR CT/MRI Tests
         script:
           - source venv/bin/activate
-          - pytest tests_basic/test_acr.py -n 4 --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - pytest tests_basic/test_acr.py --cov=pylinac.acr --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -88,7 +88,7 @@ definitions:
         name: Run Cheese Phantom Tests
         script:
           - source venv/bin/activate
-          - pytest tests_basic/test_cheese.py -n 4 --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - pytest tests_basic/test_cheese.py --cov=pylinac.cheese --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -102,7 +102,7 @@ definitions:
         name: Run Planar Imaging Tests
         script:
           - source venv/bin/activate
-          - pytest tests_basic/test_planar_imaging.py -n 4 --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - pytest tests_basic/test_planar_imaging.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -154,7 +154,7 @@ definitions:
         name: Run Picket Fence Tests
         script:
           - source venv/bin/activate
-          - pytest tests_basic/test_picketfence.py -n 4 --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - pytest tests_basic/test_picketfence.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -167,7 +167,7 @@ definitions:
         name: Run Starshot Tests
         script:
           - source venv/bin/activate
-          - pytest tests_basic/test_starshot.py -n 4 --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - pytest tests_basic/test_starshot.py --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
@@ -221,7 +221,7 @@ definitions:
         name: Run core module tests
         script:
           - source venv/bin/activate
-          - pytest tests_basic/core -n 4 --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - pytest tests_basic/core --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:

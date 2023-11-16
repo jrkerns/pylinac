@@ -15,14 +15,10 @@ from tests_basic.utils import (
     FromZipTesterMixin,
     InitTesterMixin,
     get_file_from_cloud_test_repo,
-    get_folder_from_cloud_test_repo,
     save_file,
 )
 
 TEST_DIR = ["CBCT", "Quart"]
-
-get_file_from_cloud_test_repo([*TEST_DIR, "Head_Quart.zip"])
-get_folder_from_cloud_test_repo([*TEST_DIR, "Head"])
 
 
 class TestQuartDVT(TestCase, FromZipTesterMixin, InitTesterMixin):
