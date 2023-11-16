@@ -39,7 +39,7 @@ from skimage.measure._regionprops import RegionProperties
 from .core import image, pdf
 from .core.contrast import Contrast
 from .core.geometry import Line, Point
-from .core.image import ArrayImage, DicomImageStack
+from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, FWXMProfile
@@ -237,6 +237,7 @@ class Slice:
         combine_method: str = "mean",
         num_slices: int = 0,
         clear_borders: bool = True,
+        original_image: ImageLike | None = None,
     ):
         """
         Parameters
@@ -253,16 +254,24 @@ class Slice:
         num_slices : int
             The number of slices on either side of the nominal slice to combine to improve signal/noise; only
             applicable if ``combine`` is True.
+        clear_borders : bool
+            If True, clears the borders of the image to remove any ROIs that may be present.
+        original_image : :class:`~pylinac.core.image.Image` or None
+            The array of the slice. This is a bolt-on parameter for optimization.
+            Leaving as None is fine, but can increase analysis speed if 1) this image is passed and
+            2) there is no combination of slices happening, which is most of the time.
         """
         if slice_num is not None:
             self.slice_num = slice_num
-        if combine:
+        if combine and num_slices > 0:
             array = combine_surrounding_slices(
                 catphan.dicom_stack,
                 self.slice_num,
                 mode=combine_method,
                 slices_plusminus=num_slices,
             )
+        elif original_image is not None:
+            array = original_image
         else:
             array = catphan.dicom_stack[self.slice_num].array
         self.image = image.load(array)
@@ -1785,8 +1794,9 @@ class CatPhanBase:
 
         It appears there can be rounding errors between the DICOM tag and the actual slice position. See RAM-2897.
         """
-        min_scan_extent_slice = round(min(s.z_position for s in self.dicom_stack), 1)
-        max_scan_extent_slice = round(max(s.z_position for s in self.dicom_stack), 1)
+        z_positions = [z_position(m) for m in self.dicom_stack.metadatas]
+        min_scan_extent_slice = round(min(z_positions), 1)
+        max_scan_extent_slice = round(max(z_positions), 1)
         min_config_extent_slice = round(min(self._module_offsets()), 1)
         max_config_extent_slice = round(max(self._module_offsets()), 1)
         return (min_config_extent_slice >= min_scan_extent_slice) and (
@@ -1807,7 +1817,12 @@ class CatPhanBase:
         center_x = []
         center_y = []
         for idx, img in enumerate(self.dicom_stack):
-            slice = Slice(self, slice_num=idx, clear_borders=self.clear_borders)
+            slice = Slice(
+                self,
+                slice_num=idx,
+                clear_borders=self.clear_borders,
+                original_image=img,
+            )
             if slice.is_phantom_in_view():
                 roi = slice.phantom_roi
                 z.append(idx)

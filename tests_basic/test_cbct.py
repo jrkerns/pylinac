@@ -83,9 +83,13 @@ class TestGeneral(TestCase):
         """Test that if a scan doesn't include all the modules it raises an error"""
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         ref_cbct = CatPhan504.from_zip(path)
+        # artificially chop the dicom stack
         ref_cbct.dicom_stack.images = ref_cbct.dicom_stack.images[
             :-25
-        ]  # chop off the end
+        ]  # chop off the back
+        ref_cbct.dicom_stack.metadatas = ref_cbct.dicom_stack.metadatas[
+            :-25
+        ]  # chop off the back
         with self.assertRaises(ValueError):
             ref_cbct.localize()
 
@@ -93,9 +97,13 @@ class TestGeneral(TestCase):
         """Test that if a scan doesn't include all the modules it raises an error"""
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         ref_cbct = CatPhan504.from_zip(path)
+        # artificially chop the dicom stack
         ref_cbct.dicom_stack.images = ref_cbct.dicom_stack.images[
             20:
-        ]  # chop off the end
+        ]  # chop off the front
+        ref_cbct.dicom_stack.metadatas = ref_cbct.dicom_stack.metadatas[
+            20:
+        ]  # chop off the front
         with self.assertRaises(ValueError):
             ref_cbct.localize()
 

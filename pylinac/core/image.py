@@ -11,6 +11,7 @@ import re
 import warnings
 from collections import Counter
 from datetime import datetime
+from functools import cached_property
 from io import BufferedReader, BytesIO
 from pathlib import Path
 from typing import Any, BinaryIO, Iterable, Sequence, Union
@@ -40,7 +41,6 @@ from .array_utils import (
     invert,
     normalize,
 )
-from .decorators import lru_cache
 from .geometry import Point
 from .io import (
     TemporaryZipDirectory,
@@ -1238,10 +1238,7 @@ class DicomImage(BaseImage):
     @property
     def z_position(self) -> float:
         """The z-position of the slice. Relevant for CT and MR images."""
-        try:
-            return self.metadata.ImagePositionPatient[-1]
-        except AttributeError:
-            return self.metadata.SliceLocation
+        return z_position(self.metadata)
 
     @property
     def slice_spacing(self) -> float:
@@ -1546,6 +1543,7 @@ class ArrayImage(BaseImage):
 
 class LazyDicomImageStack:
     _image_path_keys: list[Path]
+    metadatas: list[pydicom.Dataset]
 
     def __init__(
         self,
@@ -1586,6 +1584,7 @@ class LazyDicomImageStack:
             metadatas = [m for m in metadatas if m.SeriesInstanceUID == most_common_uid]
         # sort according to physical order
         order = np.argsort([m.ImagePositionPatient[-1] for m in metadatas])
+        self.metadatas = [metadatas[i] for i in order]
         self._image_path_keys = [paths[i] for i in order]
 
     @classmethod
@@ -1632,12 +1631,11 @@ class LazyDicomImageStack:
                 pass
         return metadata, matched_paths
 
-    @lru_cache(maxsize=3)
     def side_view(self, axis: int) -> np.ndarray:
         """Return the side view of the stack. E.g. if axis=0, return the maximum value along the 0th axis."""
-        return np.stack(self, axis=-1).max(axis=axis)
+        return np.stack([i for i in self], axis=-1).max(axis=axis)
 
-    @property
+    @cached_property
     def metadata(self) -> pydicom.FileDataset:
         """The metadata of the first image; shortcut attribute. Only attributes that are common throughout the stack should be used,
         otherwise the individual image metadata should be used."""
@@ -1898,3 +1896,11 @@ def gamma_2d(
                 capital_gammas.append(capital_gamma)
             gamma[row_idx, col_idx] = min(np.nanmin(capital_gammas), gamma_cap_value)
     return np.asarray(gamma)
+
+
+def z_position(metadata: pydicom.Dataset) -> float:
+    """The 'z-position' of the image. Relevant for CT and MR images."""
+    try:
+        return metadata.ImagePositionPatient[-1]
+    except AttributeError:
+        return metadata.SliceLocation
