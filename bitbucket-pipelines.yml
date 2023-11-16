@@ -47,7 +47,7 @@ definitions:
         name: Run CBCT Tests
         script:
           - source venv/bin/activate
-          - pytest tests_basic/test_cbct.py -n 3 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
+          - pytest tests_basic/test_cbct.py -n 2 --cov=pylinac.cbct --cov-report term --junitxml=./test-reports/pytest_results.xml
         caches:
           - testfiles
         condition:
