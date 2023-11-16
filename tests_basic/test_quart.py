@@ -77,7 +77,12 @@ class TestQuartDVTGeneral(TestCase):
         self.quart.analyze()
         lazy_quart.analyze()
         self.assertEqual(self.quart.results(), lazy_quart.results())
-        self.assertEqual(self.quart.results_data(), lazy_quart.results_data())
+        # results data should be the same except the time of evaluation (differs by ms)
+        eager_results = self.quart.results_data(as_dict=True)
+        eager_results.pop("date_of_analysis")
+        lazy_results = lazy_quart.results_data(as_dict=True)
+        lazy_results.pop("date_of_analysis")
+        self.assertEqual(eager_results, lazy_results)
 
 
 class TestPlottingSaving(TestCase):
@@ -144,7 +149,7 @@ class QuartDVTMixin(CloudFileMixin):
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
-        cls.quart = QuartDVT.from_zip(filename)
+        cls.quart = QuartDVT.from_zip(filename, memory_efficient_mode=True)
         cls.quart.analyze()
 
     def test_roll(self):
