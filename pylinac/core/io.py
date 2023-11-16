@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import os.path as osp
 import struct
+import tempfile
 import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -83,16 +84,33 @@ def retrieve_dicom_file(file: str | Path | BinaryIO) -> pydicom.FileDataset:
 class TemporaryZipDirectory(TemporaryDirectory):
     """Creates a temporary directory that unpacks a ZIP archive. Shockingly useful"""
 
-    def __init__(self, zfile: str | Path | BinaryIO):
+    def __init__(self, zfile: str | Path | BinaryIO, delete: bool = True):
         """
         Parameters
         ----------
         zfile : str
             String that points to a ZIP archive.
+        delete : bool
+            Whether to delete the temporary directory when the context manager exits.
         """
-        super().__init__()
+        # this is a hack. In Python 3.12, we can pass the delete argument to TemporaryDirectory directly
+        self.delete = delete
+        if delete:
+            super().__init__()
+            name = self.name
+        else:
+            # don't use the super() call because it will delete the directory
+            # instead, make a temporary directory ourselves and set the name
+            name = tempfile.mkdtemp()
+            self.name = name
         zfiles = zipfile.ZipFile(zfile)
-        zfiles.extractall(path=self.name)
+        zfiles.extractall(path=name)
+
+    def cleanup(self) -> None:
+        if self.delete:
+            super().cleanup()
+        else:
+            pass
 
 
 def retrieve_filenames(

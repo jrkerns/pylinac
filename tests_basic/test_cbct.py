@@ -83,9 +83,13 @@ class TestGeneral(TestCase):
         """Test that if a scan doesn't include all the modules it raises an error"""
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         ref_cbct = CatPhan504.from_zip(path)
+        # artificially chop the dicom stack
         ref_cbct.dicom_stack.images = ref_cbct.dicom_stack.images[
             :-25
-        ]  # chop off the end
+        ]  # chop off the back
+        ref_cbct.dicom_stack.metadatas = ref_cbct.dicom_stack.metadatas[
+            :-25
+        ]  # chop off the back
         with self.assertRaises(ValueError):
             ref_cbct.localize()
 
@@ -93,9 +97,13 @@ class TestGeneral(TestCase):
         """Test that if a scan doesn't include all the modules it raises an error"""
         path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
         ref_cbct = CatPhan504.from_zip(path)
+        # artificially chop the dicom stack
         ref_cbct.dicom_stack.images = ref_cbct.dicom_stack.images[
             20:
-        ]  # chop off the end
+        ]  # chop off the front
+        ref_cbct.dicom_stack.metadatas = ref_cbct.dicom_stack.metadatas[
+            20:
+        ]  # chop off the front
         with self.assertRaises(ValueError):
             ref_cbct.localize()
 
@@ -156,6 +164,14 @@ class TestGeneral(TestCase):
         # shouldn't raise
         self.cbct.analyze(contrast_method="Michelson")
         self.cbct.results_data()
+
+    def test_same_results_for_lazy_load(self):
+        path = get_file_from_cloud_test_repo([TEST_DIR, "CBCT_4.zip"])
+        ct = CatPhan504.from_zip(path, memory_efficient_mode=False)
+        ct.analyze()
+        lazy_ct = CatPhan504.from_zip(path, memory_efficient_mode=True)
+        lazy_ct.analyze()
+        self.assertEqual(ct.results(), lazy_ct.results())
 
 
 class TestCustomPhantom(TestCase):
@@ -293,15 +309,18 @@ class CatPhanMixin(CloudFileMixin):
     slice_thickness = 2
     thickness_slice_straddle = "auto"
     lowcon_visible = 0
+    memory_efficient = True
     print_debug = False
 
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
         if cls.zip:
-            cls.cbct = cls.catphan.from_zip(filename)
+            cls.cbct = cls.catphan.from_zip(
+                filename, memory_efficient_mode=cls.memory_efficient
+            )
         else:
-            cls.cbct = cls.catphan(filename)
+            cls.cbct = cls.catphan(filename, memory_efficient_mode=cls.memory_efficient)
         cls.cbct.analyze(
             cls.hu_tolerance,
             cls.scaling_tolerance,
@@ -312,8 +331,7 @@ class CatPhanMixin(CloudFileMixin):
 
     @classmethod
     def tearDownClass(cls):
-        # somewhere there is a memory leak if ``cbct`` isn't deleted.
-        delattr(cls, "cbct")
+        plt.close("all")
         super().tearDownClass()
 
     def test_slice_thickness(self):

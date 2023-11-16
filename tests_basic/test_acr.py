@@ -44,8 +44,8 @@ class TestACRCT(TestCase, FromZipTesterMixin, InitTesterMixin):
 
 class TestCTGeneral(TestCase):
     def setUp(self):
-        path = get_file_from_cloud_test_repo([*TEST_DIR_CT, "Philips.zip"])
-        self.ct = ACRCT.from_zip(path)
+        self.path = get_file_from_cloud_test_repo([*TEST_DIR_CT, "Philips.zip"])
+        self.ct = ACRCT.from_zip(self.path)
 
     def test_phan_center(self):
         """Test locations of the phantom center."""
@@ -66,6 +66,12 @@ class TestCTGeneral(TestCase):
 
         # check the additional modules got added
         self.assertIsInstance(data.ct_module.rois, dict)
+
+    def test_lazy_is_same_as_default(self):
+        self.ct.analyze()
+        lazy_ct = ACRCT.from_zip(self.path, memory_efficient_mode=True)
+        lazy_ct.analyze()
+        self.assertEqual(self.ct.results(), lazy_ct.results())
 
 
 class TestPlottingSaving(TestCase):

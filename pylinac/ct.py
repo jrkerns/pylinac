@@ -39,7 +39,7 @@ from skimage.measure._regionprops import RegionProperties
 from .core import image, pdf
 from .core.contrast import Contrast
 from .core.geometry import Line, Point
-from .core.image import ArrayImage, DicomImageStack
+from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, FWXMProfile
@@ -237,6 +237,7 @@ class Slice:
         combine_method: str = "mean",
         num_slices: int = 0,
         clear_borders: bool = True,
+        original_image: ImageLike | None = None,
     ):
         """
         Parameters
@@ -253,16 +254,24 @@ class Slice:
         num_slices : int
             The number of slices on either side of the nominal slice to combine to improve signal/noise; only
             applicable if ``combine`` is True.
+        clear_borders : bool
+            If True, clears the borders of the image to remove any ROIs that may be present.
+        original_image : :class:`~pylinac.core.image.Image` or None
+            The array of the slice. This is a bolt-on parameter for optimization.
+            Leaving as None is fine, but can increase analysis speed if 1) this image is passed and
+            2) there is no combination of slices happening, which is most of the time.
         """
         if slice_num is not None:
             self.slice_num = slice_num
-        if combine:
+        if combine and num_slices > 0:
             array = combine_surrounding_slices(
                 catphan.dicom_stack,
                 self.slice_num,
                 mode=combine_method,
                 slices_plusminus=num_slices,
             )
+        elif original_image is not None:
+            array = original_image
         else:
             array = catphan.dicom_stack[self.slice_num].array
         self.image = image.load(array)
@@ -1506,11 +1515,13 @@ class CatPhanBase:
     hu_origin_slice_variance = 400  # the HU variance required on the origin slice
     _phantom_center_func: tuple[Callable, Callable] | None = None
     modules: dict[CatPhanModule, dict[str, int]]
+    dicom_stack: image.DicomImageStack | image.LazyDicomImageStack
 
     def __init__(
         self,
         folderpath: str | Sequence[str] | Path | Sequence[Path] | Sequence[BytesIO],
         check_uid: bool = True,
+        memory_efficient_mode: bool = False,
     ):
         """
         Parameters
@@ -1519,6 +1530,9 @@ class CatPhanBase:
             String that points to the CBCT image folder location.
         check_uid : bool
             Whether to enforce raising an error if more than one UID is found in the dataset.
+        memory_efficient_mode : bool
+            Whether to use a memory efficient mode. If True, the DICOM stack will be loaded on demand rather than all at once.
+            This will reduce the memory footprint but will be slower by ~25%. Default is False.
 
         Raises
         ------
@@ -1532,7 +1546,12 @@ class CatPhanBase:
         if isinstance(folderpath, (str, Path)):
             if not osp.isdir(folderpath):
                 raise NotADirectoryError("Path given was not a Directory/Folder")
-        self.dicom_stack = image.DicomImageStack(
+        stack = (
+            image.DicomImageStack
+            if not memory_efficient_mode
+            else image.LazyDicomImageStack
+        )
+        self.dicom_stack = stack(
             folderpath, check_uid=check_uid, min_number=self.min_num_images
         )
 
@@ -1558,7 +1577,10 @@ class CatPhanBase:
 
     @classmethod
     def from_zip(
-        cls, zip_file: str | zipfile.ZipFile | BinaryIO, check_uid: bool = True
+        cls,
+        zip_file: str | zipfile.ZipFile | BinaryIO,
+        check_uid: bool = True,
+        memory_efficient_mode: bool = False,
     ):
         """Construct a CBCT object and pass the zip file.
 
@@ -1568,14 +1590,22 @@ class CatPhanBase:
             Path to the zip file or a ZipFile object.
         check_uid : bool
             Whether to enforce raising an error if more than one UID is found in the dataset.
+        memory_efficient_mode : bool
+            Whether to use a memory efficient mode. If True, the DICOM stack will be loaded on demand rather than all at once.
+            This will reduce the memory footprint but will be slower by ~25%. Default is False.
 
         Raises
         ------
         FileExistsError : If zip_file passed was not a legitimate zip file.
         FileNotFoundError : If no CT images are found in the folder
         """
-        with TemporaryZipDirectory(zip_file) as temp_zip:
-            obj = cls(temp_zip, check_uid=check_uid)
+        delete = not memory_efficient_mode
+        with TemporaryZipDirectory(zip_file, delete=delete) as temp_zip:
+            obj = cls(
+                temp_zip,
+                check_uid=check_uid,
+                memory_efficient_mode=memory_efficient_mode,
+            )
         obj.was_from_zip = True
         return obj
 
@@ -1749,7 +1779,7 @@ class CatPhanBase:
 
     def _module_offsets(self) -> list[float]:
         """A list of the module offsets. Used to confirm scan extent"""
-        absolute_origin_position = self.dicom_stack.images[self.origin_slice].z_position
+        absolute_origin_position = self.dicom_stack[self.origin_slice].z_position
         return [
             absolute_origin_position + config["offset"]
             for config in self.modules.values()
@@ -1761,8 +1791,9 @@ class CatPhanBase:
 
         It appears there can be rounding errors between the DICOM tag and the actual slice position. See RAM-2897.
         """
-        min_scan_extent_slice = round(min(s.z_position for s in self.dicom_stack), 1)
-        max_scan_extent_slice = round(max(s.z_position for s in self.dicom_stack), 1)
+        z_positions = [z_position(m) for m in self.dicom_stack.metadatas]
+        min_scan_extent_slice = round(min(z_positions), 1)
+        max_scan_extent_slice = round(max(z_positions), 1)
         min_config_extent_slice = round(min(self._module_offsets()), 1)
         max_config_extent_slice = round(max(self._module_offsets()), 1)
         return (min_config_extent_slice >= min_scan_extent_slice) and (
@@ -1783,7 +1814,12 @@ class CatPhanBase:
         center_x = []
         center_y = []
         for idx, img in enumerate(self.dicom_stack):
-            slice = Slice(self, slice_num=idx, clear_borders=self.clear_borders)
+            slice = Slice(
+                self,
+                slice_num=idx,
+                clear_borders=self.clear_borders,
+                original_image=img,
+            )
             if slice.is_phantom_in_view():
                 roi = slice.phantom_roi
                 z.append(idx)
@@ -2025,7 +2061,7 @@ class CatPhanBase:
 
     def plot_side_view(self, axis: Axes) -> None:
         """Plot a view of the scan from the side with lines showing detected module positions"""
-        side_array = np.stack(self.dicom_stack.images, axis=-1).max(axis=1)
+        side_array = self.dicom_stack.side_view(axis=1)
         axis.set_yticks([])
         axis.set_title("Side View")
         axis.imshow(side_array, aspect="auto", cmap="gray", interpolation="none")

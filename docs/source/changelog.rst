@@ -2,6 +2,18 @@
 Changelog
 =========
 
+v 3.18.0
+--------
+
+CT
+^^
+
+* CatPhan, Quart, Cheese, and ACR phantom analyses now have a new parameter option: ``memory_efficient_mode``.
+  This mode will use dramatically less memory than the default implementation. This is useful for large datasets
+  or limited resources on the machine running the process. This does come at a ~25-80% speed penalty depending on the
+  size of the dataset. Larger datasets will have a larger penalty.
+
+
 v 3.17.0
 --------
 
