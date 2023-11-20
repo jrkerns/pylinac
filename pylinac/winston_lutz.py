@@ -53,6 +53,14 @@ from .core.geometry import Line, Point, Vector, cos, sin
 from .core.image import DicomImageStack, LinacDicomImage, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import bounding_box
+from .core.metrics import (
+    DiskLocator,
+    is_right_circumference,
+    is_right_size_bb,
+    is_round,
+    is_solid,
+    is_symmetric,
+)
 from .core.scale import MachineScale, convert
 from .core.utilities import ResultBase, convert_to_enum, is_close
 
@@ -295,16 +303,6 @@ def plot_image(img: WinstonLutz2D | None, axis: plt.Axes) -> None:
         img.plot(ax=axis, show=False)
 
 
-def is_symmetric(region: RegionProperties, *args, **kwargs) -> bool:
-    """Whether the binary object's dimensions are symmetric, i.e. a perfect circle. Used to find the BB."""
-    ymin, xmin, ymax, xmax = region.bbox
-    y = abs(ymax - ymin)
-    x = abs(xmax - xmin)
-    if x > max(y * 1.05, y + 3) or x < min(y * 0.95, y - 3):
-        return False
-    return True
-
-
 def is_near_center(region: RegionProperties, *args, **kwargs) -> bool:
     """Whether the bb is <2cm from the center of the field"""
     dpmm = kwargs["dpmm"]
@@ -333,13 +331,6 @@ def is_modest_size(region: RegionProperties, *args, **kwargs) -> bool:
     return smaller_bb_area < bb_area < larger_bb_area
 
 
-def is_round(region: RegionProperties, *args, **kwargs) -> bool:
-    """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
-    expected_fill_ratio = np.pi / 4  # area of a circle inside a square
-    actual_fill_ratio = region.filled_area / region.bbox_area
-    return expected_fill_ratio * 1.2 > actual_fill_ratio > expected_fill_ratio * 0.8
-
-
 def is_square(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is square in nature by testing the filled area vs bounding box. Used to find the BB."""
     actual_fill_ratio = region.filled_area / region.bbox_area
@@ -361,11 +352,13 @@ class WinstonLutz2D(image.LinacDicomImage):
     bb: Point
     field_cax: Point
     _rad_field_bounding_box: list
+    is_from_tiff: bool = False
     detection_conditions: list[callable] = [
+        is_right_size_bb,
         is_round,
+        is_right_circumference,
         is_symmetric,
-        is_near_center,
-        is_modest_size,
+        is_solid,
     ]
 
     def __init__(
@@ -393,15 +386,16 @@ class WinstonLutz2D(image.LinacDicomImage):
         bb_size_mm: float = 5,
         low_density_bb: bool = False,
         open_field: bool = False,
+        bb_tolerance_mm: float = 2,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
         self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
             open_field
         )
         if low_density_bb:
-            self.bb = self._find_low_density_bb(bb_size_mm)
+            self.bb = self._find_low_density_bb(bb_size_mm, bb_tolerance_mm)
         else:
-            self.bb = self._find_bb(bb_size_mm)
+            self.bb = self._find_bb(bb_size_mm, bb_tolerance_mm)
         self._is_analyzed = True
 
     def __repr__(self):
@@ -471,11 +465,22 @@ class WinstonLutz2D(image.LinacDicomImage):
             p = Point(x=coords[-1], y=coords[0])
         return p, edges
 
-    def _find_low_density_bb(self, bb_size: float):
+    def _find_low_density_bb(self, bb_diameter: float, bb_tolerance_mm: float) -> Point:
         """Find the BB within the radiation field, where the BB is low-density and creates
         an *increase* in signal vs a decrease/attenuation. The algorithm is similar to the
         normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables
         """
+        center = self.compute(
+            metrics=DiskLocator.from_center_physical(
+                expected_position_mm=(0, 0),
+                search_window_mm=(30 + bb_diameter, 30 + bb_diameter),
+                radius_mm=bb_diameter / 2,
+                radius_tolerance_mm=bb_tolerance_mm / 2,
+                invert=False,
+                detection_conditions=self.detection_conditions,
+            )
+        )
+        return center
         # get initial starting conditions
         lower_thresh = self.array.max() * 0.8
         spread = self.array.max() - lower_thresh
@@ -494,7 +499,7 @@ class WinstonLutz2D(image.LinacDicomImage):
                         condition(
                             region,
                             dpmm=self.dpmm,
-                            bb_size=bb_size,
+                            bb_size=bb_diameter,
                             shape=binary_arr.shape,
                         )
                         for condition in self.detection_conditions
@@ -520,7 +525,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         ]
         return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
 
-    def _find_bb(self, bb_size: float) -> Point:
+    def _find_bb(self, bb_diameter: float, bb_tolerance_mm: float) -> Point:
         """Find the BB within the radiation field. Iteratively searches for a circle-like object
         by lowering a low-pass threshold value until found.
 
@@ -529,6 +534,16 @@ class WinstonLutz2D(image.LinacDicomImage):
         Point
             The weighted-pixel value location of the BB.
         """
+        center = self.compute(
+            metrics=DiskLocator.from_center_physical(
+                expected_position_mm=(0, 0),
+                search_window_mm=(30 + bb_diameter, 30 + bb_diameter),
+                radius_mm=bb_diameter / 2,
+                radius_tolerance_mm=bb_tolerance_mm / 2,
+                detection_conditions=self.detection_conditions,
+            )
+        )
+        return center
         # get initial starting conditions
         hmin, hmax = np.percentile(self.array, [5, 99.99])
         spread = hmax - hmin
@@ -549,7 +564,7 @@ class WinstonLutz2D(image.LinacDicomImage):
                         condition(
                             region,
                             dpmm=self.dpmm,
-                            bb_size=bb_size,
+                            bb_size=bb_diameter,
                             shape=binary_arr.shape,
                         )
                         for condition in self.detection_conditions
@@ -848,6 +863,7 @@ class WinstonLutz:
                     raise ValueError(
                         "TIFF images were detected but the dpi tag was not available. Pass the `dpi` parameter manually."
                     )
+                img.filter(size=0.01, kind="median")
                 return img
 
     @classmethod
@@ -990,6 +1006,7 @@ class WinstonLutz:
         machine_scale: MachineScale = MachineScale.IEC61217,
         low_density_bb: bool = False,
         open_field: bool = False,
+        bb_tolerance_mm: float = 2,
     ) -> None:
         """Analyze the WL images.
 
@@ -1005,13 +1022,15 @@ class WinstonLutz:
             If True, sets the field center to the EPID center under the assumption the field is not the focus of interest or is too wide to be calculated.
             This is often helpful for kV WL analysis where the blades are wide open and even then the blade edge is of
             less interest than simply the imaging iso vs the BB.
+        bb_tolerance_mm
+            The tolerance of the BB diameter in mm. Generally this should be 1mm for very small BBs (<=2mm), 2mm for medium-sized BBs (3-10mm), and 2+mm for larger BBs.
         """
         self.machine_scale = machine_scale
         if self.is_from_cbct:
             low_density_bb = True
             open_field = True
         for img in self.images:
-            img.analyze(bb_size_mm, low_density_bb, open_field)
+            img.analyze(bb_size_mm, low_density_bb, open_field, bb_tolerance_mm)
         self._is_analyzed = True
         self._bb_diameter = bb_size_mm
 
@@ -1629,6 +1648,7 @@ class WinstonLutz:
             f"Number of images: {num_imgs}",
             f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm",
             f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
+            f"Mean 2D CAX->BB distance: {self.cax2bb_distance('mean'):.2f}mm",
             f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
             f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm ({num_gantry_imgs}/{num_imgs} images considered)",
             f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation((Axis.GANTRY, Axis.REFERENCE))):.2f}mm",

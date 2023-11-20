@@ -523,7 +523,7 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
                 r"AQA_B_03082023.tif": (0, 0, 0),
             },
         )
-        ref_w.analyze(bb_size_mm=20)
+        ref_w.analyze(bb_size_mm=24, bb_tolerance_mm=4)
         results = ref_w.results_data()
         self.assertEqual(results.num_gantry_images, 2)
 
@@ -725,6 +725,7 @@ class WinstonLutzMixin(CloudFileMixin):
     num_images = 0
     zip = True
     bb_size = 5
+    bb_tolerance_mm = 2
     sid: float | None = None
     dpi: float | None = None
     axis_mapping: dict | None = None
@@ -769,6 +770,7 @@ class WinstonLutzMixin(CloudFileMixin):
             machine_scale=cls.machine_scale,
             low_density_bb=cls.low_density_bb,
             open_field=cls.open_field,
+            bb_tolerance_mm=cls.bb_tolerance_mm,
         )
         if cls.print_results:
             print(cls.wl.results())
@@ -1093,7 +1095,7 @@ class KatyTB1(WinstonLutzMixin, TestCase):
     couch_iso_size = 1.1
     cax2bb_max_distance = 1
     cax2bb_median_distance = 0.7
-    cax2bb_mean_distance = 0.6
+    cax2bb_mean_distance = 0.7
     axis_of_rotation = {0: Axis.GANTRY}
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.6, y=-0.2)
@@ -1147,6 +1149,7 @@ class TrueBeam3120213(WinstonLutzMixin, TestCase):
     gantry_iso_size = 1.1
     collimator_iso_size = 0.7
     couch_iso_size = 0.7
+    bb_tolerance_mm = 1
     bb_shift_vector = Vector(x=-0.1, y=-0.2, z=0.2)
 
 
@@ -1196,7 +1199,7 @@ class DAmoursElektaXOffset(WinstonLutzMixin, TestCase):
     gantry_iso_size = 1.1
     cax2bb_max_distance = 9.5
     cax2bb_median_distance = 6.9
-    cax2bb_mean_distance = 6
+    cax2bb_mean_distance = 5.9
     bb_shift_vector = Vector(x=-9.5, y=0.3, z=0.1)  # independently verified
 
 
@@ -1233,6 +1236,7 @@ class LargeFieldCouchPresent(WinstonLutzMixin, TestCase):
 
     file_name = ["large_field_couch_present.zip"]
     num_images = 4
+    bb_size = 4
     gantry_iso_size = 0.8
     collimator_iso_size = None
     couch_iso_size = None
@@ -1287,7 +1291,8 @@ class TIFFImages(WinstonLutzMixin, TestCase):
         "AQA_A_03082023.tif": (0, 0, 0),
         "AQA_B_03082023.tif": (90, 0, 0),
     }
-    bb_size = 20
+    bb_size = 24
+    bb_tolerance_mm = 4
     gantry_iso_size = 0.15
     collimator_iso_size = None
     couch_iso_size = None
@@ -1306,7 +1311,7 @@ class VarianBBkV(WinstonLutzMixin, TestCase):
     low_density_bb = True
     open_field = True
     bb_size = 1.5
-    gantry_iso_size = 0.15
+    gantry_iso_size = 0.3
     collimator_iso_size = None
     couch_iso_size = None
     cax2bb_max_distance = 0.26

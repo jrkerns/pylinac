@@ -59,6 +59,13 @@ def is_right_size_bb(region: RegionProperties, *args, **kwargs) -> bool:
     return smaller_bb_area < bb_area < larger_bb_area
 
 
+def is_solid(region: RegionProperties, *args, **kwargs) -> bool:
+    """Whether the ROI is spiculated. We want nice, round ROIs,
+    and this will drop such ROIs. Generally, these spiculations are noise or a BB rod.
+    """
+    return region.solidity > 0.8
+
+
 def is_round(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
     expected_fill_ratio = np.pi / 4  # area of a circle inside a square
@@ -193,6 +200,7 @@ class DiskRegion(MetricBase):
     y_offset: float
     is_from_physical: bool
     is_from_center: bool
+    boundary: np.ndarray
 
     def __init__(
         self,
@@ -201,10 +209,13 @@ class DiskRegion(MetricBase):
         radius: float,
         radius_tolerance: float,
         detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
-            is_round,
             is_right_size_bb,
+            is_round,
             is_right_circumference,
+            is_symmetric,
+            is_solid,
         ),
+        invert: bool = True,
         name: str = "Disk Region",
     ):
         self.expected_position = Point(expected_position)
@@ -213,6 +224,7 @@ class DiskRegion(MetricBase):
         self.search_window = search_window
         self.detection_conditions = detection_conditions
         self.name = name
+        self.invert = invert
         self.is_from_center = False
         self.is_from_physical = False
 
@@ -224,10 +236,13 @@ class DiskRegion(MetricBase):
         radius_mm: float,
         radius_tolerance_mm: float,
         detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
-            is_round,
             is_right_size_bb,
+            is_round,
             is_right_circumference,
+            is_symmetric,
+            is_solid,
         ),
+        invert: bool = True,
         name="Disk Region",
     ):
         """Create a DiskRegion using physical dimensions."""
@@ -240,6 +255,7 @@ class DiskRegion(MetricBase):
             radius_tolerance=radius_tolerance_mm,
             detection_conditions=detection_conditions,
             name=name,
+            invert=invert,
         )
         instance.is_from_physical = True
         return instance
@@ -252,10 +268,13 @@ class DiskRegion(MetricBase):
         radius: float,
         radius_tolerance: float,
         detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
-            is_round,
             is_right_size_bb,
+            is_round,
             is_right_circumference,
+            is_symmetric,
+            is_solid,
         ),
+        invert: bool = True,
         name="Disk Region",
     ):
         """Create a DiskRegion from a center point."""
@@ -268,6 +287,7 @@ class DiskRegion(MetricBase):
             radius_tolerance=radius_tolerance,
             detection_conditions=detection_conditions,
             name=name,
+            invert=invert,
         )
         instance.is_from_center = True
         return instance
@@ -280,10 +300,13 @@ class DiskRegion(MetricBase):
         radius_mm: float,
         radius_tolerance_mm: float = 0.25,
         detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
-            is_round,
             is_right_size_bb,
+            is_round,
             is_right_circumference,
+            is_symmetric,
+            is_solid,
         ),
+        invert: bool = True,
         name="Disk Region",
     ):
         """Create a DiskRegion using physical dimensions from the center point."""
@@ -296,6 +319,7 @@ class DiskRegion(MetricBase):
             radius_tolerance=radius_tolerance_mm,
             detection_conditions=detection_conditions,
             name=name,
+            invert=invert,
         )
         instance.is_from_physical = True
         instance.is_from_center = True
@@ -324,50 +348,89 @@ class DiskRegion(MetricBase):
             self.expected_position.x += self.image.shape[1] / 2
             self.expected_position.y += self.image.shape[0] / 2
         # we invert the image so that the BB pixel intensity is higher than the background
-        arr_inverted = invert(self.image.array)
+        if self.invert:
+            array = invert(self.image.array)
+        else:
+            array = self.image.array
         # sample the image in the search window; need to convert to mm
         left = math.floor(self.expected_position.x - self.search_window[0] / 2)
         right = math.ceil(self.expected_position.x + self.search_window[0] / 2)
         top = math.floor(self.expected_position.y - self.search_window[1] / 2)
         bottom = math.ceil(self.expected_position.y + self.search_window[1] / 2)
-        sample = arr_inverted[top:bottom, left:right]
-        # search for the BB by iteratively lowering the low-pass threshold value until the BB is found.
+        sample = array[top:bottom, left:right]
+        # search for the BB by iteratively lowering the high-pass threshold value until the BB is found.
         found = False
-        threshold_percentile = 5
+        # uses the same algo as original WL; this is better than a percentile method as the percentile method
+        # can often be thrown off at the very ends of the distribution. It's more linear and faster to use the simple
+        # spread of min/max.
+        min, max = sample.min(), sample.max()
+        spread = max - min
+        cutoff = min
+        step_size = (
+            spread / 50
+        )  # move in 1/50 increments; maximum of 50 passes per image
         while not found:
             try:
-                binary_array = sample > np.percentile(sample, threshold_percentile)
+                binary_array = sample > cutoff
                 labeled_arr = measure.label(binary_array)
                 regions = measure.regionprops(labeled_arr, intensity_image=sample)
-                conditions_met = [
-                    all(
-                        condition(
+                detected_regions = {i: r for i, r in enumerate(regions)}
+                for condition in self.detection_conditions:
+                    to_pop = []
+                    for key, region in sorted(
+                        detected_regions.items(),
+                        key=lambda item: item[1].filled_area,
+                        reverse=True,
+                    ):
+                        if not condition(
                             region,
                             dpmm=self.image.dpmm,
                             bb_size=self.radius,
                             tolerance=self.radius_tolerance,
                             shape=binary_array.shape,
-                        )
-                        for condition in self.detection_conditions
-                    )
-                    for region in regions
-                ]
-                if not any(conditions_met):
+                        ):
+                            to_pop.append(key)
+                    detected_regions = {
+                        key: region
+                        for key, region in detected_regions.items()
+                        if key not in to_pop
+                    }
+                if len(detected_regions) == 0:
                     raise ValueError
                 else:
-                    region_idx = [
-                        idx for idx, value in enumerate(conditions_met) if value
-                    ][0]
+                    detected_region = next(iter(detected_regions.values()))
+                    boundary = np.pad(
+                        find_boundaries(
+                            # padding is needed as boundary edges aren't detected otherwise
+                            np.pad(
+                                detected_region.image,
+                                pad_width=1,
+                                mode="constant",
+                                constant_values=0,
+                            ),
+                            connectivity=detected_region.image.ndim,
+                            mode="inner",
+                            background=0,
+                        ),
+                        (
+                            (detected_region.bbox[0] + top - 1, 0),
+                            (detected_region.bbox[1] + left - 1, 0),
+                        ),
+                        mode="constant",
+                        constant_values=0,
+                    )
                     found = True
             except (IndexError, ValueError):
-                threshold_percentile += 2
-                if threshold_percentile >= 100:
+                # slow down the threshold increase at the ends. Statistically, the percentile bounds are where the BB is most likely to be.
+                cutoff += step_size
+                if cutoff > max:
                     raise ValueError(
                         "Couldn't find a disk in the selected area. Ensure the image is inverted such that the BB pixel intensity is lower than the surrounding region."
                     )
         self.x_offset = left
         self.y_offset = top
-        return regions[region_idx]
+        self.boundary = boundary
+        return detected_region
 
 
 class DiskLocator(DiskRegion):
@@ -384,9 +447,19 @@ class DiskLocator(DiskRegion):
         )
         return self.point
 
-    def plot(self, axis: plt.Axes) -> None:
+    def plot(self, axis: plt.Axes, show_boundaries: bool = True) -> None:
         """Plot the BB center"""
-        axis.plot(self.point.x, self.point.y, "ro")
+        axis.plot(self.point.x, self.point.y, "yx", markersize=12)
+        if show_boundaries:
+            boundary_y, boundary_x = np.nonzero(self.boundary)
+            axis.scatter(
+                boundary_x,
+                boundary_y,
+                c="r",
+                marker="s",
+                alpha=0.25,
+                s=3,
+            )
 
 
 class GlobalDiskLocator(MetricBase):
