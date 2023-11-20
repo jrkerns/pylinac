@@ -12,7 +12,7 @@ from skimage import measure
 from skimage.measure._regionprops import RegionProperties
 from skimage.segmentation import find_boundaries
 
-from pylinac.core.array_utils import invert
+from pylinac.core.array_utils import invert, stretch
 from pylinac.core.geometry import Point
 
 if TYPE_CHECKING:
@@ -50,11 +50,11 @@ def is_right_size_bb(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide whether the ROI is roughly the size of a BB; not noise and not an artifact. Used to find the BB."""
     bb_area = region.area_filled / (kwargs["dpmm"] ** 2)
     bb_size = kwargs["bb_size"]  # radius in mm
-    tolerance = kwargs["tolerance"]  # diameter tolerance in mm
+    tolerance = kwargs["tolerance"]  # radius tolerance in mm
     # A = pi * r^2
     larger_bb_area = np.pi * (bb_size + tolerance) ** 2
     smaller_bb_area = max(
-        (np.pi * (bb_size - tolerance) ** 2, 1)
+        (np.pi * (bb_size - tolerance) ** 2, 2)
     )  # set a min of 1 to avoid a lower bound of 0 when radius=2. This is much more likely to find noise in a block.
     return smaller_bb_area < bb_area < larger_bb_area
 
@@ -358,6 +358,7 @@ class DiskRegion(MetricBase):
         top = math.floor(self.expected_position.y - self.search_window[1] / 2)
         bottom = math.ceil(self.expected_position.y + self.search_window[1] / 2)
         sample = array[top:bottom, left:right]
+        sample = stretch(sample)
         # search for the BB by iteratively lowering the high-pass threshold value until the BB is found.
         found = False
         # uses the same algo as original WL; this is better than a percentile method as the percentile method
@@ -421,7 +422,7 @@ class DiskRegion(MetricBase):
                     )
                     found = True
             except (IndexError, ValueError):
-                # slow down the threshold increase at the ends. Statistically, the percentile bounds are where the BB is most likely to be.
+                # raise the threshold and try again
                 cutoff += step_size
                 if cutoff > max:
                     raise ValueError(
@@ -449,7 +450,7 @@ class DiskLocator(DiskRegion):
 
     def plot(self, axis: plt.Axes, show_boundaries: bool = True) -> None:
         """Plot the BB center"""
-        axis.plot(self.point.x, self.point.y, "yx", markersize=12)
+        axis.plot(self.point.x, self.point.y, "ro")
         if show_boundaries:
             boundary_y, boundary_x = np.nonzero(self.boundary)
             axis.scatter(

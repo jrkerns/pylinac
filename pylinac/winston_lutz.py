@@ -499,7 +499,8 @@ class WinstonLutz2D(image.LinacDicomImage):
                         condition(
                             region,
                             dpmm=self.dpmm,
-                            bb_size=bb_diameter,
+                            bb_size=bb_diameter / 2,
+                            tolerance=bb_tolerance_mm / 2,
                             shape=binary_arr.shape,
                         )
                         for condition in self.detection_conditions
@@ -564,7 +565,8 @@ class WinstonLutz2D(image.LinacDicomImage):
                         condition(
                             region,
                             dpmm=self.dpmm,
-                            bb_size=bb_diameter,
+                            bb_size=bb_diameter / 2,
+                            tolerance=bb_tolerance_mm / 2,
                             shape=binary_arr.shape,
                         )
                         for condition in self.detection_conditions
@@ -1054,6 +1056,20 @@ class WinstonLutz:
         result = optimize.minimize(
             max_distance_to_lines, initial_guess, args=things, bounds=bounds
         )
+        # find which line causes the max error
+        # other_results = {}
+        # for idx in range(len(things)):
+        #     new_lines = copy.deepcopy(things)
+        #     # new_lines = new_lines[::-1]
+        #     new_lines.pop(idx)
+        #     sub_result = optimize.minimize(
+        #         max_distance_to_lines, initial_guess, args=new_lines, bounds=bounds
+        #     )
+        #     other_results[idx] = sub_result.fun
+        #     # if sub_result.fun != result.fun:
+        #     #     offending_line = things[::-1][idx]
+        #         # break
+        # ttt = 1
         return result
 
     @property

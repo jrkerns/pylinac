@@ -16,6 +16,7 @@ CT
 Winston-Lutz
 ^^^^^^^^^^^^
 
+* The ``results()`` method of the ``WinstonLutz`` class will now also report the mean distance from the BB to the CAX in mm.
 * The Winston-Lutz algorithm now uses the new ``DiskLocator`` internal class. This was introduced in pylinac 3.16.
   The algorithm is very similar to the existing WL algorithm.
 * A new parameter has been added to ``analyze()``: ``bb_tolerance_mm``. This gives an acceptable window for finding a BB.

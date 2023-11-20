@@ -1095,7 +1095,7 @@ class KatyTB1(WinstonLutzMixin, TestCase):
     couch_iso_size = 1.1
     cax2bb_max_distance = 1
     cax2bb_median_distance = 0.7
-    cax2bb_mean_distance = 0.7
+    cax2bb_mean_distance = 0.6
     axis_of_rotation = {0: Axis.GANTRY}
     machine_scale = MachineScale.VARIAN_IEC
     bb_shift_vector = Vector(x=-0.6, y=-0.2)
@@ -1199,7 +1199,7 @@ class DAmoursElektaXOffset(WinstonLutzMixin, TestCase):
     gantry_iso_size = 1.1
     cax2bb_max_distance = 9.5
     cax2bb_median_distance = 6.9
-    cax2bb_mean_distance = 5.9
+    cax2bb_mean_distance = 6
     bb_shift_vector = Vector(x=-9.5, y=0.3, z=0.1)  # independently verified
 
 
@@ -1236,7 +1236,6 @@ class LargeFieldCouchPresent(WinstonLutzMixin, TestCase):
 
     file_name = ["large_field_couch_present.zip"]
     num_images = 4
-    bb_size = 4
     gantry_iso_size = 0.8
     collimator_iso_size = None
     couch_iso_size = None
@@ -1429,7 +1428,7 @@ class TestFrenchCBCT(CBCTWinstonLutzMixin, TestCase):
 
 
 class TestPerfectCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
-    bb_size = 5
+    bb_size = 4
     bb_offset = {"left": 0, "up": 0, "in": 0}
     cax2bb_max_distance = 0
     cax2bb_median_distance = 0
@@ -1438,7 +1437,7 @@ class TestPerfectCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
 
 
 class TestOffsetLeftCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
-    bb_size = 5
+    bb_size = 4
     bb_offset = {"left": 5, "up": 0, "in": 0}
     cax2bb_max_distance = 5
     cax2bb_median_distance = 2.5
@@ -1447,7 +1446,7 @@ class TestOffsetLeftCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
 
 
 class TestOffsetDownCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
-    bb_size = 5
+    bb_size = 4
     bb_offset = {"left": 0, "up": -5, "in": 0}
     cax2bb_max_distance = 5
     cax2bb_median_distance = 2.5
@@ -1456,7 +1455,7 @@ class TestOffsetDownCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
 
 
 class TestOffsetInCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
-    bb_size = 5
+    bb_size = 4
     bb_offset = {"left": 0, "up": 0, "in": 5}
     cax2bb_max_distance = 5
     cax2bb_median_distance = 5
