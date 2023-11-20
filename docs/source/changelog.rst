@@ -13,6 +13,28 @@ CT
   or limited resources on the machine running the process. This does come at a ~25-80% speed penalty depending on the
   size of the dataset. Larger datasets will have a larger penalty.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The Winston-Lutz algorithm now uses the new ``DiskLocator`` internal class. This was introduced in pylinac 3.16.
+  The algorithm is very similar to the existing WL algorithm.
+* A new parameter has been added to ``analyze()``: ``bb_tolerance_mm``. This gives an acceptable window for finding a BB.
+  E.g. if the BB size is 2mm, the tolerance can be set to 1mm. Alternatively, if the BB is very large, the
+  tolerance can be widened. This was done since very small and very large BBs were sometimes tripping up
+  because of the hardcoded 2mm tolerance. The default tolerance is still 2mm.
+
+  .. important::
+
+    If you use WL with very small BBs (<3mm), we recommend you set the tolerance to 1mm.
+
+* The ``DiskLocator`` class now plots the detected boundary of the disk/BB. Because the WL algorithm
+  now uses this class, the WL plots now also include the detected BB boundary.
+
+  .. important::
+
+      As always, pylinac uses the **weighted** centroid of the detected pixels. If the boundary
+      seems to include an extraneous pixel, it should minimally affect the BB location.
+
 
 v 3.17.0
 --------
