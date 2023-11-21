@@ -1753,7 +1753,6 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
     ) -> plt.Axes:
         ax = super(LinacDicomImage, self).plot(ax=ax, show=False, clear_fig=clear_fig)
         ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
-        ax.plot(self.bb.x, self.bb.y, "ro", ms=8)
         ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[2]])
         ax.set_xlim([self._rad_field_bounding_box[1], self._rad_field_bounding_box[3]])
         ax.set_yticklabels([])
@@ -1841,60 +1840,22 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
     def _find_bb(self, bb_of_interest: dict) -> Point:
         """Find the specific BB based on the arrangement rather than a single one. This is in local pixel coordinates"""
         # get initial starting conditions
-        bb = bb_of_interest
-        hmin, hmax = np.percentile(self.array, [5, 99.99])
-        spread = hmax - hmin
-        max_thresh = hmax
-        lower_thresh = hmax - spread / 1.5
-        # search for the BB by iteratively lowering the low-pass threshold value until the BB is found.
-        found = False
-        while not found:
-            try:
-                binary_arr = np.logical_and((max_thresh > self), (self >= lower_thresh))
-                # use below for debugging
-                # plt.imshow(binary_arr)
-                # plt.show()
-                labeled_arr, num_roi = ndimage.label(binary_arr)
-                regions = measure.regionprops(labeled_arr)
-                bb_candidates = [
-                    all(
-                        condition(
-                            region,
-                            dpmm=self.dpmm,
-                            bb_size=bb["bb_size_mm"],
-                            shape=binary_arr.shape,
-                        )
-                        for condition in self.detection_conditions
-                    )
-                    for region in regions
-                ]
-                if not any(bb_candidates):
-                    raise ValueError("Did not find any ROIs that looked like BBs")
-                # unlike a single WL which is always at the center, we must apply a secondary check based on the expected position of the BB
-                near_bbs = [
-                    self.location_near_nominal(region, bb) for region in regions
-                ]
-                if not any(near_bbs):
-                    raise ValueError("Did not find the BB where it was expected.")
-                else:
-                    region_idx = [
-                        idx
-                        for idx, _ in enumerate(regions)
-                        if bb_candidates[idx] and near_bbs[idx]
-                    ][0]
-                    found = True
-            except (IndexError, ValueError):
-                max_thresh -= 0.03 * spread
-                if max_thresh < hmin:
-                    raise ValueError(BB_ERROR_MESSAGE)
-        # determine the center of mass of the BB
-        inv_img = image.load(self.array)
-        # we invert so BB intensity increases w/ attenuation
-        inv_img.check_inversion_by_histogram(percentiles=(99.99, 50, 0.01))
-        bb_rprops = measure.regionprops(labeled_arr, intensity_image=inv_img)[
-            region_idx
-        ]
-        return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
+        bb_diameter = bb_of_interest["bb_size_mm"]
+        window = bb_of_interest["rad_size_mm"]
+        expected_position = self._nominal_point(bb_of_interest)
+        expected_position_mm = expected_position / self.dpmm
+        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
+        center = self.compute(
+            metrics=DiskLocator.from_physical(
+                expected_position_mm=expected_position_mm,
+                search_window_mm=(window, window),
+                radius_mm=bb_diameter / 2,
+                radius_tolerance_mm=bb_tolerance_mm,
+                invert=True,  # only MV images are involved for MTWL AFAICT
+                detection_conditions=self.detection_conditions,
+            )
+        )
+        return center
 
     def location_near_nominal(self, region: RegionProperties, location: dict) -> bool:
         """Determine whether the given BB ROI is near where the BB is expected to be"""

@@ -453,7 +453,7 @@ class DiskLocator(DiskRegion):
 
     def plot(self, axis: plt.Axes, show_boundaries: bool = True) -> None:
         """Plot the BB center"""
-        axis.plot(self.point.x, self.point.y, "ro")
+        axis.plot(self.point.x, self.point.y, "ro", markersize=10)
         if show_boundaries:
             boundary_y, boundary_x = np.nonzero(self.boundary)
             axis.scatter(
