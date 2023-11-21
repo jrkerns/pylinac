@@ -386,16 +386,15 @@ class WinstonLutz2D(image.LinacDicomImage):
         bb_size_mm: float = 5,
         low_density_bb: bool = False,
         open_field: bool = False,
-        bb_tolerance_mm: float = 2,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
         self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
             open_field
         )
         if low_density_bb:
-            self.bb = self._find_low_density_bb(bb_size_mm, bb_tolerance_mm)
+            self.bb = self._find_low_density_bb(bb_size_mm)
         else:
-            self.bb = self._find_bb(bb_size_mm, bb_tolerance_mm)
+            self.bb = self._find_bb(bb_size_mm)
         self._is_analyzed = True
 
     def __repr__(self):
@@ -465,68 +464,32 @@ class WinstonLutz2D(image.LinacDicomImage):
             p = Point(x=coords[-1], y=coords[0])
         return p, edges
 
-    def _find_low_density_bb(self, bb_diameter: float, bb_tolerance_mm: float) -> Point:
+    def _calculate_bb_tolerance(self, bb_diameter: float) -> int:
+        """Calculate the BB tolerance based on the BB diameter.
+        Min will be 2 for 1.5mm and under. Will be 4 for diameters at or above 30mm."""
+        y = (2, 4)
+        x = (1.5, 30)
+        return np.interp(bb_diameter, x, y)
+
+    def _find_low_density_bb(self, bb_diameter: float) -> Point:
         """Find the BB within the radiation field, where the BB is low-density and creates
         an *increase* in signal vs a decrease/attenuation. The algorithm is similar to the
         normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables
         """
+        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
         center = self.compute(
             metrics=DiskLocator.from_center_physical(
                 expected_position_mm=(0, 0),
-                search_window_mm=(30 + bb_diameter, 30 + bb_diameter),
+                search_window_mm=(20 + bb_diameter, 20 + bb_diameter),
                 radius_mm=bb_diameter / 2,
-                radius_tolerance_mm=bb_tolerance_mm / 2,
+                radius_tolerance_mm=bb_tolerance_mm,
                 invert=False,
                 detection_conditions=self.detection_conditions,
             )
         )
         return center
-        # get initial starting conditions
-        lower_thresh = self.array.max() * 0.8
-        spread = self.array.max() - lower_thresh
-        # search for the BB by iteratively increasing a high-pass threshold value until the BB is found.
-        found = False
-        while not found:
-            try:
-                binary_arr = self >= lower_thresh
-                # use below for debugging
-                # plt.imshow(binary_arr)
-                # plt.show()
-                labeled_arr, num_roi = ndimage.label(binary_arr)
-                regions = measure.regionprops(labeled_arr)
-                conditions_met = [
-                    all(
-                        condition(
-                            region,
-                            dpmm=self.dpmm,
-                            bb_size=bb_diameter / 2,
-                            tolerance=bb_tolerance_mm / 2,
-                            shape=binary_arr.shape,
-                        )
-                        for condition in self.detection_conditions
-                    )
-                    for region in regions
-                ]
-                if not any(conditions_met):
-                    raise ValueError
-                else:
-                    region_idx = [
-                        idx for idx, value in enumerate(conditions_met) if value
-                    ][0]
-                    found = True
-            except (IndexError, ValueError):
-                lower_thresh += 0.03 * spread
-                if lower_thresh >= self.array.max():
-                    raise ValueError(BB_ERROR_MESSAGE)
 
-        # determine the center of mass of the BB
-        inv_img = image.load(self.array)
-        bb_rprops = measure.regionprops(labeled_arr, intensity_image=inv_img)[
-            region_idx
-        ]
-        return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
-
-    def _find_bb(self, bb_diameter: float, bb_tolerance_mm: float) -> Point:
+    def _find_bb(self, bb_diameter: float) -> Point:
         """Find the BB within the radiation field. Iteratively searches for a circle-like object
         by lowering a low-pass threshold value until found.
 
@@ -535,64 +498,17 @@ class WinstonLutz2D(image.LinacDicomImage):
         Point
             The weighted-pixel value location of the BB.
         """
+        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
         center = self.compute(
             metrics=DiskLocator.from_center_physical(
                 expected_position_mm=(0, 0),
-                search_window_mm=(30 + bb_diameter, 30 + bb_diameter),
+                search_window_mm=(40 + bb_diameter, 40 + bb_diameter),
                 radius_mm=bb_diameter / 2,
-                radius_tolerance_mm=bb_tolerance_mm / 2,
+                radius_tolerance_mm=bb_tolerance_mm,
                 detection_conditions=self.detection_conditions,
             )
         )
         return center
-        # get initial starting conditions
-        hmin, hmax = np.percentile(self.array, [5, 99.99])
-        spread = hmax - hmin
-        max_thresh = hmax
-        lower_thresh = hmax - spread / 1.5
-        # search for the BB by iteratively lowering the low-pass threshold value until the BB is found.
-        found = False
-        while not found:
-            try:
-                binary_arr = np.logical_and((max_thresh > self), (self >= lower_thresh))
-                # use below for debugging
-                # plt.imshow(binary_arr)
-                # plt.show()
-                labeled_arr, num_roi = ndimage.label(binary_arr)
-                regions = measure.regionprops(labeled_arr)
-                conditions_met = [
-                    all(
-                        condition(
-                            region,
-                            dpmm=self.dpmm,
-                            bb_size=bb_diameter / 2,
-                            tolerance=bb_tolerance_mm / 2,
-                            shape=binary_arr.shape,
-                        )
-                        for condition in self.detection_conditions
-                    )
-                    for region in regions
-                ]
-                if not any(conditions_met):
-                    raise ValueError
-                else:
-                    region_idx = [
-                        idx for idx, value in enumerate(conditions_met) if value
-                    ][0]
-                    found = True
-            except (IndexError, ValueError):
-                max_thresh -= 0.03 * spread
-                if max_thresh < hmin:
-                    raise ValueError(BB_ERROR_MESSAGE)
-
-        # determine the center of mass of the BB
-        inv_img = image.load(self.array)
-        # we invert so BB intensity increases w/ attenuation
-        inv_img.check_inversion_by_histogram(percentiles=(99.99, 50, 0.01))
-        bb_rprops = measure.regionprops(labeled_arr, intensity_image=inv_img)[
-            region_idx
-        ]
-        return Point(bb_rprops.weighted_centroid[1], bb_rprops.weighted_centroid[0])
 
     @property
     def epid(self) -> Point:
@@ -670,7 +586,6 @@ class WinstonLutz2D(image.LinacDicomImage):
         """
         ax = super().plot(ax=ax, show=False, clear_fig=clear_fig)
         ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
-        ax.plot(self.bb.x, self.bb.y, "ro", ms=8)
         ax.axvline(x=self.epid.x, color="b")
         ax.axhline(y=self.epid.y, color="b")
         ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[1]])
@@ -1008,7 +923,6 @@ class WinstonLutz:
         machine_scale: MachineScale = MachineScale.IEC61217,
         low_density_bb: bool = False,
         open_field: bool = False,
-        bb_tolerance_mm: float = 2,
     ) -> None:
         """Analyze the WL images.
 
@@ -1024,15 +938,13 @@ class WinstonLutz:
             If True, sets the field center to the EPID center under the assumption the field is not the focus of interest or is too wide to be calculated.
             This is often helpful for kV WL analysis where the blades are wide open and even then the blade edge is of
             less interest than simply the imaging iso vs the BB.
-        bb_tolerance_mm
-            The tolerance of the BB diameter in mm. Generally this should be 1mm for very small BBs (<=2mm), 2mm for medium-sized BBs (3-10mm), and 2+mm for larger BBs.
         """
         self.machine_scale = machine_scale
         if self.is_from_cbct:
             low_density_bb = True
             open_field = True
         for img in self.images:
-            img.analyze(bb_size_mm, low_density_bb, open_field, bb_tolerance_mm)
+            img.analyze(bb_size_mm, low_density_bb, open_field)
         self._is_analyzed = True
         self._bb_diameter = bb_size_mm
 
@@ -1056,20 +968,6 @@ class WinstonLutz:
         result = optimize.minimize(
             max_distance_to_lines, initial_guess, args=things, bounds=bounds
         )
-        # find which line causes the max error
-        # other_results = {}
-        # for idx in range(len(things)):
-        #     new_lines = copy.deepcopy(things)
-        #     # new_lines = new_lines[::-1]
-        #     new_lines.pop(idx)
-        #     sub_result = optimize.minimize(
-        #         max_distance_to_lines, initial_guess, args=new_lines, bounds=bounds
-        #     )
-        #     other_results[idx] = sub_result.fun
-        #     # if sub_result.fun != result.fun:
-        #     #     offending_line = things[::-1][idx]
-        #         # break
-        # ttt = 1
         return result
 
     @property

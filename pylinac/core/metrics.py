@@ -63,14 +63,14 @@ def is_solid(region: RegionProperties, *args, **kwargs) -> bool:
     """Whether the ROI is spiculated. We want nice, round ROIs,
     and this will drop such ROIs. Generally, these spiculations are noise or a BB rod.
     """
-    return region.solidity > 0.8
+    return region.solidity > 0.9
 
 
 def is_round(region: RegionProperties, *args, **kwargs) -> bool:
     """Decide if the ROI is circular in nature by testing the filled area vs bounding box. Used to find the BB."""
     expected_fill_ratio = np.pi / 4  # area of a circle inside a square
     actual_fill_ratio = region.filled_area / region.bbox_area
-    return expected_fill_ratio * 1.1 > actual_fill_ratio > expected_fill_ratio * 0.9
+    return expected_fill_ratio * 1.2 > actual_fill_ratio > expected_fill_ratio * 0.8
 
 
 def is_right_circumference(region: RegionProperties, *args, **kwargs) -> bool:
@@ -366,14 +366,16 @@ class DiskRegion(MetricBase):
         # spread of min/max.
         min, max = sample.min(), sample.max()
         spread = max - min
-        cutoff = min
         step_size = (
             spread / 50
         )  # move in 1/50 increments; maximum of 50 passes per image
+        cutoff = (
+            min + step_size
+        )  # start at the min + 1 step; we know the min cutoff will be a blank, full image
         while not found:
             try:
                 binary_array = sample > cutoff
-                labeled_arr = measure.label(binary_array)
+                labeled_arr = measure.label(binary_array, connectivity=1)
                 regions = measure.regionprops(labeled_arr, intensity_image=sample)
                 detected_regions = {i: r for i, r in enumerate(regions)}
                 for condition in self.detection_conditions:
