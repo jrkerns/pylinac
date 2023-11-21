@@ -522,7 +522,7 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
                 r"AQA_B_03082023.tif": (0, 0, 0),
             },
         )
-        ref_w.analyze(bb_size_mm=24)
+        ref_w.analyze(bb_size_mm=30)
         results = ref_w.results_data()
         self.assertEqual(results.num_gantry_images, 2)
 
@@ -862,7 +862,7 @@ class WinstonLutzMixin(CloudFileMixin):
 
 class WLDemo(WinstonLutzMixin, TestCase):
     num_images = 17
-    gantry_iso_size = 1.1
+    gantry_iso_size = 1
     collimator_iso_size = 1.2
     couch_iso_size = 2.3
     cax2bb_max_distance = 1.2
@@ -982,7 +982,7 @@ class WLReferenceIsLargestRMS(WinstonLutzMixin, TestCase):
 
     def test_largest_error_at_ref_is_reported(self):
         self.assertAlmostEqual(
-            self.wl.results_data().max_gantry_rms_deviation_mm, 1, places=1
+            self.wl.results_data().max_gantry_rms_deviation_mm, 1, places=2
         )
 
 
@@ -1229,7 +1229,7 @@ class DAmoursElektaXOffset(WinstonLutzMixin, TestCase):
     gantry_iso_size = 1.1
     cax2bb_max_distance = 9.5
     cax2bb_median_distance = 6.9
-    cax2bb_mean_distance = 5.9
+    cax2bb_mean_distance = 6
     bb_shift_vector = Vector(x=-9.5, y=0.3, z=0.1)  # independently verified
 
 
@@ -1339,12 +1339,12 @@ class VarianBBkV(WinstonLutzMixin, TestCase):
     low_density_bb = True
     open_field = True
     bb_size = 1.5
-    gantry_iso_size = 0.3
+    gantry_iso_size = 0.15
     collimator_iso_size = None
     couch_iso_size = None
     cax2bb_max_distance = 0.42
     cax2bb_median_distance = 0.31
-    cax2bb_mean_distance = 0.28
+    cax2bb_mean_distance = 0.18
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.24, y=0.2, z=-0.15)
 

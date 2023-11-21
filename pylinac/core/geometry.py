@@ -339,8 +339,8 @@ class Line:
 
     def __repr__(self) -> str:
         return (
-            f"Line: p1:(x={self.point1.x:.2f}, y={self.point1.y:.2f}, z={self.point1.z:.2f}), "
-            f"p2:(x={self.point2.x:.2f}, y={self.point2.y:.2f}, z={self.point2.z:.2f})"
+            f"Line: p1:(x={self.point1.x:.1f}, y={self.point1.y:.1f}, z={self.point1.z:.1f}), "
+            f"p2:(x={self.point2.x:.1f}, y={self.point2.y:.1f}, z={self.point2.z:.1f})"
         )
 
     @property

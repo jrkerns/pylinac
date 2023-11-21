@@ -55,7 +55,8 @@ def is_right_size_bb(region: RegionProperties, *args, **kwargs) -> bool:
     larger_bb_area = np.pi * (bb_size + tolerance) ** 2
     smaller_bb_area = max(
         (np.pi * (bb_size - tolerance) ** 2, 2)
-    )  # set a min of 1 to avoid a lower bound of 0 when radius=2. This is much more likely to find noise in a block.
+    )  # set a min of 2 to avoid a lower bound of 0 when radius<=2. Having a small lower bound is much more likely to find noise in a block.
+    # this is actually really important. A lower bound of 1 will catch SIGNIFICANT noise and produce erroneous results.
     return smaller_bb_area < bb_area < larger_bb_area
 
 
