@@ -480,7 +480,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         center = self.compute(
             metrics=DiskLocator.from_center_physical(
                 expected_position_mm=(0, 0),
-                search_window_mm=(20 + bb_diameter, 20 + bb_diameter),
+                search_window_mm=(40 + bb_diameter, 40 + bb_diameter),
                 radius_mm=bb_diameter / 2,
                 radius_tolerance_mm=bb_tolerance_mm,
                 invert=False,
