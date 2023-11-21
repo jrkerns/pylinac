@@ -365,7 +365,6 @@ class WinstonLutz2D(image.LinacDicomImage):
         self,
         file: str | BinaryIO | Path,
         use_filenames: bool = False,
-        detection_conditions: list[callable] | None = None,
         **kwargs,
     ):
         """
@@ -379,8 +378,8 @@ class WinstonLutz2D(image.LinacDicomImage):
         """
         super().__init__(file, use_filenames=use_filenames, **kwargs)
         # override detection conditions if passed
-        if detection_conditions:
-            self.detection_conditions = detection_conditions
+        if conditions := kwargs.pop("detection_conditions"):
+            self.detection_conditions = conditions
         self._is_analyzed = False
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
