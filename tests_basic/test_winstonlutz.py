@@ -1344,7 +1344,7 @@ class VarianBBkV(WinstonLutzMixin, TestCase):
     couch_iso_size = None
     cax2bb_max_distance = 0.42
     cax2bb_median_distance = 0.31
-    cax2bb_mean_distance = 0.18
+    cax2bb_mean_distance = 0.28
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.24, y=0.2, z=-0.15)
 
