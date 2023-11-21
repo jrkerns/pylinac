@@ -30,6 +30,8 @@ Winston-Lutz
 
 * The ``DiskLocator`` class now plots the detected boundary of the disk/BB. Because the WL algorithm
   now uses this class, the WL plots now also include the detected BB boundary.
+* Detection conditions for the WL algorithm can now be set via the ``detection_conditions`` parameter for ``WinstonLutz2D``
+  and set as a class attribute for ``WinstonLutz``.
 
   .. important::
 

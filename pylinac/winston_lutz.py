@@ -362,7 +362,11 @@ class WinstonLutz2D(image.LinacDicomImage):
     ]
 
     def __init__(
-        self, file: str | BinaryIO | Path, use_filenames: bool = False, **kwargs
+        self,
+        file: str | BinaryIO | Path,
+        use_filenames: bool = False,
+        detection_conditions: list[callable] | None = None,
+        **kwargs,
     ):
         """
         Parameters
@@ -374,6 +378,9 @@ class WinstonLutz2D(image.LinacDicomImage):
             Useful for Elekta machines that do not include that info in the DICOM data.
         """
         super().__init__(file, use_filenames=use_filenames, **kwargs)
+        # override detection conditions if passed
+        if detection_conditions:
+            self.detection_conditions = detection_conditions
         self._is_analyzed = False
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
@@ -665,6 +672,13 @@ class WinstonLutz:
     image_type = WinstonLutz2D
     is_from_cbct: bool = False
     _bb_diameter = float
+    detection_conditions: list[callable] = [
+        is_right_size_bb,
+        is_round,
+        is_right_circumference,
+        is_symmetric,
+        is_solid,
+    ]
 
     def __init__(
         self,
@@ -754,10 +768,12 @@ class WinstonLutz:
         sid: float | None,
         dpi: float | None,
         **kwargs,
-    ):
+    ) -> WinstonLutz2D:
         """A helper method to load either DICOM or TIFF files appropriately."""
         try:
-            return self.image_type(file, **kwargs)
+            return self.image_type(
+                file, detection_conditions=self.detection_conditions, **kwargs
+            )
         except AttributeError:
             if kwargs.get("gantry") is None:
                 raise ValueError(
@@ -775,7 +791,9 @@ class WinstonLutz:
                     couch=kwargs.pop("couch"),
                 )
                 ds.save_as(stream, write_like_original=False)
-                img = self.image_type(stream, **kwargs)
+                img = self.image_type(
+                    stream, detection_conditions=self.detection_conditions, **kwargs
+                )
                 if not img.dpmm:
                     raise ValueError(
                         "TIFF images were detected but the dpi tag was not available. Pass the `dpi` parameter manually."
