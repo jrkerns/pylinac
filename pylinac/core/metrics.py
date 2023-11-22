@@ -174,7 +174,7 @@ class MetricBase(ABC):
         original_image = copy.deepcopy(self.image)
         calculation = self.calculate()
         # reset to original image (reference; reuse memory)
-        self.image = original_image
+        self.inject_image(original_image)
         return calculation
 
     @abstractmethod
