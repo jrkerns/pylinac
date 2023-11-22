@@ -433,7 +433,7 @@ class DiskRegion(MetricBase):
                     )
         self.x_offset = left
         self.y_offset = top
-        self.boundary = boundary
+        self.boundary_y, self.boundary_x = np.nonzero(boundary)
         return detected_region
 
 
@@ -455,10 +455,9 @@ class DiskLocator(DiskRegion):
         """Plot the BB center"""
         axis.plot(self.point.x, self.point.y, "ro", markersize=10)
         if show_boundaries:
-            boundary_y, boundary_x = np.nonzero(self.boundary)
             axis.scatter(
-                boundary_x,
-                boundary_y,
+                self.boundary_x,
+                self.boundary_y,
                 c="r",
                 marker="s",
                 alpha=0.25,
