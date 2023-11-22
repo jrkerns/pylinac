@@ -376,7 +376,7 @@ class WinstonLutz2D(image.LinacDicomImage):
             Whether to try to use the file name to determine axis values.
             Useful for Elekta machines that do not include that info in the DICOM data.
         """
-        if conditions := kwargs.pop("detection_conditions"):
+        if conditions := kwargs.pop("detection_conditions", False):
             self.detection_conditions = conditions
         super().__init__(file, use_filenames=use_filenames, **kwargs)
         # override detection conditions if passed
