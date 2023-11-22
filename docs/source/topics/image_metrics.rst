@@ -324,6 +324,10 @@ To write a custom plugin, you must
 * Implement the ``calculate`` method.
 * (Optional) Implement the ``plot`` method if you want the metric to plot on the image.
 
+.. warning::
+
+    Do not modify the image in the ``calculate`` method as this will affect the image for other metrics and/or plotting.
+
 For example, let's built a simple plugin that finds and plots an "X" at the center of the image:
 
 .. plot::

@@ -159,16 +159,7 @@ class MetricBase(ABC):
         self.image = image
 
     def context_calculate(self) -> Any:
-        """Calculate the metric, passing in an image copy so that
-        modifications to the image don't affect the original.
-
-        This is also **kinda** memory efficient since the original
-        image is a reference. The copy here will get destroyed
-        after the call returns vs keeping a copy around.
-
-        So at any given time, only 2x the memory is required instead of
-        Nx. This is important when computing multiple metrics.
-        """
+        """Calculate the metric. This also checks the image hash to attempt to ensure no changes were made."""
         img_hash = hash(self.image.array.tobytes())
         calculation = self.calculate()
         # check no modifications
