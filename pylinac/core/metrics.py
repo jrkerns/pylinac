@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import math
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -160,19 +159,16 @@ class MetricBase(ABC):
         self.image = image
 
     def context_calculate(self) -> Any:
-        """Calculate the metric, passing in an image copy so that
-        modifications to the image don't affect the original.
-
-        This is also **kinda** memory efficient since the original
-        image is a reference. The copy here will get destroyed
-        after the call returns vs keeping a copy around.
-
-        So at any given time, only 2x the memory is required instead of
-        Nx. This is important when computing multiple metrics.
-        """
-        image_copy = copy.deepcopy(self.image)
-        self.image = image_copy
-        return self.calculate()
+        """Calculate the metric. This also checks the image hash to attempt to ensure no changes were made."""
+        img_hash = hash(self.image.array.tobytes())
+        calculation = self.calculate()
+        # check no modifications
+        if hash(self.image.array.tobytes()) != img_hash:
+            raise RuntimeError(
+                "A metric modified an image. This is not allowed as this could affect other, downstream metrics. Change"
+                "the calculate method to not modify the underlying image."
+            )
+        return calculation
 
     @abstractmethod
     def calculate(self) -> Any:
@@ -348,17 +344,15 @@ class DiskRegion(MetricBase):
             # convert from image edge to center
             self.expected_position.x += self.image.shape[1] / 2
             self.expected_position.y += self.image.shape[0] / 2
-        # we invert the image so that the BB pixel intensity is higher than the background
-        if self.invert:
-            array = invert(self.image.array)
-        else:
-            array = self.image.array
         # sample the image in the search window; need to convert to mm
         left = math.floor(self.expected_position.x - self.search_window[0] / 2)
         right = math.ceil(self.expected_position.x + self.search_window[0] / 2)
         top = math.floor(self.expected_position.y - self.search_window[1] / 2)
         bottom = math.ceil(self.expected_position.y + self.search_window[1] / 2)
-        sample = array[top:bottom, left:right]
+        sample = self.image[top:bottom, left:right]
+        # we might need to invert the image so that the BB pixel intensity is higher than the background
+        if self.invert:
+            sample = invert(sample)
         sample = stretch(sample)
         # search for the BB by iteratively lowering the high-pass threshold value until the BB is found.
         found = False
@@ -433,7 +427,7 @@ class DiskRegion(MetricBase):
                     )
         self.x_offset = left
         self.y_offset = top
-        self.boundary = boundary
+        self.boundary_y, self.boundary_x = np.nonzero(boundary)
         return detected_region
 
 
@@ -453,12 +447,11 @@ class DiskLocator(DiskRegion):
 
     def plot(self, axis: plt.Axes, show_boundaries: bool = True) -> None:
         """Plot the BB center"""
-        axis.plot(self.point.x, self.point.y, "ro")
+        axis.plot(self.point.x, self.point.y, "ro", markersize=10)
         if show_boundaries:
-            boundary_y, boundary_x = np.nonzero(self.boundary)
             axis.scatter(
-                boundary_x,
-                boundary_y,
+                self.boundary_x,
+                self.boundary_y,
                 c="r",
                 marker="s",
                 alpha=0.25,
