@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import math
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -170,11 +169,14 @@ class MetricBase(ABC):
         So at any given time, only 2x the memory is required instead of
         Nx. This is important when computing multiple metrics.
         """
-        # copy so we can manipulate as required w/ modifying original
-        original_image = copy.deepcopy(self.image)
+        img_hash = hash(self.image.array.tobytes())
         calculation = self.calculate()
-        # reset to original image (reference; reuse memory)
-        self.inject_image(original_image)
+        # check no modifications
+        if hash(self.image.array.tobytes()) != img_hash:
+            raise RuntimeError(
+                "A metric modified an image. This is not allowed as this could affect other, downstream metrics. Change"
+                "the calculate method to not modify the underlying image."
+            )
         return calculation
 
     @abstractmethod
@@ -351,17 +353,15 @@ class DiskRegion(MetricBase):
             # convert from image edge to center
             self.expected_position.x += self.image.shape[1] / 2
             self.expected_position.y += self.image.shape[0] / 2
-        # we invert the image so that the BB pixel intensity is higher than the background
-        if self.invert:
-            array = invert(self.image.array)
-        else:
-            array = self.image.array
         # sample the image in the search window; need to convert to mm
         left = math.floor(self.expected_position.x - self.search_window[0] / 2)
         right = math.ceil(self.expected_position.x + self.search_window[0] / 2)
         top = math.floor(self.expected_position.y - self.search_window[1] / 2)
         bottom = math.ceil(self.expected_position.y + self.search_window[1] / 2)
-        sample = array[top:bottom, left:right]
+        sample = self.image[top:bottom, left:right]
+        # we might need to invert the image so that the BB pixel intensity is higher than the background
+        if self.invert:
+            sample = invert(sample)
         sample = stretch(sample)
         # search for the BB by iteratively lowering the high-pass threshold value until the BB is found.
         found = False

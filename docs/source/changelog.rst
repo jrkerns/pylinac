@@ -28,6 +28,11 @@ Winston-Lutz
 
     If you use WL with very small BBs (<3mm), we recommend you set the tolerance to 1mm.
 
+* The BB boundary is now plotted. See the "Metrics" section.
+
+Metrics
+^^^^^^^
+
 * The ``DiskLocator`` class now plots the detected boundary of the disk/BB. Because the WL algorithm
   now uses this class, the WL plots now also include the detected BB boundary.
 
@@ -36,6 +41,10 @@ Winston-Lutz
       As always, pylinac uses the **weighted** centroid of the detected pixels. If the boundary
       seems to include an extraneous pixel, it should minimally affect the BB location.
 
+* Previously, metrics would allow the image to be modified. The metric would copy the image temporarily. However,
+  a memory bug would cause large numbers of images to use inordinate amounts of memory.
+  Now, images cannot be permanently modified. A hash check will be run before and after the calculation to ensure
+  the image array has not been modified.
 
 v 3.17.0
 --------

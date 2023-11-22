@@ -863,8 +863,6 @@ class BaseImage:
         if isinstance(metrics, MetricBase):
             metrics = [metrics]
         for metric in metrics:
-            # we copy the image so any manipulations
-            # do not affect the original
             metric.inject_image(self)
             self.metrics.append(metric)
             value = metric.context_calculate()

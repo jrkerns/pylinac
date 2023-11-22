@@ -76,6 +76,31 @@ def create_multi_open_field(
     return as1000.as_dicom()
 
 
+class TestGeneralMetric(TestCase):
+    def test_modifying_image_fails(self):
+        # user should not modify the image under the hood
+        class DiskModifier(DiskLocator):
+            def calculate(self) -> Point:
+                calc = super().calculate()
+                self.image.crop(10)  # modifying the image
+                return calc
+
+        bb_diameter_mm = 5
+        ds = create_bb_image(bb_size=bb_diameter_mm)
+        img = DicomImage.from_dataset(ds)
+        with self.assertRaises(RuntimeError):
+            img.compute(
+                metrics=[
+                    DiskModifier(
+                        expected_position=(511.5, 383.5),
+                        search_window=(50, 50),
+                        radius=6,
+                        radius_tolerance=1,
+                    )
+                ]
+            )
+
+
 class TestGlobalDiskLocator(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
