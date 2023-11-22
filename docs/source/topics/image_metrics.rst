@@ -286,6 +286,16 @@ For example:
    )
    img.plot()  # this will plot the image with the fields overlaid
 
+Constraints
+###########
+
+* The field is expected to be mostly rectangular. I.e. not a cone.
+* The field must not be touching an edge of the image. Such fields will be ignored.
+* The field must be at least 10% of the maximum pixel value. This is to avoid finding artifacts. I.e.
+  If the maximum pixel value is 10,000, then the pixels within the field must be at least 1,000 to be
+  detected. Anything under 10% will be ignored.
+
+
 Using physical units
 ####################
 

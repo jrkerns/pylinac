@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-from skimage import measure
+from skimage import measure, segmentation
 from skimage.measure._regionprops import RegionProperties
 from skimage.segmentation import find_boundaries
 
@@ -665,50 +665,6 @@ class GlobalSizedFieldLocator(MetricBase):
         instance.is_from_physical = True
         return instance
 
-    @property
-    def threshold_step_size(self) -> float:
-        """Set the step size for the threshold. This is based on the max number of fields and the field size."""
-        if not self.max_number:
-            return self.default_threshold_step_size
-        else:
-            # usually the threshold is actually very small
-            # since the field is very small compared to the
-            # image size. In this case, we want to increase
-            # the threshold much slower than the default.
-            # In combination with the threshold_start,
-            # this is actually quite sensitive and quick.
-            # In effect, we are shifting the threshold to whatever
-            # 10% of the expected total field area is or 2, whichever is smaller.
-            # For larger fields, this can be quite large, thus the 2 max.
-            calculated_step_size = (
-                self.max_number
-                * (self.field_width_mm * self.field_height_mm)
-                * (self.image.dpmm**2)
-                / self.image.size
-                * 10
-            )
-            return min((calculated_step_size, self.default_threshold_step_size))
-
-    @property
-    def threshold_start(self) -> float:
-        """The starting percentile for the threshold. This is based on the max number of fields and the field size."""
-        if not self.max_number:
-            return 5
-        else:
-            # start at a higher threshold if we have a max number
-            # by using the expected total area of the fields / image size
-            # this offset from 100 and adds a 1.5 safety margin
-            # E.g. for a 10x10 field, this might result in a starting threshold of 99.6
-            return (
-                100
-                - 100
-                * 1.5
-                * self.max_number
-                * (self.field_width_mm * self.field_height_mm)
-                * (self.image.dpmm**2)
-                / self.image.size
-            )
-
     def calculate(self) -> list[Point]:
         """Find up to N fields in the image. This will look for fields at every percentile range.
         Multiple fields may be found at different threshold levels."""
@@ -720,10 +676,16 @@ class GlobalSizedFieldLocator(MetricBase):
         boundaries = []
         sample = self.image.array
         # search for multiple BBs by iteratively raising the high-pass threshold value.
-        threshold_percentile = self.threshold_start
-        while threshold_percentile < 100 and len(fields) < self.max_number:
+        imin, imax = sample.min(), sample.max()
+        spread = imax - imin
+        step_size = (
+            spread / 50
+        )  # move in 1/50 increments; maximum of 50 passes per image
+        cutoff = imin + step_size * 5  # start at 10% height
+        while cutoff <= imax and len(fields) < self.max_number:
             try:
-                binary_array = sample > np.percentile(sample, threshold_percentile)
+                binary_array = sample > cutoff
+                binary_array = segmentation.clear_border(binary_array, buffer_size=3)
                 labeled_arr = measure.label(binary_array)
                 regions = measure.regionprops(labeled_arr, intensity_image=sample)
                 conditions_met = [
@@ -789,7 +751,7 @@ class GlobalSizedFieldLocator(MetricBase):
             except (IndexError, ValueError):
                 pass
             finally:
-                threshold_percentile += self.threshold_step_size
+                cutoff += step_size
         if len(fields) < self.min_number:
             # didn't find the number we needed
             raise ValueError(
