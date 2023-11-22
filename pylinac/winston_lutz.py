@@ -391,10 +391,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
             open_field
         )
-        if low_density_bb:
-            self.bb = self._find_low_density_bb(bb_size_mm)
-        else:
-            self.bb = self._find_bb(bb_size_mm)
+        self.bb = self._find_bb(bb_size_mm, low_density_bb)
         self._is_analyzed = True
 
     def __repr__(self):
@@ -471,25 +468,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         x = (1.5, 30)
         return np.interp(bb_diameter, x, y)
 
-    def _find_low_density_bb(self, bb_diameter: float) -> Point:
-        """Find the BB within the radiation field, where the BB is low-density and creates
-        an *increase* in signal vs a decrease/attenuation. The algorithm is similar to the
-        normal _find_bb, but there would be so many if-statements it would be very convoluted and contain superfluous variables
-        """
-        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
-        center = self.compute(
-            metrics=DiskLocator.from_center_physical(
-                expected_position_mm=(0, 0),
-                search_window_mm=(40 + bb_diameter, 40 + bb_diameter),
-                radius_mm=bb_diameter / 2,
-                radius_tolerance_mm=bb_tolerance_mm,
-                invert=False,
-                detection_conditions=self.detection_conditions,
-            )
-        )
-        return center
-
-    def _find_bb(self, bb_diameter: float) -> Point:
+    def _find_bb(self, bb_diameter: float, low_density: bool) -> Point:
         """Find the BB within the radiation field. Iteratively searches for a circle-like object
         by lowering a low-pass threshold value until found.
 
@@ -505,6 +484,7 @@ class WinstonLutz2D(image.LinacDicomImage):
                 search_window_mm=(40 + bb_diameter, 40 + bb_diameter),
                 radius_mm=bb_diameter / 2,
                 radius_tolerance_mm=bb_tolerance_mm,
+                invert=not low_density,
                 detection_conditions=self.detection_conditions,
             )
         )
