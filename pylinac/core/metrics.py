@@ -170,9 +170,12 @@ class MetricBase(ABC):
         So at any given time, only 2x the memory is required instead of
         Nx. This is important when computing multiple metrics.
         """
-        image_copy = copy.deepcopy(self.image)
-        self.image = image_copy
-        return self.calculate()
+        # copy so we can manipulate as required w/ modifying original
+        original_image = copy.deepcopy(self.image)
+        calculation = self.calculate()
+        # reset to original image (reference; reuse memory)
+        self.image = original_image
+        return calculation
 
     @abstractmethod
     def calculate(self) -> Any:
