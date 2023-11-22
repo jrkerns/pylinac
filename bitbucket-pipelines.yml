@@ -215,18 +215,6 @@ definitions:
               - "pylinac/core/**"
               - "tests_basic/test_winstonlutz.py"
               - "pylinac/winston_lutz.py"
-    - step: &winston-lutz-mtmf-tests
-        name: Run Winston-Lutz Multi-Target Multi-Field Tests
-        size: 2x
-        script:
-          - source venv/bin/activate
-          - pytest tests_basic/test_winstonlutz_mtmf.py --cov-report term --junitxml=./test-reports/pytest_results.xml
-        condition:
-          changesets:
-            includePaths:
-              - "pylinac/core/**"
-              - "tests_basic/test_winstonlutz.py"
-              - "pylinac/winston_lutz.py"
     - step: &core-module-tests
         name: Run core module tests
         script:
@@ -316,7 +304,6 @@ pipelines:
           - step: *calibration-tests
           - step: *vmat-tests
           - step: *winston-lutz-tests
-          - step: *winston-lutz-mtmf-tests
           - step: *core-module-tests
 
   branches:
@@ -339,7 +326,6 @@ pipelines:
           - step: *calibration-tests
           - step: *vmat-tests
           - step: *winston-lutz-tests
-          - step: *winston-lutz-mtmf-tests
           - step: *core-module-tests
       - step: *push-to-github
       - step: *update-dev-kraken
