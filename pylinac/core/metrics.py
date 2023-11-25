@@ -510,39 +510,54 @@ class GlobalDiskLocator(MetricBase):
     def calculate(self) -> list[Point]:
         """Find up to N BBs/disks in the image. This will look for BBs at every percentile range.
         Multiple BBs may be found at different threshold levels."""
+
+        # The implementation difference here from the original isn't large,
+        # But we need to detect MULTIPLE bbs instead of just one.
         bbs = []
         sample = invert(self.image.array)
-        # search for multiple BBs by iteratively raising the high-pass threshold value.
-        threshold_percentile = 5
-        while threshold_percentile < 100 and len(bbs) < self.max_number:
+        # uses the same algo as original WL; this is better than a percentile method as the percentile method
+        # can often be thrown off at the very ends of the distribution. It's more linear and faster to use the simple
+        # spread of min/max.
+        imin, imax = sample.min(), sample.max()
+        spread = imax - imin
+        step_size = (
+            spread / 50
+        )  # move in 1/50 increments; maximum of 50 passes per image
+        cutoff = (
+            imin + step_size
+        )  # start at the min + 1 step; we know the min cutoff will be a blank, full image
+        while cutoff <= imax and len(bbs) < self.max_number:
             try:
-                binary_array = sample > np.percentile(sample, threshold_percentile)
-                labeled_arr = measure.label(binary_array)
+                binary_array = sample > cutoff
+                labeled_arr = measure.label(binary_array, connectivity=1)
                 regions = measure.regionprops(labeled_arr, intensity_image=sample)
-                conditions_met = [
-                    all(
-                        condition(
+                detected_regions = {i: r for i, r in enumerate(regions)}
+                for condition in self.detection_conditions:
+                    to_pop = []
+                    for key, region in sorted(
+                        detected_regions.items(),
+                        key=lambda item: item[1].filled_area,
+                        reverse=True,
+                    ):
+                        if not condition(
                             region,
                             dpmm=self.image.dpmm,
-                            bb_size=self.radius_mm,
-                            tolerance=self.radius_tolerance_mm,
+                            bb_size=self.radius,
+                            tolerance=self.radius_tolerance,
                             shape=binary_array.shape,
-                        )
-                        for condition in self.detection_conditions
-                    )
-                    for region in regions
-                ]
-                if not any(conditions_met):
+                        ):
+                            to_pop.append(key)
+                    detected_regions = {
+                        key: region
+                        for key, region in detected_regions.items()
+                        if key not in to_pop
+                    }
+                if len(detected_regions) == 0:
                     raise ValueError
                 else:
-                    bb_regions = [
-                        regions[idx]
-                        for idx, value in enumerate(conditions_met)
-                        if value
-                    ]
                     points = [
                         Point(region.weighted_centroid[1], region.weighted_centroid[0])
-                        for region in bb_regions
+                        for region in detected_regions.values()
                     ]
                     bbs = deduplicate_points(
                         original_points=bbs,
@@ -552,7 +567,7 @@ class GlobalDiskLocator(MetricBase):
             except (IndexError, ValueError):
                 pass
             finally:
-                threshold_percentile += 2
+                cutoff += step_size
         if len(bbs) < self.min_number:
             # didn't find the number we needed
             raise ValueError(
@@ -783,3 +798,30 @@ class GlobalSizedFieldLocator(MetricBase):
                     alpha=alpha,
                     s=markersize,
                 )
+
+
+class GlobalFieldLocator(GlobalSizedFieldLocator):
+    def __init__(
+        self,
+        min_number: int = 1,
+        max_number: int | None = None,
+        name: str = "Field Finder",
+        detection_conditions: list[callable] = (
+            is_right_square_perimeter,
+            is_right_area_square,
+        ),
+        default_threshold_step_size: float = 2,
+    ):
+        """Finds fields globally within an image, irrespective of size."""
+        # we override to set the width/height/tolerance to be very large
+        # in this case we are more likely to get noise since the size is unconstrained.
+        super().__init__(
+            field_width_px=1e4,
+            field_height_px=1e4,
+            field_tolerance_px=1e4,
+            min_number=min_number,
+            max_number=max_number,
+            name=name,
+            detection_conditions=detection_conditions,
+            default_threshold_step_size=default_threshold_step_size,
+        )
