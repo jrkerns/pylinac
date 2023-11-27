@@ -14,7 +14,7 @@ from pylinac.core.metrics import (
     DiskLocator,
     GlobalDiskLocator,
     GlobalSizedFieldLocator,
-    deduplicate_points,
+    deduplicate_points_and_boundaries,
 )
 from tests_basic.utils import get_file_from_cloud_test_repo
 
@@ -163,13 +163,15 @@ class TestDeduplicatePoints(TestCase):
         # normal case: no duplicates
         original_points = [Point(1, 1), Point(5, 5)]
         new_points = [Point(10, 10)]
-        deduped = deduplicate_points(original_points, new_points, min_separation_px=3)
+        deduped = deduplicate_points_and_boundaries(
+            original_points, new_points, min_separation_px=3
+        )
         self.assertEqual(len(deduped), 3)
 
     def test_no_recursion(self):
         # tests we don't recurse infinitely
         original_points = [Point(1, 1), Point(5, 5)]
-        deduped = deduplicate_points(
+        deduped = deduplicate_points_and_boundaries(
             original_points, original_points, min_separation_px=3
         )
         self.assertEqual(len(deduped), 2)
@@ -177,7 +179,9 @@ class TestDeduplicatePoints(TestCase):
     def test_exclude_from_original_list(self):
         # tests that points in the original list are not added to the new list
         original_points = [Point(1, 1), Point(5, 5)]
-        deduped = deduplicate_points([], original_points, min_separation_px=30)
+        deduped = deduplicate_points_and_boundaries(
+            [], original_points, min_separation_px=30
+        )
         self.assertEqual(len(deduped), 1)
 
 

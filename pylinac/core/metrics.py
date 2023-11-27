@@ -115,9 +115,13 @@ def is_right_area_square(region: RegionProperties, *args, **kwargs) -> bool:
     return low_bound_expected_area < field_area < high_bound_expected_area
 
 
-def deduplicate_points(
-    original_points: list[Point], new_points: list[Point], min_separation_px
-) -> list[Point]:
+def deduplicate_points_and_boundaries(
+    original_points: list[Point],
+    new_points: list[Point],
+    min_separation_px: float,
+    original_boundaries: list[np.ndarray],
+    new_boundaries: list[np.ndarray],
+) -> (list[Point], list[np.ndarray]):
     """Deduplicate points that are too close together. The original points should be the
     starting point. The new point's x, y, and z values are compared to the existing points.
     If the new point is too close to the original point, it's dropped. If it's sufficiently
@@ -126,13 +130,15 @@ def deduplicate_points(
     We assume the original points are already deduplicated. When used in a loop starting from an empty list
     this is true."""
     combined_points = original_points
-    for new_point in new_points:
+    combined_boundaries = original_boundaries
+    for new_point, new_boundary in zip(new_points, new_boundaries):
         for original_point in original_points:
             if new_point.distance_to(original_point) < min_separation_px:
                 break
         else:
             combined_points.append(new_point)
-    return combined_points
+            combined_boundaries.append(new_boundary)
+    return combined_points, combined_boundaries
 
 
 class MetricBase(ABC):
@@ -189,7 +195,175 @@ class MetricBase(ABC):
         pass
 
 
-class DiskRegion(MetricBase):
+class GlobalDiskLocator(MetricBase):
+    name: str
+    points: list[Point]
+    y_boundaries: list[np.ndarray] = []
+    x_boundaries: list[np.ndarray] = []
+
+    def __init__(
+        self,
+        radius_mm: float,
+        radius_tolerance_mm: float,
+        detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
+            is_round,
+            is_right_size_bb,
+            is_right_circumference,
+        ),
+        min_number: int = 1,
+        max_number: int | None = None,
+        min_separation_mm: float = 5,
+        name="Global Disk Locator",
+    ):
+        """Finds BBs globally within an image.
+
+        Parameters
+        ----------
+        radius_mm : float
+            The radius of the BB in mm.
+        radius_tolerance_mm : float
+            The tolerance of the BB radius in mm.
+        detection_conditions : list[callable]
+            A list of functions that take a regionprops object and return a boolean.
+            The functions should be used to determine whether the regionprops object
+            is a BB.
+        min_number : int
+            The minimum number of BBs to find. If not found, an error is raised.
+        max_number : int, None
+            The maximum number of BBs to find. If None, no maximum is set.
+        min_separation_mm : float
+            The minimum distance between BBs in mm. If BBs are found that are closer than this,
+            they are deduplicated.
+        name : str
+            The name of the metric.
+        """
+        self.radius = radius_mm
+        self.radius_tolerance = radius_tolerance_mm
+        self.detection_conditions = detection_conditions
+        self.name = name
+        self.min_number = min_number
+        self.max_number = max_number or 1e3
+        self.min_separation_mm = min_separation_mm
+
+    def _calculate_sample(
+        self, sample: np.ndarray, top_offset: int, left_offset: int
+    ) -> (list[Point], list[np.ndarray], list[RegionProperties]):
+        """Find up to N BBs/disks in the image. This will look for BBs at every percentile range.
+        Multiple BBs may be found at different threshold levels."""
+
+        # The implementation difference here from the original isn't large,
+        # But we need to detect MULTIPLE bbs instead of just one.
+        bbs = []
+        boundaries = []
+        detected_regions = {}
+        # uses the same algo as original WL; this is better than a percentile method as the percentile method
+        # can often be thrown off at the very ends of the distribution. It's more linear and faster to use the simple
+        # spread of min/max.
+        sample = stretch(sample, min=0, max=1)
+        imin, imax = sample.min(), sample.max()
+        spread = imax - imin
+        step_size = (
+            spread / 50
+        )  # move in 1/50 increments; maximum of 50 passes per image
+        cutoff = (
+            imin + step_size
+        )  # start at the min + 1 step; we know the min cutoff will be a blank, full image
+        while cutoff <= imax and len(bbs) < self.max_number:
+            try:
+                binary_array = sample > cutoff
+                labeled_arr = measure.label(binary_array, connectivity=1)
+                regions = measure.regionprops(labeled_arr, intensity_image=sample)
+                detected_regions = {i: r for i, r in enumerate(regions)}
+                for condition in self.detection_conditions:
+                    to_pop = []
+                    for key, region in sorted(
+                        detected_regions.items(),
+                        key=lambda item: item[1].filled_area,
+                        reverse=True,
+                    ):
+                        if not condition(
+                            region,
+                            dpmm=self.image.dpmm,
+                            bb_size=self.radius,
+                            tolerance=self.radius_tolerance,
+                            shape=binary_array.shape,
+                        ):
+                            to_pop.append(key)
+                    detected_regions = {
+                        key: region
+                        for key, region in detected_regions.items()
+                        if key not in to_pop
+                    }
+                if len(detected_regions) == 0:
+                    raise ValueError
+                else:
+                    points = [
+                        Point(region.weighted_centroid[1], region.weighted_centroid[0])
+                        for region in detected_regions.values()
+                    ]
+                    new_boundaries = [
+                        get_boundary(
+                            detected_region,
+                            top_offset=top_offset,
+                            left_offset=left_offset,
+                        )
+                        for detected_region in detected_regions.values()
+                    ]
+                    bbs, boundaries = deduplicate_points_and_boundaries(
+                        original_points=bbs,
+                        new_points=points,
+                        min_separation_px=self.min_separation_mm * self.image.dpmm,
+                        original_boundaries=boundaries,
+                        new_boundaries=new_boundaries,
+                    )
+            except (IndexError, ValueError):
+                pass
+            finally:
+                cutoff += step_size
+        if len(bbs) < self.min_number:
+            # didn't find the number we needed
+            raise ValueError(
+                f"Couldn't find the minimum number of disks in the image. Found {len(bbs)}; required: {self.min_number}"
+            )
+        return bbs, boundaries, list(detected_regions.values())
+
+    def calculate(self) -> list[Point]:
+        """Find up to N BBs/disks in the image. This will look for BBs at every percentile range.
+        Multiple BBs may be found at different threshold levels."""
+        sample = invert(self.image.array)
+        self.points, boundaries, _ = self._calculate_sample(
+            sample, top_offset=0, left_offset=0
+        )
+        for boundary in boundaries:
+            boundary_y, boundary_x = np.nonzero(boundary)
+            self.y_boundaries.append(boundary_y)
+            self.x_boundaries.append(boundary_x)
+        return self.points
+
+    def plot(
+        self,
+        axis: plt.Axes,
+        show_boundaries: bool = True,
+        color: str = "red",
+        markersize: float = 3,
+        alpha: float = 0.25,
+    ) -> None:
+        """Plot the BB centers"""
+        for point in self.points:
+            axis.plot(point.x, point.y, "o", color=color)
+        if show_boundaries:
+            for boundary_y, boundary_x in zip(self.y_boundaries, self.x_boundaries):
+                axis.scatter(
+                    boundary_x,
+                    boundary_y,
+                    c=color,
+                    marker="s",
+                    alpha=alpha,
+                    s=markersize,
+                )
+
+
+class DiskRegion(GlobalDiskLocator):
     """A metric to find a disk/BB in an image where the BB is near an expected position and size.
     This will calculate the scikit-image regionprops of the BB."""
 
@@ -197,7 +371,9 @@ class DiskRegion(MetricBase):
     y_offset: float
     is_from_physical: bool
     is_from_center: bool
-    boundary: np.ndarray
+    max_number = 1
+    min_number = 1
+    min_separation_mm = 1e4
 
     def __init__(
         self,
@@ -215,6 +391,7 @@ class DiskRegion(MetricBase):
         invert: bool = True,
         name: str = "Disk Region",
     ):
+        # purposely avoid super call as parent defaults to mm. We set the values ourselves.
         self.expected_position = Point(expected_position)
         self.radius = radius
         self.radius_tolerance = radius_tolerance
@@ -353,65 +530,34 @@ class DiskRegion(MetricBase):
         # we might need to invert the image so that the BB pixel intensity is higher than the background
         if self.invert:
             sample = invert(sample)
-        sample = stretch(sample)
-        # search for the BB by iteratively lowering the high-pass threshold value until the BB is found.
-        found = False
-        # uses the same algo as original WL; this is better than a percentile method as the percentile method
-        # can often be thrown off at the very ends of the distribution. It's more linear and faster to use the simple
-        # spread of min/max.
-        min, max = sample.min(), sample.max()
-        spread = max - min
-        step_size = (
-            spread / 50
-        )  # move in 1/50 increments; maximum of 50 passes per image
-        cutoff = (
-            min + step_size
-        )  # start at the min + 1 step; we know the min cutoff will be a blank, full image
-        while not found:
-            try:
-                binary_array = sample > cutoff
-                labeled_arr = measure.label(binary_array, connectivity=1)
-                regions = measure.regionprops(labeled_arr, intensity_image=sample)
-                detected_regions = {i: r for i, r in enumerate(regions)}
-                for condition in self.detection_conditions:
-                    to_pop = []
-                    for key, region in sorted(
-                        detected_regions.items(),
-                        key=lambda item: item[1].filled_area,
-                        reverse=True,
-                    ):
-                        if not condition(
-                            region,
-                            dpmm=self.image.dpmm,
-                            bb_size=self.radius,
-                            tolerance=self.radius_tolerance,
-                            shape=binary_array.shape,
-                        ):
-                            to_pop.append(key)
-                    detected_regions = {
-                        key: region
-                        for key, region in detected_regions.items()
-                        if key not in to_pop
-                    }
-                if len(detected_regions) == 0:
-                    raise ValueError
-                else:
-                    detected_region = next(iter(detected_regions.values()))
-                    boundary = get_boundary(
-                        detected_region, top_offset=top, left_offset=left
-                    )
-                    found = True
-            except (IndexError, ValueError):
-                # raise the threshold and try again
-                cutoff += step_size
-                if cutoff > max:
-                    raise ValueError(
-                        "Couldn't find a disk in the selected area. Ensure the image is inverted such that the BB pixel intensity is lower than the surrounding region."
-                    )
+        points, boundaries, regions = self._calculate_sample(
+            sample, top_offset=top, left_offset=left
+        )
         self.x_offset = left
         self.y_offset = top
-        self.boundary_y, self.boundary_x = np.nonzero(boundary)
-        return detected_region
+        y_boundary, x_boundary = np.nonzero(boundaries[0])
+        self.y_boundaries.append(y_boundary)
+        self.x_boundaries.append(x_boundary)
+        return regions[0]
+
+    def plot(
+        self,
+        axis: plt.Axes,
+        show_boundaries: bool = True,
+        color: str = "red",
+        markersize: float = 3,
+        alpha: float = 0.25,
+    ) -> None:
+        """Plot the BB center"""
+        if show_boundaries:
+            axis.scatter(
+                self.x_boundaries[0],
+                self.y_boundaries[0],
+                c=color,
+                marker="s",
+                alpha=alpha,
+                s=markersize,
+            )
 
 
 class DiskLocator(DiskRegion):
@@ -428,141 +574,23 @@ class DiskLocator(DiskRegion):
         )
         return self.point
 
-    def plot(self, axis: plt.Axes, show_boundaries: bool = True) -> None:
-        """Plot the BB center"""
-        axis.plot(self.point.x, self.point.y, "ro", markersize=10)
-        if show_boundaries:
-            axis.scatter(
-                self.boundary_x,
-                self.boundary_y,
-                c="r",
-                marker="s",
-                alpha=0.25,
-                s=3,
-            )
-
-
-class GlobalDiskLocator(MetricBase):
-    name: str
-    points: list[Point]
-
-    def __init__(
+    def plot(
         self,
-        radius_mm: float,
-        radius_tolerance_mm: float,
-        detection_conditions: list[Callable[[RegionProperties, ...], bool]] = (
-            is_round,
-            is_right_size_bb,
-            is_right_circumference,
-        ),
-        min_number: int = 1,
-        max_number: int | None = None,
-        min_separation_mm: float = 5,
-        name="Global Disk Locator",
-    ):
-        """Finds BBs globally within an image.
-
-        Parameters
-        ----------
-        radius_mm : float
-            The radius of the BB in mm.
-        radius_tolerance_mm : float
-            The tolerance of the BB radius in mm.
-        detection_conditions : list[callable]
-            A list of functions that take a regionprops object and return a boolean.
-            The functions should be used to determine whether the regionprops object
-            is a BB.
-        min_number : int
-            The minimum number of BBs to find. If not found, an error is raised.
-        max_number : int, None
-            The maximum number of BBs to find. If None, no maximum is set.
-        min_separation_mm : float
-            The minimum distance between BBs in mm. If BBs are found that are closer than this,
-            they are deduplicated.
-        name : str
-            The name of the metric.
-        """
-        self.radius_mm = radius_mm
-        self.radius_tolerance_mm = radius_tolerance_mm
-        self.detection_conditions = detection_conditions
-        self.name = name
-        self.min_number = min_number
-        self.max_number = max_number or 1e3
-        self.min_separation_mm = min_separation_mm
-
-    def calculate(self) -> list[Point]:
-        """Find up to N BBs/disks in the image. This will look for BBs at every percentile range.
-        Multiple BBs may be found at different threshold levels."""
-
-        # The implementation difference here from the original isn't large,
-        # But we need to detect MULTIPLE bbs instead of just one.
-        bbs = []
-        sample = invert(self.image.array)
-        # uses the same algo as original WL; this is better than a percentile method as the percentile method
-        # can often be thrown off at the very ends of the distribution. It's more linear and faster to use the simple
-        # spread of min/max.
-        imin, imax = sample.min(), sample.max()
-        spread = imax - imin
-        step_size = (
-            spread / 50
-        )  # move in 1/50 increments; maximum of 50 passes per image
-        cutoff = (
-            imin + step_size
-        )  # start at the min + 1 step; we know the min cutoff will be a blank, full image
-        while cutoff <= imax and len(bbs) < self.max_number:
-            try:
-                binary_array = sample > cutoff
-                labeled_arr = measure.label(binary_array, connectivity=1)
-                regions = measure.regionprops(labeled_arr, intensity_image=sample)
-                detected_regions = {i: r for i, r in enumerate(regions)}
-                for condition in self.detection_conditions:
-                    to_pop = []
-                    for key, region in sorted(
-                        detected_regions.items(),
-                        key=lambda item: item[1].filled_area,
-                        reverse=True,
-                    ):
-                        if not condition(
-                            region,
-                            dpmm=self.image.dpmm,
-                            bb_size=self.radius,
-                            tolerance=self.radius_tolerance,
-                            shape=binary_array.shape,
-                        ):
-                            to_pop.append(key)
-                    detected_regions = {
-                        key: region
-                        for key, region in detected_regions.items()
-                        if key not in to_pop
-                    }
-                if len(detected_regions) == 0:
-                    raise ValueError
-                else:
-                    points = [
-                        Point(region.weighted_centroid[1], region.weighted_centroid[0])
-                        for region in detected_regions.values()
-                    ]
-                    bbs = deduplicate_points(
-                        original_points=bbs,
-                        new_points=points,
-                        min_separation_px=self.min_separation_mm * self.image.dpmm,
-                    )
-            except (IndexError, ValueError):
-                pass
-            finally:
-                cutoff += step_size
-        if len(bbs) < self.min_number:
-            # didn't find the number we needed
-            raise ValueError(
-                f"Couldn't find the minimum number of disks in the image. Found {len(bbs)}; required: {self.min_number}"
-            )
-        self.points = bbs
-        return bbs
-
-    def plot(self, axis: plt.Axes) -> None:
-        """Plot the BB centers"""
-        for point in self.points:
-            axis.plot(point.x, point.y, "ro")
+        axis: plt.Axes,
+        show_boundaries: bool = True,
+        color: str = "red",
+        markersize: float = 3,
+        alpha: float = 0.25,
+    ) -> None:
+        """Plot the BB center"""
+        super().plot(
+            axis,
+            show_boundaries=show_boundaries,
+            color=color,
+            markersize=markersize,
+            alpha=alpha,
+        )
+        axis.plot(self.point.x, self.point.y, "o", color=color, markersize=10)
 
 
 class GlobalSizedFieldLocator(MetricBase):
@@ -717,18 +745,20 @@ class GlobalSizedFieldLocator(MetricBase):
                     # these will be bool arrays
                     # we pad the boundaries to offset the ROI to the right
                     # position on the image.
-                    boundaries = [
+                    new_boundaries = [
                         get_boundary(region, top_offset=0, left_offset=0)
                         for region in fields_regions
                     ]
                     # the separation is the minimum value + field size
-                    fields = deduplicate_points(
+                    fields, boundaries = deduplicate_points_and_boundaries(
                         original_points=fields,
                         new_points=points,
                         min_separation_px=min(
                             (self.field_height_mm, self.field_width_mm)
                         )
                         * self.image.dpmm,
+                        original_boundaries=boundaries,
+                        new_boundaries=new_boundaries,
                     )
             except (IndexError, ValueError):
                 pass
