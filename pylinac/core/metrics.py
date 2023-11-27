@@ -397,25 +397,8 @@ class DiskRegion(MetricBase):
                     raise ValueError
                 else:
                     detected_region = next(iter(detected_regions.values()))
-                    boundary = np.pad(
-                        find_boundaries(
-                            # padding is needed as boundary edges aren't detected otherwise
-                            np.pad(
-                                detected_region.image,
-                                pad_width=1,
-                                mode="constant",
-                                constant_values=0,
-                            ),
-                            connectivity=detected_region.image.ndim,
-                            mode="inner",
-                            background=0,
-                        ),
-                        (
-                            (detected_region.bbox[0] + top - 1, 0),
-                            (detected_region.bbox[1] + left - 1, 0),
-                        ),
-                        mode="constant",
-                        constant_values=0,
+                    boundary = get_boundary(
+                        detected_region, top_offset=top, left_offset=left
                     )
                     found = True
             except (IndexError, ValueError):
@@ -735,23 +718,7 @@ class GlobalSizedFieldLocator(MetricBase):
                     # we pad the boundaries to offset the ROI to the right
                     # position on the image.
                     boundaries = [
-                        np.pad(
-                            find_boundaries(
-                                # padding is needed as boundary edges aren't detected otherwise
-                                np.pad(
-                                    region.image,
-                                    pad_width=1,
-                                    mode="constant",
-                                    constant_values=0,
-                                ),
-                                connectivity=region.image.ndim,
-                                mode="inner",
-                                background=0,
-                            ),
-                            ((region.bbox[0] - 1, 0), (region.bbox[1] - 1, 0)),
-                            mode="constant",
-                            constant_values=0,
-                        )
+                        get_boundary(region, top_offset=0, left_offset=0)
                         for region in fields_regions
                     ]
                     # the separation is the minimum value + field size
@@ -798,6 +765,32 @@ class GlobalSizedFieldLocator(MetricBase):
                     alpha=alpha,
                     s=markersize,
                 )
+
+
+def get_boundary(
+    region: RegionProperties, top_offset: int, left_offset: int
+) -> np.ndarray:
+    """Find the boundary of the region as the absolute position in the image.
+    This will calculate the outline of the region. Mostly used for plotting."""
+    # we pad the boundaries to offset the ROI to the right and down to the absolute position
+    # on the image.
+    return np.pad(
+        find_boundaries(
+            # padding is needed as boundary edges aren't detected otherwise
+            np.pad(
+                region.image,
+                pad_width=1,
+                mode="constant",
+                constant_values=0,
+            ),
+            connectivity=region.image.ndim,
+            mode="inner",
+            background=0,
+        ),
+        ((region.bbox[0] + top_offset - 1, 0), (region.bbox[1] + left_offset - 1, 0)),
+        mode="constant",
+        constant_values=0,
+    )
 
 
 class GlobalFieldLocator(GlobalSizedFieldLocator):
