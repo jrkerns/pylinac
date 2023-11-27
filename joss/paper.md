@@ -10,7 +10,7 @@ authors:
     affiliation: 1
     corresponding: true
 affiliations:
- - name: Radformation, USA
+ - name: Radformation, New York, NY, United States of America
    index: 1
 date: October 2023
 bibliography:
@@ -77,8 +77,8 @@ leeds.plot_analyzed_image()
 Pylinac will localize the phantom within the image, meaning the user’s placement of the phantom
 is not a variable. Rotation can be corrected within a certain range, usually within 5 degrees for
 most phantoms. This also removes the placement technique of the user as a result variable. After
-localization and rotational correction, regions of interest (ROI) are then sampled. Each phantom’s
-ROIs are known ahead of time so simple offsets based on the phantom center and angle can be utilized.
+localization and rotational correction, each region of interest (ROI) is then sampled, of which there can be several.
+Each phantom’s ROIs are known ahead of time so simple offsets based on the phantom center and angle can be utilized.
 After the ROIs are sampled (\autoref{fig:fig2}) the metrics can be computed (\autoref{fig:fig3}).
 
 ![Image after analysis with ROI overlay. \label{fig:fig2}](analyzed_image.png)
@@ -119,7 +119,7 @@ or used within other packages [@Lay2022Tardis; @Oliver2022; @Chuang2021]
 
 # Author contribution statement
 
-Conceptualization, coding, development and paper writing by James Kerns.
+Conceptualization, coding, development, and paper writing by James Kerns.
 
 # Acknowledgements
 
