@@ -526,7 +526,7 @@ For the example below, we will be using the first image from the Winston Lutz de
    of the binary threshold of that blob is tracked. This is solely used for plotting.
 
 #. At each pass of the threshold, if more objects are detected, they are compared and potentially de-duplicated.
-   This is because if, e.g., we are looking for two images and one is found at a given threshold,
+   This is because if, e.g., we are looking for two objects and one is found at a given threshold,
    it will likely continue to be found again and again at higher thresholds while we are searching for the second
    object.
 
