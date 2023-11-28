@@ -181,7 +181,7 @@ class MetricBase(ABC):
         """Calculate the metric. Can return anything"""
         pass
 
-    def plot(self, axis: plt.Axes) -> None:
+    def plot(self, axis: plt.Axes, **kwargs) -> None:
         """Plot the metric"""
         pass
 
@@ -195,11 +195,11 @@ class MetricBase(ABC):
         pass
 
 
-class GlobalDiskLocator(MetricBase):
+class GlobalSizedDiskLocator(MetricBase):
     name: str
     points: list[Point]
-    y_boundaries: list[np.ndarray] = []
-    x_boundaries: list[np.ndarray] = []
+    y_boundaries: list[np.ndarray]
+    x_boundaries: list[np.ndarray]
 
     def __init__(
         self,
@@ -334,6 +334,8 @@ class GlobalDiskLocator(MetricBase):
         self.points, boundaries, _ = self._calculate_sample(
             sample, top_offset=0, left_offset=0
         )
+        self.y_boundaries = []
+        self.x_boundaries = []
         for boundary in boundaries:
             boundary_y, boundary_x = np.nonzero(boundary)
             self.y_boundaries.append(boundary_y)
@@ -363,7 +365,7 @@ class GlobalDiskLocator(MetricBase):
                 )
 
 
-class DiskRegion(GlobalDiskLocator):
+class SizedDiskRegion(GlobalSizedDiskLocator):
     """A metric to find a disk/BB in an image where the BB is near an expected position and size.
     This will calculate the scikit-image regionprops of the BB."""
 
@@ -536,8 +538,8 @@ class DiskRegion(GlobalDiskLocator):
         self.x_offset = left
         self.y_offset = top
         y_boundary, x_boundary = np.nonzero(boundaries[0])
-        self.y_boundaries.append(y_boundary)
-        self.x_boundaries.append(x_boundary)
+        self.y_boundaries = [y_boundary]
+        self.x_boundaries = [x_boundary]
         return regions[0]
 
     def plot(
@@ -560,7 +562,7 @@ class DiskRegion(GlobalDiskLocator):
             )
 
 
-class DiskLocator(DiskRegion):
+class SizedDiskLocator(SizedDiskRegion):
     """Calculates the weighted centroid of a disk/BB as a Point in an image where the disk is near an expected position and size."""
 
     point: Point
@@ -610,7 +612,6 @@ class GlobalSizedFieldLocator(MetricBase):
             is_right_square_perimeter,
             is_right_area_square,
         ),
-        default_threshold_step_size: float = 2,
     ):
         """Finds fields globally within an image.
 
@@ -630,8 +631,6 @@ class GlobalSizedFieldLocator(MetricBase):
             The name of the metric.
         detection_conditions : list[callable]
             A list of functions that take a regionprops object and return a boolean.
-        default_threshold_step_size : float
-            The default step size for the threshold iteration. This is based on the max number of fields and the field size.
         """
         self.field_width_mm = field_width_px
         self.field_height_mm = field_height_px
@@ -640,7 +639,6 @@ class GlobalSizedFieldLocator(MetricBase):
         self.max_number = max_number or 1e6
         self.name = name
         self.detection_conditions = detection_conditions
-        self.default_threshold_step_size = default_threshold_step_size
 
     @classmethod
     def from_physical(
@@ -655,7 +653,6 @@ class GlobalSizedFieldLocator(MetricBase):
             is_right_square_perimeter,
             is_right_area_square,
         ),
-        default_threshold_step_size: float = 2,
     ):
         """Construct an instance using physical dimensions.
 
@@ -675,8 +672,6 @@ class GlobalSizedFieldLocator(MetricBase):
             The name of the metric.
         detection_conditions : list[callable]
             A list of functions that take a regionprops object and return a boolean.
-        default_threshold_step_size : float
-            The default step size for the threshold iteration. This is based on the max number of fields and the field size.
         """
         instance = cls(
             field_width_px=field_width_mm,
@@ -686,7 +681,6 @@ class GlobalSizedFieldLocator(MetricBase):
             max_number=max_number,
             name=name,
             detection_conditions=detection_conditions,
-            default_threshold_step_size=default_threshold_step_size,
         )
         instance.is_from_physical = True
         return instance
@@ -753,10 +747,10 @@ class GlobalSizedFieldLocator(MetricBase):
                     fields, boundaries = deduplicate_points_and_boundaries(
                         original_points=fields,
                         new_points=points,
-                        min_separation_px=min(
-                            (self.field_height_mm, self.field_width_mm)
+                        min_separation_px=max(
+                            r.equivalent_diameter_area for r in fields_regions
                         )
-                        * self.image.dpmm,
+                        / self.image.dpmm,
                         original_boundaries=boundaries,
                         new_boundaries=new_boundaries,
                     )
@@ -797,6 +791,42 @@ class GlobalSizedFieldLocator(MetricBase):
                 )
 
 
+class GlobalFieldLocator(GlobalSizedFieldLocator):
+    def __init__(
+        self,
+        min_number: int = 1,
+        max_number: int | None = None,
+        name: str = "Field Finder",
+        detection_conditions: list[callable] = (
+            is_right_square_perimeter,
+            is_right_area_square,
+        ),
+    ):
+        """Finds fields globally within an image, irrespective of size."""
+        # we override to set the width/height/tolerance to be very large
+        # in this case we are more likely to get noise since the size is unconstrained.
+        super().__init__(
+            field_width_px=1e4,
+            field_height_px=1e4,
+            field_tolerance_px=1e4,
+            min_number=min_number,
+            max_number=max_number,
+            name=name,
+            detection_conditions=detection_conditions,
+        )
+
+    @classmethod
+    def from_physical(
+        cls,
+        *args,
+        **kwargs,
+    ):
+        raise NotImplementedError(
+            "This method is not implemented for global field-finding. Use the "
+            "standard initializer instead."
+        )
+
+
 def get_boundary(
     region: RegionProperties, top_offset: int, left_offset: int
 ) -> np.ndarray:
@@ -821,30 +851,3 @@ def get_boundary(
         mode="constant",
         constant_values=0,
     )
-
-
-class GlobalFieldLocator(GlobalSizedFieldLocator):
-    def __init__(
-        self,
-        min_number: int = 1,
-        max_number: int | None = None,
-        name: str = "Field Finder",
-        detection_conditions: list[callable] = (
-            is_right_square_perimeter,
-            is_right_area_square,
-        ),
-        default_threshold_step_size: float = 2,
-    ):
-        """Finds fields globally within an image, irrespective of size."""
-        # we override to set the width/height/tolerance to be very large
-        # in this case we are more likely to get noise since the size is unconstrained.
-        super().__init__(
-            field_width_px=1e4,
-            field_height_px=1e4,
-            field_tolerance_px=1e4,
-            min_number=min_number,
-            max_number=max_number,
-            name=name,
-            detection_conditions=detection_conditions,
-            default_threshold_step_size=default_threshold_step_size,
-        )
