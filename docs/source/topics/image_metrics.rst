@@ -439,9 +439,9 @@ For the example below, we will be using the first image from the Winston Lutz de
       :align: center
 
 
-#. The sample might be inverted if needed. This applies to disk/BB metrics. The reason for inversion is that in the case of a BB within
+#. The sample might be inverted depending on the ``invert`` parameter. This applies to disk/BB metrics. The reason for inversion is that in the case of a BB within
    an open field, the pixel values within the BB ROI will be lower than the field surrounding it. Because pylinac uses weighted pixel
-   values to find the center of the object, the pixel values need to proportional to the "impact" of the object.
+   values to find the center of the object, the pixel values need to be proportional to the "impact" of the object.
 
    .. image:: ../images/metric_algo_inverted.png
       :width: 600
@@ -476,8 +476,9 @@ For the example below, we will be using the first image from the Winston Lutz de
       :align: center
 
 #. The image is then converted to binary using a threshold. The threshold
-   starts at 0.02. The resulting binary image is analyzed to see if
-   each "blob" passed the ``detection_conditions``.
+   starts at 0.02. E.g. for this threshold value any pixel below 0.02 is set to 0 and everything above it is set to 1.
+   The resulting binary image is analyzed to see if
+   each "blob" passed all of the ``detection_conditions``.
 
    .. image:: ../images/metric_algo_0.02_binary.png
       :width: 600
