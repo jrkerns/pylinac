@@ -18,6 +18,27 @@ Use Cases
 * Finding an object in the image.
 * Calculating the distance between two objects in an image.
 
+Tool Legend
+-----------
+
++---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
+| Use Case                                                | Constraint                                          | Class                                                              |
++=========================================================+=====================================================+====================================================================+
+| Find the location of a BB in the image                  | The BB size and location is known approximately     | :class:`~pylinac.core.metrics.SizedDiskLocator`                    |
++---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
+| Find the ROI properties of a BB in the image            | The BB size and location is known approximately     | :class:`~pylinac.core.metrics.SizedDiskRegion`                     |
++---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
+| Find the location of *N* BBs in the image               | The BB size is known approximately                  | :class:`~pylinac.core.metrics.GlobalSizedDiskLocator`              |
++---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
+| Find the location of a square field in an image         | The field size is known approximately               | :class:`~pylinac.core.metrics.GlobalSizedFieldLocator`             |
++---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
+| Find the locations of *N* square fields in an image     | The field size is not known                         | :class:`~pylinac.core.metrics.GlobalFieldLocator`                  |
++---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
+| Find the location of a circular field in an image       | The field size and location are known approximately | :class:`~pylinac.core.metrics.SizedDiskLocator` (``invert=False``) |
++---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
+| Find the ROI properties of a circular field in an image | The field size and location are known approximately | :class:`~pylinac.core.metrics.SizedDiskRegion` (``invert=False``)  |
++---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
+
 Basic Usage
 -----------
 
@@ -98,21 +119,15 @@ Metrics might have something to plot on the image. If so, the ``plot`` method of
 Built-in Metrics
 ----------------
 
-Out of the box, three metrics currently exist:
-:class:`~pylinac.core.metrics.DiskLocator`, :class:`~pylinac.core.metrics.DiskRegion` and
-:class:`~pylinac.core.metrics.GlobalDiskLocator`.
-
-These metrics will find disks, usually BBs, in an image and then return the location or region properties.
-
-Single Disk Locators
-^^^^^^^^^^^^^^^^^^^^
+Sized Disk Locator
+^^^^^^^^^^^^^^^^^^
 
 .. note::
 
   The values provided below are in pixels. The following sections show how variants of how to use the metrics
   using physical units and relative to the center of the image.
 
-Here's an example of using the ``DiskLocator``:
+Here's an example of using the :class:`~pylinac.core.metrics.SizedDiskLocator`:
 
 .. code-block:: python
   :caption: Search for a disk 100 pixels right and 100 pixels down from the top left of the image
@@ -136,10 +151,6 @@ Here's an example of using the ``DiskLocator``:
 This will search for a disk (BB) in the image at the expected position and window size for a disk of a given radius and tolerance.
 If the disk is found, the location will be returned as a :class:`~pylinac.core.geometry.Point` object.
 If the disk is not found, a ``ValueError`` will be raised.
-
-The :class:`~pylinac.core.metrics.DiskRegion` metric is similar, but instead of returning the location, it returns a
-`scikit-image regionprops <https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.regionprops>`__ object that is the region of the disk.
-This allows one to then calculate things like the weighted centroid, area, etc.
 
 Using physical units
 ####################
@@ -218,12 +229,22 @@ This will look for the disk/BB 30mm right and 30mm down from the center of the i
   )
   img.plot()
 
-Global Disk Locator
-^^^^^^^^^^^^^^^^^^^
+Sized Disk Region
+^^^^^^^^^^^^^^^^^
+
+
+The :class:`~pylinac.core.metrics.SizedDiskRegion` metric is the same as the :class:`~pylinac.core.metrics.SizedDiskLocator`, but instead of returning the location, it returns a
+`scikit-image regionprops <https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.regionprops>`__ object that is the region of the disk.
+This allows one to then calculate things like the weighted centroid, area, etc.
+
+It also supports the same class methods as the :class:`~pylinac.core.metrics.SizedDiskLocator` metric.
+
+Global Sized Disk Locator
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. versionadded:: 3.17
 
-The :class:`~pylinac.core.metrics.GlobalDiskLocator` metric is similar to the :class:`~pylinac.core.metrics.DiskLocator` metric
+The :class:`~pylinac.core.metrics.GlobalSizedDiskLocator` metric is similar to the :class:`~pylinac.core.metrics.SizedDiskLocator` metric
 except that it searches the entire image for disks/BB, not just a small window. This is useful for finding the BB in images
 where the BB is not in the expected location or unknown. This is also efficient for finding BBs in images,
 even if the locations are known.
@@ -258,8 +279,8 @@ Global Sized Field Locator
 
 .. versionadded:: 3.17
 
-The :class:`~pylinac.core.metrics.GlobalSizedFieldLocator` metric is similar to the :class:`~pylinac.core.metrics.GlobalDiskLocator` metric
-except that it searches the entire image for fields of a given size. This is useful for finding one or more fields in images
+The :class:`~pylinac.core.metrics.GlobalSizedFieldLocator` metric is similar to the :class:`~pylinac.core.metrics.GlobalSizedDiskLocator` metric.
+This is useful for finding one or more fields in images
 where the field is not in the expected location or unknown. This is also efficient when multiple fields are present in the image.
 
 The locator will find the weighted center of the field(s) and return the location(s) as a :class:`~pylinac.core.geometry.Point` objects.
@@ -286,6 +307,16 @@ For example:
    )
    img.plot()  # this will plot the image with the fields overlaid
 
+Constraints
+###########
+
+* The field is expected to be mostly rectangular. I.e. not a cone.
+* The field must not be touching an edge of the image. Such fields will be ignored.
+* The field must be at least 10% of the maximum pixel value. This is to avoid finding artifacts. I.e.
+  If the maximum pixel value is 10,000, then the pixels within the field must be at least 1,000 to be
+  detected. Anything under 10% will be ignored.
+
+
 Using physical units
 ####################
 
@@ -310,6 +341,27 @@ Usage tips
   to the total image size.
 * The ``field_tolerance_<mm|px>`` parameter can be relatively tight if the ``max_number`` parameter is set. Without a
   ``max_number`` parameter, you may have to increase the field tolerance to find all fields.
+
+Global Field Locator
+^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.17
+
+The :class:`GlobalFieldLocator` metric will find fields within an image, but does not require the field to be a specific size.
+It will find anything field-like in the image. The logic is similar to the :class:`GlobalSizedFieldLocator` metric otherwise.
+
+For example:
+
+.. image:: ../images/multiple_field_sizes.png
+  :width: 600
+  :align: center
+
+.. code-block:: python
+   :caption: Search for any fields within the image, regardless of size
+
+   img = DicomImage("my_image.dcm")
+   img.compute(metrics=GlobalFieldLocator(max_number=2))
+   img.plot()  # this will plot the image with the fields overlaid
 
 Writing Custom Plugins
 ----------------------
@@ -361,6 +413,157 @@ For example, let's built a simple plugin that finds and plots an "X" at the cent
     print(center)
     img.plot()
 
+.. _image_metric_algorithm:
+
+Algorithm
+---------
+
+The algorithms for the metrics are similar to each other. They all use a thresholding algorithm to find the object(s) of interest.
+For the example below, we will be using the first image from the Winston Lutz demo dataset:
+
+.. figure:: ../images/metric_algo_original.png
+  :width: 600
+  :align: center
+
+  Original image to be analyzed.
+
+#. The image is cropped if needed. This applies to metrics that have an expected position. I.e. non-``Global`` variants of the metrics. This cropped
+   section is called the "sample".
+
+   .. important::
+
+       Image analyses using the :class:`~pylinac.winston_lutz.WinstonLutz` class are always cropped like this.
+
+   .. image:: ../images/metric_algo_cropped.png
+      :width: 600
+      :align: center
+
+
+#. The sample might be inverted depending on the ``invert`` parameter. This applies to disk/BB metrics. The reason for inversion is that in the case of a BB within
+   an open field, the pixel values within the BB ROI will be lower than the field surrounding it. Because pylinac uses weighted pixel
+   values to find the center of the object, the pixel values need to be proportional to the "impact" of the object.
+
+   .. image:: ../images/metric_algo_inverted.png
+      :width: 600
+      :align: center
+
+   To make this clear, the profiles are plotted below with and without inversion.
+   Because pylinac uses the weighted centroid of the pixels, we want the BB to "weigh" more
+   at the center than the edges of the BB.
+
+   .. image:: ../images/metric_algo_profile_inversion.png
+      :width: 600
+      :align: center
+
+#. The sample is normalized to a range of 0-1. This is done because sometimes the attenuation
+   of a BB can be relatively small compared to the surrounding field. Doing so ensures the central pixels' weighting
+   is large and the BB edge pixel values is relatively small.
+
+   .. note::
+
+    For ``Global`` metrics, this often won't change the image very much since the entire image is searched.
+
+
+   The image below shows why normalization is helpful. When not normalized,
+   the BB pixel values can be very similar to the region outside the BB. E.g.
+   the value at index 20 (outside the BB in the field area) is ~2502 while the
+   peak BB value at index 27 is ~2509. With such a small difference, the
+   weighted centroid will be very similar to a simple centroid, which is not
+   as accurate as it's sensitive to "edge" pixels of the blob.
+
+   .. image:: ../images/metric_algo_profile_normalized.png
+      :width: 600
+      :align: center
+
+#. The image is then converted to binary using a threshold. The threshold
+   starts at 0.02. E.g. for this threshold value any pixel below 0.02 is set to 0 and everything above it is set to 1.
+   The resulting binary image is analyzed to see if
+   each "blob" passed all of the ``detection_conditions``.
+
+   .. image:: ../images/metric_algo_0.02_binary.png
+      :width: 600
+      :align: center
+
+   The detection conditions can be anything and generally measure
+   blob properties such as area, eccentricity, etc. Each blob is a `regionprops <https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.regionprops>`__
+   . The blob has a vast number of properties that are calculated and can be measured.
+   E.g. the disk detection conditions are that the blob is 1) round, 2) has an area within the expected range given the BB size, and 3) has a circumference within the expected range given the BB size.
+
+   The image above isn't very helpful because the BB isn't really visible here.
+
+   If no blob passes all the detection conditions, the threshold is increased by 0.02 and the process is repeated.
+
+   Here is the image when the detection conditions pass:
+
+   .. image:: ../images/metric_algo_final_binary.png
+    :width: 600
+    :align: center
+
+   Clearly, this threshold works well and the BB is identifiable.
+
+#. If there is a ``max_number`` parameter, the thresholding algorithm will stop once that number is reached.
+   This is because the thresholding algorithm can be slow, and once the expected number of objects is found there
+   is no need to continue.
+
+   .. important::
+
+      Setting a ``max_number`` does not guarantee that **only** that number of objects will be found. It only guarantees
+      that once that number is found, the thresholding algorithm will stop. This is because the thresholding algorithm
+      could find multiple objects at a given threshold value.
+
+   If the ``max_number`` parameter is not set, the thresholding algorithm will continue until the threshold reaches 1.0.
+
+#. If the ``min_number`` parameter is set and the thresholding algorithm stops (i.e. reaches 1.0), a ``ValueError`` is raised.
+
+
+   .. note::
+
+    The ``min_number`` and ``max_number`` parameters are only available for the ``Global`` variants of the metrics. They are both fixed to 1 for
+    single object metrics.
+
+#. If no blobs are found that match all the detection conditions after the threshold reaches 1.0, a ``ValueError`` is raised.
+
+#. For each blob that is detected, the `boundary <https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.regionprops>`__
+   of the binary threshold of that blob is tracked. This is solely used for plotting.
+
+#. At each pass of the threshold, if more objects are detected, they are compared and potentially de-duplicated.
+   This is because if, e.g., we are looking for two objects and one is found at a given threshold,
+   it will likely continue to be found again and again at higher thresholds while we are searching for the second
+   object.
+
+   This comparison is done by comparing the centroids of the blobs. If the centroids are within the ``min_separation_mm``,
+   the first blob is retained and the subsequent blob is discarded. If the centroid is
+   sufficiently far away, the blob is retained.
+
+   Note that it's also possible the original blob is no longer seen at higher thresholds. E.g. multiple
+   small fields each delivering different MUs. In all cases, regions/points are always kept even if it is no longer detected at
+   higher thresholds. I.e. the regions/points are add-only.
+
+
+#. For ``Locator`` metrics, the weighted centroid of the blob is returned as a :class:`~pylinac.core.geometry.Point` object.
+   For ``Region`` metrics, the scikit-image regionprops object is returned.
+
+   .. important::
+
+      I can't stress this enough: **the weighted centroid is not the same as the simple centroid**. The weighted centroid
+      is the centroid of the blob *accounting for the pixel value itself*. This will not be nearly as sensitive to "edge" pixels being included as a simple centroid.
+      The simple centroid is the average of the pixel locations *not accounting for the pixel value*.
+      You will find some other commercial software uses only the simple centroid, which is not as accurate as
+      it's far more sensitive to edge pixels being included in the threshold.
+
+Here is the plot of the final image with the BB location and threshold boundary overlaid:
+
+.. image:: ../images/metric_algo_final.png
+  :width: 600
+  :align: center
+
+.. note::
+
+  Note the single pixel on the left side boundary of the BB. A different threshold
+  may or may not have included that pixel. The benefit of the weighted centroid is that the normalized,
+  inverted sample value at that pixel is ~0 whereas the pixels at the center of the BB are ~1. The weighted centroid
+  thus is hardly affected by that pixel, so it's robust to a change in threshold.
+
 API
 ---
 
@@ -368,18 +571,22 @@ API
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.metrics.DiskLocator
+.. autoclass:: pylinac.core.metrics.SizedDiskLocator
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.metrics.DiskRegion
+.. autoclass:: pylinac.core.metrics.SizedDiskRegion
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.metrics.GlobalDiskLocator
+.. autoclass:: pylinac.core.metrics.GlobalSizedDiskLocator
     :inherited-members:
     :members:
 
 .. autoclass:: pylinac.core.metrics.GlobalSizedFieldLocator
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.core.metrics.GlobalFieldLocator
     :inherited-members:
     :members:

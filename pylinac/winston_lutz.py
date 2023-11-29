@@ -54,7 +54,7 @@ from .core.image import DicomImageStack, LinacDicomImage, is_image, tiff_to_dico
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import bounding_box
 from .core.metrics import (
-    DiskLocator,
+    SizedDiskLocator,
     is_right_circumference,
     is_right_size_bb,
     is_round,
@@ -485,7 +485,7 @@ class WinstonLutz2D(image.LinacDicomImage):
         """
         bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
         center = self.compute(
-            metrics=DiskLocator.from_center_physical(
+            metrics=SizedDiskLocator.from_center_physical(
                 expected_position_mm=(0, 0),
                 search_window_mm=(40 + bb_diameter, 40 + bb_diameter),
                 radius_mm=bb_diameter / 2,
@@ -1843,7 +1843,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         expected_position_mm = expected_position / self.dpmm
         bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
         center = self.compute(
-            metrics=DiskLocator.from_physical(
+            metrics=SizedDiskLocator.from_physical(
                 expected_position_mm=expected_position_mm,
                 search_window_mm=(window, window),
                 radius_mm=bb_diameter / 2,
