@@ -258,6 +258,8 @@ def load_multiples(
 
     # replace array of first object and return
     first_img.array = combined_arr
+    # set the raw pixels flag; this will mark the image to be converted if we save out
+    first_img._raw_pixels = True
     return first_img
 
 
@@ -1226,6 +1228,11 @@ class DicomImage(BaseImage):
                 f"the range of {self._original_dtype} values and will be normalized to fit the original dtype. "
                 f"The maximum value will be the maximum value of the original datatype: ({get_dtype_info(self._original_dtype).max})."
             )
+            unscaled_array = convert_to_dtype(unscaled_array, self._original_dtype)
+        if self._raw_pixels:
+            # for raw pixels, often the values are wacky; convert them to a normal range
+            # e.g. the range might be 0-1 for a float array. This will convert to the original dtype
+            # This prevents such arrays from being converted to only 0s and 1s for an int dtype.
             unscaled_array = convert_to_dtype(unscaled_array, self._original_dtype)
         self.metadata.PixelData = unscaled_array.astype(self._original_dtype).tobytes()
         self.metadata.Columns = unscaled_array.shape[1]

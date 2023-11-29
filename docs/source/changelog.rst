@@ -5,6 +5,12 @@ Changelog
 v 3.18.0
 --------
 
+Picket Fence
+^^^^^^^^^^^^
+
+* The ``from_multiple_images`` method now no longer uses the demo image as a placeholder. This was causing
+  an error when using this method within RadMachine as it was trying to load the demo image.
+
 CT
 ^^
 
