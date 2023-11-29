@@ -5,6 +5,12 @@ Changelog
 v 3.18.0
 --------
 
+Metrics
+^^^^^^^
+
+* Calling ``plot`` now allows to pass a ``metric_kwargs`` parameter. This allows the user to pass arguments
+  to the underlying metric's ``plot`` method. This is useful for customizing the plot.
+
 CT
 ^^
 

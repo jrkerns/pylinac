@@ -482,7 +482,12 @@ class BaseImage:
         return date
 
     def plot(
-        self, ax: plt.Axes = None, show: bool = True, clear_fig: bool = False, **kwargs
+        self,
+        ax: plt.Axes = None,
+        show: bool = True,
+        clear_fig: bool = False,
+        metric_kwargs: dict | None = None,
+        **kwargs,
     ) -> plt.Axes:
         """Plot the image.
 
@@ -494,9 +499,13 @@ class BaseImage:
             Whether to actually show the image. Set to false when plotting multiple items.
         clear_fig : bool
             Whether to clear the prior items on the figure before plotting.
+        metric_kwargs : dict
+            kwargs passed to the metric plot method.
         kwargs
             kwargs passed to plt.imshow()
         """
+        if metric_kwargs is None:
+            metric_kwargs = {}
         if ax is None:
             fig, ax = plt.subplots()
         if clear_fig:
@@ -504,7 +513,7 @@ class BaseImage:
         ax.imshow(self.array, cmap=get_dicom_cmap(), **kwargs)
         # plot the metrics
         for metric in self.metrics:
-            metric.plot(axis=ax)
+            metric.plot(axis=ax, **metric_kwargs)
         if show:
             plt.show()
         return ax
