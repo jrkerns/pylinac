@@ -2,12 +2,14 @@ import io
 import os
 import os.path as osp
 import tempfile
+from pathlib import Path
 from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
 from scipy import ndimage
 
 from pylinac.core import image
+from pylinac.core.io import TemporaryZipDirectory
 from pylinac.picketfence import MLC, MLCArrangement, Orientation, PFResult, PicketFence
 from tests_basic.utils import (
     CloudFileMixin,
@@ -553,6 +555,26 @@ class MultipleImagesPF(PFTestMixin, TestCase):
         path1 = get_file_from_cloud_test_repo([TEST_DIR, "combo-jaw.dcm"])
         path2 = get_file_from_cloud_test_repo([TEST_DIR, "combo-mlc.dcm"])
         cls.pf = PicketFence.from_multiple_images([path1, path2], stretch_each=True)
+        cls.pf.analyze(
+            sag_adjustment=cls.sag_adjustment, orientation=Orientation.LEFT_RIGHT
+        )
+
+
+class MultipleImagesPF2(PFTestMixin, TestCase):
+    """Test of a multiple image picket fence; e.g. EPID images."""
+
+    max_error = 0.229
+    abs_median_error = 0.05
+    picket_orientation = Orientation.LEFT_RIGHT
+    num_pickets = 5
+    mean_picket_spacing = 17.4
+    delete_file = False
+
+    @classmethod
+    def setUpClass(cls):
+        zfile = get_file_from_cloud_test_repo([TEST_DIR, "5-strip-separate.zip"])
+        with TemporaryZipDirectory(zfile) as tmpzip:
+            cls.pf = PicketFence.from_multiple_images(Path(tmpzip).iterdir())
         cls.pf.analyze(
             sag_adjustment=cls.sag_adjustment, orientation=Orientation.LEFT_RIGHT
         )

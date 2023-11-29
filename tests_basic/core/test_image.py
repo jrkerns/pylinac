@@ -48,6 +48,77 @@ xim_dcm_path = get_file_from_cloud_test_repo(["ximdcmtest.dcm"])
 dcm_url = "https://storage.googleapis.com/pylinac_demo_files/EPID-PF-LR.dcm"
 
 
+class TestFromMultiples(TestCase):
+    def test_from_multiples(self):
+        """Test that loading multiple images works"""
+        paths = [dcm_path, dcm_path, dcm_path]
+        img = image.load_multiples(paths)
+        self.assertIsInstance(img, DicomImage)
+
+    def test_different_sizes_fails(self):
+        """Different-sized images can't be superimposed"""
+        paths = [dcm_path, tif_path]
+        with self.assertRaises(ValueError):
+            image.load_multiples(paths)
+
+    def test_round_trip_via_temp_file(self):
+        """Test that loading multiple images works"""
+        paths = [dcm_path, dcm_path]
+        img = image.load_multiples(paths)
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
+            img.save(tf.name)
+            # shouldn't raise
+            img_cropped = image.load(tf.name)
+        self.assertEqual(img.shape, img_cropped.shape)
+
+    def test_round_trip_via_stream(self):
+        """Test that loading multiple images works"""
+        paths = [dcm_path, dcm_path]
+        img = image.load_multiples(paths)
+        with io.BytesIO() as stream:
+            img.save(stream)
+            stream.seek(0)
+            # shouldn't raise
+            img_cropped = image.load(stream)
+        self.assertEqual(img.shape, img_cropped.shape)
+
+    def test_max_stays_same(self):
+        """Test the max value of the image stays the same when using max method"""
+        paths = [dcm_path, dcm_path]
+        img = image.load_multiples(paths, method="max", stretch_each=False)
+        self.assertEqual(np.max(image.load(dcm_path).array), np.max(img.array))
+
+    def test_max_goes_to_1_with_stretch(self):
+        """Test the max value of the image goes to 1 when using max method and stretch"""
+        paths = [dcm_path, dcm_path]
+        img = image.load_multiples(paths, method="max", stretch_each=True)
+        self.assertEqual(np.max(img.array), 1)
+
+    def test_rescale_to_int16_max_stretch_true(self):
+        """Test that loading multiple images works"""
+        paths = [dcm_path, dcm_path]
+        img = image.load_multiples(
+            paths, stretch_each=True, method="max"
+        )  # will cause a value >1
+        with io.BytesIO() as stream:
+            img.save(stream)  # converts back to uint16, unscaled
+            stream.seek(0)
+            img_cropped = image.load(stream, raw_pixels=True)  # load unscaled
+        self.assertEqual(np.max(img_cropped.array), 65535)  # max of uint16
+
+    def test_rescale_to_int16_max_stretch_false(self):
+        """Test that loading multiple images works"""
+        paths = [dcm_path, dcm_path]
+        img = image.load_multiples(
+            paths, stretch_each=False, method="max"
+        )  # will still be a float array.
+        with io.BytesIO() as stream:
+            img.save(stream)  # converts back to uint16, unscaled
+            stream.seek(0)
+            img_cropped = image.load(stream, raw_pixels=True)  # load unscaled
+        self.assertEqual(np.max(img_cropped.array), 65535)  # max of uint16
+
+
 class TestDICOMScaling(TestCase):
     def test_raw_pixels_doesnt_change_array(self):
         """Test that loading a dicom with raw_pixels=True doesn't change the array"""
