@@ -26,7 +26,6 @@ from functools import cached_property
 from io import BytesIO
 from itertools import cycle
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import BinaryIO, Iterable, Sequence
 
 import matplotlib.pyplot as plt
@@ -272,25 +271,30 @@ class PicketFence:
     def from_multiple_images(
         cls,
         path_list: Iterable[str | Path],
-        dtype: np.dtype = np.uint16,
+        stretch_each: bool = True,
+        method: str = "mean",
         **kwargs,
     ):
-        """Load and superimpose multiple images and instantiate a Starshot object.
+        """Load and superimpose multiple images and instantiate a PF object.
 
         Parameters
         ----------
         path_list : iterable
             An iterable of path locations to the files to be loaded/combined.
+        stretch_each : bool
+            Whether to stretch each image individually before combining. See ``load_multiples``.
+        method : {'sum', 'mean'}
+            The method to combine the images. See ``load_multiples``.
         kwargs
             Passed to :func:`~pylinac.core.image.load_multiples`.
         """
-        obj = cls.from_demo_image()
-        # save a combined image to a temporary dir, then load it back in as a PFDicomImage
-        with TemporaryDirectory() as tmp:
-            filename = osp.join(tmp, "mydcm.dcm")
-            image.load_multiples(path_list, dtype=dtype, **kwargs).save(filename)
-            obj.image = PFDicomImage(filename)
-        return obj
+        with io.BytesIO() as stream:
+            img = image.load_multiples(
+                path_list, stretch_each=stretch_each, method=method, **kwargs
+            )
+            img.save(stream)
+            stream.seek(0)
+            return cls(stream, **kwargs)
 
     @property
     def passed(self) -> bool:

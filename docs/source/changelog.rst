@@ -5,11 +5,11 @@ Changelog
 v 3.18.0
 --------
 
-Metrics
-^^^^^^^
+Picket Fence
+^^^^^^^^^^^^
 
-* Calling ``plot`` now allows to pass a ``metric_kwargs`` parameter. This allows the user to pass arguments
-  to the underlying metric's ``plot`` method. This is useful for customizing the plot.
+* The ``from_multiple_images`` method now no longer uses the demo image as a placeholder. This was causing
+  an error when using this method within RadMachine as it was trying to load the demo image.
 
 CT
 ^^
@@ -19,6 +19,49 @@ CT
   or limited resources on the machine running the process. This does come at a ~25-80% speed penalty depending on the
   size of the dataset. Larger datasets will have a larger penalty.
 
+Winston-Lutz
+^^^^^^^^^^^^
+
+* The ``results()`` method of the ``WinstonLutz`` class will now also report the mean distance from the BB to the CAX in mm.
+* The Winston-Lutz algorithm now uses the new :class:`~pylinac.core.metrics.SizedDiskLocator` internal class (see below). This was introduced in pylinac 3.16.
+  The algorithm is very similar to the existing WL algorithm.
+* A new parameter has been added to ``analyze()``: ``bb_tolerance_mm``. This gives an acceptable window for finding a BB.
+  E.g. if the BB size is 2mm, the tolerance can be set to 1mm. Alternatively, if the BB is very large, the
+  tolerance can be widened. This was done since very small and very large BBs were sometimes tripping up
+  because of the hardcoded 2mm tolerance. The default tolerance is still 2mm.
+
+  .. important::
+
+    If you use WL with very small BBs (<3mm), we recommend you set the tolerance to 1mm.
+
+* The BB boundary is now plotted. See the "Metrics" section.
+* Detection conditions for the WL algorithm can now be set via the ``detection_conditions`` parameter for ``WinstonLutz2D``
+  and set as a class attribute for ``WinstonLutz``.
+
+  .. important::
+
+      As always, pylinac uses the **weighted** centroid of the detected pixels. If the boundary
+      seems to include an extraneous pixel, it should minimally affect the BB location.
+
+
+Metrics
+^^^^^^^
+
+* The documentation for metrics has been updated considerably. See :ref:`image-metrics`.
+* The detection algorithm for disk/field metrics has been written out; see :ref:`image_metric_algorithm`.
+* The ``DiskLocator`` class was renamed to ``SizedDiskLocator``.
+* The ``DiskRegion`` class was renamed to ``SizedDiskRegion``.
+* The ``GlobalDiskLocator`` class was renamed to ``GlobalSizedDiskLocator``.
+* The ``SizedDiskLocator`` class now plots the detected boundary of the disk/BB. Because the WL algorithm
+  now uses this class, the WL plots now also include the detected BB boundary.
+* A new metric class has been added: ``GlobalFieldLocator``. This class will find a number of open fields
+  within an image without having to know the field size beforehand. See :ref:`global_sized_field_locator` for more.
+* Previously, metrics would allow the image to be modified. The metric would copy the image temporarily. However,
+  a memory bug would cause large numbers of images to use inordinate amounts of memory.
+  Now, images cannot be permanently modified. A hash check will be run before and after the calculation to ensure
+  the image array has not been modified and will raise an error if it has.
+* Calling ``plot`` now allows to pass a ``metric_kwargs`` parameter. This allows the user to pass arguments
+  to the underlying metric's ``plot`` method. This is useful for customizing the plot.
 
 v 3.17.0
 --------

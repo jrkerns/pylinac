@@ -5,21 +5,19 @@ import io
 import math
 import tempfile
 from pathlib import Path
-from typing import Iterable
 from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-import pylinac
-from pylinac import WinstonLutz, WinstonLutzMultiTargetMultiField
+from pylinac import WinstonLutz
 from pylinac.core.array_utils import create_dicom_files_from_3d_array
 from pylinac.core.geometry import Vector, vector_is_close
 from pylinac.core.io import TemporaryZipDirectory
+from pylinac.core.metrics import is_round
 from pylinac.core.scale import MachineScale
 from pylinac.winston_lutz import (
     Axis,
-    BBArrangement,
     WinstonLutz2D,
     WinstonLutzResult,
     bb_projection_gantry_plane,
@@ -276,98 +274,6 @@ class TestBBProjection(TestCase):
         )
 
 
-class TestWLMultiImage(TestCase):
-    def test_demo_images(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        # shouldn't raise
-        wl.analyze(BBArrangement.DEMO)
-
-    def test_demo(self):
-        # shouldn't raise
-        WinstonLutzMultiTargetMultiField.run_demo()
-
-    def test_publish_pdf(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
-        wl.publish_pdf("output.pdf")
-
-    def test_save_images(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
-        wl.save_images()
-
-    def test_save_images_to_stream(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
-        wl.save_images_to_stream()
-
-    def test_no_axis_plot(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
-        with self.assertRaises(NotImplementedError):
-            wl.plot_axis_images()
-
-    def test_no_summary_plot(self):
-        wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(BBArrangement.DEMO)
-        with self.assertRaises(NotImplementedError):
-            wl.plot_summary()
-
-
-class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
-    dir_path = ["Winston-Lutz"]
-    num_images = 0
-    zip = True
-    bb_size = 5
-    print_results = False
-    arrangement: Iterable[dict]
-    wl: WinstonLutzMultiTargetMultiField
-    max_2d_distance: float
-    mean_2d_distance: float
-    median_2d_distance: float
-
-    @classmethod
-    def setUpClass(cls):
-        filename = cls.get_filename()
-        if cls.zip:
-            cls.wl = WinstonLutzMultiTargetMultiField.from_zip(filename)
-        else:
-            cls.wl = WinstonLutzMultiTargetMultiField(filename)
-        cls.wl.analyze(cls.arrangement)
-        if cls.print_results:
-            print(cls.wl.results())
-
-    def test_number_of_images(self):
-        self.assertEqual(self.num_images, len(self.wl.images))
-
-    def test_bb_max_distance(self):
-        self.assertAlmostEqual(
-            self.wl.max_bb_deviation_2d, self.max_2d_distance, delta=0.15
-        )
-
-    def test_bb_median_distance(self):
-        self.assertAlmostEqual(
-            self.wl.median_bb_deviation_2d,
-            self.median_2d_distance,
-            delta=0.1,
-        )
-
-    def test_bb_mean_distance(self):
-        self.assertAlmostEqual(
-            self.wl.mean_bb_deviation_2d, self.mean_2d_distance, delta=0.1
-        )
-
-
-class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
-    dir_path = ["Winston-Lutz", "multi_target_multi_field"]
-    file_name = "SNC_MM_KB.zip"
-    num_images = 13
-    arrangement = BBArrangement.SNC_MULTIMET
-    max_2d_distance = 0.78
-    median_2d_distance = 0.56
-    mean_2d_distance = 0.58
-
-
 class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
     klass = WinstonLutz
     demo_load_method = "from_demo_images"
@@ -523,7 +429,7 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
                 r"AQA_B_03082023.tif": (0, 0, 0),
             },
         )
-        ref_w.analyze(bb_size_mm=20)
+        ref_w.analyze(bb_size_mm=30)
         results = ref_w.results_data()
         self.assertEqual(results.num_gantry_images, 2)
 
@@ -587,11 +493,6 @@ class GeneralTests(TestCase):
 
         self.wl.plot_axis_images("Gantry")
         self.wl.plot_axis_images(Axis.GANTRY)
-
-    def test_bb_override(self):
-        with self.assertRaises(ValueError):
-            wl = pylinac.WinstonLutz.from_demo_images()
-            wl.analyze(bb_size_mm=8)
 
     def test_bb_shift_instructions(self):
         move = self.wl.bb_shift_instructions()
@@ -660,6 +561,16 @@ class GeneralTests(TestCase):
     def test_plot_bb_location(self):
         # shouldn't raise
         self.wl.plot_location()
+
+    def test_detection_conditions_passed_down(self):
+        class WL(WinstonLutz):
+            # override the default detection conditions
+            detection_conditions = [is_round]
+
+        wl = WL.from_demo_images()
+        self.assertEqual(len(wl.detection_conditions), 1)
+        self.assertEqual(wl.detection_conditions[0], is_round)
+        self.assertEqual(wl.detection_conditions, wl.images[0].detection_conditions)
 
 
 class TestPublishPDF(TestCase):
@@ -746,10 +657,10 @@ class WinstonLutzMixin(CloudFileMixin):
     use_filenames = False
 
     @classmethod
-    def setUpClass(cls):
+    def new_instance(cls) -> WinstonLutz:
         filename = cls.get_filename()
         if cls.zip:
-            cls.wl = WinstonLutz.from_zip(
+            wl = WinstonLutz.from_zip(
                 filename,
                 use_filenames=cls.use_filenames,
                 sid=cls.sid,
@@ -757,13 +668,18 @@ class WinstonLutzMixin(CloudFileMixin):
                 axis_mapping=cls.axis_mapping,
             )
         else:
-            cls.wl = WinstonLutz(
+            wl = WinstonLutz(
                 filename,
                 use_filenames=cls.use_filenames,
                 sid=cls.sid,
                 dpi=cls.dpi,
                 axis_mapping=cls.axis_mapping,
             )
+        return wl
+
+    @classmethod
+    def setUpClass(cls):
+        cls.wl = cls.new_instance()
         cls.wl.analyze(
             bb_size_mm=cls.bb_size,
             machine_scale=cls.machine_scale,
@@ -773,6 +689,10 @@ class WinstonLutzMixin(CloudFileMixin):
         if cls.print_results:
             print(cls.wl.results())
             print(cls.wl.bb_shift_vector)
+
+    @classmethod
+    def tearDownClass(cls):
+        plt.close("all")
 
     def test_number_of_images(self):
         self.assertEqual(self.num_images, len(self.wl.images))
@@ -833,6 +753,29 @@ class WinstonLutzMixin(CloudFileMixin):
             v_axis = self.wl.images[idx].variable_axis
             self.assertEqual(axis, v_axis)
 
+    def test_bb_size_doesnt_change_result(self):
+        """Test that changing the tolerance doesn't change the result"""
+        original_max = self.wl.cax2bb_distance(metric="max")
+        original_mean = self.wl.cax2bb_distance(metric="mean")
+        original_gantry_iso = self.wl.gantry_iso_size
+        # re-analyze w/ same settings
+        for tolerance in (-2, -1, 1, 2, 3):
+            new_wl = self.new_instance()
+            # set a min here for cases where the bb is very small (e.g. 1.5mm)
+            new_wl.analyze(
+                bb_size_mm=max((self.bb_size + tolerance, 1.5)),
+                machine_scale=self.machine_scale,
+                low_density_bb=self.low_density_bb,
+                open_field=self.open_field,
+            )
+            new_max = new_wl.cax2bb_distance(metric="max")
+            new_mean = new_wl.cax2bb_distance(metric="mean")
+            self.assertAlmostEqual(original_max, new_max, delta=0.1)
+            self.assertAlmostEqual(original_mean, new_mean, delta=0.1)
+            self.assertAlmostEqual(
+                original_gantry_iso, new_wl.gantry_iso_size, delta=0.1
+            )
+
 
 class WLDemo(WinstonLutzMixin, TestCase):
     num_images = 17
@@ -850,8 +793,12 @@ class WLDemo(WinstonLutzMixin, TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.wl = WinstonLutz.from_demo_images()
+        cls.wl = cls.new_instance()
         cls.wl.analyze(machine_scale=cls.machine_scale)
+
+    @classmethod
+    def new_instance(cls) -> WinstonLutz:
+        return WinstonLutz.from_demo_images()
 
     def test_different_scale_has_different_shift(self):
         assert "RIGHT" in self.wl.bb_shift_instructions()
@@ -939,6 +886,8 @@ class WLLateral3mm(WinstonLutzMixin, TestCase):
 
 class WLReferenceIsLargestRMS(WinstonLutzMixin, TestCase):
     """If the reference image had the largest error, it was not reported"""
+
+    # dataset has 1mm error on first image and 0 at others
 
     file_name = "Ref_is_largest_error.zip"
     num_images = 3
@@ -1164,6 +1113,7 @@ class SugarLandiX2015(WinstonLutzMixin, TestCase):
 
 
 class BayAreaiX0(WinstonLutzMixin, TestCase):
+    # aka the demo images
     file_name = ["Bay Area iX", "0.zip"]
     num_images = 17
     gantry_iso_size = 1
@@ -1287,7 +1237,7 @@ class TIFFImages(WinstonLutzMixin, TestCase):
         "AQA_A_03082023.tif": (0, 0, 0),
         "AQA_B_03082023.tif": (90, 0, 0),
     }
-    bb_size = 20
+    bb_size = 30
     gantry_iso_size = 0.15
     collimator_iso_size = None
     couch_iso_size = None
@@ -1309,9 +1259,9 @@ class VarianBBkV(WinstonLutzMixin, TestCase):
     gantry_iso_size = 0.15
     collimator_iso_size = None
     couch_iso_size = None
-    cax2bb_max_distance = 0.26
+    cax2bb_max_distance = 0.42
     cax2bb_median_distance = 0.31
-    cax2bb_mean_distance = 0.18
+    cax2bb_mean_distance = 0.28
     axis_of_rotation = {-1: Axis.REFERENCE}
     bb_shift_vector = Vector(x=-0.24, y=0.2, z=-0.15)
 
@@ -1383,10 +1333,10 @@ class CBCTWinstonLutzMixin(WinstonLutzMixin):
     raw_pixels = False
 
     @classmethod
-    def setUpClass(cls):
+    def new_instance(cls) -> WinstonLutz:
         filename = cls.get_filename()
         if cls.zip:
-            cls.wl = WinstonLutz.from_cbct_zip(
+            wl = WinstonLutz.from_cbct_zip(
                 filename,
                 use_filenames=cls.use_filenames,
                 sid=cls.sid,
@@ -1395,7 +1345,7 @@ class CBCTWinstonLutzMixin(WinstonLutzMixin):
                 raw_pixels=cls.raw_pixels,
             )
         else:
-            cls.wl = WinstonLutz.from_cbct(
+            wl = WinstonLutz.from_cbct(
                 filename,
                 use_filenames=cls.use_filenames,
                 sid=cls.sid,
@@ -1403,6 +1353,11 @@ class CBCTWinstonLutzMixin(WinstonLutzMixin):
                 axis_mapping=cls.axis_mapping,
                 raw_pixels=cls.raw_pixels,
             )
+        return wl
+
+    @classmethod
+    def setUpClass(cls):
+        cls.wl = cls.new_instance()
         cls.wl.analyze(
             bb_size_mm=cls.bb_size,
             machine_scale=cls.machine_scale,
@@ -1424,7 +1379,6 @@ class TestFrenchCBCT(CBCTWinstonLutzMixin, TestCase):
 
 
 class TestPerfectCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
-    bb_size = 5
     bb_offset = {"left": 0, "up": 0, "in": 0}
     cax2bb_max_distance = 0
     cax2bb_median_distance = 0
@@ -1433,7 +1387,6 @@ class TestPerfectCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
 
 
 class TestOffsetLeftCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
-    bb_size = 5
     bb_offset = {"left": 5, "up": 0, "in": 0}
     cax2bb_max_distance = 5
     cax2bb_median_distance = 2.5
@@ -1442,7 +1395,6 @@ class TestOffsetLeftCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
 
 
 class TestOffsetDownCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
-    bb_size = 5
     bb_offset = {"left": 0, "up": -5, "in": 0}
     cax2bb_max_distance = 5
     cax2bb_median_distance = 2.5
@@ -1451,7 +1403,6 @@ class TestOffsetDownCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
 
 
 class TestOffsetInCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
-    bb_size = 5
     bb_offset = {"left": 0, "up": 0, "in": 5}
     cax2bb_max_distance = 5
     cax2bb_median_distance = 5
