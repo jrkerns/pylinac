@@ -60,6 +60,8 @@ Metrics
   a memory bug would cause large numbers of images to use inordinate amounts of memory.
   Now, images cannot be permanently modified. A hash check will be run before and after the calculation to ensure
   the image array has not been modified and will raise an error if it has.
+* Calling ``plot`` now allows to pass a ``metric_kwargs`` parameter. This allows the user to pass arguments
+  to the underlying metric's ``plot`` method. This is useful for customizing the plot.
 
 v 3.17.0
 --------
