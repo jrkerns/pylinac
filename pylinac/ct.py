@@ -1742,7 +1742,7 @@ class CatPhanBase:
         filename : str, file object
             The file to write the image to.
         subimage : str
-            See :meth:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
+            See :meth:`~pylinac.ct.CatPhanBase.plot_analyzed_subimage` for parameter info.
         delta : bool
             Only for use with ``lin``. Whether to plot the HU delta or actual values.
         """

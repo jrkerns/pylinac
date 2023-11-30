@@ -23,7 +23,7 @@ Winston-Lutz
 ^^^^^^^^^^^^
 
 * The ``results()`` method of the ``WinstonLutz`` class will now also report the mean distance from the BB to the CAX in mm.
-* The Winston-Lutz algorithm now uses the new :class:`~pylinac.core.metrics.SizedDiskLocator` internal class (see below). This was introduced in pylinac 3.16.
+* The Winston-Lutz algorithm now uses the new :class:`~pylinac.metrics.image.SizedDiskLocator` internal class (see below). This was introduced in pylinac 3.16.
   The algorithm is very similar to the existing WL algorithm.
 * A new parameter has been added to ``analyze()``: ``bb_tolerance_mm``. This gives an acceptable window for finding a BB.
   E.g. if the BB size is 2mm, the tolerance can be set to 1mm. Alternatively, if the BB is very large, the
@@ -67,12 +67,12 @@ v 3.17.0
 Metrics
 ^^^^^^^
 
-* Another metric is now available for 2D image analysis: :class:`~pylinac.core.metrics.GlobalDiskLocator`.
+* Another metric is now available for 2D image analysis: :class:`~pylinac.metrics.image.GlobalDiskLocator`.
   This metric will find a number of BBs/disks within an image. This is useful for finding BBs in an image
   without knowing where they might be. This is relatively efficient if there are multiple BBs in the image
   compared with using the :class:`~pylinac.core.metrics.DiskLocator` class multiple times, even when
   the BB locations are known.
-* The metric :class:`~pylinac.core.metrics.GlobalSizedFieldLocator` is also available. This metric
+* The metric :class:`~pylinac.metrics.image.GlobalSizedFieldLocator` is also available. This metric
   will find a number of open fields within an image. See :ref:`global_sized_field_locator` for more.
 
 Planar Imaging

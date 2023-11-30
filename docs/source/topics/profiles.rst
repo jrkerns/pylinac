@@ -703,3 +703,7 @@ API
 .. autoclass:: pylinac.core.profile.FlatnessDifferenceMetric
     :inherited-members:
     :members:
+
+.. autoclass:: pylinac.core.profile.CollapsedCircleProfile
+    :inherited-members:
+    :members:
