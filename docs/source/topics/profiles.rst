@@ -1,7 +1,7 @@
 .. _profiles:
 
-Profiles
-========
+Profiles & 1D Metrics
+=====================
 
 Profiles, in the context of pylinac, are 1D arrays of data that
 contain a single radiation field. Colloquially, these are what
@@ -122,7 +122,7 @@ a penumbra plugin could be written that calculates the penumbra of the profile.
 
 Several plugins are provided out of the box, and writing new plugins is straightforward.
 
-Metrics are calculated by passing it as a list to the ``compute`` method.
+Metrics are calculated by passing it as a list to the ``calculate`` method.
 The examples below show its usage.
 
 .. _profile_builtin_plugins:
@@ -676,30 +676,30 @@ API
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.profile.PenumbraRightMetric
+.. autoclass:: pylinac.metrics.profile.PenumbraRightMetric
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.profile.PenumbraLeftMetric
+.. autoclass:: pylinac.metrics.profile.PenumbraLeftMetric
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.profile.SymmetryPointDifferenceMetric
+.. autoclass:: pylinac.metrics.profile.SymmetryPointDifferenceMetric
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.profile.SymmetryPointDifferenceQuotientMetric
+.. autoclass:: pylinac.metrics.profile.SymmetryPointDifferenceQuotientMetric
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.profile.TopDistanceMetric
+.. autoclass:: pylinac.metrics.profile.TopDistanceMetric
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.profile.FlatnessRatioMetric
+.. autoclass:: pylinac.metrics.profile.FlatnessRatioMetric
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.profile.FlatnessDifferenceMetric
+.. autoclass:: pylinac.metrics.profile.FlatnessDifferenceMetric
     :inherited-members:
     :members:

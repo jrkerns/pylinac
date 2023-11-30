@@ -1,7 +1,7 @@
 .. _image-metrics:
 
-Custom Image Metrics
-====================
+Images & 2D Metrics
+===================
 
 .. versionadded:: 3.16
 
@@ -21,23 +21,23 @@ Use Cases
 Tool Legend
 -----------
 
-+---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
-| Use Case                                                | Constraint                                          | Class                                                              |
-+=========================================================+=====================================================+====================================================================+
-| Find the location of a BB in the image                  | The BB size and location is known approximately     | :class:`~pylinac.core.metrics.SizedDiskLocator`                    |
-+---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
-| Find the ROI properties of a BB in the image            | The BB size and location is known approximately     | :class:`~pylinac.core.metrics.SizedDiskRegion`                     |
-+---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
-| Find the location of *N* BBs in the image               | The BB size is known approximately                  | :class:`~pylinac.core.metrics.GlobalSizedDiskLocator`              |
-+---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
-| Find the location of a square field in an image         | The field size is known approximately               | :class:`~pylinac.core.metrics.GlobalSizedFieldLocator`             |
-+---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
-| Find the locations of *N* square fields in an image     | The field size is not known                         | :class:`~pylinac.core.metrics.GlobalFieldLocator`                  |
-+---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
-| Find the location of a circular field in an image       | The field size and location are known approximately | :class:`~pylinac.core.metrics.SizedDiskLocator` (``invert=False``) |
-+---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
-| Find the ROI properties of a circular field in an image | The field size and location are known approximately | :class:`~pylinac.core.metrics.SizedDiskRegion` (``invert=False``)  |
-+---------------------------------------------------------+-----------------------------------------------------+--------------------------------------------------------------------+
++---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
+| Use Case                                                | Constraint                                          | Class                                                               |
++=========================================================+=====================================================+=====================================================================+
+| Find the location of a BB in the image                  | The BB size and location is known approximately     | :class:`~pylinac.metrics.image.SizedDiskLocator`                    |
++---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
+| Find the ROI properties of a BB in the image            | The BB size and location is known approximately     | :class:`~pylinac.metrics.image.SizedDiskRegion`                     |
++---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
+| Find the location of *N* BBs in the image               | The BB size is known approximately                  | :class:`~pylinac.metrics.image.GlobalSizedDiskLocator`              |
++---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
+| Find the location of a square field in an image         | The field size is known approximately               | :class:`~pylinac.metrics.image.GlobalSizedFieldLocator`             |
++---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
+| Find the locations of *N* square fields in an image     | The field size is not known                         | :class:`~pylinac.metrics.image.GlobalFieldLocator`                  |
++---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
+| Find the location of a circular field in an image       | The field size and location are known approximately | :class:`~pylinac.metrics.image.SizedDiskLocator` (``invert=False``) |
++---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
+| Find the ROI properties of a circular field in an image | The field size and location are known approximately | :class:`~pylinac.metrics.image.SizedDiskRegion` (``invert=False``)  |
++---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
 
 Basic Usage
 -----------
@@ -47,7 +47,7 @@ To calculate metrics on an image, simply pass the metric(s) to the ``compute`` m
 .. code-block:: python
 
   from pylinac.core.image import DicomImage
-  from pylinac.core.metrics import DiskLocator, DiskRegion
+  from pylinac.metrics.image import DiskLocator, DiskRegion
 
   img = DicomImage("my_image.dcm")
   metric = img.compute(
@@ -65,7 +65,7 @@ You may compute multiple metrics by passing a list of metrics:
 .. code-block:: python
 
   from pylinac.core.image import DicomImage
-  from pylinac.core.metrics import DiskLocator, DiskRegion
+  from pylinac.metrics.image import DiskLocator, DiskRegion
 
   img = DicomImage("my_image.dcm")
   metrics = img.compute(
@@ -93,7 +93,7 @@ Metrics might have something to plot on the image. If so, the ``plot`` method of
 .. code-block:: python
 
   from pylinac.core.image import DicomImage
-  from pylinac.core.metrics import DiskLocator, DiskRegion
+  from pylinac.metrics.image import DiskLocator, DiskRegion
 
   img = DicomImage("my_image.dcm")
   metrics = img.compute(
@@ -127,13 +127,13 @@ Sized Disk Locator
   The values provided below are in pixels. The following sections show how variants of how to use the metrics
   using physical units and relative to the center of the image.
 
-Here's an example of using the :class:`~pylinac.core.metrics.SizedDiskLocator`:
+Here's an example of using the :class:`~pylinac.metrics.image.SizedDiskLocator`:
 
 .. code-block:: python
   :caption: Search for a disk 100 pixels right and 100 pixels down from the top left of the image
 
   from pylinac.core.image import DicomImage
-  from pylinac.core.metrics import DiskLocator, DiskRegion
+  from pylinac.metrics.image import DiskLocator, DiskRegion
 
   img = DicomImage("my_image.dcm")
   img.compute(
@@ -163,7 +163,7 @@ To perform the same Disk/BB location using mm instead of pixels:
   :caption: Search for a disk 30mm right and 30mm down from the top left of the image
 
   from pylinac.core.image import DicomImage
-  from pylinac.core.metrics import DiskLocator, DiskRegion
+  from pylinac.metrics.image import DiskLocator, DiskRegion
 
   img = DicomImage("my_image.dcm")
   img.compute(
@@ -195,7 +195,7 @@ This will look for the disk/BB 30 pixels right and 30 pixels down from the cente
   :caption: Relative to center using pixels
 
   from pylinac.core.image import DicomImage
-  from pylinac.core.metrics import DiskLocator, DiskRegion
+  from pylinac.metrics.image import DiskLocator, DiskRegion
 
   img = DicomImage("my_image.dcm")
   img.compute(
@@ -233,18 +233,18 @@ Sized Disk Region
 ^^^^^^^^^^^^^^^^^
 
 
-The :class:`~pylinac.core.metrics.SizedDiskRegion` metric is the same as the :class:`~pylinac.core.metrics.SizedDiskLocator`, but instead of returning the location, it returns a
+The :class:`~pylinac.metrics.image.SizedDiskRegion` metric is the same as the :class:`~pylinac.metrics.image.SizedDiskLocator`, but instead of returning the location, it returns a
 `scikit-image regionprops <https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.regionprops>`__ object that is the region of the disk.
 This allows one to then calculate things like the weighted centroid, area, etc.
 
-It also supports the same class methods as the :class:`~pylinac.core.metrics.SizedDiskLocator` metric.
+It also supports the same class methods as the :class:`~pylinac.metrics.image.SizedDiskLocator` metric.
 
 Global Sized Disk Locator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. versionadded:: 3.17
 
-The :class:`~pylinac.core.metrics.GlobalSizedDiskLocator` metric is similar to the :class:`~pylinac.core.metrics.SizedDiskLocator` metric
+The :class:`~pylinac.metrics.image.GlobalSizedDiskLocator` metric is similar to the :class:`~pylinac.metrics.image.SizedDiskLocator` metric
 except that it searches the entire image for disks/BB, not just a small window. This is useful for finding the BB in images
 where the BB is not in the expected location or unknown. This is also efficient for finding BBs in images,
 even if the locations are known.
@@ -254,7 +254,7 @@ For example, here is an example analysis of an MPC image:
 .. code-block:: python
 
   from pylinac.core.image import XIM
-  from pylinac.core.metrics import GlobalDiskLocator
+  from pylinac.metrics.image import GlobalDiskLocator
 
   img = XIM("my_image.xim")
   bbs = img.compute(
@@ -279,7 +279,7 @@ Global Sized Field Locator
 
 .. versionadded:: 3.17
 
-The :class:`~pylinac.core.metrics.GlobalSizedFieldLocator` metric is similar to the :class:`~pylinac.core.metrics.GlobalSizedDiskLocator` metric.
+The :class:`~pylinac.metrics.image.GlobalSizedFieldLocator` metric is similar to the :class:`~pylinac.metrics.image.GlobalSizedDiskLocator` metric.
 This is useful for finding one or more fields in images
 where the field is not in the expected location or unknown. This is also efficient when multiple fields are present in the image.
 
@@ -371,7 +371,7 @@ as well as reuse them where needed.
 
 To write a custom plugin, you must
 
-* Inherit from the :class:`~pylinac.core.metrics.MetricBase` class
+* Inherit from the :class:`~pylinac.metrics.image.MetricBase` class
 * Specify a ``name`` attribute.
 * Implement the ``calculate`` method.
 * (Optional) Implement the ``plot`` method if you want the metric to plot on the image.
@@ -386,7 +386,7 @@ For example, let's built a simple plugin that finds and plots an "X" at the cent
 
     from pylinac.core.image_generator import AS1000Image, FilteredFieldLayer, GaussianFilterLayer
     from pylinac.core.image import DicomImage
-    from pylinac.core.metrics import MetricBase
+    from pylinac.metrics.image import MetricBase
 
     class ImageCenterMetric(MetricBase):
         name = "Image Center"
@@ -567,26 +567,26 @@ Here is the plot of the final image with the BB location and threshold boundary 
 API
 ---
 
-.. autoclass:: pylinac.core.metrics.MetricBase
+.. autoclass:: pylinac.metrics.image.MetricBase
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.metrics.SizedDiskLocator
+.. autoclass:: pylinac.metrics.image.SizedDiskLocator
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.metrics.SizedDiskRegion
+.. autoclass:: pylinac.metrics.image.SizedDiskRegion
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.metrics.GlobalSizedDiskLocator
+.. autoclass:: pylinac.metrics.image.GlobalSizedDiskLocator
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.metrics.GlobalSizedFieldLocator
+.. autoclass:: pylinac.metrics.image.GlobalSizedFieldLocator
     :inherited-members:
     :members:
 
-.. autoclass:: pylinac.core.metrics.GlobalFieldLocator
+.. autoclass:: pylinac.metrics.image.GlobalFieldLocator
     :inherited-members:
     :members:

@@ -532,10 +532,7 @@ The algorithm works like such:
   the threshold is associated with the open field. The pixels are converted to black & white and
   the center of mass of the pixels is assumed to be the field CAX.
 
-* **Find the BB** -- The image is converted to binary based on pixel values *both* above the 50% threshold as above,
-  and below the upper threshold. The upper threshold is an iterative value, starting at the image maximum value,
-  that is lowered slightly when the BB is not found. If the binary image has a reasonably circular ROI, the BB is
-  considered found and the pixel-weighted center of mass of the BB is considered the BB location.
+* **Find the BB** -- The algorithm for finding the BB can be found here: :ref:`image_metric_algorithm`.
 
 .. note:: Strictly speaking, the following aren't required analyses, but are explained for fullness and clarity.
 
