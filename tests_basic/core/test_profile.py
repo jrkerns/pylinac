@@ -17,8 +17,6 @@ from pylinac.core.image_generator.simulators import Simulator
 from pylinac.core.profile import (
     CircleProfile,
     CollapsedCircleProfile,
-    FlatnessDifferenceMetric,
-    FlatnessRatioMetric,
     FWXMProfile,
     FWXMProfilePhysical,
     HillProfile,
@@ -28,15 +26,19 @@ from pylinac.core.profile import (
     Interpolation,
     MultiProfile,
     Normalization,
+    SingleProfile,
+    gamma_1d,
+    stretch,
+)
+from pylinac.metrics.profile import (
+    FlatnessDifferenceMetric,
+    FlatnessRatioMetric,
     PenumbraLeftMetric,
     PenumbraRightMetric,
-    SingleProfile,
     SymmetryAreaMetric,
     SymmetryPointDifferenceMetric,
     SymmetryPointDifferenceQuotientMetric,
     TopDistanceMetric,
-    gamma_1d,
-    stretch,
 )
 from tests_basic.utils import get_file_from_cloud_test_repo
 
