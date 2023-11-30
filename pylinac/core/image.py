@@ -31,6 +31,7 @@ from scipy import ndimage
 from skimage.draw import disk
 from skimage.transform import rotate
 
+from ..metrics.image import MetricBase
 from ..settings import PATH_TRUNCATION_LENGTH, get_dicom_cmap
 from .array_utils import (
     bit_invert,
@@ -49,7 +50,6 @@ from .io import (
     retrieve_dicom_file,
     retrieve_filenames,
 )
-from .metrics import MetricBase
 from .profile import stretch as stretcharray
 from .scale import wrap360
 from .utilities import decode_binary, is_close, simple_round
