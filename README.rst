@@ -28,6 +28,10 @@
 .. image:: https://img.shields.io/github/commit-activity/m/jrkerns/pylinac
     :alt: GitHub commit activity (branch)
 
+.. image:: https://img.shields.io/badge/JOSS-10.21105%2Fjoss.06001-brightgreen
+   :alt: JOSS Paper
+   :target: https://joss.theoj.org/papers/10.21105/joss.06001
+
 
 Pylinac provides TG-142 quality assurance (QA) tools to Python programmers in the field of
 therapy and diagnostic medical physics.
@@ -62,6 +66,20 @@ Install via ``pip``:
     $ pip install pylinac
 
 See the `Installation page <https://pylinac.readthedocs.io/en/latest/installation.html>`_ for further details.
+
+Citation
+--------
+
+You may cite the pylinac library in publications; see `the paper <https://joss.theoj.org/papers/10.21105/joss.06001>`__ in the Journal of Open Source Software.
+The citation string is:
+
+Kerns, J. R., (2023). Pylinac: Image analysis for routine quality assurance in radiotherapy. Journal of Open Source Software, 8(92), 6001, https://doi.org/10.21105/joss.06001
+
+And the BibTeX entry:
+
+.. code-block::
+
+  @article{Kerns2023, doi = {10.21105/joss.06001}, url = {https://doi.org/10.21105/joss.06001}, year = {2023}, publisher = {The Open Journal}, volume = {8}, number = {92}, pages = {6001}, author = {James R. Kerns}, title = {Pylinac: Image analysis for routine quality assurance in radiotherapy}, journal = {Journal of Open Source Software} }
 
 Quick Start Guide
 -----------------
