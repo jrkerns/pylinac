@@ -141,8 +141,11 @@ class PFResult(ResultBase):
 class PFDicomImage(image.LinacDicomImage):
     """A subclass of a DICOM image that checks for noise and inversion when instantiated. Can also adjust for EPID sag."""
 
+    _central_axis: Point | None  #:
+
     def __init__(self, path: str, **kwargs):
         crop_mm = kwargs.pop("crop_mm", 3)
+        self._central_axis = kwargs.pop("central_axis", None)
         super().__init__(path, **kwargs)
         # crop the images so that Elekta images don't fail. See #168
         crop_pixels = int(round(crop_mm * self.dpmm))
@@ -176,6 +179,16 @@ class PFDicomImage(image.LinacDicomImage):
         orient = convert_to_enum(orientation, Orientation)
         direction = "y" if orient == Orientation.UP_DOWN else "x"
         self.roll(direction, sag)
+
+    @property
+    def center(self) -> Point:
+        """Override the central axis call in the event we passed it directly"""
+        if self._central_axis is not None:
+            cax = copy.copy(self._central_axis)
+            cax.y = 2 * (self.shape[0] // 2) - cax.y
+            return cax
+        else:
+            return super().center
 
 
 class PicketFence:
@@ -488,6 +501,7 @@ class PicketFence:
         fwxm: int = 50,
         separate_leaves: bool = False,
         nominal_gap_mm: float = 3,
+        central_axis: Point | None = None,
     ) -> None:
         """Analyze the picket fence image.
 
@@ -558,6 +572,9 @@ class PicketFence:
         nominal_gap_mm
             The expected gap of the pickets in mm. Only used when separate leaves is True. Due to the DLG and EPID
             scattering, this value will have to be determined by you with a known good delivery.
+        central_axis
+            The central axis of the beam. If None (default), the CAX is automatically determined. This
+            is used for French regulations where the CAX is set to the BB location from a separate image.
         """
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
@@ -565,6 +582,9 @@ class PicketFence:
         self.action_tolerance = action_tolerance
         self.leaf_analysis_width = leaf_analysis_width_ratio
         self.separate_leaves = separate_leaves
+
+        if central_axis:
+            self.image._central_axis = central_axis
 
         if invert:
             self.image.invert()
