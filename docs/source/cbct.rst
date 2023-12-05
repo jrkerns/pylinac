@@ -124,7 +124,7 @@ The minimum needed to get going is to:
     mycbct = CatPhan504.from_demo_images()
 
 * **Analyze the images** -- Once the folder/images are loaded, tell pylinac to start analyzing the images. See the
-  Algorithm section for details and :meth:`~pylinac.cbct.CatPhan504.analyze`` for analysis options:
+  Algorithm section for details and :meth:`~pylinac.ct.CatPhan504.analyze`` for analysis options:
 
   .. code-block:: python
 
@@ -233,7 +233,7 @@ Using ``results_data``
 
 Using the catphan module in your own scripts? While the analysis results can be printed out,
 if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.ct.CatphanBase.results_data` method
-which returns a :class:`~pylinac.ct.CatphanResult` instance.
+which returns a :class:`~pylinac.ct.CatPhanResult` instance.
 
 .. note::
     While the pylinac tooling may change under the hood, this object should remain largely the same and/or expand.

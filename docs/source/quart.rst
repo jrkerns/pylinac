@@ -84,7 +84,7 @@ Hypersight
 .. versionadded:: 3.17
 
 The Hypersight variant of the Quart phantom includes a water ROI in the HU module.
-A sister class can be used to also analyze this phantom: :class:`~pylinac.ct.HypersightQuartDVT`
+A sister class can be used to also analyze this phantom: :class:`~pylinac.quart.HypersightQuartDVT`
 and will include an additional ROI analysis of the water bubble.
 
 The class can be used interchangeably with the normal class and throughout this documentation.
@@ -97,7 +97,7 @@ Using ``results_data``
 
 Using the Quart module in your own scripts? While the analysis results can be printed out,
 if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.quart.QuartDVT.results_data` method
-which returns a :class:`~pylinac.acr.QuartDVTResult` instance.
+which returns a :class:`~pylinac.quart.QuartDVTResult` instance.
 
 Continuing from above:
 

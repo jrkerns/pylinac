@@ -195,7 +195,7 @@ Using ``results_data``
 Using the ACR module in your own scripts? While the analysis results can be printed out,
 if you intend on using them elsewhere (e.g. in an API), they can be accessed the easiest by using the :meth:`~pylinac.acr.ACRCT.results_data` method
 which returns a :class:`~pylinac.acr.ACRCTResult` instance. For MRI this is :meth:`~pylinac.acr.ACRMRILarge.results_data` method
-and :class:`~pylinac.acr.ACRMRILargeResult` respectively.
+and :class:`~pylinac.acr.ACRMRIResult` respectively.
 
 Continuing from above:
 
