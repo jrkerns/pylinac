@@ -47,6 +47,14 @@ Winston-Lutz
 Metrics
 ^^^^^^^
 
+* There is a new ``metrics`` module in pylinac. Existing metrics have been moved into this module.
+
+  E.g. instead of ``from pylinac.core.metrics import SizedDiskLocator`` you would now do ``from pylinac.metrics.image import SizedDiskLocator``.
+  Image-based metrics are now under ``pylinac.metrics.image``. Profile-based metrics are now under ``pylinac.metrics.profile``.
+  Individual feature detection functions are now under ``pylinac.metrics.features``.
+
+  For backward compatibility (even though metrics are relatively new feature), the old import locations will still work
+  but will raise a deprecation warning.
 * The documentation for metrics has been updated considerably. See :ref:`image-metrics`.
 * The detection algorithm for disk/field metrics has been written out; see :ref:`image_metric_algorithm`.
 * The ``DiskLocator`` class was renamed to ``SizedDiskLocator``.

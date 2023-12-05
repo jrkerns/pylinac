@@ -53,16 +53,16 @@ from .core.geometry import Line, Point, Vector, cos, sin
 from .core.image import DicomImageStack, LinacDicomImage, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mask import bounding_box
-from .core.metrics import (
-    SizedDiskLocator,
+from .core.scale import MachineScale, convert
+from .core.utilities import ResultBase, convert_to_enum, is_close
+from .metrics.features import (
     is_right_circumference,
     is_right_size_bb,
     is_round,
     is_solid,
     is_symmetric,
 )
-from .core.scale import MachineScale, convert
-from .core.utilities import ResultBase, convert_to_enum, is_close
+from .metrics.image import SizedDiskLocator
 
 BB_ERROR_MESSAGE = (
     "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there are no artifacts in the images, that the 'bb_size' parameter is close to reality, "

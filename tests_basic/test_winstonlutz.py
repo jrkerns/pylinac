@@ -14,8 +14,8 @@ from pylinac import WinstonLutz
 from pylinac.core.array_utils import create_dicom_files_from_3d_array
 from pylinac.core.geometry import Vector, vector_is_close
 from pylinac.core.io import TemporaryZipDirectory
-from pylinac.core.metrics import is_round
 from pylinac.core.scale import MachineScale
+from pylinac.metrics.features import is_round
 from pylinac.winston_lutz import (
     Axis,
     WinstonLutz2D,

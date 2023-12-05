@@ -13,13 +13,13 @@ from pylinac.core.image_generator.layers import (
     GaussianFilterLayer,
     Layer,
 )
-from pylinac.core.metrics import (
+from pylinac.metrics.image import (
     GlobalFieldLocator,
     GlobalSizedDiskLocator,
     GlobalSizedFieldLocator,
     SizedDiskLocator,
-    deduplicate_points_and_boundaries,
 )
+from pylinac.metrics.utils import deduplicate_points_and_boundaries
 from tests_basic.utils import get_file_from_cloud_test_repo
 
 
