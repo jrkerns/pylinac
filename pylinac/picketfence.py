@@ -37,6 +37,7 @@ from . import Normalization
 from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
+from .core.metrics import SizedDiskLocator
 from .core.profile import FWXMProfilePhysical, MultiProfile
 from .core.utilities import ResultBase, convert_to_enum
 from .log_analyzer import load_log
@@ -198,6 +199,9 @@ class PicketFence:
     for any angle.
     """
 
+    _from_bb_setup: bool = False
+    _bb_image: image.LinacDicomImage | None = None
+
     def __init__(
         self,
         filename: str | Path | BinaryIO,
@@ -308,6 +312,28 @@ class PicketFence:
             img.save(stream)
             stream.seek(0)
             return cls(stream, **kwargs)
+
+    @classmethod
+    def from_bb_setup(
+        cls, *args, bb_image: str | Path | BinaryIO, bb_diameter: float, **kwargs
+    ):
+        """Construct a PicketFence instance using a BB setup image to find the CAX first.
+        The CAX of the PF image is then overridden w/ the BB location from the first image.
+
+        Thank the French for this."""
+        bb_image = image.load(bb_image)
+        cax = bb_image.compute(
+            metrics=SizedDiskLocator.from_center_physical(
+                expected_position_mm=(0, 0),
+                search_window_mm=(30 + bb_diameter, 30 + bb_diameter),
+                radius_mm=bb_diameter / 2,
+                radius_tolerance_mm=bb_diameter * 0.1 + 1,
+            )
+        )
+        instance = cls(*args, **kwargs, image_kwargs={"central_axis": cax})
+        instance._from_bb_setup = True
+        instance._bb_image = bb_image
+        return instance
 
     @property
     def passed(self) -> bool:
