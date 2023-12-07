@@ -132,11 +132,14 @@ class TestAnalyze(TestCase):
         self.assertIsInstance(data, PFResult)
         self.assertEqual(data.max_error_mm, self.pf.max_error)
         self.assertEqual(data.max_error_leaf, self.pf.max_error_leaf)
+        self.assertEqual(len(data.picket_widths), 10)
+        self.assertIn("picket_5", data.picket_widths)
+        self.assertAlmostEqual(data.picket_widths["picket_5"]["max"], 3, delta=0.03)
 
         data_dict = self.pf.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
         self.assertIn("pylinac_version", data_dict)
-        self.assertEqual(len(data_dict), 15)
+        self.assertEqual(len(data_dict), 16)
 
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo(
