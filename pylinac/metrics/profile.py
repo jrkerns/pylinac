@@ -440,8 +440,7 @@ class PDD(Dmax):
 
     This will fit a polynomial to the profile in a window around the depth of interest and
     calculate the y-value of the polynomial at the depth of interest. This is the
-    un-normalized value. We then have to normalize to the Dmax. The Dmax is
-    calculated using a 20mm window and 5-degree polynomial fit (default Dmax parameters).
+    un-normalized value. We then have to normalize to the Dmax.
     The original PDD is then set as PDD/Dmax to give a true percentage.
 
     Parameters
@@ -453,6 +452,13 @@ class PDD(Dmax):
     poly_order
         The order of the polynomial to use for the fit. See `UnivariateSpline <https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html>`__ for more information.
         Generally, an order between 1 and 2 is recommended.
+    normalize_to
+        The value to normalize the PDD to. Either "fit" or "max". If "fit", the Dmax is calculated using the
+        default Dmax metric using the ``dmax_window_mm`` and ``dmax_poly_order`` parameters. If "max", the maximum value of the profile is used.
+    dmax_window_mm
+        The width of the window to use for the Dmax calculation. Only used if ``normalize_to`` is "fit".
+    dmax_poly_order
+        The order of the polynomial to use for the Dmax calculation. Only used if ``normalize_to`` is "fit".
     color
         The color of the PDD point.
     linestyle
@@ -476,6 +482,8 @@ class PDD(Dmax):
         window_mm: float = 10,
         poly_order: int = 2,
         normalize_to: Literal["fit", "max"] = "fit",
+        dmax_window_mm: float = 20,
+        dmax_poly_order: int = 5,
         color: str | None = None,
         linestyle: str | None = "-.",
     ):
@@ -486,6 +494,8 @@ class PDD(Dmax):
         self.window_mm = window_mm
         self.poly_order = poly_order
         self.normalize_to = normalize_to
+        self.dmax_window = dmax_window_mm
+        self.dmax_poly_order = dmax_poly_order
 
     def calculate(self) -> float:
         """Calculate the PDD of the profile.
@@ -499,7 +509,7 @@ class PDD(Dmax):
         self.point_y = f(self.depth_mm)
         # now we have to normalize to the dmax
         if self.normalize_to == "fit":
-            dmax = Dmax(window_mm=20, poly_order=5)
+            dmax = Dmax(window_mm=self.dmax_window, poly_order=self.dmax_poly_order)
             dmax.inject_profile(self.profile)
             dmax.calculate()
             s = self.point_y / dmax.point_y

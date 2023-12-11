@@ -1730,6 +1730,27 @@ class TestPDDMetric(TestCase):
         with self.assertRaises(ValueError):
             profile.compute(metrics=[PDD(depth_mm=0)])
 
+    def test_dmax_parameters_available(self):
+        x, y = create_pdd_x_y()
+        profile = FWXMProfile(values=y, x_values=x)
+        pdd = profile.compute(
+            metrics=[
+                PDD(
+                    depth_mm=50,
+                    normalize_to="fit",
+                    dmax_window_mm=10,
+                    dmax_poly_order=3,
+                )
+            ]
+        )
+        self.assertAlmostEqual(pdd, 90.22, delta=0.01)
+
+    def test_dmax_max(self):
+        x, y = create_pdd_x_y()
+        profile = FWXMProfile(values=y, x_values=x)
+        pdd = profile.compute(metrics=[PDD(depth_mm=50, normalize_to="max")])
+        self.assertAlmostEqual(pdd, 89.96, delta=0.01)
+
 
 class TestDmaxMetric(TestCase):
     def test_normal(self):
