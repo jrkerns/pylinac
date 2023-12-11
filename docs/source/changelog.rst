@@ -18,6 +18,9 @@ CT
   This mode will use dramatically less memory than the default implementation. This is useful for large datasets
   or limited resources on the machine running the process. This does come at a ~25-80% speed penalty depending on the
   size of the dataset. Larger datasets will have a larger penalty.
+* In the ``results`` method, the CTP528 (spatial resolution) and CTP486 (uniformity) sections have been swapped.
+  This is so that the resulting PDF text and images on each page matches. Previously, the PDF text and images
+  for these two modules were switched.
 
 Winston-Lutz
 ^^^^^^^^^^^^
