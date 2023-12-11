@@ -70,6 +70,11 @@ Metrics
   the image array has not been modified and will raise an error if it has.
 * Calling ``plot`` now allows to pass a ``metric_kwargs`` parameter. This allows the user to pass arguments
   to the underlying metric's ``plot`` method. This is useful for customizing the plot.
+* A new metric ``PDD`` has been added. This will calculate the percent depth dose at a given depth using a polynomial fit.
+* A new metric ``Dmax`` has been added. This will calculate the maximum dose using a polynomial fit.
+* Profiles will now be sorted to have the x-values always be increasing.
+* A bug was fixed when descending x-values for a profile were passed. This was causing the center index to be faulty.
+
 
 v 3.17.0
 --------

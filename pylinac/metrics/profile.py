@@ -4,11 +4,12 @@ import math
 import typing
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
+from scipy.interpolate import UnivariateSpline
 from scipy.optimize import minimize
 
 if typing.TYPE_CHECKING:
@@ -341,4 +342,197 @@ class TopDistanceMetric(ProfileMetric):
             color=self.color,
             linestyle=self.linestyle,
             label=self.name + " Fit",
+        )
+
+
+class Dmax(ProfileMetric):
+    """Find the Dmax of the profile. This is a special case of the PDD metric.
+
+    Parameters
+    ----------
+    window_mm
+        The width of the window to use for the fit. The window will be centered around the maximum value point, which
+        is used as the initial guess for the fit.
+    poly_order
+        The order of the polynomial to use for the fit. See `UnivariateSpline <https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html>`__ for more information.
+        Generally, an order between 3 and 5 is recommended.
+    color
+        The color of the Dmax point.
+    linestyle
+        The linestyle of the fit line.
+    """
+
+    name = "Dmax"
+    unit = "mm"
+    fit_x: np.ndarray
+    fit_y: np.ndarray
+    point_x: float
+    point_y: float
+    window_mm: float
+
+    def __init__(
+        self,
+        window_mm: float = 20,
+        poly_order: int = 5,
+        color: str | None = None,
+        linestyle: str | None = "-.",
+    ):
+        super().__init__(color=color, linestyle=linestyle)
+        self.window_mm = window_mm
+        self.poly_order = poly_order
+
+    def calculate(self) -> float:
+        """Calculate the Dmax of the profile.
+
+        We find the maximum value of the profile and then fit a polynomial to the profile in a window around the
+        maximum value. The Dmax is the x-value of the polynomial's maximum value."""
+        # find the approximate depth first via the maximum value.
+        # we don't use profile.x_at_y because the max could be on the left or right side
+        # of the center idx. We don't know; a hack is to just index the max y-value.
+        dmax_idx = np.argmax(self.profile.values)
+        appr_dmax_mm = self.profile.x_values[dmax_idx]
+        f, fit_x = self._spline_fit(self.window_mm, appr_dmax_mm, self.poly_order)
+        # now maximize the polynomial to find dmax
+        fun = minimize(
+            lambda x: -f(x), bounds=((fit_x.min(), fit_x.max()),), x0=fit_x.mean()
+        )
+        self.fit_x = fit_x
+        self.fit_y = f(fit_x)
+        self.point_x = fun.x[0]
+        self.point_y = -fun.fun  # negative because we're minimizing the negative above
+        return self.point_x
+
+    def _spline_fit(
+        self, window_mm: float, depth_mm: float, poly_order: int
+    ) -> (UnivariateSpline, np.ndarray):
+        """Fit a spline to the profile of a given window at the passed depth."""
+        half_window = window_mm / 2
+        start, end = max(depth_mm - half_window, 0), min(
+            depth_mm + half_window, self.profile.x_values.max()
+        )
+        if abs(start - end) <= half_window or start > end:
+            raise ValueError(
+                f"The PDD/Dmax metric at {depth_mm} has a window that is at or past an edge and is too small to reliably fit the data. Make the window smaller or adjust the desired depth."
+            )
+        fit_x = np.arange(start, end + 1, 0.1)  # interpolate the fit to 0.1mm
+        f = UnivariateSpline(fit_x, self.profile.y_at_x(fit_x), k=poly_order)
+        return f, fit_x
+
+    def plot(self, axis: plt.Axes):
+        """Plot the PDD point and polynomial fit."""
+        axis.plot(
+            self.point_x,
+            self.point_y,
+            "D",
+            color=self.color,
+            label=f"{self.name} ({self.point_x:.2f}{self.unit})",
+        )
+        axis.plot(
+            self.fit_x,
+            self.fit_y,
+            color=self.color,
+            linestyle=self.linestyle,
+        )
+
+
+class PDD(Dmax):
+    """The PDD at a given depth.
+
+    This will fit a polynomial to the profile in a window around the depth of interest and
+    calculate the y-value of the polynomial at the depth of interest. This is the
+    un-normalized value. We then have to normalize to the Dmax.
+    The original PDD is then set as PDD/Dmax to give a true percentage.
+
+    Parameters
+    ----------
+    depth_mm
+        The depth at which to calculate the PDD.
+    window_mm
+        The width of the window to use for the fit. The window will be centered around the depth of interest.
+    poly_order
+        The order of the polynomial to use for the fit. See `UnivariateSpline <https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html>`__ for more information.
+        Generally, an order between 1 and 2 is recommended.
+    normalize_to
+        The value to normalize the PDD to. Either "fit" or "max". If "fit", the Dmax is calculated using the
+        default Dmax metric using the ``dmax_window_mm`` and ``dmax_poly_order`` parameters. If "max", the maximum value of the profile is used.
+    dmax_window_mm
+        The width of the window to use for the Dmax calculation. Only used if ``normalize_to`` is "fit".
+    dmax_poly_order
+        The order of the polynomial to use for the Dmax calculation. Only used if ``normalize_to`` is "fit".
+    color
+        The color of the PDD point.
+    linestyle
+        The linestyle of the fit line.
+    """
+
+    unit = "%"
+    fit_x: np.ndarray
+    fit_y: np.ndarray
+    point_x: float
+    point_y: float
+    window_mm: float
+
+    @property
+    def name(self):
+        return f"PDD@{self.depth_mm}mm"
+
+    def __init__(
+        self,
+        depth_mm: float,
+        window_mm: float = 10,
+        poly_order: int = 2,
+        normalize_to: Literal["fit", "max"] = "fit",
+        dmax_window_mm: float = 20,
+        dmax_poly_order: int = 5,
+        color: str | None = None,
+        linestyle: str | None = "-.",
+    ):
+        super().__init__(
+            color=color, linestyle=linestyle, window_mm=window_mm, poly_order=poly_order
+        )
+        self.depth_mm = depth_mm
+        self.window_mm = window_mm
+        self.poly_order = poly_order
+        self.normalize_to = normalize_to
+        self.dmax_window = dmax_window_mm
+        self.dmax_poly_order = dmax_poly_order
+
+    def calculate(self) -> float:
+        """Calculate the PDD of the profile.
+
+        This fits a polynomial to the profile in a window around the depth of interest and
+        returns the y-value of the polynomial at the depth of interest."""
+        f, fit_x = self._spline_fit(self.window_mm, self.depth_mm, self.poly_order)
+        self.fit_x = fit_x
+        self.fit_y = f(fit_x)
+        self.point_x = self.depth_mm
+        self.point_y = f(self.depth_mm)
+        # now we have to normalize to the dmax
+        if self.normalize_to == "fit":
+            dmax = Dmax(window_mm=self.dmax_window, poly_order=self.dmax_poly_order)
+            dmax.inject_profile(self.profile)
+            dmax.calculate()
+            s = self.point_y / dmax.point_y
+        elif self.normalize_to == "max":
+            s = self.point_y / self.profile.values.max()
+        else:
+            raise ValueError(
+                "The PDD normalization parameter must be either 'fit' or 'max'."
+            )
+        return s * 100
+
+    def plot(self, axis: plt.Axes):
+        """Plot the PDD point and polynomial fit."""
+        axis.plot(
+            self.point_x,
+            self.point_y,
+            "D",
+            color=self.color,
+            label=f"{self.name} ({self.calculate():.2f}{self.unit})",
+        )
+        axis.plot(
+            self.fit_x,
+            self.fit_y,
+            color=self.color,
+            linestyle=self.linestyle,
         )

@@ -287,12 +287,16 @@ class ProfileBase(ProfileMixin, ABC):
         self.metrics = []
         self.metric_values = {}
         self._interp_order = interpolation_order
-        self.values = values
         if x_values is None:
             x_values = np.arange(len(values))
         x_diff = np.diff(x_values)
         if x_diff.max() > 0 > x_diff.min():
             raise ValueError("X values must be monotonically increasing or decreasing")
+        # resort in case we are in descending order
+        sort_idxs = np.argsort(x_values)
+        x_values = x_values[sort_idxs]
+        values = values[sort_idxs]
+        self.values = values
         self.x_values = x_values
         if ground:
             self.values = utils.ground(values)

@@ -92,6 +92,10 @@ What class to use
 
 The following list is a guide to what class to use:
 
+* PDDs, TPRs, and similar depth-focused scans:
+
+  * Use any of the classes.
+
 * :class:`~pylinac.core.profile.FWXMProfile`/:class:`~pylinac.core.profile.FWXMProfilePhysical`
 
   * Use when the beam is "flat"; no FFF beams.
@@ -364,6 +368,58 @@ Example usage:
     profile = FWXMProfile(...)
     profile.compute(metrics=[TopDistanceMetric(top_region_ratio=0.2)])
 
+Dmax
+^^^^
+
+:class:`~pylinac.metrics.profile.Dmax` This plugin calculates the distance of the maximum
+value of the profile, usually called "Dmax".
+
+A polynomial fit is used to find the maximum value of the profile. The maximum value of the polynomial
+fit is the determined Dmax. The window of the polynomial fit can be adjusted using the ``window_mm`` parameter.
+
+.. code-block:: python
+
+    profile = FWXMProfile(...)
+    profile.compute(metrics=[Dmax(window_mm=30)])
+
+.. important::
+
+  It is expected that the x-values of the profile are given in mm! I.e. ``FWXMProfile(..., x_values=...)``.
+
+.. figure:: ../images/dmax.png
+  :align: center
+
+  Zoomed in plot of a profile showing the polynomial fit used to find Dmax.
+
+PDD
+^^^
+
+:class:`~pylinac.metrics.profile.PDD` This plugin calculates the percentage depth dose (PDD) of the profile
+at a given depth. A polynomial fit is performed around the desired depth and then the value of the polynomial
+at the desired depth is returned.
+
+.. code-block:: python
+
+    profile = FWXMProfile(...)
+    profile.compute(metrics=[PDD(depth_mm=100)])
+
+.. figure:: ../images/pdd.png
+  :align: center
+
+Ratio to Dmax
+#############
+
+Since the PDD is a ratio of the maximum dose, the dmax is also calculated using, by default, a polynomial
+fit. I.e. if you ask for a PDD at 10 cm, two polynomial fits are done: one around 10 cm and one around the maximum
+and the ratio * 100 is the returned PDD.
+To override this behavior, set ``normalize_to='max'``. Using ``max`` will simply normalize the depth value (still using a poly fit) to the maximum
+value of the profile.
+
+.. important::
+
+  It is expected that the x-values of the profile are given in mm! I.e. ``FWXMProfile(..., x_values=...)``.
+
+
 Accessing metrics
 ~~~~~~~~~~~~~~~~~
 
@@ -549,11 +605,11 @@ attribute is also updated. The original profile is not modified.
     ax = prof.plot(show=False, show_field_edges=False, show_center=False)
     prof_interp.plot(show=True, axis=ax, show_field_edges=False, show_center=False)
 
-This float array is interpolated better, although there is still some apparent spline interpolation fit error.
+ This float array is interpolated better, although there is still some apparent spline interpolation fit error.
 
-This second issue can be resolved by using an odd-sized interpolation factor:
+ This second issue can be resolved by using an odd-sized interpolation factor:
 
-.. plot::
+ .. plot::
 
     import numpy as np
     from matplotlib import pyplot as plt
@@ -568,11 +624,11 @@ This second issue can be resolved by using an odd-sized interpolation factor:
     ax = prof.plot(show=False, show_field_edges=False, show_center=False)
     prof_interp.plot(show=True, axis=ax, show_field_edges=False, show_center=False)
 
-Better, but still not perfect. Most profiles do not look like this however. This is an extreme example.
-However, even here we can improve things by using linear interpolation. This is done by setting
-the ``order`` parameter to 1:
+ Better, but still not perfect. Most profiles do not look like this however. This is an extreme example.
+ However, even here we can improve things by using linear interpolation. This is done by setting
+ the ``order`` parameter to 1:
 
-.. plot::
+ .. plot::
 
     import numpy as np
     from matplotlib import pyplot as plt
@@ -611,7 +667,7 @@ the ``order`` parameter to 1:
         profile = FWXMProfile(...)
         profile.filter(size=5, kind="gaussian")
 
-.. important::
+.. warning::
 
     When resampling a physical profile, it is important to know that interpolation must
     account for the physical size of the pixels and how that affects the edge of the array.
@@ -701,6 +757,14 @@ API
     :members:
 
 .. autoclass:: pylinac.metrics.profile.FlatnessDifferenceMetric
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.metrics.profile.PDD
+    :inherited-members:
+    :members:
+
+.. autoclass:: pylinac.metrics.profile.Dmax
     :inherited-members:
     :members:
 
