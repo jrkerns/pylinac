@@ -9,8 +9,16 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 
 from pylinac.core import image
+from pylinac.core.image import DicomImage
+from pylinac.core.image_generator import (
+    AS1200Image,
+    FilteredFieldLayer,
+    GaussianFilterLayer,
+    generate_picketfence,
+)
 from pylinac.core.io import TemporaryZipDirectory
 from pylinac.picketfence import MLC, MLCArrangement, Orientation, PFResult, PicketFence
+from tests_basic.core.test_profile_metrics import create_bb_image
 from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
@@ -247,6 +255,33 @@ class TestAnalyze(TestCase):
                 "A47",
             },
         )
+
+
+class TestBBBasedAnalysis(TestCase):
+    def test_bb_pf_combo(self):
+        wl = create_bb_image(field_size=(50, 50), bb_size=5, offset=(2, 2))
+        bb_img = DicomImage.from_dataset(wl)
+        bb_img.save("bb_setup.dcm")
+
+        pf_file = "separated_wide_gap_up_down.dcm"
+        generate_picketfence(
+            simulator=AS1200Image(sid=1500),
+            field_layer=FilteredFieldLayer,
+            # this applies a non-uniform intensity about the CAX, simulating the horn effect
+            file_out=pf_file,
+            final_layers=[
+                GaussianFilterLayer(sigma_mm=1),
+            ],
+            pickets=5,
+            picket_spacing_mm=50,
+            picket_width_mm=20,  # wide-ish gap
+            orientation=Orientation.UP_DOWN,
+        )
+
+        pf = PicketFence.from_bb_setup(pf_file, bb_image="bb_setup.dcm", bb_diameter=5)
+        pf.analyze(separate_leaves=False)
+        results = pf.results_data()
+        self.assertAlmostEqual(results.max_error_mm, 0.0, delta=0.005)
 
 
 class TestPlottingSaving(TestCase):
