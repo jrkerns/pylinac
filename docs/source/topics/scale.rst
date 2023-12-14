@@ -36,3 +36,9 @@ To convert the values from one machine scale to another, use the :func:`~pylinac
         collimator=coll,
         rotation=couch,
     )
+
+.. autoclass:: pylinac.core.scale.MachineScale
+    :members:
+    :inherited-members:
+
+.. autofunction:: pylinac.core.scale.convert

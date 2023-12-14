@@ -1742,7 +1742,7 @@ class CatPhanBase:
         filename : str, file object
             The file to write the image to.
         subimage : str
-            See :meth:`~pylinac.cbct.CBCT.plot_analyzed_subimage` for parameter info.
+            See :meth:`~pylinac.ct.CatPhanBase.plot_analyzed_subimage` for parameter info.
         delta : bool
             Only for use with ``lin``. Whether to plot the HU delta or actual values.
         """
@@ -2215,6 +2215,14 @@ class CatPhanBase:
             f"Slice Thickness Passed? {self.ctp404.passed_thickness}",
         ]
         results.append(result)
+        if self._has_module(CTP528CP504):
+            ctp528_result = [
+                " - CTP528 Results - ",
+                f"MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}",
+                f"MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}",
+                f"MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}",
+            ]
+            results.append(ctp528_result)
         if self._has_module(CTP486):
             ctp486_result = [
                 " - CTP486 Results - ",
@@ -2225,14 +2233,6 @@ class CatPhanBase:
                 f"Uniformity Passed?: {self.ctp486.overall_passed}",
             ]
             results.append(ctp486_result)
-        if self._has_module(CTP528CP504):
-            ctp528_result = [
-                " - CTP528 Results - ",
-                f"MTF 80% (lp/mm): {self.ctp528.mtf.relative_resolution(80):2.2f}",
-                f"MTF 50% (lp/mm): {self.ctp528.mtf.relative_resolution(50):2.2f}",
-                f"MTF 30% (lp/mm): {self.ctp528.mtf.relative_resolution(30):2.2f}",
-            ]
-            results.append(ctp528_result)
         if self._has_module(CTP515):
             ctp515_result = [
                 " - CTP515 Results - ",

@@ -33,6 +33,13 @@
    :target: https://joss.theoj.org/papers/10.21105/joss.06001
 
 
+.. contents::
+    :class: this-will-duplicate-information-and-it-is-still-useful-here
+
+
+Introduction
+------------
+
 Pylinac provides TG-142 quality assurance (QA) tools to Python programmers in the field of
 therapy and diagnostic medical physics.
 
@@ -42,19 +49,13 @@ Most scripts can be utilized with less than 10 lines of code.
 The library also contains lower-level `modules & tools <http://pylinac.readthedocs.org/en/latest/core_modules.html>`_
 for creating your own image analysis algorithms.
 
-The major features of the entire package include:
+The major attributes of the package are:
 
 * Simple, concise image analysis API
 * Automatic analysis of imaging and performance metrics like MTF, Contrast, ROIs, etc.
 * PDF report generation for solid documentation
 * Automatic phantom registration even if you don't set up your phantom perfect
 * Image loading from file, ZIP archives, or URLs
-
-Documentation
--------------
-
-To get started, install the package, run the demos, view the API docs, and learn the module design, visit the
-`Full Documentation <http://pylinac.readthedocs.org/>`_ on Read The Docs.
 
 Installation
 ------------
@@ -81,322 +82,570 @@ And the BibTeX entry:
 
   @article{Kerns2023, doi = {10.21105/joss.06001}, url = {https://doi.org/10.21105/joss.06001}, year = {2023}, publisher = {The Open Journal}, volume = {8}, number = {92}, pages = {6001}, author = {James R. Kerns}, title = {Pylinac: Image analysis for routine quality assurance in radiotherapy}, journal = {Journal of Open Source Software} }
 
-Quick Start Guide
------------------
+Documentation
+-------------
 
-Below are the high-level tools currently available:
+To get started, install the package, run the demos, view the API docs, and learn the module design, visit the
+`Full Documentation <http://pylinac.readthedocs.org/>`_ on Read The Docs.
 
-* `TG-51 & TRS-398 Absolute Dose Calibration <http://pylinac.readthedocs.org/en/latest/calibration_docs.html>`__ -
-   Input the raw data and pylinac can calculate either individual values (kQ, PDDx, Pion, etc) or use the
-   provided classes to input all measurement data and have it calculate all factors and dose values automatically.
+Features
+--------
 
-   Example script:
+Low-level Tooling
+~~~~~~~~~~~~~~~~~
 
-   .. code-block:: python
+DICOM, XIM & Image Loading
+##########################
 
-            from pylinac import tg51, trs398
+Load DICOM files, XIM, and TIFF images:
 
-            ENERGY = 6
-            TEMP = 22.1
-            PRESS = tg51.mmHg2kPa(755.0)
-            CHAMBER = "30013"  # PTW
-            P_ELEC = 1.000
-            ND_w = 5.443  # Gy/nC
-            MU = 200
-            CLINICAL_PDD = 66.5
+.. code-block:: python
 
-            tg51_6x = tg51.TG51Photon(
-                unit="TrueBeam1",
-                chamber=CHAMBER,
-                temp=TEMP,
-                press=PRESS,
-                n_dw=ND_w,
-                p_elec=P_ELEC,
-                measured_pdd10=66.4,
-                lead_foil=None,
-                clinical_pdd10=66.5,
-                energy=ENERGY,
-                voltage_reference=-300,
-                voltage_reduced=-150,
-                m_reference=(25.65, 25.66, 25.65),
-                m_opposite=(25.64, 25.65, 25.65),
-                m_reduced=(25.64, 25.63, 25.63),
-                mu=MU,
-                tissue_correction=1.0,
-            )
+  from pylinac import image
+  from pylinac.core.image import XIM
 
-            # Done!
-            print(tg51_6x.dose_mu_dmax)
+  my_dcm = image.load("path/to/my/image.dcm")
+  my_dcm.metadata.GantryAngle  # the GantryAngle tag of the DICOM file
+  # these won't have the metadata property as they aren't DICOM
+  my_tiff = image.load("path/to/my/image.tiff")
+  my_jpg = image.load("path/to/my/image.jpg")
 
-            # examine other parameters
-            print(tg51_6x.pddx)
-            print(tg51_6x.kq)
-            print(tg51_6x.p_ion)
+  my_xim_file = r"C:\TDS\H12345\QA\image.xim"
+  xim_img = XIM(my_xim_file)
 
-            # change readings if you adjust output
-            tg51_6x.m_reference_adjusted = (25.44, 25.44, 25.43)
-            # print new dose value
-            print(tg51_6x.dose_mu_dmax_adjusted)
+  # plot the image
+  xim_img.plot()
 
-            # generate a PDF for record-keeping
-            tg51_6x.publish_pdf(
-                "TB1 6MV TG-51.pdf",
-                notes=["My notes", "I used Pylinac to do this; so easy!"],
-                open_file=False,
-            )
+  # see the XIM properties
+  print(xim_img.properties)
 
-            # TRS-398 is very similar and just as easy!
 
-* `Planar Phantom Analysis (Leeds TOR, StandardImaging QC-3 & QC-kV, Las Vegas, Doselab MC2 (kV & MV), SNC kV & MV, PTW EPID QC) <http://pylinac.readthedocs.org/en/latest/planar_imaging.html>`__ -
-     Features:
+Read more about DICOM and pixel loading: `Image Loading <http://pylinac.readthedocs.org/en/latest/topics/images.html>`_.
+Read more about XIM images: `XIM Images <http://pylinac.readthedocs.org/en/latest/topics/xim.html>`_.
 
-     * **Automatic phantom localization** - Set up your phantom any way you like; automatic positioning,
-       angle, and inversion correction mean you can set up how you like, nor will setup variations give you headache.
-     * **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
-       as you see fit.
+Image Manipulation
+##################
 
-     Example script:
+Images can be manipulated in a variety of ways. This is helpful when combined with the loading utilities above:
 
-     .. code-block:: python
+.. code-block:: python
 
-            from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
+      from pylinac import image
 
-            leeds = LeedsTOR("my_leeds.dcm")
-            leeds.analyze()
-            leeds.plot_analyzed_image()
-            leeds.publish_pdf()
+      # load an image
+      my_img = image.load("path/to/my/image.dcm")
 
-            qc3 = StandardImagingQC3("my_qc3.dcm")
-            qc3.analyze()
-            qc3.plot_analyzed_image()
-            qc3.publish_pdf("qc3.pdf")
+      # rotate the image
+      my_img.rotate(90)
 
-            lv = LasVegas("my_lv.dcm")
-            lv.analyze()
-            lv.plot_analyzed_image()
-            lv.publish_pdf("lv.pdf", open_file=True)  # open the PDF after publishing
+      # flip the image
+      my_img.flipud()
 
-            ...
+      # crop the image
+      my_img.crop(pixels=50, edges=("left", "top"))
 
-* `Winston-Lutz Analysis <http://pylinac.readthedocs.org/en/latest/winston_lutz.html>`_ -
-    The Winston-Lutz module analyzes EPID images taken of a small radiation field and BB to determine the 2D
-    distance from BB to field CAX. Additionally, the isocenter size of the gantry, collimator, and couch can
-    all be determined *without the BB being at isocenter*. Analysis is based on
-    `Winkler et al <http://iopscience.iop.org/article/10.1088/0031-9155/48/9/303/meta;jsessionid=269700F201744D2EAB897C14D1F4E7B3.c2.iopscience.cld.iop.org>`_
-    , `Du et al <http://scitation.aip.org/content/aapm/journal/medphys/37/5/10.1118/1.3397452>`_, and
-    `Low et al <https://aapm.onlinelibrary.wiley.com/doi/abs/10.1118/1.597475>`_.
+      # invert the image
+      my_img.bit_invert()
 
-    Features:
+      # normalize the array (max value = 1)
+      my_img.normalize()
 
-    * **Couch shift instructions** - After running a WL test, get immediate feedback on how to shift the couch.
-      Couch values can also be passed in and the new couch values will be presented so you don't have to do that pesky conversion.
-      "Do I subtract that number or add it?"
-    * **Automatic field & BB positioning** - When an image or directory is loaded, the field CAX and the BB
-      are automatically found, along with the vector and scalar distance between them.
-    * **Isocenter size determination** - Using backprojections of the EPID images, the 3D gantry isocenter size
-      and position can be determined *independent of the BB position*. Additionally, the 2D planar isocenter size
-      of the collimator and couch can also be determined.
-    * **Image plotting** - WL images can be plotted separately or together, each of which shows the field CAX, BB and
-      scalar distance from BB to CAX.
-    * **Axis deviation plots** - Plot the variation of the gantry, collimator, couch, and EPID in each plane
-      as well as RMS variation.
-    * **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
-      such information in the DICOM tags. E.g. "myWL_gantry45_coll0_couch315.dcm".
+      # plot the image
+      my_img.plot()
 
-    Example script:
+      # save the image back out to DICOM
+      my_img.save("path/to/new.dcm")
 
-    .. code-block:: python
+Convert TIFF to DICOM:
 
-        from pylinac import WinstonLutz
+.. code-block:: python
 
-        wl = WinstonLutz("wl/image/directory")  # images are analyzed upon loading
-        wl.plot_summary()
-        print(wl.results())
-        wl.publish_pdf("my_wl.pdf")
+    from pylinac import image
 
-* `Starshot Analysis <http://pylinac.readthedocs.org/en/latest/starshot_docs.html>`_ -
-    The Starshot module analyses a starshot image made of radiation spokes, whether gantry, collimator, MLC or couch.
-    It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
-    and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_.
+    # load the TIFF image
+    new_dicom = image.tiff_to_dicom(
+        "path/to/my/image.tiff", sid=1000, gantry=90, coll=0, couch=0, dpi=400
+    )
 
-    Features:
+    # save out the FILE to DICOM
+    new_dicom.save("path/to/new.dcm")
 
-    * **Analyze scanned film images, single EPID images, or a set of EPID images** -
-      Any image that you can load in can be analyzed, including 1 or a set of EPID DICOM images and
-      films that have been digitally scanned.
-    * **Any image size** - Have machines with different EPIDs? Scanned your film at different resolutions? No problem.
-    * **Dose/OD can be inverted** - Whether your device/image views dose as an increase in value or a decrease, pylinac
-      will detect it and invert if necessary.
-    * **Automatic noise detection & correction** - Sometimes there's dirt on the scanned film; sometimes there's a dead pixel on the EPID.
-      Pylinac will detect these spurious noise signals and can avoid or account for them.
-    * **Accurate, FWHM star line detection** - Pylinac uses not simply the maximum value to find the center of a star line,
-      but analyzes the entire star profile to determine the center of the FWHM, ensuring small noise or maximum value bias is avoided.
-    * **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
-      do an adaptive search by adjusting parameters to find a "reasonable" wobble.
+Compute Gamma
+#############
 
-    Example script:
+Compute gamma between two arrays:
 
-    .. code-block:: python
+.. code-block:: python
 
-        from pylinac import Starshot
+    from pylinac import image
 
-        star = Starshot("mystarshot.tif")
-        star.analyze(radius=0.75, tolerance=1.0, fwhm=True)
-        print(star.results())  # prints out wobble information
-        star.plot_analyzed_image()  # shows a matplotlib figure
-        star.publish_pdf()  # publish a PDF report
+    # load the images
+    img1 = image.load("path/to/image1.dcm")
+    img2 = image.load("path/to/image2.dcm")
 
-* `VMAT QA <http://pylinac.readthedocs.org/en/latest/vmat_docs.html>`_ -
-    The VMAT module consists of two classes: ``DRGS`` and ``DRMLC``, which are capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
-    images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS) and MLC speed (MLCS) tests.
+    # compute gamma
+    gamma = image.gamma_2d(
+        reference=img1.array,
+        evaluation=img2.array,
+        dose_to_agreement=1,
+        distance_to_agreement=1,
+        gamma_cap_value=2,
+        global_dose=True,
+        dose_threshold=5,
+    )
 
-    Features:
+    # plot the gamma map
+    plt.imshow(gamma)
 
-    * **Do both tests** - Pylinac can handle either DRGS or DRMLC tests.
-    * **Adjust for offsets** - Older VMAT patterns were off-center. Pylinac will find the field regardless.
+Compute gamma for 1D profiles:
 
-    Example script:
+.. code-block:: python
 
-    .. code-block:: python
+    from pylinac import profile
 
-        from pylinac import DRGS, DRMLC
+    # load the images and profiles
+    img1 = image.load("path/to/image1.dcm")
+    img2 = image.load("path/to/image2.dcm")
+    mid_img1_profile = img1.array[img1.shape[0] // 2, :]
+    mid_img2_profile = img2.array[img2.shape[0] // 2, :]
 
-        drgs = DRGS(image_paths=["path/to/DRGSopen.dcm", "path/to/DRGSdmlc.dcm"])
-        drgs.analyze(tolerance=1.5)
-        print(drgs.results())  # prints out ROI information
-        drgs.plot_analyzed_image()  # shows a matplotlib figure
-        drgs.publish_pdf("mydrgs.pdf")  # generate a PDF report
+    # compute gamma
+    gamma = profile.gamma_1d(
+        reference=mid_img1_profile,
+        evaluation=mid_img2_profile,
+        dose_to_agreement=1,
+        distance_to_agreement=1,
+        gamma_cap_value=2,
+        global_dose=True,
+        dose_threshold=5,
+    )
 
-* `CatPhan, Quart, ACR phantom QA <http://pylinac.readthedocs.org/en/latest/cbct_docs.html>`_ -
-    The CBCT module automatically analyzes DICOM images of a CatPhan 504, 503, 600, 604, Quart DVT, and ACR CT/MR acquired when doing CT, CBCT, or MR quality assurance. It can load a folder or zip file that
-    the images are in and automatically correct for phantom setup in 6 axes.
-    CatPhans analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
-    uniformity (CTP486) on the corresponding slice. Quart and ACR analyze similar metrics where possible.
+    # plot the gamma map
+    plt.plot(gamma)
 
-    Features:
+Compute Custom Metrics on Profiles
+##################################
 
-    * **Automatic phantom registration** - Your phantom can be tilted, rotated, or translated--pylinac will register the phantom.
-    * **Automatic testing of all major modules** - Major modules are automatically registered and analyzed.
-    * **Any scan protocol** - Scan your CatPhan with any protocol; or even scan it in a regular CT scanner.
-      Any field size or field extent is allowed.
-    * **Customize modules** - You can easily override settings in the event you have a custom scenario such as a partial scan.
+Pylinac comes with several built-in metrics that can be computed on 1D profiles, each of which can be
+configured.
 
-    Example script:
+`Writing new metrics <https://pylinac.readthedocs.io/en/latest/topics/profiles.html#writing-plugins>`__ is also easy.
 
-    .. code-block:: python
+* `Left Penumbra <https://pylinac.readthedocs.io/en/latest/topics/profiles.html#penumbra-left>`__ using ``LeftPenumbralMetric``
+* `Right Penumbra <https://pylinac.readthedocs.io/en/latest/topics/profiles.html#penumbra-right>`__  using ``RightPenumbralMetric``
+* `FFF "Top" <https://pylinac.readthedocs.io/en/latest/topics/profiles.html#top-position>`__ using ``TopPosition``
+* `Flatness (Difference) <https://pylinac.readthedocs.io/en/latest/topics/profiles.html#flatness-difference>`__ using ``FlatnessDifferenceMetric``
+* `Flatness (Ratio) <https://pylinac.readthedocs.io/en/latest/topics/profiles.html#flatness-ratio>`__ using ``FlatnessRatioMetric``
+* `Symmetry (Point Difference) <https://pylinac.readthedocs.io/en/latest/topics/profiles.html#symmetry-point-difference>`__ using ``SymmetryPointDifferenceMetric``
+* `Symmetry (Point Difference Quotient) <https://pylinac.readthedocs.io/en/latest/topics/profiles.html#symmetry-point-difference-quotient>`__ using ``SymmetryPointDifferenceQuotientMetric``
 
-        from pylinac import (
-            CatPhan504,
-            CatPhan503,
-            CatPhan600,
-            CatPhan604,
-            QuartDVT,
-            ACRCT,
-            ACRMRILarge,
+Calculate the penumbra of a profile using the built-in ``LeftPenumbraMetric``:
+
+.. code-block:: python
+
+    from pylinac import profile
+    from pylinac.metrics.profile import LeftPenumbraMetric
+
+    # load the image and profile
+    img = image.load("path/to/image.dcm")
+    mid_profile = FWXMProfile(img.array[img.shape[0] // 2, :])
+
+    # compute the penumbra
+    left_penumbra = mid_profile.compute(metrics=[LeftPenumbraMetric(upper=80, lower=20)])
+
+    print(left_penumbra)  # prints the penumbra value
+
+Read more about 1D metrics: `Profiles & 1D Metrics <http://pylinac.readthedocs.org/en/latest/topics/profiles.html#metric-plugins>`_.
+
+Convert Gantry, Collimator, Couch Coordinate Systems
+####################################################
+
+Convert gantry, collimator, and couch coordinates to and from each other:
+
+.. code-block:: python
+
+    from pylinac.core.scale import convert, MachineScale
+
+    gantry = 0
+    coll = 90
+    couch = 45
+
+    new_gantry, new_coll, new_couch = convert(
+        input_scale=MachineScale.Varian,
+        output_scale=MachineScale.IEC61217,
+        gantry=gantry,
+        collimator=coll,
+        rotation=couch,
+    )
+
+Read more: `Coordinate Systems <http://pylinac.readthedocs.org/en/latest/topics/scale.html>`_.
+
+Generate Synthetic Images
+#########################
+
+Want to generate images to test out your image analysis algorithms? Pylinac can do that.
+
+Generate an AS1000 50x50mm, centered open field image at gantry 45:
+
+.. code-block:: python
+
+  from matplotlib import pyplot as plt
+
+  from pylinac.core.image_generator import AS1000Image
+  from pylinac.core.image_generator.layers import FilteredFieldLayer, GaussianFilterLayer
+
+  as1000 = AS1000Image()  # this will set the pixel size and shape automatically
+  as1000.add_layer(
+      FilteredFieldLayer(field_size_mm=(50, 50))
+  )  # create a 50x50mm square field
+  as1000.add_layer(
+      GaussianFilterLayer(sigma_mm=2)
+  )  # add an image-wide gaussian to simulate penumbra/scatter
+  as1000.generate_dicom(
+      file_out_name="my_AS1000.dcm", gantry_angle=45
+  )  # create a DICOM file with the simulated image
+  # plot the generated image
+  plt.imshow(as1000.image)
+
+
+TG-51
+~~~~~
+
+`TG-51 & TRS-398 Absolute Dose Calibration <http://pylinac.readthedocs.org/en/latest/calibration_docs.html>`__ -
+Input the raw data and pylinac can calculate either individual values (kQ, PDDx, Pion, etc) or use the
+provided classes to input all measurement data and have it calculate all factors and dose values automatically.
+
+Example script:
+
+.. code-block:: python
+
+        from pylinac import tg51, trs398
+
+        ENERGY = 6
+        TEMP = 22.1
+        PRESS = tg51.mmHg2kPa(755.0)
+        CHAMBER = "30013"  # PTW
+        P_ELEC = 1.000
+        ND_w = 5.443  # Gy/nC
+        MU = 200
+        CLINICAL_PDD = 66.5
+
+        tg51_6x = tg51.TG51Photon(
+            unit="TrueBeam1",
+            chamber=CHAMBER,
+            temp=TEMP,
+            press=PRESS,
+            n_dw=ND_w,
+            p_elec=P_ELEC,
+            measured_pdd10=66.4,
+            lead_foil=None,
+            clinical_pdd10=66.5,
+            energy=ENERGY,
+            voltage_reference=-300,
+            voltage_reduced=-150,
+            m_reference=(25.65, 25.66, 25.65),
+            m_opposite=(25.64, 25.65, 25.65),
+            m_reduced=(25.64, 25.63, 25.63),
+            mu=MU,
+            tissue_correction=1.0,
         )
 
-        # for this example, we'll use the CatPhan504
-        cbct = CatPhan504("my/cbct_image_folder")
-        cbct.analyze(
-            hu_tolerance=40,
-            scaling_tolerance=1,
-            thickness_tolerance=0.2,
-            low_contrast_threshold=1,
+        # Done!
+        print(tg51_6x.dose_mu_dmax)
+
+        # examine other parameters
+        print(tg51_6x.pddx)
+        print(tg51_6x.kq)
+        print(tg51_6x.p_ion)
+
+        # change readings if you adjust output
+        tg51_6x.m_reference_adjusted = (25.44, 25.44, 25.43)
+        # print new dose value
+        print(tg51_6x.dose_mu_dmax_adjusted)
+
+        # generate a PDF for record-keeping
+        tg51_6x.publish_pdf(
+            "TB1 6MV TG-51.pdf",
+            notes=["My notes", "I used Pylinac to do this; so easy!"],
+            open_file=False,
         )
-        print(cbct.results())
-        cbct.plot_analyzed_image()
-        cbct.publish_pdf("mycbct.pdf")
 
-* `Log Analysis <http://pylinac.readthedocs.org/en/latest/log_analyzer.html>`_ -
-    The log analyzer module reads and parses Varian linear accelerator machine logs, both Dynalogs and Trajectory logs. The module also
-    calculates actual and expected fluences as well as performing gamma evaluations. Data is structured to be easily accessible and
-    easily plottable.
+        # TRS-398 is very similar and just as easy!
 
-    Unlike most other modules of pylinac, the log analyzer module has no end goal. Data is parsed from the logs, but what is done with that
-    info, and which info is analyzed is up to the user.
+Planar Phantom Analysis
+~~~~~~~~~~~~~~~~~~~~~~~
 
-    Features:
+`Planar Phantom Analysis (Leeds TOR, StandardImaging QC-3 & QC-kV, Las Vegas, Doselab MC2 (kV & MV), SNC kV & MV, PTW EPID QC) <http://pylinac.readthedocs.org/en/latest/planar_imaging.html>`__ -
+Features:
 
-    * **Analyze Dynalogs or Trajectory logs** - Either platform is supported. Tlog versions 2.1 and 3.0 supported.
-    * **Save Trajectory log data to CSV** - The Trajectory log binary data format does not allow for easy export of data. Pylinac lets you do
-      that so you can use Excel or other software that you use with Dynalogs.
-    * **Plot or analyze any axis** - Every data axis can be plotted: the actual, expected, and even the difference.
-    * **View actual or expected fluences & calculate gamma** - View fluences and gamma maps for any log.
-    * **Anonymization** - Anonymize your logs so you can share them with others.
+* **Automatic phantom localization** - Set up your phantom any way you like; automatic positioning,
+  angle, and inversion correction mean you can set up how you like, nor will setup variations give you headache.
+* **High and low contrast determination** - Analyze both low and high contrast ROIs. Set thresholds
+  as you see fit.
 
-    Example script:
+Example script:
 
-    .. code-block:: python
+.. code-block:: python
 
-        from pylinac import load_log
+      from pylinac import LeedsTOR, StandardImagingQC3, LasVegas, DoselabMC2kV, DoselabMC2MV
 
-        tlog = load_log("tlog.bin")
-        # after loading, explore any Axis of the Varian structure
-        tlog.axis_data.gantry.plot_actual()  # plot the gantry position throughout treatment
-        tlog.fluence.gamma.calc_map(doseTA=1, distTA=1, threshold=10, resolution=0.1)
-        tlog.fluence.gamma.plot_map()  # show the gamma map as a matplotlib figure
-        tlog.publish_pdf()  # publish a PDF report
+      leeds = LeedsTOR("my_leeds.dcm")
+      leeds.analyze()
+      leeds.plot_analyzed_image()
+      leeds.publish_pdf()
 
-        dlog = load_log("dynalog.dlg")
-        ...
+      qc3 = StandardImagingQC3("my_qc3.dcm")
+      qc3.analyze()
+      qc3.plot_analyzed_image()
+      qc3.publish_pdf("qc3.pdf")
 
-* `Picket Fence MLC Analysis <http://pylinac.readthedocs.org/en/latest/picketfence.html>`_ -
-    The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
-    Physicists regularly check MLC positioning through this test. This test can be done using film and one can
-    "eyeball" it, but this is the 21st century and we have numerous ways of quantifying such data. This module
-    attains to be one of them. It will load in an EPID dicom image and determine the MLC peaks, error of each MLC
-    pair to the picket, and give a few visual indicators for passing/warning/failing.
+      lv = LasVegas("my_lv.dcm")
+      lv.analyze()
+      lv.plot_analyzed_image()
+      lv.publish_pdf("lv.pdf", open_file=True)  # open the PDF after publishing
 
-    Features:
+      ...
 
-    * **Preset & customizable MLC configurations** - Standard configurations are built-in and you can create your own configuration of leaves if needed.
-    * **Easy-to-read pass/warn/fail overlay** - Analysis gives you easy-to-read tools for determining the status of an MLC pair.
-    * **Any Source-to-Image distance** - Whatever your clinic uses as the SID for picket fence, pylinac can account for it.
-    * **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
-    * **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
+Winston-Lutz Analysis
+~~~~~~~~~~~~~~~~~~~~~
 
-    Example script:
+`Winston-Lutz Analysis <http://pylinac.readthedocs.org/en/latest/winston_lutz.html>`_ -
+The Winston-Lutz module analyzes EPID images taken of a small radiation field and BB to determine the 2D
+distance from BB to field CAX. Additionally, the isocenter size of the gantry, collimator, and couch can
+all be determined *without the BB being at isocenter*. Analysis is based on
+`Winkler et al <http://iopscience.iop.org/article/10.1088/0031-9155/48/9/303/meta;jsessionid=269700F201744D2EAB897C14D1F4E7B3.c2.iopscience.cld.iop.org>`_
+, `Du et al <http://scitation.aip.org/content/aapm/journal/medphys/37/5/10.1118/1.3397452>`_, and
+`Low et al <https://aapm.onlinelibrary.wiley.com/doi/abs/10.1118/1.597475>`_.
 
-    .. code-block:: python
+Features:
 
-        from pylinac import PicketFence
+* **Couch shift instructions** - After running a WL test, get immediate feedback on how to shift the couch.
+  Couch values can also be passed in and the new couch values will be presented so you don't have to do that pesky conversion.
+  "Do I subtract that number or add it?"
+* **Automatic field & BB positioning** - When an image or directory is loaded, the field CAX and the BB
+  are automatically found, along with the vector and scalar distance between them.
+* **Isocenter size determination** - Using backprojections of the EPID images, the 3D gantry isocenter size
+  and position can be determined *independent of the BB position*. Additionally, the 2D planar isocenter size
+  of the collimator and couch can also be determined.
+* **Image plotting** - WL images can be plotted separately or together, each of which shows the field CAX, BB and
+  scalar distance from BB to CAX.
+* **Axis deviation plots** - Plot the variation of the gantry, collimator, couch, and EPID in each plane
+  as well as RMS variation.
+* **File name interpretation** - Rename DICOM filenames to include axis information for linacs that don't include
+  such information in the DICOM tags. E.g. "myWL_gantry45_coll0_couch315.dcm".
 
-        pf = PicketFence("mypf.dcm")
-        pf.analyze(tolerance=0.5, action_tolerance=0.25)
-        print(pf.results())
-        pf.plot_analyzed_image()
-        pf.publish_pdf()
+Example script:
 
-* `Open Field Analysis <http://pylinac.readthedocs.org/en/latest/field_analysis.html>`_ -
-    Field analysis from a digital image such as EPID DICOM or 2D device array can easily be analyzed. The module contains built-in
-    flatness and symmetry equation definitions but is extensible to quickly create custom F&S equations.
+.. code-block:: python
 
-    Features:
-    * **EPID or device data** - Any EPID image or the SNC Profiler.
-    * **Built-in F&S equations** - The common Elekta, Varian, and Siemens definitions are included
-    * **Extensible equations** - Adding custom equations for image metrics are easy
+    from pylinac import WinstonLutz
 
-    Example script:
+    wl = WinstonLutz("wl/image/directory")  # images are analyzed upon loading
+    wl.plot_summary()
+    print(wl.results())
+    wl.publish_pdf("my_wl.pdf")
 
-    .. code-block:: python
+Starshot Analysis
+~~~~~~~~~~~~~~~~~
 
-        from pylinac import FieldAnalysis, DeviceFieldAnalysis, Protocol
+`Starshot Analysis <http://pylinac.readthedocs.org/en/latest/starshot_docs.html>`_ -
+The Starshot module analyses a starshot image made of radiation spokes, whether gantry, collimator, MLC or couch.
+It is based on ideas from `Depuydt et al <http://iopscience.iop.org/0031-9155/57/10/2997>`_
+and `Gonzalez et al <http://dx.doi.org/10.1118/1.1755491>`_.
 
-        fa = FieldAnalysis(path="myFS.dcm")  # equivalently, DeviceFieldAnalysis
-        fa.analyze(protocol=Protocol.VARIAN)
-        # print results
-        print(fa.results())
-        # get results as a dict
-        fa.results_data()
-        # plot results
-        fa.plot_analyzed_image()
-        # publish a PDF file
-        fa.publish_pdf(filename="my field analysis.pdf")
+Features:
+
+* **Analyze scanned film images, single EPID images, or a set of EPID images** -
+  Any image that you can load in can be analyzed, including 1 or a set of EPID DICOM images and
+  films that have been digitally scanned.
+* **Any image size** - Have machines with different EPIDs? Scanned your film at different resolutions? No problem.
+* **Dose/OD can be inverted** - Whether your device/image views dose as an increase in value or a decrease, pylinac
+  will detect it and invert if necessary.
+* **Automatic noise detection & correction** - Sometimes there's dirt on the scanned film; sometimes there's a dead pixel on the EPID.
+  Pylinac will detect these spurious noise signals and can avoid or account for them.
+* **Accurate, FWHM star line detection** - Pylinac uses not simply the maximum value to find the center of a star line,
+  but analyzes the entire star profile to determine the center of the FWHM, ensuring small noise or maximum value bias is avoided.
+* **Adaptive searching** - If you passed pylinac a set of parameters and a good result wasn't found, pylinac can recover and
+  do an adaptive search by adjusting parameters to find a "reasonable" wobble.
+
+Example script:
+
+.. code-block:: python
+
+    from pylinac import Starshot
+
+    star = Starshot("mystarshot.tif")
+    star.analyze(radius=0.75, tolerance=1.0, fwhm=True)
+    print(star.results())  # prints out wobble information
+    star.plot_analyzed_image()  # shows a matplotlib figure
+    star.publish_pdf()  # publish a PDF report
+
+VMAT Analysis
+~~~~~~~~~~~~~
+
+`VMAT QA <http://pylinac.readthedocs.org/en/latest/vmat_docs.html>`_ -
+The VMAT module consists of two classes: ``DRGS`` and ``DRMLC``, which are capable of loading an EPID DICOM Open field image and MLC field image and analyzing the
+images according to the Varian RapidArc QA tests and procedures, specifically the Dose-Rate & Gantry-Speed (DRGS) and MLC speed (MLCS) tests.
+
+Features:
+
+* **Do both tests** - Pylinac can handle either DRGS or DRMLC tests.
+* **Adjust for offsets** - Older VMAT patterns were off-center. Pylinac will find the field regardless.
+
+Example script:
+
+.. code-block:: python
+
+    from pylinac import DRGS, DRMLC
+
+    drgs = DRGS(image_paths=["path/to/DRGSopen.dcm", "path/to/DRGSdmlc.dcm"])
+    drgs.analyze(tolerance=1.5)
+    print(drgs.results())  # prints out ROI information
+    drgs.plot_analyzed_image()  # shows a matplotlib figure
+    drgs.publish_pdf("mydrgs.pdf")  # generate a PDF report
+
+CatPhan, Quart, ACR, Cheese Phantom Analysis
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`CatPhan, Quart, ACR phantom QA <http://pylinac.readthedocs.org/en/latest/cbct_docs.html>`_ -
+The CBCT module automatically analyzes DICOM images of a CatPhan 504, 503, 600, 604, Quart DVT, and ACR CT/MR acquired when doing CT, CBCT, or MR quality assurance. It can load a folder or zip file that
+the images are in and automatically correct for phantom setup in 6 axes.
+CatPhans analyze the HU regions and image scaling (CTP404), the high-contrast line pairs (CTP528) to calculate the modulation transfer function (MTF), and the HU
+uniformity (CTP486) on the corresponding slice. Quart and ACR analyze similar metrics where possible.
+
+Features:
+
+* **Automatic phantom registration** - Your phantom can be tilted, rotated, or translated--pylinac will register the phantom.
+* **Automatic testing of all major modules** - Major modules are automatically registered and analyzed.
+* **Any scan protocol** - Scan your CatPhan with any protocol; or even scan it in a regular CT scanner.
+  Any field size or field extent is allowed.
+* **Customize modules** - You can easily override settings in the event you have a custom scenario such as a partial scan.
+
+Example script:
+
+.. code-block:: python
+
+    from pylinac import (
+        CatPhan504,
+        CatPhan503,
+        CatPhan600,
+        CatPhan604,
+        QuartDVT,
+        ACRCT,
+        ACRMRILarge,
+    )
+
+    # for this example, we'll use the CatPhan504
+    cbct = CatPhan504("my/cbct_image_folder")
+    cbct.analyze(
+        hu_tolerance=40,
+        scaling_tolerance=1,
+        thickness_tolerance=0.2,
+        low_contrast_threshold=1,
+    )
+    print(cbct.results())
+    cbct.plot_analyzed_image()
+    cbct.publish_pdf("mycbct.pdf")
+
+Trajectory & Dynalog Analysis
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`Log Analysis <http://pylinac.readthedocs.org/en/latest/log_analyzer.html>`_ -
+The log analyzer module reads and parses Varian linear accelerator machine logs, both Dynalogs and Trajectory logs. The module also
+calculates actual and expected fluences as well as performing gamma evaluations. Data is structured to be easily accessible and
+easily plottable.
+
+Unlike most other modules of pylinac, the log analyzer module has no end goal. Data is parsed from the logs, but what is done with that
+info, and which info is analyzed is up to the user.
+
+Features:
+
+* **Analyze Dynalogs or Trajectory logs** - Either platform is supported. Tlog versions 2.1 and 3.0 supported.
+* **Save Trajectory log data to CSV** - The Trajectory log binary data format does not allow for easy export of data. Pylinac lets you do
+  that so you can use Excel or other software that you use with Dynalogs.
+* **Plot or analyze any axis** - Every data axis can be plotted: the actual, expected, and even the difference.
+* **View actual or expected fluences & calculate gamma** - View fluences and gamma maps for any log.
+* **Anonymization** - Anonymize your logs so you can share them with others.
+
+Example script:
+
+.. code-block:: python
+
+    from pylinac import load_log
+
+    tlog = load_log("tlog.bin")
+    # after loading, explore any Axis of the Varian structure
+    tlog.axis_data.gantry.plot_actual()  # plot the gantry position throughout treatment
+    tlog.fluence.gamma.calc_map(doseTA=1, distTA=1, threshold=10, resolution=0.1)
+    tlog.fluence.gamma.plot_map()  # show the gamma map as a matplotlib figure
+    tlog.publish_pdf()  # publish a PDF report
+
+    dlog = load_log("dynalog.dlg")
+    ...
+
+Picket Fence MLC Analysis
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`Picket Fence MLC Analysis <http://pylinac.readthedocs.org/en/latest/picketfence.html>`_ -
+The picket fence module is meant for analyzing EPID images where a "picket fence" MLC pattern has been made.
+Physicists regularly check MLC positioning through this test. This test can be done using film and one can
+"eyeball" it, but this is the 21st century and we have numerous ways of quantifying such data. This module
+attains to be one of them. It will load in an EPID dicom image and determine the MLC peaks, error of each MLC
+pair to the picket, and give a few visual indicators for passing/warning/failing.
+
+Features:
+
+* **Preset & customizable MLC configurations** - Standard configurations are built-in and you can create your own configuration of leaves if needed.
+* **Easy-to-read pass/warn/fail overlay** - Analysis gives you easy-to-read tools for determining the status of an MLC pair.
+* **Any Source-to-Image distance** - Whatever your clinic uses as the SID for picket fence, pylinac can account for it.
+* **Account for panel translation** - Have an off-CAX setup? No problem. Translate your EPID and pylinac knows.
+* **Account for panel sag** - If your EPID sags at certain angles, just tell pylinac and the results will be shifted.
+
+Example script:
+
+.. code-block:: python
+
+    from pylinac import PicketFence
+
+    pf = PicketFence("mypf.dcm")
+    pf.analyze(tolerance=0.5, action_tolerance=0.25)
+    print(pf.results())
+    pf.plot_analyzed_image()
+    pf.publish_pdf()
+
+Open Field Analysis
+~~~~~~~~~~~~~~~~~~~
+
+`Open Field Analysis <http://pylinac.readthedocs.org/en/latest/field_analysis.html>`_ -
+Field analysis from a digital image such as EPID DICOM or 2D device array can easily be analyzed. The module contains built-in
+flatness and symmetry equation definitions but is extensible to quickly create custom F&S equations.
+
+Features:
+* **EPID or device data** - Any EPID image or the SNC Profiler.
+* **Built-in F&S equations** - The common Elekta, Varian, and Siemens definitions are included
+* **Extensible equations** - Adding custom equations for image metrics are easy
+
+Example script:
+
+.. code-block:: python
+
+    from pylinac import FieldAnalysis, DeviceFieldAnalysis, Protocol
+
+    fa = FieldAnalysis(path="myFS.dcm")  # equivalently, DeviceFieldAnalysis
+    fa.analyze(protocol=Protocol.VARIAN)
+    # print results
+    print(fa.results())
+    # get results as a dict
+    fa.results_data()
+    # plot results
+    fa.plot_analyzed_image()
+    # publish a PDF file
+    fa.publish_pdf(filename="my field analysis.pdf")
 
 Discussion
 ----------
 
-Have questions? Ask them on the `pylinac discussion forum <https://groups.google.com/forum/#!forum/pylinac>`_.
+Have questions? Ask them on the `pylinac discourse server <https://forum.pylinac.com>`_.
 
 Contributing
 ------------

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from pylinac.core.utilities import OptionListMixin
+from ..core.utilities import OptionListMixin
 
 
 class Contrast(OptionListMixin):

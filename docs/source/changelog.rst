@@ -10,6 +10,11 @@ Picket Fence
 
 * The ``from_multiple_images`` method now no longer uses the demo image as a placeholder. This was causing
   an error when using this method within RadMachine as it was trying to load the demo image.
+* A new method is available for picket fence instances: ``picket_width_stat``. This will return a
+  statistic for a given picket. This is useful for determining the consistency of the MLCs.
+* A new item is available in ``results_data``: ``picket_widths``. This metric will provide the max, min, median, and mean
+  of the picket widths for all MLC pairs across a picket. This is another way to test MLC consistency.
+
 
 CT
 ^^
@@ -18,12 +23,15 @@ CT
   This mode will use dramatically less memory than the default implementation. This is useful for large datasets
   or limited resources on the machine running the process. This does come at a ~25-80% speed penalty depending on the
   size of the dataset. Larger datasets will have a larger penalty.
+* In the ``results`` method, the CTP528 (spatial resolution) and CTP486 (uniformity) sections have been swapped.
+  This is so that the resulting PDF text and images on each page matches. Previously, the PDF text and images
+  for these two modules were switched.
 
 Winston-Lutz
 ^^^^^^^^^^^^
 
 * The ``results()`` method of the ``WinstonLutz`` class will now also report the mean distance from the BB to the CAX in mm.
-* The Winston-Lutz algorithm now uses the new :class:`~pylinac.core.metrics.SizedDiskLocator` internal class (see below). This was introduced in pylinac 3.16.
+* The Winston-Lutz algorithm now uses the new :class:`~pylinac.metrics.image.SizedDiskLocator` internal class (see below). This was introduced in pylinac 3.16.
   The algorithm is very similar to the existing WL algorithm.
 * A new parameter has been added to ``analyze()``: ``bb_tolerance_mm``. This gives an acceptable window for finding a BB.
   E.g. if the BB size is 2mm, the tolerance can be set to 1mm. Alternatively, if the BB is very large, the
@@ -47,6 +55,14 @@ Winston-Lutz
 Metrics
 ^^^^^^^
 
+* There is a new ``metrics`` module in pylinac. Existing metrics have been moved into this module.
+
+  E.g. instead of ``from pylinac.core.metrics import SizedDiskLocator`` you would now do ``from pylinac.metrics.image import SizedDiskLocator``.
+  Image-based metrics are now under ``pylinac.metrics.image``. Profile-based metrics are now under ``pylinac.metrics.profile``.
+  Individual feature detection functions are now under ``pylinac.metrics.features``.
+
+  For backward compatibility (even though metrics are relatively new feature), the old import locations will still work
+  but will raise a deprecation warning.
 * The documentation for metrics has been updated considerably. See :ref:`image-metrics`.
 * The detection algorithm for disk/field metrics has been written out; see :ref:`image_metric_algorithm`.
 * The ``DiskLocator`` class was renamed to ``SizedDiskLocator``.
@@ -62,6 +78,11 @@ Metrics
   the image array has not been modified and will raise an error if it has.
 * Calling ``plot`` now allows to pass a ``metric_kwargs`` parameter. This allows the user to pass arguments
   to the underlying metric's ``plot`` method. This is useful for customizing the plot.
+* A new metric ``PDD`` has been added. This will calculate the percent depth dose at a given depth using a polynomial fit.
+* A new metric ``Dmax`` has been added. This will calculate the maximum dose using a polynomial fit.
+* Profiles will now be sorted to have the x-values always be increasing.
+* A bug was fixed when descending x-values for a profile were passed. This was causing the center index to be faulty.
+
 
 v 3.17.0
 --------
@@ -69,12 +90,12 @@ v 3.17.0
 Metrics
 ^^^^^^^
 
-* Another metric is now available for 2D image analysis: :class:`~pylinac.core.metrics.GlobalDiskLocator`.
+* Another metric is now available for 2D image analysis: :class:`~pylinac.metrics.image.GlobalDiskLocator`.
   This metric will find a number of BBs/disks within an image. This is useful for finding BBs in an image
   without knowing where they might be. This is relatively efficient if there are multiple BBs in the image
   compared with using the :class:`~pylinac.core.metrics.DiskLocator` class multiple times, even when
   the BB locations are known.
-* The metric :class:`~pylinac.core.metrics.GlobalSizedFieldLocator` is also available. This metric
+* The metric :class:`~pylinac.metrics.image.GlobalSizedFieldLocator` is also available. This metric
   will find a number of open fields within an image. See :ref:`global_sized_field_locator` for more.
 
 Planar Imaging

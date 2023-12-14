@@ -19,6 +19,7 @@ import dataclasses
 import enum
 import io
 import os.path as osp
+import statistics
 import warnings
 import webbrowser
 from dataclasses import dataclass
@@ -137,6 +138,7 @@ class PFResult(ResultBase):
     passed: bool  #:
     failed_leaves: list[str] | list[int]  #:
     mlc_skew: float  #:
+    picket_widths: dict[int, dict[str, float]]  #:
 
 
 class PFDicomImage(image.LinacDicomImage):
@@ -366,6 +368,28 @@ class PicketFence:
             .select(lambda m: m.picket_num)
             .first()
         )
+
+    def picket_width_stat(self, picket: int, metric: str = "max") -> float:
+        """Get the statistic of the picket width for the given picket.
+
+        Parameters
+        ----------
+        picket
+            The picket number to analyze.
+        metric
+            The metric to use. One of 'max', 'median', 'mean', 'min'.
+        """
+        picket_widths = [
+            m.profile.field_width_mm for m in self.mlc_meas if m.picket_num == picket
+        ]
+        if metric == "max":
+            return max(picket_widths)
+        elif metric == "median":
+            return statistics.median(picket_widths)
+        elif metric == "mean":
+            return statistics.mean(picket_widths)
+        elif metric == "min":
+            return min(picket_widths)
 
     @property
     def max_error_leaf(self) -> int | str:
@@ -976,6 +1000,13 @@ class PicketFence:
     def results_data(self, as_dict=False) -> PFResult | dict:
         """Present the results data and metadata as a dataclass, dict, or tuple.
         The default return type is a dataclass."""
+        picket_widths = {
+            f"picket_{pk}": {
+                key: self.picket_width_stat(pk, key)
+                for key in ("max", "mean", "median", "min")
+            }
+            for pk in range(len(self.pickets))
+        }
         data = PFResult(
             tolerance_mm=self.tolerance,
             action_tolerance_mm=self.action_tolerance,
@@ -990,6 +1021,7 @@ class PicketFence:
             passed=self.passed,
             failed_leaves=self.failed_leaves(),
             mlc_skew=self.mlc_skew(),
+            picket_widths=picket_widths,
         )
         if as_dict:
             return dataclasses.asdict(data)
@@ -1184,14 +1216,12 @@ class MLCValue:
             pix_vals = np.median(self._image_window, axis=0)
         else:
             pix_vals = np.median(self._image_window, axis=1)
-        # we use a physical profile since we're looking at pixels
-        # however, we don't have the actual dpmm value
-        # but it's all relative in this context, so we can just use 1 dpmm.
         prof = FWXMProfilePhysical(
-            values=pix_vals, ground=True, normalization=Normalization.MAX, dpmm=1
-        ).as_resampled(
-            interpolation_resolution_mm=0.01, order=1
-        )  # linear interpolation
+            values=pix_vals,
+            ground=True,
+            normalization=Normalization.MAX,
+            dpmm=self._image.dpmm,
+        )
         self.profile = prof
         if self._separate_leaves:
             left = prof.field_edge_idx(side="left") + max(
