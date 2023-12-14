@@ -10,6 +10,11 @@ Picket Fence
 
 * The ``from_multiple_images`` method now no longer uses the demo image as a placeholder. This was causing
   an error when using this method within RadMachine as it was trying to load the demo image.
+* A new method is available for picket fence instances: ``picket_width_stat``. This will return a
+  statistic for a given picket. This is useful for determining the consistency of the MLCs.
+* A new item is available in ``results_data``: ``picket_widths``. This metric will provide the max, min, median, and mean
+  of the picket widths for all MLC pairs across a picket. This is another way to test MLC consistency.
+
 
 CT
 ^^
