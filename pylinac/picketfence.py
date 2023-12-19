@@ -38,6 +38,7 @@ from . import Normalization
 from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
+from .core.metrics import SizedDiskLocator
 from .core.profile import FWXMProfilePhysical, MultiProfile
 from .core.utilities import ResultBase, convert_to_enum
 from .log_analyzer import load_log
@@ -143,8 +144,11 @@ class PFResult(ResultBase):
 class PFDicomImage(image.LinacDicomImage):
     """A subclass of a DICOM image that checks for noise and inversion when instantiated. Can also adjust for EPID sag."""
 
+    _central_axis: Point | None  #:
+
     def __init__(self, path: str, **kwargs):
         crop_mm = kwargs.pop("crop_mm", 3)
+        self._central_axis = kwargs.pop("central_axis", None)
         super().__init__(path, **kwargs)
         # crop the images so that Elekta images don't fail. See #168
         crop_pixels = int(round(crop_mm * self.dpmm))
@@ -179,6 +183,16 @@ class PFDicomImage(image.LinacDicomImage):
         direction = "y" if orient == Orientation.UP_DOWN else "x"
         self.roll(direction, sag)
 
+    @property
+    def center(self) -> Point:
+        """Override the central axis call in the event we passed it directly"""
+        if self._central_axis is not None:
+            cax = copy.copy(self._central_axis)
+            cax.y = 2 * (self.shape[0] // 2) - cax.y
+            return cax
+        else:
+            return super().center
+
 
 class PicketFence:
     """A class used for analyzing EPID images where radiation strips have been formed by the
@@ -186,6 +200,9 @@ class PicketFence:
     i.e. a "left-right" or "up-down" orientation is assumed. Further work could follow up by accounting
     for any angle.
     """
+
+    _from_bb_setup: bool = False
+    _bb_image: image.LinacDicomImage | None = None
 
     def __init__(
         self,
@@ -297,6 +314,28 @@ class PicketFence:
             img.save(stream)
             stream.seek(0)
             return cls(stream, **kwargs)
+
+    @classmethod
+    def from_bb_setup(
+        cls, *args, bb_image: str | Path | BinaryIO, bb_diameter: float, **kwargs
+    ):
+        """Construct a PicketFence instance using a BB setup image to find the CAX first.
+        The CAX of the PF image is then overridden w/ the BB location from the first image.
+
+        Thank the French for this."""
+        bb_image = image.load(bb_image)
+        cax = bb_image.compute(
+            metrics=SizedDiskLocator.from_center_physical(
+                expected_position_mm=(0, 0),
+                search_window_mm=(30 + bb_diameter, 30 + bb_diameter),
+                radius_mm=bb_diameter / 2,
+                radius_tolerance_mm=bb_diameter * 0.1 + 1,
+            )
+        )
+        instance = cls(*args, **kwargs, image_kwargs={"central_axis": cax})
+        instance._from_bb_setup = True
+        instance._bb_image = bb_image
+        return instance
 
     @property
     def passed(self) -> bool:
@@ -512,6 +551,7 @@ class PicketFence:
         fwxm: int = 50,
         separate_leaves: bool = False,
         nominal_gap_mm: float = 3,
+        central_axis: Point | None = None,
     ) -> None:
         """Analyze the picket fence image.
 
@@ -582,6 +622,9 @@ class PicketFence:
         nominal_gap_mm
             The expected gap of the pickets in mm. Only used when separate leaves is True. Due to the DLG and EPID
             scattering, this value will have to be determined by you with a known good delivery.
+        central_axis
+            The central axis of the beam. If None (default), the CAX is automatically determined. This
+            is used for French regulations where the CAX is set to the BB location from a separate image.
         """
         if action_tolerance is not None and tolerance < action_tolerance:
             raise ValueError("Tolerance cannot be lower than the action tolerance")
@@ -589,6 +632,9 @@ class PicketFence:
         self.action_tolerance = action_tolerance
         self.leaf_analysis_width = leaf_analysis_width_ratio
         self.separate_leaves = separate_leaves
+
+        if central_axis:
+            self.image._central_axis = central_axis
 
         if invert:
             self.image.invert()
