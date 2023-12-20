@@ -1658,6 +1658,11 @@ class LazyDicomImageStack:
     def __getitem__(self, item: int) -> DicomImage:
         return DicomImage(self._image_path_keys[item], dtype=self.dtype)
 
+    def __setitem__(self, key: int, value: DicomImage):
+        """Save the passed image to disk in place of the current image."""
+        current_path = self._image_path_keys[key]
+        value.save(current_path)
+
     def __len__(self):
         return len(self._image_path_keys)
 

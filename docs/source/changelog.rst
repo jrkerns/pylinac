@@ -2,6 +2,15 @@
 Changelog
 =========
 
+v 3.19.0
+--------
+
+Core
+^^^^
+
+* The efficient DICOM stack introduced in the last version did not allow for writing images back to the stack
+  (e.g. when manipulating the image). Images can now be written back to efficient stacks.
+
 v 3.18.0
 --------
 
