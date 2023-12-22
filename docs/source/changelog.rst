@@ -11,6 +11,17 @@ Core
 * The efficient DICOM stack introduced in the last version did not allow for writing images back to the stack
   (e.g. when manipulating the image). Images can now be written back to efficient stacks.
 
+Profiles
+^^^^^^^^
+
+* Physical profiles ``...ProfilePhysical`` now have a ``physical_x_values`` property. This will return the
+  x-values in physical units. This can be useful for plotting the profile in physical units if desired.
+* Physical profiles ``...ProfilePhysical`` now have a ``as_simple_profile`` method. This will create a new
+  profile of the same type minus the physical (e.g. ``FWXMProfile`` for a ``FWXMProfilePhysical``) that
+  has its x-values set to the correct physical values. This can be useful when wanting to compare, say, an EPID
+  physical profile with an ion chamber profile, where the x-values of the IC profile are already in absolute
+  physical units.
+
 v 3.18.0
 --------
 

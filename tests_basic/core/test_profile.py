@@ -648,6 +648,33 @@ class TestFWXMProfilePhysical(TestCase):
             prof100.field_width_px, prof100_2.field_width_px, delta=0.01
         )
 
+    def test_physical_x_values(self):
+        """Test converting dpmm to absolute x-values works and also includes the half-pixel on either end."""
+        array = create_long_23_profile()
+        dpmm = 3
+        half_pixel = 1 / (dpmm * 2)
+        profile = FWXMProfilePhysical(array, fwxm_height=50, dpmm=dpmm)
+        phys_x_values = profile.physical_x_values
+        self.assertAlmostEqual(min(phys_x_values), half_pixel)
+        self.assertAlmostEqual(
+            max(phys_x_values), 23 / dpmm - half_pixel
+        )  # 23 is len of x-values
+
+    def test_converting_to_simple_profile(self):
+        pixel_size = 0.390625  # as1000 pixel size
+        profile = generate_profile()
+        fwxm = FWXMProfilePhysical(values=profile, dpmm=1 / pixel_size)
+        abs_fwxm = fwxm.as_simple_profile()
+        # ensure the field widths are the same
+        self.assertAlmostEqual(fwxm.field_width_mm, abs_fwxm.field_width_px, delta=0.01)
+        # ensure the CAXs are the same to ensure proper pixel offset
+        self.assertAlmostEqual(
+            fwxm.center_idx * pixel_size + pixel_size / 2,
+            abs_fwxm.center_idx,
+            delta=0.01,
+        )
+        self.assertIsInstance(abs_fwxm, FWXMProfile)
+
 
 class TestInflectionProfilePhysical(TestCase):
     def test_field_width_mm(self):
