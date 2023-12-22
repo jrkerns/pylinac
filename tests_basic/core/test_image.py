@@ -787,6 +787,16 @@ class TestDicomStack(TestCase):
         with self.assertRaises(ValueError):
             DicomImageStack.from_zip(mixed_study_zip)
 
+    def test_writing_back_to_lazy_stack(self):
+        dstack_lazy = LazyDicomImageStack.from_zip(self.stack_location)
+        original_offset = np.copy(dstack_lazy[0].array) + 50
+        for idx, img in enumerate(dstack_lazy):
+            img.array += 50
+            dstack_lazy[idx] = img
+        manipulated_offset = np.copy(dstack_lazy[0].array)
+        # assert that writing back to the stack works
+        assert_array_almost_equal(manipulated_offset, original_offset)
+
 
 class TestGamma2D(TestCase):
     def test_perfect_match_is_0(self):
