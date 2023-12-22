@@ -693,10 +693,32 @@ class PhysicalProfileMixin:
     ):
         self.dpmm = dpmm
 
+    @property
+    def physical_x_values(self) -> np.array:
+        """The x-values of the profile in absolute position, taking into account the dpmm."""
+        half_pixel_offset = 0.5 / self.dpmm
+        x_values = self.x_values / self.dpmm + half_pixel_offset
+        return x_values
+
     @cached_property
     def field_width_mm(self) -> float:
         """The field width of the profile in mm"""
         return self.field_width_px / self.dpmm
+
+    def as_simple_profile(self) -> ProfileBase:
+        """Convert a physical profile into a simple profile where
+        the x-values have been converted to the physical x-values.
+
+        An example is converting an EPID profile into a simple profile
+        where the x-values are in mm, not pixels.
+
+        This can be useful when trying to compare physical profiles
+        to simple profiles. E.g. an EPID vs an ion chamber profile acquisition.
+        In the EPID's case, the x-values are indices w/ a dpmm component.
+        The IC profile is usually already directly in absolute x-values.
+        """
+        base_profile_type = self.__class__.__bases__[-1]
+        return base_profile_type(values=self.values, x_values=self.physical_x_values)
 
     def as_resampled(
         self,
