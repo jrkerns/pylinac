@@ -352,7 +352,7 @@ def _is_image_file(path: str | Path) -> bool:
     try:
         with pImage.open(path):
             return True
-    except:
+    except Exception:
         return False
 
 
@@ -376,6 +376,7 @@ class BaseImage:
     path: str | Path
     metrics: list[MetricBase]
     metric_values: dict[str, Any]
+    source: FILE_TYPE | STREAM_TYPE
 
     def __init__(
         self, path: str | Path | BytesIO | ImageLike | np.ndarray | BufferedReader
@@ -386,7 +387,6 @@ class BaseImage:
         path : str
             The path to the image.
         """
-        source: FILE_TYPE | STREAM_TYPE
         self.metrics = []
         self.metric_values = {}
         if isinstance(path, (str, Path)) and not osp.isfile(path):
@@ -474,7 +474,7 @@ class BaseImage:
             try:
                 date = datetime.strptime(self.metadata.StudyDate, "%Y%m%d")
                 date = date.strftime(format)
-            except:
+            except Exception:
                 pass
         if date is None:
             try:
@@ -1288,7 +1288,7 @@ class DicomImage(BaseImage):
         """The dots-per-inch of the image, defined at isocenter."""
         try:
             return self.dpmm * MM_PER_INCH
-        except:
+        except Exception:
             return self._dpi
 
     @property
@@ -1538,7 +1538,7 @@ class ArrayImage(BaseImage):
         the dpmm will scale back to 100cm."""
         try:
             return self.dpi / MM_PER_INCH
-        except:
+        except Exception:
             return
 
     @property

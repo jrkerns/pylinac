@@ -1024,7 +1024,7 @@ class ACRMRILarge(CatPhanBase):
                 np.rad2deg(phan_roll) + 135
             )  # bubble is at top-left. perfect placement is -135
             return corrected_roll
-        except:
+        except Exception:
             raise RuntimeError(
                 "Could not determine the roll of the phantom. Ensure the 20mm top-left circle is visible on Slice 1"
             )
