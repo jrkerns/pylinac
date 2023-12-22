@@ -2056,7 +2056,7 @@ class CatPhanBase:
         for img in self.dicom_stack:
             try:
                 os.remove(img.path)
-            except:
+            except Exception:
                 pass
 
     def plot_side_view(self, axis: Axes) -> None:

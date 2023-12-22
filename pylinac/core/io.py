@@ -186,7 +186,7 @@ def is_url(url: str) -> bool:
     try:
         with urlopen(url) as r:
             return r.status == 200
-    except:
+    except Exception:
         return False
 
 

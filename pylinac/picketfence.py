@@ -203,6 +203,12 @@ class PicketFence:
 
     _from_bb_setup: bool = False
     _bb_image: image.LinacDicomImage | None = None
+    leaf_analysis_width: float  #:
+    mlc_meas: list  #:
+    pickets: list  #:
+    tolerance: float  #:
+    action_tolerance: float  #:
+    image: PFDicomImage  #:
 
     def __init__(
         self,
@@ -238,12 +244,6 @@ class PicketFence:
             These need to be cleaned up first. For Varian images, this really shouldn't make a difference unless the pickets are
             very close to the edge. Generally speaking, they shouldn't be for the best accuracy.
         """
-        leaf_analysis_width: float  #:
-        mlc_meas: list  #:
-        pickets: list  #:
-        tolerance: float  #:
-        action_tolerance: float  #:
-        image: PFDicomImage  #:
 
         if filename is not None:
             img_kwargs = image_kwargs or {}

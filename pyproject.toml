@@ -68,10 +68,10 @@ line-length = 88
 #experimental-string-processing = true  # TODO: enable in the future: https://github.com/psf/black/issues/1802
 
 [tool.ruff]
-select = ['E', 'F', 'I', 'UP']
+select = ['E', 'F', 'I', 'UP', "W", "NPY", "FLY"]
 line-length = 180
 target-version = 'py38'
-ignore = ['F842', 'E722', 'E501']
+ignore = ['E501']
 
 [tool.ruff.per-file-ignores]
 "*/__init__.py" = ["F401"]

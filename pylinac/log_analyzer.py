@@ -2865,7 +2865,7 @@ def _is_log(filename: str, keys: Sequence[str]) -> bool:
             with open(filename, mode="rb") as f:
                 header_sample = f.read(5).decode()
             return any(key in header_sample for key in keys)
-        except:
+        except Exception:
             return False
     else:
         return False
