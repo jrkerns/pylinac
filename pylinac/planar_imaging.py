@@ -66,6 +66,7 @@ class PlanarResult(ResultBase):
     num_contrast_rois_seen: int  #:
     phantom_center_x_y: tuple[float, float]  #:
     low_contrast_rois: list[dict]  #:
+    phantom_area: float  #: The area of the phantom in pixels^2
     mtf_lp_mm: tuple[float, float, float] | None = None  #:
     percent_integral_uniformity: float | None = None  #:
 
@@ -670,6 +671,7 @@ class ImagePhantomBase:
                 f"Median Contrast: {np.median([roi.contrast for roi in self.low_contrast_rois]):2.2f}",
                 f"Median CNR: {np.median([roi.contrast_to_noise for roi in self.low_contrast_rois]):2.1f}",
                 f'# Low contrast ROIs "seen": {sum(roi.passed_visibility for roi in self.low_contrast_rois):2.0f} of {len(self.low_contrast_rois)}',
+                f"Area: {self.phantom_area:2.2f} mm^2",
             ]
         if self.high_contrast_rois:
             text += [
@@ -694,6 +696,7 @@ class ImagePhantomBase:
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
             low_contrast_rois=[roi.as_dict() for roi in self.low_contrast_rois],
             percent_integral_uniformity=self.percent_integral_uniformity(),
+            phantom_area=self.phantom_area,
         )
 
         if self.mtf is not None:
@@ -797,6 +800,12 @@ class ImagePhantomBase:
             if self._angle_override is not None
             else self._phantom_angle_calc()
         )
+
+    @property
+    def phantom_area(self) -> float:
+        """The area of the detected ROI in mm^2"""
+        area_px = self._create_phantom_outline_object()[0].area
+        return area_px / self.image.dpmm**2
 
     def _phantom_center_calc(self):
         return bbox_center(self.phantom_ski_region)
@@ -1425,6 +1434,7 @@ class LasVegas(ImagePhantomBase):
             phantom_center_x_y=(self.phantom_center.x, self.phantom_center.y),
             low_contrast_rois=[r.as_dict() for r in self.low_contrast_rois],
             percent_integral_uniformity=self.percent_integral_uniformity(),
+            phantom_area=self.phantom_area,
         )
         if as_dict:
             return dataclasses.asdict(data)
