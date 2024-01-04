@@ -1048,7 +1048,7 @@ class ACRMRILarge(CatPhanBase):
         self.slice11 = self.slice11(self, offset=MR_SLICE11_MODULE_OFFSET_MM)
 
     def _select_echo_images(self, echo_number: int | None) -> None:
-        """Get the image indices that match the given echo number"""
+        """Select out the images that match the given echo number"""
         # we check for multiple echos. We only pick the first echo found.
         # this is probably not the best logic but we somehow have to pick
         # Echo Numbers is an int; https://dicom.innolitics.com/ciods/mr-image/mr-image/00180086
