@@ -87,6 +87,10 @@ class TestCircle(unittest.TestCase):
 
         self.assertRaises(TypeError, Circle, 20)
 
+    def test_area(self):
+        c = Circle(radius=10)
+        self.assertAlmostEqual(c.area, math.pi * 10**2)
+
 
 class TestLine(unittest.TestCase):
     point_1 = Point(1, 1)
@@ -172,3 +176,7 @@ class TestRectangle(unittest.TestCase):
         point_equality_validation(rect.br_corner, self.br_corner)
         point_equality_validation(rect.tr_corner, self.tr_corner)
         point_equality_validation(rect.tl_corner, self.tl_corner)
+
+    def test_area(self):
+        r = Rectangle(width=10, height=10, center=(0, 0))
+        self.assertAlmostEqual(r.area, 100)

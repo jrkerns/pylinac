@@ -182,6 +182,11 @@ class Circle:
         self.radius = radius
 
     @property
+    def area(self) -> float:
+        """The area of the circle."""
+        return math.pi * self.radius**2
+
+    @property
     def diameter(self) -> float:
         """Get the diameter of the circle."""
         return self.radius * 2
@@ -458,6 +463,11 @@ class Rectangle:
             self.height = height
         self._as_int = as_int
         self.center = Point(center, as_int=as_int)
+
+    @property
+    def area(self) -> float:
+        """The area of the rectangle."""
+        return self.width * self.height
 
     @property
     def br_corner(self) -> Point:
