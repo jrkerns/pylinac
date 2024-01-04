@@ -507,8 +507,6 @@ From this initial sphere frame, each ROI is found by:
       final sphere locations are determined upon.
 
 
-
-
 References
 ----------
 
@@ -533,3 +531,48 @@ API
 
 .. autoclass:: pylinac.nuclear.PlanarUniformityResults
    :members:
+
+.. autoclass:: pylinac.nuclear.CenterOfRotation
+   :members:
+
+.. autoclass:: pylinac.nuclear.CenterOfRotationResults
+    :members:
+
+.. autoclass:: pylinac.nuclear.TomographicResolution
+    :members:
+
+.. autoclass:: pylinac.nuclear.TomographicResolutionResults
+    :members:
+
+.. autoclass:: pylinac.nuclear.SimpleSensitivity
+    :members:
+
+.. autoclass:: pylinac.nuclear.SimpleSensitivityResults
+    :members:
+
+.. autoclass:: pylinac.nuclear.FourBarResolution
+    :members:
+
+.. autoclass:: pylinac.nuclear.FourBarResolutionResults
+    :members:
+
+.. autoclass:: pylinac.nuclear.QuadrantResolution
+    :members:
+
+.. autoclass:: pylinac.nuclear.QuadrantResolutionResults
+    :members:
+
+.. autoclass:: pylinac.nuclear.TomographicUniformity
+    :members:
+
+.. autoclass:: pylinac.nuclear.TomographicUniformityResults
+    :members:
+
+.. autoclass:: pylinac.nuclear.TomographicContrast
+    :members:
+
+.. autoclass:: pylinac.nuclear.TomographicContrastResults
+    :members:
+
+.. autoclass:: pylinac.nuclear.Nuclide
+    :members:
