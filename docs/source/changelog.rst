@@ -21,6 +21,9 @@ Profiles
   has its x-values set to the correct physical values. This can be useful when wanting to compare, say, an EPID
   physical profile with an ion chamber profile, where the x-values of the IC profile are already in absolute
   physical units.
+* Profiles have a new method to make comparing one profile to another, point-for-point, easier: ``resample_to``.
+  This method will resample the profile to the x-values of another profile. This is useful for comparing profiles
+  point-by-point, such as for a 1D gamma evaluation.
 
 v 3.18.0
 --------

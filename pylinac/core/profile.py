@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle as mpl_Circle
 from scipy import ndimage, signal
-from scipy.interpolate import UnivariateSpline, interp1d
+from scipy.interpolate import InterpolatedUnivariateSpline, UnivariateSpline, interp1d
 from scipy.ndimage import gaussian_filter1d, zoom
 from scipy.optimize import OptimizeWarning, minimize
 from scipy.stats import linregress
@@ -455,6 +455,46 @@ class ProfileBase(ProfileMixin, ABC):
             normalization=Normalization.NONE,
             **kwargs,
         )
+
+    def resample_to(
+        self, target_profile: ProfileBase | PhysicalProfileMixin
+    ) -> ProfileBase:
+        """Resample a target profile to have the same sampling (x-values) rate as the source profile.
+        This will return a new target profile with the same x-values as the source profile and with the values
+        interpolated to match the source profile.
+
+        For example, this can be used to resample an EPID profile to have the same sampling rate as an ion chamber
+        profile or vice versa.
+
+        Requirements
+        ------------
+
+        * The range of x-values for the target profile must be within the x-value range of the source profile.
+          I.e. no extrapolation of the source profile. For example, if we have a profile of an IC Profile,
+          that goes from -15cm to +15cm, we cannot resample onto an EPID profile that goes from -20cm to +20cm.
+          To do so, go the other way: resample the EPID profile onto the IC profile.
+        """
+        # get the absolute x values; depends on the type of profile
+        if isinstance(target_profile, PhysicalProfileMixin):
+            target_x = target_profile.physical_x_values
+        else:
+            target_x = target_profile.x_values
+        if isinstance(self, PhysicalProfileMixin):
+            self_x = self.physical_x_values
+        else:
+            self_x = self.x_values
+        f = InterpolatedUnivariateSpline(self_x, self.values, k=1, ext=2)
+        try:
+            target_y = f(target_x)
+        except ValueError:
+            raise ValueError(
+                f"The target profile x-values are outside this profiles range. Extrapolation is not allowed. self x-values: {self_x.min()} to {self_x.max()}. target x-values: {target_x.min()} to {target_x.max()}. "
+            )
+        if isinstance(self, PhysicalProfileMixin):
+            output_type = self.__class__.__bases__[-1]
+        else:
+            output_type = self.__class__
+        return output_type(values=target_y, x_values=target_x)
 
     def plot(
         self,
