@@ -30,6 +30,7 @@
    winston_lutz_multi
    planar_imaging
    field_analysis
+   nuclear
 
 .. toctree::
    :hidden:

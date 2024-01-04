@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import warnings
 from typing import Sequence
 
@@ -34,6 +35,14 @@ class MTF:
         self.spacings = lp_spacings
         self.maximums = lp_maximums
         self.minimums = lp_minimums
+        if len(lp_spacings) != len(lp_maximums) != len(lp_minimums):
+            raise ValueError(
+                "The number of MTF spacings, maximums, and minimums must be equal."
+            )
+        if len(lp_spacings) < 2 or len(lp_maximums) < 2 or len(lp_minimums) < 2:
+            raise ValueError(
+                "The number of MTF spacings, maximums, and minimums must be greater than 1."
+            )
         self.mtfs = {}
         self.norm_mtfs = {}
         for spacing, max, min in zip(lp_spacings, lp_maximums, lp_minimums):
@@ -94,7 +103,7 @@ class MTF:
         margins: float = 0.05,
         marker: str = "o",
         label: str = "rMTF",
-    ) -> tuple:
+    ) -> list[plt.Line2D]:
         """Plot the Relative MTF.
 
         Parameters
@@ -115,4 +124,131 @@ class MTF:
         axis.set_xlabel(x_label)
         axis.set_ylabel(y_label)
         axis.set_title(title)
+        spacing_ax = axis.secondary_xaxis(
+            "top", functions=(lambda x: 1 / x, lambda x: 1 / x)
+        )
+        spacing_ax.set_xlabel("Pair Distance (mm)")
+        plt.tight_layout()
         return points
+
+
+class PeakValleyMTF(MTF):
+    pass
+
+
+def moments_mtf(mean: float, std: float) -> float:
+    """The moments-based MTF based on Hander et al 1997 Equation 8.
+
+    See Also
+    --------
+    https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.597928
+    """
+    return math.sqrt(2 * (std**2 - mean)) / mean
+
+
+def moments_fwhm(width: float, mean: float, std: float) -> float:
+    """The moments-based FWHM based on Hander et al 1997 Equation A8.
+
+    Parameters
+    ----------
+    width : float
+        The bar width in mm
+    mean : float
+        The mean of the ROI.
+    std : float
+        The standard deviation of the ROI.
+
+    See Also
+    --------
+    https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.597928
+    """
+    return 1.058 * width * math.sqrt(np.log(mean / (math.sqrt(2 * (std**2 - mean)))))
+
+
+class MomentMTF:
+    """A moments-based MTF. Based on the work of Hander et al 1997.
+
+    Parameters
+    ----------
+    lpmms : sequence of floats
+        The line pairs per mm.
+    means : sequence of floats
+        The means of the ROIs.
+    stds : sequence of floats
+        The standard deviations of the ROIs.
+
+    See Also
+    --------
+    https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.597928
+    """
+
+    mtfs: dict[float, float]
+    fwhms: dict[float, float]
+
+    def __init__(
+        self, lpmms: Sequence[float], means: Sequence[float], stds: Sequence[float]
+    ):
+        self.mtfs = {}
+        self.fwhms = {}
+        for lpmm, mean, std in zip(lpmms, means, stds):
+            bar_width = 1 / (2 * lpmm)  # lp is 2 bars
+            self.mtfs[lpmm] = moments_mtf(mean, std)
+            self.fwhms[lpmm] = moments_fwhm(bar_width, mean, std)
+
+    @classmethod
+    def from_high_contrast_diskset(
+        cls, lpmms: Sequence[float], diskset: Sequence[HighContrastDiskROI]
+    ) -> MomentMTF:
+        """Construct the MTF using high contrast disks from the ROI module."""
+        means = [roi.mean for roi in diskset]
+        stds = [roi.std for roi in diskset]
+        return cls(lpmms, means, stds)
+
+    def plot(
+        self,
+        axis: plt.Axes | None = None,
+        marker: str = "o",
+    ) -> plt.Axes:
+        """Plot the Relative MTF.
+
+        Parameters
+        ----------
+        axis : None, matplotlib.Axes
+            The axis to plot the MTF on. If None, will create a new figure.
+        """
+        if axis is None:
+            fig, axis = plt.subplots()
+        axis.plot(
+            list(self.mtfs.keys()),
+            list(self.mtfs.values()),
+            marker=marker,
+        )
+        axis.grid(True)
+        axis.set_xlabel("Line pairs / mm")
+        axis.set_ylabel("MTF")
+        axis.set_title("Moments-based MTF")
+        spacing_ax = axis.secondary_xaxis(
+            "top", functions=(lambda x: 1 / x, lambda x: 1 / x)
+        )
+        spacing_ax.set_xlabel("Pair Distance (mm)")
+        plt.tight_layout()
+        return axis
+
+    def plot_fwhms(self, axis: plt.Axes | None = None, marker: str = "o") -> plt.Axes:
+        if axis is None:
+            fig, axis = plt.subplots()
+        axis.plot(
+            list(self.fwhms.keys()),
+            list(self.fwhms.values()),
+            marker=marker,
+        )
+        axis.grid(True)
+        axis.set_xlabel("Line pairs / mm")
+        axis.set_ylabel("FWHM")
+        axis.set_title("Moments-based FWHM")
+        spacing_ax = axis.secondary_xaxis(
+            "top", functions=(lambda x: 1 / x, lambda x: 1 / x)
+        )
+        spacing_ax.set_xlabel("Pair Distance (mm)")
+        plt.tight_layout()
+        return axis

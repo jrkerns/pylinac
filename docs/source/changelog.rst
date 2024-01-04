@@ -11,6 +11,12 @@ Core
 * The efficient DICOM stack introduced in the last version did not allow for writing images back to the stack
   (e.g. when manipulating the image). Images can now be written back to efficient stacks.
 
+Nuclear
+^^^^^^^
+
+* A new module has been created. This module is a Python implementation of the NMQC toolkit for SPECT.
+  It contains 9 tests that are very similar to the ImageJ toolkit. See :ref:`nuclear` for more.
+
 Profiles
 ^^^^^^^^
 
