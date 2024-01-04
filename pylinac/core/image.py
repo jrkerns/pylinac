@@ -1663,6 +1663,15 @@ class LazyDicomImageStack:
         current_path = self._image_path_keys[key]
         value.save(current_path)
 
+    def __delitem__(self, key):
+        """Delete the image from the stack and OS."""
+        current_path = self._image_path_keys[key]
+        try:
+            os.remove(current_path)
+        except Exception:
+            pass
+        del self._image_path_keys[key]
+
     def __len__(self):
         return len(self._image_path_keys)
 
@@ -1753,6 +1762,10 @@ class DicomImageStack(LazyDicomImageStack):
 
     def __setitem__(self, key, value: DicomImage):
         self.images[key] = value
+
+    def __delitem__(self, key):
+        """Delete the image from the stack."""
+        del self.images[key]
 
     def __len__(self):
         return len(self.images)

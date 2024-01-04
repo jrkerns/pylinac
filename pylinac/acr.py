@@ -17,7 +17,6 @@ from scipy import ndimage
 from .core import pdf
 from .core.array_utils import find_nearest_idx
 from .core.geometry import Line, Point
-from .core.image import DicomImage
 from .core.mtf import MTF
 from .core.profile import FWXMProfilePhysical
 from .core.roi import HighContrastDiskROI, RectangleROI
@@ -1037,7 +1036,7 @@ class ACRMRILarge(CatPhanBase):
         echo_number:
             The echo to analyze. If not passed, uses the minimum echo number found.
         """
-        self.dicom_stack.images = self._select_echo_images(echo_number)
+        self._select_echo_images(echo_number)
         self.localize()
         self.slice1 = self.slice1(self, offset=0)
         self.geometric_distortion = self.geometric_distortion(
@@ -1048,17 +1047,18 @@ class ACRMRILarge(CatPhanBase):
         )
         self.slice11 = self.slice11(self, offset=MR_SLICE11_MODULE_OFFSET_MM)
 
-    def _select_echo_images(self, echo_number: int | None) -> list[DicomImage]:
+    def _select_echo_images(self, echo_number: int | None) -> None:
         """Get the image indices that match the given echo number"""
         # we check for multiple echos. We only pick the first echo found.
         # this is probably not the best logic but we somehow have to pick
         # Echo Numbers is an int; https://dicom.innolitics.com/ciods/mr-image/mr-image/00180086
 
-        # in case EchoNumbers isn't there, return all
+        # in case EchoNumbers isn't there, use all
         try:
-            all_echos = {int(i.metadata.EchoNumbers) for i in self.dicom_stack.images}
+            all_echos = {int(i.metadata.EchoNumbers) for i in self.dicom_stack}
         except AttributeError:
-            return self.dicom_stack.images
+            # no manipulation; use all images
+            return
         if echo_number is None:
             echo_number = min(all_echos)
             if len(all_echos) > 1:
@@ -1069,11 +1069,13 @@ class ACRMRILarge(CatPhanBase):
             raise ValueError(
                 f"Echo number {echo_number} was passed but not found in the dataset. Found echo numbers: {all_echos}. Remove the echo_number parameter or pick a valid echo number."
             )
-        return [
-            image
-            for image in self.dicom_stack.images
-            if int(image.metadata.EchoNumbers) == echo_number
-        ]
+        # drop images that don't have the same echo number
+        to_pop = []
+        for idx, img in enumerate([i for i in self.dicom_stack].copy()):
+            if int(img.metadata.EchoNumbers) != echo_number:
+                to_pop.append(idx)
+        for idx in sorted(to_pop, reverse=True):
+            del self.dicom_stack[idx]
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
         """Plot the analyzed image
