@@ -30,7 +30,6 @@ The MTF can also be calculated using the moments of the line pair spread functio
 This algorithm is based on the work of Hander et al [1]_. Specifically, equation 8:
 
 .. math::
-   :label: mtf
 
    MTF = \frac{\sqrt{2 * (\sigma^{2} - \mu)}}{\mu}
 
