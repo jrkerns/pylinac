@@ -1522,7 +1522,7 @@ class TomographicContrast:
         sphere_diameters_mm : list
             The diameters of the spheres in mm.
         sphere_angles : list
-
+            The angles of the spheres in degrees.
         """
         self.ufov_ratio = ufov_ratio
         uniformities = self.slice_data
