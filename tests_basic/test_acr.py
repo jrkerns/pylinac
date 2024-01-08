@@ -320,7 +320,7 @@ class ACRMRMixin(CloudFileMixin):
     @classmethod
     def setUpClass(cls):
         filename = cls.get_filename()
-        cls.mri = ACRMRILarge.from_zip(filename)
+        cls.mri = ACRMRILarge.from_zip(filename, memory_efficient_mode=True)
         cls.mri.analyze()
 
     def test_roll(self):
