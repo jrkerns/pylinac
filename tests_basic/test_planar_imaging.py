@@ -84,7 +84,7 @@ class GeneralTests(TestCase):
 
         data_list = phan.results(as_list=True)
         self.assertIsInstance(data_list, list)
-        self.assertEqual(len(data_list), 8)
+        self.assertEqual(len(data_list), 9)
 
     def test_results_data(self):
         phan = LeedsTOR.from_demo_image()
@@ -98,7 +98,7 @@ class GeneralTests(TestCase):
 
         data_dict = phan.results_data(as_dict=True)
         self.assertIsInstance(data_dict, dict)
-        self.assertEqual(len(data_dict), 10)
+        self.assertEqual(len(data_dict), 11)
         self.assertIn("pylinac_version", data_dict)
 
     def test_results_data_no_mtf(self):
@@ -106,7 +106,7 @@ class GeneralTests(TestCase):
         phan.analyze()
 
         data_dict = phan.results_data(as_dict=True)
-        self.assertEqual(len(data_dict), 10)
+        self.assertEqual(len(data_dict), 11)
 
     def test_set_figure_size(self):
         phan = LeedsTOR.from_demo_image()
@@ -175,6 +175,12 @@ class GeneralTests(TestCase):
         with self.assertRaises(ValueError):
             phan = LeedsTOR.from_demo_image()
             phan.analyze(ssd=1500)  # really at 1000
+
+    def test_scaling_area(self):
+        """Test various scaling area values"""
+        phan = LeedsTOR.from_demo_image()
+        phan.analyze()
+        self.assertAlmostEqual(phan.results_data().phantom_area, 17760.9, delta=0.3)
 
 
 class PlanarPhantomMixin(CloudFileMixin):

@@ -805,6 +805,45 @@ class TestHillProfilePhysical(TestCase):
         )
 
 
+class TestResampleTo(TestCase):
+    def test_resample_same(self):
+        array = symmetrical_sharp_sigmoidal_21_profile()
+        profile = InflectionDerivativeProfilePhysical(array, dpmm=1)
+        a2 = symmetrical_sigmoidal_21_profile()
+        p2 = InflectionDerivativeProfilePhysical(a2, dpmm=1)
+        new_p = profile.resample_to(p2)
+        self.assertIsInstance(new_p, InflectionDerivativeProfile)
+        self.assertEqual(len(new_p.x_values), len(profile.x_values))
+
+    def test_extrapolate_not_allowed(self):
+        array = create_simple_9_profile()
+        source = InflectionDerivativeProfilePhysical(array, dpmm=1)
+        a2 = symmetrical_sigmoidal_21_profile()
+        target = InflectionDerivativeProfilePhysical(a2, dpmm=1)
+        with self.assertRaises(ValueError):
+            source.resample_to(target)
+
+    def test_normal_subrange_physical(self):
+        array = create_simple_9_profile()
+        target = InflectionDerivativeProfilePhysical(array, dpmm=1)
+        a2 = symmetrical_sigmoidal_21_profile()
+        source = InflectionDerivativeProfilePhysical(a2, dpmm=1)
+        new_profile = source.resample_to(target)
+        self.assertIsInstance(new_profile, InflectionDerivativeProfile)
+        self.assertEqual(len(new_profile.x_values), len(target.x_values))
+        self.assertEqual(new_profile.x_values[3], target.physical_x_values[3])
+
+    def test_normal_subrange_simple(self):
+        array = create_simple_9_profile()
+        target = InflectionDerivativeProfile(array)
+        a2 = symmetrical_sigmoidal_21_profile()
+        source = InflectionDerivativeProfile(a2)
+        new_profile = source.resample_to(target)
+        self.assertIsInstance(new_profile, InflectionDerivativeProfile)
+        self.assertEqual(len(new_profile.x_values), len(target.x_values))
+        self.assertEqual(new_profile.x_values[3], target.x_values[3])
+
+
 def create_pdd_x_y() -> (np.array, np.array):
     x = [
         -1.65,
@@ -1970,7 +2009,8 @@ class TestProfilePlugins(TestCase):
 class SingleProfileTests(TestCase):
     def test_normalization_max(self):
         """changed default parameter value to None in 3.10. 'max' should still work"""
-        array = np.random.rand(1, 100).squeeze()
+        rng = np.random.default_rng()
+        array = rng.random(100)
 
         # don't apply normalization initially, do it later
         p = SingleProfile(
@@ -1983,7 +2023,8 @@ class SingleProfileTests(TestCase):
         self.assertEqual(p.values.max(), 1)
 
     def test_normalization(self):
-        array = np.random.rand(1, 100).squeeze()
+        rng = np.random.default_rng()
+        array = rng.random(100)
 
         # don't apply normalization
         max_v = array.max()
@@ -2029,7 +2070,8 @@ class SingleProfileTests(TestCase):
         self.assertGreaterEqual(p.values.max(), 1.0)
 
     def test_x_values_are_monotonically_increasing(self):
-        array = np.random.rand(1, 100).squeeze()
+        rng = np.random.default_rng()
+        array = rng.random(100)
         with self.assertRaises(ValueError):
             SingleProfile(array, x_values=array, interpolation=Interpolation.NONE)
 

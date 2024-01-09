@@ -10,6 +10,7 @@ Core
 
 * The efficient DICOM stack introduced in the last version did not allow for writing images back to the stack
   (e.g. when manipulating the image). Images can now be written back to efficient stacks.
+* ``Rectangle`` and ``Circle`` classes have a new property: ``area``. This will return the area of the shape.
 
 Nuclear
 ^^^^^^^
@@ -27,6 +28,15 @@ Profiles
   has its x-values set to the correct physical values. This can be useful when wanting to compare, say, an EPID
   physical profile with an ion chamber profile, where the x-values of the IC profile are already in absolute
   physical units.
+* Profiles have a new method to make comparing one profile to another, point-for-point, easier: ``resample_to``.
+  This method will resample the profile to the x-values of another profile. This is useful for comparing profiles
+  point-by-point, such as for a 1D gamma evaluation.
+
+Planar
+^^^^^^
+
+* Planar phantom analyses now have a ``phantom_area`` property available. This is also available in the ``results_data``
+  method. This area is useful to test scaling of the image. See :ref:`planar_scaling` for more.
 
 v 3.18.0
 --------

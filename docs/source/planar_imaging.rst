@@ -1135,6 +1135,56 @@ do so fairly easily by overloading the current tooling:
     # proceed as normal
     myleeds = LeedsTOR(...)
 
+.. _planar_scaling:
+
+Scaling
+-------
+
+.. versionadded:: 3.19
+
+Pylinac can produce an area calculation of the phantom. This can be used
+as a way to test the scaling of the imager per TG-142. The scaling is
+based on the blue rectangle/circle that is shown in the plots.
+
+E.g.:
+
+.. code-block:: python
+
+  leeds = pylinac.LeedsTOR(...)
+  leeds.analyze(...)
+  results = leeds.results_data()
+  print(results.phantom_area)  # in mm^2
+
+.. warning::
+
+  The produced scaling value is based on the blue rectangle/circle.
+  In many cases it does not equal the exact size of the phantom.
+  It is recommended to be used as a constancy check.
+
+Adjusting the scaling
+^^^^^^^^^^^^^^^^^^^^^
+
+If you are dead-set on having the scaling value be the exact size of the phantom,
+or you simply have a different interpretation of what the scaling should be you
+can override the scaling calculation to a degree. The scaling is calculated
+using the ``phantom_outline_object`` attribute. This attribute is a dictionary
+and defines the size of the rectangle/circle that is shown in the plots. Changing
+these values will both change the plot and the area/scaling value.
+
+.. code-block:: python
+
+  import pylinac
+
+
+  class NewSNCkV(pylinac.SNCkV):
+      phantom_outline_object = {
+          "Rectangle": {"width ratio": 8.4, "height ratio": 7.2}  # change these
+      }
+
+
+  class NewLeeds(pylinac.LeedsTOR):
+      phantom_outline_object = {"Circle": {"radius ratio": 1.3}}  # change this
+
 Wrong phantom angle
 -------------------
 
