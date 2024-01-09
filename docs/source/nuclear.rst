@@ -131,10 +131,10 @@ Each step listed here is applied to each frame of the image:
      If so, the mean depends on the total FOV. We interpret this to
      mean a value of 75% of the mean of all pixels **that are non-zero**.
 
-     In practice, this won't make a big difference this this only affects edge pixels.
+     In practice, this won't make a big difference since this only affects edge pixels.
 
 #. Stray pixels are removed from the image. A stray pixel is defined as a pixel that is surrounded
-   by a pixel values of 0. The stray pixels are set to 0.
+   ony by pixels of value 0. The stray pixels are set to 0.
 #. The UFOV is determined. The size of the total FOV is found in each dimension (x, y).
    The UFOV ratio is then multiplied by the total FOV size. This value is then used to
    "erode" the edge pixel values of the image into a smaller sub-image.
