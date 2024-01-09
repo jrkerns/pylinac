@@ -711,3 +711,35 @@ class GlobalFieldLocator(GlobalSizedFieldLocator):
             "This method is not implemented for global field-finding. Use the "
             "standard initializer instead."
         )
+
+
+class WeightedCentroid(MetricBase):
+    def __init__(self, name: str = "Weighted Centroid"):
+        self.name = name
+
+    def calculate(self) -> Point:
+        """Calculate the weighted centroid of the image."""
+        arr = self.image.array
+        if np.sum(arr) == 0:
+            raise ValueError("Image is blank; cannot calculate weighted centroid")
+
+        # Get the indices of all elements
+        y_indices, x_indices = np.indices(arr.shape)
+
+        # Calculate the sum of weights (total weight)
+        total_weight = np.sum(arr)
+
+        # Calculate the weighted sum of indices
+        x_weighted_sum = np.sum(x_indices * arr)
+        y_weighted_sum = np.sum(y_indices * arr)
+
+        # Calculate the centroid
+        centroid_x = x_weighted_sum / total_weight
+        centroid_y = y_weighted_sum / total_weight
+
+        return Point(centroid_x, centroid_y)
+
+    def plot(self, axis: plt.Axes, **kwargs) -> None:
+        """Plot the weighted centroid of the image."""
+        centroid = self.calculate()
+        plt.plot(centroid.x, centroid.y, "o", color="red", markersize=10)

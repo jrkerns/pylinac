@@ -120,7 +120,7 @@ class DiskROI(Circle):
         if axes is None:
             fig, axes = plt.subplots()
             axes.imshow(self._array)
-        super().plot2axes(axes, edgecolor=edgecolor, text=text, fontsize=fontsize)
+        super().plot2axes(axes, edgecolor=edgecolor, text=str(text), fontsize=fontsize)
 
     def as_dict(self) -> dict:
         """Convert to dict. Useful for dataclasses/Result"""
@@ -326,16 +326,22 @@ class HighContrastDiskROI(DiskROI):
         return f"High-Contrast Disk; max pixel: {self.max}, min pixel: {self.min}"
 
     @cached_property
-    def max(self) -> np.ndarray:
+    def max(self) -> float:
         """The max pixel value of the ROI."""
         masked_img = self.circle_mask()
-        return np.max(masked_img)
+        return float(np.max(masked_img))
 
     @cached_property
-    def min(self) -> np.ndarray:
+    def min(self) -> float:
         """The min pixel value of the ROI."""
         masked_img = self.circle_mask()
-        return np.min(masked_img)
+        return float(np.min(masked_img))
+
+    @cached_property
+    def mean(self) -> float:
+        """The mean pixel value of the ROI."""
+        masked_img = self.circle_mask()
+        return float(np.mean(masked_img))
 
 
 class RectangleROI(Rectangle):

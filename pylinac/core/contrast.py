@@ -112,7 +112,7 @@ def michelson(array: np.ndarray) -> float:
 
         https://en.wikipedia.org/wiki/Contrast_(vision)#Michelson_contrast
     """
-    l_max, l_min = array.max(), array.min()
+    l_max, l_min = np.nanmax(array), np.nanmin(array)
     return (l_max - l_min) / (l_max + l_min)
 
 

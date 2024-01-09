@@ -12,6 +12,12 @@ Core
   (e.g. when manipulating the image). Images can now be written back to efficient stacks.
 * ``Rectangle`` and ``Circle`` classes have a new property: ``area``. This will return the area of the shape.
 
+Nuclear
+^^^^^^^
+
+* A new module has been created. This module is a Python implementation of the NMQC toolkit for SPECT.
+  It contains 9 tests that are very similar to the ImageJ toolkit. See :ref:`nuclear` for more.
+
 Profiles
 ^^^^^^^^
 

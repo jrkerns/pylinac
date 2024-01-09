@@ -2,7 +2,7 @@
 import math
 import unittest
 
-from pylinac.core.geometry import Circle, Line, Point, Rectangle
+from pylinac.core.geometry import Circle, Line, Point, Rectangle, direction_to_coords
 from tests_basic.utils import point_equality_validation
 
 
@@ -180,3 +180,29 @@ class TestRectangle(unittest.TestCase):
     def test_area(self):
         r = Rectangle(width=10, height=10, center=(0, 0))
         self.assertAlmostEqual(r.area, 100)
+
+
+class TestDestinationCoordinates(unittest.TestCase):
+    def test_45_degrees(self):
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, 45)[0], 7.071, places=3)
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, 45)[1], 7.071, places=3)
+
+    def test_90_degrees(self):
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, 90)[0], 0, places=3)
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, 90)[1], 10, places=3)
+
+    def test_180_degrees(self):
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, 180)[0], -10, places=3)
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, 180)[1], 0, places=3)
+
+    def test_270_degrees(self):
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, 270)[0], 0, places=3)
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, 270)[1], -10, places=3)
+
+    def test_negative_angle(self):
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, -45)[0], 7.071, places=3)
+        self.assertAlmostEqual(direction_to_coords(0, 0, 10, -45)[1], -7.071, places=3)
+
+    def test_starting_position(self):
+        self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[0], 15, places=3)
+        self.assertAlmostEqual(direction_to_coords(5, 5, 10, 0)[1], 5, places=3)
