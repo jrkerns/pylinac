@@ -242,3 +242,5 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+tests_basic/test_files

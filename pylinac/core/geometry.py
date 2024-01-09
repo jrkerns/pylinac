@@ -35,6 +35,33 @@ def sin(degrees: float) -> float:
     return math.sin(math.radians(degrees))
 
 
+def direction_to_coords(
+    start_x: float, start_y: float, distance: float, angle_degrees: float
+) -> (float, float):
+    """Calculate destination coordinates given a start position, distance, and angle.
+
+    The 0-angle position is pointing to the right (i.e. unit circle)
+
+    Parameters
+    ----------
+    start_x : float
+        Starting x position
+    start_y : float
+        Starting y position
+    distance : float
+        Distance to travel
+    angle_degrees : float
+        Angle to travel in degrees.
+    """
+    # Convert angle from degrees to radians
+    angle_radians = math.radians(angle_degrees)
+
+    # Calculate destination coordinates
+    end_x = start_x + distance * math.cos(angle_radians)
+    end_y = start_y + distance * math.sin(angle_radians)
+    return end_x, end_y
+
+
 class Point:
     """A geometric point with x, y, and z coordinates/attributes."""
 

@@ -1561,7 +1561,7 @@ class LazyDicomImageStack:
 
     def __init__(
         self,
-        folder: str | Path,
+        folder: str | Path | Sequence[str | Path],
         dtype: np.dtype | None = None,
         min_number: int = 39,
         check_uid: bool = True,
@@ -1769,6 +1769,42 @@ class DicomImageStack(LazyDicomImageStack):
 
     def __len__(self):
         return len(self.images)
+
+
+class NMImageStack:
+    """A class of frames of a nuclear medicine image.
+    A single image can have N frames. For our purposes, we
+    can treat this as a stack of images."""
+
+    metadata: Dataset
+    path: str | Path
+    frames: list[DicomImage]
+
+    def __init__(self, path: str | Path):
+        """Load a single NM image with N frames."""
+        self.path = path
+        self.frames = []
+        ds = pydicom.dcmread(path, force=True, stop_before_pixels=True)
+        if ds.Modality != "NM":
+            raise TypeError("The file is not a NM image")
+        self.metadata = ds
+        full_ds = pydicom.dcmread(path, force=True)
+        for i in range(full_ds.NumberOfFrames):
+            full_array = full_ds.pixel_array
+            if full_array.ndim == 2:
+                array = full_array
+            else:
+                array = full_array[i]
+            img = DicomImage(self.path)
+            img.array = array
+            self.frames.append(img)
+
+    def as_3d_array(self) -> np.ndarray:
+        """Return the frames as a 3D array."""
+        return np.stack([i.array for i in self.frames], axis=0)
+
+    def __len__(self):
+        return len(self.frames)
 
 
 def tiff_to_dicom(
