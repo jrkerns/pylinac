@@ -12,6 +12,12 @@ Core
   (e.g. when manipulating the image). Images can now be written back to efficient stacks.
 * ``Rectangle`` and ``Circle`` classes have a new property: ``area``. This will return the area of the shape.
 
+CT
+^^
+
+* Publishing a PDF for the 604 and 600 sometimes led to the HU module values falling off the right side of the page.
+  The values are now wrapped and should all fit on the page.
+
 Nuclear
 ^^^^^^^
 
