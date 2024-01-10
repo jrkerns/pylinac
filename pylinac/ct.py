@@ -19,6 +19,7 @@ import dataclasses
 import io
 import itertools
 import os
+import textwrap
 import webbrowser
 import zipfile
 from dataclasses import dataclass
@@ -2206,7 +2207,9 @@ class CatPhanBase:
             f" - CBCT/CT {self._model} QA Test - ",
             " - CTP 404 Results - ",
             f"HU Linearity tolerance: {self.ctp404.hu_tolerance}",
-            f"HU Linearity ROIs: {self.ctp404.roi_vals_as_str}",
+            "HU Linearity ROIs:",
+            # wrap so it doesn't fall off the page in PDFs
+            *textwrap.wrap(self.ctp404.roi_vals_as_str, width=50),
             f"HU Passed?: {self.ctp404.passed_hu}",
             f"Low contrast visibility: {self.ctp404.lcv:2.2f}",
             f"Geometric Line Average (mm): {self.ctp404.avg_line_length:2.2f}",
