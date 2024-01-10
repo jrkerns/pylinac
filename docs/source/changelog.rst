@@ -27,7 +27,7 @@ CT
   The algorithm has been adjusted to find the center
   of the HU plugs more accurately by performing a second pass over the center slices using the relative angle between the wire ramps. This only affects the Catphan 604.
   Users may notice a small change in HU values since the slice may now be different by 1-3 slices. Users may also notice
-  a change in the slice thickness value. All datasets changed either stayed the same or were closer to the nominal value.
+  a change in the slice thickness value. All test dataset results either stayed the same or were closer to the nominal value.
   Contrast values may also change slightly. Each of the modules are now almost always centered on the top bright marker
   above the module.
 
