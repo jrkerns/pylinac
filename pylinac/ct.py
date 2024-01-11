@@ -1770,6 +1770,9 @@ class CatPhanBase:
         self._phantom_center_func = self.find_phantom_axis()
         self.origin_slice = self.find_origin_slice()
         self.catphan_roll = self.find_phantom_roll()
+        self.origin_slice = self.refine_origin_slice(
+            initial_slice_num=self.origin_slice
+        )
         # now that we have the origin slice, ensure we have scanned all linked modules
         if not self._ensure_physical_scan_extent():
             raise ValueError(
@@ -1905,8 +1908,12 @@ class CatPhanBase:
         hu_slices = hu_slices[((c + ln / 2) >= hu_slices) & (hu_slices >= (c - ln / 2))]
         center_hu_slice = int(round(float(np.median(hu_slices))))
         if self._is_within_image_extent(center_hu_slice):
-            # print(center_hu_slice)
             return center_hu_slice
+
+    def refine_origin_slice(self, initial_slice_num: int) -> int:
+        """Apply a refinement to the origin slice. This was added to handle
+        the catphan 604 at least due to variations in the length of the HU plugs."""
+        return initial_slice_num
 
     def _is_right_area(self, region: RegionProperties):
         thresh = np.pi * ((self.air_bubble_radius_mm / self.mm_per_pixel) ** 2)
@@ -2370,7 +2377,7 @@ class CatPhan604(CatPhanBase):
     modules = {
         CTP404CP604: {"offset": 0},
         CTP486: {"offset": -80},
-        CTP528CP604: {"offset": 42},
+        CTP528CP604: {"offset": 40},
         CTP515: {"offset": -40},
     }
 
@@ -2381,6 +2388,82 @@ class CatPhan604(CatPhanBase):
         cbct.analyze()
         print(cbct.results())
         cbct.plot_analyzed_image(show)
+
+    def refine_origin_slice(self, initial_slice_num: int) -> int:
+        """The HU plugs are longer than the 'wire section'. This applies a refinement to find the
+        slice that has the least angle between the centers of the left and right wires.
+
+        Starting with the initial slice, go +/- 5 slices to find the slice with the least angle
+        between the left and right wires.
+
+        This suffers from a weakness that the roll is not yet determined.
+        This will thus return the slice that has the least ABSOLUTE
+        roll. If the phantom has an inherent roll, this will not be detected and may be off by a slice or so.
+        Given the angle of the wire, the error would be small and likely only 1-2 slices max.
+        """
+        angles = []
+        # make a CTP module for the purpose of easily extracting the thickness ROIs
+        ctp404, offset = self._get_module(CTP404CP604, raise_empty=True)
+        # we don't want to set up our other ROIs (they sometimes fail) so we temporarily override the method
+        original_setup = ctp404._setup_rois
+        ctp404._setup_rois = lambda x: x
+        ctp = ctp404(
+            self,
+            offset=offset,
+            clear_borders=self.clear_borders,
+            hu_tolerance=0,
+            scaling_tolerance=0,
+            thickness_tolerance=0,
+        )
+        # we have to reset the method after we're done for future calls
+        ctp404._setup_rois = original_setup
+        for slice_num in range(initial_slice_num - 5, initial_slice_num + 5):
+            slice = Slice(self, slice_num, clear_borders=self.clear_borders)
+            # make a slice and add the wire ROIs to it.
+            troi = {}
+            for name, setting in ctp.thickness_roi_settings.items():
+                troi[name] = ThicknessROI(
+                    slice.image,
+                    setting["width_pixels"],
+                    setting["height_pixels"],
+                    setting["angle_corrected"],
+                    setting["distance_pixels"],
+                    slice.phan_center,
+                )
+            # now find the angle between the left and right and top and bottom wires via the long profile
+            left_wire = troi["Left"].long_profile.center_idx
+            right_wire = troi["Right"].long_profile.center_idx
+            h_angle = abs(left_wire - right_wire)
+            top_wire = troi["Top"].long_profile.center_idx
+            bottom_wire = troi["Bottom"].long_profile.center_idx
+            v_angle = abs(top_wire - bottom_wire)
+            angle = (h_angle + v_angle) / 2
+
+            angles.append(
+                {
+                    "slice": slice_num,
+                    "angle": angle,
+                    "left width": troi["Left"].long_profile.field_width_px,
+                    "right width": troi["Right"].long_profile.field_width_px,
+                }
+            )
+
+        # some slices might not include the wire
+        # we need to drop those; we do so by dropping pairs that have a field width well below the median
+        median_width_l = np.median([angle["left width"] for angle in angles])
+        median_width_r = np.median([angle["right width"] for angle in angles])
+        median_width = (median_width_l + median_width_r) / 2
+        for angle_set in angles.copy():
+            if (
+                angle_set["left width"] < median_width * 0.7
+                or angle_set["right width"] < median_width * 0.7
+            ):
+                angles.remove(angle_set)
+
+        # now find the slice with the least angle, accounting for the phantom roll
+        m_slice_num = np.argsort([a["angle"] - self.catphan_roll for a in angles])
+        refined_slice = angles[m_slice_num[0]]["slice"]
+        return refined_slice
 
 
 class CatPhan600(CatPhanBase):

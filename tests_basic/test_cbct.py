@@ -554,7 +554,7 @@ class CatPhan600WaterVial2(CatPhanMixin, TestCase):
 class CatPhan604Test(CatPhanMixin, TestCase):
     catphan = CatPhan604
     file_name = "CBCTCatPhan604.zip"
-    origin_slice = 45
+    origin_slice = 47
     hu_values = {
         "Poly": -47,
         "Acrylic": 105,
@@ -1444,7 +1444,7 @@ class CatPhan604Sen(CatPhan604Mixin, TestCase):
 
 class CatPhan604Som(CatPhan604Mixin, TestCase):
     file_name = "SiemensSomCatPhan604.zip"
-    origin_slice = 175
+    origin_slice = 179
     hu_values = {
         "Poly": -34,
         "Acrylic": 120,
@@ -1471,15 +1471,37 @@ class CatPhan604wJig(CatPhan604Mixin, TestCase):
         "Acrylic": 130,
         "Delrin": 371,
         "Air": -999,
-        "Teflon": 967,
+        "Teflon": 975,
         "PMP": -179,
-        "LDPE": -85,
+        "LDPE": -91,
         "50% Bone": 717,
         "20% Bone": 246,
     }
     unif_values = {"Center": 6, "Left": 4, "Right": 13, "Top": 10, "Bottom": 7}
     mtf_values = {50: 0.28}
     lowcon_visible = 1
+
+
+class CatPhan604wJig2(CatPhan604Mixin, TestCase):
+    file_name = "Catphan604wJig2.zip"
+    expected_roll = -0.61
+    origin_slice = 49
+    slice_thickness = 1.95
+    avg_line_length = 49.9
+    hu_values = {
+        "Poly": -46,
+        "Acrylic": 120,
+        "Delrin": 361,
+        "Air": -999,
+        "Teflon": 965,
+        "PMP": -192,
+        "LDPE": -107,
+        "50% Bone": 691,
+        "20% Bone": 233,
+    }
+    unif_values = {"Center": 10, "Left": -2, "Right": 9, "Top": 7, "Bottom": 1}
+    mtf_values = {50: 0.28}
+    lowcon_visible = 2
 
 
 class CatPhan503SliceOverlap(CatPhan503Mixin, TestCase):

@@ -24,6 +24,50 @@ Nuclear
 * A new module has been created. This module is a Python implementation of the NMQC toolkit for SPECT.
   It contains 9 tests that are very similar to the ImageJ toolkit. See :ref:`nuclear` for more.
 
+CT
+^^
+
+* Analysis of Catphan 604 datasets often did not find the HU module center correctly. This had to do with some of the
+  HU plugs being longer than the rest of the features in the 604 model. This was not causing issues and was left as-is
+  for quite some time. However, several RadMachine customers had noticed the slice thickness may be different because of this.
+  The algorithm has been adjusted to find the center
+  of the HU plugs more accurately by performing a second pass over the center slices using the relative angle between the wire ramps. This only affects the Catphan 604.
+  Users may notice a small change in HU values since the slice may now be different by 1-3 slices. Users may also notice
+  a change in the slice thickness value. All test dataset results either stayed the same or were closer to the nominal value.
+  Contrast values may also change slightly. Each of the modules are now almost always centered on the top bright marker
+  above the module.
+
+  .. figure:: images/604_old.png
+     :width: 600
+     :align: center
+
+     The old algorithm. Note the wire ramp is on the left side of the ROI for the top position. This indicates we are
+     not at the center of the HU module. Also note the side view line is barely off-center to the left for the HU module.
+
+  .. figure:: images/604_new.png
+     :width: 600
+     :align: center
+
+     The new algorithm. Note the wire ramp is now in the center of the ROI for the top position. This indicates we are
+     at the center of the HU module.
+
+* Due to the above change, a new method is available to override if desired: ``refine_origin_slice()``. This method
+  will perform the second pass over the center slices to find the HU module center. This method is available for all
+  Catphan analyses and will be empty for all phantoms besides the 604 for the time being.
+
+  If the old behavior is desired, the ``refine_origin_slice()`` method can be overridden to simply pass the
+  initial slice number:
+
+  .. code-block:: python
+
+    from pylinac import CatPhan604
+
+
+    class MyCatPhan604(CatPhan604):
+        def refine_origin_slice(self, initial_slice_num):
+            return initial_slice_num
+
+
 Profiles
 ^^^^^^^^
 
