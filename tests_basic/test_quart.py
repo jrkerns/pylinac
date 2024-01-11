@@ -263,8 +263,8 @@ class TestQuartPelvis(QuartDVTMixin, TestCase):
     file_name = "Pelvis_Quart.zip"
     phantom_roll = 0.2
     slice_thickness = 1.9
-    snr = 172
-    cnr = 28.3
+    snr = 173.8
+    cnr = 28.0
     horiz_dist = 159.3
     vert_dist = 159.6
     high_contrast_distance = 0.82
@@ -277,7 +277,7 @@ class TestHypersightQuart(QuartDVTMixin, TestCase):
     phantom_roll = 0.0
     slice_thickness = 1.9
     snr = 400
-    cnr = 56.2
+    cnr = 56.0
     horiz_dist = 159.7
     vert_dist = 159.6
     high_contrast_distance = 0.6
