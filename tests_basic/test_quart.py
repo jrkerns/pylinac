@@ -283,3 +283,18 @@ class TestHypersightQuart(QuartDVTMixin, TestCase):
     high_contrast_distance = 0.6
     hu_values = {"Poly": -47, "Acrylic": 106, "Air": -1000, "Teflon": 963, "Water": 0}
     unif_values = {"Center": 98, "Left": 96, "Right": 92, "Top": 92, "Bottom": 93}
+
+
+class TestTableQuart(QuartDVTMixin, TestCase):
+    """This dataset has a foam separator that still catches sometimes. See RAM-3226"""
+
+    file_name = "Jan-Quart.zip"
+    phantom_roll = 0.0
+    slice_thickness = 1.87
+    snr = 37
+    cnr = 6.2
+    horiz_dist = 159.3
+    vert_dist = 159.7
+    high_contrast_distance = 0.6
+    hu_values = {"Poly": -63, "Acrylic": 111, "Air": -1000, "Teflon": 970, "Water": 0}
+    unif_values = {"Center": 112, "Left": 104, "Right": 104, "Top": 97, "Bottom": 124}
