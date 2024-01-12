@@ -12,11 +12,6 @@ Core
   (e.g. when manipulating the image). Images can now be written back to efficient stacks.
 * ``Rectangle`` and ``Circle`` classes have a new property: ``area``. This will return the area of the shape.
 
-CT
-^^
-
-* Publishing a PDF for the 604 and 600 sometimes led to the HU module values falling off the right side of the page.
-  The values are now wrapped and should all fit on the page.
 
 Nuclear
 ^^^^^^^
@@ -27,6 +22,10 @@ Nuclear
 CT
 ^^
 
+* Publishing a PDF for the 604 and 600 sometimes led to the HU module values falling off the right side of the page.
+  The values are now wrapped and should all fit on the page.
+* The CT phantom-finding algorithm is now slightly more robust to inclusion of the table in the scan.
+  Foam or other low-density material is still recommended to separate the phantom from the table.
 * Analysis of Catphan 604 datasets often did not find the HU module center correctly. This had to do with some of the
   HU plugs being longer than the rest of the features in the 604 model. This was not causing issues and was left as-is
   for quite some time. However, several RadMachine customers had noticed the slice thickness may be different because of this.
