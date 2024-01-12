@@ -225,6 +225,7 @@ class Circle:
         fill: bool = False,
         text: str = "",
         fontsize: str = "medium",
+        **kwargs,
     ) -> None:
         """Plot the Circle on the axes.
 
@@ -248,6 +249,7 @@ class Circle:
                 edgecolor=edgecolor,
                 radius=self.radius,
                 fill=fill,
+                **kwargs,
             )
         )
         if text:
@@ -544,6 +546,7 @@ class Rectangle:
         text: str = "",
         fontsize: str = "medium",
         text_rotation: float = 0,
+        **kwargs,
     ):
         """Plot the Rectangle to the axes.
 
@@ -576,6 +579,7 @@ class Rectangle:
                 facecolor=facecolor,
                 fill=fill,
                 label=label,
+                **kwargs,
             )
         )
         if text:

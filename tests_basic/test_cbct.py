@@ -311,6 +311,8 @@ class CatPhanMixin(CloudFileMixin):
     lowcon_visible = 0
     memory_efficient = True
     print_debug = False
+    avg_noise_power = None
+    max_noise_power_frequency = 0
 
     @classmethod
     def setUpClass(cls):
@@ -373,6 +375,19 @@ class CatPhanMixin(CloudFileMixin):
         self.assertAlmostEqual(
             self.avg_line_length, self.cbct.ctp404.avg_line_length, delta=0.1
         )
+
+    def test_avg_noise_power(self):
+        if self.avg_noise_power:
+            self.assertAlmostEqual(
+                self.avg_noise_power, self.cbct.ctp486.avg_noise_power, delta=0.1
+            )
+
+    def test_max_noise_frequency(self):
+        if self.max_noise_power_frequency:
+            self.assertEqual(
+                self.cbct.ctp486.max_noise_power_frequency,
+                self.max_noise_power_frequency,
+            )
 
     def test_MTF_values(self):
         """Test MTF values."""
@@ -569,6 +584,7 @@ class CatPhan604Test(CatPhanMixin, TestCase):
     unif_values = {"Center": -3, "Left": 0, "Right": 0, "Top": 0, "Bottom": 0}
     mtf_values = {50: 0.43}
     lowcon_visible = 1  # changed w/ visibility refactor in v3.0
+    avg_noise_power = 17.65
 
 
 class CatPhan504Mixin(CatPhanMixin):
@@ -796,6 +812,7 @@ class CBCT2(CatPhan504Mixin, TestCase):
     lowcon_visible = 2
     avg_line_length = 49.9
     slice_thickness = 2.4
+    avg_noise_power = 0.05
 
 
 class CBCT3(CatPhan504Mixin, TestCase):
@@ -974,6 +991,7 @@ class CBCT11(CatPhan504Mixin, TestCase):
     avg_line_length = 49.94
     lowcon_visible = 4
     slice_thickness = 2.35
+    avg_noise_power = 14.6
 
 
 class CBCT12(CatPhan504Mixin, TestCase):
@@ -1480,6 +1498,7 @@ class CatPhan604wJig(CatPhan604Mixin, TestCase):
     unif_values = {"Center": 6, "Left": 4, "Right": 13, "Top": 10, "Bottom": 7}
     mtf_values = {50: 0.28}
     lowcon_visible = 1
+    avg_noise_power = 0.96
 
 
 class CatPhan604wJig2(CatPhan604Mixin, TestCase):

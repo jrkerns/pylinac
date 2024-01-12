@@ -15,3 +15,9 @@ def single_dimension(array: np.ndarray) -> None:
         raise ValueError(
             f"Array was multidimensional. Must pass 1D array; found {array.ndim}"
         )
+
+
+def double_dimension(array: np.ndarray) -> None:
+    """Check an array is a double dimension"""
+    if array.ndim != 2:
+        raise ValueError(f"Array was not 2D. Must pass 2D array; found {array.ndim}")

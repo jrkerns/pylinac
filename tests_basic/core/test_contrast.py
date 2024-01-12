@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 
 from pylinac.core import contrast
-from pylinac.core.contrast import Contrast
+from pylinac.core.contrast import Contrast, power_spectrum_1d
 
 
 class TestContrastAlgorithms(TestCase):
@@ -99,3 +99,48 @@ class TestContrastAlgorithms(TestCase):
         arr = np.array((0.5, 1, 1.5))
         with self.assertRaises(ValueError):
             contrast.contrast(arr, Contrast.RATIO)
+
+
+class TestCalculate1DPowerSpectrum(TestCase):
+    def test_random_noise(self):
+        # Test with a random noise image
+        test_image = np.random.rand(256, 256)  # noqa: NPY002
+        output = power_spectrum_1d(test_image)
+        self.assertEqual(output.ndim, 1)
+        self.assertTrue(len(output) > 0)
+        self.assertEqual(np.argmax(output), 0)
+
+    def test_average_power_uniform_image(self):
+        # Test with an image with a constant value
+        test_image = np.ones((256, 256))
+        output = power_spectrum_1d(test_image)
+        self.assertEqual(output.ndim, 1)
+        self.assertTrue(len(output) > 0)
+        self.assertEqual(np.argmax(output), 0)
+        frequencies = np.arange(len(output))
+        avg_power = np.sum(frequencies * output) / np.sum(output)
+        self.assertAlmostEqual(avg_power, 0, places=5)
+
+    def test_average_power_sinusoidal_image(self):
+        # Test with an image with a sinusoidal pattern
+        # this oscillates in the y-direction
+        test_image = np.ones((256, 256))
+        test_image = test_image * np.sin(np.arange(256) * 2 * np.pi / 16)[:, np.newaxis]
+        output = power_spectrum_1d(test_image)
+        self.assertEqual(output.ndim, 1)
+        self.assertEqual(np.argmax(output), 15)
+        frequencies = np.arange(len(output))
+        avg_power = np.sum(frequencies * output) / np.sum(output)
+        self.assertAlmostEqual(avg_power, 15, delta=1)
+
+    def test_edge_cases(self):
+        # Test with an empty array
+        test_image = np.array([])
+        with self.assertRaises(ValueError):
+            power_spectrum_1d(test_image)
+
+        # Test with a very small array
+        test_image = np.random.rand(2, 2)  # noqa: NPY002
+        output = power_spectrum_1d(test_image)
+        self.assertEqual(output.ndim, 1)
+        self.assertTrue(len(output) > 0)

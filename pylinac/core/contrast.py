@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..core.utilities import OptionListMixin
+from . import validators
 
 
 class Contrast(OptionListMixin):
@@ -135,3 +136,41 @@ def weber(feature: float, background: float) -> float:
 def ratio(feature: float, reference: float) -> float:
     """The ratio of luminescence"""
     return feature / reference
+
+
+def power_spectrum_1d(array: np.ndarray) -> np.ndarray:
+    """Get the 1D noise power spectrum from a 2D numpy array. ChatGPT-made.
+
+    Parameters
+    ----------
+    array
+        The 2D numpy array.
+
+    Returns
+    -------
+    The 1D power spectrum as an array. This spectrum is radial averaged.
+
+
+    References
+    --------
+    https://bertvandenbroucke.netlify.app/2019/05/24/computing-a-power-spectrum-in-python/
+    https://chat.openai.com/share/7d138eb7-bb20-428f-ad61-7c63f2ec435e
+    """
+    validators.double_dimension(array)
+    # Apply Fourier Transform
+    f_transform = np.fft.fft2(array)
+    f_shift = np.fft.fftshift(f_transform)
+
+    # Calculate 2D power spectrum
+    power_spectrum_2d = np.abs(f_shift) ** 2
+
+    # Convert to 1D power spectrum by radial averaging
+    y, x = np.indices(power_spectrum_2d.shape)
+    center = np.array([(x.max() - x.min()) / 2.0, (y.max() - y.min()) / 2.0])
+    r = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
+    r = r.astype(int)
+
+    radial_spectrum = np.bincount(r.ravel(), power_spectrum_2d.ravel()) / np.bincount(
+        r.ravel()
+    )
+    return radial_spectrum

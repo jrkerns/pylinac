@@ -223,6 +223,34 @@ values are 0, 1, and 2. So, a value of 1 averages over 3 slices, 2 => 5 slices, 
     ct.analyze(..., thickness_slice_straddle=0)
     ...
 
+.. _noise-power-spectrum:
+
+Noise Power Spectrum
+--------------------
+
+.. versionadded:: 3.19
+
+The noise power spectrum (NPS) is a measure of the noise in the image using FFTs.
+It was added to comply with French regulations. It is calculated on
+the uniformity module (CTP486). Pylinac will provide the most populous frequency and
+the average power of the NPS.
+
+.. code-block:: python
+
+    from pylinac import CatPhan504
+
+    ct = CatPhan504(...)
+    ct.analyze(...)
+    ct.ctp486.avg_noise_power
+    ct.ctp486.max_noise_power_frequency
+    # plot the NPS
+    ct.ctp486.plot_noise_power_spectrum()
+
+The resulting plot will look like so:
+
+.. image:: images/noise_power_spectrum.png
+   :align: center
+
 Advanced Use
 ------------
 
