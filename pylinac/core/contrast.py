@@ -143,16 +143,16 @@ def power_spectrum_1d(array: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    array
+    array: np.ndarray
         The 2D numpy array.
 
     Returns
     -------
-    The 1D power spectrum as an array. This spectrum is radial averaged.
-
+    array: np.ndarray
+        The 1D power spectrum as an array. This spectrum is radial averaged.
 
     References
-    --------
+    ----------
     https://bertvandenbroucke.netlify.app/2019/05/24/computing-a-power-spectrum-in-python/
     https://chat.openai.com/share/7d138eb7-bb20-428f-ad61-7c63f2ec435e
     """
