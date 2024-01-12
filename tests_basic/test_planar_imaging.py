@@ -5,7 +5,6 @@ from unittest import TestCase, skip
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 from scipy.ndimage import rotate
 
 from pylinac import (
@@ -743,23 +742,29 @@ class FC2Mixin(PlanarPhantomMixin):
 
     def test_field_size(self):
         results_data = self.instance.results_data()
-        assert results_data.field_size_x_mm == pytest.approx(
-            self.field_size_x_mm, abs=0.3
+        self.assertAlmostEqual(
+            results_data.field_size_x_mm, self.field_size_x_mm, delta=0.3
         )
-        assert results_data.field_size_y_mm == pytest.approx(
-            self.field_size_y_mm, abs=0.3
+        self.assertAlmostEqual(
+            results_data.field_size_y_mm, self.field_size_y_mm, delta=0.3
         )
-        assert results_data.field_epid_offset_x_mm == pytest.approx(
-            self.field_epid_offset_x_mm, abs=0.2
+
+    def test_epid_offset(self):
+        results_data = self.instance.results_data()
+        self.assertAlmostEqual(
+            results_data.field_epid_offset_x_mm, self.field_epid_offset_x_mm, delta=0.2
         )
-        assert results_data.field_epid_offset_y_mm == pytest.approx(
-            self.field_epid_offset_y_mm, abs=0.2
+        self.assertAlmostEqual(
+            results_data.field_epid_offset_y_mm, self.field_epid_offset_y_mm, delta=0.2
         )
-        assert results_data.field_bb_offset_x_mm == pytest.approx(
-            self.field_bb_offset_x_mm, abs=0.2
+
+    def test_bb_offset(self):
+        results_data = self.instance.results_data()
+        self.assertAlmostEqual(
+            results_data.field_bb_offset_x_mm, self.field_bb_offset_x_mm, delta=0.2
         )
-        assert results_data.field_bb_offset_y_mm == pytest.approx(
-            self.field_bb_offset_y_mm, abs=0.2
+        self.assertAlmostEqual(
+            results_data.field_bb_offset_y_mm, self.field_bb_offset_y_mm, delta=0.2
         )
 
 
@@ -768,8 +773,8 @@ class FC2Demo(FC2Mixin, TestCase):
     field_size_x_mm = 149.1
     field_epid_offset_y_mm = -0.7
     field_epid_offset_x_mm = 0.3
-    field_bb_offset_x_mm = -0.1
-    field_bb_offset_y_mm = 0.2
+    field_bb_offset_x_mm = 0.1
+    field_bb_offset_y_mm = -0.2
 
     def test_demo(self):
         StandardImagingFC2.run_demo()
@@ -781,7 +786,7 @@ class FC210x10_10FFF(FC2Mixin, TestCase):
     field_size_x_mm = 99.3
     field_epid_offset_x_mm = 0
     field_epid_offset_y_mm = 0.3
-    field_bb_offset_y_mm = 0.8
+    field_bb_offset_y_mm = 1
     field_bb_offset_x_mm = -0.3
 
 
@@ -811,8 +816,8 @@ class FC215x15_10X(FC2Mixin, TestCase):
     field_size_y_mm = 149.2
     field_epid_offset_x_mm = 0.1
     field_epid_offset_y_mm = -0.5
-    field_bb_offset_y_mm = 0.5
-    field_bb_offset_x_mm = -0.2
+    field_bb_offset_y_mm = 0.25
+    field_bb_offset_x_mm = 0
 
 
 class FC215x15_10FFF(FC2Mixin, TestCase):
@@ -889,7 +894,31 @@ class DoselabRLf10x10(DoselabRLfMixin, TestCase):
     field_size_x_mm = 99.2
     field_epid_offset_x_mm = 0.2
     field_epid_offset_y_mm = 0.8
-    field_bb_offset_y_mm = 0.9
+    field_bb_offset_y_mm = 1.1
+    field_bb_offset_x_mm = 0.2
+
+
+class DoselabRLfKB(DoselabRLfMixin, TestCase):
+    """A failed dataset from KB."""
+
+    file_name = "KB_RLf.dcm"
+    field_size_y_mm = 98.9
+    field_size_x_mm = 100.8
+    field_epid_offset_x_mm = -0.2
+    field_epid_offset_y_mm = 0.8
+    field_bb_offset_y_mm = -0.1
+    field_bb_offset_x_mm = -0.3
+
+
+class DoselabRLfKB2(DoselabRLfMixin, TestCase):
+    """A failed dataset from KB."""
+
+    file_name = "KB2_RLf.dcm"
+    field_size_y_mm = 98.2
+    field_size_x_mm = 99.2
+    field_epid_offset_x_mm = 0.2
+    field_epid_offset_y_mm = 0.8
+    field_bb_offset_y_mm = 1
     field_bb_offset_x_mm = 0.2
 
 
@@ -963,7 +992,7 @@ class IMTLRadOffset(IMTLRadMixin, TestCase):
     field_size_x_mm = 150
     field_epid_offset_x_mm = 0
     field_epid_offset_y_mm = 0
-    field_bb_offset_y_mm = 1.6  # should be 2 but rounding due to pixel snapping
+    field_bb_offset_y_mm = 2
     field_bb_offset_x_mm = 0
 
 
@@ -991,5 +1020,5 @@ class SNCFSQA10x10(SNCFSQAMixin, TestCase):
     field_size_x_mm = 100.2
     field_epid_offset_x_mm = 0.7
     field_epid_offset_y_mm = -0.1
-    field_bb_offset_y_mm = -0.2
+    field_bb_offset_y_mm = -0.5
     field_bb_offset_x_mm = -0.5

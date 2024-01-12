@@ -86,6 +86,18 @@ Planar
 
 * Planar phantom analyses now have a ``phantom_area`` property available. This is also available in the ``results_data``
   method. This area is useful to test scaling of the image. See :ref:`planar_scaling` for more.
+* The ``DoselabRLf`` and ``StandardImagingFC2`` phantom analyses have had their BB-finding search box changed from 10mm
+  to 8mm. This increases the robustness slightly as a few datasets were failing due to catching a larger chunk of the
+  field edge due to the larger box search size.
+* There is a new parameter for light/rad phantom analysis: ``bb_edge_threshold_mm``. This parameter controls
+  the BB-finding algorithm. If the expected position of the BB is less than this threshold, a more robust
+  BB-finding algorithm is used. This is useful when the BB and field edge are harder to differentiate.
+* Light/Rad phantoms have a new class parameter: ``bb_size_mm``. This sets the expected size of the BB.
+  This shouldn't have to be changed from the default except for new phantoms.
+* The BB-finding algorithm has been changed from an ad-hoc algorithm to use the new ``metrics`` module's
+  ``WeightedCentroid`` class. Some test datasets had results that changed by a few tenths of a mm.
+  This is largely from using the weighted centroid vs the centroid of the original algorithm.
+  Due to using this metric, the BB detection outline will also now be plotted.
 
 v 3.18.0
 --------

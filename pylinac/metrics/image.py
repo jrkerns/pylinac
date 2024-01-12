@@ -158,7 +158,10 @@ class GlobalSizedDiskLocator(MetricBase):
             try:
                 binary_array = sample > cutoff
                 labeled_arr = measure.label(binary_array, connectivity=1)
-                regions = measure.regionprops(labeled_arr, intensity_image=sample)
+                cleared_labeled_arr = segmentation.clear_border(labeled_arr)
+                regions = measure.regionprops(
+                    cleared_labeled_arr, intensity_image=sample
+                )
                 detected_regions = {i: r for i, r in enumerate(regions)}
                 for condition in self.detection_conditions:
                     to_pop = []
