@@ -21,7 +21,6 @@ Features:
 """
 from __future__ import annotations
 
-import copy
 import dataclasses
 import io
 import math
@@ -37,7 +36,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from py_linq import Enumerable
 from scipy.ndimage import median_filter
-from skimage import feature, measure
+from skimage import exposure, feature, measure
 from skimage.measure._regionprops import RegionProperties
 
 from . import Normalization
@@ -50,7 +49,7 @@ from .core.mtf import MTF
 from .core.profile import CollapsedCircleProfile, FWXMProfilePhysical
 from .core.roi import DiskROI, HighContrastDiskROI, LowContrastDiskROI, bbox_center
 from .core.utilities import ResultBase
-from .ct import get_regions
+from .metrics.image import SizedDiskLocator
 
 
 @dataclass
@@ -862,6 +861,8 @@ class StandardImagingFC2(ImagePhantomBase):
     }
     bb_sampling_box_size_mm = 10
     field_strip_width_mm = 5
+    bb_size_mm = 4
+    bb_edge_threshold_mm: float
 
     @staticmethod
     def run_demo() -> None:
@@ -870,7 +871,9 @@ class StandardImagingFC2(ImagePhantomBase):
         fc2.analyze()
         fc2.plot_analyzed_image()
 
-    def analyze(self, invert: bool = False, fwxm: int = 50) -> None:
+    def analyze(
+        self, invert: bool = False, fwxm: int = 50, bb_edge_threshold_mm: float = 10
+    ) -> None:
         """Analyze the FC-2 phantom to find the BBs and the open field and compare to each other as well as the EPID.
 
         Parameters
@@ -880,16 +883,21 @@ class StandardImagingFC2(ImagePhantomBase):
         fwxm : int
             The FWXM value to use to detect the field. For flattened fields, the default of 50 should be fine.
             For FFF fields, consider using a lower value such as 25-30.
+        bb_edge_threshold_mm : float
+            The threshold in mm to use to determine if the BB is near the edge of the image. If the BB is within this threshold,
+            a different algorithm is used to determine the BB position that is more robust to edge effects but
+            can give uncertainty when in a flat region (i.e. away from the field edge).
         """
+        self.bb_edge_threshold_mm = bb_edge_threshold_mm
         self._check_inversion()
         if invert:
             self.image.invert()
-        self.bb_center = self._find_overall_bb_centroid(fwxm=fwxm)
         (
             self.field_center,
             self.field_width_x,
             self.field_width_y,
         ) = self._find_field_info(fwxm=fwxm)
+        self.bb_center = self._find_overall_bb_centroid(fwxm=fwxm)
         self.epid_center = self.image.center
 
     def results(self, as_list: bool = False) -> str | list[str]:
@@ -986,52 +994,48 @@ class StandardImagingFC2(ImagePhantomBase):
         bb_positions = {}
         nominal_positions = self._determine_bb_set(fwxm=fwxm)
         dpmm = self.image.dpmm
-        sample_box_size = self.bb_sampling_box_size_mm / 2 * dpmm
-        # invert the image so that the BB marks increase in intensity
-        inverted_img = copy.copy(self.image)
-        inverted_img.invert()
+        self.image.filter(size=3, kind="median")
         # sample the square, use skimage to find the ROI weighted centroid of the BBs
         for key, position in nominal_positions.items():
-            x_bounds = (
-                int(self.image.center.x + (position[0] * dpmm) - sample_box_size),
-                int(self.image.center.x + (position[0] * dpmm) + sample_box_size),
+            near_edge = self._is_bb_near_edge(bb_position=position)
+            if near_edge:
+                # we apply a local histogram equalizer.
+                # this is local contrast enhancer. It helps the BBs stand out from the background
+                # and sharpen the gap between the BB and field edge.
+                # we need to replace and reset the array since we're in the loop
+                # This is a bit of BMF.
+                original_array = np.copy(self.image.array)
+                bb_radius_px = self.bb_size_mm / 2 * dpmm
+                self.image.array = exposure.equalize_adapthist(
+                    self.image.array, kernel_size=int(round(bb_radius_px * 2))
+                )
+                self.image.filter(size=3, kind="median")
+
+            # now find the weighted centroid of the BB
+            p = self.image.compute(
+                SizedDiskLocator.from_center_physical(
+                    expected_position_mm=position,
+                    search_window_mm=(
+                        self.bb_sampling_box_size_mm,
+                        self.bb_sampling_box_size_mm,
+                    ),
+                    radius_mm=self.bb_size_mm / 2,
+                    radius_tolerance_mm=self.bb_size_mm / 2,
+                )
             )
-            y_bounds = (
-                int(self.image.center.y + (position[1] * dpmm) - sample_box_size),
-                int(self.image.center.y + (position[1] * dpmm) + sample_box_size),
-            )
-            bb_sample = image.load(
-                inverted_img[y_bounds[0] : y_bounds[1], x_bounds[0] : x_bounds[1]]
-            )
-            bb_sample.ground()
-            _, rprops, num_roi = get_regions(
-                bb_sample.array, fill_holes=True, clear_borders=False
-            )
-            if num_roi < 1:
-                raise ValueError("Did not find the BB in the expected location")
-            center_roi = take_centermost_roi(rprops, bb_sample.array.shape)
-            # due to the sloping field values, the centroid is usually a better representation.
-            # the weighted centroid will bias towards the center of the field. Even though this isn't technically a problem,
-            # I know people will complain it's not aligned with the BB.
-            bb_positions[key] = Point(
-                x=center_roi.centroid[1] + x_bounds[0],
-                y=center_roi.centroid[0] + y_bounds[0],
-            )
+            # if we applied the local histogram equalizer, revert the image back to normal for the next cycle
+            if near_edge:
+                self.image.array = original_array
+            bb_positions[key] = p
         return bb_positions
 
     def _determine_bb_set(self, fwxm: int) -> dict:
         """This finds the approximate field size to determine whether to check for the 10x10 BBs or the 15x15. Returns the BB positions"""
-        x_width = FWXMProfilePhysical(
-            values=self.image[int(self.image.center.y), :], dpmm=self.image.dpmm
-        ).field_width_mm
-        y_width = FWXMProfilePhysical(
-            values=self.image[:, int(self.image.center.x)], dpmm=self.image.dpmm
-        ).field_width_mm
-        if not np.allclose(x_width, y_width, atol=10):
+        if not np.allclose(self.field_width_x, self.field_width_y, atol=10):
             raise ValueError(
-                f"The detected y and x field sizes were too different from one another. They should be within 1cm from each other. Detected field sizes: x={x_width}, y={y_width}"
+                f"The detected y and x field sizes were too different from one another. They should be within 1cm from each other. Detected field sizes: x={self.field_width_x:.2f}mm, y={self.field_width_y:.2f}mm"
             )
-        if x_width > 140:
+        if self.field_width_x > 140:
             return self.bb_positions_15x15
         else:
             return self.bb_positions_10x10
@@ -1051,13 +1055,9 @@ class StandardImagingFC2(ImagePhantomBase):
         fig, axes = plt.subplots(1)
         figs.append(fig)
         names.append("image")
-        self.image.plot(ax=axes, show=False, **kwargs)
+        self.image.plot(ax=axes, show=False, metric_kwargs={"color": "g"}, **kwargs)
         axes.axis("off")
         axes.set_title(f"{self.common_name} Phantom Analysis")
-
-        # plot the bb marks
-        for name, data in self.bb_centers.items():
-            axes.plot(data.x, data.y, "go", label=name)
 
         # plot the bb center as small lines
         axes.axhline(
@@ -1170,6 +1170,17 @@ class StandardImagingFC2(ImagePhantomBase):
         if open_file:
             webbrowser.open(filename)
 
+    def _is_bb_near_edge(self, bb_position: [float, float]) -> bool:
+        """Check if the center of the nominal BB set is < threshold from the field edge."""
+        half_width_x = self.field_width_x / 2
+        half_width_y = self.field_width_y / 2
+        threshold = self.bb_edge_threshold_mm
+        # Check proximity to left or right edge
+        is_near_horizontal_edge = abs(bb_position[0]) > half_width_x - threshold
+        # Check proximity to top or bottom edge
+        is_near_vertical_edge = abs(bb_position[1]) > half_width_y - threshold
+        return is_near_horizontal_edge or is_near_vertical_edge
+
 
 class IMTLRad(StandardImagingFC2):
     """The IMT light/rad phantom: https://www.imtqa.com/products/l-rad"""
@@ -1179,6 +1190,7 @@ class IMTLRad(StandardImagingFC2):
     center_only_bb = {"Center": [0, 0]}
     bb_sampling_box_size_mm = 12
     field_strip_width_mm = 5
+    bb_size_mm = 3
 
     def _determine_bb_set(self, fwxm: int) -> dict:
         return self.center_only_bb
@@ -1187,7 +1199,7 @@ class IMTLRad(StandardImagingFC2):
 class DoselabRLf(StandardImagingFC2):
     """The Doselab light/rad phantom"""
 
-    common_name = "Doselab Rlf"
+    common_name = "Doselab RLf"
     _demo_filename = "Doselab_RLf.dcm"
     # these positions are the offset in mm from the center of the image to the nominal position of the BBs
     bb_positions_10x10 = {
@@ -1203,8 +1215,6 @@ class DoselabRLf(StandardImagingFC2):
     #     "TR": [70, -45],
     #     "BR": [45, 70],
     # }
-    bb_sampling_box_size_mm = 10
-    field_strip_width_mm = 5
 
     def _determine_bb_set(self, fwxm: int) -> dict:
         return self.bb_positions_10x10
@@ -1230,7 +1240,6 @@ class IsoAlign(StandardImagingFC2):
         "Left": [-25, 0],
         "Right": [25, 0],
     }
-    bb_sampling_box_size_mm = 8
     field_strip_width_mm = 10
 
     def _determine_bb_set(self, fwxm: int) -> dict:
@@ -1256,7 +1265,7 @@ class SNCFSQA(StandardImagingFC2):
     common_name = "SNC FSQA"
     _demo_filename = "FSQA_15x15.dcm"
     center_only_bb = {"TR": [40, -40]}
-    bb_sampling_box_size_mm = 12
+    # bb_sampling_box_size_mm = 8
     field_strip_width_mm = 5
 
     def _determine_bb_set(self, fwxm: int) -> dict:
