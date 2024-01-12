@@ -20,12 +20,12 @@ def get_logo() -> Path:
     """Get the Pylinac logo. First try the embedded version, then try the internet.
     When pylinac is embedded in RadMachine as a package non-py files aren't correctly uncompressed.
     """
-    logo_file = Path(__file__).parent.parent / "files" / "Pylinac Full cropped.png"
+    logo_file = Path(__file__).parent.parent / "files" / "Pylinac-GREEN.png"
     if logo_file.exists():
         return logo_file
     else:
         filepath = get_url(
-            url=r"https://storage.googleapis.com/pylinac_demo_files/Pylinac_Full_cropped.png",
+            url=r"https://storage.googleapis.com/pylinac_demo_files/Pylinac-GREEN.png",
             progress_bar=False,
         )
         return Path(filepath)
