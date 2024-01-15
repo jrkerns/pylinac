@@ -35,8 +35,7 @@ To be able to properly analyze the phantom, images should be
 acquired in such a way that the couch and phantom are separated.
 If the phantom it sitting in such a way that it is directly touching the
 couch analysis will likely fail. If the phantom does not come with a
-support device that keeps it off the table, the phantom or phantom support
-device should be set on a low-density material such as foam blocks.
+support device that keeps it off the table, it should be set on a low-density material such as foam blocks.
 
 Running the Demo
 ----------------
