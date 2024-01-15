@@ -24,6 +24,7 @@ CT
 
 * Publishing a PDF for the 604 and 600 sometimes led to the HU module values falling off the right side of the page.
   The values are now wrapped and should all fit on the page.
+* The noise power spectrum is now available for CatPhan analyses. See more here: :ref:`noise-power-spectrum`.
 * The CT phantom-finding algorithm is now slightly more robust to inclusion of the table in the scan.
   Foam or other low-density material is still recommended to separate the phantom from the table.
 * Analysis of Catphan 604 datasets often did not find the HU module center correctly. This had to do with some of the

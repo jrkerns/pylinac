@@ -100,6 +100,7 @@ class DiskROI(Circle):
         fill: bool = False,
         text: str = "",
         fontsize: str = "medium",
+        **kwargs,
     ) -> None:
         """Plot the Circle on the axes.
 
@@ -120,7 +121,9 @@ class DiskROI(Circle):
         if axes is None:
             fig, axes = plt.subplots()
             axes.imshow(self._array)
-        super().plot2axes(axes, edgecolor=edgecolor, text=str(text), fontsize=fontsize)
+        super().plot2axes(
+            axes, edgecolor=edgecolor, text=str(text), fontsize=fontsize, **kwargs
+        )
 
     def as_dict(self) -> dict:
         """Convert to dict. Useful for dataclasses/Result"""

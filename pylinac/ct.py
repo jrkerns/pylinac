@@ -32,13 +32,15 @@ from typing import BinaryIO, Callable, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
+from matplotlib.axis import Axis
+from matplotlib.figure import Figure
 from py_linq import Enumerable
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
 
 from .core import image, pdf
-from .core.contrast import Contrast
+from .core.contrast import Contrast, power_spectrum_1d
 from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
@@ -981,6 +983,34 @@ class CTP486(CatPhanModule):
         axis.legend(loc=8, fontsize="small", title="")
         axis.set_title("Uniformity Profiles")
 
+    def _setup_rois(self) -> None:
+        super()._setup_rois()
+        self.noise_roi = RectangleROI(
+            array=self.image,
+            width=self.roi_dist_mm * 1.5 / self.mm_per_pixel,  # convert to pixels
+            height=self.roi_dist_mm * 1.5 / self.mm_per_pixel,  # convert to pixels
+            angle=0,
+            dist_from_center=0,
+            phantom_center=self.phan_center,
+        )
+
+    def plot(self, axis: plt.Axes):
+        """Plot the ROIs but also the noise power spectrum ROI"""
+        self.noise_roi.plot2axes(axis, edgecolor="green", linestyle="-.")
+        super().plot(axis)
+
+    def plot_noise_power_spectrum(self, show: bool = True) -> (Figure, Axis):
+        """Plot the noise power spectrum of the Uniformity slice."""
+        fig, axis = plt.subplots()
+        axis.semilogy(self.power_spectrum)
+        axis.set_title("Noise Power Spectrum")
+        axis.set_xlabel("Spatial Frequency")
+        axis.set_ylabel("Power Intensity")
+        axis.grid(which="both")
+        if show:
+            plt.show()
+        return fig, axis
+
     @property
     def overall_passed(self) -> bool:
         """Boolean specifying whether all the ROIs passed within tolerance."""
@@ -1003,6 +1033,23 @@ class CTP486(CatPhanModule):
         maxhu = max(roi.pixel_value for roi in self.rois.values())
         minhu = min(roi.pixel_value for roi in self.rois.values())
         return (maxhu - minhu) / (maxhu + minhu + 2000)
+
+    @cached_property
+    def power_spectrum(self) -> np.ndarray:
+        """The power spectrum of the uniformity ROI."""
+        return power_spectrum_1d(self.noise_roi.pixel_array)
+
+    @property
+    def avg_noise_power(self) -> float:
+        """The average noise power of the uniformity ROI."""
+        spectrum = self.power_spectrum
+        frequencies = np.arange(len(spectrum))
+        return np.sum(frequencies * spectrum) / np.sum(spectrum)
+
+    @property
+    def max_noise_power_frequency(self) -> int:
+        """The frequency of the maximum noise power. 0 means no pattern."""
+        return int(np.argmax(self.power_spectrum))
 
 
 class CTP528CP504(CatPhanModule):
@@ -2241,6 +2288,8 @@ class CatPhanBase:
                 f"Uniformity index: {self.ctp486.uniformity_index:2.3f}",
                 f"Integral non-uniformity: {self.ctp486.integral_non_uniformity:2.4f}",
                 f"Uniformity Passed?: {self.ctp486.overall_passed}",
+                f"Max Noise Power frequency: {self.ctp486.max_noise_power_frequency}",
+                f"Average Noise Power: {self.ctp486.avg_noise_power}",
             ]
             results.append(ctp486_result)
         if self._has_module(CTP515):
