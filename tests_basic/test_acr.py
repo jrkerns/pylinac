@@ -316,6 +316,7 @@ class ACRMRMixin(CloudFileMixin):
     slice1_shift: float
     slice11_shift: float
     psg: float
+    results: list[str] = []
 
     @classmethod
     def setUpClass(cls):
@@ -355,6 +356,11 @@ class ACRMRMixin(CloudFileMixin):
 
     def test_psg(self):
         self.assertAlmostEqual(self.mri.uniformity_module.psg, self.psg, delta=0.3)
+
+    def test_results(self):
+        results = self.mri.results()
+        for result in self.results:
+            self.assertIn(result, results)
 
 
 class ACRT1Single(ACRMRMixin, TestCase):
@@ -413,6 +419,7 @@ class ACRGE3T(ACRMRMixin, TestCase):
     slice1_shift = 0
     slice11_shift = 1.5
     psg = 0.3
+    results = ["5.50mm"]
 
 
 class ACRGE3TOffset(ACRGE3T):

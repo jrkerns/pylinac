@@ -2,6 +2,16 @@
 Changelog
 =========
 
+v 3.20.0
+--------
+
+ACR
+^^^
+
+* The slice thickness given when calling ``ACRMRI.results()`` was reporting the nominal slice thickness
+  not the measured slice thickness. The output from ``ACRMRI.results_data()`` was correct however and has not changed.
+
+
 v 3.19.0
 --------
 
