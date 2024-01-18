@@ -376,16 +376,12 @@ class WinstonLutz2D(image.LinacDicomImage):
             Whether to try to use the file name to determine axis values.
             Useful for Elekta machines that do not include that info in the DICOM data.
         """
+        # override detection conditions if passed
         if conditions := kwargs.pop("detection_conditions", False):
             self.detection_conditions = conditions
         super().__init__(file, use_filenames=use_filenames, **kwargs)
-        # override detection conditions if passed
         self._is_analyzed = False
-        self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self.flipud()
-        self._clean_edges()
-        self.ground()
-        self.normalize()
 
     def analyze(
         self,
@@ -394,6 +390,10 @@ class WinstonLutz2D(image.LinacDicomImage):
         open_field: bool = False,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
+        self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
+        self._clean_edges()
+        self.ground()
+        self.normalize()
         self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
             open_field
         )
