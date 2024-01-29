@@ -446,6 +446,7 @@ class ACRGE3TRotated(ACRGE3T):
     """
 
     phantom_roll = -0.4
+    results = ["4.80mm"]  # induced rotation does change this a bit. See above.
 
     @classmethod
     def setUpClass(cls):
