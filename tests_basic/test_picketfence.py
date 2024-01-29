@@ -261,6 +261,25 @@ class TestAnalyze(TestCase):
 
 
 class TestBBBasedAnalysis(TestCase):
+    def test_two_different_image_sizes(self):
+        # See RAM-3258
+        # load both images
+        pf_file = get_file_from_cloud_test_repo([TEST_DIR, "BBs", "PF-image.dcm"])
+        bb_file = get_file_from_cloud_test_repo([TEST_DIR, "BBs", "BB-image.dcm"])
+        pf = PicketFence.from_bb_setup(pf_file, bb_image=bb_file, bb_diameter=5)
+        pf.analyze()
+
+        self.assertAlmostEqual(
+            max(pf.results_data().offsets_from_cax_mm), 65.22, delta=0.01
+        )
+
+        # assert that w/o the BB image, the offset is different, but similar
+        pf = PicketFence(pf_file)
+        pf.analyze()
+        self.assertAlmostEqual(
+            max(pf.results_data().offsets_from_cax_mm), 65.25, delta=0.01
+        )
+
     def test_bb_pf_combo(self):
         wl = create_bb_image(field_size=(50, 50), bb_size=5, offset=(2, 2))
         bb_img = DicomImage.from_dataset(wl)

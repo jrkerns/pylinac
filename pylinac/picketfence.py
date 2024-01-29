@@ -187,7 +187,13 @@ class PFDicomImage(image.LinacDicomImage):
     def center(self) -> Point:
         """Override the central axis call in the event we passed it directly"""
         if self._central_axis is not None:
-            cax = copy.copy(self._central_axis)
+            # convert from physical to pixel
+            cax_shift = Point(
+                x=self._central_axis.x * self.dpmm, y=self._central_axis.y * self.dpmm
+            )
+            # shift from center to BB position
+            cax = super().center + cax_shift
+            # invert the y-axis for plotting purposes/consistency
             cax.y = 2 * (self.shape[0] // 2) - cax.y
             return cax
         else:
@@ -332,7 +338,14 @@ class PicketFence:
                 radius_tolerance_mm=bb_diameter * 0.1 + 1,
             )
         )
-        instance = cls(*args, **kwargs, image_kwargs={"central_axis": cax})
+        cax_shift = cax - bb_image.center
+        # we convert to physical because we may have images of different sizes/dpmms
+        cax_physical_shift = Point(
+            x=cax_shift.x / bb_image.dpmm, y=cax_shift.y / bb_image.dpmm
+        )
+        instance = cls(
+            *args, **kwargs, image_kwargs={"central_axis": cax_physical_shift}
+        )
         instance._from_bb_setup = True
         instance._bb_image = bb_image
         return instance
