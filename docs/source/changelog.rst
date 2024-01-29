@@ -14,6 +14,13 @@ Winston-Lutz
   image inversion manually between the class instantiation and the ``.analyze()`` call, this
   change should not affect you. If you are, you may no longer need the inversion call.
 
+ACR
+^^^
+
+* The slice thickness given when calling ``ACRMRI.results()`` was reporting the nominal slice thickness
+  not the measured slice thickness. The output from ``ACRMRI.results_data()`` was correct however and has not changed.
+
+
 v 3.19.0
 --------
 
