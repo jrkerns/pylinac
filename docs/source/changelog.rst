@@ -2,6 +2,18 @@
 Changelog
 =========
 
+v 3.20.0
+--------
+
+Winston-Lutz
+^^^^^^^^^^^^
+
+* Image inversion checking is now done during the analysis phase and not during image loading.
+  This is mostly for RadMachine to allow users to apply manipulations first, and then
+  perform typical image processing, including inversion checking. Unless you are performing
+  image inversion manually between the class instantiation and the ``.analyze()`` call, this
+  change should not affect you. If you are, you may no longer need the inversion call.
+
 v 3.19.0
 --------
 

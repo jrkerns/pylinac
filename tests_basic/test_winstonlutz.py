@@ -1408,3 +1408,35 @@ class TestOffsetInCBCT(GeneratedWLCBCT, CBCTWinstonLutzMixin, TestCase):
     cax2bb_median_distance = 5
     cax2bb_mean_distance = 5
     bb_shift_vector = Vector(x=0, y=-5, z=0)
+
+
+class TestIndividualInverts(WinstonLutzMixin, TestCase):
+    # see RAM-3252; still need to crop
+    # but now the images are inverted after cropping
+    file_name = ["individual inverts.zip"]
+    num_images = 4
+    low_density_bb = True
+    open_field = True
+    bb_size = 5
+    gantry_iso_size = 0.57
+    collimator_iso_size = None
+    couch_iso_size = None
+    cax2bb_max_distance = 0.55
+    cax2bb_median_distance = 0.37
+    cax2bb_mean_distance = 0.36
+    axis_of_rotation = {-1: Axis.REFERENCE}
+    bb_shift_vector = Vector(x=0.13, y=0.22, z=-0.3)
+
+    @classmethod
+    def new_instance(cls) -> WinstonLutz:
+        filename = cls.get_filename()
+        wl = WinstonLutz.from_zip(
+            filename,
+            use_filenames=cls.use_filenames,
+            sid=cls.sid,
+            dpi=cls.dpi,
+            axis_mapping=cls.axis_mapping,
+        )
+        for img in wl.images:
+            img.crop(pixels=50)
+        return wl
