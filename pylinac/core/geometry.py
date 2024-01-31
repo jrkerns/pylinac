@@ -157,6 +157,16 @@ class Point:
             getattr(self, attr) == getattr(other, attr) for attr in self._attr_list
         )
 
+    def __add__(self, other) -> Vector:
+        p = Vector()
+        for attr in self._attr_list:
+            try:
+                sum = getattr(self, attr) + getattr(other, attr)
+            except TypeError:
+                sum = None
+            setattr(p, attr, sum)
+        return p
+
     def __sub__(self, other) -> Vector:
         p = Vector()
         for attr in self._attr_list:
