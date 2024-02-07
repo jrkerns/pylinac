@@ -5,6 +5,20 @@ Changelog
 v 3.20.0
 --------
 
+Core
+^^^^
+
+* The function ``image.load_multiples`` now accepts a ``loader`` parameter. This lets the user
+  pass a custom image class if desired. This is useful for subclasses of the base image classes.
+  E.g. ``image.load_multiples("my_image.dcm", loader=MyDicomImage)``. Default behavior still uses
+  ``load``.
+
+PicketFence
+^^^^^^^^^^^
+
+* The ``from_multiple_images`` method signature added the ``mlc`` keyword argument. Previously,
+  only the default MLC could be used.
+
 Winston-Lutz
 ^^^^^^^^^^^^
 

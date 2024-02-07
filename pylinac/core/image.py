@@ -213,6 +213,7 @@ def load_multiples(
     image_file_list: Sequence,
     method: str = "mean",
     stretch_each: bool = True,
+    loader: callable = load,
     **kwargs,
 ) -> ImageLike:
     """Combine multiple image files into one superimposed image.
@@ -225,6 +226,8 @@ def load_multiples(
         A string specifying how the image values should be combined.
     stretch_each : bool
         Whether to normalize the images being combined by stretching their high/low values to the same values across images.
+    loader: callable
+        The function to use to load the images. If a special image subclass is used, this is how it can be passed.
     kwargs :
         Further keyword arguments are passed to the load function and stretch function.
 
@@ -237,7 +240,7 @@ def load_multiples(
         >>> superimposed_img = load_multiples(paths)
     """
     # load images
-    img_list = [load(path, **kwargs) for path in image_file_list]
+    img_list = [loader(path, **kwargs) for path in image_file_list]
     first_img = img_list[0]
 
     # check that all images are the same size and stretch if need be
