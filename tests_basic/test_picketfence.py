@@ -306,6 +306,31 @@ class TestBBBasedAnalysis(TestCase):
         self.assertAlmostEqual(results.max_error_mm, 0.0, delta=0.005)
 
 
+class LoadingFromMultiple(TestCase):
+    def test_loading_with_keywords(self):
+        # we pass **kwargs to the PFDicomImage constructor and also the PicketFence constructor
+        # make sure the kwargs are passed through and don't raise
+        path1 = get_file_from_cloud_test_repo([TEST_DIR, "combo-jaw.dcm"])
+        path2 = get_file_from_cloud_test_repo([TEST_DIR, "combo-mlc.dcm"])
+        pf = PicketFence.from_multiple_images(
+            [path1, path2],
+            stretch_each=True,
+            mlc=MLC.BMOD,
+            use_filenames=False,
+            crop_mm=1,
+        )
+        pf.analyze()
+        self.assertAlmostEqual(pf.percent_passing, 100, delta=1)
+
+    def test_loading_no_keywords(self):
+        # make sure no keywords doesn't raise
+        path1 = get_file_from_cloud_test_repo([TEST_DIR, "combo-jaw.dcm"])
+        path2 = get_file_from_cloud_test_repo([TEST_DIR, "combo-mlc.dcm"])
+        pf = PicketFence.from_multiple_images([path1, path2])
+        pf.analyze()
+        self.assertAlmostEqual(pf.percent_passing, 100, delta=1)
+
+
 class TestPlottingSaving(TestCase):
     @classmethod
     def setUpClass(cls):
