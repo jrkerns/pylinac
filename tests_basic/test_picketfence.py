@@ -377,6 +377,7 @@ class TestPlottingSaving(TestCase):
     def test_results(self):
         data = self.pf.results()
         self.assertIsInstance(data, str)
+        self.assertIn("Skew", data)
 
         data = self.pf.results(as_list=True)
         self.assertIsInstance(data, list)

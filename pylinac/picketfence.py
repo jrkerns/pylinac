@@ -879,7 +879,6 @@ class PicketFence:
             else:
                 figure_size = (9, 9)
         fig, ax = plt.subplots(figsize=figure_size)
-        # ax.imshow(self.image.array, cmap=get_dicom_cmap())
         self.image.plot(ax=ax, show=False)
 
         if leaf_error_subplot:
