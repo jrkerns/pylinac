@@ -186,77 +186,94 @@ class TestAnalyze(TestCase):
     def test_failed_leaves_traditional(self):
         pf = PicketFence.from_demo_image()
         pf.analyze(separate_leaves=False, tolerance=0.05)
-        self.assertEqual(
-            set(pf.failed_leaves()),
-            {12, 14, 16, 17, 18, 19, 26, 29, 31, 32, 33, 35, 39, 42, 43, 47},
+        self.assertCountEqual(
+            pf.failed_leaves(),
+            [
+                34,
+                41,
+                44,
+                13,
+                46,
+                48,
+                21,
+                25,
+                27,
+                28,
+                42,
+                43,
+                17,
+                18,
+                29,
+                31,
+            ],
         )
 
     def test_failed_leaves_separate(self):
         pf = PicketFence.from_demo_image()
         pf.analyze(separate_leaves=True, tolerance=0.15, nominal_gap_mm=3)
-        self.assertEqual(
-            set(pf.failed_leaves()),
-            {
-                "A12",
-                "B12",
+        self.assertCountEqual(
+            pf.failed_leaves(),
+            [
                 "A13",
-                "B13",
                 "A14",
-                "B14",
                 "A15",
+                "A16",
+                "A17",
+                "A19",
+                "A20",
+                "A21",
+                "A22",
+                "A23",
+                "A24",
+                "A25",
+                "A27",
+                "A28",
+                "A32",
+                "A33",
+                "A35",
+                "A36",
+                "A37",
+                "A40",
+                "A41",
+                "A42",
+                "A45",
+                "A46",
+                "A47",
+                "A48",
+                "B13",
+                "B14",
                 "B15",
                 "B16",
                 "B17",
-                "A18",
                 "B18",
                 "B19",
-                "A19",
-                "A20",
                 "B20",
+                "B21",
                 "B22",
-                "A23",
                 "B23",
-                "A24",
                 "B24",
-                "A25",
+                "B25",
                 "B26",
-                "A27",
-                "B27",
-                "A28",
                 "B28",
                 "B29",
                 "B30",
                 "B31",
-                "A32",
                 "B32",
-                "A33",
+                "B33",
                 "B34",
-                "B35",
-                "A35",
-                "A36",
                 "B36",
-                "A37",
                 "B37",
-                "A38",
                 "B38",
-                "B39",
-                "A39",
-                "A40",
                 "B40",
                 "B41",
-                "A41",
                 "B42",
-                "A43",
                 "B43",
                 "B44",
-                "A44",
                 "B45",
-                "A45",
-                "A46",
                 "B46",
                 "B47",
-                "A47",
-            },
+                "B48",
+            ],
         )
 
 
@@ -459,7 +476,7 @@ class PFDemo(PFTestMixin, TestCase):
     max_error = 0.08
     abs_median_error = 0.06
     max_error_picket = 0
-    max_error_leaf = 31
+    max_error_leaf = 29
 
     @classmethod
     def setUpClass(cls):

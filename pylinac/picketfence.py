@@ -909,12 +909,12 @@ class PicketFence:
             pos = [
                 position.marker_lines[0].center.y
                 for position in self.pickets[0].mlc_meas
-            ]
+            ][::-1]
         else:
             pos = [
                 position.marker_lines[0].center.x
                 for position in self.pickets[0].mlc_meas
-            ]
+            ][::-1]
 
         # calculate the error and stdev values per MLC pair
         error_stdev = []

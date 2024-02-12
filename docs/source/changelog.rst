@@ -5,6 +5,14 @@ Changelog
 v 3.20.0
 --------
 
+Picket Fence
+^^^^^^^^^^^^
+
+* Picket fence plots were being plotted upside down. They will now be plotted right-side up.
+* The MLC arrangement for Varian machines was inverted. Leaf 1 was assumed to be at the
+  top of the image, but it is actually at the bottom. This will affect both the combined
+  and separated leaf analysis. An error that would've shown, e.g., A20 will now show A40.
+
 Winston-Lutz
 ^^^^^^^^^^^^
 
