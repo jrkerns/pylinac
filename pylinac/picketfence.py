@@ -304,6 +304,7 @@ class PicketFence:
         path_list: Iterable[str | Path],
         stretch_each: bool = True,
         method: str = "mean",
+        mlc: MLC | MLCArrangement | str = MLC.MILLENNIUM,
         **kwargs,
     ):
         """Load and superimpose multiple images and instantiate a PF object.
@@ -316,16 +317,26 @@ class PicketFence:
             Whether to stretch each image individually before combining. See ``load_multiples``.
         method : {'sum', 'mean'}
             The method to combine the images. See ``load_multiples``.
+        mlc : MLC, MLCArrangement, or str
+            The MLC model of the image. Must be an option from the enum :class:`~pylinac.picketfence.MLCs` or
+            an :class:`~pylinac.picketfence.MLCArrangement`.
         kwargs
-            Passed to :func:`~pylinac.core.image.load_multiples`.
+            Passed to :func:`~pylinac.core.image.load_multiples` and to the PicketFence constructor.
         """
         with io.BytesIO() as stream:
             img = image.load_multiples(
-                path_list, stretch_each=stretch_each, method=method, **kwargs
+                path_list,
+                stretch_each=stretch_each,
+                method=method,
+                loader=PFDicomImage,
+                **kwargs,
             )
             img.save(stream)
             stream.seek(0)
-            return cls(stream, **kwargs)
+            # there is a parameter name mismatch between the PFDicomImage and PicketFence constructors
+            # Dicom uses "use_filenames" and PicketFence uses "use_filename" 😖
+            use_filename = kwargs.pop("use_filenames", False)
+            return cls(stream, mlc=mlc, use_filename=use_filename, **kwargs)
 
     @classmethod
     def from_bb_setup(

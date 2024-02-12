@@ -231,8 +231,9 @@ class TestEquateImages(TestCase):
     def test_same_sized_images_work(self):
         """As found here: https://github.com/jrkerns/pylinac/issues/446"""
 
-        image1 = load(np.random.rand(20, 20), dpi=10)
-        image2 = load(np.random.rand(10, 10), dpi=5)
+        gen = np.random.default_rng()
+        image1 = load(gen.random((20, 20)), dpi=10)
+        image2 = load(gen.random((10, 10)), dpi=5)
 
         img1, img2 = equate_images(image1, image2)
         self.assertEqual(img1.shape, img2.shape)
@@ -308,6 +309,12 @@ class TestLoaders(TestCase):
         paths = [dcm_path, tif_path]
         with self.assertRaises(ValueError):
             image.load_multiples(paths)
+
+    def test_load_multiples_custom_loader(self):
+        """Use a custom loader to load multiple images"""
+        paths = [dcm_path, dcm_path, dcm_path]
+        img = image.load_multiples(paths, loader=image.LinacDicomImage)
+        self.assertIsInstance(img, image.LinacDicomImage)
 
     def test_nonsense(self):
         with self.assertRaises(FileNotFoundError):
