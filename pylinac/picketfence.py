@@ -38,11 +38,10 @@ from . import Normalization
 from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
-from .core.metrics import SizedDiskLocator
 from .core.profile import FWXMProfilePhysical, MultiProfile
 from .core.utilities import ResultBase, convert_to_enum
 from .log_analyzer import load_log
-from .settings import get_dicom_cmap
+from .metrics.image import SizedDiskLocator
 
 LEFT_MLC_PREFIX = "A"
 RIGHT_MLC_PREFIX = "B"
@@ -81,6 +80,13 @@ class MLCArrangement:
             rolling_edge = self.centers[-1] + width / 2
             self.widths += [width] * leaf_num
         self.centers = [c - np.mean(self.centers) + offset for c in self.centers]
+
+    @property
+    def leaves(self) -> list[int]:
+        """The leaf numbers; index pairs with the centers. Assumes that
+        the first leaf center is toward the target and the last leaf center is towards the gun.
+        """
+        return np.arange(1, len(self.centers) + 1, dtype=int)[::-1].tolist()
 
 
 class MLC(enum.Enum):
@@ -811,31 +817,28 @@ class PicketFence:
 
     def _leaves_in_view(self, analysis_width) -> list[tuple[int, int, int]]:
         """Crop the leaves if not all leaves are in view."""
-        range = (
+        pixel_range = (
             self.image.shape[0] / 2
             if self.orientation == Orientation.UP_DOWN
             else self.image.shape[1] / 2
         )
         # cut off the edge so that we're not halfway through a leaf.
-        range -= (
+        pixel_range -= (
             max(
                 self.mlc.widths[0] * analysis_width,
                 self.mlc.widths[-1] * analysis_width,
             )
             * self.image.dpmm
         )
-        leaves = [
-            i
-            for i, c in enumerate(self.mlc.centers)
-            if abs(c) < (range / self.image.dpmm)
-        ]
+        # include the leaf if the center is within the pixel range
         return [
             (leaf_num, center, width)
             for leaf_num, center, width in zip(
-                leaves,
-                self.mlc.centers[leaves[0] : leaves[-1] + 1],
-                self.mlc.widths[leaves[0] : leaves[-1] + 1],
+                self.mlc.leaves,
+                self.mlc.centers,
+                self.mlc.widths,
             )
+            if abs(center) < pixel_range / self.image.dpmm
         ]
 
     def plot_analyzed_image(
@@ -876,7 +879,7 @@ class PicketFence:
             else:
                 figure_size = (9, 9)
         fig, ax = plt.subplots(figsize=figure_size)
-        ax.imshow(self.image.array, cmap=get_dicom_cmap())
+        self.image.plot(ax=ax, show=False)
 
         if leaf_error_subplot:
             self._add_leaf_error_subplot(ax)
@@ -896,10 +899,6 @@ class PicketFence:
         ax.plot(
             self.image.center.x, self.image.center.y, "r+", ms=12, markeredgewidth=3
         )
-
-        # tighten up the plot view
-        ax.set_xlim([0, self.image.shape[1]])
-        ax.set_ylim([0, self.image.shape[0]])
         ax.axis("off")
 
         if show:
@@ -920,12 +919,12 @@ class PicketFence:
             pos = [
                 position.marker_lines[0].center.y
                 for position in self.pickets[0].mlc_meas
-            ]
+            ][::-1]
         else:
             pos = [
                 position.marker_lines[0].center.x
                 for position in self.pickets[0].mlc_meas
-            ]
+            ][::-1]
 
         # calculate the error and stdev values per MLC pair
         error_stdev = []
@@ -1014,6 +1013,7 @@ class PicketFence:
             f"Mean picket spacing (mm): {self.mean_picket_spacing:2.1f}mmn",
             f"Picket offsets from CAX (mm): {offsets}",
             f"Max Error: {self.max_error:2.3f}mm on Picket: {self.max_error_picket}, Leaf: {self.max_error_leaf}",
+            f"MLC Skew: {self.mlc_skew():2.3f} degrees",
         ]
         if self.failed_leaves():
             results.append(f"Failing leaves: {self.failed_leaves()}")

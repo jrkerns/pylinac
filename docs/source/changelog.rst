@@ -13,11 +13,16 @@ Core
   E.g. ``image.load_multiples("my_image.dcm", loader=MyDicomImage)``. Default behavior still uses
   ``load``.
 
-PicketFence
-^^^^^^^^^^^
+Picket Fence
+^^^^^^^^^^^^
 
 * The ``from_multiple_images`` method signature added the ``mlc`` keyword argument. Previously,
   only the default MLC could be used.
+* Picket fence plots were being plotted upside down. They will now be plotted right-side up.
+* The MLC arrangement for Varian machines was inverted. Leaf 1 was assumed to be at the
+  top of the image, but it is actually at the bottom. This will affect both the combined
+  and separated leaf analysis. An error that would've shown, e.g., A20 will now show A40.
+* The MLC skew is now reported in the ``.results()`` method.
 
 Winston-Lutz
 ^^^^^^^^^^^^
