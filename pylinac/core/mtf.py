@@ -125,6 +125,7 @@ class MTF:
         axis.set_ylabel(y_label)
         axis.set_title(title)
 
+        # this whole below thing is to avoid zero division errors when plotting
         def invert(x: np.ndarray) -> np.ndarray:
             # 1/x with special treatment of x == 0
             n = np.copy(x).astype(float)
