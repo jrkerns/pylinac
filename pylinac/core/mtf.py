@@ -124,9 +124,23 @@ class MTF:
         axis.set_xlabel(x_label)
         axis.set_ylabel(y_label)
         axis.set_title(title)
-        spacing_ax = axis.secondary_xaxis(
-            "top", functions=(lambda x: 1 / x, lambda x: 1 / x)
-        )
+
+        # this whole below thing is to avoid zero division errors when plotting
+        def invert(x: np.ndarray) -> np.ndarray:
+            # 1/x with special treatment of x == 0
+            n = np.copy(x).astype(float)
+            near_zero = np.isclose(n, 0)
+            n[near_zero] = np.inf
+            n[~near_zero] = 1 / n[~near_zero]
+            return n
+
+        # in addition to setting the `functions`, we need to set the ticks manually.
+        # if not, for some reason the ticks are bunched up on the left side and unreadable.
+        # both are needed. 🤷‍♂️
+        spacing_ax = axis.secondary_xaxis("top", functions=(invert, invert))
+        x_ticks = axis.get_xticks()
+        x2_ticks = 1 / np.clip(x_ticks, a_min=1e-2, a_max=None)
+        spacing_ax.set_xticks(x2_ticks)
         spacing_ax.set_xlabel("Pair Distance (mm)")
         plt.tight_layout()
         return points

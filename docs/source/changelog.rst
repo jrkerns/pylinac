@@ -12,6 +12,8 @@ Core
   pass a custom image class if desired. This is useful for subclasses of the base image classes.
   E.g. ``image.load_multiples("my_image.dcm", loader=MyDicomImage)``. Default behavior still uses
   ``load``.
+* Plotting the MTF was causing an zero division error or warning. This was from the plotting of the
+  line pair distances in addition to the frequency.
 
 Picket Fence
 ^^^^^^^^^^^^

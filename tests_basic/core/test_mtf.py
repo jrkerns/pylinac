@@ -1,5 +1,7 @@
 import unittest
 
+import numpy as np
+
 from pylinac.core.mtf import MTF
 
 
@@ -33,3 +35,18 @@ class TestMTF(unittest.TestCase):
         mins = (25, 50, 25, 75)
 
         MTF(pair_units, maxs, mins)
+
+    def test_no_zero_division_of_line_pair_distances(self):
+        old_settings = np.geterr()
+        # set overflow to cause errors
+        # shouldn't raise
+        np.seterr(all="raise")
+        pair_units = (0.1, 0.2, 0.3)
+        maxs = (500, 300, 100)
+        mins = (25, 50, 75)
+
+        m = MTF(pair_units, maxs, mins)
+        # shouldn't raise
+        m.plot()
+        # reset to old settings
+        np.seterr(**old_settings)
