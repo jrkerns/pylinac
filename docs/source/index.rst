@@ -46,6 +46,7 @@
    topics/images
    topics/xim
    topics/contrast
+   topics/nps
    topics/mtf
    topics/scale
    topics/profiles

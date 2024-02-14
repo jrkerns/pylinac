@@ -1,11 +1,14 @@
-from typing import Sequence
+from typing import Iterable
 
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.axis import Axis
 
+from . import validators
+
 
 def radial_average(arr: np.ndarray) -> np.ndarray:
+    """Calculate the radial average of a 2D array about the center pixel"""
     # Determine the center of the array
     center = np.array(arr.shape) / 2
 
@@ -28,9 +31,9 @@ def radial_average(arr: np.ndarray) -> np.ndarray:
     return radial_mean
 
 
-def noise_power_spectrum(
-    pixel_size: float, rois: Sequence[np.ndarray]
-) -> (np.ndarray, np.ndarray):
+def noise_power_spectrum_2d(
+    pixel_size: float, rois: Iterable[np.ndarray]
+) -> np.ndarray:
     """Calculate the noise power spectrum in 2D and 1D for a set of square ROIs.
 
     Based on ICRU 87, equation 11.1 and 11.2. Calculates the 2D FFT of each ROI, then averages the FFTs.
@@ -57,8 +60,6 @@ def noise_power_spectrum(
     -------
     nps2d : ndarray
         The 2D noise power spectrum.
-    nps1d : ndarray
-        The 1D noise power spectrum, radially averaged over the 2D spectrum.
 
     References
     ----------
@@ -71,12 +72,54 @@ def noise_power_spectrum(
         b = np.abs(np.fft.fft2(rroi - np.mean(rroi))) ** 2
         s = np.fft.fftshift(b)
         ffts[:, :, idx] = s
-    s = np.mean(ffts, axis=2)
+    s = np.mean(ffts, axis=-1)
     nps2d = pixel_size**2 / length**2 * s
-    return nps2d, radial_average(nps2d)
+    return nps2d
 
 
-def plot_nps1d(nps1d: np.ndarray, pixel_size: float, ax: Axis | None = None) -> Axis:
+def noise_power_spectrum_1d(spectrum_2d: np.ndarray) -> np.ndarray:
+    """Calculate the 1D noise power spectrum from a 2D spectrum.
+
+    Parameters
+    ----------
+    spectrum_2d : ndarray
+        The 2D noise power spectrum.
+
+    Returns
+    -------
+    ndarray
+        The 1D noise power spectrum.
+    """
+    validators.double_dimension(spectrum_2d)
+    return radial_average(spectrum_2d)
+
+
+def average_power(nps1d: np.ndarray) -> float:
+    """Average power given a 1D spectra.
+
+    Parameters
+    ----------
+    nps1d : sequence of ndarray
+        The 1D noise power spectra to average.
+
+    Returns
+    -------
+    float
+        The average noise power spectrum value
+    """
+    validators.single_dimension(nps1d)
+    # Calculate the weighted average x position
+    x_positions = np.linspace(0, 1, len(nps1d))
+    return np.average(x_positions, weights=nps1d)
+
+
+def max_frequency(nps1d: np.ndarray) -> float:
+    """Determine the maximum frequency of the NPS given a 1D spectrum."""
+    validators.single_dimension(nps1d)
+    return np.argmax(nps1d) / len(nps1d)
+
+
+def plot_nps1d(nps1d: np.ndarray, ax: Axis | None = None) -> Axis:
     """Plot the 1D noise power spectrum.
 
     This will plot the power spectrum as a function of frequency.
@@ -86,23 +129,20 @@ def plot_nps1d(nps1d: np.ndarray, pixel_size: float, ax: Axis | None = None) -> 
     ----------
     nps1d : ndarray
         The 1D noise power spectrum.
-    pixel_size : float
-        The size of each pixel in mm.
     ax : matplotlib.axis.Axis, optional
         The axis to plot on. If None, a new figure will be created.
+
+    Returns
+    -------
+    matplotlib.axis.Axis
+        The axis the plot was created on.
     """
+    validators.single_dimension(nps1d)
     if ax is None:
         _, ax = plt.subplots()
-    nyquist = 1 / (2 * pixel_size)
-    f_resolution = nyquist / (len(nps1d) / 2)
-    frequencies = np.arange(
-        0, nyquist + 0.01, f_resolution
-    )  # add 0.01 so the real nyquist gets included
-    ax.plot(frequencies, nps1d[: len(frequencies)])
+    ax.plot(np.linspace(0, 1, len(nps1d)), nps1d)
     ax.set_title("1D Noise Power Spectrum")
     ax.set_xlabel("Frequency ($mm^{-1}$)")
-    ax.set_ylabel("NPS ($HU^2 mm^2$)")
-    ax.axvline(nyquist, color="r", linestyle="--", label="Nyquist Frequency")
+    ax.set_ylabel("NPS / ($HU^2 mm^2$)")
     ax.grid(True)
-    ax.legend()
     return ax
