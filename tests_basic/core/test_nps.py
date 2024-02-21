@@ -125,13 +125,22 @@ class Test1DSpectrum(TestCase):
 
 class TestAvgPower(TestCase):
     def setUp(self) -> None:
-        roi = generate_noisy_image((300, 300), scale=30, intensity=500, dtype=np.uint16)
-        self.nps2d = noise_power_spectrum_2d(pixel_size=1, rois=[roi])
+        self.roi = generate_noisy_image(
+            (300, 300), scale=30, intensity=500, dtype=np.uint16
+        )
+        self.nps2d = noise_power_spectrum_2d(pixel_size=1, rois=[self.roi])
 
     def test_avg_power(self):
         nps1d = noise_power_spectrum_1d(self.nps2d)
         avg_power = average_power(nps1d)
         self.assertAlmostEqual(avg_power, 0.0207, delta=0.005)
+
+    def test_odd_roi_size_same_as_even(self):
+        nps1d = noise_power_spectrum_1d(self.nps2d)
+        avg_power_even = average_power(nps1d)
+        nps2d_odd = noise_power_spectrum_2d(pixel_size=1, rois=[self.roi[:-1, :-1]])
+        avg_power_odd = average_power(noise_power_spectrum_1d(nps2d_odd))
+        self.assertAlmostEqual(avg_power_even, avg_power_odd, delta=0.0005)
 
 
 class TestFrequency(TestCase):

@@ -10,7 +10,7 @@ from . import validators
 def radial_average(arr: np.ndarray) -> np.ndarray:
     """Calculate the radial average of a 2D array about the center pixel"""
     # Determine the center of the array
-    center = np.array(arr.shape) / 2
+    center = np.floor(np.array(arr.shape) / 2)
 
     # Calculate the Euclidean distance from the center for each element
     y, x = np.indices(arr.shape)
