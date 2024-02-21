@@ -14,7 +14,7 @@ CT
   We recommend re-running analyses that were using NPS values.
 
 * The noise power spectrum introduced last version was not working correctly.
-  They NPS was not subtracting the mean value from the ROI. This has been fixed.
+  The NPS was not subtracting the mean value from the ROI. This has been fixed.
   However, as a result of reworking the calculation, the NPS now has its own module:
   ``pylinac.core.nps``. This contains several modules for independent calculation of the NPS
   and associated metrics like average power, etc. See :ref:`nps`.
