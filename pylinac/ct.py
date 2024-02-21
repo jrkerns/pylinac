@@ -45,7 +45,7 @@ from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
-from .core.profile import CollapsedCircleProfile, FWXMProfile
+from .core.profile import CollapsedCircleProfile, FWXMProfile, MultiProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
@@ -1930,6 +1930,7 @@ class CatPhanBase:
                     num_profiles=5,
                 )
                 prof = circle_prof.values
+                prof_peaks = MultiProfile(prof).find_peaks(threshold=400, search_region=(0.1, 0.6))
                 # determine if the profile contains both low and high values and that most values are the same
                 low_end, high_end = np.percentile(prof, [2, 98])
                 median = np.median(prof)
@@ -1941,6 +1942,7 @@ class CatPhanBase:
                     (low_end < median - self.hu_origin_slice_variance)
                     and (high_end > median + self.hu_origin_slice_variance)
                     and (middle_variation < variation_limit)
+                    and (len(prof_peaks[0]) == 2)
                 ):
                     hu_slices.append(image_number)
 
