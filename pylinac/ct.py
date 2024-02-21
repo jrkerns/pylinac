@@ -32,19 +32,23 @@ from typing import BinaryIO, Callable, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.axis import Axis
-from matplotlib.figure import Figure
 from py_linq import Enumerable
 from scipy import ndimage
 from skimage import draw, filters, measure, segmentation
 from skimage.measure._regionprops import RegionProperties
 
 from .core import image, pdf
-from .core.contrast import Contrast, power_spectrum_1d
+from .core.contrast import Contrast
 from .core.geometry import Line, Point
 from .core.image import ArrayImage, DicomImageStack, ImageLike, z_position
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.mtf import MTF
+from .core.nps import (
+    average_power,
+    max_frequency,
+    noise_power_spectrum_1d,
+    noise_power_spectrum_2d,
+)
 from .core.profile import CollapsedCircleProfile, FWXMProfile
 from .core.roi import DiskROI, LowContrastDiskROI, RectangleROI
 from .core.utilities import ResultBase
@@ -928,6 +932,7 @@ class CTP486(CatPhanModule):
     roi_dist_mm = 53
     roi_radius_mm = 10
     nominal_value = 0
+    nps_rois: dict[str, RectangleROI]
     roi_settings = {
         "Top": {
             "value": nominal_value,
@@ -984,32 +989,24 @@ class CTP486(CatPhanModule):
         axis.set_title("Uniformity Profiles")
 
     def _setup_rois(self) -> None:
+        """Generate our NPS ROIs. They are just square versions of the existing ROIs."""
         super()._setup_rois()
-        self.noise_roi = RectangleROI(
-            array=self.image,
-            width=self.roi_dist_mm * 1.5 / self.mm_per_pixel,  # convert to pixels
-            height=self.roi_dist_mm * 1.5 / self.mm_per_pixel,  # convert to pixels
-            angle=0,
-            dist_from_center=0,
-            phantom_center=self.phan_center,
-        )
+        self.nps_rois = {}
+        for name, setting in self.roi_settings.items():
+            self.nps_rois[name] = RectangleROI(
+                array=self.image,
+                width=setting["radius_pixels"] * 2,
+                height=setting["radius_pixels"] * 2,
+                angle=setting["angle_corrected"],
+                dist_from_center=setting["distance_pixels"],
+                phantom_center=self.phan_center,
+            )
 
     def plot(self, axis: plt.Axes):
-        """Plot the ROIs but also the noise power spectrum ROI"""
-        self.noise_roi.plot2axes(axis, edgecolor="green", linestyle="-.")
+        """Plot the ROIs but also the noise power spectrum ROIs"""
+        for nps_roi in self.nps_rois.values():
+            nps_roi.plot2axes(axis, edgecolor="green", linestyle="-.")
         super().plot(axis)
-
-    def plot_noise_power_spectrum(self, show: bool = True) -> (Figure, Axis):
-        """Plot the noise power spectrum of the Uniformity slice."""
-        fig, axis = plt.subplots()
-        axis.semilogy(self.power_spectrum)
-        axis.set_title("Noise Power Spectrum")
-        axis.set_xlabel("Spatial Frequency")
-        axis.set_ylabel("Power Intensity")
-        axis.grid(which="both")
-        if show:
-            plt.show()
-        return fig, axis
 
     @property
     def overall_passed(self) -> bool:
@@ -1035,21 +1032,27 @@ class CTP486(CatPhanModule):
         return (maxhu - minhu) / (maxhu + minhu + 2000)
 
     @cached_property
-    def power_spectrum(self) -> np.ndarray:
+    def power_spectrum_2d(self) -> np.ndarray:
         """The power spectrum of the uniformity ROI."""
-        return power_spectrum_1d(self.noise_roi.pixel_array)
+        return noise_power_spectrum_2d(
+            pixel_size=self.mm_per_pixel,
+            rois=[r.pixel_array for r in self.nps_rois.values()],
+        )
+
+    @cached_property
+    def power_spectrum_1d(self) -> np.ndarray:
+        """The 1D power spectrum of the uniformity ROI."""
+        return noise_power_spectrum_1d(self.power_spectrum_2d)
 
     @property
     def avg_noise_power(self) -> float:
         """The average noise power of the uniformity ROI."""
-        spectrum = self.power_spectrum
-        frequencies = np.arange(len(spectrum))
-        return np.sum(frequencies * spectrum) / np.sum(spectrum)
+        return average_power(self.power_spectrum_1d)
 
     @property
-    def max_noise_power_frequency(self) -> int:
+    def max_noise_power_frequency(self) -> float:
         """The frequency of the maximum noise power. 0 means no pattern."""
-        return int(np.argmax(self.power_spectrum))
+        return max_frequency(self.power_spectrum_1d)
 
 
 class CTP528CP504(CatPhanModule):

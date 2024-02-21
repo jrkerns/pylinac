@@ -2,6 +2,28 @@
 Changelog
 =========
 
+v 3.21.0
+--------
+
+CT
+^^
+
+.. warning::
+
+  In the last release, the noise power spectrum was not being calculated correctly.
+  We recommend re-running analyses that were using NPS values.
+
+* The noise power spectrum introduced last version was not working correctly.
+  The NPS was not subtracting the mean value from the ROI. This has been fixed.
+  However, as a result of reworking the calculation, the NPS now has its own module:
+  ``pylinac.core.nps``. This contains several modules for independent calculation of the NPS
+  and associated metrics like average power, etc. See :ref:`nps`.
+* The NPS is now calculated over square ROIs approximately the same size as the circular
+  uniformity ROIs rather than one central ROI. This is because the resulting spectra
+  is smoother when averaged using multiple, separate ROIs.
+* The ``power_spectrum`` property of the CTP486 module has been renamed to ``power_spectrum_2d``
+  and another property, ``power_spectrum_1d`` has been added.
+
 v 3.20.0
 --------
 
