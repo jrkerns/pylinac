@@ -413,9 +413,9 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
             self.expected_position.x += self.image.shape[1] / 2
             self.expected_position.y += self.image.shape[0] / 2
         # sample the image in the search window; need to convert to mm
-        left = math.floor(self.expected_position.x - self.search_window[0] / 2)
+        left = max(math.floor(self.expected_position.x - self.search_window[0] / 2), 0)
         right = math.ceil(self.expected_position.x + self.search_window[0] / 2)
-        top = math.floor(self.expected_position.y - self.search_window[1] / 2)
+        top = max(math.floor(self.expected_position.y - self.search_window[1] / 2), 0)
         bottom = math.ceil(self.expected_position.y + self.search_window[1] / 2)
         sample = self.image[top:bottom, left:right]
         # we might need to invert the image so that the BB pixel intensity is higher than the background

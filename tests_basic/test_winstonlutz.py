@@ -1231,21 +1231,21 @@ class TIFFImages(WinstonLutzMixin, TestCase):
     file_name = ["AQA.zip"]
     num_images = 2
     sid = 1000
-    dpi = 200
+    dpi = 300
     # I don't know the actual axis values, this is just to get a result
     axis_mapping = {
         "AQA_A_03082023.tif": (0, 0, 0),
         "AQA_B_03082023.tif": (90, 0, 0),
     }
-    bb_size = 30
+    bb_size = 20
     gantry_iso_size = 0.15
     collimator_iso_size = None
     couch_iso_size = None
-    cax2bb_max_distance = 1.14
-    cax2bb_median_distance = 0.82
-    cax2bb_mean_distance = 0.8
+    cax2bb_max_distance = 0.75
+    cax2bb_median_distance = 0.5
+    cax2bb_mean_distance = 0.5
     axis_of_rotation = {-1: Axis.GANTRY}
-    bb_shift_vector = Vector(x=1.1, y=0.34, z=-0.30)
+    bb_shift_vector = Vector(x=0.74, y=0.16, z=-0.14)
 
 
 class VarianBBkV(WinstonLutzMixin, TestCase):
