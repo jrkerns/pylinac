@@ -84,7 +84,7 @@ class JawOrthogonality:
         """Return a dict of the results. Keys are 'top_left', 'top_right', 'bottom_left', 'bottom_right'."""
         return self.result
 
-    def plot(self, show: bool = True):
+    def plot_analyzed_image(self, show: bool = True):
         """Plot the image with the lines drawn. The lines are the detected jaw edges."""
         colors = ["r", "b", "c", "m"]
         fig, axes = plt.subplots()

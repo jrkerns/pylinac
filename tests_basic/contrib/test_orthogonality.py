@@ -17,4 +17,4 @@ class TestOrthogonality(TestCase):
             if file.is_file():
                 q = JawOrthogonality(file)
                 q.analyze()
-                q.plot()
+                q.plot_analyzed_image()
