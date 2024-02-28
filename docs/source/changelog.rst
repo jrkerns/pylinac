@@ -5,6 +5,15 @@ Changelog
 v 3.21.0
 --------
 
+Contrib
+^^^^^^^
+
+A new ``contrib`` module has been added to pylinac: :ref:`contrib`. This section is available as ``pylinac.contrib``.
+The intent is for community-contributed modules and/or one-off analyses that are not part of the core
+library but are still useful. So far, many RadMachine customers have asked for one-off analyses.
+While I disagree with adding one-off analyses to the core library, I also don't want to let the
+code be in secret for no good reason.
+
 CT
 ^^
 
@@ -23,6 +32,18 @@ CT
   is smoother when averaged using multiple, separate ROIs.
 * The ``power_spectrum`` property of the CTP486 module has been renamed to ``power_spectrum_2d``
   and another property, ``power_spectrum_1d`` has been added.
+
+Image Metrics
+^^^^^^^^^^^^^
+
+* The ``SizedDiskRegion`` and ``SizedDiskLocator`` classes now have a ``min_number``, ``max_number``, and ``min_separation_<pixels|mm>`` parameters,
+  as the ``GlobalSizedDiskLocator`` class does. This allows the user to specify the minimum and maximum number of disks.
+  Previously, the ``SizedDisk<Region|Locator>`` classes would only find one disk.
+
+  .. warning::
+
+    This change also means that ``SizedDiskLocator`` and ``SizedDiskRegion``'s ``calculate`` method will now always return a list of Points or ROIs.
+    Previously, a single Point or ROI was returned. This change will break code that was expecting a single Point or ROI.
 
 v 3.20.0
 --------

@@ -38,6 +38,7 @@
 
    core_modules
    image_generator
+   contrib
 
 .. toctree::
    :hidden:
