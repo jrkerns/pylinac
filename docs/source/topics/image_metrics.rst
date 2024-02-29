@@ -21,23 +21,31 @@ Use Cases
 Tool Legend
 -----------
 
-+---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
-| Use Case                                                | Constraint                                          | Class                                                               |
-+=========================================================+=====================================================+=====================================================================+
-| Find the location of a BB in the image                  | The BB size and location is known approximately     | :class:`~pylinac.metrics.image.SizedDiskLocator`                    |
-+---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
-| Find the ROI properties of a BB in the image            | The BB size and location is known approximately     | :class:`~pylinac.metrics.image.SizedDiskRegion`                     |
-+---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
-| Find the location of *N* BBs in the image               | The BB size is known approximately                  | :class:`~pylinac.metrics.image.GlobalSizedDiskLocator`              |
-+---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
-| Find the location of a square field in an image         | The field size is known approximately               | :class:`~pylinac.metrics.image.GlobalSizedFieldLocator`             |
-+---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
-| Find the locations of *N* square fields in an image     | The field size is not known                         | :class:`~pylinac.metrics.image.GlobalFieldLocator`                  |
-+---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
-| Find the location of a circular field in an image       | The field size and location are known approximately | :class:`~pylinac.metrics.image.SizedDiskLocator` (``invert=False``) |
-+---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
-| Find the ROI properties of a circular field in an image | The field size and location are known approximately | :class:`~pylinac.metrics.image.SizedDiskRegion` (``invert=False``)  |
-+---------------------------------------------------------+-----------------------------------------------------+---------------------------------------------------------------------+
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Use Case                                                | Constraint                                                       | Class                                                                        |
++=========================================================+==================================================================+==============================================================================+
+| Find the location of a single BB in the image           | The BB size and location is known approximately                  | :class:`~pylinac.metrics.image.SizedDiskLocator`                             |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the locations of *N* BBs in the image              | The BB sizes are all similar and location is known approximately | :class:`~pylinac.metrics.image.SizedDiskLocator` (``max_number=<n>``)        |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the ROI properties of a single BB in the image     | The BB size and location is known approximately                  | :class:`~pylinac.metrics.image.SizedDiskRegion`                              |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the ROI properties of *N* BBs in the image         | The BB size and location is known approximately                  | :class:`~pylinac.metrics.image.SizedDiskRegion` (``max_number=<n>``)         |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the location of a single BB anywhere in the image  | The BB size is known approximately                               | :class:`~pylinac.metrics.image.GlobalSizedDiskLocator` (``max_number=1``)    |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the locations of *N* BBs anywhere in the image     | The BB size is known approximately                               | :class:`~pylinac.metrics.image.GlobalSizedDiskLocator` (``max_number=<n>``)  |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the location of a square field in an image         | The field size is known approximately                            | :class:`~pylinac.metrics.image.GlobalSizedFieldLocator`                      |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the locations of *N* square fields in an image     | The field size is known approximately                            | :class:`~pylinac.metrics.image.GlobalSizedFieldLocator` (``max_number=<n>``) |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the locations of *N* square fields in an image     | The field size is not known                                      | :class:`~pylinac.metrics.image.GlobalFieldLocator` (``max_number=<n>``)      |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the location of a circular field in an image       | The field size and location are known approximately              | :class:`~pylinac.metrics.image.SizedDiskLocator` (``invert=False``)          |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
+| Find the ROI properties of a circular field in an image | The field size and location are known approximately              | :class:`~pylinac.metrics.image.SizedDiskRegion` (``invert=False``)           |
++---------------------------------------------------------+------------------------------------------------------------------+------------------------------------------------------------------------------+
 
 Basic Usage
 -----------

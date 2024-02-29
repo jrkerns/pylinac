@@ -53,6 +53,7 @@ Pylinac runs on a few philosophical principles:
 * Using pylinac should require a minimal amount of code.
 * The user should have to supply as little information as necessary to run an analysis.
 * The underlying code of pylinac should be easy to understand.
+* Analyses are limited to commercial phantoms or widely-accepted methodologies.
 * Although evaluation against a reference or baseline may occur, it is not the
   end-goal. As stated above, there are better places for containing reference information.
   Pylinac's goal moving forward is to provide top-tier analysis and results. How those

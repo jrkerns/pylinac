@@ -484,7 +484,7 @@ class WinstonLutz2D(image.LinacDicomImage):
             The weighted-pixel value location of the BB.
         """
         bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
-        center = self.compute(
+        centers = self.compute(
             metrics=SizedDiskLocator.from_center_physical(
                 expected_position_mm=(0, 0),
                 search_window_mm=(40 + bb_diameter, 40 + bb_diameter),
@@ -494,7 +494,7 @@ class WinstonLutz2D(image.LinacDicomImage):
                 detection_conditions=self.detection_conditions,
             )
         )
-        return center
+        return centers[0]
 
     @property
     def epid(self) -> Point:
@@ -1842,7 +1842,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         expected_position = self._nominal_point(bb_of_interest)
         expected_position_mm = expected_position / self.dpmm
         bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
-        center = self.compute(
+        centers = self.compute(
             metrics=SizedDiskLocator.from_physical(
                 expected_position_mm=expected_position_mm,
                 search_window_mm=(window, window),
@@ -1852,7 +1852,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
                 detection_conditions=self.detection_conditions,
             )
         )
-        return center
+        return centers[0]
 
     def location_near_nominal(self, region: RegionProperties, location: dict) -> bool:
         """Determine whether the given BB ROI is near where the BB is expected to be"""
