@@ -244,18 +244,19 @@ class TestDiskLocatorPixels(TestCase):
         bb_diameter_mm = 5
         ds = create_bb_image(bb_size=bb_diameter_mm)
         img = DicomImage.from_dataset(ds)
-        position = img.compute(
+        positions = img.compute(
             metrics=[
                 SizedDiskLocator(
                     expected_position=(511.5, 383.5),
                     search_window=(50, 50),
                     radius=6,
                     radius_tolerance=1,
+                    max_number=1,
                 )
             ]
         )
-        self.assertAlmostEqual(position.x, 511.5, delta=1)
-        self.assertAlmostEqual(position.y, 383.5, delta=1)
+        self.assertAlmostEqual(positions[0].x, 511.5, delta=1)
+        self.assertAlmostEqual(positions[0].y, 383.5, delta=1)
 
     def test_wrong_area(self):
         # if the user selects a position without a bb it should raise an error
@@ -294,7 +295,7 @@ class TestDiskLocatorPhysical(TestCase):
         bb_diameter = 5
         ds = create_bb_image(bb_size=bb_diameter)
         img = DicomImage.from_dataset(ds)
-        position = img.compute(
+        positions = img.compute(
             metrics=[
                 SizedDiskLocator.from_physical(
                     expected_position_mm=(200, 150),
@@ -304,8 +305,8 @@ class TestDiskLocatorPhysical(TestCase):
                 )
             ]
         )
-        self.assertAlmostEqual(position.x, 511.5, delta=1)
-        self.assertAlmostEqual(position.y, 383.5, delta=1)
+        self.assertAlmostEqual(positions[0].x, 511.5, delta=1)
+        self.assertAlmostEqual(positions[0].y, 383.5, delta=1)
 
     def test_wrong_area(self):
         # if the user selects a position without a bb it should raise an error
@@ -380,7 +381,7 @@ class TestDiskLocatorCenterPixels(TestCase):
         bb_diameter_mm = 5
         ds = create_bb_image(bb_size=bb_diameter_mm)
         img = DicomImage.from_dataset(ds)
-        position = img.compute(
+        positions = img.compute(
             metrics=[
                 SizedDiskLocator.from_center(
                     expected_position=(0, 0),
@@ -390,8 +391,9 @@ class TestDiskLocatorCenterPixels(TestCase):
                 )
             ]
         )
-        self.assertAlmostEqual(position.x, 511.5, delta=1)
-        self.assertAlmostEqual(position.y, 383.5, delta=1)
+        self.assertEqual(len(positions), 1)
+        self.assertAlmostEqual(positions[0].x, 511.5, delta=1)
+        self.assertAlmostEqual(positions[0].y, 383.5, delta=1)
 
     def test_wrong_area(self):
         # if the user selects a position without a bb it should raise an error
@@ -430,7 +432,7 @@ class TestDiskLocatorCenterPhysical(TestCase):
         bb_diameter = 5
         ds = create_bb_image(bb_size=bb_diameter)
         img = DicomImage.from_dataset(ds)
-        position = img.compute(
+        positions = img.compute(
             metrics=[
                 SizedDiskLocator.from_center_physical(
                     expected_position_mm=(0, 0),
@@ -440,8 +442,8 @@ class TestDiskLocatorCenterPhysical(TestCase):
                 )
             ]
         )
-        self.assertAlmostEqual(position.x, 511.5, delta=1)
-        self.assertAlmostEqual(position.y, 383.5, delta=1)
+        self.assertAlmostEqual(positions[0].x, 511.5, delta=1)
+        self.assertAlmostEqual(positions[0].y, 383.5, delta=1)
 
     def test_wrong_area(self):
         # if the user selects a position without a bb it should raise an error

@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 from skimage import measure, segmentation
 from skimage.measure._regionprops import RegionProperties
 
-from ..core.array_utils import invert, stretch
+from ..core.array_utils import invert
 from ..core.geometry import Point
 from ..metrics.features import (
     is_right_area_square,
@@ -21,7 +21,11 @@ from ..metrics.features import (
     is_solid,
     is_symmetric,
 )
-from ..metrics.utils import deduplicate_points_and_boundaries, get_boundary
+from ..metrics.utils import (
+    deduplicate_points_and_boundaries,
+    find_features,
+    get_boundary,
+)
 
 if typing.TYPE_CHECKING:
     from ..core.image import BaseImage
@@ -131,97 +135,21 @@ class GlobalSizedDiskLocator(MetricBase):
         self.max_number = max_number or 1e3
         self.min_separation_mm = min_separation_mm
 
-    def _calculate_sample(
-        self, sample: np.ndarray, top_offset: int, left_offset: int
-    ) -> (list[Point], list[np.ndarray], list[RegionProperties]):
-        """Find up to N BBs/disks in the image. This will look for BBs at every percentile range.
-        Multiple BBs may be found at different threshold levels."""
-
-        # The implementation difference here from the original isn't large,
-        # But we need to detect MULTIPLE bbs instead of just one.
-        bbs = []
-        boundaries = []
-        detected_regions = {}
-        # uses the same algo as original WL; this is better than a percentile method as the percentile method
-        # can often be thrown off at the very ends of the distribution. It's more linear and faster to use the simple
-        # spread of min/max.
-        sample = stretch(sample, min=0, max=1)
-        imin, imax = sample.min(), sample.max()
-        spread = imax - imin
-        step_size = (
-            spread / 50
-        )  # move in 1/50 increments; maximum of 50 passes per image
-        cutoff = (
-            imin + step_size
-        )  # start at the min + 1 step; we know the min cutoff will be a blank, full image
-        while cutoff <= imax and len(bbs) < self.max_number:
-            try:
-                binary_array = sample > cutoff
-                labeled_arr = measure.label(binary_array, connectivity=1)
-                cleared_labeled_arr = segmentation.clear_border(labeled_arr)
-                regions = measure.regionprops(
-                    cleared_labeled_arr, intensity_image=sample
-                )
-                detected_regions = {i: r for i, r in enumerate(regions)}
-                for condition in self.detection_conditions:
-                    to_pop = []
-                    for key, region in sorted(
-                        detected_regions.items(),
-                        key=lambda item: item[1].filled_area,
-                        reverse=True,
-                    ):
-                        if not condition(
-                            region,
-                            dpmm=self.image.dpmm,
-                            bb_size=self.radius,
-                            tolerance=self.radius_tolerance,
-                            shape=binary_array.shape,
-                        ):
-                            to_pop.append(key)
-                    detected_regions = {
-                        key: region
-                        for key, region in detected_regions.items()
-                        if key not in to_pop
-                    }
-                if len(detected_regions) == 0:
-                    raise ValueError
-                else:
-                    points = [
-                        Point(region.weighted_centroid[1], region.weighted_centroid[0])
-                        for region in detected_regions.values()
-                    ]
-                    new_boundaries = [
-                        get_boundary(
-                            detected_region,
-                            top_offset=top_offset,
-                            left_offset=left_offset,
-                        )
-                        for detected_region in detected_regions.values()
-                    ]
-                    bbs, boundaries = deduplicate_points_and_boundaries(
-                        original_points=bbs,
-                        new_points=points,
-                        min_separation_px=self.min_separation_mm * self.image.dpmm,
-                        original_boundaries=boundaries,
-                        new_boundaries=new_boundaries,
-                    )
-            except (IndexError, ValueError):
-                pass
-            finally:
-                cutoff += step_size
-        if len(bbs) < self.min_number:
-            # didn't find the number we needed
-            raise ValueError(
-                f"Couldn't find the minimum number of disks in the image. Found {len(bbs)}; required: {self.min_number}"
-            )
-        return bbs, boundaries, list(detected_regions.values())
-
     def calculate(self) -> list[Point]:
         """Find up to N BBs/disks in the image. This will look for BBs at every percentile range.
         Multiple BBs may be found at different threshold levels."""
         sample = invert(self.image.array)
-        self.points, boundaries, _ = self._calculate_sample(
-            sample, top_offset=0, left_offset=0
+        self.points, boundaries, _ = find_features(
+            sample,
+            top_offset=0,
+            left_offset=0,
+            min_number=self.min_number,
+            max_number=self.max_number,
+            dpmm=self.image.dpmm,
+            detection_conditions=self.detection_conditions,
+            radius_mm=self.radius,
+            radius_tolerance_mm=self.radius_tolerance,
+            min_separation_mm=self.min_separation_mm,
         )
         self.y_boundaries = []
         self.x_boundaries = []
@@ -254,7 +182,7 @@ class GlobalSizedDiskLocator(MetricBase):
                 )
 
 
-class SizedDiskRegion(GlobalSizedDiskLocator):
+class SizedDiskRegion(MetricBase):
     """A metric to find a disk/BB in an image where the BB is near an expected position and size.
     This will calculate the scikit-image regionprops of the BB."""
 
@@ -262,9 +190,11 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
     y_offset: float
     is_from_physical: bool
     is_from_center: bool
-    max_number = 1
-    min_number = 1
-    min_separation_mm = 1e4
+    max_number: int
+    min_number: int
+    min_separation_mm: float
+    boundaries: list[np.ndarray]
+    points: list[Point]
 
     def __init__(
         self,
@@ -281,6 +211,9 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
         ),
         invert: bool = True,
         name: str = "Disk Region",
+        max_number: int = 1,
+        min_number: int = 1,
+        min_separation_pixels: float = 5,
     ):
         # purposely avoid super call as parent defaults to mm. We set the values ourselves.
         self.expected_position = Point(expected_position)
@@ -292,6 +225,9 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
         self.invert = invert
         self.is_from_center = False
         self.is_from_physical = False
+        self.max_number = max_number
+        self.min_number = min_number
+        self.min_separation = min_separation_pixels
 
     @classmethod
     def from_physical(
@@ -309,6 +245,9 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
         ),
         invert: bool = True,
         name="Disk Region",
+        max_number: int = 1,
+        min_number: int = 1,
+        min_separation_mm: float = 5,
     ):
         """Create a DiskRegion using physical dimensions."""
         # We set a flag so we know to convert from physical sizes to pixels later.
@@ -321,6 +260,9 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
             detection_conditions=detection_conditions,
             name=name,
             invert=invert,
+            max_number=max_number,
+            min_number=min_number,
+            min_separation_pixels=min_separation_mm,
         )
         instance.is_from_physical = True
         return instance
@@ -341,6 +283,9 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
         ),
         invert: bool = True,
         name="Disk Region",
+        max_number: int = 1,
+        min_number: int = 1,
+        min_separation_pixels: float = 5,
     ):
         """Create a DiskRegion from a center point."""
         # We set a flag so we know to convert from image edge to center later.
@@ -353,6 +298,9 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
             detection_conditions=detection_conditions,
             name=name,
             invert=invert,
+            max_number=max_number,
+            min_number=min_number,
+            min_separation_pixels=min_separation_pixels,
         )
         instance.is_from_center = True
         return instance
@@ -373,6 +321,9 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
         ),
         invert: bool = True,
         name="Disk Region",
+        max_number: int = 1,
+        min_number: int = 1,
+        min_separation_mm: float = 5,
     ):
         """Create a DiskRegion using physical dimensions from the center point."""
         # We set a flag so we know to convert from physical sizes to pixels later.
@@ -385,12 +336,15 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
             detection_conditions=detection_conditions,
             name=name,
             invert=invert,
+            max_number=max_number,
+            min_number=min_number,
+            min_separation_pixels=min_separation_mm,
         )
         instance.is_from_physical = True
         instance.is_from_center = True
         return instance
 
-    def calculate(self) -> RegionProperties:
+    def calculate(self) -> list[RegionProperties]:
         """Find the scikit-image regiongprops of the BB.
 
         This will apply a high-pass filter to the image iteratively.
@@ -406,6 +360,7 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
             # I know, it's weird. The functions
             # for detection historically have expected
             # sizes in physical dimensions
+            self.min_separation /= self.image.dpmm
             self.radius /= self.image.dpmm
             self.radius_tolerance /= self.image.dpmm
         if self.is_from_center:
@@ -421,15 +376,23 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
         # we might need to invert the image so that the BB pixel intensity is higher than the background
         if self.invert:
             sample = invert(sample)
-        points, boundaries, regions = self._calculate_sample(
-            sample, top_offset=top, left_offset=left
+        points, boundaries, regions = find_features(
+            sample,
+            top_offset=top,
+            left_offset=left,
+            min_number=self.min_number,
+            max_number=self.max_number,
+            dpmm=self.image.dpmm,
+            detection_conditions=self.detection_conditions,
+            radius_mm=self.radius,
+            radius_tolerance_mm=self.radius_tolerance,
+            min_separation_mm=self.min_separation,
         )
         self.x_offset = left
         self.y_offset = top
-        y_boundary, x_boundary = np.nonzero(boundaries[0])
-        self.y_boundaries = [y_boundary]
-        self.x_boundaries = [x_boundary]
-        return regions[0]
+        self.boundaries = boundaries
+        self.points = points
+        return regions
 
     def plot(
         self,
@@ -439,31 +402,27 @@ class SizedDiskRegion(GlobalSizedDiskLocator):
         markersize: float = 3,
         alpha: float = 0.25,
     ) -> None:
-        """Plot the BB center"""
+        """Plot the BB boundaries"""
         if show_boundaries:
-            axis.scatter(
-                self.x_boundaries[0],
-                self.y_boundaries[0],
-                c=color,
-                marker="s",
-                alpha=alpha,
-                s=markersize,
-            )
+            for boundary in self.boundaries:
+                boundary_y, boundary_x = np.nonzero(boundary)
+                axis.scatter(
+                    boundary_x,
+                    boundary_y,
+                    c=color,
+                    marker="s",
+                    alpha=alpha,
+                    s=markersize,
+                )
 
 
 class SizedDiskLocator(SizedDiskRegion):
     """Calculates the weighted centroid of a disk/BB as a Point in an image where the disk is near an expected position and size."""
 
-    point: Point
-
-    def calculate(self) -> Point:
-        """Get the weighted centroid of the region prop of the BB."""
-        region = super().calculate()
-        self.point = Point(
-            region.weighted_centroid[1] + self.x_offset,
-            region.weighted_centroid[0] + self.y_offset,
-        )
-        return self.point
+    def calculate(self) -> list[Point]:
+        """Get the weighted centroids of the BB regions."""
+        super().calculate()
+        return self.points
 
     def plot(
         self,
@@ -481,7 +440,15 @@ class SizedDiskLocator(SizedDiskRegion):
             markersize=markersize,
             alpha=alpha,
         )
-        axis.plot(self.point.x, self.point.y, "o", color=color, markersize=10)
+        for point in self.points:
+            axis.plot(
+                point.x,
+                point.y,
+                color=color,
+                marker="o",
+                alpha=1,
+                markersize=markersize,
+            )
 
 
 class GlobalSizedFieldLocator(MetricBase):

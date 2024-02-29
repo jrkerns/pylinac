@@ -863,6 +863,7 @@ class StandardImagingFC2(ImagePhantomBase):
     field_strip_width_mm = 5
     bb_size_mm = 4
     bb_edge_threshold_mm: float
+    bb_centers: dict[str, Point]
 
     @staticmethod
     def run_demo() -> None:
@@ -1012,7 +1013,7 @@ class StandardImagingFC2(ImagePhantomBase):
                 self.image.filter(size=3, kind="median")
 
             # now find the weighted centroid of the BB
-            p = self.image.compute(
+            points = self.image.compute(
                 SizedDiskLocator.from_center_physical(
                     expected_position_mm=position,
                     search_window_mm=(
@@ -1026,7 +1027,7 @@ class StandardImagingFC2(ImagePhantomBase):
             # if we applied the local histogram equalizer, revert the image back to normal for the next cycle
             if near_edge:
                 self.image.array = original_array
-            bb_positions[key] = p
+            bb_positions[key] = points[0]
         return bb_positions
 
     def _determine_bb_set(self, fwxm: int) -> dict:

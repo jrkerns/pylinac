@@ -307,6 +307,7 @@ Generate an AS1000 50x50mm, centered open field image at gantry 45:
   # plot the generated image
   plt.imshow(as1000.image)
 
+Read More: `Image Generator <https://pylinac.readthedocs.io/en/latest/image_generator.html>`_.
 
 TG-51
 ~~~~~
