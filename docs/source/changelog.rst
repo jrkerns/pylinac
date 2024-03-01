@@ -36,6 +36,10 @@ CT
 Image Metrics
 ^^^^^^^^^^^^^
 
+* Disk-finding metrics, such as Winston-Lutz, had a bug that would cause disks to not be found
+  if the image size was smaller than the search window. This happened if the image size was ~<=3x the
+  BB size. I.e. if the image was 200x200 pixels and the BB was 70 pixels, the search window sampler would
+  not correctly size the window. This was only found to affect users of small pieces of film.
 * The ``SizedDiskRegion`` and ``SizedDiskLocator`` classes now have a ``min_number``, ``max_number``, and ``min_separation_<pixels|mm>`` parameters,
   as the ``GlobalSizedDiskLocator`` class does. This allows the user to specify the minimum and maximum number of disks.
   Previously, the ``SizedDisk<Region|Locator>`` classes would only find one disk.
