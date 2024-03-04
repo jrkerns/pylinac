@@ -850,6 +850,7 @@ class PicketFence:
         leaf_error_subplot: bool = True,
         show: bool = True,
         figure_size: str | tuple = "auto",
+        barplot_kwargs: dict | None = None,
     ) -> None:
         """Plot the analyzed image.
 
@@ -883,7 +884,9 @@ class PicketFence:
         self.image.plot(ax=ax, show=False)
 
         if leaf_error_subplot:
-            self._add_leaf_error_subplot(ax)
+            if barplot_kwargs is None:
+                barplot_kwargs = {"widths": 10}
+            self._add_leaf_error_subplot(ax, barplot_kwargs)
 
         if guard_rails:
             for picket in self.pickets:
@@ -905,7 +908,7 @@ class PicketFence:
         if show:
             plt.show()
 
-    def _add_leaf_error_subplot(self, ax: plt.Axes) -> None:
+    def _add_leaf_error_subplot(self, ax: plt.Axes, barplot_kwargs: dict) -> None:
         """Add a bar subplot showing the leaf error."""
 
         # make the new axis
@@ -927,53 +930,42 @@ class PicketFence:
                 for position in self.pickets[0].mlc_meas
             ][::-1]
 
-        # calculate the error and stdev values per MLC pair
-        error_stdev = []
-        error_vals = []
+        # generate the error distributions per MLC pair
+        error_clusters = []
         for leaf_num in {m.leaf_num for m in self.mlc_meas}:
-            error_vals.append(
-                np.mean(
-                    [np.abs(m.error) for m in self.mlc_meas if m.leaf_num == leaf_num]
-                )
+            error_clusters.append(
+                np.abs([m.error for m in self.mlc_meas if m.leaf_num == leaf_num])
             )
-            error_stdev.append(
-                np.std([m.error for m in self.mlc_meas if m.leaf_num == leaf_num])
-            )
+        error_dists = np.stack(error_clusters).squeeze().transpose()
 
         # plot the leaf errors as a bar plot
         if self.orientation == Orientation.UP_DOWN:
-            axtop.barh(
-                pos,
-                error_vals,
-                xerr=error_stdev,
-                height=self.leaf_analysis_width * 2,
-                alpha=0.4,
-                align="center",
+            axtop.boxplot(
+                x=error_dists,
+                positions=np.array(pos),
+                vert=False,
+                manage_ticks=False,
+                **barplot_kwargs,
             )
             # plot the tolerance line(s)
             axtop.axvline(self.tolerance, color="r", linewidth=3)
             if self.action_tolerance is not None:
                 axtop.axvline(self.action_tolerance, color="m", linewidth=3)
             # reset xlims to comfortably include the max error or tolerance value
-            axtop.set_xlim(
-                [0, max([max(error_vals) + max(error_stdev), self.tolerance]) + 0.1]
-            )
+            axtop.set_xlim([0, max([error_dists.max(), self.tolerance]) + 0.1])
         else:
-            axtop.bar(
-                pos,
-                error_vals,
-                yerr=error_stdev,
-                width=self.leaf_analysis_width * 2,
-                alpha=0.4,
-                align="center",
+            axtop.boxplot(
+                x=error_dists,
+                positions=np.array(pos),
+                vert=True,
+                manage_ticks=False,
+                **barplot_kwargs,
             )
-            # plot the tolerance line(s)
+            # # plot the tolerance line(s)
             axtop.axhline(self.tolerance, color="r", linewidth=3)
             if self.action_tolerance is not None:
                 axtop.axhline(self.action_tolerance, color="m", linewidth=3)
-            axtop.set_ylim(
-                [0, max([max(error_vals) + max(error_stdev), self.tolerance]) + 0.1]
-            )
+            axtop.set_ylim([0, max([error_dists.max(), self.tolerance]) + 0.1])
 
         axtop.grid(True)
         axtop.set_title("Average Error (mm)")

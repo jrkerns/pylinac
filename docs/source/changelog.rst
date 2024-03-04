@@ -42,6 +42,10 @@ Picket Fence
   ``required_prominence`` now reflects the *normalized* height (0-1.0) the pickets should be above the background. Previously,
   this value was not normalized, requiring fiddling with the value to get correct and depending on the number
   of leaf pairs that were being analyzed. The number of leaf pairs should no longer be a factor in the analysis.
+* The leaf error barplot to the right/bottom of a picket fence plot was somewhat confusing. It would should the
+  mean and standard deviation of the error, but not the entire distribution. This plot has been
+  converted to a normal boxplot, showing the median, Q1, Q3 and flier data. More about the boxplot
+  can be read here: `boxplots <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.boxplot.html#matplotlib.axes.Axes.boxplot>`__.
 
 Image Metrics
 ^^^^^^^^^^^^^
