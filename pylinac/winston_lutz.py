@@ -29,16 +29,18 @@ import statistics
 import tempfile
 import webbrowser
 from dataclasses import dataclass
+from datetime import datetime
 from functools import cached_property
 from itertools import zip_longest
 from pathlib import Path
 from textwrap import wrap
-from typing import BinaryIO, Iterable, Sequence, TypedDict
+from typing import BinaryIO, Iterable, Literal, Sequence, TypedDict
 
 import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import art3d
+from quaac import Attachment, DataPoint, Document, Equipment, User
 from scipy import linalg, ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
@@ -46,6 +48,7 @@ from skimage import measure
 from skimage.measure._regionprops import RegionProperties
 from tabulate import tabulate
 
+from . import version
 from .core import image, pdf
 from .core.array_utils import array_to_dicom
 from .core.decorators import lru_cache
@@ -1715,6 +1718,115 @@ class WinstonLutz:
     def _contains_axis_images(self, axis: Axis = Axis.GANTRY) -> bool:
         """Return whether or not the set of WL images contains images pertaining to a given axis"""
         return any(True for image in self.images if image.variable_axis in (axis,))
+
+    def to_quaac(
+        self,
+        path: str | Path,
+        performer: User,
+        primary_equipment: Equipment,
+        format: Literal["json", "yaml"] = "yaml",
+        attachments: list[Attachment] | None = None,
+        **kwargs,
+    ):
+        """Write an analysis to a QuAAC file. This will include the items
+        from results_data() and the PDF report.
+
+        Parameters
+        ----------
+        path : str, Path
+            The file to write the results to.
+        performer : User
+            The user who performed the analysis.
+        primary_equipment : Equipment
+            The equipment used in the analysis.
+        format : {'json', 'yaml'}
+            The format to write the file in.
+        attachments : list of Attachment
+            Additional attachments to include in the QuAAC file.
+        """
+        attachments = attachments or []
+        if not self._is_analyzed:
+            raise ValueError("The set is not analyzed. Use .analyze() first.")
+        result_data = self.results_data()
+        # generate PDF
+        with tempfile.NamedTemporaryFile(delete=False) as pdf:
+            self.publish_pdf(pdf.name, open_file=False)
+        pdf_attachment = Attachment.from_file(
+            pdf.name,
+            name="Winston-Lutz Report",
+            comment="The PDF report of the Winston-Lutz analysis.",
+            type="pdf",
+        )
+        attachments += [pdf_attachment]
+        datapoints = []
+        dataset = (
+            (
+                "Max 2D CAX->BB",
+                result_data.max_2d_cax_to_bb_mm,
+                "mm",
+                "The maximum 2D distance of any image from the CAX to the BB.",
+            ),
+            (
+                "Median 2D CAX->BB",
+                result_data.median_2d_cax_to_bb_mm,
+                "mm",
+                "The median 2D distance of any image from the CAX to the BB.",
+            ),
+            (
+                "Max 2D CAX->EPID",
+                result_data.max_2d_cax_to_epid_mm,
+                "mm",
+                "The maximum 2D distance of any image from the CAX to the EPID.",
+            ),
+            (
+                "Median 2D CAX->EPID",
+                result_data.median_2d_cax_to_epid_mm,
+                "mm",
+                "The median 2D distance of any image from the CAX to the EPID.",
+            ),
+            (
+                "Gantry-only 3D Isocenter Diameter",
+                result_data.gantry_3d_iso_diameter_mm,
+                "mm",
+                "The diameter of the 3D isocenter sphere when considering the gantry-only images.",
+            ),
+            (
+                "Gantry+Collimator 3D Isocenter Diameter",
+                result_data.gantry_coll_3d_iso_diameter_mm,
+                "mm",
+                "The diameter of the 3D isocenter sphere when considering the gantry and collimator images.",
+            ),
+            (
+                "Collimator 2D Isocenter Diameter",
+                result_data.coll_2d_iso_diameter_mm,
+                "mm",
+                "The diameter of the 2D isocenter circle when considering the collimator images.",
+            ),
+            (
+                "Couch 2D Isocenter Diameter",
+                result_data.couch_2d_iso_diameter_mm,
+                "mm",
+                "The diameter of the 2D isocenter circle when considering the couch images.",
+            ),
+        )
+        for name, value, unit, description in dataset:
+            dp = DataPoint(
+                performer=performer,
+                perform_datetime=datetime.now(),
+                primary_equipment=primary_equipment,
+                name=name,
+                measurement_value=value,
+                measurement_unit=unit,
+                description=description,
+                attachments=attachments,
+                parameters={"pylinac version": version.__version__},
+            )
+            datapoints.append(dp)
+        d = Document(datapoints=datapoints, **kwargs)
+        if format == "json":
+            d.to_json_file(path)
+        elif format == "yaml":
+            d.to_yaml_file(path)
 
 
 class WinstonLutz2DMultiTarget(WinstonLutz2D):
