@@ -46,6 +46,8 @@ Picket Fence
   mean and standard deviation of the error, but not the entire distribution. This plot has been
   converted to a normal boxplot, showing the median, Q1, Q3 and flier data. More about the boxplot
   can be read here: `boxplots <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.boxplot.html#matplotlib.axes.Axes.boxplot>`__.
+* The leaf error subplot that shows up at the right/bottom of the analyzed image now shows leaf numbers instead
+  of pixels.
 
 Image Metrics
 ^^^^^^^^^^^^^

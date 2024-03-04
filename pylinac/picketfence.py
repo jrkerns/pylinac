@@ -886,7 +886,13 @@ class PicketFence:
         if leaf_error_subplot:
             if barplot_kwargs is None:
                 barplot_kwargs = {"widths": 10}
-            self._add_leaf_error_subplot(ax, barplot_kwargs)
+            # make the new axis
+            divider = make_axes_locatable(ax)
+            if self.orientation == Orientation.UP_DOWN:
+                axtop = divider.append_axes("right", 2, pad=1, sharey=ax)
+            else:
+                axtop = divider.append_axes("bottom", 2, pad=1, sharex=ax)
+            self._add_leaf_error_subplot(axtop, barplot_kwargs)
 
         if guard_rails:
             for picket in self.pickets:
@@ -910,14 +916,6 @@ class PicketFence:
 
     def _add_leaf_error_subplot(self, ax: plt.Axes, barplot_kwargs: dict) -> None:
         """Add a bar subplot showing the leaf error."""
-
-        # make the new axis
-        divider = make_axes_locatable(ax)
-        if self.orientation == Orientation.UP_DOWN:
-            axtop = divider.append_axes("right", 2, pad=1, sharey=ax)
-        else:
-            axtop = divider.append_axes("bottom", 2, pad=1, sharex=ax)
-
         # get leaf positions, errors, standard deviation, and leaf numbers
         if self.orientation == Orientation.UP_DOWN:
             pos = [
@@ -929,6 +927,8 @@ class PicketFence:
                 position.marker_lines[0].center.x
                 for position in self.pickets[0].mlc_meas
             ][::-1]
+        # get leaf pair names
+        labels = sorted(list({m.leaf_num for m in self.mlc_meas}))
 
         # generate the error distributions per MLC pair
         error_clusters = []
@@ -940,35 +940,50 @@ class PicketFence:
 
         # plot the leaf errors as a bar plot
         if self.orientation == Orientation.UP_DOWN:
-            axtop.boxplot(
+            ax.boxplot(
                 x=error_dists,
                 positions=np.array(pos),
                 vert=False,
                 manage_ticks=False,
                 **barplot_kwargs,
             )
+            # show every other leaf number on the ticks
+            ax.set_yticks(pos[::2])
+            ax.set_yticklabels(labels[::2])
             # plot the tolerance line(s)
-            axtop.axvline(self.tolerance, color="r", linewidth=3)
+            ax.axvline(self.tolerance, color="r", linewidth=3)
             if self.action_tolerance is not None:
-                axtop.axvline(self.action_tolerance, color="m", linewidth=3)
+                ax.axvline(self.action_tolerance, color="m", linewidth=3)
             # reset xlims to comfortably include the max error or tolerance value
-            axtop.set_xlim([0, max([error_dists.max(), self.tolerance]) + 0.1])
+            ax.set_xlim([0, max([error_dists.max(), self.tolerance]) + 0.1])
         else:
-            axtop.boxplot(
+            ax.boxplot(
                 x=error_dists,
                 positions=np.array(pos),
                 vert=True,
                 manage_ticks=False,
                 **barplot_kwargs,
             )
-            # # plot the tolerance line(s)
-            axtop.axhline(self.tolerance, color="r", linewidth=3)
+            # show every other leaf number on the ticks
+            # we also adjust the y position of the ticks to avoid overlap
+            # the leaf numbers are tighter for left/right orientations by default
+            ax.set_xticks(pos[::2])
+            ax.set_xticklabels(labels[::2], rotation=90)
+            ticklabels = ax.get_xticklabels()
+            # Loop over the tick labels and adjust the position of every other one
+            for i, ticklabel in enumerate(ticklabels):
+                if i % 2 == 0:
+                    ticklabel.set_y(-0.06)  # Adjust the y-position downwards
+                else:
+                    ticklabel.set_y(0.03)  # Adjust the y-position upwards
+            # plot the tolerance line(s)
+            ax.axhline(self.tolerance, color="r", linewidth=3)
             if self.action_tolerance is not None:
-                axtop.axhline(self.action_tolerance, color="m", linewidth=3)
-            axtop.set_ylim([0, max([error_dists.max(), self.tolerance]) + 0.1])
+                ax.axhline(self.action_tolerance, color="m", linewidth=3)
+            ax.set_ylim([0, max([error_dists.max(), self.tolerance]) + 0.1])
 
-        axtop.grid(True)
-        axtop.set_title("Average Error (mm)")
+        ax.grid(True)
+        ax.set_title("Average Error (mm)")
 
     def save_analyzed_image(
         self,
@@ -992,6 +1007,39 @@ class PicketFence:
         plt.savefig(filename, **kwargs)
         if isinstance(filename, str):
             print(f"Picket fence image saved to: {osp.abspath(filename)}")
+
+    def plot_leaf_error(
+        self,
+        ax: plt.Axes | None = None,
+        show: bool = True,
+        fig_kwargs: dict | None = None,
+        barplot_kwargs: dict | None = None,
+    ) -> plt.Figure:
+        """Plot the leaf error as a bar plot.
+
+        Parameters
+        ----------
+        ax
+            The axis to plot on. If None (default), a new figure is created.
+        show
+            Whether to display the plot. Set to false for saving to a figure, etc.
+        fig_kwargs
+            If ax is None, these kwargs are passed to plt.subplots() to create the figure.
+        barplot_kwargs
+            These kwargs are passed to the barplot function. If None, defaults are used.
+        """
+        if not ax:
+            if not fig_kwargs:
+                fig_kwargs = {}
+            fig, ax = plt.subplots(**fig_kwargs)
+        else:
+            fig = plt.gcf()
+        if not barplot_kwargs:
+            barplot_kwargs = {"widths": 10}
+        self._add_leaf_error_subplot(ax=ax, barplot_kwargs=barplot_kwargs)
+        if show:
+            plt.show()
+        return fig
 
     def results(self, as_list: bool = False) -> str:
         """Return results of analysis. Use with print()."""
