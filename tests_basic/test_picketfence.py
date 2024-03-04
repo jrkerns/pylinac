@@ -957,3 +957,13 @@ class CharlestonRA(PFTestMixin, TestCase):
 class CharlestonG0(PFTestMixin, TestCase):
     file_name = ["Charleston", "TB1", "July2016", "G0.dcm"]
     max_error = 0.1
+
+
+class CanberraShortSet(PFTestMixin, TestCase):
+    """This is a small picket set (~10-20 leaves). Should be no problem"""
+
+    file_name = "canberra.dcm"
+    max_error = 0
+    abs_median_error = 0
+    num_pickets = 10
+    mean_picket_spacing = 15
