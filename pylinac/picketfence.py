@@ -933,9 +933,22 @@ class PicketFence:
         # generate the error distributions per MLC pair
         error_clusters = []
         for leaf_num in {m.leaf_num for m in self.mlc_meas}:
-            error_clusters.append(
-                np.abs([m.error for m in self.mlc_meas if m.leaf_num == leaf_num])
-            )
+            if self.separate_leaves:
+                # flatten the error list and take the absolute value
+                error_clusters.append(
+                    np.abs(
+                        [
+                            e
+                            for m in self.mlc_meas
+                            if m.leaf_num == leaf_num
+                            for e in m.error
+                        ]
+                    )
+                )
+            else:
+                error_clusters.append(
+                    np.abs([m.error for m in self.mlc_meas if m.leaf_num == leaf_num])
+                )
         error_dists = np.stack(error_clusters).squeeze().transpose()
 
         # plot the leaf errors as a bar plot
