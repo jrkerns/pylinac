@@ -1658,6 +1658,14 @@ class LazyDicomImageStack:
         otherwise the individual image metadata should be used."""
         return self[0].metadata
 
+    @cached_property
+    def slice_spacing(self) -> float:
+        """The slice spacing of the stack. Assumes all slices are equally spaced."""
+        return np.abs(
+            self.metadatas[0].ImagePositionPatient[-1]
+            - self.metadatas[1].ImagePositionPatient[-1]
+        )
+
     def __getitem__(self, item: int) -> DicomImage:
         return DicomImage(self._image_path_keys[item], dtype=self.dtype)
 
@@ -1732,7 +1740,7 @@ class DicomImageStack(LazyDicomImageStack):
         ]
 
     @classmethod
-    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None):
+    def from_zip(cls, zip_path: str | Path, dtype: np.dtype | None = None, **kwargs):
         """Load a DICOM ZIP archive.
 
         Parameters
@@ -1743,7 +1751,7 @@ class DicomImageStack(LazyDicomImageStack):
             The data type to cast the image data as. If None, will use whatever raw image format is.
         """
         with TemporaryZipDirectory(zip_path) as tmpzip:
-            obj = cls(tmpzip, dtype)
+            obj = cls(tmpzip, dtype, **kwargs)
         return obj
 
     def plot_3view(self):

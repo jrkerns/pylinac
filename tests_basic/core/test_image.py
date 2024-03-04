@@ -804,6 +804,15 @@ class TestDicomStack(TestCase):
         # assert that writing back to the stack works
         assert_array_almost_equal(manipulated_offset, original_offset)
 
+    def test_slice_spacing_ct(self):
+        dstack = DicomImageStack.from_zip(self.stack_location)
+        self.assertAlmostEqual(dstack.slice_spacing, 2.5, delta=0.001)
+
+    def test_slice_spacing_mri(self):
+        path = get_file_from_cloud_test_repo(["ACR", "MRI", "T1-Single.zip"])
+        dstack = DicomImageStack.from_zip(path, min_number=5)
+        self.assertAlmostEqual(dstack.slice_spacing, 10, delta=0.001)
+
 
 class TestGamma2D(TestCase):
     def test_perfect_match_is_0(self):

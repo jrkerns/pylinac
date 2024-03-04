@@ -367,7 +367,7 @@ class CatPhanModule(Slice):
         self.origin_slice = catphan.origin_slice
         self.tolerance = tolerance
         self.slice_thickness = catphan.dicom_stack.metadata.SliceThickness
-        self.slice_spacing = catphan.dicom_stack[0].slice_spacing
+        self.slice_spacing = catphan.dicom_stack.slice_spacing
         self.catphan_roll = catphan.catphan_roll
         self.mm_per_pixel = catphan.mm_per_pixel
         self.rois: dict[str, HUDiskROI] = {}
