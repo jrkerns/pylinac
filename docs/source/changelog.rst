@@ -14,6 +14,11 @@ library but are still useful. So far, many RadMachine customers have asked for o
 While I disagree with adding one-off analyses to the core library, I also don't want to let the
 code be in secret for no good reason.
 
+VMAT
+^^^^
+
+* The VMAT image identification algorithm was changed slightly to better detect FFF DRMLC/DRGS images.
+
 CT
 ^^
 

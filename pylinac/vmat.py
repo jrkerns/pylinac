@@ -29,7 +29,7 @@ from .core.geometry import Point, Rectangle
 from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
-from .core.profile import InflectionDerivativeProfile
+from .core.profile import FWXMProfile
 from .core.utilities import ResultBase
 from .settings import get_dicom_cmap
 
@@ -482,7 +482,7 @@ class VMATBase:
     @classmethod
     def _median_profiles(
         cls, image1: DicomImage, image2: DicomImage
-    ) -> list[InflectionDerivativeProfile, InflectionDerivativeProfile]:
+    ) -> list[FWXMProfile, FWXMProfile]:
         """Return two median profiles from the open and DMLC image. Only used for visual purposes.
         Evaluation is not based on these profiles."""
         profiles = []
@@ -490,7 +490,7 @@ class VMATBase:
             img = copy.deepcopy(orig_img)
             img.ground()
             img.check_inversion()
-            profile = InflectionDerivativeProfile(
+            profile = FWXMProfile(
                 np.mean(img.array, axis=0),
                 ground=True,
                 normalization=Normalization.BEAM_CENTER,

@@ -360,3 +360,35 @@ class TestDRMLCOverlapGaps(VMATMixin, TestCase):
 
     def test_fail_with_tight_tolerance(self):
         pass
+
+
+class TestHalcyonDRGS(VMATMixin, TestCase):
+    """A Halcyon image is FFF and goes to the edge of the EPID. Causes bad inversion w/o FWXM profile type."""
+
+    klass = DRGS
+    filepaths = ("HalcyonDRGS.zip",)
+    is_zip = True
+    segment_positions = {0: Point(364, 640), 2: Point(547, 640)}
+    segment_values = {
+        0: {"r_dev": 41.4, "r_corr": 1689.2},
+        2: {"r_dev": 28, "r_corr": 1529.5},
+    }
+    avg_abs_r_deviation = 32.64
+    max_r_deviation = 41.4
+    passes = False
+
+
+class TestHalcyonDRMLC(VMATMixin, TestCase):
+    """A Halcyon image is FFF and goes to the edge of the EPID. Causes bad inversion w/o FWXM profile type."""
+
+    klass = DRMLC
+    filepaths = ("HalcyonDRMLC.zip",)
+    is_zip = True
+    segment_positions = {0: Point(433, 640), 2: Point(708, 640)}
+    segment_values = {
+        0: {"r_dev": 1.17, "r_corr": 3602},
+        2: {"r_dev": -0.206, "r_corr": 3552.8},
+    }
+    avg_abs_r_deviation = 0.585
+    max_r_deviation = 1.17
+    passes = True
