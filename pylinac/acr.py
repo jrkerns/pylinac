@@ -1076,6 +1076,7 @@ class ACRMRILarge(CatPhanBase):
                 to_pop.append(idx)
         for idx in sorted(to_pop, reverse=True):
             del self.dicom_stack[idx]
+            del self.dicom_stack.metadatas[idx]
 
     def plot_analyzed_image(self, show: bool = True, **plt_kwargs) -> plt.Figure:
         """Plot the analyzed image
