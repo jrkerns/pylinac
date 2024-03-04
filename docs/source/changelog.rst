@@ -49,7 +49,7 @@ Picket Fence
 * The leaf error subplot that shows up at the right/bottom of the analyzed image now shows leaf numbers instead
   of pixels.
 * A new method is available ``plot_leaf_error``. This method will create a figure of the leaf error boxplot. This is
-  similar to the leaf error subplot that shows up at the right/bottom of the analyzed image, but can be called indepdently.
+  similar to the leaf error subplot that shows up at the right/bottom of the analyzed image, but can be called independently.
 
 Image Metrics
 ^^^^^^^^^^^^^
