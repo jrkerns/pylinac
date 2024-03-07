@@ -32,6 +32,9 @@ CT
   is smoother when averaged using multiple, separate ROIs.
 * The ``power_spectrum`` property of the CTP486 module has been renamed to ``power_spectrum_2d``
   and another property, ``power_spectrum_1d`` has been added.
+* CT scans with overlapping slices AND without the ``SpacingBetweenSlices`` tag were failing.
+  The slice spacing distance will now use the distance between ``ImagePositionPatient`` tags of
+  the first two slices to avoid reliance on the ``SpacingBetweenSlices`` tag.
 
 Image Metrics
 ^^^^^^^^^^^^^
@@ -48,6 +51,11 @@ Image Metrics
 
     This change also means that ``SizedDiskLocator`` and ``SizedDiskRegion``'s ``calculate`` method will now always return a list of Points or ROIs.
     Previously, a single Point or ROI was returned. This change will break code that was expecting a single Point or ROI.
+
+Core
+^^^^
+
+* The ``DicomStack.from_zip`` class constructor now accepts ``**kwargs`` which will pass to the normal constructor.
 
 v 3.20.0
 --------

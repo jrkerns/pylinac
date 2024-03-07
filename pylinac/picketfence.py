@@ -347,7 +347,7 @@ class PicketFence:
 
         Thank the French for this."""
         bb_image = image.load(bb_image)
-        cax = bb_image.compute(
+        caxs = bb_image.compute(
             metrics=SizedDiskLocator.from_center_physical(
                 expected_position_mm=(0, 0),
                 search_window_mm=(30 + bb_diameter, 30 + bb_diameter),
@@ -355,7 +355,7 @@ class PicketFence:
                 radius_tolerance_mm=bb_diameter * 0.1 + 1,
             )
         )
-        cax_shift = cax - bb_image.center
+        cax_shift = caxs[0] - bb_image.center
         # we convert to physical because we may have images of different sizes/dpmms
         cax_physical_shift = Point(
             x=cax_shift.x / bb_image.dpmm, y=cax_shift.y / bb_image.dpmm
