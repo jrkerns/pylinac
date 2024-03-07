@@ -680,6 +680,7 @@ class PicketFence:
         else:
             leaf_prof = np.mean(self.image, 1)
         leaf_prof = MultiProfile(leaf_prof)
+        leaf_prof.normalize()  # normalize so required prominence is also normalized.
         peak_idxs, peak_vals = leaf_prof.find_fwxm_peaks(
             min_distance=0.02,
             threshold=height_threshold,

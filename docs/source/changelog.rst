@@ -36,6 +36,16 @@ CT
   The slice spacing distance will now use the distance between ``ImagePositionPatient`` tags of
   the first two slices to avoid reliance on the ``SpacingBetweenSlices`` tag.
 
+Picket Fence
+^^^^^^^^^^^^
+
+* Picket fences where only a relatively small subset of the leaves were being analyzed (e.g. 10 pairs) were sometimes failing.
+  This would produce a ``ValueError: cannot convert float NaN to integer`` error. This has been fixed.
+  As a workaround, often the fix was to set ``required_prominence`` to a small value or None. This is no longer necessary.
+  ``required_prominence`` now reflects the *normalized* height (0-1.0) the pickets should be above the background. Previously,
+  this value was not normalized, requiring fiddling with the value to get correct and depending on the number
+  of leaf pairs that were being analyzed. The number of leaf pairs should no longer be a factor in the analysis.
+
 Image Metrics
 ^^^^^^^^^^^^^
 
