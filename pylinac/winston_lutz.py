@@ -150,7 +150,7 @@ class BBArrangement:
         lr = "Left" if a["offset_left_mm"] >= 0 else "Right"
         ud = "Up" if a["offset_up_mm"] >= 0 else "Down"
         io = "In" if a["offset_in_mm"] >= 0 else "Out"
-        return f"'{a['name']}': {lr} {abs(a['offset_left_mm'])}mm, {ud} {abs(a['offset_up_mm'])}mm, {io} {abs(a['offset_in_mm'])}mm"
+        return f"'{a['name']}' (mm): {lr} {abs(a['offset_left_mm'])}, {ud} {abs(a['offset_up_mm'])}, {io} {abs(a['offset_in_mm'])}"
 
 
 class NominalBB(TypedDict):
@@ -583,7 +583,7 @@ class WinstonLutz2D(image.LinacDicomImage):
             f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}"
         )
         ax.set_ylabel(
-            f"CAX to BB: {self.cax2bb_distance:3.2f}mm\nX: {self.cax2bb_vector.x:3.2f}mm; Y: {self.cax2bb_vector.y:3.2f}mm"
+            f"CAX to BB (mm): {self.cax2bb_distance:3.2f}\nX: {self.cax2bb_vector.x:3.2f}; Y: {self.cax2bb_vector.y:3.2f}"
         )
         if show:
             plt.show()
@@ -1256,7 +1256,7 @@ class WinstonLutz:
         ax.set_xlabel(axis.value + " positions superimposed")
         ax.set_ylabel(
             axis.value
-            + f" iso size: {getattr(self, axis.value.lower() + '_iso_size'):3.2f}mm"
+            + f" iso size (mm): {getattr(self, axis.value.lower() + '_iso_size'):3.2f}"
         )
         if show:
             plt.show()
@@ -1557,17 +1557,17 @@ class WinstonLutz:
             "Winston-Lutz Analysis",
             "=================================",
             f"Number of images: {num_imgs}",
-            f"Maximum 2D CAX->BB distance: {self.cax2bb_distance('max'):.2f}mm",
-            f"Median 2D CAX->BB distance: {self.cax2bb_distance('median'):.2f}mm",
-            f"Mean 2D CAX->BB distance: {self.cax2bb_distance('mean'):.2f}mm",
+            f"Maximum 2D CAX->BB distance (mm): {self.cax2bb_distance('max'):.2f}",
+            f"Median 2D CAX->BB distance (mm): {self.cax2bb_distance('median'):.2f}",
+            f"Mean 2D CAX->BB distance (mm): {self.cax2bb_distance('mean'):.2f}",
             f"Shift to iso: facing gantry, move BB: {self.bb_shift_instructions()}",
-            f"Gantry 3D isocenter diameter: {self.gantry_iso_size:.2f}mm ({num_gantry_imgs}/{num_imgs} images considered)",
-            f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation((Axis.GANTRY, Axis.REFERENCE))):.2f}mm",
-            f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(Axis.EPID)):.2f}mm",
-            f"Gantry+Collimator 3D isocenter diameter: {self.gantry_coll_iso_size:.2f}mm ({num_gantry_coll_imgs}/{num_imgs} images considered)",
-            f"Collimator 2D isocenter diameter: {self.collimator_iso_size:.2f}mm ({num_coll_imgs}/{num_imgs} images considered)",
+            f"Gantry 3D isocenter diameter (mm): {self.gantry_iso_size:.2f} ({num_gantry_imgs}/{num_imgs} images considered)",
+            f"Maximum Gantry RMS deviation (mm): {max(self.axis_rms_deviation((Axis.GANTRY, Axis.REFERENCE))):.2f}",
+            f"Maximum EPID RMS deviation (mm): {max(self.axis_rms_deviation(Axis.EPID)):.2f}",
+            f"Gantry+Collimator 3D isocenter diameter (mm): {self.gantry_coll_iso_size:.2f} ({num_gantry_coll_imgs}/{num_imgs} images considered)",
+            f"Collimator 2D isocenter diameter (mm): {self.collimator_iso_size:.2f} ({num_coll_imgs}/{num_imgs} images considered)",
             f"Maximum Collimator RMS deviation (mm): {max(self.axis_rms_deviation((Axis.COLLIMATOR, Axis.REFERENCE))):.2f}",
-            f"Couch 2D isocenter diameter: {self.couch_iso_size:.2f}mm ({num_couch_imgs}/{num_imgs} images considered)",
+            f"Couch 2D isocenter diameter (mm): {self.couch_iso_size:.2f} ({num_couch_imgs}/{num_imgs} images considered)",
             f"Maximum Couch RMS deviation (mm): {max(self.axis_rms_deviation((Axis.COUCH, Axis.REFERENCE))):.2f}",
         ]
         if not as_list:
@@ -1758,7 +1758,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         ax.set_xlabel(
             f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}"
         )
-        ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
+        ax.set_ylabel(f"CAX to BB (mm): {self.cax2bb_distance:3.2f}")
         if show:
             plt.show()
         return ax
@@ -2078,9 +2078,9 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             "",
             "2D distances",
             "============",
-            f"Max 2D distance of any BB: {self.max_bb_deviation_2d:.2f} mm",
-            f"Mean 2D distance of any BB: {self.mean_bb_deviation_2d:.2f} mm",
-            f"Median 2D distance of any BB: {self.median_bb_deviation_2d:.2f} mm",
+            f"Max 2D distance of any BB (mm): {self.max_bb_deviation_2d:.2f}",
+            f"Mean 2D distance of any BB (mm): {self.mean_bb_deviation_2d:.2f}",
+            f"Median 2D distance of any BB (mm): {self.median_bb_deviation_2d:.2f}",
             "",
         ]
         bb_descriptions = [
