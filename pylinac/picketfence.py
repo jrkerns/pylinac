@@ -39,7 +39,7 @@ from .core import image, pdf
 from .core.geometry import Line, Point, Rectangle
 from .core.io import get_url, retrieve_demo_file
 from .core.profile import FWXMProfilePhysical, MultiProfile
-from .core.utilities import ResultBase, convert_to_enum
+from .core.utilities import QuaacDatum, QuaacMixin, ResultBase, convert_to_enum
 from .log_analyzer import load_log
 from .metrics.image import SizedDiskLocator
 
@@ -206,7 +206,7 @@ class PFDicomImage(image.LinacDicomImage):
             return super().center
 
 
-class PicketFence:
+class PicketFence(QuaacMixin):
     """A class used for analyzing EPID images where radiation strips have been formed by the
     MLCs. The strips are assumed to be parallel to one another and normal to the image edge;
     i.e. a "left-right" or "up-down" orientation is assumed. Further work could follow up by accounting
@@ -1105,6 +1105,53 @@ class PicketFence:
 
         if open_file:
             webbrowser.open(filename)
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data()
+        data = {
+            "Leaves passing": QuaacDatum(
+                value=results_data.percent_leaves_passing,
+                unit="%",
+                description="The percentage of leaves that passed the tolerance test. A value of 100% is ideal.",
+            ),
+            "Absolute median error": QuaacDatum(
+                value=results_data.absolute_median_error_mm,
+                unit="mm",
+                description="The absolute median error of all leaves.",
+            ),
+            "Max error": QuaacDatum(
+                value=results_data.max_error_mm,
+                unit="mm",
+                description="The maximum error found in the picket fence test.",
+            ),
+            "MLC skew": QuaacDatum(
+                value=results_data.mlc_skew,
+                unit="degrees",
+                description="The apparent rotation in degrees of the MLC. This could be conflated with the EPID skew, so be careful when interpreting this value.",
+            ),
+            "Mean picket spacing": QuaacDatum(
+                value=results_data.mean_picket_spacing_mm,
+                unit="mm",
+                description="The average distance between pickets in mm.",
+            ),
+            "Max error leaf": QuaacDatum(
+                value=results_data.max_error_leaf,
+                description="The leaf number that had the maximum error.",
+            ),
+            "Max error picket": QuaacDatum(
+                value=results_data.max_error_picket,
+                description="The picket number that had the maximum error.",
+            ),
+        }
+        for index, offset in enumerate(results_data.offsets_from_cax_mm):
+            data |= {
+                f"Offset from CAX ({offset})": QuaacDatum(
+                    value=offset,
+                    unit="mm",
+                    description="The distance of each picket from the central axis.",
+                )
+            }
+        return data
 
     def mlc_skew(self) -> float:
         """Apparent rotation in degrees of the MLC. This could be conflated with the EPID skew, so be careful when interpreting this value."""

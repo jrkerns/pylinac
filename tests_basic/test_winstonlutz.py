@@ -27,6 +27,7 @@ from tests_basic.utils import (
     CloudFileMixin,
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
+    QuaacTestBase,
     get_file_from_cloud_test_repo,
     get_folder_from_cloud_test_repo,
     save_file,
@@ -587,6 +588,13 @@ class TestPublishPDF(TestCase):
     def test_publish_w_metadata_and_notes(self):
         with tempfile.TemporaryFile() as t:
             self.wl.publish_pdf(t, notes="stuff", metadata={"Unit": "TB1"})
+
+
+class TestQuaac(QuaacTestBase, TestCase):
+    def create_instance(self):
+        wl = WinstonLutz.from_demo_images()
+        wl.analyze()
+        return wl
 
 
 class TestPlottingSaving(TestCase):

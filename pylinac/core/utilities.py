@@ -4,16 +4,20 @@ from __future__ import annotations
 import os
 import os.path as osp
 import struct
+import tempfile
+from abc import abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import BinaryIO, Sequence
+from pathlib import Path
+from typing import BinaryIO, Literal, Sequence
 
 import numpy as np
 import pydicom
+from quaac import Attachment, DataPoint, Document, Equipment, User
 
-from .. import __version__
+from .. import __version__, version
 
 
 def convert_to_enum(value: str | Enum | None, enum: type[Enum]) -> Enum:
@@ -186,3 +190,92 @@ def decode_binary(
     if cursor_shift:
         f.seek(cursor_shift, 1)
     return output
+
+
+@dataclass  # dataclasses can have default values; typed dicts cannot
+class QuaacDatum:
+    """Individual data point to be saved to a QuAAC file."""
+
+    value: str | float | int
+    unit: str = ""
+    description: str = ""
+
+
+class QuaacMixin:
+    """A mixin for pylinac analysis classes to save results to a QuAAC file."""
+
+    @abstractmethod
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        """Return the data points to be saved to the QuAAC file. The tuple is in the format of
+        (name, value, unit, description)."""
+        raise NotImplementedError
+
+    def to_quaac(
+        self,
+        path: str | Path,
+        performer: User,
+        primary_equipment: Equipment,
+        format: Literal["json", "yaml"] = "yaml",
+        attachments: list[Attachment] | None = None,
+        pdf_kwargs: dict | None = None,
+        overwrite: bool = False,
+        **kwargs,
+    ):
+        """Write an analysis to a QuAAC file. This will include the items
+        from results_data() and the PDF report.
+
+        Parameters
+        ----------
+        path : str, Path
+            The file to write the results to.
+        performer : User
+            The user who performed the analysis.
+        primary_equipment : Equipment
+            The equipment used in the analysis.
+        format : {'json', 'yaml'}
+            The format to write the file in.
+        attachments : list of Attachment
+            Additional attachments to include in the QuAAC file.
+        pdf_kwargs : dict, optional
+            Keyword arguments to pass to the PDF instantiation method.
+        overwrite : bool
+            Whether to overwrite the file if it already exists.
+        kwargs
+            Additional keyword arguments to pass to the Document instantiation.
+        """
+        attachments = attachments or []
+        if Path(path).exists() and not overwrite:
+            raise FileExistsError(
+                f"{path} already exists. Pass 'overwrite=True' to overwrite."
+            )
+        # generate PDF
+        with tempfile.NamedTemporaryFile(delete=False) as pdf:
+            pdf_kwargs = pdf_kwargs or {}
+            self.publish_pdf(pdf.name, open_file=False, **pdf_kwargs)
+        pdf_attachment = Attachment.from_file(
+            pdf.name,
+            name="Winston-Lutz Report",
+            comment="The PDF report of the Winston-Lutz analysis.",
+            type="pdf",
+        )
+        attachments += [pdf_attachment]
+        datapoints = []
+        data_values = self._quaac_datapoints()
+        for name, datum in data_values.items():
+            dp = DataPoint(
+                performer=performer,
+                perform_datetime=datetime.now(),
+                primary_equipment=primary_equipment,
+                name=name,
+                measurement_value=datum.value,
+                measurement_unit=datum.unit,
+                description=datum.description,
+                attachments=attachments,
+                parameters={"pylinac version": version.__version__},
+            )
+            datapoints.append(dp)
+        d = Document(datapoints=datapoints, **kwargs)
+        if format == "json":
+            d.to_json_file(path)
+        elif format == "yaml":
+            d.to_yaml_file(path)

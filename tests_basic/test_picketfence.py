@@ -24,6 +24,7 @@ from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
     InitTesterMixin,
+    QuaacTestBase,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -409,6 +410,13 @@ class TestPlottingSaving(TestCase):
         save_file(self.pf.save_leaf_profile, 20, 3)
         # to binary stream
         save_file(self.pf.save_leaf_profile, 20, 3, as_file_object="b")
+
+
+class TestQuaac(QuaacTestBase, TestCase):
+    def create_instance(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        return pf
 
 
 class PFTestMixin(CloudFileMixin):

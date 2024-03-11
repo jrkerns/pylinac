@@ -6,7 +6,9 @@ import multiprocessing
 import os
 import os.path as osp
 import pprint
+import random
 import shutil
+import string
 import time
 from io import BytesIO, StringIO
 from pathlib import Path, PurePosixPath
@@ -17,6 +19,7 @@ from urllib.request import urlopen
 from cachetools.func import lru_cache
 from google.cloud import storage
 from py_linq import Enumerable
+from quaac import Equipment, User
 
 from pylinac.core import image
 from tests_basic import DELETE_FILES
@@ -131,7 +134,7 @@ def has_www_connection():
     try:
         with urlopen("http://www.google.com") as r:
             return r.status == 200
-    except:
+    except Exception:
         return False
 
 
@@ -251,6 +254,40 @@ class FromURLTesterMixin(MixinTesterBase):
         self.klass.from_url(self.full_url, **self.url_kwargs)
 
 
+class QuaacTestBase:
+    def setUp(self):
+        self.user = User(name="James Kerns", email="j@j.com")
+        self.linac = Equipment(
+            name="Clinac A",
+            model="Clinac",
+            serial_number="12345",
+            manufacturer="Varian",
+            type="linac",
+        )
+        super().setUp()
+
+    def generate_random_filename(self, length: int = 10):
+        # Choose from letters and digits
+        characters = string.ascii_letters + string.digits
+        # Generate a random string of specified length
+        random_string = "".join(random.choice(characters) for _ in range(length))
+        return random_string + ".yaml"
+
+    def create_instance(self):
+        raise NotImplementedError
+
+    def test_write_quaac(self):
+        phantom = self.create_instance()
+        phantom.to_quaac(
+            path=self.generate_random_filename(),
+            format="yaml",
+            performer=self.user,
+            primary_equipment=self.linac,
+        )
+        # ensure the file exists
+        self.assertTrue(Path("thingy.yaml").exists())
+
+
 class DataBankMixin:
     """Mixin class for running through a bank of images/datasets. No details are tested; only pass/fail results.
 
@@ -287,7 +324,7 @@ class DataBankMixin:
         try:
             image.load(filepath)
             return True
-        except:
+        except Exception:
             return False
 
     def test_all(self, func):
