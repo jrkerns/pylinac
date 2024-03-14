@@ -302,11 +302,9 @@ API Documentation
     :members:
 
 .. autoclass:: pylinac.cheese.CheeseResult
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.cheese.TomoCheeseResult
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.cheese.CheesePhantomBase

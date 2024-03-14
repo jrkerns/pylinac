@@ -2,6 +2,15 @@
 Changelog
 =========
 
+v 3.22.0
+--------
+
+Core
+^^^^
+
+* Users can now export analysis results as JSON. This is helpful for dumping results to file or for use in
+  passing data to another library or program. A new topic page is available: :ref:`exporting-results`.
+
 v 3.21.0
 --------
 
