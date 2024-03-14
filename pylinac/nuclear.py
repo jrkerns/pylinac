@@ -333,7 +333,7 @@ class PlanarUniformity:
 
     def results_data(
         self, as_dict: bool = False, as_json: bool = False
-    ) -> dict[str, PlanarUniformityResults | dict] | str:
+    ) -> dict[str, PlanarUniformityResults | dict | str] | str:
         data = {}
         for key, result in self.frame_results.items():
             r = PlanarUniformityResults(
@@ -345,7 +345,7 @@ class PlanarUniformity:
             if as_dict:
                 # make the key 1-based for ease of understanding by the user and match
                 # dicom labeling
-                data[f"Frame {key}"] = r.dict()
+                data[f"Frame {key}"] = r.model_dump()
             elif as_json:
                 data[f"Frame {key}"] = r.model_dump_json()
             else:

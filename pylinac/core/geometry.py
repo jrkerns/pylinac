@@ -151,7 +151,7 @@ class Point:
         return Vector(x=self.x, y=self.y, z=self.z)
 
     def dict(self) -> dict:
-        """Canvert to dict. Shim until convert to dataclass"""
+        """Convert to dict. Shim until convert to dataclass"""
         return {
             attr: getattr(self, attr)
             for attr in self._attr_list
