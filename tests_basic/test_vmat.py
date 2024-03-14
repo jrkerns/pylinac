@@ -1,4 +1,5 @@
 import io
+import json
 from functools import partial
 from typing import Iterable, Type, Union
 from unittest import TestCase
@@ -83,6 +84,11 @@ class LoadingBase(FromURLTesterMixin, FromDemoImageTesterMixin):
         self.assertIsInstance(data_dict, dict)
         self.assertIn("pylinac_version", data_dict)
         self.assertEqual(data_dict["max_deviation_percent"], instance.max_r_deviation)
+
+        data_str = instance.results_data(as_json=True)
+        self.assertIsInstance(data_str, str)
+        # shouldn't raise
+        json.loads(data_str)
 
     def test_custom_roi_config(self):
         my_drgs = DRGS.from_demo_images()
