@@ -17,6 +17,7 @@ from tests_basic.utils import (
     FromURLTesterMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    QuaacTestBase,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -172,6 +173,34 @@ class TestGeneral(TestCase):
         lazy_ct = CatPhan504.from_zip(path, memory_efficient_mode=True)
         lazy_ct.analyze()
         self.assertEqual(ct.results(), lazy_ct.results())
+
+
+class Test504Quaac(QuaacTestBase, TestCase):
+    def create_instance(self):
+        ct = CatPhan504.from_demo_images()
+        ct.analyze()
+        return ct
+
+
+class Test600Quaac(QuaacTestBase, TestCase):
+    def create_instance(self):
+        ct = CatPhan600.from_demo_images()
+        ct.analyze()
+        return ct
+
+
+class Test604Quaac(QuaacTestBase, TestCase):
+    def create_instance(self):
+        ct = CatPhan604.from_demo_images()
+        ct.analyze()
+        return ct
+
+
+class Test503Quaac(QuaacTestBase, TestCase):
+    def create_instance(self):
+        ct = CatPhan503.from_demo_images()
+        ct.analyze()
+        return ct
 
 
 class TestCustomPhantom(TestCase):

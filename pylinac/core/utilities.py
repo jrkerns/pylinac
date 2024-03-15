@@ -199,6 +199,7 @@ class QuaacDatum:
     value: str | float | int
     unit: str = ""
     description: str = ""
+    reference_value: str | float | int | None = None
 
 
 class QuaacMixin:
@@ -270,6 +271,7 @@ class QuaacMixin:
                 measurement_value=datum.value,
                 measurement_unit=datum.unit,
                 description=datum.description,
+                reference_value=datum.reference_value,
                 attachments=attachments,
                 parameters={"pylinac version": version.__version__},
             )

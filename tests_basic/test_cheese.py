@@ -12,6 +12,7 @@ from tests_basic.utils import (
     FromURLTesterMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    QuaacTestBase,
     save_file,
 )
 
@@ -142,6 +143,23 @@ class TestPlottingSaving(TestCase):
         cheese = TomoCheese.from_demo_images()
         cheese.analyze(roi_config={"1": {"density": 1.2}})
         cheese.plot_density_curve()
+
+
+class TestTomoQuaac(QuaacTestBase, TestCase):
+    def create_instance(self):
+        t = TomoCheese.from_demo_images()
+        t.analyze()
+        return t
+
+
+class TestCIRS062Quaac(QuaacTestBase, CloudFileMixin, TestCase):
+    dir_path = ["Tomo", "CIRS062M"]
+    file_name = "CIRS062M - Erogluer.zip"
+
+    def create_instance(self):
+        t = CIRS062M.from_zip(self.get_filename())
+        t.analyze()
+        return t
 
 
 class CheeseMixin(CloudFileMixin):

@@ -20,7 +20,7 @@ from .core.geometry import Line, Point
 from .core.mtf import MTF
 from .core.profile import FWXMProfilePhysical
 from .core.roi import HighContrastDiskROI, RectangleROI
-from .core.utilities import ResultBase
+from .core.utilities import QuaacDatum, ResultBase
 from .ct import (
     CatPhanBase,
     CatPhanModule,
@@ -480,6 +480,41 @@ class ACRCT(CatPhanBase):
         )
         if as_dict:
             return dataclasses.asdict(data)
+        return data
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data(as_dict=True)
+        data = {}
+        data["Phantom Roll"] = QuaacDatum(
+            value=results_data["phantom_roll_deg"],
+            unit="degrees",
+            description="The roll of the phantom in the image",
+        )
+        for name, value in results_data["ct_module"]["rois"].items():
+            data[f"{name} HU"] = QuaacDatum(
+                value=value,
+                unit="HU",
+                description=f"The HU value of the {name} ROI",
+            )
+        for name, value in results_data["uniformity_module"]["rois"].items():
+            data[f"{name} Uniformity HU"] = QuaacDatum(
+                value=value,
+                unit="HU",
+                description=f"The HU value of the {name} Uniformity ROI",
+            )
+        for name, value in results_data["spatial_resolution_module"][
+            "lpmm_to_rmtf"
+        ].items():
+            data[f"{name} lp/mm"] = QuaacDatum(
+                value=value,
+                unit="rMTF",
+            )
+        for name, value in results_data["low_contrast_module"]["rois"].items():
+            data[f"{name} CNR"] = QuaacDatum(
+                value=value,
+                unit="CNR",
+                description=f"The CNR value of the {name} ROI",
+            )
         return data
 
     def publish_pdf(
@@ -1185,6 +1220,71 @@ class ACRMRILarge(CatPhanBase):
             fig.savefig(path)
             paths.append(path)
         return paths
+
+    def _quaac_datapoints(self) -> dict[str, QuaacDatum]:
+        results_data = self.results_data(as_dict=True)
+        data = {}
+
+        data["Phantom Roll"] = QuaacDatum(
+            value=results_data["phantom_roll_deg"],
+            unit="degrees",
+            description="The roll of the phantom in the image",
+        )
+        slice1_keys = (
+            ("bar_difference_mm", "Bar Difference", "mm"),
+            ("slice_shift_mm", "Slice Shift", "mm"),
+            ("measured_slice_thickness_mm", "Measured Slice Thickness", "mm"),
+            ("row_mtf_50", "Row-wise MTF 50%", "lp/mm"),
+            ("col_mtf_50", "Column-wise MTF 50%", "lp/mm"),
+        )
+        for key, name, unit in slice1_keys:
+            data[name] = QuaacDatum(
+                value=results_data["slice1"][key],
+                unit=unit,
+            )
+        for name, roi in results_data["slice11"]["rois"].items():
+            data[f"Slice 11 {name} ROI"] = QuaacDatum(
+                value=roi["value"],
+                unit="HU",
+            )
+        data["Slice 11 Bar Difference"] = QuaacDatum(
+            value=results_data["slice11"]["bar_difference_mm"],
+            unit="mm",
+        )
+        data["Slice 11 Slice Shift"] = QuaacDatum(
+            value=results_data["slice11"]["slice_shift_mm"],
+            unit="mm",
+        )
+        for name, roi in results_data["uniformity_module"]["rois"].items():
+            data[f"Uniformity {name} ROI"] = QuaacDatum(
+                value=roi["value"],
+                unit="HU",
+            )
+        for name, roi in results_data["uniformity_module"]["ghost_rois"].items():
+            data[f"Uniformity {name} Ghost ROI"] = QuaacDatum(
+                value=roi["value"],
+                unit="HU",
+            )
+        data["Percent Signal Ghosting"] = QuaacDatum(
+            value=results_data["uniformity_module"]["psg"],
+            unit="%",
+        )
+        data["Ghosting Ratio"] = QuaacDatum(
+            value=results_data["uniformity_module"]["ghosting_ratio"],
+            unit="",
+        )
+        data["Percent Integral Uniformity"] = QuaacDatum(
+            value=results_data["uniformity_module"]["piu"],
+            unit="%",
+        )
+        for name, line in results_data["geometric_distortion_module"][
+            "profiles"
+        ].items():
+            data[f"Geometric Distortion {name} line length"] = QuaacDatum(
+                value=line["width (mm)"],
+                unit="mm",
+            )
+        return data
 
     def publish_pdf(
         self,

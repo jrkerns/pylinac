@@ -14,6 +14,7 @@ from tests_basic.utils import (
     CloudFileMixin,
     FromZipTesterMixin,
     InitTesterMixin,
+    QuaacTestBase,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -105,6 +106,17 @@ class TestPlottingSaving(TestCase):
         fig = plt.gcf()
         self.assertEqual(fig.bbox_inches.height, 13)
         self.assertEqual(fig.bbox_inches.width, 8)
+
+
+class TestACRCTQuaac(QuaacTestBase, CloudFileMixin, TestCase):
+    dir_path = ["ACR", "CT"]
+    file_name = "Philips.zip"
+
+    def create_instance(self):
+        filename = self.get_filename()
+        ct = ACRCT.from_zip(filename)
+        ct.analyze()
+        return ct
 
 
 class ACRCTMixin(CloudFileMixin):
@@ -306,6 +318,17 @@ class TestMRPlottingSaving(TestCase):
         fig = plt.gcf()
         self.assertEqual(fig.bbox_inches.height, 13)
         self.assertEqual(fig.bbox_inches.width, 8)
+
+
+class TestACRMRIQuaac(QuaacTestBase, CloudFileMixin, TestCase):
+    dir_path = ["ACR", "MRI"]
+    file_name = "T1-Single.zip"
+
+    def create_instance(self):
+        filename = self.get_filename()
+        ct = ACRMRILarge.from_zip(filename)
+        ct.analyze()
+        return ct
 
 
 class ACRMRMixin(CloudFileMixin):

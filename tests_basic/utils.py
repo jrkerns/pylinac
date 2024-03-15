@@ -266,7 +266,7 @@ class QuaacTestBase:
         )
         super().setUp()
 
-    def generate_random_filename(self, length: int = 10):
+    def generate_random_filename(self, length: int = 10) -> str:
         # Choose from letters and digits
         characters = string.ascii_letters + string.digits
         # Generate a random string of specified length
@@ -278,14 +278,23 @@ class QuaacTestBase:
 
     def test_write_quaac(self):
         phantom = self.create_instance()
+        p = self.generate_random_filename()
         phantom.to_quaac(
-            path=self.generate_random_filename(),
+            path=p,
             format="yaml",
             performer=self.user,
             primary_equipment=self.linac,
         )
+        self.p = p
         # ensure the file exists
-        self.assertTrue(Path("thingy.yaml").exists())
+        self.assertTrue(Path(p).exists())
+
+    def tearDown(self):
+        try:
+            Path(self.p).unlink()
+        except Exception:
+            pass
+        super().tearDown()
 
 
 class DataBankMixin:

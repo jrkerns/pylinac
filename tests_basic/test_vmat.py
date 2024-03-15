@@ -12,6 +12,7 @@ from pylinac.vmat import VMATResult
 from tests_basic.utils import (
     FromDemoImageTesterMixin,
     FromURLTesterMixin,
+    QuaacTestBase,
     get_file_from_cloud_test_repo,
     save_file,
 )
@@ -114,6 +115,20 @@ class TestDRGSLoading(LoadingBase, TestCase):
 class TestDRMLCLoading(LoadingBase, TestCase):
     url = "drmlc.zip"
     klass = DRMLC
+
+
+class TestDRGSQuaac(QuaacTestBase, TestCase):
+    def create_instance(self):
+        t = DRGS.from_demo_images()
+        t.analyze()
+        return t
+
+
+class TestDRMLCQuaac(QuaacTestBase, TestCase):
+    def create_instance(self):
+        t = DRMLC.from_demo_images()
+        t.analyze()
+        return t
 
 
 class VMATMixin:
