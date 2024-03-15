@@ -825,10 +825,9 @@ API Documentation
     :members:
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutzResult
-    :members:
+
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutz2D
     :members:
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutz2DResult
-    :members:
