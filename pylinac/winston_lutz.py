@@ -19,7 +19,6 @@ Features:
 """
 from __future__ import annotations
 
-import copy
 import dataclasses
 import enum
 import io
@@ -50,9 +49,15 @@ from .core import image, pdf
 from .core.array_utils import array_to_dicom
 from .core.decorators import lru_cache
 from .core.geometry import Line, Point, Vector, cos, sin
-from .core.image import DicomImageStack, LinacDicomImage, is_image, tiff_to_dicom
+from .core.image import (
+    XIM,
+    DicomImageStack,
+    LinacDicomImage,
+    _is_xim,
+    is_image,
+    tiff_to_dicom,
+)
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
-from .core.mask import bounding_box
 from .core.scale import MachineScale, convert
 from .core.utilities import ResultBase, convert_to_enum, is_close
 from .metrics.features import (
@@ -62,7 +67,7 @@ from .metrics.features import (
     is_solid,
     is_symmetric,
 )
-from .metrics.image import SizedDiskLocator
+from .metrics.image import GlobalSizedDiskLocator, SizedDiskLocator
 
 BB_ERROR_MESSAGE = (
     "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there are no artifacts in the images, that the 'bb_size' parameter is close to reality, "
@@ -70,9 +75,46 @@ BB_ERROR_MESSAGE = (
 )
 
 
+class BBConfig(TypedDict):
+    name: str
+    offset_left_mm: float
+    offset_up_mm: float
+    offset_in_mm: float
+    bb_diameter_mm: float
+    rad_size_mm: float
+
+
 class BBArrangement:
     """Presets for multi-target phantoms."""
 
+    ISO = (
+        BBConfig(
+            name="Iso",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=0,
+            bb_diameter_mm=5,  # not used; overridden later
+            rad_size_mm=20,  # not used; overridden later
+        ),
+    )
+    ISOCAL = (
+        {
+            "name": "1",
+            "offset_left_mm": 0,
+            "offset_up_mm": -170,
+            "offset_in_mm": -30,
+            "bb_size_mm": 5,
+            "rad_size_mm": 20,
+        },
+        # {
+        #     'name': '2',
+        #     'offset_left_mm': -170,
+        #     'offset_up_mm': 0,
+        #     'offset_in_mm': -45,
+        #     "bb_size_mm": 5,
+        #     'rad_size_mm': 20,
+        # }
+    )
     # locations: https://www.postersessiononline.eu/173580348_eu/congresos/ESTRO2020/aula/-PO_1320_ESTRO2020.pdf
     SNC_MULTIMET = (
         {
@@ -346,20 +388,8 @@ def is_right_square_size(region: RegionProperties, *args, **kwargs) -> bool:
     return smaller_bb_area < field_area < larger_bb_area
 
 
-class WinstonLutz2D(image.LinacDicomImage):
-    """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
-
-    bb: Point
-    field_cax: Point
-    _rad_field_bounding_box: list
-    is_from_tiff: bool = False
-    detection_conditions: list[callable] = [
-        is_right_size_bb,
-        is_round,
-        is_right_circumference,
-        is_symmetric,
-        is_solid,
-    ]
+class WLBaseImage(image.LinacDicomImage):
+    """Base class for a WL Image. Can be a single 2D image or part of a stack of images for 3D WL analysis."""
 
     def __init__(
         self,
@@ -379,33 +409,167 @@ class WinstonLutz2D(image.LinacDicomImage):
         # override detection conditions if passed
         if conditions := kwargs.pop("detection_conditions", False):
             self.detection_conditions = conditions
+        self.is_from_xim = kwargs.pop("is_from_xim", False)
         super().__init__(file, use_filenames=use_filenames, **kwargs)
         self._is_analyzed = False
         self.flipud()
 
     def analyze(
         self,
-        bb_size_mm: float = 5,
-        low_density_bb: bool = False,
-        open_field: bool = False,
-    ) -> None:
-        """Analyze the image. See WinstonLutz.analyze for parameter details."""
+        bb_arrangement: tuple[BBConfig],
+        is_open_field: bool = False,
+        is_low_density: bool = False,
+    ):
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self._clean_edges()
         self.ground()
         self.normalize()
-        self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
-            open_field
+        self.field_cax, self._rad_field_bounding_box = self.find_field_centroid(
+            is_open_field
         )
-        self.bb = self._find_bb(bb_size_mm, low_density_bb)
+        detected_bbs = self.find_bbs(bb_diameter_mm=5, low_density=is_low_density)
+        self.bb = self.find_bb_centroid(
+            bb_arrangement=bb_arrangement, detected_bb_positions=detected_bbs
+        )
         self._is_analyzed = True
 
-    def __repr__(self):
-        return f"WLImage(gantry={self.gantry_angle:.1f}, coll={self.collimator_angle:.1f}, couch={self.couch_angle:.1f})"
+    def find_field_centroid(
+        self, bb_arrangement: tuple[BBConfig], is_open_field: bool
+    ) -> Point:
+        # TODO: Use metrics field finder
+        if is_open_field:
+            p = self.center
+            # edges = [0, self.shape[0], 0, self.shape[1]]
+        else:
+            min, max = np.percentile(self.array, [5, 99.9])
+            threshold_img = self.as_binary((max - min) / 2 + min)
+            filled_img = ndimage.binary_fill_holes(threshold_img)
+            # clean single-pixel noise from outside field
+            # cleaned_img = ndimage.binary_erosion(threshold_img)
+            # [*edges] = bounding_box(cleaned_img)
+            # edges[0] -= 10
+            # edges[1] += 10
+            # edges[2] -= 10
+            # edges[3] += 10
+            coords = ndimage.center_of_mass(filled_img)
+            p = Point(x=coords[-1], y=coords[0])
+        return p
 
-    def to_axes(self) -> str:
-        """Give just the axes values as a human-readable string"""
-        return f"Gantry={self.gantry_angle:.1f}, Coll={self.collimator_angle:.1f}, Couch={self.couch_angle:.1f}"
+    def find_bb_centroid(
+        self, bb_arrangement: tuple[dict], detected_bb_positions: list[Point]
+    ) -> Point:
+        """Find the centroid of the detected BBs"""
+        detected_points = []
+        nominal_points = []
+        for bb_arng in bb_arrangement:
+            nominal_point = self.nominal_bb_position(bb_arng)
+            distances = [
+                nominal_point.distance_to(found_point)
+                for found_point in detected_bb_positions
+            ]
+            min_distance = min(distances)
+            min_distance_idx = distances.index(min_distance)
+            if min_distance < 20 * self.dpmm:
+                nominal_points.append(nominal_point)
+                detected_points.append(detected_bb_positions[min_distance_idx])
+        if not detected_points:
+            raise ValueError("No BBs found within 20mm of the expected position.")
+            # if not detected_points:
+            #     raise ValueError(f"Did not find a BB within 10mm of the expected position. Min distance: {min_distance:.2f}mm")
+            # centroid_bb = img.find_bb_centroid(detected_points, nominal_points)
+            # self.bb_centroids.append(centroid_bb)
+        diffs = []
+        for detected, nominal in zip(detected_points, nominal_points):
+            diffs.append(detected - nominal)
+        return Point(
+            np.mean([diff.x for diff in diffs]) + self.epid.x,
+            np.mean([diff.y for diff in diffs]) + self.epid.y,
+        )
+
+    def find_bbs(self, bb_diameter_mm: float, low_density: bool) -> list[Point]:
+        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
+        centers = self.compute(
+            metrics=SizedDiskLocator.from_center_physical(
+                expected_position_mm=(0, 0),
+                search_window_mm=(40 + bb_diameter_mm, 40 + bb_diameter_mm),
+                radius_mm=bb_diameter_mm / 2,
+                radius_tolerance_mm=bb_tolerance_mm,
+                invert=not low_density,
+                detection_conditions=self.detection_conditions,
+            )
+        )
+        return centers
+
+        # bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
+        # centers = self.compute(
+        #     metrics=GlobalSizedDiskLocator(
+        #         radius_mm=bb_diameter_mm / 2,
+        #         radius_tolerance_mm=bb_tolerance_mm,
+        #         invert=not self.is_from_xim,  # invert normal images; don't invert XIM
+        #         detection_conditions=self.detection_conditions,
+        #     )
+        # )
+        # return centers
+
+    def nominal_bb_position(self, bb_config: dict) -> Point:
+        """Calculate the expected point position in 2D"""
+        shift_y_mm = bb_projection_long(
+            offset_in=bb_config["offset_in_mm"],
+            offset_up=bb_config["offset_up_mm"],
+            offset_left=bb_config["offset_left_mm"],
+            sad=self.sad,
+            gantry=self.gantry_angle,
+        )
+        shift_x_mm = bb_projection_gantry_plane(
+            offset_left=bb_config["offset_left_mm"],
+            offset_up=bb_config["offset_up_mm"],
+            sad=self.sad,
+            gantry=self.gantry_angle,
+        )
+        # unlike vanilla WL, the field can be asymmetric, so use center of image
+        expected_y = self.epid.y - shift_y_mm * self.dpmm
+        expected_x = self.epid.x + shift_x_mm * self.dpmm
+        return Point(x=expected_x, y=expected_y)
+
+    @property
+    def epid(self) -> Point:
+        """Center of the EPID panel"""
+        return self.center
+
+    def _calculate_bb_tolerance(self, bb_diameter: float) -> int:
+        """Calculate the BB tolerance based on the BB diameter.
+        Min will be 2 for 1.5mm and under. Will be 4 for diameters at or above 30mm."""
+        y = (2, 4)
+        x = (1.5, 30)
+        return np.interp(bb_diameter, x, y)
+
+    @property
+    def variable_axis(self) -> Axis:
+        """The axis that is varying.
+
+        There are five types of images:
+
+        * Reference : All axes are at 0.
+        * Gantry: All axes but gantry at 0.
+        * Collimator : All axes but collimator at 0.
+        * Couch : All axes but couch at 0.
+        * Combo : More than one axis is not at 0.
+        """
+        G0 = is_close(self.gantry_angle, [0, 360])
+        B0 = is_close(self.collimator_angle, [0, 360])
+        P0 = is_close(self.couch_angle, [0, 360])
+        if G0 and B0 and not P0:
+            return Axis.COUCH
+        elif G0 and P0 and not B0:
+            return Axis.COLLIMATOR
+        elif P0 and B0 and not G0:
+            return Axis.GANTRY
+        elif P0 and B0 and G0:
+            return Axis.REFERENCE
+        elif P0:
+            return Axis.GB_COMBO
+        else:
+            return Axis.GBP_COMBO
 
     def _clean_edges(self, window_size: int = 2) -> None:
         """Clean the edges of the image to be near the background level."""
@@ -433,73 +597,116 @@ class WinstonLutz2D(image.LinacDicomImage):
             self.crop(window_size)
             safety_stop -= 1
 
-    def _find_field_centroid(self, is_open_field: bool) -> tuple[Point, list]:
-        """Find the centroid of the radiation field.
 
-        Parameters
-        ----------
-        is_open_field
-            If True, simply uses the image/EPID center as the field center.
-            If False, finds the radiation field based on a 50% height threshold.
+class WinstonLutz2D(WLBaseImage):
+    """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
-        Returns
-        -------
-        p
-            The CAX point location.
-        edges
-            The bounding box of the field, plus a small margin.
-        """
-        if is_open_field:
-            p = self.center
-            edges = [0, self.shape[0], 0, self.shape[1]]
-        else:
-            min, max = np.percentile(self.array, [5, 99.9])
-            threshold_img = self.as_binary((max - min) / 2 + min)
-            filled_img = ndimage.binary_fill_holes(threshold_img)
-            # clean single-pixel noise from outside field
-            cleaned_img = ndimage.binary_erosion(threshold_img)
-            [*edges] = bounding_box(cleaned_img)
-            edges[0] -= 10
-            edges[1] += 10
-            edges[2] -= 10
-            edges[3] += 10
-            coords = ndimage.center_of_mass(filled_img)
-            p = Point(x=coords[-1], y=coords[0])
-        return p, edges
+    bb: Point
+    field_cax: Point
+    bb_arrangement: tuple[BBConfig]
+    is_from_tiff: bool = False
+    is_from_xim: bool
+    detection_conditions: list[callable] = [
+        is_right_size_bb,
+        is_round,
+        is_right_circumference,
+        is_symmetric,
+        is_solid,
+    ]
 
-    def _calculate_bb_tolerance(self, bb_diameter: float) -> int:
-        """Calculate the BB tolerance based on the BB diameter.
-        Min will be 2 for 1.5mm and under. Will be 4 for diameters at or above 30mm."""
-        y = (2, 4)
-        x = (1.5, 30)
-        return np.interp(bb_diameter, x, y)
-
-    def _find_bb(self, bb_diameter: float, low_density: bool) -> Point:
-        """Find the BB within the radiation field. Iteratively searches for a circle-like object
-        by lowering a low-pass threshold value until found.
-
-        Returns
-        -------
-        Point
-            The weighted-pixel value location of the BB.
-        """
-        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
-        centers = self.compute(
-            metrics=SizedDiskLocator.from_center_physical(
-                expected_position_mm=(0, 0),
-                search_window_mm=(40 + bb_diameter, 40 + bb_diameter),
-                radius_mm=bb_diameter / 2,
-                radius_tolerance_mm=bb_tolerance_mm,
-                invert=not low_density,
-                detection_conditions=self.detection_conditions,
-            )
+    def analyze(
+        self,
+        bb_size_mm: float = 5,
+        low_density_bb: bool = False,
+        open_field: bool = False,
+    ) -> None:
+        """Analyze the image. See WinstonLutz.analyze for parameter details."""
+        self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
+        self._clean_edges()
+        self.ground()
+        self.normalize()
+        bb_config = (
+            BBConfig(
+                name="Iso",
+                offset_left_mm=0,
+                offset_up_mm=0,
+                offset_in_mm=0,
+                bb_diameter_mm=bb_size_mm,
+                rad_size_mm=20,
+            ),
         )
-        return centers[0]
+        self.bb_arrangement = bb_config
+        self.field_cax = self.find_field_centroid(
+            bb_arrangement=bb_config, is_open_field=open_field
+        )
+        detected_bbs = self.find_bbs(
+            bb_diameter_mm=bb_config[0]["bb_diameter_mm"], low_density=low_density_bb
+        )
+        self.bb = self.find_bb_centroid(bb_config, detected_bb_positions=detected_bbs)
+        self._is_analyzed = True
 
-    @property
-    def epid(self) -> Point:
-        """Center of the EPID panel"""
-        return self.center
+    def __repr__(self):
+        return f"WLImage(gantry={self.gantry_angle:.1f}, coll={self.collimator_angle:.1f}, couch={self.couch_angle:.1f})"
+
+    def to_axes(self) -> str:
+        """Give just the axes values as a human-readable string"""
+        return f"Gantry={self.gantry_angle:.1f}, Coll={self.collimator_angle:.1f}, Couch={self.couch_angle:.1f}"
+
+    # def _find_field_centroid(self, is_open_field: bool) -> tuple[Point, list]:
+    #     """Find the centroid of the radiation field.
+    #
+    #     Parameters
+    #     ----------
+    #     is_open_field
+    #         If True, simply uses the image/EPID center as the field center.
+    #         If False, finds the radiation field based on a 50% height threshold.
+    #
+    #     Returns
+    #     -------
+    #     p
+    #         The CAX point location.
+    #     edges
+    #         The bounding box of the field, plus a small margin.
+    #     """
+    #     if is_open_field:
+    #         p = self.center
+    #         edges = [0, self.shape[0], 0, self.shape[1]]
+    #     else:
+    #         min, max = np.percentile(self.array, [5, 99.9])
+    #         threshold_img = self.as_binary((max - min) / 2 + min)
+    #         filled_img = ndimage.binary_fill_holes(threshold_img)
+    #         # clean single-pixel noise from outside field
+    #         cleaned_img = ndimage.binary_erosion(threshold_img)
+    #         [*edges] = bounding_box(cleaned_img)
+    #         edges[0] -= 10
+    #         edges[1] += 10
+    #         edges[2] -= 10
+    #         edges[3] += 10
+    #         coords = ndimage.center_of_mass(filled_img)
+    #         p = Point(x=coords[-1], y=coords[0])
+    #     return p, edges
+
+    # def find_bbs(self, bb_diameter_mm: float, low_density: bool) -> Point:
+    #     """Find the BB within the radiation field. Iteratively searches for a circle-like object
+    #     by lowering a low-pass threshold value until found.
+    #
+    #     Returns
+    #     -------
+    #     Point
+    #         The weighted-pixel value location of the BB.
+    #     """
+    #     bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
+    #     centers = self.compute(
+    #         metrics=SizedDiskLocator.from_center_physical(
+    #             expected_position_mm=(0, 0),
+    #             search_window_mm=(40 + bb_diameter_mm, 40 + bb_diameter_mm),
+    #             radius_mm=bb_diameter_mm / 2,
+    #             radius_tolerance_mm=bb_tolerance_mm,
+    #             invert=not low_density,
+    #             detection_conditions=self.detection_conditions,
+    #         )
+    #     )
+    #     return centers[0]
 
     @property
     def cax_line_projection(self) -> Line:
@@ -574,8 +781,8 @@ class WinstonLutz2D(image.LinacDicomImage):
         ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
         ax.axvline(x=self.epid.x, color="b")
         ax.axhline(y=self.epid.y, color="b")
-        ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[1]])
-        ax.set_xlim([self._rad_field_bounding_box[2], self._rad_field_bounding_box[3]])
+        ax.set_ylim([self.bb.x - 20 * self.dpmm, self.bb.x + 20 * self.dpmm])
+        ax.set_xlim([self.bb.y - 20 * self.dpmm, self.bb.y + 20 * self.dpmm])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
         ax.set_title("\n".join(wrap(str(self.path), 30)), fontsize=10)
@@ -594,34 +801,6 @@ class WinstonLutz2D(image.LinacDicomImage):
         self.plot(show=False)
         plt.tight_layout()
         plt.savefig(filename, **kwargs)
-
-    @property
-    def variable_axis(self) -> Axis:
-        """The axis that is varying.
-
-        There are five types of images:
-
-        * Reference : All axes are at 0.
-        * Gantry: All axes but gantry at 0.
-        * Collimator : All axes but collimator at 0.
-        * Couch : All axes but couch at 0.
-        * Combo : More than one axis is not at 0.
-        """
-        G0 = is_close(self.gantry_angle, [0, 360])
-        B0 = is_close(self.collimator_angle, [0, 360])
-        P0 = is_close(self.couch_angle, [0, 360])
-        if G0 and B0 and not P0:
-            return Axis.COUCH
-        elif G0 and P0 and not B0:
-            return Axis.COLLIMATOR
-        elif P0 and B0 and not G0:
-            return Axis.GANTRY
-        elif P0 and B0 and G0:
-            return Axis.REFERENCE
-        elif P0:
-            return Axis.GB_COMBO
-        else:
-            return Axis.GBP_COMBO
 
     def results_data(self, as_dict: bool = False) -> WinstonLutz2DResult | dict:
         """Present the results data and metadata as a dataclass or dict.
@@ -650,7 +829,7 @@ class WinstonLutz:
     machine_scale: MachineScale  #:
     image_type = WinstonLutz2D
     is_from_cbct: bool = False
-    _bb_diameter = float
+    _bb_diameter: float
     detection_conditions: list[callable] = [
         is_right_size_bb,
         is_round,
@@ -749,6 +928,11 @@ class WinstonLutz:
         **kwargs,
     ) -> WinstonLutz2D:
         """A helper method to load either DICOM or TIFF files appropriately."""
+        if _is_xim(file):
+            ds = XIM(file).as_dicom()
+            file = io.BytesIO()
+            ds.save_as(file, write_like_original=False)
+            kwargs["is_from_xim"] = True
         try:
             return self.image_type(
                 file, detection_conditions=self.detection_conditions, **kwargs
@@ -1717,7 +1901,7 @@ class WinstonLutz:
         return any(True for image in self.images if image.variable_axis in (axis,))
 
 
-class WinstonLutz2DMultiTarget(WinstonLutz2D):
+class WinstonLutz2DMultiTargetImage(WLBaseImage):
     """A 2D image of a WL delivery, but where multiple BBs are in use."""
 
     detection_conditions = [is_round, is_symmetric, is_modest_size]
@@ -1727,63 +1911,47 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         super().__init__(*args, **kwargs)
         self.flipud()  # restore to original view; vanilla WL may need to revert
 
-    def as_analyzed(self, bb_location: dict) -> WinstonLutz2DMultiTarget:
-        """Analyze the image of the multi-BB setup. We return a copy of the
-        WL image because we analyze images more than once. Each "analyzed" image
-        is really the analysis of a BB/image combo.
-
-        Parameters
-        ----------
-        bb_location
-            An iterable of dictionaries. Each dict contains keys for the offsets and size of the BB in mm.
-            Use the ``BBArrangement`` class as a guide.
-        """
-        self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
-            bb_location
-        )
-        self.bb = self._find_bb(bb_location)
-        self._is_analyzed = True
-        return copy.deepcopy(self)
+    # def as_analyzed(self, bb_location: dict) -> WinstonLutz2DMultiTarget:
+    #     """Analyze the image of the multi-BB setup. We return a copy of the
+    #     WL image because we analyze images more than once. Each "analyzed" image
+    #     is really the analysis of a BB/image combo.
+    #
+    #     Parameters
+    #     ----------
+    #     bb_location
+    #         An iterable of dictionaries. Each dict contains keys for the offsets and size of the BB in mm.
+    #         Use the ``BBArrangement`` class as a guide.
+    #     """
+    #     self.field_cax, self._rad_field_bounding_box = self._find_field_centroid(
+    #         bb_location
+    #     )
+    #     self.bb = self._find_bb(bb_location)
+    #     self._is_analyzed = True
+    #     return copy.deepcopy(self)
 
     def plot(
         self, ax: plt.Axes | None = None, show: bool = True, clear_fig: bool = False
     ) -> plt.Axes:
-        ax = super(LinacDicomImage, self).plot(ax=ax, show=False, clear_fig=clear_fig)
-        ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
-        ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[2]])
-        ax.set_xlim([self._rad_field_bounding_box[1], self._rad_field_bounding_box[3]])
+        ax = super(LinacDicomImage, self).plot(
+            ax=ax, show=False, clear_fig=clear_fig, show_metrics=True
+        )
+        # ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
+        # ax.set_ylim([self._rad_field_bounding_box[0], self._rad_field_bounding_box[2]])
+        # ax.set_xlim([self._rad_field_bounding_box[1], self._rad_field_bounding_box[3]])
         ax.set_yticklabels([])
         ax.set_xticklabels([])
         ax.set_title("\n".join(wrap(Path(self.path).name, 30)), fontsize=10)
         ax.set_xlabel(
             f"G={self.gantry_angle:.0f}, B={self.collimator_angle:.0f}, P={self.couch_angle:.0f}"
         )
-        ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
+        # ax.set_ylabel(f"CAX to BB: {self.cax2bb_distance:3.2f}mm")
         if show:
             plt.show()
         return ax
 
-    def _nominal_point(self, bb: dict) -> Point:
-        """Calculate the expected point position in 2D"""
-        shift_y_mm = bb_projection_long(
-            offset_in=bb["offset_in_mm"],
-            offset_up=bb["offset_up_mm"],
-            offset_left=bb["offset_left_mm"],
-            sad=self.sad,
-            gantry=self.gantry_angle,
-        )
-        shift_x_mm = bb_projection_gantry_plane(
-            offset_left=bb["offset_left_mm"],
-            offset_up=bb["offset_up_mm"],
-            sad=self.sad,
-            gantry=self.gantry_angle,
-        )
-        # unlike vanilla WL, the field can be asymmetric, so use center of image
-        expected_y = self.epid.y - shift_y_mm * self.dpmm
-        expected_x = self.epid.x + shift_x_mm * self.dpmm
-        return Point(x=expected_x, y=expected_y)
-
-    def _find_field_centroid(self, location: dict) -> tuple[Point, list]:
+    def find_field_centroid(
+        self, bb_arrangement: dict, is_open_field: bool
+    ) -> tuple[Point, list]:
         """Find the centroid of the radiation field based on a 50% height threshold.
         This applies the field detection conditions and also a nearness condition.
 
@@ -1804,7 +1972,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
                 condition(
                     region,
                     dpmm=self.dpmm,
-                    rad_size=location["rad_size_mm"],
+                    rad_size=bb_arrangement["rad_size_mm"],
                     shape=labeled_arr.shape,
                 )
                 for condition in self.field_conditions
@@ -1816,7 +1984,7 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
                 "Did not find an ROI that looked like the radiation field. Ensure the rad_size parameter is correct."
             )
         field_localized = [
-            self.location_near_nominal(region, location) for region in regions
+            self.location_near_nominal(region, bb_arrangement) for region in regions
         ]
         if not any(field_localized):
             raise ValueError("Did not find the radiation field where it was expected.")
@@ -1834,25 +2002,46 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         bbox[3] += 40
         return Point(field_roi.centroid[1], field_roi.centroid[0]), bbox
 
-    def _find_bb(self, bb_of_interest: dict) -> Point:
+    def find_bbs(self, bb_diameter_mm: float, low_density: bool) -> list[Point]:
         """Find the specific BB based on the arrangement rather than a single one. This is in local pixel coordinates"""
         # get initial starting conditions
-        bb_diameter = bb_of_interest["bb_size_mm"]
-        window = bb_of_interest["rad_size_mm"]
-        expected_position = self._nominal_point(bb_of_interest)
-        expected_position_mm = expected_position / self.dpmm
-        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
+        bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
         centers = self.compute(
-            metrics=SizedDiskLocator.from_physical(
-                expected_position_mm=expected_position_mm,
-                search_window_mm=(window, window),
-                radius_mm=bb_diameter / 2,
+            metrics=GlobalSizedDiskLocator(
+                radius_mm=bb_diameter_mm / 2,
                 radius_tolerance_mm=bb_tolerance_mm,
-                invert=True,  # only MV images are involved for MTWL AFAICT
+                invert=not self.is_from_xim,  # invert normal images; don't invert XIM
                 detection_conditions=self.detection_conditions,
             )
         )
-        return centers[0]
+        return centers
+
+    # def find_bb_centroid(self, detected_bb_positions: list[Point], nominal_bb_positions: list[Point]) -> Point:
+    #     """Find the centroid of the detected BBs"""
+    #     diffs = []
+    #     for detected, nominal in zip(detected_bb_positions, nominal_bb_positions):
+    #         diffs.append(detected - nominal)
+    #     return Point(np.mean([diff.x for diff in diffs]), np.mean([diff.y for diff in diffs]))
+
+    # def find_bb_centroid(self, bb_of_interest: dict) -> Point:
+    #     """Find the specific BB based on the arrangement rather than a single one. This is in local pixel coordinates"""
+    #     # get initial starting conditions
+    #     bb_diameter = bb_of_interest["bb_size_mm"]
+    #     window = bb_of_interest["rad_size_mm"]
+    #     expected_position = self.nominal_bb_position(bb_of_interest)
+    #     expected_position_mm = expected_position / self.dpmm
+    #     bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
+    #     centers = self.compute(
+    #         metrics=SizedDiskLocator.from_physical(
+    #             expected_position_mm=expected_position_mm,
+    #             search_window_mm=(window, window),
+    #             radius_mm=bb_diameter / 2,
+    #             radius_tolerance_mm=bb_tolerance_mm,
+    #             invert=not self.is_from_xim,  # invert normal images; don't invert XIM
+    #             detection_conditions=self.detection_conditions,
+    #         )
+    #     )
+    #     return centers[0]
 
     def location_near_nominal(self, region: RegionProperties, location: dict) -> bool:
         """Determine whether the given BB ROI is near where the BB is expected to be"""
@@ -1860,21 +2049,16 @@ class WinstonLutz2DMultiTarget(WinstonLutz2D):
         # of the BB at that plane from the 3D coordinates
         if region.area < 5:
             return False  # skip single or very small pixel regions
-        expected = self._nominal_point(location)
+        expected = self.nominal_bb_position(location)
         near_y = math.isclose(expected.y, region.centroid[0], abs_tol=5 * self.dpmm)
         near_x = math.isclose(expected.x, region.centroid[1], abs_tol=5 * self.dpmm)
         return near_y and near_x
 
-    def results_data(self, as_dict: bool = False) -> WinstonLutz2DResult | dict:
-        raise NotImplementedError(
-            "Results data is not available for a multi-bb 2D WL image"
-        )
-
 
 class WinstonLutzMultiTargetMultiField(WinstonLutz):
-    images: Sequence[WinstonLutz2DMultiTarget]  #:
-    analyzed_images: dict[str, list[WinstonLutz2DMultiTarget]]  #:
-    image_type = WinstonLutz2DMultiTarget
+    images: Sequence[WinstonLutz2DMultiTargetImage]  #:
+    analyzed_images: dict[str, list[WinstonLutz2DMultiTargetImage]]  #:
+    image_type = WinstonLutz2DMultiTargetImage
     bb_arrangement: Sequence[dict]  #:
 
     def __init__(self, *args, **kwargs):
@@ -1899,26 +2083,8 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     @staticmethod
     def run_demo():
         """Run the Winston-Lutz MT MF demo, which loads the demo files, prints results, and plots a summary image."""
-        arrangement = (
-            {
-                "name": "Iso",
-                "offset_left_mm": 0,
-                "offset_up_mm": 0,
-                "offset_in_mm": 0,
-                "bb_size_mm": 5,
-                "rad_size_mm": 20,
-            },
-            {
-                "name": "Left,Down,In",
-                "offset_left_mm": 20,
-                "offset_up_mm": -20,
-                "offset_in_mm": 60,
-                "bb_size_mm": 5,
-                "rad_size_mm": 20,
-            },
-        )
         wl = WinstonLutzMultiTargetMultiField.from_demo_images()
-        wl.analyze(bb_arrangement=arrangement)
+        wl.analyze(bb_arrangement=BBArrangement.DEMO)
         print(wl.results())
         wl.plot_images()
 
@@ -2176,6 +2342,59 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
 
         if open_file:
             webbrowser.open(filename)
+
+
+class WinstonLutzMultTargetSingleField(WinstonLutzMultiTargetMultiField):
+    def plot_images(self, show: bool = True, **kwargs) -> (list[plt.Figure], list[str]):
+        figs, names = [], []
+        figsize = kwargs.pop("figsize", (8, 8))
+        for img in self.images:
+            # rows = len(self.images) // 3 + 1
+            fig, axes = plt.subplots(figsize=figsize, **kwargs)
+            # for mpl_axis, wl_image in zip_longest(axes.flatten(), img_set):
+            plot_image(img, axis=axes)
+
+            # set titles
+            fig.suptitle(f"{img.path}", fontsize=14, y=1)
+            fig.tight_layout()
+            figs.append(fig)
+            # names.append(f"BB_{bb}")
+        if show:
+            plt.show()
+        return figs, names
+
+    def analyze(self, bb_arrangement: Sequence[dict]):
+        """Analyze the WL images.
+
+        Parameters
+        ----------
+        bb_arrangement
+            The arrangement of the BBs in the phantom. A dict with offset and BB size keys. See the ``BBArrangement`` class for
+            keys and syntax.
+        """
+        # self.analyzed_images = {}
+        # self.bb_arrangement = bb_arrangement
+        # self.bb_centroids = []
+
+        # find all BBs first; efficient to do it all at once as we'll iterate over the images multiple times
+        # for img in self.images:
+        #     found_bbs = img.find_bbs(bb_diameter_mm=bb_arrangement[0]["bb_size_mm"], )
+        #     detected_points = []
+        #     nominal_points = []
+        #     for bb_arng in bb_arrangement:
+        #         nominal_point = img.nominal_bb_position(bb_arng)
+        #         distances = [nominal_point.distance_to(found_point) for found_point in found_bbs]
+        #         min_distance = min(distances)
+        #         min_distance_idx = distances.index(min_distance)
+        #         if min_distance < 10 * img.dpmm:
+        #             nominal_points.append(nominal_point)
+        #             detected_points.append(found_bbs[min_distance_idx])
+        #     if detected_points:
+        # if not detected_points:
+        #     raise ValueError(f"Did not find a BB within 10mm of the expected position. Min distance: {min_distance:.2f}mm")
+        #     centroid_bb = img.find_bb_centroid(detected_points, nominal_points)
+        #     self.bb_centroids.append(centroid_bb)
+        pass
 
 
 def max_distance_to_lines(p, lines: Iterable[Line]) -> float:

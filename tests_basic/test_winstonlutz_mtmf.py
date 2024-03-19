@@ -100,3 +100,13 @@ class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     max_2d_distance = 0.78
     median_2d_distance = 0.56
     mean_2d_distance = 0.58
+
+
+class MPCSubset(WinstonLutzMultiTargetMultFieldMixin, TestCase):
+    dir_path = ["MPC"]
+    file_name = "6xsubset.zip"
+    num_images = 3
+    arrangement = BBArrangement.ISOCAL
+    max_2d_distance = 0.78
+    median_2d_distance = 0.56
+    mean_2d_distance = 0.58
