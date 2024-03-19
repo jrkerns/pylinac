@@ -51,7 +51,7 @@ from .io import (
     retrieve_filenames,
 )
 from .profile import stretch as stretcharray
-from .scale import wrap360
+from .scale import MachineScale, convert, wrap360
 from .utilities import decode_binary, is_close, simple_round
 
 ARRAY = "Array"
@@ -133,7 +133,7 @@ def is_image(path: str | io.BytesIO | ImageLike | np.ndarray) -> bool:
     -------
     bool
     """
-    return any((_is_array(path), _is_dicom(path), _is_image_file(path)))
+    return any((_is_array(path), _is_dicom(path), _is_image_file(path), _is_xim(path)))
 
 
 def retrieve_image_files(path: str) -> list[str]:
@@ -359,6 +359,15 @@ def _is_image_file(path: str | Path) -> bool:
         return False
 
 
+def _is_xim(path: str | Path) -> bool:
+    """Whether the file is a readable XIM file."""
+    try:
+        x = XIM(path, read_pixels=False)
+        return bool(x.format_id)
+    except Exception:
+        return False
+
+
 def _is_array(obj: Any) -> bool:
     """Whether the object is a numpy array."""
     return isinstance(obj, np.ndarray)
@@ -491,6 +500,7 @@ class BaseImage:
         ax: plt.Axes = None,
         show: bool = True,
         clear_fig: bool = False,
+        show_metrics: bool = True,
         metric_kwargs: dict | None = None,
         **kwargs,
     ) -> plt.Axes:
@@ -504,6 +514,8 @@ class BaseImage:
             Whether to actually show the image. Set to false when plotting multiple items.
         clear_fig : bool
             Whether to clear the prior items on the figure before plotting.
+        show_metrics : bool
+            Whether to show the metrics on the image.
         metric_kwargs : dict
             kwargs passed to the metric plot method.
         kwargs
@@ -517,8 +529,9 @@ class BaseImage:
             plt.clf()
         ax.imshow(self.array, cmap=get_dicom_cmap(), **kwargs)
         # plot the metrics
-        for metric in self.metrics:
-            metric.plot(axis=ax, **metric_kwargs)
+        if show_metrics:
+            for metric in self.metrics:
+                metric.plot(axis=ax, **metric_kwargs)
         if show:
             plt.show()
         return ax
@@ -1109,7 +1122,50 @@ class XIM(BaseImage):
             )
         return 1 / (10 * self.properties["PixelHeight"])
 
-    def save_as(self, file: str, format: str | None = None) -> None:
+    def as_dicom(self) -> Dataset:
+        """Save the XIM image as a *simplistic* DICOM file. Only meant for basic image storage/analysis."""
+        iec_g, iec_c, iec_p = convert(
+            input_scale=MachineScale.VARIAN_STANDARD,
+            output_scale=MachineScale.IEC61217,
+            gantry=self.properties["GantryRtn"],
+            collimator=self.properties["MVCollimatorRtn"],
+            rotation=self.properties["CouchRtn"],
+        )
+        uint_array = convert_to_dtype(self.array, np.uint16)
+        # inv_array = invert(uint_array)
+        file_meta = FileMetaDataset()
+        # Main data elements
+        ds = Dataset()
+        ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+        ds.SOPInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
+        ds.Modality = "RTIMAGE"
+        ds.ConversionType = "WSD"
+        ds.PatientName = "Lutz^Test Tool"
+        ds.PatientID = "Someone Important"
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.Rows = self.array.shape[0]
+        ds.Columns = self.array.shape[1]
+        ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
+        ds.PixelRepresentation = 0
+        ds.ImagePlanePixelSpacing = [1 / self.dpmm, 1 / self.dpmm]
+        ds.RadiationMachineSAD = "1000.0"
+        ds.RTImageSID = "1000"
+        ds.PrimaryDosimeterUnit = "MU"
+        ds.GantryAngle = f"{iec_g:.2f}"
+        ds.BeamLimitingDeviceAngle = f"{iec_c:.2f}"
+        ds.PatientSupportAngle = f"{iec_p:.2f}"
+        ds.PixelData = uint_array
+
+        ds.file_meta = file_meta
+        ds.is_implicit_VR = True
+        ds.is_little_endian = True
+        return ds
+
+    def save_as(self, file: str | Path, format: str | None = None) -> None:
         """Save the image to a NORMAL format. PNG is highly suggested. Accepts any format supported by Pillow.
         Ironically, an equivalent PNG image (w/ metadata) is ~50% smaller than an .xim image.
 

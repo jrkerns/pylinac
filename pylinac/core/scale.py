@@ -18,7 +18,7 @@ def mirror_360(value: float) -> float:
 
 def shift_and_mirror_360(value: float) -> float:
     """Shift by 180 degrees and then mirror about 0"""
-    argue.verify_bounds(value, argue.POSITIVE)
+    value = abs360(value)
     v = value - 180
     if v > 0:
         return mirror_360(v)
