@@ -1123,7 +1123,11 @@ class XIM(BaseImage):
         return 1 / (10 * self.properties["PixelHeight"])
 
     def as_dicom(self) -> Dataset:
-        """Save the XIM image as a *simplistic* DICOM file. Only meant for basic image storage/analysis."""
+        """Save the XIM image as a *simplistic* DICOM file. Only meant for basic image storage/analysis.
+
+        It appears that XIM images are in the Varian standard coordinate system.
+        We convert to IEC61217 for more general compatibility.
+        """
         iec_g, iec_c, iec_p = convert(
             input_scale=MachineScale.VARIAN_STANDARD,
             output_scale=MachineScale.IEC61217,
@@ -1132,11 +1136,10 @@ class XIM(BaseImage):
             rotation=self.properties["CouchRtn"],
         )
         uint_array = convert_to_dtype(self.array, np.uint16)
-        # inv_array = invert(uint_array)
         file_meta = FileMetaDataset()
         # Main data elements
         ds = Dataset()
-        ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")
+        ds.SOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.1")  # RT Image
         ds.SOPInstanceUID = generate_uid()
         ds.SeriesInstanceUID = generate_uid()
         ds.Modality = "RTIMAGE"

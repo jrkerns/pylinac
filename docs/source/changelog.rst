@@ -2,6 +2,25 @@
 Changelog
 =========
 
+v 3.22.0
+--------
+
+Image Metrics
+^^^^^^^^^^^^^
+
+* The ``GlobalSizedDiskLocator`` class has added an ``invert`` parameter. This parameter existed for the other locators, but was missing for the global disk locator.
+  Previously, the locator was always inverting the image (assuming images like EPID). Now, the parameter can be used to control this behavior. By
+  default, the paramter is true for backwards-compatibility.
+
+Image
+^^^^^
+
+* It is now possible to save ``XIM`` images back to a *simplified* DICOM dataset. A new method has been added: ``as_dicom`` which will
+  return a pydicom Dataset.
+* When plotting an image (``DicomImage``, ``ArrayImage``, etc) where metrics had been computed, the metrics would
+  be plotted on the resulting figure all the time. A new parameter ``show_metrics`` has been added to the ``plot`` method
+  to control this behavior.
+
 v 3.21.0
 --------
 
