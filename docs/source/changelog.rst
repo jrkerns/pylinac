@@ -2,6 +2,15 @@
 Changelog
 =========
 
+v 3.22.0
+--------
+
+Winston Lutz
+^^^^^^^^^^^^
+
+* <image class names changed>
+* <can handle XIM images>
+
 v 3.21.0
 --------
 

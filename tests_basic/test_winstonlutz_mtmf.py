@@ -4,7 +4,7 @@ from typing import Iterable
 from unittest import TestCase
 
 from pylinac import WinstonLutzMultiTargetMultiField
-from pylinac.winston_lutz import BBArrangement
+from pylinac.winston_lutz import BBArrangement, WinstonLutzMultiTargetSingleField
 from tests_basic.utils import CloudFileMixin
 
 TEST_DIR = "Winston-Lutz"
@@ -56,6 +56,7 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
     print_results = False
     arrangement: Iterable[dict]
     wl: WinstonLutzMultiTargetMultiField
+    loader = WinstonLutzMultiTargetMultiField
     max_2d_distance: float
     mean_2d_distance: float
     median_2d_distance: float
@@ -64,9 +65,9 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
     def setUpClass(cls):
         filename = cls.get_filename()
         if cls.zip:
-            cls.wl = WinstonLutzMultiTargetMultiField.from_zip(filename)
+            cls.wl = cls.loader.from_zip(filename)
         else:
-            cls.wl = WinstonLutzMultiTargetMultiField(filename)
+            cls.wl = cls.loader(filename)
         cls.wl.analyze(cls.arrangement)
         if cls.print_results:
             print(cls.wl.results())
@@ -92,6 +93,24 @@ class WinstonLutzMultiTargetMultFieldMixin(CloudFileMixin):
         )
 
 
+class WinstonLutzMultiTargetSingleFieldMixin(WinstonLutzMultiTargetMultFieldMixin):
+    loader = WinstonLutzMultiTargetSingleField
+    arrangement = BBArrangement.ISOCAL
+    is_open_field: bool = False
+    wl: WinstonLutzMultiTargetSingleField
+
+    @classmethod
+    def setUpClass(cls):
+        filename = cls.get_filename()
+        if cls.zip:
+            cls.wl = cls.loader.from_zip(filename)
+        else:
+            cls.wl = cls.loader(filename)
+        cls.wl.analyze(cls.arrangement, is_open_field=cls.is_open_field)
+        if cls.print_results:
+            print(cls.wl.results())
+
+
 class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     dir_path = ["Winston-Lutz", "multi_target_multi_field"]
     file_name = "SNC_MM_KB.zip"
@@ -102,7 +121,7 @@ class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     mean_2d_distance = 0.58
 
 
-class MPCSubset(WinstonLutzMultiTargetMultFieldMixin, TestCase):
+class MPCSubset(WinstonLutzMultiTargetSingleFieldMixin, TestCase):
     dir_path = ["MPC"]
     file_name = "6xsubset.zip"
     num_images = 3
@@ -110,3 +129,4 @@ class MPCSubset(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     max_2d_distance = 0.78
     median_2d_distance = 0.56
     mean_2d_distance = 0.58
+    is_open_field = True
