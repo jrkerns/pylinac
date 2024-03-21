@@ -38,10 +38,10 @@ import argue
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import art3d
+from py_linq import Enumerable
 from scipy import linalg, ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
-from skimage import measure
 from skimage.measure._regionprops import RegionProperties
 from tabulate import tabulate
 
@@ -67,7 +67,11 @@ from .metrics.features import (
     is_solid,
     is_symmetric,
 )
-from .metrics.image import GlobalSizedDiskLocator, SizedDiskLocator
+from .metrics.image import (
+    GlobalSizedDiskLocator,
+    GlobalSizedFieldLocator,
+    SizedDiskLocator,
+)
 
 BB_ERROR_MESSAGE = (
     "Unable to locate the BB. Make sure the field edges do not obscure the BB, that there are no artifacts in the images, that the 'bb_size' parameter is close to reality, "
@@ -80,7 +84,7 @@ class BBConfig(TypedDict):
     offset_left_mm: float
     offset_up_mm: float
     offset_in_mm: float
-    bb_diameter_mm: float
+    bb_size_mm: float
     rad_size_mm: float
 
 
@@ -93,19 +97,19 @@ class BBArrangement:
             offset_left_mm=0,
             offset_up_mm=0,
             offset_in_mm=0,
-            bb_diameter_mm=5,  # not used; overridden later
+            bb_size_mm=5,  # not used; overridden later
             rad_size_mm=20,  # not used; overridden later
         ),
     )
     ISOCAL = (
-        {
-            "name": "1",
-            "offset_left_mm": 0,
-            "offset_up_mm": -170,
-            "offset_in_mm": -30,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
+        BBConfig(
+            name="1",
+            offset_left_mm=0,
+            offset_up_mm=-170,
+            offset_in_mm=-30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
         # {
         #     'name': '2',
         #     'offset_left_mm': -170,
@@ -117,72 +121,72 @@ class BBArrangement:
     )
     # locations: https://www.postersessiononline.eu/173580348_eu/congresos/ESTRO2020/aula/-PO_1320_ESTRO2020.pdf
     SNC_MULTIMET = (
-        {
-            "name": "Iso",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": 0,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "1",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": 30,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "2",
-            "offset_left_mm": -30,
-            "offset_up_mm": 0,
-            "offset_in_mm": 15,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "3",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": -30,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "4",
-            "offset_left_mm": 30,
-            "offset_up_mm": 0,
-            "offset_in_mm": -50,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "5",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": -70,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
+        BBConfig(
+            name="Iso",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=0,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="1",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="2",
+            offset_left_mm=-30,
+            offset_up_mm=0,
+            offset_in_mm=15,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="3",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=-30,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="4",
+            offset_left_mm=30,
+            offset_up_mm=0,
+            offset_in_mm=-50,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="5",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=-70,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
     )
     DEMO = (
-        {
-            "name": "Iso",
-            "offset_left_mm": 0,
-            "offset_up_mm": 0,
-            "offset_in_mm": 0,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
-        {
-            "name": "Left,Down,In",
-            "offset_left_mm": 20,
-            "offset_up_mm": -20,
-            "offset_in_mm": 60,
-            "bb_size_mm": 5,
-            "rad_size_mm": 20,
-        },
+        BBConfig(
+            name="Iso",
+            offset_left_mm=0,
+            offset_up_mm=0,
+            offset_in_mm=0,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
+        BBConfig(
+            name="Left,Down,In",
+            offset_left_mm=20,
+            offset_up_mm=-20,
+            offset_in_mm=60,
+            bb_size_mm=5,
+            rad_size_mm=20,
+        ),
     )
 
     @staticmethod
@@ -391,6 +395,13 @@ def is_right_square_size(region: RegionProperties, *args, **kwargs) -> bool:
 class WLBaseImage(image.LinacDicomImage):
     """Base class for a WL Image. Can be a single 2D image or part of a stack of images for 3D WL analysis."""
 
+    field_caxs: list[Point]
+    bb_positions: list[Point]
+    bb_arrangement: tuple[BBConfig]
+    arrangement_matches: dict[
+        str, dict[str, Point]
+    ]  # a field CAX and BB matched to their respective nominal locations
+
     def __init__(
         self,
         file: str | BinaryIO | Path,
@@ -419,27 +430,38 @@ class WLBaseImage(image.LinacDicomImage):
         bb_arrangement: tuple[BBConfig],
         is_open_field: bool = False,
         is_low_density: bool = False,
-    ) -> (tuple[Point], tuple[Point | None]):
+    ) -> (tuple[Point], tuple[Point]):
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self._clean_edges()
         self.ground()
         self.normalize()
-        field_caxs = self.find_field_centroids(
-            bb_arrangement=bb_arrangement, is_open_field=is_open_field
-        )
-        detected_bb_points = self.find_bbs(
-            bb_diameter_mm=bb_arrangement[0]["bb_diameter_mm"],
+        self.bb_arrangement = bb_arrangement
+        field_caxs = self.find_field_centroids(is_open_field=is_open_field)
+        field_matches = self.find_field_matches(field_caxs)
+        detected_bb_points = self.find_bb_centroids(
+            bb_diameter_mm=bb_arrangement[0]["bb_size_mm"],
             low_density=is_low_density,
         )
-        bbs = self.find_matched_bbs(
-            bb_arrangement=bb_arrangement, detected_bb_positions=detected_bb_points
-        )
+        bb_matches = self.find_bb_matches(detected_points=detected_bb_points)
+        if len(bb_matches) != len(field_matches) != len(bb_arrangement):
+            raise ValueError(
+                "Detected BBs and fields do not match the expected number based on the arrangement."
+            )
+        # we now have field CAXs and BBs matched to their respective nominal locations
+        # merge the field and BBs per arrangement position
+        combined_matches = {}
+        for bb_name, bb_match in bb_matches.items():
+            bbconfig = Enumerable(bb_arrangement).single(lambda x: x["name"] == bb_name)
+            nominal = self.nominal_bb_position(bbconfig)
+            combined_matches[bb_name] = {
+                "field": field_matches[bb_name],
+                "bb": bb_match,
+                "bb nominal": nominal,
+            }
         self._is_analyzed = True
-        return field_caxs, bbs
+        self.arrangement_matches = combined_matches
 
-    def find_field_centroids(
-        self, bb_arrangement: tuple[BBConfig], is_open_field: bool
-    ) -> list[Point]:
+    def find_field_centroids(self, is_open_field: bool) -> list[Point]:
         """Find the field CAX(s) in the image. If the field is open or this is a vanilla WL, only one CAX is found."""
         # TODO: Use metrics field finder
         if is_open_field:
@@ -452,44 +474,33 @@ class WLBaseImage(image.LinacDicomImage):
             p = Point(x=coords[-1], y=coords[0])
         return [p]
 
-    def find_matched_bbs(
-        self, bb_arrangement: tuple[dict], detected_bb_positions: list[Point]
-    ) -> list[Point]:
+    def find_field_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+        return self.find_bb_matches(detected_points)
+
+    def find_bb_matches(self, detected_points: list[Point]) -> dict[str, Point]:
         """Given an arrangement and detected BB positions, find the bbs that are closest to the expected positions.
 
         This is to prevent false positives from being detected as BBs (e.g. noise, couch, etc).
         The detected BBs are matched to the expected BBs based on proximity.
 
+        These matches are linked to the individual BB arrangement by arrangement name.
         """
-        detected_points = []
-        nominal_points = []
-        for bb_arng in bb_arrangement:
+        bbs = {}
+        for bb_arng in self.bb_arrangement:
             nominal_point = self.nominal_bb_position(bb_arng)
             distances = [
                 nominal_point.distance_to(found_point)
-                for found_point in detected_bb_positions
+                for found_point in detected_points
             ]
             min_distance = min(distances)
             min_distance_idx = distances.index(min_distance)
             if min_distance < 20 * self.dpmm:
-                nominal_points.append(nominal_point)
-                detected_points.append(detected_bb_positions[min_distance_idx])
-        if not detected_points:
-            return detected_points
-            # raise ValueError("No BBs found within 20mm of the expected position.")
-            # if not detected_points:
-            #     raise ValueError(f"Did not find a BB within 10mm of the expected position. Min distance: {min_distance:.2f}mm")
-            # centroid_bb = img.find_bb_centroid(detected_points, nominal_points)
-            # self.bb_centroids.append(centroid_bb)
-        # diffs = []
-        # for detected, nominal in zip(detected_points, nominal_points):
-        #     diffs.append(detected - nominal)
-        # return Point(
-        #     np.mean([diff.x for diff in diffs]) + self.epid.x,
-        #     np.mean([diff.y for diff in diffs]) + self.epid.y,
-        # )
+                bbs[bb_arng["name"]] = detected_points[min_distance_idx]
+        return bbs
 
-    def find_bbs(self, bb_diameter_mm: float, low_density: bool) -> list[Point]:
+    def find_bb_centroids(
+        self, bb_diameter_mm: float, low_density: bool
+    ) -> list[Point]:
         """Find BBs in the image."""
         bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
         centers = self.compute(
@@ -504,18 +515,14 @@ class WLBaseImage(image.LinacDicomImage):
         )
         return centers
 
-        # bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
-        # centers = self.compute(
-        #     metrics=GlobalSizedDiskLocator(
-        #         radius_mm=bb_diameter_mm / 2,
-        #         radius_tolerance_mm=bb_tolerance_mm,
-        #         invert=not self.is_from_xim,  # invert normal images; don't invert XIM
-        #         detection_conditions=self.detection_conditions,
-        #     )
-        # )
-        # return centers
+    def field_to_bb_distances(self) -> list[float]:
+        """The distance from the field CAX to the BB in mm."""
+        distances = []
+        for match in self.arrangement_matches.values():
+            distances.append(match["field"].distance_to(match["bb"]) / self.dpmm)
+        return distances
 
-    def nominal_bb_position(self, bb_config: dict) -> Point:
+    def nominal_bb_position(self, bb_config: BBConfig) -> Point:
         """Calculate the expected point position in 2D"""
         shift_y_mm = bb_projection_long(
             offset_in=bb_config["offset_in_mm"],
@@ -625,21 +632,14 @@ class WinstonLutz2D(WLBaseImage):
         open_field: bool = False,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
-        bb_config = (
-            BBConfig(
-                name="Iso",
-                offset_left_mm=0,
-                offset_up_mm=0,
-                offset_in_mm=0,
-                bb_diameter_mm=bb_size_mm,
-                rad_size_mm=20,
-            ),
-        )
+        bb_config = BBArrangement.ISO
+        bb_config[0]["bb_size_mm"] = bb_size_mm
         fields, bbs = super().analyze(
             bb_arrangement=bb_config,
             is_open_field=open_field,
             is_low_density=low_density_bb,
         )
+        self.bb_arrangement = bb_config[0]
         # for vanilla WL, there's only 1 field and 1 BB
         self.field_cax = fields[0]
         self.bb = bbs[0]
@@ -724,7 +724,7 @@ class WinstonLutz2D(WLBaseImage):
         ax.plot(self.field_cax.x, self.field_cax.y, "gs", ms=8)
         ax.axvline(x=self.epid.x, color="b")
         ax.axhline(y=self.epid.y, color="b")
-        margin = (self.bb_arrangement["bb_diameter_mm"] + 20) * self.dpmm
+        margin = (self.bb_arrangement["bb_size_mm"] + 20) * self.dpmm
         ax.set_ylim([self.bb.y - margin, self.bb.y + margin])
         ax.set_xlim([self.bb.x - margin, self.bb.x + margin])
         ax.set_yticklabels([])
@@ -921,7 +921,7 @@ class WinstonLutz:
         return cls.from_zip(demo_file, **kwargs)
 
     @classmethod
-    def from_zip(cls, zfile: str | BinaryIO, **kwargs):
+    def from_zip(cls, zfile: str | BinaryIO | Path, **kwargs):
         """Instantiate from a zip file rather than a directory.
 
         Parameters
@@ -1872,9 +1872,7 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
             plt.show()
         return ax
 
-    def find_field_centroids(
-        self, bb_arrangement: tuple[BBConfig], is_open_field: bool
-    ) -> list[Point]:
+    def find_field_centroids(self, is_open_field: bool) -> list[Point]:
         """Find the centroid of the radiation field based on a 50% height threshold.
         This applies the field detection conditions and also a nearness condition.
 
@@ -1887,44 +1885,68 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
         """
         if is_open_field:
             return [self.center]
-        min, max = np.percentile(self.array, [5, 99.9])
-        threshold_img = self.as_binary((max - min) / 2 + min)
-        filled_img = ndimage.binary_fill_holes(threshold_img)
-        labeled_arr, num_roi = ndimage.label(filled_img)
-        regions = measure.regionprops(labeled_arr)
-        field_candidates = [
-            all(
-                condition(
-                    region,
-                    dpmm=self.dpmm,
-                    rad_size=bb_arrangement[0][
-                        "rad_size_mm"
-                    ],  # TODO: use global field finder w/ range of fields from all arrangements
-                    shape=labeled_arr.shape,
-                )
-                for condition in self.field_conditions
-            )
-            for region in regions
-        ]
-        if not any(field_candidates):
-            raise ValueError(
-                "Did not find an ROI that looked like the radiation field. Ensure the rad_size parameter is correct."
-            )
-        field_localized = [
-            self.location_near_nominal(region, bb_arrangement) for region in regions
-        ]
-        if not any(field_localized):
-            raise ValueError("Did not find the radiation field where it was expected.")
-        else:
-            region_idx = [
-                idx
-                for idx, _ in enumerate(regions)
-                if field_candidates[idx] and field_localized[idx]
-            ][0]
-            field_roi = regions[region_idx]
-        return Point(field_roi.centroid[1], field_roi.centroid[0])
 
-    def find_bbs(self, bb_diameter_mm: float, low_density: bool) -> list[Point]:
+        # find all the fields by setting the field to the mean rad size and tolerance
+        # to max-min field sizes across the arrangements
+        max_field_size = max(self.bb_arrangement, key=lambda x: x["rad_size_mm"])[
+            "rad_size_mm"
+        ]
+        min_field_size = min(self.bb_arrangement, key=lambda x: x["rad_size_mm"])[
+            "rad_size_mm"
+        ]
+        mean_field_size = (max_field_size + min_field_size) / 2
+        tolerance_field_size = max(
+            (max_field_size - min_field_size) * 1.2, 0.1 * mean_field_size
+        )
+        points = self.compute(
+            metrics=GlobalSizedFieldLocator.from_physical(
+                max_number=len(self.bb_arrangement),
+                field_height_mm=mean_field_size,
+                field_width_mm=mean_field_size,
+                field_tolerance_mm=tolerance_field_size,
+            )
+        )
+        return points
+        # min, max = np.percentile(self.array, [5, 99.9])
+        # threshold_img = self.as_binary((max - min) / 2 + min)
+        # filled_img = ndimage.binary_fill_holes(threshold_img)
+        # labeled_arr, num_roi = ndimage.label(filled_img)
+        # regions = measure.regionprops(labeled_arr)
+        # field_candidates = [
+        #     all(
+        #         condition(
+        #             region,
+        #             dpmm=self.dpmm,
+        #             rad_size=self.bb_arrangement[0][
+        #                 "rad_size_mm"
+        #             ],  # TODO: use global field finder w/ range of fields from all arrangements
+        #             shape=labeled_arr.shape,
+        #         )
+        #         for condition in self.field_conditions
+        #     )
+        #     for region in regions
+        # ]
+        # if not any(field_candidates):
+        #     raise ValueError(
+        #         "Did not find an ROI that looked like the radiation field. Ensure the rad_size parameter is correct."
+        #     )
+        # field_localized = [
+        #     self.location_near_nominal(region, self.bb_arrangement) for region in regions
+        # ]
+        # if not any(field_localized):
+        #     raise ValueError("Did not find the radiation field where it was expected.")
+        # else:
+        #     region_idx = [
+        #         idx
+        #         for idx, _ in enumerate(regions)
+        #         if field_candidates[idx] and field_localized[idx]
+        #     ][0]
+        #     field_roi = regions[region_idx]
+        # return [Point(field_roi.centroid[1], field_roi.centroid[0])]
+
+    def find_bb_centroids(
+        self, bb_diameter_mm: float, low_density: bool
+    ) -> list[Point]:
         """Find the specific BB based on the arrangement rather than a single one. This is in local pixel coordinates"""
         # get initial starting conditions
         bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter_mm)
@@ -1938,38 +1960,9 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
         )
         return centers
 
-    # def find_matched_bbs(
-    #     self, bb_arrangement: tuple[dict], detected_bb_positions: list[Point]
-    # ) -> list[Point]:
-
-    # def find_bb_centroid(self, detected_bb_positions: list[Point], nominal_bb_positions: list[Point]) -> Point:
-    #     """Find the centroid of the detected BBs"""
-    #     diffs = []
-    #     for detected, nominal in zip(detected_bb_positions, nominal_bb_positions):
-    #         diffs.append(detected - nominal)
-    #     return Point(np.mean([diff.x for diff in diffs]), np.mean([diff.y for diff in diffs]))
-
-    # def find_bb_centroid(self, bb_of_interest: dict) -> Point:
-    #     """Find the specific BB based on the arrangement rather than a single one. This is in local pixel coordinates"""
-    #     # get initial starting conditions
-    #     bb_diameter = bb_of_interest["bb_size_mm"]
-    #     window = bb_of_interest["rad_size_mm"]
-    #     expected_position = self.nominal_bb_position(bb_of_interest)
-    #     expected_position_mm = expected_position / self.dpmm
-    #     bb_tolerance_mm = self._calculate_bb_tolerance(bb_diameter)
-    #     centers = self.compute(
-    #         metrics=SizedDiskLocator.from_physical(
-    #             expected_position_mm=expected_position_mm,
-    #             search_window_mm=(window, window),
-    #             radius_mm=bb_diameter / 2,
-    #             radius_tolerance_mm=bb_tolerance_mm,
-    #             invert=not self.is_from_xim,  # invert normal images; don't invert XIM
-    #             detection_conditions=self.detection_conditions,
-    #         )
-    #     )
-    #     return centers[0]
-
-    def location_near_nominal(self, region: RegionProperties, location: dict) -> bool:
+    def location_near_nominal(
+        self, region: RegionProperties, location: BBConfig
+    ) -> bool:
         """Determine whether the given BB ROI is near where the BB is expected to be"""
         # since we are dealing with images at the isoplane we have to calculate the expected position
         # of the BB at that plane from the 3D coordinates
@@ -1983,9 +1976,8 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
 
 class WinstonLutzMultiTargetMultiField(WinstonLutz):
     images: Sequence[WinstonLutzMultiTargetMultiFieldImage]  #:
-    analyzed_images: dict[str, list[WinstonLutzMultiTargetMultiFieldImage]]  #:
     image_type = WinstonLutzMultiTargetMultiFieldImage
-    bb_arrangement: Sequence[dict]  #:
+    bb_arrangement: tuple[BBConfig]  #:
 
     def __init__(self, *args, **kwargs):
         """We cannot yet handle non-0 couch angles so we drop them. Analysis fails otherwise"""
@@ -2051,17 +2043,16 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         it was found."""
         figs, names = [], []
         figsize = kwargs.pop("figsize", None) or (8, 8)
-        for bb, img_set in self.analyzed_images.items():
-            rows = len(img_set) // 3 + 1
-            fig, axes = plt.subplots(nrows=rows, ncols=3, figsize=figsize, **kwargs)
-            for mpl_axis, wl_image in zip_longest(axes.flatten(), img_set):
-                plot_image(wl_image, mpl_axis)
-
+        # rows = len(self.images) // 3 + 1
+        # for bb, img_set in self.images:
+        for img in self.images:
+            fig, axes = plt.subplots(figsize=figsize, **kwargs)
+            img.plot(ax=axes, show=False)
             # set titles
-            fig.suptitle(f"BB {bb}", fontsize=14, y=1)
+            # fig.suptitle(f"BB {bb}", fontsize=14, y=1)
             fig.tight_layout()
             figs.append(fig)
-            names.append(f"BB_{bb}")
+            # names.append(f"BB_{bb}")
         if show:
             plt.show()
         return figs, names
@@ -2140,26 +2131,25 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     @property
     def max_bb_deviation_2d(self) -> float:
         """The maximum distance from any measured BB to its nominal position"""
-        dists = []
-        for bb, images in self.analyzed_images.items():
-            dists.append(self.cax2bb_distance(bb))
-        return max(dists)
+        return max(max(img.field_to_bb_distances()) for img in self.images)
 
     @property
     def mean_bb_deviation_2d(self) -> float:
         """The mean distance from any measured BB to its nominal position"""
-        dists = []
-        for bb, images in self.analyzed_images.items():
-            dists.append(self.cax2bb_distance(bb))
-        return statistics.mean(dists)
+        d = []
+        for img in self.images:
+            d.extend(img.field_to_bb_distances())
+        return statistics.mean(d)
+        # return statistics.mean(statistics.mean(img.field_to_bb_distances()) for img in self.images)
 
     @property
     def median_bb_deviation_2d(self) -> float:
         """The median distance from any measured BB to its nominal position"""
-        dists = []
-        for bb, images in self.analyzed_images.items():
-            dists.append(self.cax2bb_distance(bb))
-        return statistics.median(dists)
+        d = []
+        for img in self.images:
+            d.extend(img.field_to_bb_distances())
+        return statistics.median(d)
+        # return statistics.median(statistics.median(img.field_to_bb_distances()) for img in self.images)
 
     def results(self, as_list: bool = False) -> str:
         """Return the analysis results summary.
@@ -2280,15 +2270,27 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
 
 
 class WinstonLutzMultiTargetSingleFieldImage(WinstonLutzMultiTargetMultiFieldImage):
-    def find_field_centroids(
-        self, bb_arrangement: tuple[BBConfig], is_open_field: bool
-    ) -> list[Point]:
+    def find_field_centroids(self, is_open_field: bool) -> list[Point]:
         """For the single field case, the field centroid is the same as the CAX."""
         # TODO: use the global field finder
         return [self.center]
 
+    def find_field_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+        """For the single field case, the field centroid is the same as the CAX for every BB."""
+        return {bb["name"]: detected_points[0] for bb in self.bb_arrangement}
+
+    def field_to_bb_distances(self) -> list[float]:
+        """For a single-field, multi-BB setup we shift the BBs to the isocenter by shifting by the nominal offset."""
+        distances = []
+        for match in self.arrangement_matches.values():
+            distances.append(match["bb nominal"].distance_to(match["bb"]) / self.dpmm)
+        return distances
+
 
 class WinstonLutzMultiTargetSingleField(WinstonLutzMultiTargetMultiField):
+    image_type = WinstonLutzMultiTargetSingleFieldImage
+    images: Sequence[WinstonLutzMultiTargetSingleFieldImage]
+
     def plot_images(self, show: bool = True, **kwargs) -> (list[plt.Figure], list[str]):
         figs, names = [], []
         figsize = kwargs.pop("figsize", (8, 8))

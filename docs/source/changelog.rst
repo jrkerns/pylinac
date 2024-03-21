@@ -26,6 +26,8 @@ Winston Lutz
 
 * <image class names changed>
 * <can handle XIM images>
+* <MTMF plot now returns N images 1/image. not 1/BB>
+<describe field-finding and bb-finding's new methods in WL docs>
 
 v 3.21.0
 --------
