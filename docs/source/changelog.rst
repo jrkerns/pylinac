@@ -27,6 +27,8 @@ Winston Lutz
 * <image class names changed>
 * <can handle XIM images>
 * <MTMF plot now returns N images 1/image. not 1/BB>
+* mean/median distance to BB values are different; doing mean(<all>) vs mean(max(bb1), max(bb2), ...)
+* plots show legend and nominal bb position
 <describe field-finding and bb-finding's new methods in WL docs>
 
 v 3.21.0

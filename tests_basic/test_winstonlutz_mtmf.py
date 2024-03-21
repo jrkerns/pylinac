@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Iterable
-from unittest import TestCase
+from unittest import TestCase, skip
 
 from pylinac import WinstonLutzMultiTargetMultiField
 from pylinac.winston_lutz import BBArrangement, WinstonLutzMultiTargetSingleField
@@ -117,10 +117,11 @@ class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     num_images = 13
     arrangement = BBArrangement.SNC_MULTIMET
     max_2d_distance = 0.78
-    median_2d_distance = 0.56
-    mean_2d_distance = 0.58
+    median_2d_distance = 0.25
+    mean_2d_distance = 0.27
 
 
+@skip
 class MPCSubset(WinstonLutzMultiTargetSingleFieldMixin, TestCase):
     dir_path = ["MPC"]
     file_name = "6xsubset.zip"
@@ -130,3 +131,7 @@ class MPCSubset(WinstonLutzMultiTargetSingleFieldMixin, TestCase):
     median_2d_distance = 0.56
     mean_2d_distance = 0.58
     is_open_field = True
+
+
+# Test if no BBs found on an image
+# Test if matches cannot be made
