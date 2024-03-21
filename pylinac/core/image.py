@@ -362,8 +362,9 @@ def _is_image_file(path: str | Path) -> bool:
 def _is_xim(path: str | Path) -> bool:
     """Whether the file is a readable XIM file."""
     try:
-        x = XIM(path, read_pixels=False)
-        return bool(x.format_id)
+        with open(path, "rb") as xim:
+            format_id = decode_binary(xim, str, 8)
+        return format_id == "VMS.XI"
     except Exception:
         return False
 
