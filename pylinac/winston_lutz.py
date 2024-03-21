@@ -337,8 +337,8 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     max_2d_field_to_bb_mm: float  #:
     median_2d_field_to_bb_mm: float  #:
     mean_2d_field_to_bb_mm: float  #:
-    bb_arrangement: Iterable[dict]  #:
-    bb_maxes: dict  #:
+    bb_arrangement: tuple[BBConfig]  #:
+    bb_maxes: dict[str, float]  #:
 
 
 def plot_image(img: WinstonLutz2D | None, axis: plt.Axes) -> None:
@@ -1947,24 +1947,12 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
             metrics=GlobalSizedDiskLocator(
                 radius_mm=bb_diameter_mm / 2,
                 radius_tolerance_mm=bb_tolerance_mm,
-                invert=not self.is_from_xim,  # invert normal images; don't invert XIM
+                invert=not self.is_from_xim
+                or low_density,  # invert normal images; don't invert XIM
                 detection_conditions=self.detection_conditions,
             )
         )
         return centers
-
-    def location_near_nominal(
-        self, region: RegionProperties, location: BBConfig
-    ) -> bool:
-        """Determine whether the given BB ROI is near where the BB is expected to be"""
-        # since we are dealing with images at the isoplane we have to calculate the expected position
-        # of the BB at that plane from the 3D coordinates
-        if region.area < 5:
-            return False  # skip single or very small pixel regions
-        expected = self.nominal_bb_position(location)
-        near_y = math.isclose(expected.y, region.centroid[0], abs_tol=5 * self.dpmm)
-        near_x = math.isclose(expected.x, region.centroid[1], abs_tol=5 * self.dpmm)
-        return near_y and near_x
 
 
 class WinstonLutzMultiTargetMultiField(WinstonLutz):
@@ -2020,12 +2008,35 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
                 is_open_field=is_open_field,
                 is_low_density=is_low_density,
             )
-            # except ValueError:
-            #     pass
-            # if not image_set:
-            #     raise ValueError(f"Did not find any field/bb pairs for bb: {bb}")
-            # self.analyzed_images[BBArrangement.to_human(bb)] = image_set
         self._is_analyzed = True
+
+    def plot_location(
+        self,
+        show: bool = True,
+        viewbox_mm: float | None = None,
+        plot_bb: bool = True,
+        plot_isocenter_sphere: bool = True,
+        plot_couch_iso: bool = True,
+        plot_coll_iso: bool = True,
+        show_legend: bool = True,
+    ):
+        raise NotImplementedError("Not yet implemented")
+
+    @property
+    def gantry_coll_iso_size(self) -> float:
+        raise NotImplementedError("Not yet implemented")
+
+    @property
+    def collimator_iso_size(self) -> float:
+        raise NotImplementedError("Not yet implemented")
+
+    @property
+    def couch_iso_size(self) -> float:
+        raise NotImplementedError("Not yet implemented")
+
+    @property
+    def gantry_iso_size(self) -> float:
+        raise NotImplementedError("Not yet implemented")
 
     def plot_images(
         self, show: bool = True, zoomed: bool = True, **kwargs
@@ -2039,6 +2050,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             img.plot(ax=axes, show=False, zoomed=zoomed)
             fig.tight_layout()
             figs.append(fig)
+            names.append(img.base_path)
         if show:
             plt.show()
         return figs, names
@@ -2071,14 +2083,24 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         if not self._is_analyzed:
             raise ValueError("The set is not analyzed. Use .analyze() first.")
 
+        # for backward-compatibility, we have to find the max distance for each BB
+        # across the images.
+        bb_maxes = {}
+        for bb in self.bb_arrangement:
+            max_d = 0.0
+            for img in self.images:
+                if bb.name in img.arrangement_matches:
+                    max_d = max(
+                        max_d, img.arrangement_matches[bb.name]["field-bb distance"]
+                    )
+            bb_maxes[bb.name] = max_d
+
         data = WinstonLutzMultiTargetMultiFieldResult(
             num_total_images=len(self.images),
             max_2d_field_to_bb_mm=self.max_bb_deviation_2d,
             mean_2d_field_to_bb_mm=self.mean_bb_deviation_2d,
             median_2d_field_to_bb_mm=self.median_bb_deviation_2d,
-            bb_maxes={
-                bb: self.cax2bb_distance(bb) for bb in self.analyzed_images.keys()
-            },
+            bb_maxes=bb_maxes,
             bb_arrangement=self.bb_arrangement,
         )
         if as_dict:
@@ -2096,23 +2118,17 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
     @property
     def max_bb_deviation_2d(self) -> float:
         """The maximum distance from any measured BB to its nominal position"""
-        return max(max(img.field_to_bb_distances()) for img in self.images)
+        return self.cax2bb_distance(metric="max")
 
     @property
     def mean_bb_deviation_2d(self) -> float:
         """The mean distance from any measured BB to its nominal position"""
-        d = []
-        for img in self.images:
-            d.extend(img.field_to_bb_distances())
-        return statistics.mean(d)
+        return self.cax2bb_distance(metric="mean")
 
     @property
     def median_bb_deviation_2d(self) -> float:
         """The median distance from any measured BB to its nominal position"""
-        d = []
-        for img in self.images:
-            d.extend(img.field_to_bb_distances())
-        return statistics.median(d)
+        return self.cax2bb_distance(metric="median")
 
     def results(self, as_list: bool = False) -> str:
         """Return the analysis results summary.
@@ -2235,7 +2251,7 @@ class WinstonLutzMultiTargetSingleFieldImage(WinstonLutzMultiTargetMultiFieldIma
 
     def find_field_matches(self, detected_points: list[Point]) -> dict[str, Point]:
         """For the single field case, the field centroid is the same as the CAX for every BB."""
-        return {bb["name"]: detected_points[0] for bb in self.bb_arrangement}
+        return {bb.name: detected_points[0] for bb in self.bb_arrangement}
 
     def field_to_bb_distances(self) -> list[float]:
         """For a single-field, multi-BB setup we shift the BBs to the isocenter by shifting by the nominal offset.

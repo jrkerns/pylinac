@@ -24,12 +24,13 @@ Image
 Winston Lutz
 ^^^^^^^^^^^^
 
-* <image class names changed>
-* <can handle XIM images>
+* Class names have changed to the following: ``asdf``->``;lkj``. <image class names changed>
 * <MTMF plot now returns N images 1/image. not 1/BB>
+* <PDF also is N images 1/image>
 * mean/median distance to BB values are different; doing mean(<all>) vs mean(max(bb1), max(bb2), ...)
-* plots show legend and nominal bb position
+* plots show legend
 <describe field-finding and bb-finding's new methods in WL docs>
+* BBconfig class instead of simple dict
 
 v 3.21.0
 --------
