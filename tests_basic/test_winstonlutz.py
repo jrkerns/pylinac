@@ -5,7 +5,7 @@ import io
 import math
 import tempfile
 from pathlib import Path
-from unittest import TestCase, skip
+from unittest import TestCase
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -457,7 +457,6 @@ class TestWLLoading(TestCase, FromDemoImageTesterMixin, FromURLTesterMixin):
                 },
             )
 
-    @skip
     def test_missing_axis_mapping(self):
         path = get_file_from_cloud_test_repo([TEST_DIR, "AQA.zip"])
         with self.assertRaises(ValueError):
@@ -1008,7 +1007,6 @@ class KatyiX2(WinstonLutzMixin, TestCase):
     bb_shift_vector = Vector(x=0.4, y=-0.1, z=0.1)
 
 
-@skip
 class KatyiX3(WinstonLutzMixin, TestCase):
     file_name = ["Katy iX", "3 (with crosshair).zip"]
     num_images = 17

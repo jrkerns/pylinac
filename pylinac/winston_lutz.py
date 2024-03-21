@@ -452,13 +452,12 @@ class WLBaseImage(image.LinacDicomImage):
         # merge the field and BBs per arrangement position
         combined_matches = {}
         for bb_name, bb_match in bb_matches.items():
-            bbconfig = Enumerable(bb_arrangement).single(lambda x: x.name == bb_name)
-            nominal = self.nominal_bb_position(bbconfig)
             combined_matches[bb_name] = {
+                "epid": self.epid,
                 "field": field_matches[bb_name],
                 "bb": bb_match,
-                "bb nominal": nominal,
-                "distance": nominal.distance_to(bb_match),
+                "field-bb distance": field_matches[bb_name].distance_to(bb_match)
+                / self.dpmm,
             }
         self._is_analyzed = True
         self.arrangement_matches = combined_matches
@@ -528,6 +527,14 @@ class WLBaseImage(image.LinacDicomImage):
             distances.append(match["field"].distance_to(match["bb"]) / self.dpmm)
         return distances
 
+    def epid_to_bb_distances(self) -> list[float]:
+        """The distances from the EPID center to the BBs in mm. Useful for metrics as this is only
+        the resulting floats vs a dict of points."""
+        distances = []
+        for match in self.arrangement_matches.values():
+            distances.append(match["epid"].distance_to(match["bb"]) / self.dpmm)
+        return distances
+
     def plot(
         self,
         ax: plt.Axes | None = None,
@@ -559,13 +566,10 @@ class WLBaseImage(image.LinacDicomImage):
         for match in self.arrangement_matches.values():
             (field_handle,) = ax.plot(match["field"].x, match["field"].y, "gs", ms=8)
             (bb_handle,) = ax.plot(match["bb"].x, match["bb"].y, "ro", ms=8)
-            (nominal_handle,) = ax.plot(
-                match["bb nominal"].x, match["bb nominal"].y, "yo", ms=8
-            )
         if legend:
             ax.legend(
-                (field_handle, bb_handle, nominal_handle, epid_handle),
-                ("Field CAX", "Detected BB", "Nominal BB", "EPID Center"),
+                (field_handle, bb_handle, epid_handle),
+                ("Field CAX", "Detected BB", "EPID Center"),
                 loc="upper right",
             )
 
@@ -706,7 +710,7 @@ class WinstonLutz2D(WLBaseImage):
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
         bb_config = BBArrangement.ISO
-        bb_config[0]["bb_size_mm"] = bb_size_mm
+        bb_config[0].bb_size_mm = bb_size_mm
         super().analyze(
             bb_arrangement=bb_config,
             is_open_field=open_field,
@@ -758,28 +762,24 @@ class WinstonLutz2D(WLBaseImage):
     @property
     def cax2bb_vector(self) -> Vector:
         """The vector in mm from the CAX to the BB."""
-        raise DeprecationWarning()
         dist = (self.bb - self.field_cax) / self.dpmm
         return Vector(dist.x, dist.y, dist.z)
 
     @property
     def cax2bb_distance(self) -> float:
         """The scalar distance in mm from the CAX to the BB."""
-        raise DeprecationWarning()
         dist = self.field_cax.distance_to(self.bb)
         return dist / self.dpmm
 
     @property
     def cax2epid_vector(self) -> Vector:
         """The vector in mm from the CAX to the EPID center pixel"""
-        raise DeprecationWarning()
         dist = (self.epid - self.field_cax) / self.dpmm
         return Vector(dist.x, dist.y, dist.z)
 
     @property
     def cax2epid_distance(self) -> float:
         """The scalar distance in mm from the CAX to the EPID center pixel"""
-        raise DeprecationWarning()
         return self.field_cax.distance_to(self.epid) / self.dpmm
 
     def save_plot(self, filename: str, **kwargs):
@@ -1302,12 +1302,15 @@ class WinstonLutz:
         metric : {'max', 'median', 'mean'}
             The metric of distance to use.
         """
+        distances = []
+        for img in self.images:
+            distances.extend(img.field_to_bb_distances())
         if metric == "max":
-            return max(image.cax2bb_distance for image in self.images)
+            return max(distances)
         elif metric == "median":
-            return float(np.median([image.cax2bb_distance for image in self.images]))
+            return statistics.median(distances)
         elif metric == "mean":
-            return float(np.mean([image.cax2bb_distance for image in self.images]))
+            return statistics.mean(distances)
 
     @argue.options(metric=("max", "median", "mean"))
     def cax2epid_distance(self, metric: str = "max") -> float:
@@ -1318,12 +1321,15 @@ class WinstonLutz:
         metric : {'max', 'median', 'mean'}
             The metric of distance to use.
         """
+        distances = []
+        for img in self.images:
+            distances.extend(img.epid_to_bb_distances())
         if metric == "max":
-            return max(image.cax2epid_distance for image in self.images)
+            return max(distances)
         elif metric == "median":
-            return float(np.median([image.cax2epid_distance for image in self.images]))
+            return statistics.median(distances)
         elif metric == "mean":
-            return float(np.mean([image.cax2epid_distance for image in self.images]))
+            return statistics.mean(distances)
 
     def _plot_deviation(
         self, axis: Axis, ax: plt.Axes | None = None, show: bool = True
@@ -2126,9 +2132,9 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             "",
             "2D distances",
             "============",
-            f"Max 2D distance of any BB: {self.max_bb_deviation_2d:.2f} mm",
-            f"Mean 2D distance of any BB: {self.mean_bb_deviation_2d:.2f} mm",
-            f"Median 2D distance of any BB: {self.median_bb_deviation_2d:.2f} mm",
+            f"Max 2D distance of any BB->Field: {self.max_bb_deviation_2d:.2f} mm",
+            f"Mean 2D distance of any BB->Field: {self.mean_bb_deviation_2d:.2f} mm",
+            f"Median 2D distance of any BB->Field: {self.median_bb_deviation_2d:.2f} mm",
             "",
         ]
         bb_descriptions = [[bb.name, bb.to_human()] for bb in self.bb_arrangement]
@@ -2145,41 +2151,18 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             collimator = f"{img.collimator_angle:.1f}"
             couch = f"{img.couch_angle:.1f}"
             deviations = []
+            # loop through the expected BBs.
+            # not every BB may be in every image, so we have to loop through the
+            # BBs and find the match if there is one.
             for bb in self.bb_arrangement:
                 match = Enumerable(img.arrangement_matches.items()).single_or_default(
                     lambda x: x[0] == bb.name
                 )
                 if match:
-                    deviations.append(f"{match[1]['distance']:.2f}")
+                    deviations.append(f"{match[1]['field-bb distance']:.2f}")
                 else:
                     deviations.append("---")
-            datum = [img_name, gantry, collimator, couch, *deviations]
-            data.append(datum)
-        # construct the image -> bb table
-        # we use abbreviations and truncations so that the table will more likely fit the PDF
-        # data = {
-        #     "Image": [],
-        #     "G": [],
-        #     "Co": [],
-        #     "Ch": [],
-        # }
-        # bbs = {f"BB #{idx}": [] for idx in range(len(self.analyzed_images.keys()))}
-        # data.update(bbs)
-        # for img in self.images:
-        #     data["Image"].append(
-        #         img.base_path[-20:]
-        #     )  # textwrap doesn't work here because files may be all one word
-        #     data["G"].append(f"{img.gantry_angle:.1f}")
-        #     data["Co"].append(f"{img.collimator_angle:.1f}")
-        #     data["Ch"].append(f"{img.couch_angle:.1f}")
-        #     for bb_idx, (bb, img_set) in enumerate(self.analyzed_images.items()):
-        #         has_value = False
-        #         for sub_img in img_set:
-        #             if img.base_path == sub_img.base_path:
-        #                 data[f"BB #{bb_idx}"].append(f"{sub_img.cax2bb_distance:.2f}")
-        #                 has_value = True
-        #         if not has_value:
-        #             data[f"BB #{bb_idx}"].append("---")
+            data.append([img_name, gantry, collimator, couch, *deviations])
         result += tabulate(data, headers=["Image", "G", "C", "P", *bb_names]).split(
             "\n"
         )
