@@ -1,4 +1,32 @@
-from pylinac.core.scale import MachineScale, convert
+from pylinac.core.scale import (
+    MachineScale,
+    convert,
+    inv_shift_and_mirror_360,
+    mirror_360,
+    noop,
+    shift_and_mirror_360,
+)
+
+
+def test_noop():
+    assert 5 == noop(5)
+    assert -5.3 == noop(-5.3)
+
+
+def test_mirror_360():
+    assert mirror_360(5) == 355
+    assert mirror_360(355) == 5
+
+
+def test_shift_and_mirror_360():
+    assert 355 == shift_and_mirror_360(185)
+    assert 185 == shift_and_mirror_360(355)
+    assert 185 == shift_and_mirror_360(-5)
+
+
+def test_inv_shift_and_mirror_360():
+    assert 180 == inv_shift_and_mirror_360(0)
+    assert 175 == inv_shift_and_mirror_360(5)
 
 
 def test_iec_to_iec():
