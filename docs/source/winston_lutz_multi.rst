@@ -197,7 +197,7 @@ Custom BB Arrangements
 
     .. versionchanged:: 3.22
 
-    The BB arrangement was changed to a be a class instance instead of a simple dictionary.
+    The BB arrangement was changed to a be a class instance instead of a simple dictionary. See :class:`~pylinac.winston_lutz.BBConfig`.
 
 The MTWL algorithm uses a priori BB arrangements. I.e. you need to know where the BBs **should** exist in
 space relative to isocenter. The MTWL algorithm is flexible to accommodate any reasonable arrangement of BBs.
@@ -496,3 +496,6 @@ API Documentation
 .. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldResult
     :members:
     :inherited-members:
+
+.. autoclass:: pylinac.winston_lutz.BBConfig
+    :members:

@@ -92,6 +92,7 @@ class BBConfig:
 class BBArrangement:
     """Presets for multi-target phantoms."""
 
+    # a BB at iso; represents the simplest case
     ISO = (
         BBConfig(
             name="Iso",
@@ -102,24 +103,24 @@ class BBArrangement:
             rad_size_mm=20,  # not used;
         ),
     )
-    ISOCAL = (
-        BBConfig(
-            name="1",
-            offset_left_mm=0,
-            offset_up_mm=-170,
-            offset_in_mm=-30,
-            bb_size_mm=5,
-            rad_size_mm=20,
-        ),
-        # {
-        #     'name': '2',
-        #     'offset_left_mm': -170,
-        #     'offset_up_mm': 0,
-        #     'offset_in_mm': -45,
-        #     "bb_size_mm": 5,
-        #     'rad_size_mm': 20,
-        # }
-    )
+    # ISOCAL = (
+    #     BBConfig(
+    #         name="1",
+    #         offset_left_mm=0,
+    #         offset_up_mm=-170,
+    #         offset_in_mm=-30,
+    #         bb_size_mm=5,
+    #         rad_size_mm=20,
+    #     ),
+    # {
+    #     'name': '2',
+    #     'offset_left_mm': -170,
+    #     'offset_up_mm': 0,
+    #     'offset_in_mm': -45,
+    #     "bb_size_mm": 5,
+    #     'rad_size_mm': 20,
+    # }
+    # )
     # locations: https://www.postersessiononline.eu/173580348_eu/congresos/ESTRO2020/aula/-PO_1320_ESTRO2020.pdf
     SNC_MULTIMET = (
         BBConfig(
@@ -341,15 +342,6 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     bb_maxes: dict[str, float]  #:
 
 
-def plot_image(img: WinstonLutz2D | None, axis: plt.Axes) -> None:
-    """Helper function to plot a WLImage to an axis."""
-    if img is None:
-        axis.set_frame_on(False)
-        axis.axis("off")
-    else:
-        img.plot(ax=axis, show=False)
-
-
 def is_near_center(region: RegionProperties, *args, **kwargs) -> bool:
     """Whether the bb is <2cm from the center of the field"""
     dpmm = kwargs["dpmm"]
@@ -394,7 +386,10 @@ def is_right_square_size(region: RegionProperties, *args, **kwargs) -> bool:
 
 
 class WLBaseImage(image.LinacDicomImage):
-    """Base class for a WL Image. Can be a single 2D image or part of a stack of images for 3D WL analysis."""
+    """Base class for a WL Image. Represents a single image with N fields and M BBs.
+
+    Methods are provided to find the field CAXs and BBs and matching to the expected locations.
+    """
 
     field_caxs: list[Point]
     bb_positions: list[Point]
@@ -452,6 +447,7 @@ class WLBaseImage(image.LinacDicomImage):
         # merge the field and BBs per arrangement position
         combined_matches = {}
         for bb_name, bb_match in bb_matches.items():
+            # TODO: use a typeddict or dataclass
             combined_matches[bb_name] = {
                 "epid": self.epid,
                 "field": field_matches[bb_name],
@@ -468,6 +464,11 @@ class WLBaseImage(image.LinacDicomImage):
             p = self.center
         else:
             # TODO: Use metrics field finder
+            # can't use it out of the box because the
+            # analyze method doesn't pass the field size
+            # using the global field locator without size will
+            # find several other unrelated fields and show up in the image
+            # the metric algorithm should have a post-processing function parameter
             min, max = np.percentile(self.array, [5, 99.9])
             threshold_img = self.as_binary((max - min) / 2 + min)
             filled_img = ndimage.binary_fill_holes(threshold_img)
@@ -540,7 +541,7 @@ class WLBaseImage(image.LinacDicomImage):
         ax: plt.Axes | None = None,
         show: bool = True,
         clear_fig: bool = False,
-        zoomed: bool = True,
+        zoom: bool = True,
         legend: bool = True,
     ) -> plt.Axes:
         """Plot an individual WL image.
@@ -553,12 +554,12 @@ class WLBaseImage(image.LinacDicomImage):
             Whether to show the plot.
         clear_fig : bool
             Whether to clear the figure before plotting.
-        zoomed : bool
+        zoom : bool
             Whether to zoom in on the BBs. If False, no zooming is done and the entire image is shown.
         legend : bool
             Whether to show the legend.
         """
-        ax = super().plot(ax=ax, show=False, clear_fig=clear_fig, show_metrics=False)
+        ax = super().plot(ax=ax, show=False, clear_fig=clear_fig, show_metrics=True)
         # show EPID center
         ax.axvline(x=self.epid.x, color="b")
         epid_handle = ax.axhline(y=self.epid.y, color="b")
@@ -573,19 +574,25 @@ class WLBaseImage(image.LinacDicomImage):
                 loc="upper right",
             )
 
-        if zoomed:
+        if zoom:
             # find the x and y limits based on the detected BB positions
             # and add a margin of 20mm
-            min_x = self.array.shape[1]  # start at far side and find minimum - margin
-            min_y = self.array.shape[0]  # start at far side and find minimum - margin
-            max_x = 0  # start at near side and find maximum + margin
-            max_y = 0  # start at near side and find maximum + margin
-            for match in self.arrangement_matches.values():
-                bb_point = match["bb"]
-                min_x = min(min_x, bb_point.x - 20 * self.dpmm)
-                min_y = min(min_y, bb_point.y - 20 * self.dpmm)
-                max_x = max(max_x, bb_point.x + 20 * self.dpmm)
-                max_y = max(max_y, bb_point.y + 20 * self.dpmm)
+            min_x = (
+                min([match["bb"].x for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            min_y = (
+                min([match["bb"].y for match in self.arrangement_matches.values()])
+                - 20 * self.dpmm
+            )
+            max_x = (
+                max([match["bb"].x for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
+            max_y = (
+                max([match["bb"].y for match in self.arrangement_matches.values()])
+                + 20 * self.dpmm
+            )
             ax.set_ylim([min_y, max_y])
             ax.set_xlim([min_x, max_x])
         ax.set_yticklabels([])
@@ -1569,6 +1576,8 @@ class WinstonLutz:
         self,
         axis: Axis = Axis.GANTRY,
         show: bool = True,
+        zoom: bool = True,
+        legend: bool = True,
         split: bool = False,
         **kwargs,
     ) -> (list[plt.Figure], list[str]):
@@ -1582,6 +1591,10 @@ class WinstonLutz:
             The axis to plot.
         show : bool
             Whether to show the image.
+        zoom : bool
+            Whether to zoom in around the BB.
+        legend : bool
+            Whether to show the legend.
         split : bool
             Whether to show/plot the images individually or as one large figure.
         """
@@ -1636,7 +1649,12 @@ class WinstonLutz:
         if not split:
             fig, axes = plt.subplots(nrows=max_num_images, ncols=4, **kwargs)
             for mpl_axis, wl_image in zip_longest(axes.flatten(), images):
-                plot_image(wl_image, mpl_axis)
+                # plot the images and turn off extra axes
+                if wl_image:
+                    wl_image.plot(ax=mpl_axis, show=False, zoom=zoom, legend=legend)
+                else:
+                    mpl_axis.set_frame_on(False)
+                    mpl_axis.axis("off")
 
             # set titles
             fig.suptitle(f"{axis.value} images", fontsize=14, y=1)
@@ -1646,7 +1664,8 @@ class WinstonLutz:
         else:
             for wl_image in images:
                 fig, axes = plt.subplots(**kwargs)
-                plot_image(wl_image, axes)
+                wl_image.plot(ax=axes, show=False, zoom=zoom, legend=legend)
+                # plot_image(wl_image, axes)
                 figs.append(fig)
                 names.append(str(wl_image))
 
@@ -2039,7 +2058,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         raise NotImplementedError("Not yet implemented")
 
     def plot_images(
-        self, show: bool = True, zoomed: bool = True, **kwargs
+        self, show: bool = True, zoomed: bool = True, legend: bool = True, **kwargs
     ) -> (list[plt.Figure], list[str]):
         """Make a plot for each BB. Each plot contains the analysis of that BB on each image
         it was found."""
@@ -2047,7 +2066,7 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
         figsize = kwargs.pop("figsize", None) or (8, 8)
         for img in self.images:
             fig, axes = plt.subplots(figsize=figsize, **kwargs)
-            img.plot(ax=axes, show=False, zoomed=zoomed)
+            img.plot(ax=axes, show=False, zoom=zoomed, legend=legend)
             fig.tight_layout()
             figs.append(fig)
             names.append(img.base_path)
@@ -2243,29 +2262,29 @@ class WinstonLutzMultiTargetMultiField(WinstonLutz):
             webbrowser.open(filename)
 
 
-class WinstonLutzMultiTargetSingleFieldImage(WinstonLutzMultiTargetMultiFieldImage):
-    def find_field_centroids(self, is_open_field: bool) -> list[Point]:
-        """For the single field case, the field centroid is the same as the CAX."""
-        # TODO: use the global field finder
-        return [self.center]
-
-    def find_field_matches(self, detected_points: list[Point]) -> dict[str, Point]:
-        """For the single field case, the field centroid is the same as the CAX for every BB."""
-        return {bb.name: detected_points[0] for bb in self.bb_arrangement}
-
-    def field_to_bb_distances(self) -> list[float]:
-        """For a single-field, multi-BB setup we shift the BBs to the isocenter by shifting by the nominal offset.
-        The delta between the nominal and actual BB position is the same distance as if we were at iso.
-        """
-        distances = []
-        for match in self.arrangement_matches.values():
-            distances.append(match["bb nominal"].distance_to(match["bb"]) / self.dpmm)
-        return distances
-
-
-class WinstonLutzMultiTargetSingleField(WinstonLutzMultiTargetMultiField):
-    image_type = WinstonLutzMultiTargetSingleFieldImage
-    images: Sequence[WinstonLutzMultiTargetSingleFieldImage]
+# class WinstonLutzMultiTargetSingleFieldImage(WinstonLutzMultiTargetMultiFieldImage):
+#     def find_field_centroids(self, is_open_field: bool) -> list[Point]:
+#         """For the single field case, the field centroid is the same as the CAX."""
+#         # TODO: use the global field finder
+#         return [self.center]
+#
+#     def find_field_matches(self, detected_points: list[Point]) -> dict[str, Point]:
+#         """For the single field case, the field centroid is the same as the CAX for every BB."""
+#         return {bb.name: detected_points[0] for bb in self.bb_arrangement}
+#
+#     def field_to_bb_distances(self) -> list[float]:
+#         """For a single-field, multi-BB setup we shift the BBs to the isocenter by shifting by the nominal offset.
+#         The delta between the nominal and actual BB position is the same distance as if we were at iso.
+#         """
+#         distances = []
+#         for match in self.arrangement_matches.values():
+#             distances.append(match["bb nominal"].distance_to(match["bb"]) / self.dpmm)
+#         return distances
+#
+#
+# class WinstonLutzMultiTargetSingleField(WinstonLutzMultiTargetMultiField):
+#     image_type = WinstonLutzMultiTargetSingleFieldImage
+#     images: Sequence[WinstonLutzMultiTargetSingleFieldImage]
 
 
 def max_distance_to_lines(p, lines: Iterable[Line]) -> float:
