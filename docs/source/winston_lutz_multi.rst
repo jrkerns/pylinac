@@ -451,7 +451,7 @@ Let's now add random error:
     arrange = (
         BBConfig(name='Iso', offset_left_mm=0, offset_up_mm=0, offset_in_mm=0, bb_size_mm=5, rad_size_mm=20),
         BBConfig(name='Left,Down,In', offset_left_mm=20, offset_up_mm=-20, offset_in_mm=60, bb_size_mm=5, rad_size_mm=20),
-  )
+    )
 
     wl = pylinac.WinstonLutzMultiTargetMultiField(wl_dir)
     wl.analyze(bb_arrangement=arrange)
