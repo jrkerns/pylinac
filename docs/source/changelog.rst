@@ -26,8 +26,8 @@ Winston Lutz
 
 * The Winston-Lutz algorithm has been updated and generalized. More work is happening for multi-field
   and multi-target and single-field analyses. The BB-finding and field-finding is now generalized for the
-  cans of N targets and M fields. For multi-target/multi-field analyses, the algorithm was very memory-intensive
-  because it was creating A*N analysis objects where A is the number of images and N is the number of targets.
+  cases of N targets and M fields. For multi-target/multi-field analyses, the algorithm was very memory-intensive
+  because it was creating X*Y analysis objects where X is the number of images and Y is the number of targets.
   Memory usage has been reduced from this refactor.
 * The class ``WinstonLutz2DMultTarget`` has changed to ``WinstonLutzMultiTargetMultiFieldImage``.
   Unless you are using the class directly, this change should not affect you.
