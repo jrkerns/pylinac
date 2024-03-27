@@ -614,12 +614,14 @@ class WLBaseImage(image.LinacDicomImage):
             offset_left=bb_config.offset_left_mm,
             sad=self.sad,
             gantry=self.gantry_angle,
+            couch=self.couch_angle,
         )
         shift_x_mm = bb_projection_gantry_plane(
             offset_left=bb_config.offset_left_mm,
             offset_up=bb_config.offset_up_mm,
             sad=self.sad,
             gantry=self.gantry_angle,
+            couch=self.couch_angle,
         )
         # the field can be asymmetric, so use center of image
         expected_y = self.epid.y - shift_y_mm * self.dpmm
