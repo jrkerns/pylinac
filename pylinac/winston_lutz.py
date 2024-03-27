@@ -426,6 +426,7 @@ class WLBaseImage(image.LinacDicomImage):
         bb_arrangement: tuple[BBConfig],
         is_open_field: bool = False,
         is_low_density: bool = False,
+        shift_vector: Vector | None = None,
     ) -> (tuple[Point], tuple[Point]):
         self.check_inversion_by_histogram(percentiles=(0.01, 50, 99.99))
         self._clean_edges()
@@ -438,6 +439,27 @@ class WLBaseImage(image.LinacDicomImage):
             bb_diameter_mm=bb_arrangement[0].bb_size_mm,
             low_density=is_low_density,
         )
+        if shift_vector:
+            # apply shift to detected BB points
+            sup_inf = bb_projection_long(
+                offset_in=shift_vector.y,
+                offset_left=shift_vector.x,
+                offset_up=shift_vector.x,
+                sad=self.sad,
+                gantry=self.gantry_angle,
+                couch=self.couch_angle,
+            )
+            lat = bb_projection_gantry_plane(
+                offset_left=shift_vector.x,
+                offset_up=shift_vector.z,
+                sad=self.sad,
+                gantry=self.gantry_angle,
+                couch=self.couch_angle,
+            )
+            # convert from mm to pixels and add to the detected points
+            for p in detected_bb_points:
+                p.x += lat * self.dpmm
+                p.y += sup_inf * self.dpmm
         bb_matches = self.find_bb_matches(detected_points=detected_bb_points)
         if len(bb_matches) != len(field_matches) != len(bb_arrangement):
             raise ValueError(
@@ -566,7 +588,7 @@ class WLBaseImage(image.LinacDicomImage):
         # show the field CAXs
         for match in self.arrangement_matches.values():
             (field_handle,) = ax.plot(match["field"].x, match["field"].y, "gs", ms=8)
-            (bb_handle,) = ax.plot(match["bb"].x, match["bb"].y, "ro", ms=8)
+            (bb_handle,) = ax.plot(match["bb"].x, match["bb"].y, "co", ms=10)
         if legend:
             ax.legend(
                 (field_handle, bb_handle, epid_handle),
@@ -716,6 +738,7 @@ class WinstonLutz2D(WLBaseImage):
         bb_size_mm: float = 5,
         low_density_bb: bool = False,
         open_field: bool = False,
+        shift_vector: Vector | None = None,
     ) -> None:
         """Analyze the image. See WinstonLutz.analyze for parameter details."""
         bb_config = BBArrangement.ISO
@@ -724,6 +747,7 @@ class WinstonLutz2D(WLBaseImage):
             bb_arrangement=bb_config,
             is_open_field=open_field,
             is_low_density=low_density_bb,
+            shift_vector=shift_vector,
         )
         self.bb_arrangement = bb_config
         # these are set for the deprecated properties of the 2D analysis specifically where 1 field and 1 bb are expected.
@@ -1099,6 +1123,7 @@ class WinstonLutz:
         machine_scale: MachineScale = MachineScale.IEC61217,
         low_density_bb: bool = False,
         open_field: bool = False,
+        apply_virtual_shift: bool = True,
     ) -> None:
         """Analyze the WL images.
 
@@ -1121,6 +1146,10 @@ class WinstonLutz:
             open_field = True
         for img in self.images:
             img.analyze(bb_size_mm, low_density_bb, open_field)
+        if apply_virtual_shift:
+            shift = self.bb_shift_vector
+            for img in self.images:
+                img.analyze(bb_size_mm, low_density_bb, open_field, shift_vector=shift)
         self._is_analyzed = True
         self._bb_diameter = bb_size_mm
 
