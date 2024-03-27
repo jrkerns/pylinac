@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import numpy as np
 
-from pylinac import Interpolation
+from pylinac import Interpolation, PicketFence
 from pylinac.core.scale import abs360, wrap360
 from pylinac.core.utilities import (
     OptionListMixin,
@@ -11,6 +11,7 @@ from pylinac.core.utilities import (
     is_iterable,
     simple_round,
 )
+from pylinac.picketfence import PFResult
 
 
 class TestUtilities(unittest.TestCase):
@@ -90,3 +91,29 @@ class TestOptionMixin(TestCase):
         self.assertEqual(len(MyOptions.options()), 2)
         self.assertEqual(MyOptions.APPLES, "aPpLes")
         self.assertListEqual(MyOptions.options(), ["aPpLes", "Oranges"])
+
+
+class TestResultsDataMixin(TestCase):
+    def test_results_normal(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        data = pf.results_data()
+        self.assertIsInstance(data, PFResult)
+
+    def test_results_dict(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        data = pf.results_data(as_dict=True)
+        self.assertIsInstance(data, dict)
+
+    def test_results_json(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        data = pf.results_data(as_json=True)
+        self.assertIsInstance(data, str)
+
+    def test_json_and_dict_not_allowed(self):
+        pf = PicketFence.from_demo_image()
+        pf.analyze()
+        with self.assertRaises(ValueError):
+            pf.results_data(as_dict=True, as_json=True)

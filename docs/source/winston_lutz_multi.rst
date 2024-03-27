@@ -477,4 +477,3 @@ API Documentation
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutzMultiTargetMultiFieldResult
     :members:
-    :inherited-members:

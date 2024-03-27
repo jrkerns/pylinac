@@ -44,6 +44,7 @@
    :hidden:
    :caption: Topics
 
+   topics/exporting_results
    topics/images
    topics/xim
    topics/contrast
