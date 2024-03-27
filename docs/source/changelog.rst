@@ -48,6 +48,18 @@ Winston Lutz
 * When using custom BB arrangements, use the new :class:`~pylinac.winston_lutz.BBConfig` class instead
   of a dictionary. See the updated :ref:``custom-bb-arrangements`` section for more.
 
+Image Generator
+^^^^^^^^^^^^^^^
+
+* The image generator can now create images with collimator and couch rotation. For cone-style layers (e.g. :class:`~pylinac.core.image_generator.layers.PerfectConeLayer`)
+  the rotation is about the center of the image and for all intents and purposes is a couch kick.
+  For field-like layers :class:`~pylinac.core.image_generator.layers.PerfectFieldLayer` this simulates a collimator rotation.
+* The winston-lutz image generator will respect and apply collimator and couch rotations when generating images
+  based on the ``image_axes`` parameter. E.g. ``(90, 45, 15)`` will generate an image with gantry and 90, collimator at 45, and couch at 15
+  with the BB and field aspects corrected for these rotations.
+* The winston-lutz image generator has a machine scale input.
+
+
 v 3.21.0
 --------
 

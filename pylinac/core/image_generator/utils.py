@@ -9,6 +9,7 @@ from typing import Sequence
 from ...picketfence import Orientation
 from ...winston_lutz import bb_projection_gantry_plane, bb_projection_long
 from ..geometry import cos, sin
+from ..scale import MachineScale, convert
 from . import GaussianFilterLayer
 from .layers import (
     FilteredFieldLayer,
@@ -151,6 +152,7 @@ def generate_winstonlutz(
         (180, 0, 0),
         (270, 0, 0),
     ),
+    machine_scale: MachineScale = MachineScale.IEC61217,
     gantry_tilt: float = 0,
     gantry_sag: float = 0,
     clean_dir: bool = True,
@@ -181,6 +183,8 @@ def generate_winstonlutz(
         How far in (long) to set the BB. Can be positive or negative.
     image_axes
         List of axis values for the images. Sequence is (Gantry, Coll, Couch).
+    machine_scale
+        The scale of the machine. Default is IEC61217.
     gantry_tilt
         The tilt of the gantry that affects the position at 0 and 180. Simulates a simple cosine function.
     gantry_sag
@@ -204,13 +208,21 @@ def generate_winstonlutz(
         for pdir, _, files in os.walk(dir_out):
             [os.remove(osp.join(pdir, f)) for f in files]
     file_names = []
-    for gantry, coll, couch in image_axes:
+    for gantry_in, coll_in, couch_in in image_axes:
+        gantry, coll, couch = convert(
+            input_scale=machine_scale,
+            output_scale=MachineScale.IEC61217,
+            gantry=gantry_in,
+            collimator=coll_in,
+            rotation=couch_in,
+        )
         sim_single = copy.copy(simulator)
         sim_single.add_layer(
             field_layer(
                 field_size_mm=field_size_mm,
                 cax_offset_mm=(gantry_tilt * cos(gantry), gantry_sag * sin(gantry)),
                 alpha=field_alpha,
+                rotation=coll,
             )
         )
         # we return the negative because this function
@@ -222,15 +234,23 @@ def generate_winstonlutz(
             offset_left=offset_mm_left,
             sad=1000,
             gantry=gantry,
+            couch=couch,
         )
-        gplane_offset = bb_projection_gantry_plane(
-            offset_left=offset_mm_left, offset_up=offset_mm_up, sad=1000, gantry=gantry
+        gplane_offset = -bb_projection_gantry_plane(
+            offset_left=offset_mm_left,
+            offset_up=offset_mm_up,
+            sad=1000,
+            gantry=gantry,
+            couch=couch,
+            offset_in=offset_mm_in,
         )
         sim_single.add_layer(
             PerfectBBLayer(
                 cax_offset_mm=(long_offset, gplane_offset),
                 bb_size_mm=bb_size_mm,
                 alpha=bb_alpha,
+                # we don't pass the rotate parameter here because the offsets above already account for
+                # the rotation. Setting this would cancel out the rotation.
             )
         )
         if final_layers is not None:

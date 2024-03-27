@@ -175,6 +175,58 @@ class TestBBProjection(TestCase):
             abs_tol=0.005,
         )
 
+    def test_longitudinal_projection_with_couch(self):
+        # couch 90 with in offset will become 0
+        self.assertAlmostEqual(
+            bb_projection_long(
+                offset_in=10,
+                offset_up=0,
+                offset_left=0,
+                sad=1000,
+                gantry=0,
+                couch=90,
+            ),
+            0,
+        )
+        # couch with 270 with in offset will become 0
+        self.assertAlmostEqual(
+            bb_projection_long(
+                offset_in=10,
+                offset_up=0,
+                offset_left=0,
+                sad=1000,
+                gantry=0,
+                couch=270,
+            ),
+            0,
+        )
+
+        # couch 90 with offset left will become full out
+        self.assertAlmostEqual(
+            bb_projection_long(
+                offset_in=0,
+                offset_up=0,
+                offset_left=10,
+                sad=1000,
+                gantry=0,
+                couch=90,
+            ),
+            -10,
+        )
+
+        # couch 270 with offset left will become full in
+        self.assertAlmostEqual(
+            bb_projection_long(
+                offset_in=0,
+                offset_up=0,
+                offset_left=10,
+                sad=1000,
+                gantry=0,
+                couch=270,
+            ),
+            10,
+        )
+
     def test_gantry_plane_projection(self):
         # left is negative, right is positive
         # dead center
@@ -271,6 +323,74 @@ class TestBBProjection(TestCase):
             ),
             -9.8,
             abs_tol=0.005,
+        )
+
+    def test_gantry_plane_projection_with_couch(self):
+        # couch 90 with in offset will become fully left offset
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=0, sad=1000, gantry=0, couch=90, offset_in=10
+            ),
+            10,
+        )
+        # couch 270 with in offset will become fully right offset
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=0, sad=1000, gantry=0, couch=270, offset_in=10
+            ),
+            -10,
+        )
+
+        # couch 45 w/ left offset should be 0.707 of the offset
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=10, sad=1000, gantry=0, couch=45, offset_in=0
+            ),
+            7.07,
+            places=2,
+        )
+
+        # now it gets complicated; we add in gantry rotations
+        # couch 90 with gantry 90 will resolve to 0 because the couch is now along the gantry plane
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=0, sad=1000, gantry=90, couch=90, offset_in=10
+            ),
+            0,
+        )
+
+        # couch 270 with gantry 90 will resolve to 0 as well
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=0, sad=1000, gantry=90, couch=270, offset_in=10
+            ),
+            0,
+        )
+
+        # couch 90 with gantry 270 will resolve to 0
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=0, sad=1000, gantry=270, couch=90, offset_in=10
+            ),
+            0,
+        )
+
+        # couch 45 will be 0.707 of the offset in
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=0, sad=1000, gantry=0, couch=45, offset_in=10
+            ),
+            7.07,
+            places=2,
+        )
+
+        # couch 45 and gantry 45 will be 0.707 * 0.707 of the offset in
+        self.assertAlmostEqual(
+            bb_projection_gantry_plane(
+                offset_up=0, offset_left=0, sad=1000, gantry=45, couch=45, offset_in=10
+            ),
+            5,
+            places=2,
         )
 
 
