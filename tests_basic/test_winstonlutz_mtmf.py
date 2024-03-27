@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from typing import Iterable
-from unittest import TestCase, skip
+from unittest import TestCase
 
 from pylinac import WinstonLutzMultiTargetMultiField
-from pylinac.winston_lutz import BBArrangement, WinstonLutzMultiTargetSingleField
+from pylinac.winston_lutz import BBArrangement
 from tests_basic.utils import CloudFileMixin
 
 TEST_DIR = "Winston-Lutz"
@@ -131,34 +131,34 @@ class SNCMultiMet(WinstonLutzMultiTargetMultFieldMixin, TestCase):
     bb_maxes = {"Iso": 0.42, "1": 0.63}
 
 
-class WinstonLutzMultiTargetSingleFieldMixin(WinstonLutzMultiTargetMultFieldMixin):
-    loader = WinstonLutzMultiTargetSingleField
-    arrangement = BBArrangement.ISOCAL
-    is_open_field: bool = False
-    wl: WinstonLutzMultiTargetSingleField
+# class WinstonLutzMultiTargetSingleFieldMixin(WinstonLutzMultiTargetMultFieldMixin):
+#     loader = WinstonLutzMultiTargetSingleField
+#     arrangement = BBArrangement.ISOCAL
+#     is_open_field: bool = False
+#     wl: WinstonLutzMultiTargetSingleField
+#
+#     @classmethod
+#     def setUpClass(cls):
+#         filename = cls.get_filename()
+#         if cls.zip:
+#             cls.wl = cls.loader.from_zip(filename)
+#         else:
+#             cls.wl = cls.loader(filename)
+#         cls.wl.analyze(cls.arrangement, is_open_field=cls.is_open_field)
+#         if cls.print_results:
+#             print(cls.wl.results())
 
-    @classmethod
-    def setUpClass(cls):
-        filename = cls.get_filename()
-        if cls.zip:
-            cls.wl = cls.loader.from_zip(filename)
-        else:
-            cls.wl = cls.loader(filename)
-        cls.wl.analyze(cls.arrangement, is_open_field=cls.is_open_field)
-        if cls.print_results:
-            print(cls.wl.results())
 
-
-@skip("MPC/Single-Field not yet supported")
-class MPCSubset(WinstonLutzMultiTargetSingleFieldMixin, TestCase):
-    dir_path = ["MPC"]
-    file_name = "6xsubset.zip"
-    num_images = 3
-    arrangement = BBArrangement.ISOCAL
-    max_2d_distance = 0.78
-    median_2d_distance = 0.56
-    mean_2d_distance = 0.58
-    is_open_field = True
+# @skip("MPC/Single-Field not yet supported")
+# class MPCSubset(WinstonLutzMultiTargetSingleFieldMixin, TestCase):
+#     dir_path = ["MPC"]
+#     file_name = "6xsubset.zip"
+#     num_images = 3
+#     arrangement = BBArrangement.ISOCAL
+#     max_2d_distance = 0.78
+#     median_2d_distance = 0.56
+#     mean_2d_distance = 0.58
+#     is_open_field = True
 
 
 # Test if no BBs found on an image
