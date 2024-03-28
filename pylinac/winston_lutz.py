@@ -19,8 +19,6 @@ Features:
 """
 from __future__ import annotations
 
-import copy
-import dataclasses
 import enum
 import io
 import math
@@ -39,6 +37,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import art3d
 from py_linq import Enumerable
+from pydantic import BaseModel
 from scipy import linalg, ndimage, optimize
 from scipy.ndimage import zoom
 from scipy.spatial.transform import Rotation
@@ -57,9 +56,7 @@ from .core.geometry import (
     cos,
     sin,
 )
-from .core.image import DicomImageStack, LinacDicomImage, is_image, tiff_to_dicom
-from .core.geometry import Line, Point, Vector, cos, sin
-from .core.image import XIM, DicomImageStack, _is_xim, is_image, tiff_to_dicom
+from .core.image import DicomImageStack, is_image, tiff_to_dicom
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.scale import MachineScale, convert
 from .core.utilities import ResultBase, ResultsDataMixin, convert_to_enum, is_close
@@ -82,8 +79,7 @@ BB_ERROR_MESSAGE = (
 )
 
 
-@dataclass
-class BBConfig:
+class BBConfig(BaseModel):
     name: str
     offset_left_mm: float
     offset_up_mm: float
@@ -345,7 +341,7 @@ class WinstonLutzMultiTargetMultiFieldResult(ResultBase):
     max_2d_field_to_bb_mm: float  #:
     median_2d_field_to_bb_mm: float  #:
     mean_2d_field_to_bb_mm: float  #:
-    bb_arrangement: tuple[BBConfig]  #:
+    bb_arrangement: tuple[BBConfig, ...]  #:
     bb_maxes: dict[str, float]  #:
 
 
@@ -423,7 +419,6 @@ class WLBaseImage(image.LinacDicomImage):
         # override detection conditions if passed
         if conditions := kwargs.pop("detection_conditions", False):
             self.detection_conditions = conditions
-        self.is_from_xim = kwargs.pop("is_from_xim", False)
         super().__init__(file, use_filenames=use_filenames, **kwargs)
         self._is_analyzed = False
         self.flipud()
@@ -446,10 +441,12 @@ class WLBaseImage(image.LinacDicomImage):
             low_density=is_low_density,
         )
         bb_matches = self.find_bb_matches(detected_points=detected_bb_points)
-        if len(bb_matches) != len(field_matches) != len(bb_arrangement):
-            raise ValueError(
-                "Detected BBs and fields do not match the expected number based on the arrangement."
-            )
+        if len(bb_matches) != len(field_matches):
+            raise ValueError("The number of detected fields and BBs do not match")
+        if not field_matches:
+            raise ValueError("No fields were detected")
+        if not bb_matches:
+            raise ValueError(BB_ERROR_MESSAGE)
         # we now have field CAXs and BBs matched to their respective nominal locations
         # merge the field and BBs per arrangement position
         combined_matches = {}
@@ -700,14 +697,13 @@ class WLBaseImage(image.LinacDicomImage):
             safety_stop -= 1
 
 
-class WinstonLutz2D(WLBaseImage):
+class WinstonLutz2D(WLBaseImage, ResultsDataMixin[WinstonLutz2DResult]):
     """Holds individual Winston-Lutz EPID images, image properties, and automatically finds the field CAX and BB."""
 
     bb: Point
     field_cax: Point
     bb_arrangement: tuple[BBConfig]
     is_from_tiff: bool = False
-    is_from_xim: bool
     detection_conditions: list[callable] = [
         is_right_size_bb,
         is_round,
@@ -953,11 +949,6 @@ class WinstonLutz(ResultsDataMixin[WinstonLutzResult]):
         **kwargs,
     ) -> WinstonLutz2D:
         """A helper method to load either DICOM or TIFF files appropriately."""
-        if _is_xim(file):
-            ds = XIM(file).as_dicom()
-            file = io.BytesIO()
-            ds.save_as(file, write_like_original=False)
-            kwargs["is_from_xim"] = True
         try:
             return self.image_type(
                 file, detection_conditions=self.detection_conditions, **kwargs
@@ -1986,8 +1977,7 @@ class WinstonLutzMultiTargetMultiFieldImage(WLBaseImage):
             metrics=GlobalSizedDiskLocator(
                 radius_mm=bb_diameter_mm / 2,
                 radius_tolerance_mm=bb_tolerance_mm,
-                invert=not self.is_from_xim
-                or low_density,  # invert normal images; don't invert XIM
+                invert=not low_density,
                 detection_conditions=self.detection_conditions,
             )
         )
