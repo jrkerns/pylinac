@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import os.path as osp
 import tempfile
@@ -148,6 +149,11 @@ class TestAnalyze(TestCase):
         self.assertIsInstance(data_dict, dict)
         self.assertIn("pylinac_version", data_dict)
         self.assertEqual(len(data_dict), 16)
+
+        data_str = self.pf.results_data(as_json=True)
+        self.assertIsInstance(data_str, str)
+        # shouldn't raise
+        json.loads(data_str)
 
     def test_no_measurements_suggests_inversion(self):
         file_loc = get_file_from_cloud_test_repo(

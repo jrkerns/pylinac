@@ -4,14 +4,15 @@ from __future__ import annotations
 import os
 import os.path as osp
 import struct
+from abc import abstractmethod
 from collections.abc import Iterable
-from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import BinaryIO, Sequence
+from typing import BinaryIO, Generic, Sequence, TypeVar
 
 import numpy as np
 import pydicom
+from pydantic import BaseModel, ConfigDict, Field
 
 from .. import __version__
 
@@ -37,14 +38,46 @@ class OptionListMixin:
         ]
 
 
-@dataclass
-class ResultBase:
-    pylinac_version: str = field(init=False)  #:
-    date_of_analysis: datetime = field(init=False)  #:
+class ResultBase(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )  # https://docs.pydantic.dev/latest/api/config/#pydantic.config.ConfigDict.arbitrary_types_allowed
+    pylinac_version: str = __version__  #:
+    date_of_analysis: datetime = Field(default_factory=datetime.today)  #:
 
-    def __post_init__(self):
-        self.pylinac_version = __version__
-        self.date_of_analysis = datetime.today()
+
+T = TypeVar("T")
+
+
+class ResultsDataMixin(Generic[T]):
+    """A mixin for classes that generate results data. This mixin is used to generate the results data and present it in different formats.
+    The generic types allow correct type hinting of the results data."""
+
+    @abstractmethod
+    def _generate_results_data(self) -> T:
+        pass
+
+    def results_data(
+        self, as_dict: bool = False, as_json: bool = False
+    ) -> T | dict | str:
+        """Present the results data and metadata as a dataclass, dict, or tuple.
+        The default return type is a dataclass.
+
+        Parameters
+        ----------
+        as_dict : bool
+            If True, return the results as a dictionary.
+        as_json : bool
+            If True, return the results as a JSON string. Cannot be True if as_dict is True.
+        """
+        if as_dict and as_json:
+            raise ValueError("Cannot return as both dict and JSON. Pick one.")
+        data = self._generate_results_data()
+        if as_dict:
+            return data.model_dump()
+        if as_json:
+            return data.model_dump_json()
+        return data
 
 
 def clear_data_files():

@@ -297,46 +297,35 @@ API Documentation
     :members:
 
 .. autoclass:: pylinac.acr.ACRCTResult
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.acr.CTModuleOutput
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.acr.UniformityModuleOutput
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.acr.SpatialResolutionModuleOutput
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.acr.LowContrastModuleOutput
-    :inherited-members:
     :members:
-
 
 .. autoclass:: pylinac.acr.ACRMRILarge
     :inherited-members:
     :members:
 
 .. autoclass:: pylinac.acr.ACRMRIResult
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.acr.MRSlice11ModuleOutput
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.acr.MRSlice1ModuleOutput
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.acr.MRUniformityModuleOutput
-    :inherited-members:
     :members:
 
 .. autoclass:: pylinac.acr.MRGeometricDistortionModuleOutput
-    :inherited-members:
     :members:

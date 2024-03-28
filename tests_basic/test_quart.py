@@ -1,4 +1,5 @@
 import io
+import json
 import os
 from pathlib import Path
 from unittest import TestCase
@@ -66,6 +67,14 @@ class TestQuartDVTGeneral(TestCase):
         # check the additional modules got added
         self.assertIsInstance(data.hu_module.rois, dict)
         self.assertIsInstance(data.geometric_module.mean_high_contrast_distance, float)
+
+        data_dict = self.quart.results_data(as_dict=True)
+        self.assertIsInstance(data_dict, dict)
+
+        data_str = self.quart.results_data(as_json=True)
+        self.assertIsInstance(data_str, str)
+        # shouldn't raise
+        json.loads(data_str)
 
     def test_lazy_same_as_default(self):
         """Test that the results are the same from a lazy load vs default"""

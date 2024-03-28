@@ -11,26 +11,25 @@ Features:
 from __future__ import annotations
 
 import copy
-import dataclasses
 import enum
 import typing
 import webbrowser
-from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pydantic import BaseModel, ConfigDict
 
 from . import Normalization
 from .core import image
-from .core.geometry import Point, Rectangle
+from .core.geometry import Point, PointSerialized, Rectangle
 from .core.image import DicomImage, ImageLike
 from .core.io import TemporaryZipDirectory, get_url, retrieve_demo_file
 from .core.pdf import PylinacCanvas
 from .core.profile import FWXMProfile
-from .core.utilities import ResultBase
+from .core.utilities import ResultBase, ResultsDataMixin
 from .settings import get_dicom_cmap
 
 
@@ -42,19 +41,19 @@ class ImageType(enum.Enum):
     PROFILE = "profile"  #:
 
 
-@dataclass
-class SegmentResult:
+class SegmentResult(BaseModel):
     """An individual segment/ROI result"""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     passed: bool  #:
     x_position_mm: float  #:
     r_corr: float  #:
     r_dev: float  #:
-    center_x_y: float  #:
+    center_x_y: PointSerialized  #:
     stdev: float  #:
 
 
-@dataclass
 class VMATResult(ResultBase):
     """This class should not be called directly. It is returned by the ``results_data()`` method.
     It is a dataclass under the hood and thus comes with all the dunder magic.
@@ -140,7 +139,7 @@ class Segment(Rectangle):
         return "blue" if self.passed else "red"
 
 
-class VMATBase:
+class VMATBase(ResultsDataMixin[VMATResult]):
     _url_suffix: str
     _result_header: str
     _result_short_header: str
@@ -278,7 +277,7 @@ class VMATBase:
         string += f"Max Deviation: {self.max_r_deviation:2.3}%\nAbsolute Mean Deviation: {self.avg_abs_r_deviation:2.3}%"
         return string
 
-    def results_data(self, as_dict=False) -> VMATResult | dict:
+    def _generate_results_data(self) -> VMATResult:
         """Present the results data and metadata as a dataclass or dict.
         The default return type is a dataclass."""
         segment_data = []
@@ -290,13 +289,13 @@ class VMATBase:
                 passed=segment.passed,
                 r_corr=segment.r_corr,
                 r_dev=segment.r_dev,
-                center_x_y=segment.center.as_array(),
+                center_x_y=segment.center,
                 x_position_mm=roi_data["offset_mm"],
                 stdev=segment.stdev,
             )
             segment_data.append(segment)
             named_segment_data[roi_name] = segment
-        data = VMATResult(
+        return VMATResult(
             test_type=self._result_header,
             tolerance_percent=self._tolerance * 100,
             max_deviation_percent=self.max_r_deviation,
@@ -305,10 +304,6 @@ class VMATBase:
             segment_data=segment_data,
             named_segment_data=named_segment_data,
         )
-
-        if as_dict:
-            return dataclasses.asdict(data)
-        return data
 
     def _calculate_segment_centers(self) -> list[Point]:
         """Construct the center points of the segments based on the field center and known x-offsets."""

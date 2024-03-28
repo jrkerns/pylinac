@@ -922,12 +922,9 @@ API Documentation
     :members:
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutzResult
-    :members:
-    :inherited-members:
+
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutz2D
     :members:
 
 .. autoclass:: pylinac.winston_lutz.WinstonLutz2DResult
-    :members:
-    :inherited-members:
